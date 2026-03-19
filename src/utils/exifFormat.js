@@ -2,7 +2,6 @@
  * Format raw exifr output for display (camera / exposure fields vary by file).
  */
 
-/** Same keys used for thumbnail hover summary and side panel (whitelist). */
 const EXIF_CORE_KEYS = {
   model: ['Model', 'model'],
   lens: ['LensModel', 'lensModel', 'LensMake', 'lensMake'],
@@ -97,7 +96,7 @@ function formatIso(iso) {
 export function exifSummaryLines(exif) {
   const core = pickExifCore(exif)
   if (!core) {
-    return ['No EXIF data']
+    return []
   }
 
   const { model, lens, focalLength, fNumber, exposureTime, iso } = core
@@ -120,10 +119,6 @@ export function exifSummaryLines(exif) {
 
   if (lens && !lines.some((l) => l.includes(String(lens)))) {
     lines.push(String(lens))
-  }
-
-  if (lines.length === 0) {
-    lines.push('No EXIF data')
   }
 
   return lines.slice(0, 3)

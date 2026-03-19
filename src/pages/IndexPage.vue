@@ -19,21 +19,16 @@
         />
         <transition name="exif-slide">
           <div
-            v-show="hoveredPhotoSrc === p.src"
+            v-show="hoveredPhotoSrc === p.src && thumbExifLines.length > 0"
             class="thumb-exif-overlay"
           >
-            <template v-if="thumbExifLoading && hoveredPhotoSrc === p.src">
-              <div class="text-caption text-grey-4">Loading EXIF…</div>
-            </template>
-            <template v-else>
-              <div
-                v-for="(line, i) in thumbExifLines"
-                :key="i"
-                class="text-caption text-white ellipsis"
-              >
-                {{ line }}
-              </div>
-            </template>
+            <div
+              v-for="(line, i) in thumbExifLines"
+              :key="i"
+              class="text-caption text-white ellipsis"
+            >
+              {{ line }}
+            </div>
           </div>
         </transition>
       </div>
@@ -87,10 +82,11 @@
         <q-bar class="dialog-card__bar">
           <q-space />
           <q-btn
+            v-if="dialogExifRows.length > 0"
             flat
             dense
             :icon="exifPanelOpen ? 'info' : 'info_outline'"
-            aria-label="Toggle EXIF details"
+            aria-label="Toggle photo details"
             @click="exifPanelOpen = !exifPanelOpen"
           />
           <q-btn
@@ -127,9 +123,12 @@
             />
           </div>
 
-          <div v-show="exifPanelOpen" class="dialog-card__exif">
+          <div
+            v-show="exifPanelOpen && dialogExifRows.length > 0"
+            class="dialog-card__exif"
+          >
             <q-scroll-area class="exif-scroll">
-              <q-list v-if="dialogExifRows.length" dense dark separator>
+              <q-list dense dark separator>
                 <q-item v-for="(row, idx) in dialogExifRows" :key="idx" class="exif-row">
                   <q-item-section>
                     <q-item-label caption class="text-grey-5">{{ row.label }}</q-item-label>
@@ -137,12 +136,6 @@
                   </q-item-section>
                 </q-item>
               </q-list>
-              <div v-else-if="dialogExifLoading" class="text-body2 text-grey-5 q-pa-md">
-                Reading EXIF…
-              </div>
-              <div v-else class="text-body2 text-grey-5 q-pa-md">
-                No EXIF data found (common for PNG/WebP or stripped exports).
-              </div>
             </q-scroll-area>
           </div>
         </div>
@@ -233,11 +226,9 @@ async function loadExif(src) {
 
 const hoveredPhotoSrc = ref('')
 const thumbExifLines = ref([])
-const thumbExifLoading = ref(false)
 
 function onThumbEnter(photo) {
   hoveredPhotoSrc.value = photo.src
-  thumbExifLoading.value = true
   thumbExifLines.value = []
 
   void loadExif(photo.src).then((exif) => {
@@ -246,14 +237,12 @@ function onThumbEnter(photo) {
     }
 
     thumbExifLines.value = exifSummaryLines(exif)
-    thumbExifLoading.value = false
   })
 }
 
 function onThumbLeave() {
   hoveredPhotoSrc.value = ''
   thumbExifLines.value = []
-  thumbExifLoading.value = false
 }
 
 const dialogOpen = ref(false)
@@ -261,7 +250,6 @@ const dialogSrc = ref('')
 const dialogLabel = ref('')
 const exifPanelOpen = ref(true)
 const dialogExifRows = ref([])
-const dialogExifLoading = ref(false)
 const isZoomed = ref(false)
 const isDragging = ref(false)
 const dialogImageWrap = ref(null)
@@ -280,12 +268,11 @@ async function openPhoto(photo) {
   isZoomed.value = false
   isDragging.value = false
   dialogExifRows.value = []
-  dialogExifLoading.value = true
   dialogOpen.value = true
 
   const exif = await loadExif(photo.src)
   dialogExifRows.value = exifToRows(exif)
-  dialogExifLoading.value = false
+  exifPanelOpen.value = dialogExifRows.value.length > 0
 }
 
 function toggleZoom() {
