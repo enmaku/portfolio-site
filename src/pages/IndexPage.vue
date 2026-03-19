@@ -1,40 +1,19 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="row items-center q-mb-md">
-      <div class="text-h4">Photography</div>
-
-      <q-space />
-
-      <q-btn
-        color="primary"
-        icon="open_in_new"
-        label="View on Google Photos"
-        :href="googlePhotosUrl"
-        target="_blank"
-        rel="noreferrer"
-        no-caps
-        class="gt-sm"
-      />
-    </div>
-
-    <div v-if="photos.length" class="row q-col-gutter-md">
+    <div v-if="photos.length" class="gallery-masonry">
       <div
         v-for="p in photos"
         :key="p.src"
-        class="col-6 col-sm-4 col-md-3"
+        class="gallery-tile"
       >
         <q-img
           :src="p.src"
           :alt="p.label"
-          :ratio="1"
-          class="rounded-borders cursor-pointer"
+          class="gallery-thumb rounded-borders cursor-pointer"
           spinner-color="primary"
+          fit="cover"
           @click="openPhoto(p)"
-        >
-          <div class="absolute-bottom text-caption bg-black bg-opacity-60 text-white q-pa-sm ellipsis">
-            {{ p.label }}
-          </div>
-        </q-img>
+        />
       </div>
     </div>
 
@@ -82,7 +61,7 @@
     </div>
 
     <q-dialog v-model="dialogOpen" maximized>
-      <q-card class="bg-black text-white">
+      <q-card class="bg-black text-white column no-wrap">
         <q-bar>
           <div class="text-subtitle2 ellipsis" style="max-width: 70vw">
             {{ dialogLabel }}
@@ -90,7 +69,9 @@
           <q-space />
           <q-btn flat dense icon="close" aria-label="Close" v-close-popup />
         </q-bar>
-        <q-img :src="dialogSrc" style="max-height: 90vh" contain />
+        <div class="dialog-image-wrap">
+          <img :src="dialogSrc" :alt="dialogLabel" class="dialog-image" />
+        </div>
       </q-card>
     </q-dialog>
   </q-page>
@@ -128,3 +109,53 @@ function openPhoto(photo) {
   dialogOpen.value = true
 }
 </script>
+
+<style scoped>
+.gallery-masonry {
+  column-count: 1;
+  column-gap: 16px;
+}
+
+.gallery-tile {
+  break-inside: avoid;
+  margin-bottom: 16px;
+}
+
+.gallery-thumb {
+  width: 100%;
+}
+
+.dialog-image-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: auto;
+}
+
+.dialog-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+@media (min-width: 600px) {
+  .gallery-masonry {
+    column-count: 2;
+  }
+}
+
+@media (min-width: 1024px) {
+  .gallery-masonry {
+    column-count: 3;
+  }
+}
+
+@media (min-width: 1440px) {
+  .gallery-masonry {
+    column-count: 4;
+  }
+}
+</style>
