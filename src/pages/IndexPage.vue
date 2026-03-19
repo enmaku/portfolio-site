@@ -4,17 +4,38 @@
       <div
         v-for="p in photos"
         :key="p.src"
-        class="gallery-tile"
+        class="gallery-tile rounded-borders overflow-hidden"
+        @mouseenter="onThumbEnter(p)"
+        @mouseleave="onThumbLeave"
       >
         <q-img
           :src="p.src"
           :alt="p.label"
           :ratio="p.ratio"
-          class="gallery-thumb rounded-borders cursor-pointer"
+          class="gallery-thumb cursor-pointer"
           spinner-color="primary"
           fit="cover"
           @click="openPhoto(p)"
         />
+        <transition name="exif-slide">
+          <div
+            v-show="hoveredPhotoSrc === p.src"
+            class="thumb-exif-overlay"
+          >
+            <template v-if="thumbExifLoading && hoveredPhotoSrc === p.src">
+              <div class="text-caption text-grey-4">Loading EXIF…</div>
+            </template>
+            <template v-else>
+              <div
+                v-for="(line, i) in thumbExifLines"
+                :key="i"
+                class="text-caption text-white ellipsis"
+              >
+                {{ line }}
+              </div>
+            </template>
+          </div>
+        </transition>
       </div>
     </div>
 
@@ -62,9 +83,17 @@
     </div>
 
     <q-dialog v-model="dialogOpen" maximized>
-      <q-card class="bg-black text-white column no-wrap">
-        <q-bar>
+      <q-card class="dialog-card bg-black text-white column no-wrap">
+        <!-- Full-width title bar (desktop app style); not affected by EXIF column -->
+        <q-bar class="dialog-card__bar">
           <q-space />
+          <q-btn
+            flat
+            dense
+            :icon="exifPanelOpen ? 'info' : 'info_outline'"
+            aria-label="Toggle EXIF details"
+            @click="exifPanelOpen = !exifPanelOpen"
+          />
           <q-btn
             flat
             dense
@@ -74,27 +103,50 @@
           />
           <q-btn flat dense icon="close" aria-label="Close" v-close-popup />
         </q-bar>
-        <div
-          ref="dialogImageWrap"
-          class="dialog-image-wrap"
-          :class="{ 'dialog-image-wrap--zoomed': isZoomed }"
-          @pointermove="onDragMove"
-          @pointerup="onDragEnd"
-          @pointercancel="onDragEnd"
-          @pointerleave="onDragEnd"
-        >
-          <img
-            :src="dialogSrc"
-            :alt="dialogLabel"
-            class="dialog-image"
-            :class="{
-              'dialog-image--zoomed': isZoomed,
-              'dialog-image--dragging': isDragging,
-            }"
-            @pointerdown="onDragStart"
-            @click="onImageClick"
-            @dragstart.prevent
-          />
+
+        <!-- Image + EXIF live below the bar; EXIF is nested beside the image only -->
+        <div class="dialog-card__body">
+          <div
+            ref="dialogImageWrap"
+            class="dialog-image-wrap"
+            :class="{ 'dialog-image-wrap--zoomed': isZoomed }"
+            @pointermove="onDragMove"
+            @pointerup="onDragEnd"
+            @pointercancel="onDragEnd"
+            @pointerleave="onDragEnd"
+          >
+            <img
+              :src="dialogSrc"
+              :alt="dialogLabel"
+              class="dialog-image"
+              :class="{
+                'dialog-image--zoomed': isZoomed,
+                'dialog-image--dragging': isDragging,
+              }"
+              @pointerdown="onDragStart"
+              @click="onImageClick"
+              @dragstart.prevent
+            />
+          </div>
+
+          <div v-show="exifPanelOpen" class="dialog-card__exif">
+            <q-scroll-area class="exif-scroll">
+              <q-list v-if="dialogExifRows.length" dense dark separator>
+                <q-item v-for="(row, idx) in dialogExifRows" :key="idx" class="exif-row">
+                  <q-item-section>
+                    <q-item-label caption class="text-grey-5">{{ row.label }}</q-item-label>
+                    <q-item-label class="text-white text-wrap">{{ row.value }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else-if="dialogExifLoading" class="text-body2 text-grey-5 q-pa-md">
+                Reading EXIF…
+              </div>
+              <div v-else class="text-body2 text-grey-5 q-pa-md">
+                No EXIF data found (common for PNG/WebP or stripped exports).
+              </div>
+            </q-scroll-area>
+          </div>
         </div>
       </q-card>
     </q-dialog>
@@ -102,7 +154,10 @@
 </template>
 
 <script setup>
+import exifr from 'exifr'
 import { nextTick, onMounted, ref } from 'vue'
+
+import { exifSummaryLines, exifToRows } from 'src/utils/exifFormat.js'
 
 const googlePhotosUrl = 'https://photos.app.goo.gl/pjuSWsZbgcp3eC7o6'
 
@@ -153,9 +208,62 @@ function getImageRatio(src) {
   })
 }
 
+const exifCache = new Map()
+
+async function loadExif(src) {
+  if (exifCache.has(src)) {
+    return exifCache.get(src)
+  }
+
+  try {
+    const data = await exifr.parse(src, {
+      tiff: true,
+      ifd0: true,
+      exif: true,
+      gps: true,
+      icc: false,
+      mergeOutput: true,
+    })
+    const normalized = data && typeof data === 'object' ? data : null
+    exifCache.set(src, normalized)
+    return normalized
+  } catch {
+    exifCache.set(src, null)
+    return null
+  }
+}
+
+const hoveredPhotoSrc = ref('')
+const thumbExifLines = ref([])
+const thumbExifLoading = ref(false)
+
+function onThumbEnter(photo) {
+  hoveredPhotoSrc.value = photo.src
+  thumbExifLoading.value = true
+  thumbExifLines.value = []
+
+  void loadExif(photo.src).then((exif) => {
+    if (hoveredPhotoSrc.value !== photo.src) {
+      return
+    }
+
+    thumbExifLines.value = exifSummaryLines(exif)
+    thumbExifLoading.value = false
+  })
+}
+
+function onThumbLeave() {
+  hoveredPhotoSrc.value = ''
+  thumbExifLines.value = []
+  thumbExifLoading.value = false
+}
+
 const dialogOpen = ref(false)
 const dialogSrc = ref('')
 const dialogLabel = ref('')
+const exifPanelOpen = ref(true)
+const dialogExifRows = ref([])
+const dialogExifLoading = ref(false)
 const isZoomed = ref(false)
 const isDragging = ref(false)
 const dialogImageWrap = ref(null)
@@ -168,12 +276,18 @@ const dragStart = {
 }
 const dragMoved = ref(false)
 
-function openPhoto(photo) {
+async function openPhoto(photo) {
   dialogSrc.value = photo.src
   dialogLabel.value = photo.label
   isZoomed.value = false
   isDragging.value = false
+  dialogExifRows.value = []
+  dialogExifLoading.value = true
   dialogOpen.value = true
+
+  const exif = await loadExif(photo.src)
+  dialogExifRows.value = exifToRows(exif)
+  dialogExifLoading.value = false
 }
 
 function toggleZoom() {
@@ -300,6 +414,7 @@ async function zoomInToPoint(ratioX, ratioY) {
 }
 
 .gallery-tile {
+  position: relative;
   break-inside: avoid;
   margin-bottom: 16px;
 }
@@ -309,8 +424,100 @@ async function zoomInToPoint(ratioX, ratioY) {
   display: block;
 }
 
+.thumb-exif-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+.exif-slide-enter-active,
+.exif-slide-leave-active {
+  transition: transform 0.22s ease, opacity 0.22s ease;
+}
+
+.exif-slide-enter-from,
+.exif-slide-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.exif-slide-enter-to,
+.exif-slide-leave-from {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.dialog-card {
+  width: 100%;
+  height: 100%;
+  max-height: 100vh;
+}
+
+.dialog-card__bar {
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.dialog-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.dialog-card__exif {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  max-height: 38vh;
+  padding: 12px 16px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.exif-scroll {
+  flex: 1;
+  min-height: min(32vh, 200px);
+  height: min(32vh, 280px);
+}
+
+.exif-row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+@media (min-width: 768px) {
+  .dialog-card__body {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .dialog-card__exif {
+    flex: 0 0 300px;
+    width: 300px;
+    max-height: none;
+    border-top: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    min-height: 0;
+  }
+
+  .exif-scroll {
+    flex: 1;
+    height: 0;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
 .dialog-image-wrap {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   align-items: center;
