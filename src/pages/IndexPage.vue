@@ -63,14 +63,37 @@
     <q-dialog v-model="dialogOpen" maximized>
       <q-card class="bg-black text-white column no-wrap">
         <q-bar>
-          <div class="text-subtitle2 ellipsis" style="max-width: 70vw">
-            {{ dialogLabel }}
-          </div>
           <q-space />
+          <q-btn
+            flat
+            dense
+            :icon="isZoomed ? 'zoom_out' : 'zoom_in'"
+            :aria-label="isZoomed ? 'Zoom out to fit' : 'Zoom in'"
+            @click="toggleZoom"
+          />
           <q-btn flat dense icon="close" aria-label="Close" v-close-popup />
         </q-bar>
-        <div class="dialog-image-wrap">
-          <img :src="dialogSrc" :alt="dialogLabel" class="dialog-image" />
+        <div
+          ref="dialogImageWrap"
+          class="dialog-image-wrap"
+          :class="{ 'dialog-image-wrap--zoomed': isZoomed }"
+          @pointermove="onDragMove"
+          @pointerup="onDragEnd"
+          @pointercancel="onDragEnd"
+          @pointerleave="onDragEnd"
+        >
+          <img
+            :src="dialogSrc"
+            :alt="dialogLabel"
+            class="dialog-image"
+            :class="{
+              'dialog-image--zoomed': isZoomed,
+              'dialog-image--dragging': isDragging,
+            }"
+            @pointerdown="onDragStart"
+            @click="onImageClick"
+            @dragstart.prevent
+          />
         </div>
       </q-card>
     </q-dialog>
@@ -78,7 +101,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
 const googlePhotosUrl = 'https://photos.app.goo.gl/pjuSWsZbgcp3eC7o6'
 
@@ -102,11 +125,140 @@ const photos = computed(() => {
 const dialogOpen = ref(false)
 const dialogSrc = ref('')
 const dialogLabel = ref('')
+const isZoomed = ref(false)
+const isDragging = ref(false)
+const dialogImageWrap = ref(null)
+
+const dragStart = {
+  x: 0,
+  y: 0,
+  scrollLeft: 0,
+  scrollTop: 0,
+}
+const dragMoved = ref(false)
 
 function openPhoto(photo) {
   dialogSrc.value = photo.src
   dialogLabel.value = photo.label
+  isZoomed.value = false
+  isDragging.value = false
   dialogOpen.value = true
+}
+
+function toggleZoom() {
+  const shouldZoomIn = isZoomed.value === false
+  isZoomed.value = !isZoomed.value
+  isDragging.value = false
+
+  if (shouldZoomIn) {
+    void centerZoomedImage()
+  }
+}
+
+async function centerZoomedImage() {
+  await nextTick()
+
+  if (dialogImageWrap.value === null) {
+    return
+  }
+
+  // Wait one paint so updated zoomed styles affect scroll dimensions.
+  requestAnimationFrame(() => {
+    if (dialogImageWrap.value === null) {
+      return
+    }
+
+    const wrap = dialogImageWrap.value
+    wrap.scrollLeft = Math.max(0, (wrap.scrollWidth - wrap.clientWidth) / 2)
+    wrap.scrollTop = Math.max(0, (wrap.scrollHeight - wrap.clientHeight) / 2)
+  })
+}
+
+function onDragStart(event) {
+  if (!isZoomed.value || dialogImageWrap.value === null) {
+    return
+  }
+
+  isDragging.value = true
+  dragMoved.value = false
+  dragStart.x = event.clientX
+  dragStart.y = event.clientY
+  dragStart.scrollLeft = dialogImageWrap.value.scrollLeft
+  dragStart.scrollTop = dialogImageWrap.value.scrollTop
+
+  if (event.target && typeof event.target.setPointerCapture === 'function') {
+    event.target.setPointerCapture(event.pointerId)
+  }
+}
+
+function onDragMove(event) {
+  if (!isDragging.value || dialogImageWrap.value === null) {
+    return
+  }
+
+  const deltaX = event.clientX - dragStart.x
+  const deltaY = event.clientY - dragStart.y
+  const dragThreshold = 4
+
+  if (Math.abs(deltaX) > dragThreshold || Math.abs(deltaY) > dragThreshold) {
+    dragMoved.value = true
+  }
+
+  dialogImageWrap.value.scrollLeft = dragStart.scrollLeft - deltaX
+  dialogImageWrap.value.scrollTop = dragStart.scrollTop - deltaY
+}
+
+function onDragEnd() {
+  isDragging.value = false
+}
+
+function onImageClick(event) {
+  // Ignore click events emitted at the end of a drag-pan gesture.
+  if (dragMoved.value) {
+    dragMoved.value = false
+    return
+  }
+
+  if (!isZoomed.value) {
+    const imgRect = event.currentTarget?.getBoundingClientRect?.()
+    const clickX = event.clientX
+    const clickY = event.clientY
+
+    if (!imgRect || imgRect.width === 0 || imgRect.height === 0) {
+      toggleZoom()
+      return
+    }
+
+    const ratioX = Math.min(1, Math.max(0, (clickX - imgRect.left) / imgRect.width))
+    const ratioY = Math.min(1, Math.max(0, (clickY - imgRect.top) / imgRect.height))
+
+    void zoomInToPoint(ratioX, ratioY)
+  }
+}
+
+async function zoomInToPoint(ratioX, ratioY) {
+  isZoomed.value = true
+  isDragging.value = false
+
+  await nextTick()
+
+  if (dialogImageWrap.value === null) {
+    return
+  }
+
+  // Wait one paint so updated zoomed styles affect scroll dimensions.
+  requestAnimationFrame(() => {
+    if (dialogImageWrap.value === null) {
+      return
+    }
+
+    const wrap = dialogImageWrap.value
+    const targetLeft = wrap.scrollWidth * ratioX - wrap.clientWidth / 2
+    const targetTop = wrap.scrollHeight * ratioY - wrap.clientHeight / 2
+
+    wrap.scrollLeft = Math.max(0, targetLeft)
+    wrap.scrollTop = Math.max(0, targetTop)
+  })
 }
 </script>
 
@@ -123,6 +275,7 @@ function openPhoto(photo) {
 
 .gallery-thumb {
   width: 100%;
+  display: block;
 }
 
 .dialog-image-wrap {
@@ -135,10 +288,28 @@ function openPhoto(photo) {
   overflow: auto;
 }
 
+.dialog-image-wrap--zoomed {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
 .dialog-image {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  cursor: zoom-in;
+}
+
+.dialog-image--zoomed {
+  max-width: none;
+  max-height: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.dialog-image--dragging {
+  cursor: grabbing;
 }
 
 @media (min-width: 600px) {
