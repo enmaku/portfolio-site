@@ -9,6 +9,7 @@
         <q-img
           :src="p.src"
           :alt="p.label"
+          :ratio="p.ratio"
           class="gallery-thumb rounded-borders cursor-pointer"
           spinner-color="primary"
           fit="cover"
@@ -101,26 +102,56 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 
 const googlePhotosUrl = 'https://photos.app.goo.gl/pjuSWsZbgcp3eC7o6'
 
-// Vite will build these images into your bundle.
-// Add your photos to `src/assets/photos/` and they will show up here.
 const photoModules = import.meta.glob('../assets/photos/*.{jpg,jpeg,png,webp}', {
   eager: true,
   import: 'default',
 })
 
-const photos = computed(() => {
-  return Object.entries(photoModules)
-    .map(([path, src]) => {
-      const file = path.split('/').pop() || ''
-      const label = file.replace(/\.[^.]+$/, '')
-      return { src, label }
-    })
-    .sort((a, b) => a.label.localeCompare(b.label))
+const photos = ref([])
+
+const basePhotos = Object.entries(photoModules)
+  .map(([path, src]) => {
+    const file = path.split('/').pop() || ''
+    const label = file.replace(/\.[^.]+$/, '')
+    return { src, label }
+  })
+  .sort((a, b) => a.label.localeCompare(b.label))
+
+onMounted(async () => {
+  const photosWithRatios = await Promise.all(
+    basePhotos.map(async (photo) => ({
+      ...photo,
+      ratio: await getImageRatio(photo.src),
+    })),
+  )
+
+  photos.value = photosWithRatios
 })
+
+function getImageRatio(src) {
+  return new Promise((resolve) => {
+    const img = new Image()
+
+    img.onload = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        resolve(img.naturalWidth / img.naturalHeight)
+        return
+      }
+
+      resolve(1)
+    }
+
+    img.onerror = () => {
+      resolve(1)
+    }
+
+    img.src = src
+  })
+}
 
 const dialogOpen = ref(false)
 const dialogSrc = ref('')
