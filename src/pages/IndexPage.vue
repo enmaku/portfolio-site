@@ -84,7 +84,6 @@
 
     <q-dialog v-model="dialogOpen" maximized>
       <q-card class="dialog-card bg-black text-white column no-wrap">
-        <!-- Full-width title bar (desktop app style); not affected by EXIF column -->
         <q-bar class="dialog-card__bar">
           <q-space />
           <q-btn
@@ -104,7 +103,6 @@
           <q-btn flat dense icon="close" aria-label="Close" v-close-popup />
         </q-bar>
 
-        <!-- Image + EXIF live below the bar; EXIF is nested beside the image only -->
         <div class="dialog-card__body">
           <div
             ref="dialogImageWrap"

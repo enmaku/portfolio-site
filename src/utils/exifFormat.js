@@ -93,7 +93,7 @@ function formatIso(iso) {
   return String(iso)
 }
 
-/** Short lines for thumbnail hover (2–3 lines max). */
+/** Short lines for thumbnail hover */
 export function exifSummaryLines(exif) {
   const core = pickExifCore(exif)
   if (!core) {
@@ -129,8 +129,7 @@ export function exifSummaryLines(exif) {
   return lines.slice(0, 3)
 }
 
-/**
- * Side panel rows: whitelist only — same fields as thumbnail summary.
+/** Side panel rows
  * @returns {{ label: string, value: string }[]}
  */
 export function exifToRows(exif) {
@@ -139,7 +138,6 @@ export function exifToRows(exif) {
     return []
   }
 
-  /** Fixed order to match a sensible camera readout. */
   const whitelist = [
     { key: 'model', label: 'Model', format: 'string' },
     { key: 'lens', label: 'Lens', format: 'string' },
