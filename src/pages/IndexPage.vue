@@ -272,7 +272,7 @@ async function openPhoto(photo) {
 
   const exif = await loadExif(photo.src)
   dialogExifRows.value = exifToRows(exif)
-  exifPanelOpen.value = dialogExifRows.value.length > 0
+  exifPanelOpen.value = true
 }
 
 function toggleZoom() {
