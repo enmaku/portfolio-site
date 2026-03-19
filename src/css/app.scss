@@ -1,1 +1,9 @@
 // app global css in SCSS form
+//
+// Quasar toggles dark mode by applying `body--dark` to <body>.
+// These overrides keep the page background consistent with the dark palette.
+
+.body--dark {
+  background-color: $dark-page;
+}
+
