@@ -1,6 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <div v-if="photos.length" class="gallery-masonry">
+    <div v-if="photos.length > 0" class="gallery-masonry">
       <div
         v-for="p in photos"
         :key="p.src"
@@ -34,7 +34,7 @@
       </div>
     </div>
 
-    <div v-else>
+    <div v-else-if="galleryReady">
       <q-card class="q-pa-lg" flat bordered>
         <div class="text-h6">No local photos yet</div>
         <div class="text-body2 text-grey q-mt-sm">
@@ -77,7 +77,13 @@
       </div>
     </div>
 
-    <q-dialog v-model="dialogOpen" maximized>
+    <q-dialog
+      v-model="dialogOpen"
+      maximized
+      transition-show="scale"
+      transition-hide="scale"
+      :transition-duration="300"
+    >
       <q-card class="dialog-card bg-black text-white column no-wrap">
         <q-bar class="dialog-card__bar">
           <q-space />
@@ -167,15 +173,21 @@ const basePhotos = Object.entries(photoModules)
   })
   .sort((a, b) => a.label.localeCompare(b.label))
 
-onMounted(async () => {
-  const photosWithRatios = await Promise.all(
-    basePhotos.map(async (photo) => ({
-      ...photo,
-      ratio: await getImageRatio(photo.src),
-    })),
-  )
+const galleryReady = ref(basePhotos.length === 0)
 
-  photos.value = photosWithRatios
+onMounted(async () => {
+  try {
+    const photosWithRatios = await Promise.all(
+      basePhotos.map(async (photo) => ({
+        ...photo,
+        ratio: await getImageRatio(photo.src),
+      })),
+    )
+
+    photos.value = photosWithRatios
+  } finally {
+    galleryReady.value = true
+  }
 })
 
 function getImageRatio(src) {
