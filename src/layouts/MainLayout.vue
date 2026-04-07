@@ -62,7 +62,6 @@ import { useRoute } from 'vue-router'
 const navTabs = [
   { to: '/', label: 'Photography', icon: 'photo_library' },
   { to: '/about', label: 'About', icon: 'info' },
-  { to: '/contact', label: 'Contact', icon: 'mail' },
 ]
 
 const route = useRoute()

@@ -1,0 +1,195 @@
+{
+  "name": "David Perry",
+  "tagline": "Senior Software Developer · Full-Stack Developer · Technical Team Lead",
+  "contact": {
+    "phoneDisplay": "+1 909 270 0016",
+    "phoneTel": "+19092700016",
+    "email": "enmaku@gmail.com"
+  },
+  "summary": "Accomplished Senior Software Developer with over 15 years of experience designing, developing, and maintaining high-performance software solutions across diverse industries, including labor unions, telehealth, education, gaming, and digital advertising. Expert in backend and frontend development, API architecture, database optimization, and enterprise system integration. Proven ability to lead distributed development teams, mentor junior developers, and collaborate with cross-functional stakeholders to deliver scalable, secure, and efficient solutions. Adept at modernizing legacy systems, implementing CI/CD pipelines, and ensuring compliance with data privacy standards such as HIPAA. Experienced in highly regulated environments, including extensive exposure to complex gaming regulations through multi-jurisdictional licensing across 38 states and tribal authorities, requiring navigation of diverse and overlapping compliance frameworks.",
+  "skillGroups": [
+    {
+      "label": "Languages & platforms",
+      "items": [
+        "Python",
+        "PHP (Laravel)",
+        "Node.js",
+        "JavaScript",
+        "C#",
+        "SQL",
+        "T-SQL",
+        "Visual Basic"
+      ]
+    },
+    {
+      "label": "Data formats",
+      "items": ["XML", "JSON"]
+    },
+    {
+      "label": "Frontend & UI",
+      "items": [
+        "Vue.js",
+        "Quasar Framework",
+        "Laravel Blade",
+        "jQuery",
+        "HTML5",
+        "CSS3",
+        "WPF",
+        "WinForms",
+        "Xamarin"
+      ]
+    },
+    {
+      "label": "Architecture & compliance",
+      "items": [
+        "API Design & Integration",
+        "System Architecture",
+        "Virtualization",
+        "SharePoint",
+        "E-commerce Platforms",
+        "Casino Management Systems",
+        "HIPAA/PII Data Management",
+        "SOX & NGCA Compliance"
+      ]
+    },
+    {
+      "label": "Data & reporting",
+      "items": [
+        "MySQL",
+        "PostgreSQL",
+        "Data Pipelines",
+        "Programmatic Advertising",
+        "Jaspersoft",
+        "Crystal Reports"
+      ]
+    },
+    {
+      "label": "Delivery & tooling",
+      "items": ["Technical Documentation", "CI/CD Pipelines", "Git", "Docker"]
+    },
+    {
+      "label": "Leadership & collaboration",
+      "items": [
+        "Leadership, Mentorship & Coaching",
+        "Effective Communication",
+        "Strategic Thinking",
+        "Pragmatism",
+        "Flexibility & Adaptability"
+      ]
+    }
+  ],
+  "positions": [
+    {
+      "company": "United Brotherhood of Carpenters",
+      "title": "Senior Software Developer",
+      "dates": "2023–2025",
+      "bullets": [
+        "Designed and developed scalable, high-performance backend services using Python and FastAPI to support enterprise-level applications handling large volumes of user and transactional data.",
+        "Built and maintained modern, responsive web interfaces using Vue.js and the Quasar Framework, improving user experience and ensuring seamless functionality across desktop and mobile platforms.",
+        "Architected and implemented secure RESTful APIs to enable efficient communication between internal systems and third-party services, improving system interoperability and data exchange.",
+        "Led regular code reviews, established development standards, and mentored junior developers to improve code quality, maintainability, and overall team productivity.",
+        "Collaborated closely with business stakeholders, product managers, and cross-functional teams to gather requirements and translate operational needs into scalable and efficient technical solutions.",
+        "Optimized application performance by analyzing system bottlenecks, improving database queries, and implementing caching strategies, resulting in faster response times and improved system reliability.",
+        "Implemented secure authentication and authorization mechanisms, including role-based access control and modern security protocols, to safeguard sensitive member and organizational data.",
+        "Maintained and enhanced CI/CD pipelines to automate testing, integration, and deployment processes, improving development efficiency and reducing production release cycles."
+      ]
+    },
+    {
+      "company": "HelloHero",
+      "title": "Senior Software Developer",
+      "dates": "2022–2023",
+      "bullets": [
+        "Developed and maintained backend APIs primarily using Laravel (PHP), with additional development in Python and Node.js, supporting scalable telehealth platform services.",
+        "Built and enhanced frontend components using Laravel Blade, JavaScript, and jQuery, improving application responsiveness and user experience for healthcare professionals and administrators.",
+        "Customized and extended open-source libraries and frameworks to align with specific product requirements, improving platform functionality and reducing development time.",
+        "Managed and maintained large-scale databases containing HIPAA-protected PHI and PII, ensuring strict compliance with healthcare data privacy and security regulations.",
+        "Led a critical project to anonymize sensitive patient data used in development and testing environments, significantly strengthening data protection and regulatory compliance.",
+        "Coordinated and led a distributed development team, facilitating daily stand-up meetings, conducting code reviews, and guiding developers to ensure high-quality code and timely delivery of features."
+      ]
+    },
+    {
+      "company": "Studies Weekly",
+      "title": "Software Developer",
+      "dates": "2021–2022",
+      "bullets": [
+        "Developed backend systems using Laravel (PHP) to import, process, and manage large volumes of data from customer Learning Management Systems (LMS).",
+        "Built and maintained API integrations to enable reliable data synchronization between internal systems and external education platforms.",
+        "Contributed to frontend development using Vue.js, enhancing application usability and supporting seamless interaction with backend services.",
+        "Optimized data processing workflows to improve system efficiency and ensure accurate data transfer between integrated platforms.",
+        "Collaborated with cross-functional teams, including product managers and QA engineers, to deliver new features and maintain system stability."
+      ]
+    },
+    {
+      "company": "Optum",
+      "title": "Software Developer",
+      "dates": "2018–2020",
+      "bullets": [
+        "Developed internal applications that enabled SQL-based workflows for non-technical users, simplifying data access and improving operational efficiency across business teams.",
+        "Designed and optimized complex SQL queries and database processes, significantly improving system performance and reducing data processing times.",
+        "Collaborated with cross-functional teams to gather technical requirements and implement solutions that supported data analysis and reporting needs.",
+        "Led the transformation of a legacy “VBScript-based” Excel macro system into a robust, maintainable C# WPF application, significantly improving scalability, usability, and system integrity.",
+        "Replaced insecure and non-compliant processes, including shared-folder-based access and macro-driven workflows, with structured, role-based access control and secure application architecture.",
+        "Addressed critical compliance gaps by redesigning systems to meet HIPAA and Sarbanes-Oxley (SOX) standards, eliminating high-risk data handling practices.",
+        "Played a key role in stabilizing a high-risk environment by implementing secure data handling, audit controls, and proper access governance."
+      ]
+    },
+    {
+      "company": "Golden Entertainment, Inc.",
+      "title": "Software Developer",
+      "dates": "2016–2018",
+      "bullets": [
+        "Developed player tracking and slot accounting systems used in casino management to monitor gaming activity, player engagement, and revenue performance.",
+        "Designed, implemented, and maintained backend systems and relational databases to support real-time data processing and reporting for gaming operations.",
+        "Built and optimized T-SQL queries and stored procedures to improve data accuracy, system efficiency, and reporting capabilities.",
+        "Contributed to application development using C# and Xamarin, supporting both backend services and user-facing applications within the casino management ecosystem."
+      ]
+    },
+    {
+      "company": "American Homes 4 Rent",
+      "title": "Senior Technical Writer",
+      "dates": "2016",
+      "bullets": [
+        "Authored, edited, and maintained technical documentation, governance materials, and employee training manuals to support organizational knowledge sharing and compliance.",
+        "Administered the education management system software and servers, ensuring reliable access to training materials and accurate tracking of employee progress.",
+        "Developed interactive documentation and training content to enhance accessibility and usability for end users.",
+        "Administered and optimized the company’s Learning Management System (LMS) and related technologies, ensuring effective delivery and tracking of employee training.",
+        "Embedded across multiple departments to observe real-world user behavior, analyzing how employees interacted with software, hardware, internal systems, and operational workflows.",
+        "Translated complex, unstructured human processes into clear, structured, and actionable technical documentation, improving usability and operational consistency.",
+        "Acted as a bridge between technical systems and business users, identifying gaps between system design and real-world usage.",
+        "Collaborated closely with C-suite executives and division managers to define governance standards, assess organizational risk, and develop policy and procedure documentation aligned with compliance and liability requirements.",
+        "Contributed to enterprise-wide documentation that informed decision-making, reduced risk exposure, and standardized operational processes."
+      ]
+    },
+    {
+      "company": "Red Dog Media, Inc.",
+      "title": "Software Developer",
+      "dates": "2015",
+      "bullets": [
+        "Built and maintained automated ad placement systems and related applications, including data pipelines for financial and operational reporting.",
+        "Supported stakeholders with rapid turnaround on feature requests and bug fixes across revenue and campaign tooling."
+      ]
+    },
+    {
+      "company": "Memory Dealers",
+      "title": "Ecommerce Developer",
+      "dates": "2013–2014",
+      "bullets": [
+        "Selected, tested, and integrated software, hardware, and virtualization components supporting multiple public-facing ecommerce sites, including BitcoinStore.com.",
+        "Developed helper programs and automation utilities for maintenance routines and other recurring operational processes."
+      ]
+    },
+    {
+      "company": "Aristocrat",
+      "title": "Web & Database Developer",
+      "dates": "2010–2013",
+      "bullets": [
+        "Managed, administered, and extended SharePoint 2010 to support collaboration, publishing, and day-to-day content workflows.",
+        "Worked with casino management software backed by large relational databases, delivering reports and tuning stored procedures that supported core casino and players' club operations."
+      ]
+    }
+  ],
+  "education": {
+    "degree": "Bachelor of Science in Computer Science, University of Phoenix",
+    "dates": "2007–2011"
+  }
+}
