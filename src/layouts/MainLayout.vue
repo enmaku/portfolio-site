@@ -16,16 +16,41 @@
 
         <q-space class="gt-xs" />
 
-        <q-tabs inline-label :model-value="activePath" align="right" shrink class="gt-xs">
-          <q-route-tab
-            v-for="t in navTabs"
-            :key="t.to"
-            :to="t.to"
-            :name="t.to"
-            :icon="t.icon"
-            :label="t.label"
-          />
-        </q-tabs>
+        <div class="row items-center no-wrap gt-xs">
+          <q-tabs inline-label :model-value="activePath" align="right" shrink>
+            <q-route-tab
+              v-for="t in navTabs"
+              :key="t.to"
+              :to="t.to"
+              :name="t.to"
+              :icon="t.icon"
+              :label="t.label"
+            />
+          </q-tabs>
+          <q-btn-dropdown
+            flat
+            dense
+            stretch
+            label="Projects"
+            dropdown-icon="expand_more"
+            class="q-ml-xs"
+          >
+            <q-list dense style="min-width: 220px">
+              <q-item
+                v-for="p in projectLinks"
+                :key="p.to"
+                v-ripple
+                clickable
+                @click="openProjectInNewTab(p.to)"
+              >
+                <q-item-section avatar>
+                  <q-icon :name="p.icon" />
+                </q-item-section>
+                <q-item-section>{{ p.label }}</q-item-section>
+              </q-item>
+            </q-list>
+          </q-btn-dropdown>
+        </div>
       </q-toolbar>
     </q-header>
 
@@ -46,6 +71,27 @@
           </q-item-section>
           <q-item-section>{{ t.label }}</q-item-section>
         </q-item>
+
+        <q-expansion-item
+          v-model="projectsDrawerExpanded"
+          icon="folder"
+          label="Projects"
+          expand-separator
+        >
+          <q-item
+            v-for="p in projectLinks"
+            :key="p.to"
+            v-ripple
+            clickable
+            :inset-level="1"
+            @click="openProjectInNewTab(p.to)"
+          >
+            <q-item-section avatar>
+              <q-icon :name="p.icon" />
+            </q-item-section>
+            <q-item-section>{{ p.label }}</q-item-section>
+          </q-item>
+        </q-expansion-item>
       </q-list>
     </q-drawer>
 
@@ -57,15 +103,21 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const navTabs = [
   { to: '/', label: 'Photography', icon: 'photo_library' },
   { to: '/about', label: 'About', icon: 'info' },
 ]
 
+const projectLinks = [
+  { to: '/projects/game-timer', label: 'Game Timer', icon: 'timer' },
+]
+
 const route = useRoute()
+const router = useRouter()
 const leftDrawerOpen = ref(false)
+const projectsDrawerExpanded = ref(false)
 
 watch(
   () => route.path,
@@ -73,6 +125,12 @@ watch(
     leftDrawerOpen.value = false
   },
 )
+
+function openProjectInNewTab (to) {
+  const { href } = router.resolve(to)
+  window.open(href, '_blank', 'noopener,noreferrer')
+  leftDrawerOpen.value = false
+}
 
 const activePath = computed(() => route.path)
 </script>
