@@ -5,7 +5,7 @@ import {
   createWebHistory,
   createWebHashHistory,
 } from 'vue-router'
-import routes from './routes'
+import routes, { portfolioDocumentTitle } from './routes'
 
 /*
  * If not building with SSR mode, you can
@@ -31,6 +31,11 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     // quasar.conf.js -> build -> vueRouterMode
     // quasar.conf.js -> build -> publicPath
     history: createHistory(process.env.VUE_ROUTER_BASE),
+  })
+
+  Router.afterEach((to) => {
+    const title = to.meta.title
+    document.title = typeof title === 'string' ? title : portfolioDocumentTitle
   })
 
   return Router

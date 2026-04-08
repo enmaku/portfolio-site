@@ -1,17 +1,31 @@
+export const portfolioDocumentTitle = 'David J. Perry'
+
 const routes = [
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      { path: '', component: () => import('pages/IndexPage.vue') },
-      { path: 'about', component: () => import('pages/AboutPage.vue') },
+      {
+        path: '',
+        component: () => import('pages/IndexPage.vue'),
+        meta: { title: portfolioDocumentTitle },
+      },
+      {
+        path: 'about',
+        component: () => import('pages/AboutPage.vue'),
+        meta: { title: portfolioDocumentTitle },
+      },
     ],
   },
   {
     path: '/projects/game-timer',
     component: () => import('layouts/projects/GameTimerLayout.vue'),
     children: [
-      { path: '', component: () => import('pages/projects/GameTimerPage.vue') },
+      {
+        path: '',
+        component: () => import('pages/projects/GameTimerPage.vue'),
+        meta: { title: 'Game Timer' },
+      },
     ],
   },
 
@@ -20,6 +34,7 @@ const routes = [
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),
+    meta: { title: portfolioDocumentTitle },
   },
 ]
 
