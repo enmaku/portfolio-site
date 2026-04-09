@@ -3,6 +3,9 @@
 
 import { defineConfig } from '#q-app/wrappers'
 
+/** GitHub Pages project sites live under `/<repo>/`. Set in CI (see `.github/workflows/deploy-github-pages.yml`). */
+const pagesBase = process.env.GH_PAGES_BASE || '/'
+
 export default defineConfig((/* ctx */) => {
   return {
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
@@ -37,14 +40,14 @@ export default defineConfig((/* ctx */) => {
         node: 'node22',
       },
 
-      vueRouterMode: 'hash', // available values: 'hash', 'history'
-      // vueRouterBase,
+      vueRouterMode: 'hash', // history mode needs server rewrites; hash works on static hosts like GitHub Pages
+      publicPath: pagesBase,
+      vueRouterBase: pagesBase,
       // vueDevtools,
       // vueOptionsAPI: false,
 
       // rebuildCache: true, // rebuilds Vite/linter/etc cache on startup
 
-      // publicPath: '/',
       // analyze: true,
       // env: {},
       // rawDefine: {}
