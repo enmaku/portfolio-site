@@ -45,7 +45,7 @@
     </div>
 
     <q-dialog v-model="resetConfirmOpen" persistent>
-      <q-card class="gt-add-card" style="min-width: 280px">
+      <q-card class="gt-dialog-card" style="min-width: 280px">
         <q-card-section class="text-h6">Remove everyone?</q-card-section>
         <q-card-section class="q-pt-none text-body2">
           This clears all players and their times for this session. This cannot be undone.
@@ -58,7 +58,7 @@
     </q-dialog>
 
     <q-dialog v-model="addDialogOpen">
-      <q-card class="gt-add-card" style="min-width: 280px">
+      <q-card class="gt-dialog-card" style="min-width: 280px">
         <q-card-section class="text-h6">Add player</q-card-section>
         <q-card-section class="q-gutter-md">
           <q-input v-model="newPlayerName" label="Name" outlined dense autofocus @keyup.enter="confirmAdd" />
@@ -92,7 +92,6 @@ import { useGameTimerStore } from '../../stores/gameTimer.js'
 const store = useGameTimerStore()
 const { players, activePlayerId, turnStartedAt } = storeToRefs(store)
 
-/** Clock is ticking for the active player (not paused after tapping their name). */
 const isTurnRunning = computed(
   () => activePlayerId.value != null && turnStartedAt.value != null,
 )
@@ -124,14 +123,12 @@ function confirmResetAll() {
 </script>
 
 <style scoped lang="scss">
-/* Fill layout main; clip so only .gt-page__scroll-area scrolls */
 .gt-page {
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
 }
 
-/* Sole vertical scroll: player list or empty-state copy */
 .gt-page__scroll-area {
   flex: 1 1 0;
   min-height: 0;
@@ -163,7 +160,7 @@ function confirmResetAll() {
   font-size: 1.35rem;
 }
 
-.gt-add-card {
+.gt-dialog-card {
   border-radius: 12px;
 }
 </style>

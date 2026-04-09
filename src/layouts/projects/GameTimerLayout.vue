@@ -33,8 +33,8 @@
               moves to the <strong>next in the list</strong> (top → bottom, then wraps).
             </li>
             <li class="q-mb-sm">
-              <strong>Swipe right</strong> on a row for <strong>Delete</strong> (with confirmation);
-              <strong>swipe left</strong> for <strong>Edit</strong>.
+              <strong>Swipe left</strong> on a row for <strong>Delete</strong> (with confirmation);
+              <strong>swipe right</strong> for <strong>Edit</strong>.
             </li>
             <li class="q-mb-sm">
               <strong>Hold</strong> a row, then <strong>drag</strong> to reorder. <strong>End turn</strong> follows the new
@@ -101,10 +101,6 @@ const helpOpen = ref(false)
   min-height: 100vh;
 }
 
-/*
- * Fill space under header and clamp height so the page never scrolls as a whole:
- * only the game timer’s middle pane scrolls; the bottom bar stays visible.
- */
 .gt-game-timer-layout__page-container {
   flex: 1 1 0;
   min-height: 0;

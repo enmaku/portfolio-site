@@ -27,7 +27,7 @@ function clampByte(n) {
  * @param {string} hex
  * @returns {{ r: number, g: number, b: number }}
  */
-export function hexToRgb(hex) {
+function hexToRgb(hex) {
   const h = String(hex).trim().replace(/^#/, '')
   if (h.length !== 6 || !/^[0-9A-Fa-f]{6}$/.test(h)) {
     return { r: 128, g: 128, b: 128 }
@@ -143,20 +143,3 @@ export function formatDurationMs(ms) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-/**
- * @param {GameTimerPlayer[]} players
- * @param {{ activePlayerId: string | null, turnStartedAt: number | null }} session
- * @param {number} nowMs
- * @returns {GameTimerPlayerRow[]}
- */
-export function buildPlayerRows(players, session, nowMs) {
-  const maxMs = maxDisplayedMs(players, session, nowMs)
-  return players.map((p) => ({
-    id: p.id,
-    name: p.name,
-    color: p.color,
-    displayedMs: displayedMsForPlayer(p, session, nowMs),
-    progress: progressRatio(displayedMsForPlayer(p, session, nowMs), maxMs),
-    isActive: session.activePlayerId === p.id,
-  }))
-}

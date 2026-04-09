@@ -1,5 +1,4 @@
 <template>
-  <!-- Native overflow: q-scroll-area + flex often collapses to 0 height (contain: strict + % sizing). -->
   <div ref="listRootRef" class="gt-player-list">
     <div class="gt-player-list__inner q-pa-sm">
       <Draggable
@@ -20,27 +19,27 @@
         <template #item="{ element: player }">
           <q-slide-item
             class="gt-slide q-mb-sm rounded-borders overflow-hidden"
-            :left-color="slideLeftColor"
-            :right-color="slideRightColor"
+            left-color="primary"
+            right-color="negative"
             @contextmenu.prevent
-            @left="(e) => onSlideLeft(e, player)"
-            @right="(e) => onSlideRight(e, player)"
+            @left="(e) => openEditSlide(e, player)"
+            @right="(e) => requestDelete(e, player)"
           >
             <template #left>
               <div class="row items-center full-height q-px-md" aria-hidden="true">
-                <q-icon :name="slideLeftIcon" size="md" />
+                <q-icon name="edit" size="md" />
               </div>
             </template>
 
             <template #right>
               <div class="row items-center full-height q-px-md" aria-hidden="true">
-                <q-icon :name="slideRightIcon" size="md" />
+                <q-icon name="delete" size="md" />
               </div>
             </template>
 
             <div
               class="gt-player-row rounded-borders relative-position overflow-hidden column"
-              :class="{ 'gt-player-row--active': rowForPlayer(player).isActive }"
+              :class="{ 'gt-player-row--active': rowForPlayer(player)?.isActive }"
               :style="rowSurfaceStyle(player)"
               :data-gt-player-id="player.id"
             >
@@ -53,12 +52,12 @@
                   {{ player.name }}
                 </button>
                 <div class="gt-player-row__time text-mono text-body2">
-                  {{ formatDurationMs(rowForPlayer(player).displayedMs) }}
+                  {{ formatDurationMs(rowForPlayer(player)?.displayedMs ?? 0) }}
                 </div>
               </div>
               <div class="gt-player-row__progress relative-position" aria-hidden="true">
                 <div class="gt-player-row__progress-rail absolute-full" :style="progressRailStyle(player.color)" />
-                <div class="gt-player-row__progress-fill absolute" :style="progressFillStyle(rowForPlayer(player))" />
+                <div class="gt-player-row__progress-fill absolute" :style="progressFillStyle(player)" />
               </div>
             </div>
           </q-slide-item>
@@ -105,12 +104,15 @@
 </template>
 
 <script setup>
+/** @import '../types.js' */
+
 import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import Draggable from 'vuedraggable'
 import { useGameTimerNow } from '../composables/useGameTimerNow.js'
 import {
+  DEFAULT_PLAYER_COLORS,
   displayedMsForPlayer,
   formatDurationMs,
   maxDisplayedMs,
@@ -135,7 +137,6 @@ function scrollActiveRowIntoView(playerId) {
   el?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
 }
 
-/** End turn, tap name, or persisted session: keep the active row in view inside the page scroll pane. */
 watch(
   () => store.activePlayerId,
   (id) => {
@@ -147,13 +148,6 @@ watch(
   { flush: 'post', immediate: true },
 )
 
-/** QSlideItem maps gestures to #left/#right using $q.lang.rtl; swap slots so swipe stays LTR-like. */
-const isLayoutRtl = computed(() => $q.lang.rtl === true)
-const slideLeftColor = computed(() => (isLayoutRtl.value ? 'primary' : 'negative'))
-const slideRightColor = computed(() => (isLayoutRtl.value ? 'negative' : 'primary'))
-const slideLeftIcon = computed(() => (isLayoutRtl.value ? 'edit' : 'delete'))
-const slideRightIcon = computed(() => (isLayoutRtl.value ? 'delete' : 'edit'))
-
 const deleteConfirmOpen = ref(false)
 const pendingDeleteId = ref(null)
 const deleteTargetName = ref('')
@@ -161,10 +155,13 @@ const deleteTargetName = ref('')
 const editDialogOpen = ref(false)
 const editPlayerId = ref(null)
 const editName = ref('')
-const editColor = ref('#5c6bc0')
+const editColor = ref(DEFAULT_PLAYER_COLORS[0])
 
-/** Row view-model for one player (same rules as useGameTimerPlayerRows). */
-function rowForPlayer(player) {
+/**
+ * Live row view-models keyed by player id.
+ * @type {import('vue').ComputedRef<Map<string, import('../types.js').GameTimerPlayerRow>>}
+ */
+const playerRowsById = computed(() => {
   const session = {
     activePlayerId: store.activePlayerId,
     turnStartedAt: store.turnStartedAt,
@@ -172,15 +169,23 @@ function rowForPlayer(player) {
   const nowMs = now.value
   const list = store.players
   const maxMs = maxDisplayedMs(list, session, nowMs)
-  const displayedMs = displayedMsForPlayer(player, session, nowMs)
-  return {
-    id: player.id,
-    name: player.name,
-    color: player.color,
-    displayedMs,
-    progress: progressRatio(displayedMs, maxMs),
-    isActive: session.activePlayerId === player.id,
+  const map = new Map()
+  for (const p of list) {
+    const displayedMs = displayedMsForPlayer(p, session, nowMs)
+    map.set(p.id, {
+      id: p.id,
+      name: p.name,
+      color: p.color,
+      displayedMs,
+      progress: progressRatio(displayedMs, maxMs),
+      isActive: session.activePlayerId === p.id,
+    })
   }
+  return map
+})
+
+function rowForPlayer(player) {
+  return playerRowsById.value.get(player.id)
 }
 
 function requestDelete({ reset }, player) {
@@ -212,22 +217,6 @@ function openEditSlide({ reset }, player) {
   reset()
 }
 
-function onSlideLeft(evt, player) {
-  if (isLayoutRtl.value) {
-    openEditSlide(evt, player)
-  } else {
-    requestDelete(evt, player)
-  }
-}
-
-function onSlideRight(evt, player) {
-  if (isLayoutRtl.value) {
-    requestDelete(evt, player)
-  } else {
-    openEditSlide(evt, player)
-  }
-}
-
 function saveEdit() {
   const id = editPlayerId.value
   if (id) {
@@ -251,19 +240,20 @@ function progressRailStyle(colorHex) {
   }
 }
 
-function progressFillStyle(row) {
+function progressFillStyle(player) {
+  const row = playerRowsById.value.get(player.id)
+  const progress = row?.progress ?? 0
   return {
     top: '0',
     left: '0',
     bottom: '0',
-    width: `${row.progress * 100}%`,
-    backgroundColor: playerBarFillColor(row.color, $q.dark.isActive),
+    width: `${progress * 100}%`,
+    backgroundColor: playerBarFillColor(player.color, $q.dark.isActive),
   }
 }
 </script>
 
 <style scoped lang="scss">
-/* Scrolling is handled by the page’s .gt-page__scroll-area parent */
 .gt-player-list {
   width: 100%;
   min-height: min-content;
