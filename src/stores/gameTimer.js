@@ -1,10 +1,15 @@
+/**
+ * @import '../features/game-timer/types.js'
+ */
+
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { createPlayerId, nextDefaultColor } from '../features/game-timer/core.js'
 
 /**
- * Rebuild `players` so it follows `idOrder`, then append any players missing from the list.
- * @param {{ id: string }[]} players
+ * Rebuild `players` to match `idOrder`, appending any players missing from that list.
+ * @param {GameTimerPlayer[]} players
  * @param {string[]} idOrder
+ * @returns {GameTimerPlayer[]}
  */
 function applyPlayerOrder(players, idOrder) {
   const map = new Map(players.map((p) => [p.id, p]))
@@ -23,23 +28,21 @@ function applyPlayerOrder(players, idOrder) {
   return out
 }
 
+/** Pinia store: Game Timer session (players, turns, rounds, persisted). */
 export const useGameTimerStore = defineStore('gameTimer', {
   state: () => ({
     players: [],
     activePlayerId: null,
     turnStartedAt: null,
-    /** Round index when the current live segment started (for splitting banked time by round). */
     turnStartedRound: null,
-    /** 1-based; changing rounds pauses any live turn. */
     round: 1,
-    /** Per-round turn order: round key → player id sequence (overwritten when user drags in that round). */
     playerOrderByRound: {},
   }),
 
   getters: {
     /**
-     * True once the session has touched more than one round (viewing round 2+,
-     * or any stored data for round 2+). Used to show per-round UI and enable reset.
+     * True when the session has multi-round UI (round > 1 or stored data for round 2+).
+     * @returns {boolean}
      */
     hasMultipleRounds(state) {
       if (state.round > 1) return true
@@ -57,6 +60,9 @@ export const useGameTimerStore = defineStore('gameTimer', {
     },
   },
 
+  /**
+   * pinia-plugin-persistedstate: `pick` lists fields; `afterHydrate` normalizes players and order maps.
+   */
   persist: {
     key: 'portfolio-game-timer',
     pick: [
@@ -86,14 +92,12 @@ export const useGameTimerStore = defineStore('gameTimer', {
   },
 
   actions: {
-    /** Persist current `players` sequence for {@link round}. */
+    /** Persist the current `players` order under the active `round`. */
     _saveOrderForRound() {
       this.playerOrderByRound[String(this.round)] = this.players.map((p) => p.id)
     },
 
-    /**
-     * Reorder `this.players` to match {@link playerOrderByRound} for {@link round}, merging in new ids.
-     */
+    /** Reorder `players` from `playerOrderByRound[round]`, merging in any new ids. */
     _applyOrderForActiveRound() {
       const k = String(this.round)
       let ids = this.playerOrderByRound[k]
@@ -111,6 +115,11 @@ export const useGameTimerStore = defineStore('gameTimer', {
       this.players = applyPlayerOrder(this.players, ids)
     },
 
+    /**
+     * Append a player and register them in the current round’s order.
+     * @param {{ name?: string, color?: string }} [payload]
+     * @returns {string} New player id.
+     */
     addPlayer({ name, color } = {}) {
       const player = {
         id: createPlayerId(),
@@ -132,18 +141,21 @@ export const useGameTimerStore = defineStore('gameTimer', {
       return player.id
     },
 
-    /** Replace list order for the current round (drag-and-drop). */
+    /** Replace `players` and save order for the active round (e.g. drag-and-drop). */
     reorderPlayers(nextOrder) {
       if (!Array.isArray(nextOrder)) return
       this.players = nextOrder
       this.playerOrderByRound[String(this.round)] = nextOrder.map((p) => p.id)
     },
 
-    /** Bank current segment: adds to global `bankedMs` and `bankedMsByRound[turnStartedRound]`. */
+    /**
+     * Add elapsed time since `turnStartedAt` to `bankedMs` and `bankedMsByRound`.
+     * @param {number} [now]
+     */
     _bankActiveSegment(now = Date.now()) {
       if (this.activePlayerId == null || this.turnStartedAt == null) return
       const seg = Math.max(0, now - this.turnStartedAt)
-      const p = this.players.find((x) => x.id === this.activePlayerId)
+      const p = this.players.find((player) => player.id === this.activePlayerId)
       if (!p) return
 
       p.bankedMs += seg
@@ -158,32 +170,20 @@ export const useGameTimerStore = defineStore('gameTimer', {
       }
     },
 
+    /** Clear active turn fields without banking (caller must bank first if needed). */
     _clearLiveTurn() {
       this.activePlayerId = null
       this.turnStartedAt = null
       this.turnStartedRound = null
     },
 
-    /** Stop the live clock (used before round changes). */
+    /** Bank the live segment (if any) and clear active turn state. */
     _pauseLiveTurn(now = Date.now()) {
       this._bankActiveSegment(now)
       this._clearLiveTurn()
     },
 
-    /**
-     * Set the current round (1-based). Stops any running timer if the value changes.
-     * @param {number} nextRound
-     */
-    setRound(nextRound) {
-      const r = Math.max(1, Math.floor(Number(nextRound)) || 1)
-      if (r === this.round) return
-      const now = Date.now()
-      this._saveOrderForRound()
-      this._pauseLiveTurn(now)
-      this.round = r
-      this._applyOrderForActiveRound()
-    },
-
+    /** Increment round, pausing any live turn and applying saved order for the new round. */
     goToNextRound() {
       const now = Date.now()
       this._saveOrderForRound()
@@ -192,6 +192,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
       this._applyOrderForActiveRound()
     },
 
+    /** Decrement round (no-op on round 1); pauses any live turn. */
     goToPreviousRound() {
       if (this.round <= 1) return
       const now = Date.now()
@@ -202,9 +203,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
     },
 
     /**
-     * Clear every player's `bankedMsByRound` and reset `round` to 1. Pauses any live turn first.
-     * Drops stored turn order for rounds above 1 so the session matches a single-round game again.
-     * Does not change `bankedMs` (lifetime totals).
+     * Clear per-round banked time, drop order keys for rounds above 1, set round to 1. Lifetime `bankedMs` unchanged.
      */
     resetRoundTimeData() {
       const now = Date.now()
@@ -224,6 +223,10 @@ export const useGameTimerStore = defineStore('gameTimer', {
       this._applyOrderForActiveRound()
     },
 
+    /**
+     * Start this player’s turn, or stop if already active (banks in both cases when stopping).
+     * @param {string} playerId
+     */
     selectPlayer(playerId) {
       const now = Date.now()
       if (!this.players.some((p) => p.id === playerId)) return
@@ -242,6 +245,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
       this.turnStartedRound = this.round
     },
 
+    /** Remove a player from the list and from every round’s stored order. */
     removePlayer(playerId) {
       const now = Date.now()
       const idx = this.players.findIndex((p) => p.id === playerId)
@@ -266,26 +270,36 @@ export const useGameTimerStore = defineStore('gameTimer', {
       }
     },
 
+    /**
+     * @param {string} playerId
+     * @param {string} name
+     */
     setPlayerName(playerId, name) {
-      const p = this.players.find((x) => x.id === playerId)
+      const p = this.players.find((player) => player.id === playerId)
       if (!p) return
       const t = String(name).trim()
       p.name = t || p.name
     },
 
+    /**
+     * @param {string} playerId
+     * @param {string} color
+     */
     setPlayerColor(playerId, color) {
-      const p = this.players.find((x) => x.id === playerId)
+      const p = this.players.find((player) => player.id === playerId)
       if (!p) return
       p.color = color
     },
 
+    /** Bank any live turn, then clear all players and order; round becomes 1. */
     clearAllPlayers() {
-      this.resetRoundTimeData()
+      this._pauseLiveTurn()
       this.players = []
       this.playerOrderByRound = {}
+      this.round = 1
     },
 
-    /** Bank active segment and start the next player's turn (list order, wraps). */
+    /** Bank active segment and advance to the next player in list order (wraps). */
     endTurnNext() {
       const now = Date.now()
       if (this.players.length === 0 || this.activePlayerId == null || this.turnStartedAt == null) {

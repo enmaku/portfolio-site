@@ -3,6 +3,8 @@
 // Quasar toggles dark mode by applying `body--dark` to <body>.
 // These overrides keep the page background consistent with the dark palette.
 
+@import './gt-ui.scss';
+
 .body--dark {
   background-color: $dark-page;
 }

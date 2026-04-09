@@ -1,3 +1,6 @@
+/**
+ * Vue Router factory (Quasar wrapper). History mode follows `VUE_ROUTER_MODE` / SSR env.
+ */
 import { defineRouter } from '#q-app/wrappers'
 import {
   createRouter,
@@ -6,15 +9,6 @@ import {
   createWebHashHistory,
 } from 'vue-router'
 import routes, { portfolioDocumentTitle } from './routes'
-
-/*
- * If not building with SSR mode, you can
- * directly export the Router instantiation;
- *
- * The function below can be async too; either use
- * async/await or return a Promise which resolves
- * with the Router instance.
- */
 
 export default defineRouter(function (/* { store, ssrContext } */) {
   const createHistory = process.env.SERVER

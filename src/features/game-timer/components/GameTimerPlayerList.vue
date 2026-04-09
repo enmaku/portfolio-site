@@ -79,7 +79,7 @@
     </div>
 
     <q-dialog v-model="deleteConfirmOpen" persistent>
-      <q-card class="gt-dialog-card">
+      <q-card class="gt-dialog-card gt-dialog-card--narrow">
         <q-card-section class="text-h6">Remove player?</q-card-section>
         <q-card-section class="q-pt-none text-body2">
           Remove <strong>{{ deleteTargetName }}</strong> from the game? Their time totals will be lost for this session.
@@ -92,7 +92,7 @@
     </q-dialog>
 
     <q-dialog v-model="editDialogOpen">
-      <q-card class="gt-dialog-card" style="min-width: 280px">
+      <q-card class="gt-dialog-card gt-dialog-card--narrow">
         <q-card-section class="text-h6">Edit player</q-card-section>
         <q-card-section class="q-gutter-md">
           <q-input v-model="editName" label="Name" outlined dense autofocus @keyup.enter="saveEdit" />
@@ -117,7 +117,10 @@
 </template>
 
 <script setup>
-/** @import '../types.js' */
+/**
+ * @import '../types.js'
+ * Draggable player list with live timers, swipe edit/delete, and progress bars.
+ */
 
 import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
@@ -143,7 +146,6 @@ const store = useGameTimerStore()
 const { hasMultipleRounds } = storeToRefs(store)
 const now = useGameTimerNow(100)
 
-/** Writable bridge so drag-reorder replaces `store.players` and persistence always runs. */
 const draggablePlayers = computed({
   get: () => store.players,
   set: (next) => {
@@ -181,7 +183,6 @@ const editName = ref('')
 const editColor = ref(DEFAULT_PLAYER_COLORS[0])
 
 /**
- * Live row view-models keyed by player id.
  * @type {import('vue').ComputedRef<Map<string, import('../types.js').GameTimerPlayerRow>>}
  */
 const playerRowsById = computed(() => {
@@ -194,11 +195,12 @@ const playerRowsById = computed(() => {
   const nowMs = now.value
   const list = store.players
   const maxMs = maxDisplayedMs(list, session, nowMs)
-  const maxRoundMs = maxDisplayedMsInRound(list, session, nowMs, currentRound)
+  const multi = hasMultipleRounds.value
+  const maxRoundMs = multi ? maxDisplayedMsInRound(list, session, nowMs, currentRound) : 0
   const map = new Map()
   for (const p of list) {
     const displayedMs = displayedMsForPlayer(p, session, nowMs)
-    const displayedMsRound = displayedMsForPlayerInRound(p, session, nowMs, currentRound)
+    const displayedMsRound = multi ? displayedMsForPlayerInRound(p, session, nowMs, currentRound) : 0
     map.set(p.id, {
       id: p.id,
       name: p.name,
@@ -206,7 +208,7 @@ const playerRowsById = computed(() => {
       displayedMs,
       progress: progressRatio(displayedMs, maxMs),
       displayedMsRound,
-      progressRound: progressRatio(displayedMsRound, maxRoundMs),
+      progressRound: multi ? progressRatio(displayedMsRound, maxRoundMs) : 0,
       isActive: session.activePlayerId === p.id,
     })
   }
@@ -217,7 +219,6 @@ function rowForPlayer(player) {
   return playerRowsById.value.get(player.id)
 }
 
-/** Lifetime only, or `round / lifetime` when multiple rounds exist */
 function rowTimeLabel(player) {
   const r = rowForPlayer(player)
   if (!r) return hasMultipleRounds.value ? '0:00/0:00' : '0:00'
@@ -326,10 +327,6 @@ function progressRoundFillStyle(player) {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-}
-
-.gt-dialog-card {
-  border-radius: 12px;
 }
 
 .gt-sortable-ghost {

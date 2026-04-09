@@ -1,5 +1,10 @@
+/**
+ * Default `document.title` when a route omits `meta.title`.
+ * @type {string}
+ */
 export const portfolioDocumentTitle = 'David J. Perry'
 
+/** @type {import('vue-router').RouteRecordRaw[]} */
 const routes = [
   {
     path: '/',
@@ -29,8 +34,6 @@ const routes = [
     ],
   },
 
-  // Always leave this as last one,
-  // but you can also remove it
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),

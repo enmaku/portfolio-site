@@ -1,5 +1,5 @@
 /**
- * Format raw exifr output for display (camera / exposure fields vary by file).
+ * Normalize and format EXIF payloads from exifr for UI (thumbnails, side panel).
  */
 
 const EXIF_CORE_KEYS = {
@@ -56,7 +56,8 @@ function firstDefined(exif, keys) {
 }
 
 /**
- * Core EXIF fields used in thumbnail hover
+ * Core camera / exposure fields for compact display (thumbnail hover).
+ * @param {Record<string, unknown>} exif Raw exifr object.
  * @returns {Record<string, unknown> | null}
  */
 export function pickExifCore(exif) {
@@ -110,6 +111,11 @@ function parseExifDateTime(value) {
   return null
 }
 
+/**
+ * Human-readable date for a single EXIF datetime field (empty string if unparseable).
+ * @param {unknown} value
+ * @returns {string}
+ */
 export function formatExifTimestamp(value) {
   const d = parseExifDateTime(value)
   if (!d) {
@@ -189,7 +195,11 @@ function formatIso(iso) {
   return String(iso)
 }
 
-/** Short lines for thumbnail hover */
+/**
+ * Up to three short lines for thumbnail hover (model, exposure summary, lens).
+ * @param {Record<string, unknown>} exif
+ * @returns {string[]}
+ */
 export function exifSummaryLines(exif) {
   const core = pickExifCore(exif)
   if (!core) {
@@ -232,7 +242,8 @@ function pushRow(rows, label, value) {
 }
 
 /**
- * Side panel: Make + richer metadata + exposure block
+ * Label/value rows for the photo side panel (description, date, dimensions, exposure, etc.).
+ * @param {Record<string, unknown>} exif
  * @returns {{ label: string, value: string }[]}
  */
 export function exifToRows(exif) {

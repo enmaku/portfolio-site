@@ -1,8 +1,9 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 
 /**
- * Monotonic clock for live timer / progress UI. Stops updating when unmounted.
+ * Ref that updates on an interval for live timer / progress UI; clears the interval on unmount.
  * @param {number} [intervalMs=100]
+ * @returns {import('vue').Ref<number>} Epoch ms from `Date.now()`.
  */
 export function useGameTimerNow(intervalMs = 100) {
   const now = ref(Date.now())
@@ -17,7 +18,7 @@ export function useGameTimerNow(intervalMs = 100) {
   })
 
   onUnmounted(() => {
-    if (handle) window.clearInterval(handle)
+    window.clearInterval(handle)
   })
 
   return now

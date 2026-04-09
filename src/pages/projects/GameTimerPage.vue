@@ -55,7 +55,7 @@
     </div>
 
     <q-dialog v-model="resetConfirmOpen" persistent>
-      <q-card class="gt-dialog-card" style="min-width: 280px">
+      <q-card class="gt-dialog-card gt-dialog-card--narrow">
         <q-card-section class="text-h6">Remove everyone?</q-card-section>
         <q-card-section class="q-pt-none text-body2">
           This clears all players and their times for this session. This cannot be undone.
@@ -68,7 +68,7 @@
     </q-dialog>
 
     <q-dialog v-model="addDialogOpen">
-      <q-card class="gt-dialog-card" style="min-width: 280px">
+      <q-card class="gt-dialog-card gt-dialog-card--narrow">
         <q-card-section class="text-h6">Add player</q-card-section>
         <q-card-section class="q-gutter-md">
           <q-input v-model="newPlayerName" label="Name" outlined dense autofocus @keyup.enter="confirmAdd" />
@@ -93,6 +93,8 @@
 </template>
 
 <script setup>
+/** Game Timer project page: list shell, bottom actions, add / remove-all dialogs. */
+
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import GameTimerPlayerList from '../../features/game-timer/components/GameTimerPlayerList.vue'
@@ -171,7 +173,4 @@ function confirmResetAll() {
   font-size: 1.35rem;
 }
 
-.gt-dialog-card {
-  border-radius: 12px;
-}
 </style>

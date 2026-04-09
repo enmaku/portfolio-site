@@ -1,3 +1,6 @@
+/**
+ * Quasar starter counter store (unused by portfolio routes; safe to remove or repurpose).
+ */
 import { defineStore, acceptHMRUpdate } from 'pinia'
 
 export const useCounterStore = defineStore('counter', {

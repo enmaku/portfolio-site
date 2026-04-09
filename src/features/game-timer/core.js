@@ -1,6 +1,9 @@
-/** @import './types.js' */
+/**
+ * @import './types.js'
+ * Pure Game Timer helpers: duration formatting, progress math, bar colors, player ids.
+ */
 
-/** Default palette for new players (hex). */
+/** @type {readonly string[]} Default hex palette for new players. */
 export const DEFAULT_PLAYER_COLORS = [
   '#5c6bc0',
   '#26a69a',
@@ -12,6 +15,9 @@ export const DEFAULT_PLAYER_COLORS = [
   '#ec407a',
 ]
 
+/**
+ * @returns {string}
+ */
 export function createPlayerId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID()
@@ -19,11 +25,16 @@ export function createPlayerId() {
   return `p-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
+/**
+ * @param {number} n
+ * @returns {number}
+ */
 function clampByte(n) {
   return Math.max(0, Math.min(255, Math.round(n)))
 }
 
 /**
+ * Parse `#RRGGBB` into RGB channels (fallback gray if invalid).
  * @param {string} hex
  * @returns {{ r: number, g: number, b: number }}
  */
@@ -36,10 +47,25 @@ function hexToRgb(hex) {
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }
 }
 
+/**
+ * @param {number} r
+ * @param {number} g
+ * @param {number} b
+ * @returns {string}
+ */
 function rgbToHex(r, g, b) {
   return '#' + [clampByte(r), clampByte(g), clampByte(b)].map((x) => x.toString(16).padStart(2, '0')).join('')
 }
 
+/**
+ * Linear blend of `hex` toward RGB target; `amount` in [0, 1].
+ * @param {string} hex
+ * @param {number} tr
+ * @param {number} tg
+ * @param {number} tb
+ * @param {number} amount
+ * @returns {string}
+ */
 function mixToward(hex, tr, tg, tb, amount) {
   const t = Math.max(0, Math.min(1, amount))
   const { r, g, b } = hexToRgb(hex)
@@ -77,14 +103,20 @@ export function playerBarRailColor(hex, isDark) {
   return isDark ? mixToward(track, 0, 0, 0, 0.52) : mixToward(track, 150, 152, 160, 0.38)
 }
 
+/**
+ * Stable string key for a round index (minimum round 1).
+ * @param {number} round
+ * @returns {string}
+ */
 function roundStorageKey(round) {
   return String(Math.max(1, Math.floor(Number(round)) || 1))
 }
 
 /**
- * Banked time for one round only (excludes the live segment).
+ * Banked time for one round only (excludes any live segment).
  * @param {GameTimerPlayer} player
  * @param {number} round
+ * @returns {number}
  */
 export function bankedMsInRound(player, round) {
   const map = player.bankedMsByRound
@@ -97,6 +129,7 @@ export function bankedMsInRound(player, round) {
  * @param {GameTimerPlayer} player
  * @param {{ activePlayerId: string | null, turnStartedAt: number | null }} session
  * @param {number} nowMs
+ * @returns {number}
  */
 export function displayedMsForPlayer(player, session, nowMs) {
   let ms = player.bankedMs
@@ -112,6 +145,7 @@ export function displayedMsForPlayer(player, session, nowMs) {
  * @param {{ activePlayerId: string | null, turnStartedAt: number | null, turnStartedRound: number | null }} session
  * @param {number} nowMs
  * @param {number} currentRound
+ * @returns {number}
  */
 export function displayedMsForPlayerInRound(player, session, nowMs, currentRound) {
   const key = roundStorageKey(currentRound)
@@ -128,9 +162,11 @@ export function displayedMsForPlayerInRound(player, session, nowMs, currentRound
 }
 
 /**
+ * Largest {@link displayedMsForPlayer} among `players` (0 if empty).
  * @param {GameTimerPlayer[]} players
  * @param {{ activePlayerId: string | null, turnStartedAt: number | null }} session
  * @param {number} nowMs
+ * @returns {number}
  */
 export function maxDisplayedMs(players, session, nowMs) {
   if (!players.length) return 0
@@ -143,10 +179,12 @@ export function maxDisplayedMs(players, session, nowMs) {
 }
 
 /**
+ * Largest {@link displayedMsForPlayerInRound} among `players` (0 if empty).
  * @param {GameTimerPlayer[]} players
  * @param {{ activePlayerId: string | null, turnStartedAt: number | null, turnStartedRound: number | null }} session
  * @param {number} nowMs
  * @param {number} currentRound
+ * @returns {number}
  */
 export function maxDisplayedMsInRound(players, session, nowMs, currentRound) {
   if (!players.length) return 0
@@ -159,9 +197,10 @@ export function maxDisplayedMsInRound(players, session, nowMs, currentRound) {
 }
 
 /**
+ * Fill width ratio in [0, 1] for progress bars.
  * @param {number} displayedMs
  * @param {number} maxMs
- * @returns {number} in [0, 1]
+ * @returns {number}
  */
 export function progressRatio(displayedMs, maxMs) {
   if (maxMs <= 0) return 0
@@ -169,8 +208,9 @@ export function progressRatio(displayedMs, maxMs) {
 }
 
 /**
+ * Next unused palette color for a new player (cycles if all are taken).
  * @param {GameTimerPlayer[]} players
- * @returns {string}
+ * @returns {string} Hex color.
  */
 export function nextDefaultColor(players) {
   const used = new Set(players.map((p) => p.color.toLowerCase()))
@@ -182,6 +222,7 @@ export function nextDefaultColor(players) {
 }
 
 /**
+ * `m:ss` or `h:mm:ss` for display in the list UI.
  * @param {number} ms
  * @returns {string}
  */

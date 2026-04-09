@@ -40,7 +40,7 @@
       @click="confirmOpen = true"
     />
     <q-dialog v-model="confirmOpen" persistent>
-      <q-card class="gt-dialog-card" style="min-width: 280px">
+      <q-card class="gt-dialog-card gt-dialog-card--narrow">
         <q-card-section class="text-h6">Reset round data?</q-card-section>
         <q-card-section class="q-pt-none text-body2">
           This clears all <strong>per-round</strong> time (the thinner progress bar and round totals in each row). Lifetime
@@ -115,7 +115,4 @@ function confirmReset() {
   margin-left: auto;
 }
 
-.gt-dialog-card {
-  border-radius: 12px;
-}
 </style>
