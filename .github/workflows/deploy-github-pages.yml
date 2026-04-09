@@ -26,7 +26,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # Photos in src/assets/photos/ use Git LFS (.gitattributes). Without this, the build
+      # only gets LFS pointer files and images 404 or fail to decode in the browser.
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - uses: actions/setup-node@v4
         with:
