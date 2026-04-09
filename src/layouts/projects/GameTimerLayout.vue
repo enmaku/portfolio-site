@@ -25,25 +25,14 @@
         <q-card-section class="q-pt-none text-body2">
           <ul class="gt-help-list q-my-none q-pl-md">
             <li class="q-mb-sm">
-              Tap a <strong>name</strong> to start that player’s turn; tap the <strong>same name</strong> again to stop
-              the clock.
+              Tap a name to start or stop the clock. End turn banks time and moves to the next person in the list.
             </li>
             <li class="q-mb-sm">
-              <strong>End turn</strong> appears in the bottom bar when a turn is running; it banks the current player and
-              moves to the <strong>next in the list</strong> (top → bottom, then wraps).
+              Arrows by the round number change rounds and pause the clock. Reset clears round timing only, not each
+              player’s total.
             </li>
-            <li class="q-mb-sm">
-              <strong>Swipe left</strong> on a row for <strong>Delete</strong> (with confirmation);
-              <strong>swipe right</strong> for <strong>Edit</strong>.
-            </li>
-            <li class="q-mb-sm">
-              <strong>Hold</strong> a row, then <strong>drag</strong> to reorder. <strong>End turn</strong> follows the new
-              order.
-            </li>
-            <li>
-              <strong>+</strong> and the small <strong>outlined</strong> button live in the same bottom row; the outline
-              button clears everyone after you confirm.
-            </li>
+            <li class="q-mb-sm">Swipe right to edit, left to remove. Long-press and drag to reorder.</li>
+            <li>+ adds someone; the small button on the left clears everyone after you confirm.</li>
           </ul>
         </q-card-section>
 

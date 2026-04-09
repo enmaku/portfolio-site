@@ -2,7 +2,7 @@
   <div ref="listRootRef" class="gt-player-list">
     <div class="gt-player-list__inner q-pa-sm">
       <Draggable
-        v-model="players"
+        v-model="draggablePlayers"
         item-key="id"
         tag="div"
         class="gt-draggable"
@@ -51,13 +51,26 @@
                 >
                   {{ player.name }}
                 </button>
-                <div class="gt-player-row__time text-mono text-body2">
-                  {{ formatDurationMs(rowForPlayer(player)?.displayedMs ?? 0) }}
+                <div
+                  class="gt-player-row__time text-mono text-body2"
+                  :title="hasMultipleRounds ? 'This round / all rounds' : 'Total time'"
+                >
+                  {{ rowTimeLabel(player) }}
                 </div>
               </div>
-              <div class="gt-player-row__progress relative-position" aria-hidden="true">
-                <div class="gt-player-row__progress-rail absolute-full" :style="progressRailStyle(player.color)" />
-                <div class="gt-player-row__progress-fill absolute" :style="progressFillStyle(player)" />
+              <div class="gt-player-row__bars column">
+                <div
+                  v-if="hasMultipleRounds"
+                  class="gt-player-row__progress gt-player-row__progress--round relative-position"
+                  aria-hidden="true"
+                >
+                  <div class="gt-player-row__progress-rail absolute-full" :style="progressRailStyle(player.color)" />
+                  <div class="gt-player-row__progress-fill absolute" :style="progressRoundFillStyle(player)" />
+                </div>
+                <div class="gt-player-row__progress relative-position" aria-hidden="true">
+                  <div class="gt-player-row__progress-rail absolute-full" :style="progressRailStyle(player.color)" />
+                  <div class="gt-player-row__progress-fill absolute" :style="progressFillStyle(player)" />
+                </div>
               </div>
             </div>
           </q-slide-item>
@@ -114,8 +127,10 @@ import { useGameTimerNow } from '../composables/useGameTimerNow.js'
 import {
   DEFAULT_PLAYER_COLORS,
   displayedMsForPlayer,
+  displayedMsForPlayerInRound,
   formatDurationMs,
   maxDisplayedMs,
+  maxDisplayedMsInRound,
   playerBarFillColor,
   playerBarRailColor,
   playerBarTrackColor,
@@ -125,8 +140,16 @@ import { useGameTimerStore } from '../../../stores/gameTimer.js'
 
 const $q = useQuasar()
 const store = useGameTimerStore()
-const { players } = storeToRefs(store)
+const { hasMultipleRounds } = storeToRefs(store)
 const now = useGameTimerNow(100)
+
+/** Writable bridge so drag-reorder replaces `store.players` and persistence always runs. */
+const draggablePlayers = computed({
+  get: () => store.players,
+  set: (next) => {
+    if (Array.isArray(next)) store.reorderPlayers(next)
+  },
+})
 
 const listRootRef = ref(null)
 
@@ -165,19 +188,25 @@ const playerRowsById = computed(() => {
   const session = {
     activePlayerId: store.activePlayerId,
     turnStartedAt: store.turnStartedAt,
+    turnStartedRound: store.turnStartedRound,
   }
+  const currentRound = store.round
   const nowMs = now.value
   const list = store.players
   const maxMs = maxDisplayedMs(list, session, nowMs)
+  const maxRoundMs = maxDisplayedMsInRound(list, session, nowMs, currentRound)
   const map = new Map()
   for (const p of list) {
     const displayedMs = displayedMsForPlayer(p, session, nowMs)
+    const displayedMsRound = displayedMsForPlayerInRound(p, session, nowMs, currentRound)
     map.set(p.id, {
       id: p.id,
       name: p.name,
       color: p.color,
       displayedMs,
       progress: progressRatio(displayedMs, maxMs),
+      displayedMsRound,
+      progressRound: progressRatio(displayedMsRound, maxRoundMs),
       isActive: session.activePlayerId === p.id,
     })
   }
@@ -186,6 +215,16 @@ const playerRowsById = computed(() => {
 
 function rowForPlayer(player) {
   return playerRowsById.value.get(player.id)
+}
+
+/** Lifetime only, or `round / lifetime` when multiple rounds exist */
+function rowTimeLabel(player) {
+  const r = rowForPlayer(player)
+  if (!r) return hasMultipleRounds.value ? '0:00/0:00' : '0:00'
+  if (!hasMultipleRounds.value) {
+    return formatDurationMs(r.displayedMs)
+  }
+  return `${formatDurationMs(r.displayedMsRound)}/${formatDurationMs(r.displayedMs)}`
 }
 
 function requestDelete({ reset }, player) {
@@ -243,6 +282,18 @@ function progressRailStyle(colorHex) {
 function progressFillStyle(player) {
   const row = playerRowsById.value.get(player.id)
   const progress = row?.progress ?? 0
+  return {
+    top: '0',
+    left: '0',
+    bottom: '0',
+    width: `${progress * 100}%`,
+    backgroundColor: playerBarFillColor(player.color, $q.dark.isActive),
+  }
+}
+
+function progressRoundFillStyle(player) {
+  const row = playerRowsById.value.get(player.id)
+  const progress = row?.progressRound ?? 0
   return {
     top: '0',
     left: '0',
@@ -347,11 +398,21 @@ function progressFillStyle(player) {
   box-shadow: inset 6px 0 0 0 var(--player-color);
 }
 
+.gt-player-row__bars {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
 .gt-player-row__progress {
   flex: 0 0 auto;
   height: 4px;
   width: 100%;
   pointer-events: none;
+}
+
+.gt-player-row__progress--round {
+  height: 3px;
+  margin-bottom: 2px;
 }
 
 .gt-player-row__progress-rail {
@@ -382,6 +443,7 @@ function progressFillStyle(player) {
 .gt-player-row__time {
   flex-shrink: 0;
   margin-left: 8px;
+  white-space: nowrap;
 }
 </style>
 

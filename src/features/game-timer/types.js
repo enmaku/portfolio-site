@@ -3,7 +3,8 @@
  * @property {string} id
  * @property {string} name
  * @property {string} color
- * @property {number} bankedMs
+ * @property {number} bankedMs — all rounds combined
+ * @property {Record<string, number>} [bankedMsByRound] — banked ms per round key (`"1"`, `"2"`, …)
  */
 
 /**
@@ -13,6 +14,8 @@
  * @property {string} color
  * @property {number} displayedMs
  * @property {number} progress
+ * @property {number} displayedMsRound
+ * @property {number} progressRound
  * @property {boolean} isActive
  */
 

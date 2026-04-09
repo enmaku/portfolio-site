@@ -1,5 +1,7 @@
 <template>
   <q-page class="gt-page column fit no-wrap">
+    <GameTimerRoundBar />
+
     <div
       v-if="!players.length"
       class="col gt-page__scroll-area flex flex-center q-pa-lg text-center text-body1 text-grey-5"
@@ -86,6 +88,7 @@
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import GameTimerPlayerList from '../../features/game-timer/components/GameTimerPlayerList.vue'
+import GameTimerRoundBar from '../../features/game-timer/components/GameTimerRoundBar.vue'
 import { nextDefaultColor } from '../../features/game-timer/core.js'
 import { useGameTimerStore } from '../../stores/gameTimer.js'
 

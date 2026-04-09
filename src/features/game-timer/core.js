@@ -77,7 +77,23 @@ export function playerBarRailColor(hex, isDark) {
   return isDark ? mixToward(track, 0, 0, 0, 0.52) : mixToward(track, 150, 152, 160, 0.38)
 }
 
+function roundStorageKey(round) {
+  return String(Math.max(1, Math.floor(Number(round)) || 1))
+}
+
 /**
+ * Banked time for one round only (excludes the live segment).
+ * @param {GameTimerPlayer} player
+ * @param {number} round
+ */
+export function bankedMsInRound(player, round) {
+  const map = player.bankedMsByRound
+  if (!map || typeof map !== 'object') return 0
+  return map[roundStorageKey(round)] ?? 0
+}
+
+/**
+ * All-time displayed ms (all rounds): banked + optional live segment.
  * @param {GameTimerPlayer} player
  * @param {{ activePlayerId: string | null, turnStartedAt: number | null }} session
  * @param {number} nowMs
@@ -85,6 +101,27 @@ export function playerBarRailColor(hex, isDark) {
 export function displayedMsForPlayer(player, session, nowMs) {
   let ms = player.bankedMs
   if (session.activePlayerId === player.id && session.turnStartedAt != null) {
+    ms += Math.max(0, nowMs - session.turnStartedAt)
+  }
+  return ms
+}
+
+/**
+ * Displayed ms for `currentRound` only (banked in that round + live segment if it started in that round).
+ * @param {GameTimerPlayer} player
+ * @param {{ activePlayerId: string | null, turnStartedAt: number | null, turnStartedRound: number | null }} session
+ * @param {number} nowMs
+ * @param {number} currentRound
+ */
+export function displayedMsForPlayerInRound(player, session, nowMs, currentRound) {
+  const key = roundStorageKey(currentRound)
+  let ms = bankedMsInRound(player, currentRound)
+  if (
+    session.activePlayerId === player.id &&
+    session.turnStartedAt != null &&
+    session.turnStartedRound != null &&
+    roundStorageKey(session.turnStartedRound) === key
+  ) {
     ms += Math.max(0, nowMs - session.turnStartedAt)
   }
   return ms
@@ -100,6 +137,22 @@ export function maxDisplayedMs(players, session, nowMs) {
   let max = 0
   for (const p of players) {
     const v = displayedMsForPlayer(p, session, nowMs)
+    if (v > max) max = v
+  }
+  return max
+}
+
+/**
+ * @param {GameTimerPlayer[]} players
+ * @param {{ activePlayerId: string | null, turnStartedAt: number | null, turnStartedRound: number | null }} session
+ * @param {number} nowMs
+ * @param {number} currentRound
+ */
+export function maxDisplayedMsInRound(players, session, nowMs, currentRound) {
+  if (!players.length) return 0
+  let max = 0
+  for (const p of players) {
+    const v = displayedMsForPlayerInRound(p, session, nowMs, currentRound)
     if (v > max) max = v
   }
   return max
