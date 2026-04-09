@@ -1,12 +1,9 @@
 <template>
-  <q-page
-    class="gt-page column fit no-wrap"
-    :class="{
-      'gt-page--with-list': players.length > 0,
-      'gt-page--turn-running': isTurnRunning,
-    }"
-  >
-    <div v-if="!players.length" class="col flex flex-center q-pa-lg text-center text-body1 text-grey-5">
+  <q-page class="gt-page column fit no-wrap">
+    <div
+      v-if="!players.length"
+      class="col gt-page__scroll-area flex flex-center q-pa-lg text-center text-body1 text-grey-5"
+    >
       <div>
         <p class="q-mb-sm">No players yet.</p>
         <p class="q-mb-none">
@@ -15,45 +12,37 @@
       </div>
     </div>
 
-    <GameTimerPlayerList v-else class="col" />
+    <div v-else class="col gt-page__scroll-area">
+      <GameTimerPlayerList />
+    </div>
 
-    <q-page-sticky
-      v-if="isTurnRunning"
-      position="bottom"
-      :offset="[0, 108]"
-      class="gt-end-turn-sticky full-width"
-    >
-      <div class="gt-end-turn-row q-px-md">
-        <q-btn
-          rounded
-          unelevated
-          no-wrap
-          size="lg"
-          color="primary"
-          icon-right="skip_next"
-          label="End turn"
-          class="gt-end-turn-btn full-width text-h6"
-          padding="14px 24px"
-          aria-label="End turn and go to next player"
-          @click="store.endTurnNext()"
-        />
-      </div>
-    </q-page-sticky>
-
-    <q-page-sticky position="bottom-right" :offset="[18, 18]">
-      <div class="row no-wrap q-gutter-sm items-center">
-        <q-btn
-          fab-mini
-          outline
-          color="grey-5"
-          icon="playlist_remove"
-          :disable="!players.length"
-          aria-label="Remove all players"
-          @click="resetConfirmOpen = true"
-        />
-        <q-btn fab color="primary" icon="add" aria-label="Add player" @click="openAddDialog" />
-      </div>
-    </q-page-sticky>
+    <div class="gt-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm q-gutter-x-sm">
+      <q-btn
+        fab-mini
+        outline
+        color="grey-5"
+        icon="playlist_remove"
+        :disable="!players.length"
+        aria-label="Remove all players"
+        class="gt-actions-bar__fixed-btn"
+        @click="resetConfirmOpen = true"
+      />
+      <q-btn
+        v-if="isTurnRunning"
+        rounded
+        unelevated
+        no-wrap
+        color="primary"
+        icon-right="skip_next"
+        label="End turn"
+        class="gt-actions-bar__end-turn col"
+        padding="12px 16px"
+        aria-label="End turn and go to next player"
+        @click="store.endTurnNext()"
+      />
+      <q-space v-else />
+      <q-btn fab color="primary" icon="add" aria-label="Add player" class="gt-actions-bar__fixed-btn" @click="openAddDialog" />
+    </div>
 
     <q-dialog v-model="resetConfirmOpen" persistent>
       <q-card class="gt-add-card" style="min-width: 280px">
@@ -135,44 +124,46 @@ function confirmResetAll() {
 </script>
 
 <style scoped lang="scss">
+/* Fill layout main; clip so only .gt-page__scroll-area scrolls */
 .gt-page {
+  flex: 1 1 0;
   min-height: 0;
-  flex: 1 1 auto;
+  overflow: hidden;
 }
 
-/* Room for FABs when list is shown; extra space when End turn bar is visible. */
-.gt-page--with-list {
-  padding-bottom: 80px;
+/* Sole vertical scroll: player list or empty-state copy */
+.gt-page__scroll-area {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.gt-page--with-list.gt-page--turn-running {
-  padding-bottom: 128px;
+.gt-actions-bar {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+
+.gt-actions-bar__fixed-btn {
+  flex-shrink: 0;
+}
+
+.body--light .gt-actions-bar {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.gt-actions-bar__end-turn {
+  min-width: 0;
+  min-height: 48px;
+}
+
+.gt-actions-bar__end-turn :deep(.q-icon) {
+  font-size: 1.35rem;
 }
 
 .gt-add-card {
   border-radius: 12px;
-}
-
-.gt-end-turn-sticky {
-  pointer-events: none;
-}
-
-.gt-end-turn-sticky > * {
-  pointer-events: auto;
-}
-
-.gt-end-turn-row {
-  width: 100%;
-  max-width: 560px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.gt-end-turn-btn {
-  min-height: 56px;
-}
-
-.gt-end-turn-btn :deep(.q-icon) {
-  font-size: 1.5rem;
 }
 </style>

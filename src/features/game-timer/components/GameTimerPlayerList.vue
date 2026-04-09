@@ -1,6 +1,6 @@
 <template>
   <!-- Native overflow: q-scroll-area + flex often collapses to 0 height (contain: strict + % sizing). -->
-  <div class="gt-player-list">
+  <div ref="listRootRef" class="gt-player-list">
     <div class="gt-player-list__inner q-pa-sm">
       <Draggable
         v-model="players"
@@ -42,6 +42,7 @@
               class="gt-player-row rounded-borders relative-position overflow-hidden column"
               :class="{ 'gt-player-row--active': rowForPlayer(player).isActive }"
               :style="rowSurfaceStyle(player)"
+              :data-gt-player-id="player.id"
             >
               <div class="gt-player-row__content row items-center no-wrap relative-position q-px-md q-py-md">
                 <button
@@ -104,7 +105,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import Draggable from 'vuedraggable'
@@ -124,6 +125,27 @@ const $q = useQuasar()
 const store = useGameTimerStore()
 const { players } = storeToRefs(store)
 const now = useGameTimerNow(100)
+
+const listRootRef = ref(null)
+
+function scrollActiveRowIntoView(playerId) {
+  if (playerId == null || !listRootRef.value) return
+  const safe = typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ? CSS.escape(playerId) : playerId
+  const el = listRootRef.value.querySelector(`[data-gt-player-id="${safe}"]`)
+  el?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+}
+
+/** End turn, tap name, or persisted session: keep the active row in view inside the page scroll pane. */
+watch(
+  () => store.activePlayerId,
+  (id) => {
+    if (id == null) return
+    nextTick(() => {
+      requestAnimationFrame(() => scrollActiveRowIntoView(id))
+    })
+  },
+  { flush: 'post', immediate: true },
+)
 
 /** QSlideItem maps gestures to #left/#right using $q.lang.rtl; swap slots so swipe stays LTR-like. */
 const isLayoutRtl = computed(() => $q.lang.rtl === true)
@@ -241,12 +263,10 @@ function progressFillStyle(row) {
 </script>
 
 <style scoped lang="scss">
-/* Quasar `.column > .col` uses min-height:0 so flex-1 can shrink; that hid the whole list. */
+/* Scrolling is handled by the page’s .gt-page__scroll-area parent */
 .gt-player-list {
-  flex: 1 1 auto;
-  min-height: auto !important;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  min-height: min-content;
 }
 
 .gt-player-list__inner {

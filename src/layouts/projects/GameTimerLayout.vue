@@ -29,8 +29,8 @@
               the clock.
             </li>
             <li class="q-mb-sm">
-              <strong>End turn</strong> (bottom) banks the current player and moves to the <strong>next in the list</strong>
-              (top → bottom, then wraps). Disabled when no turn is running.
+              <strong>End turn</strong> appears in the bottom bar when a turn is running; it banks the current player and
+              moves to the <strong>next in the list</strong> (top → bottom, then wraps).
             </li>
             <li class="q-mb-sm">
               <strong>Swipe right</strong> on a row for <strong>Delete</strong> (with confirmation);
@@ -41,8 +41,8 @@
               order.
             </li>
             <li>
-              <strong>+</strong> adds a player. The small <strong>outlined</strong> button clears everyone after you
-              confirm.
+              <strong>+</strong> and the small <strong>outlined</strong> button live in the same bottom row; the outline
+              button clears everyone after you confirm.
             </li>
           </ul>
         </q-card-section>
@@ -101,11 +101,23 @@ const helpOpen = ref(false)
   min-height: 100vh;
 }
 
-/* Fill space under header so q-page height:100% / flex children get a real main size */
+/*
+ * Fill space under header and clamp height so the page never scrolls as a whole:
+ * only the game timer’s middle pane scrolls; the bottom bar stays visible.
+ */
 .gt-game-timer-layout__page-container {
   flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.gt-game-timer-layout__page-container > * {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 </style>
