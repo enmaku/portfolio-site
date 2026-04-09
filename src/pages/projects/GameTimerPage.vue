@@ -43,7 +43,15 @@
         @click="store.endTurnNext()"
       />
       <q-space v-else />
-      <q-btn fab color="primary" icon="add" aria-label="Add player" class="gt-actions-bar__fixed-btn" @click="openAddDialog" />
+      <q-btn
+        fab
+        color="primary"
+        icon="add"
+        aria-label="Add player"
+        class="gt-actions-bar__fixed-btn"
+        :disable="hasMultipleRounds"
+        @click="openAddDialog"
+      />
     </div>
 
     <q-dialog v-model="resetConfirmOpen" persistent>
@@ -93,7 +101,7 @@ import { nextDefaultColor } from '../../features/game-timer/core.js'
 import { useGameTimerStore } from '../../stores/gameTimer.js'
 
 const store = useGameTimerStore()
-const { players, activePlayerId, turnStartedAt } = storeToRefs(store)
+const { players, activePlayerId, turnStartedAt, hasMultipleRounds } = storeToRefs(store)
 
 const isTurnRunning = computed(
   () => activePlayerId.value != null && turnStartedAt.value != null,
