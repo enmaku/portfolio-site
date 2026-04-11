@@ -1,10 +1,10 @@
 <template>
   <div class="gt-sync-control">
-    <q-btn flat round dense :color="syncColor" :aria-label="syncAriaLabel">
+    <q-btn flat round size="md" :color="syncColor" :aria-label="syncAriaLabel" class="gt-sync-control__trigger">
       <q-circular-progress
         v-if="isBusy"
         indeterminate
-        size="26px"
+        size="30px"
         :color="busySpinnerColor"
         class="gt-sync-control__spinner"
       />
@@ -22,36 +22,52 @@
         :offset="[0, 6]"
         class="gt-sync-menu-shell"
       >
-        <div class="gt-sync-menu q-pa-md">
-          <div class="text-subtitle2 text-weight-medium q-mb-xs">Multiplayer</div>
-          <div class="text-caption text-grey-6 q-mb-sm">{{ statusDescription }}</div>
+        <div class="gt-sync-menu q-pa-lg">
+          <div class="text-h6 text-weight-medium q-mb-xs">Multiplayer</div>
+          <div class="text-body2 text-grey-6 q-mb-md">{{ statusDescription }}</div>
 
           <template v-if="phase === 'idle'">
-            <div class="column q-gutter-y-sm">
-              <q-btn outline dense no-caps color="grey-7" class="full-width" label="Host room" @click="onHost" />
-              <q-btn outline dense no-caps color="grey-7" class="full-width" label="Join room" @click="openJoinFromMenu" />
+            <div class="column q-gutter-y-md">
+              <q-btn
+                outline
+                no-caps
+                color="grey-7"
+                class="full-width gt-sync-menu__action-btn"
+                padding="12px 16px"
+                label="Host room"
+                @click="onHost"
+              />
+              <q-btn
+                outline
+                no-caps
+                color="grey-7"
+                class="full-width gt-sync-menu__action-btn"
+                padding="12px 16px"
+                label="Join room"
+                @click="openJoinFromMenu"
+              />
             </div>
           </template>
 
           <template v-else-if="phase === 'connecting'">
-            <div class="row items-center q-gutter-sm text-caption text-grey-6">
-              <q-circular-progress indeterminate size="18px" color="primary" />
+            <div class="row items-center q-gutter-md text-body2 text-grey-6">
+              <q-circular-progress indeterminate size="24px" color="primary" />
               <span>Connecting…</span>
             </div>
           </template>
 
           <template v-else-if="phase === 'reconnecting'">
-            <div class="column q-gutter-sm">
-              <div class="row items-center q-gutter-sm text-caption text-grey-6">
-                <q-circular-progress indeterminate size="18px" color="warning" />
+            <div class="column q-gutter-md">
+              <div class="row items-center q-gutter-md text-body2 text-grey-6">
+                <q-circular-progress indeterminate size="24px" color="warning" />
                 <span>Reconnecting{{ suffix ? ` to ${suffix}` : '' }}…</span>
               </div>
               <q-btn
                 outline
-                dense
                 no-caps
                 color="grey-7"
-                class="full-width gt-sync-menu__action"
+                class="full-width gt-sync-menu__action-btn gt-sync-menu__action"
+                padding="12px 16px"
                 label="Cancel"
                 @click="onLeave"
               />
@@ -59,18 +75,26 @@
           </template>
 
           <template v-else-if="phase === 'hosting'">
-            <div class="column q-gutter-sm">
+            <div class="column gt-sync-menu__hosting-block">
               <div class="row items-center no-wrap q-gutter-x-sm">
-                <span class="text-caption text-grey-6">Code</span>
-                <code class="gt-sync-menu__code text-body2">{{ suffix }}</code>
-                <q-btn flat dense round icon="content_copy" size="sm" color="grey-6" aria-label="Copy room code" @click="copyCode" />
+                <code class="gt-sync-menu__code gt-sync-menu__code-display col">{{ suffix }}</code>
+                <q-btn
+                  flat
+                  round
+                  icon="content_copy"
+                  size="md"
+                  color="grey-6"
+                  class="gt-sync-menu__copy-btn"
+                  aria-label="Copy room code"
+                  @click="copyCode"
+                />
               </div>
               <q-btn
                 outline
-                dense
                 no-caps
                 color="grey-7"
-                class="full-width gt-sync-menu__action"
+                class="full-width gt-sync-menu__action-btn gt-sync-menu__action"
+                padding="12px 16px"
                 label="Stop hosting"
                 @click="onLeave"
               />
@@ -78,15 +102,18 @@
           </template>
 
           <template v-else-if="phase === 'guest_connected'">
-            <div class="column q-gutter-sm">
-              <div class="text-body2">Room <code class="gt-sync-menu__code">{{ suffix }}</code></div>
-              <div class="text-caption text-positive">In sync</div>
+            <div class="column q-gutter-md">
+              <div class="column q-gutter-sm">
+                <span class="text-body2 text-grey-6">Room</span>
+                <code class="gt-sync-menu__code gt-sync-menu__code-display">{{ suffix }}</code>
+              </div>
+              <div class="text-body2 text-positive">In sync</div>
               <q-btn
                 outline
-                dense
                 no-caps
                 color="grey-7"
-                class="full-width gt-sync-menu__action"
+                class="full-width gt-sync-menu__action-btn gt-sync-menu__action"
+                padding="12px 16px"
                 label="Leave room"
                 @click="onLeave"
               />
@@ -97,22 +124,23 @@
     </q-btn>
 
     <q-dialog v-model="joinOpen">
-      <q-card class="gt-dialog-card gt-dialog-card--narrow">
+      <q-card class="gt-dialog-card gt-dialog-card--narrow gt-dialog-card--touch-pad">
         <q-card-section class="text-h6">Join room</q-card-section>
         <q-card-section class="q-pt-none">
           <q-input
             v-model="joinCodeInput"
             label="Room code"
             outlined
-            dense
             autofocus
             maxlength="32"
+            class="gt-join-room-input"
+            input-class="text-h6"
             @keyup.enter="confirmJoin"
           />
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey" @click="joinOpen = false" />
-          <q-btn unelevated label="Join" color="primary" @click="confirmJoin" />
+          <q-btn flat label="Cancel" color="grey" padding="10px 18px" @click="joinOpen = false" />
+          <q-btn unelevated label="Join" color="primary" padding="10px 22px" @click="confirmJoin" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -186,7 +214,7 @@ const statusDescription = computed(() => {
     case 'reconnecting':
       return 'Connection dropped. Trying again…'
     case 'hosting':
-      return 'You are the host. Others can join with this code.'
+      return 'You are currently hosting a room. Others can join with this code:'
     case 'guest_connected':
       return 'Following the host’s timer state.'
     default:
@@ -207,7 +235,6 @@ function hideMenu() {
 }
 
 async function onHost() {
-  hideMenu()
   try {
     await startAsHost()
   } catch { void 0 }
@@ -232,7 +259,13 @@ function copyCode() {
   const t = suffix.value
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(t).then(() => {
-      $q.notify({ type: 'positive', message: 'Room code copied', timeout: 1500, position: 'bottom' })
+      $q.notify({
+        type: 'positive',
+        message: 'Room code copied',
+        timeout: 1500,
+        position: 'top',
+        classes: 'gt-notify',
+      })
     })
   }
 }
@@ -254,14 +287,14 @@ function onLeave() {
 
 .gt-sync-control__glyph {
   display: inline-flex;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   align-items: center;
   justify-content: center;
 }
 
 .gt-sync-control__glyph :deep(.q-icon) {
-  font-size: 26px;
+  font-size: 28px;
 }
 
 .gt-sync-control__glyph--multi :deep(.q-icon) {
@@ -279,11 +312,38 @@ function onLeave() {
 <style lang="scss">
 /* q-menu content is portaled; .gt-sync-menu-shell is on the panel root */
 .gt-sync-menu-shell .gt-sync-menu {
-  min-width: 260px;
-  max-width: min(320px, 100vw - 24px);
+  min-width: min(100vw - 32px, 340px);
+  max-width: min(480px, 100vw - 20px);
 }
 
 .gt-sync-menu-shell .gt-sync-menu__action {
-  margin-top: 2px;
+  margin-top: 4px;
+}
+
+.gt-sync-menu-shell .gt-sync-menu__hosting-block {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.gt-sync-menu-shell .gt-sync-menu__action-btn {
+  min-height: 48px;
+}
+
+.gt-sync-menu-shell .gt-sync-menu__copy-btn {
+  flex-shrink: 0;
+}
+
+/* Large enough to read from across a table; portaled menu — keep under .gt-sync-menu-shell */
+.gt-sync-menu-shell .gt-sync-menu__code-display {
+  display: block;
+  font-size: clamp(2.25rem, 11vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.16em;
+  font-variant-numeric: tabular-nums;
+  user-select: all;
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 </style>

@@ -89,34 +89,22 @@ const OPEN_PEER_TIMEOUT_MS = 20000
 /**
  * @param {string} message
  * @param {'positive' | 'negative' | 'warning' | 'info'} [type='info']
- * @param {{ timeout?: number }} [opts]
+ * @param {{ timeout?: number, classes?: string }} [opts]
  * @returns {void}
  */
 function notifyP2P(message, type = 'info', opts = {}) {
   const fallback = type === 'negative' ? 4500 : 2800
   const timeout = typeof opts.timeout === 'number' ? opts.timeout : fallback
+  const classes = opts.classes ? `gt-notify ${opts.classes}` : 'gt-notify'
   try {
     Notify.create({
       message,
       type,
       position: 'top',
       timeout,
+      classes,
     })
   } catch { void 0 }
-}
-
-/**
- * @param {string} code User-facing room suffix (not full PeerJS id).
- * @returns {Promise<boolean>} Whether `writeText` ran successfully.
- */
-async function copyRoomCodeToClipboard(code) {
-  if (!navigator.clipboard?.writeText) return false
-  try {
-    await navigator.clipboard.writeText(code)
-    return true
-  } catch {
-    return false
-  }
 }
 
 /**
@@ -572,12 +560,7 @@ export async function startAsHost(maxAttempts = 12) {
       const p = await awaitPeerOpen(fullId)
       sessionSuffix.value = suffix
       finishHostSession(/** @type {import('peerjs').Peer} */ (p), suffix)
-      await copyRoomCodeToClipboard(suffix)
-      notifyP2P(
-        `Room ${suffix} created`,
-        'positive',
-        { timeout: ROOM_CODE_SHARE_NOTIFY_MS },
-      )
+      notifyP2P(`Room ${suffix} is ready`, 'positive', { timeout: ROOM_CODE_SHARE_NOTIFY_MS })
       return { suffix }
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))

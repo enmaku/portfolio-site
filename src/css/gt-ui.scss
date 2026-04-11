@@ -7,3 +7,38 @@
 .gt-dialog-card--narrow {
   min-width: 280px;
 }
+
+@media (max-width: 599px) {
+  .gt-dialog-card--narrow {
+    min-width: min(100vw - 32px, 360px);
+  }
+}
+
+/* Set on Notify.create via session `notifyP2P` and copy-code toast */
+.gt-notify.q-notification {
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  padding: 14px 18px;
+  min-height: 52px;
+  border-radius: 12px;
+}
+
+.gt-notify .q-notification__message {
+  font-size: 1.0625rem;
+  line-height: 1.4;
+}
+
+.gt-dialog-card--touch-pad .q-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 12px 16px 16px;
+  gap: 8px;
+}
+
+.gt-dialog-card--touch-pad .q-card__actions .q-btn {
+  min-height: 48px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
