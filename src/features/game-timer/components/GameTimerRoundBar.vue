@@ -26,8 +26,11 @@
           size="md"
           icon="chevron_right"
           color="grey-5"
-          :disable="!hasPlayers"
           class="gt-round-bar__chev gt-round-bar__hit"
+          :class="{ 'gt-round-bar__chev--inert': !hasPlayers }"
+          :disable="!hasPlayers"
+          :tabindex="hasPlayers ? undefined : -1"
+          :aria-hidden="hasPlayers ? undefined : true"
           aria-label="Next round"
           @click="store.goToNextRound()"
         />

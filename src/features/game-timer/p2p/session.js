@@ -148,7 +148,7 @@ function clearRoomPersistence() {
 }
 
 /**
- * Closes PeerJS connections only; phase and suffix are left to the caller.
+ * Stops host heartbeats, guest host-watch, and host visibility listeners (not DataConnections / Peer).
  * @returns {void}
  */
 function clearHeartbeatAndWatch() {
@@ -432,7 +432,11 @@ function handleHubInbound(conn, raw) {
   const out = encodeHostSnapshot(snap, ++nextSeq)
   for (const c of hubConnections) {
     if (c === conn || !c.open) continue
-    c.send(out)
+    try {
+      c.send(out)
+    } catch {
+      void 0
+    }
   }
 }
 
@@ -745,13 +749,22 @@ export function broadcastGameTimerSnapshot(snapshot) {
   if (isHost) {
     const msg = encodeHostSnapshot(snapshot, ++nextSeq)
     for (const c of hubConnections) {
-      if (c.open) c.send(msg)
+      if (!c.open) continue
+      try {
+        c.send(msg)
+      } catch {
+        void 0
+      }
     }
     return
   }
 
   if (guestHubConn?.open) {
-    guestHubConn.send(encodeGuestUpdate(snapshot))
+    try {
+      guestHubConn.send(encodeGuestUpdate(snapshot))
+    } catch {
+      void 0
+    }
   }
 }
 

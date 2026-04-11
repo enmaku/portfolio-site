@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import {
+  isP2PSessionActive,
   joinRoom,
   leaveSession,
   remoteHostTabVisible,
@@ -25,9 +26,7 @@ import {
  * }}
  */
 export function useGameTimerP2P() {
-  const isInSession = computed(
-    () => sessionPhase.value === 'hosting' || sessionPhase.value === 'guest_connected',
-  )
+  const isInSession = computed(() => isP2PSessionActive())
   const isHosting = computed(() => sessionPhase.value === 'hosting')
   const isGuest = computed(() => sessionPhase.value === 'guest_connected')
 

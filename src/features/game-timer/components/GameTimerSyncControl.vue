@@ -149,10 +149,6 @@
 </template>
 
 <script setup>
-/**
- * Multiplayer menu on the round bar, join dialog, and persisted-session resume on mount.
- */
-
 import { computed, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
