@@ -9,6 +9,7 @@
 import { ref } from 'vue'
 import { Notify } from 'quasar'
 import Peer from 'peerjs'
+import { useGameTimerStore } from '../../../stores/gameTimer.js'
 import { useGameTimerRoomSessionStore } from '../../../stores/gameTimerRoomSession.js'
 import {
   encodeGuestUpdate,
@@ -646,13 +647,18 @@ export function teardownSession() {
 }
 
 /**
- * User-initiated exit: cancels reconnect, clears persistence, {@link teardownSession}.
+ * User-initiated exit: cancels reconnect, {@link teardownSession}, then clears local players and rounds.
  * @returns {void}
  */
 export function leaveSession() {
   reconnectGeneration += 1
   clearRoomPersistence()
   teardownSession()
+  try {
+    useGameTimerStore().clearAllPlayers()
+  } catch {
+    void 0
+  }
 }
 
 /**
