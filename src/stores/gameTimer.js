@@ -185,6 +185,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
 
     /** Increment round, pausing any live turn and applying saved order for the new round. */
     goToNextRound() {
+      if (this.players.length === 0) return
       const now = Date.now()
       this._saveOrderForRound()
       this._pauseLiveTurn(now)
@@ -194,7 +195,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
 
     /** Decrement round (no-op on round 1); pauses any live turn. */
     goToPreviousRound() {
-      if (this.round <= 1) return
+      if (this.players.length === 0 || this.round <= 1) return
       const now = Date.now()
       this._saveOrderForRound()
       this._pauseLiveTurn(now)
@@ -206,6 +207,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
      * Clear per-round banked time, drop order keys for rounds above 1, set round to 1. Lifetime `bankedMs` unchanged.
      */
     resetRoundTimeData() {
+      if (this.players.length === 0) return
       const now = Date.now()
       this._saveOrderForRound()
       this._pauseLiveTurn(now)

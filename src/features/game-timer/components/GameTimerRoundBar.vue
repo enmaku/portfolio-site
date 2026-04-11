@@ -8,7 +8,7 @@
           dense
           icon="chevron_left"
           color="grey-5"
-          :disable="round <= 1"
+          :disable="!hasPlayers || round <= 1"
           class="gt-round-bar__chev"
           aria-label="Previous round"
           @click="store.goToPreviousRound()"
@@ -22,6 +22,7 @@
           dense
           icon="chevron_right"
           color="grey-5"
+          :disable="!hasPlayers"
           class="gt-round-bar__chev"
           aria-label="Next round"
           @click="store.goToNextRound()"
@@ -36,7 +37,7 @@
       color="grey-5"
       class="gt-round-bar__reset"
       aria-label="Reset round data"
-      :disable="!hasMultipleRounds"
+      :disable="!hasPlayers || !hasMultipleRounds"
       @click="confirmOpen = true"
     />
     <q-dialog v-model="confirmOpen" persistent>
@@ -56,12 +57,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 
 const store = useGameTimerStore()
-const { round, hasMultipleRounds } = storeToRefs(store)
+const { round, hasMultipleRounds, players } = storeToRefs(store)
+const hasPlayers = computed(() => players.value.length > 0)
 
 const confirmOpen = ref(false)
 
