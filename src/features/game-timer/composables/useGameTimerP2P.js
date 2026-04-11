@@ -2,6 +2,7 @@ import { computed } from 'vue'
 import {
   joinRoom,
   leaveSession,
+  remoteHostTabVisible,
   resumeP2PSessionIfNeeded,
   sessionPhase,
   sessionSuffix,
@@ -16,6 +17,7 @@ import {
  *   isInSession: import('vue').ComputedRef<boolean>,
  *   isHosting: import('vue').ComputedRef<boolean>,
  *   isGuest: import('vue').ComputedRef<boolean>,
+ *   remoteHostTabVisible: typeof remoteHostTabVisible,
  *   startAsHost: typeof startAsHost,
  *   joinRoom: typeof joinRoom,
  *   leaveSession: typeof leaveSession,
@@ -35,6 +37,7 @@ export function useGameTimerP2P() {
     isInSession,
     isHosting,
     isGuest,
+    remoteHostTabVisible,
     startAsHost,
     joinRoom,
     leaveSession,

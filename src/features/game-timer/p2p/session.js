@@ -15,11 +15,13 @@ import {
   encodeGuestUpdate,
   encodeHostPing,
   encodeHostSnapshot,
+  encodeHostVisibility,
   isHostEndedNotice,
   isHostPing,
   MSG_HOST_ENDED,
   parseGuestMessage,
   parseHostMessage,
+  parseHostVisibility,
 } from './protocol.js'
 import {
   fullPeerIdFromSuffix,
@@ -68,9 +70,9 @@ let lastSeenSeq = 0
 
 let reconnectGeneration = 0
 
-const RECONNECT_MAX_ATTEMPTS = 8
+const RECONNECT_MAX_ATTEMPTS = 10
 const RECONNECT_BASE_DELAY_MS = 800
-const RECONNECT_MAX_DELAY_MS = 30_000
+const RECONNECT_MAX_DELAY_MS = 5000
 const RECONNECT_INITIAL_PAUSE_MS = 1000
 
 /** Reactive session UI state for multiplayer (Vue ref; safe to use outside components). */
@@ -79,12 +81,22 @@ export const sessionPhase = ref(/** @type {GameTimerSessionPhase} */ ('idle'))
 /** Short user-facing room code while hosting or connected as guest; null when idle. */
 export const sessionSuffix = ref(/** @type {string | null} */ (null))
 
+/**
+ * Guest only: last host-reported tab visibility (`document.visibilityState === 'visible'` on host).
+ * Stays `true` when idle / hosting / unknown.
+ */
+export const remoteHostTabVisible = ref(true)
+
 const PEER_OPTS = /** @type {const} */ ({
   serialization: 'json',
   reliable: true,
 })
 
+/** First connect / resume: allow slow signaling. */
 const OPEN_PEER_TIMEOUT_MS = 20000
+
+/** Reconnect loops: fail each try faster so backoff (below) dominates. */
+const RECONNECT_PEER_TIMEOUT_MS = 8000
 
 /** Hub → guests while hosting. */
 const HEARTBEAT_INTERVAL_MS = 3000
@@ -171,6 +183,23 @@ function sendHostHeartbeats() {
 }
 
 /**
+ * @param {boolean} visible
+ * @returns {void}
+ */
+function broadcastHostVisibility(visible) {
+  if (!isHost || !peer || peer.destroyed) return
+  const msg = encodeHostVisibility(visible)
+  for (const c of hubConnections) {
+    if (!c.open) continue
+    try {
+      c.send(msg)
+    } catch {
+      void 0
+    }
+  }
+}
+
+/**
  * @returns {void}
  */
 function startHostHeartbeats() {
@@ -183,7 +212,9 @@ function startHostHeartbeats() {
 
   if (typeof document !== 'undefined' && !hostVisibilityTeardown) {
     const onVis = () => {
-      if (document.visibilityState === 'visible') sendHostHeartbeats()
+      const visible = document.visibilityState === 'visible'
+      broadcastHostVisibility(visible)
+      if (visible) sendHostHeartbeats()
     }
     document.addEventListener('visibilitychange', onVis)
     hostVisibilityTeardown = () => document.removeEventListener('visibilitychange', onVis)
@@ -254,9 +285,10 @@ function reconnectDelayMs(attemptAfterFirst) {
 
 /**
  * @param {string} [brokerId] When non-empty, open as this broker id (hub). Otherwise random id (guest).
+ * @param {number} [timeoutMs=OPEN_PEER_TIMEOUT_MS]
  * @returns {Promise<import('peerjs').Peer>}
  */
-function awaitPeerOpen(brokerId) {
+function awaitPeerOpen(brokerId, timeoutMs = OPEN_PEER_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     const pr =
       typeof brokerId === 'string' && brokerId.length > 0 ? new Peer(brokerId) : new Peer()
@@ -265,7 +297,7 @@ function awaitPeerOpen(brokerId) {
         pr.destroy()
       } catch { void 0 }
       reject(new Error('Peer open timeout'))
-    }, OPEN_PEER_TIMEOUT_MS)
+    }, timeoutMs)
     pr.on('error', (e) => {
       window.clearTimeout(t)
       try {
@@ -291,6 +323,9 @@ function attachHubConnectionHandlers(p) {
       try {
         const snap = handlers.getSnapshot()
         conn.send(encodeHostSnapshot(snap, ++nextSeq))
+        if (typeof document !== 'undefined') {
+          conn.send(encodeHostVisibility(document.visibilityState === 'visible'))
+        }
       } catch {
         conn.close()
       }
@@ -325,12 +360,14 @@ function finishHostSession(p, suffix) {
 /**
  * Opens a random guest peer and a DataConnection to the hub id for `suffix`.
  * @param {string} suffix Normalized room suffix.
+ * @param {{ peerTimeoutMs?: number }} [opts]
  * @returns {Promise<void>}
  */
-async function establishGuestSession(suffix) {
+async function establishGuestSession(suffix, opts = {}) {
+  const peerTimeoutMs = opts.peerTimeoutMs ?? OPEN_PEER_TIMEOUT_MS
   const hubId = fullPeerIdFromSuffix(suffix)
   lastSeenSeq = 0
-  const p = await awaitPeerOpen()
+  const p = await awaitPeerOpen(undefined, peerTimeoutMs)
   peer = /** @type {import('peerjs').Peer} */ (p)
   isHost = false
 
@@ -342,7 +379,7 @@ async function establishGuestSession(suffix) {
         conn.close()
       } catch { void 0 }
       reject(new Error('Connect timeout'))
-    }, OPEN_PEER_TIMEOUT_MS)
+    }, peerTimeoutMs)
     conn.on('error', (e) => {
       window.clearTimeout(t)
       reject(e)
@@ -413,6 +450,12 @@ function handleGuestInbound(raw) {
   }
   if (isHostPing(raw)) {
     touchGuestHostActivity()
+    return
+  }
+  const vis = parseHostVisibility(raw)
+  if (vis) {
+    touchGuestHostActivity()
+    remoteHostTabVisible.value = vis.visible
     return
   }
   const msg = parseHostMessage(raw)
@@ -506,7 +549,7 @@ async function guestReconnectLoop(suffix, gen) {
 
     try {
       destroyWireOnly()
-      await establishGuestSession(suffix)
+      await establishGuestSession(suffix, { peerTimeoutMs: RECONNECT_PEER_TIMEOUT_MS })
       if (gen !== reconnectGeneration) {
         leaveSession()
         return
@@ -546,7 +589,7 @@ async function hostReconnectLoop(suffix, gen) {
 
     try {
       destroyWireOnly()
-      const p = await awaitPeerOpen(fullId)
+      const p = await awaitPeerOpen(fullId, RECONNECT_PEER_TIMEOUT_MS)
       finishHostSession(/** @type {import('peerjs').Peer} */ (p), suffix)
       if (gen !== reconnectGeneration) {
         leaveSession()
@@ -720,6 +763,7 @@ export function teardownSession() {
   // Idle first: synchronous connection `close` handlers must not see hosting/guest_connected or they start reconnect.
   sessionPhase.value = 'idle'
   sessionSuffix.value = null
+  remoteHostTabVisible.value = true
   destroyWireOnly()
 }
 

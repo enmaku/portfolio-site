@@ -14,6 +14,9 @@ export const MSG_HOST_ENDED = 'gt-x'
 /** Hub → guest: keepalive so guests detect a stalled or backgrounded host. */
 export const MSG_HOST_PING = 'gt-p'
 
+/** Hub → guest: host tab visibility (`document.visibilityState`) for UX / liveness hints. */
+export const MSG_HOST_VISIBILITY = 'gt-v'
+
 /**
  * Serializable slice of the game timer store (matches pinia `persist.pick`).
  *
@@ -79,6 +82,28 @@ export function encodeHostPing() {
  */
 export function isHostPing(data) {
   return isRecord(data) && data.type === MSG_HOST_PING
+}
+
+/**
+ * @param {boolean} visible Same idea as `document.visibilityState === 'visible'` on the host.
+ * @returns {{ type: typeof MSG_HOST_VISIBILITY, visible: boolean, t: number }}
+ */
+export function encodeHostVisibility(visible) {
+  return { type: MSG_HOST_VISIBILITY, visible, t: Date.now() }
+}
+
+/**
+ * @param {unknown} data
+ * @returns {{ type: typeof MSG_HOST_VISIBILITY, visible: boolean, t: number } | null}
+ */
+export function parseHostVisibility(data) {
+  if (!isRecord(data) || data.type !== MSG_HOST_VISIBILITY) return null
+  if (typeof data.visible !== 'boolean') return null
+  return {
+    type: MSG_HOST_VISIBILITY,
+    visible: data.visible,
+    t: typeof data.t === 'number' ? data.t : 0,
+  }
 }
 
 /**

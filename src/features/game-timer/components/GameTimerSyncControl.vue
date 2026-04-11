@@ -107,7 +107,8 @@
                 <span class="text-body2 text-grey-6">Room</span>
                 <code class="gt-sync-menu__code gt-sync-menu__code-display">{{ suffix }}</code>
               </div>
-              <div class="text-body2 text-positive">In sync</div>
+              <div v-if="remoteHostTabVisible" class="text-body2 text-positive">In sync</div>
+              <div v-else class="text-body2 text-warning">Host tab in background</div>
               <q-btn
                 outline
                 no-caps
@@ -159,8 +160,15 @@ import { normalizeRoomSuffixInput } from '../p2p/roomId.js'
 
 const $q = useQuasar()
 const menuRef = ref(/** @type {{ hide?: () => void } | null} */ (null))
-const { phase, suffix, startAsHost, joinRoom, leaveSession, resumeP2PSessionIfNeeded } =
-  useGameTimerP2P()
+const {
+  phase,
+  suffix,
+  remoteHostTabVisible,
+  startAsHost,
+  joinRoom,
+  leaveSession,
+  resumeP2PSessionIfNeeded,
+} = useGameTimerP2P()
 
 const joinOpen = ref(false)
 const joinCodeInput = ref('')
@@ -179,8 +187,9 @@ const busySpinnerColor = computed(() =>
 const syncColor = computed(() => {
   switch (phase.value) {
     case 'hosting':
-    case 'guest_connected':
       return 'positive'
+    case 'guest_connected':
+      return remoteHostTabVisible.value ? 'positive' : 'warning'
     case 'connecting':
       return 'primary'
     case 'reconnecting':
@@ -195,7 +204,9 @@ const syncAriaLabel = computed(() => {
     case 'hosting':
       return `Multiplayer: hosting room ${suffix.value ?? ''}`
     case 'guest_connected':
-      return `Multiplayer: synced, room ${suffix.value ?? ''}`
+      return remoteHostTabVisible.value
+        ? `Multiplayer: synced, room ${suffix.value ?? ''}`
+        : `Multiplayer: host tab in background, room ${suffix.value ?? ''}`
     case 'connecting':
       return 'Multiplayer: connecting'
     case 'reconnecting':
@@ -216,7 +227,9 @@ const statusDescription = computed(() => {
     case 'hosting':
       return 'You are currently hosting a room. Others can join with this code:'
     case 'guest_connected':
-      return 'Following the host’s timer state.'
+      return remoteHostTabVisible.value
+        ? 'Following the host’s timer state.'
+        : 'The host’s browser tab is in the background; updates may be delayed until they return.'
     default:
       return ''
   }
