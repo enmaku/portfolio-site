@@ -69,7 +69,7 @@ const RECONNECT_BASE_DELAY_MS = 800
 const RECONNECT_MAX_DELAY_MS = 30_000
 const RECONNECT_INITIAL_PAUSE_MS = 1000
 
-const ROOM_CODE_SHARE_NOTIFY_MS = 8000
+const ROOM_CODE_SHARE_NOTIFY_MS = 3000
 
 /** Reactive session UI state for multiplayer (Vue ref; safe to use outside components). */
 export const sessionPhase = ref(/** @type {GameTimerSessionPhase} */ ('idle'))
@@ -97,7 +97,7 @@ function notifyP2P(message, type = 'info', opts = {}) {
     Notify.create({
       message,
       type,
-      position: 'bottom',
+      position: 'top',
       timeout,
     })
   } catch { void 0 }
@@ -563,11 +563,9 @@ export async function startAsHost(maxAttempts = 12) {
       const p = await awaitPeerOpen(fullId)
       sessionSuffix.value = suffix
       finishHostSession(/** @type {import('peerjs').Peer} */ (p), suffix)
-      const copied = await copyRoomCodeToClipboard(suffix)
+      await copyRoomCodeToClipboard(suffix)
       notifyP2P(
-        copied
-          ? `Room ${suffix} — copied to clipboard.`
-          : `Room ${suffix} created`,
+        `Room ${suffix} created`,
         'positive',
         { timeout: ROOM_CODE_SHARE_NOTIFY_MS },
       )
