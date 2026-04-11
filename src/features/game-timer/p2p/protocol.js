@@ -8,6 +8,9 @@ export const MSG_GUEST_UPDATE = 'gt-u'
 /** Hub → guest: authoritative snapshot with monotonic sequence (per room hub). */
 export const MSG_HOST_SNAPSHOT = 'gt-s'
 
+/** Hub → guest: host is closing the room intentionally (before connections drop). */
+export const MSG_HOST_ENDED = 'gt-x'
+
 /**
  * Serializable slice of the game timer store (matches pinia `persist.pick`).
  *
@@ -74,6 +77,14 @@ export function parseGuestMessage(data) {
  * @param {unknown} data
  * @returns {{ type: typeof MSG_HOST_SNAPSHOT, snapshot: GameTimerSyncPayload, seq: number } | null}
  */
+/**
+ * @param {unknown} data
+ * @returns {boolean}
+ */
+export function isHostEndedNotice(data) {
+  return isRecord(data) && data.type === MSG_HOST_ENDED
+}
+
 export function parseHostMessage(data) {
   if (!isRecord(data) || data.type !== MSG_HOST_SNAPSHOT) return null
   if (typeof data.seq !== 'number' || data.seq < 1) return null

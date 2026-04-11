@@ -14,6 +14,8 @@ import { useGameTimerRoomSessionStore } from '../../../stores/gameTimerRoomSessi
 import {
   encodeGuestUpdate,
   encodeHostSnapshot,
+  isHostEndedNotice,
+  MSG_HOST_ENDED,
   parseGuestMessage,
   parseHostMessage,
 } from './protocol.js'
@@ -317,6 +319,13 @@ function handleHubInbound(conn, raw) {
  * @returns {void}
  */
 function handleGuestInbound(raw) {
+  if (isHostEndedNotice(raw)) {
+    notifyP2P('The host ended the room.', 'info')
+    reconnectGeneration += 1
+    clearRoomPersistence()
+    resetLocalStateAfterRoomExit()
+    return
+  }
   const msg = parseHostMessage(raw)
   if (!msg) return
   if (msg.seq <= lastSeenSeq) return
@@ -645,18 +654,38 @@ export function teardownSession() {
 }
 
 /**
- * User-initiated exit: cancels reconnect, {@link teardownSession}, then clears local players and rounds.
+ * After {@link teardownSession}: clears the game timer roster (no P2P broadcast; session already idle).
  * @returns {void}
  */
-export function leaveSession() {
-  reconnectGeneration += 1
-  clearRoomPersistence()
+function resetLocalStateAfterRoomExit() {
   teardownSession()
   try {
     useGameTimerStore().clearAllPlayers()
   } catch {
     void 0
   }
+}
+
+/**
+ * User-initiated exit: notifies guests if hosting, then clears persistence, wire, and local timer state.
+ * @returns {void}
+ */
+export function leaveSession() {
+  reconnectGeneration += 1
+  clearRoomPersistence()
+  if (isHost && sessionPhase.value === 'hosting') {
+    const endMsg = { type: MSG_HOST_ENDED }
+    for (const c of hubConnections) {
+      if (!c.open) continue
+      try {
+        c.send(endMsg)
+      } catch {
+        void 0
+      }
+    }
+    notifyP2P('You stopped hosting.', 'info')
+  }
+  resetLocalStateAfterRoomExit()
 }
 
 /**
