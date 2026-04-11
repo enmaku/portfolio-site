@@ -1,7 +1,11 @@
+/**
+ * Live `Date.now()` ref for timer / progress UI (ticks on an interval; cleared on unmount).
+ */
+
 import { ref, onMounted, onUnmounted } from 'vue'
 
 /**
- * Ref that updates on an interval for live timer / progress UI; clears the interval on unmount.
+ * Returns a ref of the current time, updated every `intervalMs` while mounted.
  * @param {number} [intervalMs=100]
  * @returns {import('vue').Ref<number>} Epoch ms from `Date.now()`.
  */

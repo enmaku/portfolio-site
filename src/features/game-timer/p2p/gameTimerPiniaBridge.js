@@ -1,4 +1,5 @@
 /**
+ * @import '../types.js'
  * Pinia plugin: sync game timer store over PeerJS when a session is active.
  * Keeps `peerjs` and wire types out of `stores/gameTimer.js`.
  */
@@ -29,7 +30,7 @@ const SYNC_ACTION_NAMES = new Set([
 
 /**
  * @param {import('pinia').Store} store `gameTimer` store instance.
- * @returns {import('./protocol.js').GameTimerSyncPayload}
+ * @returns {GameTimerSyncPayload}
  */
 function pickSnapshot(store) {
   const s = store.$state
@@ -45,7 +46,7 @@ function pickSnapshot(store) {
 
 /**
  * Mirrors `persist.afterHydrate` normalization in the game timer store.
- * @param {import('pinia').Store} store
+ * @param {import('pinia').Store} store `gameTimer` store instance.
  * @returns {void}
  */
 function normalizeAfterRemotePatch(store) {

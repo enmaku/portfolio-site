@@ -10,6 +10,7 @@ export const GAME_TIMER_PEER_ID_PREFIX = 'dperry-gametimer-'
 const SUFFIX_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 
 /**
+ * Random room code suffix (uppercase alphanumerics excluding I, O, L).
  * @param {number} [length=6]
  * @returns {string}
  */

@@ -1,3 +1,8 @@
+/**
+ * @import '../types.js'
+ * Reactive multiplayer session state and actions (wraps `session.js` refs and exports).
+ */
+
 import { computed } from 'vue'
 import {
   isP2PSessionActive,
@@ -11,9 +16,8 @@ import {
 } from '../p2p/session.js'
 
 /**
- * Reactive multiplayer session state and actions (wraps `session.js` refs and exports).
  * @returns {{
- *   phase: import('vue').Ref<'idle' | 'connecting' | 'reconnecting' | 'hosting' | 'guest_connected'>,
+ *   phase: import('vue').Ref<GameTimerSessionPhase>,
  *   suffix: import('vue').Ref<string | null>,
  *   isInSession: import('vue').ComputedRef<boolean>,
  *   isHosting: import('vue').ComputedRef<boolean>,

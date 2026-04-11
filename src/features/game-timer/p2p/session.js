@@ -1,4 +1,5 @@
 /**
+ * @import '../types.js'
  * PeerJS star topology: one hub peer id (`dperry-gametimer-<suffix>`), guests connect with random ids.
  *
  * If the public PeerJS cloud or STUN is unreliable, you can self-host
@@ -32,12 +33,8 @@ import {
 
 /**
  * @typedef {object} GameTimerP2PHandlers
- * @property {() => import('./protocol.js').GameTimerSyncPayload} getSnapshot
- * @property {(snapshot: import('./protocol.js').GameTimerSyncPayload) => void} applySnapshot
- */
-
-/**
- * @typedef {'idle' | 'connecting' | 'reconnecting' | 'hosting' | 'guest_connected'} GameTimerSessionPhase
+ * @property {() => GameTimerSyncPayload} getSnapshot
+ * @property {(snapshot: GameTimerSyncPayload) => void} applySnapshot
  */
 
 /** @type {GameTimerP2PHandlers} */
@@ -167,6 +164,7 @@ function clearHeartbeatAndWatch() {
 }
 
 /**
+ * Sends a ping on every open hub → guest connection.
  * @returns {void}
  */
 function sendHostHeartbeats() {
@@ -200,6 +198,7 @@ function broadcastHostVisibility(visible) {
 }
 
 /**
+ * Starts periodic hub heartbeats and visibility-driven visibility + ping bursts.
  * @returns {void}
  */
 function startHostHeartbeats() {
@@ -225,6 +224,7 @@ function startHostHeartbeats() {
 let guestLastHostActivityAt = 0
 
 /**
+ * Marks recent host activity for the guest staleness watchdog.
  * @returns {void}
  */
 function touchGuestHostActivity() {
@@ -232,6 +232,7 @@ function touchGuestHostActivity() {
 }
 
 /**
+ * Polls whether the host has gone silent too long; triggers guest reconnect path.
  * @returns {void}
  */
 function startGuestHostWatch() {
@@ -246,6 +247,11 @@ function startGuestHostWatch() {
   }, HEARTBEAT_GUEST_CHECK_MS)
 }
 
+/**
+ * Closes hub and guest DataConnections, destroys the Peer, stops heartbeats/watch, and resets wire-only flags (`isHost`, seq).
+ * Does not change `sessionPhase`, `sessionSuffix`, or `remoteHostTabVisible`; callers set those when tearing down UI state.
+ * @returns {void}
+ */
 function destroyWireOnly() {
   clearHeartbeatAndWatch()
   for (const c of hubConnections) {
@@ -313,6 +319,7 @@ function awaitPeerOpen(brokerId, timeoutMs = OPEN_PEER_TIMEOUT_MS) {
 }
 
 /**
+ * Handles incoming guest `DataConnection`s on the hub peer (snapshot on open, fan-out on data).
  * @param {import('peerjs').Peer} p
  * @returns {void}
  */
@@ -338,6 +345,7 @@ function attachHubConnectionHandlers(p) {
 }
 
 /**
+ * Activates `p` as the hub for `suffix` (phase, heartbeats, persistence).
  * @param {import('peerjs').Peer} p
  * @param {string} suffix
  * @returns {void}
@@ -416,6 +424,7 @@ export function bindGameTimerP2PHandlers(h) {
 }
 
 /**
+ * Applies a guest snapshot on the hub and rebroadcasts authoritative state to other guests.
  * @param {import('peerjs').DataConnection} conn
  * @param {unknown} raw
  * @returns {void}
@@ -441,6 +450,7 @@ function handleHubInbound(conn, raw) {
 }
 
 /**
+ * Dispatches inbound hub messages: room ended, ping, visibility, or sequenced snapshot.
  * @param {unknown} raw
  * @returns {void}
  */
@@ -475,6 +485,7 @@ function handleGuestInbound(raw) {
 }
 
 /**
+ * Forwards PeerJS `error` events to host or guest disconnect handling.
  * @param {import('peerjs').Peer} p
  * @returns {void}
  */
@@ -488,7 +499,10 @@ function wirePeerErrors(p) {
   })
 }
 
-/** Guest hub connection lost (close or peer error); may start silent reconnect. */
+/**
+ * Guest hub connection lost (close or peer error); may start silent reconnect.
+ * @returns {void}
+ */
 function onGuestDisconnected() {
   if (isHost) return
   if (sessionPhase.value !== 'guest_connected') return
@@ -510,7 +524,10 @@ function onGuestDisconnected() {
   void guestReconnectLoop(suffix, gen)
 }
 
-/** Host peer error; may start silent reconnect. */
+/**
+ * Host peer error; may start silent reconnect.
+ * @returns {void}
+ */
 function onHostDisconnected() {
   if (!isHost) return
   if (sessionPhase.value !== 'hosting') return
@@ -740,7 +757,7 @@ export async function joinRoom(rawSuffix) {
 
 /**
  * Push current snapshot to peers (after a local store mutation).
- * @param {import('./protocol.js').GameTimerSyncPayload} snapshot
+ * @param {GameTimerSyncPayload} snapshot
  * @returns {void}
  */
 export function broadcastGameTimerSnapshot(snapshot) {
@@ -815,7 +832,8 @@ export function leaveSession() {
 }
 
 /**
- * @returns {boolean} True when hosting or connected as guest (sync and timers apply).
+ * True while this tab is the room hub or a connected guest (store sync is active).
+ * @returns {boolean}
  */
 export function isP2PSessionActive() {
   return sessionPhase.value === 'hosting' || sessionPhase.value === 'guest_connected'

@@ -1,4 +1,5 @@
 /**
+ * @import '../types.js'
  * Wire messages between game timer peers (JSON via PeerJS `serialization: 'json'`).
  */
 
@@ -16,18 +17,6 @@ export const MSG_HOST_PING = 'gt-p'
 
 /** Hub → guest: host tab visibility (`document.visibilityState`) for UX / liveness hints. */
 export const MSG_HOST_VISIBILITY = 'gt-v'
-
-/**
- * Serializable slice of the game timer store (matches pinia `persist.pick`).
- *
- * @typedef {object} GameTimerSyncPayload
- * @property {object[]} players
- * @property {string | null} activePlayerId
- * @property {number | null} turnStartedAt
- * @property {number | null} turnStartedRound
- * @property {number} round
- * @property {Record<string, string[]>} playerOrderByRound
- */
 
 /**
  * @param {unknown} data
@@ -70,6 +59,7 @@ export function encodeHostSnapshot(snapshot, seq) {
 }
 
 /**
+ * Host keepalive payload (timestamp for debugging; guests only check message type).
  * @returns {{ type: typeof MSG_HOST_PING, t: number }}
  */
 export function encodeHostPing() {

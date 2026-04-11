@@ -28,6 +28,10 @@ export const useGameTimerRoomSessionStore = defineStore('gameTimerRoomSession', 
       this.suffix = suffix
     },
 
+    /**
+     * Clears persisted role and room suffix (user left or session invalidated).
+     * @returns {void}
+     */
     clear() {
       this.role = null
       this.suffix = null

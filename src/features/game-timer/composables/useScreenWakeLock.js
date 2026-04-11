@@ -6,7 +6,9 @@
 import { onBeforeUnmount, toValue, watch } from 'vue'
 
 /**
+ * Composable: acquire / release screen wake lock based on `enabled`.
  * @param {import('vue').MaybeRefOrGetter<boolean>} enabled
+ * @returns {void}
  */
 export function useScreenWakeLock(enabled) {
   /** @type {WakeLockSentinel | null} */
