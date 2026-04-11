@@ -152,7 +152,7 @@
 
 <script setup>
 import exifr from 'exifr'
-import { nextTick, onMounted, ref } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { exifSummaryLines, exifToRows } from 'src/utils/exifFormat.js'
 
@@ -258,6 +258,46 @@ function onThumbLeave() {
 }
 
 const dialogOpen = ref(false)
+
+/** @type {{ portfolioImagePreview: true }} */
+const PREVIEW_HISTORY_STATE = { portfolioImagePreview: true }
+const previewHistoryPushed = ref(false)
+const ignoreNextPopstate = ref(false)
+
+function onBrowserPopState() {
+  if (ignoreNextPopstate.value) {
+    ignoreNextPopstate.value = false
+    return
+  }
+
+  if (dialogOpen.value) {
+    dialogOpen.value = false
+    previewHistoryPushed.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('popstate', onBrowserPopState)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('popstate', onBrowserPopState)
+})
+
+watch(dialogOpen, (open) => {
+  if (open) {
+    return
+  }
+
+  if (!previewHistoryPushed.value) {
+    return
+  }
+
+  previewHistoryPushed.value = false
+  ignoreNextPopstate.value = true
+  history.back()
+})
+
 const dialogSrc = ref('')
 const dialogLabel = ref('')
 const exifPanelOpen = ref(true)
@@ -280,6 +320,8 @@ async function openPhoto(photo) {
   isZoomed.value = false
   isDragging.value = false
   dialogExifRows.value = []
+  previewHistoryPushed.value = true
+  history.pushState(PREVIEW_HISTORY_STATE, '')
   dialogOpen.value = true
 
   const exif = await loadExif(photo.src)
