@@ -13,8 +13,10 @@ import { useGameTimerStore } from '../../../stores/gameTimer.js'
 import { useGameTimerRoomSessionStore } from '../../../stores/gameTimerRoomSession.js'
 import {
   encodeGuestUpdate,
+  encodeHostPing,
   encodeHostSnapshot,
   isHostEndedNotice,
+  isHostPing,
   MSG_HOST_ENDED,
   parseGuestMessage,
   parseHostMessage,
@@ -84,6 +86,24 @@ const PEER_OPTS = /** @type {const} */ ({
 
 const OPEN_PEER_TIMEOUT_MS = 20000
 
+/** Hub → guests while hosting. */
+const HEARTBEAT_INTERVAL_MS = 3000
+
+/** Guest: no snapshot or ping from host for this long ⇒ reconnect. */
+const HEARTBEAT_STALE_MS = 12_000
+
+/** Guest: how often we check staleness. */
+const HEARTBEAT_GUEST_CHECK_MS = 2000
+
+/** @type {ReturnType<typeof setInterval> | null} */
+let hostHeartbeatIntervalId = null
+
+/** @type {ReturnType<typeof setInterval> | null} */
+let guestHostWatchIntervalId = null
+
+/** @type {(() => void) | null} */
+let hostVisibilityTeardown = null
+
 /**
  * @param {string} message
  * @param {'positive' | 'negative' | 'warning' | 'info'} [type='info']
@@ -119,7 +139,84 @@ function clearRoomPersistence() {
  * Closes PeerJS connections only; phase and suffix are left to the caller.
  * @returns {void}
  */
+function clearHeartbeatAndWatch() {
+  if (hostHeartbeatIntervalId !== null) {
+    clearInterval(hostHeartbeatIntervalId)
+    hostHeartbeatIntervalId = null
+  }
+  if (guestHostWatchIntervalId !== null) {
+    clearInterval(guestHostWatchIntervalId)
+    guestHostWatchIntervalId = null
+  }
+  if (hostVisibilityTeardown) {
+    hostVisibilityTeardown()
+    hostVisibilityTeardown = null
+  }
+}
+
+/**
+ * @returns {void}
+ */
+function sendHostHeartbeats() {
+  if (!isHost || !peer || peer.destroyed) return
+  const msg = encodeHostPing()
+  for (const c of hubConnections) {
+    if (!c.open) continue
+    try {
+      c.send(msg)
+    } catch {
+      void 0
+    }
+  }
+}
+
+/**
+ * @returns {void}
+ */
+function startHostHeartbeats() {
+  if (hostHeartbeatIntervalId !== null) {
+    clearInterval(hostHeartbeatIntervalId)
+    hostHeartbeatIntervalId = null
+  }
+  hostHeartbeatIntervalId = window.setInterval(sendHostHeartbeats, HEARTBEAT_INTERVAL_MS)
+  sendHostHeartbeats()
+
+  if (typeof document !== 'undefined' && !hostVisibilityTeardown) {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') sendHostHeartbeats()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    hostVisibilityTeardown = () => document.removeEventListener('visibilitychange', onVis)
+  }
+}
+
+/** @type {number} */
+let guestLastHostActivityAt = 0
+
+/**
+ * @returns {void}
+ */
+function touchGuestHostActivity() {
+  guestLastHostActivityAt = Date.now()
+}
+
+/**
+ * @returns {void}
+ */
+function startGuestHostWatch() {
+  if (guestHostWatchIntervalId !== null) {
+    clearInterval(guestHostWatchIntervalId)
+    guestHostWatchIntervalId = null
+  }
+  touchGuestHostActivity()
+  guestHostWatchIntervalId = window.setInterval(() => {
+    if (sessionPhase.value !== 'guest_connected' || isHost) return
+    if (Date.now() - guestLastHostActivityAt > HEARTBEAT_STALE_MS) onGuestDisconnected()
+  }, HEARTBEAT_GUEST_CHECK_MS)
+}
+
 function destroyWireOnly() {
+  clearHeartbeatAndWatch()
   for (const c of hubConnections) {
     try {
       c.close()
@@ -219,6 +316,7 @@ function finishHostSession(p, suffix) {
   attachHubConnectionHandlers(peer)
   sessionPhase.value = 'hosting'
   wirePeerErrors(peer)
+  startHostHeartbeats()
   try {
     useGameTimerRoomSessionStore().setHost(suffix)
   } catch { void 0 }
@@ -264,6 +362,7 @@ async function establishGuestSession(suffix) {
 
   sessionPhase.value = 'guest_connected'
   wirePeerErrors(peer)
+  startGuestHostWatch()
 
   try {
     useGameTimerRoomSessionStore().setGuest(suffix)
@@ -312,8 +411,13 @@ function handleGuestInbound(raw) {
     resetLocalStateAfterRoomExit()
     return
   }
+  if (isHostPing(raw)) {
+    touchGuestHostActivity()
+    return
+  }
   const msg = parseHostMessage(raw)
   if (!msg) return
+  touchGuestHostActivity()
   if (msg.seq <= lastSeenSeq) return
   lastSeenSeq = msg.seq
   try {

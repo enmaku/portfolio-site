@@ -11,6 +11,9 @@ export const MSG_HOST_SNAPSHOT = 'gt-s'
 /** Hub → guest: host is closing the room intentionally (before connections drop). */
 export const MSG_HOST_ENDED = 'gt-x'
 
+/** Hub → guest: keepalive so guests detect a stalled or backgrounded host. */
+export const MSG_HOST_PING = 'gt-p'
+
 /**
  * Serializable slice of the game timer store (matches pinia `persist.pick`).
  *
@@ -64,6 +67,21 @@ export function encodeHostSnapshot(snapshot, seq) {
 }
 
 /**
+ * @returns {{ type: typeof MSG_HOST_PING, t: number }}
+ */
+export function encodeHostPing() {
+  return { type: MSG_HOST_PING, t: Date.now() }
+}
+
+/**
+ * @param {unknown} data
+ * @returns {boolean}
+ */
+export function isHostPing(data) {
+  return isRecord(data) && data.type === MSG_HOST_PING
+}
+
+/**
  * @param {unknown} data
  * @returns {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload } | null}
  */
@@ -75,16 +93,16 @@ export function parseGuestMessage(data) {
 
 /**
  * @param {unknown} data
- * @returns {{ type: typeof MSG_HOST_SNAPSHOT, snapshot: GameTimerSyncPayload, seq: number } | null}
- */
-/**
- * @param {unknown} data
  * @returns {boolean}
  */
 export function isHostEndedNotice(data) {
   return isRecord(data) && data.type === MSG_HOST_ENDED
 }
 
+/**
+ * @param {unknown} data
+ * @returns {{ type: typeof MSG_HOST_SNAPSHOT, snapshot: GameTimerSyncPayload, seq: number } | null}
+ */
 export function parseHostMessage(data) {
   if (!isRecord(data) || data.type !== MSG_HOST_SNAPSHOT) return null
   if (typeof data.seq !== 'number' || data.seq < 1) return null
