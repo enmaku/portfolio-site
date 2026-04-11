@@ -9,8 +9,11 @@
           size="md"
           icon="chevron_left"
           color="grey-5"
-          :disable="!hasPlayers || round <= 1"
           class="gt-round-bar__chev gt-round-bar__hit"
+          :class="{ 'gt-round-bar__chev--inert': !canGoPreviousRound }"
+          :disable="!canGoPreviousRound"
+          :tabindex="canGoPreviousRound ? undefined : -1"
+          :aria-hidden="canGoPreviousRound ? undefined : true"
           aria-label="Previous round"
           @click="store.goToPreviousRound()"
         />
@@ -31,7 +34,7 @@
       </div>
     </div>
     <q-btn
-      v-if="!isGuest"
+      v-if="!isGuest && hasPlayers && hasMultipleRounds"
       flat
       round
       size="md"
@@ -39,7 +42,6 @@
       color="grey-5"
       class="gt-round-bar__reset gt-round-bar__hit"
       aria-label="Reset round data"
-      :disable="!hasPlayers || !hasMultipleRounds"
       @click="confirmOpen = true"
     />
     <q-dialog v-model="confirmOpen" persistent>
@@ -69,6 +71,7 @@ const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
 const { round, hasMultipleRounds, players } = storeToRefs(store)
 const hasPlayers = computed(() => players.value.length > 0)
+const canGoPreviousRound = computed(() => hasPlayers.value && round.value > 1)
 
 const confirmOpen = ref(false)
 
@@ -130,6 +133,12 @@ function confirmReset() {
 .gt-round-bar__reset,
 .gt-round-bar__sync {
   flex-shrink: 0;
+}
+
+/* Keeps round label + next chevron centered; slot stays 48×48 when prev is unusable */
+.gt-round-bar__chev--inert {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .gt-round-bar__sync {

@@ -43,7 +43,7 @@
               :style="rowSurfaceStyle(player)"
               :data-gt-player-id="player.id"
             >
-              <div class="gt-player-row__content row items-center no-wrap relative-position q-px-md q-py-md">
+              <div class="gt-player-row__content row items-center no-wrap relative-position q-px-md">
                 <button
                   type="button"
                   class="gt-player-row__name col text-left text-body1 text-weight-medium"
@@ -411,14 +411,14 @@ function progressRoundFillStyle(player) {
 
 .gt-player-row__progress {
   flex: 0 0 auto;
-  height: 4px;
+  height: 5px;
   width: 100%;
   pointer-events: none;
 }
 
 .gt-player-row__progress--round {
-  height: 3px;
-  margin-bottom: 2px;
+  height: 4px;
+  margin-bottom: 3px;
 }
 
 .gt-player-row__progress-rail {
@@ -432,8 +432,11 @@ function progressRoundFillStyle(player) {
 
 .gt-player-row__content {
   flex: 1 1 auto;
-  min-height: 0;
+  min-height: 64px;
   min-width: 0;
+  padding-top: 18px;
+  padding-bottom: 18px;
+  box-sizing: border-box;
 }
 
 .gt-player-row__name {
@@ -442,8 +445,11 @@ function progressRoundFillStyle(player) {
   border: none;
   color: inherit;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 10px 0;
   min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 .gt-player-row__time {

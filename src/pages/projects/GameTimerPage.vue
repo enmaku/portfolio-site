@@ -24,11 +24,11 @@
       class="gt-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm q-gutter-x-sm"
     >
       <q-btn
+        v-if="players.length"
         fab-mini
         outline
         color="grey-5"
         icon="playlist_remove"
-        :disable="!players.length"
         aria-label="Remove all players"
         class="gt-actions-bar__fixed-btn"
         @click="resetConfirmOpen = true"

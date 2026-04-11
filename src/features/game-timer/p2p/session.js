@@ -71,8 +71,6 @@ const RECONNECT_BASE_DELAY_MS = 800
 const RECONNECT_MAX_DELAY_MS = 30_000
 const RECONNECT_INITIAL_PAUSE_MS = 1000
 
-const ROOM_CODE_SHARE_NOTIFY_MS = 3000
-
 /** Reactive session UI state for multiplayer (Vue ref; safe to use outside components). */
 export const sessionPhase = ref(/** @type {GameTimerSessionPhase} */ ('idle'))
 
@@ -261,7 +259,7 @@ async function establishGuestSession(suffix) {
   conn.on('data', (data) => handleGuestInbound(data))
   conn.on('close', () => {
     guestHubConn = null
-    onGuestDisconnected('Disconnected from room')
+    onGuestDisconnected()
   })
 
   sessionPhase.value = 'guest_connected'
@@ -330,21 +328,17 @@ function handleGuestInbound(raw) {
  * @returns {void}
  */
 function wirePeerErrors(p) {
-  p.on('error', (err) => {
-    const msg = err?.message ? String(err.message) : 'Connection error'
+  p.on('error', () => {
     if (isHost) {
-      onHostDisconnected(msg)
+      onHostDisconnected()
     } else {
-      onGuestDisconnected(msg)
+      onGuestDisconnected()
     }
   })
 }
 
-/**
- * @param {string} reason Shown in a toast before reconnect attempts.
- * @returns {void}
- */
-function onGuestDisconnected(reason) {
+/** Guest hub connection lost (close or peer error); may start silent reconnect. */
+function onGuestDisconnected() {
   if (isHost) return
   if (sessionPhase.value !== 'guest_connected') return
 
@@ -358,7 +352,6 @@ function onGuestDisconnected(reason) {
   reconnectGeneration += 1
   const gen = reconnectGeneration
 
-  notifyP2P(reason, 'negative')
   destroyWireOnly()
   sessionPhase.value = 'reconnecting'
   sessionSuffix.value = suffix
@@ -366,11 +359,8 @@ function onGuestDisconnected(reason) {
   void guestReconnectLoop(suffix, gen)
 }
 
-/**
- * @param {string} reason Shown in a toast before reconnect attempts.
- * @returns {void}
- */
-function onHostDisconnected(reason) {
+/** Host peer error; may start silent reconnect. */
+function onHostDisconnected() {
   if (!isHost) return
   if (sessionPhase.value !== 'hosting') return
 
@@ -384,7 +374,6 @@ function onHostDisconnected(reason) {
   reconnectGeneration += 1
   const gen = reconnectGeneration
 
-  notifyP2P(reason, 'negative')
   destroyWireOnly()
   sessionPhase.value = 'reconnecting'
   sessionSuffix.value = suffix
@@ -398,7 +387,6 @@ function onHostDisconnected(reason) {
  * @returns {Promise<void>}
  */
 async function guestReconnectLoop(suffix, gen) {
-  notifyP2P('Trying to reconnect…', 'info')
   await new Promise((r) => setTimeout(r, RECONNECT_INITIAL_PAUSE_MS))
   if (gen !== reconnectGeneration) return
 
@@ -406,7 +394,7 @@ async function guestReconnectLoop(suffix, gen) {
     if (gen !== reconnectGeneration) return
 
     if (attempt > 1) {
-      notifyP2P(`Reconnecting… attempt ${attempt} of ${RECONNECT_MAX_ATTEMPTS}`, 'info')
+      notifyP2P(`Reconnecting… attempt ${attempt} of ${RECONNECT_MAX_ATTEMPTS}`, 'warning')
       await new Promise((r) => setTimeout(r, reconnectDelayMs(attempt - 2)))
     }
 
@@ -419,7 +407,6 @@ async function guestReconnectLoop(suffix, gen) {
         leaveSession()
         return
       }
-      notifyP2P('Successfully reconnected', 'positive')
       return
     } catch {
       continue
@@ -439,7 +426,6 @@ async function guestReconnectLoop(suffix, gen) {
  * @returns {Promise<void>}
  */
 async function hostReconnectLoop(suffix, gen) {
-  notifyP2P('Trying to restore hosting…', 'info')
   const fullId = fullPeerIdFromSuffix(suffix)
   await new Promise((r) => setTimeout(r, RECONNECT_INITIAL_PAUSE_MS))
   if (gen !== reconnectGeneration) return
@@ -448,7 +434,7 @@ async function hostReconnectLoop(suffix, gen) {
     if (gen !== reconnectGeneration) return
 
     if (attempt > 1) {
-      notifyP2P(`Reconnecting as host… attempt ${attempt} of ${RECONNECT_MAX_ATTEMPTS}`, 'info')
+      notifyP2P(`Reconnecting as host… attempt ${attempt} of ${RECONNECT_MAX_ATTEMPTS}`, 'warning')
       await new Promise((r) => setTimeout(r, reconnectDelayMs(attempt - 2)))
     }
 
@@ -462,7 +448,6 @@ async function hostReconnectLoop(suffix, gen) {
         leaveSession()
         return
       }
-      notifyP2P('Room is live again', 'positive')
       return
     } catch {
       continue
@@ -502,11 +487,11 @@ export async function resumeAsHost(rawSuffix, maxAttempts = 10) {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (attempt > 0) {
       await new Promise((r) => setTimeout(r, 350 * attempt))
+      notifyP2P(`Still resuming room… attempt ${attempt + 1} of ${maxAttempts}`, 'warning')
     }
     try {
       const p = await awaitPeerOpen(fullId)
       finishHostSession(/** @type {import('peerjs').Peer} */ (p), suffix)
-      notifyP2P('Hosting resumed', 'positive')
       return { suffix }
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
@@ -560,7 +545,6 @@ export async function startAsHost(maxAttempts = 12) {
       const p = await awaitPeerOpen(fullId)
       sessionSuffix.value = suffix
       finishHostSession(/** @type {import('peerjs').Peer} */ (p), suffix)
-      notifyP2P(`Room ${suffix} is ready`, 'positive', { timeout: ROOM_CODE_SHARE_NOTIFY_MS })
       return { suffix }
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
@@ -594,7 +578,6 @@ export async function joinRoom(rawSuffix) {
 
   try {
     await establishGuestSession(suffix)
-    notifyP2P('Joined room', 'positive')
   } catch (e) {
     clearRoomPersistence()
     const msg = e instanceof Error ? e.message : String(e)
@@ -666,7 +649,6 @@ export function leaveSession() {
         void 0
       }
     }
-    notifyP2P('You stopped hosting.', 'info')
   }
   resetLocalStateAfterRoomExit()
 }
