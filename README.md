@@ -1,6 +1,6 @@
 # Portfolio Site (portfolio-site)
 
-A Quasar Project
+A Quasar Project showcasing the photography and coding projects of David J Perry
 
 ## Install the dependencies
 
