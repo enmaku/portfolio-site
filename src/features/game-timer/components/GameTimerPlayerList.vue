@@ -25,13 +25,13 @@
             @left="(e) => openEditSlide(e, player)"
             @right="(e) => requestDelete(e, player)"
           >
-            <template #left>
+            <template v-if="!isGuest" #left>
               <div class="row items-center full-height q-px-md" aria-hidden="true">
                 <q-icon name="edit" size="md" />
               </div>
             </template>
 
-            <template #right>
+            <template v-if="!isGuest" #right>
               <div class="row items-center full-height q-px-md" aria-hidden="true">
                 <q-icon name="delete" size="md" />
               </div>
@@ -127,6 +127,7 @@ import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import Draggable from 'vuedraggable'
 import { useGameTimerNow } from '../composables/useGameTimerNow.js'
+import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
 import {
   DEFAULT_PLAYER_COLORS,
   displayedMsForPlayer,
@@ -142,6 +143,7 @@ import {
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 
 const $q = useQuasar()
+const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
 const { hasMultipleRounds } = storeToRefs(store)
 const now = useGameTimerNow(100)
@@ -229,6 +231,10 @@ function rowTimeLabel(player) {
 }
 
 function requestDelete({ reset }, player) {
+  if (isGuest.value) {
+    reset()
+    return
+  }
   pendingDeleteId.value = player.id
   deleteTargetName.value = player.name
   deleteConfirmOpen.value = true
@@ -250,6 +256,10 @@ function confirmDelete() {
 }
 
 function openEditSlide({ reset }, player) {
+  if (isGuest.value) {
+    reset()
+    return
+  }
   editPlayerId.value = player.id
   editName.value = player.name
   editColor.value = player.color
@@ -356,7 +366,6 @@ function progressRoundFillStyle(player) {
     0 4px 10px rgba(0, 0, 0, 0.08);
 }
 
-/* Keep left accent while lift shadow replaces base box-shadow */
 .gt-slide.gt-sortable-chosen .gt-player-row--active {
   box-shadow:
     0 16px 36px rgba(0, 0, 0, 0.45),

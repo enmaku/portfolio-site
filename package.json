@@ -17,6 +17,7 @@
   "dependencies": {
     "@quasar/extras": "^1.16.4",
     "exifr": "^7.1.3",
+    "peerjs": "^1.5.5",
     "pinia": "^3.0.1",
     "pinia-plugin-persistedstate": "^4.7.1",
     "quasar": "^2.16.0",
