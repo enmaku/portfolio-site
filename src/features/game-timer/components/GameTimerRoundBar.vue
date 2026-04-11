@@ -1,5 +1,6 @@
 <template>
   <div class="gt-round-bar row items-center no-wrap full-width">
+    <GameTimerSyncControl class="gt-round-bar__sync" />
     <div class="gt-round-bar__layer-center">
       <div class="row items-center no-wrap gt-round-bar__controls">
         <q-btn
@@ -30,6 +31,7 @@
       </div>
     </div>
     <q-btn
+      v-if="!isGuest"
       flat
       round
       dense
@@ -59,8 +61,11 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import GameTimerSyncControl from './GameTimerSyncControl.vue'
+import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 
+const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
 const { round, hasMultipleRounds, players } = storeToRefs(store)
 const hasPlayers = computed(() => players.value.length > 0)
@@ -107,8 +112,14 @@ function confirmReset() {
 }
 
 .gt-round-bar__chev,
-.gt-round-bar__reset {
+.gt-round-bar__reset,
+.gt-round-bar__sync {
   flex-shrink: 0;
+}
+
+.gt-round-bar__sync {
+  position: relative;
+  z-index: 1;
 }
 
 .gt-round-bar__reset {

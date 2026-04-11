@@ -213,11 +213,17 @@ export function progressRatio(displayedMs, maxMs) {
  * @returns {string} Hex color.
  */
 export function nextDefaultColor(players) {
-  const used = new Set(players.map((p) => p.color.toLowerCase()))
+  const list = Array.isArray(players) ? players : []
+  const used = new Set()
+  for (const p of list) {
+    if (p && typeof p.color === 'string' && p.color.trim()) {
+      used.add(p.color.trim().toLowerCase())
+    }
+  }
   for (const c of DEFAULT_PLAYER_COLORS) {
     if (!used.has(c.toLowerCase())) return c
   }
-  const i = players.length % DEFAULT_PLAYER_COLORS.length
+  const i = list.length % DEFAULT_PLAYER_COLORS.length
   return DEFAULT_PLAYER_COLORS[i]
 }
 

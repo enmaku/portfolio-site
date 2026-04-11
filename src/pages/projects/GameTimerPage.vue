@@ -8,7 +8,8 @@
     >
       <div>
         <p class="q-mb-sm">No players yet.</p>
-        <p class="q-mb-none">
+        <p v-if="isGuest" class="q-mb-none">Only the host can add players.</p>
+        <p v-else class="q-mb-none">
           Tap + to add someone, then tap their name when it's their turn. Tap their name again to stop the clock.
         </p>
       </div>
@@ -18,7 +19,10 @@
       <GameTimerPlayerList />
     </div>
 
-    <div class="gt-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm q-gutter-x-sm">
+    <div
+      v-if="!isGuest"
+      class="gt-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm q-gutter-x-sm"
+    >
       <q-btn
         fab-mini
         outline
@@ -51,6 +55,23 @@
         class="gt-actions-bar__fixed-btn"
         :disable="hasMultipleRounds"
         @click="openAddDialog"
+      />
+    </div>
+    <div
+      v-else-if="isTurnRunning"
+      class="gt-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm"
+    >
+      <q-btn
+        rounded
+        unelevated
+        no-wrap
+        color="primary"
+        icon-right="skip_next"
+        label="End turn"
+        class="gt-actions-bar__end-turn col"
+        padding="12px 16px"
+        aria-label="End turn and go to next player"
+        @click="store.endTurnNext()"
       />
     </div>
 
@@ -99,9 +120,11 @@ import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import GameTimerPlayerList from '../../features/game-timer/components/GameTimerPlayerList.vue'
 import GameTimerRoundBar from '../../features/game-timer/components/GameTimerRoundBar.vue'
+import { useGameTimerP2P } from '../../features/game-timer/composables/useGameTimerP2P.js'
 import { nextDefaultColor } from '../../features/game-timer/core.js'
 import { useGameTimerStore } from '../../stores/gameTimer.js'
 
+const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
 const { players, activePlayerId, turnStartedAt, hasMultipleRounds } = storeToRefs(store)
 
