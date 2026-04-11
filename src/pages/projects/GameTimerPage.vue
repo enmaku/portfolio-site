@@ -121,6 +121,7 @@ import { storeToRefs } from 'pinia'
 import GameTimerPlayerList from '../../features/game-timer/components/GameTimerPlayerList.vue'
 import GameTimerRoundBar from '../../features/game-timer/components/GameTimerRoundBar.vue'
 import { useGameTimerP2P } from '../../features/game-timer/composables/useGameTimerP2P.js'
+import { useScreenWakeLock } from '../../features/game-timer/composables/useScreenWakeLock.js'
 import { nextDefaultColor } from '../../features/game-timer/core.js'
 import { useGameTimerStore } from '../../stores/gameTimer.js'
 
@@ -131,6 +132,9 @@ const { players, activePlayerId, turnStartedAt, hasMultipleRounds } = storeToRef
 const isTurnRunning = computed(
   () => activePlayerId.value != null && turnStartedAt.value != null,
 )
+
+/** While a session has players, ask the browser to keep the screen on (mobile-friendly Wake Lock API). */
+useScreenWakeLock(computed(() => players.value.length > 0))
 
 const addDialogOpen = ref(false)
 const resetConfirmOpen = ref(false)
