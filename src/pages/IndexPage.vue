@@ -2,7 +2,7 @@
   <q-page class="q-pa-md">
     <div v-if="photos.length > 0" class="gallery-masonry">
       <div
-        v-for="p in photos"
+        v-for="(p, i) in photos"
         :key="p.src"
         class="gallery-tile rounded-borders overflow-hidden"
         @mouseenter="onThumbEnter(p)"
@@ -11,7 +11,8 @@
         <q-img
           :src="p.src"
           :alt="p.label"
-          :ratio="p.ratio"
+          :initial-ratio="1"
+          :fetchpriority="i < 4 ? 'high' : 'auto'"
           class="gallery-thumb cursor-pointer"
           spinner-color="primary"
           fit="cover"
@@ -34,7 +35,7 @@
       </div>
     </div>
 
-    <div v-else-if="galleryReady">
+    <div v-else>
       <q-card class="q-pa-lg" flat bordered>
         <div class="text-h6">No local photos yet</div>
         <div class="text-body2 text-grey q-mt-sm">
@@ -163,8 +164,6 @@ const photoModules = import.meta.glob('../assets/photos/*.{jpg,jpeg,png,webp}', 
   import: 'default',
 })
 
-const photos = ref([])
-
 const basePhotos = Object.entries(photoModules)
   .map(([path, src]) => {
     const file = path.split('/').pop() || ''
@@ -173,43 +172,7 @@ const basePhotos = Object.entries(photoModules)
   })
   .sort((a, b) => a.label.localeCompare(b.label))
 
-const galleryReady = ref(basePhotos.length === 0)
-
-onMounted(async () => {
-  try {
-    const photosWithRatios = await Promise.all(
-      basePhotos.map(async (photo) => ({
-        ...photo,
-        ratio: await getImageRatio(photo.src),
-      })),
-    )
-
-    photos.value = photosWithRatios
-  } finally {
-    galleryReady.value = true
-  }
-})
-
-function getImageRatio(src) {
-  return new Promise((resolve) => {
-    const img = new Image()
-
-    img.onload = () => {
-      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-        resolve(img.naturalWidth / img.naturalHeight)
-        return
-      }
-
-      resolve(1)
-    }
-
-    img.onerror = () => {
-      resolve(1)
-    }
-
-    img.src = src
-  })
-}
+const photos = ref(basePhotos.map((p) => ({ ...p })))
 
 const exifCache = new Map()
 
