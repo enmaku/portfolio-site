@@ -346,9 +346,16 @@ function onLeave() {
 
 <style lang="scss">
 /* q-menu content is portaled; .gt-sync-menu-shell is on the panel root */
+/* Quasar adds .scroll → overflow: auto; kill horizontal scrollbar from sub-pixel / 100vw drift */
+.gt-sync-menu-shell.q-menu.scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 .gt-sync-menu-shell .gt-sync-menu {
-  min-width: min(100vw - 32px, 340px);
-  max-width: min(480px, 100vw - 20px);
+  box-sizing: border-box;
+  /* Extra margin vs 100vw avoids viewport scrollbar gutter overflow on some browsers */
+  width: min(480px, calc(100vw - 32px));
 }
 
 .gt-sync-menu-shell .gt-sync-menu__action {
@@ -378,7 +385,8 @@ function onLeave() {
   letter-spacing: 0.16em;
   font-variant-numeric: tabular-nums;
   user-select: all;
-  word-break: break-all;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  min-width: 0;
+  overflow-x: clip;
 }
 </style>
