@@ -1,0 +1,5 @@
+# This page intentionally left blank.
+#
+# Git does not track empty directories. This file exists so `thumbs/` is part of
+# the repo; generated WebPs here are gitignored and created by
+# `npm run generate-thumbs` (see scripts/generate-photo-thumbs.mjs).

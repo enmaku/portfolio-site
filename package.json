@@ -11,6 +11,8 @@
     "format": "prettier --write \"**/*.{js,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "echo \"No test specified\" && exit 0",
     "dev": "quasar dev",
+    "generate-thumbs": "node ./scripts/generate-photo-thumbs.mjs",
+    "prebuild": "npm run generate-thumbs",
     "build": "quasar build",
     "postinstall": "quasar prepare"
   },
@@ -35,6 +37,7 @@
     "globals": "^16.4.0",
     "postcss": "^8.4.14",
     "prettier": "^3.3.3",
+    "sharp": "^0.34.5",
     "vite-plugin-checker": "^0.11.0",
     "vue-eslint-parser": "^10.2.0"
   },

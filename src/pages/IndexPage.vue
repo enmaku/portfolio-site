@@ -1,18 +1,34 @@
 <template>
   <q-page class="q-pa-md">
-    <div v-if="photos.length > 0" class="gallery-masonry">
+    <div
+      v-if="basePhotos.length > 0 && !galleryReady"
+      class="gallery-loading column items-center justify-center q-gutter-y-md"
+    >
+      <div class="text-body1 text-grey-8">Loading gallery…</div>
+      <q-linear-progress
+        :value="loadProgress"
+        color="primary"
+        class="gallery-loading__bar rounded-borders"
+        size="10px"
+      />
+      <div class="text-caption text-grey-6">
+        {{ loadedCount }} / {{ basePhotos.length }} images
+      </div>
+    </div>
+
+    <div v-else-if="photos.length > 0" class="gallery-masonry">
       <div
-        v-for="(p, i) in photos"
+        v-for="p in photos"
         :key="p.src"
         class="gallery-tile rounded-borders overflow-hidden"
         @mouseenter="onThumbEnter(p)"
         @mouseleave="onThumbLeave"
       >
         <q-img
-          :src="p.src"
+          :src="p.thumbSrc"
           :alt="p.label"
-          :initial-ratio="1"
-          :fetchpriority="i < 4 ? 'high' : 'auto'"
+          :ratio="p.ratio"
+          loading="eager"
           class="gallery-thumb cursor-pointer"
           spinner-color="primary"
           fit="cover"
@@ -164,15 +180,82 @@ const photoModules = import.meta.glob('../assets/photos/*.{jpg,jpeg,png,webp}', 
   import: 'default',
 })
 
+const thumbModules = import.meta.glob('../assets/photos/thumbs/*.{webp,jpg,jpeg,png}', {
+  eager: true,
+  import: 'default',
+})
+
+const thumbByLabel = new Map(
+  Object.entries(thumbModules).map(([path, url]) => {
+    const file = path.split('/').pop() || ''
+    const label = file.replace(/\.[^.]+$/, '')
+    return [label, url]
+  }),
+)
+
 const basePhotos = Object.entries(photoModules)
   .map(([path, src]) => {
     const file = path.split('/').pop() || ''
     const label = file.replace(/\.[^.]+$/, '')
-    return { src, label }
+    const thumbSrc = thumbByLabel.get(label) ?? src
+    return { src, thumbSrc, label }
   })
   .sort((a, b) => a.label.localeCompare(b.label))
 
-const photos = ref(basePhotos.map((p) => ({ ...p })))
+const photos = ref([])
+
+const galleryReady = ref(basePhotos.length === 0)
+const loadProgress = ref(0)
+const loadedCount = ref(0)
+
+onMounted(async () => {
+  if (basePhotos.length === 0) {
+    return
+  }
+
+  loadProgress.value = 0
+  loadedCount.value = 0
+
+  try {
+    const total = basePhotos.length
+    let done = 0
+
+    const photosWithRatios = await Promise.all(
+      basePhotos.map(async (photo) => {
+        const ratio = await getImageRatio(photo.thumbSrc)
+        done += 1
+        loadedCount.value = done
+        loadProgress.value = done / total
+        return { ...photo, ratio }
+      }),
+    )
+
+    photos.value = photosWithRatios
+  } finally {
+    galleryReady.value = true
+  }
+})
+
+function getImageRatio(src) {
+  return new Promise((resolve) => {
+    const img = new Image()
+
+    img.onload = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        resolve(img.naturalWidth / img.naturalHeight)
+        return
+      }
+
+      resolve(1)
+    }
+
+    img.onerror = () => {
+      resolve(1)
+    }
+
+    img.src = src
+  })
+}
 
 const exifCache = new Map()
 
@@ -410,6 +493,17 @@ async function zoomInToPoint(ratioX, ratioY) {
 </script>
 
 <style scoped>
+.gallery-loading {
+  width: 100%;
+  min-height: 40vh;
+  padding: 24px 0;
+}
+
+.gallery-loading__bar {
+  width: 100%;
+  max-width: 420px;
+}
+
 .gallery-masonry {
   column-count: 1;
   column-gap: 16px;

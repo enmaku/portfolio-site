@@ -29,6 +29,9 @@ jobs:
     steps:
       # Photos in src/assets/photos/ use Git LFS (.gitattributes). Without this, the build
       # only gets LFS pointer files and images 404 or fail to decode in the browser.
+      #
+      # npm run build runs prebuild → generate-thumbs (Sharp) to create src/assets/photos/thumbs/
+      # before Vite bundles; thumbs are gitignored and produced on each CI run.
       - uses: actions/checkout@v4
         with:
           lfs: true
