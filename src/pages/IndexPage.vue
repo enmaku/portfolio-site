@@ -10,6 +10,7 @@
         color="primary"
         class="gallery-loading__bar rounded-borders"
         size="10px"
+        instant-feedback
       />
       <div class="text-caption text-grey-6">
         {{ loadedCount }} / {{ basePhotos.length }} images
