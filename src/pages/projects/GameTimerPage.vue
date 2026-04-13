@@ -116,15 +116,26 @@
 <script setup>
 /** Game Timer project page: list shell, bottom actions, add / remove-all dialogs. */
 
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useQuasar } from 'quasar'
+import { useRoute, useRouter } from 'vue-router'
 import GameTimerPlayerList from '../../features/game-timer/components/GameTimerPlayerList.vue'
 import GameTimerRoundBar from '../../features/game-timer/components/GameTimerRoundBar.vue'
 import { useGameTimerP2P } from '../../features/game-timer/composables/useGameTimerP2P.js'
 import { useScreenWakeLock } from '../../features/game-timer/composables/useScreenWakeLock.js'
 import { nextDefaultColor } from '../../features/game-timer/core.js'
+import {
+  GAME_TIMER_ROOM_QUERY_KEY,
+  isValidRoomSuffix,
+  normalizeRoomSuffixInput,
+} from '../../features/game-timer/p2p/roomId.js'
+import { joinRoom } from '../../features/game-timer/p2p/session.js'
 import { useGameTimerStore } from '../../stores/gameTimer.js'
 
+const $q = useQuasar()
+const route = useRoute()
+const router = useRouter()
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
 const { players, activePlayerId, turnStartedAt, hasMultipleRounds } = storeToRefs(store)
@@ -135,6 +146,35 @@ const isTurnRunning = computed(
 
 /** While a session has players, ask the browser to keep the screen on (mobile-friendly Wake Lock API). */
 useScreenWakeLock(computed(() => players.value.length > 0))
+
+onMounted(() => {
+  const raw = route.query[GAME_TIMER_ROOM_QUERY_KEY]
+  if (raw === undefined || raw === null) return
+  const str = Array.isArray(raw) ? raw[0] : raw
+  if (!String(str).trim()) return
+
+  const nextQuery = { ...route.query }
+  delete nextQuery[GAME_TIMER_ROOM_QUERY_KEY]
+  router.replace({
+    path: route.path,
+    query: nextQuery,
+    hash: route.hash,
+  })
+
+  const code = normalizeRoomSuffixInput(str)
+  if (!isValidRoomSuffix(code)) {
+    $q.notify({
+      type: 'warning',
+      message: 'This room link is not valid.',
+      timeout: 2500,
+      position: 'top',
+      classes: 'gt-notify',
+    })
+    return
+  }
+
+  void joinRoom(code).catch(() => {})
+})
 
 const addDialogOpen = ref(false)
 const resetConfirmOpen = ref(false)

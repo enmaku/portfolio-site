@@ -88,6 +88,16 @@
                   aria-label="Copy room code"
                   @click="copyCode"
                 />
+                <q-btn
+                  flat
+                  round
+                  icon="link"
+                  size="md"
+                  color="grey-6"
+                  class="gt-sync-menu__copy-btn"
+                  aria-label="Copy room link"
+                  @click="copyRoomUrl"
+                />
               </div>
               <q-btn
                 outline
@@ -152,7 +162,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
-import { normalizeRoomSuffixInput } from '../p2p/roomId.js'
+import { buildGameTimerRoomShareUrl, normalizeRoomSuffixInput } from '../p2p/roomId.js'
 
 const $q = useQuasar()
 const menuRef = ref(/** @type {{ hide?: () => void } | null} */ (null))
@@ -271,6 +281,22 @@ function copyCode() {
       $q.notify({
         type: 'positive',
         message: 'Room code copied',
+        timeout: 1500,
+        position: 'top',
+        classes: 'gt-notify',
+      })
+    })
+  }
+}
+
+function copyRoomUrl() {
+  if (!suffix.value) return
+  const url = buildGameTimerRoomShareUrl(suffix.value)
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(() => {
+      $q.notify({
+        type: 'positive',
+        message: 'Room link copied',
         timeout: 1500,
         position: 'top',
         classes: 'gt-notify',
