@@ -311,6 +311,19 @@ const PREVIEW_HISTORY_STATE = { portfolioImagePreview: true }
 const previewHistoryPushed = ref(false)
 const ignoreNextPopstate = ref(false)
 
+const galleryScrollRestore = ref({ x: 0, y: 0 })
+
+function restoreGalleryScroll() {
+  const { x, y } = galleryScrollRestore.value
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo(x, y)
+      })
+    })
+  })
+}
+
 function onBrowserPopState() {
   if (ignoreNextPopstate.value) {
     ignoreNextPopstate.value = false
@@ -320,6 +333,7 @@ function onBrowserPopState() {
   if (dialogOpen.value) {
     dialogOpen.value = false
     previewHistoryPushed.value = false
+    restoreGalleryScroll()
   }
 }
 
@@ -343,6 +357,7 @@ watch(dialogOpen, (open) => {
   previewHistoryPushed.value = false
   ignoreNextPopstate.value = true
   history.back()
+  restoreGalleryScroll()
 })
 
 const dialogSrc = ref('')
@@ -367,6 +382,10 @@ async function openPhoto(photo) {
   isZoomed.value = false
   isDragging.value = false
   dialogExifRows.value = []
+  galleryScrollRestore.value = {
+    x: window.scrollX,
+    y: window.scrollY,
+  }
   previewHistoryPushed.value = true
   history.pushState(PREVIEW_HISTORY_STATE, '')
   dialogOpen.value = true
