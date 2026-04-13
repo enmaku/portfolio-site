@@ -79,7 +79,7 @@ function mixToward(hex, tr, tg, tb, amount) {
  * @returns {string}
  */
 export function playerBarTrackColor(hex, isDark) {
-  return isDark ? mixToward(hex, 22, 24, 32, 0.78) : mixToward(hex, 238, 240, 246, 0.38)
+  return isDark ? mixToward(hex, 52, 56, 70, 0.68) : mixToward(hex, 238, 240, 246, 0.38)
 }
 
 /**
