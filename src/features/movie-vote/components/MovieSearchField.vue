@@ -61,7 +61,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { isTmdbConfigured, posterUrl, searchMovies } from '../tmdb.js'
+import { genresLabelFromApi, getMovieDetails, isTmdbConfigured, posterUrl, searchMovies } from '../tmdb.js'
 
 const emit = defineEmits(['select'])
 
@@ -142,8 +142,22 @@ async function runSearch() {
 /**
  * @param {{ id: number, title: string, poster_path: string | null, overview: string, release_date?: string }} r
  */
-function pick(r) {
+async function pick(r) {
   if (!isTmdbConfigured()) return
+  /** @type {number | undefined} */
+  let runtime
+  /** @type {string | undefined} */
+  let genres
+  try {
+    const d = await getMovieDetails(r.id)
+    if (d) {
+      if (typeof d.runtime === 'number' && d.runtime > 0) runtime = d.runtime
+      const g = genresLabelFromApi(d.genres)
+      if (g) genres = g
+    }
+  } catch {
+    void 0
+  }
   emit('select', {
     localId: crypto.randomUUID(),
     tmdbId: r.id,
@@ -151,6 +165,8 @@ function pick(r) {
     posterPath: r.poster_path,
     overview: typeof r.overview === 'string' ? r.overview : '',
     releaseDate: r.release_date,
+    runtime,
+    genres,
   })
   query.value = ''
   suggestions.value = []

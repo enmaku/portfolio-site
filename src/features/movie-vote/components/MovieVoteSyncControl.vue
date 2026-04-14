@@ -243,6 +243,7 @@ function hideMenu() {
 }
 
 async function onHost() {
+  hideMenu()
   try {
     await startAsHost()
   } catch {

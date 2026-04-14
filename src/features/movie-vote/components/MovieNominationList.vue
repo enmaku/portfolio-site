@@ -46,8 +46,8 @@
               <q-icon v-else name="movie" size="lg" class="q-mr-sm" color="grey-5" />
               <div class="col min-width-0">
                 <div class="text-body1 text-weight-medium ellipsis">{{ pick.title }}</div>
-                <div v-if="pick.releaseDate" class="text-caption text-grey-6">
-                  {{ String(pick.releaseDate).slice(0, 4) }}
+                <div v-if="pickMetaLine(pick)" class="text-caption text-grey-6 ellipsis">
+                  {{ pickMetaLine(pick) }}
                 </div>
               </div>
             </div>
@@ -65,7 +65,7 @@ import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import Draggable from 'vuedraggable'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
-import { posterUrl } from '../tmdb.js'
+import { formatMovieMetaLine, posterUrl } from '../tmdb.js'
 import MovieDetailDialog from './MovieDetailDialog.vue'
 
 const store = useMovieVoteStore()
@@ -77,6 +77,11 @@ const draggablePicks = computed({
     if (Array.isArray(next)) store.reorderDraftPicks(next)
   },
 })
+
+/** @param {import('../types.js').MoviePick} pick */
+function pickMetaLine(pick) {
+  return formatMovieMetaLine(pick.releaseDate, pick.runtime, pick.genres)
+}
 
 const listRootRef = ref(null)
 const thumbs = ref(/** @type {Record<string, string>} */ ({}))

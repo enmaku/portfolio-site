@@ -39,8 +39,8 @@
             <q-icon v-else name="movie" size="lg" class="q-mr-sm" color="grey-5" />
             <div class="col min-width-0">
               <div class="text-body1 text-weight-medium ellipsis">{{ element.title }}</div>
-              <div v-if="element.releaseDate" class="text-caption text-grey-6">
-                {{ String(element.releaseDate).slice(0, 4) }}
+              <div v-if="ballotMetaLine(element)" class="text-caption text-grey-6 ellipsis">
+                {{ ballotMetaLine(element) }}
               </div>
             </div>
           </div>
@@ -57,8 +57,13 @@ import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import Draggable from 'vuedraggable'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
-import { posterUrl } from '../tmdb.js'
+import { formatMovieMetaLine, posterUrl } from '../tmdb.js'
 import MovieDetailDialog from './MovieDetailDialog.vue'
+
+/** @param {import('../types.js').BallotMovie} m */
+function ballotMetaLine(m) {
+  return formatMovieMetaLine(m.releaseDate, m.runtime, m.genres)
+}
 
 const store = useMovieVoteStore()
 const { myRanking, ballotMovies, myVoteSubmitted } = storeToRefs(store)
@@ -109,6 +114,8 @@ const detailAsPick = computed(() => {
     posterPath: b.posterPath,
     overview: b.overview,
     releaseDate: b.releaseDate,
+    runtime: b.runtime,
+    genres: b.genres,
   }
 })
 
@@ -122,6 +129,10 @@ function openDetail(m) {
 <style scoped lang="scss">
 .mv-ballot {
   min-height: 0;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .mv-ballot__inner {

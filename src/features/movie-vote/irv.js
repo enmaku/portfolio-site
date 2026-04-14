@@ -7,7 +7,7 @@
  * @property {Record<string, number>} counts Votes per **active** candidate id this round (0 if none).
  * @property {string[]} activeIds Candidates still in the race at start of this round.
  * @property {number} ballotsWithVote Ballots contributing a vote this round.
- * @property {string[]} [eliminatedIds] Removed after this round (empty if election ended without elimination).
+ * @property {string[]} [eliminatedIds] Single id removed after this round (empty if election ended without elimination).
  */
 
 /**
@@ -28,6 +28,27 @@ export function currentVoteForBallot(ranking, active) {
     if (active.has(id)) return id
   }
   return null
+}
+
+/**
+ * Among candidates tied for elimination, pick exactly one (deterministic).
+ * Uses position on the ballot list: later index is eliminated first so the
+ * order matches a stable reading of the published ballot.
+ * @param {string[]} tiedIds
+ * @param {string[]} candidateIds
+ */
+export function pickSingleElimination(tiedIds, candidateIds) {
+  const index = new Map(candidateIds.map((id, i) => [id, i]))
+  let pick = tiedIds[0]
+  let pickI = index.get(pick) ?? -1
+  for (const id of tiedIds) {
+    const i = index.get(id) ?? -1
+    if (i > pickI) {
+      pickI = i
+      pick = id
+    }
+  }
+  return pick
 }
 
 /**
@@ -107,13 +128,7 @@ export function runIrv(rankings, candidateIds) {
       }
     }
 
-    let minCount = Infinity
-    for (const id of active) {
-      minCount = Math.min(minCount, counts.get(id) ?? 0)
-    }
-    const toEliminate = activeIds.filter((id) => (counts.get(id) ?? 0) === minCount)
-
-    if (toEliminate.length === active.size) {
+    if (ballotsWithVote === 0 && active.size > 1) {
       rounds.push({
         counts: countsObj,
         activeIds,
@@ -123,13 +138,19 @@ export function runIrv(rankings, candidateIds) {
       return { rounds, winnerId: null, tieWinnerIds: [...active] }
     }
 
-    for (const id of toEliminate) active.delete(id)
+    let minCount = Infinity
+    for (const id of active) {
+      minCount = Math.min(minCount, counts.get(id) ?? 0)
+    }
+    const tiedForLast = activeIds.filter((id) => (counts.get(id) ?? 0) === minCount)
+    const elimId = pickSingleElimination(tiedForLast, candidateIds)
+    active.delete(elimId)
 
     rounds.push({
       counts: countsObj,
       activeIds,
       ballotsWithVote,
-      eliminatedIds: [...toEliminate],
+      eliminatedIds: [elimId],
     })
   }
 }

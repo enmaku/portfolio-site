@@ -102,11 +102,10 @@ export function parseState(data) {
 /**
  * @param {import('../types.js').MoviePick[]} picks
  * @param {boolean} ready
- * @param {string} displayName
  * @param {string} participantId
  */
-export function encodeDraft(picks, ready, displayName, participantId) {
-  return { v: 1, type: MSG_MV_DRAFT, participantId, picks, ready, displayName }
+export function encodeDraft(picks, ready, participantId) {
+  return { v: 1, type: MSG_MV_DRAFT, participantId, picks, ready }
 }
 
 /**
@@ -115,12 +114,10 @@ export function encodeDraft(picks, ready, displayName, participantId) {
 export function parseDraft(data) {
   if (!isRecord(data) || data.type !== MSG_MV_DRAFT) return null
   if (typeof data.participantId !== 'string') return null
-  if (typeof data.displayName !== 'string') return null
   if (typeof data.ready !== 'boolean') return null
   if (!Array.isArray(data.picks)) return null
   return {
     participantId: data.participantId,
-    displayName: data.displayName,
     ready: data.ready,
     picks: /** @type {import('../types.js').MoviePick[]} */ (data.picks),
   }

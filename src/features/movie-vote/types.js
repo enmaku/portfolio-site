@@ -12,6 +12,8 @@
  * @property {string | null} posterPath
  * @property {string} overview
  * @property {string} [releaseDate]
+ * @property {number} [runtime] minutes
+ * @property {string} [genres] comma-separated genre names
  */
 
 /**
@@ -22,12 +24,13 @@
  * @property {string | null} posterPath
  * @property {string} overview
  * @property {string} [releaseDate]
+ * @property {number} [runtime] minutes
+ * @property {string} [genres] comma-separated genre names
  */
 
 /**
  * @typedef {object} MovieVoteParticipantSummary
  * @property {string} id
- * @property {string} displayName
  * @property {boolean} ready
  * @property {number} pickCount
  */

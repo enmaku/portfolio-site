@@ -57,6 +57,8 @@ export function compileBallotMovies(picks) {
         posterPath: p.posterPath,
         overview: p.overview,
         releaseDate: p.releaseDate,
+        runtime: p.runtime,
+        genres: p.genres,
       })
     }
   }

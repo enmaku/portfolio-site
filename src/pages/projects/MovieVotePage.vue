@@ -5,21 +5,11 @@
     <div class="col mv-page__scroll column">
       <!-- Suggestions -->
       <template v-if="phase === 'suggest'">
-        <div class="q-px-md q-pt-md column q-gutter-y-sm">
-          <q-input
-            v-model="displayNameModel"
-            outlined
-            dense
-            label="Your name"
-            maxlength="40"
-            @blur="persistName"
-          />
-          <div v-if="participants.length" class="text-caption text-grey-6">
-            <span v-for="(p, i) in participants" :key="p.id">
-              {{ p.displayName }}: {{ p.ready ? 'ready' : 'picking' }} ({{ p.pickCount }})
-              <span v-if="i < participants.length - 1"> · </span>
-            </span>
-          </div>
+        <div v-if="isInSession && participants.length" class="q-px-md q-pt-md text-caption text-grey-6">
+          <span v-for="(p, i) in participants" :key="p.id">
+            {{ participantLabel(p) }} · {{ p.ready ? 'ready' : 'picking' }} · {{ p.pickCount }} picks
+            <span v-if="i < participants.length - 1"> · </span>
+          </span>
         </div>
         <MovieSearchField @select="onPickMovie" />
         <div v-if="!myDraftPicks.length" class="q-pa-lg text-center text-body2 text-grey-5">
@@ -27,19 +17,8 @@
           <p class="q-mb-none">Search above to add suggestions, then drag to reorder.</p>
         </div>
         <MovieNominationList v-else class="col" />
-        <div class="q-px-md q-pb-md">
+        <div v-if="isInSession" class="q-px-md q-pb-md">
           <q-toggle v-model="readyModel" color="primary" label="Ready to vote" :disable="myDraftPicks.length < 1" />
-        </div>
-        <div v-if="!isInSession" class="q-px-md q-pb-md">
-          <q-btn
-            unelevated
-            color="primary"
-            no-caps
-            class="full-width"
-            label="Start ballot (solo)"
-            :disable="!readyModel || myDraftPicks.length < 1"
-            @click="onSoloStart"
-          />
         </div>
       </template>
 
@@ -48,8 +27,8 @@
         <div class="q-px-md q-pt-md text-body2 text-grey-6">
           Rank every movie. {{ voteProgressLabel }}
         </div>
-        <MovieBallotList class="col" />
-        <div class="q-pa-md">
+        <MovieBallotList class="col mv-page__ballot" />
+        <div class="mv-page__vote-footer">
           <q-btn
             unelevated
             color="primary"
@@ -77,7 +56,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
@@ -98,8 +77,8 @@ import {
   movieVoteGuestSubmitVote,
   movieVoteHostAfterVoteSubmit,
   movieVoteHostLocalChanged,
-  movieVoteSoloStartVoting,
 } from '../../features/movie-vote/p2p/session.js'
+import { HOST_PARTICIPANT_ID } from '../../features/movie-vote/core.js'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
 
 const $q = useQuasar()
@@ -129,7 +108,7 @@ function scheduleGuestDraftPush() {
 }
 
 watch(
-  [myDraftPicks, () => store.readyToVote, () => store.displayName, phase, isGuest],
+  [myDraftPicks, () => store.readyToVote, phase, isGuest],
   () => {
     if (isGuest.value && phase.value === 'suggest') {
       scheduleGuestDraftPush()
@@ -148,7 +127,7 @@ watch(
 )
 
 watch(
-  [myDraftPicks, () => store.readyToVote, () => store.displayName, phase, isHosting],
+  [myDraftPicks, () => store.readyToVote, phase, isHosting],
   () => {
     if (isHosting.value) {
       movieVoteHostLocalChanged()
@@ -160,18 +139,6 @@ watch(
 onUnmounted(() => {
   window.clearTimeout(guestDraftTimer)
 })
-
-const displayNameModel = ref(store.displayName)
-watch(
-  () => store.displayName,
-  (v) => {
-    displayNameModel.value = v
-  },
-)
-
-function persistName() {
-  store.setDisplayName(displayNameModel.value)
-}
 
 const readyModel = computed({
   get: () => store.readyToVote,
@@ -189,8 +156,9 @@ function onPickMovie(pick) {
   store.addDraftPick(pick)
 }
 
-function onSoloStart() {
-  movieVoteSoloStartVoting()
+/** @param {{ id: string }} p */
+function participantLabel(p) {
+  return p.id === HOST_PARTICIPANT_ID ? 'Host' : `Voter ${p.id}`
 }
 
 function onDoneVoting() {
@@ -209,7 +177,11 @@ function onDoneVoting() {
     movieVoteHostAfterVoteSubmit()
     return
   }
-  store.submitSoloVoteAndTally(ranking)
+  $q.notify({
+    type: 'warning',
+    message: 'Host or join a room to vote with others.',
+    position: 'top',
+  })
 }
 
 function onResetResults() {
@@ -254,15 +226,36 @@ onMounted(() => {
 .mv-page {
   flex: 1 1 0;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
   overflow: hidden;
 }
 
 .mv-page__scroll {
   flex: 1 1 0;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mv-page__ballot {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.mv-page__vote-footer {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 16px;
 }
 </style>

@@ -5,7 +5,6 @@
 
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { HOST_PARTICIPANT_ID } from '../features/movie-vote/core.js'
-import { runIrv } from '../features/movie-vote/irv.js'
 
 /** @returns {MoviePick} */
 function clonePick(p) {
@@ -16,14 +15,28 @@ function clonePick(p) {
     posterPath: p.posterPath,
     overview: p.overview,
     releaseDate: p.releaseDate,
+    runtime: p.runtime,
+    genres: p.genres,
   }
+}
+
+/** `ranking` is a full permutation of the ids in `ballotOrderIds` (same length, each id once). */
+function isRankingForBallot(ranking, ballotOrderIds) {
+  if (!Array.isArray(ranking) || !Array.isArray(ballotOrderIds)) return false
+  if (ranking.length !== ballotOrderIds.length || ballotOrderIds.length === 0) return false
+  const allowed = new Set(ballotOrderIds)
+  const seen = new Set()
+  for (const id of ranking) {
+    if (!allowed.has(id) || seen.has(id)) return false
+    seen.add(id)
+  }
+  return seen.size === ballotOrderIds.length
 }
 
 export const useMovieVoteStore = defineStore('movieVote', {
   state: () => ({
     /** @type {MovieVotePhase} */
     phase: 'suggest',
-    displayName: 'You',
     /** @type {MoviePick[]} */
     myDraftPicks: [],
     readyToVote: false,
@@ -55,11 +68,6 @@ export const useMovieVoteStore = defineStore('movieVote', {
   },
 
   actions: {
-    setDisplayName(name) {
-      const t = String(name ?? '').trim()
-      this.displayName = t || 'You'
-    },
-
     /** @param {MoviePick} pick */
     addDraftPick(pick) {
       if (this.myDraftPicks.some((p) => p.tmdbId === pick.tmdbId)) return
@@ -86,7 +94,11 @@ export const useMovieVoteStore = defineStore('movieVote', {
 
     /** @param {MovieVoteParticipantSummary[]} list */
     setParticipants(list) {
-      this.participants = list.map((x) => ({ ...x }))
+      this.participants = list.map((x) => ({
+        id: x.id,
+        ready: Boolean(x.ready),
+        pickCount: typeof x.pickCount === 'number' ? x.pickCount : 0,
+      }))
     },
 
     /**
@@ -94,6 +106,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
      * @param {import('../features/movie-vote/types.js').MovieVotePublicPayload} p
      */
     applyPublicPayload(p) {
+      const wasVoting = this.phase === 'voting'
       this.phase = p.phase
       this.participants = p.participants.map((x) => ({ ...x }))
       if (p.phase === 'suggest') {
@@ -106,10 +119,20 @@ export const useMovieVoteStore = defineStore('movieVote', {
         this.irvResult = null
         this.voteProgress = null
       } else if (p.ballotMovies && p.ballotOrderIds) {
+        const incomingIds = [...p.ballotOrderIds]
+        const prevIds = this.ballotOrderIds
+        const ballotChanged =
+          prevIds.length !== incomingIds.length || incomingIds.some((id, i) => id !== prevIds[i])
+
         this.ballotMovies = p.ballotMovies.map((m) => ({ ...m }))
-        this.ballotOrderIds = [...p.ballotOrderIds]
+        this.ballotOrderIds = incomingIds
+
         if (p.phase === 'voting' && !this.myVoteSubmitted) {
-          this.myRanking = [...p.ballotOrderIds]
+          const enteringVoting = !wasVoting
+          const rankingInvalid = !isRankingForBallot(this.myRanking, incomingIds)
+          if (enteringVoting || ballotChanged || rankingInvalid) {
+            this.myRanking = [...incomingIds]
+          }
         }
       }
       if (p.voteProgress) {
@@ -151,13 +174,6 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.myVoteSubmitted = true
     },
 
-    /** Offline solo: one voter, tally immediately. */
-    submitSoloVoteAndTally(ranking) {
-      this.submitMyVoteLocal(ranking)
-      const result = runIrv([ranking], [...this.ballotOrderIds])
-      this.setResults(result)
-    },
-
     /** Host merges guest vote */
     mergeGuestVote(participantId, ranking) {
       this.votesByParticipant = { ...this.votesByParticipant, [participantId]: [...ranking] }
@@ -191,7 +207,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.voteProgress = null
     },
 
-    /** Solo: start over without clearing name */
+    /** Solo: start over (clears ballot state; used when joining a room). */
     resetSessionSoft() {
       this.phase = 'suggest'
       this.readyToVote = false
@@ -207,7 +223,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.voteProgress = null
     },
 
-    /** New vote: back to nominations (keeps display name). */
+    /** New vote: back to nominations. */
     resetToSuggest() {
       this.phase = 'suggest'
       this.readyToVote = false
@@ -225,7 +241,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
 
   persist: {
     key: 'portfolio-movie-vote',
-    pick: ['displayName', 'myDraftPicks'],
+    pick: ['myDraftPicks'],
   },
 })
 

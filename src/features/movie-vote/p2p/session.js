@@ -8,7 +8,7 @@ import { Notify } from 'quasar'
 import Peer from 'peerjs'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { useMovieVoteRoomSessionStore } from '../../../stores/movieVoteRoomSession.js'
-import { HOST_PARTICIPANT_ID, compileBallotMovies, generateParticipantId } from '../core.js'
+import { HOST_PARTICIPANT_ID, compileBallotMovies } from '../core.js'
 import { runIrv } from '../irv.js'
 import {
   encodeDraft,
@@ -28,6 +28,7 @@ import {
 } from './protocol.js'
 import {
   fullPeerIdFromSuffix,
+  generateAnonymousVoterId,
   generateRoomSuffix,
   isValidRoomSuffix,
   normalizeRoomSuffixInput,
@@ -57,7 +58,7 @@ const connToParticipant = new Map()
 
 /**
  * Guest drafts keyed by participant id (host tab uses store only).
- * @type {Map<string, { picks: import('../types.js').MoviePick[], ready: boolean, displayName: string }>}
+ * @type {Map<string, { picks: import('../types.js').MoviePick[], ready: boolean }>}
  */
 const guestDrafts = new Map()
 
@@ -274,7 +275,6 @@ function buildPublicPayload() {
   const participants = [
     {
       id: HOST_PARTICIPANT_ID,
-      displayName: store.displayName,
       ready: store.readyToVote,
       pickCount: store.myDraftPicks.length,
     },
@@ -282,7 +282,6 @@ function buildPublicPayload() {
   for (const [id, g] of guestDrafts) {
     participants.push({
       id,
-      displayName: g.displayName,
       ready: g.ready,
       pickCount: g.picks.length,
     })
@@ -320,7 +319,7 @@ function hostBroadcastState() {
 function allParticipantsReady() {
   const store = useMovieVoteStore()
   if (!store.readyToVote || store.myDraftPicks.length < 1) return false
-  if (guestDrafts.size === 0) return true
+  if (guestDrafts.size < 1) return false
   for (const [, g] of guestDrafts) {
     if (!g.ready || g.picks.length < 1) return false
   }
@@ -384,6 +383,8 @@ function normalizePicks(picks) {
       posterPath: p.posterPath ?? null,
       overview: typeof p.overview === 'string' ? p.overview : '',
       releaseDate: p.releaseDate,
+      runtime: typeof p.runtime === 'number' && p.runtime > 0 ? p.runtime : undefined,
+      genres: typeof p.genres === 'string' && p.genres.trim() ? p.genres.trim() : undefined,
     }))
 }
 
@@ -402,7 +403,6 @@ function handleHubInbound(conn, raw) {
     guestDrafts.set(expectedPid, {
       picks: normalizePicks(draft.picks),
       ready: draft.ready,
-      displayName: draft.displayName.trim() || 'Guest',
     })
     tryCompileBallot()
     hostBroadcastState()
@@ -599,9 +599,9 @@ function attachHubConnectionHandlers(p) {
   p.on('connection', (conn) => {
     conn.on('open', () => {
       hubConnections.add(conn)
-      const pid = generateParticipantId()
+      const pid = generateAnonymousVoterId()
       connToParticipant.set(conn, pid)
-      guestDrafts.set(pid, { picks: [], ready: false, displayName: 'Guest' })
+      guestDrafts.set(pid, { picks: [], ready: false })
       try {
         conn.send(encodeWelcome(pid))
         const payload = buildPublicPayload()
@@ -792,7 +792,6 @@ export async function joinRoom(rawSuffix) {
 
   const st = useMovieVoteStore()
   st.resetSessionSoft()
-  st.setDisplayName(st.displayName)
 
   sessionPhase.value = 'connecting'
   sessionSuffix.value = suffix
@@ -860,7 +859,7 @@ export function movieVoteGuestPushDraft() {
   if (!pid) return
   try {
     guestHubConn.send(
-      encodeDraft(store.myDraftPicks, store.readyToVote, store.displayName, pid),
+      encodeDraft(store.myDraftPicks, store.readyToVote, pid),
     )
   } catch {
     void 0
@@ -887,15 +886,3 @@ export function movieVoteHostAfterVoteSubmit() {
   tryFinishVoting()
 }
 
-/** Solo: compile from local store only */
-export function movieVoteSoloStartVoting() {
-  const store = useMovieVoteStore()
-  if (store.phase !== 'suggest') return
-  if (!store.readyToVote || store.myDraftPicks.length < 1) {
-    notifyP2P('Add movies and mark yourself ready first.', 'warning')
-    return
-  }
-  const movies = compileBallotMovies(store.myDraftPicks.map((p) => ({ ...p })))
-  const orderIds = movies.map((m) => m.publicId)
-  store.setVotingState(movies, orderIds, [HOST_PARTICIPANT_ID])
-}

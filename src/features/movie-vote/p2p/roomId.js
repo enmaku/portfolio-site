@@ -8,10 +8,10 @@ export const MOVIE_VOTE_PEER_ID_PREFIX = 'dperry-movievote-'
 const SUFFIX_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 
 /**
- * @param {number} [length=6]
+ * @param {number} length
  * @returns {string}
  */
-export function generateRoomSuffix(length = 6) {
+function randomAlphabetSuffix(length) {
   const bytes = new Uint8Array(length)
   crypto.getRandomValues(bytes)
   let s = ''
@@ -19,6 +19,23 @@ export function generateRoomSuffix(length = 6) {
     s += SUFFIX_ALPHABET[bytes[i] % SUFFIX_ALPHABET.length]
   }
   return s
+}
+
+/**
+ * @param {number} [length=6]
+ * @returns {string}
+ */
+export function generateRoomSuffix(length = 6) {
+  return randomAlphabetSuffix(length)
+}
+
+/**
+ * Anonymous participant id (same alphabet as room codes; longer default).
+ * @param {number} [length=8]
+ * @returns {string}
+ */
+export function generateAnonymousVoterId(length = 8) {
+  return randomAlphabetSuffix(length)
 }
 
 /**
