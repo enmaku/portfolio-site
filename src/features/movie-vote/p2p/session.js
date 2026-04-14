@@ -9,7 +9,7 @@ import { Notify } from 'quasar'
 import Peer from 'peerjs'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { useMovieVoteRoomSessionStore } from '../../../stores/movieVoteRoomSession.js'
-import { HOST_PARTICIPANT_ID, compileBallotMovies } from '../core.js'
+import { HOST_PARTICIPANT_ID, compileBallotMovies, uniqueTmdbCountInPicks } from '../core.js'
 import { runIrv } from '../irv.js'
 import {
   encodeDraft,
@@ -88,6 +88,9 @@ const RECONNECT_PEER_TIMEOUT_MS = 8000
 const HEARTBEAT_INTERVAL_MS = 3000
 const HEARTBEAT_STALE_MS = 12_000
 const HEARTBEAT_GUEST_CHECK_MS = 2000
+
+/** Minimum distinct TMDB titles across the room before anyone can mark ready (matches ballot dedupe). */
+const MIN_DISTINCT_SUGGESTIONS_FOR_READY = 2
 
 /** @type {ReturnType<typeof setInterval> | null} */
 let hostHeartbeatIntervalId = null
@@ -282,6 +285,19 @@ function awaitPeerOpen(brokerId, timeoutMs = OPEN_PEER_TIMEOUT_MS) {
 /**
  * @returns {import('../types.js').MovieVotePublicPayload}
  */
+function allDraftPicksFlat() {
+  const store = useMovieVoteStore()
+  const out = [...store.myDraftPicks]
+  for (const [, g] of guestDrafts) {
+    for (const p of g.picks) out.push(p)
+  }
+  return out
+}
+
+function distinctSuggestedMovieCount() {
+  return uniqueTmdbCountInPicks(allDraftPicksFlat())
+}
+
 function buildPublicPayload() {
   const store = useMovieVoteStore()
   const participants = [
@@ -306,6 +322,7 @@ function buildPublicPayload() {
     ballotOrderIds: suggest ? null : [...store.ballotOrderIds],
     voteProgress: store.voteProgress ? { ...store.voteProgress } : null,
     irvResult: store.irvResult,
+    uniqueSuggestedMovieCount: suggest ? distinctSuggestedMovieCount() : 0,
   }
 }
 
@@ -313,7 +330,11 @@ function hostBroadcastState() {
   if (!isHost || !peer || peer.destroyed) return
   const payload = buildPublicPayload()
   try {
-    useMovieVoteStore().setParticipants(payload.participants)
+    const st = useMovieVoteStore()
+    st.setParticipants(payload.participants)
+    st.setUniqueSuggestedMovieCount(
+      typeof payload.uniqueSuggestedMovieCount === 'number' ? payload.uniqueSuggestedMovieCount : 0,
+    )
   } catch {
     void 0
   }
@@ -328,19 +349,14 @@ function hostBroadcastState() {
   }
 }
 
-function roomHasAtLeastOneSuggestedMovie() {
-  const store = useMovieVoteStore()
-  if (store.myDraftPicks.length >= 1) return true
-  for (const [, g] of guestDrafts) {
-    if (g.picks.length >= 1) return true
-  }
-  return false
+function roomHasEnoughDistinctSuggestionsForReady() {
+  return distinctSuggestedMovieCount() >= MIN_DISTINCT_SUGGESTIONS_FOR_READY
 }
 
 function allParticipantsReady() {
   const store = useMovieVoteStore()
   if (!store.readyToVote) return false
-  if (!roomHasAtLeastOneSuggestedMovie()) return false
+  if (!roomHasEnoughDistinctSuggestionsForReady()) return false
   if (guestDrafts.size < 1) return false
   for (const [, g] of guestDrafts) {
     if (!g.ready) return false
@@ -358,12 +374,12 @@ function tryCompileBallot() {
   for (const [, g] of guestDrafts) {
     for (const p of g.picks) allPicks.push({ ...p })
   }
-  if (allPicks.length === 0) {
-    notifyP2P('Add at least one movie before voting.', 'warning')
+  const movies = compileBallotMovies(allPicks)
+  if (movies.length < MIN_DISTINCT_SUGGESTIONS_FOR_READY) {
+    notifyP2P('Need at least two different movies before voting.', 'warning')
     return
   }
 
-  const movies = compileBallotMovies(allPicks)
   const orderIds = movies.map((m) => m.publicId)
   const voterIds = [HOST_PARTICIPANT_ID, ...guestDrafts.keys()]
   store.setVotingState(movies, orderIds, voterIds)

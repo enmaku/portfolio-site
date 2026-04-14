@@ -6,9 +6,9 @@
       <template v-if="phase === 'suggest'">
         <MovieSearchField @select="onPickMovie" />
         <div v-if="!myDraftPicks.length" class="q-pa-lg text-center text-body2 text-grey-5">
-          <template v-if="roomHasSuggestedMovie">
+          <template v-if="roomShowsOthersSuggestionHint">
             <p class="q-mb-sm">You haven’t added any movies.</p>
-            <p class="q-mb-none">Someone else already suggested titles — you can mark ready below, or search above to add your own.</p>
+            <p class="q-mb-none">Someone else already suggested titles — add more if you like, or mark ready once there are two different movies in the pool.</p>
           </template>
           <template v-else>
             <p class="q-mb-sm">No movies in your list yet.</p>
@@ -21,7 +21,7 @@
             v-model="readyModel"
             color="primary"
             label="Ready to vote"
-            :disable="!roomHasSuggestedMovie"
+            :disable="!roomCanMarkReadyForVote"
           />
         </div>
       </template>
@@ -89,20 +89,22 @@ const store = useMovieVoteStore()
 const {
   phase,
   myDraftPicks,
-  participants,
   ballotMovies,
   irvResult,
   myVoteSubmitted,
   voteProgress,
+  uniqueSuggestedMovieCount,
 } = storeToRefs(store)
 
 const { isGuest, isHosting, isInSession, resumeMovieVoteSessionIfNeeded } = useMovieVoteP2P()
 
-/** At least one person in the room has a suggested movie (so voting can compile a ballot). */
-const roomHasSuggestedMovie = computed(() => {
-  if (myDraftPicks.value.length > 0) return true
-  return participants.value.some((p) => p.pickCount > 0)
-})
+/** Distinct movies in the room (TMDB-deduped) meet the minimum to mark ready. */
+const roomCanMarkReadyForVote = computed(() => uniqueSuggestedMovieCount.value >= 2)
+
+/** Empty local list but someone has suggested at least one title (copy hint). */
+const roomShowsOthersSuggestionHint = computed(
+  () => isInSession.value && uniqueSuggestedMovieCount.value >= 1,
+)
 
 let guestDraftTimer = 0
 function scheduleGuestDraftPush() {
@@ -115,7 +117,7 @@ function scheduleGuestDraftPush() {
 }
 
 watch(
-  [myDraftPicks, () => store.readyToVote, phase, isGuest, participants],
+  [myDraftPicks, () => store.readyToVote, phase, isGuest, uniqueSuggestedMovieCount],
   () => {
     if (isGuest.value && phase.value === 'suggest') {
       scheduleGuestDraftPush()

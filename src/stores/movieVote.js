@@ -58,6 +58,8 @@ export const useMovieVoteStore = defineStore('movieVote', {
     irvResult: null,
     /** @type {{ submitted: number, total: number } | null} */
     voteProgress: null,
+    /** Distinct suggested movies in the room (host-computed; suggest phase). */
+    uniqueSuggestedMovieCount: 0,
   }),
 
   getters: {
@@ -98,6 +100,12 @@ export const useMovieVoteStore = defineStore('movieVote', {
         ready: Boolean(x.ready),
         pickCount: typeof x.pickCount === 'number' ? x.pickCount : 0,
       }))
+    },
+
+    /** @param {number} n */
+    setUniqueSuggestedMovieCount(n) {
+      this.uniqueSuggestedMovieCount =
+        typeof n === 'number' && n >= 0 && Number.isFinite(n) ? Math.floor(n) : 0
     },
 
     /**
@@ -141,6 +149,9 @@ export const useMovieVoteStore = defineStore('movieVote', {
         this.voteProgress = { ...p.voteProgress }
       }
       this.irvResult = p.irvResult ?? null
+      this.setUniqueSuggestedMovieCount(
+        typeof p.uniqueSuggestedMovieCount === 'number' ? p.uniqueSuggestedMovieCount : 0,
+      )
     },
 
     /** Host / solo: enter voting with compiled ballot */
@@ -154,6 +165,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.votesByParticipant = {}
       this.irvResult = null
       this.voteProgress = { submitted: 0, total: voterIds.length }
+      this.uniqueSuggestedMovieCount = 0
     },
 
     /** @param {string[]} ranking */
@@ -207,6 +219,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.votesByParticipant = {}
       this.irvResult = null
       this.voteProgress = null
+      this.uniqueSuggestedMovieCount = 0
     },
 
     /** Solo: start over (clears ballot state; used when joining a room). */
@@ -223,6 +236,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.votesByParticipant = {}
       this.irvResult = null
       this.voteProgress = null
+      this.uniqueSuggestedMovieCount = 0
     },
 
     /** New vote: back to nominations. */
@@ -238,6 +252,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.irvResult = null
       this.voteProgress = null
       this.participants = []
+      this.uniqueSuggestedMovieCount = 0
     },
   },
 

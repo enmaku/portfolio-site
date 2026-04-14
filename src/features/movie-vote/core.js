@@ -42,6 +42,19 @@ export function shuffleInPlace(arr) {
 }
 
 /**
+ * Count of distinct TMDB titles in picks (same dedupe rule as {@link compileBallotMovies}).
+ * @param {MoviePick[]} picks
+ * @returns {number}
+ */
+export function uniqueTmdbCountInPicks(picks) {
+  const ids = new Set()
+  for (const p of picks) {
+    if (p && typeof p.tmdbId === 'number') ids.add(p.tmdbId)
+  }
+  return ids.size
+}
+
+/**
  * Dedupe by tmdbId, shuffle, assign public ids.
  * @param {MoviePick[]} picks
  * @returns {BallotMovie[]}

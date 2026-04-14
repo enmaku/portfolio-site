@@ -53,6 +53,7 @@
  * @property {string[] | null} ballotOrderIds
  * @property {{ submitted: number, total: number } | null} voteProgress
  * @property {import('./irv.js').IrvResult | null} [irvResult]
+ * @property {number} [uniqueSuggestedMovieCount] Distinct TMDB ids across all draft picks (suggest phase); 0 otherwise.
  */
 
 export {}
