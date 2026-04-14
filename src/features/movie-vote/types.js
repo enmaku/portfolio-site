@@ -13,7 +13,6 @@
  * @property {string} overview
  * @property {string} [releaseDate]
  * @property {number} [runtime] minutes
- * @property {string} [genres] comma-separated genre names
  */
 
 /**
@@ -25,7 +24,6 @@
  * @property {string} overview
  * @property {string} [releaseDate]
  * @property {number} [runtime] minutes
- * @property {string} [genres] comma-separated genre names
  */
 
 /**

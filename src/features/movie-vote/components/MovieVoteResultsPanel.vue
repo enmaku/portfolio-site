@@ -1,5 +1,5 @@
 <template>
-  <div class="mv-results q-pa-md column no-wrap">
+  <div class="mv-results q-pa-md column no-wrap min-width-0">
     <div v-if="!irvResult" class="text-body2 text-grey-6">No results.</div>
 
     <template v-else>
@@ -41,24 +41,68 @@
         </div>
       </div>
 
-      <q-card v-if="showFinal" flat bordered class="q-pa-lg text-center q-mt-md">
-        <div class="text-h6 q-mb-md">Winner</div>
-        <div v-if="irvResult.winnerId" class="column items-center q-gutter-sm">
-          <q-img
-            v-if="winnerThumb"
-            :src="winnerThumb"
-            width="96px"
-            height="144px"
-            fit="cover"
-            class="rounded-borders"
-            spinner-color="primary"
-          />
-          <div class="text-h5 text-weight-bold text-primary">{{ titleFor(irvResult.winnerId) }}</div>
-        </div>
-        <div v-else-if="irvResult.tieWinnerIds?.length" class="text-h6">
-          It’s a tie: {{ irvResult.tieWinnerIds.map((id) => titleFor(id)).join(', ') }}
-        </div>
+      <q-card
+        v-if="showFinal"
+        flat
+        bordered
+        class="mv-results-final q-mt-md full-width"
+        :class="irvResult.winnerId ? 'q-pa-md' : 'q-pa-sm'"
+      >
+        <template v-if="irvResult.winnerId">
+          <div class="text-h6 q-mb-md text-center">Winner</div>
+          <div class="column items-center q-gutter-sm">
+            <q-img
+              v-if="winnerThumb"
+              :src="winnerThumb"
+              width="96px"
+              height="144px"
+              fit="cover"
+              class="rounded-borders"
+              spinner-color="primary"
+            />
+            <div class="text-h5 text-weight-bold text-primary">{{ titleFor(irvResult.winnerId) }}</div>
+          </div>
+        </template>
+        <template v-else-if="irvResult.tieWinnerIds?.length">
+          <div class="text-h6 q-mb-md text-center">It’s a tie</div>
+          <div class="column q-gutter-sm min-width-0">
+            <div
+              v-for="m in tiedMoviesOrdered"
+              :key="m.publicId"
+              class="mv-results-tie-row row items-center no-wrap q-px-sm q-py-xs rounded-borders cursor-pointer"
+              @click="openTieDetail(m)"
+            >
+              <q-img
+                v-if="thumbFor(m.publicId)"
+                :src="thumbFor(m.publicId)"
+                width="40px"
+                height="60px"
+                fit="cover"
+                class="mv-results-tie-thumb rounded-borders q-mr-sm"
+                style="flex-shrink: 0"
+                spinner-color="primary"
+                loading="lazy"
+              />
+              <q-icon
+                v-else
+                name="movie"
+                size="md"
+                class="q-mr-sm"
+                style="flex-shrink: 0"
+                color="grey-5"
+              />
+              <div class="col min-width-0">
+                <div class="text-body1 text-weight-medium ellipsis">{{ m.title }}</div>
+                <div v-if="tieMetaLine(m)" class="text-caption text-grey-6 ellipsis">
+                  {{ tieMetaLine(m) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
       </q-card>
+
+      <MovieDetailDialog v-model="tieDetailOpen" :movie="tieDetailAsPick" />
 
       <q-btn
         v-if="allowReset && showFinal"
@@ -75,7 +119,8 @@
 
 <script setup>
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
-import { posterUrl } from '../tmdb.js'
+import { formatMovieMetaLine, posterUrl } from '../tmdb.js'
+import MovieDetailDialog from './MovieDetailDialog.vue'
 
 const props = defineProps({
   /** @type {import('vue').PropType<import('../irv.js').IrvResult | null>} */
@@ -254,6 +299,44 @@ const winnerThumb = computed(() => {
   return thumbFor(id)
 })
 
+/** @type {import('vue').Ref<import('../types.js').BallotMovie | null>} */
+const tieDetailTarget = ref(null)
+const tieDetailOpen = ref(false)
+
+const tieDetailAsPick = computed(() => {
+  const b = tieDetailTarget.value
+  if (!b) return null
+  return {
+    localId: b.publicId,
+    tmdbId: b.tmdbId,
+    title: b.title,
+    posterPath: b.posterPath,
+    overview: b.overview,
+    releaseDate: b.releaseDate,
+    runtime: b.runtime,
+  }
+})
+
+/** @param {import('../types.js').BallotMovie} m */
+function tieMetaLine(m) {
+  return formatMovieMetaLine(m.releaseDate, m.runtime)
+}
+
+/** @param {import('../types.js').BallotMovie} m */
+function openTieDetail(m) {
+  tieDetailTarget.value = m
+  tieDetailOpen.value = true
+}
+
+const tiedMoviesOrdered = computed(() => {
+  const ids = props.irvResult?.tieWinnerIds
+  if (!Array.isArray(ids) || !ids.length) return []
+  const map = idToMovie.value
+  return /** @type {import('../types.js').BallotMovie[]} */ (
+    ids.map((id) => map.get(id)).filter(Boolean)
+  )
+})
+
 function isExiting(id) {
   return exitingIds.value.includes(id)
 }
@@ -346,6 +429,16 @@ onUnmounted(() => {
 <style scoped lang="scss">
 .mv-results {
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.mv-results-final {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .mv-results-replay {
@@ -397,6 +490,24 @@ onUnmounted(() => {
 
 .body--light .mv-results-row__ph {
   background: rgba(0, 0, 0, 0.06);
+}
+
+.mv-results-tie-row {
+  background: rgba(128, 128, 128, 0.12);
+  min-height: 48px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mv-results-tie-thumb {
+  width: 40px !important;
+  max-width: 40px;
+}
+
+.body--light .mv-results-tie-row {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .mv-results-bar-track {

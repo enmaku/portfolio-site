@@ -29,7 +29,8 @@ test('eliminate last place then majority', () => {
     ['a', 'b', 'c'],
     ['a', 'b', 'c'],
     ['b', 'a', 'c'],
-    ['c', 'b', 'a'],
+    /* Prefer a over b on the last ballot so a–b is not an even 2–2 finalist deadlock. */
+    ['c', 'a', 'b'],
   ]
   const r = runIrv(rankings, ids)
   assert.equal(r.winnerId, 'a')
@@ -37,28 +38,31 @@ test('eliminate last place then majority', () => {
   assert.ok(r.rounds[0].eliminatedIds.includes('c'))
 })
 
-test('two-way first-round tie: one elimination per round (ballot-order tie-break)', () => {
+test('two-way first-round tie: declare co-winners, no arbitrary elimination', () => {
   const ids = ['a', 'b']
   const rankings = [
     ['a', 'b'],
     ['b', 'a'],
   ]
   const r = runIrv(rankings, ids)
-  /* Both at min; later on ballot list ('b') is eliminated first → 'a' wins with both votes. */
-  assert.equal(r.winnerId, 'a')
-  assert.equal(r.tieWinnerIds, null)
-  assert.ok(r.rounds.length >= 2)
+  assert.equal(r.winnerId, null)
+  assert.deepEqual(new Set(r.tieWinnerIds ?? []), new Set(['a', 'b']))
+  assert.equal(r.rounds.length, 1)
 })
 
 test('pickSingleElimination prefers later ballot index', () => {
   assert.equal(pickSingleElimination(['x', 'z'], ['x', 'y', 'z']), 'z')
 })
 
-test('ABCD vs DABC: preferences flow after successive eliminations', () => {
+test('preferences flow after successive eliminations (no final 1–1 deadlock)', () => {
   const ids = ['A', 'B', 'C', 'D']
   const rankings = [
-    ['A', 'B', 'C', 'D'],
-    ['D', 'A', 'B', 'C'],
+    ['D', 'A', 'C', 'B'],
+    ['A', 'C', 'B', 'D'],
+    ['A', 'C', 'D', 'B'],
+    ['C', 'A', 'D', 'B'],
+    ['B', 'A', 'D', 'C'],
+    ['D', 'B', 'A', 'C'],
   ]
   const r = runIrv(rankings, ids)
   assert.equal(r.winnerId, 'A')

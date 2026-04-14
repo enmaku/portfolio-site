@@ -100,34 +100,16 @@ export function profileUrl(profilePath, size = 'w92') {
 }
 
 /**
- * @param {unknown} genres TMDB `genres` array of `{ name: string }`
- * @returns {string} Comma-separated names, e.g. `Comedy, Music`
- */
-export function genresLabelFromApi(genres) {
-  if (!Array.isArray(genres)) return ''
-  const names = []
-  for (const g of genres) {
-    if (!g || typeof g !== 'object' || !('name' in g) || g.name == null) continue
-    const n = String(g.name).trim()
-    if (n) names.push(n)
-  }
-  return names.join(', ')
-}
-
-/**
- * One-line meta for list rows: year · runtime · genres (skip empty segments).
+ * One-line meta for list rows: year · runtime (skip empty segments).
  *
  * @param {string | null | undefined} releaseDate TMDB `release_date` (YYYY-MM-DD)
  * @param {number | null | undefined} runtime minutes
- * @param {string | null | undefined} genres preformatted comma list
  * @returns {string}
  */
-export function formatMovieMetaLine(releaseDate, runtime, genres) {
+export function formatMovieMetaLine(releaseDate, runtime) {
   const parts = []
   if (releaseDate != null && String(releaseDate).trim()) parts.push(String(releaseDate).slice(0, 4))
   if (typeof runtime === 'number' && runtime > 0) parts.push(`${runtime} min`)
-  const g = genres != null ? String(genres).trim() : ''
-  if (g) parts.push(g)
   return parts.join(' · ')
 }
 

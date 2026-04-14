@@ -62,7 +62,7 @@ import MovieDetailDialog from './MovieDetailDialog.vue'
 
 /** @param {import('../types.js').BallotMovie} m */
 function ballotMetaLine(m) {
-  return formatMovieMetaLine(m.releaseDate, m.runtime, m.genres)
+  return formatMovieMetaLine(m.releaseDate, m.runtime)
 }
 
 const store = useMovieVoteStore()
@@ -115,7 +115,6 @@ const detailAsPick = computed(() => {
     overview: b.overview,
     releaseDate: b.releaseDate,
     runtime: b.runtime,
-    genres: b.genres,
   }
 })
 

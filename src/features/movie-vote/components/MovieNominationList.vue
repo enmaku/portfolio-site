@@ -80,7 +80,7 @@ const draggablePicks = computed({
 
 /** @param {import('../types.js').MoviePick} pick */
 function pickMetaLine(pick) {
-  return formatMovieMetaLine(pick.releaseDate, pick.runtime, pick.genres)
+  return formatMovieMetaLine(pick.releaseDate, pick.runtime)
 }
 
 const listRootRef = ref(null)

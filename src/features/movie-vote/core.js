@@ -58,7 +58,6 @@ export function compileBallotMovies(picks) {
         overview: p.overview,
         releaseDate: p.releaseDate,
         runtime: p.runtime,
-        genres: p.genres,
       })
     }
   }

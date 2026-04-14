@@ -139,10 +139,25 @@ export function runIrv(rankings, candidateIds) {
     }
 
     let minCount = Infinity
+    let maxCount = -Infinity
     for (const id of active) {
-      minCount = Math.min(minCount, counts.get(id) ?? 0)
+      const c = counts.get(id) ?? 0
+      minCount = Math.min(minCount, c)
+      maxCount = Math.max(maxCount, c)
     }
     const tiedForLast = activeIds.filter((id) => (counts.get(id) ?? 0) === minCount)
+
+    /* Everyone left has the same count and nobody has a majority — declare a tie instead of breaking it arbitrarily. */
+    if (active.size >= 2 && ballotsWithVote > 0 && minCount === maxCount) {
+      rounds.push({
+        counts: countsObj,
+        activeIds,
+        ballotsWithVote,
+        eliminatedIds: [],
+      })
+      return { rounds, winnerId: null, tieWinnerIds: [...activeIds] }
+    }
+
     const elimId = pickSingleElimination(tiedForLast, candidateIds)
     active.delete(elimId)
 

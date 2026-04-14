@@ -316,12 +316,22 @@ function hostBroadcastState() {
   }
 }
 
+function roomHasAtLeastOneSuggestedMovie() {
+  const store = useMovieVoteStore()
+  if (store.myDraftPicks.length >= 1) return true
+  for (const [, g] of guestDrafts) {
+    if (g.picks.length >= 1) return true
+  }
+  return false
+}
+
 function allParticipantsReady() {
   const store = useMovieVoteStore()
-  if (!store.readyToVote || store.myDraftPicks.length < 1) return false
+  if (!store.readyToVote) return false
+  if (!roomHasAtLeastOneSuggestedMovie()) return false
   if (guestDrafts.size < 1) return false
   for (const [, g] of guestDrafts) {
-    if (!g.ready || g.picks.length < 1) return false
+    if (!g.ready) return false
   }
   return true
 }
@@ -384,7 +394,6 @@ function normalizePicks(picks) {
       overview: typeof p.overview === 'string' ? p.overview : '',
       releaseDate: p.releaseDate,
       runtime: typeof p.runtime === 'number' && p.runtime > 0 ? p.runtime : undefined,
-      genres: typeof p.genres === 'string' && p.genres.trim() ? p.genres.trim() : undefined,
     }))
 }
 

@@ -19,7 +19,7 @@
         class="mv-sync-menu-shell"
       >
         <div class="mv-sync-menu q-pa-lg">
-          <div class="text-h6 text-weight-medium q-mb-xs">Movie Vote room</div>
+          <div class="text-h6 text-weight-medium q-mb-xs">Movie Vote Room</div>
           <div class="text-body2 text-grey-6 q-mb-md">{{ statusDescription }}</div>
 
           <template v-if="phase === 'idle'">
@@ -31,7 +31,7 @@
                 class="full-width mv-sync-menu__action-btn"
                 padding="12px 16px"
                 label="Host room"
-                @click="onHost"
+                @click.stop="onHost"
               />
               <q-btn
                 outline
@@ -81,7 +81,7 @@
                   size="md"
                   color="grey-6"
                   aria-label="Copy room code"
-                  @click="copyCode"
+                  @click.stop="copyCode"
                 />
                 <q-btn
                   flat
@@ -90,7 +90,7 @@
                   size="md"
                   color="grey-6"
                   aria-label="Copy room link"
-                  @click="copyRoomUrl"
+                  @click.stop="copyRoomUrl"
                 />
               </div>
               <q-btn
@@ -243,7 +243,6 @@ function hideMenu() {
 }
 
 async function onHost() {
-  hideMenu()
   try {
     await startAsHost()
   } catch {

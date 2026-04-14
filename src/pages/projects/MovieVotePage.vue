@@ -5,20 +5,25 @@
     <div class="col mv-page__scroll column">
       <!-- Suggestions -->
       <template v-if="phase === 'suggest'">
-        <div v-if="isInSession && participants.length" class="q-px-md q-pt-md text-caption text-grey-6">
-          <span v-for="(p, i) in participants" :key="p.id">
-            {{ participantLabel(p) }} · {{ p.ready ? 'ready' : 'picking' }} · {{ p.pickCount }} picks
-            <span v-if="i < participants.length - 1"> · </span>
-          </span>
-        </div>
         <MovieSearchField @select="onPickMovie" />
         <div v-if="!myDraftPicks.length" class="q-pa-lg text-center text-body2 text-grey-5">
-          <p class="q-mb-sm">No movies in your list yet.</p>
-          <p class="q-mb-none">Search above to add suggestions, then drag to reorder.</p>
+          <template v-if="roomHasSuggestedMovie">
+            <p class="q-mb-sm">You haven’t added any movies.</p>
+            <p class="q-mb-none">Someone else already suggested titles — you can mark ready below, or search above to add your own.</p>
+          </template>
+          <template v-else>
+            <p class="q-mb-sm">No movies in your list yet.</p>
+            <p class="q-mb-none">Search above to add suggestions, then drag to reorder.</p>
+          </template>
         </div>
         <MovieNominationList v-else class="col" />
         <div v-if="isInSession" class="q-px-md q-pb-md">
-          <q-toggle v-model="readyModel" color="primary" label="Ready to vote" :disable="myDraftPicks.length < 1" />
+          <q-toggle
+            v-model="readyModel"
+            color="primary"
+            label="Ready to vote"
+            :disable="!roomHasSuggestedMovie"
+          />
         </div>
       </template>
 
@@ -78,7 +83,6 @@ import {
   movieVoteHostAfterVoteSubmit,
   movieVoteHostLocalChanged,
 } from '../../features/movie-vote/p2p/session.js'
-import { HOST_PARTICIPANT_ID } from '../../features/movie-vote/core.js'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
 
 const $q = useQuasar()
@@ -97,6 +101,12 @@ const {
 
 const { isGuest, isHosting, isInSession, resumeMovieVoteSessionIfNeeded } = useMovieVoteP2P()
 
+/** At least one person in the room has a suggested movie (so voting can compile a ballot). */
+const roomHasSuggestedMovie = computed(() => {
+  if (myDraftPicks.value.length > 0) return true
+  return participants.value.some((p) => p.pickCount > 0)
+})
+
 let guestDraftTimer = 0
 function scheduleGuestDraftPush() {
   if (!isGuest.value) return
@@ -108,7 +118,7 @@ function scheduleGuestDraftPush() {
 }
 
 watch(
-  [myDraftPicks, () => store.readyToVote, phase, isGuest],
+  [myDraftPicks, () => store.readyToVote, phase, isGuest, participants],
   () => {
     if (isGuest.value && phase.value === 'suggest') {
       scheduleGuestDraftPush()
@@ -154,11 +164,6 @@ const voteProgressLabel = computed(() => {
 /** @param {import('../../features/movie-vote/types.js').MoviePick} pick */
 function onPickMovie(pick) {
   store.addDraftPick(pick)
-}
-
-/** @param {{ id: string }} p */
-function participantLabel(p) {
-  return p.id === HOST_PARTICIPANT_ID ? 'Host' : `Voter ${p.id}`
 }
 
 function onDoneVoting() {

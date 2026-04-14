@@ -17,7 +17,6 @@
           <div class="text-h6">{{ title }}</div>
           <div v-if="year" class="text-caption text-grey-6">{{ year }}</div>
           <div v-if="runtimeLabel" class="text-caption text-grey-6">{{ runtimeLabel }}</div>
-          <div v-if="genresLine" class="text-caption text-grey-6">{{ genresLine }}</div>
         </div>
       </q-card-section>
       <q-separator />
@@ -93,13 +92,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import {
-  genresLabelFromApi,
-  getMovieDetails,
-  isTmdbConfigured,
-  posterUrl,
-  profileUrl,
-} from '../tmdb.js'
+import { getMovieDetails, isTmdbConfigured, posterUrl, profileUrl } from '../tmdb.js'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -125,13 +118,6 @@ const runtimeLabel = computed(() => {
   const r = fetched.value?.runtime ?? props.movie?.runtime
   if (typeof r !== 'number' || r <= 0) return ''
   return `${r} min`
-})
-
-const genresLine = computed(() => {
-  const fromApi = genresLabelFromApi(fetched.value?.genres)
-  if (fromApi) return fromApi
-  const g = props.movie?.genres
-  return g && String(g).trim() ? String(g).trim() : ''
 })
 
 const CAST_PREVIEW = 5
