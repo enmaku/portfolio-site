@@ -112,6 +112,7 @@ const navTabs = [
 
 const projectLinks = [
   { to: '/projects/game-timer', label: 'Game Timer', icon: 'timer' },
+  { to: '/projects/movie-vote', label: 'Movie Vote', icon: 'movie' },
 ]
 
 const route = useRoute()

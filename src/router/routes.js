@@ -33,6 +33,17 @@ const routes = [
       },
     ],
   },
+  {
+    path: '/projects/movie-vote',
+    component: () => import('layouts/projects/MovieVoteLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/projects/MovieVotePage.vue'),
+        meta: { title: 'Movie Vote' },
+      },
+    ],
+  },
 
   {
     path: '/:catchAll(.*)*',
