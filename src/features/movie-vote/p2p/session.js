@@ -1,4 +1,5 @@
 /**
+ * @import '../types.js'
  * PeerJS star hub for Movie Vote (`dperry-movievote-<suffix>`).
  * Typed messages; host aggregates guest drafts and runs IRV.
  */
@@ -34,8 +35,6 @@ import {
   normalizeRoomSuffixInput,
 } from './roomId.js'
 
-/** @typedef {'idle' | 'connecting' | 'reconnecting' | 'hosting' | 'guest_connected'} MovieVoteSessionPhase */
-
 /** @type {import('peerjs').Peer | null} */
 let peer = null
 
@@ -62,10 +61,16 @@ const connToParticipant = new Map()
  */
 const guestDrafts = new Map()
 
-export const sessionPhase = ref(/** @type {MovieVoteSessionPhase} */ ('idle'))
+/** Reactive session UI state for multiplayer (Vue ref; safe to use outside components). */
+export const sessionPhase = ref(/** @type {import('./types.js').MovieVoteSessionPhase} */ ('idle'))
 
+/** Short user-facing room code while hosting or connected as guest; null when idle. */
 export const sessionSuffix = ref(/** @type {string | null} */ (null))
 
+/**
+ * Guest only: last host-reported tab visibility (`document.visibilityState === 'visible'` on host).
+ * Stays `true` when idle / hosting / unknown.
+ */
 export const remoteHostTabVisible = ref(true)
 
 const RECONNECT_MAX_ATTEMPTS = 10
@@ -96,6 +101,12 @@ let hostVisibilityTeardown = null
 /** @type {number} */
 let guestLastHostActivityAt = 0
 
+/**
+ * @param {string} message
+ * @param {'positive' | 'negative' | 'warning' | 'info'} [type='info']
+ * @param {{ timeout?: number, classes?: string }} [opts]
+ * @returns {void}
+ */
 function notifyP2P(message, type = 'info', opts = {}) {
   const fallback = type === 'negative' ? 4500 : 2800
   const timeout = typeof opts.timeout === 'number' ? opts.timeout : fallback
@@ -113,6 +124,7 @@ function notifyP2P(message, type = 'info', opts = {}) {
   }
 }
 
+/** Clears persisted host/guest intent from the room session Pinia store. */
 function clearRoomPersistence() {
   try {
     useMovieVoteRoomSessionStore().clear()

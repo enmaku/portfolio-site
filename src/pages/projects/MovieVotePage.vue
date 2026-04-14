@@ -3,7 +3,6 @@
     <MovieVoteTopBar />
 
     <div class="col mv-page__scroll column">
-      <!-- Suggestions -->
       <template v-if="phase === 'suggest'">
         <MovieSearchField @select="onPickMovie" />
         <div v-if="!myDraftPicks.length" class="q-pa-lg text-center text-body2 text-grey-5">
@@ -27,7 +26,6 @@
         </div>
       </template>
 
-      <!-- Voting -->
       <template v-else-if="phase === 'voting'">
         <div class="q-px-md q-pt-md text-body2 text-grey-6">
           Rank every movie. {{ voteProgressLabel }}
@@ -46,7 +44,6 @@
         </div>
       </template>
 
-      <!-- Results -->
       <template v-else-if="phase === 'results'">
         <MovieVoteResultsPanel
           class="col"

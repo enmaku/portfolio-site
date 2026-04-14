@@ -14,7 +14,8 @@
  * @typedef {object} IrvResult
  * @property {IrvRoundLog[]} rounds
  * @property {string | null} winnerId
- * @property {string[] | null} tieWinnerIds Co-winners if unresolved multi-way tie.
+ * @property {string[] | null} tieWinnerIds `null` if a single winner (or single-candidate trivial case); non-empty
+ *   array for a declared tie; `[]` only when there are no candidates.
  */
 
 /**

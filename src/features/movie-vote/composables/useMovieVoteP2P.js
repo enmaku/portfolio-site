@@ -1,3 +1,7 @@
+/**
+ * @import '../types.js'
+ */
+
 import { computed } from 'vue'
 import {
   isMovieVoteP2PSessionActive,
@@ -11,7 +15,20 @@ import {
 } from '../p2p/session.js'
 
 /**
- * Reactive multiplayer session state (no side-effect watchers — add those once on the page).
+ * Reactive multiplayer session state and actions (wraps `session.js` refs and exports).
+ *
+ * @returns {{
+ *   phase: import('vue').Ref<MovieVoteSessionPhase>,
+ *   suffix: import('vue').Ref<string | null>,
+ *   isInSession: import('vue').ComputedRef<boolean>,
+ *   isHosting: import('vue').ComputedRef<boolean>,
+ *   isGuest: import('vue').ComputedRef<boolean>,
+ *   remoteHostTabVisible: typeof remoteHostTabVisible,
+ *   startAsHost: typeof startAsHost,
+ *   joinRoom: typeof joinRoom,
+ *   leaveSession: typeof leaveSession,
+ *   resumeMovieVoteSessionIfNeeded: typeof resumeMovieVoteSessionIfNeeded,
+ * }}
  */
 export function useMovieVoteP2P() {
   const isInSession = computed(() => isMovieVoteP2PSessionActive())

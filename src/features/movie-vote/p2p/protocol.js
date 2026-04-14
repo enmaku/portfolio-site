@@ -9,9 +9,9 @@ export const MSG_MV_HOST_VISIBILITY = 'mv-v'
 export const MSG_MV_WELCOME = 'mv-w'
 export const MSG_MV_STATE = 'mv-s'
 
-/** Guest → host */
+/** Guest → host: draft picks + ready flag */
 export const MSG_MV_DRAFT = 'mv-d'
-/** Guest → host */
+/** Guest → host: final IRV ranking */
 export const MSG_MV_VOTE = 'mv-vt'
 
 /**

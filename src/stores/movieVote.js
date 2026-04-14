@@ -107,7 +107,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
     applyPublicPayload(p) {
       const wasVoting = this.phase === 'voting'
       this.phase = p.phase
-      this.participants = p.participants.map((x) => ({ ...x }))
+      this.setParticipants(p.participants)
       if (p.phase === 'suggest') {
         this.ballotMovies = []
         this.ballotOrderIds = []
@@ -126,6 +126,9 @@ export const useMovieVoteStore = defineStore('movieVote', {
         this.ballotMovies = p.ballotMovies.map((m) => ({ ...m }))
         this.ballotOrderIds = incomingIds
 
+        if (p.phase === 'voting' && ballotChanged) {
+          this.myVoteSubmitted = false
+        }
         if (p.phase === 'voting' && !this.myVoteSubmitted) {
           const enteringVoting = !wasVoting
           const rankingInvalid = !isRankingForBallot(this.myRanking, incomingIds)
