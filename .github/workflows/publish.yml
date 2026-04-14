@@ -41,10 +41,14 @@ jobs:
           node-version: 22
           cache: npm
 
+      # TMDB for Movie Vote (Settings → Secrets and variables → Actions). Use either or both.
+      # Vite inlines VITE_* at build time (treat as public read-only credentials).
       - name: Install and build
         env:
           # Project page URL is https://<user>.github.io/<repo>/
           GH_PAGES_BASE: /${{ github.event.repository.name }}/
+          VITE_TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          VITE_TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
         run: |
           npm ci
           npm run build
