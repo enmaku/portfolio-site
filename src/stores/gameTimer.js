@@ -259,16 +259,17 @@ export const useGameTimerStore = defineStore('gameTimer', {
       if (this.hardPassOrderByRound[rk].includes(playerId)) return
 
       const now = Date.now()
-      const wasActive = this.activePlayerId === playerId && this.turnStartedAt != null
+      const clockRunning = this.activePlayerId === playerId && this.turnStartedAt != null
+      const turnHeldHere = this.activePlayerId === playerId
 
-      if (wasActive) {
+      if (clockRunning) {
         this._bankActiveSegment(now)
       }
 
       this.hardPassOrderByRound[rk].push(playerId)
       this._recomputeNextRoundOrderFromHardPasses(this.round)
 
-      if (wasActive) {
+      if (turnHeldHere) {
         const passed = new Set(this.hardPassOrderByRound[rk] ?? [])
         const idx = this.players.findIndex((p) => p.id === playerId)
         const nextIdx = idx === -1 ? null : this._nextNonPassedPlayerIndex(idx, passed)
@@ -384,7 +385,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
     },
 
     /**
-     * Start this player’s turn, or stop if already active (banks in both cases when stopping).
+     * Start this player’s turn; tap same player again to pause (clock stops, turn stays); tap again to resume.
      * @param {string} playerId
      */
     selectPlayer(playerId) {
@@ -392,8 +393,14 @@ export const useGameTimerStore = defineStore('gameTimer', {
       if (!this.players.some((p) => p.id === playerId)) return
 
       if (this.activePlayerId === playerId) {
-        this._bankActiveSegment(now)
-        this._clearLiveTurn()
+        if (this.turnStartedAt != null) {
+          this._bankActiveSegment(now)
+          this.turnStartedAt = null
+          this.turnStartedRound = null
+          return
+        }
+        this.turnStartedAt = now
+        this.turnStartedRound = this.round
         return
       }
 
@@ -469,11 +476,13 @@ export const useGameTimerStore = defineStore('gameTimer', {
     /** Bank active segment and advance to the next player in list order (wraps); skips hard-passed when enabled. */
     endTurnNext() {
       const now = Date.now()
-      if (this.players.length === 0 || this.activePlayerId == null || this.turnStartedAt == null) {
+      if (this.players.length === 0 || this.activePlayerId == null) {
         return
       }
 
-      this._bankActiveSegment(now)
+      if (this.turnStartedAt != null) {
+        this._bankActiveSegment(now)
+      }
 
       const idx = this.players.findIndex((p) => p.id === this.activePlayerId)
       if (idx === -1) {

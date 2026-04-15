@@ -10,7 +10,8 @@
         <p class="q-mb-sm">No players yet.</p>
         <p v-if="isGuest" class="q-mb-none">Only the host can add players.</p>
         <p v-else class="q-mb-none">
-          Tap + to add someone, then tap their name when it's their turn. Tap their name again to stop the clock.
+          Tap + to add someone, then tap their name when it's their turn. Tap again to pause the clock (or use pause
+          below); tap again or use play to resume.
         </p>
       </div>
     </div>
@@ -33,19 +34,51 @@
         class="gt-actions-bar__fixed-btn"
         @click="resetConfirmOpen = true"
       />
-      <q-btn
-        v-if="isTurnRunning"
-        rounded
-        unelevated
-        no-wrap
-        color="primary"
-        icon-right="skip_next"
-        label="End turn"
-        class="gt-actions-bar__end-turn col"
-        padding="16px 20px"
-        aria-label="End turn and go to next player"
-        @click="store.endTurnNext()"
-      />
+      <div
+        v-if="hasHeldTurn"
+        class="gt-turn-actions row no-wrap items-stretch col"
+      >
+        <q-btn
+          v-if="isClockRunning"
+          flat
+          dense
+          no-wrap
+          color="white"
+          text-color="white"
+          icon="pause"
+          class="gt-turn-actions__pause"
+          padding="12px 14px"
+          aria-label="Pause timer"
+          @click="pauseActiveTurn"
+        />
+        <q-btn
+          v-else
+          flat
+          dense
+          no-wrap
+          color="white"
+          text-color="white"
+          icon="play_arrow"
+          class="gt-turn-actions__pause"
+          padding="12px 14px"
+          aria-label="Resume timer"
+          @click="resumeActiveTurn"
+        />
+        <div class="gt-turn-actions__sep" aria-hidden="true" />
+        <q-btn
+          flat
+          dense
+          no-wrap
+          color="white"
+          text-color="white"
+          icon-right="skip_next"
+          label="End turn"
+          class="gt-turn-actions__end col"
+          padding="16px 20px"
+          aria-label="End turn and go to next player"
+          @click="store.endTurnNext()"
+        />
+      </div>
       <q-space v-else />
       <q-btn
         fab
@@ -58,21 +91,51 @@
       />
     </div>
     <div
-      v-else-if="isTurnRunning"
+      v-else-if="hasHeldTurn"
       class="gt-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm"
     >
-      <q-btn
-        rounded
-        unelevated
-        no-wrap
-        color="primary"
-        icon-right="skip_next"
-        label="End turn"
-        class="gt-actions-bar__end-turn col"
-        padding="16px 20px"
-        aria-label="End turn and go to next player"
-        @click="store.endTurnNext()"
-      />
+      <div class="gt-turn-actions row no-wrap items-stretch col">
+        <q-btn
+          v-if="isClockRunning"
+          flat
+          dense
+          no-wrap
+          color="white"
+          text-color="white"
+          icon="pause"
+          class="gt-turn-actions__pause"
+          padding="12px 14px"
+          aria-label="Pause timer"
+          @click="pauseActiveTurn"
+        />
+        <q-btn
+          v-else
+          flat
+          dense
+          no-wrap
+          color="white"
+          text-color="white"
+          icon="play_arrow"
+          class="gt-turn-actions__pause"
+          padding="12px 14px"
+          aria-label="Resume timer"
+          @click="resumeActiveTurn"
+        />
+        <div class="gt-turn-actions__sep" aria-hidden="true" />
+        <q-btn
+          flat
+          dense
+          no-wrap
+          color="white"
+          text-color="white"
+          icon-right="skip_next"
+          label="End turn"
+          class="gt-turn-actions__end col"
+          padding="16px 20px"
+          aria-label="End turn and go to next player"
+          @click="store.endTurnNext()"
+        />
+      </div>
     </div>
 
     <q-dialog v-model="resetConfirmOpen" persistent>
@@ -140,9 +203,29 @@ const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
 const { players, activePlayerId, turnStartedAt, hasMultipleRounds } = storeToRefs(store)
 
-const isTurnRunning = computed(
+/** Someone’s turn is “held” (running or paused). */
+const hasHeldTurn = computed(() => activePlayerId.value != null)
+
+/** Clock is actively counting. */
+const isClockRunning = computed(
   () => activePlayerId.value != null && turnStartedAt.value != null,
 )
+
+/** Pause without advancing: same as tapping the active player’s name while the clock runs. */
+function pauseActiveTurn() {
+  const id = activePlayerId.value
+  if (id != null && turnStartedAt.value != null) {
+    store.selectPlayer(id)
+  }
+}
+
+/** Resume a paused turn: same as tapping the active player’s name while paused. */
+function resumeActiveTurn() {
+  const id = activePlayerId.value
+  if (id != null && turnStartedAt.value == null) {
+    store.selectPlayer(id)
+  }
+}
 
 /** While a session has players, ask the browser to keep the screen on (mobile-friendly Wake Lock API). */
 useScreenWakeLock(computed(() => players.value.length > 0))
@@ -231,17 +314,47 @@ function confirmResetAll() {
   border-top-color: rgba(0, 0, 0, 0.08);
 }
 
-.gt-actions-bar__end-turn {
+.gt-turn-actions {
+  flex: 1 1 0;
   min-width: 0;
   min-height: 60px;
+  background: var(--q-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  /* Pill shape like the old standalone “End turn” rounded button */
+  border-radius: 9999px;
+  overflow: hidden;
 }
 
-.gt-actions-bar__end-turn :deep(.q-btn__content) {
+.gt-turn-actions__pause {
+  flex: 0 0 auto;
+  min-width: 52px;
+  border-radius: 0;
+}
+
+.gt-turn-actions__pause :deep(.q-icon) {
+  font-size: 1.65rem;
+}
+
+.gt-turn-actions__sep {
+  flex: 0 0 1px;
+  width: 1px;
+  align-self: stretch;
+  margin: 12px 0;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.gt-turn-actions__end {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 0;
+}
+
+.gt-turn-actions__end :deep(.q-btn__content) {
   font-size: 1.15rem;
   font-weight: 700;
 }
 
-.gt-actions-bar__end-turn :deep(.q-icon) {
+.gt-turn-actions__end :deep(.q-icon) {
   font-size: 1.65rem;
 }
 
