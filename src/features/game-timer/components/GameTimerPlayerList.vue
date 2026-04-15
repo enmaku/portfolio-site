@@ -74,11 +74,10 @@
                   round
                   dense
                   padding="sm"
-                  icon="sports_score"
+                  :icon="isHardPassed(player) ? 'undo' : 'sports_score'"
                   class="gt-player-row__hard-pass gt-hard-pass-hit"
-                  :disable="isHardPassed(player)"
-                  aria-label="Hard pass for this round"
-                  @click.stop="store.registerHardPass(player.id)"
+                  :aria-label="isHardPassed(player) ? 'Undo hard pass' : 'Hard pass for this round'"
+                  @click.stop="onHardPassButton(player)"
                 />
               </div>
               <div class="gt-player-row__bars column">
@@ -179,6 +178,14 @@ const hardPassIdsThisRound = computed(() => {
 
 function isHardPassed(player) {
   return hardPassEnabled.value && hardPassIdsThisRound.value.has(player.id)
+}
+
+function onHardPassButton(player) {
+  if (isHardPassed(player)) {
+    store.undoHardPass(player.id)
+  } else {
+    store.registerHardPass(player.id)
+  }
 }
 
 const draggablePlayers = computed({

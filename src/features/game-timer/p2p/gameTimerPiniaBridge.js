@@ -29,6 +29,7 @@ const SYNC_ACTION_NAMES = new Set([
   'setHardPassEnabled',
   'setHardPassOrderNextRound',
   'registerHardPass',
+  'undoHardPass',
 ])
 
 /**

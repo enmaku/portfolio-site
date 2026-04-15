@@ -422,12 +422,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
       }
       stripPlayerFromHardPassMaps(this.hardPassOrderByRound, playerId)
       if (this.hardPassEnabled && this.hardPassOrderNextRound && this.players.length > 0) {
-        const arr = this.hardPassOrderByRound[String(this.round)]
-        if (Array.isArray(arr) && arr.length > 0) {
-          this._recomputeNextRoundOrderFromHardPasses(this.round)
-        } else {
-          this.playerOrderByRound[String(this.round + 1)] = this.players.map((p) => p.id)
-        }
+        this._recomputeNextRoundOrderFromHardPasses(this.round)
       }
     },
 
