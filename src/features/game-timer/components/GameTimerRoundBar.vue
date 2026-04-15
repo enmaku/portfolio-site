@@ -51,14 +51,14 @@
             <div class="text-subtitle2 text-weight-medium q-mb-sm">Round rules</div>
             <q-toggle v-model="hardPassEnabledModel" color="primary" label="Hard pass" />
             <div class="text-caption text-grey-6 q-mb-md q-ml-sm">
-              Remove a player from the current round; optional first-pass order for the next round.
+              Hard pass removes a player from the current round.
             </div>
             <div class="q-pl-md">
               <q-toggle
                 v-model="hardPassOrderNextRoundModel"
                 color="primary"
                 :disable="!hardPassEnabled"
-                label="First to hard pass plays first next round"
+                label="Pass order determines round order"
               />
             </div>
           </div>
