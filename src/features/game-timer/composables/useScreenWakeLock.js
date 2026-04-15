@@ -5,7 +5,10 @@
 
 import { onBeforeUnmount, toValue, watch } from 'vue'
 
-/** @param {HTMLVideoElement} video */
+/**
+ * @param {HTMLVideoElement} video
+ * @returns {void}
+ */
 function detachVideo(video) {
   try {
     video.pause()
@@ -49,6 +52,9 @@ export function useScreenWakeLock(enabled) {
     }
   }
 
+  /**
+   * @returns {HTMLVideoElement | null}
+   */
   function ensureFallbackVideo() {
     if (fallbackVideo != null) return fallbackVideo
     const canvas = document.createElement('canvas')

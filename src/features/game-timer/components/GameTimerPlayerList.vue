@@ -181,7 +181,7 @@ function isHardPassed(player) {
   return hardPassEnabled.value && hardPassIdsThisRound.value.has(player.id)
 }
 
-/** Turn held on this row but clock paused (mild dim; hard-pass uses stronger styling). */
+/** Active row, clock paused; mild dim (hard-pass uses stronger styling). */
 function isPausedHeldTurn(player) {
   if (isHardPassed(player)) return false
   return activePlayerId.value === player.id && turnStartedAt.value == null
@@ -459,7 +459,7 @@ function progressRoundFillStyle(player) {
   filter: grayscale(0.9);
 }
 
-/* Softer than hard-pass: clock paused but still this player’s turn */
+/* Paused turn: mild dim vs. hard-pass */
 .gt-player-row--paused-turn {
   opacity: 0.78;
   filter: brightness(0.86) saturate(0.6) grayscale(0.12);
