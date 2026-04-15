@@ -42,6 +42,9 @@
  * @property {number | null} turnStartedRound
  * @property {number} round
  * @property {Record<string, string[]>} playerOrderByRound
+ * @property {boolean} hardPassEnabled
+ * @property {boolean} hardPassOrderNextRound
+ * @property {Record<string, string[]>} hardPassOrderByRound
  */
 
 export {}

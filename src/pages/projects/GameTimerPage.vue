@@ -42,7 +42,7 @@
         icon-right="skip_next"
         label="End turn"
         class="gt-actions-bar__end-turn col"
-        padding="12px 16px"
+        padding="16px 20px"
         aria-label="End turn and go to next player"
         @click="store.endTurnNext()"
       />
@@ -69,7 +69,7 @@
         icon-right="skip_next"
         label="End turn"
         class="gt-actions-bar__end-turn col"
-        padding="12px 16px"
+        padding="16px 20px"
         aria-label="End turn and go to next player"
         @click="store.endTurnNext()"
       />
@@ -233,11 +233,16 @@ function confirmResetAll() {
 
 .gt-actions-bar__end-turn {
   min-width: 0;
-  min-height: 48px;
+  min-height: 60px;
+}
+
+.gt-actions-bar__end-turn :deep(.q-btn__content) {
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 .gt-actions-bar__end-turn :deep(.q-icon) {
-  font-size: 1.35rem;
+  font-size: 1.65rem;
 }
 
 </style>

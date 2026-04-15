@@ -28,6 +28,19 @@ function applyPlayerOrder(players, idOrder) {
   return out
 }
 
+/**
+ * @param {Record<string, string[]>} hardPassOrderByRound
+ * @param {string} playerId
+ */
+function stripPlayerFromHardPassMaps(hardPassOrderByRound, playerId) {
+  for (const k of Object.keys(hardPassOrderByRound)) {
+    const arr = hardPassOrderByRound[k]
+    if (Array.isArray(arr)) {
+      hardPassOrderByRound[k] = arr.filter((id) => id !== playerId)
+    }
+  }
+}
+
 /** Pinia store: Game Timer session (players, turns, rounds, persisted). */
 export const useGameTimerStore = defineStore('gameTimer', {
   state: () => ({
@@ -37,17 +50,23 @@ export const useGameTimerStore = defineStore('gameTimer', {
     turnStartedRound: null,
     round: 1,
     playerOrderByRound: {},
+    hardPassEnabled: false,
+    hardPassOrderNextRound: false,
+    hardPassOrderByRound: {},
   }),
 
   getters: {
     /**
      * True when the session has multi-round UI (round > 1 or stored data for round 2+).
+     * Draft `playerOrderByRound` keys for rounds beyond `round` (e.g. next-round prep) do not count.
      * @returns {boolean}
      */
     hasMultipleRounds(state) {
       if (state.round > 1) return true
+      const cur = state.round
       for (const k of Object.keys(state.playerOrderByRound)) {
-        if (Number(k) > 1) return true
+        const nk = Number(k)
+        if (nk > 1 && nk <= cur) return true
       }
       for (const p of state.players) {
         const m = p.bankedMsByRound
@@ -72,6 +91,9 @@ export const useGameTimerStore = defineStore('gameTimer', {
       'turnStartedRound',
       'round',
       'playerOrderByRound',
+      'hardPassEnabled',
+      'hardPassOrderNextRound',
+      'hardPassOrderByRound',
     ],
     afterHydrate: (ctx) => {
       const store = ctx.store
@@ -86,6 +108,11 @@ export const useGameTimerStore = defineStore('gameTimer', {
       }
       if (!store.playerOrderByRound || typeof store.playerOrderByRound !== 'object') {
         store.playerOrderByRound = {}
+      }
+      if (typeof store.hardPassEnabled !== 'boolean') store.hardPassEnabled = false
+      if (typeof store.hardPassOrderNextRound !== 'boolean') store.hardPassOrderNextRound = false
+      if (!store.hardPassOrderByRound || typeof store.hardPassOrderByRound !== 'object') {
+        store.hardPassOrderByRound = {}
       }
       store._applyOrderForActiveRound()
     },
@@ -116,6 +143,45 @@ export const useGameTimerStore = defineStore('gameTimer', {
     },
 
     /**
+     * When hard pass affects next round, set `playerOrderByRound[n+1]` from pass order + remaining ids.
+     * With an empty pass list, draft next-round order matches current display order.
+     * @param {number} n
+     */
+    _recomputeNextRoundOrderFromHardPasses(n) {
+      if (!this.hardPassEnabled || !this.hardPassOrderNextRound) return
+      if (this.players.length === 0) return
+      const nk = String(Math.max(1, Math.floor(n)))
+      const nextK = String(Math.max(1, Math.floor(n)) + 1)
+      const raw = this.hardPassOrderByRound[nk]
+      const passers = Array.isArray(raw)
+        ? raw.filter((id) => this.players.some((p) => p.id === id))
+        : []
+      if (passers.length === 0) {
+        this.playerOrderByRound[nextK] = this.players.map((p) => p.id)
+        return
+      }
+      const passerSet = new Set(passers)
+      const remaining = this.players.map((p) => p.id).filter((id) => !passerSet.has(id))
+      this.playerOrderByRound[nextK] = [...passers, ...remaining]
+    },
+
+    /**
+     * @param {number} fromIdx Index in `this.players` to start after (exclusive step pattern like end turn).
+     * @param {Set<string>} passed
+     * @returns {number | null} Next player index or null if none eligible.
+     */
+    _nextNonPassedPlayerIndex(fromIdx, passed) {
+      const n = this.players.length
+      if (n === 0) return null
+      let nextIdx = (fromIdx + 1) % n
+      for (let steps = 0; steps < n; steps++) {
+        if (!passed.has(this.players[nextIdx].id)) return nextIdx
+        nextIdx = (nextIdx + 1) % n
+      }
+      return null
+    },
+
+    /**
      * Append a player and register them in the current round’s order.
      * @param {{ name?: string, color?: string }} [payload]
      * @returns {string} New player id.
@@ -138,6 +204,11 @@ export const useGameTimerStore = defineStore('gameTimer', {
       } else {
         this.playerOrderByRound[k] = this.players.map((p) => p.id)
       }
+      const nextR = String(this.round + 1)
+      const nextOrder = this.playerOrderByRound[nextR]
+      if (Array.isArray(nextOrder) && nextOrder.length > 0 && !nextOrder.includes(player.id)) {
+        this.playerOrderByRound[nextR] = [...nextOrder, player.id]
+      }
       return player.id
     },
 
@@ -146,6 +217,84 @@ export const useGameTimerStore = defineStore('gameTimer', {
       if (!Array.isArray(nextOrder)) return
       this.players = nextOrder
       this.playerOrderByRound[String(this.round)] = nextOrder.map((p) => p.id)
+    },
+
+    /**
+     * @param {boolean} value
+     */
+    setHardPassEnabled(value) {
+      this.hardPassEnabled = Boolean(value)
+      if (!this.hardPassEnabled) {
+        this.hardPassOrderNextRound = false
+      }
+    },
+
+    /**
+     * @param {boolean} value
+     */
+    setHardPassOrderNextRound(value) {
+      if (!this.hardPassEnabled) {
+        this.hardPassOrderNextRound = false
+        return
+      }
+      this.hardPassOrderNextRound = Boolean(value)
+      if (this.hardPassOrderNextRound) {
+        const arr = this.hardPassOrderByRound[String(this.round)]
+        if (Array.isArray(arr) && arr.length > 0) {
+          this._recomputeNextRoundOrderFromHardPasses(this.round)
+        }
+      }
+    },
+
+    /**
+     * @param {string} playerId
+     */
+    registerHardPass(playerId) {
+      if (!this.hardPassEnabled || !this.players.some((p) => p.id === playerId)) return
+
+      const rk = String(this.round)
+      if (!this.hardPassOrderByRound[rk] || !Array.isArray(this.hardPassOrderByRound[rk])) {
+        this.hardPassOrderByRound[rk] = []
+      }
+      if (this.hardPassOrderByRound[rk].includes(playerId)) return
+
+      const now = Date.now()
+      const wasActive = this.activePlayerId === playerId && this.turnStartedAt != null
+
+      if (wasActive) {
+        this._bankActiveSegment(now)
+      }
+
+      this.hardPassOrderByRound[rk].push(playerId)
+      this._recomputeNextRoundOrderFromHardPasses(this.round)
+
+      if (!wasActive) return
+
+      const passed = new Set(this.hardPassOrderByRound[rk] ?? [])
+      const idx = this.players.findIndex((p) => p.id === playerId)
+      const nextIdx = idx === -1 ? null : this._nextNonPassedPlayerIndex(idx, passed)
+      if (nextIdx == null) {
+        this._clearLiveTurn()
+        return
+      }
+      const next = this.players[nextIdx]
+      this.activePlayerId = next.id
+      this.turnStartedAt = now
+      this.turnStartedRound = this.round
+    },
+
+    /**
+     * Remove a hard pass for this round (mistake). Recomputes draft next-round order when enabled.
+     * Does not restore banked time if they had passed while the clock was running.
+     * @param {string} playerId
+     */
+    undoHardPass(playerId) {
+      if (!this.hardPassEnabled || !this.players.some((p) => p.id === playerId)) return
+      const rk = String(this.round)
+      const arr = this.hardPassOrderByRound[rk]
+      if (!Array.isArray(arr) || !arr.includes(playerId)) return
+      this.hardPassOrderByRound[rk] = arr.filter((id) => id !== playerId)
+      this._recomputeNextRoundOrderFromHardPasses(this.round)
     },
 
     /**
@@ -222,6 +371,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
         }
       }
       this.playerOrderByRound = orderKept
+      this.hardPassOrderByRound = {}
       this._applyOrderForActiveRound()
     },
 
@@ -270,6 +420,15 @@ export const useGameTimerStore = defineStore('gameTimer', {
           this.playerOrderByRound[k] = arr.filter((id) => id !== playerId)
         }
       }
+      stripPlayerFromHardPassMaps(this.hardPassOrderByRound, playerId)
+      if (this.hardPassEnabled && this.hardPassOrderNextRound && this.players.length > 0) {
+        const arr = this.hardPassOrderByRound[String(this.round)]
+        if (Array.isArray(arr) && arr.length > 0) {
+          this._recomputeNextRoundOrderFromHardPasses(this.round)
+        } else {
+          this.playerOrderByRound[String(this.round + 1)] = this.players.map((p) => p.id)
+        }
+      }
     },
 
     /**
@@ -299,9 +458,12 @@ export const useGameTimerStore = defineStore('gameTimer', {
       this.players = []
       this.playerOrderByRound = {}
       this.round = 1
+      this.hardPassEnabled = false
+      this.hardPassOrderNextRound = false
+      this.hardPassOrderByRound = {}
     },
 
-    /** Bank active segment and advance to the next player in list order (wraps). */
+    /** Bank active segment and advance to the next player in list order (wraps); skips hard-passed when enabled. */
     endTurnNext() {
       const now = Date.now()
       if (this.players.length === 0 || this.activePlayerId == null || this.turnStartedAt == null) {
@@ -316,7 +478,15 @@ export const useGameTimerStore = defineStore('gameTimer', {
         return
       }
 
-      const nextIdx = (idx + 1) % this.players.length
+      const passed = this.hardPassEnabled
+        ? new Set(this.hardPassOrderByRound[String(this.round)] ?? [])
+        : new Set()
+
+      const nextIdx = this._nextNonPassedPlayerIndex(idx, passed)
+      if (nextIdx == null) {
+        this._clearLiveTurn()
+        return
+      }
       const next = this.players[nextIdx]
       this.activePlayerId = next.id
       this.turnStartedAt = now
