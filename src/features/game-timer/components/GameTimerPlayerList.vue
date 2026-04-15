@@ -43,6 +43,7 @@
               :class="{
                 'gt-player-row--active': rowForPlayer(player)?.isActive,
                 'gt-player-row--hard-passed': isHardPassed(player),
+                'gt-player-row--paused-turn': isPausedHeldTurn(player),
               }"
               :style="rowSurfaceStyle(player)"
               :data-gt-player-id="player.id"
@@ -51,7 +52,7 @@
                 <div class="gt-player-row__turn col-auto row flex-center" aria-hidden="true">
                   <q-icon
                     v-if="rowForPlayer(player)?.isActive"
-                    name="play_arrow"
+                    :name="isPausedHeldTurn(player) ? 'pause' : 'play_arrow'"
                     class="gt-player-row__turn-icon"
                   />
                 </div>
@@ -169,7 +170,7 @@ const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
 const now = useGameTimerNow(100)
 
-const { hasMultipleRounds, hardPassEnabled, round } = storeToRefs(store)
+const { hasMultipleRounds, hardPassEnabled, round, activePlayerId, turnStartedAt } = storeToRefs(store)
 
 const hardPassIdsThisRound = computed(() => {
   const arr = store.hardPassOrderByRound[String(round.value)]
@@ -178,6 +179,12 @@ const hardPassIdsThisRound = computed(() => {
 
 function isHardPassed(player) {
   return hardPassEnabled.value && hardPassIdsThisRound.value.has(player.id)
+}
+
+/** Turn held on this row but clock paused (mild dim; hard-pass uses stronger styling). */
+function isPausedHeldTurn(player) {
+  if (isHardPassed(player)) return false
+  return activePlayerId.value === player.id && turnStartedAt.value == null
 }
 
 function onHardPassButton(player) {
@@ -427,7 +434,9 @@ function progressRoundFillStyle(player) {
     border-color 0.15s ease,
     border-width 0.15s ease,
     box-shadow 0.2s ease,
-    transform 0.2s ease;
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    filter 0.2s ease;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -448,6 +457,16 @@ function progressRoundFillStyle(player) {
 .gt-player-row--hard-passed {
   opacity: 0.58;
   filter: grayscale(0.9);
+}
+
+/* Softer than hard-pass: clock paused but still this player’s turn */
+.gt-player-row--paused-turn {
+  opacity: 0.78;
+  filter: brightness(0.86) saturate(0.6) grayscale(0.12);
+}
+
+.body--light .gt-player-row--paused-turn {
+  filter: brightness(0.9) saturate(0.68) grayscale(0.08);
 }
 
 .gt-player-row__bars {
