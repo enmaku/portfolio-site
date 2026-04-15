@@ -36,7 +36,7 @@
         />
       </div>
     </div>
-    <div v-if="!isGuest && hasPlayers" class="gt-round-bar__right row no-wrap items-center">
+    <div v-if="!isGuest" class="gt-round-bar__right row no-wrap items-center">
       <q-btn
         flat
         round
