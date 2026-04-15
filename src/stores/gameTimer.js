@@ -268,19 +268,27 @@ export const useGameTimerStore = defineStore('gameTimer', {
       this.hardPassOrderByRound[rk].push(playerId)
       this._recomputeNextRoundOrderFromHardPasses(this.round)
 
-      if (!wasActive) return
-
-      const passed = new Set(this.hardPassOrderByRound[rk] ?? [])
-      const idx = this.players.findIndex((p) => p.id === playerId)
-      const nextIdx = idx === -1 ? null : this._nextNonPassedPlayerIndex(idx, passed)
-      if (nextIdx == null) {
-        this._clearLiveTurn()
-        return
+      if (wasActive) {
+        const passed = new Set(this.hardPassOrderByRound[rk] ?? [])
+        const idx = this.players.findIndex((p) => p.id === playerId)
+        const nextIdx = idx === -1 ? null : this._nextNonPassedPlayerIndex(idx, passed)
+        if (nextIdx == null) {
+          this._clearLiveTurn()
+        } else {
+          const next = this.players[nextIdx]
+          this.activePlayerId = next.id
+          this.turnStartedAt = now
+          this.turnStartedRound = this.round
+        }
       }
-      const next = this.players[nextIdx]
-      this.activePlayerId = next.id
-      this.turnStartedAt = now
-      this.turnStartedRound = this.round
+
+      const list = this.hardPassOrderByRound[rk] ?? []
+      const passedSet = new Set(list)
+      const allHardPassed =
+        this.players.length > 0 && this.players.every((p) => passedSet.has(p.id))
+      if (allHardPassed) {
+        this.goToNextRound()
+      }
     },
 
     /**
