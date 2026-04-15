@@ -38,17 +38,6 @@
     </div>
     <div v-if="!isGuest && hasPlayers" class="gt-round-bar__right row no-wrap items-center">
       <q-btn
-        v-if="hasMultipleRounds"
-        flat
-        round
-        size="md"
-        icon="restart_alt"
-        color="grey-5"
-        class="gt-round-bar__reset gt-round-bar__hit"
-        aria-label="Reset round data"
-        @click="confirmOpen = true"
-      />
-      <q-btn
         flat
         round
         size="md"
@@ -76,24 +65,11 @@
         </q-menu>
       </q-btn>
     </div>
-    <q-dialog v-model="confirmOpen" persistent>
-      <q-card class="gt-dialog-card gt-dialog-card--narrow gt-dialog-card--touch-pad">
-        <q-card-section class="text-h6">Reset round data?</q-card-section>
-        <q-card-section class="q-pt-none text-body2">
-          This clears all <strong>per-round</strong> time (the thinner progress bar and round totals in each row). Lifetime
-          totals stay the same. The current round goes back to <strong>1</strong>, and any running turn is stopped.
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey" padding="10px 18px" @click="confirmOpen = false" />
-          <q-btn unelevated label="Reset" color="warning" padding="10px 22px" @click="confirmReset" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import GameTimerSyncControl from './GameTimerSyncControl.vue'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
@@ -101,7 +77,7 @@ import { useGameTimerStore } from '../../../stores/gameTimer.js'
 
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
-const { round, hasMultipleRounds, players, hardPassEnabled, hardPassOrderNextRound } = storeToRefs(store)
+const { round, players, hardPassEnabled, hardPassOrderNextRound } = storeToRefs(store)
 const hasPlayers = computed(() => players.value.length > 0)
 const canGoPreviousRound = computed(() => hasPlayers.value && round.value > 1)
 
@@ -114,13 +90,6 @@ const hardPassOrderNextRoundModel = computed({
   get: () => hardPassOrderNextRound.value,
   set: (v) => store.setHardPassOrderNextRound(Boolean(v)),
 })
-
-const confirmOpen = ref(false)
-
-function confirmReset() {
-  store.resetRoundTimeData()
-  confirmOpen.value = false
-}
 </script>
 
 <style scoped lang="scss">
@@ -138,7 +107,7 @@ function confirmReset() {
   border-bottom-color: rgba(0, 0, 0, 0.08);
 }
 
-/* Absolute layer centers round controls; sync/reset stay in normal flow at the bar edges. */
+/* Absolute layer centers round controls; sync/settings stay in normal flow at the bar edges. */
 .gt-round-bar__layer-center {
   position: absolute;
   inset: 0;
@@ -172,7 +141,6 @@ function confirmReset() {
 }
 
 .gt-round-bar__chev,
-.gt-round-bar__reset,
 .gt-round-bar__settings,
 .gt-round-bar__sync {
   flex-shrink: 0;

@@ -362,29 +362,6 @@ export const useGameTimerStore = defineStore('gameTimer', {
     },
 
     /**
-     * Clear per-round banked time, drop order keys for rounds above 1, set round to 1. Lifetime `bankedMs` unchanged.
-     */
-    resetRoundTimeData() {
-      if (this.players.length === 0) return
-      const now = Date.now()
-      this._saveOrderForRound()
-      this._pauseLiveTurn(now)
-      for (const p of this.players) {
-        p.bankedMsByRound = {}
-      }
-      this.round = 1
-      const orderKept = {}
-      for (const k of Object.keys(this.playerOrderByRound)) {
-        if (Number(k) <= 1) {
-          orderKept[k] = this.playerOrderByRound[k]
-        }
-      }
-      this.playerOrderByRound = orderKept
-      this.hardPassOrderByRound = {}
-      this._applyOrderForActiveRound()
-    },
-
-    /**
      * Start this player’s turn; tap same player again to pause (clock stops, turn stays); tap again to resume.
      * @param {string} playerId
      */

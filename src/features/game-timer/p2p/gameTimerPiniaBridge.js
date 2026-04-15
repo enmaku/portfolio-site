@@ -19,7 +19,6 @@ const SYNC_ACTION_NAMES = new Set([
   'endTurnNext',
   'goToNextRound',
   'goToPreviousRound',
-  'resetRoundTimeData',
   'addPlayer',
   'removePlayer',
   'reorderPlayers',
