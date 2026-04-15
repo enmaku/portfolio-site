@@ -6,6 +6,7 @@
         item-key="id"
         tag="div"
         class="gt-draggable"
+        :disabled="isGuest"
         @contextmenu.prevent
         :animation="200"
         :delay="450"
@@ -39,24 +40,46 @@
 
             <div
               class="gt-player-row rounded-borders relative-position overflow-hidden column"
-              :class="{ 'gt-player-row--active': rowForPlayer(player)?.isActive }"
+              :class="{
+                'gt-player-row--active': rowForPlayer(player)?.isActive,
+                'gt-player-row--hard-passed': isHardPassed(player),
+                'gt-player-row--paused-turn': isPausedHeldTurn(player),
+              }"
               :style="rowSurfaceStyle(player)"
               :data-gt-player-id="player.id"
             >
-              <div class="gt-player-row__content row items-center no-wrap relative-position q-px-md">
+              <div class="gt-player-row__content row items-center no-wrap relative-position q-pr-md">
+                <div class="gt-player-row__turn col-auto row flex-center" aria-hidden="true">
+                  <q-icon
+                    v-if="rowForPlayer(player)?.isActive"
+                    :name="isPausedHeldTurn(player) ? 'pause' : 'play_arrow'"
+                    class="gt-player-row__turn-icon"
+                  />
+                </div>
                 <button
                   type="button"
-                  class="gt-player-row__name col text-left text-body1 text-weight-medium"
+                  class="gt-player-row__name col text-left gt-player-row__name-text"
                   @click="store.selectPlayer(player.id)"
                 >
                   {{ player.name }}
                 </button>
                 <div
-                  class="gt-player-row__time text-mono text-body2"
+                  class="gt-player-row__time text-mono gt-player-row__time-text"
                   :title="hasMultipleRounds ? 'This round / all rounds' : 'Total time'"
                 >
                   {{ rowTimeLabel(player) }}
                 </div>
+                <q-btn
+                  v-if="hardPassEnabled"
+                  flat
+                  round
+                  dense
+                  padding="sm"
+                  :icon="isHardPassed(player) ? 'undo' : 'sports_score'"
+                  class="gt-player-row__hard-pass gt-hard-pass-hit"
+                  :aria-label="isHardPassed(player) ? 'Undo hard pass' : 'Hard pass for this round'"
+                  @click.stop="onHardPassButton(player)"
+                />
               </div>
               <div class="gt-player-row__bars column">
                 <div
@@ -67,7 +90,7 @@
                   <div class="gt-player-row__progress-rail absolute-full" :style="progressRailStyle(player.color)" />
                   <div class="gt-player-row__progress-fill absolute" :style="progressRoundFillStyle(player)" />
                 </div>
-                <div class="gt-player-row__progress relative-position" aria-hidden="true">
+                <div class="gt-player-row__progress gt-player-row__progress--total relative-position" aria-hidden="true">
                   <div class="gt-player-row__progress-rail absolute-full" :style="progressRailStyle(player.color)" />
                   <div class="gt-player-row__progress-fill absolute" :style="progressFillStyle(player)" />
                 </div>
@@ -145,12 +168,37 @@ import { useGameTimerStore } from '../../../stores/gameTimer.js'
 const $q = useQuasar()
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
-const { hasMultipleRounds } = storeToRefs(store)
 const now = useGameTimerNow(100)
+
+const { hasMultipleRounds, hardPassEnabled, round, activePlayerId, turnStartedAt } = storeToRefs(store)
+
+const hardPassIdsThisRound = computed(() => {
+  const arr = store.hardPassOrderByRound[String(round.value)]
+  return new Set(Array.isArray(arr) ? arr : [])
+})
+
+function isHardPassed(player) {
+  return hardPassEnabled.value && hardPassIdsThisRound.value.has(player.id)
+}
+
+/** Active row, clock paused; mild dim (hard-pass uses stronger styling). */
+function isPausedHeldTurn(player) {
+  if (isHardPassed(player)) return false
+  return activePlayerId.value === player.id && turnStartedAt.value == null
+}
+
+function onHardPassButton(player) {
+  if (isHardPassed(player)) {
+    store.undoHardPass(player.id)
+  } else {
+    store.registerHardPass(player.id)
+  }
+}
 
 const draggablePlayers = computed({
   get: () => store.players,
   set: (next) => {
+    if (isGuest.value) return
     if (Array.isArray(next)) store.reorderPlayers(next)
   },
 })
@@ -386,7 +434,9 @@ function progressRoundFillStyle(player) {
     border-color 0.15s ease,
     border-width 0.15s ease,
     box-shadow 0.2s ease,
-    transform 0.2s ease;
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    filter 0.2s ease;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -404,6 +454,21 @@ function progressRoundFillStyle(player) {
   box-shadow: inset 6px 0 0 0 var(--player-color);
 }
 
+.gt-player-row--hard-passed {
+  opacity: 0.58;
+  filter: grayscale(0.9);
+}
+
+/* Paused turn: mild dim vs. hard-pass */
+.gt-player-row--paused-turn {
+  opacity: 0.78;
+  filter: brightness(0.86) saturate(0.6) grayscale(0.12);
+}
+
+.body--light .gt-player-row--paused-turn {
+  filter: brightness(0.9) saturate(0.68) grayscale(0.08);
+}
+
 .gt-player-row__bars {
   flex: 0 0 auto;
   width: 100%;
@@ -411,14 +476,17 @@ function progressRoundFillStyle(player) {
 
 .gt-player-row__progress {
   flex: 0 0 auto;
-  height: 5px;
   width: 100%;
   pointer-events: none;
 }
 
 .gt-player-row__progress--round {
   height: 4px;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
+}
+
+.gt-player-row__progress--total {
+  height: 9px;
 }
 
 .gt-player-row__progress-rail {
@@ -432,11 +500,24 @@ function progressRoundFillStyle(player) {
 
 .gt-player-row__content {
   flex: 1 1 auto;
-  min-height: 64px;
+  min-height: 72px;
   min-width: 0;
-  padding-top: 18px;
-  padding-bottom: 18px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 10px;
   box-sizing: border-box;
+}
+
+.gt-player-row__turn {
+  width: 30px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.gt-player-row__turn-icon {
+  font-size: 1.75rem;
+  color: currentcolor;
+  opacity: 0.95;
 }
 
 .gt-player-row__name {
@@ -445,17 +526,41 @@ function progressRoundFillStyle(player) {
   border: none;
   color: inherit;
   cursor: pointer;
-  padding: 10px 0;
+  padding: 10px 0 10px 6px;
   min-width: 0;
   min-height: 44px;
   display: flex;
   align-items: center;
 }
 
+.gt-player-row__name-text {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+}
+
 .gt-player-row__time {
   flex-shrink: 0;
   margin-left: 8px;
   white-space: nowrap;
+}
+
+.gt-player-row__time-text {
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.gt-player-row__hard-pass {
+  flex-shrink: 0;
+  color: inherit;
+  margin-left: 2px;
+}
+
+.gt-hard-pass-hit {
+  min-width: 44px;
+  min-height: 44px;
 }
 </style>
 

@@ -10,7 +10,8 @@
         <p class="q-mb-sm">No players yet.</p>
         <p v-if="isGuest" class="q-mb-none">Only the host can add players.</p>
         <p v-else class="q-mb-none">
-          Tap + to add someone, then tap their name when it's their turn. Tap their name again to stop the clock.
+          Tap + to add someone, then tap their name when it's their turn. Tap again to pause (or use the pause button);
+          tap again or use play to resume.
         </p>
       </div>
     </div>
@@ -33,19 +34,7 @@
         class="gt-actions-bar__fixed-btn"
         @click="resetConfirmOpen = true"
       />
-      <q-btn
-        v-if="isTurnRunning"
-        rounded
-        unelevated
-        no-wrap
-        color="primary"
-        icon-right="skip_next"
-        label="End turn"
-        class="gt-actions-bar__end-turn col"
-        padding="12px 16px"
-        aria-label="End turn and go to next player"
-        @click="store.endTurnNext()"
-      />
+      <GameTimerTurnControls v-if="hasHeldTurn" class="col" />
       <q-space v-else />
       <q-btn
         fab
@@ -58,21 +47,10 @@
       />
     </div>
     <div
-      v-else-if="isTurnRunning"
+      v-else-if="hasHeldTurn"
       class="gt-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm"
     >
-      <q-btn
-        rounded
-        unelevated
-        no-wrap
-        color="primary"
-        icon-right="skip_next"
-        label="End turn"
-        class="gt-actions-bar__end-turn col"
-        padding="12px 16px"
-        aria-label="End turn and go to next player"
-        @click="store.endTurnNext()"
-      />
+      <GameTimerTurnControls class="col" />
     </div>
 
     <q-dialog v-model="resetConfirmOpen" persistent>
@@ -122,6 +100,7 @@ import { useQuasar } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
 import GameTimerPlayerList from '../../features/game-timer/components/GameTimerPlayerList.vue'
 import GameTimerRoundBar from '../../features/game-timer/components/GameTimerRoundBar.vue'
+import GameTimerTurnControls from '../../features/game-timer/components/GameTimerTurnControls.vue'
 import { useGameTimerP2P } from '../../features/game-timer/composables/useGameTimerP2P.js'
 import { useScreenWakeLock } from '../../features/game-timer/composables/useScreenWakeLock.js'
 import { nextDefaultColor } from '../../features/game-timer/core.js'
@@ -138,13 +117,12 @@ const route = useRoute()
 const router = useRouter()
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
-const { players, activePlayerId, turnStartedAt, hasMultipleRounds } = storeToRefs(store)
+const { players, activePlayerId, hasMultipleRounds } = storeToRefs(store)
 
-const isTurnRunning = computed(
-  () => activePlayerId.value != null && turnStartedAt.value != null,
-)
+/** True when a turn is held (clock running or paused); `activePlayerId` is set. */
+const hasHeldTurn = computed(() => activePlayerId.value != null)
 
-/** While a session has players, ask the browser to keep the screen on (mobile-friendly Wake Lock API). */
+/** While a session has players, keep the display awake (wake lock with video fallback where needed). */
 useScreenWakeLock(computed(() => players.value.length > 0))
 
 onMounted(() => {
@@ -229,15 +207,6 @@ function confirmResetAll() {
 
 .body--light .gt-actions-bar {
   border-top-color: rgba(0, 0, 0, 0.08);
-}
-
-.gt-actions-bar__end-turn {
-  min-width: 0;
-  min-height: 48px;
-}
-
-.gt-actions-bar__end-turn :deep(.q-icon) {
-  font-size: 1.35rem;
 }
 
 </style>

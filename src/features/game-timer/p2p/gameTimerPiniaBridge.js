@@ -19,13 +19,16 @@ const SYNC_ACTION_NAMES = new Set([
   'endTurnNext',
   'goToNextRound',
   'goToPreviousRound',
-  'resetRoundTimeData',
   'addPlayer',
   'removePlayer',
   'reorderPlayers',
   'setPlayerName',
   'setPlayerColor',
   'clearAllPlayers',
+  'setHardPassEnabled',
+  'setHardPassOrderNextRound',
+  'registerHardPass',
+  'undoHardPass',
 ])
 
 /**
@@ -41,6 +44,9 @@ function pickSnapshot(store) {
     turnStartedRound: s.turnStartedRound,
     round: s.round,
     playerOrderByRound: JSON.parse(JSON.stringify(s.playerOrderByRound)),
+    hardPassEnabled: s.hardPassEnabled,
+    hardPassOrderNextRound: s.hardPassOrderNextRound,
+    hardPassOrderByRound: JSON.parse(JSON.stringify(s.hardPassOrderByRound)),
   }
 }
 
@@ -64,6 +70,11 @@ function normalizeAfterRemotePatch(store) {
   }
   if (!store.playerOrderByRound || typeof store.playerOrderByRound !== 'object') {
     store.playerOrderByRound = {}
+  }
+  if (typeof store.hardPassEnabled !== 'boolean') store.hardPassEnabled = false
+  if (typeof store.hardPassOrderNextRound !== 'boolean') store.hardPassOrderNextRound = false
+  if (!store.hardPassOrderByRound || typeof store.hardPassOrderByRound !== 'object') {
+    store.hardPassOrderByRound = {}
   }
   store._applyOrderForActiveRound()
 }
@@ -97,6 +108,15 @@ export function gameTimerP2PPlugin(ctx) {
           state.turnStartedRound = snap.turnStartedRound
           state.round = snap.round
           state.playerOrderByRound = JSON.parse(JSON.stringify(snap.playerOrderByRound))
+          state.hardPassEnabled = typeof snap.hardPassEnabled === 'boolean' ? snap.hardPassEnabled : false
+          state.hardPassOrderNextRound =
+            typeof snap.hardPassOrderNextRound === 'boolean' ? snap.hardPassOrderNextRound : false
+          state.hardPassOrderByRound =
+            snap.hardPassOrderByRound &&
+            typeof snap.hardPassOrderByRound === 'object' &&
+            !Array.isArray(snap.hardPassOrderByRound)
+              ? JSON.parse(JSON.stringify(snap.hardPassOrderByRound))
+              : {}
         })
         normalizeAfterRemotePatch(s)
         applyingRemote = false
