@@ -57,6 +57,19 @@
     </div>
 
     <MovieDetailDialog v-model="detailOpen" :movie="detailMovie" />
+
+    <q-dialog v-model="deleteConfirmOpen" persistent>
+      <q-card class="mv-dialog-card mv-dialog-card--narrow">
+        <q-card-section class="text-h6">Remove movie?</q-card-section>
+        <q-card-section class="q-pt-none text-body2">
+          Remove <strong>{{ deleteTargetTitle }}</strong> from your suggestions?
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="grey" @click="cancelDelete" />
+          <q-btn unelevated label="Remove" color="negative" @click="confirmDelete" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -104,6 +117,10 @@ const detailOpen = ref(false)
 /** @type {import('vue').Ref<import('../types.js').MoviePick | null>} */
 const detailMovie = ref(null)
 
+const deleteConfirmOpen = ref(false)
+const pendingDeleteLocalId = ref(/** @type {string | null} */ (null))
+const deleteTargetTitle = ref('')
+
 /** @param {import('../types.js').MoviePick} pick */
 function openDetail(pick) {
   detailMovie.value = pick
@@ -112,8 +129,24 @@ function openDetail(pick) {
 
 /** @param {{ reset: () => void }} e @param {import('../types.js').MoviePick} pick */
 function requestDelete(e, pick) {
-  store.removeDraftPick(pick.localId)
+  pendingDeleteLocalId.value = pick.localId
+  deleteTargetTitle.value = pick.title
+  deleteConfirmOpen.value = true
   e.reset()
+}
+
+function cancelDelete() {
+  deleteConfirmOpen.value = false
+  pendingDeleteLocalId.value = null
+  deleteTargetTitle.value = ''
+}
+
+function confirmDelete() {
+  const id = pendingDeleteLocalId.value
+  if (id) {
+    store.removeDraftPick(id)
+  }
+  cancelDelete()
 }
 </script>
 
@@ -137,5 +170,9 @@ function requestDelete(e, pick) {
 
 .mv-sortable-ghost {
   opacity: 0.45;
+}
+
+.mv-dialog-card {
+  min-width: min(400px, calc(100vw - 32px));
 }
 </style>
