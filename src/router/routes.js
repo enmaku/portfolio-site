@@ -13,12 +13,12 @@ const routes = [
       {
         path: '',
         component: () => import('pages/IndexPage.vue'),
-        meta: { title: portfolioDocumentTitle },
+        meta: { title: portfolioDocumentTitle, favicon: 'photo' },
       },
       {
         path: 'about',
         component: () => import('pages/AboutPage.vue'),
-        meta: { title: portfolioDocumentTitle },
+        meta: { title: portfolioDocumentTitle, favicon: 'info' },
       },
     ],
   },
@@ -29,7 +29,7 @@ const routes = [
       {
         path: '',
         component: () => import('pages/projects/GameTimerPage.vue'),
-        meta: { title: 'Game Timer' },
+        meta: { title: 'Game Timer', favicon: 'timer' },
       },
     ],
   },
@@ -40,7 +40,7 @@ const routes = [
       {
         path: '',
         component: () => import('pages/projects/MovieVotePage.vue'),
-        meta: { title: 'Movie Vote' },
+        meta: { title: 'Movie Vote', favicon: 'movie' },
       },
     ],
   },
@@ -48,7 +48,7 @@ const routes = [
   {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue'),
-    meta: { title: portfolioDocumentTitle },
+    meta: { title: portfolioDocumentTitle, favicon: 'default' },
   },
 ]
 

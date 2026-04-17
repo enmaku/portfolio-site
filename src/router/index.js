@@ -10,6 +10,22 @@ import {
 } from 'vue-router'
 import routes, { portfolioDocumentTitle } from './routes'
 
+const FAVICON_IDS = new Set(['default', 'photo', 'info', 'timer', 'movie'])
+
+/**
+ * @param {import('vue-router').RouteLocationNormalized} to
+ */
+function applyRouteFavicon(to) {
+  if (typeof document === 'undefined') return
+  const raw = to.meta.favicon
+  const id = typeof raw === 'string' && FAVICON_IDS.has(raw) ? raw : 'default'
+  const href = `icons/favicon-${id}.svg`
+  const el = document.getElementById('portfolio-favicon')
+  if (el instanceof HTMLLinkElement && el.getAttribute('href') !== href) {
+    el.setAttribute('href', href)
+  }
+}
+
 export default defineRouter(function (/* { store, ssrContext } */) {
   const createHistory = process.env.SERVER
     ? createMemoryHistory
@@ -30,6 +46,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
   Router.afterEach((to) => {
     const title = to.meta.title
     document.title = typeof title === 'string' ? title : portfolioDocumentTitle
+    applyRouteFavicon(to)
   })
 
   return Router
