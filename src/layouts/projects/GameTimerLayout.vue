@@ -1,3 +1,9 @@
+<script setup>
+import { useTrapBrowserBack } from '../../composables/useTrapBrowserBack.js'
+
+useTrapBrowserBack()
+</script>
+
 <template>
   <!-- No app bar: mobile-style full-height shell (see Quasar `view` — `l` = no header band). -->
   <q-layout view="lHh Lpr fFf" class="gt-game-timer-layout">

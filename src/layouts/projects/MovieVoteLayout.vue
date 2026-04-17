@@ -1,3 +1,9 @@
+<script setup>
+import { useTrapBrowserBack } from '../../composables/useTrapBrowserBack.js'
+
+useTrapBrowserBack()
+</script>
+
 <template>
   <q-layout view="lHh Lpr fFf" class="mv-layout">
     <q-page-container class="mv-layout__page-container">
