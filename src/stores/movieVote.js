@@ -5,6 +5,7 @@
 
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { HOST_PARTICIPANT_ID } from '../features/movie-vote/core.js'
+import { isDeclaredIrvTie } from '../features/movie-vote/irv.js'
 
 /** @returns {MoviePick} */
 function clonePick(p) {
@@ -152,6 +153,9 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.setUniqueSuggestedMovieCount(
         typeof p.uniqueSuggestedMovieCount === 'number' ? p.uniqueSuggestedMovieCount : 0,
       )
+      if (p.phase === 'results' && p.irvResult && !isDeclaredIrvTie(p.irvResult)) {
+        this.myDraftPicks = []
+      }
     },
 
     /** Host / solo: enter voting with compiled ballot */
@@ -204,6 +208,9 @@ export const useMovieVoteStore = defineStore('movieVote', {
     setResults(result) {
       this.phase = 'results'
       this.irvResult = result
+      if (!isDeclaredIrvTie(result)) {
+        this.myDraftPicks = []
+      }
     },
 
     resetForRoomExit() {
