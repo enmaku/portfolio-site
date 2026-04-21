@@ -45,8 +45,9 @@ jobs:
       # Vite inlines VITE_* at build time (treat as public read-only credentials).
       - name: Install and build
         env:
-          # Project page URL is https://<user>.github.io/<repo>/
-          GH_PAGES_BASE: /${{ github.event.repository.name }}/
+          # Custom domain serves the site at `/`; `/<repo>/` is only for the github.io project URL.
+          GH_PAGES_BASE: /
+          SITE_ORIGIN: https://focusdisorder.com
           VITE_TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           VITE_TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
         run: |

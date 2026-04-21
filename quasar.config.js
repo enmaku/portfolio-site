@@ -3,7 +3,7 @@
 
 import { defineConfig } from '#q-app/wrappers'
 
-/** GitHub Pages project sites live under `/<repo>/`. Set in CI (see `.github/workflows/deploy-github-pages.yml`). */
+/** Public path for assets/router. CI sets `GH_PAGES_BASE` (root `/` for custom domain; `/<repo>/` only for github.io without a custom domain). */
 const pagesBase = process.env.GH_PAGES_BASE || '/'
 
 export default defineConfig((/* ctx */) => {

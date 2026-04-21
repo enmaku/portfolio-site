@@ -10,7 +10,7 @@
  *
  * Uses `GH_PAGES_BASE` (same env the Quasar build reads) so OG URLs and the
  * redirect target respect the GitHub Pages project base path. Uses
- * `SITE_ORIGIN` (defaults to https://enmaku.github.io) to build absolute OG
+ * `SITE_ORIGIN` (CI sets the live domain; local default is https://enmaku.github.io) to build absolute OG
  * URLs, since most preview crawlers require absolute URLs.
  */
 import fs from 'node:fs/promises'
