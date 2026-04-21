@@ -742,6 +742,7 @@ function scheduleParticipantRemoval(pid) {
       }
     }
     if (isHost && sessionPhase.value === 'hosting') {
+      useMovieVoteStore().removeParticipantFromVote(pid)
       tryCompileBallot()
       tryFinishVoting()
       hostBroadcastState()

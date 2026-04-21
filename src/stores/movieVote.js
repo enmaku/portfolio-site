@@ -194,6 +194,22 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this._updateVoteProgress()
     },
 
+    /** Host: permanently remove a departed guest from the current voting state. */
+    removeParticipantFromVote(participantId) {
+      if (typeof participantId !== 'string' || !participantId) return
+      const hadVoter = this.voterIds.includes(participantId)
+      const hadVote = participantId in this.votesByParticipant
+      if (!hadVoter && !hadVote) return
+
+      this.voterIds = this.voterIds.filter((id) => id !== participantId)
+      if (hadVote) {
+        const rest = { ...this.votesByParticipant }
+        delete rest[participantId]
+        this.votesByParticipant = rest
+      }
+      this._updateVoteProgress()
+    },
+
     _updateVoteProgress() {
       const total = this.voterIds.length
       const submitted = this.voterIds.filter((id) => this.votesByParticipant[id]?.length).length
