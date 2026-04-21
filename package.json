@@ -1,8 +1,8 @@
 {
   "name": "portfolio-site",
   "version": "0.0.1",
-  "description": "A Quasar Project",
-  "productName": "Portfolio Site",
+  "description": "Portfolio site for David J. Perry — photography, writing, and small web apps.",
+  "productName": "David J. Perry",
   "author": "David Perry <enmaku@gmail.com>",
   "type": "module",
   "private": true,
@@ -12,8 +12,10 @@
     "test": "node --test src/features/movie-vote/irv.test.js",
     "dev": "quasar dev",
     "generate-thumbs": "node ./scripts/generate-photo-thumbs.mjs",
+    "generate-share-pages": "node ./scripts/generate-share-pages.mjs",
     "prebuild": "npm run generate-thumbs",
     "build": "quasar build",
+    "postbuild": "npm run generate-share-pages",
     "postinstall": "quasar prepare"
   },
   "dependencies": {
