@@ -43,8 +43,8 @@ export function shuffleInPlace(arr) {
 
 /**
  * Normalize a free-form title so two users typing roughly the same custom movie
- * produce the same dedupe key. Casefolds, collapses whitespace, strips simple
- * punctuation, and removes trailing articles added by some search engines.
+ * produce the same dedupe key. Casefolds, collapses whitespace, and strips
+ * punctuation/symbols.
  *
  * @param {string} title
  * @returns {string}

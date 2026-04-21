@@ -73,17 +73,6 @@ export const useMovieVoteStore = defineStore('movieVote', {
     uniqueSuggestedMovieCount: 0,
   }),
 
-  getters: {
-    draftDedupeKeys(state) {
-      const keys = new Set()
-      for (const p of state.myDraftPicks) {
-        const k = pickDedupeKey(p)
-        if (k) keys.add(k)
-      }
-      return keys
-    },
-  },
-
   actions: {
     /** @param {MoviePick} pick */
     addDraftPick(pick) {

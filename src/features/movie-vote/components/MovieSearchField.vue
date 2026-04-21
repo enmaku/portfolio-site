@@ -161,6 +161,7 @@ async function runSearch() {
 function resetQueryState() {
   query.value = ''
   suggestions.value = []
+  thumbUrls.value = {}
   lastSearchedQuery.value = ''
 }
 
@@ -207,10 +208,6 @@ function pickCustom(title) {
 }
 
 function onEnterPressed() {
-  if (suggestions.value.length > 0) {
-    void pickTmdb(suggestions.value[0])
-    return
-  }
   if (showCustomOption.value) pickCustom(trimmedQuery.value)
 }
 
