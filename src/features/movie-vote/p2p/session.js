@@ -11,8 +11,12 @@ import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { useMovieVoteRoomSessionStore } from '../../../stores/movieVoteRoomSession.js'
 import { HOST_PARTICIPANT_ID, compileBallotMovies, uniqueTmdbCountInPicks } from '../core.js'
 import { runIrv } from '../irv.js'
+import { classifyPeerError, isUnavailableIdError } from '../../p2p/errors.js'
+import { deriveStableHostSuffix, getStableClientId } from '../../p2p/identity.js'
+import { reconnectDelayMs as sharedReconnectDelayMs } from '../../p2p/reconnect.js'
 import {
   encodeDraft,
+  encodeHello,
   encodeHostPing,
   encodeHostVisibility,
   encodeState,
@@ -22,6 +26,7 @@ import {
   isHostPing,
   MSG_MV_HOST_ENDED,
   parseDraft,
+  parseHello,
   parseHostVisibility,
   parseState,
   parseVote,
@@ -34,6 +39,8 @@ import {
   isValidRoomSuffix,
   normalizeRoomSuffixInput,
 } from './roomId.js'
+
+const STABLE_HOST_SUFFIX_APP = 'movievote'
 
 /** @type {import('peerjs').Peer | null} */
 let peer = null
@@ -56,10 +63,36 @@ let reconnectGeneration = 0
 const connToParticipant = new Map()
 
 /**
+ * Stable client id → participant id.
+ *
+ * Populated when a guest sends a `hello` message after their `DataConnection`
+ * opens, and kept across that guest's reconnects so their existing slot (and
+ * any vote they've already cast) is preserved. Entries are cleared only when
+ * the host session tears down.
+ * @type {Map<string, string>}
+ */
+const stableIdToParticipant = new Map()
+
+/**
+ * Participant id → open DataConnection currently serving that participant.
+ * Used to close an orphan connection when the same stable id reconnects.
+ * @type {Map<string, import('peerjs').DataConnection>}
+ */
+const participantToConn = new Map()
+
+/**
  * Guest drafts keyed by participant id (host tab uses store only).
  * @type {Map<string, { picks: import('../types.js').MoviePick[], ready: boolean }>}
  */
 const guestDrafts = new Map()
+
+/**
+ * Pending participant-removal timers keyed by participant id. Scheduled when a
+ * guest's connection closes; cleared when they reconnect within the grace
+ * window. See {@link GUEST_REMOVAL_GRACE_MS}.
+ * @type {Map<string, ReturnType<typeof setTimeout>>}
+ */
+const pendingRemovalTimers = new Map()
 
 /** Reactive session UI state for multiplayer (Vue ref; safe to use outside components). */
 export const sessionPhase = ref(/** @type {import('./types.js').MovieVoteSessionPhase} */ ('idle'))
@@ -88,6 +121,14 @@ const RECONNECT_PEER_TIMEOUT_MS = 8000
 const HEARTBEAT_INTERVAL_MS = 3000
 const HEARTBEAT_STALE_MS = 12_000
 const HEARTBEAT_GUEST_CHECK_MS = 2000
+
+/**
+ * When a guest's `DataConnection` closes, keep their participant slot (drafts,
+ * votes, ready flag) around for this long so that a quick reconnect can reuse
+ * it. Long enough for brief wifi/bluetooth glitches, short enough that a
+ * truly-departed voter doesn't block a room from advancing to the next phase.
+ */
+const GUEST_REMOVAL_GRACE_MS = 45_000
 
 /** Minimum distinct TMDB titles across the room before anyone can mark ready (matches ballot dedupe). */
 const MIN_DISTINCT_SUGGESTIONS_FOR_READY = 2
@@ -223,7 +264,11 @@ function destroyWireOnly() {
   }
   hubConnections.clear()
   connToParticipant.clear()
+  participantToConn.clear()
+  stableIdToParticipant.clear()
   guestDrafts.clear()
+  for (const t of pendingRemovalTimers.values()) clearTimeout(t)
+  pendingRemovalTimers.clear()
   if (guestHubConn) {
     try {
       guestHubConn.close()
@@ -246,8 +291,10 @@ function destroyWireOnly() {
 }
 
 function reconnectDelayMs(attemptAfterFirst) {
-  const exp = Math.min(RECONNECT_BASE_DELAY_MS * 2 ** attemptAfterFirst, RECONNECT_MAX_DELAY_MS)
-  return exp + Math.floor(Math.random() * 400)
+  return sharedReconnectDelayMs(attemptAfterFirst, {
+    baseMs: RECONNECT_BASE_DELAY_MS,
+    maxMs: RECONNECT_MAX_DELAY_MS,
+  })
 }
 
 /**
@@ -430,6 +477,12 @@ function normalizePicks(picks) {
  * @param {unknown} raw
  */
 function handleHubInbound(conn, raw) {
+  const hello = parseHello(raw)
+  if (hello) {
+    onGuestHello(conn, hello.stableId)
+    return
+  }
+
   const store = useMovieVoteStore()
   const expectedPid = connToParticipant.get(conn)
   if (!expectedPid) return
@@ -489,6 +542,10 @@ function handleGuestInbound(raw) {
   if (welcome) {
     touchGuestHostActivity()
     useMovieVoteStore().setMyParticipantId(welcome.participantId)
+    // Re-push our drafts so the host picks them up even if they refreshed and
+    // lost all participant state. Cheap; the host is idempotent on incoming
+    // draft messages.
+    movieVoteGuestPushDraft()
     return
   }
   const st = parseState(raw)
@@ -500,7 +557,19 @@ function handleGuestInbound(raw) {
 }
 
 function wirePeerErrors(p) {
-  p.on('error', () => {
+  p.on('error', (err) => {
+    const severity = classifyPeerError(err)
+    if (severity === 'fatal') {
+      reconnectGeneration += 1
+      clearRoomPersistence()
+      const msg =
+        err && typeof err === 'object' && 'type' in err
+          ? `P2P error: ${/** @type {{type:string}} */ (err).type}`
+          : 'P2P error'
+      notifyP2P(msg, 'negative')
+      teardownSession()
+      return
+    }
     if (isHost) {
       onHostDisconnected()
     } else {
@@ -636,30 +705,121 @@ function attachHubConnectionHandlers(p) {
   p.on('connection', (conn) => {
     conn.on('open', () => {
       hubConnections.add(conn)
-      const pid = generateAnonymousVoterId()
-      connToParticipant.set(conn, pid)
-      guestDrafts.set(pid, { picks: [], ready: false })
-      try {
-        conn.send(encodeWelcome(pid))
-        const payload = buildPublicPayload()
-        if (nextSeq < 1) nextSeq = 1
-        conn.send(encodeState(payload, nextSeq))
-        if (typeof document !== 'undefined') {
-          conn.send(encodeHostVisibility(document.visibilityState === 'visible'))
-        }
-      } catch {
-        conn.close()
-      }
     })
     conn.on('data', (data) => handleHubInbound(conn, data))
     conn.on('close', () => {
       const pid = connToParticipant.get(conn)
       hubConnections.delete(conn)
       connToParticipant.delete(conn)
-      if (pid) guestDrafts.delete(pid)
+      if (pid && participantToConn.get(pid) === conn) {
+        participantToConn.delete(pid)
+        scheduleParticipantRemoval(pid)
+      }
       hostBroadcastState()
     })
   })
+}
+
+/**
+ * Schedule removal of a participant slot after {@link GUEST_REMOVAL_GRACE_MS}
+ * unless a matching guest reconnects first. No-op if the slot is already
+ * actively connected or already scheduled.
+ * @param {string} pid
+ */
+function scheduleParticipantRemoval(pid) {
+  if (!guestDrafts.has(pid)) return
+  if (participantToConn.has(pid)) return
+  const existing = pendingRemovalTimers.get(pid)
+  if (existing) clearTimeout(existing)
+  const t = setTimeout(() => {
+    pendingRemovalTimers.delete(pid)
+    if (participantToConn.has(pid)) return
+    guestDrafts.delete(pid)
+    for (const [sid, mapped] of stableIdToParticipant) {
+      if (mapped === pid) {
+        stableIdToParticipant.delete(sid)
+        break
+      }
+    }
+    if (isHost && sessionPhase.value === 'hosting') {
+      tryCompileBallot()
+      tryFinishVoting()
+      hostBroadcastState()
+    }
+  }, GUEST_REMOVAL_GRACE_MS)
+  pendingRemovalTimers.set(pid, t)
+}
+
+/**
+ * Cancel any pending removal for `pid` (guest is back before the grace period
+ * expired).
+ * @param {string} pid
+ */
+function cancelParticipantRemoval(pid) {
+  const t = pendingRemovalTimers.get(pid)
+  if (t) {
+    clearTimeout(t)
+    pendingRemovalTimers.delete(pid)
+  }
+}
+
+/**
+ * Completes the hello handshake for a new guest connection by picking (or
+ * reusing) the participant slot, wiring up the new conn, dropping any orphan
+ * conn that used to serve the same guest, and sending the initial welcome /
+ * state bootstrap.
+ *
+ * @param {import('peerjs').DataConnection} conn
+ * @param {string} stableId
+ */
+function onGuestHello(conn, stableId) {
+  if (connToParticipant.has(conn)) return
+
+  const existingPid = stableIdToParticipant.get(stableId)
+  const pid = existingPid ?? generateAnonymousVoterId()
+  const resumed = Boolean(existingPid)
+
+  if (!existingPid) {
+    stableIdToParticipant.set(stableId, pid)
+    guestDrafts.set(pid, { picks: [], ready: false })
+  } else {
+    cancelParticipantRemoval(pid)
+  }
+
+  const orphan = participantToConn.get(pid)
+  if (orphan && orphan !== conn) {
+    try {
+      connToParticipant.delete(orphan)
+      orphan.close()
+    } catch {
+      void 0
+    }
+    hubConnections.delete(orphan)
+  }
+
+  connToParticipant.set(conn, pid)
+  participantToConn.set(pid, conn)
+
+  try {
+    conn.send(encodeWelcome(pid, resumed))
+    const payload = buildPublicPayload()
+    if (nextSeq < 1) nextSeq = 1
+    conn.send(encodeState(payload, nextSeq))
+    if (typeof document !== 'undefined') {
+      conn.send(encodeHostVisibility(document.visibilityState === 'visible'))
+    }
+  } catch {
+    try {
+      conn.close()
+    } catch {
+      void 0
+    }
+    return
+  }
+
+  if (resumed) {
+    hostBroadcastState()
+  }
 }
 
 /**
@@ -730,6 +890,12 @@ async function establishGuestSession(suffix, opts = {}) {
   startGuestHostWatch()
 
   try {
+    conn.send(encodeHello(getStableClientId()))
+  } catch {
+    void 0
+  }
+
+  try {
     useMovieVoteRoomSessionStore().setGuest(suffix)
   } catch {
     void 0
@@ -795,9 +961,11 @@ export async function startAsHost(maxAttempts = 12) {
   teardownSession()
   sessionPhase.value = 'connecting'
 
+  const preferredSuffix = deriveStableHostSuffix(STABLE_HOST_SUFFIX_APP, 6)
+
   let lastErr = /** @type {Error | null} */ (null)
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const suffix = generateRoomSuffix(6)
+    const suffix = attempt === 0 ? preferredSuffix : generateRoomSuffix(6)
     const fullId = fullPeerIdFromSuffix(suffix)
 
     try {
@@ -807,6 +975,9 @@ export async function startAsHost(maxAttempts = 12) {
       return { suffix }
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
+      if (attempt === 0 && !isUnavailableIdError(e)) {
+        continue
+      }
     }
   }
 

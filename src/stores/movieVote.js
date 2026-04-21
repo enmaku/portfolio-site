@@ -222,11 +222,15 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.uniqueSuggestedMovieCount = 0
     },
 
-    /** Solo: start over (clears ballot state; used when joining a room). */
+    /**
+     * Clears ballot-phase state before joining/resuming a room. Draft picks are
+     * the user's personal nominations and are intentionally preserved across
+     * joins and refreshes — the host's welcome/state broadcast will bring the
+     * rest of the ballot model back into sync.
+     */
     resetSessionSoft() {
       this.phase = 'suggest'
       this.readyToVote = false
-      this.myDraftPicks = []
       this.participants = []
       this.ballotMovies = []
       this.ballotOrderIds = []
