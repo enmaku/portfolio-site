@@ -164,6 +164,11 @@ export const useMovieVoteStore = defineStore('movieVote', {
       if (p.phase === 'results' && p.irvResult && !isDeclaredIrvTie(p.irvResult)) {
         this.myDraftPicks = []
       }
+      const pid = this.myParticipantId
+      if (pid) {
+        const row = this.participants.find((x) => x.id === pid)
+        if (row) this.setReadyToVote(row.ready)
+      }
     },
 
     /** Host / solo: enter voting with compiled ballot */
@@ -206,6 +211,22 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this._updateVoteProgress()
     },
 
+    /** Host: permanently remove a departed guest from the current voting state. */
+    removeParticipantFromVote(participantId) {
+      if (typeof participantId !== 'string' || !participantId) return
+      const hadVoter = this.voterIds.includes(participantId)
+      const hadVote = participantId in this.votesByParticipant
+      if (!hadVoter && !hadVote) return
+
+      this.voterIds = this.voterIds.filter((id) => id !== participantId)
+      if (hadVote) {
+        const rest = { ...this.votesByParticipant }
+        delete rest[participantId]
+        this.votesByParticipant = rest
+      }
+      this._updateVoteProgress()
+    },
+
     _updateVoteProgress() {
       const total = this.voterIds.length
       const submitted = this.voterIds.filter((id) => this.votesByParticipant[id]?.length).length
@@ -237,11 +258,15 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.uniqueSuggestedMovieCount = 0
     },
 
-    /** Solo: start over (clears ballot state; used when joining a room). */
+    /**
+     * Clears ballot-phase state before joining/resuming a room. Draft picks are
+     * the user's personal nominations and are intentionally preserved across
+     * joins and refreshes — the host's welcome/state broadcast will bring the
+     * rest of the ballot model back into sync.
+     */
     resetSessionSoft() {
       this.phase = 'suggest'
       this.readyToVote = false
-      this.myDraftPicks = []
       this.participants = []
       this.ballotMovies = []
       this.ballotOrderIds = []
@@ -273,7 +298,19 @@ export const useMovieVoteStore = defineStore('movieVote', {
 
   persist: {
     key: 'portfolio-movie-vote',
-    pick: ['myDraftPicks'],
+    pick: [
+      'myDraftPicks',
+      'phase',
+      'readyToVote',
+      'ballotMovies',
+      'ballotOrderIds',
+      'myRanking',
+      'myVoteSubmitted',
+      'voterIds',
+      'votesByParticipant',
+      'voteProgress',
+      'irvResult',
+    ],
   },
 })
 

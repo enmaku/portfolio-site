@@ -12,7 +12,11 @@ import { Notify } from 'quasar'
 import Peer from 'peerjs'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 import { useGameTimerRoomSessionStore } from '../../../stores/gameTimerRoomSession.js'
+import { classifyPeerError, isUnavailableIdError } from '../../p2p/errors.js'
+import { deriveStableHostSuffix, getStableClientId } from '../../p2p/identity.js'
+import { reconnectDelayMs as sharedReconnectDelayMs } from '../../p2p/reconnect.js'
 import {
+  encodeGuestHello,
   encodeGuestUpdate,
   encodeHostPing,
   encodeHostSnapshot,
@@ -20,6 +24,7 @@ import {
   isHostEndedNotice,
   isHostPing,
   MSG_HOST_ENDED,
+  parseGuestHello,
   parseGuestMessage,
   parseHostMessage,
   parseHostVisibility,
@@ -30,6 +35,8 @@ import {
   isValidRoomSuffix,
   normalizeRoomSuffixInput,
 } from './roomId.js'
+
+const STABLE_HOST_SUFFIX_APP = 'gametimer'
 
 /**
  * @typedef {object} GameTimerP2PHandlers
@@ -55,6 +62,19 @@ let peer = null
 
 /** @type {Set<import('peerjs').DataConnection>} */
 const hubConnections = new Set()
+
+/**
+ * Stable client id → currently-open hub DataConnection for that guest.
+ * Lets the host close a stale `DataConnection` left over from a previous
+ * session when the same browser reconnects (same room code, same tab after
+ * wifi drop, etc.), so orphan conns don't linger and fan out duplicate
+ * snapshots to a closed transport.
+ * @type {Map<string, import('peerjs').DataConnection>}
+ */
+const stableIdToConn = new Map()
+
+/** @type {Map<import('peerjs').DataConnection, string>} */
+const connToStableId = new Map()
 
 /** @type {import('peerjs').DataConnection | null} */
 let guestHubConn = null
@@ -260,6 +280,8 @@ function destroyWireOnly() {
     } catch { void 0 }
   }
   hubConnections.clear()
+  stableIdToConn.clear()
+  connToStableId.clear()
   if (guestHubConn) {
     try {
       guestHubConn.close()
@@ -282,11 +304,10 @@ function destroyWireOnly() {
  * @returns {number}
  */
 function reconnectDelayMs(attemptAfterFirst) {
-  const exp = Math.min(
-    RECONNECT_BASE_DELAY_MS * 2 ** attemptAfterFirst,
-    RECONNECT_MAX_DELAY_MS,
-  )
-  return exp + Math.floor(Math.random() * 400)
+  return sharedReconnectDelayMs(attemptAfterFirst, {
+    baseMs: RECONNECT_BASE_DELAY_MS,
+    maxMs: RECONNECT_MAX_DELAY_MS,
+  })
 }
 
 /**
@@ -340,8 +361,34 @@ function attachHubConnectionHandlers(p) {
     conn.on('data', (data) => handleHubInbound(conn, data))
     conn.on('close', () => {
       hubConnections.delete(conn)
+      const sid = connToStableId.get(conn)
+      if (sid && stableIdToConn.get(sid) === conn) stableIdToConn.delete(sid)
+      connToStableId.delete(conn)
     })
   })
+}
+
+/**
+ * Register a guest's stable client id and close any orphan `DataConnection`
+ * still registered to that id (common when the same browser reconnects after
+ * a drop).
+ * @param {import('peerjs').DataConnection} conn
+ * @param {string} stableId
+ */
+function onGuestHello(conn, stableId) {
+  if (connToStableId.has(conn)) return
+  const orphan = stableIdToConn.get(stableId)
+  if (orphan && orphan !== conn) {
+    try {
+      connToStableId.delete(orphan)
+      orphan.close()
+    } catch {
+      void 0
+    }
+    hubConnections.delete(orphan)
+  }
+  stableIdToConn.set(stableId, conn)
+  connToStableId.set(conn, stableId)
 }
 
 /**
@@ -410,6 +457,12 @@ async function establishGuestSession(suffix, opts = {}) {
   startGuestHostWatch()
 
   try {
+    conn.send(encodeGuestHello(getStableClientId()))
+  } catch {
+    void 0
+  }
+
+  try {
     useGameTimerRoomSessionStore().setGuest(suffix)
   } catch { void 0 }
 }
@@ -430,6 +483,11 @@ export function bindGameTimerP2PHandlers(h) {
  * @returns {void}
  */
 function handleHubInbound(conn, raw) {
+  const hello = parseGuestHello(raw)
+  if (hello) {
+    onGuestHello(conn, hello.stableId)
+    return
+  }
   const msg = parseGuestMessage(raw)
   if (!msg) return
   try {
@@ -485,12 +543,27 @@ function handleGuestInbound(raw) {
 }
 
 /**
- * Forwards PeerJS `error` events to host or guest disconnect handling.
+ * Forwards PeerJS `error` events to host or guest disconnect handling. Fatal
+ * errors (per {@link classifyPeerError}) skip the reconnect loop and go
+ * straight to a clean teardown so the UI surfaces the real problem instead of
+ * spinning a doomed retry loop.
  * @param {import('peerjs').Peer} p
  * @returns {void}
  */
 function wirePeerErrors(p) {
-  p.on('error', () => {
+  p.on('error', (err) => {
+    const severity = classifyPeerError(err)
+    if (severity === 'fatal') {
+      reconnectGeneration += 1
+      clearRoomPersistence()
+      const msg =
+        err && typeof err === 'object' && 'type' in err
+          ? `P2P error: ${/** @type {{type:string}} */ (err).type}`
+          : 'P2P error'
+      notifyP2P(msg, 'negative')
+      teardownSession()
+      return
+    }
     if (isHost) {
       onHostDisconnected()
     } else {
@@ -704,9 +777,11 @@ export async function startAsHost(maxAttempts = 12) {
   teardownSession()
   sessionPhase.value = 'connecting'
 
+  const preferredSuffix = deriveStableHostSuffix(STABLE_HOST_SUFFIX_APP, 6)
+
   let lastErr = /** @type {Error | null} */ (null)
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const suffix = generateRoomSuffix(6)
+    const suffix = attempt === 0 ? preferredSuffix : generateRoomSuffix(6)
     const fullId = fullPeerIdFromSuffix(suffix)
 
     try {
@@ -716,6 +791,9 @@ export async function startAsHost(maxAttempts = 12) {
       return { suffix }
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
+      if (attempt === 0 && !isUnavailableIdError(e)) {
+        continue
+      }
     }
   }
 

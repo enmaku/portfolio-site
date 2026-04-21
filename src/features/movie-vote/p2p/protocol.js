@@ -9,6 +9,11 @@ export const MSG_MV_HOST_VISIBILITY = 'mv-v'
 export const MSG_MV_WELCOME = 'mv-w'
 export const MSG_MV_STATE = 'mv-s'
 
+/** Guest → host: stable client identity presented right after `open` so the
+ *  host can remap this connection onto an existing participant slot instead of
+ *  allocating a new one on every reconnect. */
+export const MSG_MV_HELLO = 'mv-hi'
+
 /** Guest → host: draft picks + ready flag */
 export const MSG_MV_DRAFT = 'mv-d'
 /** Guest → host: final IRV ranking */
@@ -61,20 +66,41 @@ export function parseHostVisibility(data) {
 }
 
 /**
- * @param {string} participantId
+ * @param {string} stableId
  */
-export function encodeWelcome(participantId) {
-  return { v: 1, type: MSG_MV_WELCOME, participantId }
+export function encodeHello(stableId) {
+  return { v: 1, type: MSG_MV_HELLO, stableId }
 }
 
 /**
  * @param {unknown} data
- * @returns {{ participantId: string } | null}
+ * @returns {{ stableId: string } | null}
+ */
+export function parseHello(data) {
+  if (!isRecord(data) || data.type !== MSG_MV_HELLO) return null
+  if (typeof data.stableId !== 'string' || !data.stableId) return null
+  return { stableId: data.stableId }
+}
+
+/**
+ * @param {string} participantId
+ * @param {boolean} [resumed] True if host reused an existing participant slot.
+ */
+export function encodeWelcome(participantId, resumed = false) {
+  return { v: 1, type: MSG_MV_WELCOME, participantId, resumed: Boolean(resumed) }
+}
+
+/**
+ * @param {unknown} data
+ * @returns {{ participantId: string, resumed: boolean } | null}
  */
 export function parseWelcome(data) {
   if (!isRecord(data) || data.type !== MSG_MV_WELCOME) return null
   if (typeof data.participantId !== 'string' || !data.participantId) return null
-  return { participantId: data.participantId }
+  return {
+    participantId: data.participantId,
+    resumed: data.resumed === true,
+  }
 }
 
 /**

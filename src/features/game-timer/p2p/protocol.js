@@ -18,6 +18,11 @@ export const MSG_HOST_PING = 'gt-p'
 /** Hub → guest: host tab visibility (`document.visibilityState`) for UX / liveness hints. */
 export const MSG_HOST_VISIBILITY = 'gt-v'
 
+/** Guest → hub: stable client identity presented immediately after `open` so
+ *  the host can drop a stale `DataConnection` left over from a previous
+ *  session for the same guest. */
+export const MSG_GUEST_HELLO = 'gt-hi'
+
 /**
  * @param {unknown} data
  * @returns {data is { type: string, snapshot?: GameTimerSyncPayload, seq?: number }}
@@ -118,6 +123,24 @@ export function parseGuestMessage(data) {
  */
 export function isHostEndedNotice(data) {
   return isRecord(data) && data.type === MSG_HOST_ENDED
+}
+
+/**
+ * @param {string} stableId
+ * @returns {{ type: typeof MSG_GUEST_HELLO, stableId: string }}
+ */
+export function encodeGuestHello(stableId) {
+  return { type: MSG_GUEST_HELLO, stableId }
+}
+
+/**
+ * @param {unknown} data
+ * @returns {{ stableId: string } | null}
+ */
+export function parseGuestHello(data) {
+  if (!isRecord(data) || data.type !== MSG_GUEST_HELLO) return null
+  if (typeof data.stableId !== 'string' || !data.stableId) return null
+  return { stableId: data.stableId }
 }
 
 /**
