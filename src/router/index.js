@@ -9,6 +9,7 @@ import {
   createWebHashHistory,
 } from 'vue-router'
 import routes, { portfolioDocumentTitle } from './routes'
+import { SHARE_METADATA } from '../share-metadata.js'
 
 const FAVICON_IDS = new Set(['default', 'photo', 'info', 'timer', 'movie'])
 
@@ -23,6 +24,41 @@ function applyRouteFavicon(to) {
   const el = document.getElementById('portfolio-favicon')
   if (el instanceof HTMLLinkElement && el.getAttribute('href') !== href) {
     el.setAttribute('href', href)
+  }
+}
+
+/**
+ * Keeps description + OG/Twitter tags aligned as users navigate within the SPA.
+ * Crawlers still read the per-route HTML emitted by `scripts/generate-share-pages.mjs`,
+ * this just prevents drift for users who already have the page open.
+ *
+ * @param {import('vue-router').RouteLocationNormalized} to
+ */
+function applyRouteSharePreview(to) {
+  if (typeof document === 'undefined') return
+  const key = typeof to.meta.shareKey === 'string' ? to.meta.shareKey : null
+  const entry = key ? SHARE_METADATA[key] : null
+  if (!entry) return
+
+  setMetaContent('name', 'description', entry.description)
+  setMetaContent('property', 'og:title', entry.title)
+  setMetaContent('property', 'og:description', entry.description)
+  setMetaContent('property', 'og:image', entry.ogImage)
+  setMetaContent('name', 'twitter:title', entry.title)
+  setMetaContent('name', 'twitter:description', entry.description)
+  setMetaContent('name', 'twitter:image', entry.ogImage)
+}
+
+/**
+ * @param {'name' | 'property'} attr
+ * @param {string} key
+ * @param {string} value
+ */
+function setMetaContent(attr, key, value) {
+  const selector = `meta[${attr}="${key}"]`
+  const el = document.querySelector(selector)
+  if (el instanceof HTMLMetaElement) {
+    el.setAttribute('content', value)
   }
 }
 
@@ -47,6 +83,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
     const title = to.meta.title
     document.title = typeof title === 'string' ? title : portfolioDocumentTitle
     applyRouteFavicon(to)
+    applyRouteSharePreview(to)
   })
 
   return Router

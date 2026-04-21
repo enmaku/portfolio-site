@@ -19,6 +19,14 @@
  */
 
 /**
+ * @param {IrvResult | null | undefined} result
+ * @returns {boolean}
+ */
+export function isDeclaredIrvTie(result) {
+  return Array.isArray(result?.tieWinnerIds) && result.tieWinnerIds.length > 0
+}
+
+/**
  * First preference among active candidates for one ballot ranking.
  * @param {string[]} ranking Most preferred first.
  * @param {Set<string>} active

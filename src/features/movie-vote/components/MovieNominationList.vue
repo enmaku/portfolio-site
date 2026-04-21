@@ -45,7 +45,7 @@
               />
               <q-icon v-else name="movie" size="lg" class="q-mr-sm" color="grey-5" />
               <div class="col min-width-0">
-                <div class="text-body1 text-weight-medium ellipsis">{{ pick.title }}</div>
+                <div class="text-body1 text-weight-medium mv-movie-row-title">{{ pick.title }}</div>
                 <div v-if="pickMetaLine(pick)" class="text-caption text-grey-6 ellipsis">
                   {{ pickMetaLine(pick) }}
                 </div>
@@ -166,6 +166,14 @@ function confirmDelete() {
 
 .body--light .mv-nom-row {
   background: rgba(0, 0, 0, 0.04);
+}
+
+.mv-movie-row-title {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-word;
 }
 
 .mv-sortable-ghost {

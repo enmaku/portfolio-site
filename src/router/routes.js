@@ -1,8 +1,10 @@
+import { SHARE_METADATA, SITE_NAME } from '../share-metadata.js'
+
 /**
  * Default `document.title` when a route omits `meta.title`.
  * @type {string}
  */
-export const portfolioDocumentTitle = 'David J. Perry'
+export const portfolioDocumentTitle = SITE_NAME
 
 /** @type {import('vue-router').RouteRecordRaw[]} */
 const routes = [
@@ -13,12 +15,20 @@ const routes = [
       {
         path: '',
         component: () => import('pages/IndexPage.vue'),
-        meta: { title: portfolioDocumentTitle, favicon: 'photo' },
+        meta: {
+          title: SHARE_METADATA.root.title,
+          favicon: SHARE_METADATA.root.favicon,
+          shareKey: 'root',
+        },
       },
       {
         path: 'about',
         component: () => import('pages/AboutPage.vue'),
-        meta: { title: portfolioDocumentTitle, favicon: 'info' },
+        meta: {
+          title: SHARE_METADATA.about.title,
+          favicon: SHARE_METADATA.about.favicon,
+          shareKey: 'about',
+        },
       },
     ],
   },
@@ -29,7 +39,11 @@ const routes = [
       {
         path: '',
         component: () => import('pages/projects/GameTimerPage.vue'),
-        meta: { title: 'Game Timer', favicon: 'timer' },
+        meta: {
+          title: SHARE_METADATA.gameTimer.title,
+          favicon: SHARE_METADATA.gameTimer.favicon,
+          shareKey: 'gameTimer',
+        },
       },
     ],
   },
@@ -40,7 +54,11 @@ const routes = [
       {
         path: '',
         component: () => import('pages/projects/MovieVotePage.vue'),
-        meta: { title: 'Movie Vote', favicon: 'movie' },
+        meta: {
+          title: SHARE_METADATA.movieVote.title,
+          favicon: SHARE_METADATA.movieVote.favicon,
+          shareKey: 'movieVote',
+        },
       },
     ],
   },

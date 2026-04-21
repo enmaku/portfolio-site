@@ -12,6 +12,18 @@
       content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width<% if (ctx.mode.cordova || ctx.mode.capacitor) { %>, viewport-fit=cover<% } %>"
     />
 
+    <!-- Open Graph / Twitter defaults. Per-route overrides are written by
+         scripts/generate-share-pages.mjs at build time. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="<%= productName %>" />
+    <meta property="og:title" content="<%= productName %>" />
+    <meta property="og:description" content="<%= productDescription %>" />
+    <meta property="og:image" content="icons/favicon-default.svg" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="<%= productName %>" />
+    <meta name="twitter:description" content="<%= productDescription %>" />
+    <meta name="twitter:image" content="icons/favicon-default.svg" />
+
     <link id="portfolio-favicon" rel="icon" type="image/svg+xml" href="icons/favicon-default.svg" />
     <link rel="icon" href="favicon.ico" sizes="48x48" />
   </head>
