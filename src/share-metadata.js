@@ -6,9 +6,6 @@
  * - `scripts/generate-share-pages.mjs` (build-time per-route HTML copies so
  *   link previews on Discord/Slack/etc. see correct titles even though the
  *   site is a hash-routed SPA)
- *
- * IMPORTANT: this module must work in both Node and the browser, so it uses
- * only plain ESM with no Vue/Vite/quasar imports.
  */
 
 export const SITE_NAME = 'David J. Perry'
@@ -69,12 +66,3 @@ export const SHAREABLE_ROUTES = [
   SHARE_METADATA.movieVote,
   SHARE_METADATA.about,
 ]
-
-/** @param {string} path */
-export function findShareMetadataByRoute(path) {
-  const normalized = path.replace(/\/+$/, '') || '/'
-  for (const entry of Object.values(SHARE_METADATA)) {
-    if (entry.routePath === normalized) return entry
-  }
-  return null
-}

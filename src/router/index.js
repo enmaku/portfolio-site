@@ -43,8 +43,10 @@ function applyRouteSharePreview(to) {
   setMetaContent('name', 'description', entry.description)
   setMetaContent('property', 'og:title', entry.title)
   setMetaContent('property', 'og:description', entry.description)
+  setMetaContent('property', 'og:image', entry.ogImage)
   setMetaContent('name', 'twitter:title', entry.title)
   setMetaContent('name', 'twitter:description', entry.description)
+  setMetaContent('name', 'twitter:image', entry.ogImage)
 }
 
 /**
