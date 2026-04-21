@@ -3,7 +3,15 @@
  */
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { currentVoteForBallot, pickSingleElimination, runIrv } from './irv.js'
+import { currentVoteForBallot, isDeclaredIrvTie, pickSingleElimination, runIrv } from './irv.js'
+
+test('isDeclaredIrvTie: true only for non-empty tieWinnerIds', () => {
+  assert.equal(isDeclaredIrvTie(null), false)
+  assert.equal(isDeclaredIrvTie(undefined), false)
+  assert.equal(isDeclaredIrvTie({ tieWinnerIds: null, winnerId: 'x', rounds: [] }), false)
+  assert.equal(isDeclaredIrvTie({ tieWinnerIds: [], winnerId: null, rounds: [] }), false)
+  assert.equal(isDeclaredIrvTie({ tieWinnerIds: ['a', 'b'], winnerId: null, rounds: [] }), true)
+})
 
 test('currentVoteForBallot skips eliminated', () => {
   const active = new Set(['a', 'c'])
