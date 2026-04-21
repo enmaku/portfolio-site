@@ -152,6 +152,12 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.setUniqueSuggestedMovieCount(
         typeof p.uniqueSuggestedMovieCount === 'number' ? p.uniqueSuggestedMovieCount : 0,
       )
+
+      const pid = this.myParticipantId
+      if (pid) {
+        const row = this.participants.find((x) => x.id === pid)
+        if (row) this.setReadyToVote(row.ready)
+      }
     },
 
     /** Host / solo: enter voting with compiled ballot */
@@ -278,7 +284,19 @@ export const useMovieVoteStore = defineStore('movieVote', {
 
   persist: {
     key: 'portfolio-movie-vote',
-    pick: ['myDraftPicks'],
+    pick: [
+      'myDraftPicks',
+      'phase',
+      'readyToVote',
+      'ballotMovies',
+      'ballotOrderIds',
+      'myRanking',
+      'myVoteSubmitted',
+      'voterIds',
+      'votesByParticipant',
+      'voteProgress',
+      'irvResult',
+    ],
   },
 })
 
