@@ -42,39 +42,82 @@ export function shuffleInPlace(arr) {
 }
 
 /**
- * Count of distinct TMDB titles in picks (same dedupe rule as {@link compileBallotMovies}).
- * @param {MoviePick[]} picks
- * @returns {number}
+ * Normalize a free-form title so two users typing roughly the same custom movie
+ * produce the same dedupe key. Casefolds, collapses whitespace, and strips
+ * punctuation/symbols.
+ *
+ * @param {string} title
+ * @returns {string}
  */
-export function uniqueTmdbCountInPicks(picks) {
-  const ids = new Set()
-  for (const p of picks) {
-    if (p && typeof p.tmdbId === 'number') ids.add(p.tmdbId)
-  }
-  return ids.size
+export function normalizeCustomTitle(title) {
+  const raw = typeof title === 'string' ? title : ''
+  return raw
+    .normalize('NFKD')
+    .replace(/[\p{Diacritic}]/gu, '')
+    .toLowerCase()
+    .replace(/[\p{P}\p{S}]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 /**
- * Dedupe by tmdbId, shuffle, assign public ids.
+ * Stable, cross-peer dedupe key for a pick or ballot movie.
+ * TMDB picks dedupe on `tmdbId`; custom picks dedupe on `customKey` (normalized title).
+ *
+ * @param {MoviePick | BallotMovie} pick
+ * @returns {string | null} null if the pick has neither a numeric tmdbId nor a customKey.
+ */
+export function pickDedupeKey(pick) {
+  if (!pick) return null
+  if (pick.source === 'tmdb' || (pick.source == null && typeof pick.tmdbId === 'number')) {
+    return typeof pick.tmdbId === 'number' ? `tmdb:${pick.tmdbId}` : null
+  }
+  if (pick.source === 'custom') {
+    const key = typeof pick.customKey === 'string' ? pick.customKey : normalizeCustomTitle(pick.title)
+    return key ? `custom:${key}` : null
+  }
+  return null
+}
+
+/**
+ * Count distinct movies in picks (TMDB ids and normalized custom titles together).
+ *
+ * @param {MoviePick[]} picks
+ * @returns {number}
+ */
+export function uniqueMoviesInPicks(picks) {
+  const seen = new Set()
+  for (const p of picks) {
+    const key = pickDedupeKey(p)
+    if (key) seen.add(key)
+  }
+  return seen.size
+}
+
+/**
+ * Dedupe by {@link pickDedupeKey}, shuffle, assign public ids.
  * @param {MoviePick[]} picks
  * @returns {BallotMovie[]}
  */
 export function compileBallotMovies(picks) {
-  const byTmdb = new Map()
+  const byKey = new Map()
   for (const p of picks) {
-    if (!byTmdb.has(p.tmdbId)) {
-      byTmdb.set(p.tmdbId, {
-        publicId: generatePublicId(),
-        tmdbId: p.tmdbId,
-        title: p.title,
-        posterPath: p.posterPath,
-        overview: p.overview,
-        releaseDate: p.releaseDate,
-        runtime: p.runtime,
-      })
-    }
+    const key = pickDedupeKey(p)
+    if (!key || byKey.has(key)) continue
+    const source = p.source ?? (typeof p.tmdbId === 'number' ? 'tmdb' : 'custom')
+    byKey.set(key, {
+      publicId: generatePublicId(),
+      source,
+      tmdbId: source === 'tmdb' ? p.tmdbId : null,
+      customKey: source === 'custom' ? (p.customKey ?? normalizeCustomTitle(p.title)) : undefined,
+      title: p.title,
+      posterPath: p.posterPath,
+      overview: p.overview,
+      releaseDate: p.releaseDate,
+      runtime: p.runtime,
+    })
   }
-  const out = [...byTmdb.values()]
+  const out = [...byKey.values()]
   shuffleInPlace(out)
   return out
 }

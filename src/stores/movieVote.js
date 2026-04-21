@@ -4,17 +4,28 @@
  */
 
 import { defineStore, acceptHMRUpdate } from 'pinia'
-import { HOST_PARTICIPANT_ID } from '../features/movie-vote/core.js'
+import {
+  HOST_PARTICIPANT_ID,
+  normalizeCustomTitle,
+  pickDedupeKey,
+} from '../features/movie-vote/core.js'
 import { isDeclaredIrvTie } from '../features/movie-vote/irv.js'
 
-/** @returns {MoviePick} */
+/**
+ * Normalize incoming picks (handles legacy picks that predate `source`).
+ * @param {MoviePick} p
+ * @returns {MoviePick}
+ */
 function clonePick(p) {
+  const source = p.source ?? (typeof p.tmdbId === 'number' ? 'tmdb' : 'custom')
   return {
     localId: p.localId,
-    tmdbId: p.tmdbId,
+    source,
+    tmdbId: source === 'tmdb' ? p.tmdbId : null,
+    customKey: source === 'custom' ? (p.customKey ?? normalizeCustomTitle(p.title)) : undefined,
     title: p.title,
-    posterPath: p.posterPath,
-    overview: p.overview,
+    posterPath: p.posterPath ?? null,
+    overview: typeof p.overview === 'string' ? p.overview : '',
     releaseDate: p.releaseDate,
     runtime: p.runtime,
   }
@@ -63,17 +74,14 @@ export const useMovieVoteStore = defineStore('movieVote', {
     uniqueSuggestedMovieCount: 0,
   }),
 
-  getters: {
-    tmdbIdsInDraft(state) {
-      return new Set(state.myDraftPicks.map((p) => p.tmdbId))
-    },
-  },
-
   actions: {
     /** @param {MoviePick} pick */
     addDraftPick(pick) {
-      if (this.myDraftPicks.some((p) => p.tmdbId === pick.tmdbId)) return
-      this.myDraftPicks.push(clonePick(pick))
+      const cloned = clonePick(pick)
+      const key = pickDedupeKey(cloned)
+      if (!key) return
+      if (this.myDraftPicks.some((p) => pickDedupeKey(p) === key)) return
+      this.myDraftPicks.push(cloned)
     },
 
     /** @param {string} localId */
