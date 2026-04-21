@@ -9,7 +9,12 @@ import { Notify } from 'quasar'
 import Peer from 'peerjs'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { useMovieVoteRoomSessionStore } from '../../../stores/movieVoteRoomSession.js'
-import { HOST_PARTICIPANT_ID, compileBallotMovies, uniqueTmdbCountInPicks } from '../core.js'
+import {
+  HOST_PARTICIPANT_ID,
+  compileBallotMovies,
+  normalizeCustomTitle,
+  uniqueMoviesInPicks,
+} from '../core.js'
 import { runIrv } from '../irv.js'
 import {
   encodeDraft,
@@ -295,7 +300,7 @@ function allDraftPicksFlat() {
 }
 
 function distinctSuggestedMovieCount() {
-  return uniqueTmdbCountInPicks(allDraftPicksFlat())
+  return uniqueMoviesInPicks(allDraftPicksFlat())
 }
 
 function buildPublicPayload() {
@@ -403,26 +408,36 @@ function tryFinishVoting() {
 }
 
 /**
+ * Validate a pick from the wire. Accepts both TMDB picks (numeric `tmdbId`)
+ * and custom picks (`source === 'custom'` with a non-empty title).
+ *
  * @param {import('../types.js').MoviePick[]} picks
  */
 function normalizePicks(picks) {
-  return picks
-    .filter(
-      (p) =>
-        p &&
-        typeof p.localId === 'string' &&
-        typeof p.tmdbId === 'number' &&
-        typeof p.title === 'string',
-    )
-    .map((p) => ({
+  const out = []
+  for (const p of picks) {
+    if (!p || typeof p.localId !== 'string' || typeof p.title !== 'string') continue
+    const title = p.title.trim()
+    if (!title) continue
+
+    const explicitSource = p.source === 'tmdb' || p.source === 'custom' ? p.source : null
+    const source = explicitSource ?? (typeof p.tmdbId === 'number' ? 'tmdb' : 'custom')
+
+    if (source === 'tmdb' && typeof p.tmdbId !== 'number') continue
+
+    out.push({
       localId: p.localId,
-      tmdbId: p.tmdbId,
-      title: p.title,
+      source,
+      tmdbId: source === 'tmdb' ? p.tmdbId : null,
+      customKey: source === 'custom' ? (p.customKey || normalizeCustomTitle(title)) : undefined,
+      title,
       posterPath: p.posterPath ?? null,
       overview: typeof p.overview === 'string' ? p.overview : '',
       releaseDate: p.releaseDate,
       runtime: typeof p.runtime === 'number' && p.runtime > 0 ? p.runtime : undefined,
-    }))
+    })
+  }
+  return out
 }
 
 /**

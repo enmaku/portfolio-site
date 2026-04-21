@@ -15,9 +15,18 @@
  */
 
 /**
+ * Pick source. `tmdb` picks carry a numeric `tmdbId`; `custom` picks have
+ * `tmdbId: null` and are deduped across the room by `customKey` (normalized title).
+ *
+ * @typedef {'tmdb' | 'custom'} MoviePickSource
+ */
+
+/**
  * @typedef {object} MoviePick
  * @property {string} localId
- * @property {number} tmdbId
+ * @property {MoviePickSource} source
+ * @property {number | null} tmdbId     Null for `source === 'custom'`.
+ * @property {string} [customKey]       Dedupe key for `source === 'custom'` (normalized title).
  * @property {string} title
  * @property {string | null} posterPath
  * @property {string} overview
@@ -28,7 +37,9 @@
 /**
  * @typedef {object} BallotMovie
  * @property {string} publicId
- * @property {number} tmdbId
+ * @property {MoviePickSource} source
+ * @property {number | null} tmdbId
+ * @property {string} [customKey]
  * @property {string} title
  * @property {string | null} posterPath
  * @property {string} overview
@@ -53,7 +64,7 @@
  * @property {string[] | null} ballotOrderIds
  * @property {{ submitted: number, total: number } | null} voteProgress
  * @property {import('./irv.js').IrvResult | null} [irvResult]
- * @property {number} [uniqueSuggestedMovieCount] Distinct TMDB ids across all draft picks (suggest phase); 0 otherwise.
+ * @property {number} [uniqueSuggestedMovieCount] Distinct titles across all draft picks (suggest phase); 0 otherwise.
  */
 
 export {}

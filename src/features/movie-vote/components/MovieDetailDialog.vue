@@ -164,7 +164,7 @@ const displayedCast = computed(() => {
 watch(
   () => [props.modelValue, props.movie?.tmdbId],
   async ([open, tmdbId], _, onCleanup) => {
-    if (!open || tmdbId == null) {
+    if (!open) {
       fetched.value = null
       posterSrc.value = null
       castExpanded.value = false
@@ -172,12 +172,11 @@ watch(
     }
     castExpanded.value = false
     const m = props.movie
-    if (m?.posterPath) {
-      posterSrc.value = posterUrl(m.posterPath, 'w342')
-    } else {
-      posterSrc.value = null
-    }
-    if (!isTmdbConfigured()) return
+    posterSrc.value = m?.posterPath ? posterUrl(m.posterPath, 'w342') : null
+    fetched.value = null
+
+    if (typeof tmdbId !== 'number' || !isTmdbConfigured()) return
+
     const ac = new AbortController()
     onCleanup(() => ac.abort())
     try {
