@@ -38,7 +38,7 @@
             />
             <q-icon v-else name="movie" size="lg" class="q-mr-sm" color="grey-5" />
             <div class="col min-width-0">
-              <div class="text-body1 text-weight-medium ellipsis">{{ element.title }}</div>
+              <div class="text-body1 text-weight-medium mv-movie-row-title">{{ element.title }}</div>
               <div v-if="ballotMetaLine(element)" class="text-caption text-grey-6 ellipsis">
                 {{ ballotMetaLine(element) }}
               </div>
@@ -145,6 +145,14 @@ function openDetail(m) {
 
 .body--light .mv-ballot-row {
   background: rgba(0, 0, 0, 0.04);
+}
+
+.mv-movie-row-title {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-word;
 }
 
 .mv-sortable-ghost {
