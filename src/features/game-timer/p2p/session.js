@@ -9,12 +9,24 @@
 
 import { ref } from 'vue'
 import { Notify } from 'quasar'
-import Peer from 'peerjs'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 import { useGameTimerRoomSessionStore } from '../../../stores/gameTimerRoomSession.js'
-import { classifyPeerError, isUnavailableIdError } from '../../p2p/errors.js'
+import { awaitPeerOpen } from '../../p2p/awaitPeerOpen.js'
+import {
+  runGuestStarReconnectLoop,
+  runHostStarReconnectLoop,
+  wireStarRoomPeerErrors,
+} from '../../p2p/starRoomShell.js'
+import { isUnavailableIdError } from '../../p2p/errors.js'
 import { deriveStableHostSuffix, getStableClientId } from '../../p2p/identity.js'
-import { reconnectDelayMs as sharedReconnectDelayMs } from '../../p2p/reconnect.js'
+import {
+  HEARTBEAT_GUEST_CHECK_MS,
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_STALE_MS,
+  OPEN_PEER_TIMEOUT_MS,
+  PEER_OPTS,
+  RECONNECT_PEER_TIMEOUT_MS,
+} from '../../p2p/starRoomTiming.js'
 import {
   encodeGuestHello,
   encodeGuestUpdate,
@@ -87,11 +99,6 @@ let lastSeenSeq = 0
 
 let reconnectGeneration = 0
 
-const RECONNECT_MAX_ATTEMPTS = 10
-const RECONNECT_BASE_DELAY_MS = 800
-const RECONNECT_MAX_DELAY_MS = 5000
-const RECONNECT_INITIAL_PAUSE_MS = 1000
-
 /** Reactive session UI state for multiplayer (Vue ref; safe to use outside components). */
 export const sessionPhase = ref(/** @type {GameTimerSessionPhase} */ ('idle'))
 
@@ -103,26 +110,6 @@ export const sessionSuffix = ref(/** @type {string | null} */ (null))
  * Stays `true` when idle / hosting / unknown.
  */
 export const remoteHostTabVisible = ref(true)
-
-const PEER_OPTS = /** @type {const} */ ({
-  serialization: 'json',
-  reliable: true,
-})
-
-/** First connect / resume: allow slow signaling. */
-const OPEN_PEER_TIMEOUT_MS = 20000
-
-/** Reconnect loops: fail each try faster so backoff (below) dominates. */
-const RECONNECT_PEER_TIMEOUT_MS = 8000
-
-/** Hub → guests while hosting. */
-const HEARTBEAT_INTERVAL_MS = 3000
-
-/** Guest: no snapshot or ping from host for this long ⇒ reconnect. */
-const HEARTBEAT_STALE_MS = 12_000
-
-/** Guest: how often we check staleness. */
-const HEARTBEAT_GUEST_CHECK_MS = 2000
 
 /** @type {ReturnType<typeof setInterval> | null} */
 let hostHeartbeatIntervalId = null
@@ -297,46 +284,6 @@ function destroyWireOnly() {
   isHost = false
   nextSeq = 0
   lastSeenSeq = 0
-}
-
-/**
- * @param {number} attemptAfterFirst Zero-based: delay before attempt 2 uses index 0.
- * @returns {number}
- */
-function reconnectDelayMs(attemptAfterFirst) {
-  return sharedReconnectDelayMs(attemptAfterFirst, {
-    baseMs: RECONNECT_BASE_DELAY_MS,
-    maxMs: RECONNECT_MAX_DELAY_MS,
-  })
-}
-
-/**
- * @param {string} [brokerId] When non-empty, open as this broker id (hub). Otherwise random id (guest).
- * @param {number} [timeoutMs=OPEN_PEER_TIMEOUT_MS]
- * @returns {Promise<import('peerjs').Peer>}
- */
-function awaitPeerOpen(brokerId, timeoutMs = OPEN_PEER_TIMEOUT_MS) {
-  return new Promise((resolve, reject) => {
-    const pr =
-      typeof brokerId === 'string' && brokerId.length > 0 ? new Peer(brokerId) : new Peer()
-    const t = window.setTimeout(() => {
-      try {
-        pr.destroy()
-      } catch { void 0 }
-      reject(new Error('Peer open timeout'))
-    }, timeoutMs)
-    pr.on('error', (e) => {
-      window.clearTimeout(t)
-      try {
-        pr.destroy()
-      } catch { void 0 }
-      reject(e)
-    })
-    pr.on('open', () => {
-      window.clearTimeout(t)
-      resolve(pr)
-    })
-  })
 }
 
 /**
@@ -543,32 +490,21 @@ function handleGuestInbound(raw) {
 }
 
 /**
- * Forwards PeerJS `error` events to host or guest disconnect handling. Fatal
- * errors (per {@link classifyPeerError}) skip the reconnect loop and go
- * straight to a clean teardown so the UI surfaces the real problem instead of
- * spinning a doomed retry loop.
+ * Registers {@link wireStarRoomPeerErrors} with game-timer–specific handlers.
  * @param {import('peerjs').Peer} p
  * @returns {void}
  */
 function wirePeerErrors(p) {
-  p.on('error', (err) => {
-    const severity = classifyPeerError(err)
-    if (severity === 'fatal') {
+  wireStarRoomPeerErrors(p, {
+    bumpReconnectGeneration: () => {
       reconnectGeneration += 1
-      clearRoomPersistence()
-      const msg =
-        err && typeof err === 'object' && 'type' in err
-          ? `P2P error: ${/** @type {{type:string}} */ (err).type}`
-          : 'P2P error'
-      notifyP2P(msg, 'negative')
-      teardownSession()
-      return
-    }
-    if (isHost) {
-      onHostDisconnected()
-    } else {
-      onGuestDisconnected()
-    }
+    },
+    clearRoomPersistence,
+    notifyP2p: notifyP2P,
+    teardownSession,
+    getIsHost: () => isHost,
+    onHostDisconnected,
+    onGuestDisconnected,
   })
 }
 
@@ -627,38 +563,22 @@ function onHostDisconnected() {
  * @param {number} gen Captured reconnect generation; superseded when the user leaves or a new disconnect runs.
  * @returns {Promise<void>}
  */
-async function guestReconnectLoop(suffix, gen) {
-  await new Promise((r) => setTimeout(r, RECONNECT_INITIAL_PAUSE_MS))
-  if (gen !== reconnectGeneration) return
-
-  for (let attempt = 1; attempt <= RECONNECT_MAX_ATTEMPTS; attempt++) {
-    if (gen !== reconnectGeneration) return
-
-    if (attempt > 1) {
-      notifyP2P(`Reconnecting… attempt ${attempt} of ${RECONNECT_MAX_ATTEMPTS}`, 'warning')
-      await new Promise((r) => setTimeout(r, reconnectDelayMs(attempt - 2)))
-    }
-
-    if (gen !== reconnectGeneration) return
-
-    try {
-      destroyWireOnly()
-      await establishGuestSession(suffix, { peerTimeoutMs: RECONNECT_PEER_TIMEOUT_MS })
-      if (gen !== reconnectGeneration) {
-        leaveSession()
-        return
-      }
-      return
-    } catch {
-      continue
-    }
-  }
-
-  if (gen !== reconnectGeneration) return
-
-  clearRoomPersistence()
-  notifyP2P('Could not reconnect. Use Host room / Join room to try again.', 'negative')
-  teardownSession()
+function guestReconnectLoop(suffix, gen) {
+  return runGuestStarReconnectLoop({
+    gen,
+    getReconnectGeneration: () => reconnectGeneration,
+    sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+    notifyReconnectingGuest: (attempt, max) =>
+      notifyP2P(`Reconnecting… attempt ${attempt} of ${max}`, 'warning'),
+    destroyWireOnly,
+    establishGuest: () =>
+      establishGuestSession(suffix, { peerTimeoutMs: RECONNECT_PEER_TIMEOUT_MS }),
+    leaveSession,
+    clearRoomPersistence,
+    notifyGuestReconnectFailed: () =>
+      notifyP2P('Could not reconnect. Use Host room / Join room to try again.', 'negative'),
+    teardownSession,
+  })
 }
 
 /**
@@ -666,40 +586,25 @@ async function guestReconnectLoop(suffix, gen) {
  * @param {number} gen Captured reconnect generation; superseded when the user leaves or a new disconnect runs.
  * @returns {Promise<void>}
  */
-async function hostReconnectLoop(suffix, gen) {
+function hostReconnectLoop(suffix, gen) {
   const fullId = fullPeerIdFromSuffix(suffix)
-  await new Promise((r) => setTimeout(r, RECONNECT_INITIAL_PAUSE_MS))
-  if (gen !== reconnectGeneration) return
-
-  for (let attempt = 1; attempt <= RECONNECT_MAX_ATTEMPTS; attempt++) {
-    if (gen !== reconnectGeneration) return
-
-    if (attempt > 1) {
-      notifyP2P(`Reconnecting as host… attempt ${attempt} of ${RECONNECT_MAX_ATTEMPTS}`, 'warning')
-      await new Promise((r) => setTimeout(r, reconnectDelayMs(attempt - 2)))
-    }
-
-    if (gen !== reconnectGeneration) return
-
-    try {
-      destroyWireOnly()
+  return runHostStarReconnectLoop({
+    gen,
+    getReconnectGeneration: () => reconnectGeneration,
+    sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+    notifyReconnectingHost: (attempt, max) =>
+      notifyP2P(`Reconnecting as host… attempt ${attempt} of ${max}`, 'warning'),
+    destroyWireOnly,
+    establishHost: async () => {
       const p = await awaitPeerOpen(fullId, RECONNECT_PEER_TIMEOUT_MS)
       finishHostSession(/** @type {import('peerjs').Peer} */ (p), suffix)
-      if (gen !== reconnectGeneration) {
-        leaveSession()
-        return
-      }
-      return
-    } catch {
-      continue
-    }
-  }
-
-  if (gen !== reconnectGeneration) return
-
-  clearRoomPersistence()
-  notifyP2P('Could not restore hosting. Start a new room or try again later.', 'negative')
-  teardownSession()
+    },
+    leaveSession,
+    clearRoomPersistence,
+    notifyHostReconnectFailed: () =>
+      notifyP2P('Could not restore hosting. Start a new room or try again later.', 'negative'),
+    teardownSession,
+  })
 }
 
 /**
