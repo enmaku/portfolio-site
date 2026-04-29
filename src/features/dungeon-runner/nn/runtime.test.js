@@ -247,7 +247,7 @@ test('nn stochastic sampling is reproducible for same state and backend', async 
   assert.equal(a.type, b.type)
 })
 
-test('nn runtime uses policy logits head and keeps dungeon advance legal', async () => {
+test('nn runtime uses policy logits head and keeps dungeon reveal legal', async () => {
   const base = createInitialMatchState(
     { totalSeats: 2, opponents: [{ type: 'nn', modelId: 'latest' }] },
     { seed: 130 },
@@ -258,9 +258,15 @@ test('nn runtime uses policy logits head and keeps dungeon advance legal', async
     phase: 'dungeon',
     turn: { ...base.turn, activeSeatId: seatId },
     bidding: { ...base.bidding, runnerSeatId: seatId },
+    dungeon: {
+      ...base.dungeon,
+      subphase: 'reveal',
+      remainingMonsters: ['goblin'],
+      hp: 5,
+    },
   }
   const action = await chooseNnActionWithFallback(state, { seatId }, { modelId: 'latest' })
-  assert.equal(action.type, 'ADVANCE_DUNGEON')
+  assert.equal(action.type, 'REVEAL_OR_CONTINUE')
 })
 
 test('nn runtime emits debug trace payload when requested', async () => {

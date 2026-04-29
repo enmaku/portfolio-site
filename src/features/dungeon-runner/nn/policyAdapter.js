@@ -131,9 +131,6 @@ function encodeActionIndex(state, actor, action) {
   if (action.type === ACTION_TYPES.DECLINE_FIRE_AXE) return POLICY_INDEX.DECLINE_FIRE_AXE
   if (action.type === ACTION_TYPES.USE_POLYMORPH) return POLICY_INDEX.POLYMORPH
   if (action.type === ACTION_TYPES.DECLINE_POLYMORPH) return POLICY_INDEX.DECLINE_POLYMORPH
-  if (action.type === ACTION_TYPES.ADVANCE_DUNGEON && state.phase === 'dungeon' && state.bidding.runnerSeatId === actor.seatId) {
-    return POLICY_INDEX.PASS
-  }
   return -1
 }
 

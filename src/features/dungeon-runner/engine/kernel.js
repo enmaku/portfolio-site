@@ -3,7 +3,6 @@ export const ACTION_TYPES = {
   DRAW: 'DRAW',
   ADD_TO_DUNGEON: 'ADD_TO_DUNGEON',
   SACRIFICE: 'SACRIFICE',
-  ADVANCE_DUNGEON: 'ADVANCE_DUNGEON',
   CHOOSE_NEXT_ADVENTURER: 'CHOOSE_NEXT_ADVENTURER',
   DECLARE_VORPAL: 'DECLARE_VORPAL',
   REVEAL_OR_CONTINUE: 'REVEAL_OR_CONTINUE',
@@ -139,6 +138,8 @@ export function createInitialMatchState(setup, options) {
       remainingMonsters: [],
       hp: 0,
       inPlayEquipmentIds: [],
+      discardedRunMonsters: [],
+      vorpalTarget: null,
       polySpent: false,
       axeSpent: false,
     },
@@ -192,7 +193,7 @@ export function getLegalActions(state, actor) {
     if (state.dungeon?.subphase === DUNGEON_SUBPHASES.PICK_POLYMORPH) {
       return [{ type: ACTION_TYPES.USE_POLYMORPH }, { type: ACTION_TYPES.DECLINE_POLYMORPH }]
     }
-    return [{ type: ACTION_TYPES.ADVANCE_DUNGEON }]
+    return []
   }
   if (state.phase === MATCH_PHASES.PICK_ADVENTURER) {
     return ADVENTURERS.map((hero) => ({ type: ACTION_TYPES.CHOOSE_NEXT_ADVENTURER, hero }))
@@ -242,12 +243,10 @@ export function applyAction(state, action, actor) {
     nextState = applyAddToDungeonAction(nextState, actor)
   } else if (action.type === ACTION_TYPES.SACRIFICE) {
     nextState = applySacrificeAction(nextState, action, actor)
-  } else if (action.type === ACTION_TYPES.ADVANCE_DUNGEON) {
-    nextState = applyAdvanceDungeonAction(nextState, actor)
   } else if (action.type === ACTION_TYPES.CHOOSE_NEXT_ADVENTURER) {
     nextState = applyChooseNextAdventurerAction(nextState, action, actor)
   } else if (action.type === ACTION_TYPES.DECLARE_VORPAL) {
-    nextState = applyDungeonStepAction(nextState, DUNGEON_SUBPHASES.REVEAL)
+    nextState = applyDeclareVorpalAction(nextState, action, actor)
   } else if (action.type === ACTION_TYPES.REVEAL_OR_CONTINUE) {
     nextState = applyRevealOrContinueAction(nextState, actor)
   } else if (action.type === ACTION_TYPES.USE_FIRE_AXE) {
@@ -301,6 +300,12 @@ function validateSetup(setup) {
 }
 
 const BASE_HERO_LOADOUT = ['W_PLATE', 'W_SHIELD', 'W_VORPAL', 'W_TORCH', 'W_HOLY', 'W_SPEAR']
+const HERO_LOADOUTS = {
+  WARRIOR: ['W_PLATE', 'W_SHIELD', 'W_VORPAL', 'W_TORCH', 'W_HOLY', 'W_SPEAR'],
+  BARBARIAN: ['B_HEAL', 'B_SHIELD', 'B_CHAIN', 'B_AXE', 'B_TORCH', 'B_HAMMER'],
+  MAGE: ['M_WALL', 'M_HOLY', 'M_OMNI', 'M_BRACE', 'M_POLY', 'M_PACT'],
+  ROGUE: ['R_ARMOR', 'R_HEAL', 'R_RING', 'R_BUCK', 'R_VORP', 'R_CLOAK'],
+}
 
 const HP_FOR_EQUIP = {
   W_PLATE: 5,
@@ -332,6 +337,7 @@ const BASE_HERO_HP = { WARRIOR: 3, BARBARIAN: 4, MAGE: 2, ROGUE: 3 }
 const EQUIP_VORPAL_IDS = new Set(['W_VORPAL', 'R_VORP'])
 const EQUIP_POLY = 'M_POLY'
 const EQUIP_FIRE_AXE = 'B_AXE'
+const EQUIP_HEAL_POT = new Set(['B_HEAL', 'R_HEAL'])
 const BASE_MONSTER_DECK = [
   'goblin',
   'goblin',
@@ -406,6 +412,8 @@ function buildDungeonStateOnEnter(state, nextBidding) {
     remainingMonsters: pile,
     hp,
     inPlayEquipmentIds: inPlay,
+    discardedRunMonsters: [],
+    vorpalTarget: null,
     polySpent: !inSet.has(EQUIP_POLY),
     axeSpent: !inSet.has(EQUIP_FIRE_AXE),
   }
@@ -540,129 +548,51 @@ function findNextActiveSeatId(state, seatId, passedSeatIds) {
   return null
 }
 
-function applyAdvanceDungeonAction(state, actor) {
-  const runnerSeatId = state.bidding.runnerSeatId
-  if (!runnerSeatId || runnerSeatId !== actor.seatId) return null
-  const power = state.heroLoadout[runnerSeatId]?.length ?? 0
-  const resolution = resolveDungeonCards(state.bidding.dungeonMonsters, power)
-  const success = resolution.success
-  const currentScore = state.scoreboard[runnerSeatId]
-  const nextRunnerScore = success
-    ? { ...currentScore, successes: currentScore.successes + 1 }
-    : {
-        ...currentScore,
-        lives: Math.max(0, currentScore.lives - 1),
-        eliminated: currentScore.lives - 1 <= 0,
-      }
-  const nextScoreboard = {
-    ...state.scoreboard,
-    [runnerSeatId]: nextRunnerScore,
-  }
-  const resetOwnPiles = Object.fromEntries(state.seats.map((seat) => [seat.id, []]))
-  const lastDungeonRun = {
-    runnerSeatId,
-    monsters: [...state.bidding.dungeonMonsters],
-    heroLoadoutSize: power,
-    result: success ? 'success' : 'failure',
-    steps: resolution.steps,
-  }
-  if (nextRunnerScore.successes >= 2) {
-    return {
-      ...state,
-      phase: MATCH_PHASES.MATCH_OVER,
-      matchWinnerSeatId: runnerSeatId,
-      scoreboard: nextScoreboard,
-      lastDungeonRun,
-      playerOwnPileAdds: resetOwnPiles,
-      turn: {
-        activeSeatId: null,
-        turnNumber: state.turn.turnNumber + 1,
-      },
-    }
-  }
-  const activeSeats = state.seats.filter((seat) => !nextScoreboard[seat.id]?.eliminated)
-  if (activeSeats.length === 1) {
-    return {
-      ...state,
-      phase: MATCH_PHASES.MATCH_OVER,
-      matchWinnerSeatId: activeSeats[0].id,
-      scoreboard: nextScoreboard,
-      lastDungeonRun,
-      playerOwnPileAdds: resetOwnPiles,
-      turn: {
-        activeSeatId: null,
-        turnNumber: state.turn.turnNumber + 1,
-      },
-    }
-  }
-  const nextStarterSeatId = findNextActiveSeatId(
-    {
-      ...state,
-      scoreboard: nextScoreboard,
-    },
-    runnerSeatId,
-    [],
-  )
+function enterPickAdventurerPhase(state, runnerSeatId, scoreboard, result) {
+  const runnerScore = scoreboard[runnerSeatId]
+  const seatIndex = state.seats.findIndex((seat) => seat.id === runnerSeatId)
+  const pickSeatId = runnerScore?.eliminated
+    ? state.seats[(seatIndex - 1 + state.seats.length) % state.seats.length]?.id ?? runnerSeatId
+    : runnerSeatId
   return {
     ...state,
-    phase: MATCH_PHASES.BIDDING,
-    scoreboard: nextScoreboard,
-    lastDungeonRun,
-    playerOwnPileAdds: resetOwnPiles,
+    phase: MATCH_PHASES.PICK_ADVENTURER,
+    scoreboard,
+    successCardsLeft: Math.max(
+      0,
+      5 - Math.max(...Object.values(scoreboard).map((score) => score.successes ?? 0)),
+    ),
+    lastDungeonRun: {
+      runnerSeatId,
+      monsters: [...state.bidding.dungeonMonsters],
+      heroLoadoutSize: state.heroLoadout[runnerSeatId]?.length ?? 0,
+      result,
+      steps: [],
+    },
     turn: {
-      activeSeatId: nextStarterSeatId,
+      activeSeatId: pickSeatId,
       turnNumber: state.turn.turnNumber + 1,
     },
-    bidding: {
-      subphase: BIDDING_SUBPHASES.TURN,
-      passedSeatIds: [],
-      runnerSeatId: null,
-      revealedMonsterCard: null,
-      revealedMonsterStrength: null,
-      revealedMonsterIcons: [],
-      revealedBySeatId: null,
-      monsterDeck: createInitialMonsterDeck(),
-      dungeonMonsters: [],
-      discardedMonsterCards: [],
+    pickAdventurer: {
+      activeSeatId: pickSeatId,
     },
     dungeon: {
+      ...state.dungeon,
       subphase: null,
       currentMonster: null,
       remainingMonsters: [],
-      hp: 0,
-      inPlayEquipmentIds: [],
-      polySpent: false,
-      axeSpent: false,
-    },
-    pickAdventurer: {
-      activeSeatId: null,
     },
   }
 }
 
-function resolveDungeonCards(monsters, heroPower) {
-  let remainingPower = heroPower
-  const steps = monsters.map((monsterId) => {
-    const heroPowerBefore = remainingPower
-    const defeated = remainingPower > 0
-    if (defeated) remainingPower -= 1
-    return {
-      monsterId,
-      heroPowerBefore,
-      heroPowerAfter: remainingPower,
-      defeated,
-    }
-  })
-  return {
-    success: steps.every((step) => step.defeated),
-    steps,
-  }
-}
-
-function applyChooseNextAdventurerAction(state, _action, actor) {
+function applyChooseNextAdventurerAction(state, action, actor) {
   if (state.phase !== MATCH_PHASES.PICK_ADVENTURER) return null
+  const loadout = HERO_LOADOUTS[action.hero] ?? HERO_LOADOUTS.WARRIOR
   return {
     ...state,
+    hero: action.hero,
+    centerEquipment: [...loadout],
+    heroLoadout: Object.fromEntries(state.seats.map((seat) => [seat.id, [...loadout]])),
     phase: MATCH_PHASES.BIDDING,
     turn: {
       activeSeatId: actor.seatId,
@@ -679,6 +609,21 @@ function applyChooseNextAdventurerAction(state, _action, actor) {
       dungeonMonsters: [],
       discardedMonsterCards: [],
     },
+    pickAdventurer: {
+      activeSeatId: null,
+    },
+    dungeon: {
+      subphase: null,
+      currentMonster: null,
+      remainingMonsters: [],
+      hp: 0,
+      inPlayEquipmentIds: [],
+      discardedRunMonsters: [],
+      vorpalTarget: null,
+      polySpent: false,
+      axeSpent: false,
+    },
+    playerOwnPileAdds: Object.fromEntries(state.seats.map((seat) => [seat.id, []])),
   }
 }
 
@@ -695,34 +640,57 @@ function applyDungeonStepAction(state, nextSubphase) {
 
 /**
  * @param {ReturnType<typeof createInitialMatchState>} state
+ * @param {{type:string,species?:string}} action
+ * @param {{seatId:string}} actor
+ */
+function applyDeclareVorpalAction(state, action, actor) {
+  const runnerSeatId = state.bidding.runnerSeatId
+  if (!runnerSeatId || actor.seatId !== runnerSeatId) return null
+  if (state.phase !== MATCH_PHASES.DUNGEON || state.dungeon?.subphase !== DUNGEON_SUBPHASES.VORPAL) return null
+  return {
+    ...state,
+    dungeon: {
+      ...state.dungeon,
+      vorpalTarget: action.species ?? null,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+    },
+  }
+}
+
+/**
+ * @param {ReturnType<typeof createInitialMatchState>} state
  * @param {{seatId:string}} actor
  */
 function applyRevealOrContinueAction(state, actor) {
   const runnerSeatId = state.bidding.runnerSeatId
   if (!runnerSeatId || actor.seatId !== runnerSeatId) return null
-  if (state.phase !== MATCH_PHASES.DUNGEON || state.dungeon?.subphase !== DUNGEON_SUBPHASES.REVEAL) {
+  const subphase = state.dungeon?.subphase
+  if (state.phase !== MATCH_PHASES.DUNGEON || (subphase !== DUNGEON_SUBPHASES.REVEAL && subphase !== DUNGEON_SUBPHASES.VORPAL)) {
     return null
   }
-  const d0 = state.dungeon
+  const d0 = {
+    ...state.dungeon,
+    subphase: DUNGEON_SUBPHASES.REVEAL,
+  }
   let remaining = [...(d0.remainingMonsters ?? [])]
   let current = d0.currentMonster
   if (current == null && remaining.length > 0) {
     current = remaining.shift()
   }
   if (current == null) {
-    return {
-      ...state,
-      dungeon: {
-        ...d0,
-        remainingMonsters: remaining,
-        currentMonster: null,
-        subphase: null,
-      },
-    }
+    return concludeDungeonSuccess(state, d0)
   }
+
+  const maybeAutoDefeat = applyAutoDefeat(state, {
+    ...d0,
+    currentMonster: current,
+    remainingMonsters: remaining,
+  })
+  if (maybeAutoDefeat) return maybeAutoDefeat
+
   const inPlay = new Set(d0.inPlayEquipmentIds ?? [])
   const axeLegal = !d0.axeSpent && inPlay.has(EQUIP_FIRE_AXE)
-  const polyLegal = !d0.polySpent && inPlay.has(EQUIP_POLY) && current != null
+  const polyLegal = !d0.polySpent && inPlay.has(EQUIP_POLY) && remaining.length > 0
   if (axeLegal) {
     return {
       ...state,
@@ -758,28 +726,39 @@ function applyRevealOrContinueAction(state, actor) {
  */
 function applyMonsterCombatHits(state, dungeon) {
   const current = dungeon.currentMonster
-  if (!current) {
-    const pileDone = (dungeon.remainingMonsters?.length ?? 0) === 0
-    return {
-      ...state,
-      dungeon: {
-        ...dungeon,
-        subphase: pileDone ? null : DUNGEON_SUBPHASES.REVEAL,
-      },
-    }
-  }
+  if (!current) return transitionAfterDefeat(state, dungeon)
   const spec = MONSTER_STATS[current] ?? { strength: 3 }
   const hp = Math.max(0, (dungeon.hp ?? 0) - spec.strength)
-  const remaining = [...(dungeon.remainingMonsters ?? [])]
-  const pileDone = remaining.length === 0
+  const inPlay = new Set(dungeon.inPlayEquipmentIds ?? [])
+  if (hp <= 0) {
+    for (const equipId of inPlay) {
+      if (!EQUIP_HEAL_POT.has(equipId)) continue
+      return transitionAfterDefeat(state, {
+        ...dungeon,
+        hp: baseHeroHp(state.hero),
+        inPlayEquipmentIds: [...inPlay].filter((id) => id !== equipId),
+      })
+    }
+    if (state.hero === 'MAGE' && inPlay.has('M_OMNI') && omniSavesDungeon(state, dungeon)) {
+      return concludeDungeonSuccess(state, {
+        ...dungeon,
+        currentMonster: null,
+        remainingMonsters: [],
+        discardedRunMonsters: [
+          ...(dungeon.discardedRunMonsters ?? []),
+          current,
+          ...(dungeon.remainingMonsters ?? []),
+        ].filter(Boolean),
+      })
+    }
+    return concludeDungeonFailure(state, dungeon)
+  }
+  const transitioned = transitionAfterDefeat(state, dungeon)
   return {
-    ...state,
+    ...transitioned,
     dungeon: {
-      ...dungeon,
-      currentMonster: null,
-      remainingMonsters: remaining,
+      ...transitioned.dungeon,
       hp,
-      subphase: pileDone ? null : DUNGEON_SUBPHASES.REVEAL,
     },
   }
 }
@@ -795,17 +774,13 @@ function applyFireAxeUseAction(state, actor) {
     return null
   }
   const d0 = state.dungeon
-  const remaining = [...(d0.remainingMonsters ?? [])]
-  const pileDone = remaining.length === 0
-  return {
-    ...state,
-    dungeon: {
-      ...d0,
-      axeSpent: true,
-      currentMonster: null,
-      subphase: pileDone ? null : DUNGEON_SUBPHASES.REVEAL,
-    },
-  }
+  return transitionAfterDefeat(state, {
+    ...d0,
+    axeSpent: true,
+    inPlayEquipmentIds: (d0.inPlayEquipmentIds ?? []).filter((id) => id !== EQUIP_FIRE_AXE),
+    currentMonster: null,
+    discardedRunMonsters: [...(d0.discardedRunMonsters ?? []), d0.currentMonster].filter(Boolean),
+  })
 }
 
 /**
@@ -839,16 +814,21 @@ function applyPolymorphUseAction(state, actor) {
   }
   const d0 = state.dungeon
   const remaining = [...(d0.remainingMonsters ?? [])]
-  const pileDone = remaining.length === 0
-  return {
+  const next = remaining.shift()
+  if (!next) return applyMonsterCombatHits(state, d0)
+  const nextState = {
     ...state,
     dungeon: {
       ...d0,
       polySpent: true,
-      currentMonster: null,
-      subphase: pileDone ? null : DUNGEON_SUBPHASES.REVEAL,
+      inPlayEquipmentIds: (d0.inPlayEquipmentIds ?? []).filter((id) => id !== EQUIP_POLY),
+      currentMonster: next,
+      remainingMonsters: remaining,
+      discardedRunMonsters: [...(d0.discardedRunMonsters ?? []), d0.currentMonster].filter(Boolean),
+      subphase: DUNGEON_SUBPHASES.REVEAL,
     },
   }
+  return applyRevealOrContinueAction(nextState, actor)
 }
 
 /**
@@ -862,6 +842,157 @@ function applyPolymorphDeclineAction(state, actor) {
     return null
   }
   return applyMonsterCombatHits(state, state.dungeon)
+}
+
+function transitionAfterDefeat(state, dungeon) {
+  const remaining = [...(dungeon.remainingMonsters ?? [])]
+  if (!remaining.length) return concludeDungeonSuccess(state, { ...dungeon, currentMonster: null, remainingMonsters: remaining })
+  return {
+    ...state,
+    dungeon: {
+      ...dungeon,
+      currentMonster: null,
+      remainingMonsters: remaining,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+    },
+  }
+}
+
+function concludeDungeonSuccess(state, dungeon) {
+  const runnerSeatId = state.bidding.runnerSeatId
+  if (!runnerSeatId) return null
+  const currentScore = state.scoreboard[runnerSeatId]
+  const scoreboard = {
+    ...state.scoreboard,
+    [runnerSeatId]: { ...currentScore, successes: (currentScore?.successes ?? 0) + 1 },
+  }
+  if (scoreboard[runnerSeatId].successes >= 2) {
+    return {
+      ...state,
+      phase: MATCH_PHASES.MATCH_OVER,
+      matchWinnerSeatId: runnerSeatId,
+      scoreboard,
+      successCardsLeft: Math.max(
+        0,
+        5 - Math.max(...Object.values(scoreboard).map((score) => score.successes ?? 0)),
+      ),
+      turn: { activeSeatId: null, turnNumber: state.turn.turnNumber + 1 },
+      dungeon: { ...dungeon, subphase: null, currentMonster: null, remainingMonsters: [] },
+    }
+  }
+  return enterPickAdventurerPhase(
+    {
+      ...state,
+      dungeon: { ...dungeon, subphase: null, currentMonster: null, remainingMonsters: [] },
+    },
+    runnerSeatId,
+    scoreboard,
+    'success',
+  )
+}
+
+function concludeDungeonFailure(state, dungeon) {
+  const runnerSeatId = state.bidding.runnerSeatId
+  if (!runnerSeatId) return null
+  const currentScore = state.scoreboard[runnerSeatId]
+  const lives = Math.max(0, (currentScore?.lives ?? 2) - 1)
+  const scoreboard = {
+    ...state.scoreboard,
+    [runnerSeatId]: {
+      ...currentScore,
+      lives,
+      eliminated: lives <= 0,
+    },
+  }
+  const survivors = state.seats.filter((seat) => !scoreboard[seat.id]?.eliminated)
+  if (survivors.length === 1) {
+    return {
+      ...state,
+      phase: MATCH_PHASES.MATCH_OVER,
+      matchWinnerSeatId: survivors[0].id,
+      scoreboard,
+      turn: { activeSeatId: null, turnNumber: state.turn.turnNumber + 1 },
+      dungeon: { ...dungeon, subphase: null, currentMonster: null, remainingMonsters: [] },
+    }
+  }
+  return enterPickAdventurerPhase(
+    {
+      ...state,
+      dungeon: { ...dungeon, subphase: null, currentMonster: null, remainingMonsters: [] },
+    },
+    runnerSeatId,
+    scoreboard,
+    'failure',
+  )
+}
+
+function applyAutoDefeat(state, dungeon) {
+  const current = dungeon.currentMonster
+  if (!current) return null
+  const inPlay = new Set(dungeon.inPlayEquipmentIds ?? [])
+
+  if (dungeon.vorpalTarget && dungeon.vorpalTarget === current && [...EQUIP_VORPAL_IDS].some((id) => inPlay.has(id))) {
+    const nextInPlay = [...inPlay].filter((id) => !EQUIP_VORPAL_IDS.has(id))
+    return transitionAfterDefeat(state, {
+      ...dungeon,
+      inPlayEquipmentIds: nextInPlay,
+      vorpalTarget: null,
+      discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
+    })
+  }
+
+  if (current === 'demon' && inPlay.has('M_PACT')) {
+    const remaining = [...(dungeon.remainingMonsters ?? [])]
+    const next = remaining.shift()
+    const discardedRunMonsters = [...(dungeon.discardedRunMonsters ?? []), current]
+    if (next) discardedRunMonsters.push(next)
+    return transitionAfterDefeat(state, {
+      ...dungeon,
+      remainingMonsters: remaining,
+      inPlayEquipmentIds: [...inPlay].filter((id) => id !== 'M_PACT'),
+      discardedRunMonsters,
+    })
+  }
+
+  const spec = MONSTER_STATS[current] ?? { strength: 3 }
+  const hero = state.hero
+  const torch = (hero === 'WARRIOR' && inPlay.has('W_TORCH')) || (hero === 'BARBARIAN' && inPlay.has('B_TORCH'))
+  const holy = ((hero === 'WARRIOR' && inPlay.has('W_HOLY')) || (hero === 'MAGE' && inPlay.has('M_HOLY'))) && spec.strength % 2 === 0
+  const spearDragon = hero === 'WARRIOR' && inPlay.has('W_SPEAR') && current === 'dragon'
+  const cloak = hero === 'ROGUE' && inPlay.has('R_CLOAK') && spec.strength >= 6
+  const hammerGolem = hero === 'BARBARIAN' && inPlay.has('B_HAMMER') && current === 'golem'
+  const ring = hero === 'ROGUE' && inPlay.has('R_RING') && spec.strength <= 2
+  if (torch && spec.strength <= 3) {
+    return transitionAfterDefeat(state, {
+      ...dungeon,
+      discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
+    })
+  }
+  if (holy || spearDragon || cloak || hammerGolem) {
+    return transitionAfterDefeat(state, {
+      ...dungeon,
+      discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
+    })
+  }
+  if (ring) {
+    return transitionAfterDefeat(state, {
+      ...dungeon,
+      hp: (dungeon.hp ?? 0) + spec.strength,
+      discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
+    })
+  }
+  return null
+}
+
+function omniSavesDungeon(state, dungeon) {
+  const allSpecies = [
+    ...(dungeon.discardedRunMonsters ?? []),
+    ...(state.bidding?.discardedMonsterCards ?? []),
+    ...(dungeon.currentMonster ? [dungeon.currentMonster] : []),
+    ...(dungeon.remainingMonsters ?? []),
+  ]
+  if (!allSpecies.length) return false
+  return allSpecies.length === new Set(allSpecies).size
 }
 
 function mergeNnSeatMetadata(prevState, nextState, action, actor) {

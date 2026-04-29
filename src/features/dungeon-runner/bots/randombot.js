@@ -4,7 +4,6 @@ const WEIGHTS = {
   [ACTION_TYPES.DRAW]: 5,
   [ACTION_TYPES.SACRIFICE]: 3,
   [ACTION_TYPES.PASS]: 1,
-  [ACTION_TYPES.ADVANCE_DUNGEON]: 1,
 }
 
 export function chooseRandombotAction(state, actor) {

@@ -164,13 +164,9 @@ test('dungeon decision sequence advances through python-style subphases', () => 
   assert.equal(result.ok, true)
   state = result.state
   assert.equal(state.dungeon.subphase, DUNGEON_SUBPHASES.PICK_FIRE_AXE)
-  result = applyAction(state, { type: ACTION_TYPES.DECLINE_FIRE_AXE }, { seatId })
+  result = applyAction(state, { type: ACTION_TYPES.USE_FIRE_AXE }, { seatId })
   assert.equal(result.ok, true)
-  state = result.state
-  assert.equal(state.dungeon.subphase, DUNGEON_SUBPHASES.PICK_POLYMORPH)
-  result = applyAction(state, { type: ACTION_TYPES.DECLINE_POLYMORPH }, { seatId })
-  assert.equal(result.ok, true)
-  assert.equal(result.state.dungeon.subphase, null)
+  assert.equal(result.state.phase, MATCH_PHASES.PICK_ADVENTURER)
 })
 
 test('reveal skips pick-fire-axe when B_AXE not in play (warrior center loadout)', () => {
@@ -199,7 +195,7 @@ test('reveal skips pick-fire-axe when B_AXE not in play (warrior center loadout)
   const reveal = applyAction(state, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId })
   assert.equal(reveal.ok, true)
   assert.equal(reveal.state.dungeon.subphase, null)
-  assert.equal(reveal.state.dungeon.hp, 10)
+  assert.equal(reveal.state.dungeon.hp, 11)
 })
 
 test('applyAction rejects invalid actions cleanly', () => {
@@ -459,7 +455,7 @@ test('revealed monster can be added to dungeon without sacrificing equipment', (
   assert.equal(add.state.bidding.revealedMonsterCard, null)
 })
 
-test('runner can resolve dungeon and gain success on win', () => {
+test('runner clears dungeon via reveal chain and enters pick-adventurer', () => {
   const state = createInitialMatchState(
     {
       totalSeats: 2,
@@ -467,23 +463,31 @@ test('runner can resolve dungeon and gain success on win', () => {
     },
     { seed: 42 },
   )
-  const seatA = state.turn.activeSeatId
-  const passA = applyAction(state, { type: ACTION_TYPES.PASS }, { seatId: seatA })
-  assert.equal(passA.ok, true)
-  assert.equal(passA.state.phase, 'dungeon')
-  const runnerId = passA.state.bidding.runnerSeatId
-  const resolved = applyAction(passA.state, { type: ACTION_TYPES.ADVANCE_DUNGEON }, { seatId: runnerId })
-  assert.equal(resolved.ok, true)
-  assert.equal(resolved.state.scoreboard[runnerId].successes, 1)
-  assert.equal(resolved.state.phase, 'bidding')
-  assert.equal(resolved.state.lastDungeonRun.result, 'success')
-  assert.equal(Array.isArray(resolved.state.lastDungeonRun.steps), true)
-  assert.equal(resolved.state.lastDungeonRun.steps.length, resolved.state.lastDungeonRun.monsters.length)
-  assert.equal(resolved.state.lastDungeonRun.steps.every((step) => step.defeated === true), true)
-  assert.equal(resolved.state.history.at(-1).dungeonRunResult, 'success')
+  const runnerId = state.seats[0].id
+  const dungeonState = {
+    ...state,
+    phase: 'dungeon',
+    turn: { ...state.turn, activeSeatId: runnerId },
+    bidding: { ...state.bidding, runnerSeatId: runnerId, dungeonMonsters: ['goblin'] },
+    dungeon: {
+      ...state.dungeon,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+      currentMonster: null,
+      remainingMonsters: ['goblin'],
+      hp: 11,
+      inPlayEquipmentIds: ['W_PLATE', 'W_SHIELD', 'W_TORCH'],
+      discardedRunMonsters: [],
+      polySpent: true,
+      axeSpent: true,
+    },
+  }
+  const reveal = applyAction(dungeonState, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runnerId })
+  assert.equal(reveal.ok, true)
+  assert.equal(reveal.state.phase, 'pick-adventurer')
+  assert.equal(reveal.state.scoreboard[runnerId].successes, 1)
 })
 
-test('dungeon resolution records failure at first undefeated monster card', () => {
+test('runner failure in dungeon transitions to pick-adventurer with life loss', () => {
   const state = createInitialMatchState(
     {
       totalSeats: 2,
@@ -496,56 +500,26 @@ test('dungeon resolution records failure at first undefeated monster card', () =
     ...state,
     phase: 'dungeon',
     turn: { ...state.turn, activeSeatId: runnerId },
-    bidding: {
-      ...state.bidding,
-      runnerSeatId: runnerId,
-      dungeonMonsters: ['goblin', 'orc', 'dragon'],
-    },
-    heroLoadout: {
-      ...state.heroLoadout,
-      [runnerId]: ['torch', 'sword'],
+    bidding: { ...state.bidding, runnerSeatId: runnerId, dungeonMonsters: ['dragon'] },
+    dungeon: {
+      ...state.dungeon,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+      currentMonster: null,
+      remainingMonsters: ['dragon'],
+      hp: 3,
+      inPlayEquipmentIds: ['W_VORPAL'],
+      discardedRunMonsters: [],
+      polySpent: true,
+      axeSpent: true,
     },
   }
-  const result = applyAction(dungeonState, { type: ACTION_TYPES.ADVANCE_DUNGEON }, { seatId: runnerId })
+  const result = applyAction(dungeonState, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runnerId })
   assert.equal(result.ok, true)
-  assert.equal(result.state.lastDungeonRun.result, 'failure')
-  assert.equal(result.state.lastDungeonRun.steps.length, 3)
-  assert.equal(result.state.lastDungeonRun.steps[0].defeated, true)
-  assert.equal(result.state.lastDungeonRun.steps[1].defeated, true)
-  assert.equal(result.state.lastDungeonRun.steps[2].defeated, false)
+  assert.equal(result.state.phase, 'pick-adventurer')
+  assert.equal(result.state.scoreboard[runnerId].lives, 1)
 })
 
-test('runner failure reduces lives and can eliminate seat', () => {
-  const setup = {
-    totalSeats: 2,
-    opponents: [{ type: 'randombot' }],
-  }
-  let state = createInitialMatchState(setup, { seed: 9001 })
-  let runnerId = null
-  for (let i = 0; i < 2; i += 1) {
-    const pass = applyAction(state, { type: ACTION_TYPES.PASS }, { seatId: state.turn.activeSeatId })
-    assert.equal(pass.ok, true)
-    runnerId = pass.state.bidding.runnerSeatId
-    const forcedFail = {
-      ...pass.state,
-      bidding: {
-        ...pass.state.bidding,
-        dungeonMonsters: ['goblin', 'orc', 'dragon', 'wraith'],
-      },
-      heroLoadout: {
-        ...pass.state.heroLoadout,
-        [runnerId]: ['torch'],
-      },
-    }
-    const resolve = applyAction(forcedFail, { type: ACTION_TYPES.ADVANCE_DUNGEON }, { seatId: runnerId })
-    assert.equal(resolve.ok, true)
-    state = resolve.state
-  }
-  assert.equal(state.scoreboard[runnerId].lives, 0)
-  assert.equal(state.scoreboard[runnerId].eliminated, true)
-})
-
-test('match ends when a seat reaches two successes', () => {
+test('match ends when a seat reaches two successes from dungeon clear', () => {
   const state = createInitialMatchState(
     {
       totalSeats: 2,
@@ -558,13 +532,24 @@ test('match ends when a seat reaches two successes', () => {
     ...state,
     phase: 'dungeon',
     turn: { ...state.turn, activeSeatId: runnerId },
-    bidding: { ...state.bidding, runnerSeatId: runnerId, discardedMonsterCards: [] },
+    bidding: { ...state.bidding, runnerSeatId: runnerId, dungeonMonsters: [] },
     scoreboard: {
       ...state.scoreboard,
       [runnerId]: { ...state.scoreboard[runnerId], successes: 1 },
     },
+    dungeon: {
+      ...state.dungeon,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+      currentMonster: null,
+      remainingMonsters: [],
+      hp: 1,
+      inPlayEquipmentIds: [],
+      discardedRunMonsters: [],
+      polySpent: true,
+      axeSpent: true,
+    },
   }
-  const result = applyAction(almostWon, { type: ACTION_TYPES.ADVANCE_DUNGEON }, { seatId: runnerId })
+  const result = applyAction(almostWon, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runnerId })
   assert.equal(result.ok, true)
   assert.equal(result.state.phase, 'match-over')
   assert.equal(result.state.matchWinnerSeatId, runnerId)
@@ -603,7 +588,7 @@ test('nn action metadata is persisted per seat for backend and fallback tracking
   })
 })
 
-test('own pile species tracking resets at next bidding round boundary', () => {
+test('own pile species tracking resets after picking next adventurer', () => {
   const base = createInitialMatchState(
     {
       totalSeats: 2,
@@ -625,9 +610,23 @@ test('own pile species tracking resets at next bidding round boundary', () => {
       ...base.playerOwnPileAdds,
       [runnerId]: ['goblin', 'orc'],
     },
+    dungeon: {
+      ...base.dungeon,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+      currentMonster: null,
+      remainingMonsters: [],
+      hp: 1,
+      inPlayEquipmentIds: [],
+      discardedRunMonsters: [],
+      polySpent: true,
+      axeSpent: true,
+    },
   }
-  const resolved = applyAction(seeded, { type: ACTION_TYPES.ADVANCE_DUNGEON }, { seatId: runnerId })
+  const resolved = applyAction(seeded, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runnerId })
   assert.equal(resolved.ok, true)
-  assert.equal(resolved.state.phase, 'bidding')
-  assert.deepEqual(resolved.state.playerOwnPileAdds[runnerId], [])
+  assert.equal(resolved.state.phase, 'pick-adventurer')
+  const choose = applyAction(resolved.state, { type: ACTION_TYPES.CHOOSE_NEXT_ADVENTURER, hero: 'WARRIOR' }, { seatId: runnerId })
+  assert.equal(choose.ok, true)
+  assert.equal(choose.state.phase, 'bidding')
+  assert.deepEqual(choose.state.playerOwnPileAdds[runnerId], [])
 })

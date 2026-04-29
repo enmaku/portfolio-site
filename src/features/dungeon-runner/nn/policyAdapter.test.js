@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ACTION_TYPES, createInitialMatchState, getLegalActions } from '../engine/kernel.js'
+import { ACTION_TYPES, applyAction, createInitialMatchState, getLegalActions } from '../engine/kernel.js'
 import {
   OBS_DIM,
   POLICY_INDEX,
@@ -9,6 +10,10 @@ import {
   buildPolicyLegalMask,
   decodePolicyIndexToAction,
 } from './policyAdapter.js'
+
+const pythonFixtures = JSON.parse(
+  readFileSync(new URL('./fixtures/python-observation-fixtures.json', import.meta.url), 'utf8'),
+)
 
 test('policy observation stays fixed at 87 dimensions', () => {
   const state = createInitialMatchState({ totalSeats: 2, opponents: [{ type: 'nn', modelId: 'latest' }] }, { seed: 1 })
@@ -188,3 +193,49 @@ test('policy observation encodes own pile species counts', () => {
   assert.equal(obs[59], 1)
   assert.equal(obs[60], 0.5)
 })
+
+test('policy observation and mask match exported Python fixtures', () => {
+  const base = createInitialMatchState({ totalSeats: 2, opponents: [{ type: 'randombot' }] }, { seed: 4242 })
+
+  const pending = applyAction(base, { type: ACTION_TYPES.DRAW }, { seatId: base.turn.activeSeatId }).state
+  {
+    const seatId = pending.turn.activeSeatId
+    const obs = buildPolicyObservation(pending, { seatId })
+    const mask = buildPolicyLegalMask(pending, { seatId }, getLegalActions(pending, { seatId }))
+    assertObsNear(obs, pythonFixtures.bidding_pending_warrior.obs)
+    assert.deepEqual(mask, pythonFixtures.bidding_pending_warrior.mask)
+  }
+
+  const barbarianLoadout = ['B_HEAL', 'B_SHIELD', 'B_CHAIN', 'B_AXE', 'B_TORCH', 'B_HAMMER']
+  const barbarianBase = {
+    ...base,
+    hero: 'BARBARIAN',
+    centerEquipment: barbarianLoadout,
+    heroLoadout: Object.fromEntries(base.seats.map((seat) => [seat.id, [...barbarianLoadout]])),
+  }
+  const draw = applyAction(barbarianBase, { type: ACTION_TYPES.DRAW }, { seatId: barbarianBase.turn.activeSeatId }).state
+  const add = applyAction(draw, { type: ACTION_TYPES.ADD_TO_DUNGEON }, { seatId: draw.turn.activeSeatId }).state
+  const dungeon = applyAction(add, { type: ACTION_TYPES.PASS }, { seatId: add.turn.activeSeatId }).state
+  {
+    const seatId = dungeon.turn.activeSeatId
+    const obs = buildPolicyObservation(dungeon, { seatId })
+    const mask = buildPolicyLegalMask(dungeon, { seatId }, getLegalActions(dungeon, { seatId }))
+    assertObsNear(obs, pythonFixtures.dungeon_reveal_barbarian.obs)
+    assert.deepEqual(mask, pythonFixtures.dungeon_reveal_barbarian.mask)
+  }
+  const fireAxe = applyAction(dungeon, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: dungeon.turn.activeSeatId }).state
+  {
+    const seatId = fireAxe.turn.activeSeatId
+    const obs = buildPolicyObservation(fireAxe, { seatId })
+    const mask = buildPolicyLegalMask(fireAxe, { seatId }, getLegalActions(fireAxe, { seatId }))
+    assertObsNear(obs, pythonFixtures.dungeon_fire_axe_barbarian.obs)
+    assert.deepEqual(mask, pythonFixtures.dungeon_fire_axe_barbarian.mask)
+  }
+})
+
+function assertObsNear(actual, expected) {
+  assert.equal(actual.length, expected.length)
+  for (let i = 0; i < actual.length; i += 1) {
+    assert.ok(Math.abs(Number(actual[i]) - Number(expected[i])) <= 1e-6, `obs mismatch at idx ${i}`)
+  }
+}
