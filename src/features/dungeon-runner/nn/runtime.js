@@ -102,7 +102,9 @@ async function runScheduledInference(task) {
 async function loadModel(modelId) {
   if (modelId.startsWith('missing')) throw new Error('missing model')
   if (modelCache.has(modelId)) return modelCache.get(modelId)
-  const modelUrl = `/models/dungeon-runner/${modelId}/model.json?ts=${Date.now()}`
+  const baseUrl = import.meta.env?.BASE_URL ?? '/'
+  const prefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+  const modelUrl = `${prefix}models/dungeon-runner/${modelId}/model.json?ts=${Date.now()}`
   const model = await tf.loadLayersModel(modelUrl, { requestInit: { cache: 'no-store' } })
   modelCache.set(modelId, model)
   return model
@@ -154,6 +156,8 @@ async function inferActionViaWorker(modelId, state, legal, options, randomSeed) 
   const worker = getOrCreateWorker()
   if (!worker) return null
   const requestId = `req-${workerRequestId++}`
+  const seatId = state.turn.activeSeatId
+  const seatLoadout = seatId ? [...(state.heroLoadout?.[seatId] ?? [])] : []
   return new Promise((resolve, reject) => {
     workerRequests.set(requestId, {
       resolve,
@@ -167,10 +171,10 @@ async function inferActionViaWorker(modelId, state, legal, options, randomSeed) 
       debugTrace: true,
       legalMask: buildPolicyLegalMask(state, { seatId: state.turn.activeSeatId }, legal),
       legalActions: legal,
-      features: buildPolicyObservation(state, { seatId: state.turn.activeSeatId }),
+      features: buildPolicyObservation(state, { seatId }),
       hero: state.hero,
-      activeSeatId: state.turn.activeSeatId,
-      heroLoadout: state.heroLoadout,
+      activeSeatId: seatId,
+      seatLoadout,
     })
   })
 }

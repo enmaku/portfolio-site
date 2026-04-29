@@ -5,10 +5,10 @@ const modelCache = new Map()
 
 self.onmessage = async (event) => {
   const data = event?.data ?? {}
-  const { requestId, modelId, legalActions, legalMask, features, samplingMode, randomSeed, debugTrace, hero, activeSeatId, heroLoadout } = data
+  const { requestId, modelId, legalActions, legalMask, features, samplingMode, randomSeed, debugTrace, hero, activeSeatId, seatLoadout } = data
   try {
     const model = await loadModel(modelId)
-    const result = await inferAction(model, features, legalMask, legalActions, samplingMode, randomSeed, hero, activeSeatId, heroLoadout)
+    const result = await inferAction(model, features, legalMask, legalActions, samplingMode, randomSeed, hero, activeSeatId, seatLoadout)
     self.postMessage({
       requestId,
       action: result.action,
@@ -27,13 +27,15 @@ self.onmessage = async (event) => {
 async function loadModel(modelId) {
   if (modelId.startsWith('missing')) throw new Error('missing model')
   if (modelCache.has(modelId)) return modelCache.get(modelId)
-  const modelUrl = `/models/dungeon-runner/${modelId}/model.json?ts=${Date.now()}`
+  const baseUrl = import.meta.env?.BASE_URL ?? '/'
+  const prefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+  const modelUrl = `${prefix}models/dungeon-runner/${modelId}/model.json?ts=${Date.now()}`
   const model = await tf.loadLayersModel(modelUrl, { requestInit: { cache: 'no-store' } })
   modelCache.set(modelId, model)
   return model
 }
 
-async function inferAction(model, features, legalMask, legalActions, samplingMode = 'stochastic', randomSeed = 1, hero = 'WARRIOR', activeSeatId = null, heroLoadout = null) {
+async function inferAction(model, features, legalMask, legalActions, samplingMode = 'stochastic', randomSeed = 1, hero = 'WARRIOR', activeSeatId = null, seatLoadout = null) {
   const obsInput = tf.tensor2d([features])
   const modelInputs = Array.isArray(model.inputs) ? model.inputs.length : 1
   const maskInput = modelInputs > 1 ? tf.tensor2d([legalMask ?? new Array(26).fill(0)]) : null
@@ -67,14 +69,22 @@ async function inferAction(model, features, legalMask, legalActions, samplingMod
   }
   if (samplingMode === 'deterministic') {
     const best = argmaxOverIndices(maskedValues, legalIndices)
-    const state = { hero, heroLoadout, turn: { activeSeatId } }
+    const state = {
+      hero,
+      heroLoadout: activeSeatId ? { [activeSeatId]: [...(seatLoadout ?? [])] } : {},
+      turn: { activeSeatId },
+    }
     return {
       action: decodePolicyIndexToAction(best, legalActions, state, { seatId: activeSeatId }) ?? legalActions[0] ?? { type: 'PASS' },
       debug: { values, legalMask, selectedIndex: best, mode: 'policy-26' },
     }
   }
   const picked = sampleIndexFromScores(maskedValues, seededRandomFactory(randomSeed))
-  const state = { hero, heroLoadout, turn: { activeSeatId } }
+  const state = {
+    hero,
+    heroLoadout: activeSeatId ? { [activeSeatId]: [...(seatLoadout ?? [])] } : {},
+    turn: { activeSeatId },
+  }
   return {
     action: decodePolicyIndexToAction(picked, legalActions, state, { seatId: activeSeatId }) ?? legalActions[0] ?? { type: 'PASS' },
     debug: { values, legalMask, selectedIndex: picked, mode: 'policy-26' },

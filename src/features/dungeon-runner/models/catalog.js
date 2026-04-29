@@ -6,7 +6,9 @@ export function normalizeModelCatalog(raw) {
 }
 
 export async function fetchModelCatalog() {
-  const response = await fetch('/models/dungeon-runner/models.json', { cache: 'no-store' })
+  const baseUrl = import.meta.env?.BASE_URL ?? '/'
+  const prefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+  const response = await fetch(`${prefix}models/dungeon-runner/models.json`, { cache: 'no-store' })
   if (!response.ok) return { models: [] }
   return normalizeModelCatalog(await response.json())
 }
