@@ -23,6 +23,7 @@
               v-model="setup.totalSeats"
               :options="[2, 3, 4]"
               label="Total players"
+              behavior="menu"
               outlined
               dense
             />
@@ -43,6 +44,7 @@
                 option-label="label"
                 emit-value
                 map-options
+                behavior="menu"
                 outlined
                 dense
                 :label="`Opponent ${index + 1}`"
@@ -54,6 +56,7 @@
                 v-model="opponent.modelId"
                 :options="modelOptions"
                 label="Model"
+                behavior="menu"
                 outlined
                 dense
               />

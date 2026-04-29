@@ -9,6 +9,7 @@ import {
   createInitialMatchState,
   getLegalActions,
   getPlayerView,
+  shuffleMatchSeats,
 } from './kernel.js'
 import { TEST_GATE_THRESHOLDS, getDeterminismGateSeeds } from '../test-gates.js'
 
@@ -414,6 +415,20 @@ test('passed seats are skipped in subsequent bidding turns', () => {
   assert.equal(passB.ok, true)
   assert.equal(passB.state.turn.activeSeatId !== seatA, true)
   assert.equal(passB.state.turn.activeSeatId !== seatB, true)
+})
+
+test('shuffleMatchSeats updates labels and first listed seat starts', () => {
+  const initial = createInitialMatchState(
+    {
+      totalSeats: 4,
+      opponents: [{ type: 'randombot' }, { type: 'nn', modelId: 'latest' }, { type: 'randombot' }],
+    },
+    { seed: 90210 },
+  )
+  const shuffled = shuffleMatchSeats(initial, { seed: 12345 })
+  assert.equal(shuffled.turn.activeSeatId, shuffled.seats[0].id)
+  assert.equal(shuffled.seats.filter((seat) => seat.label === 'Player').length, 1)
+  assert.equal(shuffled.seats.filter((seat) => seat.label !== 'Player').every((seat) => seat.label.length > 0), true)
 })
 
 test('only the revealing seat can see currently revealed monster card', () => {

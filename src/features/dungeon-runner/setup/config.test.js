@@ -41,17 +41,15 @@ test('randomizeSeatsFromSetup is deterministic for same seed', () => {
   assert.deepEqual(a, b)
 })
 
-test('randomized seats are labeled Player 1-4 with role markers', () => {
+test('randomized seats label human as Player and bots with names', () => {
   const setup = {
     totalSeats: 4,
     opponents: [{ type: 'randombot' }, { type: 'nn', modelId: 'v1.0.0' }, { type: 'randombot' }],
   }
   const result = randomizeSeatsFromSetup(setup, { seed: 10 })
   assert.equal(result.seats.length, 4)
-  assert.deepEqual(
-    result.seats.map((seat) => seat.label),
-    ['Player 1', 'Player 2', 'Player 3', 'Player 4'],
-  )
+  assert.equal(result.seats.filter((seat) => seat.label === 'Player').length, 1)
+  assert.equal(result.seats.filter((seat) => seat.label !== 'Player').every((seat) => seat.label.length > 0), true)
   assert.equal(
     result.seats.every(
       (seat) => typeof seat.roleMarker.symbol === 'string' && typeof seat.roleMarker.color === 'string',

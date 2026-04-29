@@ -3,6 +3,7 @@ const ROLE_MARKERS = {
   nn: { symbol: 'N', color: 'deep-purple' },
   randombot: { symbol: 'R', color: 'teal' },
 }
+const BOT_SEAT_NAMES = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Heidi', 'Ivan', 'Judy', 'Mallory', 'Niaj', 'Olivia', 'Peggy', 'Rupert', 'Sybil', 'Trent', 'Victor', 'Walter', 'Yvonne', 'Zoe']
 
 export function createDefaultSetupConfig() {
   return {
@@ -36,12 +37,21 @@ export function randomizeSeatsFromSetup(setup, options) {
   }
   const seed = Number(options?.seed ?? 0) >>> 0
   const rolePool = [{ type: 'human' }, ...setup.opponents.map((opponent) => ({ ...opponent }))]
-  const seats = shuffle(rolePool, seed).map((role, index) => ({
-    id: `seat-${index + 1}`,
-    label: `Player ${index + 1}`,
-    role,
-    roleMarker: ROLE_MARKERS[role.type],
-  }))
+  const shuffledRoles = shuffle(rolePool, seed)
+  const botCount = shuffledRoles.filter((role) => role.type !== 'human').length
+  const shuffledBotNames = shuffle(BOT_SEAT_NAMES, seed ^ 0xa5a5a5a5).slice(0, botCount)
+  let botIndex = 0
+  const seats = shuffledRoles.map((role, index) => {
+    const label =
+      role.type === 'human' ? 'Player' : (shuffledBotNames[botIndex] ?? BOT_SEAT_NAMES[botIndex] ?? `Bot ${botIndex + 1}`)
+    if (role.type !== 'human') botIndex += 1
+    return {
+      id: `seat-${index + 1}`,
+      label,
+      role,
+      roleMarker: ROLE_MARKERS[role.type],
+    }
+  })
   return { seats }
 }
 
