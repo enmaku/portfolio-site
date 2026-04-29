@@ -380,18 +380,20 @@ async function runAiTurn() {
   if (!match.value || (match.value.state.phase !== 'bidding' && match.value.state.phase !== 'dungeon')) return
   const seatId = match.value.state.turn.activeSeatId
   if (!seatId || seatId === humanSeatId.value) return
-  console.log('[DungeonRunner][AITurn][Start]', {
-    phase: match.value.state.phase,
-    seatId,
-    humanSeatId: humanSeatId.value,
-    turnNumber: match.value.state.turn.turnNumber,
-  })
+  if (debugMode.value) {
+    console.log('[DungeonRunner][AITurn][Start]', {
+      phase: match.value.state.phase,
+      seatId,
+      humanSeatId: humanSeatId.value,
+      turnNumber: match.value.state.turn.turnNumber,
+    })
+  }
   const seat = match.value.state.seats.find((candidate) => candidate.id === seatId)
   const roleType = seat?.role?.type
   let action = null
   if (roleType === 'nn') {
     const modelId = seat.role.modelId ?? 'latest'
-    console.log('[DungeonRunner][AITurn][NN]', { seatId, modelId })
+    if (debugMode.value) console.log('[DungeonRunner][AITurn][NN]', { seatId, modelId })
     if (nnFailureRecovery.isCoolingDown(modelId)) {
       action = chooseRandombotAction(match.value.state, { seatId })
     } else {
@@ -401,10 +403,10 @@ async function runAiTurn() {
       }
     }
   } else {
-    console.log('[DungeonRunner][AITurn][Randombot]', { seatId })
+    if (debugMode.value) console.log('[DungeonRunner][AITurn][Randombot]', { seatId })
     action = chooseRandombotAction(match.value.state, { seatId })
   }
-  console.log('[DungeonRunner][AITurn][Action]', { seatId, action })
+  if (debugMode.value) console.log('[DungeonRunner][AITurn][Action]', { seatId, action })
   if (!action) return
   const result = applyAction(match.value.state, action, { seatId })
   if (!result.ok) return

@@ -12,7 +12,6 @@ export async function chooseNnActionWithFallback(state, actor, options) {
   const legal = getLegalActions(state, actor)
   if (!legal.length) return null
   if (legal.length === 1) {
-    console.log('[DungeonRunner][NNVector][SingleLegal]', legal[0])
     options?.debugLogger?.({
       kind: 'single-legal',
       legalActions: legal,
@@ -29,13 +28,6 @@ export async function chooseNnActionWithFallback(state, actor, options) {
   if (second.ok && second.action) return second.action
   if (!first.ok || !second.ok) {
     const fallback = createFallbackAction(legal, { backend, fallbackReason: 'MODEL_LOAD_FAILED', modelId })
-    console.log('[DungeonRunner][NNVector][Fallback]', {
-      reason: 'MODEL_LOAD_FAILED',
-      firstError: first.errorMessage,
-      secondError: second.errorMessage,
-      legalActions: legal,
-      selectedAction: fallback,
-    })
     options?.debugLogger?.({
       kind: 'fallback',
       fallbackReason: 'MODEL_LOAD_FAILED',
@@ -48,11 +40,6 @@ export async function chooseNnActionWithFallback(state, actor, options) {
     return fallback
   }
   const fallback = createFallbackAction(legal, { backend, fallbackReason: 'ILLEGAL_OUTPUT', modelId })
-  console.log('[DungeonRunner][NNVector][Fallback]', {
-    reason: 'ILLEGAL_OUTPUT',
-    legalActions: legal,
-    selectedAction: fallback,
-  })
   options?.debugLogger?.({
     kind: 'fallback',
     fallbackReason: 'ILLEGAL_OUTPUT',
@@ -83,7 +70,6 @@ async function sampleAction(modelId, state, legal, options) {
   if (sampled.__debug && typeof options?.debugLogger === 'function') {
     options.debugLogger(sampled.__debug)
   }
-  if (sampled?.__debug?.values) console.log('[DungeonRunner][NNVector]', sampled.__debug.values)
   return {
     ...sampled,
     meta: {
@@ -139,7 +125,6 @@ async function inferAction(model, state, legal, options, randomSeed) {
   maskInput?.dispose()
   disposePrediction(prediction)
   const selected = selectActionFromScores(values, legalMask, legal, options, randomSeed, state, { seatId: state.turn.activeSeatId })
-  console.log('[DungeonRunner][NNRawValues]', values)
   return {
     ...selected.action,
     __debug: {

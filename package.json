@@ -16,8 +16,6 @@
     "update-dungeon-runner-model-catalog": "node ./scripts/update-dungeon-runner-model-catalog.mjs",
     "sync-dungeon-runner-model": "node ./scripts/sync-dungeon-runner-model.mjs",
     "sync-dungeon-runner-models": "node ./scripts/sync-dungeon-runner-model.mjs --all",
-    "probe-dungeon-runner-parity": "node ./scripts/probe-dungeon-runner-parity.mjs",
-    "trace-dungeon-runner-parity": "node ./scripts/trace-dungeon-runner-parity.mjs",
     "generate-thumbs": "node ./scripts/generate-photo-thumbs.mjs",
     "generate-share-pages": "node ./scripts/generate-share-pages.mjs",
     "prebuild": "npm run generate-thumbs",
