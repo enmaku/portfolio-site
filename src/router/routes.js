@@ -62,6 +62,21 @@ const routes = [
       },
     ],
   },
+  {
+    path: '/projects/dungeon-runner',
+    component: () => import('layouts/projects/DungeonRunnerLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/projects/DungeonRunnerPage.vue'),
+        meta: {
+          title: SHARE_METADATA.dungeonRunner.title,
+          favicon: SHARE_METADATA.dungeonRunner.favicon,
+          shareKey: 'dungeonRunner',
+        },
+      },
+    ],
+  },
 
   {
     path: '/:catchAll(.*)*',

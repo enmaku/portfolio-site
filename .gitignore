@@ -35,6 +35,9 @@ yarn-error.log*
 .env
 .env.local*
 
+# python stuff
+.venv*/
+
 # Generated from src/assets/photos/* (see scripts/generate-photo-thumbs.mjs)
 /src/assets/photos/thumbs/*
 !/src/assets/photos/thumbs/.gitkeep

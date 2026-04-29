@@ -1,0 +1,54 @@
+{
+  "seed": 4242,
+  "setup": {
+    "totalSeats": 3,
+    "opponents": [{ "type": "randombot" }, { "type": "nn", "modelId": "latest" }]
+  },
+  "script": [{ "action": "PASS" }, { "action": "PASS" }],
+  "expected": {
+    "seats": [
+      { "id": "seat-1", "label": "Player 1", "role": { "type": "human" } },
+      { "id": "seat-2", "label": "Player 2", "role": { "type": "randombot" } },
+      { "id": "seat-3", "label": "Player 3", "role": { "type": "nn", "modelId": "latest" } }
+    ],
+    "phase": "dungeon",
+    "turn": { "activeSeatId": "seat-3", "turnNumber": 2 },
+    "bidding": {
+      "subphase": "turn",
+      "passedSeatIds": ["seat-1", "seat-2"],
+      "runnerSeatId": "seat-3",
+      "revealedMonsterCard": null,
+      "revealedMonsterStrength": null,
+      "revealedMonsterIcons": [],
+      "revealedBySeatId": null,
+      "monsterDeck": ["goblin", "goblin", "skeleton", "skeleton", "orc", "orc", "vampire", "vampire", "golem", "golem", "lich", "demon", "dragon"],
+      "dungeonMonsters": [],
+      "discardedMonsterCards": []
+    },
+    "scoreboard": {
+      "seat-1": { "successes": 0, "lives": 2, "eliminated": false },
+      "seat-2": { "successes": 0, "lives": 2, "eliminated": false },
+      "seat-3": { "successes": 0, "lives": 2, "eliminated": false }
+    },
+    "history": [
+      {
+        "action": { "type": "PASS" },
+        "actorSeatId": "seat-1",
+        "phaseBefore": "bidding",
+        "phaseAfter": "bidding",
+        "rngStepBefore": 0,
+        "rngStepAfter": 1,
+        "dungeonRunResult": null
+      },
+      {
+        "action": { "type": "PASS" },
+        "actorSeatId": "seat-2",
+        "phaseBefore": "bidding",
+        "phaseAfter": "dungeon",
+        "rngStepBefore": 1,
+        "rngStepAfter": 2,
+        "dungeonRunResult": null
+      }
+    ]
+  }
+}

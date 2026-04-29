@@ -58,11 +58,21 @@ export const SHARE_METADATA = {
     ogImage: 'icons/favicon-movie.svg',
     favicon: 'movie',
   },
+  dungeonRunner: {
+    title: 'Dungeon Runner',
+    description:
+      'Play Welcome to the Dungeon against configurable AI opponents with deterministic browser-only simulation.',
+    routePath: '/projects/dungeon-runner',
+    shareSlug: 'projects/dungeon-runner',
+    ogImage: DEFAULT_OG_IMAGE,
+    favicon: 'default',
+  },
 }
 
 /** Ordered list of routes that should get their own generated preview HTML. */
 export const SHAREABLE_ROUTES = [
   SHARE_METADATA.gameTimer,
   SHARE_METADATA.movieVote,
+  SHARE_METADATA.dungeonRunner,
   SHARE_METADATA.about,
 ]
