@@ -250,7 +250,8 @@ export function applyAction(state, action, actor) {
   const isLegal = legalActions.some(
     (candidate) =>
       candidate.type === action.type &&
-      (candidate.equipmentId === undefined || candidate.equipmentId === action.equipmentId),
+      (candidate.equipmentId === undefined || candidate.equipmentId === action.equipmentId) &&
+      (candidate.species === undefined || candidate.species === action.species),
   )
   if (!isLegal) return { ok: false, errorCode: 'INVALID_ACTION' }
 
@@ -380,10 +381,11 @@ const BASE_MONSTER_DECK = [
 ]
 const ADVENTURERS = ['WARRIOR', 'BARBARIAN', 'MAGE', 'ROGUE']
 const MONSTER_SPECIES = ['goblin', 'skeleton', 'orc', 'vampire', 'golem', 'lich', 'demon', 'dragon']
+// Strengths + neutralization icons — dungeon-runner welcome-to-the-dungeon.md monster table.
 const MONSTER_STATS = {
   goblin: { strength: 1, icons: ['torch'] },
-  skeleton: { strength: 3, icons: ['torch'] },
-  orc: { strength: 2, icons: ['hammer'] },
+  skeleton: { strength: 2, icons: ['torch', 'chalice'] },
+  orc: { strength: 3, icons: ['torch'] },
   vampire: { strength: 4, icons: ['chalice'] },
   golem: { strength: 5, icons: ['hammer'] },
   lich: { strength: 6, icons: ['chalice', 'cloak'] },
@@ -820,7 +822,7 @@ function applyFireAxeDeclineAction(state, actor) {
   }
   const d0 = state.dungeon
   const inPlay = new Set(d0.inPlayEquipmentIds ?? [])
-  const polyLegal = !d0.polySpent && inPlay.has(EQUIP_POLY) && d0.currentMonster != null
+  const polyLegal = !d0.polySpent && inPlay.has(EQUIP_POLY) && d0.currentMonster != null && (d0.remainingMonsters?.length ?? 0) > 0
   if (polyLegal) {
     return applyDungeonStepAction(state, DUNGEON_SUBPHASES.PICK_POLYMORPH)
   }

@@ -31,3 +31,12 @@ test('release checklist includes manual debug replay smoke check', () => {
   const checklist = readFileSync(new URL('./RELEASE_CHECKLIST.md', import.meta.url), 'utf8')
   assert.equal(checklist.includes('manual debug/replay smoke checks'), true)
 })
+
+test('dungeon runner page uses default-hidden full-screen history drawer', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes('const historyDrawerOpen = ref(false)'), true)
+  assert.equal(page.includes('aria-label="Open match history"'), true)
+  assert.equal(page.includes('<q-dialog v-model="historyDrawerOpen" position="bottom" maximized>'), true)
+  assert.equal(page.includes('aria-label="Close match history"'), true)
+  assert.equal(page.includes('v-if="showHistory"'), false)
+})

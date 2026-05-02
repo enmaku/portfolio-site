@@ -40,6 +40,14 @@ export const SHARE_METADATA = {
     ogImage: 'icons/favicon-info.svg',
     favicon: 'info',
   },
+  cardPreview: {
+    title: `Dungeon Runner card preview — ${SITE_NAME}`,
+    description: 'Dev preview for layered monster card UI.',
+    routePath: '/cardpreview',
+    shareSlug: 'cardpreview',
+    ogImage: DEFAULT_OG_IMAGE,
+    favicon: 'default',
+  },
   gameTimer: {
     title: 'Game Timer',
     description:
@@ -75,4 +83,5 @@ export const SHAREABLE_ROUTES = [
   SHARE_METADATA.movieVote,
   SHARE_METADATA.dungeonRunner,
   SHARE_METADATA.about,
+  SHARE_METADATA.cardPreview,
 ]

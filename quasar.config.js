@@ -61,7 +61,11 @@ export default defineConfig((/* ctx */) => {
       extendViteConf(viteConf) {
         viteConf.server ??= {}
         viteConf.server.watch ??= {}
-        if (process.env.CHOKIDAR_USEPOLLING === '1') {
+        const shouldUsePolling =
+          process.env.CHOKIDAR_USEPOLLING === '1' ||
+          (process.platform === 'darwin' && process.env.CHOKIDAR_USEPOLLING !== '0')
+
+        if (shouldUsePolling) {
           viteConf.server.watch.usePolling = true
           viteConf.server.watch.interval = Number(process.env.CHOKIDAR_INTERVAL || 300)
         }
@@ -74,6 +78,9 @@ export default defineConfig((/* ctx */) => {
           ...ignored,
           '**/.venv*/**',
           '**/.python-venv*/**',
+          '**/.quasar/**',
+          '**/dist/**',
+          '**/src/assets/photos/thumbs/**',
           '**/public/models/dungeon-runner/**',
         ]
       },

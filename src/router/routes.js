@@ -30,6 +30,15 @@ const routes = [
           shareKey: 'about',
         },
       },
+      {
+        path: 'cardpreview',
+        component: () => import('pages/dev/CardPreviewPage.vue'),
+        meta: {
+          title: SHARE_METADATA.cardPreview.title,
+          favicon: SHARE_METADATA.cardPreview.favicon,
+          shareKey: 'cardPreview',
+        },
+      },
     ],
   },
   {

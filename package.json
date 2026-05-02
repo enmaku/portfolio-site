@@ -16,6 +16,7 @@
     "update-dungeon-runner-model-catalog": "node ./scripts/update-dungeon-runner-model-catalog.mjs",
     "sync-dungeon-runner-model": "node ./scripts/sync-dungeon-runner-model.mjs",
     "sync-dungeon-runner-models": "node ./scripts/sync-dungeon-runner-model.mjs --all",
+    "scale-dungeon-runner-assets": "node ./scripts/scale-dungeon-runner-assets.mjs",
     "generate-thumbs": "node ./scripts/generate-photo-thumbs.mjs",
     "generate-share-pages": "node ./scripts/generate-share-pages.mjs",
     "prebuild": "npm run generate-thumbs",

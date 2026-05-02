@@ -118,6 +118,54 @@ test('dungeon subphases expose python-style legal action intents', () => {
   )
 })
 
+test('vorpal declaration legality exposes full species set', () => {
+  const base = createInitialMatchState(
+    { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    { seed: 6211 },
+  )
+  const runner = base.seats[0].id
+  const state = {
+    ...base,
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { ...base.turn, activeSeatId: runner },
+    bidding: { ...base.bidding, runnerSeatId: runner },
+    dungeon: { ...base.dungeon, subphase: DUNGEON_SUBPHASES.VORPAL },
+  }
+  const legal = getLegalActions(state, { seatId: runner })
+  assert.deepEqual(legal, [
+    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'goblin' },
+    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'skeleton' },
+    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'orc' },
+    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'vampire' },
+    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'golem' },
+    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'lich' },
+    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'demon' },
+    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'dragon' },
+  ])
+})
+
+test('vorpal declaration rejects species outside legal action set', () => {
+  const base = createInitialMatchState(
+    { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    { seed: 6212 },
+  )
+  const runner = base.seats[0].id
+  const state = {
+    ...base,
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { ...base.turn, activeSeatId: runner },
+    bidding: { ...base.bidding, runnerSeatId: runner },
+    dungeon: { ...base.dungeon, subphase: DUNGEON_SUBPHASES.VORPAL },
+  }
+  const result = applyAction(
+    state,
+    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'slime' },
+    { seatId: runner },
+  )
+  assert.equal(result.ok, false)
+  assert.equal(result.errorCode, 'INVALID_ACTION')
+})
+
 test('bidding->dungeon transition enters vorpal subphase when dungeon has monsters', () => {
   const base = createInitialMatchState(
     { totalSeats: 2, opponents: [{ type: 'randombot' }] },
@@ -134,6 +182,43 @@ test('bidding->dungeon transition enters vorpal subphase when dungeon has monste
   assert.equal(pass.ok, true)
   assert.equal(pass.state.phase, MATCH_PHASES.DUNGEON)
   assert.equal(pass.state.dungeon.subphase, DUNGEON_SUBPHASES.VORPAL)
+})
+
+test('bidding-to-dungeon legal actions stay timing-gated through vorpal and equipment picks', () => {
+  const base = createInitialMatchState(
+    { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    { seed: 6221 },
+  )
+  const passer = base.turn.activeSeatId
+  const entered = applyAction(
+    {
+      ...base,
+      centerEquipment: ['W_VORPAL', 'B_AXE'],
+      bidding: {
+        ...base.bidding,
+        dungeonMonsters: ['goblin', 'orc'],
+      },
+    },
+    { type: ACTION_TYPES.PASS },
+    { seatId: passer },
+  )
+  assert.equal(entered.ok, true)
+  let state = entered.state
+  const runner = state.bidding.runnerSeatId
+  assert.ok(runner)
+  assert.deepEqual(
+    getLegalActions(state, { seatId: runner }).map((action) => action.type),
+    new Array(8).fill(ACTION_TYPES.DECLARE_VORPAL),
+  )
+
+  state = applyAction(state, { type: ACTION_TYPES.DECLARE_VORPAL, species: 'dragon' }, { seatId: runner }).state
+  assert.deepEqual(getLegalActions(state, { seatId: runner }), [{ type: ACTION_TYPES.REVEAL_OR_CONTINUE }])
+
+  state = applyAction(state, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runner }).state
+  assert.deepEqual(
+    getLegalActions(state, { seatId: runner }).map((action) => action.type),
+    [ACTION_TYPES.USE_FIRE_AXE, ACTION_TYPES.DECLINE_FIRE_AXE],
+  )
 })
 
 test('dungeon decision sequence advances through python-style subphases', () => {
@@ -168,6 +253,39 @@ test('dungeon decision sequence advances through python-style subphases', () => 
   result = applyAction(state, { type: ACTION_TYPES.USE_FIRE_AXE }, { seatId })
   assert.equal(result.ok, true)
   assert.equal(result.state.phase, MATCH_PHASES.PICK_ADVENTURER)
+})
+
+test('declining fire axe does not open polymorph when no next monster exists', () => {
+  const base = createInitialMatchState(
+    { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    { seed: 6231 },
+  )
+  const seatId = base.seats[0].id
+  let state = {
+    ...base,
+    hero: 'MAGE',
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { ...base.turn, activeSeatId: seatId },
+    bidding: { ...base.bidding, runnerSeatId: seatId, dungeonMonsters: ['goblin'] },
+    dungeon: {
+      ...base.dungeon,
+      subphase: DUNGEON_SUBPHASES.VORPAL,
+      remainingMonsters: ['goblin'],
+      hp: 2,
+      inPlayEquipmentIds: ['B_AXE', 'M_POLY'],
+      polySpent: false,
+      axeSpent: false,
+    },
+  }
+
+  state = applyAction(state, { type: ACTION_TYPES.DECLARE_VORPAL, species: 'goblin' }, { seatId }).state
+  state = applyAction(state, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId }).state
+  assert.equal(state.dungeon.subphase, DUNGEON_SUBPHASES.PICK_FIRE_AXE)
+  const decline = applyAction(state, { type: ACTION_TYPES.DECLINE_FIRE_AXE }, { seatId })
+  assert.equal(decline.ok, true)
+  assert.equal(decline.state.dungeon.subphase, null)
+  assert.equal(decline.state.phase, MATCH_PHASES.PICK_ADVENTURER)
+  assert.equal(decline.state.scoreboard[seatId].lives, 2)
 })
 
 test('reveal skips pick-fire-axe when B_AXE not in play (warrior center loadout)', () => {

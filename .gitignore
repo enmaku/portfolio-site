@@ -30,6 +30,7 @@ yarn-error.log*
 *.ntvs*
 *.njsproj
 *.sln
+/artifacts/*
 
 # local env (secrets); keep .env.example committed
 .env
