@@ -43,6 +43,13 @@ export function isValidSnapshot(snap) {
   if (!snap.playerOrderByRound || typeof snap.playerOrderByRound !== 'object' || Array.isArray(snap.playerOrderByRound)) {
     return false
   }
+  if (
+    'totalGameStartedAt' in snap &&
+    snap.totalGameStartedAt !== null &&
+    typeof snap.totalGameStartedAt !== 'number'
+  ) {
+    return false
+  }
   if ('hardPassEnabled' in snap && typeof snap.hardPassEnabled !== 'boolean') return false
   if ('hardPassOrderNextRound' in snap && typeof snap.hardPassOrderNextRound !== 'boolean') return false
   if ('hardPassOrderByRound' in snap) {

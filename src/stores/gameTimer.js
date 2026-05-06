@@ -3,7 +3,7 @@
  */
 
 import { defineStore, acceptHMRUpdate } from 'pinia'
-import { createPlayerId, nextDefaultColor } from '../features/game-timer/core.js'
+import { createPlayerId, displayedMsForPlayer, nextDefaultColor } from '../features/game-timer/core.js'
 
 /**
  * Rebuild `players` to match `idOrder`, appending any players missing from that list.
@@ -54,6 +54,8 @@ export const useGameTimerStore = defineStore('gameTimer', {
     hardPassOrderNextRound: false,
     hardPassOrderByRound: {},
     fullscreenEnabled: false,
+    totalGameStartedAt: null,
+    timingStripMode: 'total',
   }),
 
   getters: {
@@ -78,6 +80,32 @@ export const useGameTimerStore = defineStore('gameTimer', {
       }
       return false
     },
+    /**
+     * Total game elapsed wall-clock ms since first `selectPlayer`; 0 before start.
+     * @returns {number}
+     */
+    totalGameElapsedMs(state) {
+      if (typeof state.totalGameStartedAt !== 'number') return 0
+      return Math.max(0, Date.now() - state.totalGameStartedAt)
+    },
+    /**
+     * Session non-player ms: total game minus sum of all player displayed totals.
+     * @returns {number}
+     */
+    nonPlayerElapsedMs(state) {
+      const total = this.totalGameElapsedMs
+      if (total <= 0 || !Array.isArray(state.players) || state.players.length === 0) return total
+      const now = Date.now()
+      const session = {
+        activePlayerId: state.activePlayerId,
+        turnStartedAt: state.turnStartedAt,
+      }
+      let playerSum = 0
+      for (const p of state.players) {
+        playerSum += displayedMsForPlayer(p, session, now)
+      }
+      return Math.max(0, total - playerSum)
+    },
   },
 
   /**
@@ -95,6 +123,8 @@ export const useGameTimerStore = defineStore('gameTimer', {
       'hardPassEnabled',
       'hardPassOrderNextRound',
       'hardPassOrderByRound',
+      'totalGameStartedAt',
+      'timingStripMode',
     ],
     afterHydrate: (ctx) => {
       const store = ctx.store
@@ -114,6 +144,10 @@ export const useGameTimerStore = defineStore('gameTimer', {
       if (typeof store.hardPassOrderNextRound !== 'boolean') store.hardPassOrderNextRound = false
       if (!store.hardPassOrderByRound || typeof store.hardPassOrderByRound !== 'object') {
         store.hardPassOrderByRound = {}
+      }
+      if (typeof store.totalGameStartedAt !== 'number') store.totalGameStartedAt = null
+      if (store.timingStripMode !== 'total' && store.timingStripMode !== 'non-player') {
+        store.timingStripMode = 'total'
       }
       store._applyOrderForActiveRound()
     },
@@ -255,6 +289,17 @@ export const useGameTimerStore = defineStore('gameTimer', {
     },
 
     /**
+     * @param {'total' | 'non-player'} mode
+     */
+    setTimingStripMode(mode) {
+      this.timingStripMode = mode === 'non-player' ? 'non-player' : 'total'
+    },
+
+    toggleTimingStripMode() {
+      this.timingStripMode = this.timingStripMode === 'total' ? 'non-player' : 'total'
+    },
+
+    /**
      * @param {string} playerId
      */
     registerHardPass(playerId) {
@@ -376,6 +421,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
     selectPlayer(playerId) {
       const now = Date.now()
       if (!this.players.some((p) => p.id === playerId)) return
+      if (this.totalGameStartedAt == null) this.totalGameStartedAt = now
 
       if (this.activePlayerId === playerId) {
         if (this.turnStartedAt != null) {
@@ -457,6 +503,8 @@ export const useGameTimerStore = defineStore('gameTimer', {
       this.hardPassOrderNextRound = false
       this.hardPassOrderByRound = {}
       this.fullscreenEnabled = false
+      this.totalGameStartedAt = null
+      this.timingStripMode = 'total'
     },
 
     /** Bank active segment and advance to the next player in list order (wraps); skips hard-passed when enabled. */
