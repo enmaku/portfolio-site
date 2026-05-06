@@ -103,7 +103,6 @@ import GameTimerRoundBar from '../../features/game-timer/components/GameTimerRou
 import GameTimerTurnControls from '../../features/game-timer/components/GameTimerTurnControls.vue'
 import { useGameTimerP2P } from '../../features/game-timer/composables/useGameTimerP2P.js'
 import { useScopedFullscreen } from '../../features/game-timer/composables/useScopedFullscreen.js'
-import { useScreenWakeLock } from '../../features/game-timer/composables/useScreenWakeLock.js'
 import { nextDefaultColor } from '../../features/game-timer/core.js'
 import {
   GAME_TIMER_ROOM_QUERY_KEY,
@@ -122,9 +121,6 @@ const { players, activePlayerId, hasMultipleRounds, fullscreenEnabled } = storeT
 
 /** True when a turn is held (clock running or paused); `activePlayerId` is set. */
 const hasHeldTurn = computed(() => activePlayerId.value != null)
-
-/** While a session has players, keep the display awake (wake lock with video fallback where needed). */
-useScreenWakeLock(computed(() => players.value.length > 0))
 
 const pageRef = ref(null)
 useScopedFullscreen({
