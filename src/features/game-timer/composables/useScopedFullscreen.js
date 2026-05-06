@@ -10,6 +10,11 @@ import { createFullscreenController } from './fullscreenController.js'
  * }} options
  */
 export function useScopedFullscreen(options) {
+  const readFullscreenElement = () => {
+    const doc = /** @type {Document & { webkitFullscreenElement?: Element | null }} */ (document)
+    return doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null
+  }
+
   const controller = createFullscreenController({
     getTargetElement: options.getTargetElement,
     readEnabled: () => Boolean(toValue(options.enabled)),
@@ -25,8 +30,20 @@ export function useScopedFullscreen(options) {
     { immediate: true },
   )
 
+  const onFullscreenChange = () => {
+    const target = options.getTargetElement()
+    const isFullscreen = target != null && readFullscreenElement() === target
+    options.setEnabled(isFullscreen)
+  }
+
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange)
+  onFullscreenChange()
+
   onBeforeUnmount(() => {
     stop()
+    document.removeEventListener('fullscreenchange', onFullscreenChange)
+    document.removeEventListener('webkitfullscreenchange', onFullscreenChange)
     void controller.cleanup()
   })
 }

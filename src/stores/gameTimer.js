@@ -95,7 +95,6 @@ export const useGameTimerStore = defineStore('gameTimer', {
       'hardPassEnabled',
       'hardPassOrderNextRound',
       'hardPassOrderByRound',
-      'fullscreenEnabled',
     ],
     afterHydrate: (ctx) => {
       const store = ctx.store
@@ -116,7 +115,6 @@ export const useGameTimerStore = defineStore('gameTimer', {
       if (!store.hardPassOrderByRound || typeof store.hardPassOrderByRound !== 'object') {
         store.hardPassOrderByRound = {}
       }
-      if (typeof store.fullscreenEnabled !== 'boolean') store.fullscreenEnabled = false
       store._applyOrderForActiveRound()
     },
   },
