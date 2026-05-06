@@ -34,6 +34,8 @@ yarn-error.log*
 # local env (secrets); keep .env.example committed
 .env
 .env.local*
+.venv*/*
+artifacts/*
 
 # Generated from src/assets/photos/* (see scripts/generate-photo-thumbs.mjs)
 /src/assets/photos/thumbs/*
