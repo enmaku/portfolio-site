@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "eslint -c ./eslint.config.js \"./src*/**/*.{js,cjs,mjs,vue}\"",
     "format": "prettier --write \"**/*.{js,vue,scss,html,md,json}\" --ignore-path .gitignore",
-    "test": "node --test src/features/movie-vote/irv.test.js",
+    "test": "node --test \"src/features/**/*.test.js\"",
     "dev": "quasar dev",
     "generate-thumbs": "node ./scripts/generate-photo-thumbs.mjs",
     "generate-share-pages": "node ./scripts/generate-share-pages.mjs",

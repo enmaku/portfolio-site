@@ -53,6 +53,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
     hardPassEnabled: false,
     hardPassOrderNextRound: false,
     hardPassOrderByRound: {},
+    fullscreenEnabled: false,
   }),
 
   getters: {
@@ -94,6 +95,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
       'hardPassEnabled',
       'hardPassOrderNextRound',
       'hardPassOrderByRound',
+      'fullscreenEnabled',
     ],
     afterHydrate: (ctx) => {
       const store = ctx.store
@@ -114,6 +116,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
       if (!store.hardPassOrderByRound || typeof store.hardPassOrderByRound !== 'object') {
         store.hardPassOrderByRound = {}
       }
+      if (typeof store.fullscreenEnabled !== 'boolean') store.fullscreenEnabled = false
       store._applyOrderForActiveRound()
     },
   },
@@ -244,6 +247,13 @@ export const useGameTimerStore = defineStore('gameTimer', {
           this._recomputeNextRoundOrderFromHardPasses(this.round)
         }
       }
+    },
+
+    /**
+     * @param {boolean} value
+     */
+    setFullscreenEnabled(value) {
+      this.fullscreenEnabled = Boolean(value)
     },
 
     /**
@@ -448,6 +458,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
       this.hardPassEnabled = false
       this.hardPassOrderNextRound = false
       this.hardPassOrderByRound = {}
+      this.fullscreenEnabled = false
     },
 
     /** Bank active segment and advance to the next player in list order (wraps); skips hard-passed when enabled. */
