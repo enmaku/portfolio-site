@@ -9,7 +9,8 @@ import {
   createWebHashHistory,
 } from 'vue-router'
 import routes, { portfolioDocumentTitle } from './routes'
-import { SHARE_METADATA } from '../share-metadata.js'
+import { SHARE_METADATA, SHARE_SITE_NAME } from '../share-metadata.js'
+import { redirectCanonicalPathToHashRoute } from '../features/share/canonicalHashRedirect.js'
 
 const FAVICON_IDS = new Set(['default', 'photo', 'info', 'timer', 'movie'])
 
@@ -39,14 +40,18 @@ function applyRouteSharePreview(to) {
   const key = typeof to.meta.shareKey === 'string' ? to.meta.shareKey : null
   const entry = key ? SHARE_METADATA[key] : null
   if (!entry) return
+  const canonicalUrl = `${window.location.origin}${entry.routePath}`
 
   setMetaContent('name', 'description', entry.description)
+  setMetaContent('property', 'og:site_name', SHARE_SITE_NAME)
   setMetaContent('property', 'og:title', entry.title)
   setMetaContent('property', 'og:description', entry.description)
   setMetaContent('property', 'og:image', entry.ogImage)
+  setMetaContent('property', 'og:url', canonicalUrl)
   setMetaContent('name', 'twitter:title', entry.title)
   setMetaContent('name', 'twitter:description', entry.description)
   setMetaContent('name', 'twitter:image', entry.ogImage)
+  setCanonicalHref(canonicalUrl)
 }
 
 /**
@@ -62,7 +67,15 @@ function setMetaContent(attr, key, value) {
   }
 }
 
+/** @param {string} href */
+function setCanonicalHref(href) {
+  const el = document.querySelector('link[rel="canonical"]')
+  if (el instanceof HTMLLinkElement) el.setAttribute('href', href)
+}
+
 export default defineRouter(function (/* { store, ssrContext } */) {
+  redirectCanonicalPathToHashRoute()
+
   const createHistory = process.env.SERVER
     ? createMemoryHistory
     : process.env.VUE_ROUTER_MODE === 'history'
