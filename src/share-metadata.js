@@ -9,6 +9,8 @@
  */
 
 export const SITE_NAME = 'David J. Perry'
+export const SHARE_SITE_NAME = 'Focus Disorder'
+export const PUBLIC_SITE_ORIGIN = 'https://focusdisorder.com'
 
 const DEFAULT_OG_IMAGE = 'icons/favicon-default.svg'
 
@@ -54,7 +56,7 @@ export const SHARE_METADATA = {
       'Shared multiplayer countdown timers for tabletop games. Host a room, share the code, keep everyone in sync.',
     routePath: '/projects/game-timer',
     shareSlug: 'projects/game-timer',
-    ogImage: 'icons/favicon-timer.svg',
+    ogImage: 'icons/social/game-timer.png',
     favicon: 'timer',
   },
   movieVote: {
@@ -63,7 +65,7 @@ export const SHARE_METADATA = {
       'Collaboratively pick a movie with friends. Nominate titles, rank your favorites, and let instant-runoff voting decide.',
     routePath: '/projects/movie-vote',
     shareSlug: 'projects/movie-vote',
-    ogImage: 'icons/favicon-movie.svg',
+    ogImage: 'icons/social/movie-vote.png',
     favicon: 'movie',
   },
   dungeonRunner: {

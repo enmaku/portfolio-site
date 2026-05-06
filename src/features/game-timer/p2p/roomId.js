@@ -58,28 +58,19 @@ export function fullPeerIdFromSuffix(suffix) {
 /** Query key used in share/join links for the game timer. */
 export const GAME_TIMER_ROOM_QUERY_KEY = 'room'
 
+const GAME_TIMER_CANONICAL_PATH = '/projects/game-timer'
+
 /**
  * Full page URL for joining a room (sets {@link GAME_TIMER_ROOM_QUERY_KEY}).
- * Hash-mode apps put the query on the route inside `#/path?...`.
  * @param {string} suffix Normalized room suffix.
  * @returns {string}
  */
 export function buildGameTimerRoomShareUrl(suffix) {
-  const href = typeof window !== 'undefined' ? window.location.href : 'http://localhost/#/projects/game-timer'
+  const href = typeof window !== 'undefined' ? window.location.href : 'https://focusdisorder.com/'
   const u = new URL(href)
-
-  if (u.hash.startsWith('#/')) {
-    const inner = u.hash.slice(1)
-    const qIndex = inner.indexOf('?')
-    const pathOnly = qIndex === -1 ? inner : inner.slice(0, qIndex)
-    const existingSearch = qIndex === -1 ? '' : inner.slice(qIndex + 1)
-    const params = new URLSearchParams(existingSearch)
-    params.set(GAME_TIMER_ROOM_QUERY_KEY, suffix)
-    const qs = params.toString()
-    u.hash = qs ? `#${pathOnly}?${qs}` : `#${pathOnly}`
-    return u.href
-  }
-
+  u.pathname = GAME_TIMER_CANONICAL_PATH
+  u.hash = ''
+  u.search = ''
   u.searchParams.set(GAME_TIMER_ROOM_QUERY_KEY, suffix)
   return u.href
 }

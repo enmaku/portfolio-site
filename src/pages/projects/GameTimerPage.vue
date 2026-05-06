@@ -102,7 +102,7 @@ import GameTimerPlayerList from '../../features/game-timer/components/GameTimerP
 import GameTimerRoundBar from '../../features/game-timer/components/GameTimerRoundBar.vue'
 import GameTimerTurnControls from '../../features/game-timer/components/GameTimerTurnControls.vue'
 import { useGameTimerP2P } from '../../features/game-timer/composables/useGameTimerP2P.js'
-import { useScreenWakeLock } from '../../features/game-timer/composables/useScreenWakeLock.js'
+import { useScopedFullscreen } from '../../features/game-timer/composables/useScopedFullscreen.js'
 import { nextDefaultColor } from '../../features/game-timer/core.js'
 import {
   GAME_TIMER_ROOM_QUERY_KEY,
@@ -117,13 +117,25 @@ const route = useRoute()
 const router = useRouter()
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
-const { players, activePlayerId, hasMultipleRounds } = storeToRefs(store)
+const { players, activePlayerId, hasMultipleRounds, fullscreenEnabled } = storeToRefs(store)
 
 /** True when a turn is held (clock running or paused); `activePlayerId` is set. */
 const hasHeldTurn = computed(() => activePlayerId.value != null)
 
-/** While a session has players, keep the display awake (wake lock with video fallback where needed). */
-useScreenWakeLock(computed(() => players.value.length > 0))
+useScopedFullscreen({
+  enabled: fullscreenEnabled,
+  setEnabled: (next) => store.setFullscreenEnabled(next),
+  getTargetElement: () => document.documentElement,
+  onRequestFailure: () => {
+    $q.notify({
+      type: 'warning',
+      message: 'Fullscreen could not be enabled.',
+      timeout: 2500,
+      position: 'top',
+      classes: 'gt-notify',
+    })
+  },
+})
 
 onMounted(() => {
   const raw = route.query[GAME_TIMER_ROOM_QUERY_KEY]

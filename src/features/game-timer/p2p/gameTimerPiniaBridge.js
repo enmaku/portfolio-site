@@ -25,6 +25,7 @@ const SYNC_ACTION_NAMES = new Set([
   'setPlayerName',
   'setPlayerColor',
   'clearAllPlayers',
+  'startNewGameSamePlayers',
   'setHardPassEnabled',
   'setHardPassOrderNextRound',
   'registerHardPass',
@@ -42,6 +43,7 @@ function pickSnapshot(store) {
     activePlayerId: s.activePlayerId,
     turnStartedAt: s.turnStartedAt,
     turnStartedRound: s.turnStartedRound,
+    totalGameStartedAt: s.totalGameStartedAt,
     round: s.round,
     playerOrderByRound: JSON.parse(JSON.stringify(s.playerOrderByRound)),
     hardPassEnabled: s.hardPassEnabled,
@@ -73,6 +75,7 @@ function normalizeAfterRemotePatch(store) {
   }
   if (typeof store.hardPassEnabled !== 'boolean') store.hardPassEnabled = false
   if (typeof store.hardPassOrderNextRound !== 'boolean') store.hardPassOrderNextRound = false
+  if (typeof store.totalGameStartedAt !== 'number') store.totalGameStartedAt = null
   if (!store.hardPassOrderByRound || typeof store.hardPassOrderByRound !== 'object') {
     store.hardPassOrderByRound = {}
   }
@@ -106,6 +109,8 @@ export function gameTimerP2PPlugin(ctx) {
           state.activePlayerId = snap.activePlayerId
           state.turnStartedAt = snap.turnStartedAt
           state.turnStartedRound = snap.turnStartedRound
+          state.totalGameStartedAt =
+            typeof snap.totalGameStartedAt === 'number' ? snap.totalGameStartedAt : null
           state.round = snap.round
           state.playerOrderByRound = JSON.parse(JSON.stringify(snap.playerOrderByRound))
           state.hardPassEnabled = typeof snap.hardPassEnabled === 'boolean' ? snap.hardPassEnabled : false
@@ -127,13 +132,21 @@ export function gameTimerP2PPlugin(ctx) {
   if (actionHookInstalled.has(store)) return
   actionHookInstalled.add(store)
 
-  store.$onAction(({ name, after }) => {
+  store.$onAction(({ name, args, after }) => {
     after(() => {
       if (applyingRemote) return
       if (!SYNC_ACTION_NAMES.has(name)) return
       if (!isP2PSessionActive()) return
+      const sentAt = Date.now()
+      /** @type {{ kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } | undefined} */
+      let intent
+      if (name === 'selectPlayer' && typeof args[0] === 'string') {
+        intent = { kind: 'selectPlayer', playerId: args[0], sentAt }
+      } else if (name === 'registerHardPass' && typeof args[0] === 'string') {
+        intent = { kind: 'registerHardPass', playerId: args[0], sentAt }
+      }
       try {
-        broadcastGameTimerSnapshot(pickSnapshot(useGameTimerStore()))
+        broadcastGameTimerSnapshot(pickSnapshot(useGameTimerStore()), intent)
       } catch (e) {
         console.error('[gameTimerP2P] broadcast failed', e)
       }

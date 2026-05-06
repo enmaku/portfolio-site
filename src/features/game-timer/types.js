@@ -42,6 +42,7 @@
  * @property {number | null} turnStartedRound
  * @property {number} round
  * @property {Record<string, string[]>} playerOrderByRound
+ * @property {number | null} [totalGameStartedAt] Epoch ms for first `selectPlayer`; nullable / omitted on older snapshots.
  * @property {boolean} [hardPassEnabled] Omitted on older snapshots; normalized on apply.
  * @property {boolean} [hardPassOrderNextRound]
  * @property {Record<string, string[]>} [hardPassOrderByRound]

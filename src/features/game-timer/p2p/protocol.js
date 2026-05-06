@@ -3,6 +3,8 @@
  * Wire messages between game timer peers (JSON via PeerJS `serialization: 'json'`).
  */
 
+import { isWellFormedGuestIntent } from './guestIntentDedupe.js'
+
 /** Guest → hub: push snapshot after a local mutation. */
 export const MSG_GUEST_UPDATE = 'gt-u'
 
@@ -43,6 +45,13 @@ export function isValidSnapshot(snap) {
   if (!snap.playerOrderByRound || typeof snap.playerOrderByRound !== 'object' || Array.isArray(snap.playerOrderByRound)) {
     return false
   }
+  if (
+    'totalGameStartedAt' in snap &&
+    snap.totalGameStartedAt !== null &&
+    typeof snap.totalGameStartedAt !== 'number'
+  ) {
+    return false
+  }
   if ('hardPassEnabled' in snap && typeof snap.hardPassEnabled !== 'boolean') return false
   if ('hardPassOrderNextRound' in snap && typeof snap.hardPassOrderNextRound !== 'boolean') return false
   if ('hardPassOrderByRound' in snap) {
@@ -54,9 +63,13 @@ export function isValidSnapshot(snap) {
 
 /**
  * @param {GameTimerSyncPayload} snapshot
- * @returns {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload }}
+ * @param {{ kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } | undefined} [intent]
+ * @returns {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload, intent?: typeof intent }}
  */
-export function encodeGuestUpdate(snapshot) {
+export function encodeGuestUpdate(snapshot, intent) {
+  if (intent != null) {
+    return { type: MSG_GUEST_UPDATE, snapshot, intent }
+  }
   return { type: MSG_GUEST_UPDATE, snapshot }
 }
 
@@ -109,12 +122,26 @@ export function parseHostVisibility(data) {
 
 /**
  * @param {unknown} data
- * @returns {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload } | null}
+ * @returns {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload, intent?: { kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } } | null}
  */
 export function parseGuestMessage(data) {
   if (!isRecord(data) || data.type !== MSG_GUEST_UPDATE) return null
   if (!isValidSnapshot(data.snapshot)) return null
-  return { type: MSG_GUEST_UPDATE, snapshot: data.snapshot }
+  /** @type {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload, intent?: { kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } }} */
+  const out = { type: MSG_GUEST_UPDATE, snapshot: data.snapshot }
+  if (!('intent' in data)) return out
+  if (isWellFormedGuestIntent(data.intent)) {
+    out.intent = {
+      kind: data.intent.kind,
+      playerId: data.intent.playerId,
+      sentAt: data.intent.sentAt,
+    }
+    return out
+  }
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+    console.warn('[gameTimer P2P] malformed guest intent ignored')
+  }
+  return out
 }
 
 /**

@@ -35,6 +35,8 @@ import {
   encodeHostVisibility,
   isHostEndedNotice,
   isHostPing,
+  isRecord,
+  MSG_GUEST_UPDATE,
   MSG_HOST_ENDED,
   parseGuestHello,
   parseGuestMessage,
@@ -47,8 +49,15 @@ import {
   isValidRoomSuffix,
   normalizeRoomSuffixInput,
 } from './roomId.js'
+import {
+  authoritativeSnapshotAfterGuestMessage,
+  createGuestIntentDeduper,
+} from './guestIntentDedupe.js'
 
 const STABLE_HOST_SUFFIX_APP = 'gametimer'
+
+/** @type {ReturnType<typeof createGuestIntentDeduper>} */
+let hostGuestIntentDeduper = createGuestIntentDeduper()
 
 /**
  * @typedef {object} GameTimerP2PHandlers
@@ -284,6 +293,7 @@ function destroyWireOnly() {
   isHost = false
   nextSeq = 0
   lastSeenSeq = 0
+  hostGuestIntentDeduper = createGuestIntentDeduper()
 }
 
 /**
@@ -350,6 +360,7 @@ function finishHostSession(p, suffix) {
   sessionSuffix.value = suffix
   nextSeq = 0
   lastSeenSeq = 0
+  hostGuestIntentDeduper = createGuestIntentDeduper()
   attachHubConnectionHandlers(peer)
   sessionPhase.value = 'hosting'
   wirePeerErrors(peer)
@@ -436,16 +447,44 @@ function handleHubInbound(conn, raw) {
     return
   }
   const msg = parseGuestMessage(raw)
-  if (!msg) return
+  if (!msg) {
+    if (
+      isRecord(raw) &&
+      raw.type === MSG_GUEST_UPDATE &&
+      typeof import.meta !== 'undefined' &&
+      import.meta.env &&
+      import.meta.env.DEV
+    ) {
+      console.warn('[gameTimer P2P] invalid guest update ignored')
+    }
+    return
+  }
+  const now = Date.now()
+  let snap
   try {
-    handlers.applySnapshot(msg.snapshot)
+    const result = authoritativeSnapshotAfterGuestMessage(
+      msg,
+      hostGuestIntentDeduper,
+      now,
+      (s) => handlers.applySnapshot(s),
+      () => handlers.getSnapshot(),
+    )
+    snap = result.broadcastSnapshot
+    if (
+      !result.appliedGuestSnapshot &&
+      msg.intent &&
+      typeof import.meta !== 'undefined' &&
+      import.meta.env &&
+      import.meta.env.DEV
+    ) {
+      console.debug('[gameTimer P2P] suppressed duplicate guest intent', msg.intent.kind)
+    }
   } catch {
     return
   }
-  const snap = handlers.getSnapshot()
   const out = encodeHostSnapshot(snap, ++nextSeq)
   for (const c of hubConnections) {
-    if (c === conn || !c.open) continue
+    if (!c.open) continue
     try {
       c.send(out)
     } catch {
@@ -741,9 +780,10 @@ export async function joinRoom(rawSuffix) {
 /**
  * Push current snapshot to peers (after a local store mutation).
  * @param {GameTimerSyncPayload} snapshot
+ * @param {{ kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } | undefined} [intent] guest → host only
  * @returns {void}
  */
-export function broadcastGameTimerSnapshot(snapshot) {
+export function broadcastGameTimerSnapshot(snapshot, intent) {
   if (!peer || peer.destroyed) return
 
   if (isHost) {
@@ -761,7 +801,7 @@ export function broadcastGameTimerSnapshot(snapshot) {
 
   if (guestHubConn?.open) {
     try {
-      guestHubConn.send(encodeGuestUpdate(snapshot))
+      guestHubConn.send(encodeGuestUpdate(snapshot, intent))
     } catch {
       void 0
     }
