@@ -16,104 +16,26 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SHAREABLE_ROUTES, SHARE_METADATA } from '../src/share-metadata.js'
+import {
+  PUBLIC_SITE_ORIGIN,
+  SHAREABLE_ROUTES,
+  SHARE_METADATA,
+  SHARE_SITE_NAME,
+} from '../src/share-metadata.js'
+import { buildShareHtml } from '../src/features/share/sharePageHtml.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, '..')
 const DIST = path.join(ROOT, 'dist/spa')
 const INDEX_HTML = path.join(DIST, 'index.html')
 
-const SITE_ORIGIN = (process.env.SITE_ORIGIN || 'https://enmaku.github.io').replace(/\/+$/, '')
+const SITE_ORIGIN = (process.env.SITE_ORIGIN || PUBLIC_SITE_ORIGIN).replace(/\/+$/, '')
 const PAGES_BASE = normalizeBase(process.env.GH_PAGES_BASE || '/')
 
 function normalizeBase(value) {
   if (!value) return '/'
   const withLeading = value.startsWith('/') ? value : `/${value}`
   return withLeading.endsWith('/') ? withLeading : `${withLeading}/`
-}
-
-/** @param {string} relPath */
-function absoluteUrl(relPath) {
-  const cleaned = String(relPath).replace(/^\/+/, '')
-  return `${SITE_ORIGIN}${PAGES_BASE}${cleaned}`
-}
-
-/** @param {string} value */
-function escapeAttr(value) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
-
-/** @param {string} value */
-function escapeJs(value) {
-  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
-}
-
-/**
- * Remove any `<meta attrName="keyValue" ...>` tags, tolerating Quasar/Vite's
- * minified output which drops quotes around simple attribute values.
- *
- * @param {string} html
- * @param {'name' | 'property'} attrName
- * @param {string} keyValue
- */
-function removeMeta(html, attrName, keyValue) {
-  return html.replace(/<meta\b[^>]*>/gi, (match) => {
-    const pattern = new RegExp(`\\b${attrName}=(?:"${keyValue}"|${keyValue})(?=[\\s>])`, 'i')
-    return pattern.test(match) ? '' : match
-  })
-}
-
-/**
- * @param {string} html
- * @param {'name' | 'property'} attrName
- * @param {string} keyValue
- * @param {string} content
- */
-function setMeta(html, attrName, keyValue, content) {
-  const stripped = removeMeta(html, attrName, keyValue)
-  const tag = `<meta ${attrName}="${keyValue}" content="${escapeAttr(content)}" />`
-  return stripped.replace('</head>', `    ${tag}\n  </head>`)
-}
-
-/** @param {string} html @param {string} title */
-function setTitle(html, title) {
-  const next = `<title>${escapeAttr(title)}</title>`
-  if (/<title>[\s\S]*?<\/title>/i.test(html)) {
-    return html.replace(/<title>[\s\S]*?<\/title>/i, next)
-  }
-  return html.replace('</head>', `    ${next}\n  </head>`)
-}
-
-/**
- * @param {string} html
- * @param {import('../src/share-metadata.js').ShareMetadata} entry
- */
-function buildShareHtml(html, entry) {
-  const shareUrl = absoluteUrl(entry.shareSlug)
-  const ogImageUrl = absoluteUrl(entry.ogImage)
-  const hashTarget =
-    entry.routePath === '/' ? `${PAGES_BASE}#/` : `${PAGES_BASE}#${entry.routePath}`
-
-  let output = html
-
-  output = setTitle(output, entry.title)
-  output = setMeta(output, 'name', 'description', entry.description)
-  output = setMeta(output, 'property', 'og:title', entry.title)
-  output = setMeta(output, 'property', 'og:description', entry.description)
-  output = setMeta(output, 'property', 'og:image', ogImageUrl)
-  output = setMeta(output, 'property', 'og:url', shareUrl)
-  output = setMeta(output, 'name', 'twitter:title', entry.title)
-  output = setMeta(output, 'name', 'twitter:description', entry.description)
-  output = setMeta(output, 'name', 'twitter:image', ogImageUrl)
-
-  const redirectTag = `<script>(function(){if(!window.location.hash){window.location.replace('${escapeJs(hashTarget)}');}})();</script>`
-  output = output.replace(/<body(\s[^>]*)?>/i, (match) => `${match}\n    ${redirectTag}`)
-
-  return output
 }
 
 async function main() {
@@ -128,7 +50,8 @@ async function main() {
     throw e
   }
 
-  const rootHtml = buildShareHtml(baseHtml, SHARE_METADATA.root)
+  const options = { siteOrigin: SITE_ORIGIN, pagesBase: PAGES_BASE, siteName: SHARE_SITE_NAME }
+  const rootHtml = buildShareHtml(baseHtml, SHARE_METADATA.root, options)
   await fs.writeFile(INDEX_HTML, rootHtml, 'utf8')
   console.log(`generate-share-pages: updated ${path.relative(ROOT, INDEX_HTML)}`)
 
@@ -136,7 +59,7 @@ async function main() {
     const outDir = path.join(DIST, entry.shareSlug)
     const outFile = path.join(outDir, 'index.html')
     await fs.mkdir(outDir, { recursive: true })
-    await fs.writeFile(outFile, buildShareHtml(baseHtml, entry), 'utf8')
+    await fs.writeFile(outFile, buildShareHtml(baseHtml, entry, options), 'utf8')
     console.log(`generate-share-pages: wrote ${path.relative(ROOT, outFile)}`)
   }
 

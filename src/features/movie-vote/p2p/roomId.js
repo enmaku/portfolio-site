@@ -70,26 +70,18 @@ export function fullPeerIdFromSuffix(suffix) {
 /** Query key for share/join links. */
 export const MOVIE_VOTE_ROOM_QUERY_KEY = 'room'
 
+const MOVIE_VOTE_CANONICAL_PATH = '/projects/movie-vote'
+
 /**
  * @param {string} suffix
  * @returns {string}
  */
 export function buildMovieVoteRoomShareUrl(suffix) {
-  const href = typeof window !== 'undefined' ? window.location.href : 'http://localhost/#/projects/movie-vote'
+  const href = typeof window !== 'undefined' ? window.location.href : 'https://focusdisorder.com/'
   const u = new URL(href)
-
-  if (u.hash.startsWith('#/')) {
-    const inner = u.hash.slice(1)
-    const qIndex = inner.indexOf('?')
-    const pathOnly = qIndex === -1 ? inner : inner.slice(0, qIndex)
-    const existingSearch = qIndex === -1 ? '' : inner.slice(qIndex + 1)
-    const params = new URLSearchParams(existingSearch)
-    params.set(MOVIE_VOTE_ROOM_QUERY_KEY, suffix)
-    const qs = params.toString()
-    u.hash = qs ? `#${pathOnly}?${qs}` : `#${pathOnly}`
-    return u.href
-  }
-
+  u.pathname = MOVIE_VOTE_CANONICAL_PATH
+  u.hash = ''
+  u.search = ''
   u.searchParams.set(MOVIE_VOTE_ROOM_QUERY_KEY, suffix)
   return u.href
 }
