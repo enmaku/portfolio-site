@@ -131,13 +131,21 @@ export function gameTimerP2PPlugin(ctx) {
   if (actionHookInstalled.has(store)) return
   actionHookInstalled.add(store)
 
-  store.$onAction(({ name, after }) => {
+  store.$onAction(({ name, args, after }) => {
     after(() => {
       if (applyingRemote) return
       if (!SYNC_ACTION_NAMES.has(name)) return
       if (!isP2PSessionActive()) return
+      const sentAt = Date.now()
+      /** @type {{ kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } | undefined} */
+      let intent
+      if (name === 'selectPlayer' && typeof args[0] === 'string') {
+        intent = { kind: 'selectPlayer', playerId: args[0], sentAt }
+      } else if (name === 'registerHardPass' && typeof args[0] === 'string') {
+        intent = { kind: 'registerHardPass', playerId: args[0], sentAt }
+      }
       try {
-        broadcastGameTimerSnapshot(pickSnapshot(useGameTimerStore()))
+        broadcastGameTimerSnapshot(pickSnapshot(useGameTimerStore()), intent)
       } catch (e) {
         console.error('[gameTimerP2P] broadcast failed', e)
       }
