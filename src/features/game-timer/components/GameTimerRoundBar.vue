@@ -37,7 +37,18 @@
           />
         </div>
       </div>
-      <div class="gt-round-bar__right row no-wrap items-center">
+      <div class="gt-round-bar__right row no-wrap items-center q-gutter-x-xs">
+        <q-btn
+          v-if="showStartNewGame"
+          flat
+          round
+          size="md"
+          icon="restart_alt"
+          color="grey-5"
+          class="gt-round-bar__new-game gt-round-bar__hit"
+          aria-label="Start new game with same players"
+          @click="newGameDialogOpen = true"
+        />
         <q-btn
           flat
           round
@@ -80,11 +91,25 @@
       <span class="gt-round-bar__session-label">{{ timingStripLabel }}</span>
       <span class="gt-round-bar__session-value text-mono">{{ timingStripValue }}</span>
     </button>
+
+    <q-dialog v-model="newGameDialogOpen" persistent>
+      <q-card class="gt-dialog-card gt-dialog-card--narrow">
+        <q-card-section class="text-h6">Start new game?</q-card-section>
+        <q-card-section class="q-pt-none text-body2">
+          All times and round progress reset to a clean start. Players, turn order as shown, and session options (round
+          rules, timing strip, fullscreen) stay as they are.
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="grey" @click="newGameDialogOpen = false" />
+          <q-btn unelevated label="Start new game" color="primary" @click="confirmStartNewGame" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import GameTimerSyncControl from './GameTimerSyncControl.vue'
 import { displayedMsForPlayer, formatDurationMs } from '../core.js'
@@ -99,6 +124,8 @@ const now = useGameTimerNow(1000)
 const { round, players, hardPassEnabled, hardPassOrderNextRound, fullscreenEnabled, timingStripMode } =
   storeToRefs(store)
 const hasPlayers = computed(() => players.value.length > 0)
+const showStartNewGame = computed(() => !isGuest.value && hasPlayers.value)
+const newGameDialogOpen = ref(false)
 const canGoPreviousRound = computed(() => hasPlayers.value && round.value > 1)
 const settingsModel = computed(() => getGameTimerSettingsModel({ isGuest: isGuest.value }))
 const totalGameElapsedMs = computed(() => {
@@ -138,6 +165,11 @@ const fullscreenModel = computed({
   get: () => fullscreenEnabled.value,
   set: (v) => store.setFullscreenEnabled(Boolean(v)),
 })
+
+function confirmStartNewGame() {
+  store.startNewGameSamePlayers()
+  newGameDialogOpen.value = false
+}
 </script>
 
 <style scoped lang="scss">
@@ -194,6 +226,7 @@ const fullscreenModel = computed({
 }
 
 .gt-round-bar__chev,
+.gt-round-bar__new-game,
 .gt-round-bar__settings,
 .gt-round-bar__sync {
   flex-shrink: 0;
