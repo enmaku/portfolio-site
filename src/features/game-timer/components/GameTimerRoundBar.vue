@@ -36,7 +36,7 @@
         />
       </div>
     </div>
-    <div v-if="!isGuest" class="gt-round-bar__right row no-wrap items-center">
+    <div class="gt-round-bar__right row no-wrap items-center">
       <q-btn
         flat
         round
@@ -48,18 +48,23 @@
       >
         <q-menu anchor="bottom right" self="top right" :offset="[0, 6]">
           <div class="gt-settings-menu q-pa-md" style="min-width: 280px">
-            <div class="text-subtitle2 text-weight-medium q-mb-sm">Round rules</div>
-            <q-toggle v-model="hardPassEnabledModel" color="primary" label="Hard pass" />
-            <div class="text-caption text-grey-6 q-mb-md q-ml-sm">
-              Hard pass removes a player from the current round.
-            </div>
-            <div class="q-pl-md">
-              <q-toggle
-                v-model="hardPassOrderNextRoundModel"
-                color="primary"
-                :disable="!hardPassEnabled"
-                label="Pass order determines round order"
-              />
+            <template v-if="settingsModel.showRoundRules">
+              <div class="text-subtitle2 text-weight-medium q-mb-sm">Round rules</div>
+              <q-toggle v-model="hardPassEnabledModel" color="primary" label="Hard pass" />
+              <div class="text-caption text-grey-6 q-mb-md q-ml-sm">
+                Hard pass removes a player from the current round.
+              </div>
+              <div class="q-pl-md q-mb-sm">
+                <q-toggle
+                  v-model="hardPassOrderNextRoundModel"
+                  color="primary"
+                  :disable="!hardPassEnabled"
+                  label="Pass order determines round order"
+                />
+              </div>
+            </template>
+            <div v-if="settingsModel.showFullscreen">
+              <q-toggle v-model="fullscreenModel" color="primary" label="Fullscreen" />
             </div>
           </div>
         </q-menu>
@@ -74,12 +79,14 @@ import { storeToRefs } from 'pinia'
 import GameTimerSyncControl from './GameTimerSyncControl.vue'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
+import { getGameTimerSettingsModel } from '../settingsModel.js'
 
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
-const { round, players, hardPassEnabled, hardPassOrderNextRound } = storeToRefs(store)
+const { round, players, hardPassEnabled, hardPassOrderNextRound, fullscreenEnabled } = storeToRefs(store)
 const hasPlayers = computed(() => players.value.length > 0)
 const canGoPreviousRound = computed(() => hasPlayers.value && round.value > 1)
+const settingsModel = computed(() => getGameTimerSettingsModel({ isGuest: isGuest.value }))
 
 const hardPassEnabledModel = computed({
   get: () => hardPassEnabled.value,
@@ -89,6 +96,11 @@ const hardPassEnabledModel = computed({
 const hardPassOrderNextRoundModel = computed({
   get: () => hardPassOrderNextRound.value,
   set: (v) => store.setHardPassOrderNextRound(Boolean(v)),
+})
+
+const fullscreenModel = computed({
+  get: () => fullscreenEnabled.value,
+  set: (v) => store.setFullscreenEnabled(Boolean(v)),
 })
 </script>
 
