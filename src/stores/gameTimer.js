@@ -493,6 +493,29 @@ export const useGameTimerStore = defineStore('gameTimer', {
       p.color = color
     },
 
+    /**
+     * Bank live turn, clear clocks and round progression, keep roster and session rule toggles.
+     * Idempotent for empty roster (no-op).
+     */
+    startNewGameSamePlayers() {
+      if (this.players.length === 0) return
+      const now = Date.now()
+      this._pauseLiveTurn(now)
+      for (const p of this.players) {
+        p.bankedMs = 0
+        p.bankedMsByRound = {}
+      }
+      this.round = 1
+      const order = this.players.map((p) => p.id)
+      this.playerOrderByRound = { '1': [...order] }
+      this.hardPassOrderByRound = {}
+      this.totalGameStartedAt = null
+      if (this.hardPassEnabled && this.hardPassOrderNextRound) {
+        this._recomputeNextRoundOrderFromHardPasses(1)
+      }
+      this._applyOrderForActiveRound()
+    },
+
     /** Bank any live turn, then clear all players and order; round becomes 1. */
     clearAllPlayers() {
       this._pauseLiveTurn()

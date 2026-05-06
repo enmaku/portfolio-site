@@ -25,6 +25,7 @@ const SYNC_ACTION_NAMES = new Set([
   'setPlayerName',
   'setPlayerColor',
   'clearAllPlayers',
+  'startNewGameSamePlayers',
   'setHardPassEnabled',
   'setHardPassOrderNextRound',
   'registerHardPass',
