@@ -42,6 +42,7 @@ function pickSnapshot(store) {
     activePlayerId: s.activePlayerId,
     turnStartedAt: s.turnStartedAt,
     turnStartedRound: s.turnStartedRound,
+    totalGameStartedAt: s.totalGameStartedAt,
     round: s.round,
     playerOrderByRound: JSON.parse(JSON.stringify(s.playerOrderByRound)),
     hardPassEnabled: s.hardPassEnabled,
@@ -73,6 +74,7 @@ function normalizeAfterRemotePatch(store) {
   }
   if (typeof store.hardPassEnabled !== 'boolean') store.hardPassEnabled = false
   if (typeof store.hardPassOrderNextRound !== 'boolean') store.hardPassOrderNextRound = false
+  if (typeof store.totalGameStartedAt !== 'number') store.totalGameStartedAt = null
   if (!store.hardPassOrderByRound || typeof store.hardPassOrderByRound !== 'object') {
     store.hardPassOrderByRound = {}
   }
@@ -106,6 +108,8 @@ export function gameTimerP2PPlugin(ctx) {
           state.activePlayerId = snap.activePlayerId
           state.turnStartedAt = snap.turnStartedAt
           state.turnStartedRound = snap.turnStartedRound
+          state.totalGameStartedAt =
+            typeof snap.totalGameStartedAt === 'number' ? snap.totalGameStartedAt : null
           state.round = snap.round
           state.playerOrderByRound = JSON.parse(JSON.stringify(snap.playerOrderByRound))
           state.hardPassEnabled = typeof snap.hardPassEnabled === 'boolean' ? snap.hardPassEnabled : false
