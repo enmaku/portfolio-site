@@ -1,5 +1,5 @@
 <template>
-  <q-page ref="pageRef" class="gt-page column fit no-wrap">
+  <q-page class="gt-page column fit no-wrap">
     <GameTimerRoundBar />
 
     <div
@@ -122,15 +122,10 @@ const { players, activePlayerId, hasMultipleRounds, fullscreenEnabled } = storeT
 /** True when a turn is held (clock running or paused); `activePlayerId` is set. */
 const hasHeldTurn = computed(() => activePlayerId.value != null)
 
-const pageRef = ref(null)
 useScopedFullscreen({
   enabled: fullscreenEnabled,
   setEnabled: (next) => store.setFullscreenEnabled(next),
-  getTargetElement: () => {
-    const value = pageRef.value
-    if (!value) return null
-    return value.$el ?? value
-  },
+  getTargetElement: () => document.documentElement,
   onRequestFailure: () => {
     $q.notify({
       type: 'warning',
