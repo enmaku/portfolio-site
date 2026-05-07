@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <polygon points="89.42696304163661,92.23950336814099 52.257354213752,100.14014761921584 26.83039117211539,71.90064425107487 38.573036958363375,35.76049663185903 75.74264578624799,27.85985238078416 101.16960882788462,56.099355748925156" fill="hsl(48 52% 42%)" stroke="#5c4033" stroke-width="3" stroke-linejoin="round"/>
+  <text x="64" y="72" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#fffdf8">MBRACE</text>
+</svg>

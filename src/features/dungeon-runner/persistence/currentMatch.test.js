@@ -114,3 +114,34 @@ test('persisted current match keeps nn seat metadata', () => {
     fallbackReason: null,
   })
 })
+
+test('persisted match may include presentationSpeedProfile', () => {
+  const storage = createMemoryStorage()
+  const match = {
+    schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
+    id: 'm-pace',
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    state: { turn: 1 },
+    history: [],
+    presentationSpeedProfile: 'brisk',
+  }
+  persistCurrentMatch(storage, match)
+  const loaded = loadCurrentMatch(storage)
+  assert.equal(loaded.ok, true)
+  assert.equal(loaded.match.presentationSpeedProfile, 'brisk')
+})
+
+test('invalid presentationSpeedProfile rejects persisted match', () => {
+  const storage = createMemoryStorage()
+  persistCurrentMatch(storage, {
+    schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
+    id: 'bad-pace',
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    state: {},
+    history: [],
+    presentationSpeedProfile: 'fast',
+  })
+  const loaded = loadCurrentMatch(storage)
+  assert.equal(loaded.ok, false)
+  assert.equal(loaded.errorCode, 'INVALID_SHAPE')
+})

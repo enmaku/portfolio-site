@@ -138,6 +138,7 @@ export function createInitialMatchState(setup, options) {
       monsterDeck: createInitialMonsterDeck(),
       dungeonMonsters: [],
       discardedMonsterCards: [],
+      equipmentDisplayOrder: [...BASE_HERO_LOADOUT],
     },
     dungeon: {
       subphase: null,
@@ -207,6 +208,8 @@ export function getLegalActions(state, actor) {
   if (state.turn.activeSeatId !== actor.seatId) return []
   if (state.phase === MATCH_PHASES.DUNGEON) {
     if (state.dungeon?.subphase === DUNGEON_SUBPHASES.VORPAL) {
+      // Hidden-info: options must be the fixed species roster only. Never derive DECLARE_VORPAL
+      // candidates from dungeon.remainingMonsters or other unrevealed pile state.
       return MONSTER_SPECIES.map((species) => ({ type: ACTION_TYPES.DECLARE_VORPAL, species }))
     }
     if (state.dungeon?.subphase === DUNGEON_SUBPHASES.REVEAL) {
@@ -359,6 +362,10 @@ const HP_FOR_EQUIP = {
   R_VORP: 0,
   R_CLOAK: 0,
 }
+
+/** @type {readonly string[]} */
+export const EQUIPMENT_IDS = Object.freeze([...Object.keys(HP_FOR_EQUIP)].sort())
+
 const BASE_HERO_HP = { WARRIOR: 3, BARBARIAN: 4, MAGE: 2, ROGUE: 3 }
 const EQUIP_VORPAL_IDS = new Set(['W_VORPAL', 'R_VORP'])
 const EQUIP_POLY = 'M_POLY'
@@ -617,6 +624,7 @@ function applyChooseNextAdventurerAction(state, action, actor) {
   const loadout = HERO_LOADOUTS[action.hero] ?? HERO_LOADOUTS.WARRIOR
   return {
     ...state,
+    lastDungeonRun: null,
     hero: action.hero,
     centerEquipment: [...loadout],
     heroLoadout: Object.fromEntries(state.seats.map((seat) => [seat.id, [...loadout]])),
@@ -635,6 +643,7 @@ function applyChooseNextAdventurerAction(state, action, actor) {
       monsterDeck: createInitialMonsterDeck(),
       dungeonMonsters: [],
       discardedMonsterCards: [],
+      equipmentDisplayOrder: [...loadout],
     },
     pickAdventurer: {
       activeSeatId: null,

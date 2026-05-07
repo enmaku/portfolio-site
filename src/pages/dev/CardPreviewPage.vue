@@ -12,6 +12,13 @@
       </q-banner>
     </div>
     <MonsterCardFace class="col-shrink" :strength="strength" />
+    <div class="col-shrink q-mt-xl" style="width: 100%; max-width: 560px">
+      <div class="text-subtitle2 q-mb-sm">Flat template (pack.cards.revealedMonster)</div>
+      <p class="text-caption text-grey-6 q-mb-sm">
+        Single PNG export for art checks; the composed face above is what bidding uses.
+      </p>
+      <img class="dr-card-flat-template" :src="revealedMonsterTemplateUrl()" alt="" decoding="async" />
+    </div>
   </q-page>
 </template>
 
@@ -22,6 +29,7 @@ import MonsterCardFace from '../../components/dungeon-runner/MonsterCardFace.vue
 import {
   MONSTER_CARD_SPECS,
   monsterCardSpecByStrength,
+  revealedMonsterTemplateUrl,
 } from '../../features/dungeon-runner/ui/monsterCardSpec.js'
 
 const route = useRoute()
@@ -36,3 +44,13 @@ const strength = computed(() => {
 
 const resolvedSpec = computed(() => monsterCardSpecByStrength(strength.value))
 </script>
+
+<style scoped>
+.dr-card-flat-template {
+  width: 100%;
+  max-width: 480px;
+  display: block;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+</style>

@@ -8,18 +8,44 @@
         v-if="match"
         flat
         dense
+        icon="settings"
+        aria-label="Match settings"
+      >
+        <q-menu anchor="bottom right" self="top right" :offset="[0, 6]">
+          <div class="dr-match-settings-menu q-pa-md" style="min-width: 260px">
+            <div class="text-subtitle2 text-weight-medium q-mb-sm">Match presentation</div>
+            <div class="text-caption text-grey-6 q-mb-md">Animation pace (default: cinematic).</div>
+            <q-option-group
+              v-model="presentationSpeedProfile"
+              :options="presentationSpeedOptions"
+              color="primary"
+              type="radio"
+            />
+            <q-separator class="q-my-md" />
+            <div class="text-subtitle2 text-weight-medium q-mb-sm">Match recall</div>
+            <div class="text-caption text-grey-6 q-mb-sm">
+              Memory Aid is off by default. When on, deck splay, bidding counts, and Vorpal pile hints apply immediately.
+            </div>
+            <q-toggle
+              :model-value="memoryAidState.enabled"
+              dense
+              label="Memory Aid"
+              aria-label="Toggle memory aid"
+              @update:model-value="onMemoryAidToggle"
+            />
+          </div>
+        </q-menu>
+      </q-btn>
+      <q-btn
+        v-if="match"
+        flat
+        round
+        dense
+        size="md"
         icon="history"
-        label="History"
+        color="grey-7"
         aria-label="Open match history"
         @click="historyDrawerOpen = true"
-      />
-      <q-toggle
-        v-if="match"
-        :model-value="memoryAidState.enabled"
-        dense
-        label="Memory Aid"
-        aria-label="Toggle memory aid"
-        @update:model-value="onMemoryAidToggle"
       />
     </div>
 
@@ -80,42 +106,40 @@
       </q-card>
 
       <template v-else>
-        <q-card flat bordered class="q-pa-md q-mb-md">
-          <div class="text-subtitle1 q-mb-sm">Seats</div>
-          <div class="q-gutter-y-xs">
-            <div
-              v-for="seat in match.state.seats"
-              :key="seat.id"
-              class="row items-center justify-between q-py-xs"
-            >
-              <div class="row items-center q-gutter-x-sm">
-                <q-avatar square size="20px">
-                  <img
-                    :src="seat.role.type === 'human' ? uiAssets.icons.runner.runtimePath : uiAssets.icons.monster.runtimePath"
-                    :alt="seat.role.type === 'human' ? 'Runner icon' : 'Monster icon'"
-                  />
+        <q-card
+          flat
+          bordered
+          class="q-pa-sm q-mb-sm dr-bidding-board"
+          :class="biddingBoard.heroCue.accentClass"
+          :style="biddingBoardTextureStyle"
+        >
+          <div class="text-subtitle2 q-mb-xs">Bidding board</div>
+          <div
+            v-if="match.state.phase === 'bidding' && biddingBoard.secondary.seats.length"
+            class="dr-seat-strip row q-col-gutter-xs q-mb-xs"
+          >
+            <div v-for="row in biddingBoard.secondary.seats" :key="row.seatId" class="col-auto">
+              <q-badge
+                outline
+                :color="row.isActive ? 'amber-8' : 'grey-7'"
+                :text-color="row.isActive ? 'black' : 'white'"
+                class="dr-seat-chip q-px-sm"
+              >
+                <span class="text-caption">{{ row.label }}</span>
+                <span class="text-caption q-ml-xs">{{ row.passed ? '· Out' : '· In' }}</span>
+                <q-avatar v-if="row.isActive" square size="14px" class="q-ml-xs">
+                  <img :src="uiAssets.counters.turn.runtimePath" alt="" />
                 </q-avatar>
-                <div class="text-body2">{{ seat.label }}</div>
-              </div>
-              <div class="row items-center q-gutter-x-sm">
-                <q-badge :color="roleBadge(seat).color" :label="roleBadge(seat).label" />
-                <q-avatar v-if="match.state.turn.activeSeatId === seat.id" square size="16px">
-                  <img :src="uiAssets.counters.turn.runtimePath" alt="Turn counter" />
-                </q-avatar>
-                <q-badge
-                  v-if="match.state.turn.activeSeatId === seat.id"
-                  color="amber-8"
-                  text-color="black"
-                  label="Turn"
-                />
-              </div>
+              </q-badge>
             </div>
           </div>
-        </q-card>
-
-        <q-card flat bordered class="q-pa-md q-mb-md dr-bidding-board" :class="biddingBoard.heroCue.accentClass">
-          <div class="text-subtitle2 q-mb-sm">Bidding board</div>
-          <div class="dr-board-primary q-mb-sm">
+          <div
+            class="dr-board-primary q-mb-sm"
+            :class="{
+              'dr-board-primary--bot-draw': biddingBoard.secondary.botBiddingMotion === 'draw',
+              'dr-board-primary--bot-sacrifice': biddingBoard.secondary.botBiddingMotion === 'sacrifice',
+            }"
+          >
             <MonsterCardFace
               class="dr-card-preview dr-card-preview--hero"
               :species="biddingBoard.primaryCard.variant === 'revealed' ? biddingBoard.primaryCard.monsterCard : null"
@@ -125,10 +149,13 @@
           <div class="row q-col-gutter-xs items-start">
             <div class="col-4">
               <q-badge
-                color="grey-8"
-                class="full-width q-py-xs dr-deck-badge"
-                align="between"
-                :class="{ 'dr-deck-badge--interactive': biddingBoard.memoryAid.deckTapEnabled }"
+                text-color="white"
+                class="full-width q-py-xs justify-between dr-deck-badge dr-pile-badge dr-pile-badge--deck"
+                :style="{ '--dr-pile': `url('${uiAssets.piles.deck.runtimePath}')` }"
+                :class="{
+                  'dr-deck-badge--interactive': biddingBoard.memoryAid.deckTapEnabled,
+                  'dr-pile-badge--bot-add': biddingBoard.secondary.botBiddingMotion === 'add',
+                }"
                 @click="onDeckTap"
               >
                 <span>Deck</span>
@@ -139,16 +166,31 @@
               </div>
             </div>
             <div class="col-4">
-              <q-badge color="grey-8" class="full-width q-py-xs" align="between">
+              <q-badge
+                text-color="white"
+                class="full-width q-py-xs justify-between dr-pile-badge dr-pile-badge--dungeon"
+                :style="{ '--dr-pile': `url('${uiAssets.piles.dungeon.runtimePath}')` }"
+              >
                 <span>Dungeon</span>
                 <span>{{ biddingBoard.secondary.dungeonCount }}</span>
               </q-badge>
             </div>
             <div class="col-4">
-              <q-badge :color="biddingBoard.heroCue.badgeColor" text-color="white" class="full-width q-py-xs" align="between">
-                <span>Turn</span>
-                <span>{{ biddingBoard.secondary.activeSeatId ?? '-' }}</span>
-              </q-badge>
+              <div class="row no-wrap items-center full-width dr-turn-hero-row">
+                <q-avatar
+                  :color="biddingBoard.heroCue.badgeColor"
+                  text-color="white"
+                  size="28px"
+                  font-size="11px"
+                  :aria-label="biddingBoard.heroCue.shortLabel"
+                >
+                  {{ biddingBoard.heroCue.badgeGlyph }}
+                </q-avatar>
+                <q-badge outline color="grey-7" text-color="grey-1" class="col q-py-xs justify-between">
+                  <span>Turn</span>
+                  <span>{{ biddingBoard.secondary.activeSeatLabel ?? '—' }}</span>
+                </q-badge>
+              </div>
             </div>
           </div>
           <div class="row q-col-gutter-xs q-mt-xs">
@@ -157,30 +199,77 @@
               :key="equipment.equipmentId"
               class="col-4 col-sm-3"
             >
-              <q-badge class="full-width q-py-xs" :color="equipment.consumed ? 'grey-6' : 'indigo-7'">
-                {{ equipment.equipmentId }}
+              <q-badge
+                class="full-width q-py-xs row items-center justify-center q-gutter-x-xs dr-equip-badge"
+                :class="{ 'dr-equip-badge--spent': equipment.removed || equipment.consumed }"
+                :color="equipment.removed || equipment.consumed ? 'grey-6' : 'indigo-7'"
+              >
+                <img
+                  class="dr-equip-icon"
+                  :src="uiAssets.equipment[equipment.equipmentId].runtimePath"
+                  :alt="''"
+                  width="22"
+                  height="22"
+                />
+                <span>{{ equipmentShortName(equipment.equipmentId) }}</span>
               </q-badge>
             </div>
           </div>
         </q-card>
 
-        <q-card flat bordered class="q-pa-md q-mb-md">
+        <q-card flat bordered class="q-pa-sm q-mb-md">
           <div class="text-subtitle2 q-mb-sm">Action</div>
           <div v-if="activePresentationLabel" class="text-body2 text-grey-6 q-mb-xs">{{ activePresentationLabel }}</div>
-          <div v-if="!isHumanTurn" class="text-body2 text-grey-6">AI is taking its turn…</div>
-          <div v-else class="row q-col-gutter-sm q-gutter-y-sm">
-            <q-btn
-              v-for="action in visibleLegalActions"
-              :key="actionKey(action)"
-              :color="biddingBoard.heroCue.buttonColor"
-              unelevated
-              no-caps
-              :size="isMobile ? 'lg' : 'md'"
-              class="col-12 col-sm-auto"
-              :label="actionLabel(action)"
-              :disable="gameplayInputLocked"
-              @click="takeHumanAction(action)"
-            />
+          <div v-if="isHumanTurn" class="row q-col-gutter-sm q-gutter-y-sm">
+            <template v-if="match.state.phase === 'bidding' && biddingSacrificeActions.length > 1">
+              <q-btn
+                v-for="action in biddingNonSacrificeActions"
+                :key="actionKey(action)"
+                :color="biddingBoard.heroCue.buttonColor"
+                unelevated
+                no-caps
+                :size="isMobile ? 'lg' : 'md'"
+                class="col-12 col-sm-auto"
+                :label="actionLabel(action)"
+                :disable="gameplayInputLocked"
+                @click="takeHumanAction(action)"
+              />
+              <q-btn-dropdown
+                :color="biddingBoard.heroCue.buttonColor"
+                unelevated
+                no-caps
+                :size="isMobile ? 'lg' : 'md'"
+                class="col-12 col-sm-auto"
+                label="Sacrifice equipment"
+                :disable="gameplayInputLocked"
+              >
+                <q-list dense>
+                  <q-item
+                    v-for="action in biddingSacrificeActions"
+                    :key="actionKey(action)"
+                    v-close-popup
+                    clickable
+                    @click="takeHumanAction(action)"
+                  >
+                    <q-item-section>{{ actionLabel(action) }}</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-btn-dropdown>
+            </template>
+            <template v-else>
+              <q-btn
+                v-for="action in visibleLegalActions"
+                :key="actionKey(action)"
+                :color="biddingBoard.heroCue.buttonColor"
+                unelevated
+                no-caps
+                :size="isMobile ? 'lg' : 'md'"
+                class="col-12 col-sm-auto"
+                :label="actionLabel(action)"
+                :disable="gameplayInputLocked"
+                @click="takeHumanAction(action)"
+              />
+            </template>
           </div>
         </q-card>
 
@@ -190,14 +279,25 @@
             <q-btn
               v-for="token in dungeonEquipmentTokens"
               :key="token.equipmentId"
-              :label="token.label"
               unelevated
               color="grey-8"
               text-color="white"
+              no-wrap
               :class="{ 'dr-token-glow': token.glow }"
               :disable="!isHumanTurn || gameplayInputLocked || !token.hasModal"
               @click="openEquipmentModal(token)"
-            />
+            >
+              <span class="row items-center no-wrap q-gutter-xs">
+                <img
+                  class="dr-token-icon"
+                  :src="uiAssets.equipment[token.equipmentId]?.runtimePath"
+                  width="22"
+                  height="22"
+                  alt=""
+                />
+                <span>{{ token.label }}</span>
+              </span>
+            </q-btn>
           </div>
         </q-card>
 
@@ -258,12 +358,35 @@
     </div>
 
     <button
-      v-if="activePresentation?.kind === 'HERO_CHANGE_INTERSTITIAL'"
+      v-if="activePresentation?.kind === 'HERO_CHANGE_INTERSTITIAL' && heroChangeInterstitialView"
       type="button"
       class="dr-hero-interstitial"
+      :aria-label="heroChangeInterstitialAriaLabel"
       @click="skipActivePresentation"
     >
-      <div class="dr-hero-interstitial__hero">{{ activePresentation?.payload?.heroAfter }}</div>
+      <div class="dr-hero-interstitial__transition row items-center no-wrap">
+        <template v-if="heroChangeInterstitialView.showBefore">
+          <q-avatar
+            :color="heroChangeInterstitialView.before.badgeColor"
+            text-color="white"
+            size="56px"
+            font-size="1.25rem"
+            class="dr-hero-interstitial__avatar dr-hero-interstitial__avatar--from"
+          >
+            {{ heroChangeInterstitialView.before.badgeGlyph }}
+          </q-avatar>
+          <span class="dr-hero-interstitial__arrow" aria-hidden="true">→</span>
+        </template>
+        <q-avatar
+          :color="heroChangeInterstitialView.after.badgeColor"
+          text-color="white"
+          size="56px"
+          font-size="1.25rem"
+          class="dr-hero-interstitial__avatar dr-hero-interstitial__avatar--to"
+        >
+          {{ heroChangeInterstitialView.after.badgeGlyph }}
+        </q-avatar>
+      </div>
       <div class="dr-hero-interstitial__hint">Tap to skip</div>
     </button>
 
@@ -277,7 +400,7 @@
       </q-card>
     </q-dialog>
 
-    <q-dialog v-model="equipmentModalOpen">
+    <q-dialog v-model="equipmentModalOpen" class="dr-equipment-dialog">
       <q-card class="q-pa-md" style="min-width: 320px">
         <div class="text-subtitle1 q-mb-xs">{{ selectedEquipmentModalView?.title }}</div>
         <div class="text-body2 q-mb-md">{{ selectedEquipmentModalView?.details }}</div>
@@ -300,7 +423,11 @@
         <div class="text-body2 q-mb-md">Choose a species before entering the dungeon.</div>
         <q-select
           v-model="selectedVorpalSpecies"
-          :options="vorpalPromptView.speciesOptions"
+          :options="vorpalSelectOptions"
+          emit-value
+          map-options
+          option-value="value"
+          option-label="label"
           label="Species"
           behavior="menu"
           outlined
@@ -349,8 +476,16 @@
         <q-separator />
         <div class="q-pa-md dr-deck-splay-scroll">
           <div class="row q-col-gutter-sm q-row-gutter-sm">
-            <div v-for="(_, index) in biddingBoard.memoryAid.deckSplayCards" :key="`deck-card-${index}`" class="col-6 col-sm-4 col-md-3">
-              <img class="dr-card-preview" :src="uiAssets.cards.monsterBack.runtimePath" alt="Hidden deck card" />
+            <div
+              v-for="(slot, index) in biddingBoard.memoryAid.deckSplayCards"
+              :key="`deck-card-${index}`"
+              class="col-6 col-sm-4 col-md-3"
+            >
+              <MonsterCardFace
+                class="dr-card-preview"
+                :species="slot.visibility === 'face' ? slot.species : null"
+                :face-down="slot.visibility !== 'face'"
+              />
             </div>
           </div>
         </div>
@@ -388,16 +523,23 @@ import { chooseNnActionWithFallback } from '../../features/dungeon-runner/nn/run
 import { createModelFailureRecovery } from '../../features/dungeon-runner/nn/recovery.js'
 import { fetchModelCatalog } from '../../features/dungeon-runner/models/catalog.js'
 import { pickDefaultModelId, validateSelectedModels } from '../../features/dungeon-runner/models/discovery.js'
-import { getRoleBadge } from '../../features/dungeon-runner/ui/roleBadge.js'
 import { createPresentationOrchestrator } from '../../features/dungeon-runner/ui/presentationOrchestrator.js'
+import {
+  DUNGEON_RUNNER_PRESENTATION_ADVANCE_MS,
+  runPresentationIntervalTick,
+} from '../../features/dungeon-runner/ui/dungeonRunnerPresentationInterval.js'
 import { dungeonRunnerAssetPack } from '../../features/dungeon-runner/ui/assetPack.js'
+import { equipmentShortName } from '../../features/dungeon-runner/ui/equipmentDisplayCatalog.js'
+import { legalActionBoardLabel } from '../../features/dungeon-runner/ui/dungeonRunnerPlayerPhrasing.js'
 import {
   buildDungeonEquipmentTokenView,
   createDungeonEquipmentModalView,
   createVorpalDeclarationPromptView,
+  filterVisibleLegalActions,
   pickAutoResolveDungeonAction,
 } from '../../features/dungeon-runner/ui/dungeonEquipmentInteractions.js'
 import { createBiddingBoardViewModel } from '../../features/dungeon-runner/ui/biddingBoardViewModel.js'
+import { getHeroIdentity } from '../../features/dungeon-runner/ui/heroIdentity.js'
 import MonsterCardFace from '../../components/dungeon-runner/MonsterCardFace.vue'
 import { buildHistoryPanelViewModel } from '../../features/dungeon-runner/ui/historyPanelViewModel.js'
 import { closeDeckSplay, createMemoryAidState, setMemoryAidEnabled, tapDeck } from '../../features/dungeon-runner/ui/memoryAidState.js'
@@ -419,6 +561,11 @@ const replayExportText = ref('')
 const nnDebugTraceText = ref('')
 const nnDebugTraceHistory = ref([])
 const presentationOrchestrator = createPresentationOrchestrator()
+const presentationSpeedProfile = ref('cinematic')
+const presentationSpeedOptions = [
+  { label: 'Cinematic', value: 'cinematic' },
+  { label: 'Brisk', value: 'brisk' },
+]
 const activePresentation = ref(null)
 const activePresentationLabel = ref('')
 const equipmentModalOpen = ref(false)
@@ -430,6 +577,17 @@ let presentationTimerId = null
 let aiTurnTimerId = null
 let autoResolveTimerId = null
 const uiAssets = dungeonRunnerAssetPack
+const biddingBoardTextureStyle = computed(() => ({
+  '--dr-bidding-texture': `url('${uiAssets.board.biddingTexture.runtimePath}')`,
+}))
+
+watch(presentationSpeedProfile, (next) => {
+  presentationOrchestrator.setSpeedProfile(next)
+  if (match.value) {
+    match.value = { ...match.value, presentationSpeedProfile: next }
+    persistCurrentMatch(window.localStorage, match.value)
+  }
+})
 
 watch(
   () => setup.totalSeats,
@@ -465,7 +623,14 @@ const legalActions = computed(() => {
   if (!match.value || !isHumanTurn.value) return []
   return getLegalActions(match.value.state, { seatId: humanSeatId.value })
 })
-const visibleLegalActions = computed(() => legalActions.value.filter((action) => action.type !== 'DECLARE_VORPAL'))
+const visibleLegalActions = computed(() =>
+  filterVisibleLegalActions({
+    phase: match.value?.state?.phase ?? null,
+    legalActions: legalActions.value,
+  }),
+)
+const biddingSacrificeActions = computed(() => visibleLegalActions.value.filter((a) => a.type === 'SACRIFICE'))
+const biddingNonSacrificeActions = computed(() => visibleLegalActions.value.filter((a) => a.type !== 'SACRIFICE'))
 const gameplayInputLocked = computed(() => presentationOrchestrator.isGameplayInputLocked())
 const visibleState = computed(() => {
   if (!match.value || !humanSeatId.value) return null
@@ -491,8 +656,19 @@ const vorpalPromptView = computed(() =>
     phase: match.value?.state?.phase ?? null,
     subphase: match.value?.state?.dungeon?.subphase ?? null,
     legalActions: legalActions.value,
+    memoryAidEnabled: memoryAidState.value.enabled,
+    viewerOwnPileAdds: visibleState.value?.playerOwnPileAdds?.[humanSeatId.value ?? ''] ?? [],
   }),
 )
+const vorpalSelectOptions = computed(() => {
+  const pv = vorpalPromptView.value
+  const counts = pv.vorpalSpeciesOwnPileCounts
+  return pv.speciesOptions.map((species) => {
+    const n = counts?.[species] ?? 0
+    const label = n > 0 ? `${species} (${n})` : species
+    return { label, value: species }
+  })
+})
 const biddingBoard = computed(() =>
   createBiddingBoardViewModel({
     state: match.value?.state ?? null,
@@ -504,6 +680,24 @@ const biddingBoard = computed(() =>
     },
   }),
 )
+const heroChangeInterstitialView = computed(() => {
+  if (activePresentation.value?.kind !== 'HERO_CHANGE_INTERSTITIAL') return null
+  const payload = activePresentation.value?.payload
+  if (!payload?.heroAfter) return null
+  const before = getHeroIdentity(payload.heroBefore)
+  const after = getHeroIdentity(payload.heroAfter)
+  return {
+    before,
+    after,
+    showBefore: before.hero !== after.hero,
+  }
+})
+const heroChangeInterstitialAriaLabel = computed(() => {
+  const v = heroChangeInterstitialView.value
+  if (!v) return ''
+  if (v.showBefore) return `Hero: ${v.before.shortLabel} to ${v.after.shortLabel}`
+  return `Hero: ${v.after.shortLabel}`
+})
 const deckSplayOpen = computed({
   get() {
     return memoryAidState.value.deckSplayOpen
@@ -533,10 +727,12 @@ onMounted(() => {
   }
   void loadModelCatalog()
   presentationTimerId = window.setInterval(() => {
-    presentationOrchestrator.advance(50)
-    syncPresentationLabel()
-    scheduleAiTurnIfReady()
-  }, 50)
+    runPresentationIntervalTick(presentationOrchestrator, DUNGEON_RUNNER_PRESENTATION_ADVANCE_MS, {
+      syncPresentationLabel,
+      scheduleAiTurnIfReady,
+      scheduleHumanAutoResolveIfReady,
+    })
+  }, DUNGEON_RUNNER_PRESENTATION_ADVANCE_MS)
 })
 
 onBeforeUnmount(() => {
@@ -598,10 +794,12 @@ function startNewMatch() {
     setup: setupSnapshot,
     state: shuffledState,
     history: [],
+    presentationSpeedProfile: 'cinematic',
   }
   historyDrawerOpen.value = false
   nnDebugTraceText.value = ''
   nnDebugTraceHistory.value = []
+  presentationSpeedProfile.value = 'cinematic'
   presentationOrchestrator.clear()
   syncPresentationLabel()
 }
@@ -621,6 +819,7 @@ function rematch() {
     setup: setupSnapshot,
     state: shuffledState,
     history: [],
+    presentationSpeedProfile: presentationSpeedProfile.value,
   }
   historyDrawerOpen.value = false
   nnDebugTraceText.value = ''
@@ -635,6 +834,7 @@ function backToSetup() {
   clearCurrentMatch(window.localStorage)
   nnDebugTraceText.value = ''
   nnDebugTraceHistory.value = []
+  presentationSpeedProfile.value = 'cinematic'
   presentationOrchestrator.clear()
   syncPresentationLabel()
 }
@@ -818,20 +1018,13 @@ function nnRuntimeOptions(modelId) {
   }
 }
 
-function roleBadge(seat) {
-  return getRoleBadge(seat)
-}
-
 function actionLabel(action) {
-  if (action.type === 'ADD_TO_DUNGEON') return 'Add card to dungeon'
-  if (action.type === 'SACRIFICE') return `Sacrifice ${action.equipmentId}`
-  if (action.type === 'DECLARE_VORPAL') return `Declare ${action.species}`
-  if (action.type === 'ADVANCE_DUNGEON') return 'Run dungeon'
-  return action.type
+  return legalActionBoardLabel(action)
 }
 
 function actionKey(action) {
-  return `${action.type}-${action.equipmentId ?? ''}`
+  const id = [action.equipmentId, action.hero, action.species].filter((x) => x != null && x !== '').join('-')
+  return id ? `${action.type}-${id}` : action.type
 }
 
 function skipActivePresentation() {
@@ -845,8 +1038,14 @@ function resumeFromDialog() {
     resumeDialogOpen.value = false
     return
   }
-  match.value = loaded.match
+  const pace =
+    loaded.match.presentationSpeedProfile === 'brisk' || loaded.match.presentationSpeedProfile === 'cinematic'
+      ? loaded.match.presentationSpeedProfile
+      : 'cinematic'
+  match.value = { ...loaded.match, presentationSpeedProfile: pace }
   presentationOrchestrator.clear()
+  presentationSpeedProfile.value = pace
+  presentationOrchestrator.setSpeedProfile(pace)
   syncPresentationLabel()
   resumeDialogOpen.value = false
 }
@@ -883,6 +1082,7 @@ function exportReplay() {
     seed: match.value.state.rng.seed,
     setup: match.value.setup,
     history: match.value.state.history,
+    presentationSpeedProfile: match.value.presentationSpeedProfile,
   })
   replayExportText.value = JSON.stringify(payload, null, 2)
 }
@@ -901,13 +1101,21 @@ function importReplay() {
       $q.notify({ type: 'negative', message: 'Replay actions are invalid for this seed/setup.' })
       return
     }
+    const pace =
+      imported.replay.presentationSpeedProfile === 'brisk' ||
+      imported.replay.presentationSpeedProfile === 'cinematic'
+        ? imported.replay.presentationSpeedProfile
+        : 'cinematic'
     match.value = {
       schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
       id: `match-${Date.now()}`,
       setup: imported.replay.setup,
       state: replayResult.state,
       history: [],
+      presentationSpeedProfile: pace,
     }
+    presentationSpeedProfile.value = pace
+    presentationOrchestrator.setSpeedProfile(pace)
     historyDrawerOpen.value = true
     presentationOrchestrator.clear()
     syncPresentationLabel()
@@ -930,16 +1138,77 @@ function importReplay() {
 
 .dr-header {
   flex-shrink: 0;
+  position: relative;
+  z-index: 30;
 }
 
 .dr-bidding-board {
-  background-image: url('/assets/dungeon-runner/runtime/board/bidding-texture.png');
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  border-radius: 10px;
+  overflow: hidden;
+  background-image: var(--dr-bidding-texture);
   background-size: cover;
+  background-position: center;
+}
+
+.dr-pile-badge {
+  background-image: linear-gradient(180deg, rgba(42, 42, 42, 0.92), rgba(58, 58, 58, 0.9)), var(--dr-pile);
+  background-size: auto, 150% auto;
+  background-position: center, 50% 45%;
+  background-repeat: no-repeat;
+}
+
+.dr-equip-badge .dr-equip-icon {
+  flex-shrink: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.35));
+}
+
+.dr-equip-badge--spent {
+  opacity: 0.55;
 }
 
 .dr-board-primary {
   display: flex;
   justify-content: center;
+  isolation: isolate;
+}
+
+.dr-board-primary--bot-draw .dr-card-preview--hero {
+  animation: dr-bot-draw-nudge 0.48s ease-in-out infinite;
+}
+
+.dr-board-primary--bot-sacrifice .dr-card-preview--hero {
+  animation: dr-bot-sacrifice-dim 0.55s ease-in-out infinite alternate;
+}
+
+.dr-pile-badge--bot-add {
+  box-shadow: inset 0 0 0 2px rgba(255, 213, 79, 0.75);
+}
+
+.dr-seat-strip {
+  flex-wrap: wrap;
+}
+
+@keyframes dr-bot-draw-nudge {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.03);
+  }
+}
+
+@keyframes dr-bot-sacrifice-dim {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(0.88);
+  }
 }
 
 .dr-card-preview {
@@ -951,10 +1220,22 @@ function importReplay() {
 
 .dr-card-preview--hero {
   max-width: 220px;
+  position: relative;
+  z-index: 1;
 }
 
 .dr-token-glow {
-  box-shadow: 0 0 0 1px rgba(255, 193, 7, 0.65), 0 0 16px rgba(255, 193, 7, 0.5);
+  box-shadow:
+    0 0 0 2px rgba(255, 193, 7, 0.95),
+    0 0 0 4px rgba(255, 152, 0, 0.45),
+    0 0 22px rgba(255, 193, 7, 0.75),
+    0 0 40px rgba(255, 160, 0, 0.35);
+}
+
+.dr-token-icon {
+  flex-shrink: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.5));
 }
 
 .dr-history-panel {
@@ -1003,6 +1284,10 @@ function importReplay() {
   box-shadow: inset 0 0 0 2px rgba(0, 150, 136, 0.5);
 }
 
+.dr-turn-hero-row {
+  gap: 6px;
+}
+
 .dr-hero-interstitial {
   position: fixed;
   inset: 0;
@@ -1014,19 +1299,59 @@ function importReplay() {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   z-index: 20;
   cursor: pointer;
 }
 
-.dr-hero-interstitial__hero {
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+.dr-hero-interstitial__transition {
+  gap: 1rem;
+}
+
+.dr-hero-interstitial__arrow {
+  font-size: 1.75rem;
+  opacity: 0.85;
+  animation: dr-hero-arrow-pulse 1.1s ease-in-out infinite alternate;
+}
+
+.dr-hero-interstitial__avatar--from {
+  opacity: 0.88;
+  transform: scale(0.92);
+}
+
+.dr-hero-interstitial__avatar--to {
+  animation: dr-hero-interstitial-pop 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dr-hero-interstitial-pop {
+  from {
+    transform: scale(0.72);
+    opacity: 0.35;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes dr-hero-arrow-pulse {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .dr-hero-interstitial__hint {
   font-size: 0.85rem;
   opacity: 0.75;
+}
+</style>
+
+<style>
+/* Quasar portals dialogs outside scoped tree; keep equipment modal above board texture & memory-aid layers */
+.dr-equipment-dialog .q-dialog__inner {
+  z-index: 9000 !important;
 }
 </style>

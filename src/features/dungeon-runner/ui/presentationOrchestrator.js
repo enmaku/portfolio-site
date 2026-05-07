@@ -4,15 +4,16 @@ export const SPEED_PROFILES = {
     turnAdvanceMs: 450,
     dungeonResultMs: 700,
     botStoryMs: 520,
+    heroChangeInterstitialMs: 1800,
   },
   brisk: {
     phaseTransitionMs: 450,
     turnAdvanceMs: 200,
     dungeonResultMs: 325,
     botStoryMs: 260,
+    heroChangeInterstitialMs: 900,
   },
 }
-const HERO_CHANGE_INTERSTITIAL_MS = 1800
 
 export function mapEngineTransitionToAnimations(transition, speedProfile = 'cinematic') {
   const profile = SPEED_PROFILES[speedProfile] ?? SPEED_PROFILES.cinematic
@@ -86,7 +87,8 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
       kind: 'HERO_CHANGE_INTERSTITIAL',
       channel: 'gameplay',
       label: '',
-      durationMs: HERO_CHANGE_INTERSTITIAL_MS,
+      durationMs: profile.heroChangeInterstitialMs,
+      skippable: true,
       payload: {
         heroBefore: transition.heroBefore,
         heroAfter: transition.heroAfter,
@@ -102,7 +104,7 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
     queue.push({
       kind: 'TURN_ADVANCE',
       channel: 'gameplay',
-      label: 'Advancing turn...',
+      label: transition.actorRoleType === 'human' ? 'Advancing turn...' : '',
       durationMs: profile.turnAdvanceMs,
     })
   }
@@ -124,6 +126,37 @@ function findConsumedEquipmentIds(before = [], after = []) {
   return (before ?? []).filter((equipmentId) => !remaining.has(equipmentId))
 }
 
+function speedKeyForAnimationKind(kind) {
+  if (typeof kind !== 'string') return null
+  if (kind.startsWith('BOT_BIDDING_')) return 'botStoryMs'
+  if (
+    kind === 'PHASE_ENTER_DUNGEON' ||
+    kind === 'PHASE_PICK_ADVENTURER' ||
+    kind === 'PHASE_MATCH_OVER'
+  ) {
+    return 'phaseTransitionMs'
+  }
+  if (kind === 'HERO_CHANGE_INTERSTITIAL') return 'heroChangeInterstitialMs'
+  if (kind === 'TURN_ADVANCE') return 'turnAdvanceMs'
+  if (kind === 'DUNGEON_RESULT') return 'dungeonResultMs'
+  return null
+}
+
+function rescaleQueuedAnimationsForProfile(queue, fromProfileKey, toProfileKey) {
+  const oldP = SPEED_PROFILES[fromProfileKey]
+  const newP = SPEED_PROFILES[toProfileKey]
+  for (const item of queue) {
+    const key = speedKeyForAnimationKind(item.kind)
+    if (!key) continue
+    const oldMs = oldP[key]
+    const newMs = newP[key]
+    if (!oldMs || oldMs <= 0) continue
+    const ratio = newMs / oldMs
+    item.remainingMs = Math.max(0, Math.round(item.remainingMs * ratio))
+    item.durationMs = newMs
+  }
+}
+
 export function createPresentationOrchestrator({ speedProfile = 'cinematic' } = {}) {
   let selectedSpeedProfile = SPEED_PROFILES[speedProfile] ? speedProfile : 'cinematic'
   let nextAnimationId = 1
@@ -141,7 +174,10 @@ export function createPresentationOrchestrator({ speedProfile = 'cinematic' } = 
 
   return {
     setSpeedProfile(next) {
-      if (SPEED_PROFILES[next]) selectedSpeedProfile = next
+      if (!SPEED_PROFILES[next] || next === selectedSpeedProfile) return
+      const prev = selectedSpeedProfile
+      selectedSpeedProfile = next
+      rescaleQueuedAnimationsForProfile(queue, prev, next)
     },
     enqueueEngineTransition(transition) {
       pushAnimations(mapEngineTransitionToAnimations(transition, selectedSpeedProfile))
@@ -170,6 +206,8 @@ export function createPresentationOrchestrator({ speedProfile = 'cinematic' } = 
     },
     skipActiveAnimation() {
       if (queue.length === 0) return
+      const head = queue[0]
+      if (!head.skippable) return
       queue.shift()
     },
     isGameplayInputLocked() {

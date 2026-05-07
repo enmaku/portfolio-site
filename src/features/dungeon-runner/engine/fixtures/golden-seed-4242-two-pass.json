@@ -23,7 +23,8 @@
       "revealedBySeatId": null,
       "monsterDeck": ["goblin", "goblin", "skeleton", "skeleton", "orc", "orc", "vampire", "vampire", "golem", "golem", "lich", "demon", "dragon"],
       "dungeonMonsters": [],
-      "discardedMonsterCards": []
+      "discardedMonsterCards": [],
+      "equipmentDisplayOrder": ["W_PLATE", "W_SHIELD", "W_VORPAL", "W_TORCH", "W_HOLY", "W_SPEAR"]
     },
     "scoreboard": {
       "seat-1": { "successes": 0, "lives": 2, "eliminated": false },

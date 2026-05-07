@@ -1,5 +1,8 @@
-const BASE_RUNTIME_PATH = '/assets/dungeon-runner/runtime'
-const BASE_MASTER_PATH = '/artifacts/dungeon-runner/assets/masters'
+import { EQUIPMENT_IDS } from '../engine/kernel.js'
+
+export const DUNGEON_RUNNER_RUNTIME_BASE = '/assets/dungeon-runner/runtime'
+const BASE_RUNTIME_PATH = DUNGEON_RUNNER_RUNTIME_BASE
+const BASE_MASTER_PATH = '/assets/dungeon-runner/masters'
 
 function assetEntry(group, name) {
   return {
@@ -8,10 +11,17 @@ function assetEntry(group, name) {
   }
 }
 
+/** @type {Record<string, ReturnType<typeof assetEntry>>} */
+const equipment = Object.fromEntries(EQUIPMENT_IDS.map((id) => [id, assetEntry('equipment', id)]))
+
 export const dungeonRunnerAssetPack = {
   cards: {
     monsterBack: assetEntry('cards', 'monster-back'),
     revealedMonster: assetEntry('cards', 'revealed-monster'),
+  },
+  piles: {
+    deck: assetEntry('piles', 'deck-back'),
+    dungeon: assetEntry('piles', 'dungeon-back'),
   },
   icons: {
     runner: assetEntry('icons', 'runner'),
@@ -23,4 +33,5 @@ export const dungeonRunnerAssetPack = {
   board: {
     biddingTexture: assetEntry('board', 'bidding-texture'),
   },
+  equipment,
 }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <polygon points="68.6310350493956,101.71675376237025 33.65185061820287,86.86897087977783 29.020815568807265,49.1522171174076 59.36896495060441,26.28324623762976 94.3481493817971,41.13102912022214 98.97918443119273,78.84778288259238" fill="hsl(263 52% 42%)" stroke="#5c4033" stroke-width="3" stroke-linejoin="round"/>
+  <text x="64" y="72" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#fffdf8">WTORCH</text>
+</svg>

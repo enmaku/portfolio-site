@@ -4,6 +4,7 @@ import {
   buildDungeonEquipmentTokenView,
   createDungeonEquipmentModalView,
   createVorpalDeclarationPromptView,
+  filterVisibleLegalActions,
   pickAutoResolveDungeonAction,
 } from './dungeonEquipmentInteractions.js'
 
@@ -60,6 +61,31 @@ test('modal exposes USE only when legal and continue maps to implicit decline', 
   assert.equal(blockedPolymorphModal.continueAction, null)
 })
 
+test('dungeon phase hides fire axe / polymorph actions from flat button row (token modal path)', () => {
+  const legal = [
+    { type: 'USE_FIRE_AXE' },
+    { type: 'DECLINE_FIRE_AXE' },
+    { type: 'DECLARE_VORPAL', species: 'goblin' },
+  ]
+  const visible = filterVisibleLegalActions({ phase: 'dungeon', legalActions: legal })
+  assert.deepEqual(visible, [])
+})
+
+test('bidding phase still lists sacrifice alongside other non-vorpal actions', () => {
+  const legal = [
+    { type: 'ADD_TO_DUNGEON' },
+    { type: 'SACRIFICE', equipmentId: 'W_SHIELD' },
+  ]
+  const visible = filterVisibleLegalActions({ phase: 'bidding', legalActions: legal })
+  assert.deepEqual(visible, legal)
+})
+
+test('dungeon phase keeps reveal/continue visible when that is the only choice', () => {
+  const legal = [{ type: 'REVEAL_OR_CONTINUE' }]
+  const visible = filterVisibleLegalActions({ phase: 'dungeon', legalActions: legal })
+  assert.deepEqual(visible, legal)
+})
+
 test('auto-resolve picks reveal/continue when no equipment choice point exists', () => {
   const revealAction = pickAutoResolveDungeonAction({
     legalActions: [{ type: 'REVEAL_OR_CONTINUE' }],
@@ -102,10 +128,37 @@ test('vorpal prompt species options come from legal actions only', () => {
       { type: 'DECLARE_VORPAL', species: 'goblin' },
       { type: 'DECLARE_VORPAL', species: 'dragon' },
     ],
-    dungeon: {
-      remainingMonsters: ['lich', 'demon'],
-    },
   })
 
   assert.deepEqual(prompt.speciesOptions, ['goblin', 'dragon'])
+  assert.equal(prompt.vorpalSpeciesOwnPileCounts, null)
+})
+
+test('vorpal prompt omits own-pile counts when memory aid is disabled', () => {
+  const prompt = createVorpalDeclarationPromptView({
+    isHumanTurn: true,
+    gameplayInputLocked: false,
+    phase: 'dungeon',
+    subphase: 'vorpal',
+    legalActions: [{ type: 'DECLARE_VORPAL', species: 'goblin' }],
+    memoryAidEnabled: false,
+    viewerOwnPileAdds: ['goblin', 'goblin'],
+  })
+  assert.equal(prompt.vorpalSpeciesOwnPileCounts, null)
+})
+
+test('vorpal prompt exposes per-species own-pile counts when memory aid is on', () => {
+  const prompt = createVorpalDeclarationPromptView({
+    isHumanTurn: true,
+    gameplayInputLocked: false,
+    phase: 'dungeon',
+    subphase: 'vorpal',
+    legalActions: [
+      { type: 'DECLARE_VORPAL', species: 'goblin' },
+      { type: 'DECLARE_VORPAL', species: 'dragon' },
+    ],
+    memoryAidEnabled: true,
+    viewerOwnPileAdds: ['goblin', 'orc', 'goblin'],
+  })
+  assert.deepEqual(prompt.vorpalSpeciesOwnPileCounts, { goblin: 2, dragon: 0 })
 })

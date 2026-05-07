@@ -1,3 +1,5 @@
+import { dungeonRunnerAssetPack, DUNGEON_RUNNER_RUNTIME_BASE } from './assetPack.js'
+
 /**
  * Card face data for UI — kept in sync with `MONSTER_STATS` in engine/kernel.js
  * and dungeon-runner `docs/welcome-to-the-dungeon.md` (monster table).
@@ -32,20 +34,23 @@ export function displayNameForSpecies(species) {
   return species.charAt(0).toUpperCase() + species.slice(1)
 }
 
-export const RUNTIME_BASE = '/assets/dungeon-runner/runtime'
-
 export function cardBlankUrl() {
-  return `${RUNTIME_BASE}/cards/card-blank.png`
+  return `${DUNGEON_RUNNER_RUNTIME_BASE}/cards/card-blank.png`
 }
 
 export function monsterBackUrl() {
-  return `${RUNTIME_BASE}/cards/monster-back.png`
+  return dungeonRunnerAssetPack.cards.monsterBack.runtimePath
+}
+
+/** Flat raster reference card; gameplay uses layered `MonsterCardFace` (blank + doodle + symbols). */
+export function revealedMonsterTemplateUrl() {
+  return dungeonRunnerAssetPack.cards.revealedMonster.runtimePath
 }
 
 export function monsterDoodleUrl(species) {
-  return `${RUNTIME_BASE}/cards/doodles/${species}.png`
+  return `${DUNGEON_RUNNER_RUNTIME_BASE}/cards/doodles/${species}.png`
 }
 
 export function symbolUrl(iconKey) {
-  return `${RUNTIME_BASE}/symbols/${iconKey}.png`
+  return `${DUNGEON_RUNNER_RUNTIME_BASE}/symbols/${iconKey}.png`
 }

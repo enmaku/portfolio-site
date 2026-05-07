@@ -5,11 +5,16 @@ import { createBiddingBoardViewModel } from './biddingBoardViewModel.js'
 test('board view model prioritizes primary reveal card and compact secondary state', () => {
   const model = createBiddingBoardViewModel({
     state: {
+      seats: [
+        { id: 'seat-1', label: 'You', role: { type: 'human' } },
+        { id: 'seat-2', label: 'Rival A', role: { type: 'randombot' } },
+      ],
       turn: { activeSeatId: 'seat-2' },
       centerEquipment: ['W_PLATE', 'W_SHIELD'],
       bidding: {
         monsterDeck: ['dragon', 'goblin', 'orc'],
         dungeonMonsters: ['skeleton', 'orc'],
+        passedSeatIds: ['seat-1'],
       },
     },
     visibleState: {
@@ -25,6 +30,10 @@ test('board view model prioritizes primary reveal card and compact secondary sta
   assert.equal(model.secondary.deckCount, 3)
   assert.equal(model.secondary.dungeonCount, 2)
   assert.equal(model.secondary.activeSeatId, 'seat-2')
+  assert.equal(model.secondary.activeSeatLabel, 'Rival A')
+  assert.equal(model.secondary.seats[0].passed, true)
+  assert.equal(model.secondary.seats[1].passed, false)
+  assert.equal(model.secondary.seats[1].isActive, true)
 })
 
 test('board view model preserves hidden information for unrevealed card', () => {
@@ -50,6 +59,44 @@ test('board view model preserves hidden information for unrevealed card', () => 
   assert.equal(model.primaryCard.monsterCard, null)
 })
 
+test('board view model maps bot bidding animation kinds to motion cues', () => {
+  const draw = createBiddingBoardViewModel({
+    state: {
+      bidding: { monsterDeck: [], dungeonMonsters: [], passedSeatIds: [] },
+      turn: { activeSeatId: 'seat-1' },
+      seats: [],
+      centerEquipment: [],
+    },
+    visibleState: { bidding: { revealedMonsterCard: null } },
+    activeAnimation: { kind: 'BOT_BIDDING_DRAW', payload: {} },
+  })
+  assert.equal(draw.secondary.botBiddingMotion, 'draw')
+
+  const add = createBiddingBoardViewModel({
+    state: {
+      bidding: { monsterDeck: [], dungeonMonsters: [], passedSeatIds: [] },
+      turn: { activeSeatId: 'seat-1' },
+      seats: [],
+      centerEquipment: [],
+    },
+    visibleState: { bidding: { revealedMonsterCard: null } },
+    activeAnimation: { kind: 'BOT_BIDDING_ADD', payload: {} },
+  })
+  assert.equal(add.secondary.botBiddingMotion, 'add')
+
+  const sac = createBiddingBoardViewModel({
+    state: {
+      bidding: { monsterDeck: [], dungeonMonsters: [], passedSeatIds: [] },
+      turn: { activeSeatId: 'seat-1' },
+      seats: [],
+      centerEquipment: [],
+    },
+    visibleState: { bidding: { revealedMonsterCard: null } },
+    activeAnimation: { kind: 'BOT_BIDDING_SACRIFICE', payload: { consumedEquipmentIds: [] } },
+  })
+  assert.equal(sac.secondary.botBiddingMotion, 'sacrifice')
+})
+
 test('board view model darkens consumed equipment from active bot animation', () => {
   const model = createBiddingBoardViewModel({
     state: {
@@ -58,6 +105,7 @@ test('board view model darkens consumed equipment from active bot animation', ()
       bidding: {
         monsterDeck: ['goblin', 'orc'],
         dungeonMonsters: ['skeleton'],
+        equipmentDisplayOrder: ['W_PLATE', 'W_SHIELD'],
       },
     },
     visibleState: { bidding: { revealedMonsterCard: null } },
@@ -70,6 +118,27 @@ test('board view model darkens consumed equipment from active bot animation', ()
   })
 
   assert.equal(model.secondary.equipment[1].consumed, true)
+  assert.equal(model.secondary.equipment[1].removed, false)
+})
+
+test('board view model keeps removed center equipment in display order as spent tiles', () => {
+  const model = createBiddingBoardViewModel({
+    state: {
+      turn: { activeSeatId: 'seat-1' },
+      centerEquipment: ['W_PLATE'],
+      bidding: {
+        monsterDeck: [],
+        dungeonMonsters: [],
+        equipmentDisplayOrder: ['W_PLATE', 'W_SHIELD'],
+      },
+    },
+    visibleState: { bidding: { revealedMonsterCard: null } },
+    activeAnimation: null,
+  })
+
+  assert.equal(model.secondary.equipment.length, 2)
+  assert.equal(model.secondary.equipment[0].removed, false)
+  assert.equal(model.secondary.equipment[1].removed, true)
 })
 
 test('board view model exposes hero color cue tokens for in-match theming', () => {
@@ -90,6 +159,24 @@ test('board view model exposes hero color cue tokens for in-match theming', () =
   assert.equal(model.heroCue.hero, 'MAGE')
   assert.equal(model.heroCue.accentClass, 'dr-hero--mage')
   assert.equal(model.heroCue.badgeColor, 'deep-purple')
+  assert.equal(model.heroCue.badgeGlyph, 'M')
+  assert.equal(model.heroCue.shortLabel, 'Mage')
+  assert.equal(model.heroCue.buttonColor, 'deep-purple')
+})
+
+test('board view model warrior cue unifies button and badge colors', () => {
+  const model = createBiddingBoardViewModel({
+    state: {
+      hero: 'WARRIOR',
+      turn: { activeSeatId: 'seat-1' },
+      centerEquipment: [],
+      bidding: { monsterDeck: [], dungeonMonsters: [] },
+    },
+    visibleState: { bidding: { revealedMonsterCard: null } },
+    activeAnimation: null,
+  })
+  assert.equal(model.heroCue.badgeColor, 'indigo')
+  assert.equal(model.heroCue.buttonColor, 'indigo')
 })
 
 test('memory aid defaults off and keeps deck interaction disabled', () => {
@@ -139,4 +226,51 @@ test('memory aid on enables deck interactions and personal known-count hint only
   assert.equal(model.memoryAid.deckTapEnabled, true)
   assert.equal(model.memoryAid.knownDeckCountHint, 2)
   assert.equal(model.memoryAid.deckSplayCards.length, 3)
+  assert.deepEqual(model.memoryAid.deckSplayCards[0], { visibility: 'face', species: 'goblin' })
+  assert.deepEqual(model.memoryAid.deckSplayCards[1], { visibility: 'face', species: 'orc' })
+  assert.deepEqual(model.memoryAid.deckSplayCards[2], { visibility: 'back', species: null })
+})
+
+test('memory aid deck splay keeps slots face-down when viewer has no personal pile adds', () => {
+  const model = createBiddingBoardViewModel({
+    state: {
+      bidding: {
+        monsterDeck: ['lich', 'demon'],
+        dungeonMonsters: [],
+      },
+    },
+    visibleState: {
+      playerOwnPileAdds: { 'seat-1': [] },
+    },
+    activeAnimation: null,
+    viewerSeatId: 'seat-1',
+    settings: { memoryAidEnabled: true },
+  })
+
+  assert.equal(model.memoryAid.knownDeckCountHint, 0)
+  assert.deepEqual(model.memoryAid.deckSplayCards, [
+    { visibility: 'back', species: null },
+    { visibility: 'back', species: null },
+  ])
+})
+
+test('memory aid deck splay face-up depth caps at remaining deck size', () => {
+  const model = createBiddingBoardViewModel({
+    state: {
+      bidding: {
+        monsterDeck: ['orc', 'vampire'],
+        dungeonMonsters: [],
+      },
+    },
+    visibleState: {
+      playerOwnPileAdds: { 'seat-1': ['goblin', 'skeleton', 'orc', 'dragon'] },
+    },
+    activeAnimation: null,
+    viewerSeatId: 'seat-1',
+    settings: { memoryAidEnabled: true },
+  })
+
+  assert.equal(model.memoryAid.deckSplayCards.length, 2)
+  assert.deepEqual(model.memoryAid.deckSplayCards[0], { visibility: 'face', species: 'orc' })
+  assert.deepEqual(model.memoryAid.deckSplayCards[1], { visibility: 'face', species: 'vampire' })
 })

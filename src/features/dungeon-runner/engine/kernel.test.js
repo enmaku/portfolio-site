@@ -118,6 +118,17 @@ test('dungeon subphases expose python-style legal action intents', () => {
   )
 })
 
+const EXPECTED_VORPAL_LEGAL = [
+  { type: ACTION_TYPES.DECLARE_VORPAL, species: 'goblin' },
+  { type: ACTION_TYPES.DECLARE_VORPAL, species: 'skeleton' },
+  { type: ACTION_TYPES.DECLARE_VORPAL, species: 'orc' },
+  { type: ACTION_TYPES.DECLARE_VORPAL, species: 'vampire' },
+  { type: ACTION_TYPES.DECLARE_VORPAL, species: 'golem' },
+  { type: ACTION_TYPES.DECLARE_VORPAL, species: 'lich' },
+  { type: ACTION_TYPES.DECLARE_VORPAL, species: 'demon' },
+  { type: ACTION_TYPES.DECLARE_VORPAL, species: 'dragon' },
+]
+
 test('vorpal declaration legality exposes full species set', () => {
   const base = createInitialMatchState(
     { totalSeats: 2, opponents: [{ type: 'randombot' }] },
@@ -132,16 +143,42 @@ test('vorpal declaration legality exposes full species set', () => {
     dungeon: { ...base.dungeon, subphase: DUNGEON_SUBPHASES.VORPAL },
   }
   const legal = getLegalActions(state, { seatId: runner })
-  assert.deepEqual(legal, [
-    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'goblin' },
-    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'skeleton' },
-    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'orc' },
-    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'vampire' },
-    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'golem' },
-    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'lich' },
-    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'demon' },
-    { type: ACTION_TYPES.DECLARE_VORPAL, species: 'dragon' },
-  ])
+  assert.deepEqual(legal, EXPECTED_VORPAL_LEGAL)
+})
+
+test('vorpal declaration legality ignores dungeon pile composition', () => {
+  const base = createInitialMatchState(
+    { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    { seed: 62110 },
+  )
+  const runner = base.seats[0].id
+  const state = {
+    ...base,
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { ...base.turn, activeSeatId: runner },
+    bidding: { ...base.bidding, runnerSeatId: runner },
+    dungeon: {
+      ...base.dungeon,
+      subphase: DUNGEON_SUBPHASES.VORPAL,
+      remainingMonsters: ['lich'],
+    },
+  }
+  assert.deepEqual(getLegalActions(state, { seatId: runner }), EXPECTED_VORPAL_LEGAL)
+})
+
+test('bidding->dungeon skips vorpal when pile non-empty but no vorpal equipment in play', () => {
+  const base = createInitialMatchState({ totalSeats: 2, opponents: [{ type: 'randombot' }] }, { seed: 624 })
+  const barbarianCenter = ['B_HEAL', 'B_SHIELD', 'B_CHAIN', 'B_AXE', 'B_TORCH', 'B_HAMMER']
+  const state = {
+    ...base,
+    centerEquipment: barbarianCenter,
+    bidding: { ...base.bidding, dungeonMonsters: ['goblin', 'dragon'] },
+  }
+  const pass = applyAction(state, { type: ACTION_TYPES.PASS }, { seatId: state.turn.activeSeatId })
+  assert.equal(pass.ok, true)
+  assert.equal(pass.state.phase, MATCH_PHASES.DUNGEON)
+  assert.equal(pass.state.dungeon.subphase, DUNGEON_SUBPHASES.REVEAL)
+  assert.deepEqual(pass.state.dungeon.remainingMonsters, ['goblin', 'dragon'])
 })
 
 test('vorpal declaration rejects species outside legal action set', () => {
@@ -762,4 +799,48 @@ test('own pile species tracking resets after picking next adventurer', () => {
   assert.equal(choose.ok, true)
   assert.equal(choose.state.phase, 'bidding')
   assert.deepEqual(choose.state.playerOwnPileAdds[runnerId], [])
+})
+
+test('history row for CHOOSE_NEXT_ADVENTURER has no stale dungeonRunResult', () => {
+  const base = createInitialMatchState(
+    {
+      totalSeats: 2,
+      opponents: [{ type: 'randombot' }],
+    },
+    { seed: 9100 },
+  )
+  const runnerId = base.seats[0].id
+  const seeded = {
+    ...base,
+    phase: 'dungeon',
+    turn: { ...base.turn, activeSeatId: runnerId },
+    bidding: {
+      ...base.bidding,
+      runnerSeatId: runnerId,
+      dungeonMonsters: ['goblin'],
+    },
+    dungeon: {
+      ...base.dungeon,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+      currentMonster: null,
+      remainingMonsters: [],
+      hp: 1,
+      inPlayEquipmentIds: [],
+      discardedRunMonsters: [],
+      polySpent: true,
+      axeSpent: true,
+    },
+  }
+  const resolved = applyAction(seeded, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runnerId })
+  assert.equal(resolved.ok, true)
+  assert.equal(resolved.state.phase, MATCH_PHASES.PICK_ADVENTURER)
+  const afterRun = resolved.state.history.at(-1)
+  assert.equal(afterRun?.dungeonRunResult, 'success')
+
+  const choose = applyAction(resolved.state, { type: ACTION_TYPES.CHOOSE_NEXT_ADVENTURER, hero: 'WARRIOR' }, { seatId: runnerId })
+  assert.equal(choose.ok, true)
+  const chooseRow = choose.state.history.at(-1)
+  assert.equal(chooseRow?.action?.type, ACTION_TYPES.CHOOSE_NEXT_ADVENTURER)
+  assert.equal(chooseRow?.dungeonRunResult, null)
+  assert.equal(choose.state.lastDungeonRun, null)
 })

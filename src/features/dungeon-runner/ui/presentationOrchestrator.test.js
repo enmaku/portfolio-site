@@ -82,6 +82,34 @@ test('bidding-to-dungeon engine transition maps to visible queued animation', ()
   assert.equal(animations.some((animation) => animation.kind === 'PHASE_ENTER_DUNGEON'), true)
 })
 
+test('turn advance is silent when actor is not human', () => {
+  const bot = mapEngineTransitionToAnimations({
+    phaseBefore: 'bidding',
+    phaseAfter: 'bidding',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-2',
+    dungeonRunResult: null,
+    action: { type: 'DRAW' },
+    actorRoleType: 'randombot',
+  })
+  const botTurn = bot.find((animation) => animation.kind === 'TURN_ADVANCE')
+  assert.ok(botTurn)
+  assert.equal(botTurn.label, '')
+
+  const human = mapEngineTransitionToAnimations({
+    phaseBefore: 'bidding',
+    phaseAfter: 'bidding',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-2',
+    dungeonRunResult: null,
+    action: { type: 'PASS' },
+    actorRoleType: 'human',
+  })
+  const humanTurn = human.find((animation) => animation.kind === 'TURN_ADVANCE')
+  assert.ok(humanTurn)
+  assert.equal(humanTurn.label, 'Advancing turn...')
+})
+
 test('bot bidding actions enqueue silent storytelling cues without hidden card info', () => {
   const orchestrator = createPresentationOrchestrator()
 
@@ -150,7 +178,27 @@ test('hero change transition queues interstitial with default 1800ms duration', 
   const interstitial = animations.find((animation) => animation.kind === 'HERO_CHANGE_INTERSTITIAL')
   assert.ok(interstitial)
   assert.equal(interstitial.durationMs, 1800)
+  assert.equal(interstitial.skippable, true)
   assert.deepEqual(interstitial.payload, { heroBefore: 'WARRIOR', heroAfter: 'MAGE' })
+})
+
+test('hero change interstitial duration follows brisk speed profile', () => {
+  const animations = mapEngineTransitionToAnimations(
+    {
+      phaseBefore: 'pick-adventurer',
+      phaseAfter: 'bidding',
+      turnBeforeSeatId: 'seat-1',
+      turnAfterSeatId: 'seat-1',
+      dungeonRunResult: null,
+      heroBefore: 'WARRIOR',
+      heroAfter: 'MAGE',
+    },
+    'brisk',
+  )
+
+  const interstitial = animations.find((animation) => animation.kind === 'HERO_CHANGE_INTERSTITIAL')
+  assert.ok(interstitial)
+  assert.equal(interstitial.durationMs, SPEED_PROFILES.brisk.heroChangeInterstitialMs)
 })
 
 test('orchestrator can skip active interstitial animation immediately', () => {
@@ -169,4 +217,57 @@ test('orchestrator can skip active interstitial animation immediately', () => {
   orchestrator.skipActiveAnimation()
   assert.equal(orchestrator.getActiveAnimation(), null)
   assert.equal(orchestrator.isGameplayInputLocked(), false)
+})
+
+test('skip does not dequeue non-skippable gameplay animations', () => {
+  const orchestrator = createPresentationOrchestrator()
+  orchestrator.enqueueEngineTransition({
+    phaseBefore: 'bidding',
+    phaseAfter: 'dungeon',
+    turnBeforeSeatId: 'seat-a',
+    turnAfterSeatId: 'seat-b',
+    dungeonRunResult: null,
+  })
+
+  const before = orchestrator.getActiveAnimation()
+  assert.equal(before?.kind, 'PHASE_ENTER_DUNGEON')
+  assert.notEqual(before?.skippable, true)
+  orchestrator.skipActiveAnimation()
+  assert.equal(orchestrator.getActiveAnimation()?.kind, 'PHASE_ENTER_DUNGEON')
+  assert.equal(orchestrator.isGameplayInputLocked(), true)
+})
+
+test('setSpeedProfile rescales queued items when pace changes mid-queue', () => {
+  const orchestrator = createPresentationOrchestrator({ speedProfile: 'cinematic' })
+  orchestrator.enqueueEngineTransition({
+    phaseBefore: 'bidding',
+    phaseAfter: 'dungeon',
+    turnBeforeSeatId: 'seat-a',
+    turnAfterSeatId: 'seat-b',
+    dungeonRunResult: null,
+  })
+  orchestrator.advance(400)
+  const mid = orchestrator.getQueueSnapshot()
+  assert.equal(mid[0].kind, 'PHASE_ENTER_DUNGEON')
+  assert.equal(mid[0].remainingMs, 500)
+
+  orchestrator.setSpeedProfile('brisk')
+  const after = orchestrator.getQueueSnapshot()
+  assert.equal(after[0].remainingMs, 250)
+  assert.equal(after[0].durationMs, SPEED_PROFILES.brisk.phaseTransitionMs)
+  assert.equal(after[1].durationMs, SPEED_PROFILES.brisk.turnAdvanceMs)
+  assert.equal(after[1].remainingMs, SPEED_PROFILES.brisk.turnAdvanceMs)
+})
+
+test('setSpeedProfile is a no-op for unknown profile keys', () => {
+  const orchestrator = createPresentationOrchestrator()
+  orchestrator.enqueueEngineTransition({
+    phaseBefore: 'bidding',
+    phaseAfter: 'dungeon',
+    turnBeforeSeatId: 'seat-a',
+    turnAfterSeatId: 'seat-b',
+    dungeonRunResult: null,
+  })
+  orchestrator.setSpeedProfile('fast')
+  assert.equal(orchestrator.getQueueSnapshot()[0].durationMs, SPEED_PROFILES.cinematic.phaseTransitionMs)
 })

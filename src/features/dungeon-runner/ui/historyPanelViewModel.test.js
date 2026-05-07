@@ -45,8 +45,30 @@ test('history panel renders human-readable provenance for bidding and dungeon ac
   })
 
   assert.equal(viewModel.entries.length, 2)
-  assert.equal(viewModel.entries[0].headline, 'Alice drew from the monster deck.')
-  assert.equal(viewModel.entries[0].provenance, 'bidding -> bidding | rng 10->11')
+  assert.equal(viewModel.entries[0].headline, 'Alice drew from the deck.')
+  assert.equal(viewModel.entries[0].provenance, 'Bidding → Bidding | rng 10->11')
   assert.equal(viewModel.entries[1].headline, 'Player resolved the dungeon run (success).')
-  assert.equal(viewModel.entries[1].provenance, 'dungeon -> pick-adventurer | rng 44->45')
+  assert.equal(viewModel.entries[1].provenance, 'Dungeon → Choose adventurer | rng 44->45')
+})
+
+test('history panel describes vorpal declaration with species', () => {
+  const viewModel = buildHistoryPanelViewModel({
+    isOpen: true,
+    seats: [{ id: 'seat-1', label: 'Player' }],
+    historyEntries: [
+      {
+        actorSeatId: 'seat-1',
+        action: { type: 'DECLARE_VORPAL', species: 'dragon' },
+        phaseBefore: 'dungeon',
+        phaseAfter: 'dungeon',
+        rngStepBefore: 20,
+        rngStepAfter: 21,
+        dungeonRunResult: null,
+      },
+    ],
+  })
+
+  assert.equal(viewModel.entries.length, 1)
+  assert.equal(viewModel.entries[0].headline, 'Player declared dragon.')
+  assert.equal(viewModel.entries[0].provenance, 'Dungeon → Dungeon | rng 20->21')
 })

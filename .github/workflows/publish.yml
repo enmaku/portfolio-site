@@ -52,6 +52,8 @@ jobs:
           VITE_TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
         run: |
           npm ci
+          npm run lint
+          npm test
           npm run build
 
       - uses: actions/upload-pages-artifact@v5

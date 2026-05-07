@@ -42,5 +42,13 @@ function isValidMatchShape(match) {
   if (!('setup' in match) || typeof match.setup !== 'object' || match.setup == null) return false
   if (!('state' in match) || typeof match.state !== 'object' || match.state == null) return false
   if (!Array.isArray(match.history)) return false
+  if (
+    'presentationSpeedProfile' in match &&
+    match.presentationSpeedProfile != null &&
+    match.presentationSpeedProfile !== 'cinematic' &&
+    match.presentationSpeedProfile !== 'brisk'
+  ) {
+    return false
+  }
   return true
 }

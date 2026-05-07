@@ -1,9 +1,4 @@
-const ACTION_HEADLINES = {
-  DRAW: (actor) => `${actor} drew from the monster deck.`,
-  PASS: (actor) => `${actor} passed bidding priority.`,
-  ADD_TO_DUNGEON: (actor) => `${actor} added the revealed monster to the dungeon.`,
-  SACRIFICE: (actor, action) => `${actor} sacrificed ${action.equipmentId ?? 'equipment'}.`,
-}
+import { formatHistoryProvenanceLine, historyHeadlineForHistoryEntry } from './dungeonRunnerPlayerPhrasing.js'
 
 export function buildHistoryPanelViewModel({ historyEntries, seats, isOpen }) {
   return {
@@ -18,16 +13,12 @@ export function buildHistoryPanelViewModel({ historyEntries, seats, isOpen }) {
 function mapEntry(entry, seats) {
   const actor = seats.find((seat) => seat.id === entry.actorSeatId)?.label ?? entry.actorSeatId ?? 'Unknown seat'
   return {
-    headline: toHeadline(actor, entry),
-    provenance: `${entry.phaseBefore} -> ${entry.phaseAfter} | rng ${entry.rngStepBefore}->${entry.rngStepAfter}`,
+    headline: historyHeadlineForHistoryEntry(actor, entry),
+    provenance: formatHistoryProvenanceLine(
+      entry.phaseBefore,
+      entry.phaseAfter,
+      entry.rngStepBefore,
+      entry.rngStepAfter,
+    ),
   }
-}
-
-function toHeadline(actor, entry) {
-  if (entry.dungeonRunResult) {
-    return `${actor} resolved the dungeon run (${entry.dungeonRunResult}).`
-  }
-  const formatter = ACTION_HEADLINES[entry.action?.type]
-  if (formatter) return formatter(actor, entry.action ?? {})
-  return `${actor} performed ${entry.action?.type ?? 'UNKNOWN_ACTION'}.`
 }

@@ -72,3 +72,59 @@ test('importReplayEnvelope requires numeric seed', () => {
   assert.equal(result.ok, false)
   assert.equal(result.errorCode, 'INVALID_REPLAY')
 })
+
+test('exportReplayEnvelope includes presentationSpeedProfile when cinematic or brisk', () => {
+  const brisk = exportReplayEnvelope({
+    seed: 1,
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    history: [],
+    presentationSpeedProfile: 'brisk',
+  })
+  assert.equal(brisk.presentationSpeedProfile, 'brisk')
+  const cinematic = exportReplayEnvelope({
+    seed: 1,
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    history: [],
+    presentationSpeedProfile: 'cinematic',
+  })
+  assert.equal(cinematic.presentationSpeedProfile, 'cinematic')
+})
+
+test('exportReplayEnvelope omits presentationSpeedProfile when absent or invalid', () => {
+  const noPace = exportReplayEnvelope({
+    seed: 1,
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    history: [],
+  })
+  assert.equal('presentationSpeedProfile' in noPace, false)
+  const bad = exportReplayEnvelope({
+    seed: 1,
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    history: [],
+    presentationSpeedProfile: 'fast',
+  })
+  assert.equal('presentationSpeedProfile' in bad, false)
+})
+
+test('importReplayEnvelope rejects invalid presentationSpeedProfile', () => {
+  const base = {
+    version: 1,
+    seed: 0,
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    history: [],
+  }
+  assert.equal(importReplayEnvelope({ ...base, presentationSpeedProfile: 'fast' }).ok, false)
+  assert.equal(importReplayEnvelope({ ...base, presentationSpeedProfile: null }).ok, false)
+})
+
+test('importReplayEnvelope accepts optional presentationSpeedProfile', () => {
+  const exported = exportReplayEnvelope({
+    seed: 0,
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    history: [],
+    presentationSpeedProfile: 'brisk',
+  })
+  const imported = importReplayEnvelope(exported)
+  assert.equal(imported.ok, true)
+  assert.equal(imported.replay.presentationSpeedProfile, 'brisk')
+})

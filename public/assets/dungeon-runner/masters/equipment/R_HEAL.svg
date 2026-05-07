@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <polygon points="80.65810357798495,98.15417375936835 47.683349396422464,98.31860884535928 26.995365918369565,72.64043149875255 34.17262666075614,40.455833000903084 63.81050789512718,26.00047246685571 93.59108054940197,40.15953121436567 101.08896600193773,72.27094921439536" fill="hsl(64 52% 42%)" stroke="#5c4033" stroke-width="3" stroke-linejoin="round"/>
+  <text x="64" y="72" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#fffdf8">RHEAL</text>
+</svg>

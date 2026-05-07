@@ -1,3 +1,6 @@
+import { ACTION_TYPES } from '../engine/kernel.js'
+import { equipmentShortName } from './equipmentDisplayCatalog.js'
+
 const EQUIPMENT_UI = {
   B_AXE: {
     label: 'Fire Axe',
@@ -26,7 +29,7 @@ export function buildDungeonEquipmentTokenView({ inPlayEquipmentIds = [], legalA
     const canOpenMemoryAid = !!spec && (canUseNow || hasAction(legalActions, spec.declineActionType))
     return {
       equipmentId,
-      label: spec?.label ?? equipmentId,
+      label: spec?.label ?? equipmentShortName(equipmentId),
       details: spec?.details ?? '',
       canUseNow,
       glow: canUseNow,
@@ -40,7 +43,7 @@ export function createDungeonEquipmentModalView({ equipmentId, legalActions = []
   if (!spec) {
     return {
       equipmentId,
-      title: equipmentId,
+      title: equipmentShortName(equipmentId),
       details: '',
       showUseButton: false,
       useAction: null,
@@ -68,25 +71,64 @@ export function pickAutoResolveDungeonAction({ legalActions = [] }) {
   return null
 }
 
+const DUNGEON_EQUIPMENT_MODAL_ACTION_TYPES = new Set([
+  ACTION_TYPES.USE_FIRE_AXE,
+  ACTION_TYPES.DECLINE_FIRE_AXE,
+  ACTION_TYPES.USE_POLYMORPH,
+  ACTION_TYPES.DECLINE_POLYMORPH,
+])
+
+/**
+ * @param {{ phase: string | null | undefined, legalActions: Array<{ type: string }> }} input
+ * @returns {Array<{ type: string }>}
+ */
+export function filterVisibleLegalActions({ phase, legalActions = [] }) {
+  const withoutVorpal = legalActions.filter((action) => action.type !== ACTION_TYPES.DECLARE_VORPAL)
+  if (phase !== 'dungeon') return withoutVorpal
+  return withoutVorpal.filter((action) => !DUNGEON_EQUIPMENT_MODAL_ACTION_TYPES.has(action.type))
+}
+
+/**
+ * Species choices must mirror engine `getLegalActions` only. Do not merge dungeon pile or
+ * `remainingMonsters` into options (would leak hidden composition).
+ */
+function countOccurrences(values, target) {
+  let n = 0
+  for (const v of values) {
+    if (v === target) n += 1
+  }
+  return n
+}
+
 export function createVorpalDeclarationPromptView({
   isHumanTurn = false,
   gameplayInputLocked = false,
   phase = null,
   subphase = null,
   legalActions = [],
+  memoryAidEnabled = false,
+  viewerOwnPileAdds = [],
 } = {}) {
   const speciesOptions = legalActions
     .filter((action) => action.type === 'DECLARE_VORPAL' && typeof action.species === 'string')
     .map((action) => action.species)
 
+  const open =
+    isHumanTurn &&
+    !gameplayInputLocked &&
+    phase === 'dungeon' &&
+    subphase === 'vorpal' &&
+    speciesOptions.length > 0
+
+  const vorpalSpeciesOwnPileCounts =
+    open && memoryAidEnabled
+      ? Object.fromEntries(speciesOptions.map((sp) => [sp, countOccurrences(viewerOwnPileAdds, sp)]))
+      : null
+
   return {
-    open:
-      isHumanTurn &&
-      !gameplayInputLocked &&
-      phase === 'dungeon' &&
-      subphase === 'vorpal' &&
-      speciesOptions.length > 0,
+    open,
     speciesOptions,
+    vorpalSpeciesOwnPileCounts,
     confirmActionType: 'DECLARE_VORPAL',
   }
 }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <polygon points="95.50342775709159,85.24933033188839 67.0286704953068,101.87911238441126 36.27326257693687,89.98515021839417 26.39665346050368,58.523839937460764 44.83613125679143,31.186189876927223 77.70639308839654,28.558008118809752 100.25546136497312,52.61836913210848" fill="hsl(124 52% 42%)" stroke="#5c4033" stroke-width="3" stroke-linejoin="round"/>
+  <text x="64" y="72" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#fffdf8">RRING</text>
+</svg>

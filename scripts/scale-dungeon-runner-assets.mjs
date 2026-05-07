@@ -1,5 +1,7 @@
 /**
  * Downscales hires PNGs → mobile runtime assets.
+ * For repo-tracked art, prefer SVG masters under `public/assets/dungeon-runner/masters`
+ * and `npm run rasterize-dungeon-runner-masters` (see `src/features/dungeon-runner/ASSET_PACK.md`).
  * Strips AI-baked gray checkerboard / fake “transparency” grays (neutral RGB, no chroma)
  * before resize so alpha is real and patterns don’t shrink into muddy texture.
  */

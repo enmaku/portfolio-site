@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <polygon points="64.66319144461677,101.99421241594287 34.70842168403668,88.2075079212997 26.81080783468414,56.19205621874687 46.91741420708502,30.05614543650502 79.8875561027971,29.480649469022815 100.89404420601994,54.89892851779272 94.11856452076036,87.17050002069001" fill="hsl(179 52% 42%)" stroke="#5c4033" stroke-width="3" stroke-linejoin="round"/>
+  <text x="64" y="72" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#fffdf8">MWALL</text>
+</svg>
