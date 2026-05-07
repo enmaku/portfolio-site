@@ -14,6 +14,15 @@
           <a class="text-primary text-decoration-none" :href="`mailto:${resume.contact.email}`" target="_blank">
             {{ resume.contact.email }}
           </a>
+          <span class="text-grey-7">·</span>
+          <a
+            class="text-primary text-decoration-none"
+            :href="resume.contact.githubUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ resume.contact.githubLabel }}
+          </a>
         </div>
       </q-card-section>
 
@@ -79,6 +88,22 @@
           {{ resume.education.degree }}
         </div>
         <div class="text-body2 text-grey-5 q-mt-xs">{{ resume.education.dates }}</div>
+      </q-card-section>
+
+      <q-separator class="q-my-md" />
+
+      <q-card-section class="q-pt-none">
+        <p class="text-body2 text-grey-5 q-mb-none" style="line-height: 1.65">
+          {{ resume.siteRepository.blurbBeforeLink }}
+          <a
+            class="text-primary text-decoration-none"
+            :href="resume.siteRepository.url"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ resume.siteRepository.linkLabel }}
+          </a>.
+        </p>
       </q-card-section>
     </q-card>
   </q-page>

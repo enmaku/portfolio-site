@@ -4,7 +4,9 @@
   "contact": {
     "phoneDisplay": "+1 909 270 0016",
     "phoneTel": "+19092700016",
-    "email": "enmaku@gmail.com"
+    "email": "enmaku@gmail.com",
+    "githubUrl": "https://github.com/enmaku",
+    "githubLabel": "GitHub"
   },
   "summary": "Accomplished Senior Software Developer with over 15 years of experience designing, developing, and maintaining high-performance software solutions across diverse industries, including labor unions, telehealth, education, gaming, and digital advertising. Expert in backend and frontend development, API architecture, database optimization, and enterprise system integration. Proven ability to lead distributed development teams, mentor junior developers, and collaborate with cross-functional stakeholders to deliver scalable, secure, and efficient solutions. Adept at modernizing legacy systems, implementing CI/CD pipelines, and ensuring compliance with data privacy standards such as HIPAA. Experienced in highly regulated environments, including extensive exposure to complex gaming regulations through multi-jurisdictional licensing across 38 states and tribal authorities, requiring navigation of diverse and overlapping compliance frameworks.",
   "skillGroups": [
@@ -191,5 +193,10 @@
   "education": {
     "degree": "Bachelor of Science in Computer Science, University of Phoenix",
     "dates": "2011"
+  },
+  "siteRepository": {
+    "url": "https://github.com/enmaku/portfolio-site",
+    "blurbBeforeLink": "The source for this portfolio site is available on ",
+    "linkLabel": "GitHub"
   }
 }
