@@ -160,9 +160,7 @@ export function pickAutoResolveDungeonAction({ legalActions = [] }) {
 
 const DUNGEON_EQUIPMENT_MODAL_ACTION_TYPES = new Set([
   ACTION_TYPES.USE_FIRE_AXE,
-  ACTION_TYPES.DECLINE_FIRE_AXE,
   ACTION_TYPES.USE_POLYMORPH,
-  ACTION_TYPES.DECLINE_POLYMORPH,
 ])
 
 /**

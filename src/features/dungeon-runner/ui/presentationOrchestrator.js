@@ -1,17 +1,29 @@
+import { isDungeonPresentationTraceEnabled } from './dungeonPresentationTrace.js'
+
 export const SPEED_PROFILES = {
   cinematic: {
-    phaseTransitionMs: 900,
-    turnAdvanceMs: 450,
-    dungeonResultMs: 700,
-    botStoryMs: 520,
-    heroChangeInterstitialMs: 1800,
+    phaseTransitionMs: 2200,
+    turnAdvanceMs: 1100,
+    dungeonResultMs: 1650,
+    dungeonOutcomeMs: 1650,
+    botStoryMs: 1300,
+    heroChangeInterstitialMs: 3600,
+    dungeonRevealMs: 1050,
+    dungeonNeutralizeMs: 920,
+    dungeonDamageMs: 900,
+    dungeonContinueMs: 650,
   },
   brisk: {
-    phaseTransitionMs: 450,
-    turnAdvanceMs: 200,
-    dungeonResultMs: 325,
-    botStoryMs: 260,
-    heroChangeInterstitialMs: 900,
+    phaseTransitionMs: 1200,
+    turnAdvanceMs: 650,
+    dungeonResultMs: 950,
+    dungeonOutcomeMs: 950,
+    botStoryMs: 750,
+    heroChangeInterstitialMs: 2000,
+    dungeonRevealMs: 600,
+    dungeonNeutralizeMs: 520,
+    dungeonDamageMs: 500,
+    dungeonContinueMs: 360,
   },
 }
 
@@ -51,23 +63,28 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
     }
   }
 
+  const deferPhaseUntilAfterDungeonPlayback =
+    transition.phaseBefore === 'dungeon' &&
+    (transition.phaseAfter === 'pick-adventurer' || transition.phaseAfter === 'match-over')
+
+  const phaseChangeAnimations = []
   if (transition.phaseBefore !== transition.phaseAfter) {
     if (transition.phaseAfter === 'dungeon') {
-      queue.push({
+      phaseChangeAnimations.push({
         kind: 'PHASE_ENTER_DUNGEON',
         channel: 'gameplay',
         label: 'Entering dungeon...',
         durationMs: profile.phaseTransitionMs,
       })
     } else if (transition.phaseAfter === 'pick-adventurer') {
-      queue.push({
+      phaseChangeAnimations.push({
         kind: 'PHASE_PICK_ADVENTURER',
         channel: 'gameplay',
         label: 'Choosing next adventurer...',
         durationMs: profile.phaseTransitionMs,
       })
     } else if (transition.phaseAfter === 'match-over') {
-      queue.push({
+      phaseChangeAnimations.push({
         kind: 'PHASE_MATCH_OVER',
         channel: 'gameplay',
         label: 'Match complete.',
@@ -76,6 +93,11 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
     }
   }
 
+  if (!deferPhaseUntilAfterDungeonPlayback) {
+    for (const animation of phaseChangeAnimations) queue.push(animation)
+  }
+
+  const heroChangeAnimations = []
   if (
     transition.phaseBefore === 'pick-adventurer' &&
     transition.phaseAfter === 'bidding' &&
@@ -83,7 +105,7 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
     transition.heroAfter &&
     transition.heroBefore !== transition.heroAfter
   ) {
-    queue.push({
+    heroChangeAnimations.push({
       kind: 'HERO_CHANGE_INTERSTITIAL',
       channel: 'gameplay',
       label: '',
@@ -96,12 +118,13 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
     })
   }
 
+  const turnAdvanceAnimations = []
   if (
     transition.turnBeforeSeatId &&
     transition.turnAfterSeatId &&
     transition.turnBeforeSeatId !== transition.turnAfterSeatId
   ) {
-    queue.push({
+    turnAdvanceAnimations.push({
       kind: 'TURN_ADVANCE',
       channel: 'gameplay',
       label: transition.actorRoleType === 'human' ? 'Advancing turn...' : '',
@@ -109,21 +132,122 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
     })
   }
 
-  if (transition.dungeonRunResult) {
-    queue.push({
-      kind: 'DUNGEON_RESULT',
+  if (!deferPhaseUntilAfterDungeonPlayback) {
+    for (const animation of heroChangeAnimations) queue.push(animation)
+    for (const animation of turnAdvanceAnimations) queue.push(animation)
+  }
+
+  const dungeonAnimations = []
+  for (const kind of deriveDungeonAnimationKinds(transition)) {
+    dungeonAnimations.push({
+      kind,
       channel: 'gameplay',
-      label: transition.dungeonRunResult === 'success' ? 'Dungeon cleared.' : 'Dungeon run failed.',
-      durationMs: profile.dungeonResultMs,
+      label: dungeonLabelForKind(kind, transition),
+      durationMs: durationForDungeonKind(kind, profile),
     })
+  }
+
+  if (deferPhaseUntilAfterDungeonPlayback) {
+    for (const animation of dungeonAnimations) queue.push(animation)
+    for (const animation of phaseChangeAnimations) queue.push(animation)
+    for (const animation of heroChangeAnimations) queue.push(animation)
+    for (const animation of turnAdvanceAnimations) queue.push(animation)
+  } else {
+    for (const animation of dungeonAnimations) queue.push(animation)
   }
 
   return queue
 }
 
+/**
+ * Splits presentation so dungeon outcome plays first; phase transitions (e.g. pick-adventurer) can run after user ack.
+ * @param {ReturnType<typeof mapEngineTransitionToAnimations>} animations
+ * @returns {{ immediate: typeof animations, deferred: typeof animations }}
+ */
+export function splitPresentationAfterDungeonOutcome(animations) {
+  const idx = animations.findIndex((a) => a.kind === 'DUNGEON_OUTCOME')
+  if (idx < 0) {
+    return { immediate: animations, deferred: [] }
+  }
+  return {
+    immediate: animations.slice(0, idx + 1),
+    deferred: animations.slice(idx + 1),
+  }
+}
+
 function findConsumedEquipmentIds(before = [], after = []) {
   const remaining = new Set(after ?? [])
   return (before ?? []).filter((equipmentId) => !remaining.has(equipmentId))
+}
+
+function deriveDungeonAnimationKinds(transition) {
+  const kinds = []
+  const actionType = transition.action?.type ?? null
+  const inDungeonStep = transition.phaseBefore === 'dungeon'
+  const before = transition.dungeonBefore ?? null
+  const after = transition.dungeonAfter ?? null
+  const hpBefore = numericOrNull(before?.hp)
+  const hpAfter = numericOrNull(after?.hp)
+  const discardedBefore = numericOrNull(before?.discardedMonsterCount) ?? 0
+  const discardedAfter = numericOrNull(after?.discardedMonsterCount) ?? 0
+  const hpDelta = hpBefore != null && hpAfter != null ? hpAfter - hpBefore : null
+  const discardedDelta = discardedAfter - discardedBefore
+  const revealedChanged =
+    before?.currentMonster !== after?.currentMonster && after?.currentMonster != null
+  const tookDamage = hpDelta != null && hpDelta < 0
+  const neutralized = discardedDelta > 0
+  const resolvedStep = discardedDelta > 0 || tookDamage
+  const shouldContinue = transition.phaseAfter === 'dungeon' && after?.subphase === 'reveal' && resolvedStep
+  const hasKnownDungeonOutcome = transition.dungeonRunResult === 'success' || transition.dungeonRunResult === 'failure'
+  const concludedFromDungeon = inDungeonStep && transition.phaseAfter !== 'dungeon'
+
+  if (revealedChanged) kinds.push('DUNGEON_REVEAL')
+  if (neutralized) kinds.push('DUNGEON_NEUTRALIZE')
+  if (tookDamage) kinds.push('DUNGEON_DAMAGE')
+  if (shouldContinue) kinds.push('DUNGEON_CONTINUE')
+
+  if (hasKnownDungeonOutcome || concludedFromDungeon) {
+    kinds.push('DUNGEON_OUTCOME')
+  }
+
+  if (
+    kinds.length === 0 &&
+    inDungeonStep &&
+    transition.phaseAfter === 'dungeon' &&
+    actionType === 'USE_FIRE_AXE'
+  ) {
+    kinds.push('DUNGEON_NEUTRALIZE', 'DUNGEON_CONTINUE')
+  }
+
+  if (
+    kinds.length === 0 &&
+    inDungeonStep &&
+    transition.phaseAfter === 'dungeon' &&
+    actionType === 'REVEAL_OR_CONTINUE'
+  ) {
+    kinds.push('DUNGEON_REVEAL')
+  }
+
+  return kinds
+}
+
+function dungeonLabelForKind(kind, transition) {
+  if (kind !== 'DUNGEON_OUTCOME') return ''
+  if (transition.dungeonRunResult === 'success') return 'Dungeon cleared.'
+  if (transition.dungeonRunResult === 'failure') return 'Dungeon run failed.'
+  return 'Dungeon run resolved.'
+}
+
+function durationForDungeonKind(kind, profile) {
+  if (kind === 'DUNGEON_REVEAL') return profile.dungeonRevealMs
+  if (kind === 'DUNGEON_NEUTRALIZE') return profile.dungeonNeutralizeMs
+  if (kind === 'DUNGEON_DAMAGE') return profile.dungeonDamageMs
+  if (kind === 'DUNGEON_CONTINUE') return profile.dungeonContinueMs
+  return profile.dungeonOutcomeMs
+}
+
+function numericOrNull(value) {
+  return Number.isFinite(value) ? value : null
 }
 
 function speedKeyForAnimationKind(kind) {
@@ -139,6 +263,11 @@ function speedKeyForAnimationKind(kind) {
   if (kind === 'HERO_CHANGE_INTERSTITIAL') return 'heroChangeInterstitialMs'
   if (kind === 'TURN_ADVANCE') return 'turnAdvanceMs'
   if (kind === 'DUNGEON_RESULT') return 'dungeonResultMs'
+  if (kind === 'DUNGEON_OUTCOME') return 'dungeonOutcomeMs'
+  if (kind === 'DUNGEON_REVEAL') return 'dungeonRevealMs'
+  if (kind === 'DUNGEON_NEUTRALIZE') return 'dungeonNeutralizeMs'
+  if (kind === 'DUNGEON_DAMAGE') return 'dungeonDamageMs'
+  if (kind === 'DUNGEON_CONTINUE') return 'dungeonContinueMs'
   return null
 }
 
@@ -161,6 +290,8 @@ export function createPresentationOrchestrator({ speedProfile = 'cinematic' } = 
   let selectedSpeedProfile = SPEED_PROFILES[speedProfile] ? speedProfile : 'cinematic'
   let nextAnimationId = 1
   const queue = []
+  /** @type {Array<ReturnType<typeof mapEngineTransitionToAnimations>[number]>} */
+  let deferredPostDungeonOutcomeAnimations = []
 
   function pushAnimations(animations) {
     for (const animation of animations) {
@@ -179,8 +310,41 @@ export function createPresentationOrchestrator({ speedProfile = 'cinematic' } = 
       selectedSpeedProfile = next
       rescaleQueuedAnimationsForProfile(queue, prev, next)
     },
-    enqueueEngineTransition(transition) {
-      pushAnimations(mapEngineTransitionToAnimations(transition, selectedSpeedProfile))
+    enqueueEngineTransition(transition, options = {}) {
+      const animations = mapEngineTransitionToAnimations(transition, selectedSpeedProfile)
+      deferredPostDungeonOutcomeAnimations = []
+      let toEnqueue = animations
+      if (options.deferPostDungeonOutcomeAck) {
+        const split = splitPresentationAfterDungeonOutcome(animations)
+        toEnqueue = split.immediate
+        deferredPostDungeonOutcomeAnimations = split.deferred
+      }
+      if (isDungeonPresentationTraceEnabled()) {
+        console.log('[DungeonPresentation][enqueue]', {
+          phaseBefore: transition.phaseBefore,
+          phaseAfter: transition.phaseAfter,
+          action: transition.action?.type ?? null,
+          actorSeatId: transition.actorSeatId ?? null,
+          actorRole: transition.actorRoleType ?? null,
+          dungeonRunResult: transition.dungeonRunResult ?? null,
+          queuedKinds: toEnqueue.map((a) => a.kind),
+          deferredKinds: deferredPostDungeonOutcomeAnimations.map((a) => a.kind),
+          queueLenBefore: queue.length,
+        })
+      }
+      pushAnimations(toEnqueue)
+      if (isDungeonPresentationTraceEnabled()) {
+        console.log('[DungeonPresentation][enqueue][after]', {
+          queueLen: queue.length,
+          headKind: queue[0]?.kind ?? null,
+        })
+      }
+    },
+    flushPostDungeonOutcomeAnimations() {
+      if (deferredPostDungeonOutcomeAnimations.length === 0) return
+      const tail = deferredPostDungeonOutcomeAnimations
+      deferredPostDungeonOutcomeAnimations = []
+      pushAnimations(tail)
     },
     advance(ms) {
       let budget = Math.max(0, Number(ms) || 0)
@@ -192,7 +356,15 @@ export function createPresentationOrchestrator({ speedProfile = 'cinematic' } = 
           continue
         }
         budget -= head.remainingMs
-        queue.shift()
+        const completed = queue.shift()
+        if (isDungeonPresentationTraceEnabled()) {
+          console.log('[DungeonPresentation][advance][itemDone]', {
+            kind: completed.kind,
+            id: completed.id,
+            queueLenAfter: queue.length,
+            nextKind: queue[0]?.kind ?? null,
+          })
+        }
       }
     },
     getActiveAnimation() {
@@ -202,13 +374,20 @@ export function createPresentationOrchestrator({ speedProfile = 'cinematic' } = 
       return queue.map((item) => ({ ...item }))
     },
     clear() {
+      if (isDungeonPresentationTraceEnabled()) {
+        console.log('[DungeonPresentation][clear]', { hadLen: queue.length })
+      }
       queue.splice(0, queue.length)
+      deferredPostDungeonOutcomeAnimations = []
     },
     skipActiveAnimation() {
       if (queue.length === 0) return
       const head = queue[0]
       if (!head.skippable) return
       queue.shift()
+      if (isDungeonPresentationTraceEnabled()) {
+        console.log('[DungeonPresentation][skipActive]', { skippedKind: head.kind, queueLen: queue.length })
+      }
     },
     isGameplayInputLocked() {
       return queue.some((item) => item.channel === 'gameplay')

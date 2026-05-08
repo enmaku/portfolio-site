@@ -64,14 +64,16 @@ test('modal exposes USE only when legal and continue maps to implicit decline', 
   assert.equal(blockedPolymorphModal.continueAction, null)
 })
 
-test('dungeon phase hides fire axe / polymorph actions from flat button row (token modal path)', () => {
+test('dungeon phase keeps continue-skip actions visible in flat button row', () => {
   const legal = [
     { type: 'USE_FIRE_AXE' },
     { type: 'DECLINE_FIRE_AXE' },
+    { type: 'USE_POLYMORPH' },
+    { type: 'DECLINE_POLYMORPH' },
     { type: 'DECLARE_VORPAL', species: 'goblin' },
   ]
   const visible = filterVisibleLegalActions({ phase: 'dungeon', legalActions: legal })
-  assert.deepEqual(visible, [])
+  assert.deepEqual(visible, [{ type: 'DECLINE_FIRE_AXE' }, { type: 'DECLINE_POLYMORPH' }])
 })
 
 test('bidding phase still lists sacrifice alongside other non-vorpal actions', () => {
@@ -99,6 +101,41 @@ test('auto-resolve picks reveal/continue when no equipment choice point exists',
     legalActions: [{ type: 'USE_FIRE_AXE' }, { type: 'DECLINE_FIRE_AXE' }],
   })
   assert.equal(pauseForChoice, null)
+})
+
+test('meaningful choice detection treats equipment forks as non-deterministic', () => {
+  assert.equal(
+    pickAutoResolveDungeonAction({
+      legalActions: [{ type: 'USE_FIRE_AXE' }, { type: 'DECLINE_FIRE_AXE' }],
+    }),
+    null,
+  )
+  assert.equal(
+    pickAutoResolveDungeonAction({
+      legalActions: [{ type: 'USE_POLYMORPH' }, { type: 'DECLINE_POLYMORPH' }],
+    }),
+    null,
+  )
+})
+
+test('highlighted token derivation follows legal use action type', () => {
+  const fireAxeWindow = buildDungeonEquipmentTokenView({
+    inPlayEquipmentIds: ['B_AXE', 'M_POLY', 'W_SHIELD'],
+    legalActions: [{ type: 'USE_FIRE_AXE' }, { type: 'DECLINE_FIRE_AXE' }],
+  })
+  assert.deepEqual(
+    fireAxeWindow.filter((token) => token.glow).map((token) => token.equipmentId),
+    ['B_AXE'],
+  )
+
+  const polymorphWindow = buildDungeonEquipmentTokenView({
+    inPlayEquipmentIds: ['B_AXE', 'M_POLY', 'W_SHIELD'],
+    legalActions: [{ type: 'USE_POLYMORPH' }, { type: 'DECLINE_POLYMORPH' }],
+  })
+  assert.deepEqual(
+    polymorphWindow.filter((token) => token.glow).map((token) => token.equipmentId),
+    ['M_POLY'],
+  )
 })
 
 test('vorpal prompt view opens only at dungeon-start declaration timing', () => {
