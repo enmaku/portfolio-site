@@ -96,7 +96,7 @@ const {
   uniqueSuggestedMovieCount,
 } = storeToRefs(store)
 
-const { isGuest, isHosting, isInSession, resumeMovieVoteSessionIfNeeded } = useMovieVoteP2P()
+const { isGuest, isHosting, isInSession } = useMovieVoteP2P()
 
 /** Distinct movies in the room (TMDB-deduped) meet the minimum to mark ready. */
 const roomCanMarkReadyForVote = computed(() => uniqueSuggestedMovieCount.value >= 2)
@@ -196,8 +196,6 @@ function onResetResults() {
 }
 
 onMounted(() => {
-  resumeMovieVoteSessionIfNeeded()
-
   const raw = route.query[MOVIE_VOTE_ROOM_QUERY_KEY]
   if (raw === undefined || raw === null) return
   const str = Array.isArray(raw) ? raw[0] : raw
