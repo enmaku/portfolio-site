@@ -111,7 +111,6 @@
           bordered
           class="q-pa-sm q-mb-sm dr-bidding-board"
           :class="biddingBoard.heroCue.accentClass"
-          :style="biddingBoardTextureStyle"
         >
           <div class="text-subtitle2 q-mb-xs">Bidding board</div>
           <div
@@ -133,19 +132,21 @@
               </q-badge>
             </div>
           </div>
-          <div
-            class="dr-board-primary q-mb-sm"
+          <q-card-section
+            class="q-pa-none q-mb-sm dr-board-primary"
             :class="{
               'dr-board-primary--bot-draw': biddingBoard.secondary.botBiddingMotion === 'draw',
               'dr-board-primary--bot-sacrifice': biddingBoard.secondary.botBiddingMotion === 'sacrifice',
             }"
           >
-            <MonsterCardFace
-              class="dr-card-preview dr-card-preview--hero"
-              :species="biddingBoard.primaryCard.variant === 'revealed' ? biddingBoard.primaryCard.monsterCard : null"
-              :face-down="biddingBoard.primaryCard.variant !== 'revealed'"
-            />
-          </div>
+            <div class="dr-hero-card-slot">
+              <MonsterCardFace
+                class="dr-hero-card-control"
+                :species="biddingBoard.primaryCard.variant === 'revealed' ? biddingBoard.primaryCard.monsterCard : null"
+                :face-down="biddingBoard.primaryCard.variant !== 'revealed'"
+              />
+            </div>
+          </q-card-section>
           <div class="row q-col-gutter-xs items-start">
             <div class="col-4">
               <q-badge
@@ -578,9 +579,6 @@ let aiTurnTimerId = null
 let autoResolveTimerId = null
 let aiTurnInFlight = false
 const uiAssets = dungeonRunnerAssetPack
-const biddingBoardTextureStyle = computed(() => ({
-  '--dr-bidding-texture': `url('${uiAssets.board.biddingTexture.runtimePath}')`,
-}))
 
 watch(presentationSpeedProfile, (next) => {
   presentationOrchestrator.setSpeedProfile(next)
@@ -1173,9 +1171,6 @@ function importReplay() {
   isolation: isolate;
   border-radius: 10px;
   overflow: hidden;
-  background-image: var(--dr-bidding-texture);
-  background-size: cover;
-  background-position: center;
 }
 
 .dr-pile-badge {
@@ -1196,16 +1191,30 @@ function importReplay() {
 }
 
 .dr-board-primary {
-  display: flex;
-  justify-content: center;
+  width: 100%;
   isolation: isolate;
 }
 
-.dr-board-primary--bot-draw .dr-card-preview--hero {
+.dr-hero-card-slot {
+  width: 100%;
+}
+
+.dr-hero-card-control {
+  width: 100%;
+  display: block;
+}
+
+.dr-hero-card-control :deep(.dr-monster-card) {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.dr-board-primary--bot-draw .dr-hero-card-control {
   animation: dr-bot-draw-nudge 0.48s ease-in-out infinite;
 }
 
-.dr-board-primary--bot-sacrifice .dr-card-preview--hero {
+.dr-board-primary--bot-sacrifice .dr-hero-card-control {
   animation: dr-bot-sacrifice-dim 0.55s ease-in-out infinite alternate;
 }
 
@@ -1241,12 +1250,6 @@ function importReplay() {
   max-width: 140px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 6px;
-}
-
-.dr-card-preview--hero {
-  max-width: 220px;
-  position: relative;
-  z-index: 1;
 }
 
 .dr-token-glow {

@@ -65,8 +65,8 @@ const displayName = computed(() => displayNameForSpecies(spec.value?.species ?? 
   position: relative;
   display: block;
   width: 100%;
-  max-width: 480px;
-  margin-inline: auto;
+  max-width: none;
+  margin-inline: 0;
   line-height: 0;
   container-type: inline-size;
 }
@@ -78,13 +78,13 @@ const displayName = computed(() => displayNameForSpecies(spec.value?.species ?? 
   display: block;
 }
 
-/* Inset matches opaque bbox of `card-blank.png` (transparent margins ~10.4% ×, ~5.1% top, ~6.3% bottom @ 480×272). */
+/* Runtime card sheets are trimmed to art bounds; keep a tiny inset so overlays stay off torn edges. */
 .dr-monster-card__face {
   position: absolute;
-  top: 5.15%;
-  right: 10.42%;
-  bottom: 6.25%;
-  left: 10.42%;
+  top: 0.8%;
+  right: 0.8%;
+  bottom: 0.8%;
+  left: 0.8%;
   pointer-events: none;
 }
 
