@@ -27,7 +27,11 @@ export async function chooseNnActionWithFallback(state, actor, options) {
   const second = await attemptSample(modelId, state, legal, options)
   if (second.ok && second.action) return second.action
   if (!first.ok || !second.ok) {
-    const fallback = createFallbackAction(legal, { backend, fallbackReason: 'MODEL_LOAD_FAILED', modelId })
+    const fallback = createFallbackAction(legal, state, {
+      backend,
+      fallbackReason: 'MODEL_LOAD_FAILED',
+      modelId,
+    })
     options?.debugLogger?.({
       kind: 'fallback',
       fallbackReason: 'MODEL_LOAD_FAILED',
@@ -39,7 +43,11 @@ export async function chooseNnActionWithFallback(state, actor, options) {
     })
     return fallback
   }
-  const fallback = createFallbackAction(legal, { backend, fallbackReason: 'ILLEGAL_OUTPUT', modelId })
+  const fallback = createFallbackAction(legal, state, {
+    backend,
+    fallbackReason: 'ILLEGAL_OUTPUT',
+    modelId,
+  })
   options?.debugLogger?.({
     kind: 'fallback',
     fallbackReason: 'ILLEGAL_OUTPUT',
@@ -272,11 +280,12 @@ function disposePrediction(prediction) {
   prediction.dispose()
 }
 
-function createFallbackAction(legalActions, meta) {
-  if (!legalActions.some((action) => action.type === ACTION_TYPES.PASS)) {
-    return { ...legalActions[0], meta }
-  }
-  return { type: ACTION_TYPES.PASS, meta }
+function createFallbackAction(legalActions, state, meta) {
+  const seed = state?.rng?.state ?? 1
+  const next = (Math.imul(seed >>> 0, 1664525) + 1013904223) >>> 0
+  const index = legalActions.length > 0 ? next % legalActions.length : 0
+  const sample = legalActions[index] ?? legalActions[0]
+  return { ...sample, meta }
 }
 
 function applyPolicyMask(values, legalMask) {

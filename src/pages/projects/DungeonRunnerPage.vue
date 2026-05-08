@@ -476,6 +476,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import {
+  MATCH_PHASES,
   applyAction,
   createInitialMatchState,
   getLegalActions,
@@ -779,11 +780,21 @@ function startNewMatch() {
   const shuffledState = shuffleMatchDeck(shuffleMatchSeats(baseState, { seed: seed ^ 0x5f3759df }), {
     seed: seed ^ 0x9e3779b9,
   })
+  const firstSeatId = shuffledState.turn.activeSeatId
+  const initialPickState = {
+    ...shuffledState,
+    phase: MATCH_PHASES.PICK_ADVENTURER,
+    hero: null,
+    pickAdventurer: {
+      ...shuffledState.pickAdventurer,
+      activeSeatId: firstSeatId,
+    },
+  }
   match.value = {
     schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
     id,
     setup: setupSnapshot,
-    state: shuffledState,
+    state: initialPickState,
     history: [],
     presentationSpeedProfile: 'cinematic',
   }
@@ -804,11 +815,21 @@ function rematch() {
   const shuffledState = shuffleMatchDeck(shuffleMatchSeats(baseState, { seed: seed ^ 0x5f3759df }), {
     seed: seed ^ 0x9e3779b9,
   })
+  const firstSeatId = shuffledState.turn.activeSeatId
+  const initialPickState = {
+    ...shuffledState,
+    phase: MATCH_PHASES.PICK_ADVENTURER,
+    hero: null,
+    pickAdventurer: {
+      ...shuffledState.pickAdventurer,
+      activeSeatId: firstSeatId,
+    },
+  }
   match.value = {
     schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
     id,
     setup: setupSnapshot,
-    state: shuffledState,
+    state: initialPickState,
     history: [],
     presentationSpeedProfile: presentationSpeedProfile.value,
   }

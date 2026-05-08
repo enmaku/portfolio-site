@@ -21,7 +21,8 @@ test('nn runtime falls back to pass when model unavailable', async () => {
   )
   const seatId = state.turn.activeSeatId
   const action = await chooseNnActionWithFallback(state, { seatId }, { modelId: 'missing-model' })
-  assert.equal(action.type, 'PASS')
+  const legal = getLegalActions(state, { seatId })
+  assert.equal(legal.some((candidate) => candidate.type === action.type), true)
   assert.equal(action.meta.fallbackReason, 'MODEL_LOAD_FAILED')
 })
 
@@ -190,7 +191,8 @@ test('nn runtime retries once before illegal-output fallback', async () => {
     const seatId = state.turn.activeSeatId
     const action = await chooseNnActionWithFallback(state, { seatId }, { modelId: 'latest' })
     assert.equal(calls, 2)
-    assert.equal(action.type, 'PASS')
+    const legal = getLegalActions(state, { seatId })
+    assert.equal(legal.some((candidate) => candidate.type === action.type), true)
     assert.equal(action.meta.fallbackReason, 'ILLEGAL_OUTPUT')
   } finally {
     globalThis.Worker = originalWorker
@@ -226,7 +228,8 @@ test('nn runtime retries once before model-load-failed fallback', async () => {
     const seatId = state.turn.activeSeatId
     const action = await chooseNnActionWithFallback(state, { seatId }, { modelId: 'latest' })
     assert.equal(calls, 2)
-    assert.equal(action.type, 'PASS')
+    const legal = getLegalActions(state, { seatId })
+    assert.equal(legal.some((candidate) => candidate.type === action.type), true)
     assert.equal(action.meta.fallbackReason, 'MODEL_LOAD_FAILED')
     assert.equal(typeof action.meta.backend, 'string')
     assert.equal(action.meta.modelId, 'latest')
@@ -335,7 +338,8 @@ test('nn runtime emits debug trace on model-load fallback path', async () => {
     debugTrace: true,
     debugLogger: (trace) => traces.push(trace),
   })
-  assert.equal(action.type, 'PASS')
+  const legal = getLegalActions(state, { seatId })
+  assert.equal(legal.some((candidate) => candidate.type === action.type), true)
   assert.equal(traces.length >= 1, true)
   assert.equal(traces.at(-1).kind, 'fallback')
   assert.equal(traces.at(-1).fallbackReason, 'MODEL_LOAD_FAILED')
@@ -371,7 +375,8 @@ test('worker-side model load errors do not masquerade as pass actions', async ()
     )
     const seatId = state.turn.activeSeatId
     const action = await chooseNnActionWithFallback(state, { seatId }, { modelId: 'latest', debugTrace: true })
-    assert.equal(action.type, 'PASS')
+    const legal = getLegalActions(state, { seatId })
+    assert.equal(legal.some((candidate) => candidate.type === action.type), true)
     assert.equal(action.meta?.fallbackReason, 'MODEL_LOAD_FAILED')
   } finally {
     globalThis.Worker = originalWorker
