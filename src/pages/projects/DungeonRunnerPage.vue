@@ -576,6 +576,7 @@ const memoryAidState = ref(createMemoryAidState())
 let presentationTimerId = null
 let aiTurnTimerId = null
 let autoResolveTimerId = null
+let aiTurnInFlight = false
 const uiAssets = dungeonRunnerAssetPack
 const biddingBoardTextureStyle = computed(() => ({
   '--dr-bidding-texture': `url('${uiAssets.board.biddingTexture.runtimePath}')`,
@@ -891,9 +892,20 @@ function confirmVorpalDeclaration() {
 }
 
 async function runAiTurn() {
-  if (!match.value || (match.value.state.phase !== 'bidding' && match.value.state.phase !== 'dungeon')) return
+  if (aiTurnInFlight) return
+  if (
+    !match.value ||
+    (match.value.state.phase !== 'bidding' &&
+      match.value.state.phase !== 'dungeon' &&
+      match.value.state.phase !== 'pick-adventurer')
+  ) {
+    return
+  }
   const seatId = match.value.state.turn.activeSeatId
   if (!seatId || seatId === humanSeatId.value) return
+  const runToken = `${match.value.id}:${match.value.state.turn.turnNumber}:${match.value.state.phase}:${seatId}`
+  aiTurnInFlight = true
+  try {
   if (debugMode.value) {
     console.log('[DungeonRunner][AITurn][Start]', {
       phase: match.value.state.phase,
@@ -922,11 +934,17 @@ async function runAiTurn() {
   }
   if (debugMode.value) console.log('[DungeonRunner][AITurn][Action]', { seatId, action })
   if (!action) return
+  if (!match.value) return
+  const currentToken = `${match.value.id}:${match.value.state.turn.turnNumber}:${match.value.state.phase}:${match.value.state.turn.activeSeatId}`
+  if (runToken !== currentToken) return
   const prevState = match.value.state
   const result = applyAction(prevState, action, { seatId })
   if (!result.ok) return
   match.value = { ...match.value, state: result.state }
   enqueuePresentationTransition(prevState, result.state, action, seatId, roleType ?? 'randombot')
+  } finally {
+    aiTurnInFlight = false
+  }
 }
 
 function enqueuePresentationTransition(prevState, nextState, action, actorSeatId, actorRoleType) {
@@ -954,8 +972,15 @@ function syncPresentationLabel() {
 }
 
 function scheduleAiTurnIfReady() {
+  if (aiTurnInFlight) return
   if (!match.value || gameplayInputLocked.value || isHumanTurn.value) return
-  if (match.value.state.phase !== 'bidding' && match.value.state.phase !== 'dungeon') return
+  if (
+    match.value.state.phase !== 'bidding' &&
+    match.value.state.phase !== 'dungeon' &&
+    match.value.state.phase !== 'pick-adventurer'
+  ) {
+    return
+  }
   if (aiTurnTimerId) return
   aiTurnTimerId = window.setTimeout(() => {
     aiTurnTimerId = null
