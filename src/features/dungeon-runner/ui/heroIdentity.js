@@ -39,8 +39,8 @@ const TABLE = {
   ROGUE: {
     hero: 'ROGUE',
     accentClass: 'dr-hero--rogue',
-    badgeColor: 'teal',
-    buttonColor: 'teal',
+    badgeColor: 'green',
+    buttonColor: 'green',
     badgeGlyph: 'R',
     shortLabel: 'Rogue',
   },

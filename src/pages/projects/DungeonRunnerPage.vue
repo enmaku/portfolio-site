@@ -207,7 +207,7 @@
                   'dr-token-glow': token.glow,
                   'dr-equip-badge--interactive': token.hasModal,
                 }"
-                :color="token.removed ? 'grey-6' : 'indigo-7'"
+                :color="token.removed ? 'grey-6' : biddingBoard.heroCue.buttonColor"
                 @click="openEquipmentModal(token)"
               >
                 <img
@@ -1326,7 +1326,7 @@ function importReplay() {
 }
 
 .dr-hero--rogue {
-  box-shadow: inset 0 0 0 2px rgba(0, 150, 136, 0.5);
+  box-shadow: inset 0 0 0 2px rgba(46, 125, 50, 0.5);
 }
 
 .dr-turn-hero-row {
