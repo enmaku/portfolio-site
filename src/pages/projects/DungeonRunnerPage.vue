@@ -196,23 +196,28 @@
           </div>
           <div class="row q-col-gutter-xs q-mt-xs">
             <div
-              v-for="equipment in biddingBoard.secondary.equipment"
-              :key="equipment.equipmentId"
+              v-for="token in boardEquipmentTokens"
+              :key="token.equipmentId"
               class="col-4 col-sm-3"
             >
               <q-badge
                 class="full-width q-py-xs row items-center justify-center q-gutter-x-xs dr-equip-badge"
-                :class="{ 'dr-equip-badge--spent': equipment.removed || equipment.consumed }"
-                :color="equipment.removed || equipment.consumed ? 'grey-6' : 'indigo-7'"
+                :class="{
+                  'dr-equip-badge--spent': token.removed,
+                  'dr-token-glow': token.glow,
+                  'dr-equip-badge--interactive': token.hasModal,
+                }"
+                :color="token.removed ? 'grey-6' : 'indigo-7'"
+                @click="openEquipmentModal(token)"
               >
                 <img
                   class="dr-equip-icon"
-                  :src="uiAssets.equipment[equipment.equipmentId].runtimePath"
+                  :src="uiAssets.equipment[token.equipmentId].runtimePath"
                   :alt="''"
                   width="22"
                   height="22"
                 />
-                <span>{{ equipmentShortName(equipment.equipmentId) }}</span>
+                <span>{{ token.label }}</span>
               </q-badge>
             </div>
           </div>
@@ -271,34 +276,6 @@
                 @click="takeHumanAction(action)"
               />
             </template>
-          </div>
-        </q-card>
-
-        <q-card v-if="match.state.phase === 'dungeon' && dungeonEquipmentTokens.length" flat bordered class="q-pa-md q-mb-md">
-          <div class="text-subtitle2 q-mb-sm">Equipment tokens</div>
-          <div class="row q-gutter-sm">
-            <q-btn
-              v-for="token in dungeonEquipmentTokens"
-              :key="token.equipmentId"
-              unelevated
-              color="grey-8"
-              text-color="white"
-              no-wrap
-              :class="{ 'dr-token-glow': token.glow }"
-              :disable="!isHumanTurn || gameplayInputLocked || !token.hasModal"
-              @click="openEquipmentModal(token)"
-            >
-              <span class="row items-center no-wrap q-gutter-xs">
-                <img
-                  class="dr-token-icon"
-                  :src="uiAssets.equipment[token.equipmentId]?.runtimePath"
-                  width="22"
-                  height="22"
-                  alt=""
-                />
-                <span>{{ token.label }}</span>
-              </span>
-            </q-btn>
           </div>
         </q-card>
 
@@ -641,6 +618,21 @@ const dungeonEquipmentTokens = computed(() =>
     legalActions: legalActions.value,
   }),
 )
+const boardEquipmentTokens = computed(() => {
+  const dungeonTokenById = new Map(dungeonEquipmentTokens.value.map((token) => [token.equipmentId, token]))
+  const isDungeonPhase = match.value?.state?.phase === 'dungeon'
+  return biddingBoard.value.secondary.equipment.map((equipment) => {
+    const dungeonToken = dungeonTokenById.get(equipment.equipmentId)
+    const removed = equipment.removed || equipment.consumed
+    return {
+      equipmentId: equipment.equipmentId,
+      label: equipmentShortName(equipment.equipmentId),
+      removed,
+      glow: isDungeonPhase ? (dungeonToken?.glow ?? false) : false,
+      hasModal: !removed,
+    }
+  })
+})
 const selectedEquipmentModalView = computed(() => {
   if (!selectedEquipmentTokenId.value) return null
   return createDungeonEquipmentModalView({
@@ -861,7 +853,7 @@ function onCloseDeckSplay() {
 }
 
 function openEquipmentModal(token) {
-  if (!token.hasModal || gameplayInputLocked.value || !isHumanTurn.value) return
+  if (!token?.hasModal || gameplayInputLocked.value || !isHumanTurn.value) return
   selectedEquipmentTokenId.value = token.equipmentId
   equipmentModalOpen.value = true
 }
@@ -1188,6 +1180,10 @@ function importReplay() {
 
 .dr-equip-badge--spent {
   opacity: 0.55;
+}
+
+.dr-equip-badge--interactive {
+  cursor: pointer;
 }
 
 .dr-board-primary {

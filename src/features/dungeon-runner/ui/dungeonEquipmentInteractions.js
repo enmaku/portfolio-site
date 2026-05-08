@@ -2,6 +2,42 @@ import { ACTION_TYPES } from '../engine/kernel.js'
 import { equipmentShortName } from './equipmentDisplayCatalog.js'
 
 const EQUIPMENT_UI = {
+  W_PLATE: {
+    label: 'Plate Armor',
+    details: 'Passive: increases your starting dungeon HP while in play.',
+  },
+  W_SHIELD: {
+    label: 'Shield',
+    details: 'Passive: increases your starting dungeon HP while in play.',
+  },
+  W_VORPAL: {
+    label: 'Vorpal Sword',
+    details: 'Dungeon start: declare a species. Defeat one matching monster automatically.',
+  },
+  W_TORCH: {
+    label: 'Torch',
+    details: 'Passive: helps defeat weaker monsters.',
+  },
+  W_HOLY: {
+    label: 'Holy Water',
+    details: 'Passive: helps defeat even-strength monsters.',
+  },
+  W_SPEAR: {
+    label: 'Spear',
+    details: 'Passive: defeats dragon.',
+  },
+  B_HEAL: {
+    label: 'Heal',
+    details: 'Passive: healing effect resolves during dungeon checks.',
+  },
+  B_SHIELD: {
+    label: 'Shield',
+    details: 'Passive: increases your starting dungeon HP while in play.',
+  },
+  B_CHAIN: {
+    label: 'Chain Mail',
+    details: 'Passive: increases your starting dungeon HP while in play.',
+  },
   B_AXE: {
     label: 'Fire Axe',
     details: 'Destroy the revealed monster, then continue combat.',
@@ -9,12 +45,64 @@ const EQUIPMENT_UI = {
     declineActionType: 'DECLINE_FIRE_AXE',
     confirmUseMessage: 'Spend Fire Axe now?',
   },
+  B_TORCH: {
+    label: 'Torch',
+    details: 'Passive: helps defeat weaker monsters.',
+  },
+  B_HAMMER: {
+    label: 'Hammer',
+    details: 'Passive: defeats golem.',
+  },
+  M_WALL: {
+    label: 'Wall',
+    details: 'Passive: increases your starting dungeon HP while in play.',
+  },
+  M_HOLY: {
+    label: 'Holy',
+    details: 'Passive: helps defeat even-strength monsters.',
+  },
+  M_OMNI: {
+    label: 'Omni',
+    details: 'Passive: can save a failed dungeon run in the right state.',
+  },
+  M_BRACE: {
+    label: 'Brace',
+    details: 'Passive: increases your starting dungeon HP while in play.',
+  },
   M_POLY: {
     label: 'Polymorph',
     details: 'Transform and bypass the current monster.',
     useActionType: 'USE_POLYMORPH',
     declineActionType: 'DECLINE_POLYMORPH',
     confirmUseMessage: 'Spend Polymorph now?',
+  },
+  M_PACT: {
+    label: 'Pact',
+    details: 'Passive: defeats demon.',
+  },
+  R_ARMOR: {
+    label: 'Armor',
+    details: 'Passive: increases your starting dungeon HP while in play.',
+  },
+  R_HEAL: {
+    label: 'Heal',
+    details: 'Passive: healing effect resolves during dungeon checks.',
+  },
+  R_RING: {
+    label: 'Ring',
+    details: 'Passive: helps defeat weak monsters.',
+  },
+  R_BUCK: {
+    label: 'Buckler',
+    details: 'Passive: increases your starting dungeon HP while in play.',
+  },
+  R_VORP: {
+    label: 'Vorpal',
+    details: 'Dungeon start: declare a species. Defeat one matching monster automatically.',
+  },
+  R_CLOAK: {
+    label: 'Cloak',
+    details: 'Passive: helps defeat stronger monsters.',
   },
 }
 
@@ -26,14 +114,13 @@ export function buildDungeonEquipmentTokenView({ inPlayEquipmentIds = [], legalA
   return inPlayEquipmentIds.map((equipmentId) => {
     const spec = EQUIPMENT_UI[equipmentId]
     const canUseNow = !!spec && hasAction(legalActions, spec.useActionType)
-    const canOpenMemoryAid = !!spec && (canUseNow || hasAction(legalActions, spec.declineActionType))
     return {
       equipmentId,
       label: spec?.label ?? equipmentShortName(equipmentId),
       details: spec?.details ?? '',
       canUseNow,
       glow: canUseNow,
-      hasModal: canOpenMemoryAid,
+      hasModal: true,
     }
   })
 }
@@ -44,7 +131,7 @@ export function createDungeonEquipmentModalView({ equipmentId, legalActions = []
     return {
       equipmentId,
       title: equipmentShortName(equipmentId),
-      details: '',
+      details: 'No additional effect text available.',
       showUseButton: false,
       useAction: null,
       continueAction: null,

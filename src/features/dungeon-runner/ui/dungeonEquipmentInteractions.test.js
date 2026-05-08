@@ -25,12 +25,13 @@ test('token view marks only contextually usable equipment as glowing', () => {
   assert.equal(shield.glow, false)
 })
 
-test('token memory aids are gated to legal equipment timing windows', () => {
+test('token modal is always available and glow remains timing-aware', () => {
   const gatedOff = buildDungeonEquipmentTokenView({
     inPlayEquipmentIds: ['B_AXE', 'M_POLY'],
     legalActions: [{ type: 'REVEAL_OR_CONTINUE' }],
   })
-  assert.equal(gatedOff.every((token) => token.hasModal === false), true)
+  assert.equal(gatedOff.every((token) => token.hasModal === true), true)
+  assert.equal(gatedOff.every((token) => token.glow === false), true)
 
   const gatedOn = buildDungeonEquipmentTokenView({
     inPlayEquipmentIds: ['B_AXE', 'M_POLY'],
@@ -39,7 +40,9 @@ test('token memory aids are gated to legal equipment timing windows', () => {
   const fireAxe = gatedOn.find((token) => token.equipmentId === 'B_AXE')
   const polymorph = gatedOn.find((token) => token.equipmentId === 'M_POLY')
   assert.equal(fireAxe?.hasModal, true)
-  assert.equal(polymorph?.hasModal, false)
+  assert.equal(polymorph?.hasModal, true)
+  assert.equal(fireAxe?.glow, true)
+  assert.equal(polymorph?.glow, false)
 })
 
 test('modal exposes USE only when legal and continue maps to implicit decline', () => {
