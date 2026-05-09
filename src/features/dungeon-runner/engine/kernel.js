@@ -438,7 +438,7 @@ function baseHeroHp(hero) {
  */
 function buildDungeonStateOnEnter(state, nextBidding) {
   const hero = state.hero ?? 'WARRIOR'
-  const pile = [...(nextBidding.dungeonMonsters ?? [])]
+  const pile = [...(nextBidding.dungeonMonsters ?? [])].reverse()
   const inPlay = [...(state.centerEquipment ?? [])]
   const inSet = new Set(inPlay)
   const hp = baseHeroHp(hero) + inPlay.reduce((acc, eid) => acc + hpForEquip(eid), 0)

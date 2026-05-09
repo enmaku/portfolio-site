@@ -178,7 +178,7 @@ test('bidding->dungeon skips vorpal when pile non-empty but no vorpal equipment 
   assert.equal(pass.ok, true)
   assert.equal(pass.state.phase, MATCH_PHASES.DUNGEON)
   assert.equal(pass.state.dungeon.subphase, DUNGEON_SUBPHASES.REVEAL)
-  assert.deepEqual(pass.state.dungeon.remainingMonsters, ['goblin', 'dragon'])
+  assert.deepEqual(pass.state.dungeon.remainingMonsters, ['dragon', 'goblin'])
 })
 
 test('vorpal declaration rejects species outside legal action set', () => {
