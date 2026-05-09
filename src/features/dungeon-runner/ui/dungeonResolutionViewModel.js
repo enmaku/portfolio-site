@@ -30,7 +30,6 @@ export function createDungeonResolutionViewModel({
     }),
     resolutionStatus: deriveResolutionStatus({
       activeAnimationKind: activeAnimation?.kind ?? null,
-      hpDelta,
       highlightedEquipmentIds,
       autoAdvanceAction,
       legalActions,
@@ -100,13 +99,12 @@ function buildMonsterView({
 
 function deriveResolutionStatus({
   activeAnimationKind,
-  hpDelta,
   highlightedEquipmentIds,
   autoAdvanceAction,
   legalActions,
 }) {
   if (activeAnimationKind === 'DUNGEON_REVEAL') return 'revealing'
-  if (activeAnimationKind === 'DUNGEON_DAMAGE' || hpDelta?.value < 0) return 'damage-taken'
+  if (activeAnimationKind === 'DUNGEON_DAMAGE') return 'damage-taken'
   if (highlightedEquipmentIds.length > 0) return 'waiting-for-choice'
   if (hasNonDeterministicChoice(legalActions)) return 'waiting-for-choice'
   if (autoAdvanceAction) return 'auto-resolved'

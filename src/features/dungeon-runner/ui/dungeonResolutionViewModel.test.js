@@ -198,6 +198,33 @@ test('derives damage chip from hp delta and damage animation', () => {
   })
 })
 
+test('keeps deterministic reveal/continue auto-resolved after damage animation has ended', () => {
+  const model = createDungeonResolutionViewModel({
+    visibleState: {
+      dungeon: {
+        currentMonster: null,
+        hp: 3,
+        inPlayEquipmentIds: ['B_AXE'],
+      },
+    },
+    previousVisibleState: {
+      dungeon: {
+        hp: 7,
+      },
+    },
+    legalActions: [{ type: 'REVEAL_OR_CONTINUE' }],
+    activeAnimation: null,
+  })
+
+  assert.equal(model.resolutionStatus, 'auto-resolved')
+  assert.deepEqual(model.autoAdvanceAction, { type: 'REVEAL_OR_CONTINUE' })
+  assert.deepEqual(model.hpDelta, {
+    value: -4,
+    tone: 'damage',
+    text: '-4 HP',
+  })
+})
+
 test('derives hp bar from current hp and dungeon-start hp', () => {
   const model = createDungeonResolutionViewModel({
     visibleState: {
