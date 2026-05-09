@@ -1596,7 +1596,13 @@ function importReplay() {
 }
 
 .dr-seat-strip {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.dr-seat-strip > * {
+  flex-shrink: 0;
 }
 
 @keyframes dr-token-pulse {
