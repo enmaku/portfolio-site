@@ -266,6 +266,12 @@ function computeDungeonPresentationFacts(transition) {
   const discardedBefore = numericOrNull(before?.discardedMonsterCount) ?? 0
   const discardedAfter = numericOrNull(after?.discardedMonsterCount) ?? 0
   const discardedDelta = discardedAfter - discardedBefore
+  const remainingBefore = numericOrNull(before?.remainingMonsterCount)
+  const remainingAfterForReveal = numericOrNull(after?.remainingMonsterCount)
+  const consumedTopMonsterFromRemaining =
+    remainingBefore != null &&
+    remainingAfterForReveal != null &&
+    remainingAfterForReveal < remainingBefore
   const revealedChanged =
     before?.currentMonster !== after?.currentMonster && after?.currentMonster != null
 
@@ -294,7 +300,7 @@ function computeDungeonPresentationFacts(transition) {
   const flashRevealFromPile =
     !revealedChanged &&
     (before?.currentMonster ?? null) == null &&
-    discardedDelta > 0 &&
+    (discardedDelta > 0 || consumedTopMonsterFromRemaining) &&
     transition.action?.type === 'REVEAL_OR_CONTINUE' &&
     transition.phaseAfter === 'dungeon'
 
@@ -382,7 +388,7 @@ function deriveDungeonAnimationKinds(transition, dungeonFacts) {
   const hasKnownDungeonOutcome = transition.dungeonRunResult === 'success' || transition.dungeonRunResult === 'failure'
   const concludedFromDungeon = inDungeonStep && transition.phaseAfter !== 'dungeon'
 
-  if (facts.revealedMonsterId != null) kinds.push('DUNGEON_REVEAL')
+  if (facts.revealedMonsterId != null || facts.flashRevealFromPile) kinds.push('DUNGEON_REVEAL')
   if (neutralized) kinds.push('DUNGEON_NEUTRALIZE')
   if (tookDamage) kinds.push('DUNGEON_DAMAGE')
   if (shouldContinue) kinds.push('DUNGEON_CONTINUE')

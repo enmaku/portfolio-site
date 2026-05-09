@@ -469,6 +469,35 @@ test('dungeon animation ordering is deterministic for reveal/resolve/continue st
   )
 })
 
+test('combat damage from reveal step still flashes reveal when remaining count drops', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'dungeon',
+    phaseAfter: 'dungeon',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-1',
+    dungeonRunResult: null,
+    action: { type: 'REVEAL_OR_CONTINUE' },
+    dungeonBefore: dungeonSummary({
+      subphase: 'reveal',
+      currentMonster: null,
+      remainingMonsterCount: 3,
+      discardedMonsterCount: 0,
+      hp: 7,
+    }),
+    dungeonAfter: dungeonSummary({
+      subphase: 'reveal',
+      currentMonster: null,
+      remainingMonsterCount: 2,
+      discardedMonsterCount: 0,
+      hp: 5,
+    }),
+  })
+  assert.deepEqual(
+    animations.filter((animation) => animation.kind.startsWith('DUNGEON_')).map((animation) => animation.kind),
+    ['DUNGEON_REVEAL', 'DUNGEON_DAMAGE', 'DUNGEON_CONTINUE'],
+  )
+})
+
 test('preventable-damage pauses do not enqueue auto-continue animation', () => {
   const fireAxeWindow = mapEngineTransitionToAnimations({
     phaseBefore: 'dungeon',

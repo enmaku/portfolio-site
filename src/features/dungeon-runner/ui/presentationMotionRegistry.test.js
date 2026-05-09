@@ -1123,6 +1123,7 @@ test('createPresentationMotionTimeline tweens dungeonCardWrap for DUNGEON_DAMAGE
   assert.ok(cardTo.some((c) => c.vars?.x === 6))
   assert.ok(cardTo.some((c) => c.vars?.x === -4))
   assert.ok(cardTo.some((c) => c.vars?.x === 0 && String(c.vars?.filter ?? '').includes('saturate(1)')))
+  assert.ok(cardTo.some((c) => Number.isFinite(c.vars?.x) && c.vars?.x >= 320 && c.vars?.opacity === 0))
 })
 
 test('createPresentationMotionTimeline tweens dungeonCardWrap for DUNGEON_NEUTRALIZE (strike + brightness)', () => {
