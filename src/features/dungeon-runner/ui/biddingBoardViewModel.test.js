@@ -59,44 +59,6 @@ test('board view model preserves hidden information for unrevealed card', () => 
   assert.equal(model.primaryCard.monsterCard, null)
 })
 
-test('board view model maps bot bidding animation kinds to motion cues', () => {
-  const draw = createBiddingBoardViewModel({
-    state: {
-      bidding: { monsterDeck: [], dungeonMonsters: [], passedSeatIds: [] },
-      turn: { activeSeatId: 'seat-1' },
-      seats: [],
-      centerEquipment: [],
-    },
-    visibleState: { bidding: { revealedMonsterCard: null } },
-    activeAnimation: { kind: 'BOT_BIDDING_DRAW', payload: {} },
-  })
-  assert.equal(draw.secondary.botBiddingMotion, 'draw')
-
-  const add = createBiddingBoardViewModel({
-    state: {
-      bidding: { monsterDeck: [], dungeonMonsters: [], passedSeatIds: [] },
-      turn: { activeSeatId: 'seat-1' },
-      seats: [],
-      centerEquipment: [],
-    },
-    visibleState: { bidding: { revealedMonsterCard: null } },
-    activeAnimation: { kind: 'BOT_BIDDING_ADD', payload: {} },
-  })
-  assert.equal(add.secondary.botBiddingMotion, 'add')
-
-  const sac = createBiddingBoardViewModel({
-    state: {
-      bidding: { monsterDeck: [], dungeonMonsters: [], passedSeatIds: [] },
-      turn: { activeSeatId: 'seat-1' },
-      seats: [],
-      centerEquipment: [],
-    },
-    visibleState: { bidding: { revealedMonsterCard: null } },
-    activeAnimation: { kind: 'BOT_BIDDING_SACRIFICE', payload: { consumedEquipmentIds: [] } },
-  })
-  assert.equal(sac.secondary.botBiddingMotion, 'sacrifice')
-})
-
 test('board view model darkens consumed equipment from active bot animation', () => {
   const model = createBiddingBoardViewModel({
     state: {

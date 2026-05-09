@@ -92,8 +92,10 @@ test('dungeon runner page syncs presentation speed ref into orchestrator', () =>
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
   const watchIdx = page.indexOf('watch(presentationSpeedProfile')
   assert.ok(watchIdx >= 0)
-  const watchBlock = page.slice(watchIdx, watchIdx + 450)
+  const watchBlock = page.slice(watchIdx, watchIdx + 550)
   assert.equal(watchBlock.includes('presentationOrchestrator.setSpeedProfile(next)'), true)
+  assert.equal(watchBlock.includes('syncPresentationLabel()'), true)
+  assert.equal(watchBlock.includes('triggerRef(activePresentation)'), true)
 })
 
 test('dungeon stage render wiring binds resolution view and stage animation class', () => {
@@ -102,12 +104,58 @@ test('dungeon stage render wiring binds resolution view and stage animation clas
   assert.equal(page.includes('[dungeonStageAnimationClass]'), true)
   assert.equal(page.includes('const showDungeonStage = computed(() => {'), true)
   assert.equal(page.includes('dungeonStageClassForKind(activePresentation.value?.kind ?? null)'), true)
-  assert.equal(page.includes('.dr-dungeon-stage--reveal .dr-hero-card-control'), true)
-  assert.equal(page.includes('.dr-dungeon-stage--hit .dr-hero-card-control'), true)
-  assert.equal(page.includes('.dr-dungeon-stage--consume .dr-hero-card-control'), true)
-  assert.equal(page.includes('.dr-dungeon-stage--strike .dr-hero-card-control'), true)
-  assert.equal(page.includes('dungeonStageView.monster.species'), true)
+  assert.equal(page.includes('ref="dungeonCardMotionWrap"'), true)
+  assert.equal(page.includes('dungeonCardWrap: dungeonCardMotionWrap.value'), true)
+  assert.equal(page.includes('dungeonCardFlipAxis: dungeonCardFaceRef.value?.dungeonCardFlipAxis'), true)
+  assert.equal(page.includes('dr-dungeon-hit'), false)
+  assert.equal(page.includes('dr-dungeon-stage--strike'), false)
+  assert.equal(page.includes('dr-dungeon-stage--consume'), false)
+  assert.equal(page.includes('@keyframes dr-dungeon-reveal'), false)
+  assert.equal(page.includes('dr-dungeon-reveal'), false)
+  const registryPath = new URL('./ui/presentationMotionRegistry.js', import.meta.url)
+  const registrySrc = readFileSync(registryPath, 'utf8')
+  assert.equal(registrySrc.includes('createDungeonDamagePresentationMotionTimeline'), true)
+  assert.equal(registrySrc.includes('createDungeonNeutralizePresentationMotionTimeline'), true)
+  assert.equal(registrySrc.includes('createDungeonContinuePresentationMotionTimeline'), true)
+  assert.equal(registrySrc.includes('createDungeonOutcomePresentationMotionTimeline'), true)
+  assert.equal(page.includes('dungeonStageView.monster.frontFaceSpecies'), true)
   assert.equal(page.includes('dungeonStageView.monster.visibility !== \'revealed\''), true)
+})
+
+test('bot bidding motion uses GSAP registry wiring without legacy CSS storytelling classes', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes('dr-board-primary--bot'), false)
+  assert.equal(page.includes('dr-pile-badge--bot'), false)
+  assert.equal(page.includes('@keyframes dr-bot'), false)
+  assert.equal(page.includes('usePresentationMotion('), true)
+  assert.equal(page.includes("'BOT_BIDDING_SACRIFICE'"), true)
+  const registryPath = new URL('./ui/presentationMotionRegistry.js', import.meta.url)
+  const registrySrc = readFileSync(registryPath, 'utf8')
+  assert.equal(registrySrc.includes('createBotBiddingDrawPresentationMotionTimeline'), true)
+  assert.equal(registrySrc.includes('createBotBiddingAddPresentationMotionTimeline'), true)
+  assert.equal(registrySrc.includes('createBotBiddingSacrificePresentationMotionTimeline'), true)
+})
+
+test('dungeon stage feeds MonsterCardFace from frontFaceSpecies so flip shows engine-authored monster', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes('dungeonStageView.monster.frontFaceSpecies'), true)
+  assert.equal(
+    page.match(/dungeonStageView\.monster\.species\b/g) === null ||
+      page.match(/dungeonStageView\.monster\.species\b/g).length === 0,
+    true,
+    'page should no longer feed gated monster.species into the card front face',
+  )
+})
+
+test('MonsterCardFace renders both faces with 3D pivot and flip-axis ref', () => {
+  const component = readFileSync(new URL('../../components/dungeon-runner/MonsterCardFace.vue', import.meta.url), 'utf8')
+  assert.equal(component.includes('dr-monster-card__face--back'), true)
+  assert.equal(component.includes('dr-monster-card__face--front'), true)
+  assert.equal(component.includes('transform-style: preserve-3d'), true)
+  assert.equal(component.includes('backface-visibility'), true)
+  assert.equal(component.includes('perspective'), true)
+  assert.equal(component.includes('rotateY'), true)
+  assert.equal(component.includes('dungeonCardFlipAxis'), true)
 })
 
 test('dungeon equipment token class affordances are bound on board badges', () => {

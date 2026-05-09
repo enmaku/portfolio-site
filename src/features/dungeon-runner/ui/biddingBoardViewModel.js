@@ -38,7 +38,6 @@ export function createBiddingBoardViewModel({ state, visibleState, activeAnimati
       activeSeatId: state?.turn?.activeSeatId ?? null,
       activeSeatLabel: resolveActiveSeatLabel(state),
       seats: buildSeatSummaries(state),
-      botBiddingMotion: getBotBiddingMotion(activeAnimation),
       equipment,
     },
     memoryAid: {
@@ -67,13 +66,5 @@ function buildSeatSummaries(state) {
     passed: passedSeatIds.includes(seat.id),
     isActive: activeSeatId === seat.id,
   }))
-}
-
-function getBotBiddingMotion(activeAnimation) {
-  const kind = activeAnimation?.kind
-  if (kind === 'BOT_BIDDING_DRAW') return 'draw'
-  if (kind === 'BOT_BIDDING_ADD') return 'add'
-  if (kind === 'BOT_BIDDING_SACRIFICE') return 'sacrifice'
-  return null
 }
 

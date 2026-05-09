@@ -108,12 +108,13 @@
       </q-card>
 
       <template v-else>
-        <q-card
-          flat
-          bordered
-          class="q-pa-sm q-mb-sm dr-bidding-board"
-          :class="biddingBoard.heroCue.accentClass"
-        >
+        <div ref="boardShellRef" class="dr-board-shell">
+          <q-card
+            flat
+            bordered
+            class="q-pa-sm q-mb-sm dr-bidding-board"
+            :class="biddingBoard.heroCue.accentClass"
+          >
           <div class="text-subtitle2 q-mb-xs">Bidding board</div>
           <div
             v-if="match.state.phase === 'bidding' && biddingBoard.secondary.seats.length"
@@ -134,13 +135,7 @@
               </q-badge>
             </div>
           </div>
-          <q-card-section
-            class="q-pa-none q-mb-sm dr-board-primary"
-            :class="{
-              'dr-board-primary--bot-draw': biddingBoard.secondary.botBiddingMotion === 'draw',
-              'dr-board-primary--bot-sacrifice': biddingBoard.secondary.botBiddingMotion === 'sacrifice',
-            }"
-          >
+          <q-card-section class="q-pa-none q-mb-sm dr-board-primary">
             <div
               class="dr-hero-card-slot"
               :class="{
@@ -148,21 +143,24 @@
                 [dungeonStageAnimationClass]: showDungeonStage && dungeonStageAnimationClass,
               }"
             >
-              <MonsterCardFace
-                class="dr-hero-card-control"
-                :species="
-                  showDungeonStage
-                    ? dungeonStageView.monster.species
-                    : biddingBoard.primaryCard.variant === 'revealed'
-                      ? biddingBoard.primaryCard.monsterCard
-                      : null
-                "
-                :face-down="
-                  showDungeonStage
-                    ? dungeonStageView.monster.visibility !== 'revealed'
-                    : biddingBoard.primaryCard.variant !== 'revealed'
-                "
-              />
+              <div ref="dungeonCardMotionWrap" class="dr-dungeon-card-motion-wrap">
+                <MonsterCardFace
+                  ref="dungeonCardFaceRef"
+                  class="dr-hero-card-control"
+                  :species="
+                    showDungeonStage
+                      ? dungeonStageView.monster.frontFaceSpecies
+                      : biddingBoard.primaryCard.variant === 'revealed'
+                        ? biddingBoard.primaryCard.monsterCard
+                        : null
+                  "
+                  :face-down="
+                    showDungeonStage
+                      ? dungeonStageView.monster.visibility !== 'revealed'
+                      : biddingBoard.primaryCard.variant !== 'revealed'
+                  "
+                />
+              </div>
               <q-badge
                 v-if="showDungeonStage && dungeonStageView.hpDelta"
                 class="dr-dungeon-stage__hp-chip"
@@ -176,12 +174,12 @@
           <div class="row q-col-gutter-xs items-start">
             <div class="col-4">
               <q-badge
+                ref="deckBadgeRef"
                 text-color="white"
                 class="full-width q-py-xs justify-between dr-deck-badge dr-pile-badge dr-pile-badge--deck"
                 :style="{ '--dr-pile': `url('${uiAssets.piles.deck.runtimePath}')` }"
                 :class="{
                   'dr-deck-badge--interactive': biddingBoard.memoryAid.deckTapEnabled,
-                  'dr-pile-badge--bot-add': biddingBoard.secondary.botBiddingMotion === 'add',
                 }"
                 @click="onDeckTap"
               >
@@ -227,6 +225,7 @@
               class="col-4 col-sm-3"
             >
               <q-badge
+                :ref="(el) => bindBiddingEquipmentBadgeRef(token.equipmentId, el)"
                 class="full-width q-py-xs row items-center justify-center q-gutter-x-xs dr-equip-badge"
                 :class="{
                   'dr-equip-badge--spent': token.removed,
@@ -357,19 +356,26 @@
           />
         </q-card>
 
-        <q-card v-if="match.state.phase === 'match-over'" flat bordered class="q-pa-md">
-          <div class="text-subtitle1 q-mb-sm">Bidding complete</div>
-          <div class="text-body2 q-mb-md">Runner: {{ runnerLabel }}</div>
-          <div class="row q-gutter-sm">
-            <q-btn color="primary" unelevated label="Rematch" @click="rematch" />
-            <q-btn flat color="primary" label="Back to setup" @click="backToSetup" />
-          </div>
-        </q-card>
+          <q-card v-if="match.state.phase === 'match-over'" flat bordered class="q-pa-md">
+            <div class="text-subtitle1 q-mb-sm">Bidding complete</div>
+            <div class="text-body2 q-mb-md">Runner: {{ runnerLabel }}</div>
+            <div class="row q-gutter-sm">
+              <q-btn color="primary" unelevated label="Rematch" @click="rematch" />
+              <q-btn flat color="primary" label="Back to setup" @click="backToSetup" />
+            </div>
+          </q-card>
+          <div
+            ref="presentationFlightLayerRef"
+            class="dr-presentation-flight-layer"
+            aria-hidden="true"
+          />
+        </div>
       </template>
     </div>
 
     <button
       v-if="activePresentation?.kind === 'HERO_CHANGE_INTERSTITIAL' && heroChangeInterstitialView"
+      ref="heroChangeInterstitialOverlayRef"
       type="button"
       class="dr-hero-interstitial"
       :aria-label="heroChangeInterstitialAriaLabel"
@@ -523,7 +529,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, triggerRef, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import {
   MATCH_PHASES,
@@ -583,6 +589,7 @@ import MonsterCardFace from '../../components/dungeon-runner/MonsterCardFace.vue
 import { buildHistoryPanelViewModel } from '../../features/dungeon-runner/ui/historyPanelViewModel.js'
 import { closeDeckSplay, createMemoryAidState, setMemoryAidEnabled, tapDeck } from '../../features/dungeon-runner/ui/memoryAidState.js'
 import { isDungeonPresentationTraceEnabled } from '../../features/dungeon-runner/ui/dungeonPresentationTrace.js'
+import { usePresentationMotion } from '../../features/dungeon-runner/ui/usePresentationMotion.js'
 
 const setup = reactive(createDefaultSetupConfig())
 const $q = useQuasar()
@@ -595,7 +602,7 @@ const opponentTypeOptions = [
 ]
 const debugMode = ref(false)
 function presentationTraceEnabled() {
-  return isDungeonPresentationTraceEnabled() || debugMode.value === true
+  return isDungeonPresentationTraceEnabled()
 }
 const modelOptions = ref([])
 const nnFailureRecovery = createModelFailureRecovery()
@@ -610,6 +617,56 @@ const presentationSpeedOptions = [
   { label: 'Brisk', value: 'brisk' },
 ]
 const activePresentation = ref(null)
+const boardShellRef = ref(null)
+const dungeonCardMotionWrap = ref(null)
+const dungeonCardFaceRef = ref(null)
+const deckBadgeRef = ref(null)
+const heroChangeInterstitialOverlayRef = ref(null)
+const presentationFlightLayerRef = ref(null)
+const biddingEquipmentBadgeRefs = reactive({})
+
+function domEl(componentOrEl) {
+  if (!componentOrEl) return null
+  if (componentOrEl.nodeType === 1) return componentOrEl
+  const inner = componentOrEl.$el
+  return inner?.nodeType === 1 ? inner : null
+}
+
+function bindBiddingEquipmentBadgeRef(equipmentId, componentOrEl) {
+  const node = domEl(componentOrEl)
+  if (node) biddingEquipmentBadgeRefs[equipmentId] = node
+  else delete biddingEquipmentBadgeRefs[equipmentId]
+}
+
+// GSAP: most beats tween `boardShell` (shared placeholder) plus kind-specific refs — `DUNGEON_REVEAL` tweens `dungeonCardWrap` (opacity / y / scale) and `dungeonCardFlipAxis` (`rotationY` flip); damage / neutralize / continue use `dungeonCardWrap` + shell; `DUNGEON_OUTCOME` tweens the wrap only (no shell tween); teardown clears wrap + shell after that beat for neutral baseline (#66).
+// `HERO_CHANGE_INTERSTITIAL` → overlay only; bot bidding → `dungeonCardWrap` / `deckBadge` / equipment; neutralize + sacrifice use `presentationFlightLayer` + `equipment_*` (see presentationMotionRegistry.js).
+// Window resize during fragile motion (ghost flight #68, or dungeon reveal flip) swaps to shell+card-only tweens for the rest of that beat (#71); orchestrator `remainingMs` is not recomputed on resize (#68).
+usePresentationMotion({
+  activePresentation,
+  getMotionRefs: (head) => {
+    if (head?.kind === 'HERO_CHANGE_INTERSTITIAL') {
+      return {
+        heroChangeInterstitialOverlay: heroChangeInterstitialOverlayRef.value,
+        boardShell: boardShellRef.value,
+      }
+    }
+    const base = {
+      boardShell: boardShellRef.value,
+      dungeonCardWrap: dungeonCardMotionWrap.value,
+      dungeonCardFlipAxis: dungeonCardFaceRef.value?.dungeonCardFlipAxis ?? null,
+      deckBadge: domEl(deckBadgeRef.value),
+      presentationFlightLayer: presentationFlightLayerRef.value,
+    }
+    if (head?.kind !== 'BOT_BIDDING_SACRIFICE' && head?.kind !== 'DUNGEON_NEUTRALIZE') return base
+    const ids = head?.payload?.consumedEquipmentIds ?? []
+    const extra = {}
+    for (const id of ids) {
+      const node = biddingEquipmentBadgeRefs[id]
+      if (node?.nodeType === 1) extra[`equipment_${id}`] = node
+    }
+    return { ...base, ...extra }
+  },
+})
 const activePresentationLabel = ref('')
 const equipmentModalOpen = ref(false)
 const selectedEquipmentTokenId = ref(null)
@@ -625,20 +682,12 @@ let aiTurnTimerId = null
 let autoResolveTimerId = null
 let aiTurnInFlight = false
 let lastPresentationTraceKey = null
-let lastDungeonTraceStateSig = null
-let traceAutoResolveLockedSkipAt = 0
-const traceScheduleSkipLastAt = {}
-function traceScheduleSkipThrottled(key, intervalMs, message, detail) {
-  if (!presentationTraceEnabled()) return
-  const now = Date.now()
-  if ((traceScheduleSkipLastAt[key] ?? 0) + intervalMs > now) return
-  traceScheduleSkipLastAt[key] = now
-  console.log(message, detail ?? '')
-}
 const uiAssets = dungeonRunnerAssetPack
 
 watch(presentationSpeedProfile, (next) => {
   presentationOrchestrator.setSpeedProfile(next)
+  syncPresentationLabel()
+  triggerRef(activePresentation)
   if (match.value) {
     match.value = { ...match.value, presentationSpeedProfile: next }
     persistCurrentMatch(window.localStorage, match.value)
@@ -852,7 +901,7 @@ onMounted(() => {
   debugMode.value = shouldEnableDebugOnBoot(window.location.href)
   if (presentationTraceEnabled()) {
     console.log(
-      '[DungeonRunner][PresentationTrace] logging on — Vite dev, ?debug=true on localhost, or localStorage.setItem("dungeonPresentationTrace","1")',
+      '[DungeonRunner][presentation] trace on — localStorage.setItem("dungeonPresentationTrace","1")',
     )
   }
   if (decideResumeFlow(window.localStorage).mode === 'resume-or-start-new') {
@@ -878,39 +927,6 @@ watch(
   () => match.value?.state,
   (state) => {
     if (!match.value || !state) return
-    if (presentationTraceEnabled()) {
-      const sig = [
-        state.phase,
-        state.dungeon?.subphase ?? '',
-        state.turn?.activeSeatId ?? '',
-        state.turn?.turnNumber ?? '',
-        state.rng?.step ?? '',
-        state.dungeon?.currentMonster ?? '',
-        (state.dungeon?.remainingMonsters ?? []).length,
-        (state.dungeon?.discardedRunMonsters ?? []).length,
-        state.dungeon?.hp ?? '',
-        state.lastDungeonRun?.result ?? '',
-      ].join('|')
-      if (sig !== lastDungeonTraceStateSig) {
-        lastDungeonTraceStateSig = sig
-        console.log('[DungeonRunner][stateWatch]', {
-          phase: state.phase,
-          dungeonSubphase: state.dungeon?.subphase ?? null,
-          currentMonster: state.dungeon?.currentMonster ?? null,
-          remainingMonsters: (state.dungeon?.remainingMonsters ?? []).length,
-          discardedMonsters: (state.dungeon?.discardedRunMonsters ?? []).length,
-          hp: state.dungeon?.hp ?? null,
-          activeSeatId: state.turn?.activeSeatId,
-          humanSeatId: humanSeatId.value,
-          isHumanTurn: isHumanTurn.value,
-          turnNumber: state.turn?.turnNumber,
-          rngStep: state.rng?.step,
-          lastDungeonRunResult: state.lastDungeonRun?.result ?? null,
-          visibleActionTypes: visibleLegalActions.value.map((a) => a.type),
-          rawLegalActionTypes: legalActions.value.map((a) => a.type),
-        })
-      }
-    }
     persistCurrentMatch(window.localStorage, match.value)
     scheduleAiTurnIfReady()
     scheduleHumanAutoResolveIfReady()
@@ -1043,36 +1059,13 @@ function backToSetup() {
 }
 
 function takeHumanAction(action) {
-  const trace = presentationTraceEnabled()
-  if (trace) {
-    const snap = presentationOrchestrator.getQueueSnapshot()
-    console.log('[DungeonRunner][takeHumanAction][enter]', {
-      action,
-      phase: match.value?.state?.phase ?? null,
-      dungeonSubphase: match.value?.state?.dungeon?.subphase ?? null,
-      activeSeatId: match.value?.state?.turn?.activeSeatId ?? null,
-      humanSeatId: humanSeatId.value,
-      isHumanTurn: isHumanTurn.value,
-      gameplayInputLocked: gameplayInputLocked.value,
-      equipmentModalOpen: equipmentModalOpen.value,
-      outcomeDialogOpen: dungeonOutcomeDialogOpen.value,
-      queueSnapshot: snap.map((i) => ({ kind: i.kind, id: i.id, remainingMs: i.remainingMs })),
-    })
-  }
   if (!match.value || !humanSeatId.value) {
-    if (trace) console.log('[DungeonRunner][takeHumanAction][abort]', 'no match or human seat')
     return
   }
   if (gameplayInputLocked.value) {
-    if (trace) {
-      console.log('[DungeonRunner][takeHumanAction][abort]', 'gameplayInputLocked', {
-        queue: presentationOrchestrator.getQueueSnapshot().map((i) => ({ kind: i.kind, remainingMs: i.remainingMs })),
-      })
-    }
     return
   }
   if (autoResolveTimerId) {
-    if (trace) console.log('[DungeonRunner][takeHumanAction][clearAutoResolveTimer]', { hadTimer: true })
     window.clearTimeout(autoResolveTimerId)
     autoResolveTimerId = null
   }
@@ -1081,16 +1074,7 @@ function takeHumanAction(action) {
   previousVisibleState.value = getPlayerView(prevState, { seatId: humanSeatId.value })
   const result = applyAction(prevState, action, { seatId: humanSeatId.value })
   if (!result.ok) {
-    if (trace) console.log('[DungeonRunner][takeHumanAction][abort]', 'applyAction not ok', { action })
     return
-  }
-  if (trace) {
-    console.log('[DungeonRunner][takeHumanAction][applyOk]', {
-      nextPhase: result.state.phase,
-      dungeonSubphase: result.state.dungeon?.subphase ?? null,
-      rngStepAfter: result.state.rng?.step,
-      historyLen: result.state.history?.length ?? 0,
-    })
   }
   const deferExit = shouldDeferDungeonExitUntilOutcomeAck(prevState, result.state)
   if (deferExit) {
@@ -1216,15 +1200,6 @@ async function runAiTurn() {
     deferredPostDungeonState.value = null
     match.value = { ...match.value, state: result.state }
   }
-  if (presentationTraceEnabled()) {
-    console.log('[DungeonRunner][runAiTurn][applyOk]', {
-      seatId,
-      roleType,
-      action,
-      nextPhase: result.state.phase,
-      rngStep: result.state.rng?.step,
-    })
-  }
   enqueuePresentationTransition(prevState, result.state, action, seatId, roleType ?? 'randombot')
   } finally {
     aiTurnInFlight = false
@@ -1241,18 +1216,6 @@ function shouldDeferDungeonExitUntilOutcomeAck(prevState, nextState) {
 
 function enqueuePresentationTransition(prevState, nextState, action, actorSeatId, actorRoleType) {
   const deferPostDungeonOutcomeAck = shouldDeferDungeonExitUntilOutcomeAck(prevState, nextState)
-  if (presentationTraceEnabled()) {
-    console.log('[DungeonRunner][enqueuePresentationTransition][in]', {
-      actorSeatId,
-      actorRoleType,
-      action,
-      phaseBefore: prevState.phase,
-      phaseAfter: nextState.phase,
-      dungeonBefore: summarizeDungeonForPresentation(prevState.dungeon),
-      dungeonAfter: summarizeDungeonForPresentation(nextState.dungeon),
-      deferPostDungeonOutcomeAck,
-    })
-  }
   presentationOrchestrator.enqueueEngineTransition(
     {
       phaseBefore: prevState.phase,
@@ -1273,20 +1236,31 @@ function enqueuePresentationTransition(prevState, nextState, action, actorSeatId
     },
     { deferPostDungeonOutcomeAck },
   )
+  if (presentationTraceEnabled()) {
+    const snap = presentationOrchestrator.getQueueSnapshot()
+    console.log('[DungeonRunner][presentation] enqueue', {
+      phase: `${prevState.phase}→${nextState.phase}`,
+      action: action?.type ?? null,
+      actorRole: actorRoleType,
+      queue: snap.map((x) => x.kind),
+    })
+  }
   syncPresentationLabel()
 }
 
 function summarizeDungeonForPresentation(dungeonState) {
   if (!dungeonState) return null
+  const discardedRunMonsterIds = Array.isArray(dungeonState.discardedRunMonsters)
+    ? [...dungeonState.discardedRunMonsters]
+    : []
   return {
     subphase: dungeonState.subphase ?? null,
     currentMonster: dungeonState.currentMonster ?? null,
     remainingMonsterCount: Array.isArray(dungeonState.remainingMonsters)
       ? dungeonState.remainingMonsters.length
       : 0,
-    discardedMonsterCount: Array.isArray(dungeonState.discardedRunMonsters)
-      ? dungeonState.discardedRunMonsters.length
-      : 0,
+    discardedMonsterCount: discardedRunMonsterIds.length,
+    discardedRunMonsterIds,
     hp: Number.isFinite(dungeonState.hp) ? dungeonState.hp : null,
   }
 }
@@ -1301,13 +1275,10 @@ function syncPresentationLabel() {
     if (key !== lastPresentationTraceKey) {
       lastPresentationTraceKey = key
       const snap = presentationOrchestrator.getQueueSnapshot()
-      console.log('[DungeonRunner][syncPresentation]', {
-        active: a
-          ? { id: a.id, kind: a.kind, label: a.label, remainingMs: a.remainingMs, durationMs: a.durationMs }
-          : null,
-        queueLen: snap.length,
-        queuedKinds: snap.map((x) => x.kind),
-        gameplayLocked: gameplayInputLocked.value,
+      console.log('[DungeonRunner][presentation] active', a?.kind ?? 'idle', {
+        ms: a?.remainingMs ?? null,
+        queued: snap.map((x) => x.kind),
+        inputLocked: gameplayInputLocked.value,
       })
     }
   }
@@ -1332,43 +1303,19 @@ function scheduleAiTurnIfReady() {
 }
 
 function scheduleHumanAutoResolveIfReady() {
-  const trace = presentationTraceEnabled()
   if (!match.value) {
-    traceScheduleSkipThrottled('no-match', 2000, '[DungeonRunner][scheduleAutoResolve][skip]', 'no match')
     return
   }
   if (gameplayInputLocked.value) {
-    if (trace) {
-      const now = Date.now()
-      if (now - traceAutoResolveLockedSkipAt > 800) {
-        traceAutoResolveLockedSkipAt = now
-        console.log('[DungeonRunner][scheduleAutoResolve][skip]', 'gameplayInputLocked', {
-          head: presentationOrchestrator.getQueueSnapshot()[0]?.kind ?? null,
-        })
-      }
-    }
     return
   }
   if (!isHumanTurn.value) {
-    traceScheduleSkipThrottled('not-human-turn', 1200, '[DungeonRunner][scheduleAutoResolve][skip]', 'not human turn')
     return
   }
   if (match.value.state.phase !== 'dungeon') {
-    traceScheduleSkipThrottled(
-      `phase-${match.value.state.phase}`,
-      1200,
-      '[DungeonRunner][scheduleAutoResolve][skip]',
-      `phase !== dungeon (${match.value.state.phase})`,
-    )
     return
   }
   if (equipmentModalOpen.value || autoResolveTimerId) {
-    if (trace) {
-      console.log('[DungeonRunner][scheduleAutoResolve][skip]', 'modal or timer', {
-        equipmentModalOpen: equipmentModalOpen.value,
-        hasTimer: !!autoResolveTimerId,
-      })
-    }
     return
   }
   const action = dungeonResolutionView.value.autoAdvanceAction
@@ -1382,28 +1329,7 @@ function scheduleHumanAutoResolveIfReady() {
     activeAnimationKind: activePresentation.value?.kind ?? null,
   }
   if (!shouldAutoResolveDungeonAdvance(gate)) {
-    if (trace) {
-      const gateSig = [
-        gate.phase,
-        gate.resolutionStatus,
-        gate.activeAnimationKind,
-        gate.autoAdvanceAction?.type ?? '',
-        legalActions.value.map((a) => a.type).join(','),
-        gameplayInputLocked.value,
-      ].join('|')
-      traceScheduleSkipThrottled(`gate-${gateSig}`, 1500, '[DungeonRunner][scheduleAutoResolve][skip]', {
-        reason: 'shouldAutoResolveDungeonAdvance false',
-        resolutionStatus: gate.resolutionStatus,
-        activeAnimationKind: gate.activeAnimationKind,
-        autoAdvanceType: gate.autoAdvanceAction?.type ?? null,
-        legalTypes: legalActions.value.map((a) => a.type),
-        gameplayInputLocked: gate.gameplayInputLocked,
-      })
-    }
     return
-  }
-  if (trace) {
-    console.log('[DungeonRunner][scheduleAutoResolve][arm]', { action, delayMs: 480, gate })
   }
   autoResolveTimerId = window.setTimeout(() => {
     autoResolveTimerId = null
@@ -1418,9 +1344,6 @@ function scheduleHumanAutoResolveIfReady() {
       activeAnimationKind: activePresentation.value?.kind ?? null,
     }
     const ok = shouldExecuteScheduledAutoResolve(execGate)
-    if (trace) {
-      console.log('[DungeonRunner][scheduleAutoResolve][timerFire]', { ok, execGate })
-    }
     if (!ok) return
     takeHumanAction(action)
   }, 480)
@@ -1464,7 +1387,6 @@ function nnRuntimeOptions(modelId) {
       }
       nnDebugTraceHistory.value = [payload, ...nnDebugTraceHistory.value].slice(0, 20)
       nnDebugTraceText.value = JSON.stringify(payload, null, 2)
-      console.log('[DungeonRunner][NNTrace]', payload)
     },
   }
 }
@@ -1600,6 +1522,18 @@ function importReplay() {
   min-height: 0;
 }
 
+.dr-board-shell {
+  position: relative;
+}
+
+.dr-presentation-flight-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  overflow: visible;
+}
+
 .dr-header {
   flex-shrink: 0;
   position: relative;
@@ -1650,45 +1584,19 @@ function importReplay() {
   display: block;
 }
 
+.dr-dungeon-card-motion-wrap {
+  width: 100%;
+  display: block;
+}
+
 .dr-hero-card-control :deep(.dr-monster-card) {
   width: 100%;
   max-width: none;
   margin: 0;
 }
 
-.dr-board-primary--bot-draw .dr-hero-card-control {
-  animation: dr-bot-draw-nudge 0.48s ease-in-out infinite;
-}
-
-.dr-board-primary--bot-sacrifice .dr-hero-card-control {
-  animation: dr-bot-sacrifice-dim 0.55s ease-in-out infinite alternate;
-}
-
-.dr-pile-badge--bot-add {
-  box-shadow: inset 0 0 0 2px rgba(255, 213, 79, 0.75);
-}
-
 .dr-seat-strip {
   flex-wrap: wrap;
-}
-
-@keyframes dr-bot-draw-nudge {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(-3px) scale(1.03);
-  }
-}
-
-@keyframes dr-bot-sacrifice-dim {
-  from {
-    filter: brightness(1);
-  }
-  to {
-    filter: brightness(0.88);
-  }
 }
 
 @keyframes dr-token-pulse {
@@ -1697,53 +1605,6 @@ function importReplay() {
   }
   to {
     transform: scale(1.03);
-  }
-}
-
-@keyframes dr-dungeon-reveal {
-  from {
-    transform: scale(0.95);
-    opacity: 0.4;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes dr-dungeon-strike {
-  from {
-    transform: translateX(0);
-  }
-  50% {
-    transform: translateX(6px);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-@keyframes dr-dungeon-hit {
-  from {
-    transform: translateX(0);
-    filter: saturate(1);
-  }
-  35% {
-    transform: translateX(-6px);
-    filter: saturate(1.4);
-  }
-  to {
-    transform: translateX(0);
-    filter: saturate(1);
-  }
-}
-
-@keyframes dr-dungeon-consume {
-  from {
-    filter: brightness(1);
-  }
-  to {
-    filter: brightness(0.88);
   }
 }
 
@@ -1773,22 +1634,6 @@ function importReplay() {
 
 .dr-dungeon-stage .dr-hero-card-control {
   transform-origin: center;
-}
-
-.dr-dungeon-stage--reveal .dr-hero-card-control {
-  animation: dr-dungeon-reveal 0.35s ease-out;
-}
-
-.dr-dungeon-stage--strike .dr-hero-card-control {
-  animation: dr-dungeon-strike 0.2s ease-out;
-}
-
-.dr-dungeon-stage--hit .dr-hero-card-control {
-  animation: dr-dungeon-hit 0.24s ease-out;
-}
-
-.dr-dungeon-stage--consume .dr-hero-card-control {
-  animation: dr-dungeon-consume 0.24s ease-out;
 }
 
 .dr-dungeon-stage__hp-chip {

@@ -1,35 +1,43 @@
 <template>
   <div class="dr-monster-card">
-    <img
-      class="dr-monster-card__sheet"
-      :src="faceDown ? monsterBackUrl() : cardBlankUrl()"
-      alt=""
-      decoding="async"
-    />
-    <div v-if="!faceDown && spec" class="dr-monster-card__face">
-      <div class="dr-monster-card__left-rail" :class="{ 'dr-monster-card__left-rail--multi': spec.icons.length > 1 }">
-        <div class="dr-monster-card__strength" aria-hidden="true">{{ spec.strength }}</div>
-        <div class="dr-monster-card__icons" role="list" aria-label="Defeat symbols">
-          <img
-            v-for="ic in spec.icons"
-            :key="ic"
-            :src="symbolUrl(ic)"
-            :alt="ic"
-            class="dr-monster-card__icon"
-            role="listitem"
-          />
+    <div class="dr-monster-card__scene">
+      <div
+        ref="flipAxisEl"
+        class="dr-monster-card__axis"
+        :class="{ 'dr-monster-card__axis--revealed': !faceDown }"
+      >
+        <div class="dr-monster-card__face dr-monster-card__face--back">
+          <img class="dr-monster-card__sheet" :src="monsterBackUrl()" alt="" decoding="async" />
+        </div>
+        <div class="dr-monster-card__face dr-monster-card__face--front">
+          <img class="dr-monster-card__sheet" :src="cardBlankUrl()" alt="" decoding="async" />
+          <div v-if="spec" class="dr-monster-card__front-art">
+            <div class="dr-monster-card__left-rail" :class="{ 'dr-monster-card__left-rail--multi': spec.icons.length > 1 }">
+              <div class="dr-monster-card__strength" aria-hidden="true">{{ spec.strength }}</div>
+              <div class="dr-monster-card__icons" role="list" aria-label="Defeat symbols">
+                <img
+                  v-for="ic in spec.icons"
+                  :key="ic"
+                  :src="symbolUrl(ic)"
+                  :alt="ic"
+                  class="dr-monster-card__icon"
+                  role="listitem"
+                />
+              </div>
+            </div>
+            <div class="dr-monster-card__doodle-wrap">
+              <img class="dr-monster-card__doodle" :src="monsterDoodleUrl(spec.species)" :alt="displayName" />
+            </div>
+            <div class="dr-monster-card__name">{{ displayName }}</div>
+          </div>
         </div>
       </div>
-      <div class="dr-monster-card__doodle-wrap">
-        <img class="dr-monster-card__doodle" :src="monsterDoodleUrl(spec.species)" :alt="displayName" />
-      </div>
-      <div class="dr-monster-card__name">{{ displayName }}</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   MONSTER_CARD_SPECS,
   monsterCardSpecByStrength,
@@ -46,6 +54,12 @@ const props = defineProps({
   faceDown: { type: Boolean, default: false },
 })
 
+const flipAxisEl = ref(null)
+
+defineExpose({
+  dungeonCardFlipAxis: flipAxisEl,
+})
+
 const spec = computed(() => {
   if (props.strength != null && Number.isFinite(props.strength)) {
     return monsterCardSpecByStrength(props.strength)
@@ -60,7 +74,6 @@ const displayName = computed(() => displayNameForSpecies(spec.value?.species ?? 
 </script>
 
 <style scoped>
-/* Base sheet sets intrinsic size; overlays use the same box so % line up with ink (not letterboxed CSS background). */
 .dr-monster-card {
   position: relative;
   display: block;
@@ -71,15 +84,52 @@ const displayName = computed(() => displayNameForSpecies(spec.value?.species ?? 
   container-type: inline-size;
 }
 
-.dr-monster-card__sheet {
+.dr-monster-card__scene {
   width: 100%;
-  height: auto;
-  vertical-align: top;
-  display: block;
+  aspect-ratio: 384 / 245;
+  perspective: 1100px;
+  perspective-origin: center center;
+  overflow: hidden;
 }
 
-/* Runtime card sheets are trimmed to art bounds; keep a tiny inset so overlays stay off torn edges. */
+.dr-monster-card__axis {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transform-origin: center center;
+}
+
+.dr-monster-card__axis--revealed {
+  transform: rotateY(180deg);
+}
+
 .dr-monster-card__face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.dr-monster-card__face--back {
+  transform: rotateY(0deg);
+}
+
+.dr-monster-card__face--front {
+  transform: rotateY(180deg);
+}
+
+.dr-monster-card__sheet {
+  width: 100%;
+  height: 100%;
+  vertical-align: top;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+}
+
+.dr-monster-card__front-art {
   position: absolute;
   top: 0.8%;
   right: 0.8%;

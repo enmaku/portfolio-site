@@ -1,10 +1,9 @@
 const PREVENTABLE_DAMAGE_ACTIONS = new Set(['USE_FIRE_AXE', 'USE_POLYMORPH'])
 
 export function dungeonStageClassForKind(kind) {
-  if (kind === 'DUNGEON_REVEAL') return 'dr-dungeon-stage--reveal'
-  if (kind === 'DUNGEON_NEUTRALIZE') return 'dr-dungeon-stage--strike dr-dungeon-stage--consume'
-  if (kind === 'DUNGEON_DAMAGE') return 'dr-dungeon-stage--hit'
-  if (kind === 'DUNGEON_CONTINUE') return 'dr-dungeon-stage--consume'
+  if (kind === 'DUNGEON_REVEAL') return ''
+  if (kind === 'DUNGEON_NEUTRALIZE' || kind === 'DUNGEON_CONTINUE') return ''
+  if (kind === 'DUNGEON_DAMAGE') return ''
   return ''
 }
 

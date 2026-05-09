@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
@@ -8,11 +9,20 @@ import {
 } from './dungeonResolutionFlow.js'
 
 test('maps dungeon orchestrator kinds to stage animation classes', () => {
-  assert.equal(dungeonStageClassForKind('DUNGEON_REVEAL'), 'dr-dungeon-stage--reveal')
-  assert.equal(dungeonStageClassForKind('DUNGEON_NEUTRALIZE'), 'dr-dungeon-stage--strike dr-dungeon-stage--consume')
-  assert.equal(dungeonStageClassForKind('DUNGEON_DAMAGE'), 'dr-dungeon-stage--hit')
-  assert.equal(dungeonStageClassForKind('DUNGEON_CONTINUE'), 'dr-dungeon-stage--consume')
+  assert.equal(dungeonStageClassForKind('DUNGEON_REVEAL'), '')
+  assert.equal(dungeonStageClassForKind('DUNGEON_NEUTRALIZE'), '')
+  assert.equal(dungeonStageClassForKind('DUNGEON_DAMAGE'), '')
+  assert.equal(dungeonStageClassForKind('DUNGEON_CONTINUE'), '')
+  assert.equal(dungeonStageClassForKind('DUNGEON_OUTCOME'), '')
   assert.equal(dungeonStageClassForKind('TURN_ADVANCE'), '')
+})
+
+test('dungeonResolutionFlow does not wire neutralize/continue to strike/consume CSS (#64)', () => {
+  const src = readFileSync(new URL('./dungeonResolutionFlow.js', import.meta.url), 'utf8')
+  assert.equal(src.includes('dr-dungeon-stage--strike'), false)
+  assert.equal(src.includes('dr-dungeon-stage--consume'), false)
+  assert.equal(src.includes('dr-dungeon-strike'), false)
+  assert.equal(src.includes('dr-dungeon-consume'), false)
 })
 
 test('reveal/continue is never timer auto-advanced so each step stays player-paced', () => {

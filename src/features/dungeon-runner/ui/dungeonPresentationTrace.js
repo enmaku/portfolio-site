@@ -1,13 +1,8 @@
 /**
- * Enable with Vite dev server, `?debug=true` on localhost (see debugMode in page), or:
+ * Opt-in only (avoids flooding the console during normal dev):
  *   localStorage.setItem('dungeonPresentationTrace', '1')
  */
 export function isDungeonPresentationTraceEnabled() {
-  try {
-    if (import.meta.env?.DEV === true) return true
-  } catch {
-    /* not a Vite bundle */
-  }
   if (typeof globalThis !== 'undefined' && globalThis.localStorage?.getItem('dungeonPresentationTrace') === '1') {
     return true
   }

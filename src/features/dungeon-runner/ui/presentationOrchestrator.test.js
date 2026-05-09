@@ -5,6 +5,7 @@ import {
   SPEED_PROFILES,
   createPresentationOrchestrator,
   mapEngineTransitionToAnimations,
+  splitPresentationAfterDungeonOutcome,
 } from './presentationOrchestrator.js'
 
 test('orchestrator defaults to cinematic and supports brisk profile', () => {
@@ -103,6 +104,8 @@ test('dungeon reveal action maps to reveal animation kind', () => {
     animations.filter((animation) => animation.kind.startsWith('DUNGEON_')).map((animation) => animation.kind),
     ['DUNGEON_REVEAL'],
   )
+  const reveal = animations.find((a) => a.kind === 'DUNGEON_REVEAL')
+  assert.deepEqual(reveal?.payload, { revealedMonsterId: 'dragon' })
 })
 
 test('dungeon equipment use maps to neutralize animation kind', () => {
@@ -113,6 +116,8 @@ test('dungeon equipment use maps to neutralize animation kind', () => {
     turnAfterSeatId: 'seat-1',
     dungeonRunResult: null,
     action: { type: 'USE_FIRE_AXE' },
+    centerEquipmentBefore: ['B_AXE', 'W_PLATE'],
+    centerEquipmentAfter: ['W_PLATE'],
     dungeonBefore: dungeonSummary({
       subphase: 'pick-fire-axe',
       currentMonster: 'orc',
@@ -132,6 +137,16 @@ test('dungeon equipment use maps to neutralize animation kind', () => {
     animations.filter((animation) => animation.kind.startsWith('DUNGEON_')).map((animation) => animation.kind),
     ['DUNGEON_NEUTRALIZE', 'DUNGEON_CONTINUE'],
   )
+  const neutralize = animations.find((a) => a.kind === 'DUNGEON_NEUTRALIZE')
+  assert.ok(neutralize)
+  assert.deepEqual(neutralize.payload, {
+    neutralizedMonsterIds: ['orc'],
+    consumedEquipmentIds: ['B_AXE'],
+    engineActionType: 'USE_FIRE_AXE',
+  })
+  const continueBeat = animations.find((a) => a.kind === 'DUNGEON_CONTINUE')
+  assert.ok(continueBeat)
+  assert.deepEqual(continueBeat.payload, { dungeonSubphaseAfter: 'reveal' })
 })
 
 test('dungeon decline fire axe does not map to damage when no hp lost', () => {
@@ -211,6 +226,49 @@ test('dungeon reveal-or-continue queues reveal/neutralize/continue when deltas i
     animations.filter((animation) => animation.kind.startsWith('DUNGEON_')).map((animation) => animation.kind),
     ['DUNGEON_NEUTRALIZE', 'DUNGEON_CONTINUE'],
   )
+  const neutralize = animations.find((a) => a.kind === 'DUNGEON_NEUTRALIZE')
+  assert.deepEqual(neutralize?.payload, {
+    neutralizedMonsterIds: [],
+    consumedEquipmentIds: [],
+    engineActionType: 'REVEAL_OR_CONTINUE',
+  })
+})
+
+test('dungeon neutralize payload prefers discard pile diff when ids are present', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'dungeon',
+    phaseAfter: 'dungeon',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-1',
+    dungeonRunResult: null,
+    action: { type: 'USE_POLYMORPH' },
+    centerEquipmentBefore: ['M_POLY', 'B_AXE'],
+    centerEquipmentAfter: ['B_AXE'],
+    dungeonBefore: dungeonSummary({
+      subphase: 'pick-polymorph',
+      currentMonster: 'golem',
+      remainingMonsterCount: 1,
+      discardedMonsterCount: 2,
+      hp: 5,
+      discardedRunMonsterIds: ['a', 'b'],
+    }),
+    dungeonAfter: dungeonSummary({
+      subphase: 'reveal',
+      currentMonster: null,
+      remainingMonsterCount: 0,
+      discardedMonsterCount: 3,
+      hp: 3,
+      discardedRunMonsterIds: ['a', 'b', 'golem'],
+    }),
+  })
+  const neutralize = animations.find((a) => a.kind === 'DUNGEON_NEUTRALIZE')
+  assert.deepEqual(neutralize?.payload, {
+    neutralizedMonsterIds: ['golem'],
+    consumedEquipmentIds: ['M_POLY'],
+    engineActionType: 'USE_POLYMORPH',
+  })
+  const damage = animations.find((a) => a.kind === 'DUNGEON_DAMAGE')
+  assert.deepEqual(damage?.payload, { hpDelta: -2 })
 })
 
 test('dungeon animation ordering is deterministic for reveal/resolve/continue steps', () => {
@@ -394,6 +452,7 @@ test('dungeon run result maps to outcome animation kind', () => {
   const outcome = animations.find((animation) => animation.kind === 'DUNGEON_OUTCOME')
   assert.ok(outcome)
   assert.equal(outcome.durationMs, SPEED_PROFILES.cinematic.dungeonOutcomeMs)
+  assert.deepEqual(outcome.payload, { dungeonRunResult: 'success' })
 })
 
 test('dungeon resolution plays before phase transition when leaving dungeon for pick-adventurer', () => {
@@ -414,6 +473,59 @@ test('dungeon resolution plays before phase transition when leaving dungeon for 
   assert.ok(turnIdx >= 0)
   assert.ok(outcomeIdx < pickIdx, 'outcome should play before pick-adventurer phase cue')
   assert.ok(pickIdx < turnIdx, 'phase cue should play before turn advance')
+})
+
+test('splitPresentationAfterDungeonOutcome ends immediate queue on DUNGEON_OUTCOME', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'dungeon',
+    phaseAfter: 'pick-adventurer',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-2',
+    dungeonRunResult: 'success',
+    actorRoleType: 'human',
+  })
+  const { immediate, deferred } = splitPresentationAfterDungeonOutcome(animations)
+  assert.equal(immediate[immediate.length - 1]?.kind, 'DUNGEON_OUTCOME')
+  assert.ok(deferred.some((a) => a.kind === 'PHASE_PICK_ADVENTURER'))
+  assert.ok(deferred.some((a) => a.kind === 'TURN_ADVANCE'))
+})
+
+test('splitPresentationAfterDungeonOutcome without outcome leaves full queue immediate', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'bidding',
+    phaseAfter: 'dungeon',
+    turnBeforeSeatId: 'seat-a',
+    turnAfterSeatId: 'seat-b',
+    dungeonRunResult: null,
+  })
+  const { immediate, deferred } = splitPresentationAfterDungeonOutcome(animations)
+  assert.deepEqual(immediate, animations)
+  assert.equal(deferred.length, 0)
+})
+
+test('deferPostDungeonOutcomeAck drains outcome then flush enqueues deferred phase animations', () => {
+  const transition = {
+    phaseBefore: 'dungeon',
+    phaseAfter: 'pick-adventurer',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-2',
+    dungeonRunResult: 'success',
+    actorRoleType: 'human',
+  }
+  const full = mapEngineTransitionToAnimations(transition)
+  const outcomeMs = full.find((a) => a.kind === 'DUNGEON_OUTCOME')?.durationMs ?? 0
+  const orchestrator = createPresentationOrchestrator()
+  orchestrator.enqueueEngineTransition(transition, { deferPostDungeonOutcomeAck: true })
+
+  const kindsBefore = orchestrator.getQueueSnapshot().map((a) => a.kind)
+  assert.ok(kindsBefore.includes('DUNGEON_OUTCOME'))
+  assert.equal(kindsBefore.includes('PHASE_PICK_ADVENTURER'), false)
+
+  orchestrator.advance(outcomeMs)
+  assert.equal(orchestrator.getActiveAnimation(), null)
+
+  orchestrator.flushPostDungeonOutcomeAnimations()
+  assert.equal(orchestrator.getActiveAnimation()?.kind, 'PHASE_PICK_ADVENTURER')
 })
 
 test('dungeon conclusion to match-over still maps outcome animation when run result is absent', () => {
@@ -472,7 +584,7 @@ test('turn advance is silent when actor is not human', () => {
   assert.equal(humanTurn.label, 'Advancing turn...')
 })
 
-test('bot bidding actions enqueue silent storytelling cues without hidden card info', () => {
+test('bot bidding actions enqueue presentation kinds without hidden card info', () => {
   const orchestrator = createPresentationOrchestrator()
 
   orchestrator.enqueueEngineTransition({
@@ -512,18 +624,57 @@ test('bot bidding actions enqueue silent storytelling cues without hidden card i
     centerEquipmentAfter: ['W_PLATE'],
   })
 
-  const storytelling = orchestrator
+  const botBidding = orchestrator
     .getQueueSnapshot()
     .filter((animation) => animation.kind.startsWith('BOT_BIDDING_'))
 
-  assert.equal(storytelling.length, 3)
+  assert.equal(botBidding.length, 3)
   assert.deepEqual(
-    storytelling.map((animation) => animation.kind),
+    botBidding.map((animation) => animation.kind),
     ['BOT_BIDDING_DRAW', 'BOT_BIDDING_ADD', 'BOT_BIDDING_SACRIFICE'],
   )
-  assert.equal(storytelling[0].label, '')
-  assert.equal(storytelling[0].payload?.revealedMonsterCard, undefined)
-  assert.deepEqual(storytelling[2].payload?.consumedEquipmentIds, ['W_SHIELD'])
+  assert.equal(botBidding[0].label, '')
+  assert.equal(botBidding[0].payload?.revealedMonsterCard, undefined)
+  assert.deepEqual(botBidding[2].payload?.consumedEquipmentIds, ['W_SHIELD'])
+  assert.equal(botBidding[2].payload?.engineActionType, 'SACRIFICE')
+})
+
+test('bot bidding sacrifice payload falls back to action equipmentId when center diff missing', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'bidding',
+    phaseAfter: 'bidding',
+    turnBeforeSeatId: 'seat-2',
+    turnAfterSeatId: 'seat-3',
+    dungeonRunResult: null,
+    action: { type: 'SACRIFICE', equipmentId: 'W_SHIELD' },
+    actorRoleType: 'randombot',
+    centerEquipmentBefore: [],
+    centerEquipmentAfter: [],
+  })
+  const sacrifice = animations.find((a) => a.kind === 'BOT_BIDDING_SACRIFICE')
+  assert.ok(sacrifice)
+  assert.deepEqual(sacrifice.payload.consumedEquipmentIds, ['W_SHIELD'])
+})
+
+test('human bidding sacrifice queues same BOT_BIDDING_SACRIFICE payload as bot', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'bidding',
+    phaseAfter: 'bidding',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-2',
+    dungeonRunResult: null,
+    action: { type: 'SACRIFICE', equipmentId: 'W_SHIELD' },
+    actorRoleType: 'human',
+    centerEquipmentBefore: ['W_PLATE', 'W_SHIELD'],
+    centerEquipmentAfter: ['W_PLATE'],
+  })
+  const kinds = animations.map((a) => a.kind)
+  assert.ok(kinds.includes('BOT_BIDDING_SACRIFICE'))
+  assert.equal(kinds.includes('BOT_BIDDING_DRAW'), false)
+  assert.equal(kinds.includes('BOT_BIDDING_ADD'), false)
+  const sacrifice = animations.find((a) => a.kind === 'BOT_BIDDING_SACRIFICE')
+  assert.deepEqual(sacrifice?.payload?.consumedEquipmentIds, ['W_SHIELD'])
+  assert.equal(sacrifice?.payload?.engineActionType, 'SACRIFICE')
 })
 
 test('hero change transition queues interstitial with cinematic profile duration', () => {
@@ -673,12 +824,68 @@ test('dungeon animation kinds use brisk timing profile durations', () => {
   assert.equal(durations.DUNGEON_CONTINUE, SPEED_PROFILES.brisk.dungeonContinueMs)
 })
 
+test('flight-related beats expose stable payload keys from engine facts', () => {
+  const neutralize = mapEngineTransitionToAnimations({
+    phaseBefore: 'dungeon',
+    phaseAfter: 'dungeon',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-1',
+    dungeonRunResult: null,
+    action: { type: 'USE_FIRE_AXE' },
+    centerEquipmentBefore: ['B_AXE', 'W_PLATE'],
+    centerEquipmentAfter: ['W_PLATE'],
+    dungeonBefore: dungeonSummary({
+      subphase: 'pick-fire-axe',
+      currentMonster: 'orc',
+      remainingMonsterCount: 2,
+      discardedMonsterCount: 1,
+      hp: 7,
+    }),
+    dungeonAfter: dungeonSummary({
+      subphase: 'reveal',
+      currentMonster: null,
+      remainingMonsterCount: 2,
+      discardedMonsterCount: 2,
+      hp: 7,
+    }),
+  }).find((a) => a.kind === 'DUNGEON_NEUTRALIZE')
+
+  assert.ok(neutralize)
+  assert.deepEqual(Object.keys(neutralize.payload).sort(), [
+    'consumedEquipmentIds',
+    'engineActionType',
+    'neutralizedMonsterIds',
+  ])
+  assert.equal(neutralize.payload.engineActionType, 'USE_FIRE_AXE')
+
+  const sacrifice = mapEngineTransitionToAnimations({
+    phaseBefore: 'bidding',
+    phaseAfter: 'bidding',
+    turnBeforeSeatId: 'seat-2',
+    turnAfterSeatId: 'seat-3',
+    dungeonRunResult: null,
+    action: { type: 'SACRIFICE', equipmentId: 'W_SHIELD' },
+    actorRoleType: 'randombot',
+    centerEquipmentBefore: ['W_PLATE', 'W_SHIELD'],
+    centerEquipmentAfter: ['W_PLATE'],
+  }).find((a) => a.kind === 'BOT_BIDDING_SACRIFICE')
+
+  assert.ok(sacrifice)
+  assert.deepEqual(Object.keys(sacrifice.payload).sort(), ['consumedEquipmentIds', 'engineActionType'])
+  assert.equal(sacrifice.payload.engineActionType, 'SACRIFICE')
+})
+
 function dungeonSummary({
   subphase = 'reveal',
   currentMonster = null,
   remainingMonsterCount = 0,
   discardedMonsterCount = 0,
+  discardedRunMonsterIds,
   hp = 0,
 } = {}) {
-  return { subphase, currentMonster, remainingMonsterCount, discardedMonsterCount, hp }
+  const out = { subphase, currentMonster, remainingMonsterCount, discardedMonsterCount, hp }
+  if (discardedRunMonsterIds !== undefined) {
+    out.discardedRunMonsterIds = discardedRunMonsterIds
+  }
+  return out
 }

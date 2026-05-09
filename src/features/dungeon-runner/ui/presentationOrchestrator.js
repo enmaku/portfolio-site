@@ -1,5 +1,3 @@
-import { isDungeonPresentationTraceEnabled } from './dungeonPresentationTrace.js'
-
 export const SPEED_PROFILES = {
   cinematic: {
     phaseTransitionMs: 2200,
@@ -35,31 +33,47 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
     transition.centerEquipmentAfter,
   )
 
-  if (transition.phaseBefore === 'bidding' && transition.phaseAfter === 'bidding' && transition.actorRoleType !== 'human') {
-    if (transition.action?.type === 'DRAW') {
-      queue.push({
-        kind: 'BOT_BIDDING_DRAW',
-        channel: 'gameplay',
-        label: '',
-        durationMs: profile.botStoryMs,
-        payload: {},
-      })
-    } else if (transition.action?.type === 'ADD_TO_DUNGEON') {
-      queue.push({
-        kind: 'BOT_BIDDING_ADD',
-        channel: 'gameplay',
-        label: '',
-        durationMs: profile.botStoryMs,
-        payload: {},
-      })
-    } else if (transition.action?.type === 'SACRIFICE') {
+  if (transition.phaseBefore === 'bidding' && transition.phaseAfter === 'bidding') {
+    const biddingSacrifice = () => {
+      if (transition.action?.type !== 'SACRIFICE') return
+      let sacrificeConsumedIds = consumedEquipmentIds
+      if (sacrificeConsumedIds.length === 0 && transition.action?.equipmentId) {
+        sacrificeConsumedIds = [transition.action.equipmentId]
+      }
       queue.push({
         kind: 'BOT_BIDDING_SACRIFICE',
         channel: 'gameplay',
         label: '',
         durationMs: profile.botStoryMs,
-        payload: { consumedEquipmentIds },
+        payload: {
+          consumedEquipmentIds: sacrificeConsumedIds,
+          engineActionType: transition.action?.type ?? null,
+        },
       })
+    }
+
+    if (transition.actorRoleType !== 'human') {
+      if (transition.action?.type === 'DRAW') {
+        queue.push({
+          kind: 'BOT_BIDDING_DRAW',
+          channel: 'gameplay',
+          label: '',
+          durationMs: profile.botStoryMs,
+          payload: {},
+        })
+      } else if (transition.action?.type === 'ADD_TO_DUNGEON') {
+        queue.push({
+          kind: 'BOT_BIDDING_ADD',
+          channel: 'gameplay',
+          label: '',
+          durationMs: profile.botStoryMs,
+          payload: {},
+        })
+      } else {
+        biddingSacrifice()
+      }
+    } else {
+      biddingSacrifice()
     }
   }
 
@@ -137,13 +151,16 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
     for (const animation of turnAdvanceAnimations) queue.push(animation)
   }
 
+  const derivedDungeonKinds = deriveDungeonAnimationKinds(transition)
+  const dungeonFacts = computeDungeonPresentationFacts(transition)
   const dungeonAnimations = []
-  for (const kind of deriveDungeonAnimationKinds(transition)) {
+  for (const kind of derivedDungeonKinds) {
     dungeonAnimations.push({
       kind,
       channel: 'gameplay',
       label: dungeonLabelForKind(kind, transition),
       durationMs: durationForDungeonKind(kind, profile),
+      payload: dungeonPayloadForKind(kind, transition, dungeonFacts),
     })
   }
 
@@ -178,6 +195,116 @@ export function splitPresentationAfterDungeonOutcome(animations) {
 function findConsumedEquipmentIds(before = [], after = []) {
   const remaining = new Set(after ?? [])
   return (before ?? []).filter((equipmentId) => !remaining.has(equipmentId))
+}
+
+/**
+ * @param {object|null|undefined} before
+ * @param {object|null|undefined} after
+ * @returns {string[]}
+ */
+function newlyDiscardedMonsterIdsFromSummaries(before, after) {
+  const b = before?.discardedRunMonsterIds
+  const a = after?.discardedRunMonsterIds
+  if (Array.isArray(b) && Array.isArray(a) && a.length >= b.length) {
+    let prefixOk = true
+    for (let i = 0; i < b.length; i += 1) {
+      if (b[i] !== a[i]) {
+        prefixOk = false
+        break
+      }
+    }
+    if (prefixOk) return a.slice(b.length)
+  }
+  if (Array.isArray(b) && Array.isArray(a)) {
+    const setB = new Set(b)
+    return a.filter((id) => !setB.has(id))
+  }
+  const db = numericOrNull(before?.discardedMonsterCount) ?? 0
+  const da = numericOrNull(after?.discardedMonsterCount) ?? 0
+  if (da > db && before?.currentMonster != null) {
+    return [before.currentMonster]
+  }
+  return []
+}
+
+/**
+ * @param {object} transition
+ * @returns {{
+ *   revealedMonsterId: string|null,
+ *   neutralizedMonsterIds: string[],
+ *   hpDelta: number,
+ *   dungeonSubphaseAfter: string|null,
+ *   consumedEquipmentIds: string[],
+ * }}
+ */
+function computeDungeonPresentationFacts(transition) {
+  const consumedEquipmentIds = findConsumedEquipmentIds(
+    transition.centerEquipmentBefore,
+    transition.centerEquipmentAfter,
+  )
+  const before = transition.dungeonBefore ?? null
+  const after = transition.dungeonAfter ?? null
+  const hpBefore = numericOrNull(before?.hp)
+  const hpAfter = numericOrNull(after?.hp)
+  const hpDelta = hpBefore != null && hpAfter != null ? hpAfter - hpBefore : 0
+  const discardedBefore = numericOrNull(before?.discardedMonsterCount) ?? 0
+  const discardedAfter = numericOrNull(after?.discardedMonsterCount) ?? 0
+  const discardedDelta = discardedAfter - discardedBefore
+  const revealedChanged =
+    before?.currentMonster !== after?.currentMonster && after?.currentMonster != null
+
+  let neutralizedMonsterIds = newlyDiscardedMonsterIdsFromSummaries(before, after)
+  if (
+    neutralizedMonsterIds.length === 0 &&
+    before?.currentMonster != null &&
+    (discardedDelta > 0 || transition.action?.type === 'USE_FIRE_AXE')
+  ) {
+    neutralizedMonsterIds = [before.currentMonster]
+  }
+
+  return {
+    revealedMonsterId: revealedChanged ? (after?.currentMonster ?? null) : null,
+    neutralizedMonsterIds,
+    hpDelta,
+    dungeonSubphaseAfter: after?.subphase ?? null,
+    consumedEquipmentIds,
+  }
+}
+
+/**
+ * @param {string} kind
+ * @param {object} transition
+ * @param {ReturnType<typeof computeDungeonPresentationFacts>} facts
+ */
+function dungeonPayloadForKind(kind, transition, facts) {
+  if (kind === 'DUNGEON_REVEAL') {
+    return {
+      revealedMonsterId: facts.revealedMonsterId,
+    }
+  }
+  if (kind === 'DUNGEON_NEUTRALIZE') {
+    return {
+      neutralizedMonsterIds: [...facts.neutralizedMonsterIds],
+      consumedEquipmentIds: [...facts.consumedEquipmentIds],
+      engineActionType: transition.action?.type ?? null,
+    }
+  }
+  if (kind === 'DUNGEON_DAMAGE') {
+    return {
+      hpDelta: facts.hpDelta,
+    }
+  }
+  if (kind === 'DUNGEON_CONTINUE') {
+    return {
+      dungeonSubphaseAfter: facts.dungeonSubphaseAfter,
+    }
+  }
+  if (kind === 'DUNGEON_OUTCOME') {
+    return {
+      dungeonRunResult: transition.dungeonRunResult ?? null,
+    }
+  }
+  return {}
 }
 
 function deriveDungeonAnimationKinds(transition) {
@@ -319,26 +446,7 @@ export function createPresentationOrchestrator({ speedProfile = 'cinematic' } = 
         toEnqueue = split.immediate
         deferredPostDungeonOutcomeAnimations = split.deferred
       }
-      if (isDungeonPresentationTraceEnabled()) {
-        console.log('[DungeonPresentation][enqueue]', {
-          phaseBefore: transition.phaseBefore,
-          phaseAfter: transition.phaseAfter,
-          action: transition.action?.type ?? null,
-          actorSeatId: transition.actorSeatId ?? null,
-          actorRole: transition.actorRoleType ?? null,
-          dungeonRunResult: transition.dungeonRunResult ?? null,
-          queuedKinds: toEnqueue.map((a) => a.kind),
-          deferredKinds: deferredPostDungeonOutcomeAnimations.map((a) => a.kind),
-          queueLenBefore: queue.length,
-        })
-      }
       pushAnimations(toEnqueue)
-      if (isDungeonPresentationTraceEnabled()) {
-        console.log('[DungeonPresentation][enqueue][after]', {
-          queueLen: queue.length,
-          headKind: queue[0]?.kind ?? null,
-        })
-      }
     },
     flushPostDungeonOutcomeAnimations() {
       if (deferredPostDungeonOutcomeAnimations.length === 0) return
@@ -356,15 +464,7 @@ export function createPresentationOrchestrator({ speedProfile = 'cinematic' } = 
           continue
         }
         budget -= head.remainingMs
-        const completed = queue.shift()
-        if (isDungeonPresentationTraceEnabled()) {
-          console.log('[DungeonPresentation][advance][itemDone]', {
-            kind: completed.kind,
-            id: completed.id,
-            queueLenAfter: queue.length,
-            nextKind: queue[0]?.kind ?? null,
-          })
-        }
+        queue.shift()
       }
     },
     getActiveAnimation() {
@@ -374,9 +474,6 @@ export function createPresentationOrchestrator({ speedProfile = 'cinematic' } = 
       return queue.map((item) => ({ ...item }))
     },
     clear() {
-      if (isDungeonPresentationTraceEnabled()) {
-        console.log('[DungeonPresentation][clear]', { hadLen: queue.length })
-      }
       queue.splice(0, queue.length)
       deferredPostDungeonOutcomeAnimations = []
     },
@@ -385,9 +482,6 @@ export function createPresentationOrchestrator({ speedProfile = 'cinematic' } = 
       const head = queue[0]
       if (!head.skippable) return
       queue.shift()
-      if (isDungeonPresentationTraceEnabled()) {
-        console.log('[DungeonPresentation][skipActive]', { skippedKind: head.kind, queueLen: queue.length })
-      }
     },
     isGameplayInputLocked() {
       return queue.some((item) => item.channel === 'gameplay')

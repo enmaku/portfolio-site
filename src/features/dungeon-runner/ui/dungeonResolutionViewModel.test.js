@@ -17,7 +17,44 @@ test('shows face-down monster while reveal animation is active', () => {
 
   assert.equal(model.monster.visibility, 'face-down')
   assert.equal(model.monster.species, null)
+  assert.equal(model.monster.frontFaceSpecies, 'goblin')
   assert.equal(model.resolutionStatus, 'revealing')
+})
+
+test('frontFaceSpecies matches species while monster is revealed', () => {
+  const model = createDungeonResolutionViewModel({
+    visibleState: {
+      dungeon: {
+        currentMonster: 'orc',
+        hp: 8,
+        inPlayEquipmentIds: [],
+      },
+    },
+    legalActions: [{ type: 'REVEAL_OR_CONTINUE' }],
+    activeAnimation: null,
+  })
+
+  assert.equal(model.monster.visibility, 'revealed')
+  assert.equal(model.monster.species, 'orc')
+  assert.equal(model.monster.frontFaceSpecies, 'orc')
+})
+
+test('frontFaceSpecies is null while idle face-down with no engaged monster', () => {
+  const model = createDungeonResolutionViewModel({
+    visibleState: {
+      dungeon: {
+        currentMonster: null,
+        hp: 8,
+        inPlayEquipmentIds: [],
+      },
+    },
+    legalActions: [{ type: 'REVEAL_OR_CONTINUE' }],
+    activeAnimation: null,
+  })
+
+  assert.equal(model.monster.visibility, 'face-down')
+  assert.equal(model.monster.species, null)
+  assert.equal(model.monster.frontFaceSpecies, null)
 })
 
 test('marks waiting-for-choice and highlights fire axe on fire-axe fork', () => {
@@ -160,6 +197,7 @@ test('keeps previous monster visible during damage animation after resolution st
 
   assert.equal(model.monster.visibility, 'revealed')
   assert.equal(model.monster.species, 'dragon')
+  assert.equal(model.monster.frontFaceSpecies, 'dragon')
 })
 
 test('reveals species from lane delta when engine cleared currentMonster before and after combat', () => {
@@ -214,7 +252,7 @@ test('does not reveal from stale lane delta when idle between encounters (no dun
   assert.equal(model.monster.species, null)
 })
 
-test('keeps final monster visible during neutralize/continue transition before outcome', () => {
+test('keeps final monster visible during neutralize transition before outcome', () => {
   const model = createDungeonResolutionViewModel({
     visibleState: {
       dungeon: {
@@ -231,6 +269,29 @@ test('keeps final monster visible during neutralize/continue transition before o
     },
     legalActions: [{ type: 'REVEAL_OR_CONTINUE' }],
     activeAnimation: { kind: 'DUNGEON_NEUTRALIZE' },
+  })
+
+  assert.equal(model.monster.visibility, 'revealed')
+  assert.equal(model.monster.species, 'goblin')
+})
+
+test('keeps final monster visible during continue transition before outcome', () => {
+  const model = createDungeonResolutionViewModel({
+    visibleState: {
+      dungeon: {
+        currentMonster: null,
+        hp: 5,
+        inPlayEquipmentIds: [],
+      },
+    },
+    previousVisibleState: {
+      dungeon: {
+        currentMonster: 'goblin',
+        hp: 5,
+      },
+    },
+    legalActions: [{ type: 'REVEAL_OR_CONTINUE' }],
+    activeAnimation: { kind: 'DUNGEON_CONTINUE' },
   })
 
   assert.equal(model.monster.visibility, 'revealed')

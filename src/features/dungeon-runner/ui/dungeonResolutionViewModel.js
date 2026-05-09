@@ -57,7 +57,11 @@ function buildMonsterView({ currentMonster, previousMonster, activeAnimationKind
     currentMonster ?? previousMonster ?? laneDeltaSpecies
 
   if (activeAnimationKind === 'DUNGEON_REVEAL') {
-    return { visibility: 'face-down', species: null }
+    return {
+      visibility: 'face-down',
+      species: null,
+      frontFaceSpecies: currentMonster ?? null,
+    }
   }
   if (
     (activeAnimationKind === 'DUNGEON_DAMAGE' ||
@@ -66,12 +70,20 @@ function buildMonsterView({ currentMonster, previousMonster, activeAnimationKind
       activeAnimationKind === 'DUNGEON_OUTCOME') &&
     engagedForAnimation
   ) {
-    return { visibility: 'revealed', species: engagedForAnimation }
+    return {
+      visibility: 'revealed',
+      species: engagedForAnimation,
+      frontFaceSpecies: engagedForAnimation,
+    }
   }
   if (currentMonster) {
-    return { visibility: 'revealed', species: currentMonster }
+    return {
+      visibility: 'revealed',
+      species: currentMonster,
+      frontFaceSpecies: currentMonster,
+    }
   }
-  return { visibility: 'face-down', species: null }
+  return { visibility: 'face-down', species: null, frontFaceSpecies: null }
 }
 
 function deriveResolutionStatus({
