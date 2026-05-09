@@ -38,6 +38,10 @@ export function createDungeonResolutionViewModel({
     highlightedEquipmentIds,
     autoAdvanceAction,
     hpDelta,
+    hpBar: buildHpBar({
+      currentHp: dungeon.hp,
+      startingHp: dungeon.startingHp,
+    }),
   }
 }
 
@@ -123,4 +127,18 @@ function buildHpDelta({ previousHp, currentHp, activeAnimationKind }) {
     return { value, tone: 'damage', text: `${value} HP` }
   }
   return { value, tone: 'heal', text: `+${value} HP` }
+}
+
+function buildHpBar({ currentHp, startingHp }) {
+  if (!Number.isFinite(currentHp)) return null
+  const baselineHp = Number.isFinite(startingHp) && startingHp > 0 ? startingHp : currentHp
+  const displayMaxHp = Math.max(1, baselineHp, currentHp)
+  const safeCurrentHp = Math.max(0, currentHp)
+  return {
+    currentHp: safeCurrentHp,
+    baselineHp,
+    displayMaxHp,
+    percent: Math.min(100, Math.max(0, (safeCurrentHp / displayMaxHp) * 100)),
+    text: `${safeCurrentHp} / ${displayMaxHp} HP`,
+  }
 }

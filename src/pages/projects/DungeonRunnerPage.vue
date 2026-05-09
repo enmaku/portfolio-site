@@ -109,6 +109,26 @@
 
       <template v-else>
         <div ref="boardShellRef" class="dr-board-shell">
+          <div
+            v-if="showDungeonStage && dungeonStageView.hpBar"
+            class="dr-dungeon-hp-bar q-mb-sm"
+            role="meter"
+            aria-label="Adventurer HP"
+            aria-valuemin="0"
+            :aria-valuemax="dungeonStageView.hpBar.displayMaxHp"
+            :aria-valuenow="dungeonStageView.hpBar.currentHp"
+          >
+            <div class="row items-center justify-between q-mb-xs">
+              <span class="text-caption text-weight-medium">HP</span>
+              <span class="text-caption">{{ dungeonStageView.hpBar.text }}</span>
+            </div>
+            <div class="dr-dungeon-hp-bar__track">
+              <div
+                class="dr-dungeon-hp-bar__fill"
+                :style="{ width: `${dungeonStageView.hpBar.percent}%` }"
+              />
+            </div>
+          </div>
           <q-card
             flat
             bordered
@@ -1666,6 +1686,27 @@ function importReplay() {
   isolation: isolate;
   border-radius: 10px;
   overflow: hidden;
+}
+
+.dr-dungeon-hp-bar {
+  border: 1px solid rgba(244, 67, 54, 0.35);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(31, 13, 13, 0.86);
+}
+
+.dr-dungeon-hp-bar__track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.dr-dungeon-hp-bar__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #b71c1c, #f44336);
+  transition: width 180ms ease;
 }
 
 .dr-pile-badge {

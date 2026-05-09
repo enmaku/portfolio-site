@@ -198,6 +198,48 @@ test('derives damage chip from hp delta and damage animation', () => {
   })
 })
 
+test('derives hp bar from current hp and dungeon-start hp', () => {
+  const model = createDungeonResolutionViewModel({
+    visibleState: {
+      dungeon: {
+        currentMonster: 'orc',
+        hp: 6,
+        startingHp: 12,
+        inPlayEquipmentIds: [],
+      },
+    },
+  })
+
+  assert.deepEqual(model.hpBar, {
+    currentHp: 6,
+    baselineHp: 12,
+    displayMaxHp: 12,
+    percent: 50,
+    text: '6 / 12 HP',
+  })
+})
+
+test('hp bar expands display max when current hp exceeds dungeon-start hp', () => {
+  const model = createDungeonResolutionViewModel({
+    visibleState: {
+      dungeon: {
+        currentMonster: null,
+        hp: 14,
+        startingHp: 12,
+        inPlayEquipmentIds: [],
+      },
+    },
+  })
+
+  assert.deepEqual(model.hpBar, {
+    currentHp: 14,
+    baselineHp: 12,
+    displayMaxHp: 14,
+    percent: 100,
+    text: '14 / 14 HP',
+  })
+})
+
 test('keeps previous monster visible during damage animation after resolution step', () => {
   const model = createDungeonResolutionViewModel({
     visibleState: {

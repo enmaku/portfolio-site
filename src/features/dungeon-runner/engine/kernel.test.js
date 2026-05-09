@@ -549,6 +549,7 @@ test('bidding to dungeon initializes runner dungeon state like Python _end_biddi
   assert.equal(d.remainingMonsters.length, 2)
   assert.equal(d.subphase, DUNGEON_SUBPHASES.VORPAL)
   assert.equal(d.hp, 3 + 5 + 3)
+  assert.equal(d.startingHp, d.hp)
   assert.equal(d.inPlayEquipmentIds.length, 6)
   assert.equal(d.polySpent, true)
   assert.equal(d.axeSpent, true)
