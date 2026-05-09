@@ -1,8 +1,19 @@
 <template>
   <q-page class="dr-page column no-wrap">
     <div class="dr-header row items-center q-px-md q-pt-md q-pb-sm">
-      <div class="text-h6">Dungeon Runner</div>
-      <q-badge v-if="debugMode" color="negative" class="q-ml-sm" label="Debug" />
+      <div class="row items-center q-gutter-xs">
+        <q-btn
+          v-if="match"
+          flat
+          dense
+          icon="refresh"
+          aria-label="Start new match"
+          :disable="dungeonOutcomeDialogOpen"
+          @click="startNewMatchIntentional"
+        />
+        <q-badge v-if="debugMode" color="negative" label="Debug" />
+      </div>
+      <div class="text-h6 dr-header-title">Dungeon Runner</div>
       <q-space />
       <q-btn
         v-if="match"
@@ -135,7 +146,6 @@
             class="q-pa-sm q-mb-sm dr-bidding-board"
             :class="biddingBoard.heroCue.accentClass"
           >
-          <div class="text-subtitle2 q-mb-xs">Bidding board</div>
           <div
             v-if="match.state.phase === 'bidding' && biddingBoard.secondary.seats.length"
             class="dr-seat-strip row q-col-gutter-xs q-mb-xs"
@@ -270,7 +280,6 @@
         </q-card>
 
         <q-card v-if="showActionPane" flat bordered class="q-pa-sm q-mb-md">
-          <div class="text-subtitle2 q-mb-sm">Action</div>
           <div v-if="activePresentationLabel" class="text-body2 text-grey-6 q-mb-xs">{{ activePresentationLabel }}</div>
           <div v-if="isHumanTurn" class="row q-col-gutter-sm q-gutter-y-sm">
             <template v-if="match.state.phase === 'bidding' && biddingSacrificeActions.length > 1">
@@ -426,16 +435,6 @@
       <div class="dr-hero-interstitial__hint">Tap to skip</div>
     </button>
 
-    <q-dialog v-model="resumeDialogOpen" persistent>
-      <q-card class="q-pa-md" style="min-width: 320px">
-        <div class="text-subtitle1 q-mb-sm">Resume previous match?</div>
-        <div class="row justify-end q-gutter-sm">
-          <q-btn flat label="Start new" color="primary" @click="startFreshFromDialog" />
-          <q-btn unelevated label="Resume" color="primary" @click="resumeFromDialog" />
-        </div>
-      </q-card>
-    </q-dialog>
-
     <q-dialog v-model="dungeonOutcomeDialogOpen" persistent>
       <q-card class="q-pa-md dr-dungeon-outcome-dialog" style="min-width: 340px">
         <div class="text-overline text-grey-6">Dungeon run resolved</div>
@@ -574,7 +573,6 @@ import {
 import {
   CURRENT_MATCH_SCHEMA_VERSION,
   clearCurrentMatch,
-  decideResumeFlow,
   loadCurrentMatch,
   persistCurrentMatch,
 } from '../../features/dungeon-runner/persistence/currentMatch.js'
@@ -630,7 +628,6 @@ const setup = reactive(createDefaultSetupConfig())
 const $q = useQuasar()
 const match = ref(null)
 const historyDrawerOpen = ref(false)
-const resumeDialogOpen = ref(false)
 const opponentTypeOptions = [
   { label: 'Random bot', value: 'randombot' },
   { label: 'NN', value: 'nn' },
@@ -1041,8 +1038,19 @@ onMounted(() => {
       '[DungeonRunner][presentation] trace on — localStorage.setItem("dungeonPresentationTrace","1") — also logs [card-flight] for pile/deck → card motion',
     )
   }
-  if (decideResumeFlow(window.localStorage).mode === 'resume-or-start-new') {
-    resumeDialogOpen.value = true
+  const loaded = loadCurrentMatch(window.localStorage)
+  if (loaded.ok) {
+    const pace =
+      loaded.match.presentationSpeedProfile === 'brisk' || loaded.match.presentationSpeedProfile === 'cinematic'
+        ? loaded.match.presentationSpeedProfile
+        : 'cinematic'
+    dungeonRunnerSettingsStore.setAnimationPace(pace)
+    match.value = { ...loaded.match, presentationSpeedProfile: pace }
+    deferredPostDungeonState.value = null
+    presentationOrchestrator.clear()
+    presentationSpeedProfile.value = pace
+    presentationOrchestrator.setSpeedProfile(pace)
+    syncPresentationLabel()
   }
   void loadModelCatalog()
   presentationTimerId = window.setInterval(() => {
@@ -1284,6 +1292,17 @@ async function takeEquipmentUseAction() {
   })
   if (!shouldSpend) return
   takeHumanAction(selectedEquipmentModalView.value.useAction)
+}
+
+async function startNewMatchIntentional() {
+  const shouldStartFresh = await requestConfirmation({
+    title: 'Start a new match?',
+    message: 'This will discard your current match and return to setup.',
+    okLabel: 'Start new',
+    cancelLabel: 'Cancel',
+  })
+  if (!shouldStartFresh) return
+  backToSetup()
 }
 
 function continueFromEquipmentModal() {
@@ -1644,34 +1663,6 @@ function skipActivePresentation() {
   syncPresentationLabel()
 }
 
-function resumeFromDialog() {
-  const loaded = loadCurrentMatch(window.localStorage)
-  if (!loaded.ok) {
-    resumeDialogOpen.value = false
-    return
-  }
-  const pace =
-    loaded.match.presentationSpeedProfile === 'brisk' || loaded.match.presentationSpeedProfile === 'cinematic'
-      ? loaded.match.presentationSpeedProfile
-      : 'cinematic'
-  dungeonRunnerSettingsStore.setAnimationPace(pace)
-  match.value = { ...loaded.match, presentationSpeedProfile: pace }
-  deferredPostDungeonState.value = null
-  presentationOrchestrator.clear()
-  presentationSpeedProfile.value = pace
-  presentationOrchestrator.setSpeedProfile(pace)
-  syncPresentationLabel()
-  resumeDialogOpen.value = false
-}
-
-function startFreshFromDialog() {
-  clearCurrentMatch(window.localStorage)
-  deferredPostDungeonState.value = null
-  presentationOrchestrator.clear()
-  syncPresentationLabel()
-  resumeDialogOpen.value = false
-}
-
 function cloneSetup(source = setup) {
   return {
     totalSeats: source.totalSeats,
@@ -1769,6 +1760,13 @@ function importReplay() {
   flex-shrink: 0;
   position: relative;
   z-index: 30;
+}
+
+.dr-header-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .dr-bidding-board {
