@@ -245,19 +245,14 @@
             </div>
             <div class="col-4">
               <div class="row no-wrap items-center full-width dr-turn-hero-row">
-                <q-avatar
+                <q-chip
                   :color="biddingBoard.heroCue.badgeColor"
                   text-color="white"
-                  size="28px"
-                  font-size="11px"
+                  dense
                   :aria-label="biddingBoard.heroCue.shortLabel"
                 >
-                  {{ biddingBoard.heroCue.badgeGlyph }}
-                </q-avatar>
-                <q-badge outline color="grey-7" text-color="grey-1" class="col q-py-xs justify-between">
-                  <span>Turn</span>
-                  <span>{{ biddingBoard.secondary.activeSeatLabel ?? '—' }}</span>
-                </q-badge>
+                  {{ biddingBoard.heroCue.shortLabel }}
+                </q-chip>
               </div>
             </div>
           </div>
