@@ -398,14 +398,6 @@
           />
         </q-card>
 
-          <q-card v-if="match.state.phase === 'match-over'" flat bordered class="q-pa-md">
-            <div class="text-subtitle1 q-mb-sm">Bidding complete</div>
-            <div class="text-body2 q-mb-md">Runner: {{ runnerLabel }}</div>
-            <div class="row q-gutter-sm">
-              <q-btn color="primary" unelevated label="Rematch" @click="rematch" />
-              <q-btn flat color="primary" label="Back to setup" @click="backToSetup" />
-            </div>
-          </q-card>
           <div
             ref="presentationFlightLayerRef"
             class="dr-presentation-flight-layer"
@@ -449,19 +441,31 @@
       <div class="dr-hero-interstitial__hint">Tap to skip</div>
     </button>
 
-    <q-dialog v-model="dungeonOutcomeDialogOpen" persistent>
-      <q-card class="q-pa-md dr-dungeon-outcome-dialog" style="min-width: 340px">
-        <div class="text-overline text-grey-6">Dungeon run resolved</div>
-        <div class="text-h5 text-weight-bold q-mb-sm">
+    <q-dialog v-model="dungeonOutcomeDialogOpen" persistent transition-show="scale" transition-hide="scale">
+      <q-card class="q-pa-md dr-dungeon-outcome-dialog" :class="dungeonOutcomeToneClass" style="min-width: 340px">
+        <div class="text-overline dr-outcome-kicker">Dungeon run resolved</div>
+        <div class="text-h5 text-weight-bold q-mb-sm dr-outcome-title">
           {{ dungeonOutcomeSummary?.resultLabel }}
         </div>
         <div class="text-body1 q-mb-xs">
-          Runner: <span class="text-weight-medium">{{ dungeonOutcomeSummary?.runnerLabel }}</span>
+          Runner: <span class="text-weight-bold">{{ dungeonOutcomeSummary?.runnerLabel }}</span>
         </div>
-        <div class="text-body2 q-mb-xs">Monsters: {{ dungeonOutcomeSummary?.monstersLabel }}</div>
-        <div class="text-body2 q-mb-md">Equipment: {{ dungeonOutcomeSummary?.equipmentSpentLabel }}</div>
+        <div class="text-body2 q-mb-md dr-outcome-message">{{ dungeonOutcomeMessage }}</div>
         <div class="row justify-end">
-          <q-btn color="primary" unelevated label="Continue" @click="continueFromDungeonOutcome" />
+          <q-btn color="primary" unelevated label="Continue" class="dr-outcome-btn" @click="continueFromDungeonOutcome" />
+        </div>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="matchOverDialogOpen" persistent transition-show="scale" transition-hide="scale">
+      <q-card class="q-pa-md dr-match-over-dialog" :class="matchOverToneClass" style="min-width: 340px">
+        <div class="text-overline dr-outcome-kicker">Match complete</div>
+        <div class="text-h5 text-weight-bold q-mb-sm dr-outcome-title">{{ matchOverSummary.title }}</div>
+        <div class="text-body1 q-mb-xs">{{ matchOverSummary.message }}</div>
+        <div class="text-body2 q-mb-md">Winner: {{ matchOverSummary.winnerLabel }}</div>
+        <div class="row q-gutter-sm justify-end">
+          <q-btn color="primary" unelevated label="Rematch" class="dr-outcome-btn" @click="rematch" />
+          <q-btn flat color="primary" label="Back to setup" class="dr-outcome-btn-secondary" @click="backToSetup" />
         </div>
       </q-card>
     </q-dialog>
@@ -1040,6 +1044,14 @@ const dungeonOutcomeSummary = computed(() =>
     equipmentRemainingAtResolution: equipmentRemainingAtResolution.value,
   }),
 )
+const dungeonOutcomeToneClass = computed(() =>
+  dungeonOutcomeSummary.value?.resultLabel === 'Success' ? 'dr-outcome--success' : 'dr-outcome--failure',
+)
+const dungeonOutcomeMessage = computed(() =>
+  dungeonOutcomeSummary.value?.resultLabel === 'Success'
+    ? 'Clean run. The dungeon is cleared.'
+    : 'The run failed. Regroup and try a different line.',
+)
 const dungeonOutcomeDialogOpen = computed({
   get() {
     return (
@@ -1055,10 +1067,38 @@ const dungeonOutcomeDialogOpen = computed({
     continueFromDungeonOutcome()
   },
 })
-const runnerLabel = computed(() => {
-  if (!match.value) return ''
-  const runner = match.value.state.seats.find((seat) => seat.id === match.value.state.bidding.runnerSeatId)
-  return runner?.label ?? 'Unknown'
+const matchOverSummary = computed(() => {
+  const fallback = {
+    title: 'Match over',
+    message: 'The match has ended.',
+    winnerLabel: 'Unknown',
+  }
+  if (!match.value || match.value.state.phase !== MATCH_PHASES.MATCH_OVER) return fallback
+  const winnerSeatId = match.value.state.matchWinnerSeatId
+  const winnerSeat = match.value.state.seats.find((seat) => seat.id === winnerSeatId)
+  const winnerLabel = winnerSeat?.label ?? winnerSeatId ?? 'Unknown'
+  const isHumanWinner = winnerSeatId != null && winnerSeatId === humanSeatId.value
+  if (isHumanWinner) {
+    return {
+      title: 'Victory!',
+      message: 'You won the match. Great run.',
+      winnerLabel,
+    }
+  }
+  return {
+    title: 'Defeat',
+    message: `${winnerLabel} won this match.`,
+    winnerLabel,
+  }
+})
+const matchOverToneClass = computed(() => (matchOverSummary.value.title === 'Victory!' ? 'dr-outcome--success' : 'dr-outcome--failure'))
+const matchOverDialogOpen = computed({
+  get() {
+    return !!match.value && match.value.state.phase === MATCH_PHASES.MATCH_OVER
+  },
+  set() {
+    // Persistent modal; rematch/back-to-setup are the only exits.
+  },
 })
 
 onMounted(() => {
@@ -2065,6 +2105,50 @@ function importReplay() {
 .dr-hero-interstitial__hint {
   font-size: 0.85rem;
   opacity: 0.75;
+}
+
+.dr-dungeon-outcome-dialog,
+.dr-match-over-dialog {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+.dr-outcome--success {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(102, 187, 106, 0.22), rgba(102, 187, 106, 0) 60%),
+    radial-gradient(120% 120% at 100% 100%, rgba(41, 182, 246, 0.2), rgba(41, 182, 246, 0) 62%),
+    #171b1f;
+}
+
+.dr-outcome--failure {
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(239, 83, 80, 0.24), rgba(239, 83, 80, 0) 58%),
+    radial-gradient(120% 120% at 100% 100%, rgba(171, 71, 188, 0.2), rgba(171, 71, 188, 0) 62%),
+    #1b161c;
+}
+
+.dr-outcome-kicker {
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.dr-outcome-title {
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
+}
+
+.dr-outcome-message {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.dr-outcome-btn {
+  letter-spacing: 0.03em;
+}
+
+.dr-outcome-btn-secondary {
+  color: rgba(255, 255, 255, 0.86);
 }
 </style>
 
