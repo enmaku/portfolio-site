@@ -39,20 +39,21 @@ test('frontFaceSpecies matches species while monster is revealed', () => {
   assert.equal(model.monster.frontFaceSpecies, 'orc')
 })
 
-test('frontFaceSpecies is null while idle face-down with no engaged monster', () => {
+test('shows empty staging slot when no current monster (between encounters)', () => {
   const model = createDungeonResolutionViewModel({
     visibleState: {
       dungeon: {
         currentMonster: null,
         hp: 8,
         inPlayEquipmentIds: [],
+        subphase: 'reveal',
       },
     },
     legalActions: [{ type: 'REVEAL_OR_CONTINUE' }],
     activeAnimation: null,
   })
 
-  assert.equal(model.monster.visibility, 'face-down')
+  assert.equal(model.monster.visibility, 'empty')
   assert.equal(model.monster.species, null)
   assert.equal(model.monster.frontFaceSpecies, null)
 })
@@ -248,7 +249,7 @@ test('does not reveal from stale lane delta when idle between encounters (no dun
     activeAnimation: null,
   })
 
-  assert.equal(model.monster.visibility, 'face-down')
+  assert.equal(model.monster.visibility, 'empty')
   assert.equal(model.monster.species, null)
 })
 

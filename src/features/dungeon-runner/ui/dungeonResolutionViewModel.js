@@ -83,7 +83,7 @@ function buildMonsterView({ currentMonster, previousMonster, activeAnimationKind
       frontFaceSpecies: currentMonster,
     }
   }
-  return { visibility: 'face-down', species: null, frontFaceSpecies: null }
+  return { visibility: 'empty', species: null, frontFaceSpecies: null }
 }
 
 function deriveResolutionStatus({

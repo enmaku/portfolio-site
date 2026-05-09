@@ -119,7 +119,7 @@ test('dungeon stage render wiring binds resolution view and stage animation clas
   assert.equal(registrySrc.includes('createDungeonContinuePresentationMotionTimeline'), true)
   assert.equal(registrySrc.includes('createDungeonOutcomePresentationMotionTimeline'), true)
   assert.equal(page.includes('dungeonStageView.monster.frontFaceSpecies'), true)
-  assert.equal(page.includes('dungeonStageView.monster.visibility !== \'revealed\''), true)
+  assert.equal(page.includes('dungeonStageView.monster.visibility === \'face-down\''), true)
 })
 
 test('bot bidding motion uses GSAP registry wiring without legacy CSS storytelling classes', () => {
@@ -128,12 +128,12 @@ test('bot bidding motion uses GSAP registry wiring without legacy CSS storytelli
   assert.equal(page.includes('dr-pile-badge--bot'), false)
   assert.equal(page.includes('@keyframes dr-bot'), false)
   assert.equal(page.includes('usePresentationMotion('), true)
-  assert.equal(page.includes("'BOT_BIDDING_SACRIFICE'"), true)
+  assert.equal(page.includes("'BIDDING_SACRIFICE'"), true)
   const registryPath = new URL('./ui/presentationMotionRegistry.js', import.meta.url)
   const registrySrc = readFileSync(registryPath, 'utf8')
-  assert.equal(registrySrc.includes('createBotBiddingDrawPresentationMotionTimeline'), true)
-  assert.equal(registrySrc.includes('createBotBiddingAddPresentationMotionTimeline'), true)
-  assert.equal(registrySrc.includes('createBotBiddingSacrificePresentationMotionTimeline'), true)
+  assert.equal(registrySrc.includes('createBiddingDrawPresentationMotionTimeline'), true)
+  assert.equal(registrySrc.includes('createBiddingAddPresentationMotionTimeline'), true)
+  assert.equal(registrySrc.includes('createBiddingSacrificePresentationMotionTimeline'), true)
 })
 
 test('dungeon stage feeds MonsterCardFace from frontFaceSpecies so flip shows engine-authored monster', () => {

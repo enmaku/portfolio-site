@@ -34,6 +34,32 @@ function isDomElement(value) {
   return value != null && typeof value === 'object' && value.nodeType === 1
 }
 
+function ghostFlightTargetRect(el) {
+  if (!isDomElement(el) || typeof el.getBoundingClientRect !== 'function') return null
+  const r = el.getBoundingClientRect()
+  if (!(r.width > 2) || !(r.height > 2)) return null
+  return r
+}
+
+/**
+ * @param {Element} fromEl
+ * @param {Element} toEl
+ * @returns {{ dx: number, dy: number, ok: boolean }}
+ */
+function centerDeltaBetweenElements(fromEl, toEl) {
+  if (!isDomElement(fromEl) || !isDomElement(toEl)) return { dx: 0, dy: 0, ok: false }
+  if (typeof fromEl.getBoundingClientRect !== 'function' || typeof toEl.getBoundingClientRect !== 'function') {
+    return { dx: 0, dy: 0, ok: false }
+  }
+  const a = fromEl.getBoundingClientRect()
+  const b = toEl.getBoundingClientRect()
+  const acx = a.left + a.width / 2
+  const acy = a.top + a.height / 2
+  const bcx = b.left + b.width / 2
+  const bcy = b.top + b.height / 2
+  return { dx: acx - bcx, dy: acy - bcy, ok: true }
+}
+
 /**
  * Ghost flight for `payload.consumedEquipmentIds`: clone → fixed layer → tween toward card; source dimmed in place.
  * Skips missing refs with `console.warn` only. Cleans clones on segment end and timeline kill.
@@ -97,14 +123,13 @@ function addConsumedEquipmentGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
 
     const srcRect =
       typeof source.getBoundingClientRect === 'function' ? source.getBoundingClientRect() : null
-    const dstRect = typeof card.getBoundingClientRect === 'function' ? card.getBoundingClientRect() : null
+    let dstRect = ghostFlightTargetRect(card)
+    if (!dstRect) dstRect = ghostFlightTargetRect(ctx.refs?.presentationGhostTarget)
     if (
       !srcRect ||
       !dstRect ||
       !(srcRect.width > 0) ||
-      !(srcRect.height > 0) ||
-      !(dstRect.width > 0) ||
-      !(dstRect.height > 0)
+      !(srcRect.height > 0)
     ) {
       console.warn(PRESENTATION_WARN, 'layout not ready for ghost flight; skipping', id)
       continue
@@ -171,11 +196,11 @@ function addConsumedEquipmentGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
  * DOM refs for GSAP (`DungeonRunnerPage` passes these from `getMotionRefs`):
  *
  * - **`boardShell`** — `.dr-board-shell` wrapper around the live bidding/dungeon board. Most beats run a short shared opacity pulse here for `durationMs` (no horizontal `x` — translating this node shifted the whole in-match UI). Composited in parallel with kind-specific tweens via {@link createPresentationMotionTimeline}. Card-level motion uses `dungeonCardWrap` / flip axis / badges.
- * - **`dungeonCardWrap`** — `.dr-dungeon-card-motion-wrap` around the hero/dungeon card (HP chip stays outside this node). `DUNGEON_REVEAL` tweens `opacity` / `y` / `scale` here (parallel `rotationY` on `dungeonCardFlipAxis`); `DUNGEON_DAMAGE` / `DUNGEON_NEUTRALIZE` / `DUNGEON_CONTINUE` run combat / continue tweens here plus the parallel `boardShell` placeholder in {@link createPresentationMotionTimeline}. `DUNGEON_OUTCOME` runs only on the wrap (vertical + `rotationZ`, brief peak hold — no `x` shake/strike) **without** paralleling `boardShell`; teardown clears wrap **and** shell so idle / post-ack deferred beats start from a neutral baseline. All dungeon card beats are GSAP-only — no queue-driven `dr-dungeon-hit` / `dr-dungeon-strike` / `dr-dungeon-consume` CSS. `BOT_BIDDING_DRAW` / `BOT_BIDDING_SACRIFICE` run bidding emphasis tweens here.
+ * - **`dungeonCardWrap`** — `.dr-dungeon-card-motion-wrap` around the hero/dungeon card (HP chip stays outside this node). `DUNGEON_REVEAL` tweens `opacity` / `y` / `scale` here (parallel `rotationY` on `dungeonCardFlipAxis`); `DUNGEON_DAMAGE` / `DUNGEON_NEUTRALIZE` / `DUNGEON_CONTINUE` run combat / continue tweens here plus the parallel `boardShell` placeholder in {@link createPresentationMotionTimeline}. `DUNGEON_OUTCOME` runs only on the wrap (vertical + `rotationZ`, brief peak hold — no `x` shake/strike) **without** paralleling `boardShell`; teardown clears wrap **and** shell so idle / post-ack deferred beats start from a neutral baseline. All dungeon card beats are GSAP-only — no queue-driven `dr-dungeon-hit` / `dr-dungeon-strike` / `dr-dungeon-consume` CSS. `BIDDING_DRAW` / `BIDDING_SACRIFICE` run bidding card motion here.
  * - **`dungeonCardFlipAxis`** — inner flip pivot in `MonsterCardFace` (`transform-style: preserve-3d`). `DUNGEON_REVEAL` tweens `rotationY` 0→180 here; inline props cleared on teardown so settled rotation comes from the card’s CSS when `faceDown` is false.
- * - **`deckBadge`** — deck pile control; `BOT_BIDDING_ADD` tweens inset emphasis here.
+ * - **`deckBadge`** — deck pile control; `BIDDING_ADD` / `BIDDING_DRAW` anchor deck motion here.
  * - **`heroChangeInterstitialOverlay`** — full-screen `.dr-hero-interstitial` control. `HERO_CHANGE_INTERSTITIAL` runs entrance / hold / exit here only (the board shell is not tweened for this beat).
- * - **`presentationFlightLayer`** — absolutely positioned, `pointer-events: none` host for fixed-position equipment ghost clones (`DUNGEON_NEUTRALIZE`, `BOT_BIDDING_SACRIFICE`).
+ * - **`presentationFlightLayer`** — absolutely positioned, `pointer-events: none` host for fixed-position equipment ghost clones (`DUNGEON_NEUTRALIZE`, `BIDDING_SACRIFICE`).
  * - **`equipment_<id>`** — in-play equipment token cell (`consumedEquipmentIds` from queue payload).
  *
  * @typedef {{
@@ -189,6 +214,7 @@ function addConsumedEquipmentGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
  *     deckBadge?: Element,
  *     heroChangeInterstitialOverlay?: Element,
  *     presentationFlightLayer?: Element,
+ *     presentationGhostTarget?: Element,
  *     [key: string]: unknown,
  *   },
  * }} PresentationMotionContext
@@ -206,7 +232,8 @@ function addConsumedEquipmentGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
  */
 export function presentationMotionIsLayoutFragile(kind, payload) {
   if (kind === 'DUNGEON_REVEAL') return true
-  if (kind === 'DUNGEON_NEUTRALIZE' || kind === 'BOT_BIDDING_SACRIFICE') {
+  if (kind === 'BIDDING_DRAW' || kind === 'BIDDING_ADD') return true
+  if (kind === 'DUNGEON_NEUTRALIZE' || kind === 'BIDDING_SACRIFICE') {
     const ids = payload?.consumedEquipmentIds ?? []
     return ids.length > 0
   }
@@ -259,7 +286,7 @@ export function createPresentationResizeFallbackMotionTimeline(gsapApi, ctx) {
  * @returns {readonly string[]}
  */
 export function presentationMotionClearKeys(kind, payload) {
-  if (kind === 'DUNGEON_REVEAL') return ['dungeonCardWrap', 'dungeonCardFlipAxis', 'boardShell']
+  if (kind === 'DUNGEON_REVEAL') return ['dungeonCardWrap', 'dungeonCardFlipAxis', 'dungeonPileBadge', 'boardShell']
   if (kind === 'DUNGEON_DAMAGE' || kind === 'DUNGEON_CONTINUE') return ['dungeonCardWrap', 'boardShell']
   if (kind === 'DUNGEON_OUTCOME') return ['dungeonCardWrap', 'boardShell']
   if (kind === 'DUNGEON_NEUTRALIZE') {
@@ -270,9 +297,9 @@ export function presentationMotionClearKeys(kind, payload) {
     return keys
   }
   if (kind === 'HERO_CHANGE_INTERSTITIAL') return ['heroChangeInterstitialOverlay']
-  if (kind === 'BOT_BIDDING_DRAW') return ['dungeonCardWrap', 'boardShell']
-  if (kind === 'BOT_BIDDING_ADD') return ['deckBadge', 'boardShell']
-  if (kind === 'BOT_BIDDING_SACRIFICE') {
+  if (kind === 'BIDDING_DRAW') return ['dungeonCardWrap', 'dungeonCardFlipAxis', 'boardShell']
+  if (kind === 'BIDDING_ADD') return ['dungeonCardWrap', 'dungeonCardFlipAxis', 'deckBadge', 'dungeonPileBadge', 'boardShell']
+  if (kind === 'BIDDING_SACRIFICE') {
     const keys = ['dungeonCardWrap', 'boardShell']
     for (const id of payload?.consumedEquipmentIds ?? []) {
       keys.push(`equipment_${id}`)
@@ -304,51 +331,64 @@ export function createBoardShellPresentationMotionTimeline(gsapApi, ctx) {
 }
 
 /**
- * Dungeon reveal: card wrapper opacity / translate / scale plus `rotationY` on `dungeonCardFlipAxis` (faces stay static in 3D).
- * View-model keeps species gated until after the beat; DOM may mount front art via `frontFaceSpecies` for the flip.
+ * Dungeon reveal: fly card from dungeon pile anchor to slot (scale up), then flip face-up (same rhythm as bidding draw).
  *
  * @param {import('gsap').GSAP} gsapApi
  * @param {PresentationMotionContext} ctx
  */
 export function createDungeonRevealPresentationMotionTimeline(gsapApi, ctx) {
-  const el = ctx.refs?.dungeonCardWrap
+  const card = ctx.refs?.dungeonCardWrap
+  const pile = ctx.refs?.dungeonPileBadge
   const flip = ctx.refs?.dungeonCardFlipAxis
   const ms = Math.max(0, Number(ctx.durationMs) || 0)
   const dur = ms / 1000
   const tl = gsapApi.timeline({ paused: true })
-  const hasWrap = isDomElement(el)
-  const hasFlip = isDomElement(flip)
-  if (!hasWrap && !hasFlip) {
+  const set = gsapApi?.set
+
+  if (!isDomElement(card) || dur <= 0) {
     if (dur > 0) tl.to({}, { duration: dur })
     return tl
   }
-  if (hasWrap) {
-    tl.fromTo(
-      el,
-      {
-        opacity: 0.88,
-        y: 12,
-        scale: 0.94,
-        transformOrigin: 'center center',
-      },
-      {
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        duration: dur,
-        ease: 'power2.out',
-      },
-      0,
-    )
+
+  const origin = { transformOrigin: 'center center' }
+  const flightRatio = isDomElement(flip) ? 0.62 : 0.85
+  const flightDur = dur * flightRatio
+  const flipDur = Math.max(0, dur - flightDur)
+
+  let startX = 0
+  let startY = 0
+  let startScale = 0.42
+  if (isDomElement(pile)) {
+    const d = centerDeltaBetweenElements(pile, card)
+    if (d.ok) {
+      startX = d.dx
+      startY = d.dy
+    }
   }
-  if (hasFlip) {
+
+  if (typeof set === 'function') {
+    set(card, { x: startX, y: startY, scale: startScale, opacity: 0.92, ...origin })
+    if (isDomElement(flip)) set(flip, { rotationY: 0, transformOrigin: 'center center' })
+  }
+
+  tl.fromTo(
+    card,
+    { x: startX, y: startY, scale: startScale, opacity: 0.92, ...origin },
+    { x: 0, y: 0, scale: 1, opacity: 1, duration: flightDur, ease: 'power2.out', ...origin },
+    0,
+  )
+
+  if (isDomElement(flip) && flipDur > 0) {
     tl.fromTo(
       flip,
       { rotationY: 0, transformOrigin: 'center center' },
-      { rotationY: 180, duration: dur, ease: 'power2.inOut' },
-      0,
+      { rotationY: 180, duration: flipDur, ease: 'power2.inOut' },
+      flightDur,
     )
+  } else if (flightDur < dur) {
+    tl.to({}, { duration: dur - flightDur })
   }
+
   return tl
 }
 
@@ -411,6 +451,28 @@ export function createDungeonNeutralizePresentationMotionTimeline(gsapApi, ctx) 
     { filter: 'brightness(0.88)', duration: dur, ease: 'power1.out' },
     0,
   )
+
+  const exitStart = dur > 0 ? Math.min(dur * 0.58, dur - Math.max(0.22, dur * 0.12)) : 0
+  const exitDur = dur > exitStart ? dur - exitStart : 0
+  if (exitDur > 0) {
+    const off =
+      typeof window !== 'undefined' && Number.isFinite(window.innerWidth)
+        ? Math.max(220, window.innerWidth * 0.42)
+        : 320
+    tl.to(
+      el,
+      {
+        x: off,
+        opacity: 0.15,
+        duration: exitDur,
+        ease: 'power2.in',
+      },
+      exitStart,
+    )
+  }
+
+  const played = typeof tl.duration === 'function' ? tl.duration() : dur
+  if (played < dur) tl.to({}, { duration: dur - played })
   return tl
 }
 
@@ -574,99 +636,135 @@ export function createDungeonOutcomePresentationMotionTimeline(gsapApi, ctx) {
 }
 
 /**
- * Bot draw: cool rim glow + lift on the card wrap, then a short vertical bob (GSAP-only; no bidding-board CSS keyframes).
+ * Bidding draw: fly card from deck anchor to slot (scale up), optional privileged flip after landing.
  * @param {import('gsap').GSAP} gsapApi
  * @param {PresentationMotionContext} ctx
  */
-export function createBotBiddingDrawPresentationMotionTimeline(gsapApi, ctx) {
-  const el = ctx.refs?.dungeonCardWrap
+export function createBiddingDrawPresentationMotionTimeline(gsapApi, ctx) {
+  const card = ctx.refs?.dungeonCardWrap
+  const deck = ctx.refs?.deckBadge
+  const flip = ctx.refs?.dungeonCardFlipAxis
   const ms = Math.max(0, Number(ctx.durationMs) || 0)
   const dur = ms / 1000
   const tl = gsapApi.timeline({ paused: true })
-  if (!el || typeof el !== 'object' || el.nodeType !== 1 || dur <= 0) {
+  const set = gsapApi?.set
+  const payload = ctx.payload ?? {}
+  const shouldFlip = payload.shouldFlipFaceAfterArrival === true
+
+  if (!isDomElement(card) || dur <= 0) {
     if (dur > 0) tl.to({}, { duration: dur })
     return tl
   }
+
   const origin = { transformOrigin: 'center center' }
-  const glowIn = Math.min(0.2, dur * 0.26)
-  const glowOut = Math.min(0.18, dur * 0.22)
+  const flightRatio = shouldFlip && isDomElement(flip) ? 0.62 : 0.85
+  const flightDur = dur * flightRatio
+  const flipDur = Math.max(0, dur - flightDur)
+
+  let startX = 0
+  let startY = 0
+  let startScale = 0.42
+  if (isDomElement(deck)) {
+    const d = centerDeltaBetweenElements(deck, card)
+    if (d.ok) {
+      startX = d.dx
+      startY = d.dy
+    }
+  }
+
+  if (typeof set === 'function') {
+    set(card, { x: startX, y: startY, scale: startScale, opacity: 1, ...origin })
+    if (isDomElement(flip)) set(flip, { rotationY: 0, transformOrigin: 'center center' })
+  }
+
   tl.fromTo(
-    el,
-    {
-      y: 0,
-      scale: 1,
-      boxShadow: '0 0 0 0 rgba(33, 150, 243, 0)',
-      ...origin,
-    },
-    {
-      y: -5,
-      scale: 1.045,
-      boxShadow: '0 0 24px 2px rgba(33, 150, 243, 0.42)',
-      duration: glowIn,
-      ease: 'power2.out',
-      ...origin,
-    },
+    card,
+    { x: startX, y: startY, scale: startScale, opacity: 0.92, ...origin },
+    { x: 0, y: 0, scale: 1, opacity: 1, duration: flightDur, ease: 'power2.out', ...origin },
     0,
   )
-  tl.to(
-    el,
-    {
-      y: -2,
-      scale: 1.02,
-      boxShadow: '0 0 0 0 rgba(33, 150, 243, 0)',
-      duration: glowOut,
-      ease: 'power2.inOut',
-      ...origin,
-    },
-    glowIn,
-  )
-  let placed = glowIn + glowOut
-  const half = Math.min(0.22, Math.max(0.08, (dur - placed) / 6))
-  while (placed + half * 2 <= dur + 0.001) {
-    tl.to(el, { y: -3, scale: 1.03, duration: half, ease: 'sine.inOut', ...origin })
-    tl.to(el, { y: 0, scale: 1, duration: half, ease: 'sine.inOut', ...origin })
-    placed += half * 2
+
+  if (shouldFlip && isDomElement(flip) && flipDur > 0) {
+    tl.fromTo(
+      flip,
+      { rotationY: 0, transformOrigin: 'center center' },
+      { rotationY: 180, duration: flipDur, ease: 'power2.inOut' },
+      flightDur,
+    )
+  } else if (flightDur < dur) {
+    tl.to({}, { duration: dur - flightDur })
   }
-  if (placed < dur) tl.to({}, { duration: dur - placed })
+
   return tl
 }
 
 /**
- * Bot add-to-dungeon: warm inset ring + slight scale on the deck pile badge (GSAP-only).
+ * Bidding add-to-dungeon: optional flip face-down for privileged viewer, then card flies toward dungeon pile.
  * @param {import('gsap').GSAP} gsapApi
  * @param {PresentationMotionContext} ctx
  */
-export function createBotBiddingAddPresentationMotionTimeline(gsapApi, ctx) {
-  const el = ctx.refs?.deckBadge
+export function createBiddingAddPresentationMotionTimeline(gsapApi, ctx) {
+  const card = ctx.refs?.dungeonCardWrap
+  const dungeonPile = ctx.refs?.dungeonPileBadge
+  const flip = ctx.refs?.dungeonCardFlipAxis
   const ms = Math.max(0, Number(ctx.durationMs) || 0)
   const dur = ms / 1000
   const tl = gsapApi.timeline({ paused: true })
-  if (!el || typeof el !== 'object' || el.nodeType !== 1 || dur <= 0) {
+  const payload = ctx.payload ?? {}
+  const shouldFlipDown = payload.shouldFlipToBackBeforeDungeon === true
+
+  if (!isDomElement(card) || dur <= 0) {
     if (dur > 0) tl.to({}, { duration: dur })
     return tl
   }
-  tl.fromTo(
-    el,
-    { boxShadow: 'inset 0 0 0 0px rgba(255, 213, 79, 0)', scale: 1, transformOrigin: 'center center' },
+
+  const origin = { transformOrigin: 'center center' }
+  let flipDur = 0
+  let flyDur = dur
+  if (shouldFlipDown && isDomElement(flip)) {
+    flipDur = Math.min(dur * 0.28, 0.45)
+    flyDur = Math.max(0.08, dur - flipDur)
+    tl.fromTo(
+      flip,
+      { rotationY: 180, transformOrigin: 'center center' },
+      { rotationY: 0, duration: flipDur, ease: 'power2.inOut' },
+      0,
+    )
+  }
+
+  let endX = typeof window !== 'undefined' ? window.innerWidth * 0.22 : 180
+  let endY = -12
+  if (isDomElement(dungeonPile)) {
+    const d = centerDeltaBetweenElements(dungeonPile, card)
+    if (d.ok) {
+      endX = d.dx
+      endY = d.dy
+    }
+  }
+
+  tl.to(
+    card,
     {
-      boxShadow: 'inset 0 0 0 2px rgba(255, 213, 79, 0.75)',
-      scale: 1.04,
-      duration: dur / 2,
-      ease: 'power1.inOut',
-      yoyo: true,
-      repeat: 1,
-      transformOrigin: 'center center',
+      x: endX,
+      y: endY,
+      scale: 0.38,
+      opacity: 0.65,
+      duration: flyDur,
+      ease: 'power2.in',
+      ...origin,
     },
+    flipDur,
   )
+
   return tl
 }
 
 /**
- * Bot sacrifice: ghost flight from `payload.consumedEquipmentIds` equipment refs + card brightness dip (same ghost path as neutralize; GSAP-only).
+ * Bidding sacrifice: equipment ghost + card stress, then exit stage right.
  * @param {import('gsap').GSAP} gsapApi
  * @param {PresentationMotionContext} ctx
  */
-export function createBotBiddingSacrificePresentationMotionTimeline(gsapApi, ctx) {
+export function createBiddingSacrificePresentationMotionTimeline(gsapApi, ctx) {
   const card = ctx.refs?.dungeonCardWrap
   const ms = Math.max(0, Number(ctx.durationMs) || 0)
   const dur = ms / 1000
@@ -684,20 +782,39 @@ export function createBotBiddingSacrificePresentationMotionTimeline(gsapApi, ctx
     return tl
   }
 
-  const pulseDur = dur > 0 ? Math.max(0.08, dur / 5) : 0
+  const pulseDur = dur > 0 ? Math.max(0.08, dur / 6) : 0
+  const exitStart = dur > 0 ? Math.min(dur * 0.58, dur - Math.max(0.22, dur * 0.12)) : 0
+  const exitDur = dur > exitStart ? dur - exitStart : 0
 
   if (hasCard && dur > 0) {
     tl.fromTo(
       card,
-      { filter: 'brightness(1)' },
+      { filter: 'brightness(1)', x: 0 },
       {
         filter: 'brightness(0.88)',
         duration: pulseDur,
         ease: 'sine.inOut',
         yoyo: true,
-        repeat: 3,
+        repeat: 2,
       },
       0,
+    )
+  }
+
+  if (hasCard && exitDur > 0) {
+    const off =
+      typeof window !== 'undefined' && Number.isFinite(window.innerWidth)
+        ? Math.max(220, window.innerWidth * 0.42)
+        : 320
+    tl.to(
+      card,
+      {
+        x: off,
+        opacity: 0.15,
+        duration: exitDur,
+        ease: 'power2.in',
+      },
+      exitStart,
     )
   }
 
@@ -740,13 +857,13 @@ function presentationMotionFactoryForKind(kind) {
   if (kind === 'DUNGEON_CONTINUE') return createDungeonContinuePresentationMotionTimeline
   if (kind === 'DUNGEON_OUTCOME') return createDungeonOutcomePresentationMotionTimeline
   if (kind === 'HERO_CHANGE_INTERSTITIAL') return createHeroChangeInterstitialPresentationMotionTimeline
-  if (kind === 'BOT_BIDDING_DRAW') return createBotBiddingDrawPresentationMotionTimeline
-  if (kind === 'BOT_BIDDING_ADD') return createBotBiddingAddPresentationMotionTimeline
-  if (kind === 'BOT_BIDDING_SACRIFICE') return createBotBiddingSacrificePresentationMotionTimeline
+  if (kind === 'BIDDING_DRAW') return createBiddingDrawPresentationMotionTimeline
+  if (kind === 'BIDDING_ADD') return createBiddingAddPresentationMotionTimeline
+  if (kind === 'BIDDING_SACRIFICE') return createBiddingSacrificePresentationMotionTimeline
   return createBoardShellPresentationMotionTimeline
 }
 
-/** @type {Readonly<Record<OrchestratorPresentationKind, typeof createBoardShellPresentationMotionTimeline | typeof createDungeonRevealPresentationMotionTimeline | typeof createDungeonDamagePresentationMotionTimeline | typeof createDungeonNeutralizePresentationMotionTimeline | typeof createDungeonContinuePresentationMotionTimeline | typeof createHeroChangeInterstitialPresentationMotionTimeline | typeof createBotBiddingDrawPresentationMotionTimeline | typeof createBotBiddingAddPresentationMotionTimeline | typeof createBotBiddingSacrificePresentationMotionTimeline>>} */
+/** @type {Readonly<Record<OrchestratorPresentationKind, typeof createBoardShellPresentationMotionTimeline | typeof createDungeonRevealPresentationMotionTimeline | typeof createDungeonDamagePresentationMotionTimeline | typeof createDungeonNeutralizePresentationMotionTimeline | typeof createDungeonContinuePresentationMotionTimeline | typeof createHeroChangeInterstitialPresentationMotionTimeline | typeof createBiddingDrawPresentationMotionTimeline | typeof createBiddingAddPresentationMotionTimeline | typeof createBiddingSacrificePresentationMotionTimeline>>} */
 export const PRESENTATION_MOTION_REGISTRY = Object.freeze(
   Object.fromEntries(
     ORCHESTRATOR_PRESENTATION_KINDS.map((kind) => [kind, presentationMotionFactoryForKind(kind)]),

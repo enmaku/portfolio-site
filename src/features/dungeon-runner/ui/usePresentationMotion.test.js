@@ -371,7 +371,7 @@ test('presentation motion teardown clears sacrifice targets including payload eq
   }
   const active = ref({
     id: 1,
-    kind: 'BOT_BIDDING_SACRIFICE',
+    kind: 'BIDDING_SACRIFICE',
     durationMs: 800,
     remainingMs: 800,
     channel: 'gameplay',

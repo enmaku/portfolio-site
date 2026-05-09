@@ -1,4 +1,8 @@
+import { BIDDING_SUBPHASES } from '../engine/kernel.js'
+import { viewerMaySeeBiddingDrawFace } from './biddingPresentationVisibility.js'
 import { getHeroIdentity } from './heroIdentity.js'
+
+const BIDDING_CARD_BEATS = new Set(['BIDDING_DRAW', 'BIDDING_ADD', 'BIDDING_SACRIFICE'])
 
 export function createBiddingBoardViewModel({ state, visibleState, activeAnimation, viewerSeatId, settings }) {
   const revealedMonsterCard = visibleState?.bidding?.revealedMonsterCard ?? null
@@ -26,11 +30,36 @@ export function createBiddingBoardViewModel({ state, visibleState, activeAnimati
       )
     : []
 
+  let primaryVariant = 'empty'
+  let primaryMonster = revealedMonsterCard
+
+  if (revealedMonsterCard) {
+    primaryVariant = 'revealed'
+  } else if (
+    state?.bidding?.subphase === BIDDING_SUBPHASES.PENDING &&
+    state?.bidding?.revealedMonsterCard != null
+  ) {
+    primaryVariant = 'hidden'
+    primaryMonster = null
+  } else if (activeAnimation?.kind === 'BIDDING_SACRIFICE') {
+    const p = activeAnimation.payload ?? {}
+    const eliminated = p.eliminatedMonsterCard ?? null
+    const revealedTo = p.revealedToSeatId ?? null
+    if (eliminated && viewerMaySeeBiddingDrawFace({ viewerSeatId, actorSeatId: revealedTo })) {
+      primaryVariant = 'revealed'
+      primaryMonster = eliminated
+    } else {
+      primaryVariant = 'hidden'
+    }
+  } else if (activeAnimation?.kind && BIDDING_CARD_BEATS.has(activeAnimation.kind)) {
+    primaryVariant = 'hidden'
+  }
+
   return {
     heroCue,
     primaryCard: {
-      variant: revealedMonsterCard ? 'revealed' : 'hidden',
-      monsterCard: revealedMonsterCard,
+      variant: primaryVariant,
+      monsterCard: primaryMonster,
     },
     secondary: {
       deckCount: state?.bidding?.monsterDeck?.length ?? 0,

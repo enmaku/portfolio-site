@@ -1,11 +1,15 @@
 <template>
-  <div class="dr-monster-card">
+  <div class="dr-monster-card" :class="{ 'dr-monster-card--idle-empty': empty }">
     <div class="dr-monster-card__scene">
       <div
         ref="flipAxisEl"
         class="dr-monster-card__axis"
-        :class="{ 'dr-monster-card__axis--revealed': !faceDown }"
+        :class="{ 'dr-monster-card__axis--revealed': !empty && !faceDown }"
       >
+        <template v-if="empty">
+          <div class="dr-monster-card__empty-slot" aria-hidden="true" />
+        </template>
+        <template v-else>
         <div class="dr-monster-card__face dr-monster-card__face--back">
           <img class="dr-monster-card__sheet" :src="monsterBackUrl()" alt="" decoding="async" />
         </div>
@@ -31,6 +35,7 @@
             <div class="dr-monster-card__name">{{ displayName }}</div>
           </div>
         </div>
+        </template>
       </div>
     </div>
   </div>
@@ -52,6 +57,8 @@ const props = defineProps({
   species: { type: String, default: null },
   strength: { type: Number, default: null },
   faceDown: { type: Boolean, default: false },
+  /** Bidding idle: keep layout + flip ref without showing a card back */
+  empty: { type: Boolean, default: false },
 })
 
 const flipAxisEl = ref(null)
@@ -61,6 +68,7 @@ defineExpose({
 })
 
 const spec = computed(() => {
+  if (props.empty) return null
   if (props.strength != null && Number.isFinite(props.strength)) {
     return monsterCardSpecByStrength(props.strength)
   }
@@ -221,5 +229,18 @@ const displayName = computed(() => displayNameForSpecies(spec.value?.species ?? 
   color: rgba(13, 13, 13, 0.8);
   line-height: 1.15;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.dr-monster-card--idle-empty .dr-monster-card__scene {
+  overflow: visible;
+}
+
+.dr-monster-card__empty-slot {
+  position: absolute;
+  inset: 5%;
+  border-radius: 6px;
+  border: 2px dashed rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
 }
 </style>

@@ -626,12 +626,12 @@ test('bot bidding actions enqueue presentation kinds without hidden card info', 
 
   const botBidding = orchestrator
     .getQueueSnapshot()
-    .filter((animation) => animation.kind.startsWith('BOT_BIDDING_'))
+    .filter((animation) => animation.kind.startsWith('BIDDING_'))
 
   assert.equal(botBidding.length, 3)
   assert.deepEqual(
     botBidding.map((animation) => animation.kind),
-    ['BOT_BIDDING_DRAW', 'BOT_BIDDING_ADD', 'BOT_BIDDING_SACRIFICE'],
+    ['BIDDING_DRAW', 'BIDDING_ADD', 'BIDDING_SACRIFICE'],
   )
   assert.equal(botBidding[0].label, '')
   assert.equal(botBidding[0].payload?.revealedMonsterCard, undefined)
@@ -651,12 +651,12 @@ test('bot bidding sacrifice payload falls back to action equipmentId when center
     centerEquipmentBefore: [],
     centerEquipmentAfter: [],
   })
-  const sacrifice = animations.find((a) => a.kind === 'BOT_BIDDING_SACRIFICE')
+  const sacrifice = animations.find((a) => a.kind === 'BIDDING_SACRIFICE')
   assert.ok(sacrifice)
   assert.deepEqual(sacrifice.payload.consumedEquipmentIds, ['W_SHIELD'])
 })
 
-test('human bidding sacrifice queues same BOT_BIDDING_SACRIFICE payload as bot', () => {
+test('bidding sacrifice payload carries eliminated monster context from biddingBefore', () => {
   const animations = mapEngineTransitionToAnimations({
     phaseBefore: 'bidding',
     phaseAfter: 'bidding',
@@ -665,16 +665,72 @@ test('human bidding sacrifice queues same BOT_BIDDING_SACRIFICE payload as bot',
     dungeonRunResult: null,
     action: { type: 'SACRIFICE', equipmentId: 'W_SHIELD' },
     actorRoleType: 'human',
+    actorSeatId: 'seat-2',
+    centerEquipmentBefore: ['W_PLATE', 'W_SHIELD'],
+    centerEquipmentAfter: ['W_PLATE'],
+    biddingBefore: {
+      revealedMonsterCard: 'dragon',
+      revealedBySeatId: 'seat-1',
+    },
+  })
+  const sacrifice = animations.find((a) => a.kind === 'BIDDING_SACRIFICE')
+  assert.equal(sacrifice?.payload?.eliminatedMonsterCard, 'dragon')
+  assert.equal(sacrifice?.payload?.revealedToSeatId, 'seat-1')
+})
+
+test('human bidding sacrifice queues same BIDDING_SACRIFICE payload shape as bot', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'bidding',
+    phaseAfter: 'bidding',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-2',
+    dungeonRunResult: null,
+    action: { type: 'SACRIFICE', equipmentId: 'W_SHIELD' },
+    actorRoleType: 'human',
+    actorSeatId: 'seat-1',
     centerEquipmentBefore: ['W_PLATE', 'W_SHIELD'],
     centerEquipmentAfter: ['W_PLATE'],
   })
   const kinds = animations.map((a) => a.kind)
-  assert.ok(kinds.includes('BOT_BIDDING_SACRIFICE'))
-  assert.equal(kinds.includes('BOT_BIDDING_DRAW'), false)
-  assert.equal(kinds.includes('BOT_BIDDING_ADD'), false)
-  const sacrifice = animations.find((a) => a.kind === 'BOT_BIDDING_SACRIFICE')
+  assert.ok(kinds.includes('BIDDING_SACRIFICE'))
+  assert.equal(kinds.includes('BIDDING_DRAW'), false)
+  assert.equal(kinds.includes('BIDDING_ADD'), false)
+  const sacrifice = animations.find((a) => a.kind === 'BIDDING_SACRIFICE')
   assert.deepEqual(sacrifice?.payload?.consumedEquipmentIds, ['W_SHIELD'])
   assert.equal(sacrifice?.payload?.engineActionType, 'SACRIFICE')
+  assert.equal(sacrifice?.payload?.actorSeatId, 'seat-1')
+  assert.equal(sacrifice?.payload?.eliminatedMonsterCard ?? null, null)
+  assert.equal(sacrifice?.payload?.revealedToSeatId ?? null, null)
+})
+
+test('human bidding draw and add enqueue same kinds as bot', () => {
+  const draw = mapEngineTransitionToAnimations({
+    phaseBefore: 'bidding',
+    phaseAfter: 'bidding',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-1',
+    dungeonRunResult: null,
+    action: { type: 'DRAW' },
+    actorRoleType: 'human',
+    actorSeatId: 'seat-1',
+  })
+  assert.ok(draw.some((a) => a.kind === 'BIDDING_DRAW'))
+  const drawBeat = draw.find((a) => a.kind === 'BIDDING_DRAW')
+  assert.equal(drawBeat?.payload?.engineActionType, 'DRAW')
+  assert.equal(drawBeat?.payload?.actorSeatId, 'seat-1')
+
+  const add = mapEngineTransitionToAnimations({
+    phaseBefore: 'bidding',
+    phaseAfter: 'bidding',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-1',
+    dungeonRunResult: null,
+    action: { type: 'ADD_TO_DUNGEON' },
+    actorRoleType: 'human',
+    actorSeatId: 'seat-2',
+  })
+  assert.ok(add.some((a) => a.kind === 'BIDDING_ADD'))
+  assert.equal(add.find((a) => a.kind === 'BIDDING_ADD')?.payload?.actorSeatId, 'seat-2')
 })
 
 test('hero change transition queues interstitial with cinematic profile duration', () => {
@@ -868,10 +924,17 @@ test('flight-related beats expose stable payload keys from engine facts', () => 
     actorRoleType: 'randombot',
     centerEquipmentBefore: ['W_PLATE', 'W_SHIELD'],
     centerEquipmentAfter: ['W_PLATE'],
-  }).find((a) => a.kind === 'BOT_BIDDING_SACRIFICE')
+  }).find((a) => a.kind === 'BIDDING_SACRIFICE')
 
   assert.ok(sacrifice)
-  assert.deepEqual(Object.keys(sacrifice.payload).sort(), ['consumedEquipmentIds', 'engineActionType'])
+  assert.deepEqual(Object.keys(sacrifice.payload).sort(), [
+    'actorRoleType',
+    'actorSeatId',
+    'consumedEquipmentIds',
+    'eliminatedMonsterCard',
+    'engineActionType',
+    'revealedToSeatId',
+  ])
   assert.equal(sacrifice.payload.engineActionType, 'SACRIFICE')
 })
 

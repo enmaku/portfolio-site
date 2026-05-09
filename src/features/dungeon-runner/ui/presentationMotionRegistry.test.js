@@ -8,9 +8,9 @@ import { ORCHESTRATOR_PRESENTATION_KINDS } from './orchestratorPresentationKinds
 import {
   PRESENTATION_MOTION_REGISTRY,
   createBoardShellPresentationMotionTimeline,
-  createBotBiddingAddPresentationMotionTimeline,
-  createBotBiddingDrawPresentationMotionTimeline,
-  createBotBiddingSacrificePresentationMotionTimeline,
+  createBiddingAddPresentationMotionTimeline,
+  createBiddingDrawPresentationMotionTimeline,
+  createBiddingSacrificePresentationMotionTimeline,
   createDungeonContinuePresentationMotionTimeline,
   createDungeonDamagePresentationMotionTimeline,
   createDungeonNeutralizePresentationMotionTimeline,
@@ -227,8 +227,8 @@ test('representative transitions emit exactly the canonical orchestrator kinds',
 test('canonical orchestrator kinds cover each issue-required presentation family', () => {
   const kinds = new Set(ORCHESTRATOR_PRESENTATION_KINDS)
   assert.deepEqual(
-    sortedStrings(new Set(ORCHESTRATOR_PRESENTATION_KINDS.filter((kind) => kind.startsWith('BOT_BIDDING_')))),
-    ['BOT_BIDDING_ADD', 'BOT_BIDDING_DRAW', 'BOT_BIDDING_SACRIFICE'],
+    sortedStrings(new Set(ORCHESTRATOR_PRESENTATION_KINDS.filter((kind) => kind.startsWith('BIDDING_')))),
+    ['BIDDING_ADD', 'BIDDING_DRAW', 'BIDDING_SACRIFICE'],
   )
   assert.deepEqual(
     sortedStrings(new Set(ORCHESTRATOR_PRESENTATION_KINDS.filter((kind) => kind.startsWith('PHASE_')))),
@@ -250,7 +250,12 @@ test('every kind emitted by representative transitions has a registry entry', ()
 })
 
 test('presentationMotionClearKeys matches tween targets per kind', () => {
-  assert.deepEqual(presentationMotionClearKeys('DUNGEON_REVEAL'), ['dungeonCardWrap', 'dungeonCardFlipAxis', 'boardShell'])
+  assert.deepEqual(presentationMotionClearKeys('DUNGEON_REVEAL'), [
+    'dungeonCardWrap',
+    'dungeonCardFlipAxis',
+    'dungeonPileBadge',
+    'boardShell',
+  ])
   assert.deepEqual(presentationMotionClearKeys('DUNGEON_DAMAGE'), ['dungeonCardWrap', 'boardShell'])
   assert.deepEqual(presentationMotionClearKeys('DUNGEON_NEUTRALIZE'), ['dungeonCardWrap', 'boardShell'])
   assert.deepEqual(presentationMotionClearKeys('DUNGEON_NEUTRALIZE', { consumedEquipmentIds: ['B_AXE'] }), [
@@ -261,10 +266,16 @@ test('presentationMotionClearKeys matches tween targets per kind', () => {
   assert.deepEqual(presentationMotionClearKeys('DUNGEON_CONTINUE'), ['dungeonCardWrap', 'boardShell'])
   assert.deepEqual(presentationMotionClearKeys('DUNGEON_OUTCOME'), ['dungeonCardWrap', 'boardShell'])
   assert.deepEqual(presentationMotionClearKeys('HERO_CHANGE_INTERSTITIAL'), ['heroChangeInterstitialOverlay'])
-  assert.deepEqual(presentationMotionClearKeys('BOT_BIDDING_DRAW'), ['dungeonCardWrap', 'boardShell'])
-  assert.deepEqual(presentationMotionClearKeys('BOT_BIDDING_ADD'), ['deckBadge', 'boardShell'])
-  assert.deepEqual(presentationMotionClearKeys('BOT_BIDDING_SACRIFICE'), ['dungeonCardWrap', 'boardShell'])
-  assert.deepEqual(presentationMotionClearKeys('BOT_BIDDING_SACRIFICE', { consumedEquipmentIds: ['W_SHIELD'] }), [
+  assert.deepEqual(presentationMotionClearKeys('BIDDING_DRAW'), ['dungeonCardWrap', 'dungeonCardFlipAxis', 'boardShell'])
+  assert.deepEqual(presentationMotionClearKeys('BIDDING_ADD'), [
+    'dungeonCardWrap',
+    'dungeonCardFlipAxis',
+    'deckBadge',
+    'dungeonPileBadge',
+    'boardShell',
+  ])
+  assert.deepEqual(presentationMotionClearKeys('BIDDING_SACRIFICE'), ['dungeonCardWrap', 'boardShell'])
+  assert.deepEqual(presentationMotionClearKeys('BIDDING_SACRIFICE', { consumedEquipmentIds: ['W_SHIELD'] }), [
     'dungeonCardWrap',
     'boardShell',
     'equipment_W_SHIELD',
@@ -277,9 +288,9 @@ test('presentationMotionClearKeys matches tween targets per kind', () => {
       kind !== 'DUNGEON_CONTINUE' &&
       kind !== 'DUNGEON_OUTCOME' &&
       kind !== 'HERO_CHANGE_INTERSTITIAL' &&
-      kind !== 'BOT_BIDDING_DRAW' &&
-      kind !== 'BOT_BIDDING_ADD' &&
-      kind !== 'BOT_BIDDING_SACRIFICE',
+      kind !== 'BIDDING_DRAW' &&
+      kind !== 'BIDDING_ADD' &&
+      kind !== 'BIDDING_SACRIFICE',
   )
   for (const kind of boardShellOnly) {
     assert.deepEqual(presentationMotionClearKeys(kind), ['boardShell'])
@@ -330,15 +341,24 @@ test('PRESENTATION_MOTION_REGISTRY maps dungeon damage/neutralize/continue/outco
   assert.strictEqual(PRESENTATION_MOTION_REGISTRY.DUNGEON_OUTCOME, createDungeonOutcomePresentationMotionTimeline)
 })
 
-test('PRESENTATION_MOTION_REGISTRY maps bot bidding kinds to dedicated factories', () => {
-  assert.strictEqual(PRESENTATION_MOTION_REGISTRY.BOT_BIDDING_DRAW, createBotBiddingDrawPresentationMotionTimeline)
-  assert.strictEqual(PRESENTATION_MOTION_REGISTRY.BOT_BIDDING_ADD, createBotBiddingAddPresentationMotionTimeline)
-  assert.strictEqual(PRESENTATION_MOTION_REGISTRY.BOT_BIDDING_SACRIFICE, createBotBiddingSacrificePresentationMotionTimeline)
+test('PRESENTATION_MOTION_REGISTRY maps bidding kinds to dedicated factories', () => {
+  assert.strictEqual(PRESENTATION_MOTION_REGISTRY.BIDDING_DRAW, createBiddingDrawPresentationMotionTimeline)
+  assert.strictEqual(PRESENTATION_MOTION_REGISTRY.BIDDING_ADD, createBiddingAddPresentationMotionTimeline)
+  assert.strictEqual(PRESENTATION_MOTION_REGISTRY.BIDDING_SACRIFICE, createBiddingSacrificePresentationMotionTimeline)
 })
 
-test('bot bidding draw factory chains y/scale tweens on dungeonCardWrap', () => {
-  const card = { nodeType: 1, tagName: 'DIV' }
-  const toCalls = []
+test('bidding draw factory flies wrap from deck anchor and optionally flips face-up', () => {
+  const card = {
+    nodeType: 1,
+    tagName: 'DIV',
+    getBoundingClientRect: () => ({ left: 200, top: 120, width: 160, height: 100 }),
+  }
+  const deck = {
+    nodeType: 1,
+    tagName: 'SPAN',
+    getBoundingClientRect: () => ({ left: 40, top: 380, width: 72, height: 36 }),
+  }
+  const flip = { nodeType: 1, tagName: 'DIV' }
   const fromToCalls = []
   const gsap = {
     timeline(opts) {
@@ -349,37 +369,45 @@ test('bot bidding draw factory chains y/scale tweens on dungeonCardWrap', () => 
           fromToCalls.push({ target, fromVars, toVars })
           return this
         },
-        to(target, vars) {
-          toCalls.push({ target, vars })
+        to() {
           return this
         },
       }
     },
+    set() {},
   }
 
-  createBotBiddingDrawPresentationMotionTimeline(gsap, {
-    kind: 'BOT_BIDDING_DRAW',
-    durationMs: 750,
-    refs: { dungeonCardWrap: card },
+  createBiddingDrawPresentationMotionTimeline(gsap, {
+    kind: 'BIDDING_DRAW',
+    durationMs: 1000,
+    payload: { shouldFlipFaceAfterArrival: true },
+    refs: { dungeonCardWrap: card, deckBadge: deck, dungeonCardFlipAxis: flip },
   })
 
-  assert.ok(fromToCalls.length >= 1)
-  assert.ok(String(fromToCalls[0].toVars?.boxShadow ?? '').includes('33, 150, 243'))
-  const cardToCalls = toCalls.filter((c) => c.target === card)
-  assert.ok(cardToCalls.length >= 2)
-  assert.ok(cardToCalls.some((c) => c.vars?.y === -3))
+  assert.ok(fromToCalls.some((c) => c.target === card && (c.fromVars?.scale ?? 1) < 0.99))
+  assert.ok(fromToCalls.some((c) => c.target === flip && c.toVars?.rotationY === 180))
 })
 
-test('bot bidding add factory tweens deck badge boxShadow', () => {
-  const deck = { nodeType: 1, tagName: 'SPAN' }
-  const calls = []
+test('dungeon reveal factory flies wrap from dungeon pile toward slot then flips', () => {
+  const card = {
+    nodeType: 1,
+    tagName: 'DIV',
+    getBoundingClientRect: () => ({ left: 200, top: 120, width: 160, height: 100 }),
+  }
+  const pile = {
+    nodeType: 1,
+    tagName: 'SPAN',
+    getBoundingClientRect: () => ({ left: 400, top: 400, width: 72, height: 36 }),
+  }
+  const flip = { nodeType: 1, tagName: 'DIV' }
+  const fromToCalls = []
   const gsap = {
     timeline(opts) {
       return {
         opts,
         kill() {},
-        fromTo(target, fromVars, toVars) {
-          calls.push({ target, fromVars, toVars })
+        fromTo(target, fromVars, toVars, position) {
+          fromToCalls.push({ target, fromVars, toVars, position })
           return this
         },
         to() {
@@ -387,18 +415,55 @@ test('bot bidding add factory tweens deck badge boxShadow', () => {
         },
       }
     },
+    set() {},
   }
 
-  createBotBiddingAddPresentationMotionTimeline(gsap, {
-    kind: 'BOT_BIDDING_ADD',
-    durationMs: 750,
-    refs: { deckBadge: deck },
+  createDungeonRevealPresentationMotionTimeline(gsap, {
+    kind: 'DUNGEON_REVEAL',
+    durationMs: 1000,
+    refs: { dungeonCardWrap: card, dungeonPileBadge: pile, dungeonCardFlipAxis: flip },
   })
 
-  assert.equal(calls.length, 1)
-  assert.strictEqual(calls[0].target, deck)
-  assert.ok(String(calls[0].toVars?.boxShadow ?? '').includes('255'))
-  assert.equal(calls[0].toVars?.scale, 1.04)
+  assert.ok(fromToCalls.some((c) => c.target === card && (c.fromVars?.scale ?? 1) < 0.99))
+  assert.ok(fromToCalls.some((c) => c.target === flip && c.toVars?.rotationY === 180))
+})
+
+test('bidding add factory moves card toward dungeon pile badge', () => {
+  const card = {
+    nodeType: 1,
+    tagName: 'DIV',
+    getBoundingClientRect: () => ({ left: 100, top: 80, width: 160, height: 100 }),
+  }
+  const dungeon = {
+    nodeType: 1,
+    tagName: 'SPAN',
+    getBoundingClientRect: () => ({ left: 360, top: 420, width: 72, height: 36 }),
+  }
+  const toCalls = []
+  const gsap = {
+    timeline() {
+      return {
+        kill() {},
+        fromTo() {
+          return this
+        },
+        to(target, vars, position) {
+          toCalls.push({ target, vars, position })
+          return this
+        },
+      }
+    },
+    set() {},
+  }
+
+  createBiddingAddPresentationMotionTimeline(gsap, {
+    kind: 'BIDDING_ADD',
+    durationMs: 800,
+    payload: { shouldFlipToBackBeforeDungeon: false },
+    refs: { dungeonCardWrap: card, dungeonPileBadge: dungeon },
+  })
+
+  assert.ok(toCalls.some((c) => c.target === card && c.vars?.ease === 'power2.in'))
 })
 
 test('bot bidding sacrifice factory ghost-flies consumed equipment to card and pulses card', () => {
@@ -462,8 +527,8 @@ test('bot bidding sacrifice factory ghost-flies consumed equipment to card and p
     },
   }
 
-  createBotBiddingSacrificePresentationMotionTimeline(gsap, {
-    kind: 'BOT_BIDDING_SACRIFICE',
+  createBiddingSacrificePresentationMotionTimeline(gsap, {
+    kind: 'BIDDING_SACRIFICE',
     durationMs: 800,
     payload: { consumedEquipmentIds: ['W_SHIELD'] },
     refs: {
@@ -477,6 +542,7 @@ test('bot bidding sacrifice factory ghost-flies consumed equipment to card and p
   assert.ok(toCalls.some((c) => c.target === flightLayer.appended[0] && c.vars?.ease === 'power2.inOut'))
   assert.ok(sets.some((s) => s.el === badge && s.props.opacity === 0.38))
   assert.ok(fromToCalls.some((c) => c.target === card && c.fromVars?.filter === 'brightness(1)'))
+  assert.ok(toCalls.some((c) => c.target === card && Number(c.vars?.x ?? 0) > 50))
   assert.equal(addCalls.length, 1)
 })
 
@@ -522,8 +588,8 @@ test('bot bidding sacrifice warns and keeps card pulse when equipment ref missin
       },
     }
 
-    createBotBiddingSacrificePresentationMotionTimeline(gsap, {
-      kind: 'BOT_BIDDING_SACRIFICE',
+    createBiddingSacrificePresentationMotionTimeline(gsap, {
+      kind: 'BIDDING_SACRIFICE',
       durationMs: 800,
       payload: { consumedEquipmentIds: ['W_SHIELD'] },
       refs: {
@@ -556,15 +622,16 @@ test('createPresentationMotionTimeline composite drives inner timeline so card t
   const dungeonCardWrap = { nodeType: 1 }
   const boardShell = { nodeType: 1 }
   const tl = createPresentationMotionTimeline(gsap, {
-    kind: 'BOT_BIDDING_DRAW',
+    kind: 'BIDDING_DRAW',
     durationMs: 500,
     refs: { dungeonCardWrap, boardShell },
+    payload: { shouldFlipFaceAfterArrival: false },
   })
   tl.play(0)
   await new Promise((resolve) => setTimeout(resolve, 120))
-  const yRaw = gsap.getProperty(dungeonCardWrap, 'y')
-  const y = Number.parseFloat(String(yRaw))
-  assert.ok(Number.isFinite(y) && Math.abs(y) > 0.01, `expected card wrap motion, y=${String(yRaw)}`)
+  const scaleRaw = gsap.getProperty(dungeonCardWrap, 'scale')
+  const scale = Number.parseFloat(String(scaleRaw))
+  assert.ok(Number.isFinite(scale) && scale > 0.01 && scale < 1.01, `expected card wrap scale tween, scale=${String(scaleRaw)}`)
 })
 
 test('createPresentationMotionTimeline tweens board shell for default motion kinds', () => {
@@ -594,9 +661,9 @@ test('createPresentationMotionTimeline tweens board shell for default motion kin
       k !== 'DUNGEON_CONTINUE' &&
       k !== 'DUNGEON_OUTCOME' &&
       k !== 'HERO_CHANGE_INTERSTITIAL' &&
-      k !== 'BOT_BIDDING_DRAW' &&
-      k !== 'BOT_BIDDING_ADD' &&
-      k !== 'BOT_BIDDING_SACRIFICE',
+      k !== 'BIDDING_DRAW' &&
+      k !== 'BIDDING_ADD' &&
+      k !== 'BIDDING_SACRIFICE',
   )
   for (const kind of boardShellKinds) {
     createPresentationMotionTimeline(gsap, { kind, durationMs: 240, refs: { boardShell } })
@@ -683,9 +750,11 @@ test('createPresentationMotionTimeline tweens dungeonCardWrap and boardShell for
   assert.equal(calls.length, 2)
   const wrapCall = calls.find((c) => c.target === dungeonCardWrap)
   assert.ok(wrapCall)
-  assert.equal(wrapCall.fromVars?.opacity, 0.88)
+  assert.ok(Number.isFinite(wrapCall.fromVars?.x))
+  assert.ok(Number.isFinite(wrapCall.fromVars?.scale))
+  assert.equal(wrapCall.fromVars?.opacity, 0.92)
   assert.equal(wrapCall.toVars?.opacity, 1)
-  assert.equal(wrapCall.toVars?.duration, 0.3)
+  assert.equal(wrapCall.toVars?.duration, 0.3 * 0.85)
   assert.equal(wrapCall.toVars?.ease, 'power2.out')
   assert.ok(
     calls.some(
@@ -734,6 +803,7 @@ test('createPresentationMotionTimeline DUNGEON_REVEAL: wrap gets y/scale only, f
   assert.ok(axisCall)
   assert.equal(wrapCall.fromVars?.rotationY, undefined)
   assert.equal(wrapCall.toVars?.rotationY, undefined)
+  assert.ok(wrapCall.toVars?.duration < 0.3)
   assert.equal(axisCall.fromVars?.rotationY, 0)
   assert.equal(axisCall.toVars?.rotationY, 180)
   assert.ok(
@@ -876,9 +946,9 @@ test('createPresentationMotionTimeline adds parallel boardShell for every specia
     ['DUNGEON_DAMAGE', { boardShell, dungeonCardWrap: card }],
     ['DUNGEON_NEUTRALIZE', { boardShell, dungeonCardWrap: card, presentationFlightLayer: flightLayer }],
     ['DUNGEON_CONTINUE', { boardShell, dungeonCardWrap: card }],
-    ['BOT_BIDDING_DRAW', { boardShell, dungeonCardWrap: card }],
-    ['BOT_BIDDING_ADD', { boardShell, deckBadge: deck }],
-    ['BOT_BIDDING_SACRIFICE', { boardShell, dungeonCardWrap: card, presentationFlightLayer: flightLayer }],
+    ['BIDDING_DRAW', { boardShell, dungeonCardWrap: card }],
+    ['BIDDING_ADD', { boardShell, deckBadge: deck }],
+    ['BIDDING_SACRIFICE', { boardShell, dungeonCardWrap: card, presentationFlightLayer: flightLayer }],
   ]
 
   for (const [kind, ctx] of rows) {
@@ -979,7 +1049,7 @@ test('createDungeonRevealPresentationMotionTimeline tweens flip axis rotationY w
   assert.ok(flipCall)
   assert.equal(flipCall.fromVars.rotationY, 0)
   assert.equal(flipCall.toVars.rotationY, 180)
-  assert.equal(flipCall.position, 0)
+  assert.equal(flipCall.position, 0.4 * 0.62)
 })
 
 test('DUNGEON_REVEAL factory falls back to a duration-only timeline without card-wrap ref', () => {
@@ -1089,6 +1159,7 @@ test('createPresentationMotionTimeline tweens dungeonCardWrap for DUNGEON_NEUTRA
   assert.ok(fromToCalls.some((c) => c.target === dungeonCardWrap && c.fromVars?.x === 0 && c.toVars?.x === 6))
   assert.ok(fromToCalls.some((c) => c.target === dungeonCardWrap && c.fromVars?.filter === 'brightness(1)'))
   assert.ok(toCalls.some((c) => c.target === dungeonCardWrap && c.vars?.x === 0))
+  assert.ok(toCalls.some((c) => c.target === dungeonCardWrap && typeof c.vars?.x === 'number' && c.vars.x > 180))
 })
 
 test('dungeon neutralize factory ghost-flies consumed equipment toward card with strike', () => {
@@ -1346,9 +1417,11 @@ test('presentationMotionIsLayoutFragile matches ghost-flight payload shapes', ()
     presentationMotionIsLayoutFragile('DUNGEON_NEUTRALIZE', { consumedEquipmentIds: ['W_SHIELD'] }),
     true,
   )
-  assert.equal(presentationMotionIsLayoutFragile('BOT_BIDDING_SACRIFICE', {}), false)
+  assert.equal(presentationMotionIsLayoutFragile('BIDDING_DRAW', {}), true)
+  assert.equal(presentationMotionIsLayoutFragile('BIDDING_ADD', {}), true)
+  assert.equal(presentationMotionIsLayoutFragile('BIDDING_SACRIFICE', {}), false)
   assert.equal(
-    presentationMotionIsLayoutFragile('BOT_BIDDING_SACRIFICE', { consumedEquipmentIds: ['W_PLATE'] }),
+    presentationMotionIsLayoutFragile('BIDDING_SACRIFICE', { consumedEquipmentIds: ['W_PLATE'] }),
     true,
   )
   assert.equal(presentationMotionIsLayoutFragile('TURN_ADVANCE', {}), false)

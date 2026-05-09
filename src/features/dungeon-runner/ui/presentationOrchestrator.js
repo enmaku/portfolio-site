@@ -34,46 +34,56 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
   )
 
   if (transition.phaseBefore === 'bidding' && transition.phaseAfter === 'bidding') {
-    const biddingSacrifice = () => {
+    const actorSeatId = transition.actorSeatId ?? null
+    const actorRoleType = transition.actorRoleType ?? null
+    const biddingPayloadBase = { actorSeatId, actorRoleType }
+
+    const enqueueSacrifice = () => {
       if (transition.action?.type !== 'SACRIFICE') return
       let sacrificeConsumedIds = consumedEquipmentIds
       if (sacrificeConsumedIds.length === 0 && transition.action?.equipmentId) {
         sacrificeConsumedIds = [transition.action.equipmentId]
       }
+      const bb = transition.biddingBefore ?? null
       queue.push({
-        kind: 'BOT_BIDDING_SACRIFICE',
+        kind: 'BIDDING_SACRIFICE',
         channel: 'gameplay',
         label: '',
         durationMs: profile.botStoryMs,
         payload: {
+          ...biddingPayloadBase,
           consumedEquipmentIds: sacrificeConsumedIds,
           engineActionType: transition.action?.type ?? null,
+          eliminatedMonsterCard: bb?.revealedMonsterCard ?? null,
+          revealedToSeatId: bb?.revealedBySeatId ?? null,
         },
       })
     }
 
-    if (transition.actorRoleType !== 'human') {
-      if (transition.action?.type === 'DRAW') {
-        queue.push({
-          kind: 'BOT_BIDDING_DRAW',
-          channel: 'gameplay',
-          label: '',
-          durationMs: profile.botStoryMs,
-          payload: {},
-        })
-      } else if (transition.action?.type === 'ADD_TO_DUNGEON') {
-        queue.push({
-          kind: 'BOT_BIDDING_ADD',
-          channel: 'gameplay',
-          label: '',
-          durationMs: profile.botStoryMs,
-          payload: {},
-        })
-      } else {
-        biddingSacrifice()
-      }
+    if (transition.action?.type === 'DRAW') {
+      queue.push({
+        kind: 'BIDDING_DRAW',
+        channel: 'gameplay',
+        label: '',
+        durationMs: profile.botStoryMs,
+        payload: {
+          ...biddingPayloadBase,
+          engineActionType: 'DRAW',
+        },
+      })
+    } else if (transition.action?.type === 'ADD_TO_DUNGEON') {
+      queue.push({
+        kind: 'BIDDING_ADD',
+        channel: 'gameplay',
+        label: '',
+        durationMs: profile.botStoryMs,
+        payload: {
+          ...biddingPayloadBase,
+          engineActionType: 'ADD_TO_DUNGEON',
+        },
+      })
     } else {
-      biddingSacrifice()
+      enqueueSacrifice()
     }
   }
 
@@ -379,7 +389,7 @@ function numericOrNull(value) {
 
 function speedKeyForAnimationKind(kind) {
   if (typeof kind !== 'string') return null
-  if (kind.startsWith('BOT_BIDDING_')) return 'botStoryMs'
+  if (kind.startsWith('BIDDING_')) return 'botStoryMs'
   if (
     kind === 'PHASE_ENTER_DUNGEON' ||
     kind === 'PHASE_PICK_ADVENTURER' ||

@@ -137,6 +137,7 @@
           </div>
           <q-card-section class="q-pa-none q-mb-sm dr-board-primary">
             <div
+              ref="heroCardSlotRef"
               class="dr-hero-card-slot"
               :class="{
                 'dr-dungeon-stage': showDungeonStage,
@@ -147,17 +148,12 @@
                 <MonsterCardFace
                   ref="dungeonCardFaceRef"
                   class="dr-hero-card-control"
-                  :species="
-                    showDungeonStage
-                      ? dungeonStageView.monster.frontFaceSpecies
-                      : biddingBoard.primaryCard.variant === 'revealed'
-                        ? biddingBoard.primaryCard.monsterCard
-                        : null
-                  "
+                  :empty="monsterCardSlotEmpty"
+                  :species="showDungeonStage ? dungeonStageView.monster.frontFaceSpecies : biddingStageSpecies"
                   :face-down="
                     showDungeonStage
-                      ? dungeonStageView.monster.visibility !== 'revealed'
-                      : biddingBoard.primaryCard.variant !== 'revealed'
+                      ? dungeonStageView.monster.visibility === 'face-down'
+                      : biddingStageFaceDown
                   "
                 />
               </div>
@@ -192,6 +188,7 @@
             </div>
             <div class="col-4">
               <q-badge
+                ref="dungeonPileBadgeRef"
                 text-color="white"
                 class="full-width q-py-xs justify-between dr-pile-badge dr-pile-badge--dungeon"
                 :style="{ '--dr-pile': `url('${uiAssets.piles.dungeon.runtimePath}')` }"
@@ -573,6 +570,10 @@ import {
   filterVisibleLegalActions,
 } from '../../features/dungeon-runner/ui/dungeonEquipmentInteractions.js'
 import { createBiddingBoardViewModel } from '../../features/dungeon-runner/ui/biddingBoardViewModel.js'
+import {
+  viewerMaySeeAddToDungeonFlipDown,
+  viewerMaySeeBiddingDrawFace,
+} from '../../features/dungeon-runner/ui/biddingPresentationVisibility.js'
 import { getHeroIdentity } from '../../features/dungeon-runner/ui/heroIdentity.js'
 import { createDungeonResolutionViewModel } from '../../features/dungeon-runner/ui/dungeonResolutionViewModel.js'
 import {
@@ -618,9 +619,11 @@ const presentationSpeedOptions = [
 ]
 const activePresentation = ref(null)
 const boardShellRef = ref(null)
+const heroCardSlotRef = ref(null)
 const dungeonCardMotionWrap = ref(null)
 const dungeonCardFaceRef = ref(null)
 const deckBadgeRef = ref(null)
+const dungeonPileBadgeRef = ref(null)
 const heroChangeInterstitialOverlayRef = ref(null)
 const presentationFlightLayerRef = ref(null)
 const biddingEquipmentBadgeRefs = reactive({})
@@ -655,9 +658,11 @@ usePresentationMotion({
       dungeonCardWrap: dungeonCardMotionWrap.value,
       dungeonCardFlipAxis: dungeonCardFaceRef.value?.dungeonCardFlipAxis ?? null,
       deckBadge: domEl(deckBadgeRef.value),
+      dungeonPileBadge: domEl(dungeonPileBadgeRef.value),
       presentationFlightLayer: presentationFlightLayerRef.value,
+      presentationGhostTarget: heroCardSlotRef.value,
     }
-    if (head?.kind !== 'BOT_BIDDING_SACRIFICE' && head?.kind !== 'DUNGEON_NEUTRALIZE') return base
+    if (head?.kind !== 'BIDDING_SACRIFICE' && head?.kind !== 'DUNGEON_NEUTRALIZE') return base
     const ids = head?.payload?.consumedEquipmentIds ?? []
     const extra = {}
     for (const id of ids) {
@@ -835,6 +840,28 @@ const biddingBoard = computed(() =>
     },
   }),
 )
+const biddingCardEmpty = computed(
+  () =>
+    match.value?.state?.phase === 'bidding' &&
+    !showDungeonStage.value &&
+    biddingBoard.value.primaryCard.variant === 'empty',
+)
+const monsterCardSlotEmpty = computed(() => {
+  if (showDungeonStage.value) return dungeonStageView.value.monster.visibility === 'empty'
+  return biddingCardEmpty.value
+})
+const biddingStageSpecies = computed(() => {
+  if (showDungeonStage.value) return null
+  if (match.value?.state?.phase !== 'bidding') return null
+  if (activePresentation.value?.kind === 'BIDDING_DRAW') return null
+  return biddingBoard.value.primaryCard.variant === 'revealed' ? biddingBoard.value.primaryCard.monsterCard : null
+})
+const biddingStageFaceDown = computed(() => {
+  if (showDungeonStage.value) return true
+  if (match.value?.state?.phase !== 'bidding') return true
+  if (activePresentation.value?.kind === 'BIDDING_DRAW') return true
+  return biddingBoard.value.primaryCard.variant !== 'revealed'
+})
 const heroChangeInterstitialView = computed(() => {
   if (activePresentation.value?.kind !== 'HERO_CHANGE_INTERSTITIAL') return null
   const payload = activePresentation.value?.payload
@@ -1233,6 +1260,13 @@ function enqueuePresentationTransition(prevState, nextState, action, actorSeatId
       heroAfter: nextState.hero,
       dungeonBefore: summarizeDungeonForPresentation(prevState.dungeon),
       dungeonAfter: summarizeDungeonForPresentation(nextState.dungeon),
+      biddingBefore:
+        prevState.phase === MATCH_PHASES.BIDDING
+          ? {
+              revealedMonsterCard: prevState.bidding?.revealedMonsterCard ?? null,
+              revealedBySeatId: prevState.bidding?.revealedBySeatId ?? null,
+            }
+          : null,
     },
     { deferPostDungeonOutcomeAck },
   )
@@ -1265,8 +1299,32 @@ function summarizeDungeonForPresentation(dungeonState) {
   }
 }
 
+function enrichPresentationForViewer(head) {
+  if (!head) return null
+  const kind = head.kind
+  const basePayload = head.payload && typeof head.payload === 'object' ? { ...head.payload } : {}
+
+  if (kind === 'BIDDING_DRAW') {
+    const actorSeatId = basePayload.actorSeatId ?? null
+    basePayload.shouldFlipFaceAfterArrival = viewerMaySeeBiddingDrawFace({
+      viewerSeatId: humanSeatId.value,
+      actorSeatId,
+    })
+    return { ...head, payload: basePayload }
+  }
+  if (kind === 'BIDDING_ADD') {
+    basePayload.shouldFlipToBackBeforeDungeon = viewerMaySeeAddToDungeonFlipDown({
+      viewerSeatId: humanSeatId.value,
+      actorSeatId: basePayload.actorSeatId ?? null,
+      actorRoleType: basePayload.actorRoleType ?? null,
+    })
+    return { ...head, payload: basePayload }
+  }
+  return head
+}
+
 function syncPresentationLabel() {
-  activePresentation.value = presentationOrchestrator.getActiveAnimation()
+  activePresentation.value = enrichPresentationForViewer(presentationOrchestrator.getActiveAnimation())
   activePresentationLabel.value = activePresentation.value?.label ?? ''
   gameplayInputLocked.value = presentationOrchestrator.isGameplayInputLocked()
   if (presentationTraceEnabled()) {
