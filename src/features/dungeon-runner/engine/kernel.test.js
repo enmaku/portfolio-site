@@ -587,6 +587,26 @@ test('shuffleMatchSeats updates labels and first listed seat starts', () => {
   assert.equal(shuffled.seats.filter((seat) => seat.label !== 'Player').every((seat) => seat.label.length > 0), true)
 })
 
+test('shuffleMatchSeats can preserve bot labels for rematch', () => {
+  const initial = createInitialMatchState(
+    {
+      totalSeats: 4,
+      opponents: [{ type: 'randombot' }, { type: 'nn', modelId: 'latest' }, { type: 'randombot' }],
+    },
+    { seed: 8080 },
+  )
+  const shuffled = shuffleMatchSeats(initial, { seed: 2222 })
+  const preservedBotLabels = shuffled.seats
+    .filter((seat) => seat.role.type !== 'human')
+    .map((seat) => seat.label)
+
+  const rematchShuffle = shuffleMatchSeats(initial, { seed: 3333, preservedBotLabels })
+  assert.deepEqual(
+    rematchShuffle.seats.filter((seat) => seat.role.type !== 'human').map((seat) => seat.label),
+    preservedBotLabels,
+  )
+})
+
 test('only the revealing seat can see currently revealed monster card', () => {
   const state = createInitialMatchState(
     {

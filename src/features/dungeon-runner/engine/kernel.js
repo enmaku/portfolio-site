@@ -178,7 +178,12 @@ export function shuffleMatchSeats(state, options) {
   const seed = Number(options?.seed ?? state?.rng?.seed ?? 0) >>> 0
   const shuffled = shuffle(state.seats ?? [], createRng(seed))
   const botCount = shuffled.values.filter((seat) => seat.role?.type !== 'human').length
-  const shuffledBotNames = shuffle(BOT_SEAT_NAMES, createRng(seed ^ 0xa5a5a5a5)).values.slice(0, botCount)
+  const preservedBotLabels = Array.isArray(options?.preservedBotLabels) ? options.preservedBotLabels : null
+  const shuffledBotNames = (
+    preservedBotLabels && preservedBotLabels.length > 0
+      ? [...preservedBotLabels]
+      : shuffle(BOT_SEAT_NAMES, createRng(seed ^ 0xa5a5a5a5)).values
+  ).slice(0, botCount)
   let botIndex = 0
   const seats = shuffled.values.map((seat) => {
     const nextSeat = {

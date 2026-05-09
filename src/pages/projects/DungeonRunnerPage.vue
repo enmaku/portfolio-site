@@ -1236,9 +1236,18 @@ function rematch() {
   const id = `match-${Date.now()}`
   const setupSnapshot = cloneSetup(match.value.setup)
   const baseState = createInitialMatchState(setupSnapshot, { seed })
-  const shuffledState = shuffleMatchDeck(shuffleMatchSeats(baseState, { seed: seed ^ 0x5f3759df }), {
-    seed: seed ^ 0x9e3779b9,
-  })
+  const preservedBotLabels = match.value.state.seats
+    .filter((seat) => seat.role?.type !== 'human' && seat.label)
+    .map((seat) => seat.label)
+  const shuffledState = shuffleMatchDeck(
+    shuffleMatchSeats(baseState, {
+      seed: seed ^ 0x5f3759df,
+      preservedBotLabels,
+    }),
+    {
+      seed: seed ^ 0x9e3779b9,
+    },
+  )
   const firstSeatId = shuffledState.turn.activeSeatId
   const initialPickState = {
     ...shuffledState,
