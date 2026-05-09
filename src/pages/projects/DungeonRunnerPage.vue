@@ -48,18 +48,6 @@
           </div>
         </q-menu>
       </q-btn>
-      <q-btn
-        v-if="match"
-        flat
-        round
-        dense
-        size="md"
-        icon="history"
-        color="grey-7"
-        aria-label="Open match history"
-        :disable="dungeonOutcomeDialogOpen"
-        @click="historyDrawerOpen = true"
-      />
     </div>
 
     <div class="col dr-scroll q-px-md q-pb-md">
@@ -521,27 +509,6 @@
         </div>
       </q-card>
     </q-dialog>
-    <q-dialog v-model="historyDrawerOpen" position="bottom" maximized>
-      <q-card class="dr-history-panel">
-        <div class="row items-center q-px-md q-pt-md q-pb-sm">
-          <div class="text-subtitle1">Match history</div>
-          <q-space />
-          <q-btn flat dense icon="close" aria-label="Close match history" @click="historyDrawerOpen = false" />
-        </div>
-        <q-separator />
-        <div class="q-pa-md dr-history-scroll">
-          <div v-if="historyPanelViewModel.entries.length === 0" class="text-body2 text-grey-6">
-            {{ historyPanelViewModel.emptyStateLabel }}
-          </div>
-          <div v-else class="q-gutter-y-sm">
-            <q-card v-for="(entry, index) in historyPanelViewModel.entries" :key="`history-${index}`" flat bordered class="q-pa-sm">
-              <div class="text-body2">{{ entry.headline }}</div>
-              <div class="text-caption text-grey-6">{{ entry.provenance }}</div>
-            </q-card>
-          </div>
-        </div>
-      </q-card>
-    </q-dialog>
     <q-dialog v-model="deckSplayOpen" maximized>
       <q-card class="dr-deck-splay-panel">
         <div class="row items-center q-px-md q-pt-md q-pb-sm">
@@ -632,7 +599,6 @@ import {
   isDungeonOutcomeDialogOpen,
 } from '../../features/dungeon-runner/ui/dungeonOutcomeDialog.js'
 import MonsterCardFace from '../../components/dungeon-runner/MonsterCardFace.vue'
-import { buildHistoryPanelViewModel } from '../../features/dungeon-runner/ui/historyPanelViewModel.js'
 import { closeDeckSplay, createMemoryAidState, setMemoryAidEnabled, tapDeck } from '../../features/dungeon-runner/ui/memoryAidState.js'
 import { isDungeonPresentationTraceEnabled } from '../../features/dungeon-runner/ui/dungeonPresentationTrace.js'
 import { usePresentationMotion } from '../../features/dungeon-runner/ui/usePresentationMotion.js'
@@ -640,7 +606,6 @@ import { usePresentationMotion } from '../../features/dungeon-runner/ui/usePrese
 const setup = reactive(createDefaultSetupConfig())
 const $q = useQuasar()
 const match = ref(null)
-const historyDrawerOpen = ref(false)
 const opponentTypeOptions = [
   { label: 'Random bot', value: 'randombot' },
   { label: 'AI', value: 'nn' },
@@ -1024,13 +989,6 @@ const deckSplayOpen = computed({
     memoryAidState.value = open ? tapDeck(memoryAidState.value) : closeDeckSplay(memoryAidState.value)
   },
 })
-const historyPanelViewModel = computed(() =>
-  buildHistoryPanelViewModel({
-    historyEntries: match.value?.state?.history ?? [],
-    seats: match.value?.state?.seats ?? [],
-    isOpen: historyDrawerOpen.value,
-  }),
-)
 const isMobile = computed(() => $q.screen.lt.md)
 const dungeonOutcomeSummary = computed(() =>
   buildDungeonOutcomeSummary({
@@ -1218,7 +1176,6 @@ function startNewMatch() {
     presentationSpeedProfile: presentationSpeedProfile.value,
   }
   deferredPostDungeonState.value = null
-  historyDrawerOpen.value = false
   nnDebugTraceText.value = ''
   nnDebugTraceHistory.value = []
   presentationOrchestrator.clear()
@@ -1262,7 +1219,6 @@ function rematch() {
     presentationSpeedProfile: presentationSpeedProfile.value,
   }
   deferredPostDungeonState.value = null
-  historyDrawerOpen.value = false
   nnDebugTraceText.value = ''
   nnDebugTraceHistory.value = []
   presentationOrchestrator.clear()
@@ -1272,7 +1228,6 @@ function rematch() {
 function backToSetup() {
   match.value = null
   deferredPostDungeonState.value = null
-  historyDrawerOpen.value = false
   clearCurrentMatch(window.localStorage)
   nnDebugTraceText.value = ''
   nnDebugTraceHistory.value = []
@@ -1799,7 +1754,6 @@ function importReplay() {
     deferredPostDungeonState.value = null
     presentationSpeedProfile.value = pace
     presentationOrchestrator.setSpeedProfile(pace)
-    historyDrawerOpen.value = true
     presentationOrchestrator.clear()
     syncPresentationLabel()
   } catch {
@@ -1999,16 +1953,6 @@ function importReplay() {
   flex-shrink: 0;
   object-fit: contain;
   filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.5));
-}
-
-.dr-history-panel {
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
-
-.dr-history-scroll {
-  overflow-y: auto;
 }
 
 .dr-deck-badge {
