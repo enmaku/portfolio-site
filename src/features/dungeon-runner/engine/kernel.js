@@ -624,8 +624,10 @@ function enterPickAdventurerPhase(state, runnerSeatId, scoreboard, result) {
 function applyChooseNextAdventurerAction(state, action, actor) {
   if (state.phase !== MATCH_PHASES.PICK_ADVENTURER) return null
   const loadout = HERO_LOADOUTS[action.hero] ?? HERO_LOADOUTS.WARRIOR
+  const shuffledDeck = shuffle(createInitialMonsterDeck(), state.rng)
   return {
     ...state,
+    rng: shuffledDeck.rng,
     lastDungeonRun: null,
     hero: action.hero,
     centerEquipment: [...loadout],
@@ -642,7 +644,7 @@ function applyChooseNextAdventurerAction(state, action, actor) {
       runnerSeatId: null,
       revealedMonsterCard: null,
       revealedBySeatId: null,
-      monsterDeck: createInitialMonsterDeck(),
+      monsterDeck: shuffledDeck.values,
       dungeonMonsters: [],
       discardedMonsterCards: [],
       equipmentDisplayOrder: [...loadout],
