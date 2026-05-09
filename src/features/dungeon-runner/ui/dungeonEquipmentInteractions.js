@@ -4,105 +4,111 @@ import { equipmentShortName } from './equipmentDisplayCatalog.js'
 const EQUIPMENT_UI = {
   W_PLATE: {
     label: 'Plate Armor',
-    details: 'Passive: increases your starting dungeon HP while in play.',
+    details: 'Passive: +5 starting HP for this dungeon run.',
   },
   W_SHIELD: {
-    label: 'Shield',
-    details: 'Passive: increases your starting dungeon HP while in play.',
+    label: 'Knight Shield',
+    details: 'Passive: +3 starting HP for this dungeon run.',
   },
   W_VORPAL: {
     label: 'Vorpal Sword',
-    details: 'Dungeon start: declare a species. Defeat one matching monster automatically.',
+    details:
+      'At dungeon start, name a species; the first revealed copy is auto-defeated, then this is spent.',
   },
   W_TORCH: {
     label: 'Torch',
-    details: 'Passive: helps defeat weaker monsters.',
+    details: 'Passive: auto-defeats monsters with strength 3 or less.',
   },
   W_HOLY: {
-    label: 'Holy Water',
-    details: 'Passive: helps defeat even-strength monsters.',
+    label: 'Holy Grail',
+    details: 'Passive: auto-defeats monsters with even strength.',
   },
   W_SPEAR: {
-    label: 'Spear',
-    details: 'Passive: defeats dragon.',
+    label: 'Dragon Spear',
+    details: 'Passive: auto-defeats Dragon.',
   },
   B_HEAL: {
-    label: 'Heal',
-    details: 'Passive: healing effect resolves during dungeon checks.',
+    label: 'Healing Potion',
+    details:
+      'Single-use revive: when HP would drop to 0 or below, reset to base hero HP and continue; then spent.',
   },
   B_SHIELD: {
-    label: 'Shield',
-    details: 'Passive: increases your starting dungeon HP while in play.',
+    label: 'Leather Shield',
+    details: 'Passive: +3 starting HP for this dungeon run.',
   },
   B_CHAIN: {
     label: 'Chain Mail',
-    details: 'Passive: increases your starting dungeon HP while in play.',
+    details: 'Passive: +4 starting HP for this dungeon run.',
   },
   B_AXE: {
     label: 'Fire Axe',
-    details: 'Destroy the revealed monster, then continue combat.',
+    details: 'Single-use: destroy one revealed monster, then continue the run.',
     useActionType: 'USE_FIRE_AXE',
     declineActionType: 'DECLINE_FIRE_AXE',
     confirmUseMessage: 'Spend Fire Axe now?',
   },
   B_TORCH: {
     label: 'Torch',
-    details: 'Passive: helps defeat weaker monsters.',
+    details: 'Passive: auto-defeats monsters with strength 3 or less.',
   },
   B_HAMMER: {
-    label: 'Hammer',
-    details: 'Passive: defeats golem.',
+    label: 'War Hammer',
+    details: 'Passive: auto-defeats Golems.',
   },
   M_WALL: {
-    label: 'Wall',
-    details: 'Passive: increases your starting dungeon HP while in play.',
+    label: 'Wall of Fire',
+    details: 'Passive: +6 starting HP for this dungeon run.',
   },
   M_HOLY: {
-    label: 'Holy',
-    details: 'Passive: helps defeat even-strength monsters.',
+    label: 'Holy Grail',
+    details: 'Passive: auto-defeats monsters with even strength.',
   },
   M_OMNI: {
-    label: 'Omni',
-    details: 'Passive: can save a failed dungeon run in the right state.',
+    label: 'Omnipotence',
+    details:
+      'If you would die, you win instead only when every monster species in the full dungeon set is unique.',
   },
   M_BRACE: {
-    label: 'Brace',
-    details: 'Passive: increases your starting dungeon HP while in play.',
+    label: 'Bracelet of Protection',
+    details: 'Passive: +3 starting HP for this dungeon run.',
   },
   M_POLY: {
     label: 'Polymorph',
-    details: 'Transform and bypass the current monster.',
+    details:
+      'Single-use: replace the revealed monster with the next unrevealed dungeon card and resolve that one.',
     useActionType: 'USE_POLYMORPH',
     declineActionType: 'DECLINE_POLYMORPH',
     confirmUseMessage: 'Spend Polymorph now?',
   },
   M_PACT: {
-    label: 'Pact',
-    details: 'Passive: defeats demon.',
+    label: 'Demonic Pact',
+    details: 'Auto-defeats Demon and the next revealed monster, then is spent.',
   },
   R_ARMOR: {
-    label: 'Armor',
-    details: 'Passive: increases your starting dungeon HP while in play.',
+    label: 'Mithril Armor',
+    details: 'Passive: +5 starting HP for this dungeon run.',
   },
   R_HEAL: {
-    label: 'Heal',
-    details: 'Passive: healing effect resolves during dungeon checks.',
+    label: 'Healing Potion',
+    details:
+      'Single-use revive: when HP would drop to 0 or below, reset to base hero HP and continue; then spent.',
   },
   R_RING: {
-    label: 'Ring',
-    details: 'Passive: helps defeat weak monsters.',
+    label: 'Ring of Power',
+    details: 'Passive: auto-defeat monsters with strength 2 or less and heal HP by their total strength.',
   },
   R_BUCK: {
     label: 'Buckler',
-    details: 'Passive: increases your starting dungeon HP while in play.',
+    details: 'Passive: +3 starting HP for this dungeon run.',
   },
   R_VORP: {
-    label: 'Vorpal',
-    details: 'Dungeon start: declare a species. Defeat one matching monster automatically.',
+    label: 'Vorpal Dagger',
+    details:
+      'At dungeon start, name a species; the first revealed copy is auto-defeated, then this is spent.',
   },
   R_CLOAK: {
-    label: 'Cloak',
-    details: 'Passive: helps defeat stronger monsters.',
+    label: 'Invisibility Cloak',
+    details: 'Passive: auto-defeats monsters with strength 6 or more.',
   },
 }
 
