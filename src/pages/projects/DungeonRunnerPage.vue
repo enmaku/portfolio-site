@@ -561,6 +561,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, triggerRef, unref, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { useDungeonRunnerSettingsStore } from '../../stores/dungeonRunnerSettings.js'
 import {
   MATCH_PHASES,
   applyAction,
@@ -645,7 +646,15 @@ const replayExportText = ref('')
 const nnDebugTraceText = ref('')
 const nnDebugTraceHistory = ref([])
 const presentationOrchestrator = createPresentationOrchestrator()
-const presentationSpeedProfile = ref('cinematic')
+const dungeonRunnerSettingsStore = useDungeonRunnerSettingsStore()
+const presentationSpeedProfile = computed({
+  get() {
+    return dungeonRunnerSettingsStore.animationPace
+  },
+  set(value) {
+    dungeonRunnerSettingsStore.setAnimationPace(value)
+  },
+})
 const presentationSpeedOptions = [
   { label: 'Cinematic', value: 'cinematic' },
   { label: 'Brisk', value: 'brisk' },
@@ -757,7 +766,7 @@ const confirmationDialogCancelLabel = ref('Cancel')
 let confirmationDialogResolve = null
 const vorpalDialogOpen = ref(false)
 const selectedVorpalSpecies = ref(null)
-const memoryAidState = ref(createMemoryAidState())
+const memoryAidState = ref(createMemoryAidState({ enabled: dungeonRunnerSettingsStore.memoryAidEnabled }))
 const previousVisibleState = ref(null)
 const dismissedDungeonRun = ref(null)
 const equipmentRemainingAtResolution = ref(null)
@@ -778,6 +787,14 @@ watch(presentationSpeedProfile, (next) => {
     persistCurrentMatch(window.localStorage, match.value)
   }
 })
+
+watch(
+  () => dungeonRunnerSettingsStore.memoryAidEnabled,
+  (enabled) => {
+    memoryAidState.value = setMemoryAidEnabled(memoryAidState.value, enabled)
+  },
+  { immediate: true },
+)
 
 watch(
   () => setup.totalSeats,
@@ -1018,6 +1035,7 @@ const runnerLabel = computed(() => {
 
 onMounted(() => {
   debugMode.value = shouldEnableDebugOnBoot(window.location.href)
+  presentationOrchestrator.setSpeedProfile(presentationSpeedProfile.value)
   if (presentationTraceEnabled()) {
     console.log(
       '[DungeonRunner][presentation] trace on — localStorage.setItem("dungeonPresentationTrace","1") — also logs [card-flight] for pile/deck → card motion',
@@ -1123,13 +1141,12 @@ function startNewMatch() {
     setup: setupSnapshot,
     state: initialPickState,
     history: [],
-    presentationSpeedProfile: 'cinematic',
+    presentationSpeedProfile: presentationSpeedProfile.value,
   }
   deferredPostDungeonState.value = null
   historyDrawerOpen.value = false
   nnDebugTraceText.value = ''
   nnDebugTraceHistory.value = []
-  presentationSpeedProfile.value = 'cinematic'
   presentationOrchestrator.clear()
   syncPresentationLabel()
 }
@@ -1176,7 +1193,6 @@ function backToSetup() {
   clearCurrentMatch(window.localStorage)
   nnDebugTraceText.value = ''
   nnDebugTraceHistory.value = []
-  presentationSpeedProfile.value = 'cinematic'
   presentationOrchestrator.clear()
   syncPresentationLabel()
 }
@@ -1211,7 +1227,7 @@ function takeHumanAction(action) {
 }
 
 function onMemoryAidToggle(enabled) {
-  memoryAidState.value = setMemoryAidEnabled(memoryAidState.value, enabled === true)
+  dungeonRunnerSettingsStore.setMemoryAidEnabled(enabled === true)
 }
 
 function onDeckTap() {
@@ -1638,6 +1654,7 @@ function resumeFromDialog() {
     loaded.match.presentationSpeedProfile === 'brisk' || loaded.match.presentationSpeedProfile === 'cinematic'
       ? loaded.match.presentationSpeedProfile
       : 'cinematic'
+  dungeonRunnerSettingsStore.setAnimationPace(pace)
   match.value = { ...loaded.match, presentationSpeedProfile: pace }
   deferredPostDungeonState.value = null
   presentationOrchestrator.clear()
@@ -1704,6 +1721,7 @@ function importReplay() {
       imported.replay.presentationSpeedProfile === 'cinematic'
         ? imported.replay.presentationSpeedProfile
         : 'cinematic'
+    dungeonRunnerSettingsStore.setAnimationPace(pace)
     match.value = {
       schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
       id: `match-${Date.now()}`,
