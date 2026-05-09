@@ -98,7 +98,13 @@ test('resetPresentationMotionTargets uses narrow clearProps for equipment_* keys
   )
   assert.equal(gsap.sets.length, 2)
   assert.ok(gsap.sets.some((s) => s.el === shell && s.props.clearProps === 'all'))
-  assert.ok(gsap.sets.some((s) => s.el === equip && s.props.clearProps === 'opacity,filter'))
+  assert.ok(
+    gsap.sets.some(
+      (s) =>
+        s.el === equip &&
+        s.props.clearProps === 'opacity,filter,boxShadow,transform,transformOrigin',
+    ),
+  )
 })
 
 test('resetPresentationMotionTargets ignores non-elements', () => {
@@ -343,7 +349,13 @@ test('presentation motion teardown clears neutralize targets including payload e
   await flushMicrotasks()
 
   assert.ok(mockGsap.sets.some((s) => s.el === cardWrap && s.props.clearProps === 'all'))
-  assert.ok(mockGsap.sets.some((s) => s.el === equip && s.props.clearProps === 'opacity,filter'))
+  assert.ok(
+    mockGsap.sets.some(
+      (s) =>
+        s.el === equip &&
+        s.props.clearProps === 'opacity,filter,boxShadow,transform,transformOrigin',
+    ),
+  )
   assert.ok(mockGsap.sets.some((s) => s.el === shell && s.props.clearProps === 'all'))
 
   scope.stop()
@@ -408,7 +420,13 @@ test('presentation motion teardown clears sacrifice targets including payload eq
   await flushMicrotasks()
 
   assert.ok(mockGsap.sets.some((s) => s.el === cardWrap && s.props.clearProps === 'all'))
-  assert.ok(mockGsap.sets.some((s) => s.el === equip && s.props.clearProps === 'opacity,filter'))
+  assert.ok(
+    mockGsap.sets.some(
+      (s) =>
+        s.el === equip &&
+        s.props.clearProps === 'opacity,filter,boxShadow,transform,transformOrigin',
+    ),
+  )
   assert.ok(mockGsap.sets.some((s) => s.el === shell && s.props.clearProps === 'all'))
 
   scope.stop()

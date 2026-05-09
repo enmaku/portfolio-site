@@ -53,6 +53,8 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
         payload: {
           ...biddingPayloadBase,
           consumedEquipmentIds: sacrificeConsumedIds,
+          responsibleEquipmentIds: [...sacrificeConsumedIds],
+          expendedEquipmentIds: [...sacrificeConsumedIds],
           engineActionType: transition.action?.type ?? null,
           eliminatedMonsterCard: bb?.revealedMonsterCard ?? null,
           revealedToSeatId: bb?.revealedBySeatId ?? null,
@@ -245,6 +247,9 @@ function newlyDiscardedMonsterIdsFromSummaries(before, after) {
  *   hpDelta: number,
  *   dungeonSubphaseAfter: string|null,
  *   consumedEquipmentIds: string[],
+ *   responsibleEquipmentIds: string[],
+ *   expendedEquipmentIds: string[],
+ *   isFinalDungeonMonsterDefeat: boolean,
  * }}
  */
 function computeDungeonPresentationFacts(transition) {
@@ -272,12 +277,27 @@ function computeDungeonPresentationFacts(transition) {
     neutralizedMonsterIds = [before.currentMonster]
   }
 
+  const defeatRecord = after?.lastDefeatRecord ?? null
+  const responsibleEquipmentIds = defeatRecord?.byEquipmentIds
+    ? [...defeatRecord.byEquipmentIds]
+    : []
+  const expendedEquipmentIds = defeatRecord?.expendedEquipmentIds
+    ? [...defeatRecord.expendedEquipmentIds]
+    : []
+
+  const remainingAfter = numericOrNull(after?.remainingMonsterCount) ?? 0
+  const isFinalDungeonMonsterDefeat =
+    discardedDelta > 0 && remainingAfter === 0 && after?.currentMonster == null
+
   return {
     revealedMonsterId: revealedChanged ? (after?.currentMonster ?? null) : null,
     neutralizedMonsterIds,
     hpDelta,
     dungeonSubphaseAfter: after?.subphase ?? null,
     consumedEquipmentIds,
+    responsibleEquipmentIds,
+    expendedEquipmentIds,
+    isFinalDungeonMonsterDefeat,
   }
 }
 
@@ -293,10 +313,19 @@ function dungeonPayloadForKind(kind, transition, facts) {
     }
   }
   if (kind === 'DUNGEON_NEUTRALIZE') {
+    const responsibleEquipmentIds = facts.responsibleEquipmentIds.length > 0
+      ? [...facts.responsibleEquipmentIds]
+      : [...facts.consumedEquipmentIds]
+    const expendedEquipmentIds = facts.responsibleEquipmentIds.length > 0
+      ? [...facts.expendedEquipmentIds]
+      : [...facts.consumedEquipmentIds]
     return {
       neutralizedMonsterIds: [...facts.neutralizedMonsterIds],
-      consumedEquipmentIds: [...facts.consumedEquipmentIds],
+      consumedEquipmentIds: [...expendedEquipmentIds],
+      responsibleEquipmentIds,
+      expendedEquipmentIds,
       engineActionType: transition.action?.type ?? null,
+      isFinalDungeonMonsterDefeat: facts.isFinalDungeonMonsterDefeat,
     }
   }
   if (kind === 'DUNGEON_DAMAGE') {

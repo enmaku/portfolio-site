@@ -60,8 +60,15 @@ function centerDeltaBetweenElements(fromEl, toEl) {
   return { dx: acx - bcx, dy: acy - bcy, ok: true }
 }
 
+/** Sunlight-colored activation glow used for reusable (non-expended) equipment that fires a ghost flight. */
+const REUSABLE_ACTIVATION_GLOW = '0 0 14px 3px rgba(255, 240, 180, 0.78)'
+
 /**
- * Ghost flight for `payload.consumedEquipmentIds`: clone → fixed layer → tween toward card; source dimmed in place.
+ * Ghost flight for `payload.responsibleEquipmentIds`: clone → fixed layer → tween toward card. Sources
+ * whose id is in `payload.expendedEquipmentIds` are dimmed in place (single-use feel matching bidding
+ * sacrifice); other source tiles get a brief sunlight-colored activation pulse instead. Falls back to
+ * `payload.consumedEquipmentIds` if the new payload fields are absent (back-compat).
+ *
  * Skips missing refs with `console.warn` only. Cleans clones on segment end and timeline kill.
  *
  * @param {import('gsap').GSAP} gsapApi
@@ -69,11 +76,17 @@ function centerDeltaBetweenElements(fromEl, toEl) {
  * @param {PresentationMotionContext} ctx
  * @param {{ flightTimeRatio?: number }} [flightOpts]
  */
-function addConsumedEquipmentGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
-  const ids = ctx.payload?.consumedEquipmentIds ?? []
+function addEquipmentActivationGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
+  const responsibleIds = Array.isArray(ctx.payload?.responsibleEquipmentIds)
+    ? ctx.payload.responsibleEquipmentIds
+    : ctx.payload?.consumedEquipmentIds ?? []
+  const expendedIds = Array.isArray(ctx.payload?.expendedEquipmentIds)
+    ? ctx.payload.expendedEquipmentIds
+    : ctx.payload?.consumedEquipmentIds ?? []
+  const expendedIdSet = new Set(expendedIds)
   const ms = Math.max(0, Number(ctx.durationMs) || 0)
   const dur = ms / 1000
-  if (!ids.length || dur <= 0) return
+  if (!responsibleIds.length || dur <= 0) return
 
   const card = ctx.refs?.dungeonCardWrap
   const flightRoot = ctx.refs?.presentationFlightLayer
@@ -107,7 +120,7 @@ function addConsumedEquipmentGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
   const set = gsapApi?.set
   if (typeof set !== 'function') return
 
-  for (const id of ids) {
+  for (const id of responsibleIds) {
     const source = ctx.refs?.[`equipment_${id}`]
     if (!isDomElement(source)) {
       console.warn(PRESENTATION_WARN, 'missing equipment ref for ghost flight; skipping', id)
@@ -156,7 +169,25 @@ function addConsumedEquipmentGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
     mount.appendChild(clone)
     clones.push(clone)
 
-    set(source, { opacity: 0.38, filter: 'brightness(0.85)' })
+    const isExpended = expendedIdSet.has(id)
+    if (isExpended) {
+      set(source, { opacity: 0.38, filter: 'brightness(0.85)' })
+    } else {
+      const pulseDur = Math.min(0.22, dur * 0.32)
+      const fadeDur = Math.max(0.12, dur - pulseDur)
+      tl.fromTo(
+        source,
+        { boxShadow: '0 0 0 0 rgba(255, 240, 180, 0)', scale: 1, transformOrigin: 'center center' },
+        { boxShadow: REUSABLE_ACTIVATION_GLOW, scale: 1.05, duration: pulseDur, ease: 'power2.out' },
+        0,
+      )
+      tl.to(
+        source,
+        { boxShadow: '0 0 0 0 rgba(255, 240, 180, 0)', scale: 1, duration: fadeDur, ease: 'power2.inOut' },
+        pulseDur,
+      )
+    }
+
     set(clone, {
       position: 'fixed',
       left: srcRect.left,
@@ -201,7 +232,7 @@ function addConsumedEquipmentGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
  * - **`deckBadge`** — deck pile control; `BIDDING_ADD` / `BIDDING_DRAW` anchor deck motion here.
  * - **`heroChangeInterstitialOverlay`** — full-screen `.dr-hero-interstitial` control. `HERO_CHANGE_INTERSTITIAL` runs entrance / hold / exit here only (the board shell is not tweened for this beat).
  * - **`presentationFlightLayer`** — absolutely positioned, `pointer-events: none` host for fixed-position equipment ghost clones (`DUNGEON_NEUTRALIZE`, `BIDDING_SACRIFICE`).
- * - **`equipment_<id>`** — in-play equipment token cell (`consumedEquipmentIds` from queue payload).
+ * - **`equipment_<id>`** — in-play equipment token cell. Iterated from `payload.responsibleEquipmentIds` (`consumedEquipmentIds` retained as a back-compat alias). Source tile dims when `id` is in `payload.expendedEquipmentIds`; otherwise it gets a brief sunlight-colored activation pulse during the ghost flight.
  *
  * @typedef {{
  *   kind: OrchestratorPresentationKind,
@@ -234,7 +265,7 @@ export function presentationMotionIsLayoutFragile(kind, payload) {
   if (kind === 'DUNGEON_REVEAL') return true
   if (kind === 'BIDDING_DRAW' || kind === 'BIDDING_ADD') return true
   if (kind === 'DUNGEON_NEUTRALIZE' || kind === 'BIDDING_SACRIFICE') {
-    const ids = payload?.consumedEquipmentIds ?? []
+    const ids = payload?.responsibleEquipmentIds ?? payload?.consumedEquipmentIds ?? []
     return ids.length > 0
   }
   return false
@@ -291,7 +322,8 @@ export function presentationMotionClearKeys(kind, payload) {
   if (kind === 'DUNGEON_OUTCOME') return ['dungeonCardWrap', 'boardShell']
   if (kind === 'DUNGEON_NEUTRALIZE') {
     const keys = ['dungeonCardWrap', 'boardShell']
-    for (const id of payload?.consumedEquipmentIds ?? []) {
+    const ids = payload?.responsibleEquipmentIds ?? payload?.consumedEquipmentIds ?? []
+    for (const id of ids) {
       keys.push(`equipment_${id}`)
     }
     return keys
@@ -301,7 +333,8 @@ export function presentationMotionClearKeys(kind, payload) {
   if (kind === 'BIDDING_ADD') return ['dungeonCardWrap', 'dungeonCardFlipAxis', 'deckBadge', 'dungeonPileBadge', 'boardShell']
   if (kind === 'BIDDING_SACRIFICE') {
     const keys = ['dungeonCardWrap', 'boardShell']
-    for (const id of payload?.consumedEquipmentIds ?? []) {
+    const ids = payload?.responsibleEquipmentIds ?? payload?.consumedEquipmentIds ?? []
+    for (const id of ids) {
       keys.push(`equipment_${id}`)
     }
     return keys
@@ -433,7 +466,7 @@ export function createDungeonNeutralizePresentationMotionTimeline(gsapApi, ctx) 
   const ms = Math.max(0, Number(ctx.durationMs) || 0)
   const dur = ms / 1000
   const tl = gsapApi.timeline({ paused: true })
-  addConsumedEquipmentGhostFlights(gsapApi, tl, ctx, { flightTimeRatio: 0.55 })
+  addEquipmentActivationGhostFlights(gsapApi, tl, ctx, { flightTimeRatio: 0.55 })
   if (!isDomElement(el)) {
     if (dur > 0) {
       const played = typeof tl.duration === 'function' ? tl.duration() : 0
@@ -452,9 +485,11 @@ export function createDungeonNeutralizePresentationMotionTimeline(gsapApi, ctx) 
     0,
   )
 
+  // Final-monster defeats keep the card visible for the outcome pose; otherwise slide off right.
+  const isFinalDefeat = ctx.payload?.isFinalDungeonMonsterDefeat === true
   const exitStart = dur > 0 ? Math.min(dur * 0.58, dur - Math.max(0.22, dur * 0.12)) : 0
   const exitDur = dur > exitStart ? dur - exitStart : 0
-  if (exitDur > 0) {
+  if (!isFinalDefeat && exitDur > 0) {
     const off =
       typeof window !== 'undefined' && Number.isFinite(window.innerWidth)
         ? Math.max(220, window.innerWidth * 0.42)
@@ -769,10 +804,10 @@ export function createBiddingSacrificePresentationMotionTimeline(gsapApi, ctx) {
   const ms = Math.max(0, Number(ctx.durationMs) || 0)
   const dur = ms / 1000
   const tl = gsapApi.timeline({ paused: true })
-  const consumedIds = ctx.payload?.consumedEquipmentIds ?? []
+  const consumedIds = ctx.payload?.responsibleEquipmentIds ?? ctx.payload?.consumedEquipmentIds ?? []
   const hasCard = isDomElement(card)
 
-  addConsumedEquipmentGhostFlights(gsapApi, tl, ctx, { flightTimeRatio: 0.58 })
+  addEquipmentActivationGhostFlights(gsapApi, tl, ctx, { flightTimeRatio: 0.58 })
 
   if (!hasCard && consumedIds.length === 0) {
     if (dur > 0) {

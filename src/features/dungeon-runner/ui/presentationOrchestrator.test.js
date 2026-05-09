@@ -142,7 +142,10 @@ test('dungeon equipment use maps to neutralize animation kind', () => {
   assert.deepEqual(neutralize.payload, {
     neutralizedMonsterIds: ['orc'],
     consumedEquipmentIds: ['B_AXE'],
+    responsibleEquipmentIds: ['B_AXE'],
+    expendedEquipmentIds: ['B_AXE'],
     engineActionType: 'USE_FIRE_AXE',
+    isFinalDungeonMonsterDefeat: false,
   })
   const continueBeat = animations.find((a) => a.kind === 'DUNGEON_CONTINUE')
   assert.ok(continueBeat)
@@ -230,7 +233,10 @@ test('dungeon reveal-or-continue queues reveal/neutralize/continue when deltas i
   assert.deepEqual(neutralize?.payload, {
     neutralizedMonsterIds: [],
     consumedEquipmentIds: [],
+    responsibleEquipmentIds: [],
+    expendedEquipmentIds: [],
     engineActionType: 'REVEAL_OR_CONTINUE',
+    isFinalDungeonMonsterDefeat: true,
   })
 })
 
@@ -265,10 +271,114 @@ test('dungeon neutralize payload prefers discard pile diff when ids are present'
   assert.deepEqual(neutralize?.payload, {
     neutralizedMonsterIds: ['golem'],
     consumedEquipmentIds: ['M_POLY'],
+    responsibleEquipmentIds: ['M_POLY'],
+    expendedEquipmentIds: ['M_POLY'],
     engineActionType: 'USE_POLYMORPH',
+    isFinalDungeonMonsterDefeat: true,
   })
   const damage = animations.find((a) => a.kind === 'DUNGEON_DAMAGE')
   assert.deepEqual(damage?.payload, { hpDelta: -2 })
+})
+
+test('dungeon neutralize payload reads responsible/expended ids from defeat record (passive torch)', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'dungeon',
+    phaseAfter: 'dungeon',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-1',
+    dungeonRunResult: null,
+    action: { type: 'REVEAL_OR_CONTINUE' },
+    dungeonBefore: dungeonSummary({
+      subphase: 'reveal',
+      currentMonster: null,
+      remainingMonsterCount: 2,
+      discardedMonsterCount: 1,
+      hp: 6,
+    }),
+    dungeonAfter: dungeonSummary({
+      subphase: 'reveal',
+      currentMonster: null,
+      remainingMonsterCount: 1,
+      discardedMonsterCount: 2,
+      hp: 6,
+      lastDefeatRecord: {
+        monsterCard: 'goblin',
+        byEquipmentIds: ['W_TORCH'],
+        expendedEquipmentIds: [],
+      },
+    }),
+  })
+  const neutralize = animations.find((a) => a.kind === 'DUNGEON_NEUTRALIZE')
+  assert.ok(neutralize)
+  assert.deepEqual(neutralize.payload.responsibleEquipmentIds, ['W_TORCH'])
+  assert.deepEqual(neutralize.payload.expendedEquipmentIds, [])
+  assert.deepEqual(neutralize.payload.consumedEquipmentIds, [])
+  assert.equal(neutralize.payload.isFinalDungeonMonsterDefeat, false)
+})
+
+test('dungeon neutralize payload reads responsible/expended ids from defeat record (single-use vorpal)', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'dungeon',
+    phaseAfter: 'dungeon',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-1',
+    dungeonRunResult: null,
+    action: { type: 'REVEAL_OR_CONTINUE' },
+    dungeonBefore: dungeonSummary({
+      subphase: 'vorpal',
+      currentMonster: null,
+      remainingMonsterCount: 1,
+      discardedMonsterCount: 0,
+      hp: 6,
+    }),
+    dungeonAfter: dungeonSummary({
+      subphase: 'reveal',
+      currentMonster: null,
+      remainingMonsterCount: 0,
+      discardedMonsterCount: 1,
+      hp: 6,
+      lastDefeatRecord: {
+        monsterCard: 'dragon',
+        byEquipmentIds: ['W_VORPAL'],
+        expendedEquipmentIds: ['W_VORPAL'],
+      },
+    }),
+  })
+  const neutralize = animations.find((a) => a.kind === 'DUNGEON_NEUTRALIZE')
+  assert.ok(neutralize)
+  assert.deepEqual(neutralize.payload.responsibleEquipmentIds, ['W_VORPAL'])
+  assert.deepEqual(neutralize.payload.expendedEquipmentIds, ['W_VORPAL'])
+  assert.deepEqual(neutralize.payload.consumedEquipmentIds, ['W_VORPAL'])
+  assert.equal(neutralize.payload.isFinalDungeonMonsterDefeat, true)
+})
+
+test('dungeon neutralize payload omits responsible ids for combat-only defeat', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'dungeon',
+    phaseAfter: 'dungeon',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-1',
+    dungeonRunResult: null,
+    action: { type: 'REVEAL_OR_CONTINUE' },
+    dungeonBefore: dungeonSummary({
+      subphase: 'reveal',
+      currentMonster: null,
+      remainingMonsterCount: 1,
+      discardedMonsterCount: 0,
+      hp: 6,
+    }),
+    dungeonAfter: dungeonSummary({
+      subphase: 'reveal',
+      currentMonster: null,
+      remainingMonsterCount: 0,
+      discardedMonsterCount: 1,
+      hp: 4,
+    }),
+  })
+  const neutralize = animations.find((a) => a.kind === 'DUNGEON_NEUTRALIZE')
+  assert.ok(neutralize)
+  assert.deepEqual(neutralize.payload.responsibleEquipmentIds, [])
+  assert.deepEqual(neutralize.payload.expendedEquipmentIds, [])
 })
 
 test('dungeon animation ordering is deterministic for reveal/resolve/continue steps', () => {
@@ -910,7 +1020,10 @@ test('flight-related beats expose stable payload keys from engine facts', () => 
   assert.deepEqual(Object.keys(neutralize.payload).sort(), [
     'consumedEquipmentIds',
     'engineActionType',
+    'expendedEquipmentIds',
+    'isFinalDungeonMonsterDefeat',
     'neutralizedMonsterIds',
+    'responsibleEquipmentIds',
   ])
   assert.equal(neutralize.payload.engineActionType, 'USE_FIRE_AXE')
 
@@ -933,6 +1046,8 @@ test('flight-related beats expose stable payload keys from engine facts', () => 
     'consumedEquipmentIds',
     'eliminatedMonsterCard',
     'engineActionType',
+    'expendedEquipmentIds',
+    'responsibleEquipmentIds',
     'revealedToSeatId',
   ])
   assert.equal(sacrifice.payload.engineActionType, 'SACRIFICE')
@@ -945,10 +1060,14 @@ function dungeonSummary({
   discardedMonsterCount = 0,
   discardedRunMonsterIds,
   hp = 0,
+  lastDefeatRecord,
 } = {}) {
   const out = { subphase, currentMonster, remainingMonsterCount, discardedMonsterCount, hp }
   if (discardedRunMonsterIds !== undefined) {
     out.discardedRunMonsterIds = discardedRunMonsterIds
+  }
+  if (lastDefeatRecord !== undefined) {
+    out.lastDefeatRecord = lastDefeatRecord
   }
   return out
 }

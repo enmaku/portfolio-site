@@ -40,7 +40,9 @@ function ensurePresentationMotionResizePlaceholder() {
  * @param {string} key — ref key from `getMotionRefs`
  */
 function clearPropsForPresentationRefKey(key) {
-  if (typeof key === 'string' && key.startsWith('equipment_')) return 'opacity,filter'
+  if (typeof key === 'string' && key.startsWith('equipment_')) {
+    return 'opacity,filter,boxShadow,transform,transformOrigin'
+  }
   return 'all'
 }
 

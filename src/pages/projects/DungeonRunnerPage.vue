@@ -663,7 +663,7 @@ usePresentationMotion({
       presentationGhostTarget: heroCardSlotRef.value,
     }
     if (head?.kind !== 'BIDDING_SACRIFICE' && head?.kind !== 'DUNGEON_NEUTRALIZE') return base
-    const ids = head?.payload?.consumedEquipmentIds ?? []
+    const ids = head?.payload?.responsibleEquipmentIds ?? head?.payload?.consumedEquipmentIds ?? []
     const extra = {}
     for (const id of ids) {
       const node = biddingEquipmentBadgeRefs[id]
@@ -788,7 +788,10 @@ const boardEquipmentTokens = computed(() => {
   const hasActionable = actionableEquipmentIds.value.size > 0
   return biddingBoard.value.secondary.equipment.map((equipment) => {
     const dungeonToken = dungeonTokenById.get(equipment.equipmentId)
-    const removed = equipment.removed || equipment.consumed
+    const removed =
+      equipment.removed ||
+      equipment.consumed ||
+      (isDungeonPhase && !dungeonTokenById.has(equipment.equipmentId))
     const actionable = isDungeonPhase && actionableEquipmentIds.value.has(equipment.equipmentId)
     return {
       equipmentId: equipment.equipmentId,
@@ -1287,6 +1290,16 @@ function summarizeDungeonForPresentation(dungeonState) {
   const discardedRunMonsterIds = Array.isArray(dungeonState.discardedRunMonsters)
     ? [...dungeonState.discardedRunMonsters]
     : []
+  const rawDefeatRecord = dungeonState.lastDefeatRecord ?? null
+  const lastDefeatRecord = rawDefeatRecord
+    ? {
+        monsterCard: rawDefeatRecord.monsterCard ?? null,
+        byEquipmentIds: Array.isArray(rawDefeatRecord.byEquipmentIds) ? [...rawDefeatRecord.byEquipmentIds] : [],
+        expendedEquipmentIds: Array.isArray(rawDefeatRecord.expendedEquipmentIds)
+          ? [...rawDefeatRecord.expendedEquipmentIds]
+          : [],
+      }
+    : null
   return {
     subphase: dungeonState.subphase ?? null,
     currentMonster: dungeonState.currentMonster ?? null,
@@ -1296,6 +1309,7 @@ function summarizeDungeonForPresentation(dungeonState) {
     discardedMonsterCount: discardedRunMonsterIds.length,
     discardedRunMonsterIds,
     hp: Number.isFinite(dungeonState.hp) ? dungeonState.hp : null,
+    lastDefeatRecord,
   }
 }
 

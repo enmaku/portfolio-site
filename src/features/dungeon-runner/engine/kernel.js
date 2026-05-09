@@ -150,6 +150,7 @@ export function createInitialMatchState(setup, options) {
       vorpalTarget: null,
       polySpent: false,
       axeSpent: false,
+      lastDefeatRecord: null,
     },
     pickAdventurer: {
       activeSeatId: null,
@@ -450,6 +451,7 @@ function buildDungeonStateOnEnter(state, nextBidding) {
     vorpalTarget: null,
     polySpent: !inSet.has(EQUIP_POLY),
     axeSpent: !inSet.has(EQUIP_FIRE_AXE),
+    lastDefeatRecord: null,
   }
 }
 
@@ -658,6 +660,7 @@ function applyChooseNextAdventurerAction(state, action, actor) {
       vorpalTarget: null,
       polySpent: false,
       axeSpent: false,
+      lastDefeatRecord: null,
     },
     playerOwnPileAdds: Object.fromEntries(state.seats.map((seat) => [seat.id, []])),
   }
@@ -670,6 +673,7 @@ function applyDungeonStepAction(state, nextSubphase) {
     dungeon: {
       ...state.dungeon,
       subphase: nextSubphase,
+      lastDefeatRecord: null,
     },
   }
 }
@@ -689,6 +693,7 @@ function applyDeclareVorpalAction(state, action, actor) {
       ...state.dungeon,
       vorpalTarget: action.species ?? null,
       subphase: DUNGEON_SUBPHASES.REVEAL,
+      lastDefeatRecord: null,
     },
   }
 }
@@ -707,6 +712,7 @@ function applyRevealOrContinueAction(state, actor) {
   const d0 = {
     ...state.dungeon,
     subphase: DUNGEON_SUBPHASES.REVEAL,
+    lastDefeatRecord: null,
   }
   let remaining = [...(d0.remainingMonsters ?? [])]
   let current = d0.currentMonster
@@ -810,13 +816,18 @@ function applyFireAxeUseAction(state, actor) {
     return null
   }
   const d0 = state.dungeon
-  return transitionAfterDefeat(state, {
-    ...d0,
-    axeSpent: true,
-    inPlayEquipmentIds: (d0.inPlayEquipmentIds ?? []).filter((id) => id !== EQUIP_FIRE_AXE),
-    currentMonster: null,
-    discardedRunMonsters: [...(d0.discardedRunMonsters ?? []), d0.currentMonster].filter(Boolean),
-  })
+  const defeated = d0.currentMonster
+  return transitionAfterDefeat(
+    state,
+    {
+      ...d0,
+      axeSpent: true,
+      inPlayEquipmentIds: (d0.inPlayEquipmentIds ?? []).filter((id) => id !== EQUIP_FIRE_AXE),
+      currentMonster: null,
+      discardedRunMonsters: [...(d0.discardedRunMonsters ?? []), defeated].filter(Boolean),
+    },
+    { monsterCard: defeated ?? null, byEquipmentIds: [EQUIP_FIRE_AXE], expendedEquipmentIds: [EQUIP_FIRE_AXE] },
+  )
 }
 
 /**
@@ -849,22 +860,18 @@ function applyPolymorphUseAction(state, actor) {
     return null
   }
   const d0 = state.dungeon
-  const remaining = [...(d0.remainingMonsters ?? [])]
-  const next = remaining.shift()
-  if (!next) return applyMonsterCombatHits(state, d0)
-  const nextState = {
-    ...state,
-    dungeon: {
+  const defeated = d0.currentMonster
+  return transitionAfterDefeat(
+    state,
+    {
       ...d0,
       polySpent: true,
       inPlayEquipmentIds: (d0.inPlayEquipmentIds ?? []).filter((id) => id !== EQUIP_POLY),
-      currentMonster: next,
-      remainingMonsters: remaining,
-      discardedRunMonsters: [...(d0.discardedRunMonsters ?? []), d0.currentMonster].filter(Boolean),
-      subphase: DUNGEON_SUBPHASES.REVEAL,
+      currentMonster: null,
+      discardedRunMonsters: [...(d0.discardedRunMonsters ?? []), defeated].filter(Boolean),
     },
-  }
-  return applyRevealOrContinueAction(nextState, actor)
+    { monsterCard: defeated ?? null, byEquipmentIds: [EQUIP_POLY], expendedEquipmentIds: [EQUIP_POLY] },
+  )
 }
 
 /**
@@ -880,13 +887,28 @@ function applyPolymorphDeclineAction(state, actor) {
   return applyMonsterCombatHits(state, state.dungeon)
 }
 
-function transitionAfterDefeat(state, dungeon) {
+/**
+ * @param {ReturnType<typeof createInitialMatchState>} state
+ * @param {typeof state.dungeon} dungeon
+ * @param {{monsterCard: string|null, byEquipmentIds: string[], expendedEquipmentIds: string[]}|null} [defeatRecord]
+ *   Presentation metadata for the defeat that triggered this transition. Stored on
+ *   `dungeon.lastDefeatRecord` and cleared (set to `null`) by default so it does not leak across
+ *   transitions. Read by the orchestrator to drive equipment ghost-flight animations.
+ */
+function transitionAfterDefeat(state, dungeon, defeatRecord = null) {
   const remaining = [...(dungeon.remainingMonsters ?? [])]
-  if (!remaining.length) return concludeDungeonSuccess(state, { ...dungeon, currentMonster: null, remainingMonsters: remaining })
+  const dungeonWithRecord = { ...dungeon, lastDefeatRecord: defeatRecord }
+  if (!remaining.length) {
+    return concludeDungeonSuccess(state, {
+      ...dungeonWithRecord,
+      currentMonster: null,
+      remainingMonsters: remaining,
+    })
+  }
   return {
     ...state,
     dungeon: {
-      ...dungeon,
+      ...dungeonWithRecord,
       currentMonster: null,
       remainingMonsters: remaining,
       subphase: DUNGEON_SUBPHASES.REVEAL,
@@ -968,13 +990,18 @@ function applyAutoDefeat(state, dungeon) {
   const inPlay = new Set(dungeon.inPlayEquipmentIds ?? [])
 
   if (dungeon.vorpalTarget && dungeon.vorpalTarget === current && [...EQUIP_VORPAL_IDS].some((id) => inPlay.has(id))) {
+    const vorpalIds = [...inPlay].filter((id) => EQUIP_VORPAL_IDS.has(id))
     const nextInPlay = [...inPlay].filter((id) => !EQUIP_VORPAL_IDS.has(id))
-    return transitionAfterDefeat(state, {
-      ...dungeon,
-      inPlayEquipmentIds: nextInPlay,
-      vorpalTarget: null,
-      discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
-    })
+    return transitionAfterDefeat(
+      state,
+      {
+        ...dungeon,
+        inPlayEquipmentIds: nextInPlay,
+        vorpalTarget: null,
+        discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
+      },
+      { monsterCard: current, byEquipmentIds: vorpalIds, expendedEquipmentIds: vorpalIds },
+    )
   }
 
   if (current === 'demon' && inPlay.has('M_PACT')) {
@@ -982,40 +1009,62 @@ function applyAutoDefeat(state, dungeon) {
     const next = remaining.shift()
     const discardedRunMonsters = [...(dungeon.discardedRunMonsters ?? []), current]
     if (next) discardedRunMonsters.push(next)
-    return transitionAfterDefeat(state, {
-      ...dungeon,
-      remainingMonsters: remaining,
-      inPlayEquipmentIds: [...inPlay].filter((id) => id !== 'M_PACT'),
-      discardedRunMonsters,
-    })
+    return transitionAfterDefeat(
+      state,
+      {
+        ...dungeon,
+        remainingMonsters: remaining,
+        inPlayEquipmentIds: [...inPlay].filter((id) => id !== 'M_PACT'),
+        discardedRunMonsters,
+      },
+      { monsterCard: current, byEquipmentIds: ['M_PACT'], expendedEquipmentIds: ['M_PACT'] },
+    )
   }
 
   const spec = MONSTER_STATS[current] ?? { strength: 3 }
   const hero = state.hero
-  const torch = (hero === 'WARRIOR' && inPlay.has('W_TORCH')) || (hero === 'BARBARIAN' && inPlay.has('B_TORCH'))
-  const holy = ((hero === 'WARRIOR' && inPlay.has('W_HOLY')) || (hero === 'MAGE' && inPlay.has('M_HOLY'))) && spec.strength % 2 === 0
-  const spearDragon = hero === 'WARRIOR' && inPlay.has('W_SPEAR') && current === 'dragon'
-  const cloak = hero === 'ROGUE' && inPlay.has('R_CLOAK') && spec.strength >= 6
-  const hammerGolem = hero === 'BARBARIAN' && inPlay.has('B_HAMMER') && current === 'golem'
-  const ring = hero === 'ROGUE' && inPlay.has('R_RING') && spec.strength <= 2
-  if (torch && spec.strength <= 3) {
-    return transitionAfterDefeat(state, {
-      ...dungeon,
-      discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
-    })
+  const torchId = hero === 'WARRIOR' && inPlay.has('W_TORCH') ? 'W_TORCH'
+    : hero === 'BARBARIAN' && inPlay.has('B_TORCH') ? 'B_TORCH'
+    : null
+  const holyId = ((hero === 'WARRIOR' && inPlay.has('W_HOLY')) || (hero === 'MAGE' && inPlay.has('M_HOLY'))) && spec.strength % 2 === 0
+    ? (hero === 'WARRIOR' ? 'W_HOLY' : 'M_HOLY')
+    : null
+  const spearDragonId = hero === 'WARRIOR' && inPlay.has('W_SPEAR') && current === 'dragon' ? 'W_SPEAR' : null
+  const cloakId = hero === 'ROGUE' && inPlay.has('R_CLOAK') && spec.strength >= 6 ? 'R_CLOAK' : null
+  const hammerGolemId = hero === 'BARBARIAN' && inPlay.has('B_HAMMER') && current === 'golem' ? 'B_HAMMER' : null
+  const ringId = hero === 'ROGUE' && inPlay.has('R_RING') && spec.strength <= 2 ? 'R_RING' : null
+
+  if (torchId && spec.strength <= 3) {
+    return transitionAfterDefeat(
+      state,
+      {
+        ...dungeon,
+        discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
+      },
+      { monsterCard: current, byEquipmentIds: [torchId], expendedEquipmentIds: [] },
+    )
   }
-  if (holy || spearDragon || cloak || hammerGolem) {
-    return transitionAfterDefeat(state, {
-      ...dungeon,
-      discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
-    })
+  const passiveId = holyId ?? spearDragonId ?? cloakId ?? hammerGolemId
+  if (passiveId) {
+    return transitionAfterDefeat(
+      state,
+      {
+        ...dungeon,
+        discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
+      },
+      { monsterCard: current, byEquipmentIds: [passiveId], expendedEquipmentIds: [] },
+    )
   }
-  if (ring) {
-    return transitionAfterDefeat(state, {
-      ...dungeon,
-      hp: (dungeon.hp ?? 0) + spec.strength,
-      discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
-    })
+  if (ringId) {
+    return transitionAfterDefeat(
+      state,
+      {
+        ...dungeon,
+        hp: (dungeon.hp ?? 0) + spec.strength,
+        discardedRunMonsters: [...(dungeon.discardedRunMonsters ?? []), current],
+      },
+      { monsterCard: current, byEquipmentIds: [ringId], expendedEquipmentIds: [] },
+    )
   }
   return null
 }

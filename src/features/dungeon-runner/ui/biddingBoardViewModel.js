@@ -6,7 +6,9 @@ const BIDDING_CARD_BEATS = new Set(['BIDDING_DRAW', 'BIDDING_ADD', 'BIDDING_SACR
 
 export function createBiddingBoardViewModel({ state, visibleState, activeAnimation, viewerSeatId, settings }) {
   const revealedMonsterCard = visibleState?.bidding?.revealedMonsterCard ?? null
-  const consumedSet = new Set(activeAnimation?.payload?.consumedEquipmentIds ?? [])
+  const consumedSet = new Set(
+    activeAnimation?.payload?.expendedEquipmentIds ?? activeAnimation?.payload?.consumedEquipmentIds ?? [],
+  )
   const centerEquipment = state?.centerEquipment ?? []
   const centerSet = new Set(centerEquipment)
   const displayOrder =

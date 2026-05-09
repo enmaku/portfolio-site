@@ -1417,6 +1417,10 @@ test('presentationMotionIsLayoutFragile matches ghost-flight payload shapes', ()
     presentationMotionIsLayoutFragile('DUNGEON_NEUTRALIZE', { consumedEquipmentIds: ['W_SHIELD'] }),
     true,
   )
+  assert.equal(
+    presentationMotionIsLayoutFragile('DUNGEON_NEUTRALIZE', { responsibleEquipmentIds: ['W_TORCH'] }),
+    true,
+  )
   assert.equal(presentationMotionIsLayoutFragile('BIDDING_DRAW', {}), true)
   assert.equal(presentationMotionIsLayoutFragile('BIDDING_ADD', {}), true)
   assert.equal(presentationMotionIsLayoutFragile('BIDDING_SACRIFICE', {}), false)
@@ -1424,7 +1428,203 @@ test('presentationMotionIsLayoutFragile matches ghost-flight payload shapes', ()
     presentationMotionIsLayoutFragile('BIDDING_SACRIFICE', { consumedEquipmentIds: ['W_PLATE'] }),
     true,
   )
+  assert.equal(
+    presentationMotionIsLayoutFragile('BIDDING_SACRIFICE', { responsibleEquipmentIds: ['W_PLATE'] }),
+    true,
+  )
   assert.equal(presentationMotionIsLayoutFragile('TURN_ADVANCE', {}), false)
+})
+
+test('presentationMotionClearKeys reads responsibleEquipmentIds for ghost-flight kinds', () => {
+  assert.deepEqual(
+    presentationMotionClearKeys('DUNGEON_NEUTRALIZE', { responsibleEquipmentIds: ['W_TORCH'] }),
+    ['dungeonCardWrap', 'boardShell', 'equipment_W_TORCH'],
+  )
+  assert.deepEqual(
+    presentationMotionClearKeys('BIDDING_SACRIFICE', { responsibleEquipmentIds: ['W_VORPAL'] }),
+    ['dungeonCardWrap', 'boardShell', 'equipment_W_VORPAL'],
+  )
+})
+
+test('dungeon neutralize factory pulses (not dims) reusable equipment when not in expended set', () => {
+  const card = {
+    nodeType: 1,
+    tagName: 'DIV',
+    getBoundingClientRect: () => ({ left: 50, top: 30, width: 180, height: 240 }),
+  }
+  const badge = {
+    nodeType: 1,
+    tagName: 'DIV',
+    getBoundingClientRect: () => ({ left: 5, top: 300, width: 64, height: 30 }),
+    cloneNode() {
+      return { nodeType: 1, setAttribute() {}, remove() {} }
+    },
+  }
+  const flightLayer = {
+    nodeType: 1,
+    appended: [],
+    appendChild(n) {
+      this.appended.push(n)
+    },
+  }
+  const sets = []
+  const fromToCalls = []
+  const toCalls = []
+  const gsap = {
+    set(el, props) {
+      sets.push({ el, props })
+    },
+    timeline(opts) {
+      return {
+        opts,
+        kill() {},
+        eventCallback() {},
+        add() {
+          return this
+        },
+        duration() {
+          return 0.92
+        },
+        fromTo(target, fromVars, toVars, position) {
+          fromToCalls.push({ target, fromVars, toVars, position })
+          return this
+        },
+        to(target, vars, position) {
+          toCalls.push({ target, vars, position })
+          return this
+        },
+      }
+    },
+  }
+
+  createDungeonNeutralizePresentationMotionTimeline(gsap, {
+    kind: 'DUNGEON_NEUTRALIZE',
+    durationMs: 920,
+    payload: {
+      responsibleEquipmentIds: ['W_TORCH'],
+      expendedEquipmentIds: [],
+    },
+    refs: {
+      dungeonCardWrap: card,
+      equipment_W_TORCH: badge,
+      presentationFlightLayer: flightLayer,
+    },
+  })
+
+  assert.equal(flightLayer.appended.length, 1)
+  assert.equal(sets.some((s) => s.el === badge && s.props.opacity === 0.38), false)
+  assert.ok(fromToCalls.some((c) => c.target === badge && String(c.toVars?.boxShadow ?? '').includes('255, 240, 180')))
+})
+
+test('dungeon neutralize factory dims expended equipment but not reusable equipment in same flight', () => {
+  const card = {
+    nodeType: 1,
+    tagName: 'DIV',
+    getBoundingClientRect: () => ({ left: 50, top: 30, width: 180, height: 240 }),
+  }
+  const makeBadge = () => ({
+    nodeType: 1,
+    tagName: 'DIV',
+    getBoundingClientRect: () => ({ left: 5, top: 300, width: 64, height: 30 }),
+    cloneNode() {
+      return { nodeType: 1, setAttribute() {}, remove() {} }
+    },
+  })
+  const torch = makeBadge()
+  const vorpal = makeBadge()
+  const flightLayer = {
+    nodeType: 1,
+    appended: [],
+    appendChild(n) {
+      this.appended.push(n)
+    },
+  }
+  const sets = []
+  const gsap = {
+    set(el, props) {
+      sets.push({ el, props })
+    },
+    timeline() {
+      return {
+        kill() {},
+        eventCallback() {},
+        add() {
+          return this
+        },
+        duration() {
+          return 0.92
+        },
+        fromTo() {
+          return this
+        },
+        to() {
+          return this
+        },
+      }
+    },
+  }
+
+  createDungeonNeutralizePresentationMotionTimeline(gsap, {
+    kind: 'DUNGEON_NEUTRALIZE',
+    durationMs: 920,
+    payload: {
+      responsibleEquipmentIds: ['W_TORCH', 'W_VORPAL'],
+      expendedEquipmentIds: ['W_VORPAL'],
+    },
+    refs: {
+      dungeonCardWrap: card,
+      equipment_W_TORCH: torch,
+      equipment_W_VORPAL: vorpal,
+      presentationFlightLayer: flightLayer,
+    },
+  })
+
+  assert.equal(sets.some((s) => s.el === torch && s.props.opacity === 0.38), false)
+  assert.ok(sets.some((s) => s.el === vorpal && s.props.opacity === 0.38))
+})
+
+test('dungeon neutralize factory skips card slide-off when isFinalDungeonMonsterDefeat is true', () => {
+  const card = {
+    nodeType: 1,
+    tagName: 'DIV',
+    getBoundingClientRect: () => ({ left: 50, top: 30, width: 180, height: 240 }),
+  }
+  const toCalls = []
+  const gsap = {
+    set() {},
+    timeline() {
+      return {
+        kill() {},
+        eventCallback() {},
+        add() {
+          return this
+        },
+        duration() {
+          return 0.92
+        },
+        fromTo() {
+          return this
+        },
+        to(target, vars, position) {
+          toCalls.push({ target, vars, position })
+          return this
+        },
+      }
+    },
+  }
+
+  createDungeonNeutralizePresentationMotionTimeline(gsap, {
+    kind: 'DUNGEON_NEUTRALIZE',
+    durationMs: 920,
+    payload: {
+      responsibleEquipmentIds: [],
+      expendedEquipmentIds: [],
+      isFinalDungeonMonsterDefeat: true,
+    },
+    refs: { dungeonCardWrap: card },
+  })
+
+  assert.equal(toCalls.some((c) => c.target === card && Number(c.vars?.x ?? 0) > 50), false)
 })
 
 test('purgePresentationEquipmentGhostNodes removes all marked nodes under body', () => {

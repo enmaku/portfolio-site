@@ -135,6 +135,31 @@ test('board view model darkens consumed equipment from active bidding animation'
   assert.equal(model.secondary.equipment[1].removed, false)
 })
 
+test('board view model darkens expended equipment from active dungeon neutralize animation', () => {
+  const model = createBiddingBoardViewModel({
+    state: {
+      turn: { activeSeatId: 'seat-1' },
+      centerEquipment: ['W_VORPAL', 'W_TORCH'],
+      bidding: {
+        monsterDeck: [],
+        dungeonMonsters: ['dragon'],
+        equipmentDisplayOrder: ['W_VORPAL', 'W_TORCH'],
+      },
+    },
+    visibleState: { bidding: { revealedMonsterCard: null } },
+    activeAnimation: {
+      kind: 'DUNGEON_NEUTRALIZE',
+      payload: {
+        responsibleEquipmentIds: ['W_VORPAL'],
+        expendedEquipmentIds: ['W_VORPAL'],
+      },
+    },
+  })
+
+  assert.equal(model.secondary.equipment[0].consumed, true)
+  assert.equal(model.secondary.equipment[1].consumed, false)
+})
+
 test('board shows eliminated monster to drawer during bidding sacrifice beat', () => {
   const model = createBiddingBoardViewModel({
     state: {
