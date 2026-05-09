@@ -269,7 +269,7 @@
           </div>
         </q-card>
 
-        <q-card flat bordered class="q-pa-sm q-mb-md">
+        <q-card v-if="showActionPane" flat bordered class="q-pa-sm q-mb-md">
           <div class="text-subtitle2 q-mb-sm">Action</div>
           <div v-if="activePresentationLabel" class="text-body2 text-grey-6 q-mb-xs">{{ activePresentationLabel }}</div>
           <div v-if="isHumanTurn" class="row q-col-gutter-sm q-gutter-y-sm">
@@ -310,7 +310,7 @@
             </template>
             <template v-else>
               <q-btn
-                v-for="action in visibleLegalActions"
+                v-for="action in visiblePrimaryActions"
                 :key="actionKey(action)"
                 :color="biddingBoard.heroCue.buttonColor"
                 unelevated
@@ -818,6 +818,15 @@ const visibleLegalActions = computed(() =>
     phase: match.value?.state?.phase ?? null,
     legalActions: legalActions.value,
   }),
+)
+const visiblePrimaryActions = computed(() =>
+  visibleLegalActions.value.filter((action) => action.type !== 'REVEAL_OR_CONTINUE'),
+)
+const showActionPane = computed(
+  () =>
+    !!activePresentationLabel.value ||
+    (isHumanTurn.value &&
+      (visiblePrimaryActions.value.length > 0 || dungeonOutcomeTransitionControls.value.length > 0)),
 )
 const biddingSacrificeActions = computed(() => visibleLegalActions.value.filter((a) => a.type === 'SACRIFICE'))
 const biddingNonSacrificeActions = computed(() => visibleLegalActions.value.filter((a) => a.type !== 'SACRIFICE'))
