@@ -21,6 +21,27 @@ test('shows face-down monster while reveal animation is active', () => {
   assert.equal(model.resolutionStatus, 'revealing')
 })
 
+test('reveal beat uses payload species when engine cleared currentMonster same step (vorpal flash)', () => {
+  const model = createDungeonResolutionViewModel({
+    visibleState: {
+      dungeon: {
+        currentMonster: null,
+        hp: 8,
+        inPlayEquipmentIds: [],
+        subphase: 'reveal',
+      },
+    },
+    legalActions: [{ type: 'REVEAL_OR_CONTINUE' }],
+    activeAnimation: {
+      kind: 'DUNGEON_REVEAL',
+      payload: { revealedMonsterId: 'dragon' },
+    },
+  })
+
+  assert.equal(model.monster.visibility, 'face-down')
+  assert.equal(model.monster.frontFaceSpecies, 'dragon')
+})
+
 test('frontFaceSpecies matches species while monster is revealed', () => {
   const model = createDungeonResolutionViewModel({
     visibleState: {

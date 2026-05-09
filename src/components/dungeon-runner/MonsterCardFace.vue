@@ -7,7 +7,11 @@
         :class="{ 'dr-monster-card__axis--revealed': !empty && !faceDown }"
       >
         <template v-if="empty">
-          <div class="dr-monster-card__empty-slot" aria-hidden="true" />
+          <div
+            class="dr-monster-card__empty-slot"
+            :class="{ 'dr-monster-card__empty-slot--hidden': hideEmptySlot }"
+            aria-hidden="true"
+          />
         </template>
         <template v-else>
         <div class="dr-monster-card__face dr-monster-card__face--back">
@@ -59,6 +63,7 @@ const props = defineProps({
   faceDown: { type: Boolean, default: false },
   /** Bidding idle: keep layout + flip ref without showing a card back */
   empty: { type: Boolean, default: false },
+  hideEmptySlot: { type: Boolean, default: false },
 })
 
 const flipAxisEl = ref(null)
@@ -242,5 +247,10 @@ const displayName = computed(() => displayNameForSpecies(spec.value?.species ?? 
   border: 2px dashed rgba(255, 255, 255, 0.22);
   background: rgba(0, 0, 0, 0.08);
   box-sizing: border-box;
+}
+
+.dr-monster-card__empty-slot--hidden {
+  border-color: transparent;
+  background: transparent;
 }
 </style>

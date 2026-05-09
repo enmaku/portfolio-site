@@ -1,5 +1,6 @@
 import gsap from 'gsap'
 
+import { isDungeonPresentationTraceEnabled } from './dungeonPresentationTrace.js'
 import { ORCHESTRATOR_PRESENTATION_KINDS } from './orchestratorPresentationKinds.js'
 
 /**
@@ -58,6 +59,108 @@ function centerDeltaBetweenElements(fromEl, toEl) {
   const bcx = b.left + b.width / 2
   const bcy = b.top + b.height / 2
   return { dx: acx - bcx, dy: acy - bcy, ok: true }
+}
+
+/**
+ * Fly `.dr-dungeon-card-motion-wrap` from a pile badge toward the slot, then optionally rotate the flip axis.
+ * Shared by dungeon reveal and bidding draw (anchor + flip phasing differ per caller).
+ *
+ * @param {import('gsap').GSAP} gsapApi
+ * @param {import('gsap').core.Timeline} tl
+ * @param {{
+ *   card: Element,
+ *   anchor: Element | null | undefined,
+ *   flip: Element | null | undefined,
+ *   dur: number,
+ *   reserveFlipPhasing: boolean,
+ *   animateFlipRotation: boolean,
+ *   cardOpacityForInitialSet: number,
+ *   debugTag?: 'DUNGEON_REVEAL' | 'BIDDING_DRAW',
+ * }} opts
+ */
+function appendCardFlyFromAnchorThenMaybeFlip(gsapApi, tl, opts) {
+  const {
+    card,
+    anchor,
+    flip,
+    dur,
+    reserveFlipPhasing,
+    animateFlipRotation,
+    cardOpacityForInitialSet,
+    debugTag,
+  } = opts
+  const set = gsapApi?.set
+  const origin = { transformOrigin: 'center center' }
+  const flightRatio = reserveFlipPhasing && isDomElement(flip) ? 0.62 : 0.85
+  const flightDur = dur * flightRatio
+  const flipDur = Math.max(0, dur - flightDur)
+
+  let startX = 0
+  let startY = 0
+  const startScale = 0.42
+  let centerDelta = { dx: 0, dy: 0, ok: false }
+  if (isDomElement(anchor)) {
+    centerDelta = centerDeltaBetweenElements(anchor, card)
+    if (centerDelta.ok) {
+      startX = centerDelta.dx
+      startY = centerDelta.dy
+    }
+  }
+
+  if (isDungeonPresentationTraceEnabled() && debugTag) {
+    const snap = (el) => {
+      if (!isDomElement(el) || typeof el.getBoundingClientRect !== 'function') {
+        return { present: false }
+      }
+      const r = el.getBoundingClientRect()
+      return {
+        present: true,
+        tag: el.tagName,
+        w: Math.round(r.width * 100) / 100,
+        h: Math.round(r.height * 100) / 100,
+        cx: Math.round((r.left + r.width / 2) * 100) / 100,
+        cy: Math.round((r.top + r.height / 2) * 100) / 100,
+      }
+    }
+    console.log('[dungeon-runner][card-flight]', debugTag, {
+      durationSec: dur,
+      flightRatio,
+      flightDur,
+      flipDur,
+      reserveFlipPhasing,
+      animateFlipRotation,
+      anchor: snap(anchor),
+      card: snap(card),
+      flip: snap(flip),
+      centerDelta,
+      start: { x: Math.round(startX * 100) / 100, y: Math.round(startY * 100) / 100 },
+      flightPixels: Math.hypot(startX, startY),
+      gsapSet: typeof set === 'function',
+    })
+  }
+
+  if (typeof set === 'function') {
+    set(card, { x: startX, y: startY, scale: startScale, opacity: cardOpacityForInitialSet, ...origin })
+    if (isDomElement(flip)) set(flip, { rotationY: 0, transformOrigin: 'center center' })
+  }
+
+  tl.fromTo(
+    card,
+    { x: startX, y: startY, scale: startScale, opacity: 0.92, ...origin },
+    { x: 0, y: 0, scale: 1, opacity: 1, duration: flightDur, ease: 'power2.out', ...origin },
+    0,
+  )
+
+  if (animateFlipRotation && isDomElement(flip) && flipDur > 0) {
+    tl.fromTo(
+      flip,
+      { rotationY: 0, transformOrigin: 'center center' },
+      { rotationY: 180, duration: flipDur, ease: 'power2.inOut' },
+      flightDur,
+    )
+  } else if (flightDur < dur) {
+    tl.to({}, { duration: dur - flightDur })
+  }
 }
 
 /** Sunlight-colored activation glow used for reusable (non-expended) equipment that fires a ghost flight. */
@@ -376,51 +479,23 @@ export function createDungeonRevealPresentationMotionTimeline(gsapApi, ctx) {
   const ms = Math.max(0, Number(ctx.durationMs) || 0)
   const dur = ms / 1000
   const tl = gsapApi.timeline({ paused: true })
-  const set = gsapApi?.set
 
   if (!isDomElement(card) || dur <= 0) {
     if (dur > 0) tl.to({}, { duration: dur })
     return tl
   }
 
-  const origin = { transformOrigin: 'center center' }
-  const flightRatio = isDomElement(flip) ? 0.62 : 0.85
-  const flightDur = dur * flightRatio
-  const flipDur = Math.max(0, dur - flightDur)
-
-  let startX = 0
-  let startY = 0
-  let startScale = 0.42
-  if (isDomElement(pile)) {
-    const d = centerDeltaBetweenElements(pile, card)
-    if (d.ok) {
-      startX = d.dx
-      startY = d.dy
-    }
-  }
-
-  if (typeof set === 'function') {
-    set(card, { x: startX, y: startY, scale: startScale, opacity: 0.92, ...origin })
-    if (isDomElement(flip)) set(flip, { rotationY: 0, transformOrigin: 'center center' })
-  }
-
-  tl.fromTo(
+  const flipEl = isDomElement(flip) ? flip : null
+  appendCardFlyFromAnchorThenMaybeFlip(gsapApi, tl, {
     card,
-    { x: startX, y: startY, scale: startScale, opacity: 0.92, ...origin },
-    { x: 0, y: 0, scale: 1, opacity: 1, duration: flightDur, ease: 'power2.out', ...origin },
-    0,
-  )
-
-  if (isDomElement(flip) && flipDur > 0) {
-    tl.fromTo(
-      flip,
-      { rotationY: 0, transformOrigin: 'center center' },
-      { rotationY: 180, duration: flipDur, ease: 'power2.inOut' },
-      flightDur,
-    )
-  } else if (flightDur < dur) {
-    tl.to({}, { duration: dur - flightDur })
-  }
+    anchor: pile,
+    flip: flipEl,
+    dur,
+    reserveFlipPhasing: !!flipEl,
+    animateFlipRotation: !!flipEl,
+    cardOpacityForInitialSet: 0.92,
+    debugTag: 'DUNGEON_REVEAL',
+  })
 
   return tl
 }
@@ -490,17 +565,28 @@ export function createDungeonNeutralizePresentationMotionTimeline(gsapApi, ctx) 
   const exitStart = dur > 0 ? Math.min(dur * 0.58, dur - Math.max(0.22, dur * 0.12)) : 0
   const exitDur = dur > exitStart ? dur - exitStart : 0
   if (!isFinalDefeat && exitDur > 0) {
-    const off =
-      typeof window !== 'undefined' && Number.isFinite(window.innerWidth)
-        ? Math.max(220, window.innerWidth * 0.42)
-        : 320
+    let off = 420
+    if (
+      typeof window !== 'undefined' &&
+      Number.isFinite(window.innerWidth) &&
+      typeof el.getBoundingClientRect === 'function'
+    ) {
+      const r = el.getBoundingClientRect()
+      if (Number.isFinite(r.left) && Number.isFinite(r.width)) {
+        off = Math.max(320, window.innerWidth - r.left + Math.max(28, r.width))
+      } else {
+        off = Math.max(320, window.innerWidth * 0.75)
+      }
+    } else if (typeof window !== 'undefined' && Number.isFinite(window.innerWidth)) {
+      off = Math.max(320, window.innerWidth * 0.75)
+    }
     tl.to(
       el,
       {
         x: off,
-        opacity: 0.15,
+        opacity: 0,
         duration: exitDur,
-        ease: 'power2.in',
+        ease: 'power3.in',
       },
       exitStart,
     )
@@ -682,7 +768,6 @@ export function createBiddingDrawPresentationMotionTimeline(gsapApi, ctx) {
   const ms = Math.max(0, Number(ctx.durationMs) || 0)
   const dur = ms / 1000
   const tl = gsapApi.timeline({ paused: true })
-  const set = gsapApi?.set
   const payload = ctx.payload ?? {}
   const shouldFlip = payload.shouldFlipFaceAfterArrival === true
 
@@ -691,44 +776,17 @@ export function createBiddingDrawPresentationMotionTimeline(gsapApi, ctx) {
     return tl
   }
 
-  const origin = { transformOrigin: 'center center' }
-  const flightRatio = shouldFlip && isDomElement(flip) ? 0.62 : 0.85
-  const flightDur = dur * flightRatio
-  const flipDur = Math.max(0, dur - flightDur)
-
-  let startX = 0
-  let startY = 0
-  let startScale = 0.42
-  if (isDomElement(deck)) {
-    const d = centerDeltaBetweenElements(deck, card)
-    if (d.ok) {
-      startX = d.dx
-      startY = d.dy
-    }
-  }
-
-  if (typeof set === 'function') {
-    set(card, { x: startX, y: startY, scale: startScale, opacity: 1, ...origin })
-    if (isDomElement(flip)) set(flip, { rotationY: 0, transformOrigin: 'center center' })
-  }
-
-  tl.fromTo(
+  const flipEl = isDomElement(flip) ? flip : null
+  appendCardFlyFromAnchorThenMaybeFlip(gsapApi, tl, {
     card,
-    { x: startX, y: startY, scale: startScale, opacity: 0.92, ...origin },
-    { x: 0, y: 0, scale: 1, opacity: 1, duration: flightDur, ease: 'power2.out', ...origin },
-    0,
-  )
-
-  if (shouldFlip && isDomElement(flip) && flipDur > 0) {
-    tl.fromTo(
-      flip,
-      { rotationY: 0, transformOrigin: 'center center' },
-      { rotationY: 180, duration: flipDur, ease: 'power2.inOut' },
-      flightDur,
-    )
-  } else if (flightDur < dur) {
-    tl.to({}, { duration: dur - flightDur })
-  }
+    anchor: deck,
+    flip: flipEl,
+    dur,
+    reserveFlipPhasing: shouldFlip && !!flipEl,
+    animateFlipRotation: shouldFlip && !!flipEl,
+    cardOpacityForInitialSet: 1,
+    debugTag: 'BIDDING_DRAW',
+  })
 
   return tl
 }

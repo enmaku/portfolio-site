@@ -113,6 +113,21 @@ test('resetPresentationMotionTargets ignores non-elements', () => {
   assert.equal(gsap.sets.length, 0)
 })
 
+test('resetPresentationMotionTargets dungeon continue narrow clears filter only on dungeonCardWrap', () => {
+  const gsap = createMockGsap()
+  const shell = { nodeType: 1, tagName: 'SECTION' }
+  const card = { nodeType: 1, tagName: 'DIV' }
+  resetPresentationMotionTargets(
+    gsap,
+    { boardShell: shell, dungeonCardWrap: card },
+    ['boardShell', 'dungeonCardWrap'],
+    { dungeonContinueCardWrapNarrow: true },
+  )
+  assert.equal(gsap.sets.length, 2)
+  assert.ok(gsap.sets.some((s) => s.el === shell && s.props.clearProps === 'all'))
+  assert.ok(gsap.sets.some((s) => s.el === card && s.props.clearProps === 'filter'))
+})
+
 test('presentation motion kills timeline when active head id changes', async () => {
   const mockGsap = createMockGsap()
   const active = ref({

@@ -163,8 +163,8 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
     for (const animation of turnAdvanceAnimations) queue.push(animation)
   }
 
-  const derivedDungeonKinds = deriveDungeonAnimationKinds(transition)
   const dungeonFacts = computeDungeonPresentationFacts(transition)
+  const derivedDungeonKinds = deriveDungeonAnimationKinds(transition, dungeonFacts)
   const dungeonAnimations = []
   for (const kind of derivedDungeonKinds) {
     dungeonAnimations.push({
@@ -243,6 +243,7 @@ function newlyDiscardedMonsterIdsFromSummaries(before, after) {
  * @param {object} transition
  * @returns {{
  *   revealedMonsterId: string|null,
+ *   flashRevealFromPile: boolean,
  *   neutralizedMonsterIds: string[],
  *   hpDelta: number,
  *   dungeonSubphaseAfter: string|null,
@@ -289,8 +290,23 @@ function computeDungeonPresentationFacts(transition) {
   const isFinalDungeonMonsterDefeat =
     discardedDelta > 0 && remainingAfter === 0 && after?.currentMonster == null
 
+  /** Engine can reveal from pile and auto-defeat in one step (`currentMonster` stays null). */
+  const flashRevealFromPile =
+    !revealedChanged &&
+    (before?.currentMonster ?? null) == null &&
+    discardedDelta > 0 &&
+    transition.action?.type === 'REVEAL_OR_CONTINUE' &&
+    transition.phaseAfter === 'dungeon'
+
+  const revealedMonsterId = revealedChanged
+    ? (after?.currentMonster ?? null)
+    : flashRevealFromPile
+      ? (neutralizedMonsterIds[0] ?? defeatRecord?.monsterCard ?? null)
+      : null
+
   return {
-    revealedMonsterId: revealedChanged ? (after?.currentMonster ?? null) : null,
+    revealedMonsterId,
+    flashRevealFromPile,
     neutralizedMonsterIds,
     hpDelta,
     dungeonSubphaseAfter: after?.subphase ?? null,
@@ -346,7 +362,8 @@ function dungeonPayloadForKind(kind, transition, facts) {
   return {}
 }
 
-function deriveDungeonAnimationKinds(transition) {
+function deriveDungeonAnimationKinds(transition, dungeonFacts) {
+  const facts = dungeonFacts ?? computeDungeonPresentationFacts(transition)
   const kinds = []
   const actionType = transition.action?.type ?? null
   const inDungeonStep = transition.phaseBefore === 'dungeon'
@@ -358,8 +375,6 @@ function deriveDungeonAnimationKinds(transition) {
   const discardedAfter = numericOrNull(after?.discardedMonsterCount) ?? 0
   const hpDelta = hpBefore != null && hpAfter != null ? hpAfter - hpBefore : null
   const discardedDelta = discardedAfter - discardedBefore
-  const revealedChanged =
-    before?.currentMonster !== after?.currentMonster && after?.currentMonster != null
   const tookDamage = hpDelta != null && hpDelta < 0
   const neutralized = discardedDelta > 0
   const resolvedStep = discardedDelta > 0 || tookDamage
@@ -367,7 +382,7 @@ function deriveDungeonAnimationKinds(transition) {
   const hasKnownDungeonOutcome = transition.dungeonRunResult === 'success' || transition.dungeonRunResult === 'failure'
   const concludedFromDungeon = inDungeonStep && transition.phaseAfter !== 'dungeon'
 
-  if (revealedChanged) kinds.push('DUNGEON_REVEAL')
+  if (facts.revealedMonsterId != null) kinds.push('DUNGEON_REVEAL')
   if (neutralized) kinds.push('DUNGEON_NEUTRALIZE')
   if (tookDamage) kinds.push('DUNGEON_DAMAGE')
   if (shouldContinue) kinds.push('DUNGEON_CONTINUE')
@@ -389,7 +404,8 @@ function deriveDungeonAnimationKinds(transition) {
     kinds.length === 0 &&
     inDungeonStep &&
     transition.phaseAfter === 'dungeon' &&
-    actionType === 'REVEAL_OR_CONTINUE'
+    actionType === 'REVEAL_OR_CONTINUE' &&
+    facts.revealedMonsterId != null
   ) {
     kinds.push('DUNGEON_REVEAL')
   }

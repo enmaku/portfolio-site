@@ -24,6 +24,7 @@ export function createDungeonResolutionViewModel({
       currentMonster,
       previousMonster: previousDungeon.currentMonster ?? null,
       activeAnimationKind: activeAnimation?.kind ?? null,
+      revealPayloadMonsterId: activeAnimation?.payload?.revealedMonsterId ?? null,
       dungeon,
       previousDungeon,
     }),
@@ -51,7 +52,14 @@ function inferSpeciesFromDungeonDelta(previousDungeon, dungeon) {
   return null
 }
 
-function buildMonsterView({ currentMonster, previousMonster, activeAnimationKind, dungeon, previousDungeon }) {
+function buildMonsterView({
+  currentMonster,
+  previousMonster,
+  activeAnimationKind,
+  revealPayloadMonsterId,
+  dungeon,
+  previousDungeon,
+}) {
   const laneDeltaSpecies = inferSpeciesFromDungeonDelta(previousDungeon, dungeon)
   const engagedForAnimation =
     currentMonster ?? previousMonster ?? laneDeltaSpecies
@@ -60,7 +68,7 @@ function buildMonsterView({ currentMonster, previousMonster, activeAnimationKind
     return {
       visibility: 'face-down',
       species: null,
-      frontFaceSpecies: currentMonster ?? null,
+      frontFaceSpecies: currentMonster ?? revealPayloadMonsterId ?? null,
     }
   }
   if (

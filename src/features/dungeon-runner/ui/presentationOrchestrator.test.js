@@ -216,22 +216,31 @@ test('dungeon reveal-or-continue queues reveal/neutralize/continue when deltas i
     turnAfterSeatId: 'seat-1',
     dungeonRunResult: null,
     action: { type: 'REVEAL_OR_CONTINUE' },
-    dungeonBefore: dungeonSummary({ currentMonster: null, remainingMonsterCount: 1, discardedMonsterCount: 2, hp: 4 }),
+    dungeonBefore: dungeonSummary({
+      currentMonster: null,
+      remainingMonsterCount: 1,
+      discardedMonsterCount: 2,
+      hp: 4,
+      discardedRunMonsterIds: ['a', 'b'],
+    }),
     dungeonAfter: dungeonSummary({
       subphase: 'reveal',
       currentMonster: null,
       remainingMonsterCount: 0,
       discardedMonsterCount: 3,
       hp: 4,
+      discardedRunMonsterIds: ['a', 'b', 'lich'],
     }),
   })
   assert.deepEqual(
     animations.filter((animation) => animation.kind.startsWith('DUNGEON_')).map((animation) => animation.kind),
-    ['DUNGEON_NEUTRALIZE', 'DUNGEON_CONTINUE'],
+    ['DUNGEON_REVEAL', 'DUNGEON_NEUTRALIZE', 'DUNGEON_CONTINUE'],
   )
+  const reveal = animations.find((a) => a.kind === 'DUNGEON_REVEAL')
+  assert.deepEqual(reveal?.payload, { revealedMonsterId: 'lich' })
   const neutralize = animations.find((a) => a.kind === 'DUNGEON_NEUTRALIZE')
   assert.deepEqual(neutralize?.payload, {
-    neutralizedMonsterIds: [],
+    neutralizedMonsterIds: ['lich'],
     consumedEquipmentIds: [],
     responsibleEquipmentIds: [],
     expendedEquipmentIds: [],
@@ -308,6 +317,10 @@ test('dungeon neutralize payload reads responsible/expended ids from defeat reco
       },
     }),
   })
+  assert.equal(animations.findIndex((a) => a.kind === 'DUNGEON_REVEAL'), 0)
+  assert.deepEqual(animations.find((a) => a.kind === 'DUNGEON_REVEAL')?.payload, {
+    revealedMonsterId: 'goblin',
+  })
   const neutralize = animations.find((a) => a.kind === 'DUNGEON_NEUTRALIZE')
   assert.ok(neutralize)
   assert.deepEqual(neutralize.payload.responsibleEquipmentIds, ['W_TORCH'])
@@ -344,6 +357,13 @@ test('dungeon neutralize payload reads responsible/expended ids from defeat reco
       },
     }),
   })
+  assert.deepEqual(
+    animations.filter((a) => a.kind.startsWith('DUNGEON_')).map((a) => a.kind),
+    ['DUNGEON_REVEAL', 'DUNGEON_NEUTRALIZE', 'DUNGEON_CONTINUE'],
+  )
+  assert.deepEqual(animations.find((a) => a.kind === 'DUNGEON_REVEAL')?.payload, {
+    revealedMonsterId: 'dragon',
+  })
   const neutralize = animations.find((a) => a.kind === 'DUNGEON_NEUTRALIZE')
   assert.ok(neutralize)
   assert.deepEqual(neutralize.payload.responsibleEquipmentIds, ['W_VORPAL'])
@@ -373,7 +393,15 @@ test('dungeon neutralize payload omits responsible ids for combat-only defeat', 
       remainingMonsterCount: 0,
       discardedMonsterCount: 1,
       hp: 4,
+      lastDefeatRecord: {
+        monsterCard: 'orc',
+        byEquipmentIds: [],
+        expendedEquipmentIds: [],
+      },
     }),
+  })
+  assert.deepEqual(animations.find((a) => a.kind === 'DUNGEON_REVEAL')?.payload, {
+    revealedMonsterId: 'orc',
   })
   const neutralize = animations.find((a) => a.kind === 'DUNGEON_NEUTRALIZE')
   assert.ok(neutralize)
@@ -395,6 +423,7 @@ test('dungeon animation ordering is deterministic for reveal/resolve/continue st
       remainingMonsterCount: 1,
       discardedMonsterCount: 2,
       hp: 4,
+      discardedRunMonsterIds: ['x', 'y'],
     }),
     dungeonAfter: dungeonSummary({
       subphase: 'reveal',
@@ -402,11 +431,12 @@ test('dungeon animation ordering is deterministic for reveal/resolve/continue st
       remainingMonsterCount: 0,
       discardedMonsterCount: 3,
       hp: 4,
+      discardedRunMonsterIds: ['x', 'y', 'z'],
     }),
   })
   assert.deepEqual(
     neutralizeAndContinue.filter((animation) => animation.kind.startsWith('DUNGEON_')).map((animation) => animation.kind),
-    ['DUNGEON_NEUTRALIZE', 'DUNGEON_CONTINUE'],
+    ['DUNGEON_REVEAL', 'DUNGEON_NEUTRALIZE', 'DUNGEON_CONTINUE'],
   )
 
   const neutralizeDamageContinue = mapEngineTransitionToAnimations({

@@ -106,7 +106,10 @@ test('dungeon stage render wiring binds resolution view and stage animation clas
   assert.equal(page.includes('dungeonStageClassForKind(activePresentation.value?.kind ?? null)'), true)
   assert.equal(page.includes('ref="dungeonCardMotionWrap"'), true)
   assert.equal(page.includes('dungeonCardWrap: dungeonCardMotionWrap.value'), true)
-  assert.equal(page.includes('dungeonCardFlipAxis: dungeonCardFaceRef.value?.dungeonCardFlipAxis'), true)
+  assert.equal(
+    page.includes('dungeonCardFlipAxis: unwrapMotionDom(dungeonCardFaceRef.value?.dungeonCardFlipAxis)'),
+    true,
+  )
   assert.equal(page.includes('dr-dungeon-hit'), false)
   assert.equal(page.includes('dr-dungeon-stage--strike'), false)
   assert.equal(page.includes('dr-dungeon-stage--consume'), false)

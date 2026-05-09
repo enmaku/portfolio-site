@@ -1,5 +1,6 @@
 import { computed, onScopeDispose, unref, watch } from 'vue'
 
+import { isDungeonPresentationTraceEnabled } from './dungeonPresentationTrace.js'
 import { loadPresentationGsap } from './loadPresentationGsap.js'
 import {
   createPresentationMotionTimeline,
@@ -51,17 +52,23 @@ function clearPropsForPresentationRefKey(key) {
  * @param {import('gsap').GSAP | { set?: Function }} gsapApi
  * @param {Record<string, unknown>|undefined|null} refs
  * @param {readonly string[]|undefined} keys — if set, only these ref keys are cleared (avoids clearProps on refs reserved for future tweens).
+ * @param {{ dungeonContinueCardWrapNarrow?: boolean }} [opts] — when true, `dungeonCardWrap` only clears `filter` so slide-off `x`/`opacity` survive until the next beat or idle narrow clear.
  */
-export function resetPresentationMotionTargets(gsapApi, refs, keys) {
+export function resetPresentationMotionTargets(gsapApi, refs, keys, opts = {}) {
   const set = gsapApi?.set
   if (typeof set !== 'function' || !refs || typeof refs !== 'object') return
+  const narrowContinueWrap = opts.dungeonContinueCardWrapNarrow === true
   const pairs =
     keys != null && keys.length > 0
       ? keys.map((k) => [k, refs[k]])
       : Object.entries(refs)
   for (const [key, value] of pairs) {
     if (value != null && typeof value === 'object' && value.nodeType === 1) {
-      set(value, { clearProps: clearPropsForPresentationRefKey(key) })
+      let clearProps = clearPropsForPresentationRefKey(key)
+      if (narrowContinueWrap && key === 'dungeonCardWrap') {
+        clearProps = 'filter'
+      }
+      set(value, { clearProps })
     }
   }
 }
@@ -103,7 +110,10 @@ export function usePresentationMotion(options) {
   /** @type {{ timeline: Function, set?: Function } | null} */
   let gsapApi = null
 
-  function teardownCurrent() {
+  /**
+   * @param {string|null|undefined} nextPresentationKind — queue head kind after this teardown (`null` / `undefined` when idle or unmount).
+   */
+  function teardownCurrent(nextPresentationKind) {
     if (currentTimeline) {
       currentTimeline.kill()
       currentTimeline = null
@@ -119,7 +129,38 @@ export function usePresentationMotion(options) {
       } else if (teardownClearsShellAndCardToo) {
         clearKeys = ['boardShell', 'dungeonCardWrap']
       }
-      resetPresentationMotionTargets(gsapApi, previousRefs, clearKeys)
+      const skipNeutralizeWrapClear =
+        previousPresentationKind === 'DUNGEON_NEUTRALIZE' &&
+        nextPresentationKind === 'DUNGEON_CONTINUE' &&
+        previousPresentationPayload?.isFinalDungeonMonsterDefeat !== true
+      if (skipNeutralizeWrapClear && clearKeys?.length) {
+        clearKeys = clearKeys.filter((k) => k !== 'dungeonCardWrap')
+      }
+      const continueNarrowCardWrap = previousPresentationKind === 'DUNGEON_CONTINUE'
+      const logMotion = isDungeonPresentationTraceEnabled() && previousPresentationKind != null
+      const wrapEl =
+        logMotion && previousRefs.dungeonCardWrap != null && typeof previousRefs.dungeonCardWrap === 'object'
+          ? previousRefs.dungeonCardWrap
+          : null
+      const wrapNode = wrapEl?.nodeType === 1 ? wrapEl : null
+      const styleBefore = logMotion && wrapNode ? wrapNode.getAttribute('style') : null
+      resetPresentationMotionTargets(gsapApi, previousRefs, clearKeys, {
+        dungeonContinueCardWrapNarrow: continueNarrowCardWrap,
+      })
+      if (logMotion) {
+        const styleAfter = wrapNode ? wrapNode.getAttribute('style') : null
+        const p = previousPresentationPayload
+        console.log('[dungeon-runner][presentation-motion] teardown', {
+          kind: previousPresentationKind,
+          clearKeys: clearKeys ? [...clearKeys] : null,
+          payloadHint:
+            p && typeof p === 'object'
+              ? { isFinalDungeonMonsterDefeat: p.isFinalDungeonMonsterDefeat === true }
+              : null,
+          dungeonCardWrapInlineStyleBefore: styleBefore,
+          dungeonCardWrapInlineStyleAfter: styleAfter,
+        })
+      }
       previousRefs = null
       previousPresentationKind = null
       previousPresentationPayload = undefined
@@ -187,7 +228,17 @@ export function usePresentationMotion(options) {
   watch(
     headSig,
     async () => {
-      teardownCurrent()
+      if (isDungeonPresentationTraceEnabled()) {
+        const nextHead = unref(activePresentation)
+        console.log('[dungeon-runner][presentation-motion] watch', {
+          headSig: headSig.value || '(idle)',
+          tearingDownKind: previousPresentationKind,
+          nextKind: nextHead?.kind ?? null,
+          nextId: nextHead?.id ?? null,
+        })
+      }
+      const nextKind = unref(activePresentation)?.kind ?? null
+      teardownCurrent(nextKind)
       const sigAtStart = headSig.value
       if (!sigAtStart) return
 
@@ -218,6 +269,13 @@ export function usePresentationMotion(options) {
         refs,
       })
       currentTimeline = tl
+      if (isDungeonPresentationTraceEnabled()) {
+        console.log('[dungeon-runner][presentation-motion] play', {
+          kind: snap.kind,
+          id: snap.id,
+          durationMs: snap.durationMs,
+        })
+      }
       tl.play(0)
     },
     { flush: 'post', immediate: true },
@@ -228,11 +286,11 @@ export function usePresentationMotion(options) {
     presentationMotionResizeSubscribers.add(reconcileFragileMotionAfterResize)
     onScopeDispose(() => {
       presentationMotionResizeSubscribers.delete(reconcileFragileMotionAfterResize)
-      teardownCurrent()
+      teardownCurrent(null)
     })
   } else {
     onScopeDispose(() => {
-      teardownCurrent()
+      teardownCurrent(null)
     })
   }
 }

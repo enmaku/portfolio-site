@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { MATCH_PHASES } from '../engine/kernel.js'
 import { createBiddingBoardViewModel } from './biddingBoardViewModel.js'
 
 test('board view model prioritizes primary reveal card and compact secondary state', () => {
@@ -364,4 +365,67 @@ test('memory aid deck splay face-up depth caps at remaining deck size', () => {
   assert.equal(model.memoryAid.deckSplayCards.length, 2)
   assert.deepEqual(model.memoryAid.deckSplayCards[0], { visibility: 'face', species: 'orc' })
   assert.deepEqual(model.memoryAid.deckSplayCards[1], { visibility: 'face', species: 'vampire' })
+})
+
+test('dungeon phase dungeon chip shows remaining pile plus current monster', () => {
+  const base = {
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { activeSeatId: 'seat-1' },
+    centerEquipment: [],
+    bidding: { monsterDeck: [], dungeonMonsters: ['a', 'b', 'c', 'd'] },
+    dungeon: {
+      remainingMonsters: ['orc', 'goblin', 'dragon'],
+      currentMonster: null,
+    },
+  }
+  assert.equal(
+    createBiddingBoardViewModel({
+      state: base,
+      visibleState: {},
+      activeAnimation: null,
+    }).secondary.dungeonCount,
+    3,
+  )
+  assert.equal(
+    createBiddingBoardViewModel({
+      state: {
+        ...base,
+        dungeon: {
+          remainingMonsters: ['goblin', 'dragon'],
+          currentMonster: 'orc',
+        },
+      },
+      visibleState: {},
+      activeAnimation: null,
+    }).secondary.dungeonCount,
+    3,
+  )
+  assert.equal(
+    createBiddingBoardViewModel({
+      state: {
+        ...base,
+        dungeon: { remainingMonsters: [], currentMonster: 'lich' },
+      },
+      visibleState: {},
+      activeAnimation: null,
+    }).secondary.dungeonCount,
+    1,
+  )
+})
+
+test('dungeon phase empty lane shows zero dungeon count', () => {
+  assert.equal(
+    createBiddingBoardViewModel({
+      state: {
+        phase: MATCH_PHASES.DUNGEON,
+        turn: { activeSeatId: 'seat-1' },
+        centerEquipment: [],
+        bidding: { monsterDeck: [], dungeonMonsters: ['x', 'y'] },
+        dungeon: { remainingMonsters: [], currentMonster: null },
+      },
+      visibleState: {},
+      activeAnimation: null,
+    }).secondary.dungeonCount,
+    0,
+  )
 })

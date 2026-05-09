@@ -1,4 +1,4 @@
-import { BIDDING_SUBPHASES } from '../engine/kernel.js'
+import { BIDDING_SUBPHASES, MATCH_PHASES } from '../engine/kernel.js'
 import { viewerMaySeeBiddingDrawFace } from './biddingPresentationVisibility.js'
 import { getHeroIdentity } from './heroIdentity.js'
 
@@ -65,7 +65,7 @@ export function createBiddingBoardViewModel({ state, visibleState, activeAnimati
     },
     secondary: {
       deckCount: state?.bidding?.monsterDeck?.length ?? 0,
-      dungeonCount: state?.bidding?.dungeonMonsters?.length ?? 0,
+      dungeonCount: secondaryDungeonCount(state),
       activeSeatId: state?.turn?.activeSeatId ?? null,
       activeSeatLabel: resolveActiveSeatLabel(state),
       seats: buildSeatSummaries(state),
@@ -78,6 +78,16 @@ export function createBiddingBoardViewModel({ state, visibleState, activeAnimati
       deckSplayCards,
     },
   }
+}
+
+function secondaryDungeonCount(state) {
+  if (state?.phase === MATCH_PHASES.DUNGEON && state.dungeon) {
+    const d = state.dungeon
+    const rem = Array.isArray(d.remainingMonsters) ? d.remainingMonsters.length : 0
+    const cur = d.currentMonster != null ? 1 : 0
+    return rem + cur
+  }
+  return state?.bidding?.dungeonMonsters?.length ?? 0
 }
 
 function resolveActiveSeatLabel(state) {

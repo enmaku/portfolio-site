@@ -149,6 +149,7 @@
                   ref="dungeonCardFaceRef"
                   class="dr-hero-card-control"
                   :empty="monsterCardSlotEmpty"
+                  :hide-empty-slot="showDungeonStage"
                   :species="showDungeonStage ? dungeonStageView.monster.frontFaceSpecies : biddingStageSpecies"
                   :face-down="
                     showDungeonStage
@@ -187,15 +188,16 @@
               </div>
             </div>
             <div class="col-4">
-              <q-badge
-                ref="dungeonPileBadgeRef"
-                text-color="white"
-                class="full-width q-py-xs justify-between dr-pile-badge dr-pile-badge--dungeon"
-                :style="{ '--dr-pile': `url('${uiAssets.piles.dungeon.runtimePath}')` }"
-              >
-                <span>Dungeon</span>
-                <span>{{ biddingBoard.secondary.dungeonCount }}</span>
-              </q-badge>
+              <div ref="dungeonPileMotionAnchorRef" class="full-width">
+                <q-badge
+                  text-color="white"
+                  class="full-width q-py-xs justify-between dr-pile-badge dr-pile-badge--dungeon"
+                  :style="{ '--dr-pile': `url('${uiAssets.piles.dungeon.runtimePath}')` }"
+                >
+                  <span>Dungeon</span>
+                  <span>{{ biddingBoard.secondary.dungeonCount }}</span>
+                </q-badge>
+              </div>
             </div>
             <div class="col-4">
               <div class="row no-wrap items-center full-width dr-turn-hero-row">
@@ -526,7 +528,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, triggerRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, triggerRef, unref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import {
   MATCH_PHASES,
@@ -623,7 +625,7 @@ const heroCardSlotRef = ref(null)
 const dungeonCardMotionWrap = ref(null)
 const dungeonCardFaceRef = ref(null)
 const deckBadgeRef = ref(null)
-const dungeonPileBadgeRef = ref(null)
+const dungeonPileMotionAnchorRef = ref(null)
 const heroChangeInterstitialOverlayRef = ref(null)
 const presentationFlightLayerRef = ref(null)
 const biddingEquipmentBadgeRefs = reactive({})
@@ -633,6 +635,13 @@ function domEl(componentOrEl) {
   if (componentOrEl.nodeType === 1) return componentOrEl
   const inner = componentOrEl.$el
   return inner?.nodeType === 1 ? inner : null
+}
+
+/** `defineExpose`d Refs from child components; QBadge roots via {@link domEl}. */
+function unwrapMotionDom(exposedMaybeRef) {
+  if (exposedMaybeRef == null) return null
+  const el = unref(exposedMaybeRef)
+  return el?.nodeType === 1 ? el : null
 }
 
 function bindBiddingEquipmentBadgeRef(equipmentId, componentOrEl) {
@@ -656,11 +665,45 @@ usePresentationMotion({
     const base = {
       boardShell: boardShellRef.value,
       dungeonCardWrap: dungeonCardMotionWrap.value,
-      dungeonCardFlipAxis: dungeonCardFaceRef.value?.dungeonCardFlipAxis ?? null,
+      dungeonCardFlipAxis: unwrapMotionDom(dungeonCardFaceRef.value?.dungeonCardFlipAxis),
       deckBadge: domEl(deckBadgeRef.value),
-      dungeonPileBadge: domEl(dungeonPileBadgeRef.value),
+      dungeonPileBadge: dungeonPileMotionAnchorRef.value,
       presentationFlightLayer: presentationFlightLayerRef.value,
       presentationGhostTarget: heroCardSlotRef.value,
+    }
+    if (
+      presentationTraceEnabled() &&
+      (head?.kind === 'DUNGEON_REVEAL' || head?.kind === 'BIDDING_DRAW')
+    ) {
+      const snapEl = (el) => {
+        if (!el || typeof el.getBoundingClientRect !== 'function') return { present: false }
+        const r = el.getBoundingClientRect()
+        return {
+          present: true,
+          tag: el.tagName,
+          w: Math.round(r.width * 100) / 100,
+          h: Math.round(r.height * 100) / 100,
+          cx: Math.round((r.left + r.width / 2) * 100) / 100,
+          cy: Math.round((r.top + r.height / 2) * 100) / 100,
+        }
+      }
+      const deckNode = domEl(deckBadgeRef.value)
+      console.log('[DungeonRunner][card-flight][refs]', {
+        kind: head.kind,
+        id: head.id,
+        durationMs: head.durationMs,
+        dungeonCardWrap: snapEl(base.dungeonCardWrap),
+        dungeonPileAnchor: snapEl(base.dungeonPileBadge),
+        deckBadgeResolved: snapEl(base.deckBadge),
+        dungeonCardFlipAxis: snapEl(base.dungeonCardFlipAxis),
+        deckBadgeRawDomEl: snapEl(deckNode),
+        refsBound: {
+          dungeonPileMotionAnchorRef: !!dungeonPileMotionAnchorRef.value,
+          deckBadgeRef: !!deckBadgeRef.value,
+          dungeonCardMotionWrap: !!dungeonCardMotionWrap.value,
+          dungeonCardFaceRef: !!dungeonCardFaceRef.value,
+        },
+      })
     }
     if (head?.kind !== 'BIDDING_SACRIFICE' && head?.kind !== 'DUNGEON_NEUTRALIZE') return base
     const ids = head?.payload?.responsibleEquipmentIds ?? head?.payload?.consumedEquipmentIds ?? []
@@ -931,7 +974,7 @@ onMounted(() => {
   debugMode.value = shouldEnableDebugOnBoot(window.location.href)
   if (presentationTraceEnabled()) {
     console.log(
-      '[DungeonRunner][presentation] trace on — localStorage.setItem("dungeonPresentationTrace","1")',
+      '[DungeonRunner][presentation] trace on — localStorage.setItem("dungeonPresentationTrace","1") — also logs [card-flight] for pile/deck → card motion',
     )
   }
   if (decideResumeFlow(window.localStorage).mode === 'resume-or-start-new') {
@@ -1347,10 +1390,15 @@ function syncPresentationLabel() {
     if (key !== lastPresentationTraceKey) {
       lastPresentationTraceKey = key
       const snap = presentationOrchestrator.getQueueSnapshot()
+      const d = match.value?.state?.dungeon
       console.log('[DungeonRunner][presentation] active', a?.kind ?? 'idle', {
         ms: a?.remainingMs ?? null,
         queued: snap.map((x) => x.kind),
         inputLocked: gameplayInputLocked.value,
+        engineDungeonCurrentMonster: d?.currentMonster ?? null,
+        engineDungeonSubphase: d?.subphase ?? null,
+        viewMonsterVisibility: showDungeonStage.value ? dungeonStageView.value.monster.visibility : null,
+        viewMonsterSpecies: showDungeonStage.value ? dungeonStageView.value.monster.species : null,
       })
     }
   }
