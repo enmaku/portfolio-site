@@ -470,6 +470,17 @@
       </q-card>
     </q-dialog>
 
+    <q-dialog v-model="confirmationDialogOpen" persistent>
+      <q-card class="q-pa-md" style="min-width: 320px">
+        <div class="text-subtitle1 q-mb-xs">{{ confirmationDialogTitle }}</div>
+        <div class="text-body2 q-mb-md">{{ confirmationDialogMessage }}</div>
+        <div class="row justify-end q-gutter-sm">
+          <q-btn flat color="primary" :label="confirmationDialogCancelLabel" @click="onConfirmationDialogCancel" />
+          <q-btn color="primary" unelevated :label="confirmationDialogOkLabel" @click="onConfirmationDialogOk" />
+        </div>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="vorpalDialogOpen" persistent>
       <q-card class="q-pa-md" style="min-width: 320px">
         <div class="text-subtitle1 q-mb-xs">Vorpal target</div>
@@ -738,6 +749,12 @@ usePresentationMotion({
 const activePresentationLabel = ref('')
 const equipmentModalOpen = ref(false)
 const selectedEquipmentTokenId = ref(null)
+const confirmationDialogOpen = ref(false)
+const confirmationDialogTitle = ref('Confirm')
+const confirmationDialogMessage = ref('')
+const confirmationDialogOkLabel = ref('OK')
+const confirmationDialogCancelLabel = ref('Cancel')
+let confirmationDialogResolve = null
 const vorpalDialogOpen = ref(false)
 const selectedVorpalSpecies = ref(null)
 const memoryAidState = ref(createMemoryAidState())
@@ -1014,6 +1031,10 @@ onBeforeUnmount(() => {
   if (presentationTimerId) window.clearInterval(presentationTimerId)
   if (aiTurnTimerId) window.clearTimeout(aiTurnTimerId)
   if (autoResolveTimerId) window.clearTimeout(autoResolveTimerId)
+  if (typeof confirmationDialogResolve === 'function') {
+    confirmationDialogResolve(false)
+    confirmationDialogResolve = null
+  }
 })
 
 watch(
@@ -1192,15 +1213,50 @@ function onCloseDeckSplay() {
   memoryAidState.value = closeDeckSplay(memoryAidState.value)
 }
 
+function settleConfirmationDialog(result) {
+  confirmationDialogOpen.value = false
+  const resolve = confirmationDialogResolve
+  confirmationDialogResolve = null
+  if (typeof resolve === 'function') resolve(result)
+}
+
+function requestConfirmation({ title = 'Confirm', message, okLabel = 'OK', cancelLabel = 'Cancel' }) {
+  if (typeof confirmationDialogResolve === 'function') {
+    confirmationDialogResolve(false)
+    confirmationDialogResolve = null
+  }
+  confirmationDialogTitle.value = title
+  confirmationDialogMessage.value = message
+  confirmationDialogOkLabel.value = okLabel
+  confirmationDialogCancelLabel.value = cancelLabel
+  confirmationDialogOpen.value = true
+  return new Promise((resolve) => {
+    confirmationDialogResolve = resolve
+  })
+}
+
+function onConfirmationDialogOk() {
+  settleConfirmationDialog(true)
+}
+
+function onConfirmationDialogCancel() {
+  settleConfirmationDialog(false)
+}
+
 function openEquipmentModal(token) {
   if (!token?.hasModal || gameplayInputLocked.value || !isHumanTurn.value || dungeonOutcomeDialogOpen.value) return
   selectedEquipmentTokenId.value = token.equipmentId
   equipmentModalOpen.value = true
 }
 
-function takeEquipmentUseAction() {
+async function takeEquipmentUseAction() {
   if (!selectedEquipmentModalView.value?.useAction) return
-  const shouldSpend = window.confirm(selectedEquipmentModalView.value.confirmUseMessage)
+  const shouldSpend = await requestConfirmation({
+    title: 'Use equipment?',
+    message: selectedEquipmentModalView.value.confirmUseMessage,
+    okLabel: 'Use',
+    cancelLabel: 'Cancel',
+  })
   if (!shouldSpend) return
   takeHumanAction(selectedEquipmentModalView.value.useAction)
 }
@@ -1492,14 +1548,22 @@ function scheduleHumanAutoResolveIfReady() {
 async function handleNnModelFailure(seat, modelId, seatId, fallbackAction) {
   nnFailureRecovery.recordFailure(modelId)
   const downgradeTarget = getDowngradeModelId(modelId)
-  const wantsRetry = window.confirm(
-    `Model "${modelId}" failed to load. Press OK to retry once, or Cancel for recovery options.`,
-  )
+  const wantsRetry = await requestConfirmation({
+    title: 'Model load failed',
+    message: `Model "${modelId}" failed to load. Retry once?`,
+    okLabel: 'Retry',
+    cancelLabel: 'Recovery options',
+  })
   if (wantsRetry) {
     return chooseNnActionWithFallback(match.value.state, { seatId }, nnRuntimeOptions(modelId))
   }
   if (downgradeTarget) {
-    const wantsDowngrade = window.confirm(`Downgrade to "${downgradeTarget}"? Cancel uses safe fallback.`)
+    const wantsDowngrade = await requestConfirmation({
+      title: 'Downgrade model?',
+      message: `Downgrade to "${downgradeTarget}"?`,
+      okLabel: 'Downgrade',
+      cancelLabel: 'Use safe fallback',
+    })
     if (wantsDowngrade) {
       seat.role.modelId = downgradeTarget
       return chooseNnActionWithFallback(match.value.state, { seatId }, nnRuntimeOptions(downgradeTarget))
