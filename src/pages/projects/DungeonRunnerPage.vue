@@ -147,22 +147,36 @@
             :class="biddingBoard.heroCue.accentClass"
           >
           <div
-            v-if="match.state.phase === 'bidding' && biddingBoard.secondary.seats.length"
-            class="dr-seat-strip row q-col-gutter-xs q-mb-xs"
+            v-if="seatRunTrackerRows.length"
+            class="dr-seat-strip q-mb-sm"
           >
-            <div v-for="row in biddingBoard.secondary.seats" :key="row.seatId" class="col-auto">
-              <q-badge
-                outline
-                :color="row.isActive ? 'amber-8' : 'grey-7'"
-                :text-color="row.isActive ? 'black' : 'white'"
-                class="dr-seat-chip q-px-sm"
-              >
-                <span class="text-caption">{{ row.label }}</span>
-                <span class="text-caption q-ml-xs">{{ row.passed ? '· Out' : '· In' }}</span>
-                <q-avatar v-if="row.isActive" square size="14px" class="q-ml-xs">
-                  <img :src="uiAssets.counters.turn.runtimePath" alt="" />
-                </q-avatar>
-              </q-badge>
+            <div class="row q-col-gutter-xs">
+              <div v-for="row in seatRunTrackerRows" :key="`seat-${row.seatId}`" class="col dr-seat-stack">
+                <q-badge
+                  :color="row.passed ? 'grey-9' : biddingBoard.heroCue.badgeColor"
+                  text-color="white"
+                  class="dr-seat-chip q-px-sm full-width"
+                  :class="{ 'dr-token-glow': row.isActive }"
+                >
+                  <span class="text-caption">{{ row.label }}</span>
+                </q-badge>
+                <div class="dr-seat-progress-cell text-caption" :aria-label="row.ariaLabel">
+                  <span
+                    v-for="index in row.successes"
+                    :key="`success-${row.seatId}-${index}`"
+                    class="dr-seat-progress-marker dr-seat-progress-marker--success"
+                  >
+                    ✓
+                  </span>
+                  <span
+                    v-for="index in row.failures"
+                    :key="`failure-${row.seatId}-${index}`"
+                    class="dr-seat-progress-marker dr-seat-progress-marker--failure"
+                  >
+                    X
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           <q-card-section class="q-pa-none q-mb-sm dr-board-primary">
@@ -946,6 +960,23 @@ const biddingBoard = computed(() =>
     },
   }),
 )
+const seatRunTrackerRows = computed(() => {
+  const scoreboard = match.value?.state?.scoreboard ?? {}
+  return biddingBoard.value.secondary.seats.map((row) => {
+    const score = scoreboard[row.seatId] ?? {}
+    const successes = Math.max(0, Number(score.successes ?? 0))
+    const failures = Math.max(0, 2 - Number(score.lives ?? 2))
+    return {
+      seatId: row.seatId,
+      label: row.label,
+      passed: row.passed,
+      isActive: row.isActive,
+      successes,
+      failures,
+      ariaLabel: `${row.label}: ${successes} successful run${successes === 1 ? '' : 's'}, ${failures} failed run${failures === 1 ? '' : 's'}`,
+    }
+  })
+})
 const biddingCardEmpty = computed(
   () =>
     match.value?.state?.phase === 'bidding' &&
@@ -1846,13 +1877,34 @@ function importReplay() {
 }
 
 .dr-seat-strip {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
+  width: 100%;
 }
 
-.dr-seat-strip > * {
-  flex-shrink: 0;
+.dr-seat-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dr-seat-progress-cell {
+  min-height: 1.25rem;
+  padding: 0 4px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.dr-seat-progress-marker {
+  font-weight: 700;
+  margin-right: 2px;
+}
+
+.dr-seat-progress-marker--success {
+  color: #66bb6a;
+}
+
+.dr-seat-progress-marker--failure {
+  color: #ef5350;
 }
 
 @keyframes dr-token-pulse {
