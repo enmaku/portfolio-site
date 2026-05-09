@@ -648,7 +648,7 @@ const match = ref(null)
 const historyDrawerOpen = ref(false)
 const opponentTypeOptions = [
   { label: 'Random bot', value: 'randombot' },
-  { label: 'NN', value: 'nn' },
+  { label: 'AI', value: 'nn' },
 ]
 const debugMode = ref(false)
 function presentationTraceEnabled() {

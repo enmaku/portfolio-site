@@ -10,7 +10,7 @@ test('default setup has one human and one opponent', () => {
   const setup = createDefaultSetupConfig()
   assert.equal(setup.totalSeats, 2)
   assert.equal(setup.opponents.length, 1)
-  assert.equal(setup.opponents[0].type, 'randombot')
+  assert.equal(setup.opponents[0].type, 'nn')
 })
 
 test('validateSetupConfig rejects zero opponents', () => {

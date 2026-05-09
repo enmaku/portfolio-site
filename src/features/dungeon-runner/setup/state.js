@@ -5,7 +5,7 @@ export function normalizeSetupState(input) {
   const totalSeats = Math.min(4, Math.max(2, Number.isFinite(rawTotalSeats) ? rawTotalSeats : 2))
   const opponents = Array.isArray(input?.opponents) ? [...input.opponents] : []
   while (opponents.length < totalSeats - 1) {
-    opponents.push({ type: 'randombot' })
+    opponents.push({ type: 'nn' })
   }
   while (opponents.length > totalSeats - 1) {
     opponents.pop()
@@ -13,7 +13,7 @@ export function normalizeSetupState(input) {
   return {
     totalSeats,
     opponents: opponents.map((opponent) => ({
-      type: opponent.type === 'nn' ? 'nn' : 'randombot',
+      type: opponent.type === 'randombot' ? 'randombot' : 'nn',
       ...(opponent.modelId ? { modelId: opponent.modelId } : {}),
     })),
   }
