@@ -161,7 +161,7 @@ const projectSections = [
     links: [
       { to: '/projects/game-timer', label: 'Game Timer', icon: 'timer' },
       { to: '/projects/movie-vote', label: 'Movie Vote', icon: 'movie' },
-      { to: '/projects/dungeon-runner', label: 'Dungeon Runner', icon: 'sports_esports' },
+      { to: '/projects/dungeon-runner', label: 'Dungeon Runner', icon: 'shield' },
     ],
   },
   {
