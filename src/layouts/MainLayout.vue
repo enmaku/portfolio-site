@@ -34,20 +34,45 @@
             label="Projects"
             dropdown-icon="expand_more"
             class="q-ml-xs"
+            content-class="bg-toolbar-menu"
           >
-            <q-list dense style="min-width: 220px">
-              <q-item
-                v-for="p in projectLinks"
-                :key="p.to"
-                v-ripple
-                clickable
-                @click="openProjectInNewTab(p.to)"
+            <q-list
+              dense
+              class="bg-toolbar-menu"
+              style="min-width: 220px"
+            >
+              <q-expansion-item
+                v-for="section in projectSections"
+                :key="section.label"
+                dense
+                expand-separator
+                group="projects-nav-dropdown"
+                :label="section.label"
               >
-                <q-item-section avatar>
-                  <q-icon :name="p.icon" />
-                </q-item-section>
-                <q-item-section>{{ p.label }}</q-item-section>
-              </q-item>
+                <template v-if="section.links.length">
+                  <q-item
+                    v-for="p in section.links"
+                    :key="p.to"
+                    v-ripple
+                    clickable
+                    v-close-popup
+                    @click="openProjectInNewTab(p.to)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon :name="p.icon" />
+                    </q-item-section>
+                    <q-item-section>{{ p.label }}</q-item-section>
+                  </q-item>
+                </template>
+                <q-item
+                  v-else-if="section.comingSoon"
+                  disabled
+                >
+                  <q-item-section class="text-grey-4 text-caption">
+                    Coming soon
+                  </q-item-section>
+                </q-item>
+              </q-expansion-item>
             </q-list>
           </q-btn-dropdown>
         </div>
@@ -78,19 +103,39 @@
           label="Projects"
           expand-separator
         >
-          <q-item
-            v-for="p in projectLinks"
-            :key="p.to"
-            v-ripple
-            clickable
-            :inset-level="1"
-            @click="openProjectInNewTab(p.to)"
+          <q-expansion-item
+            v-for="section in projectSections"
+            :key="section.label"
+            :label="section.label"
+            :header-inset-level="1"
+            expand-separator
+            group="projects-nav-drawer"
           >
-            <q-item-section avatar>
-              <q-icon :name="p.icon" />
-            </q-item-section>
-            <q-item-section>{{ p.label }}</q-item-section>
-          </q-item>
+            <template v-if="section.links.length">
+              <q-item
+                v-for="p in section.links"
+                :key="p.to"
+                v-ripple
+                clickable
+                :inset-level="2"
+                @click="openProjectInNewTab(p.to)"
+              >
+                <q-item-section avatar>
+                  <q-icon :name="p.icon" />
+                </q-item-section>
+                <q-item-section>{{ p.label }}</q-item-section>
+              </q-item>
+            </template>
+            <q-item
+              v-else-if="section.comingSoon"
+              disabled
+              :inset-level="2"
+            >
+              <q-item-section class="text-grey-4 text-caption">
+                Coming soon
+              </q-item-section>
+            </q-item>
+          </q-expansion-item>
         </q-expansion-item>
       </q-list>
     </q-drawer>
@@ -110,9 +155,19 @@ const navTabs = [
   { to: '/about', label: 'About', icon: 'info' },
 ]
 
-const projectLinks = [
-  { to: '/projects/game-timer', label: 'Game Timer', icon: 'timer' },
-  { to: '/projects/movie-vote', label: 'Movie Vote', icon: 'movie' },
+const projectSections = [
+  {
+    label: 'Mobile',
+    links: [
+      { to: '/projects/game-timer', label: 'Game Timer', icon: 'timer' },
+      { to: '/projects/movie-vote', label: 'Movie Vote', icon: 'movie' },
+    ],
+  },
+  {
+    label: 'Desktop',
+    comingSoon: true,
+    links: [],
+  },
 ]
 
 const route = useRoute()
