@@ -9,7 +9,6 @@
 
 import { ref } from 'vue'
 import { Notify } from 'quasar'
-import { useGameTimerStore } from '../../../stores/gameTimer.js'
 import { useGameTimerRoomSessionStore } from '../../../stores/gameTimerRoomSession.js'
 import { awaitPeerOpen } from '../../p2p/awaitPeerOpen.js'
 import {
@@ -494,16 +493,16 @@ function handleHubInbound(conn, raw) {
 }
 
 /**
- * Dispatches inbound hub messages: room ended, ping, visibility, or sequenced snapshot.
+ * Dispatches inbound hub messages on the guest: room ended, ping, visibility, or sequenced snapshot.
  * @param {unknown} raw
  * @returns {void}
  */
-function handleGuestInbound(raw) {
+export function handleGuestInbound(raw) {
   if (isHostEndedNotice(raw)) {
     notifyP2P('The host ended the room.', 'info')
     reconnectGeneration += 1
     clearRoomPersistence()
-    resetLocalStateAfterRoomExit()
+    teardownSession()
     return
   }
   if (isHostPing(raw)) {
@@ -821,20 +820,8 @@ export function teardownSession() {
 }
 
 /**
- * After {@link teardownSession}: clears the game timer roster (no P2P broadcast; session already idle).
- * @returns {void}
- */
-function resetLocalStateAfterRoomExit() {
-  teardownSession()
-  try {
-    useGameTimerStore().clearAllPlayers()
-  } catch {
-    void 0
-  }
-}
-
-/**
- * User-initiated exit: notifies guests if hosting, then clears persistence, wire, and local timer state.
+ * User-initiated exit: notifies guests if hosting, clears persisted room role, then tears down P2P.
+ * Does not clear the game timer roster; explicit UI reset or a successful join snapshot still do.
  * @returns {void}
  */
 export function leaveSession() {
@@ -851,7 +838,7 @@ export function leaveSession() {
       }
     }
   }
-  resetLocalStateAfterRoomExit()
+  teardownSession()
 }
 
 /**
