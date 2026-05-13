@@ -298,7 +298,7 @@
                 :color="biddingBoard.heroCue.buttonColor"
                 unelevated
                 no-caps
-                :size="isMobile ? 'lg' : 'md'"
+                size="lg"
                 class="col-12 col-sm-auto"
                 :label="actionLabel(action)"
                 :disable="gameplayInputLocked || dungeonOutcomeDialogOpen"
@@ -308,7 +308,8 @@
                 :color="biddingBoard.heroCue.buttonColor"
                 unelevated
                 no-caps
-                :size="isMobile ? 'lg' : 'md'"
+                dense
+                size="lg"
                 class="col-12 col-sm-auto"
                 label="Sacrifice equipment"
                 :disable="gameplayInputLocked || dungeonOutcomeDialogOpen"
@@ -327,18 +328,40 @@
               </q-btn-dropdown>
             </template>
             <template v-else>
-              <q-btn
-                v-for="action in visiblePrimaryActions"
-                :key="actionKey(action)"
-                :color="biddingBoard.heroCue.buttonColor"
-                unelevated
-                no-caps
-                :size="isMobile ? 'lg' : 'md'"
-                class="col-12 col-sm-auto"
-                :label="actionLabel(action)"
-                :disable="gameplayInputLocked || dungeonOutcomeDialogOpen"
-                @click="takeHumanAction(action)"
-              />
+              <template v-if="showHeroPickActionGrid">
+                <div class="col-12 text-h5 text-weight-medium text-grey-5 q-mb-xs" style="text-align: center;">Select Adventurer</div>
+                <div class="dr-hero-pick-grid col-12">
+                  <q-btn
+                    v-for="action in heroPickActionsOrdered"
+                    :key="actionKey(action)"
+                    :color="getHeroIdentity(action.hero).buttonColor"
+                    unelevated
+                    no-caps
+                    dense
+                    size="lg"
+                    class="dr-hero-pick-grid__btn full-width"
+                    :label="getHeroIdentity(action.hero).shortLabel"
+                    :aria-label="actionLabel(action)"
+                    :disable="gameplayInputLocked || dungeonOutcomeDialogOpen"
+                    @click="takeHumanAction(action)"
+                  />
+                </div>
+              </template>
+              <template v-else>
+                <q-btn
+                  v-for="action in visiblePrimaryActions"
+                  :key="actionKey(action)"
+                  :color="biddingBoard.heroCue.buttonColor"
+                  unelevated
+                  no-caps
+                  dense
+                  size="lg"
+                  class="col-12 col-sm-auto"
+                  :label="actionLabel(action)"
+                  :disable="gameplayInputLocked || dungeonOutcomeDialogOpen"
+                  @click="takeHumanAction(action)"
+                />
+              </template>
             </template>
           </div>
           <div v-if="isHumanTurn && dungeonOutcomeTransitionControls.length" class="row q-col-gutter-sm q-gutter-y-sm q-mt-xs">
@@ -348,7 +371,8 @@
               :color="biddingBoard.heroCue.buttonColor"
               unelevated
               no-caps
-              :size="isMobile ? 'lg' : 'md'"
+              dense
+              size="md"
               class="col-12 col-sm-auto"
               :label="control.label"
               :disable="gameplayInputLocked || dungeonOutcomeDialogOpen"
@@ -433,7 +457,6 @@
           {{ heroChangeInterstitialView.after.badgeGlyph }}
         </q-avatar>
       </div>
-      <div class="dr-hero-interstitial__hint">Tap to skip</div>
     </button>
 
     <q-dialog v-model="dungeonOutcomeDialogOpen" persistent transition-show="scale" transition-hide="scale">
@@ -830,6 +853,18 @@ const visibleLegalActions = computed(() =>
 const visiblePrimaryActions = computed(() =>
   visibleLegalActions.value.filter((action) => action.type !== 'REVEAL_OR_CONTINUE'),
 )
+/** Matches engine pick-adventurer legal action order. */
+const HERO_CHOICE_ACTION_ORDER = ['WARRIOR', 'BARBARIAN', 'MAGE', 'ROGUE']
+const showHeroPickActionGrid = computed(() => {
+  const actions = visiblePrimaryActions.value
+  if (actions.length !== HERO_CHOICE_ACTION_ORDER.length) return false
+  return actions.every((a) => a.type === 'CHOOSE_NEXT_ADVENTURER')
+})
+const heroPickActionsOrdered = computed(() => {
+  if (!showHeroPickActionGrid.value) return []
+  const byHero = new Map(visiblePrimaryActions.value.map((a) => [a.hero, a]))
+  return HERO_CHOICE_ACTION_ORDER.map((hero) => byHero.get(hero)).filter(Boolean)
+})
 const showActionPane = computed(
   () =>
     !!activePresentationLabel.value ||
@@ -1008,7 +1043,6 @@ const deckSplayOpen = computed({
     memoryAidState.value = open ? tapDeck(memoryAidState.value) : closeDeckSplay(memoryAidState.value)
   },
 })
-const isMobile = computed(() => $q.screen.lt.md)
 const dungeonOutcomeSummary = computed(() =>
   buildDungeonOutcomeSummary({
     lastDungeonRun: match.value?.state?.lastDungeonRun ?? null,
@@ -1815,6 +1849,16 @@ function importReplay() {
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+.dr-hero-pick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.dr-hero-pick-grid__btn {
+  min-height: 3rem;
 }
 
 .dr-bidding-board {
