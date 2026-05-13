@@ -25,7 +25,7 @@ test('dungeonResolutionFlow does not wire neutralize/continue to strike/consume 
   assert.equal(src.includes('dr-dungeon-consume'), false)
 })
 
-test('reveal/continue is never timer auto-advanced so each step stays player-paced', () => {
+test('reveal/continue timer auto-advances only when resolution is auto-resolved and not on outcome beat', () => {
   assert.equal(
     shouldAutoResolveDungeonAdvance({
       phase: 'dungeon',
@@ -36,7 +36,7 @@ test('reveal/continue is never timer auto-advanced so each step stays player-pac
       resolutionStatus: 'auto-resolved',
       activeAnimationKind: null,
     }),
-    false,
+    true,
   )
 
   assert.equal(
@@ -78,7 +78,7 @@ test('scheduled auto-resolve callback re-checks readiness and legal action', () 
       resolutionStatus: 'auto-resolved',
       activeAnimationKind: null,
     }),
-    false,
+    true,
   )
 
   assert.equal(

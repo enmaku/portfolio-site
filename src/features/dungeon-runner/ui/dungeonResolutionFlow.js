@@ -21,7 +21,6 @@ export function shouldAutoResolveDungeonAdvance({
   if (legalActions.length !== 1 || !autoAdvanceAction) return false
   if (resolutionStatus !== 'auto-resolved') return false
   if (activeAnimationKind === 'DUNGEON_OUTCOME') return false
-  if (autoAdvanceAction?.type === 'REVEAL_OR_CONTINUE') return false
   return true
 }
 

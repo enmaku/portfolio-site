@@ -602,7 +602,10 @@ import { chooseNnActionWithFallback } from '../../features/dungeon-runner/nn/run
 import { createModelFailureRecovery } from '../../features/dungeon-runner/nn/recovery.js'
 import { fetchModelCatalog } from '../../features/dungeon-runner/models/catalog.js'
 import { pickDefaultModelId, validateSelectedModels } from '../../features/dungeon-runner/models/discovery.js'
-import { createPresentationOrchestrator } from '../../features/dungeon-runner/ui/presentationOrchestrator.js'
+import {
+  createPresentationOrchestrator,
+  SPEED_PROFILES,
+} from '../../features/dungeon-runner/ui/presentationOrchestrator.js'
 import {
   DUNGEON_RUNNER_PRESENTATION_ADVANCE_MS,
   runPresentationIntervalTick,
@@ -1056,7 +1059,7 @@ const dungeonOutcomeToneClass = computed(() =>
 const dungeonOutcomeMessage = computed(() =>
   dungeonOutcomeSummary.value?.resultLabel === 'Success'
     ? 'Clean run. The dungeon is cleared.'
-    : 'The run failed. Regroup and try a different line.',
+    : 'The run failed.',
 )
 const dungeonOutcomeDialogOpen = computed({
   get() {
@@ -1607,6 +1610,12 @@ function syncPresentationLabel() {
   }
 }
 
+function humanDungeonAutoRevealGapMs() {
+  const pace = presentationSpeedProfile.value
+  const profile = SPEED_PROFILES[pace] ?? SPEED_PROFILES.cinematic
+  return Math.max(0, profile.dungeonContinueMs)
+}
+
 function scheduleAiTurnIfReady() {
   if (aiTurnInFlight) return
   if (deferredPostDungeonState.value) return
@@ -1669,7 +1678,7 @@ function scheduleHumanAutoResolveIfReady() {
     const ok = shouldExecuteScheduledAutoResolve(execGate)
     if (!ok) return
     takeHumanAction(action)
-  }, 480)
+  }, humanDungeonAutoRevealGapMs())
 }
 
 async function handleNnModelFailure(seat, modelId, seatId, fallbackAction) {
