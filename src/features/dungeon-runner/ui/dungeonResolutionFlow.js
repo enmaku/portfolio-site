@@ -59,6 +59,7 @@ export function buildDungeonOutcomeTransitionControls({
 } = {}) {
   if (phase !== 'dungeon') return []
   if (gameplayInputLocked || resolutionStatus !== 'auto-resolved' || !autoAdvanceAction) return []
+  if (autoAdvanceAction.type === 'REVEAL_OR_CONTINUE') return []
   return [
     {
       key: `transition-${autoAdvanceAction.type}`,

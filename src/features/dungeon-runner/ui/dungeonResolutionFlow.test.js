@@ -110,7 +110,7 @@ test('scheduled auto-resolve callback re-checks readiness and legal action', () 
   )
 })
 
-test('renders explicit outcome transition control only when dungeon auto-resolves', () => {
+test('no manual transition control for reveal/continue (timer auto-advance)', () => {
   assert.deepEqual(
     buildDungeonOutcomeTransitionControls({
       phase: 'dungeon',
@@ -118,13 +118,7 @@ test('renders explicit outcome transition control only when dungeon auto-resolve
       resolutionStatus: 'auto-resolved',
       autoAdvanceAction: { type: 'REVEAL_OR_CONTINUE' },
     }),
-    [
-      {
-        key: 'transition-REVEAL_OR_CONTINUE',
-        label: 'Continue',
-        action: { type: 'REVEAL_OR_CONTINUE' },
-      },
-    ],
+    [],
   )
 
   assert.deepEqual(
