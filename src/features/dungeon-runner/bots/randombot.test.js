@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createInitialMatchState, getLegalActions } from '../engine/kernel.js'
-import { chooseRandombotAction } from './randombot.js'
+import {
+  ACTION_TYPES,
+  BIDDING_SUBPHASES,
+  createInitialMatchState,
+  getLegalActions,
+  MATCH_PHASES,
+} from '../engine/kernel.js'
+import { chooseRandombotAction, computeRandombotActionWeight } from './randombot.js'
 
 test('chooseRandombotAction always returns a legal action', () => {
   const state = createInitialMatchState(
@@ -62,4 +68,40 @@ test('chooseRandombotAction stays deterministic across mirrored state sequences'
   const firstChoice = chooseRandombotAction(first, { seatId: firstSeatId })
   const secondChoice = chooseRandombotAction(second, { seatId: secondSeatId })
   assert.deepEqual(firstChoice, secondChoice)
+})
+
+test('computeRandombotActionWeight: sacrifice rows share weight; pass grows with dungeon pile', () => {
+  const base = createInitialMatchState({ totalSeats: 2, opponents: [{ type: 'randombot' }] }, { seed: 1 })
+  const seatId = base.turn.activeSeatId
+  const bidding = {
+    ...base.bidding,
+    subphase: BIDDING_SUBPHASES.PENDING,
+    revealedMonsterCard: 'orc',
+    revealedMonsterStrength: 3,
+    revealedBySeatId: seatId,
+    dungeonMonsters: ['goblin'],
+    discardedMonsterCards: ['skeleton'],
+  }
+  const state = {
+    ...base,
+    phase: MATCH_PHASES.BIDDING,
+    bidding,
+  }
+  const opts = {}
+  const wShield = computeRandombotActionWeight(
+    state,
+    { type: ACTION_TYPES.SACRIFICE, equipmentId: 'W_SHIELD' },
+    opts,
+  )
+  const wTorch = computeRandombotActionWeight(
+    state,
+    { type: ACTION_TYPES.SACRIFICE, equipmentId: 'W_TORCH' },
+    opts,
+  )
+  assert.equal(wShield, wTorch)
+
+  const stateNoPile = { ...state, bidding: { ...bidding, dungeonMonsters: [] } }
+  const passWithPile = computeRandombotActionWeight(state, { type: ACTION_TYPES.PASS }, opts)
+  const passNoPile = computeRandombotActionWeight(stateNoPile, { type: ACTION_TYPES.PASS }, opts)
+  assert.ok(passWithPile > passNoPile)
 })

@@ -407,6 +407,11 @@ const MONSTER_STATS = {
   dragon: { strength: 9, icons: ['staff', 'cloak'] },
 }
 
+/** @param {string} species */
+export function getMonsterStrength(species) {
+  return MONSTER_STATS[species]?.strength ?? 3
+}
+
 function createInitialMonsterDeck() {
   return [...BASE_MONSTER_DECK]
 }
