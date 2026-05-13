@@ -18,8 +18,6 @@
     "sync-dungeon-runner-models": "node ./scripts/sync-dungeon-runner-model.mjs --all",
     "scale-dungeon-runner-assets": "node ./scripts/scale-dungeon-runner-assets.mjs",
     "seed-dungeon-runner-placeholder-hires": "node ./scripts/seed-dungeon-runner-placeholder-hires.mjs",
-    "generate-dungeon-runner-master-svgs": "node ./scripts/generate-dungeon-runner-master-svgs.mjs",
-    "rasterize-dungeon-runner-masters": "node ./scripts/rasterize-dungeon-runner-masters.mjs",
     "generate-thumbs": "node ./scripts/generate-photo-thumbs.mjs",
     "generate-share-pages": "node ./scripts/generate-share-pages.mjs",
     "prebuild": "npm run generate-thumbs",

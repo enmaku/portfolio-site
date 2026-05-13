@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import test from 'node:test'
 import {
   DUNGEON_RUNNER_PLATE_SCALE_PX,
@@ -9,6 +11,7 @@ import {
 } from '../../../scripts/dungeon-runner-scale-targets.mjs'
 import { EQUIPMENT_IDS } from './engine/kernel.js'
 import { equipmentTokenAppearance } from './equipmentTokenAppearance.js'
+import { MONSTER_CARD_SPECS } from './ui/monsterCardSpec.js'
 
 function targetByOut(out) {
   return dungeonRunnerScaleTargets.find((t) => t.out === out)
@@ -52,4 +55,29 @@ test('every equipment token symbol key is listed for hires scaling', () => {
       `dungeonRunnerScaledSymbolNames missing ${key}`,
     )
   }
+})
+
+test('scale targets cover every monster card doodle species', () => {
+  for (const spec of MONSTER_CARD_SPECS) {
+    const out = `cards/doodles/${spec.species}.png`
+    assert.ok(targetByOut(out), `missing scale target ${out}`)
+  }
+  const doodleJobs = dungeonRunnerScaleTargets.filter((t) => t.out.startsWith('cards/doodles/'))
+  assert.equal(doodleJobs.length, MONSTER_CARD_SPECS.length)
+})
+
+test('scale targets cover every defeat symbol used on monster cards', () => {
+  const required = new Set(MONSTER_CARD_SPECS.flatMap((s) => s.icons))
+  for (const key of required) {
+    assert.ok(targetByOut(`symbols/${key}.png`), `missing scale target symbols/${key}.png`)
+  }
+})
+
+test('scale pipeline scripts do not reference per-equipment-id bitmap paths', () => {
+  const scriptsDir = path.resolve(import.meta.dirname, '../../../scripts')
+  const scaleSrc = readFileSync(path.join(scriptsDir, 'scale-dungeon-runner-assets.mjs'), 'utf8')
+  const targetsSrc = readFileSync(path.join(scriptsDir, 'dungeon-runner-scale-targets.mjs'), 'utf8')
+  const perEquipmentId = /equipment\/[BMRW]_[A-Z0-9_]+\.(svg|png)/i
+  assert.equal(perEquipmentId.test(scaleSrc), false)
+  assert.equal(perEquipmentId.test(targetsSrc), false)
 })

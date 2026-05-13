@@ -3,25 +3,23 @@
 ## Contract
 
 - **Runtime PNGs** served from `public/assets/dungeon-runner/runtime/**` and referenced in the app as `/assets/dungeon-runner/runtime/...`.
-- **Editable SVG masters** live in `public/assets/dungeon-runner/masters/**` and are the source of truth for regenerating PNGs in-repo for assets that use the SVG pipeline.
-- **URL mapping** for gameplay UI is centralized in `src/features/dungeon-runner/ui/assetPack.js`. Equipment tokens on the bidding board share one **runtime-only** PNG (`equipment/plate.png`): there is no per-equipment-id row in the pack and no SVG master for that plate; labels and affordances come from `equipmentDisplayCatalog.js` / `dungeonEquipmentInteractions.js`, not from distinct bitmaps per id.
-- **Card grammar layers** (blank card, per-species doodles, defeat symbols) are **intentionally not** entries on `dungeonRunnerAssetPack`. They are composed by `MonsterCardFace.vue` from URLs built in `ui/monsterCardSpec.js`, using the same runtime root as the pack (`DUNGEON_RUNNER_RUNTIME_BASE` in `assetPack.js`). That keeps the pack table focused on discrete “whole” assets while card faces stay aligned with `MONSTER_CARD_SPECS` and layered layout. Swapping grammar art still means replacing files under `runtime/cards/` and `runtime/symbols/` (and masters under `masters/cards/doodles`, `masters/symbols`) without Vue changes; adding a species or symbol updates `monsterCardSpec.js` / `MONSTER_CARD_SPECS` and the raster job list via `rasterizeGrammarJobRels.js`.
+- **Hires sources** for scaling live under `artifacts/dungeon-runner/hires-pre-scale/` (usually gitignored). The list of inputs and output sizes is `scripts/dungeon-runner-scale-targets.mjs`; run `npm run scale-dungeon-runner-assets` to refresh committed runtime PNGs after painting.
+- **URL mapping** for gameplay UI is centralized in `src/features/dungeon-runner/ui/assetPack.js`. Equipment tokens on the bidding board share one **runtime-only** PNG (`equipment/plate.png`): there is no per-equipment-id row in the pack; labels and affordances come from `equipmentDisplayCatalog.js` / `dungeonEquipmentInteractions.js`, not from distinct bitmaps per id.
+- **Card grammar layers** (blank card, per-species doodles, defeat symbols) are **intentionally not** entries on `dungeonRunnerAssetPack`. They are composed by `MonsterCardFace.vue` from URLs built in `ui/monsterCardSpec.js`, using the same runtime root as the pack (`DUNGEON_RUNNER_RUNTIME_BASE` in `assetPack.js`). That keeps the pack table focused on discrete “whole” assets while card faces stay aligned with `MONSTER_CARD_SPECS` and layered layout. Swapping grammar art means replacing files under `runtime/cards/` and `runtime/symbols/` (or the matching hires paths, then re-running the scale script). Adding a species or symbol updates `monsterCardSpec.js` / `MONSTER_CARD_SPECS` and `dungeon-runner-scale-targets.mjs`.
 
 ## Swap an asset without editing Vue
 
-1. Replace the SVG under `public/assets/dungeon-runner/masters/<group>/<name>.svg`, **or** drop in a new PNG at the matching path under `public/assets/dungeon-runner/runtime/<group>/<name>.png` if you are not using the SVG pipeline for that file.
-2. If you changed an SVG, regenerate runtime PNGs: `npm run rasterize-dungeon-runner-masters`.
-3. If you add a **new** logical asset, extend `assetPack.js` (and `generate-dungeon-runner-master-svgs.mjs` / `rasterize-dungeon-runner-masters.mjs` when using masters), then adjust Vue only if you introduce a **new screen region** that must display it.
+1. For assets covered by the scale script: replace the hires PNG under `artifacts/dungeon-runner/hires-pre-scale/<path>` as listed in `dungeon-runner-scale-targets.mjs`, then run `npm run scale-dungeon-runner-assets`.
+2. For assets **not** in that list (for example pile backs or the flat revealed-monster reference): edit the committed file under `public/assets/dungeon-runner/runtime/...` directly, or add a new row to `dungeon-runner-scale-targets.mjs` and a matching hires file, then run the scale script.
+3. If you add a **new** logical asset, extend `assetPack.js` and (when using hires) `dungeon-runner-scale-targets.mjs`, then adjust Vue only if you introduce a **new screen region** that must display it.
 
 ## Scripts
 
 | Command | Role |
 | --- | --- |
-| `npm run generate-dungeon-runner-master-svgs` | Rewrites placeholder SVG masters (prototype shapes). |
-| `npm run rasterize-dungeon-runner-masters` | SVG → runtime PNG via `sharp`. |
-| `npm run scale-dungeon-runner-assets` | Optional: hires PNG in `artifacts/dungeon-runner/hires-pre-scale` → runtime (ignored by git). Use for paint-over workflows; masters path above is the tracked default. |
+| `npm run scale-dungeon-runner-assets` | Hires PNG in `artifacts/dungeon-runner/hires-pre-scale` → runtime (per `dungeon-runner-scale-targets.mjs`). |
 
-### Hires scale targets (equipment + symbols)
+### Hires scale targets (equipment + symbols + card grammar subset)
 
 Target list lives in `scripts/dungeon-runner-scale-targets.mjs` (also imported by the scale script). After painting hires, drop files under `artifacts/dungeon-runner/hires-pre-scale/` using the paths in that module, then run `npm run scale-dungeon-runner-assets`. **Plate token (hires):** canonical path is `hires-pre-scale/tokens/plate.png` (#79 slice 05); `hires-pre-scale/equipment/plate.png` is still accepted if present.
 
@@ -36,8 +34,7 @@ The repo **commits** runtime PNGs under `public/assets/dungeon-runner/runtime/**
 
 ## Tests
 
-- `src/features/dungeon-runner/dungeonRunnerScaleTargets.test.js` — scale job lists plate (256²) + symbol keys (128², strip modes).
+- `src/features/dungeon-runner/dungeonRunnerScaleTargets.test.js` — scale job lists plate (256²) + symbol keys (128², strip modes); doodle and card-symbol coverage stays aligned with `MONSTER_CARD_SPECS`.
 - `src/features/dungeon-runner/equipmentTokenAppearance.test.js` — each symbol key used on equipment tokens has a runtime PNG path on disk.
-- `src/features/dungeon-runner/ui/assetPack.test.js` — every `dungeonRunnerAssetPack` entry has a runtime PNG on disk; master-backed entries also have a master SVG.
+- `src/features/dungeon-runner/ui/assetPack.test.js` — every `dungeonRunnerAssetPack` entry has a runtime PNG on disk.
 - `src/features/dungeon-runner/ui/monsterCardSpec.test.js` — grammar runtime PNG paths exist and back/revealed template URLs match the pack.
-- `src/features/dungeon-runner/ui/rasterizeGrammarJobRels.test.js` — rasterize grammar jobs are derived from `MONSTER_CARD_SPECS` (species + defeat symbol keys) and the rasterize script imports that module (contract against hardcoded species/symbol lists).

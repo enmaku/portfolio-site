@@ -1,12 +1,8 @@
 export const DUNGEON_RUNNER_RUNTIME_BASE = '/assets/dungeon-runner/runtime'
 const BASE_RUNTIME_PATH = DUNGEON_RUNNER_RUNTIME_BASE
-const BASE_MASTER_PATH = '/assets/dungeon-runner/masters'
 
 function assetEntry(group, name) {
-  return {
-    runtimePath: `${BASE_RUNTIME_PATH}/${group}/${name}.png`,
-    masterPath: `${BASE_MASTER_PATH}/${group}/${name}.svg`,
-  }
+  return { runtimePath: `${BASE_RUNTIME_PATH}/${group}/${name}.png` }
 }
 
 function runtimeOnlyPng(group, name) {
