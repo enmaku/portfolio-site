@@ -423,7 +423,7 @@ function createHistoryEntry(prevState, nextState, action, actor) {
   }
 }
 
-function hpForEquip(equipmentId) {
+export function hpForEquip(equipmentId) {
   return HP_FOR_EQUIP[equipmentId] ?? 0
 }
 

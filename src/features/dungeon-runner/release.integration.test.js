@@ -38,13 +38,18 @@ test('release checklist codifies npm test and lint gates', () => {
   assert.equal(checklist.includes('`npm run lint`'), true)
 })
 
-test('dungeon runner page uses default-hidden full-screen history drawer', () => {
+test('dungeon runner page header gates on dungeon outcome dialog', () => {
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
-  assert.equal(page.includes('const historyDrawerOpen = ref(false)'), true)
-  assert.equal(page.includes('aria-label="Open match history"'), true)
-  assert.equal(page.includes('<q-dialog v-model="historyDrawerOpen" position="bottom" maximized>'), true)
-  assert.equal(page.includes('aria-label="Close match history"'), true)
-  assert.equal(page.includes('v-if="showHistory"'), false)
+  assert.equal(page.includes('aria-label="Start new match"'), true)
+  assert.ok(
+    page.indexOf(':disable="dungeonOutcomeDialogOpen"', page.indexOf('aria-label="Start new match"')) > -1,
+    'start-new should be disabled when outcome dialog is open',
+  )
+  assert.ok(
+    page.includes('aria-label="Match settings"') &&
+      page.indexOf(':disable="dungeonOutcomeDialogOpen"', page.indexOf('aria-label="Match settings"')) > -1,
+    'settings should be disabled when outcome dialog is open',
+  )
 })
 
 test('dungeon runner page exposes match presentation speed in settings menu', () => {
@@ -161,12 +166,27 @@ test('MonsterCardFace renders both faces with 3D pivot and flip-axis ref', () =>
   assert.equal(component.includes('dungeonCardFlipAxis'), true)
 })
 
-test('dungeon equipment token class affordances are bound on board badges', () => {
+test('dungeon equipment token class affordances are bound on board tokens', () => {
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
   assert.equal(page.includes("'dr-token-glow': token.glow"), true)
   assert.equal(page.includes("'dr-token-pulse': token.pulse"), true)
-  assert.equal(page.includes("'dr-equip-badge--deemphasized': token.deemphasized"), true)
-  assert.equal(page.includes("'dr-equip-badge--interactive': token.hasModal"), true)
+  assert.equal(page.includes("'dr-equip-token--deemphasized': token.deemphasized"), true)
+  assert.equal(page.includes("'dr-equip-token--interactive': token.hasModal"), true)
+})
+
+test('equipment strip is 2x3 layered tokens without Quasar pill wrappers', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  const stripStart = page.indexOf('v-for="token in boardEquipmentTokens"')
+  assert.ok(stripStart >= 0)
+  const stripBlock = page.slice(stripStart, stripStart + 2000)
+  assert.equal(stripBlock.includes('<q-chip'), false)
+  assert.equal(stripBlock.includes('<q-badge'), false)
+  assert.equal(stripBlock.includes('class="col-4 flex flex-center"'), true)
+  assert.equal(stripBlock.includes('class="dr-equip-token"'), true)
+  assert.equal(stripBlock.includes('dr-equip-token__plate'), true)
+  assert.equal(stripBlock.includes('dr-equip-token__symbol'), true)
+  assert.equal(stripBlock.includes('bindBiddingEquipmentBadgeRef(token.equipmentId'), true)
+  assert.equal(stripBlock.includes('token.equipmentOverlay'), true)
 })
 
 test('dungeon auto-resolve timeout callback re-validates readiness before action', () => {
@@ -195,8 +215,7 @@ test('dungeon runner page replaces last-run card with persistent outcome dialog'
   assert.equal(page.includes('class="q-pa-md dr-dungeon-outcome-dialog"'), true)
   assert.equal(page.includes('dungeonOutcomeSummary?.runnerLabel'), true)
   assert.equal(page.includes('dungeonOutcomeSummary?.resultLabel'), true)
-  assert.equal(page.includes('dungeonOutcomeSummary?.monstersLabel'), true)
-  assert.equal(page.includes('dungeonOutcomeSummary?.equipmentSpentLabel'), true)
+  assert.equal(page.includes('dungeonOutcomeMessage'), true)
   assert.equal(page.includes('Continue'), true)
 })
 
@@ -243,9 +262,9 @@ test('persistent dungeon outcome dialog locks all background interactions while 
     'settings button should be disabled when outcome dialog is open',
   )
   assert.ok(
-    page.includes('aria-label="Open match history"') &&
-      page.indexOf(':disable="dungeonOutcomeDialogOpen"', page.indexOf('aria-label="Open match history"')) > -1,
-    'history button should be disabled when outcome dialog is open',
+    page.includes('aria-label="Start new match"') &&
+      page.indexOf(':disable="dungeonOutcomeDialogOpen"', page.indexOf('aria-label="Start new match"')) > -1,
+    'start-new should be disabled when outcome dialog is open',
   )
   const disabledActionBindings = page.match(/:disable="gameplayInputLocked \|\| dungeonOutcomeDialogOpen"/g) ?? []
   assert.ok(

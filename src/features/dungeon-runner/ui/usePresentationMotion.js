@@ -36,7 +36,7 @@ function ensurePresentationMotionResizePlaceholder() {
 
 /**
  * GSAP `clearProps: 'all'` strips many inline CSS properties (incl. backgroundColor, width).
- * Equipment cells are Quasar `q-badge` nodes with component inline styles — only clear what ghost-flight sets.
+ * Equipment cells are layered `.dr-equip-token` roots — only clear what ghost-flight sets.
  *
  * @param {string} key — ref key from `getMotionRefs`
  */

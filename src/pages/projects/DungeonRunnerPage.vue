@@ -244,34 +244,46 @@
               </div>
             </div>
           </div>
-          <div class="row q-col-gutter-xs q-mt-xs">
+          <div class="row q-mt-none">
             <div
               v-for="token in boardEquipmentTokens"
               :key="token.equipmentId"
-              class="col-4 col-sm-3"
+              class="col-4 flex flex-center"
             >
-              <q-badge
+              <div
                 :ref="(el) => bindBiddingEquipmentBadgeRef(token.equipmentId, el)"
-                class="full-width q-py-xs row items-center justify-center q-gutter-x-xs dr-equip-badge"
+                class="dr-equip-token"
                 :class="{
-                  'dr-equip-badge--spent': token.removed,
+                  'dr-equip-token--spent': token.removed,
                   'dr-token-glow': token.glow,
                   'dr-token-pulse': token.pulse,
-                  'dr-equip-badge--deemphasized': token.deemphasized,
-                  'dr-equip-badge--interactive': token.hasModal,
+                  'dr-equip-token--deemphasized': token.deemphasized,
+                  'dr-equip-token--interactive': token.hasModal,
                 }"
-                :color="token.removed ? 'grey-6' : biddingBoard.heroCue.buttonColor"
+                :tabindex="token.hasModal ? 0 : -1"
+                :role="token.hasModal ? 'button' : 'img'"
+                :aria-disabled="token.hasModal ? undefined : 'true'"
+                :aria-label="token.ariaLabel"
                 @click="openEquipmentModal(token)"
+                @keydown.enter.prevent="openEquipmentModal(token)"
+                @keydown.space.prevent="openEquipmentModal(token)"
               >
                 <img
-                  class="dr-equip-icon"
-                  :src="uiAssets.equipment[token.equipmentId].runtimePath"
-                  :alt="''"
-                  width="22"
-                  height="22"
+                  class="dr-equip-token__plate"
+                  :src="uiAssets.equipment.plate.runtimePath"
+                  alt=""
+                  draggable="false"
                 />
-                <span>{{ token.label }}</span>
-              </q-badge>
+                <img
+                  class="dr-equip-token__symbol"
+                  :src="token.symbolRuntimePath"
+                  alt=""
+                  draggable="false"
+                />
+                <span v-if="token.equipmentOverlay != null" class="dr-equip-token__overlay" aria-hidden="true">
+                  +{{ token.equipmentOverlay }}
+                </span>
+              </div>
             </div>
           </div>
         </q-card>
@@ -572,7 +584,11 @@ import {
   DUNGEON_RUNNER_PRESENTATION_ADVANCE_MS,
   runPresentationIntervalTick,
 } from '../../features/dungeon-runner/ui/dungeonRunnerPresentationInterval.js'
-import { dungeonRunnerAssetPack } from '../../features/dungeon-runner/ui/assetPack.js'
+import {
+  dungeonRunnerAssetPack,
+  dungeonRunnerEquipmentSymbolRuntimePath,
+} from '../../features/dungeon-runner/ui/assetPack.js'
+import { equipmentTokenAppearance } from '../../features/dungeon-runner/equipmentTokenAppearance.js'
 import { equipmentShortName } from '../../features/dungeon-runner/ui/equipmentDisplayCatalog.js'
 import { legalActionBoardLabel } from '../../features/dungeon-runner/ui/dungeonRunnerPlayerPhrasing.js'
 import {
@@ -874,9 +890,12 @@ const boardEquipmentTokens = computed(() => {
       equipment.consumed ||
       (isDungeonPhase && !dungeonTokenById.has(equipment.equipmentId))
     const actionable = isDungeonPhase && actionableEquipmentIds.value.has(equipment.equipmentId)
+    const appearance = equipmentTokenAppearance(equipment.equipmentId)
     return {
       equipmentId: equipment.equipmentId,
-      label: equipmentShortName(equipment.equipmentId),
+      ariaLabel: equipmentShortName(equipment.equipmentId),
+      symbolRuntimePath: dungeonRunnerEquipmentSymbolRuntimePath(appearance.symbolKey),
+      equipmentOverlay: appearance.overlay,
       removed,
       glow: isDungeonPhase ? (dungeonToken?.glow ?? false) : false,
       pulse: actionable,
@@ -1834,17 +1853,59 @@ function importReplay() {
   background-repeat: no-repeat;
 }
 
-.dr-equip-badge .dr-equip-icon {
+.dr-equip-token {
+  position: relative;
+  width: 84px;
+  height: 84px;
   flex-shrink: 0;
+  border-radius: 50%;
+  outline: none;
+}
+
+.dr-equip-token__plate,
+.dr-equip-token__symbol {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+}
+
+.dr-equip-token__plate {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.dr-equip-token__symbol {
+  width: 72%;
+  height: 72%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   object-fit: contain;
   filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.35));
 }
 
-.dr-equip-badge--spent {
+.dr-equip-token__overlay {
+  position: absolute;
+  right: 2px;
+  bottom: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: rgba(18, 18, 18, 0.92);
+  text-shadow:
+    0 0 2px rgba(255, 255, 255, 0.95),
+    0 0 1px rgba(255, 255, 255, 0.95);
+  pointer-events: none;
+}
+
+.dr-equip-token--spent {
   opacity: 0.55;
 }
 
-.dr-equip-badge--interactive {
+.dr-equip-token--interactive {
   cursor: pointer;
 }
 
@@ -1933,7 +1994,7 @@ function importReplay() {
   animation: dr-token-pulse 0.85s ease-in-out infinite alternate;
 }
 
-.dr-equip-badge--deemphasized {
+.dr-equip-token--deemphasized {
   opacity: 0.5;
   filter: saturate(0.7);
 }

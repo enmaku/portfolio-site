@@ -28,3 +28,12 @@ test('rasterize-dungeon-runner-masters.mjs derives grammar jobs from rasterizeGr
   assert.match(src, /rasterizeCardGrammarMasterRels/)
   assert.match(src, /rasterizeGrammarJobRels\.js/)
 })
+
+test('SVG master generate and raster jobs do not reference per-equipment-id paths', () => {
+  const scriptsDir = path.resolve(import.meta.dirname, '../../../../scripts')
+  const rasterSrc = readFileSync(path.join(scriptsDir, 'rasterize-dungeon-runner-masters.mjs'), 'utf8')
+  const genSrc = readFileSync(path.join(scriptsDir, 'generate-dungeon-runner-master-svgs.mjs'), 'utf8')
+  const perEquipmentMaster = /equipment\/[BMRW]_[A-Z0-9_]+\.svg/i
+  assert.equal(perEquipmentMaster.test(rasterSrc), false)
+  assert.equal(perEquipmentMaster.test(genSrc), false)
+})

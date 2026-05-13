@@ -5,60 +5,14 @@
  * Strips AI-baked gray checkerboard / fake “transparency” grays (neutral RGB, no chroma)
  * before resize so alpha is real and patterns don’t shrink into muddy texture.
  */
-import { mkdir } from 'node:fs/promises'
+import { mkdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import sharp from 'sharp'
+import { dungeonRunnerScaleTargets } from './dungeon-runner-scale-targets.mjs'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
 const hiresRoot = path.join(repoRoot, 'artifacts/dungeon-runner/hires-pre-scale')
 const runtimeRoot = path.join(repoRoot, 'public/assets/dungeon-runner/runtime')
-
-const CARD_W = 480
-const CARD_H = 272
-const DOODLE_W = 400
-const DOODLE_H = 224
-const SYMBOL = 128
-const SEAT_ICON = 128
-const TURN = 112
-const BOARD_W = 800
-const BOARD_H = 144
-
-/** @typedef {'strip-neutral-light' | 'strip-neutral-card' | 'strip-neutral-subtle'} StripMode */
-
-const targets = [
-  ...['torch', 'chalice', 'hammer', 'cloak', 'pact', 'staff'].map((name) => ({
-    src: `symbols/${name}.png`,
-    out: `symbols/${name}.png`,
-    width: SYMBOL,
-    height: SYMBOL,
-    strip: /** @type {StripMode} */ ('strip-neutral-light'),
-  })),
-  {
-    src: 'cards/card-blank.png',
-    out: 'cards/card-blank.png',
-    width: CARD_W,
-    height: CARD_H,
-    strip: 'strip-neutral-card',
-  },
-  {
-    src: 'cards/monster-back.png',
-    out: 'cards/monster-back.png',
-    width: CARD_W,
-    height: CARD_H,
-    strip: 'strip-neutral-card',
-  },
-  ...['goblin', 'skeleton', 'orc', 'vampire', 'golem', 'lich', 'demon', 'dragon'].map((species) => ({
-    src: `cards/doodles/${species}.png`,
-    out: `cards/doodles/${species}.png`,
-    width: DOODLE_W,
-    height: DOODLE_H,
-    strip: /** @type {StripMode} */ ('strip-neutral-light'),
-  })),
-  { src: 'icons/runner.png', out: 'icons/runner.png', width: SEAT_ICON, height: SEAT_ICON, strip: 'strip-neutral-light' },
-  { src: 'icons/monster.png', out: 'icons/monster.png', width: SEAT_ICON, height: SEAT_ICON, strip: 'strip-neutral-light' },
-  { src: 'counters/turn.png', out: 'counters/turn.png', width: TURN, height: TURN, strip: 'strip-neutral-light' },
-  { src: 'board/bidding-texture.png', out: 'board/bidding-texture.png', width: BOARD_W, height: BOARD_H, strip: 'strip-neutral-subtle' },
-]
 
 function stripByMode(data, width, height, mode) {
   const configs = {
@@ -103,10 +57,29 @@ async function preprocessPng(srcPath, stripMode) {
   }).ensureAlpha()
 }
 
-async function scaleOne(task) {
-  const { src, out, width, height, strip } = task
-  const srcPath = path.join(hiresRoot, src)
+async function resolveHiresSrc(task) {
+  const candidates = [task.src, ...(task.srcAlternates ?? [])]
+  for (const rel of candidates) {
+    const abs = path.join(hiresRoot, rel)
+    try {
+      await stat(abs)
+      return abs
+    } catch (e) {
+      if (e?.code !== 'ENOENT') throw e
+    }
+  }
+  return null
+}
+
+async function scaleOne(task, missing) {
+  const { out, width, height, strip } = task
+  const srcPath = await resolveHiresSrc(task)
   const outPath = path.join(runtimeRoot, out)
+  if (!srcPath) {
+    const tried = [task.src, ...(task.srcAlternates ?? [])].join(' | ')
+    missing.push(tried)
+    return
+  }
   await mkdir(path.dirname(outPath), { recursive: true })
 
   const pipeline = await preprocessPng(srcPath, strip)
@@ -123,19 +96,13 @@ async function scaleOne(task) {
     })
     .toFile(outPath)
 
-  const fs = await import('node:fs/promises')
-  const st = await fs.stat(outPath)
+  const st = await stat(outPath)
   console.log(`${out} → ${width}×${height} (${(st.size / 1024).toFixed(1)} KB)`)
 }
 
 const missing = []
-for (const t of targets) {
-  try {
-    await scaleOne(t)
-  } catch (e) {
-    if (e.code === 'ENOENT') missing.push(t.src)
-    else throw e
-  }
+for (const t of dungeonRunnerScaleTargets) {
+  await scaleOne(t, missing)
 }
 
 if (missing.length) {

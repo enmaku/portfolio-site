@@ -23,7 +23,6 @@ const BOARD_W = 800
 const BOARD_H = 144
 const PILE_W = 240
 const PILE_H = 96
-const EQUIP = 112
 
 const { doodleRels, symbolRels } = rasterizeCardGrammarMasterRels()
 
@@ -61,11 +60,6 @@ async function rasterize(rel, w, h) {
 
 for (const j of jobs) {
   await rasterize(j.rel, j.w, j.h)
-}
-
-const { EQUIPMENT_IDS } = await import('../src/features/dungeon-runner/engine/kernel.js')
-for (const id of EQUIPMENT_IDS) {
-  await rasterize(`equipment/${id}.svg`, EQUIP, EQUIP)
 }
 
 console.log('Rasterize complete.')

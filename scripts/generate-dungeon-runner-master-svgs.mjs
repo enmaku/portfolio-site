@@ -10,15 +10,6 @@ const outRoot = path.join(repoRoot, 'public/assets/dungeon-runner/masters')
 
 const kraft = { fill: '#e8d4b8', stroke: '#5c4033', ink: 'rgba(18,14,12,0.82)' }
 
-function hashId(s) {
-  let h = 2166136261
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return Math.abs(h)
-}
-
 function cardFaceSvg(variant) {
   const extra =
     variant === 'back'
@@ -145,28 +136,6 @@ function boardTextureSvg() {
 </svg>`
 }
 
-function equipmentIconSvg(id) {
-  const h = hashId(id)
-  const hue = h % 360
-  const n = 3 + (h % 5)
-  const r = 38
-  const cx = 64
-  const cy = 64
-  const rot = ((h % 90) * Math.PI) / 180
-  const pts = []
-  for (let i = 0; i < n; i++) {
-    const a = rot + (i * 2 * Math.PI) / n
-    pts.push(`${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`)
-  }
-  const poly = pts.join(' ')
-  const label = id.replace(/_/g, '')
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <polygon points="${poly}" fill="hsl(${hue} 52% 42%)" stroke="${kraft.stroke}" stroke-width="3" stroke-linejoin="round"/>
-  <text x="64" y="72" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="13" font-weight="700" fill="#fffdf8">${label}</text>
-</svg>`
-}
-
 async function write(rel, content) {
   const fp = path.join(outRoot, rel)
   await mkdir(path.dirname(fp), { recursive: true })
@@ -192,10 +161,5 @@ await write('icons/runner.svg', seatIconSvg('runner'))
 await write('icons/monster.svg', seatIconSvg('monster'))
 await write('counters/turn.svg', turnCounterSvg())
 await write('board/bidding-texture.svg', boardTextureSvg())
-
-const { EQUIPMENT_IDS } = await import('../src/features/dungeon-runner/engine/kernel.js')
-for (const id of EQUIPMENT_IDS) {
-  await write(`equipment/${id}.svg`, equipmentIconSvg(id))
-}
 
 console.log(`Wrote masters under ${path.relative(repoRoot, outRoot)}`)
