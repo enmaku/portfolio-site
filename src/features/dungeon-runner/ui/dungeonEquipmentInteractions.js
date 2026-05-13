@@ -45,7 +45,6 @@ const EQUIPMENT_UI = {
     details: 'Single-use: destroy one revealed monster, then continue the run.',
     useActionType: 'USE_FIRE_AXE',
     declineActionType: 'DECLINE_FIRE_AXE',
-    confirmUseMessage: 'Spend Fire Axe now?',
   },
   B_TORCH: {
     label: 'Torch',
@@ -78,7 +77,6 @@ const EQUIPMENT_UI = {
       'Single-use: replace the revealed monster with the next unrevealed dungeon card and resolve that one.',
     useActionType: 'USE_POLYMORPH',
     declineActionType: 'DECLINE_POLYMORPH',
-    confirmUseMessage: 'Spend Polymorph now?',
   },
   M_PACT: {
     label: 'Demonic Pact',
@@ -141,7 +139,6 @@ export function createDungeonEquipmentModalView({ equipmentId, legalActions = []
       showUseButton: false,
       useAction: null,
       continueAction: null,
-      confirmUseMessage: '',
     }
   }
   const showUseButton = hasAction(legalActions, spec.useActionType)
@@ -153,7 +150,6 @@ export function createDungeonEquipmentModalView({ equipmentId, legalActions = []
     showUseButton,
     useAction: showUseButton ? { type: spec.useActionType } : null,
     continueAction: hasDecline ? { type: spec.declineActionType } : null,
-    confirmUseMessage: spec.confirmUseMessage,
   }
 }
 

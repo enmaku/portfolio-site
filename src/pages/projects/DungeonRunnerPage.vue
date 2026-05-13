@@ -1376,15 +1376,8 @@ function openEquipmentModal(token) {
   equipmentModalOpen.value = true
 }
 
-async function takeEquipmentUseAction() {
+function takeEquipmentUseAction() {
   if (!selectedEquipmentModalView.value?.useAction) return
-  const shouldSpend = await requestConfirmation({
-    title: 'Use equipment?',
-    message: selectedEquipmentModalView.value.confirmUseMessage,
-    okLabel: 'Use',
-    cancelLabel: 'Cancel',
-  })
-  if (!shouldSpend) return
   takeHumanAction(selectedEquipmentModalView.value.useAction)
 }
 

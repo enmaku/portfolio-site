@@ -53,7 +53,6 @@ test('modal exposes USE only when legal and continue maps to implicit decline', 
   assert.equal(fireAxeModal.showUseButton, true)
   assert.deepEqual(fireAxeModal.useAction, { type: 'USE_FIRE_AXE' })
   assert.deepEqual(fireAxeModal.continueAction, { type: 'DECLINE_FIRE_AXE' })
-  assert.equal(fireAxeModal.confirmUseMessage.length > 0, true)
 
   const blockedPolymorphModal = createDungeonEquipmentModalView({
     equipmentId: 'M_POLY',
