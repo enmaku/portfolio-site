@@ -388,3 +388,62 @@ test('keeps final monster visible during continue transition before outcome', ()
   assert.equal(model.monster.visibility, 'revealed')
   assert.equal(model.monster.species, 'goblin')
 })
+
+test('DUNGEON_OUTCOME shows species from lane delta when lethal reveal cleared pile (match-over path)', () => {
+  const model = createDungeonResolutionViewModel({
+    visibleState: {
+      dungeon: {
+        currentMonster: null,
+        hp: 0,
+        remainingMonsters: [],
+        startingHp: 10,
+        inPlayEquipmentIds: [],
+      },
+    },
+    previousVisibleState: {
+      dungeon: {
+        currentMonster: null,
+        hp: 2,
+        remainingMonsters: ['dragon', 'goblin'],
+        startingHp: 10,
+        inPlayEquipmentIds: [],
+      },
+    },
+    legalActions: [],
+    activeAnimation: { kind: 'DUNGEON_OUTCOME', payload: { dungeonRunResult: 'failure' } },
+  })
+
+  assert.equal(model.monster.visibility, 'revealed')
+  assert.equal(model.monster.species, 'dragon')
+  assert.equal(model.monster.frontFaceSpecies, 'dragon')
+})
+
+test('preserveMonsterCardUntilRunAck keeps last monster visible when engine and presentation are idle (outcome dialog)', () => {
+  const model = createDungeonResolutionViewModel({
+    visibleState: {
+      dungeon: {
+        currentMonster: null,
+        hp: 1,
+        remainingMonsters: [],
+        startingHp: 11,
+        inPlayEquipmentIds: [],
+      },
+    },
+    previousVisibleState: {
+      dungeon: {
+        currentMonster: 'vampire',
+        hp: 5,
+        remainingMonsters: [],
+        startingHp: 11,
+        inPlayEquipmentIds: [],
+      },
+    },
+    legalActions: [{ type: 'CHOOSE_NEXT_ADVENTURER', hero: 'WARRIOR' }],
+    activeAnimation: null,
+    preserveMonsterCardUntilRunAck: true,
+  })
+
+  assert.equal(model.monster.visibility, 'revealed')
+  assert.equal(model.monster.species, 'vampire')
+  assert.equal(model.monster.frontFaceSpecies, 'vampire')
+})

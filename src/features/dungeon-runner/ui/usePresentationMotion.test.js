@@ -628,6 +628,88 @@ test('presentation motion teardown clears dungeonCardWrap, dungeonCardFlipAxis, 
   scope.stop()
 })
 
+test('presentation motion teardown after DUNGEON_CONTINUE clears full dungeonCardWrap when queue goes idle', async () => {
+  const mockGsap = createMockGsap()
+  const shell = { nodeType: 1, tagName: 'SECTION' }
+  const cardWrap = { nodeType: 1, tagName: 'DIV' }
+  const active = ref({
+    id: 1,
+    kind: 'DUNGEON_CONTINUE',
+    durationMs: 360,
+    remainingMs: 360,
+    channel: 'gameplay',
+  })
+
+  const scope = effectScope(true)
+  scope.run(() => {
+    usePresentationMotion({
+      activePresentation: active,
+      loadPresentationGsap: async () => ({ gsap: mockGsap, Flip: {} }),
+      getMotionRefs: () => ({
+        boardShell: shell,
+        dungeonCardWrap: cardWrap,
+      }),
+    })
+  })
+
+  await nextTick()
+  await flushMicrotasks()
+  mockGsap.sets.length = 0
+
+  active.value = null
+  await nextTick()
+  await flushMicrotasks()
+
+  assert.ok(mockGsap.sets.some((s) => s.el === cardWrap && s.props.clearProps === 'all'))
+
+  scope.stop()
+})
+
+test('presentation motion teardown after DUNGEON_CONTINUE uses narrow dungeonCardWrap clear only before DUNGEON_REVEAL', async () => {
+  const mockGsap = createMockGsap()
+  const shell = { nodeType: 1, tagName: 'SECTION' }
+  const cardWrap = { nodeType: 1, tagName: 'DIV' }
+  const flipAxis = { nodeType: 1, tagName: 'DIV' }
+  const active = ref({
+    id: 1,
+    kind: 'DUNGEON_CONTINUE',
+    durationMs: 360,
+    remainingMs: 360,
+    channel: 'gameplay',
+  })
+
+  const scope = effectScope(true)
+  scope.run(() => {
+    usePresentationMotion({
+      activePresentation: active,
+      loadPresentationGsap: async () => ({ gsap: mockGsap, Flip: {} }),
+      getMotionRefs: () => ({
+        boardShell: shell,
+        dungeonCardWrap: cardWrap,
+        dungeonCardFlipAxis: flipAxis,
+      }),
+    })
+  })
+
+  await nextTick()
+  await flushMicrotasks()
+  mockGsap.sets.length = 0
+
+  active.value = {
+    id: 2,
+    kind: 'DUNGEON_REVEAL',
+    durationMs: 600,
+    remainingMs: 600,
+    channel: 'gameplay',
+  }
+  await nextTick()
+  await flushMicrotasks()
+
+  assert.ok(mockGsap.sets.some((s) => s.el === cardWrap && s.props.clearProps === 'filter'))
+
+  scope.stop()
+})
+
 test('presentation motion teardown clears hero overlay for HERO_CHANGE_INTERSTITIAL', async () => {
   const mockGsap = createMockGsap()
   const shell = { nodeType: 1, tagName: 'SECTION' }

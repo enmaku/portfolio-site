@@ -52,7 +52,7 @@ function clearPropsForPresentationRefKey(key) {
  * @param {import('gsap').GSAP | { set?: Function }} gsapApi
  * @param {Record<string, unknown>|undefined|null} refs
  * @param {readonly string[]|undefined} keys — if set, only these ref keys are cleared (avoids clearProps on refs reserved for future tweens).
- * @param {{ dungeonContinueCardWrapNarrow?: boolean }} [opts] — when true, `dungeonCardWrap` only clears `filter` so slide-off `x`/`opacity` survive until the next beat or idle narrow clear.
+ * @param {{ dungeonContinueCardWrapNarrow?: boolean }} [opts] — when true, `dungeonCardWrap` only clears `filter` so slide-off `x`/`opacity` from the prior neutralize beat survive into the next `DUNGEON_REVEAL` only; any other next head (including idle) gets a full wrap clear.
  */
 export function resetPresentationMotionTargets(gsapApi, refs, keys, opts = {}) {
   const set = gsapApi?.set
@@ -136,7 +136,8 @@ export function usePresentationMotion(options) {
       if (skipNeutralizeWrapClear && clearKeys?.length) {
         clearKeys = clearKeys.filter((k) => k !== 'dungeonCardWrap')
       }
-      const continueNarrowCardWrap = previousPresentationKind === 'DUNGEON_CONTINUE'
+      const continueNarrowCardWrap =
+        previousPresentationKind === 'DUNGEON_CONTINUE' && nextPresentationKind === 'DUNGEON_REVEAL'
       const logMotion = isDungeonPresentationTraceEnabled() && previousPresentationKind != null
       const wrapEl =
         logMotion && previousRefs.dungeonCardWrap != null && typeof previousRefs.dungeonCardWrap === 'object'

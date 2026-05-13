@@ -881,6 +881,12 @@ const visibleState = computed(() => {
   if (!match.value || !humanSeatId.value) return null
   return getPlayerView(match.value.state, { seatId: humanSeatId.value })
 })
+const dungeonOutcomeAckPending = computed(() =>
+  isDungeonOutcomeDialogOpen({
+    lastDungeonRun: match.value?.state?.lastDungeonRun ?? null,
+    dismissedDungeonRun: dismissedDungeonRun.value,
+  }),
+)
 const dungeonEquipmentTokens = computed(() =>
   buildDungeonEquipmentTokenView({
     inPlayEquipmentIds: visibleState.value?.dungeon?.inPlayEquipmentIds ?? [],
@@ -897,14 +903,16 @@ const dungeonResolutionView = computed(() =>
 )
 const showDungeonStage = computed(() => {
   if (match.value?.state?.phase === 'dungeon') return true
-  return isDungeonPresentationKind(activePresentation.value?.kind ?? null)
+  if (isDungeonPresentationKind(activePresentation.value?.kind ?? null)) return true
+  return dungeonOutcomeAckPending.value
 })
 const dungeonStageView = computed(() =>
   createDungeonResolutionViewModel({
-    visibleState: (match.value?.state?.phase === 'dungeon' ? visibleState.value : previousVisibleState.value) ?? {},
+    visibleState: visibleState.value ?? {},
     previousVisibleState: previousVisibleState.value ?? {},
     legalActions: legalActions.value,
     activeAnimation: activePresentation.value,
+    preserveMonsterCardUntilRunAck: dungeonOutcomeAckPending.value,
   }),
 )
 const dungeonStageAnimationClass = computed(() => dungeonStageClassForKind(activePresentation.value?.kind ?? null))

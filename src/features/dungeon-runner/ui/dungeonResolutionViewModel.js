@@ -5,6 +5,7 @@ export function createDungeonResolutionViewModel({
   previousVisibleState = {},
   legalActions = [],
   activeAnimation = null,
+  preserveMonsterCardUntilRunAck = false,
 } = {}) {
   const dungeon = visibleState?.dungeon ?? {}
   const previousDungeon = previousVisibleState?.dungeon ?? {}
@@ -27,6 +28,7 @@ export function createDungeonResolutionViewModel({
       revealPayloadMonsterId: activeAnimation?.payload?.revealedMonsterId ?? null,
       dungeon,
       previousDungeon,
+      preserveMonsterCardUntilRunAck,
     }),
     resolutionStatus: deriveResolutionStatus({
       activeAnimationKind: activeAnimation?.kind ?? null,
@@ -62,6 +64,7 @@ function buildMonsterView({
   revealPayloadMonsterId,
   dungeon,
   previousDungeon,
+  preserveMonsterCardUntilRunAck = false,
 }) {
   const laneDeltaSpecies = inferSpeciesFromDungeonDelta(previousDungeon, dungeon)
   const engagedForAnimation =
@@ -92,6 +95,13 @@ function buildMonsterView({
       visibility: 'revealed',
       species: currentMonster,
       frontFaceSpecies: currentMonster,
+    }
+  }
+  if (preserveMonsterCardUntilRunAck && engagedForAnimation) {
+    return {
+      visibility: 'revealed',
+      species: engagedForAnimation,
+      frontFaceSpecies: engagedForAnimation,
     }
   }
   return { visibility: 'empty', species: null, frontFaceSpecies: null }
