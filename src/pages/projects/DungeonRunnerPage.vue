@@ -1942,16 +1942,18 @@ function importReplay() {
 
 .dr-equip-token__overlay {
   position: absolute;
-  right: 2px;
-  bottom: 4px;
-  font-size: 12px;
-  font-weight: 800;
+  right: 0;
+  bottom: 2px;
+  font-size: 18px;
+  font-weight: 900;
   line-height: 1;
   letter-spacing: -0.02em;
+  -webkit-text-stroke: 0.85px rgba(18, 18, 18, 0.92);
+  paint-order: stroke fill;
   color: rgba(18, 18, 18, 0.92);
   text-shadow:
-    0 0 2px rgba(255, 255, 255, 0.95),
-    0 0 1px rgba(255, 255, 255, 0.95);
+    0 0 12px rgba(255, 255, 255, 0.98),
+    0 0 6px rgba(255, 255, 255, 0.95);
   pointer-events: none;
 }
 
