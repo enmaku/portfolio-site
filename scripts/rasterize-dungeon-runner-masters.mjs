@@ -13,7 +13,7 @@ const masterRoot = path.join(repoRoot, 'public/assets/dungeon-runner/masters')
 const runtimeRoot = path.join(repoRoot, 'public/assets/dungeon-runner/runtime')
 
 const CARD_W = 480
-const CARD_H = 272
+const CARD_H = Math.round((CARD_W * 245) / 384)
 const DOODLE_W = 400
 const DOODLE_H = 224
 const SYMBOL = 128

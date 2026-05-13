@@ -18,8 +18,9 @@
  * }} DungeonRunnerScaleTarget
  */
 
+/** Match `MonsterCardFace.vue` aspect-ratio `384 / 245` so `fit: contain` does not pillarbox in the PNG. */
 const CARD_W = 480
-const CARD_H = 272
+const CARD_H = Math.round((CARD_W * 245) / 384)
 const DOODLE_W = 400
 const DOODLE_H = 224
 export const DUNGEON_RUNNER_SYMBOL_SCALE_PX = 128

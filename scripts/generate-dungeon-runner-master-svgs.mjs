@@ -14,13 +14,13 @@ function cardFaceSvg(variant) {
   const extra =
     variant === 'back'
       ? `<g opacity="0.35" fill="none" stroke="${kraft.stroke}" stroke-width="3" stroke-linecap="round">
-          <path d="M120 96 Q240 40 360 96" />
-          <path d="M140 176 Q240 130 340 176" />
+          <path d="M120 108 Q240 45 360 108" />
+          <path d="M140 198 Q240 146 340 198" />
         </g>`
       : ''
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 272" width="480" height="272">
-  <rect x="6" y="6" width="468" height="260" rx="20" ry="20" fill="${kraft.fill}" stroke="${kraft.stroke}" stroke-width="4"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 306" width="480" height="306">
+  <rect x="6" y="4" width="468" height="298" rx="20" ry="20" fill="${kraft.fill}" stroke="${kraft.stroke}" stroke-width="4"/>
   ${extra}
 </svg>`
 }
