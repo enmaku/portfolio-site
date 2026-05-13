@@ -153,7 +153,7 @@ const displayName = computed(() => displayNameForSpecies(spec.value?.species ?? 
 
 .dr-monster-card__left-rail {
   position: absolute;
-  left: 0;
+  left: 5%;
   top: 4%;
   bottom: 36%;
   width: 17.5%;
@@ -174,7 +174,7 @@ const displayName = computed(() => displayNameForSpecies(spec.value?.species ?? 
 
 .dr-monster-card__strength {
   flex-shrink: 0;
-  margin-left: 2.5%;
+  margin-left: 10%;
   font-family: 'Caveat', cursive;
   font-size: clamp(3.75rem, 19cqw, 6.1rem);
   font-weight: 700;
@@ -205,7 +205,7 @@ const displayName = computed(() => displayNameForSpecies(spec.value?.species ?? 
 
 .dr-monster-card__doodle-wrap {
   position: absolute;
-  left: 18%;
+  left: 20%;
   right: 6%;
   top: 7%;
   bottom: 26%;
