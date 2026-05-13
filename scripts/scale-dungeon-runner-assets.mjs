@@ -71,6 +71,9 @@ async function resolveHiresSrc(task) {
   return null
 }
 
+/** Symmetric inset (px per edge) on square plate output after `contain`; re-upscaled so the disc reads larger under CSS `object-fit: contain`. */
+const PLATE_RUNTIME_INSET_PX = 24
+
 async function scaleOne(task, missing) {
   const { out, width, height, strip } = task
   const srcPath = await resolveHiresSrc(task)
@@ -83,13 +86,39 @@ async function scaleOne(task, missing) {
   await mkdir(path.dirname(outPath), { recursive: true })
 
   const pipeline = await preprocessPng(srcPath, strip)
-  await pipeline
-    .resize(width, height, {
-      fit: 'contain',
-      position: 'centre',
-      kernel: sharp.kernel.lanczos3,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
+  const contained = pipeline.resize(width, height, {
+    fit: 'contain',
+    position: 'centre',
+    kernel: sharp.kernel.lanczos3,
+    background: { r: 0, g: 0, b: 0, alpha: 0 },
+  })
+
+  let finalSharp = contained
+  if (
+    out === 'equipment/plate.png' &&
+    width === height &&
+    width > PLATE_RUNTIME_INSET_PX * 2
+  ) {
+    const inner = width - PLATE_RUNTIME_INSET_PX * 2
+    const raster = await contained.png({ compressionLevel: 9 }).toBuffer()
+    const meta = await sharp(raster).metadata()
+    if (meta.width === width && meta.height === height) {
+      finalSharp = sharp(raster)
+        .extract({
+          left: PLATE_RUNTIME_INSET_PX,
+          top: PLATE_RUNTIME_INSET_PX,
+          width: inner,
+          height: inner,
+        })
+        .resize(width, height, {
+          fit: 'cover',
+          position: 'centre',
+          kernel: sharp.kernel.lanczos3,
+        })
+    }
+  }
+
+  await finalSharp
     .png({
       compressionLevel: 9,
       effort: 10,

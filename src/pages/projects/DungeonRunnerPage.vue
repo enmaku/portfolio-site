@@ -1855,8 +1855,8 @@ function importReplay() {
 
 .dr-equip-token {
   position: relative;
-  width: 84px;
-  height: 84px;
+  width: 64px;
+  height: 64px;
   flex-shrink: 0;
   border-radius: 50%;
   outline: none;
