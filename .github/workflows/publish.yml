@@ -41,7 +41,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      # TMDB for Movie Vote (Settings → Secrets and variables → Actions). Use either or both.
+      # TMDB + Firebase for Movie Vote (Settings → Secrets and variables → Actions).
       # Vite inlines VITE_* at build time (treat as public read-only credentials).
       - name: Install and build
         env:
@@ -50,6 +50,13 @@ jobs:
           SITE_ORIGIN: https://focusdisorder.com
           VITE_TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           VITE_TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
         run: |
           npm ci
           npm run build
