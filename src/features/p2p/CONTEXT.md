@@ -12,15 +12,19 @@ _Avoid_: “Lobby” unless the feature explicitly distinguishes waiting areas f
 
 ### Host
 
-The browser/tab that owns authoritative session lifecycle and relays state to attached **guest** connections.
+The collaborator role that owns authoritative **room** lifecycle for that **room**’s lifetime; the **host** is never reassigned to another **participant**.
+
+In wire-based star rooms, the **host** browser/tab relays state to attached **guest** connections. With persisted collaboration, **guest** **participants** are not coupled to whether the **host**’s browser is online at a given moment—**host**-only actions wait until that **host** **principal** acts again.
 
 ### Guest
 
 A browser/tab that joins **host**, sends updates upward, and follows **host**-issued snapshots or messages.
 
+With a valid **join link** and an existing **room**, attachment is immediate: the shared **room code** is the admission signal—no separate **host** approval step unless a product explicitly adds one.
+
 ### Star-room shell
 
-Cross-feature wiring for Peer errors classification, teardown, and backoff-based reconnect loops; individual products supply how to establish **host**/ **guest**, notify users, and clear persistence.
+Cross-feature wiring for Peer errors classification, teardown, and backoff-based reconnect loops; individual products supply how to establish **host**/ **guest**, notify users, and clear persistence—including shared persisted **room** artifacts when a product ends a **room** on the same user-visible teardown moments as today. Products may also define retention or automated cleanup for **rooms** that never receive a clean teardown.
 
 ### Room code
 
@@ -33,6 +37,8 @@ Characters allowed in generated **room suffix** values: uppercase letters and di
 ### Room suffix
 
 The normalized alphanumeric tail users mean when they say **room code**; paired with an **app-scoped broker prefix** it becomes the full signaling id.
+
+The same value is usually the canonical **room** key when a product persists **rooms** under an app-scoped path, so **join links** stay aligned with stored sessions.
 
 ### App-scoped broker prefix
 
@@ -53,6 +59,8 @@ Deterministic **room suffix** derived from **stable client identity** plus an ap
 ### Stable client identity
 
 Opaque per-browser identifier that lets a **host** treat a returning **guest** as the same collaborator after refresh or reconnect (so counts and submissions stay coherent).
+
+The shell picks **one** persisted principal as canonical for that remapping; feature stores may mirror it for convenience, not hold a second competing browser-level id.
 
 ### Reconnect generation
 
@@ -76,7 +84,9 @@ Stopping live connections without discarding persisted **room** identity (narrow
 
 ## Relationships
 
+- The **host** role is fixed for a **room**’s lifetime—never migrated to another **participant**.
 - Every **guest** attaches to exactly one **host** in a running **star-room shell** pairing (star **hub**).
+- **Guests** enter using **join links**; the shared **room code** admits them without a **host** approval gate unless a product deliberately adds one.
 - A **room suffix** is drawn from the **unambiguous room alphabet**; combined with an **app-scoped broker prefix** it forms the wire **hub** id.
 - A **room code**/**room suffix** selects which **host** **guest** browsers join; **join links** encode that suffix for copying.
 - **App-scoped broker prefixes** keep namespaces disjoint across products sharing the same broker fleet.
@@ -101,3 +111,5 @@ Stopping live connections without discarding persisted **room** identity (narrow
 ## Flagged ambiguities
 
 - “Session” vs “Room”: Resolved — persist user-facing wording as **room**; reserve **session** for implementation layers that include phase machines inside a product-specific store.
+- **Host** reassignment: Resolved — never; a **room**’s **host** is fixed for that **room**’s lifetime.
+- **Room** cleanup: Resolved — user-visible teardown clears shared persisted **room** artifacts; abandoned **rooms** may be purged by a product-defined time-based backstop whose clock **participant** activity refreshes—not **host**-only signals.

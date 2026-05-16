@@ -13,6 +13,7 @@
 - **Portfolio site → Projects**: Routes and navigation expose **Game Timer** and **Movie Vote** as first-class **projects** alongside static portfolio content.
 - **Game Timer ↔ Star-room P2P**: Game Timer’s multiplayer session uses the star-room host/guest collaboration model for state sync.
 - **Movie Vote ↔ Star-room P2P**: Movie Vote uses the same collaboration model so a **host** aggregates **participant** drafts and votes.
+- **Movie Vote ↔ Game Timer**: Both use star-room roles today; **Game Timer**’s synchronized countdown state is not assumed to share the same persistence or transport shape as **Movie Vote** without its own design pass.
 - **Portfolio site ↔ sharing**: Publishable URLs and shared-link summaries for selected routes belong to the portfolio context; implementations read shared metadata keyed by route.
 - **Portfolio site ↔ Star-room P2P**: **Join links** live on canonical `/projects/…` paths with `room` query params; **public site origin** anchors absolute URLs when builds need a stable host.
 
