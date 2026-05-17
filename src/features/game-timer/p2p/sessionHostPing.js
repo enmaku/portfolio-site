@@ -36,6 +36,21 @@ export function isRoomOccupiedByOtherHost(pingVal, hostClientId, stableClientId,
 }
 
 /**
+ * Same browser reclaiming its room after refresh (do not wipe RTDB session payload).
+ * @param {unknown} hostClientId
+ * @param {unknown} endedVal
+ * @param {string} stableClientId
+ * @returns {boolean}
+ */
+export function isReclaimOwnHostRoom(hostClientId, endedVal, stableClientId) {
+  return (
+    typeof hostClientId === 'string' &&
+    hostClientId === stableClientId &&
+    !isRoomMarkedEnded(endedVal)
+  )
+}
+
+/**
  * @param {unknown} pingVal RTDB `hostPing` value.
  * @param {unknown} endedVal RTDB `ended` value.
  * @param {{

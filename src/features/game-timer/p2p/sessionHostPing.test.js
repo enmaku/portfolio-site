@@ -5,6 +5,7 @@ import {
   canClaimHostRoom,
   isHostPingFresh,
   isHostPingPresent,
+  isReclaimOwnHostRoom,
   isRoomOccupiedByOtherHost,
 } from './sessionHostPing.js'
 
@@ -76,4 +77,10 @@ test('canClaimHostRoom allows reclaim when hostClientId matches this browser', (
 test('canClaimHostRoom allows claim when hostPing is absent', () => {
   const now = 7_000_000
   assert.equal(canClaimHostRoom(null, null, { nowMs: now, stableClientId: 'GUEST' }), true)
+})
+
+test('isReclaimOwnHostRoom allows reclaim without hostPing after refresh', () => {
+  assert.equal(isReclaimOwnHostRoom('CLIENT-ABC', null, 'CLIENT-ABC'), true)
+  assert.equal(isReclaimOwnHostRoom('CLIENT-ABC', 1_700_000_000_000, 'CLIENT-ABC'), false)
+  assert.equal(isReclaimOwnHostRoom('OTHER', null, 'CLIENT-ABC'), false)
 })

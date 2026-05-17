@@ -79,7 +79,7 @@ _Avoid_: Implying a guarantee on every OS or browser—best-effort only.
 - **Rounds** own **player** order mappings; totals track both overall **banked** time and optionally per-round portions.
 - **Hard pass** interacts only with intra-**round** participation unless **pass order determines round order** binds outcomes to subsequent **round** ordering.
 - **Host** merges **guest** intents into authoritative **snapshot** timelines.
-- **Host** presence in a **room** is claimed once (not refreshed on a timer); when the **host** tab drops off the network, cleanup signals **guests** to treat the **room** as ended—**snapshot** updates and visibility changes carry ongoing sync, not periodic keepalive writes.
+- **Host** presence in a **room** is separate from the **room** itself; a temporary **host** disconnect (refresh, network blip) does not end the **room** for **guests**—only an explicit host end does. **Guests** keep the last **snapshot** until the **host** returns.
 - **Keep display on** engages whenever the roster is non-empty so facilitators are less likely to lose the **room** mid-game.
 
 ## Example dialogue

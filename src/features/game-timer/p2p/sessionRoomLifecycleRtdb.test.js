@@ -116,12 +116,12 @@ test('guest RTDB ended marker clears room persistence but keeps roster', async (
   })
 })
 
-test('guest RTDB hostPing removal clears room persistence but keeps roster', async () => {
+test('guest RTDB hostPing removal stays connected and keeps room persistence', async () => {
   mock.reset()
   const { listeners } = await installRtdbLifecycleMocks()
 
   await withFirebaseEnv(async () => {
-    const { joinRoom, sessionPhase, sessionSuffix } = await importSession(
+    const { joinRoom, remoteHostPresent, sessionPhase, sessionSuffix } = await importSession(
       String(Date.now()),
     )
     setActivePinia(createPinia())
@@ -131,6 +131,8 @@ test('guest RTDB hostPing removal clears room persistence but keeps roster', asy
 
     await joinRoom('ABC123')
     assert.equal(sessionPhase.value, 'guest_connected')
+    assert.equal(room.role, 'guest')
+    assert.equal(room.suffix, 'ABC123')
 
     const hostPingPath = [...listeners.keys()].find((p) => p.endsWith('hostPing'))
     assert.ok(hostPingPath, 'guest wire should subscribe to hostPing')
@@ -139,10 +141,11 @@ test('guest RTDB hostPing removal clears room persistence but keeps roster', asy
     onHostPing({ val: () => Date.now() })
     onHostPing({ val: () => null })
 
-    assert.equal(sessionPhase.value, 'idle')
-    assert.equal(sessionSuffix.value, null)
-    assert.equal(room.role, null)
-    assert.equal(room.suffix, null)
+    assert.equal(sessionPhase.value, 'guest_connected')
+    assert.equal(sessionSuffix.value, 'ABC123')
+    assert.equal(room.role, 'guest')
+    assert.equal(room.suffix, 'ABC123')
+    assert.equal(remoteHostPresent.value, false)
     assert.equal(store.players.length, 1)
     assert.equal(store.players[0].name, 'Guest')
   })

@@ -9,7 +9,6 @@ import {
   child,
   get,
   onChildAdded,
-  onDisconnect,
   onValue,
   ref as dbRef,
   remove,
@@ -35,7 +34,11 @@ import {
   parseHostMessage,
   parseHostVisibility,
 } from './protocol.js'
-import { canClaimHostRoom, isHostPingPresent } from './sessionHostPing.js'
+import {
+  canClaimHostRoom,
+  isHostPingPresent,
+  isReclaimOwnHostRoom,
+} from './sessionHostPing.js'
 import { isRoomMarkedEnded, ROOM_CLAIM_RESET_PATHS } from './sessionRoomRtdb.js'
 import {
   generateRoomSuffix,
@@ -96,6 +99,12 @@ export const sessionSuffix = ref(/** @type {string | null} */ (null))
  * Stays `true` when idle / hosting / unknown.
  */
 export const remoteHostTabVisible = ref(true)
+
+/**
+ * Guest only: host has an active `hostPing` in RTDB (tab connected as host).
+ * Stays `true` when idle / hosting / unknown.
+ */
+export const remoteHostPresent = ref(true)
 
 /** @type {(() => void) | null} */
 let hostVisibilityTeardown = null
@@ -313,15 +322,9 @@ function wireGuestRoom(suffix) {
     }),
   )
 
-  let sawHostPing = false
   trackUnsub(
     onValue(roomChild(suffix, 'hostPing'), (snap) => {
-      const ping = snap.val()
-      if (typeof ping === 'number') {
-        sawHostPing = true
-        return
-      }
-      if (sawHostPing && ping == null) handleGuestHostEnded()
+      remoteHostPresent.value = isHostPingPresent(snap.val())
     }),
   )
 
@@ -380,11 +383,7 @@ async function tryClaimHostRoom(suffix) {
     return false
   }
 
-  const reclaimOwn =
-    typeof hostClientSnap.val() === 'string' &&
-    hostClientSnap.val() === stableClientId &&
-    isHostPingPresent(pingVal) &&
-    !isRoomMarkedEnded(endedVal)
+  const reclaimOwn = isReclaimOwnHostRoom(hostClientSnap.val(), endedVal, stableClientId)
 
   await setRtdb(pingRef, Date.now())
   await setRtdb(roomChild(suffix, 'hostClientId'), stableClientId)
@@ -392,18 +391,6 @@ async function tryClaimHostRoom(suffix) {
     await resetStaleRoomRtdbForClaim(suffix)
   }
   return true
-}
-
-/**
- * @param {string} suffix
- */
-async function registerHostOnDisconnect(suffix) {
-  try {
-    onDisconnect(roomChild(suffix, 'hostPing')).remove()
-    onDisconnect(roomChild(suffix, 'ended')).set(Date.now())
-  } catch {
-    void 0
-  }
 }
 
 /**
@@ -459,7 +446,6 @@ async function finishHostSession(suffix) {
   startHostVisibilityWatch()
   await setRtdb(roomChild(suffix, 'hostPing'), Date.now())
   await setRtdb(roomChild(suffix, 'hostClientId'), getStableClientId())
-  await registerHostOnDisconnect(suffix)
   try {
     useGameTimerRoomSessionStore().setHost(suffix)
   } catch {
@@ -472,13 +458,19 @@ async function finishHostSession(suffix) {
  * @param {string} suffix
  */
 async function establishGuestSession(suffix) {
-  const pingSnap = await get(roomChild(suffix, 'hostPing'))
-  if (!isHostPingPresent(pingSnap.val())) {
+  const [pingSnap, endedSnap, stateSnap] = await Promise.all([
+    get(roomChild(suffix, 'hostPing')),
+    get(roomChild(suffix, 'ended')),
+    get(roomChild(suffix, 'state')),
+  ])
+
+  if (isRoomMarkedEnded(endedSnap.val())) {
     throw new Error('No active room for that code')
   }
 
-  const endedSnap = await get(roomChild(suffix, 'ended'))
-  if (isRoomMarkedEnded(endedSnap.val())) {
+  const hostPingPresent = isHostPingPresent(pingSnap.val())
+  const hasRoomState = parseHostMessage(stateSnap.val()) != null
+  if (!hostPingPresent && !hasRoomState) {
     throw new Error('No active room for that code')
   }
 
@@ -487,6 +479,7 @@ async function establishGuestSession(suffix) {
   isHost = false
   sessionSuffix.value = suffix
   remoteHostTabVisible.value = true
+  remoteHostPresent.value = hostPingPresent
 
   wireGuestRoom(suffix)
   await setRtdb(roomChild(suffix, `inbox/${guestStableId}`), encodeGuestHello(guestStableId))
@@ -809,6 +802,7 @@ export function teardownSession() {
   sessionPhase.value = 'idle'
   sessionSuffix.value = null
   remoteHostTabVisible.value = true
+  remoteHostPresent.value = true
   destroyWireOnly()
 }
 
