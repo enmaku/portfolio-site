@@ -32,8 +32,7 @@
       >
         <q-menu anchor="bottom right" self="top right" :offset="[0, 6]">
           <div class="dr-match-settings-menu q-pa-md" style="min-width: 260px">
-            <div class="text-subtitle2 text-weight-medium q-mb-sm">Match presentation</div>
-            <div class="text-caption text-grey-6 q-mb-md">Animation pace (default: cinematic).</div>
+            <div class="text-subtitle2 text-weight-medium q-mb-sm">Animation speed</div>
             <q-option-group
               v-model="presentationSpeedProfile"
               :options="presentationSpeedOptions"
@@ -41,10 +40,7 @@
               type="radio"
             />
             <q-separator class="q-my-md" />
-            <div class="text-subtitle2 text-weight-medium q-mb-sm">Match recall</div>
-            <div class="text-caption text-grey-6 q-mb-sm">
-              Memory Aid is off by default. When on, deck splay, bidding counts, and Vorpal pile hints apply immediately.
-            </div>
+            
             <q-toggle
               :model-value="memoryAidState.enabled"
               dense
@@ -64,13 +60,18 @@
         <div class="text-subtitle1 q-mb-sm">Setup</div>
         <div class="row q-col-gutter-md q-mb-md">
           <div class="col-12 col-sm-6">
-            <q-select
+            <div class="text-body2 q-mb-sm">Total players</div>
+            <q-slider
               v-model="setup.totalSeats"
-              :options="[2, 3, 4]"
-              label="Total players"
-              behavior="menu"
-              outlined
-              dense
+              :min="totalSeatSlider.min"
+              :max="totalSeatSlider.max"
+              :step="totalSeatSlider.step"
+              snap
+              markers
+              marker-labels
+              color="primary"
+              aria-label="Total players"
+              class="dr-total-seats-slider q-px-sm"
             />
           </div>
         </div>
@@ -656,6 +657,7 @@ const setup = reactive(createDefaultSetupConfig())
 const $q = useQuasar()
 const helpOpen = ref(false)
 const match = ref(null)
+const totalSeatSlider = { min: 2, max: 4, step: 1 }
 const opponentTypeOptions = [
   { label: 'Random bot', value: 'randombot' },
   { label: 'AI', value: 'nn' },
