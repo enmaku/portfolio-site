@@ -30,6 +30,15 @@ const routes = [
           shareKey: 'about',
         },
       },
+      {
+        path: 'cardpreview',
+        component: () => import('pages/dev/CardPreviewPage.vue'),
+        meta: {
+          title: SHARE_METADATA.cardPreview.title,
+          favicon: SHARE_METADATA.cardPreview.favicon,
+          shareKey: 'cardPreview',
+        },
+      },
     ],
   },
   {
@@ -58,6 +67,21 @@ const routes = [
           title: SHARE_METADATA.movieVote.title,
           favicon: SHARE_METADATA.movieVote.favicon,
           shareKey: 'movieVote',
+        },
+      },
+    ],
+  },
+  {
+    path: '/projects/dungeon-runner',
+    component: () => import('layouts/projects/DungeonRunnerLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/projects/DungeonRunnerPage.vue'),
+        meta: {
+          title: SHARE_METADATA.dungeonRunner.title,
+          favicon: SHARE_METADATA.dungeonRunner.favicon,
+          shareKey: 'dungeonRunner',
         },
       },
     ],

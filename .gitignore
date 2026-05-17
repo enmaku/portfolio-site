@@ -30,12 +30,17 @@ yarn-error.log*
 *.ntvs*
 *.njsproj
 *.sln
+/artifacts/*
+/.tmp*/*
 
 # local env (secrets); keep .env.example committed
 .env
 .env.local*
 .venv*/*
 artifacts/*
+
+# python stuff
+.venv*/
 
 # Generated from src/assets/photos/* (see scripts/generate-photo-thumbs.mjs)
 /src/assets/photos/thumbs/*
