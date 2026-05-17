@@ -6,14 +6,16 @@ export const useDungeonRunnerSettingsStore = defineStore('dungeonRunnerSettings'
   state: () => ({
     animationPace: 'cinematic',
     memoryAidEnabled: false,
+    fullscreenEnabled: false,
   }),
 
   persist: {
     key: 'portfolio-dungeon-runner-settings',
-    pick: ['animationPace', 'memoryAidEnabled'],
+    pick: ['animationPace', 'memoryAidEnabled', 'fullscreenEnabled'],
     afterHydrate: ({ store }) => {
       store.animationPace = VALID_PACES.has(store.animationPace) ? store.animationPace : 'cinematic'
       store.memoryAidEnabled = store.memoryAidEnabled === true
+      store.fullscreenEnabled = store.fullscreenEnabled === true
     },
   },
 
@@ -23,6 +25,9 @@ export const useDungeonRunnerSettingsStore = defineStore('dungeonRunnerSettings'
     },
     setMemoryAidEnabled(value) {
       this.memoryAidEnabled = value === true
+    },
+    setFullscreenEnabled(value) {
+      this.fullscreenEnabled = value === true
     },
   },
 })

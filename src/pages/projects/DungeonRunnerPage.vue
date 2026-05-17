@@ -24,12 +24,11 @@
         @click="helpOpen = true"
       />
       <q-btn
-        v-if="match"
         flat
         dense
         icon="settings"
-        aria-label="Match settings"
-        :disable="dungeonOutcomeDialogOpen"
+        aria-label="Dungeon Runner settings"
+        :disable="Boolean(match) && dungeonOutcomeDialogOpen"
       >
         <q-menu anchor="bottom right" self="top right" :offset="[0, 6]">
           <div class="dr-match-settings-menu q-pa-md" style="min-width: 260px">
@@ -53,6 +52,8 @@
               aria-label="Toggle memory aid"
               @update:model-value="onMemoryAidToggle"
             />
+            <q-separator class="q-my-md" />
+            <q-toggle v-model="fullscreenModel" dense color="primary" label="Fullscreen" />
           </div>
         </q-menu>
       </q-btn>
@@ -571,7 +572,9 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, triggerRef, unref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
+import { useScopedFullscreen } from '../../features/game-timer/composables/useScopedFullscreen.js'
 import { useDungeonRunnerSettingsStore } from '../../stores/dungeonRunnerSettings.js'
 import {
   MATCH_PHASES,
@@ -669,6 +672,27 @@ const nnDebugTraceText = ref('')
 const nnDebugTraceHistory = ref([])
 const presentationOrchestrator = createPresentationOrchestrator()
 const dungeonRunnerSettingsStore = useDungeonRunnerSettingsStore()
+const { fullscreenEnabled } = storeToRefs(dungeonRunnerSettingsStore)
+
+useScopedFullscreen({
+  enabled: fullscreenEnabled,
+  setEnabled: (next) => dungeonRunnerSettingsStore.setFullscreenEnabled(next),
+  getTargetElement: () => document.documentElement,
+  onRequestFailure: () => {
+    $q.notify({
+      type: 'warning',
+      message: 'Fullscreen could not be enabled.',
+      timeout: 2500,
+      position: 'top',
+    })
+  },
+})
+
+const fullscreenModel = computed({
+  get: () => fullscreenEnabled.value,
+  set: (value) => dungeonRunnerSettingsStore.setFullscreenEnabled(Boolean(value)),
+})
+
 const presentationSpeedProfile = computed({
   get() {
     return dungeonRunnerSettingsStore.animationPace

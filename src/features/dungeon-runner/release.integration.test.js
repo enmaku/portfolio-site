@@ -46,15 +46,21 @@ test('dungeon runner page header gates on dungeon outcome dialog', () => {
     'start-new should be disabled when outcome dialog is open',
   )
   assert.ok(
-    page.includes('aria-label="Match settings"') &&
-      page.indexOf(':disable="dungeonOutcomeDialogOpen"', page.indexOf('aria-label="Match settings"')) > -1,
+    page.includes('aria-label="Dungeon Runner settings"') &&
+      page.indexOf(
+        ':disable="Boolean(match) && dungeonOutcomeDialogOpen"',
+        page.indexOf('aria-label="Dungeon Runner settings"'),
+      ) > -1,
     'settings should be disabled when outcome dialog is open',
   )
 })
 
 test('dungeon runner page exposes match presentation speed in settings menu', () => {
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
-  assert.equal(page.includes('aria-label="Match settings"'), true)
+  assert.equal(page.includes('aria-label="Dungeon Runner settings"'), true)
+  const settingsAriaIdx = page.indexOf('aria-label="Dungeon Runner settings"')
+  const settingsBtnStart = page.lastIndexOf('<q-btn', settingsAriaIdx)
+  assert.equal(page.slice(settingsBtnStart, settingsAriaIdx).includes('v-if="match"'), false)
   assert.equal(page.includes('<q-menu anchor="bottom right" self="top right"'), true)
   assert.equal(page.includes('presentationSpeedProfile'), true)
   assert.equal(page.includes('setSpeedProfile'), true)
@@ -68,6 +74,13 @@ test('dungeon runner page places memory aid toggle in match settings menu', () =
   const menuIdx = page.indexOf('<q-menu anchor="bottom right" self="top right"')
   const toggleIdx = page.indexOf('aria-label="Toggle memory aid"')
   assert.ok(menuIdx >= 0 && toggleIdx > menuIdx, 'memory aid toggle should live inside settings menu')
+})
+
+test('dungeon runner page wires fullscreen toggle through scoped fullscreen composable', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes('label="Fullscreen"'), true)
+  assert.equal(page.includes('useScopedFullscreen'), true)
+  assert.equal(page.includes('setFullscreenEnabled'), true)
 })
 
 test('dungeon runner route record still imports layout and page modules', () => {
@@ -257,8 +270,11 @@ test('continueFromDungeonOutcome dismisses by run reference', () => {
 test('persistent dungeon outcome dialog locks all background interactions while open', () => {
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
   assert.ok(
-    page.includes('aria-label="Match settings"') &&
-      page.indexOf(':disable="dungeonOutcomeDialogOpen"', page.indexOf('aria-label="Match settings"')) > -1,
+    page.includes('aria-label="Dungeon Runner settings"') &&
+      page.indexOf(
+        ':disable="Boolean(match) && dungeonOutcomeDialogOpen"',
+        page.indexOf('aria-label="Dungeon Runner settings"'),
+      ) > -1,
     'settings button should be disabled when outcome dialog is open',
   )
   assert.ok(
