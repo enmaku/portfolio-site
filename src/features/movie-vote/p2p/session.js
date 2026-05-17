@@ -1,14 +1,23 @@
 /**
  * @import '../types.js'
- * PeerJS star hub for Movie Vote (`dperry-movievote-<suffix>`).
+ * Firebase RTDB star hub for Movie Vote (`movieVoteRooms/<suffix>`).
  * Typed messages; host aggregates guest drafts and runs IRV.
  */
 
-import { ref } from 'vue'
+import { ref as vueRef } from 'vue'
 import { Notify } from 'quasar'
+import {
+  child,
+  get,
+  onChildAdded,
+  onDisconnect,
+  onValue,
+  ref as dbRef,
+  remove,
+} from 'firebase/database'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { useMovieVoteRoomSessionStore } from '../../../stores/movieVoteRoomSession.js'
-import { awaitPeerOpen } from '../../p2p/awaitPeerOpen.js'
+import { getMovieVoteDatabase, movieVoteRoomRef, setRtdb } from '../firebase/rtdb.js'
 import {
   HOST_PARTICIPANT_ID,
   compileBallotMovies,
@@ -19,29 +28,15 @@ import { runIrv } from '../irv.js'
 import {
   runGuestStarReconnectLoop,
   runHostStarReconnectLoop,
-  wireStarRoomPeerErrors,
 } from '../../p2p/starRoomShell.js'
-import { isUnavailableIdError } from '../../p2p/errors.js'
 import { deriveStableHostSuffix, getStableClientId } from '../../p2p/identity.js'
-import {
-  HEARTBEAT_GUEST_CHECK_MS,
-  HEARTBEAT_INTERVAL_MS,
-  HEARTBEAT_STALE_MS,
-  OPEN_PEER_TIMEOUT_MS,
-  PEER_OPTS,
-  RECONNECT_PEER_TIMEOUT_MS,
-} from '../../p2p/starRoomTiming.js'
 import {
   encodeDraft,
   encodeHello,
-  encodeHostPing,
   encodeHostVisibility,
   encodeState,
   encodeVote,
   encodeWelcome,
-  isHostEndedNotice,
-  isHostPing,
-  MSG_MV_HOST_ENDED,
   parseDraft,
   parseHello,
   parseHostVisibility,
@@ -49,8 +44,9 @@ import {
   parseVote,
   parseWelcome,
 } from './protocol.js'
+import { canClaimHostRoom, isHostPingPresent } from './sessionHostPing.js'
+import { isRoomMarkedEnded, ROOM_CLAIM_RESET_PATHS } from './sessionRoomRtdb.js'
 import {
-  fullPeerIdFromSuffix,
   generateAnonymousVoterId,
   generateRoomSuffix,
   isValidRoomSuffix,
@@ -58,15 +54,6 @@ import {
 } from './roomId.js'
 
 const STABLE_HOST_SUFFIX_APP = 'movievote'
-
-/** @type {import('peerjs').Peer | null} */
-let peer = null
-
-/** @type {Set<import('peerjs').DataConnection>} */
-const hubConnections = new Set()
-
-/** @type {import('peerjs').DataConnection | null} */
-let guestHubConn = null
 
 let isHost = false
 
@@ -76,26 +63,20 @@ let lastSeenSeq = 0
 
 let reconnectGeneration = 0
 
-/** @type {Map<import('peerjs').DataConnection, string>} */
-const connToParticipant = new Map()
+/** @type {string | null} */
+let guestStableId = null
 
 /**
  * Stable client id → participant id.
- *
- * Populated when a guest sends a `hello` message after their `DataConnection`
- * opens, and kept across that guest's reconnects so their existing slot (and
- * any vote they've already cast) is preserved. Entries are cleared only when
- * the host session tears down.
  * @type {Map<string, string>}
  */
 const stableIdToParticipant = new Map()
 
 /**
- * Participant id → open DataConnection currently serving that participant.
- * Used to close an orphan connection when the same stable id reconnects.
- * @type {Map<string, import('peerjs').DataConnection>}
+ * Stable ids currently marked online under `guestOnline/`.
+ * @type {Set<string>}
  */
-const participantToConn = new Map()
+const activeGuestStableIds = new Set()
 
 /**
  * Guest drafts keyed by participant id (host tab uses store only).
@@ -104,47 +85,46 @@ const participantToConn = new Map()
 const guestDrafts = new Map()
 
 /**
- * Pending participant-removal timers keyed by participant id. Scheduled when a
- * guest's connection closes; cleared when they reconnect within the grace
- * window. See {@link GUEST_REMOVAL_GRACE_MS}.
  * @type {Map<string, ReturnType<typeof setTimeout>>}
  */
 const pendingRemovalTimers = new Map()
 
+/** @type {Array<() => void>} */
+let wireUnsubs = []
+
 /** Reactive session UI state for multiplayer (Vue ref; safe to use outside components). */
-export const sessionPhase = ref(/** @type {import('./types.js').MovieVoteSessionPhase} */ ('idle'))
+export const sessionPhase = vueRef(/** @type {import('./types.js').MovieVoteSessionPhase} */ ('idle'))
 
 /** Short user-facing room code while hosting or connected as guest; null when idle. */
-export const sessionSuffix = ref(/** @type {string | null} */ (null))
+export const sessionSuffix = vueRef(/** @type {string | null} */ (null))
 
 /**
  * Guest only: last host-reported tab visibility (`document.visibilityState === 'visible'` on host).
  * Stays `true` when idle / hosting / unknown.
  */
-export const remoteHostTabVisible = ref(true)
+export const remoteHostTabVisible = vueRef(true)
 
-/**
- * When a guest's `DataConnection` closes, keep their participant slot (drafts,
- * votes, ready flag) around for this long so that a quick reconnect can reuse
- * it. Long enough for brief wifi/bluetooth glitches, short enough that a
- * truly-departed voter doesn't block a room from advancing to the next phase.
- */
 const GUEST_REMOVAL_GRACE_MS = 45_000
 
-/** Minimum distinct TMDB titles across the room before anyone can mark ready (matches ballot dedupe). */
 const MIN_DISTINCT_SUGGESTIONS_FOR_READY = 2
-
-/** @type {ReturnType<typeof setInterval> | null} */
-let hostHeartbeatIntervalId = null
-
-/** @type {ReturnType<typeof setInterval> | null} */
-let guestHostWatchIntervalId = null
 
 /** @type {(() => void) | null} */
 let hostVisibilityTeardown = null
 
-/** @type {number} */
-let guestLastHostActivityAt = 0
+/**
+ * @param {string} suffix
+ * @param {string} path
+ */
+function roomChild(suffix, path) {
+  return child(movieVoteRoomRef(suffix), path)
+}
+
+/**
+ * @param {() => void} unsub
+ */
+function trackUnsub(unsub) {
+  wireUnsubs.push(unsub)
+}
 
 /**
  * @param {string} message
@@ -169,7 +149,6 @@ function notifyP2P(message, type = 'info', opts = {}) {
   }
 }
 
-/** Clears persisted host/guest intent from the room session Pinia store. */
 function clearRoomPersistence() {
   try {
     useMovieVoteRoomSessionStore().clear()
@@ -179,121 +158,88 @@ function clearRoomPersistence() {
 }
 
 function clearHeartbeatAndWatch() {
-  if (hostHeartbeatIntervalId !== null) {
-    clearInterval(hostHeartbeatIntervalId)
-    hostHeartbeatIntervalId = null
-  }
-  if (guestHostWatchIntervalId !== null) {
-    clearInterval(guestHostWatchIntervalId)
-    guestHostWatchIntervalId = null
-  }
   if (hostVisibilityTeardown) {
     hostVisibilityTeardown()
     hostVisibilityTeardown = null
   }
 }
 
-function sendHostHeartbeats() {
-  if (!isHost || !peer || peer.destroyed) return
-  const msg = encodeHostPing()
-  for (const c of hubConnections) {
-    if (!c.open) continue
+function clearWireUnsubs() {
+  for (const unsub of wireUnsubs) {
     try {
-      c.send(msg)
+      unsub()
     } catch {
       void 0
     }
   }
+  wireUnsubs = []
 }
 
 function broadcastHostVisibility(visible) {
-  if (!isHost || !peer || peer.destroyed) return
-  const msg = encodeHostVisibility(visible)
-  for (const c of hubConnections) {
-    if (!c.open) continue
-    try {
-      c.send(msg)
-    } catch {
-      void 0
-    }
-  }
+  if (!isHost || !sessionSuffix.value) return
+  setRtdb(roomChild(sessionSuffix.value, 'hostVisible'), encodeHostVisibility(visible)).catch(() => {})
 }
 
-function startHostHeartbeats() {
-  if (hostHeartbeatIntervalId !== null) {
-    clearInterval(hostHeartbeatIntervalId)
-    hostHeartbeatIntervalId = null
+function startHostVisibilityWatch() {
+  if (typeof document === 'undefined' || hostVisibilityTeardown) return
+  const onVis = () => {
+    broadcastHostVisibility(document.visibilityState === 'visible')
   }
-  hostHeartbeatIntervalId = window.setInterval(sendHostHeartbeats, HEARTBEAT_INTERVAL_MS)
-  sendHostHeartbeats()
-
-  if (typeof document !== 'undefined' && !hostVisibilityTeardown) {
-    const onVis = () => {
-      const visible = document.visibilityState === 'visible'
-      broadcastHostVisibility(visible)
-      if (visible) sendHostHeartbeats()
-    }
-    document.addEventListener('visibilitychange', onVis)
-    hostVisibilityTeardown = () => document.removeEventListener('visibilitychange', onVis)
-  }
+  document.addEventListener('visibilitychange', onVis)
+  hostVisibilityTeardown = () => document.removeEventListener('visibilitychange', onVis)
+  broadcastHostVisibility(document.visibilityState === 'visible')
 }
 
-function touchGuestHostActivity() {
-  guestLastHostActivityAt = Date.now()
+function wireDatabaseConnectivity() {
+  const connectedRef = dbRef(getMovieVoteDatabase(), '.info/connected')
+  trackUnsub(
+    onValue(connectedRef, (snap) => {
+      if (snap.val() !== false) return
+      if (isHost && sessionPhase.value === 'hosting') onHostDisconnected()
+      else if (!isHost && sessionPhase.value === 'guest_connected') onGuestDisconnected()
+    }),
+  )
 }
 
-function startGuestHostWatch() {
-  if (guestHostWatchIntervalId !== null) {
-    clearInterval(guestHostWatchIntervalId)
-    guestHostWatchIntervalId = null
-  }
-  touchGuestHostActivity()
-  guestHostWatchIntervalId = window.setInterval(() => {
-    if (sessionPhase.value !== 'guest_connected' || isHost) return
-    if (Date.now() - guestLastHostActivityAt > HEARTBEAT_STALE_MS) onGuestDisconnected()
-  }, HEARTBEAT_GUEST_CHECK_MS)
+/**
+ * @param {string} suffix
+ * @param {string} stableId
+ */
+async function markGuestOnline(suffix, stableId) {
+  const onlineRef = roomChild(suffix, `guestOnline/${stableId}`)
+  await setRtdb(onlineRef, true)
+  onDisconnect(onlineRef).set(false)
+}
+
+/**
+ * @param {string} suffix
+ * @param {string} stableId
+ */
+async function markGuestOffline(suffix, stableId) {
+  await setRtdb(roomChild(suffix, `guestOnline/${stableId}`), false).catch(() => {})
 }
 
 function destroyWireOnly() {
   clearHeartbeatAndWatch()
-  for (const c of hubConnections) {
-    try {
-      c.close()
-    } catch {
-      void 0
-    }
+  clearWireUnsubs()
+
+  const suffix = sessionSuffix.value
+  const sid = guestStableId
+  if (!isHost && suffix && sid) {
+    void markGuestOffline(suffix, sid)
   }
-  hubConnections.clear()
-  connToParticipant.clear()
-  participantToConn.clear()
+
   stableIdToParticipant.clear()
+  activeGuestStableIds.clear()
   guestDrafts.clear()
   for (const t of pendingRemovalTimers.values()) clearTimeout(t)
   pendingRemovalTimers.clear()
-  if (guestHubConn) {
-    try {
-      guestHubConn.close()
-    } catch {
-      void 0
-    }
-    guestHubConn = null
-  }
-  if (peer && !peer.destroyed) {
-    try {
-      peer.destroy()
-    } catch {
-      void 0
-    }
-  }
-  peer = null
+  guestStableId = null
   isHost = false
   nextSeq = 0
   lastSeenSeq = 0
 }
 
-/**
- * @returns {import('../types.js').MovieVotePublicPayload}
- */
 function allDraftPicksFlat() {
   const store = useMovieVoteStore()
   const out = [...store.myDraftPicks]
@@ -336,7 +282,7 @@ function buildPublicPayload() {
 }
 
 function hostBroadcastState() {
-  if (!isHost || !peer || peer.destroyed) return
+  if (!isHost || !sessionSuffix.value) return
   const payload = buildPublicPayload()
   try {
     const st = useMovieVoteStore()
@@ -348,14 +294,7 @@ function hostBroadcastState() {
     void 0
   }
   const msg = encodeState(payload, ++nextSeq)
-  for (const c of hubConnections) {
-    if (!c.open) continue
-    try {
-      c.send(msg)
-    } catch {
-      void 0
-    }
-  }
+  setRtdb(roomChild(sessionSuffix.value, 'state'), msg).catch(() => {})
 }
 
 function roomHasEnoughDistinctSuggestionsForReady() {
@@ -412,9 +351,6 @@ function tryFinishVoting() {
 }
 
 /**
- * Validate a pick from the wire. Accepts both TMDB picks (numeric `tmdbId`)
- * and custom picks (`source === 'custom'` with a non-empty title).
- *
  * @param {import('../types.js').MoviePick[]} picks
  */
 function normalizePicks(picks) {
@@ -445,20 +381,43 @@ function normalizePicks(picks) {
 }
 
 /**
- * @param {import('peerjs').DataConnection} conn
+ * Re-attach stable id → participant after host tab refresh (inbox may hold draft/vote, not hello).
+ * @param {string} stableId
+ * @param {unknown} raw
+ * @returns {string | null}
+ */
+function bindStableIdFromGuestPayload(stableId, raw) {
+  const existing = stableIdToParticipant.get(stableId)
+  if (existing) return existing
+
+  const draft = parseDraft(raw)
+  const pid = draft?.participantId ?? parseVote(raw)?.participantId
+  if (!pid) return null
+
+  stableIdToParticipant.set(stableId, pid)
+  if (!guestDrafts.has(pid)) {
+    guestDrafts.set(pid, { picks: [], ready: false })
+  }
+  cancelParticipantRemoval(pid)
+  return pid
+}
+
+/**
+ * @param {string} stableId
  * @param {unknown} raw
  */
-function handleHubInbound(conn, raw) {
+function handleHostInboxMessage(stableId, raw) {
   const hello = parseHello(raw)
   if (hello) {
-    onGuestHello(conn, hello.stableId)
+    if (hello.stableId !== stableId) return
+    onGuestHello(stableId)
     return
   }
 
-  const store = useMovieVoteStore()
-  const expectedPid = connToParticipant.get(conn)
+  const expectedPid = bindStableIdFromGuestPayload(stableId, raw)
   if (!expectedPid) return
 
+  const store = useMovieVoteStore()
   const draft = parseDraft(raw)
   if (draft) {
     if (draft.participantId !== expectedPid) return
@@ -489,57 +448,124 @@ function handleHubInbound(conn, raw) {
   }
 }
 
+function handleGuestHostEnded() {
+  notifyP2P('The host ended the room.', 'info')
+  reconnectGeneration += 1
+  clearRoomPersistence()
+  resetLocalStateAfterRoomExit()
+}
+
 /**
  * @param {unknown} raw
  */
-function handleGuestInbound(raw) {
-  if (isHostEndedNotice(raw)) {
-    notifyP2P('The host ended the room.', 'info')
-    reconnectGeneration += 1
-    clearRoomPersistence()
-    resetLocalStateAfterRoomExit()
-    return
-  }
-  if (isHostPing(raw)) {
-    touchGuestHostActivity()
-    return
-  }
-  const vis = parseHostVisibility(raw)
-  if (vis) {
-    touchGuestHostActivity()
-    remoteHostTabVisible.value = vis.visible
-    return
-  }
+function handleGuestWelcome(raw) {
   const welcome = parseWelcome(raw)
-  if (welcome) {
-    touchGuestHostActivity()
-    useMovieVoteStore().setMyParticipantId(welcome.participantId)
-    // Re-push our drafts so the host picks them up even if they refreshed and
-    // lost all participant state. Cheap; the host is idempotent on incoming
-    // draft messages.
-    movieVoteGuestPushDraft()
-    return
-  }
+  if (!welcome) return
+  useMovieVoteStore().setMyParticipantId(welcome.participantId)
+  movieVoteGuestPushDraft()
+}
+
+/**
+ * @param {unknown} raw
+ */
+function handleGuestState(raw) {
   const st = parseState(raw)
   if (!st) return
-  touchGuestHostActivity()
   if (st.seq <= lastSeenSeq) return
   lastSeenSeq = st.seq
   useMovieVoteStore().applyPublicPayload(st.payload)
 }
 
-function wirePeerErrors(p) {
-  wireStarRoomPeerErrors(p, {
-    bumpReconnectGeneration: () => {
-      reconnectGeneration += 1
-    },
-    clearRoomPersistence,
-    notifyP2p: notifyP2P,
-    teardownSession,
-    getIsHost: () => isHost,
-    onHostDisconnected,
-    onGuestDisconnected,
-  })
+/**
+ * @param {string} suffix
+ */
+function wireHostRoom(suffix) {
+  wireDatabaseConnectivity()
+
+  const inboxRef = roomChild(suffix, 'inbox')
+  trackUnsub(
+    onChildAdded(inboxRef, (snap) => {
+      const stableId = snap.key
+      if (!stableId) return
+      const itemRef = snap.ref
+      trackUnsub(
+        onValue(itemRef, (itemSnap) => {
+          const val = itemSnap.val()
+          if (val != null) handleHostInboxMessage(stableId, val)
+        }),
+      )
+    }),
+  )
+
+  const guestOnlineRef = roomChild(suffix, 'guestOnline')
+  trackUnsub(
+    onChildAdded(guestOnlineRef, (snap) => {
+      const stableId = snap.key
+      if (!stableId) return
+      const onlineRef = snap.ref
+      trackUnsub(
+        onValue(onlineRef, (onlineSnap) => {
+          const pid = stableIdToParticipant.get(stableId)
+          if (!pid) return
+          if (onlineSnap.val() === true) {
+            activeGuestStableIds.add(stableId)
+            cancelParticipantRemoval(pid)
+          } else {
+            activeGuestStableIds.delete(stableId)
+            if (!activeGuestStableIds.has(stableId)) scheduleParticipantRemoval(pid)
+          }
+        }),
+      )
+    }),
+  )
+}
+
+/**
+ * @param {string} suffix
+ * @param {string} stableId
+ */
+function wireGuestRoom(suffix, stableId) {
+  wireDatabaseConnectivity()
+
+  trackUnsub(
+    onValue(roomChild(suffix, 'state'), (snap) => {
+      const raw = snap.val()
+      if (raw != null) handleGuestState(raw)
+    }),
+  )
+
+  trackUnsub(
+    onValue(roomChild(suffix, `welcome/${stableId}`), (snap) => {
+      const raw = snap.val()
+      if (raw != null) handleGuestWelcome(raw)
+    }),
+  )
+
+  trackUnsub(
+    onValue(roomChild(suffix, 'ended'), (snap) => {
+      if (isRoomMarkedEnded(snap.val())) handleGuestHostEnded()
+    }),
+  )
+
+  let sawHostPing = false
+  trackUnsub(
+    onValue(roomChild(suffix, 'hostPing'), (snap) => {
+      const ping = snap.val()
+      if (typeof ping === 'number') {
+        sawHostPing = true
+        return
+      }
+      if (sawHostPing && ping == null) handleGuestHostEnded()
+    }),
+  )
+
+  trackUnsub(
+    onValue(roomChild(suffix, 'hostVisible'), (snap) => {
+      const vis = parseHostVisibility(snap.val())
+      if (!vis) return
+      remoteHostTabVisible.value = vis.visible
+    }),
+  )
 }
 
 function onGuestDisconnected() {
@@ -596,8 +622,7 @@ function guestReconnectLoop(suffix, gen) {
     notifyReconnectingGuest: (attempt, max) =>
       notifyP2P(`Reconnecting… attempt ${attempt} of ${max}`, 'warning'),
     destroyWireOnly,
-    establishGuest: () =>
-      establishGuestSession(suffix, { peerTimeoutMs: RECONNECT_PEER_TIMEOUT_MS }),
+    establishGuest: () => establishGuestSession(suffix),
     leaveSession,
     clearRoomPersistence,
     notifyGuestReconnectFailed: () =>
@@ -611,7 +636,6 @@ function guestReconnectLoop(suffix, gen) {
  * @param {number} gen
  */
 function hostReconnectLoop(suffix, gen) {
-  const fullId = fullPeerIdFromSuffix(suffix)
   return runHostStarReconnectLoop({
     gen,
     getReconnectGeneration: () => reconnectGeneration,
@@ -619,10 +643,7 @@ function hostReconnectLoop(suffix, gen) {
     notifyReconnectingHost: (attempt, max) =>
       notifyP2P(`Reconnecting as host… attempt ${attempt} of ${max}`, 'warning'),
     destroyWireOnly,
-    establishHost: async () => {
-      const p = await awaitPeerOpen(fullId, RECONNECT_PEER_TIMEOUT_MS)
-      finishHostSession(/** @type {import('peerjs').Peer} */ (p), suffix)
-    },
+    establishHost: () => finishHostSession(suffix),
     leaveSession,
     clearRoomPersistence,
     notifyHostReconnectFailed: () =>
@@ -631,48 +652,19 @@ function hostReconnectLoop(suffix, gen) {
   })
 }
 
-/**
- * @param {import('peerjs').Peer} p
- */
-function attachHubConnectionHandlers(p) {
-  p.on('connection', (conn) => {
-    conn.on('open', () => {
-      hubConnections.add(conn)
-    })
-    conn.on('data', (data) => handleHubInbound(conn, data))
-    conn.on('close', () => {
-      const pid = connToParticipant.get(conn)
-      hubConnections.delete(conn)
-      connToParticipant.delete(conn)
-      if (pid && participantToConn.get(pid) === conn) {
-        participantToConn.delete(pid)
-        scheduleParticipantRemoval(pid)
-      }
-      hostBroadcastState()
-    })
-  })
-}
-
-/**
- * Schedule removal of a participant slot after {@link GUEST_REMOVAL_GRACE_MS}
- * unless a matching guest reconnects first. No-op if the slot is already
- * actively connected or already scheduled.
- * @param {string} pid
- */
 function scheduleParticipantRemoval(pid) {
   if (!guestDrafts.has(pid)) return
-  if (participantToConn.has(pid)) return
+  const stableId = [...stableIdToParticipant.entries()].find(([, p]) => p === pid)?.[0]
+  if (stableId && activeGuestStableIds.has(stableId)) return
   const existing = pendingRemovalTimers.get(pid)
   if (existing) clearTimeout(existing)
   const t = setTimeout(() => {
     pendingRemovalTimers.delete(pid)
-    if (participantToConn.has(pid)) return
+    if (stableId && activeGuestStableIds.has(stableId)) return
     guestDrafts.delete(pid)
-    for (const [sid, mapped] of stableIdToParticipant) {
-      if (mapped === pid) {
-        stableIdToParticipant.delete(sid)
-        break
-      }
+    if (stableId) {
+      stableIdToParticipant.delete(stableId)
+      activeGuestStableIds.delete(stableId)
     }
     if (isHost && sessionPhase.value === 'hosting') {
       useMovieVoteStore().removeParticipantFromVote(pid)
@@ -684,11 +676,6 @@ function scheduleParticipantRemoval(pid) {
   pendingRemovalTimers.set(pid, t)
 }
 
-/**
- * Cancel any pending removal for `pid` (guest is back before the grace period
- * expired).
- * @param {string} pid
- */
 function cancelParticipantRemoval(pid) {
   const t = pendingRemovalTimers.get(pid)
   if (t) {
@@ -698,17 +685,9 @@ function cancelParticipantRemoval(pid) {
 }
 
 /**
- * Completes the hello handshake for a new guest connection by picking (or
- * reusing) the participant slot, wiring up the new conn, dropping any orphan
- * conn that used to serve the same guest, and sending the initial welcome /
- * state bootstrap.
- *
- * @param {import('peerjs').DataConnection} conn
  * @param {string} stableId
  */
-function onGuestHello(conn, stableId) {
-  if (connToParticipant.has(conn)) return
-
+function onGuestHello(stableId) {
   const existingPid = stableIdToParticipant.get(stableId)
   const pid = existingPid ?? generateAnonymousVoterId()
   const resumed = Boolean(existingPid)
@@ -720,56 +699,141 @@ function onGuestHello(conn, stableId) {
     cancelParticipantRemoval(pid)
   }
 
-  const orphan = participantToConn.get(pid)
-  if (orphan && orphan !== conn) {
-    try {
-      connToParticipant.delete(orphan)
-      orphan.close()
-    } catch {
-      void 0
-    }
-    hubConnections.delete(orphan)
+  activeGuestStableIds.add(stableId)
+
+  const suffix = sessionSuffix.value
+  if (!suffix) return
+
+  const welcomeRef = roomChild(suffix, `welcome/${stableId}`)
+  setRtdb(welcomeRef, encodeWelcome(pid, resumed)).catch(() => {})
+
+  const payload = buildPublicPayload()
+  if (nextSeq < 1) nextSeq = 1
+  setRtdb(roomChild(suffix, 'state'), encodeState(payload, nextSeq)).catch(() => {})
+
+  if (typeof document !== 'undefined') {
+    setRtdb(roomChild(suffix, 'hostVisible'), encodeHostVisibility(document.visibilityState === 'visible')).catch(
+      () => {},
+    )
   }
 
-  connToParticipant.set(conn, pid)
-  participantToConn.set(pid, conn)
+  if (resumed) hostBroadcastState()
+}
 
-  try {
-    conn.send(encodeWelcome(pid, resumed))
-    const payload = buildPublicPayload()
-    if (nextSeq < 1) nextSeq = 1
-    conn.send(encodeState(payload, nextSeq))
-    if (typeof document !== 'undefined') {
-      conn.send(encodeHostVisibility(document.visibilityState === 'visible'))
+/**
+ * Restore seq, participant slots, and online flags after host reconnect / refresh.
+ * @param {string} suffix
+ */
+async function hydrateHostFromRtdb(suffix) {
+  const stateSnap = await get(roomChild(suffix, 'state'))
+  const parsed = parseState(stateSnap.val())
+  if (parsed) nextSeq = parsed.seq
+
+  const welcomeSnap = await get(roomChild(suffix, 'welcome'))
+  const welcomes = welcomeSnap.val()
+  if (welcomes && typeof welcomes === 'object') {
+    for (const [stableId, raw] of Object.entries(welcomes)) {
+      if (typeof stableId !== 'string') continue
+      const welcome = parseWelcome(raw)
+      if (!welcome) continue
+      stableIdToParticipant.set(stableId, welcome.participantId)
+      if (!guestDrafts.has(welcome.participantId)) {
+        guestDrafts.set(welcome.participantId, { picks: [], ready: false })
+      }
     }
-  } catch {
-    try {
-      conn.close()
-    } catch {
-      void 0
-    }
-    return
   }
 
-  if (resumed) {
-    hostBroadcastState()
+  const onlineSnap = await get(roomChild(suffix, 'guestOnline'))
+  const online = onlineSnap.val()
+  if (online && typeof online === 'object') {
+    for (const [stableId, isOnline] of Object.entries(online)) {
+      if (isOnline === true) activeGuestStableIds.add(stableId)
+    }
   }
 }
 
 /**
- * @param {import('peerjs').Peer} p
  * @param {string} suffix
  */
-function finishHostSession(p, suffix) {
-  peer = p
+async function clearRoomEnded(suffix) {
+  await remove(roomChild(suffix, 'ended')).catch(() => {})
+}
+
+/**
+ * Drop stale guest/host payloads after claiming an idle room suffix.
+ * @param {string} suffix
+ */
+async function resetStaleRoomRtdbForClaim(suffix) {
+  await Promise.all(
+    ROOM_CLAIM_RESET_PATHS.map((path) => remove(roomChild(suffix, path)).catch(() => {})),
+  )
+}
+
+/**
+ * @param {string} suffix
+ * @returns {Promise<boolean>} true if suffix is free to claim
+ */
+async function tryClaimHostRoom(suffix) {
+  const pingRef = roomChild(suffix, 'hostPing')
+  const stableClientId = getStableClientId()
+  const [pingSnap, endedSnap, hostClientSnap] = await Promise.all([
+    get(pingRef),
+    get(roomChild(suffix, 'ended')),
+    get(roomChild(suffix, 'hostClientId')),
+  ])
+  const pingVal = pingSnap.val()
+  const endedVal = endedSnap.val()
+  if (
+    !canClaimHostRoom(pingVal, endedVal, {
+      hostClientId: hostClientSnap.val(),
+      stableClientId,
+    })
+  ) {
+    return false
+  }
+
+  const reclaimOwn =
+    typeof hostClientSnap.val() === 'string' &&
+    hostClientSnap.val() === stableClientId &&
+    isHostPingPresent(pingVal) &&
+    !isRoomMarkedEnded(endedVal)
+
+  await setRtdb(pingRef, Date.now())
+  await setRtdb(roomChild(suffix, 'hostClientId'), stableClientId)
+  if (!reclaimOwn) {
+    await resetStaleRoomRtdbForClaim(suffix)
+  }
+  return true
+}
+
+/**
+ * @param {string} suffix
+ */
+async function registerHostOnDisconnect(suffix) {
+  try {
+    onDisconnect(roomChild(suffix, 'hostPing')).remove()
+    onDisconnect(roomChild(suffix, 'ended')).set(Date.now())
+  } catch {
+    void 0
+  }
+}
+
+/**
+ * @param {string} suffix
+ */
+async function finishHostSession(suffix) {
+  await clearRoomEnded(suffix)
   isHost = true
   sessionSuffix.value = suffix
   nextSeq = 0
   lastSeenSeq = 0
-  attachHubConnectionHandlers(peer)
+  await hydrateHostFromRtdb(suffix)
+  wireHostRoom(suffix)
   sessionPhase.value = 'hosting'
-  wirePeerErrors(peer)
-  startHostHeartbeats()
+  startHostVisibilityWatch()
+  await setRtdb(roomChild(suffix, 'hostPing'), Date.now())
+  await setRtdb(roomChild(suffix, 'hostClientId'), getStableClientId())
+  await registerHostOnDisconnect(suffix)
   useMovieVoteStore().setMyParticipantId(HOST_PARTICIPANT_ID)
   try {
     useMovieVoteRoomSessionStore().setHost(suffix)
@@ -781,53 +845,28 @@ function finishHostSession(p, suffix) {
 
 /**
  * @param {string} suffix
- * @param {{ peerTimeoutMs?: number }} [opts]
  */
-async function establishGuestSession(suffix, opts = {}) {
-  const peerTimeoutMs = opts.peerTimeoutMs ?? OPEN_PEER_TIMEOUT_MS
-  const hubId = fullPeerIdFromSuffix(suffix)
+async function establishGuestSession(suffix) {
+  const pingSnap = await get(roomChild(suffix, 'hostPing'))
+  if (!isHostPingPresent(pingSnap.val())) {
+    throw new Error('No active room for that code')
+  }
+
+  const endedSnap = await get(roomChild(suffix, 'ended'))
+  if (isRoomMarkedEnded(endedSnap.val())) {
+    throw new Error('No active room for that code')
+  }
+
+  guestStableId = getStableClientId()
   lastSeenSeq = 0
-  const p = await awaitPeerOpen(undefined, peerTimeoutMs)
-  peer = /** @type {import('peerjs').Peer} */ (p)
   isHost = false
+  remoteHostTabVisible.value = true
 
-  const conn = peer.connect(hubId, { ...PEER_OPTS })
-
-  await new Promise((resolve, reject) => {
-    const t = window.setTimeout(() => {
-      try {
-        conn.close()
-      } catch {
-        void 0
-      }
-      reject(new Error('Connect timeout'))
-    }, peerTimeoutMs)
-    conn.on('error', (e) => {
-      window.clearTimeout(t)
-      reject(e)
-    })
-    conn.on('open', () => {
-      window.clearTimeout(t)
-      resolve(undefined)
-    })
-  })
-
-  guestHubConn = conn
-  conn.on('data', (data) => handleGuestInbound(data))
-  conn.on('close', () => {
-    guestHubConn = null
-    onGuestDisconnected()
-  })
+  wireGuestRoom(suffix, guestStableId)
+  await markGuestOnline(suffix, guestStableId)
+  await setRtdb(roomChild(suffix, `inbox/${guestStableId}`), encodeHello(guestStableId))
 
   sessionPhase.value = 'guest_connected'
-  wirePeerErrors(peer)
-  startGuestHostWatch()
-
-  try {
-    conn.send(encodeHello(getStableClientId()))
-  } catch {
-    void 0
-  }
 
   try {
     useMovieVoteRoomSessionStore().setGuest(suffix)
@@ -848,7 +887,6 @@ export async function resumeAsHost(rawSuffix, maxAttempts = 10) {
     throw new Error('Invalid saved room')
   }
 
-  const fullId = fullPeerIdFromSuffix(suffix)
   sessionPhase.value = 'connecting'
   sessionSuffix.value = suffix
 
@@ -859,8 +897,7 @@ export async function resumeAsHost(rawSuffix, maxAttempts = 10) {
       notifyP2P(`Still resuming room… attempt ${attempt + 1} of ${maxAttempts}`, 'warning')
     }
     try {
-      const p = await awaitPeerOpen(fullId)
-      finishHostSession(/** @type {import('peerjs').Peer} */ (p), suffix)
+      await finishHostSession(suffix)
       return { suffix }
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
@@ -890,28 +927,44 @@ export function resumeMovieVoteSessionIfNeeded() {
   }
 }
 
+/**
+ * @returns {string[]}
+ */
+function hostStartSuffixOrder() {
+  const preferred = deriveStableHostSuffix(STABLE_HOST_SUFFIX_APP, 6)
+  const order = [preferred]
+  try {
+    const saved = useMovieVoteRoomSessionStore().suffix
+    const norm = saved ? normalizeRoomSuffixInput(saved) : ''
+    if (norm && isValidRoomSuffix(norm) && norm !== preferred) order.push(norm)
+  } catch {
+    void 0
+  }
+  return order
+}
+
 export async function startAsHost(maxAttempts = 12) {
   reconnectGeneration += 1
   teardownSession()
   sessionPhase.value = 'connecting'
 
-  const preferredSuffix = deriveStableHostSuffix(STABLE_HOST_SUFFIX_APP, 6)
+  const fixedSuffixes = hostStartSuffixOrder()
 
   let lastErr = /** @type {Error | null} */ (null)
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const suffix = attempt === 0 ? preferredSuffix : generateRoomSuffix(6)
-    const fullId = fullPeerIdFromSuffix(suffix)
+    const suffix =
+      attempt < fixedSuffixes.length ? fixedSuffixes[attempt] : generateRoomSuffix(6)
 
     try {
-      const p = await awaitPeerOpen(fullId)
+      if (!(await tryClaimHostRoom(suffix))) {
+        lastErr = new Error('Room code in use')
+        continue
+      }
       sessionSuffix.value = suffix
-      finishHostSession(/** @type {import('peerjs').Peer} */ (p), suffix)
+      await finishHostSession(suffix)
       return { suffix }
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e))
-      if (attempt === 0 && !isUnavailableIdError(e)) {
-        continue
-      }
     }
   }
 
@@ -967,17 +1020,17 @@ function resetLocalStateAfterRoomExit() {
 
 export function leaveSession() {
   reconnectGeneration += 1
-  clearRoomPersistence()
-  if (isHost && sessionPhase.value === 'hosting') {
-    const endMsg = { type: MSG_MV_HOST_ENDED }
-    for (const c of hubConnections) {
-      if (!c.open) continue
-      try {
-        c.send(endMsg)
-      } catch {
-        void 0
-      }
+  if (isHost && sessionPhase.value === 'hosting' && sessionSuffix.value) {
+    const suffix = sessionSuffix.value
+    setRtdb(roomChild(suffix, 'ended'), Date.now()).catch(() => {})
+    remove(roomChild(suffix, 'hostPing')).catch(() => {})
+    try {
+      useMovieVoteRoomSessionStore().clearHostRole()
+    } catch {
+      clearRoomPersistence()
     }
+  } else {
+    clearRoomPersistence()
   }
   resetLocalStateAfterRoomExit()
 }
@@ -986,45 +1039,33 @@ export function isMovieVoteP2PSessionActive() {
   return sessionPhase.value === 'hosting' || sessionPhase.value === 'guest_connected'
 }
 
-/** Host: local draft/ready changed — rebroadcast and maybe compile. */
 export function movieVoteHostLocalChanged() {
   if (!isHost || sessionPhase.value !== 'hosting') return
   tryCompileBallot()
   hostBroadcastState()
 }
 
-/** Guest: push draft to host */
 export function movieVoteGuestPushDraft() {
-  if (isHost || !guestHubConn?.open) return
+  if (isHost || !guestStableId || !sessionSuffix.value) return
   const store = useMovieVoteStore()
   const pid = store.myParticipantId
   if (!pid) return
-  try {
-    guestHubConn.send(
-      encodeDraft(store.myDraftPicks, store.readyToVote, pid),
-    )
-  } catch {
-    void 0
-  }
+  setRtdb(
+    roomChild(sessionSuffix.value, `inbox/${guestStableId}`),
+    encodeDraft(store.myDraftPicks, store.readyToVote, pid),
+  ).catch(() => {})
 }
 
-/** Guest: submit ranking */
 export function movieVoteGuestSubmitVote(ranking) {
-  if (isHost || !guestHubConn?.open) return
+  if (isHost || !guestStableId || !sessionSuffix.value) return
   const store = useMovieVoteStore()
   const pid = store.myParticipantId
   if (!pid) return
-  try {
-    guestHubConn.send(encodeVote(pid, ranking))
-  } catch {
-    void 0
-  }
+  setRtdb(roomChild(sessionSuffix.value, `inbox/${guestStableId}`), encodeVote(pid, ranking)).catch(() => {})
 }
 
-/** Host: after local vote submit */
 export function movieVoteHostAfterVoteSubmit() {
   if (!isHost || sessionPhase.value !== 'hosting') return
   hostBroadcastState()
   tryFinishVoting()
 }
-

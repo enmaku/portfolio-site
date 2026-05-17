@@ -2,7 +2,7 @@
  * Stable per-browser client identity used to survive reconnects in every P2P
  * app on the site.
  *
- * WebRTC gives each new {@link Peer} a different transport-level id, so if a
+ * Reconnects can surface a new transport-level participant key, so if a
  * guest refreshes or drops their connection the host sees them as a brand new
  * participant — inflating voter counts, losing votes, etc. Persisting a short
  * opaque id in `localStorage` lets the host recognize the returning client and

@@ -117,7 +117,8 @@
                 <span class="text-body2 text-grey-6">Room</span>
                 <code class="gt-sync-menu__code gt-sync-menu__code-display">{{ suffix }}</code>
               </div>
-              <div v-if="remoteHostTabVisible" class="text-body2 text-positive">In sync</div>
+              <div v-if="guestSyncOk" class="text-body2 text-positive">In sync</div>
+              <div v-else-if="!remoteHostPresent" class="text-body2 text-warning">Host tab offline — waiting</div>
               <div v-else class="text-body2 text-warning">Host tab in background</div>
               <q-btn
                 outline
@@ -169,6 +170,7 @@ const menuRef = ref(/** @type {{ hide?: () => void } | null} */ (null))
 const {
   phase,
   suffix,
+  remoteHostPresent,
   remoteHostTabVisible,
   startAsHost,
   joinRoom,
@@ -180,6 +182,10 @@ const joinOpen = ref(false)
 const joinCodeInput = ref('')
 
 const isBusy = computed(() => phase.value === 'connecting' || phase.value === 'reconnecting')
+
+const guestSyncOk = computed(
+  () => remoteHostPresent.value && remoteHostTabVisible.value,
+)
 
 const syncIcon = computed(() => {
   if (phase.value === 'guest_connected') return 'check_circle'
@@ -195,7 +201,7 @@ const syncColor = computed(() => {
     case 'hosting':
       return 'positive'
     case 'guest_connected':
-      return remoteHostTabVisible.value ? 'positive' : 'warning'
+      return guestSyncOk.value ? 'positive' : 'warning'
     case 'connecting':
       return 'primary'
     case 'reconnecting':
@@ -210,6 +216,9 @@ const syncAriaLabel = computed(() => {
     case 'hosting':
       return `Multiplayer: hosting room ${suffix.value ?? ''}`
     case 'guest_connected':
+      if (!remoteHostPresent.value) {
+        return `Multiplayer: host offline, room ${suffix.value ?? ''}`
+      }
       return remoteHostTabVisible.value
         ? `Multiplayer: synced, room ${suffix.value ?? ''}`
         : `Multiplayer: host tab in background, room ${suffix.value ?? ''}`
@@ -233,6 +242,9 @@ const statusDescription = computed(() => {
     case 'hosting':
       return 'You are currently hosting a room. Others can join with this code:'
     case 'guest_connected':
+      if (!remoteHostPresent.value) {
+        return 'The host tab is offline. You stay in the room until they return or end the session.'
+      }
       return remoteHostTabVisible.value
         ? 'Following the host’s timer state.'
         : 'The host’s browser tab is in the background; updates may be delayed until they return.'
