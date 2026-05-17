@@ -911,13 +911,46 @@ test('hero change transition queues interstitial with cinematic profile duration
     dungeonRunResult: null,
     heroBefore: 'WARRIOR',
     heroAfter: 'MAGE',
+    actorSeatId: 'seat-2',
   })
 
   const interstitial = animations.find((animation) => animation.kind === 'HERO_CHANGE_INTERSTITIAL')
   assert.ok(interstitial)
   assert.equal(interstitial.durationMs, SPEED_PROFILES.cinematic.heroChangeInterstitialMs)
   assert.equal(interstitial.skippable, true)
-  assert.deepEqual(interstitial.payload, { heroBefore: 'WARRIOR', heroAfter: 'MAGE' })
+  assert.deepEqual(interstitial.payload, { heroAfter: 'MAGE', actorSeatId: 'seat-2' })
+})
+
+test('same adventurer re-pick still queues hero change interstitial', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'pick-adventurer',
+    phaseAfter: 'bidding',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-1',
+    dungeonRunResult: null,
+    heroBefore: 'WARRIOR',
+    heroAfter: 'WARRIOR',
+    actorSeatId: 'seat-1',
+  })
+
+  const interstitial = animations.find((animation) => animation.kind === 'HERO_CHANGE_INTERSTITIAL')
+  assert.ok(interstitial)
+  assert.deepEqual(interstitial.payload, { heroAfter: 'WARRIOR', actorSeatId: 'seat-1' })
+})
+
+test('pick-adventurer to bidding without heroAfter does not queue interstitial', () => {
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: 'pick-adventurer',
+    phaseAfter: 'bidding',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: 'seat-1',
+    dungeonRunResult: null,
+  })
+
+  assert.equal(
+    animations.some((animation) => animation.kind === 'HERO_CHANGE_INTERSTITIAL'),
+    false,
+  )
 })
 
 test('hero change interstitial duration follows brisk speed profile', () => {
@@ -947,8 +980,8 @@ test('orchestrator can skip active interstitial animation immediately', () => {
     turnBeforeSeatId: 'seat-1',
     turnAfterSeatId: 'seat-1',
     dungeonRunResult: null,
-    heroBefore: 'WARRIOR',
     heroAfter: 'MAGE',
+    actorSeatId: 'seat-1',
   })
 
   assert.equal(orchestrator.getActiveAnimation()?.kind, 'HERO_CHANGE_INTERSTITIAL')

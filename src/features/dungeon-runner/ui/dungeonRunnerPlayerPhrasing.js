@@ -17,6 +17,16 @@ const HERO_LABELS = {
 }
 
 /**
+ * @param {string} actorLabel
+ * @param {string} hero
+ * @returns {string}
+ */
+export function adventurerChoiceHeadline(actorLabel, hero) {
+  const label = HERO_LABELS[hero] ?? hero
+  return `${actorLabel} chose ${label}`
+}
+
+/**
  * @param {string | null | undefined} phase
  * @returns {string}
  */

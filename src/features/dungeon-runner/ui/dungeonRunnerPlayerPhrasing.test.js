@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  adventurerChoiceHeadline,
   historyHeadlineForHistoryEntry,
   legalActionBoardLabel,
   matchPhaseBoardLabel,
 } from './dungeonRunnerPlayerPhrasing.js'
+
+test('adventurerChoiceHeadline names chooser and class', () => {
+  assert.equal(adventurerChoiceHeadline('Player 2', 'ROGUE'), 'Player 2 chose Rogue')
+  assert.equal(adventurerChoiceHeadline('Bot', 'UNKNOWN'), 'Bot chose UNKNOWN')
+})
 
 test('matchPhaseBoardLabel maps engine phases to player-facing names', () => {
   assert.equal(matchPhaseBoardLabel('bidding'), 'Bidding')

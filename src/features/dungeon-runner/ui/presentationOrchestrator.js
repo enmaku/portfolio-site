@@ -127,9 +127,7 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
   if (
     transition.phaseBefore === 'pick-adventurer' &&
     transition.phaseAfter === 'bidding' &&
-    transition.heroBefore &&
-    transition.heroAfter &&
-    transition.heroBefore !== transition.heroAfter
+    transition.heroAfter
   ) {
     heroChangeAnimations.push({
       kind: 'HERO_CHANGE_INTERSTITIAL',
@@ -138,8 +136,8 @@ export function mapEngineTransitionToAnimations(transition, speedProfile = 'cine
       durationMs: profile.heroChangeInterstitialMs,
       skippable: true,
       payload: {
-        heroBefore: transition.heroBefore,
         heroAfter: transition.heroAfter,
+        actorSeatId: transition.actorSeatId ?? null,
       },
     })
   }

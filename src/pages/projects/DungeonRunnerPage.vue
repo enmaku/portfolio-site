@@ -442,29 +442,16 @@
       :aria-label="heroChangeInterstitialAriaLabel"
       @click="skipActivePresentation"
     >
-      <div class="dr-hero-interstitial__transition row items-center no-wrap">
-        <template v-if="heroChangeInterstitialView.showBefore">
-          <q-avatar
-            :color="heroChangeInterstitialView.before.badgeColor"
-            text-color="white"
-            size="56px"
-            font-size="1.25rem"
-            class="dr-hero-interstitial__avatar dr-hero-interstitial__avatar--from"
-          >
-            {{ heroChangeInterstitialView.before.badgeGlyph }}
-          </q-avatar>
-          <span class="dr-hero-interstitial__arrow" aria-hidden="true">→</span>
-        </template>
-        <q-avatar
-          :color="heroChangeInterstitialView.after.badgeColor"
-          text-color="white"
-          size="56px"
-          font-size="1.25rem"
-          class="dr-hero-interstitial__avatar dr-hero-interstitial__avatar--to"
-        >
-          {{ heroChangeInterstitialView.after.badgeGlyph }}
-        </q-avatar>
-      </div>
+      <p class="dr-hero-interstitial__headline">{{ heroChangeInterstitialView.headline }}</p>
+      <q-avatar
+        :color="heroChangeInterstitialView.chosen.badgeColor"
+        text-color="white"
+        size="56px"
+        font-size="1.25rem"
+        class="dr-hero-interstitial__avatar"
+      >
+        {{ heroChangeInterstitialView.chosen.badgeGlyph }}
+      </q-avatar>
     </button>
 
     <q-dialog v-model="dungeonOutcomeDialogOpen" persistent transition-show="scale" transition-hide="scale">
@@ -626,7 +613,10 @@ import {
 } from '../../features/dungeon-runner/ui/assetPack.js'
 import { equipmentTokenAppearance } from '../../features/dungeon-runner/equipmentTokenAppearance.js'
 import { equipmentShortName } from '../../features/dungeon-runner/ui/equipmentDisplayCatalog.js'
-import { legalActionBoardLabel } from '../../features/dungeon-runner/ui/dungeonRunnerPlayerPhrasing.js'
+import {
+  adventurerChoiceHeadline,
+  legalActionBoardLabel,
+} from '../../features/dungeon-runner/ui/dungeonRunnerPlayerPhrasing.js'
 import {
   buildDungeonEquipmentTokenView,
   createDungeonEquipmentModalView,
@@ -1047,20 +1037,17 @@ const heroChangeInterstitialView = computed(() => {
   if (activePresentation.value?.kind !== 'HERO_CHANGE_INTERSTITIAL') return null
   const payload = activePresentation.value?.payload
   if (!payload?.heroAfter) return null
-  const before = getHeroIdentity(payload.heroBefore)
-  const after = getHeroIdentity(payload.heroAfter)
+  const seats = match.value?.state?.seats ?? []
+  const actorSeatId = payload.actorSeatId ?? null
+  const actorLabel =
+    seats.find((seat) => seat.id === actorSeatId)?.label ?? actorSeatId ?? 'Unknown'
+  const chosen = getHeroIdentity(payload.heroAfter)
   return {
-    before,
-    after,
-    showBefore: before.hero !== after.hero,
+    headline: adventurerChoiceHeadline(actorLabel, payload.heroAfter),
+    chosen,
   }
 })
-const heroChangeInterstitialAriaLabel = computed(() => {
-  const v = heroChangeInterstitialView.value
-  if (!v) return ''
-  if (v.showBefore) return `Hero: ${v.before.shortLabel} to ${v.after.shortLabel}`
-  return `Hero: ${v.after.shortLabel}`
-})
+const heroChangeInterstitialAriaLabel = computed(() => heroChangeInterstitialView.value?.headline ?? '')
 const deckSplayOpen = computed({
   get() {
     return memoryAidState.value.deckSplayOpen
@@ -2151,22 +2138,14 @@ function importReplay() {
   cursor: pointer;
 }
 
-.dr-hero-interstitial__transition {
-  gap: 1rem;
+.dr-hero-interstitial__headline {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 500;
+  text-align: center;
 }
 
-.dr-hero-interstitial__arrow {
-  font-size: 1.75rem;
-  opacity: 0.85;
-  animation: dr-hero-arrow-pulse 1.1s ease-in-out infinite alternate;
-}
-
-.dr-hero-interstitial__avatar--from {
-  opacity: 0.88;
-  transform: scale(0.92);
-}
-
-.dr-hero-interstitial__avatar--to {
+.dr-hero-interstitial__avatar {
   animation: dr-hero-interstitial-pop 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -2177,15 +2156,6 @@ function importReplay() {
   }
   to {
     transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes dr-hero-arrow-pulse {
-  from {
-    opacity: 0.45;
-  }
-  to {
     opacity: 1;
   }
 }
