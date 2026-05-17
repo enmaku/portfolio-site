@@ -43,7 +43,7 @@ const routes = [
   },
   {
     path: '/projects/game-timer',
-    component: () => import('layouts/projects/GameTimerLayout.vue'),
+    component: () => import('layouts/projects/ProjectShellLayout.vue'),
     children: [
       {
         path: '',
@@ -58,7 +58,7 @@ const routes = [
   },
   {
     path: '/projects/movie-vote',
-    component: () => import('layouts/projects/MovieVoteLayout.vue'),
+    component: () => import('layouts/projects/ProjectShellLayout.vue'),
     children: [
       {
         path: '',
@@ -73,7 +73,7 @@ const routes = [
   },
   {
     path: '/projects/dungeon-runner',
-    component: () => import('layouts/projects/DungeonRunnerLayout.vue'),
+    component: () => import('layouts/projects/ProjectShellLayout.vue'),
     children: [
       {
         path: '',
