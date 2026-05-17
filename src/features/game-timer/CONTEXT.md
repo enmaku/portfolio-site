@@ -42,7 +42,7 @@ Optional coupling where the sequence from **hard pass** events informs who goes 
 
 ### Snapshot
 
-Exchangeable authoritative slice of timer state (**players**, **active player**, **round**, timings, toggles such as hard-pass flags) synced across peers.
+Exchangeable authoritative slice of timer state (**players**, **active player**, **round**, timings, toggles such as hard-pass flags) kept in one **room**-level copy the **host** owns and **guests** mirror.
 
 ### Guest intent
 
@@ -54,7 +54,7 @@ High-level connection posture for multiplayer control UI (idle, connecting, reco
 
 ### Host / Guest
 
-Same meanings as [**Star-room P2P**](../p2p/CONTEXT.md): **host** owns authoritative timer evolution; **guests** replicate and propose updates.
+Same role meanings as [**Star-room P2P**](../p2p/CONTEXT.md) and [**Movie Vote**](../movie-vote/CONTEXT.md): **host** owns authoritative **snapshot** evolution; **guests** mirror and propose updates inside one **room**. No **participant** seats—only **stable client identity** for reconnect and **guest intent** dedupe on the **host**.
 
 ### Timing strip
 
@@ -74,10 +74,12 @@ _Avoid_: Implying a guarantee on every OS or browser—best-effort only.
 
 - Exactly one **player** may be **active player** at once for turn timing.
 - **Lifetime banked time** plus optional **round-local banked time** together explain everything displayed beyond the live ticking segment.
-- **Guest intents** annotate wire updates when facilitators click faster than round-trip latency.
+- **Guest intents** annotate **guest** updates when facilitators click faster than round-trip latency.
+- What collaborators must agree on in a **room** has a single authoritative **snapshot**; each browser mirrors it locally rather than treating local timer state as competing truth.
 - **Rounds** own **player** order mappings; totals track both overall **banked** time and optionally per-round portions.
 - **Hard pass** interacts only with intra-**round** participation unless **pass order determines round order** binds outcomes to subsequent **round** ordering.
 - **Host** merges **guest** intents into authoritative **snapshot** timelines.
+- **Host** presence in a **room** is claimed once (not refreshed on a timer); when the **host** tab drops off the network, cleanup signals **guests** to treat the **room** as ended—**snapshot** updates and visibility changes carry ongoing sync, not periodic keepalive writes.
 - **Keep display on** engages whenever the roster is non-empty so facilitators are less likely to lose the **room** mid-game.
 
 ## Example dialogue
