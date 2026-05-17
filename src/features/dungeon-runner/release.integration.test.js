@@ -286,3 +286,46 @@ test('outcome dialog reopens when match resets last-run state to null between ru
   assert.equal(watchBlock.includes('dismissedDungeonRun.value = null'), true)
   assert.equal(watchBlock.includes('equipmentRemainingAtResolution.value = null'), true)
 })
+
+test('dungeon runner page uploads completed match replay on match-over phase', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes('createCompletedMatchReplayUploadTracker'), true)
+  assert.equal(page.includes('completedMatchReplayUpload.maybeUpload(match.value)'), true)
+  const watchIdx = page.indexOf('() => match.value?.state?.phase')
+  assert.ok(watchIdx >= 0, 'expected phase watcher for completed match replay')
+  const watchBlock = page.slice(watchIdx, watchIdx + 320)
+  assert.equal(watchBlock.includes('MATCH_PHASES.MATCH_OVER'), true)
+  assert.equal(watchBlock.includes('{ immediate: true }'), true)
+})
+
+test('completed match replay upload is not deferred to rematch or back to setup', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  const rematchIdx = page.indexOf('function rematch()')
+  const backIdx = page.indexOf('function backToSetup()')
+  assert.ok(rematchIdx >= 0 && backIdx >= 0)
+  const rematchBlock = page.slice(rematchIdx, rematchIdx + 700)
+  const backBlock = page.slice(backIdx, backIdx + 500)
+  assert.equal(rematchBlock.includes('maybeUpload'), false)
+  assert.equal(rematchBlock.includes('uploadCompletedMatchReplay'), false)
+  assert.equal(backBlock.includes('maybeUpload'), false)
+  assert.equal(backBlock.includes('uploadCompletedMatchReplay'), false)
+})
+
+test('completed match replay resume relies on phase watch not onMounted upload', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  const mountedIdx = page.indexOf('onMounted(() => {')
+  assert.ok(mountedIdx >= 0)
+  const mountedBlock = page.slice(mountedIdx, mountedIdx + 1200)
+  assert.equal(mountedBlock.includes('maybeUpload'), false)
+  assert.equal(mountedBlock.includes('uploadCompletedMatchReplay'), false)
+})
+
+test('completed match replay upload has no debug or host gate on page', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  const uploadIdx = page.indexOf('completedMatchReplayUpload.maybeUpload')
+  assert.ok(uploadIdx >= 0)
+  const uploadBlock = page.slice(Math.max(0, uploadIdx - 400), uploadIdx + 120)
+  assert.equal(uploadBlock.includes('debugMode'), false)
+  assert.equal(uploadBlock.includes('localhost'), false)
+  assert.equal(uploadBlock.includes('shouldEnableDebugOnBoot'), false)
+})

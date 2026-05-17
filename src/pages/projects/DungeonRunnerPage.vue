@@ -644,6 +644,9 @@ import MonsterCardFace from '../../components/dungeon-runner/MonsterCardFace.vue
 import { closeDeckSplay, createMemoryAidState, setMemoryAidEnabled, tapDeck } from '../../features/dungeon-runner/ui/memoryAidState.js'
 import { isDungeonPresentationTraceEnabled } from '../../features/dungeon-runner/ui/dungeonPresentationTrace.js'
 import { usePresentationMotion } from '../../features/dungeon-runner/ui/usePresentationMotion.js'
+import { createCompletedMatchReplayUploadTracker } from '../../features/dungeon-runner/firebase/completedMatchReplayUpload.js'
+
+const completedMatchReplayUpload = createCompletedMatchReplayUploadTracker(window.sessionStorage)
 
 const setup = reactive(createDefaultSetupConfig())
 const $q = useQuasar()
@@ -1159,6 +1162,14 @@ onBeforeUnmount(() => {
     confirmationDialogResolve = null
   }
 })
+
+watch(
+  () => match.value?.state?.phase,
+  (phase) => {
+    if (phase === MATCH_PHASES.MATCH_OVER) completedMatchReplayUpload.maybeUpload(match.value)
+  },
+  { immediate: true },
+)
 
 watch(
   () => match.value?.state,
