@@ -100,6 +100,22 @@ test('normalizeSnapshotFromRtdb coerces hardPassOrderByRound lists', () => {
   assert.deepEqual(coerceRoundIdMap({ 1: { 0: 'x' } })['1'], ['x'])
 })
 
+test('coerceRoundIdMap recovers RTDB sparse array for round-keyed maps', () => {
+  const sparse = []
+  sparse[1] = ['p1', 'p2']
+  assert.deepEqual(coerceRoundIdMap(sparse), { 1: ['p1', 'p2'] })
+})
+
+test('coerceRoundIdMap recovers flat player-id array using default round', () => {
+  assert.deepEqual(coerceRoundIdMap(['p1', 'p2'], 1), { 1: ['p1', 'p2'] })
+  assert.deepEqual(normalizeSnapshotFromRtdb({
+    ...baseSnapshot(),
+    round: 2,
+    hardPassEnabled: true,
+    hardPassOrderByRound: ['a', 'b'],
+  }).hardPassOrderByRound, { 2: ['a', 'b'] })
+})
+
 test('parseHostMessage accepts RTDB state envelope without type discriminator', () => {
   const snap = {
     ...baseSnapshot(),

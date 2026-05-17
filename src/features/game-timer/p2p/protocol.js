@@ -55,10 +55,30 @@ export function coerceStringIdList(value) {
 }
 
 /**
+ * RTDB turns `{ "1": ["a"] }` into a sparse array (length 2, data at index 1).
+ * A mistaken flat `["a", "b"]` write is also stored as an array. Recover both shapes.
  * @param {unknown} raw
+ * @param {number} [defaultRound] Used when `raw` is a flat player-id list (no round keys).
  * @returns {Record<string, string[]>}
  */
-export function coerceRoundIdMap(raw) {
+export function coerceRoundIdMap(raw, defaultRound = 1) {
+  if (Array.isArray(raw)) {
+    /** @type {Record<string, string[]>} */
+    const out = {}
+    for (let i = 0; i < raw.length; i++) {
+      const el = raw[i]
+      if (el == null) continue
+      const list = coerceStringIdList(el)
+      if (list.length === 0) continue
+      if (Array.isArray(el) || isRecord(el)) {
+        out[String(i)] = list
+      }
+    }
+    if (Object.keys(out).length > 0) return out
+    const flat = coerceStringIdList(raw)
+    if (flat.length > 0) return { [String(defaultRound)]: flat }
+    return {}
+  }
   if (!isRecord(raw)) return {}
   /** @type {Record<string, string[]>} */
   const out = {}
@@ -107,18 +127,19 @@ export function normalizeSnapshotFromRtdb(raw) {
       hardPassOrderByRound: {},
     }
   }
+  const round = typeof raw.round === 'number' ? raw.round : 1
   /** @type {GameTimerSyncPayload} */
   const out = {
     players: coercePlayersList(raw.players),
     activePlayerId: typeof raw.activePlayerId === 'string' ? raw.activePlayerId : null,
     turnStartedAt: typeof raw.turnStartedAt === 'number' ? raw.turnStartedAt : null,
     turnStartedRound: typeof raw.turnStartedRound === 'number' ? raw.turnStartedRound : null,
-    round: typeof raw.round === 'number' ? raw.round : 1,
-    playerOrderByRound: coerceRoundIdMap(raw.playerOrderByRound),
+    round,
+    playerOrderByRound: coerceRoundIdMap(raw.playerOrderByRound, round),
     hardPassEnabled: typeof raw.hardPassEnabled === 'boolean' ? raw.hardPassEnabled : false,
     hardPassOrderNextRound:
       typeof raw.hardPassOrderNextRound === 'boolean' ? raw.hardPassOrderNextRound : false,
-    hardPassOrderByRound: coerceRoundIdMap(raw.hardPassOrderByRound),
+    hardPassOrderByRound: coerceRoundIdMap(raw.hardPassOrderByRound, round),
   }
   if ('totalGameStartedAt' in raw) {
     out.totalGameStartedAt =
