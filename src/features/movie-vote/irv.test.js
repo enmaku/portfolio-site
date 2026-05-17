@@ -3,7 +3,33 @@
  */
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { currentVoteForBallot, isDeclaredIrvTie, pickSingleElimination, runIrv } from './irv.js'
+import {
+  countFirstPreferences,
+  currentVoteForBallot,
+  isDeclaredIrvTie,
+  runIrv,
+} from './irv.js'
+
+/** @param {import('./irv.js').IrvResult['rounds'][number]} round */
+function assertFirstPreferenceRoundLog(round) {
+  assert.ok('firstPreferenceCounts' in round)
+  assert.ok('activeIds' in round)
+  assert.ok('ballotsWithVote' in round)
+  assert.ok(!('points' in round))
+  assert.ok(!('totalPointsThisRound' in round))
+  assert.ok(!('counts' in round))
+  assert.ok(Array.isArray(round.eliminatedIds))
+  let sum = 0
+  for (const id of round.activeIds) {
+    sum += round.firstPreferenceCounts[id] ?? 0
+  }
+  assert.equal(round.ballotsWithVote, sum)
+}
+
+/** @param {import('./irv.js').IrvResult} result */
+function assertAllRoundsUseFirstPreferenceFields(result) {
+  for (const round of result.rounds) assertFirstPreferenceRoundLog(round)
+}
 
 test('isDeclaredIrvTie: true only for non-empty tieWinnerIds', () => {
   assert.equal(isDeclaredIrvTie(null), false)
@@ -19,7 +45,21 @@ test('currentVoteForBallot skips eliminated', () => {
   assert.equal(currentVoteForBallot(['b', 'c', 'a'], active), 'c')
 })
 
-test('majority wins round 1', () => {
+test('countFirstPreferences tallies first prefs among active', () => {
+  const active = new Set(['a', 'b', 'c'])
+  const { firstPreferenceCounts, ballotsWithVote } = countFirstPreferences(
+    [
+      ['a', 'b', 'c'],
+      ['b', 'a', 'c'],
+      ['c', 'a', 'b'],
+    ],
+    active,
+  )
+  assert.deepEqual(firstPreferenceCounts, { a: 1, b: 1, c: 1 })
+  assert.equal(ballotsWithVote, 3)
+})
+
+test('runIrv: majority ends in one round', () => {
   const ids = ['x', 'y', 'z']
   const rankings = [
     ['x', 'y', 'z'],
@@ -28,41 +68,113 @@ test('majority wins round 1', () => {
   ]
   const r = runIrv(rankings, ids)
   assert.equal(r.winnerId, 'x')
+  assert.equal(r.tieWinnerIds, null)
   assert.equal(r.rounds.length, 1)
+  assert.deepEqual(r.rounds[0].firstPreferenceCounts, { x: 3, y: 0, z: 0 })
+  assert.equal(r.rounds[0].ballotsWithVote, 3)
+  assert.deepEqual(r.rounds[0].eliminatedIds, [])
+  assertAllRoundsUseFirstPreferenceFields(r)
 })
 
-test('eliminate last place then majority', () => {
+test('runIrv: transfers after eliminating sole last place', () => {
   const ids = ['a', 'b', 'c']
   const rankings = [
     ['a', 'b', 'c'],
     ['a', 'b', 'c'],
     ['b', 'a', 'c'],
-    /* Prefer a over b on the last ballot so a–b is not an even 2–2 finalist deadlock. */
     ['c', 'a', 'b'],
+    ['c', 'b', 'a'],
   ]
   const r = runIrv(rankings, ids)
   assert.equal(r.winnerId, 'a')
-  assert.ok(r.rounds.length >= 2)
-  assert.ok(r.rounds[0].eliminatedIds.includes('c'))
+  assert.equal(r.tieWinnerIds, null)
+  assert.deepEqual(r.rounds[0].firstPreferenceCounts, { a: 2, b: 1, c: 2 })
+  assert.deepEqual(r.rounds[0].eliminatedIds, ['b'])
+  assert.deepEqual(r.rounds[1].activeIds, ['a', 'c'])
+  assert.deepEqual(r.rounds[1].firstPreferenceCounts, { a: 3, c: 2 })
+  assert.equal(r.rounds[1].ballotsWithVote, 5)
+  assertAllRoundsUseFirstPreferenceFields(r)
 })
 
-test('two-way first-round tie: declare co-winners, no arbitrary elimination', () => {
+test('runIrv: eliminates all tied for last in one round', () => {
+  const ids = ['a', 'b', 'c', 'd']
+  const rankings = [
+    ['a', 'b', 'c', 'd'],
+    ['a', 'b', 'c', 'd'],
+    ['b', 'a', 'c', 'd'],
+    ['c', 'a', 'b', 'd'],
+    ['d', 'a', 'b', 'c'],
+  ]
+  const r = runIrv(rankings, ids)
+  assert.equal(r.winnerId, 'a')
+  assert.deepEqual(r.rounds[0].firstPreferenceCounts, { a: 2, b: 1, c: 1, d: 1 })
+  assert.deepEqual(new Set(r.rounds[0].eliminatedIds), new Set(['b', 'c', 'd']))
+  assertAllRoundsUseFirstPreferenceFields(r)
+})
+
+test('declared tie when two remain with equal first preferences', () => {
   const ids = ['a', 'b']
   const rankings = [
     ['a', 'b'],
     ['b', 'a'],
   ]
   const r = runIrv(rankings, ids)
+  const r0 = r.rounds[0]
+  assert.equal(r0.firstPreferenceCounts.a, r0.firstPreferenceCounts.b)
+  assert.equal(r0.ballotsWithVote, 2)
   assert.equal(r.winnerId, null)
   assert.deepEqual(new Set(r.tieWinnerIds ?? []), new Set(['a', 'b']))
   assert.equal(r.rounds.length, 1)
+  assert.deepEqual(r0.eliminatedIds, [])
+  assertAllRoundsUseFirstPreferenceFields(r)
 })
 
-test('pickSingleElimination prefers later ballot index', () => {
-  assert.equal(pickSingleElimination(['x', 'z'], ['x', 'y', 'z']), 'z')
+test('declared tie when every active candidate ties for last', () => {
+  const ids = ['a', 'b', 'c']
+  const rankings = [
+    ['a', 'b', 'c'],
+    ['b', 'c', 'a'],
+    ['c', 'a', 'b'],
+  ]
+  const r = runIrv(rankings, ids)
+  assert.equal(r.winnerId, null)
+  assert.deepEqual(new Set(r.tieWinnerIds ?? []), new Set(['a', 'b', 'c']))
+  assert.equal(r.rounds.length, 1)
+  assertAllRoundsUseFirstPreferenceFields(r)
 })
 
-test('preferences flow after successive eliminations (no final 1–1 deadlock)', () => {
+test('declared tie when no ballots express a preference', () => {
+  const r = runIrv([], ['a', 'b'])
+  assert.equal(r.winnerId, null)
+  assert.deepEqual(new Set(r.tieWinnerIds ?? []), new Set(['a', 'b']))
+  assert.equal(r.rounds.length, 1)
+  assert.deepEqual(r.rounds[0].firstPreferenceCounts, { a: 0, b: 0 })
+  assert.equal(r.rounds[0].ballotsWithVote, 0)
+  assert.deepEqual(r.rounds[0].eliminatedIds, [])
+  assertAllRoundsUseFirstPreferenceFields(r)
+})
+
+test('zero candidates: empty rounds and tieWinnerIds', () => {
+  const r = runIrv([], [])
+  assert.equal(r.winnerId, null)
+  assert.deepEqual(r.tieWinnerIds, [])
+  assert.equal(r.rounds.length, 0)
+})
+
+test('single candidate: one round, no elimination', () => {
+  const r = runIrv([['only'], ['only']], ['only'])
+  assert.equal(r.winnerId, 'only')
+  assert.equal(r.tieWinnerIds, null)
+  assert.equal(r.rounds.length, 1)
+  assert.deepEqual(r.rounds[0], {
+    firstPreferenceCounts: { only: 2 },
+    activeIds: ['only'],
+    ballotsWithVote: 2,
+    eliminatedIds: [],
+  })
+})
+
+test('preferences flow after successive eliminations', () => {
   const ids = ['A', 'B', 'C', 'D']
   const rankings = [
     ['D', 'A', 'C', 'B'],
@@ -75,5 +187,7 @@ test('preferences flow after successive eliminations (no final 1–1 deadlock)',
   const r = runIrv(rankings, ids)
   assert.equal(r.winnerId, 'A')
   assert.equal(r.tieWinnerIds, null)
-  assert.ok(r.rounds.length >= 3)
+  assert.deepEqual(r.rounds[0].firstPreferenceCounts, { A: 2, B: 1, C: 1, D: 2 })
+  assert.deepEqual(r.rounds[0].eliminatedIds, ['B', 'C'])
+  assertAllRoundsUseFirstPreferenceFields(r)
 })

@@ -6,7 +6,7 @@
       <!-- Graphical IRV replay -->
       <div v-if="showReplay" class="mv-results-replay column col" style="min-height: 0">
         <div class="text-subtitle2 text-weight-medium text-grey-5 q-mb-sm">
-          Round {{ roundIdx + 1 }} of {{ totalRounds }}
+          {{ replayHeading }}
         </div>
         <div class="mv-results-replay__list column q-gutter-sm col scroll">
           <div
@@ -31,7 +31,9 @@
               </div>
               <div class="col min-width-0">
                 <div class="text-body1 text-weight-medium ellipsis">{{ row.title }}</div>
-                <div class="text-caption text-grey-6">{{ row.count }} of {{ ballotsLabel }} votes</div>
+                <div class="text-caption text-grey-6">
+                  {{ row.votes }} {{ scoreUnit }}{{ showPoolSuffix ? ` of ${roundPoolLabel}` : '' }}
+                </div>
               </div>
             </div>
             <div class="mv-results-bar-track rounded-borders overflow-hidden">
@@ -40,6 +42,7 @@
           </div>
         </div>
       </div>
+
 
       <q-card
         v-if="showFinal"
@@ -102,6 +105,129 @@
         </template>
       </q-card>
 
+      <div
+        v-if="showFinal && isCondorcetResult && pairwiseMatrix"
+        class="mv-pairwise q-mt-md full-width min-width-0"
+      >
+        <div class="text-subtitle2 text-weight-medium text-grey-5 q-mb-xs">Pairwise matchups</div>
+
+        <div v-if="pairwiseUseCompactGrid" class="mv-pairwise__fluid column q-gutter-xs">
+          <div class="row q-col-gutter-xs items-center">
+            <div class="col-auto mv-pairwise__axis-slot" aria-hidden="true" />
+            <div
+              v-for="colId in matrixCandidateIds"
+              :key="`col-${colId}`"
+              class="col column items-center justify-center mv-pairwise__axis-slot"
+              :aria-label="titleFor(colId)"
+            >
+              <q-img
+                v-if="thumbFor(colId)"
+                :src="thumbFor(colId)"
+                width="28px"
+                height="42px"
+                fit="cover"
+                class="mv-pairwise__thumb rounded-borders"
+                style="flex-shrink: 0"
+                spinner-color="primary"
+                loading="lazy"
+                :alt="titleFor(colId)"
+              />
+              <q-icon v-else name="movie" size="sm" color="grey-6" />
+            </div>
+          </div>
+          <div
+            v-for="rowId in matrixCandidateIds"
+            :key="`row-${rowId}`"
+            class="row q-col-gutter-xs items-stretch"
+          >
+            <div
+              class="col-auto column items-center justify-center mv-pairwise__axis-slot"
+              :aria-label="titleFor(rowId)"
+            >
+              <q-img
+                v-if="thumbFor(rowId)"
+                :src="thumbFor(rowId)"
+                width="28px"
+                height="42px"
+                fit="cover"
+                class="mv-pairwise__thumb rounded-borders"
+                style="flex-shrink: 0"
+                spinner-color="primary"
+                loading="lazy"
+                :alt="titleFor(rowId)"
+              />
+              <q-icon v-else name="movie" size="sm" color="grey-6" />
+            </div>
+            <div
+              v-for="colId in matrixCandidateIds"
+              :key="`cell-${rowId}-${colId}`"
+              class="col mv-pairwise__cell mv-pairwise__cell--fluid row flex-center"
+              :class="pairwiseCellClass(rowId, colId)"
+              :aria-label="pairwiseCellAria(rowId, colId)"
+            >
+              <span v-if="rowId !== colId" class="mv-pairwise__glyph" aria-hidden="true">{{
+                pairwiseGlyph(rowId, colId)
+              }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="mv-pairwise__scroll">
+          <div class="mv-pairwise__grid" :style="pairwiseGridStyle">
+            <div class="mv-pairwise__corner" aria-hidden="true" />
+            <div
+              v-for="colId in matrixCandidateIds"
+              :key="`col-${colId}`"
+              class="mv-pairwise__axis mv-pairwise__axis--col column items-center"
+              :aria-label="titleFor(colId)"
+            >
+              <q-img
+                v-if="thumbFor(colId)"
+                :src="thumbFor(colId)"
+                width="28px"
+                height="42px"
+                fit="cover"
+                class="rounded-borders"
+                spinner-color="primary"
+                loading="lazy"
+                :alt="titleFor(colId)"
+              />
+              <q-icon v-else name="movie" size="xs" color="grey-6" />
+            </div>
+            <template v-for="rowId in matrixCandidateIds" :key="`row-${rowId}`">
+              <div
+                class="mv-pairwise__axis mv-pairwise__axis--row row items-center flex-center"
+                :aria-label="titleFor(rowId)"
+              >
+                <q-img
+                  v-if="thumbFor(rowId)"
+                  :src="thumbFor(rowId)"
+                  width="28px"
+                  height="42px"
+                  fit="cover"
+                  class="rounded-borders"
+                  spinner-color="primary"
+                  loading="lazy"
+                  :alt="titleFor(rowId)"
+                />
+                <q-icon v-else name="movie" size="xs" color="grey-6" />
+              </div>
+              <div
+                v-for="colId in matrixCandidateIds"
+                :key="`cell-${rowId}-${colId}`"
+                class="mv-pairwise__cell row flex-center"
+                :class="pairwiseCellClass(rowId, colId)"
+                :aria-label="pairwiseCellAria(rowId, colId)"
+              >
+                <span v-if="rowId !== colId" class="mv-pairwise__glyph" aria-hidden="true">{{
+                  pairwiseGlyph(rowId, colId)
+                }}</span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
       <MovieDetailDialog v-model="tieDetailOpen" :movie="tieDetailAsPick" />
 
       <q-btn
@@ -119,6 +245,19 @@
 
 <script setup>
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import {
+  pairwiseCellAriaLabel,
+  pairwiseCellCssClass,
+  pairwiseCellGlyph,
+} from '../pairwiseMatrixDisplay.js'
+import {
+  replayHeadingForResult,
+  scoreUnitForResult,
+  shouldAnimateRoundsReplay,
+  showVotePoolSuffix,
+  targetPctsForScoreboardRound,
+  totalRoundsForReplay,
+} from '../resultsScoreboard.js'
 import { formatMovieMetaLine, posterUrl } from '../tmdb.js'
 import MovieDetailDialog from './MovieDetailDialog.vue'
 
@@ -162,15 +301,65 @@ function thumbFor(id) {
   return p ? posterUrl(p, 'w92') : null
 }
 
-const rounds = computed(() => props.irvResult?.rounds ?? [])
-const totalRounds = computed(() => Math.max(1, rounds.value.length))
+const isCondorcetResult = computed(() => props.irvResult?.votingMethod === 'condorcet')
+const pairwiseMatrix = computed(() => props.irvResult?.pairwiseMatrix ?? null)
 
-/** Fixed pool size for bar width = share of all voters (so count changes always move the bar). */
-const barVoteDenominator = computed(() => {
-  const r0 = rounds.value[0]
-  const n = r0?.ballotsWithVote
-  return typeof n === 'number' && n > 0 ? n : 1
+const matrixCandidateIds = computed(() => {
+  const ids = pairwiseMatrix.value?.candidateIds
+  if (Array.isArray(ids) && ids.length) return ids
+  return props.ballotMovies.map((m) => m.publicId).filter(Boolean)
 })
+
+const PAIRWISE_COMPACT_MAX = 6
+
+const pairwiseUseCompactGrid = computed(
+  () => matrixCandidateIds.value.length <= PAIRWISE_COMPACT_MAX,
+)
+
+const pairwiseGridStyle = computed(() => {
+  const n = matrixCandidateIds.value.length
+  return {
+    gridTemplateColumns: `36px repeat(${n}, 36px)`,
+    gridTemplateRows: `44px repeat(${n}, 40px)`,
+  }
+})
+
+/**
+ * @param {string} rowId
+ * @param {string} colId
+ */
+function pairwiseGlyph(rowId, colId) {
+  return pairwiseCellGlyph(pairwiseMatrix.value?.cells[rowId]?.[colId])
+}
+
+/**
+ * @param {string} rowId
+ * @param {string} colId
+ */
+function pairwiseCellClass(rowId, colId) {
+  return pairwiseCellCssClass(rowId, colId, pairwiseMatrix.value?.cells)
+}
+
+/**
+ * @param {string} rowId
+ * @param {string} colId
+ */
+function pairwiseCellAria(rowId, colId) {
+  if (rowId === colId) return undefined
+  return pairwiseCellAriaLabel(
+    titleFor(rowId),
+    titleFor(colId),
+    pairwiseMatrix.value?.cells[rowId]?.[colId],
+  )
+}
+
+const rounds = computed(() => props.irvResult?.rounds ?? [])
+const totalRounds = computed(() => totalRoundsForReplay(rounds.value))
+const scoreUnit = computed(() => scoreUnitForResult(props.irvResult))
+const showPoolSuffix = computed(() => showVotePoolSuffix(props.irvResult))
+const replayHeading = computed(() =>
+  replayHeadingForResult(props.irvResult, roundIdx.value, totalRounds.value),
+)
 
 const roundIdx = ref(0)
 /** @type {import('vue').Ref<string[]>} */
@@ -193,17 +382,8 @@ function stopBarAnim() {
   }
 }
 
-/** Bar target %: each count / total electorate (round 0 ballot count). */
 function targetPctsForRound(r) {
-  if (!r || !Array.isArray(r.activeIds) || !r.activeIds.length) return {}
-  const denom = barVoteDenominator.value
-  /** @type {Record<string, number>} */
-  const out = {}
-  for (const id of r.activeIds) {
-    const count = r.counts[id] ?? 0
-    out[id] = Math.min(100, Math.round((100 * count) / denom))
-  }
-  return out
+  return targetPctsForScoreboardRound(r, props.irvResult?.votingMethod)
 }
 
 function animateBarsToTargets() {
@@ -265,7 +445,7 @@ function barPct(id) {
 
 const currentRound = computed(() => rounds.value[roundIdx.value] ?? null)
 
-const ballotsLabel = computed(() => {
+const roundPoolLabel = computed(() => {
   const r = currentRound.value
   if (!r) return '—'
   const n = r.ballotsWithVote
@@ -275,19 +455,19 @@ const ballotsLabel = computed(() => {
 const sortedRows = computed(() => {
   const r = currentRound.value
   if (!r || !Array.isArray(r.activeIds)) return []
-  const denom = barVoteDenominator.value
+  const targets = targetPctsForRound(r)
   const rows = r.activeIds.map((id) => {
-    const count = r.counts[id] ?? 0
+    const votes = r.firstPreferenceCounts[id] ?? 0
     return {
       id,
       title: titleFor(id),
       thumb: thumbFor(id),
-      count,
-      pct: Math.min(100, Math.round((100 * count) / denom)),
+      votes,
+      pct: targets[id] ?? 0,
     }
   })
   rows.sort((a, b) => {
-    if (a.count !== b.count) return b.count - a.count
+    if (a.votes !== b.votes) return b.votes - a.votes
     return a.title.localeCompare(b.title)
   })
   return rows
@@ -408,7 +588,7 @@ watch(
   (r) => {
     runId += 1
     const my = runId
-    if (r && Array.isArray(r.rounds) && r.rounds.length) {
+    if (shouldAnimateRoundsReplay(r)) {
       void runSequence(my)
     } else {
       stopBarAnim()
@@ -433,6 +613,13 @@ onUnmounted(() => {
   max-width: 100%;
   width: 100%;
   overflow-x: hidden;
+}
+
+/* Size to content height so mv-page__scroll handles vertical overflow, not nested panes */
+.mv-results.col {
+  flex: 1 1 auto;
+  min-height: auto;
+  overflow: visible;
 }
 
 .mv-results-final {
@@ -524,5 +711,75 @@ onUnmounted(() => {
   border-radius: inherit;
   background: var(--q-primary);
   /* width driven by rAF tween in displayPct */
+}
+
+.mv-pairwise__fluid {
+  width: 100%;
+}
+
+.mv-pairwise__axis-slot.col-auto {
+  flex: 0 0 2.25rem;
+  max-width: 2.25rem;
+}
+
+.mv-pairwise__cell--fluid {
+  width: auto;
+  height: auto;
+  min-height: 2.25rem;
+  aspect-ratio: 1;
+}
+
+.mv-pairwise {
+  flex-shrink: 0;
+}
+
+.mv-pairwise__scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mv-pairwise__grid {
+  display: grid;
+  gap: 4px;
+  width: max-content;
+}
+
+.mv-pairwise__corner {
+  min-height: 44px;
+}
+
+.mv-pairwise__cell {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.body--light .mv-pairwise__cell {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.mv-pairwise__cell--diag {
+  background: transparent;
+}
+
+.mv-pairwise__glyph {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.mv-pairwise__cell--win .mv-pairwise__glyph {
+  color: #66bb6a;
+}
+
+.mv-pairwise__cell--loss .mv-pairwise__glyph {
+  color: #ef5350;
+}
+
+.mv-pairwise__cell--tie .mv-pairwise__glyph {
+  color: #ffca28;
 }
 </style>

@@ -54,11 +54,39 @@
         />
       </template>
     </div>
+
+    <div
+      v-if="phase === 'suggest' && myDraftPicks.length"
+      class="mv-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm"
+    >
+      <q-btn
+        fab-mini
+        outline
+        color="grey-5"
+        icon="playlist_remove"
+        aria-label="Clear all my movies"
+        class="mv-actions-bar__fixed-btn"
+        @click="clearConfirmOpen = true"
+      />
+    </div>
+
+    <q-dialog v-model="clearConfirmOpen" persistent>
+      <q-card class="mv-dialog-card mv-dialog-card--narrow">
+        <q-card-section class="text-h6">Clear your movies?</q-card-section>
+        <q-card-section class="q-pt-none text-body2">
+          This removes every movie from your suggestions for this session. This cannot be undone.
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="grey" @click="clearConfirmOpen = false" />
+          <q-btn unelevated label="Clear all" color="negative" @click="confirmClearMovies" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
@@ -79,6 +107,7 @@ import {
   movieVoteGuestSubmitVote,
   movieVoteHostAfterVoteSubmit,
   movieVoteHostLocalChanged,
+  movieVoteHostResetToSuggest,
 } from '../../features/movie-vote/p2p/session.js'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
 
@@ -160,9 +189,17 @@ const voteProgressLabel = computed(() => {
   return `${v.submitted} / ${v.total} voted`
 })
 
+const clearConfirmOpen = ref(false)
+
 /** @param {import('../../features/movie-vote/types.js').MoviePick} pick */
+
 function onPickMovie(pick) {
   store.addDraftPick(pick)
+}
+
+function confirmClearMovies() {
+  store.clearAllDraftPicks()
+  clearConfirmOpen.value = false
 }
 
 function onDoneVoting() {
@@ -191,7 +228,7 @@ function onDoneVoting() {
 function onResetResults() {
   store.resetToSuggest()
   if (isHosting.value) {
-    movieVoteHostLocalChanged()
+    movieVoteHostResetToSuggest()
   }
 }
 
@@ -259,5 +296,23 @@ onMounted(() => {
   min-width: 0;
   box-sizing: border-box;
   padding: 16px;
+}
+
+.mv-actions-bar {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+}
+
+.mv-actions-bar__fixed-btn {
+  flex-shrink: 0;
+}
+
+.body--light .mv-actions-bar {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.mv-dialog-card {
+  min-width: min(400px, calc(100vw - 32px));
 }
 </style>

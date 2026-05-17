@@ -1,7 +1,7 @@
 /**
  * @import '../types.js'
  * Firebase RTDB star hub for Movie Vote (`movieVoteRooms/<suffix>`).
- * Typed messages; host aggregates guest drafts and runs IRV.
+ * Typed messages; host aggregates guest drafts and runs the election facade.
  */
 
 import { ref as vueRef } from 'vue'
@@ -24,7 +24,9 @@ import {
   normalizeCustomTitle,
   uniqueMoviesInPicks,
 } from '../core.js'
-import { runIrv } from '../irv.js'
+import { buildMovieVotePublicPayload, clearGuestDraftReadyFlags } from '../publicPayload.js'
+import { applyHostStoreFromRtdbHydrate } from '../hostRtdbHydrate.js'
+import { runElection } from '../election.js'
 import {
   runGuestStarReconnectLoop,
   runHostStarReconnectLoop,
@@ -255,30 +257,7 @@ function distinctSuggestedMovieCount() {
 
 function buildPublicPayload() {
   const store = useMovieVoteStore()
-  const participants = [
-    {
-      id: HOST_PARTICIPANT_ID,
-      ready: store.readyToVote,
-      pickCount: store.myDraftPicks.length,
-    },
-  ]
-  for (const [id, g] of guestDrafts) {
-    participants.push({
-      id,
-      ready: g.ready,
-      pickCount: g.picks.length,
-    })
-  }
-  const suggest = store.phase === 'suggest'
-  return {
-    phase: store.phase,
-    participants,
-    ballotMovies: suggest ? null : store.ballotMovies.map((m) => ({ ...m })),
-    ballotOrderIds: suggest ? null : [...store.ballotOrderIds],
-    voteProgress: store.voteProgress ? { ...store.voteProgress } : null,
-    irvResult: store.irvResult,
-    uniqueSuggestedMovieCount: suggest ? distinctSuggestedMovieCount() : 0,
-  }
+  return buildMovieVotePublicPayload(store, guestDrafts)
 }
 
 function hostBroadcastState() {
@@ -345,7 +324,7 @@ function tryFinishVoting() {
   }
 
   const rankings = voterIds.map((id) => votesByParticipant[id])
-  const result = runIrv(rankings, [...ballotOrderIds])
+  const result = runElection(store.votingMethod, rankings, [...ballotOrderIds])
   store.setResults(result)
   hostBroadcastState()
 }
@@ -728,6 +707,11 @@ async function hydrateHostFromRtdb(suffix) {
   const stateSnap = await get(roomChild(suffix, 'state'))
   const parsed = parseState(stateSnap.val())
   if (parsed) nextSeq = parsed.seq
+  try {
+    applyHostStoreFromRtdbHydrate(parsed, useMovieVoteStore())
+  } catch {
+    void 0
+  }
 
   const welcomeSnap = await get(roomChild(suffix, 'welcome'))
   const welcomes = welcomeSnap.val()
@@ -1042,6 +1026,18 @@ export function isMovieVoteP2PSessionActive() {
 export function movieVoteHostLocalChanged() {
   if (!isHost || sessionPhase.value !== 'hosting') return
   tryCompileBallot()
+  hostBroadcastState()
+}
+
+/** After results reset: everyone must toggle ready again before the next ballot. */
+export function movieVoteHostResetToSuggest() {
+  if (!isHost || sessionPhase.value !== 'hosting') return
+  clearGuestDraftReadyFlags(guestDrafts)
+  hostBroadcastState()
+}
+
+export function movieVoteHostVotingMethodChanged() {
+  if (!isHost || sessionPhase.value !== 'hosting') return
   hostBroadcastState()
 }
 
