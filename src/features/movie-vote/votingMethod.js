@@ -1,15 +1,27 @@
-/** @typedef {'irv' | 'borda' | 'condorcet'} VotingMethod */
+/** @typedef {'irv' | 'borda' | 'dowdall' | 'condorcet' | 'copeland' | 'coombs' | 'baldwin'} VotingMethod */
 
 export const DEFAULT_VOTING_METHOD = /** @type {const} */ ('irv')
 
 /** @type {readonly VotingMethod[]} */
-export const VOTING_METHOD_IDS = ['irv', 'borda', 'condorcet']
+export const VOTING_METHOD_IDS = [
+  'irv',
+  'borda',
+  'dowdall',
+  'condorcet',
+  'copeland',
+  'coombs',
+  'baldwin',
+]
 
 /** @type {readonly { value: VotingMethod, label: string }[]} */
 export const VOTING_METHOD_OPTIONS = [
   { value: 'irv', label: 'Instant-runoff voting' },
   { value: 'borda', label: 'Borda count' },
+  { value: 'dowdall', label: 'Dowdall method' },
   { value: 'condorcet', label: 'Condorcet method' },
+  { value: 'copeland', label: 'Copeland method' },
+  { value: 'coombs', label: 'Coombs method' },
+  { value: 'baldwin', label: 'Baldwin method' },
 ]
 
 /**

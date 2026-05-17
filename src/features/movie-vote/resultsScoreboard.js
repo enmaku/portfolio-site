@@ -12,10 +12,45 @@ export function isBordaScoreboardResult(result) {
 
 /**
  * @param {import('./irv.js').IrvResult | null | undefined} result
- * @returns {'points' | 'votes'}
+ * @returns {boolean}
+ */
+export function isDowdallScoreboardResult(result) {
+  return result?.votingMethod === 'dowdall'
+}
+
+/**
+ * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @returns {boolean}
+ */
+function isSinglePassPointsScoreboard(result) {
+  return isBordaScoreboardResult(result) || isDowdallScoreboardResult(result)
+}
+
+/**
+ * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @returns {boolean}
+ */
+export function isBaldwinMultiRoundResult(result) {
+  return result?.votingMethod === 'baldwin'
+}
+
+/**
+ * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @returns {boolean}
+ */
+export function isCoombsScoreboardResult(result) {
+  return result?.votingMethod === 'coombs'
+}
+
+/**
+ * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @returns {string}
  */
 export function scoreUnitForResult(result) {
-  return isBordaScoreboardResult(result) ? 'points' : 'votes'
+  if (isBordaScoreboardResult(result)) return 'Borda points'
+  if (isDowdallScoreboardResult(result)) return 'Dowdall points'
+  if (isBaldwinMultiRoundResult(result)) return 'points'
+  return 'votes'
 }
 
 /**
@@ -34,22 +69,36 @@ export function totalRoundsForReplay(rounds) {
  */
 export function replayHeadingForResult(result, roundIdx, totalRounds) {
   if (isBordaScoreboardResult(result)) return 'Final scores'
+  if (isDowdallScoreboardResult(result)) return 'Dowdall scores'
   return `Round ${roundIdx + 1} of ${totalRounds}`
 }
 
 /**
- * Whether the animated multi-round replay runs (Borda: single pass; Condorcet: skip).
+ * Whether the animated multi-round replay runs (Borda: single pass; Condorcet/Copeland: skip).
  *
  * @param {import('./irv.js').IrvResult | null | undefined} result
  * @returns {boolean}
  */
 export function shouldAnimateRoundsReplay(result) {
-  if (!result || result.votingMethod === 'condorcet') return false
+  if (!result || result.votingMethod === 'condorcet' || result.votingMethod === 'copeland') {
+    return false
+  }
   return Array.isArray(result.rounds) && result.rounds.length > 0
 }
 
 /**
- * Bar target %: IRV first-preference share, or Borda points relative to round leader.
+ * @param {import('./irv.js').IrvRoundLog | null | undefined} round
+ * @param {import('./votingMethod.js').VotingMethod | undefined} votingMethod
+ * @returns {Record<string, number>}
+ */
+export function countsForScoreboardRound(round, votingMethod) {
+  if (!round) return {}
+  if (votingMethod === 'coombs') return round.lastPlaceCounts ?? {}
+  return round.firstPreferenceCounts ?? {}
+}
+
+/**
+ * Bar target %: IRV first-preference share, Coombs last-place share, or Borda points vs leader.
  *
  * @param {import('./irv.js').IrvRoundLog | null | undefined} round
  * @param {import('./votingMethod.js').VotingMethod | undefined} votingMethod
@@ -58,17 +107,19 @@ export function shouldAnimateRoundsReplay(result) {
 export function targetPctsForScoreboardRound(round, votingMethod) {
   if (!round || !Array.isArray(round.activeIds) || !round.activeIds.length) return {}
 
+  const counts = countsForScoreboardRound(round, votingMethod)
+
   /** @type {Record<string, number>} */
   const out = {}
 
-  if (votingMethod === 'borda') {
+  if (votingMethod === 'borda' || votingMethod === 'dowdall' || votingMethod === 'baldwin') {
     let maxScore = 0
     for (const id of round.activeIds) {
-      maxScore = Math.max(maxScore, round.firstPreferenceCounts[id] ?? 0)
+      maxScore = Math.max(maxScore, counts[id] ?? 0)
     }
     const denom = maxScore > 0 ? maxScore : 1
     for (const id of round.activeIds) {
-      const points = round.firstPreferenceCounts[id] ?? 0
+      const points = counts[id] ?? 0
       out[id] = Math.min(100, Math.round((100 * points) / denom))
     }
     return out
@@ -79,7 +130,7 @@ export function targetPctsForScoreboardRound(round, votingMethod) {
       ? round.ballotsWithVote
       : 1
   for (const id of round.activeIds) {
-    const votes = round.firstPreferenceCounts[id] ?? 0
+    const votes = counts[id] ?? 0
     out[id] = Math.min(100, Math.round((100 * votes) / denom))
   }
   return out
@@ -90,5 +141,5 @@ export function targetPctsForScoreboardRound(round, votingMethod) {
  * @returns {boolean}
  */
 export function showVotePoolSuffix(result) {
-  return !isBordaScoreboardResult(result)
+  return !isSinglePassPointsScoreboard(result) && !isBaldwinMultiRoundResult(result)
 }

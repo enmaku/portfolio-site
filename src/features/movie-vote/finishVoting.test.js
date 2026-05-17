@@ -9,7 +9,12 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
 import { HOST_PARTICIPANT_ID } from './core.js'
 import { runElection } from './election.js'
-import { isBordaScoreboardResult, shouldAnimateRoundsReplay } from './resultsScoreboard.js'
+import {
+  isBaldwinMultiRoundResult,
+  isBordaScoreboardResult,
+  isDowdallScoreboardResult,
+  shouldAnimateRoundsReplay,
+} from './resultsScoreboard.js'
 
 /**
  * @param {string} publicId
@@ -101,6 +106,42 @@ test('finish path: locked borda winner and single scoreboard round', () => {
   assert.equal(shouldAnimateRoundsReplay(store.irvResult), true)
 })
 
+test('finish path: locked dowdall winner and single scoreboard round', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setVotingMethod('dowdall')
+  store.setMyParticipantId(HOST_PARTICIPANT_ID)
+  store.setVotingState(
+    [ballotMovie('a'), ballotMovie('b')],
+    ['a', 'b'],
+    [HOST_PARTICIPANT_ID, 'guest1'],
+  )
+  store.submitMyVoteLocal(['a', 'b'])
+  store.mergeGuestVote('guest1', ['a', 'b'])
+  assert.equal(finishVotingIfComplete(store), true)
+  assert.equal(store.phase, 'results')
+  assert.equal(store.irvResult?.votingMethod, 'dowdall')
+  assert.equal(store.irvResult?.winnerId, 'a')
+  assert.equal(store.irvResult?.rounds.length, 1)
+  assert.equal(store.irvResult?.rounds[0]?.firstPreferenceCounts?.a, 2)
+  assert.equal(isDowdallScoreboardResult(store.irvResult), true)
+  assert.equal(isBordaScoreboardResult(store.irvResult), false)
+  assert.equal(shouldAnimateRoundsReplay(store.irvResult), true)
+})
+
+test('finish path: locked dowdall top tie', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setVotingMethod('dowdall')
+  store.setMyParticipantId(HOST_PARTICIPANT_ID)
+  store.setVotingState([ballotMovie('a'), ballotMovie('b')], ['a', 'b'], [HOST_PARTICIPANT_ID, 'guest1'])
+  store.submitMyVoteLocal(['a', 'b'])
+  store.mergeGuestVote('guest1', ['b', 'a'])
+  assert.equal(finishVotingIfComplete(store), true)
+  assert.equal(store.irvResult?.winnerId, null)
+  assert.deepEqual(new Set(store.irvResult?.tieWinnerIds ?? []), new Set(['a', 'b']))
+})
+
 test('finish path: locked borda top tie', () => {
   setActivePinia(createPinia())
   const store = useMovieVoteStore()
@@ -135,6 +176,41 @@ test('finish path: locked condorcet winner and pairwise matrix on result', () =>
   assert.equal(store.irvResult?.pairwiseMatrix?.cells.a.b, 'win')
 })
 
+test('finish path: locked copeland winner and pairwise matrix on result', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setVotingMethod('copeland')
+  store.setMyParticipantId(HOST_PARTICIPANT_ID)
+  store.setVotingState(
+    [ballotMovie('a'), ballotMovie('b'), ballotMovie('c')],
+    ['a', 'b', 'c'],
+    [HOST_PARTICIPANT_ID, 'guest1'],
+  )
+  store.submitMyVoteLocal(['a', 'b', 'c'])
+  store.mergeGuestVote('guest1', ['a', 'c', 'b'])
+  assert.equal(finishVotingIfComplete(store), true)
+  assert.equal(store.phase, 'results')
+  assert.equal(store.irvResult?.votingMethod, 'copeland')
+  assert.equal(store.irvResult?.winnerId, 'a')
+  assert.equal(store.irvResult?.copelandScores?.a, 2)
+  assert.equal(store.irvResult?.pairwiseMatrix?.cells.a.b, 'win')
+  assert.equal(shouldAnimateRoundsReplay(store.irvResult), false)
+})
+
+test('finish path: locked copeland top tie', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setVotingMethod('copeland')
+  store.setMyParticipantId(HOST_PARTICIPANT_ID)
+  store.setVotingState([ballotMovie('a'), ballotMovie('b')], ['a', 'b'], [HOST_PARTICIPANT_ID, 'guest1'])
+  store.submitMyVoteLocal(['a', 'b'])
+  store.mergeGuestVote('guest1', ['b', 'a'])
+  assert.equal(finishVotingIfComplete(store), true)
+  assert.equal(store.irvResult?.winnerId, null)
+  assert.deepEqual(new Set(store.irvResult?.tieWinnerIds ?? []), new Set(['a', 'b']))
+  assert.equal(store.irvResult?.copelandScores?.a, 0)
+})
+
 test('finish path: locked condorcet cycle → Smith tie set and matrix', () => {
   setActivePinia(createPinia())
   const store = useMovieVoteStore()
@@ -152,6 +228,53 @@ test('finish path: locked condorcet cycle → Smith tie set and matrix', () => {
   assert.equal(store.irvResult?.winnerId, null)
   assert.deepEqual(new Set(store.irvResult?.tieWinnerIds ?? []), new Set(['a', 'b', 'c']))
   assert.equal(store.irvResult?.pairwiseMatrix?.candidateIds.length, 3)
+})
+
+test('finish path: locked coombs winner and last-place replay', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setVotingMethod('coombs')
+  store.setMyParticipantId(HOST_PARTICIPANT_ID)
+  store.setVotingState(
+    [ballotMovie('a'), ballotMovie('b')],
+    ['a', 'b'],
+    [HOST_PARTICIPANT_ID, 'guest1', 'guest2', 'guest3'],
+  )
+  store.submitMyVoteLocal(['a', 'b'])
+  store.mergeGuestVote('guest1', ['a', 'b'])
+  store.mergeGuestVote('guest2', ['a', 'b'])
+  store.mergeGuestVote('guest3', ['b', 'a'])
+  assert.equal(finishVotingIfComplete(store), true)
+  assert.equal(store.phase, 'results')
+  assert.equal(store.irvResult?.votingMethod, 'coombs')
+  assert.equal(store.irvResult?.winnerId, 'a')
+  assert.equal(store.irvResult?.rounds[0]?.lastPlaceCounts?.b, 3)
+  assert.deepEqual(store.irvResult?.rounds[0]?.eliminatedIds, ['b'])
+})
+
+test('finish path: locked baldwin winner and Borda-on-survivors replay', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setVotingMethod('baldwin')
+  store.setMyParticipantId(HOST_PARTICIPANT_ID)
+  store.setVotingState(
+    [ballotMovie('a'), ballotMovie('b'), ballotMovie('c')],
+    ['a', 'b', 'c'],
+    [HOST_PARTICIPANT_ID, 'guest1', 'guest2'],
+  )
+  store.submitMyVoteLocal(['a', 'b', 'c'])
+  store.mergeGuestVote('guest1', ['a', 'b', 'c'])
+  store.mergeGuestVote('guest2', ['a', 'b', 'c'])
+  assert.equal(finishVotingIfComplete(store), true)
+  assert.equal(store.phase, 'results')
+  assert.equal(store.irvResult?.votingMethod, 'baldwin')
+  assert.equal(store.irvResult?.winnerId, 'a')
+  assert.ok((store.irvResult?.rounds.length ?? 0) >= 2)
+  assert.deepEqual(store.irvResult?.rounds[0]?.eliminatedIds, ['c'])
+  assert.equal(store.irvResult?.rounds[0]?.firstPreferenceCounts?.a, 6)
+  assert.equal(shouldAnimateRoundsReplay(store.irvResult), true)
+  assert.equal(isBaldwinMultiRoundResult(store.irvResult), true)
+  assert.equal(isBordaScoreboardResult(store.irvResult), false)
 })
 
 test('finish path: legacy ranked-points method string runs IRV', () => {

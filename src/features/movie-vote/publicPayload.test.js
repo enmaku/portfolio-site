@@ -20,6 +20,37 @@ test('public payload includes voting method from room store', () => {
   assert.equal(payload.votingMethod, 'borda')
 })
 
+test('public payload carries Dowdall irvResult for guests', () => {
+  const dowdallResult = {
+    votingMethod: 'dowdall',
+    winnerId: 'a',
+    tieWinnerIds: null,
+    rounds: [
+      {
+        firstPreferenceCounts: { a: 1.5, b: 0.5 },
+        activeIds: ['a', 'b'],
+        ballotsWithVote: 1,
+        eliminatedIds: [],
+      },
+    ],
+  }
+  const payload = buildMovieVotePublicPayload(
+    {
+      phase: 'results',
+      readyToVote: false,
+      myDraftPicks: [],
+      ballotMovies: [],
+      ballotOrderIds: [],
+      voteProgress: null,
+      irvResult: dowdallResult,
+      votingMethod: 'dowdall',
+    },
+    new Map(),
+  )
+  assert.equal(payload.irvResult?.votingMethod, 'dowdall')
+  assert.equal(payload.irvResult?.rounds[0]?.firstPreferenceCounts?.a, 1.5)
+})
+
 test('public payload carries Borda irvResult for guests', () => {
   const bordaResult = {
     votingMethod: 'borda',

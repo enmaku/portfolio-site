@@ -2,8 +2,12 @@
  * Single-winner election facade. Dispatches by voting method.
  */
 
+import { runBaldwin } from './baldwin.js'
 import { runBorda } from './borda.js'
 import { runCondorcet } from './condorcet.js'
+import { runDowdall } from './dowdall.js'
+import { runCopeland } from './copeland.js'
+import { runCoombs } from './coombs.js'
 import { runIrv } from './irv.js'
 import { normalizeVotingMethod } from './votingMethod.js'
 
@@ -38,6 +42,22 @@ export function runElection(votingMethod, rankings, candidateIds) {
 
   if (method === 'condorcet') {
     return { ...runCondorcet(rankings, candidateIds), votingMethod: method }
+  }
+
+  if (method === 'copeland') {
+    return { ...runCopeland(rankings, candidateIds), votingMethod: method }
+  }
+
+  if (method === 'coombs') {
+    return { ...runCoombs(rankings, candidateIds), votingMethod: method }
+  }
+
+  if (method === 'baldwin') {
+    return { ...runBaldwin(rankings, candidateIds), votingMethod: method }
+  }
+
+  if (method === 'dowdall') {
+    return { ...runDowdall(rankings, candidateIds), votingMethod: method }
   }
 
   return unsupportedElectionResult(method, candidateIds)

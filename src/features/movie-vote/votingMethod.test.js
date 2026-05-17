@@ -13,7 +13,11 @@ test('default voting method is instant-runoff voting', () => {
 test('normalizeVotingMethod accepts standard ids', () => {
   assert.equal(normalizeVotingMethod('irv'), 'irv')
   assert.equal(normalizeVotingMethod('borda'), 'borda')
+  assert.equal(normalizeVotingMethod('dowdall'), 'dowdall')
   assert.equal(normalizeVotingMethod('condorcet'), 'condorcet')
+  assert.equal(normalizeVotingMethod('copeland'), 'copeland')
+  assert.equal(normalizeVotingMethod('coombs'), 'coombs')
+  assert.equal(normalizeVotingMethod('baldwin'), 'baldwin')
 })
 
 test('normalizeVotingMethod falls back to default for unknown values', () => {
@@ -24,5 +28,13 @@ test('normalizeVotingMethod falls back to default for unknown values', () => {
 
 test('voting method option labels match glossary terms', () => {
   const labels = VOTING_METHOD_OPTIONS.map((o) => o.label)
-  assert.deepEqual(labels, ['Instant-runoff voting', 'Borda count', 'Condorcet method'])
+  assert.deepEqual(labels, [
+    'Instant-runoff voting',
+    'Borda count',
+    'Dowdall method',
+    'Condorcet method',
+    'Copeland method',
+    'Coombs method',
+    'Baldwin method',
+  ])
 })

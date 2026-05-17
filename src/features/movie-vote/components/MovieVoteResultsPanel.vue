@@ -106,9 +106,36 @@
       </q-card>
 
       <div
-        v-if="showFinal && isCondorcetResult && pairwiseMatrix"
+        v-if="showFinal && showsPairwiseMatrix && pairwiseMatrix"
         class="mv-pairwise q-mt-md full-width min-width-0"
       >
+        <div
+          v-if="isCopelandResult && copelandScoresList.length"
+          class="mv-copeland-scores column q-gutter-xs q-mb-sm"
+        >
+          <div class="text-subtitle2 text-weight-medium text-grey-5">Copeland scores</div>
+          <div
+            v-for="row in copelandScoresList"
+            :key="row.id"
+            class="mv-copeland-scores__row row items-center no-wrap q-px-sm q-py-xs rounded-borders"
+          >
+            <q-img
+              v-if="thumbFor(row.id)"
+              :src="thumbFor(row.id)"
+              width="28px"
+              height="42px"
+              fit="cover"
+              class="rounded-borders q-mr-sm"
+              style="flex-shrink: 0"
+              spinner-color="primary"
+              loading="lazy"
+              :alt="row.title"
+            />
+            <q-icon v-else name="movie" size="sm" class="q-mr-sm" color="grey-6" style="flex-shrink: 0" />
+            <div class="col min-width-0 text-body2 ellipsis">{{ row.title }}</div>
+            <div class="text-body2 text-weight-medium" :class="row.scoreClass">{{ row.scoreLabel }}</div>
+          </div>
+        </div>
         <div class="text-subtitle2 text-weight-medium text-grey-5 q-mb-xs">Pairwise matchups</div>
 
         <div v-if="pairwiseUseCompactGrid" class="mv-pairwise__fluid column q-gutter-xs">
@@ -251,6 +278,7 @@ import {
   pairwiseCellGlyph,
 } from '../pairwiseMatrixDisplay.js'
 import {
+  countsForScoreboardRound,
   replayHeadingForResult,
   scoreUnitForResult,
   shouldAnimateRoundsReplay,
@@ -301,8 +329,39 @@ function thumbFor(id) {
   return p ? posterUrl(p, 'w92') : null
 }
 
-const isCondorcetResult = computed(() => props.irvResult?.votingMethod === 'condorcet')
+const isCopelandResult = computed(() => props.irvResult?.votingMethod === 'copeland')
+const showsPairwiseMatrix = computed(() => {
+  const m = props.irvResult?.votingMethod
+  return m === 'condorcet' || m === 'copeland'
+})
 const pairwiseMatrix = computed(() => props.irvResult?.pairwiseMatrix ?? null)
+
+const copelandScoresList = computed(() => {
+  const scores = props.irvResult?.copelandScores
+  if (!isCopelandResult.value || !scores || typeof scores !== 'object') return []
+  const leaderIds = new Set(
+    props.irvResult?.winnerId
+      ? [props.irvResult.winnerId]
+      : (props.irvResult?.tieWinnerIds ?? []),
+  )
+  let maxScore = -Infinity
+  for (const id of matrixCandidateIds.value) {
+    maxScore = Math.max(maxScore, scores[id] ?? 0)
+  }
+  return matrixCandidateIds.value
+    .map((id) => {
+      const score = scores[id] ?? 0
+      const atMax = score === maxScore
+      return {
+        id,
+        title: titleFor(id),
+        score,
+        scoreLabel: score > 0 ? `+${score}` : String(score),
+        scoreClass: atMax && leaderIds.has(id) ? 'text-primary' : 'text-grey-5',
+      }
+    })
+    .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
+})
 
 const matrixCandidateIds = computed(() => {
   const ids = pairwiseMatrix.value?.candidateIds
@@ -456,8 +515,9 @@ const sortedRows = computed(() => {
   const r = currentRound.value
   if (!r || !Array.isArray(r.activeIds)) return []
   const targets = targetPctsForRound(r)
+  const counts = countsForScoreboardRound(r, props.irvResult?.votingMethod)
   const rows = r.activeIds.map((id) => {
-    const votes = r.firstPreferenceCounts[id] ?? 0
+    const votes = counts[id] ?? 0
     return {
       id,
       title: titleFor(id),
@@ -711,6 +771,16 @@ onUnmounted(() => {
   border-radius: inherit;
   background: var(--q-primary);
   /* width driven by rAF tween in displayPct */
+}
+
+.mv-copeland-scores__row {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.body--light .mv-copeland-scores__row {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.06);
 }
 
 .mv-pairwise__fluid {

@@ -3,12 +3,18 @@
  */
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { runBaldwin } from './baldwin.js'
 import { runBorda } from './borda.js'
+import { runDowdall } from './dowdall.js'
 import { runCondorcet } from './condorcet.js'
 import { runElection } from './election.js'
 import { runIrv } from './irv.js'
 import {
+  countsForScoreboardRound,
+  isBaldwinMultiRoundResult,
   isBordaScoreboardResult,
+  isDowdallScoreboardResult,
+  isCoombsScoreboardResult,
   replayHeadingForResult,
   scoreUnitForResult,
   shouldAnimateRoundsReplay,
@@ -28,7 +34,7 @@ test('Borda result: single scoreboard copy and bar scale (table)', () => {
   )
   assert.equal(result.rounds.length, 1)
   assert.equal(isBordaScoreboardResult(result), true)
-  assert.equal(scoreUnitForResult(result), 'points')
+  assert.equal(scoreUnitForResult(result), 'Borda points')
   assert.equal(showVotePoolSuffix(result), false)
   assert.equal(replayHeadingForResult(result, 0, totalRoundsForReplay(result.rounds)), 'Final scores')
   assert.equal(replayHeadingForResult(result, 99, 99), 'Final scores')
@@ -36,6 +42,30 @@ test('Borda result: single scoreboard copy and bar scale (table)', () => {
     a: 100,
     b: 25,
     c: 25,
+  })
+})
+
+test('Dowdall result: single scoreboard copy and bar scale (table)', () => {
+  const result = runElection(
+    'dowdall',
+    [
+      ['a', 'b', 'c'],
+      ['a', 'c', 'b'],
+    ],
+    ['a', 'b', 'c'],
+  )
+  assert.equal(result.rounds.length, 1)
+  assert.equal(isDowdallScoreboardResult(result), true)
+  assert.equal(isBordaScoreboardResult(result), false)
+  assert.equal(scoreUnitForResult(result), 'Dowdall points')
+  assert.equal(showVotePoolSuffix(result), false)
+  assert.equal(replayHeadingForResult(result, 0, totalRoundsForReplay(result.rounds)), 'Dowdall scores')
+  assert.equal(replayHeadingForResult(result, 99, 99), 'Dowdall scores')
+  const totals = result.rounds[0].firstPreferenceCounts
+  assert.deepEqual(targetPctsForScoreboardRound(result.rounds[0], 'dowdall'), {
+    a: 100,
+    b: Math.round((100 * (totals.b ?? 0)) / (totals.a ?? 1)),
+    c: Math.round((100 * (totals.c ?? 0)) / (totals.a ?? 1)),
   })
 })
 
@@ -82,6 +112,63 @@ test('Condorcet result: no replay; pairwise matrix on election result', () => {
   assert.equal(cycle.pairwiseMatrix?.cells.a.b, 'win')
 })
 
+test('Baldwin result: multi-round Borda points replay, not single scoreboard', () => {
+  const rankings = [
+    ['a', 'b', 'c'],
+    ['a', 'b', 'c'],
+    ['a', 'b', 'c'],
+  ]
+  const baldwin = runElection('baldwin', rankings, ['a', 'b', 'c'])
+  const borda = runElection('borda', rankings, ['a', 'b', 'c'])
+  assert.ok(baldwin.rounds.length >= 2)
+  assert.equal(borda.rounds.length, 1)
+  assert.equal(isBaldwinMultiRoundResult(baldwin), true)
+  assert.equal(isBordaScoreboardResult(baldwin), false)
+  assert.equal(scoreUnitForResult(baldwin), 'points')
+  assert.equal(showVotePoolSuffix(baldwin), false)
+  const total = totalRoundsForReplay(baldwin.rounds)
+  assert.equal(replayHeadingForResult(baldwin, 0, total), `Round 1 of ${total}`)
+  assert.equal(replayHeadingForResult(borda, 0, totalRoundsForReplay(borda.rounds)), 'Final scores')
+})
+
+test('Coombs result: multi-round last-place replay', () => {
+  const result = runElection(
+    'coombs',
+    [
+      ['a', 'b'],
+      ['a', 'b'],
+      ['a', 'b'],
+      ['b', 'a'],
+    ],
+    ['a', 'b'],
+  )
+  assert.equal(isCoombsScoreboardResult(result), true)
+  assert.equal(isBordaScoreboardResult(result), false)
+  assert.equal(scoreUnitForResult(result), 'votes')
+  assert.equal(showVotePoolSuffix(result), true)
+  assert.equal(shouldAnimateRoundsReplay(result), true)
+  const r0 = result.rounds[0]
+  const counts = countsForScoreboardRound(r0, 'coombs')
+  const pcts = targetPctsForScoreboardRound(r0, 'coombs')
+  assert.equal(pcts.b, Math.round((100 * (counts.b ?? 0)) / (r0.ballotsWithVote ?? 1)))
+})
+
+test('Copeland result: no replay; pairwise matrix and copeland scores', () => {
+  const result = runElection(
+    'copeland',
+    [
+      ['a', 'b', 'c'],
+      ['a', 'c', 'b'],
+      ['b', 'a', 'c'],
+    ],
+    ['a', 'b', 'c'],
+  )
+  assert.equal(result.winnerId, 'a')
+  assert.equal(shouldAnimateRoundsReplay(result), false)
+  assert.equal(result.copelandScores?.a, 2)
+  assert.equal(result.pairwiseMatrix?.cells.c.b, 'loss')
+})
+
 test('shouldAnimateRoundsReplay: Borda once, Condorcet skip, IRV multi', () => {
   const borda = runBorda(
     [
@@ -91,6 +178,15 @@ test('shouldAnimateRoundsReplay: Borda once, Condorcet skip, IRV multi', () => {
     ['a', 'b'],
   )
   assert.equal(shouldAnimateRoundsReplay({ ...borda, votingMethod: 'borda' }), true)
+
+  const dowdall = runDowdall(
+    [
+      ['a', 'b'],
+      ['a', 'b'],
+    ],
+    ['a', 'b'],
+  )
+  assert.equal(shouldAnimateRoundsReplay({ ...dowdall, votingMethod: 'dowdall' }), true)
 
   const irv = runIrv(
     [
@@ -102,6 +198,15 @@ test('shouldAnimateRoundsReplay: Borda once, Condorcet skip, IRV multi', () => {
   )
   assert.equal(shouldAnimateRoundsReplay({ ...irv, votingMethod: 'irv' }), true)
 
+  const baldwin = runBaldwin(
+    [
+      ['a', 'b', 'c'],
+      ['a', 'b', 'c'],
+    ],
+    ['a', 'b', 'c'],
+  )
+  assert.equal(shouldAnimateRoundsReplay({ ...baldwin, votingMethod: 'baldwin' }), true)
+
   assert.equal(
     shouldAnimateRoundsReplay({
       votingMethod: 'condorcet',
@@ -111,4 +216,29 @@ test('shouldAnimateRoundsReplay: Borda once, Condorcet skip, IRV multi', () => {
     }),
     false,
   )
+
+  assert.equal(
+    shouldAnimateRoundsReplay({
+      votingMethod: 'copeland',
+      rounds: [],
+      winnerId: 'a',
+      tieWinnerIds: null,
+      copelandScores: { a: 2, b: 0, c: -2 },
+    }),
+    false,
+  )
+
+  const coombs = runElection(
+    'coombs',
+    [
+      ['a', 'b'],
+      ['a', 'b'],
+      ['a', 'b'],
+      ['b', 'a'],
+    ],
+    ['a', 'b'],
+  )
+  assert.equal(shouldAnimateRoundsReplay(coombs), true)
+  assert.equal(countsForScoreboardRound(coombs.rounds[0], 'coombs'), coombs.rounds[0].lastPlaceCounts)
+  assert.equal(countsForScoreboardRound(coombs.rounds[0], 'irv').b, undefined)
 })

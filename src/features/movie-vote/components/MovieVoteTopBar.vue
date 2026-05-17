@@ -15,18 +15,32 @@
         <q-menu anchor="bottom right" self="top right" :offset="[0, 6]">
           <div class="mv-settings-menu q-pa-md" style="min-width: 280px">
             <div class="text-subtitle2 text-weight-medium q-mb-sm">Voting method</div>
-            <q-select
-              v-model="votingMethodModel"
-              :options="votingMethodOptions"
-              option-value="value"
-              option-label="label"
-              emit-value
-              map-options
-              dense
-              outlined
-              :readonly="settingsModel.votingMethodReadOnly"
-              :disable="settingsModel.votingMethodReadOnly"
-            />
+            <div class="row items-start no-wrap q-gutter-x-xs">
+              <q-select
+                v-model="votingMethodModel"
+                class="col"
+                :options="votingMethodOptions"
+                option-value="value"
+                option-label="label"
+                emit-value
+                map-options
+                dense
+                outlined
+                :readonly="settingsModel.votingMethodReadOnly"
+                :disable="settingsModel.votingMethodReadOnly"
+              />
+              <q-btn
+                flat
+                round
+                dense
+                type="button"
+                icon="info_outline"
+                color="grey-6"
+                class="mv-settings-menu__method-info"
+                aria-label="About voting methods"
+                @click.stop="votingMethodHelpOpen = true"
+              />
+            </div>
             <div v-if="settingsModel.votingMethodReadOnly" class="text-caption text-grey-6 q-mt-sm">
               <template v-if="isGuest">Chosen by the host for this room.</template>
               <template v-else>Locked once voting starts.</template>
@@ -49,6 +63,7 @@
       </q-btn>
     </div>
     <MovieVoteHelpDialog v-model="helpOpen" />
+    <MovieVoteVotingMethodHelpDialog v-model="votingMethodHelpOpen" />
   </div>
 </template>
 
@@ -56,6 +71,7 @@
 import { computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import MovieVoteHelpDialog from './MovieVoteHelpDialog.vue'
+import MovieVoteVotingMethodHelpDialog from './MovieVoteVotingMethodHelpDialog.vue'
 import MovieVoteSyncControl from './MovieVoteSyncControl.vue'
 import { useMovieVoteP2P } from '../composables/useMovieVoteP2P.js'
 import { getMovieVoteSettingsModel } from '../settingsModel.js'
@@ -64,6 +80,7 @@ import { movieVoteHostVotingMethodChanged } from '../p2p/session.js'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 
 const helpOpen = ref(false)
+const votingMethodHelpOpen = ref(false)
 const store = useMovieVoteStore()
 const { phase, votingMethod } = storeToRefs(store)
 const { isGuest } = useMovieVoteP2P()
@@ -109,5 +126,11 @@ const votingMethodModel = computed({
 
 .mv-top-bar__help-glyph :deep(.q-icon) {
   font-size: 28px;
+}
+
+.mv-settings-menu__method-info {
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
 }
 </style>

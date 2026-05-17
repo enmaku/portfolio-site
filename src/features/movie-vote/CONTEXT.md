@@ -92,7 +92,7 @@ Participant’s ordering of ballot ids (preferred first).
 
 ### Voting method
 
-Which standard single-winner rule the **host** selects for this **room**—**instant-runoff voting**, **Borda count**, or **Condorcet method**—each implemented by its usual textbook definition, not a project-specific hybrid. The **host** may change it only during **suggest phase**; it is locked when **voting phase** begins.
+Which standard single-winner rule the **host** selects for this **room**—**instant-runoff voting**, **Borda count**, **Dowdall method**, **Condorcet method**, **Copeland method**, **Coombs method**, or **Baldwin method**—each implemented by its usual textbook definition, not a project-specific hybrid. The **host** may change it only during **suggest phase**; it is locked when **voting phase** begins.
 
 _Avoid_: Invented tally names, “ranked-points” as a stand-in for **Borda count** or **IRV**, or labeling every method “IRV” in UI; letting **guests** change the method.
 
@@ -114,9 +114,43 @@ _Avoid_: Eliminating only one tied last-place candidate via **ballot order** or 
 
 Single pass: each **ranking** awards points by position on the full **ballot** using the **classic Borda scale** (top rank *n*−1 points, bottom 0, for *n* **ballot movies**). Highest total wins; equal highest totals yield a **declared tie**.
 
+_Avoid_: Calling **Borda count** “Dowdall method” or using the harmonic scale in **Borda count** replay; labeling **Dowdall method** as **Borda count** in settings or scoreboard copy.
+
+### Dowdall method
+
+Single pass: each **ranking** awards **Dowdall points** by rank position on the full **ballot** using the **harmonic scale** (1, ½, ⅓, … for 1st, 2nd, 3rd, …—independent of *n*). Highest total wins; equal highest totals yield a **declared tie**. Not **Borda count** (linear *n*−1 … 0 weights) and not multi-round **Baldwin method**.
+
+_Avoid_: “Borda count” or “ranked-points” labels for **Dowdall method** outcomes; **IRV**-style elimination rounds for Dowdall replay.
+
+### Baldwin method
+
+Iterative **Borda count** on survivors: while more than one **ballot movie** remains active, score with the **classic Borda scale** on the active set only; **eliminate all tied for lowest** each round; repeat until one remains or the runoff stalls → **declared tie**. No fallback to **instant-runoff voting**, **Condorcet method**, or single-pass **Borda count**.
+
+### Baldwin lowest-tie
+
+When multiple active **ballot movies** share the lowest Borda total in a round, **eliminate all tied for lowest** in that round, then continue. If every active candidate ties for lowest, or two survivors tie on Borda with no further elimination possible, **declared tie**.
+
+_Avoid_: Calling **Baldwin method** “Borda count” in UI or replay copy; single-pass **Borda count** scoreboards for Baldwin outcomes.
+
+### Coombs method
+
+Elimination runoff by **last-place** votes: each round counts how many ballots rank each still-active **ballot movie** last among the active set; **eliminate all tied for most last-place** (**Coombs most-last-place tie**); repeat until one remains. If the runoff cannot crown a unique winner under standard **Coombs method** (e.g. two remain with equal last-place totals, or every active candidate ties for most last-place), **declared tie**.
+
+### Coombs most-last-place tie
+
+When multiple **ballot movies** share the highest last-place count in a round, **eliminate all tied for most last-place** in that round, then continue. If the runoff deadlocks, **declared tie**.
+
+_Avoid_: Eliminating only one tied most-last-place candidate via **ballot order** or other ad hoc tie-breaks while calling it standard **Coombs method**.
+
 ### Condorcet method
 
 Pairwise comparisons from **rankings**: a **Condorcet winner** beats every other **ballot movie** head-to-head by strict majority on ballots. If none exists, **declared tie**—see **Condorcet cycle**. No fallback to another **voting method**.
+
+### Copeland method
+
+Pairwise comparisons from **rankings**: each **ballot movie** earns a **Copeland score** (pairwise wins minus losses; pairwise ties count neither). The highest score wins; equal highest scores yield a **declared tie** among all leaders at that score only—not the **Smith set** rule used by **Condorcet method**. No fallback to **Schulze method**, **Black’s method**, or another **voting method**.
+
+_Avoid_: Treating **Copeland method** as **Condorcet method** in UI or tie copy; applying **Smith set** co-winners to Copeland outcomes.
 
 ### Condorcet cycle
 
@@ -130,19 +164,19 @@ _Avoid_: Requiring every Smith member to beat every outsider in a single head-to
 
 ### Rounds log
 
-Per-round snapshots the **host** persists for **instant-runoff voting** replay—first-preference counts each round, active set, eliminations. **Borda count** uses a single scored round in the same structure where applicable.
+Per-round snapshots the **host** persists for runoff replay—**instant-runoff voting** first-preference counts, **Coombs method** last-place counts, **Baldwin method** Borda-on-survivors totals, active set, eliminations. **Borda count** and **Dowdall method** each use a single scored round in the same structure where applicable (point totals in the rounds log).
 
 _Avoid_: **IRV rounds log** as the only name for every **voting method**; legacy field names like `counts` / `ballotsWithVote` in user-facing copy.
 
 ### Pairwise matrix
 
-Compact **Condorcet method** results view: **ballot movies** on both axes with tiny poster thumbnails, each cell showing head-to-head outcome (win, loss, or pairwise tie) at a glance—dense and mobile-friendly for those who want detail.
+Compact pairwise results view for **Condorcet method** and **Copeland method**: **ballot movies** on both axes with tiny poster thumbnails, each cell showing head-to-head outcome (win, loss, or pairwise tie) at a glance—dense and mobile-friendly for those who want detail. **Copeland method** also surfaces each movie’s **Copeland score** above the matrix.
 
-_Avoid_: Full **rounds log** replay for **Condorcet method**; oversized matrices on small screens.
+_Avoid_: Full **rounds log** replay for **Condorcet method** or **Copeland method**; oversized matrices on small screens.
 
 ### Results summary
 
-Primary **results phase** surface: clear winner **ballot movie** when there is a `winnerId`, or **declared tie** co-winner list otherwise. **Pairwise matrix** is secondary detail for **Condorcet method** only; **instant-runoff voting** uses **rounds log** animation; **Borda count** uses a single scoreboard.
+Primary **results phase** surface: clear winner **ballot movie** when there is a `winnerId`, or **declared tie** co-winner list otherwise. **Pairwise matrix** (and **Copeland score** list for **Copeland method**) is secondary detail; **instant-runoff voting**, **Coombs method**, and **Baldwin method** use multi-round **rounds log** animation; **Borda count** and **Dowdall method** each use a single scoreboard.
 
 ### Connection status
 
@@ -156,7 +190,7 @@ Submitted vs total ballot submission counts surfaced while ballots are still arr
 
 ### Declared tie
 
-Outcome with no single `winnerId` and non-empty `tieWinnerIds`: the **room** could not pick one winner under the active **voting method** without inventing a tiebreak. Applies across **instant-runoff voting**, **Borda count**, and **Condorcet method** whenever the standard rules leave no unique winner (including **Condorcet cycle**, **Borda top tie**, pairwise deadlocks, or **IRV** rounds that fail to produce one remaining champion).
+Outcome with no single `winnerId` and non-empty `tieWinnerIds`: the **room** could not pick one winner under the active **voting method** without inventing a tiebreak. Applies across **instant-runoff voting**, **Borda count**, **Dowdall method**, **Condorcet method**, **Copeland method**, **Coombs method**, and **Baldwin method** whenever the standard rules leave no unique winner (including **Condorcet cycle**, **Copeland** leader ties, **Borda top tie**, **Dowdall** leader ties, **Baldwin lowest-tie** deadlocks, **Coombs** deadlocks, or **IRV** rounds that fail to produce one remaining champion).
 
 ### No algorithmic tiebreak
 
@@ -194,6 +228,9 @@ _Avoid_: **Black’s method**, **Borda tiebreak**, subset runoffs, or any second
 > **Host:** “Two films tied on **Borda count**.”  
 > **Maintainer:** “**Declared tie**. We don’t run another algorithm to break it.”
 
+> **Host:** “Is **Dowdall method** the same as **Borda count**?”  
+> **Maintainer:** “No—harmonic 1, ½, ⅓ weights vs linear *n*−1 … 0. Both single-pass scoreboards; different scales.”
+
 > **Guest:** “Why no winner under **Condorcet method**?”  
 > **Designer:** “Winner card states **declared tie**; optional **pairwise matrix** shows the cycle—check / X / tie in each cell, posters on the axes.”
 
@@ -208,7 +245,7 @@ _Avoid_: **Black’s method**, **Borda tiebreak**, subset runoffs, or any second
 - **Host** migration: Resolved — out of scope; a **room**’s **host** is fixed for that **room**’s lifetime.
 - **IRV** source of truth: Resolved — the **host** writes the official outcome package to **room**-level authority at **results** entry; clients mirror it, not independent recompute as truth.
 - **Custom ranked-points hybrid**: Resolved — abandoned; each **voting method** uses its standard definition only. [ADR 0003](../../../docs/adr/0003-movie-vote-ranked-points-per-irv-round.md) is superseded by [ADR 0004](../../../docs/adr/0004-movie-vote-multi-method-elections.md).
-- **Voting method** labels: Resolved — **instant-runoff voting**, **Borda count**, **Condorcet method** in UI and docs; no project-specific tally vocabulary.
+- **Voting method** labels: Resolved — **instant-runoff voting**, **Borda count**, **Dowdall method**, **Condorcet method**, **Copeland method**, **Coombs method**, **Baldwin method** in UI and docs; no project-specific tally vocabulary.
 - **Condorcet completion** when no winner: Resolved — **declared tie** (**Condorcet cycle**); no **Black’s method** or other fallback.
 - **IRV tie-breaking** among tied last place: Resolved — **eliminate all tied for last** each round (**IRV last-place tie**); any further deadlock → **declared tie**.
 - **Borda weights**: Resolved — **classic Borda scale** (*n*−1 … 0).
@@ -217,6 +254,6 @@ _Avoid_: **Black’s method**, **Borda tiebreak**, subset runoffs, or any second
 - **Condorcet cycle** `tieWinnerIds`: Resolved — **Smith set** members only.
 - **Voting method settings** visibility: Resolved — **host** edits in **suggest phase**; **guests** read-only.
 - **Default voting method**: Resolved — **instant-runoff voting** for a new **room**.
-- **Results replay per method**: Resolved — **IRV**: multi-round **rounds log**; **Borda count**: single scoreboard; **Condorcet method**: winner or tie card plus optional compact **pairwise matrix** (win / loss / pairwise tie per cell, poster thumbnails on axes).
+- **Results replay per method**: Resolved — **IRV** and **Coombs method**: multi-round **rounds log** (first-preference vs last-place counts); **Baldwin method**: multi-round **rounds log** with Borda-on-survivors totals (not single-pass **Borda count** UX); **Borda count** and **Dowdall method**: single scoreboard each (harmonic vs classic Borda weights); **Condorcet method**: winner or tie card plus optional compact **pairwise matrix** (win / loss / pairwise tie per cell, poster thumbnails on axes).
 - **When the host may change voting method**: Resolved — **suggest phase** only; locked at **voting phase** entry.
 - “Phase” overload: Resolved — **phase** means **suggest** / **voting** / **results**; **connection status** means `idle` / `connecting` / … for the star-room shell (Game Timer still labels that **session phase**).
