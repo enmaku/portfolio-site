@@ -616,7 +616,7 @@ import {
   dungeonRunnerEquipmentSymbolRuntimePath,
 } from '../../features/dungeon-runner/ui/assetPack.js'
 import { equipmentTokenAppearance } from '../../features/dungeon-runner/equipmentTokenAppearance.js'
-import { equipmentShortName } from '../../features/dungeon-runner/ui/equipmentDisplayCatalog.js'
+import { equipmentShortName } from '../../features/dungeon-runner/data/gameDataCatalog.js'
 import {
   adventurerChoiceHeadline,
   legalActionBoardLabel,

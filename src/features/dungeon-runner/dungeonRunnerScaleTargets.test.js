@@ -11,7 +11,7 @@ import {
 } from '../../../scripts/dungeon-runner-scale-targets.mjs'
 import { EQUIPMENT_IDS } from './engine/kernel.js'
 import { equipmentTokenAppearance } from './equipmentTokenAppearance.js'
-import { MONSTER_CARD_SPECS } from './ui/monsterCardSpec.js'
+import { listMonsterCardSpecs } from './ui/monsterCardSpec.js'
 
 function targetByOut(out) {
   return dungeonRunnerScaleTargets.find((t) => t.out === out)
@@ -58,16 +58,17 @@ test('every equipment token symbol key is listed for hires scaling', () => {
 })
 
 test('scale targets cover every monster card doodle species', () => {
-  for (const spec of MONSTER_CARD_SPECS) {
+  const monsterCardSpecs = listMonsterCardSpecs()
+  for (const spec of monsterCardSpecs) {
     const out = `cards/doodles/${spec.species}.png`
     assert.ok(targetByOut(out), `missing scale target ${out}`)
   }
   const doodleJobs = dungeonRunnerScaleTargets.filter((t) => t.out.startsWith('cards/doodles/'))
-  assert.equal(doodleJobs.length, MONSTER_CARD_SPECS.length)
+  assert.equal(doodleJobs.length, monsterCardSpecs.length)
 })
 
 test('scale targets cover every defeat symbol used on monster cards', () => {
-  const required = new Set(MONSTER_CARD_SPECS.flatMap((s) => s.icons))
+  const required = new Set(listMonsterCardSpecs().flatMap((s) => s.icons))
   for (const key of required) {
     assert.ok(targetByOut(`symbols/${key}.png`), `missing scale target symbols/${key}.png`)
   }

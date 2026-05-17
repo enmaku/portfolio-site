@@ -27,14 +27,14 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import MonsterCardFace from '../../components/dungeon-runner/MonsterCardFace.vue'
 import {
-  MONSTER_CARD_SPECS,
+  listMonsterCardSpecs,
   monsterCardSpecByStrength,
   revealedMonsterTemplateUrl,
 } from '../../features/dungeon-runner/ui/monsterCardSpec.js'
 
 const route = useRoute()
 
-const validStrengths = MONSTER_CARD_SPECS.map((s) => s.strength)
+const validStrengths = listMonsterCardSpecs().map((s) => s.strength)
 
 const strength = computed(() => {
   const raw = route.query.monster

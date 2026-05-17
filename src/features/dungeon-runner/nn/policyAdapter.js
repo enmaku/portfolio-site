@@ -1,16 +1,10 @@
+import { catalogRules } from '../data/gameDataCatalog.js'
 import { ACTION_TYPES } from '../engine/kernel.js'
 
 export const OBS_DIM = 87
 export const POLICY_ACTIONS = 26
 
-const HERO_EQUIPMENT_SLOTS = {
-  WARRIOR: ['W_PLATE', 'W_SHIELD', 'W_VORPAL', 'W_TORCH', 'W_HOLY', 'W_SPEAR'],
-  BARBARIAN: ['B_HEAL', 'B_SHIELD', 'B_CHAIN', 'B_AXE', 'B_TORCH', 'B_HAMMER'],
-  MAGE: ['M_WALL', 'M_HOLY', 'M_OMNI', 'M_BRACE', 'M_POLY', 'M_PACT'],
-  ROGUE: ['R_ARMOR', 'R_HEAL', 'R_RING', 'R_BUCK', 'R_VORP', 'R_CLOAK'],
-}
-const MONSTER_SPECIES = ['goblin', 'skeleton', 'orc', 'vampire', 'golem', 'lich', 'demon', 'dragon']
-const ADVENTURERS = ['WARRIOR', 'BARBARIAN', 'MAGE', 'ROGUE']
+const { adventurerIds, adventurerLoadouts, defaultLoadout, policySpeciesOrder } = catalogRules
 
 export const POLICY_INDEX = {
   PASS: 0,
@@ -94,11 +88,11 @@ export function decodePolicyIndexToAction(index, legalActions, state = null, act
     )
   }
   if (index >= POLICY_INDEX.PICK_HERO_BASE && index < POLICY_INDEX.PICK_HERO_BASE + 4) {
-    const hero = ADVENTURERS[index - POLICY_INDEX.PICK_HERO_BASE]
+    const hero = adventurerIds[index - POLICY_INDEX.PICK_HERO_BASE]
     return legalActions.find((action) => action.type === ACTION_TYPES.CHOOSE_NEXT_ADVENTURER && action.hero === hero) ?? null
   }
   if (index >= POLICY_INDEX.VORPAL_BASE && index < POLICY_INDEX.VORPAL_BASE + 8) {
-    const species = MONSTER_SPECIES[index - POLICY_INDEX.VORPAL_BASE]
+    const species = policySpeciesOrder[index - POLICY_INDEX.VORPAL_BASE]
     return legalActions.find((action) => action.type === ACTION_TYPES.DECLARE_VORPAL && action.species === species) ?? null
   }
   if (index === POLICY_INDEX.REVEAL) return chooseLegalByType(legalActions, ACTION_TYPES.REVEAL_OR_CONTINUE)
@@ -119,11 +113,11 @@ function encodeActionIndex(state, actor, action) {
     return index === -1 ? -1 : POLICY_INDEX.SACRIFICE_BASE + index
   }
   if (action.type === ACTION_TYPES.CHOOSE_NEXT_ADVENTURER) {
-    const index = ADVENTURERS.indexOf(action.hero)
+    const index = adventurerIds.indexOf(action.hero)
     return index === -1 ? -1 : POLICY_INDEX.PICK_HERO_BASE + index
   }
   if (action.type === ACTION_TYPES.DECLARE_VORPAL) {
-    const index = MONSTER_SPECIES.indexOf(action.species)
+    const index = policySpeciesOrder.indexOf(action.species)
     return index === -1 ? -1 : POLICY_INDEX.VORPAL_BASE + index
   }
   if (action.type === ACTION_TYPES.REVEAL_OR_CONTINUE) return POLICY_INDEX.REVEAL
@@ -148,7 +142,7 @@ function getSacrificeSlots(state, actor) {
 }
 
 function getHeroEquipmentSlots(hero) {
-  return HERO_EQUIPMENT_SLOTS[hero] ?? HERO_EQUIPMENT_SLOTS.WARRIOR
+  return adventurerLoadouts[hero] ?? defaultLoadout
 }
 
 function buildPendingFeatures(state, seatId) {
@@ -158,7 +152,7 @@ function buildPendingFeatures(state, seatId) {
     state.bidding.revealedBySeatId === seatId &&
     state.bidding.revealedMonsterCard
   if (!pending) return new Array(15).fill(0)
-  const species = oneHot(8, MONSTER_SPECIES.indexOf(state.bidding.revealedMonsterCard))
+  const species = oneHot(8, policySpeciesOrder.indexOf(state.bidding.revealedMonsterCard))
   const strengthValue = Number(state.bidding.revealedMonsterStrength ?? 3)
   const strength = [Math.min(1, Math.max(0, strengthValue / 9))]
   const icons = buildIconBits(state.bidding.revealedMonsterIcons ?? [])
@@ -168,7 +162,7 @@ function buildPendingFeatures(state, seatId) {
 function buildDungeonFeatures(state, seatId) {
   if (state.phase !== 'dungeon' || state.bidding.runnerSeatId !== seatId) return new Array(18).fill(0)
   const current = state.dungeon?.currentMonster ?? null
-  const speciesIdx = current ? MONSTER_SPECIES.indexOf(current) : -1
+  const speciesIdx = current ? policySpeciesOrder.indexOf(current) : -1
   const currentSpecies = speciesIdx >= 0 ? oneHot(8, speciesIdx) : new Array(8).fill(0)
   const hpRaw = Number(state.dungeon?.hp ?? 0)
   const hp = hpRaw > 0 ? Math.min(1, hpRaw / 20) : 0
@@ -193,7 +187,7 @@ function buildDungeonFeatures(state, seatId) {
 
 function buildHeroOneHot(state) {
   const hero = state.hero ?? 'WARRIOR'
-  return oneHot(4, ADVENTURERS.indexOf(hero))
+  return oneHot(4, adventurerIds.indexOf(hero))
 }
 
 function buildDungeonSubphaseOneHot(state) {
@@ -211,7 +205,7 @@ function buildOwnPileSpeciesCounts(state, seatId) {
   const speciesCounts = new Array(8).fill(0)
   const ownAdds = state.playerOwnPileAdds?.[seatId] ?? []
   for (const species of ownAdds) {
-    const index = MONSTER_SPECIES.indexOf(species)
+    const index = policySpeciesOrder.indexOf(species)
     if (index < 0) continue
     speciesCounts[index] = Math.min(2, speciesCounts[index] + 1)
   }
