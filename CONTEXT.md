@@ -70,7 +70,7 @@ _Avoid_: Conflating tab chrome with **paste unfurl**—not every titled route ne
 
 ### Share metadata catalog
 
-The single ordered list of public routes with preview copy, canonical path, favicon id, and **paste-unfurl eligible** flag. Each row’s path is the router path—no parallel internal aliases.
+The single path-keyed ordered list of public routes with preview copy, canonical path, favicon id, and **paste-unfurl eligible** flag. Each row’s path is the router path—no share key or other parallel aliases.
 
 _Avoid_: “Share key” as a second name developers must keep in sync with paths; duplicating title or favicon on individual route definitions.
 

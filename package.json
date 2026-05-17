@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "eslint -c ./eslint.config.js \"./src*/**/*.{js,cjs,mjs,vue}\"",
     "format": "prettier --write \"**/*.{js,vue,scss,html,md,json}\" --ignore-path .gitignore",
-    "test": "node --experimental-test-module-mocks --test \"src/features/**/*.test.js\"",
+    "test": "node --experimental-test-module-mocks --test \"src/features/**/*.test.js\" \"src/share-metadata.test.js\" \"src/router/**/*.test.js\" \"scripts/generate-share-pages.test.mjs\"",
     "dev": "quasar dev",
     "dev:poll": "CHOKIDAR_USEPOLLING=1 CHOKIDAR_INTERVAL=300 quasar dev",
     "convert-dungeon-runner-h5": "node ./scripts/convert-dungeon-runner-h5.mjs",

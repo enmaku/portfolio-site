@@ -2,17 +2,18 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import routes from '../../router/routes.js'
-import { SHARE_METADATA, SHAREABLE_ROUTES } from '../../share-metadata.js'
+import { getShareEntryForPath, PASTE_UNFURL_ROUTES } from '../../share-metadata.js'
 
 test('dungeon runner route is integrated with share metadata contract', () => {
   const route = routes.find((entry) => entry.path === '/projects/dungeon-runner')
   assert.ok(route)
   const page = route.children?.[0]
   assert.ok(page)
-  assert.equal(page.meta?.title, SHARE_METADATA.dungeonRunner.title)
-  assert.equal(page.meta?.shareKey, 'dungeonRunner')
-  assert.equal(page.meta?.favicon, SHARE_METADATA.dungeonRunner.favicon)
-  assert.equal(SHAREABLE_ROUTES.some((entry) => entry.routePath === '/projects/dungeon-runner'), true)
+  assert.equal(page.meta, undefined)
+  const catalogEntry = getShareEntryForPath('/projects/dungeon-runner')
+  assert.ok(catalogEntry)
+  assert.equal(catalogEntry.pasteUnfurl, true)
+  assert.equal(PASTE_UNFURL_ROUTES.some((entry) => entry.routePath === '/projects/dungeon-runner'), true)
 })
 
 test('main layout project menu links to dungeon runner', () => {
