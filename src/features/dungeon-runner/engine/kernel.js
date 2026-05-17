@@ -1,3 +1,5 @@
+import { catalogRules } from '../data/gameDataCatalog.js'
+
 export const ACTION_TYPES = {
   PASS: 'PASS',
   DRAW: 'DRAW',
@@ -111,8 +113,8 @@ export function createInitialMatchState(setup, options) {
       activeSeatId: seats[0]?.id ?? null,
       turnNumber: 0,
     },
-    heroLoadout: Object.fromEntries(seats.map((seat) => [seat.id, [...BASE_HERO_LOADOUT]])),
-    centerEquipment: [...BASE_HERO_LOADOUT],
+    heroLoadout: Object.fromEntries(seats.map((seat) => [seat.id, [...catalogRules.defaultLoadout]])),
+    centerEquipment: [...catalogRules.defaultLoadout],
     successCardsLeft: 5,
     scoreboard: Object.fromEntries(
       seats.map((seat) => [
@@ -138,7 +140,7 @@ export function createInitialMatchState(setup, options) {
       monsterDeck: createInitialMonsterDeck(),
       dungeonMonsters: [],
       discardedMonsterCards: [],
-      equipmentDisplayOrder: [...BASE_HERO_LOADOUT],
+      equipmentDisplayOrder: [...catalogRules.defaultLoadout],
     },
     dungeon: {
       subphase: null,
@@ -217,7 +219,7 @@ export function getLegalActions(state, actor) {
     if (state.dungeon?.subphase === DUNGEON_SUBPHASES.VORPAL) {
       // Hidden-info: options must be the fixed species roster only. Never derive DECLARE_VORPAL
       // candidates from dungeon.remainingMonsters or other unrevealed pile state.
-      return MONSTER_SPECIES.map((species) => ({ type: ACTION_TYPES.DECLARE_VORPAL, species }))
+      return catalogRules.policySpeciesOrder.map((species) => ({ type: ACTION_TYPES.DECLARE_VORPAL, species }))
     }
     if (state.dungeon?.subphase === DUNGEON_SUBPHASES.REVEAL) {
       return [{ type: ACTION_TYPES.REVEAL_OR_CONTINUE }]
@@ -231,7 +233,7 @@ export function getLegalActions(state, actor) {
     return []
   }
   if (state.phase === MATCH_PHASES.PICK_ADVENTURER) {
-    return ADVENTURERS.map((hero) => ({ type: ACTION_TYPES.CHOOSE_NEXT_ADVENTURER, hero }))
+    return catalogRules.adventurerIds.map((hero) => ({ type: ACTION_TYPES.CHOOSE_NEXT_ADVENTURER, hero }))
   }
   if (state.phase !== MATCH_PHASES.BIDDING) return []
 
@@ -335,85 +337,21 @@ function validateSetup(setup) {
   }
 }
 
-const BASE_HERO_LOADOUT = ['W_PLATE', 'W_SHIELD', 'W_VORPAL', 'W_TORCH', 'W_HOLY', 'W_SPEAR']
-const HERO_LOADOUTS = {
-  WARRIOR: ['W_PLATE', 'W_SHIELD', 'W_VORPAL', 'W_TORCH', 'W_HOLY', 'W_SPEAR'],
-  BARBARIAN: ['B_HEAL', 'B_SHIELD', 'B_CHAIN', 'B_AXE', 'B_TORCH', 'B_HAMMER'],
-  MAGE: ['M_WALL', 'M_HOLY', 'M_OMNI', 'M_BRACE', 'M_POLY', 'M_PACT'],
-  ROGUE: ['R_ARMOR', 'R_HEAL', 'R_RING', 'R_BUCK', 'R_VORP', 'R_CLOAK'],
-}
-
-const HP_FOR_EQUIP = {
-  W_PLATE: 5,
-  W_SHIELD: 3,
-  W_VORPAL: 0,
-  W_TORCH: 0,
-  W_HOLY: 0,
-  W_SPEAR: 0,
-  B_HEAL: 0,
-  B_SHIELD: 3,
-  B_CHAIN: 4,
-  B_AXE: 0,
-  B_TORCH: 0,
-  B_HAMMER: 0,
-  M_WALL: 6,
-  M_HOLY: 0,
-  M_OMNI: 0,
-  M_BRACE: 3,
-  M_POLY: 0,
-  M_PACT: 0,
-  R_ARMOR: 5,
-  R_HEAL: 0,
-  R_RING: 0,
-  R_BUCK: 3,
-  R_VORP: 0,
-  R_CLOAK: 0,
-}
-
-/** @type {readonly string[]} */
-export const EQUIPMENT_IDS = Object.freeze([...Object.keys(HP_FOR_EQUIP)].sort())
-
-const BASE_HERO_HP = { WARRIOR: 3, BARBARIAN: 4, MAGE: 2, ROGUE: 3 }
 const EQUIP_VORPAL_IDS = new Set(['W_VORPAL', 'R_VORP'])
 const EQUIP_POLY = 'M_POLY'
 const EQUIP_FIRE_AXE = 'B_AXE'
 const EQUIP_HEAL_POT = new Set(['B_HEAL', 'R_HEAL'])
-const BASE_MONSTER_DECK = [
-  'goblin',
-  'goblin',
-  'skeleton',
-  'skeleton',
-  'orc',
-  'orc',
-  'vampire',
-  'vampire',
-  'golem',
-  'golem',
-  'lich',
-  'demon',
-  'dragon',
-]
-const ADVENTURERS = ['WARRIOR', 'BARBARIAN', 'MAGE', 'ROGUE']
-const MONSTER_SPECIES = ['goblin', 'skeleton', 'orc', 'vampire', 'golem', 'lich', 'demon', 'dragon']
-// Strengths + neutralization icons — dungeon-runner welcome-to-the-dungeon.md monster table.
-const MONSTER_STATS = {
-  goblin: { strength: 1, icons: ['torch'] },
-  skeleton: { strength: 2, icons: ['torch', 'chalice'] },
-  orc: { strength: 3, icons: ['torch'] },
-  vampire: { strength: 4, icons: ['chalice'] },
-  golem: { strength: 5, icons: ['hammer'] },
-  lich: { strength: 6, icons: ['chalice', 'cloak'] },
-  demon: { strength: 7, icons: ['pact', 'cloak'] },
-  dragon: { strength: 9, icons: ['staff', 'cloak'] },
-}
+
+/** @type {readonly string[]} */
+export const EQUIPMENT_IDS = catalogRules.equipmentIds
 
 /** @param {string} species */
 export function getMonsterStrength(species) {
-  return MONSTER_STATS[species]?.strength ?? 3
+  return catalogRules.monsterStats[species]?.strength ?? 3
 }
 
 function createInitialMonsterDeck() {
-  return [...BASE_MONSTER_DECK]
+  return [...catalogRules.monsterDeck]
 }
 
 function createHistoryEntry(prevState, nextState, action, actor) {
@@ -429,11 +367,11 @@ function createHistoryEntry(prevState, nextState, action, actor) {
 }
 
 export function hpForEquip(equipmentId) {
-  return HP_FOR_EQUIP[equipmentId] ?? 0
+  return catalogRules.equipmentHp[equipmentId] ?? 0
 }
 
 function baseHeroHp(hero) {
-  return BASE_HERO_HP[hero] ?? 3
+  return catalogRules.baseAdventurerHp[hero] ?? 3
 }
 
 /**
@@ -518,7 +456,7 @@ function applyPassAction(state, actor) {
 function applyDrawAction(state, actor) {
   const [revealedMonsterCard, ...monsterDeck] = state.bidding.monsterDeck
   if (!revealedMonsterCard) return null
-  const spec = MONSTER_STATS[revealedMonsterCard] ?? { strength: 3, icons: [] }
+  const spec = catalogRules.monsterStats[revealedMonsterCard] ?? { strength: 3, icons: [] }
   return {
     ...state,
     bidding: {
@@ -635,7 +573,7 @@ function enterPickAdventurerPhase(state, runnerSeatId, scoreboard, result) {
 
 function applyChooseNextAdventurerAction(state, action, actor) {
   if (state.phase !== MATCH_PHASES.PICK_ADVENTURER) return null
-  const loadout = HERO_LOADOUTS[action.hero] ?? HERO_LOADOUTS.WARRIOR
+  const loadout = catalogRules.adventurerLoadouts[action.hero] ?? catalogRules.defaultLoadout
   const shuffledDeck = shuffle(createInitialMonsterDeck(), state.rng)
   return {
     ...state,
@@ -784,7 +722,7 @@ function applyRevealOrContinueAction(state, actor) {
 function applyMonsterCombatHits(state, dungeon) {
   const current = dungeon.currentMonster
   if (!current) return transitionAfterDefeat(state, dungeon)
-  const spec = MONSTER_STATS[current] ?? { strength: 3 }
+  const spec = catalogRules.monsterStats[current] ?? { strength: 3 }
   const hp = Math.max(0, (dungeon.hp ?? 0) - spec.strength)
   const inPlay = new Set(dungeon.inPlayEquipmentIds ?? [])
   if (hp <= 0) {
@@ -1036,7 +974,7 @@ function applyAutoDefeat(state, dungeon) {
     )
   }
 
-  const spec = MONSTER_STATS[current] ?? { strength: 3 }
+  const spec = catalogRules.monsterStats[current] ?? { strength: 3 }
   const hero = state.hero
   const torchId = hero === 'WARRIOR' && inPlay.has('W_TORCH') ? 'W_TORCH'
     : hero === 'BARBARIAN' && inPlay.has('B_TORCH') ? 'B_TORCH'

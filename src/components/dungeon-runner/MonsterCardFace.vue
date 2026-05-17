@@ -48,8 +48,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import {
-  MONSTER_CARD_SPECS,
   monsterCardSpecByStrength,
+  monsterCardSpecBySpecies,
   displayNameForSpecies,
   cardBlankUrl,
   monsterBackUrl,
@@ -78,7 +78,7 @@ const spec = computed(() => {
     return monsterCardSpecByStrength(props.strength)
   }
   if (props.species) {
-    return MONSTER_CARD_SPECS.find((s) => s.species === props.species) ?? null
+    return monsterCardSpecBySpecies(props.species)
   }
   return null
 })
