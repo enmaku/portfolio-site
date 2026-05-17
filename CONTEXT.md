@@ -50,11 +50,29 @@ Canonical HTTPS base for the deployed site (`focusdisorder.com`), used when buil
 
 ### Shareable route
 
-A path that receives its own pasted-link summary (title, description, image) so previews in chat and social apps read sensibly despite client-side routing.
+A path marked **paste-unfurl eligible** in the share metadata catalog: it gets its own **shared link summary** and crawler-readable HTML so chat and social previews read sensibly despite client-side routing.
 
-Today that set is the site root (`/`), **About (navigation)** (`/about`), **Game Timer** (`/projects/game-timer`), and **Movie Vote** (`/projects/movie-vote`).
+The eligible set is home (`/`), **About (navigation)** (`/about`), **Game Timer**, **Movie Vote**, and **Dungeon Runner**—only routes meant to be pasted publicly.
 
-_Avoid_: “OG route,” “SEO page” unless the audience expects those terms.
+_Avoid_: “OG route,” “SEO page” unless the audience expects those terms; treating every routed page as shareable when it only needs a tab title.
+
+### Paste-unfurl eligible
+
+Catalog flag meaning “generate static preview HTML and expose a full **shared link summary** for this path.” Home uses the site root document; other **shareable routes** use their own canonical non-hash path.
+
+_Avoid_: Inferring eligibility from “is it a **project**?” alone—about and home are shareable but not **projects**.
+
+### Route document chrome
+
+Per-route browser tab title and favicon, derived from the **share metadata catalog** for **shareable routes** and sensible defaults elsewhere (e.g. 404).
+
+_Avoid_: Conflating tab chrome with **paste unfurl**—not every titled route needs preview HTML.
+
+### Share metadata catalog
+
+The single ordered list of public routes with preview copy, canonical path, favicon id, and **paste-unfurl eligible** flag. Each row’s path is the router path—no parallel internal aliases.
+
+_Avoid_: “Share key” as a second name developers must keep in sync with paths; duplicating title or favicon on individual route definitions.
 
 ### Shared link summary
 
@@ -66,7 +84,9 @@ The in-application URL form (`#/…`) used by the SPA router for **projects** an
 
 ### Canonical non-hash URL
 
-The path without `#` served for some **shareable routes**; it redirects the browser into the matching **hash route** so previews and bookmarks both work.
+The path without `#` for a **shareable route**; crawlers read static HTML with preview tags, then the browser is sent to the matching **hash route** (query string preserved for join links).
+
+_Avoid_: Maintaining a second ad hoc list of which paths trampoline—the same **paste-unfurl eligible** set drives static preview HTML and runtime redirect.
 
 ### Résumé data
 
@@ -101,7 +121,9 @@ _Avoid_: Assuming in-tab meta tag updates alone fix every preview provider.
 - **Portfolio shell** wraps the gallery and about; **project shell** wraps each `/projects/…` route.
 - Drawer shortcuts use **detached project launch** so multiplayer **projects** typically run outside the shell tab.
 - **Projects drawer sections** organize how **projects** appear in navigation without changing their public routes.
-- Each **shareable route** has one **shared link summary**; **paste unfurl** surfaces those fields to link previews (root, about, and both **projects** listed above).
+- Each **paste-unfurl eligible** path is a **shareable route** with exactly one **shared link summary**; **paste unfurl** surfaces those fields to link previews.
+- The **share metadata catalog** is the authority for **shared link summary** fields and **route document chrome** on **shareable routes**; router paths align with catalog paths rather than parallel ids.
+- **Paste-unfurl eligible** paths (except home) share one canonical→**hash route** mapping for runtime redirect and static preview HTML.
 - **Public site origin** anchors absolute preview metadata and default join URLs when the runtime location is unknown.
 - User-facing navigation labels **projects** consistently with public routes (`/projects/…`).
 - **Focus Disorder** scopes how the deployed site introduces itself externally; **David J. Perry** remains the authored-by line.
@@ -121,7 +143,10 @@ _Avoid_: Assuming in-tab meta tag updates alone fix every preview provider.
 > **Domain owner:** “**Detached project launch** keeps the gallery/about shell stable while timers or votes run fullscreen in their own tab.”
 
 > **Dev:** “Which URLs get their own preview card copy?”  
-> **Domain owner:** “Home, **About (navigation)**, and both **projects**—each has a **shared link summary** so paste previews match what people share.”
+> **Domain owner:** “Only **paste-unfurl eligible** routes—home, about, and each shipped **project** people might paste. Ephemeral dev routes don’t belong in the catalog.”
+
+> **Dev:** “Is Dungeon Runner shareable?”  
+> **Domain owner:** “Yes—it’s a **project** with a public route, same as Game Timer and Movie Vote.”
 
 ## Flagged ambiguities
 
