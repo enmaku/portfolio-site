@@ -4,7 +4,7 @@ import { createInitialMatchState } from '../engine/kernel.js'
 import { buildStateFromReplayEnvelope } from './replaySession.js'
 
 test('buildStateFromReplayEnvelope replays actions from seed + setup', () => {
-  const setup = { totalSeats: 2, opponents: [{ type: 'randombot' }] }
+  const setup = { totalSeats: 3, opponents: [{ type: 'randombot' }, { type: 'randombot' }] }
   const seed = 11
   let state = createInitialMatchState(setup, { seed })
   const actorSeatId = state.turn.activeSeatId

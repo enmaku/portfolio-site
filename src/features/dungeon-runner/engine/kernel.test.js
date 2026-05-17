@@ -427,6 +427,35 @@ test('headless deterministic gate enforces seed sweep and invariants', () => {
   assert.equal(invariantsChecked >= TEST_GATE_THRESHOLDS.minimumInvariantChecks, true)
 })
 
+test('runner wins immediately when bidding ends with an empty dungeon pile', () => {
+  const state = createInitialMatchState(
+    {
+      totalSeats: 4,
+      opponents: [{ type: 'randombot' }, { type: 'randombot' }, { type: 'randombot' }],
+    },
+    { seed: 9001 },
+  )
+  const humanId = state.seats[0].id
+  const botIds = state.seats.slice(1).map((seat) => seat.id)
+  const preEnd = {
+    ...state,
+    bidding: {
+      ...state.bidding,
+      dungeonMonsters: [],
+      passedSeatIds: [botIds[0], botIds[1]],
+      subphase: BIDDING_SUBPHASES.TURN,
+    },
+    turn: { activeSeatId: botIds[2], turnNumber: 10 },
+  }
+  const result = applyAction(preEnd, { type: ACTION_TYPES.PASS }, { seatId: botIds[2] })
+  assert.equal(result.ok, true)
+  assert.equal(result.state.bidding.runnerSeatId, humanId)
+  assert.equal(result.state.phase, 'pick-adventurer')
+  assert.equal(result.state.lastDungeonRun?.result, 'success')
+  assert.equal(result.state.lastDungeonRun?.monsters.length, 0)
+  assert.equal(result.state.scoreboard[humanId].successes, 1)
+})
+
 test('bidding round ends when all but one seat has passed', () => {
   const state = createInitialMatchState(
     {
@@ -435,8 +464,12 @@ test('bidding round ends when all but one seat has passed', () => {
     },
     { seed: 111 },
   )
+  const withMonsters = {
+    ...state,
+    bidding: { ...state.bidding, dungeonMonsters: ['goblin'] },
+  }
 
-  let cursor = state
+  let cursor = withMonsters
   for (let i = 0; i < 2; i += 1) {
     const seatId = cursor.turn.activeSeatId
     const result = applyAction(cursor, { type: ACTION_TYPES.PASS }, { seatId })
@@ -460,6 +493,7 @@ test('bidding ends when all but one non-eliminated seat has passed', () => {
   const eliminatedSeatId = state.seats[3].id
   const seeded = {
     ...state,
+    bidding: { ...state.bidding, dungeonMonsters: ['orc'] },
     scoreboard: {
       ...state.scoreboard,
       [eliminatedSeatId]: {

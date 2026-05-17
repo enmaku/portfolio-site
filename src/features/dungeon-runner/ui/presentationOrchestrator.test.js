@@ -63,6 +63,35 @@ test('bidding-to-dungeon engine transition maps to visible queued animation', ()
     { totalSeats: 3, opponents: [{ type: 'randombot' }, { type: 'randombot' }] },
     { seed: 111 },
   )
+  const withMonsters = {
+    ...initial,
+    bidding: { ...initial.bidding, dungeonMonsters: ['goblin'] },
+  }
+
+  let state = withMonsters
+  for (let i = 0; i < 2; i += 1) {
+    const seatId = state.turn.activeSeatId
+    const result = applyAction(state, { type: ACTION_TYPES.PASS }, { seatId })
+    assert.equal(result.ok, true)
+    state = result.state
+  }
+
+  const animations = mapEngineTransitionToAnimations({
+    phaseBefore: withMonsters.phase,
+    phaseAfter: state.phase,
+    turnBeforeSeatId: withMonsters.turn.activeSeatId,
+    turnAfterSeatId: state.turn.activeSeatId,
+    dungeonRunResult: state.lastDungeonRun?.result ?? null,
+  })
+
+  assert.equal(animations.some((animation) => animation.kind === 'PHASE_ENTER_DUNGEON'), true)
+})
+
+test('empty dungeon pile at bidding end maps to outcome and pick-adventurer animations', () => {
+  const initial = createInitialMatchState(
+    { totalSeats: 3, opponents: [{ type: 'randombot' }, { type: 'randombot' }] },
+    { seed: 111 },
+  )
 
   let state = initial
   for (let i = 0; i < 2; i += 1) {
@@ -73,14 +102,16 @@ test('bidding-to-dungeon engine transition maps to visible queued animation', ()
   }
 
   const animations = mapEngineTransitionToAnimations({
-    phaseBefore: initial.phase,
+    phaseBefore: 'bidding',
     phaseAfter: state.phase,
     turnBeforeSeatId: initial.turn.activeSeatId,
     turnAfterSeatId: state.turn.activeSeatId,
     dungeonRunResult: state.lastDungeonRun?.result ?? null,
   })
 
-  assert.equal(animations.some((animation) => animation.kind === 'PHASE_ENTER_DUNGEON'), true)
+  assert.equal(animations.some((animation) => animation.kind === 'DUNGEON_OUTCOME'), true)
+  assert.equal(animations.some((animation) => animation.kind === 'PHASE_PICK_ADVENTURER'), true)
+  assert.equal(animations.some((animation) => animation.kind === 'PHASE_ENTER_DUNGEON'), false)
 })
 
 test('dungeon reveal action maps to reveal animation kind', () => {

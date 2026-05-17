@@ -11,8 +11,8 @@
       { "id": "seat-2", "label": "Player 2", "role": { "type": "randombot" } },
       { "id": "seat-3", "label": "Player 3", "role": { "type": "nn", "modelId": "latest" } }
     ],
-    "phase": "dungeon",
-    "turn": { "activeSeatId": "seat-3", "turnNumber": 2 },
+    "phase": "pick-adventurer",
+    "turn": { "activeSeatId": "seat-3", "turnNumber": 3 },
     "bidding": {
       "subphase": "turn",
       "passedSeatIds": ["seat-1", "seat-2"],
@@ -29,7 +29,7 @@
     "scoreboard": {
       "seat-1": { "successes": 0, "lives": 2, "eliminated": false },
       "seat-2": { "successes": 0, "lives": 2, "eliminated": false },
-      "seat-3": { "successes": 0, "lives": 2, "eliminated": false }
+      "seat-3": { "successes": 1, "lives": 2, "eliminated": false }
     },
     "history": [
       {
@@ -45,10 +45,10 @@
         "action": { "type": "PASS" },
         "actorSeatId": "seat-2",
         "phaseBefore": "bidding",
-        "phaseAfter": "dungeon",
+        "phaseAfter": "pick-adventurer",
         "rngStepBefore": 1,
         "rngStepAfter": 2,
-        "dungeonRunResult": null
+        "dungeonRunResult": "success"
       }
     ]
   }

@@ -379,6 +379,32 @@ function baseHeroHp(hero) {
  * @param {ReturnType<typeof createInitialMatchState>} state
  * @param {typeof state.bidding} nextBidding
  */
+/**
+ * @param {ReturnType<typeof createInitialMatchState>} state
+ * @param {typeof state.bidding} nextBidding
+ * @param {string|null} runnerSeatId
+ */
+function transitionToDungeonAfterBidding(state, nextBidding, runnerSeatId) {
+  const dungeon = buildDungeonStateOnEnter(state, nextBidding)
+  const dungeonState = {
+    ...state,
+    phase: MATCH_PHASES.DUNGEON,
+    turn: {
+      activeSeatId: runnerSeatId,
+      turnNumber: state.turn.turnNumber + 1,
+    },
+    bidding: {
+      ...nextBidding,
+      runnerSeatId,
+    },
+    dungeon,
+  }
+  if ((nextBidding.dungeonMonsters ?? []).length === 0) {
+    return concludeDungeonSuccess(dungeonState, dungeon)
+  }
+  return dungeonState
+}
+
 function buildDungeonStateOnEnter(state, nextBidding) {
   const hero = state.hero ?? 'WARRIOR'
   const pile = [...(nextBidding.dungeonMonsters ?? [])].reverse()
@@ -429,19 +455,7 @@ function applyPassAction(state, actor) {
     if (runnerSeatId && state.scoreboard[runnerSeatId]?.eliminated) {
       return state
     }
-    return {
-      ...state,
-      phase: MATCH_PHASES.DUNGEON,
-      turn: {
-        activeSeatId: runnerSeatId,
-        turnNumber: state.turn.turnNumber + 1,
-      },
-      bidding: {
-        ...nextBidding,
-        runnerSeatId,
-      },
-      dungeon: buildDungeonStateOnEnter(state, nextBidding),
-    }
+    return transitionToDungeonAfterBidding(state, nextBidding, runnerSeatId)
   }
   return {
     ...state,

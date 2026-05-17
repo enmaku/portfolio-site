@@ -6,6 +6,7 @@
 - Canonical action query is `getLegalActions(state, { seatId })`.
 - Canonical transition is `applyAction(state, action, { seatId })`.
 - Invalid actions return `{ ok: false, errorCode: 'INVALID_ACTION' }`.
+- **Empty dungeon run:** when bidding ends or dungeon resolution finds no **monsters** left for the runner, the runner succeeds immediately (pick-adventurer or **match over** as usual). See `CONTEXT.md` (**Empty dungeon run**) for divergence from the [dungeon-runner](https://github.com/enmaku/dungeon-runner) training simulator.
 - History records canonical action payload and RNG step progression metadata.
 
 ## AI Interface Contract (v1)

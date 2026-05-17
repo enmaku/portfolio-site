@@ -20,6 +20,12 @@ _Avoid_: “Finished game,” “complete game” (use **match** vocabulary).
 
 One runner’s attempt through the monster lane during a **match**; distinct from the whole **match**.
 
+### Empty dungeon run
+
+A **dungeon run** where the dungeon pile has no **monsters** when the runner is sent in. The runner wins immediately (nothing to fight). Mid-run clears that exhaust the pile use the same success outcome via normal dungeon resolution.
+
+_Avoid_: Treating an empty pile as a stuck dungeon phase or as a runner loss in this product (see **Flagged ambiguities** for training-repo divergence).
+
 ### Setup
 
 Seat count and **opponent** roles (human, neural opponent, random bot) chosen before a **match** starts.
@@ -152,6 +158,7 @@ The canonical ordering of **monster** **species** ids for neural observation enc
 
 ## Flagged ambiguities
 
+- **Empty dungeon run** vs [dungeon-runner](https://github.com/enmaku/dungeon-runner) training: the physical game and this web **match** treat an empty pile as a runner win. The Python training simulator historically scored it as a runner **loss** so policies would not farm wins by passing forever without adding **monsters**. Exported NN weights were trained under that rule; runtime play here follows table rules.
 - “Game” in casual speech usually means **match**; “run” usually means **dungeon run**.
 - “Catalog” without qualifier may mean the neural **model catalog** or the **game data catalog** — use the full term.
 - In-match “history panel” was considered and rejected — **history** stays engine/replay data only.
