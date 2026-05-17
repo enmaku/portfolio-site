@@ -4,7 +4,10 @@ import { dirname, join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { ORCHESTRATOR_PRESENTATION_KINDS } from './orchestratorPresentationKinds.js'
+import {
+  DUNGEON_ORCHESTRATOR_PRESENTATION_KINDS,
+  ORCHESTRATOR_PRESENTATION_KINDS,
+} from './orchestratorPresentationKinds.js'
 import {
   PRESENTATION_MOTION_REGISTRY,
   createBoardShellPresentationMotionTimeline,
@@ -237,7 +240,7 @@ test('canonical orchestrator kinds cover each issue-required presentation family
   assert.equal(kinds.has('HERO_CHANGE_INTERSTITIAL'), true)
   assert.equal(kinds.has('TURN_ADVANCE'), true)
   assert.deepEqual(
-    sortedStrings(new Set(ORCHESTRATOR_PRESENTATION_KINDS.filter((kind) => kind.startsWith('DUNGEON_')))),
+    sortedStrings(new Set(DUNGEON_ORCHESTRATOR_PRESENTATION_KINDS)),
     ['DUNGEON_CONTINUE', 'DUNGEON_DAMAGE', 'DUNGEON_NEUTRALIZE', 'DUNGEON_OUTCOME', 'DUNGEON_REVEAL'],
   )
 })

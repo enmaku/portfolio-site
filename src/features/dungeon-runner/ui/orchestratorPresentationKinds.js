@@ -20,4 +20,19 @@ export const ORCHESTRATOR_PRESENTATION_KINDS = Object.freeze([
   'TURN_ADVANCE',
 ])
 
+/** @type {readonly string[]} */
+export const DUNGEON_ORCHESTRATOR_PRESENTATION_KINDS = Object.freeze(
+  ORCHESTRATOR_PRESENTATION_KINDS.filter((kind) => kind.startsWith('DUNGEON_')),
+)
+
+const dungeonOrchestratorPresentationKindSet = new Set(DUNGEON_ORCHESTRATOR_PRESENTATION_KINDS)
+
+/**
+ * @param {unknown} kind
+ * @returns {boolean}
+ */
+export function isDungeonOrchestratorPresentationKind(kind) {
+  return dungeonOrchestratorPresentationKindSet.has(kind)
+}
+
 /** @typedef {(typeof ORCHESTRATOR_PRESENTATION_KINDS)[number]} OrchestratorPresentationKind */

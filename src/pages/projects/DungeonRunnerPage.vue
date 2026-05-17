@@ -648,6 +648,7 @@ import MonsterCardFace from '../../components/dungeon-runner/MonsterCardFace.vue
 import DungeonRunnerHelpDialog from '../../features/dungeon-runner/ui/DungeonRunnerHelpDialog.vue'
 import { closeDeckSplay, createMemoryAidState, setMemoryAidEnabled, tapDeck } from '../../features/dungeon-runner/ui/memoryAidState.js'
 import { isDungeonPresentationTraceEnabled } from '../../features/dungeon-runner/ui/dungeonPresentationTrace.js'
+import { isDungeonOrchestratorPresentationKind } from '../../features/dungeon-runner/ui/orchestratorPresentationKinds.js'
 import { usePresentationMotion } from '../../features/dungeon-runner/ui/usePresentationMotion.js'
 import { createCompletedMatchReplayUploadTracker } from '../../features/dungeon-runner/firebase/completedMatchReplayUpload.js'
 
@@ -934,7 +935,7 @@ const dungeonResolutionView = computed(() =>
 )
 const showDungeonStage = computed(() => {
   if (match.value?.state?.phase === 'dungeon') return true
-  if (isDungeonPresentationKind(activePresentation.value?.kind ?? null)) return true
+  if (isDungeonOrchestratorPresentationKind(activePresentation.value?.kind ?? null)) return true
   return dungeonOutcomeAckPending.value
 })
 const dungeonStageView = computed(() =>
@@ -1775,16 +1776,6 @@ function actionLabel(action) {
 function actionKey(action) {
   const id = [action.equipmentId, action.hero, action.species].filter((x) => x != null && x !== '').join('-')
   return id ? `${action.type}-${id}` : action.type
-}
-
-function isDungeonPresentationKind(kind) {
-  return (
-    kind === 'DUNGEON_REVEAL' ||
-    kind === 'DUNGEON_NEUTRALIZE' ||
-    kind === 'DUNGEON_DAMAGE' ||
-    kind === 'DUNGEON_CONTINUE' ||
-    kind === 'DUNGEON_OUTCOME'
-  )
 }
 
 function skipActivePresentation() {
