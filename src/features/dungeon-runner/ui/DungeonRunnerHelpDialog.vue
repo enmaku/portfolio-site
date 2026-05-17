@@ -24,6 +24,10 @@
           Choose how many players are at the table (two to four). You always occupy one seat; fill the rest with random
           bots or trained AI models, then tap <strong>Start match</strong>. Seat order is shuffled each match.
         </p>
+        <p class="q-ma-none q-mb-md">
+          In each round the runner will pick an adventurer from the available classes. The adventurer will have a starting 
+          HP and equipment. On your turn you can click on any equipment tile to see a description of what it does.
+        </p>
 
         <p class="text-subtitle2 text-weight-medium q-mb-xs">Bidding</p>
         <p class="q-ma-none q-mb-sm">
