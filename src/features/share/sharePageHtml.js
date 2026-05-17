@@ -45,7 +45,7 @@ function escapeJs(value) {
 
 /**
  * @param {string} html
- * @param {import('../../share-metadata.js').ShareMetadata} entry
+ * @param {import('../../share-metadata.js').ShareCatalogEntry} entry
  * @param {{ siteOrigin: string, pagesBase: string, siteName: string }} options
  */
 export function buildShareHtml(html, entry, options) {

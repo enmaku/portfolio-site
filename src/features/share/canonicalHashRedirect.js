@@ -1,7 +1,10 @@
-const CANONICAL_TO_HASH_PATH = {
-  '/projects/game-timer': '/projects/game-timer',
-  '/projects/movie-vote': '/projects/movie-vote',
-}
+import { SHARE_CATALOG } from '../../share-metadata.js'
+
+const CANONICAL_TO_HASH_PATH = Object.fromEntries(
+  SHARE_CATALOG.filter((entry) => entry.pasteUnfurl && entry.routePath !== '/').map(
+    (entry) => [entry.routePath, entry.routePath],
+  ),
+)
 
 /**
  * @param {string} pathname

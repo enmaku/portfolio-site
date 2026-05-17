@@ -8,70 +8,9 @@ import {
   createWebHistory,
   createWebHashHistory,
 } from 'vue-router'
-import routes, { portfolioDocumentTitle } from './routes'
-import { SHARE_METADATA, SHARE_SITE_NAME } from '../share-metadata.js'
+import routes from './routes'
+import { applyRouteDocumentChrome } from './routeDocumentChrome.js'
 import { redirectCanonicalPathToHashRoute } from '../features/share/canonicalHashRedirect.js'
-
-const FAVICON_IDS = new Set(['default', 'photo', 'info', 'timer', 'movie'])
-
-/**
- * @param {import('vue-router').RouteLocationNormalized} to
- */
-function applyRouteFavicon(to) {
-  if (typeof document === 'undefined') return
-  const raw = to.meta.favicon
-  const id = typeof raw === 'string' && FAVICON_IDS.has(raw) ? raw : 'default'
-  const href = `icons/favicon-${id}.svg`
-  const el = document.getElementById('portfolio-favicon')
-  if (el instanceof HTMLLinkElement && el.getAttribute('href') !== href) {
-    el.setAttribute('href', href)
-  }
-}
-
-/**
- * Keeps description + OG/Twitter tags aligned as users navigate within the SPA.
- * Crawlers still read the per-route HTML emitted by `scripts/generate-share-pages.mjs`,
- * this just prevents drift for users who already have the page open.
- *
- * @param {import('vue-router').RouteLocationNormalized} to
- */
-function applyRouteSharePreview(to) {
-  if (typeof document === 'undefined') return
-  const key = typeof to.meta.shareKey === 'string' ? to.meta.shareKey : null
-  const entry = key ? SHARE_METADATA[key] : null
-  if (!entry) return
-  const canonicalUrl = `${window.location.origin}${entry.routePath}`
-
-  setMetaContent('name', 'description', entry.description)
-  setMetaContent('property', 'og:site_name', SHARE_SITE_NAME)
-  setMetaContent('property', 'og:title', entry.title)
-  setMetaContent('property', 'og:description', entry.description)
-  setMetaContent('property', 'og:image', entry.ogImage)
-  setMetaContent('property', 'og:url', canonicalUrl)
-  setMetaContent('name', 'twitter:title', entry.title)
-  setMetaContent('name', 'twitter:description', entry.description)
-  setMetaContent('name', 'twitter:image', entry.ogImage)
-  setCanonicalHref(canonicalUrl)
-}
-
-/**
- * @param {'name' | 'property'} attr
- * @param {string} key
- * @param {string} value
- */
-function setMetaContent(attr, key, value) {
-  const selector = `meta[${attr}="${key}"]`
-  const el = document.querySelector(selector)
-  if (el instanceof HTMLMetaElement) {
-    el.setAttribute('content', value)
-  }
-}
-
-/** @param {string} href */
-function setCanonicalHref(href) {
-  const el = document.querySelector('link[rel="canonical"]')
-  if (el instanceof HTMLLinkElement) el.setAttribute('href', href)
-}
 
 export default defineRouter(function (/* { store, ssrContext } */) {
   redirectCanonicalPathToHashRoute()
@@ -93,10 +32,7 @@ export default defineRouter(function (/* { store, ssrContext } */) {
   })
 
   Router.afterEach((to) => {
-    const title = to.meta.title
-    document.title = typeof title === 'string' ? title : portfolioDocumentTitle
-    applyRouteFavicon(to)
-    applyRouteSharePreview(to)
+    applyRouteDocumentChrome(to)
   })
 
   return Router

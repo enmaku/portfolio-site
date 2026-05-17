@@ -11,11 +11,11 @@
 ## Relationships
 
 - **Portfolio site → Shell**: Static pages (gallery, about) use the **portfolio shell**; each **project** uses its own **project shell** without the portfolio masthead.
-- **Portfolio site → Projects**: Routes and navigation expose **Game Timer** and **Movie Vote** as first-class **projects** alongside static portfolio content.
+- **Portfolio site → Projects**: Routes and navigation expose **Game Timer**, **Movie Vote**, and **Dungeon Runner** as first-class **projects** alongside static portfolio content.
 - **Game Timer ↔ Star-room P2P**: Game Timer uses the star-room shell (host/guest roles, reconnect, **stable client identity**, **join links**); timer **snapshots** sync through an app-scoped persisted **room** like **Movie Vote**.
 - **Movie Vote ↔ Star-room P2P**: Movie Vote uses the same shell so a **host** aggregates **participant** drafts and votes into **room**-level authority.
 - **Movie Vote ↔ Game Timer**: Both use star-room roles and the same persisted **room** lifecycle shape; **Game Timer** stores one authoritative **snapshot** per **room** instead of vote-phase payloads.
-- **Portfolio site ↔ sharing**: Publishable URLs and shared-link summaries for selected routes belong to the portfolio context; implementations read shared metadata keyed by route.
+- **Portfolio site ↔ sharing**: **Paste-unfurl eligible** routes are **shareable routes** with one **shared link summary** each; router, build, and runtime redirect read the **share metadata catalog** by `routePath` (no parallel share keys).
 - **Portfolio site ↔ Star-room P2P**: **Join links** live on canonical `/projects/…` paths with `room` query params; **public site origin** anchors absolute URLs when builds need a stable host.
 - **Dungeon Runner**: Local **match** play only (no star-room **room**); when a **match** reaches **match over**, a **completed match replay** may be archived remotely using the same Firebase project as multiplayer **projects** (write-only; no sync).
 

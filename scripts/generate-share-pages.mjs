@@ -10,16 +10,16 @@
  *
  * Uses `GH_PAGES_BASE` (same env the Quasar build reads) so OG URLs and the
  * redirect target respect the GitHub Pages project base path. Uses
- * `SITE_ORIGIN` (CI sets the live domain; local default is https://enmaku.github.io) to build absolute OG
+ * `SITE_ORIGIN` (CI sets the live domain; local default is `PUBLIC_SITE_ORIGIN`) to build absolute OG
  * URLs, since most preview crawlers require absolute URLs.
  */
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
+  getShareEntryForPath,
+  PASTE_UNFURL_ROUTES,
   PUBLIC_SITE_ORIGIN,
-  SHAREABLE_ROUTES,
-  SHARE_METADATA,
   SHARE_SITE_NAME,
 } from '../src/share-metadata.js'
 import { buildShareHtml } from '../src/features/share/sharePageHtml.js'
@@ -51,11 +51,13 @@ async function main() {
   }
 
   const options = { siteOrigin: SITE_ORIGIN, pagesBase: PAGES_BASE, siteName: SHARE_SITE_NAME }
-  const rootHtml = buildShareHtml(baseHtml, SHARE_METADATA.root, options)
+  const rootEntry = getShareEntryForPath('/')
+  if (!rootEntry) throw new Error('share catalog missing home entry')
+  const rootHtml = buildShareHtml(baseHtml, rootEntry, options)
   await fs.writeFile(INDEX_HTML, rootHtml, 'utf8')
   console.log(`generate-share-pages: updated ${path.relative(ROOT, INDEX_HTML)}`)
 
-  for (const entry of SHAREABLE_ROUTES) {
+  for (const entry of PASTE_UNFURL_ROUTES) {
     const outDir = path.join(DIST, entry.shareSlug)
     const outFile = path.join(outDir, 'index.html')
     await fs.mkdir(outDir, { recursive: true })
