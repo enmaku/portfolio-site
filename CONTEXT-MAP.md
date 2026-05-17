@@ -11,9 +11,9 @@
 
 - **Portfolio site → Shell**: Static pages (gallery, about) use the **portfolio shell**; each **project** uses its own **project shell** without the portfolio masthead.
 - **Portfolio site → Projects**: Routes and navigation expose **Game Timer** and **Movie Vote** as first-class **projects** alongside static portfolio content.
-- **Game Timer ↔ Star-room P2P**: Game Timer’s multiplayer session uses the star-room host/guest collaboration model for state sync.
-- **Movie Vote ↔ Star-room P2P**: Movie Vote uses the same collaboration model so a **host** aggregates **participant** drafts and votes.
-- **Movie Vote ↔ Game Timer**: Both use star-room roles today; **Game Timer**’s synchronized countdown state is not assumed to share the same persistence or transport shape as **Movie Vote** without its own design pass.
+- **Game Timer ↔ Star-room P2P**: Game Timer uses the star-room shell (host/guest roles, reconnect, **stable client identity**, **join links**); timer **snapshots** sync through an app-scoped persisted **room** like **Movie Vote**.
+- **Movie Vote ↔ Star-room P2P**: Movie Vote uses the same shell so a **host** aggregates **participant** drafts and votes into **room**-level authority.
+- **Movie Vote ↔ Game Timer**: Both use star-room roles and the same persisted **room** lifecycle shape; **Game Timer** stores one authoritative **snapshot** per **room** instead of vote-phase payloads.
 - **Portfolio site ↔ sharing**: Publishable URLs and shared-link summaries for selected routes belong to the portfolio context; implementations read shared metadata keyed by route.
 - **Portfolio site ↔ Star-room P2P**: **Join links** live on canonical `/projects/…` paths with `room` query params; **public site origin** anchors absolute URLs when builds need a stable host.
 

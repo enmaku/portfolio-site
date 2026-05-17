@@ -9,7 +9,7 @@
  */
 
 /**
- * Multiplayer UI / PeerJS session phase (`p2p/session.js`, sync control).
+ * Multiplayer UI / RTDB session phase (`p2p/session.js`, sync control).
  *
  * @typedef {'idle' | 'connecting' | 'reconnecting' | 'hosting' | 'guest_connected'} MovieVoteSessionPhase
  */

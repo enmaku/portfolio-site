@@ -1,9 +1,6 @@
 /**
- * PeerJS room id for Movie Vote: `dperry-movievote-<suffix>`.
+ * Room suffix and share URL helpers for Movie Vote join links (`?room=AB12CD`).
  */
-
-/** @type {string} */
-export const MOVIE_VOTE_PEER_ID_PREFIX = 'dperry-movievote-'
 
 const SUFFIX_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 
@@ -57,14 +54,6 @@ export function isValidRoomSuffix(suffix) {
   if (typeof suffix !== 'string' || suffix.length < 4 || suffix.length > 32) return false
   if (!/^[0-9A-Z]+$/.test(suffix)) return false
   return /^[A-Z0-9]/.test(suffix) && /[A-Z0-9]$/.test(suffix)
-}
-
-/**
- * @param {string} suffix
- * @returns {string}
- */
-export function fullPeerIdFromSuffix(suffix) {
-  return MOVIE_VOTE_PEER_ID_PREFIX + suffix
 }
 
 /** Query key for share/join links. */

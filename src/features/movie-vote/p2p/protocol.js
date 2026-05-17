@@ -9,7 +9,7 @@ export const MSG_MV_HOST_VISIBILITY = 'mv-v'
 export const MSG_MV_WELCOME = 'mv-w'
 export const MSG_MV_STATE = 'mv-s'
 
-/** Guest → host: stable client identity presented right after `open` so the
+/** Guest → host: stable client identity presented right after attach so the
  *  host can remap this connection onto an existing participant slot instead of
  *  allocating a new one on every reconnect. */
 export const MSG_MV_HELLO = 'mv-hi'

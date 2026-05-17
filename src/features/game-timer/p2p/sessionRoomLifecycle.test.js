@@ -7,6 +7,8 @@ import { MSG_HOST_ENDED } from './protocol.js'
 import {
   handleGuestInbound,
   leaveSession,
+  sessionPhase,
+  sessionSuffix,
   teardownSession,
 } from './session.js'
 
@@ -21,6 +23,8 @@ test('leaveSession clears room persistence but keeps game timer roster', () => {
 
   leaveSession()
 
+  assert.equal(sessionPhase.value, 'idle')
+  assert.equal(sessionSuffix.value, null)
   assert.equal(room.role, null)
   assert.equal(room.suffix, null)
   assert.equal(store.players.length, 2)
@@ -30,7 +34,7 @@ test('leaveSession clears room persistence but keeps game timer roster', () => {
   )
 })
 
-test('guest host-ended handling clears room persistence but keeps roster', () => {
+test('guest host-ended protocol notice clears room persistence but keeps roster', () => {
   setActivePinia(createPinia())
   const store = useGameTimerStore()
   const room = useGameTimerRoomSessionStore()
@@ -39,6 +43,8 @@ test('guest host-ended handling clears room persistence but keeps roster', () =>
 
   handleGuestInbound({ type: MSG_HOST_ENDED })
 
+  assert.equal(sessionPhase.value, 'idle')
+  assert.equal(sessionSuffix.value, null)
   assert.equal(room.role, null)
   assert.equal(room.suffix, null)
   assert.equal(store.players.length, 1)
