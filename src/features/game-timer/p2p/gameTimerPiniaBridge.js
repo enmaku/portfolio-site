@@ -1,7 +1,7 @@
 /**
  * @import '../types.js'
- * Pinia plugin: sync game timer store over PeerJS when a session is active.
- * Keeps `peerjs` and wire types out of `stores/gameTimer.js`.
+ * Pinia plugin: sync game timer store over RTDB when a session is active.
+ * Keeps wire types out of `stores/gameTimer.js`.
  */
 
 import { nextDefaultColor } from '../core.js'

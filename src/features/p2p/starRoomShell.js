@@ -1,15 +1,9 @@
 /**
- * Star-room P2P shell: shared Peer error wiring and reconnect loops used by
- * feature sessions (Game Timer, Movie Vote). Feature code supplies closures
- * (establish guest/host, notify, teardown). The shell does not import Pinia
- * or Quasar.
+ * Star-room shell: shared reconnect loops for RTDB-backed sessions
+ * (Game Timer, Movie Vote). Feature code supplies closures (establish
+ * guest/host, notify, teardown). The shell does not import Pinia or Quasar.
  *
  * ## Adapter contract (call order)
- *
- * **wireStarRoomPeerErrors** — Register once per open `Peer`. On each error:
- * 1. `classifyPeerError` (internal) → if `fatal`: `bumpReconnectGeneration`,
- *    `clearRoomPersistence`, `notifyP2p` (fatal message), `teardownSession`, return.
- * 2. Else: if `getIsHost()` then `onHostDisconnected()` else `onGuestDisconnected()`.
  *
  * **runGuestStarReconnectLoop** — After guest sets phase to `reconnecting`:
  * 1. `sleep(RECONNECT_INITIAL_PAUSE_MS)`; abort if `gen !== getReconnectGeneration()`.
@@ -22,44 +16,8 @@
  * `establishGuest`; final failure uses `notifyHostReconnectFailed`.
  */
 
-import { classifyPeerError } from './errors.js'
 import { starRoomReconnectDelayMs } from './starRoomReconnectDelay.js'
 import { RECONNECT_INITIAL_PAUSE_MS, RECONNECT_MAX_ATTEMPTS } from './starRoomTiming.js'
-
-/**
- * @typedef {object} StarRoomPeerErrorHandlers
- * @property {() => void} bumpReconnectGeneration
- * @property {() => void} clearRoomPersistence
- * @property {(message: string, type: 'positive' | 'negative' | 'warning' | 'info') => void} notifyP2p
- * @property {() => void} teardownSession
- * @property {() => boolean} getIsHost
- * @property {() => void} onHostDisconnected
- * @property {() => void} onGuestDisconnected
- */
-
-/**
- * @param {import('peerjs').Peer} peer
- * @param {StarRoomPeerErrorHandlers} h
- * @returns {void}
- */
-export function wireStarRoomPeerErrors(peer, h) {
-  peer.on('error', (err) => {
-    const severity = classifyPeerError(err)
-    if (severity === 'fatal') {
-      h.bumpReconnectGeneration()
-      h.clearRoomPersistence()
-      const msg =
-        err && typeof err === 'object' && 'type' in err
-          ? `P2P error: ${/** @type {{ type: string }} */ (err).type}`
-          : 'P2P error'
-      h.notifyP2p(msg, 'negative')
-      h.teardownSession()
-      return
-    }
-    if (h.getIsHost()) h.onHostDisconnected()
-    else h.onGuestDisconnected()
-  })
-}
 
 /**
  * @typedef {object} StarRoomGuestReconnectHandlers

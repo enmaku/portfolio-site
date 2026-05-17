@@ -1,6 +1,6 @@
 /**
  * @import '../types.js'
- * Wire messages between game timer peers (JSON via PeerJS `serialization: 'json'`).
+ * Wire messages between game timer collaborators (JSON payloads on RTDB).
  */
 
 import { isWellFormedGuestIntent } from './guestIntentDedupe.js'
@@ -20,9 +20,9 @@ export const MSG_HOST_PING = 'gt-p'
 /** Hub → guest: host tab visibility (`document.visibilityState`) for UX / liveness hints. */
 export const MSG_HOST_VISIBILITY = 'gt-v'
 
-/** Guest → hub: stable client identity presented immediately after `open` so
- *  the host can drop a stale `DataConnection` left over from a previous
- *  session for the same guest. */
+/** Guest → hub: stable client identity presented right after attach so the
+ *  host can remap this guest onto an existing participant slot instead of
+ *  allocating a new one on every reconnect. */
 export const MSG_GUEST_HELLO = 'gt-hi'
 
 /**
@@ -34,13 +34,109 @@ export function isRecord(data) {
 }
 
 /**
+ * RTDB stores dense JS arrays as `{ "0": …, "1": … }` maps; turn logic expects real arrays.
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+export function coerceStringIdList(value) {
+  if (Array.isArray(value)) {
+    return value.filter((id) => typeof id === 'string' && id)
+  }
+  if (!isRecord(value)) return []
+  const keys = Object.keys(value).filter((k) => /^\d+$/.test(k))
+  keys.sort((a, b) => Number(a) - Number(b))
+  /** @type {string[]} */
+  const out = []
+  for (const k of keys) {
+    const id = value[k]
+    if (typeof id === 'string' && id) out.push(id)
+  }
+  return out
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {Record<string, string[]>}
+ */
+export function coerceRoundIdMap(raw) {
+  if (!isRecord(raw)) return {}
+  /** @type {Record<string, string[]>} */
+  const out = {}
+  for (const [roundKey, listVal] of Object.entries(raw)) {
+    out[roundKey] = coerceStringIdList(listVal)
+  }
+  return out
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {import('../types.js').GameTimerPlayer[]}
+ */
+export function coercePlayersList(raw) {
+  if (Array.isArray(raw)) return raw
+  if (!isRecord(raw)) return []
+  const keys = Object.keys(raw).filter((k) => /^\d+$/.test(k))
+  keys.sort((a, b) => Number(a) - Number(b))
+  /** @type {import('../types.js').GameTimerPlayer[]} */
+  const out = []
+  for (const k of keys) {
+    const p = raw[k]
+    if (isRecord(p) && typeof p.id === 'string') {
+      out.push(/** @type {import('../types.js').GameTimerPlayer} */ (p))
+    }
+  }
+  return out
+}
+
+/**
+ * RTDB deletes keys set to `null`, so snapshots read back omit nullable turn fields.
+ * @param {unknown} raw
+ * @returns {GameTimerSyncPayload}
+ */
+export function normalizeSnapshotFromRtdb(raw) {
+  if (!isRecord(raw)) {
+    return {
+      players: [],
+      activePlayerId: null,
+      turnStartedAt: null,
+      turnStartedRound: null,
+      round: 1,
+      playerOrderByRound: {},
+      hardPassEnabled: false,
+      hardPassOrderNextRound: false,
+      hardPassOrderByRound: {},
+    }
+  }
+  /** @type {GameTimerSyncPayload} */
+  const out = {
+    players: coercePlayersList(raw.players),
+    activePlayerId: typeof raw.activePlayerId === 'string' ? raw.activePlayerId : null,
+    turnStartedAt: typeof raw.turnStartedAt === 'number' ? raw.turnStartedAt : null,
+    turnStartedRound: typeof raw.turnStartedRound === 'number' ? raw.turnStartedRound : null,
+    round: typeof raw.round === 'number' ? raw.round : 1,
+    playerOrderByRound: coerceRoundIdMap(raw.playerOrderByRound),
+    hardPassEnabled: typeof raw.hardPassEnabled === 'boolean' ? raw.hardPassEnabled : false,
+    hardPassOrderNextRound:
+      typeof raw.hardPassOrderNextRound === 'boolean' ? raw.hardPassOrderNextRound : false,
+    hardPassOrderByRound: coerceRoundIdMap(raw.hardPassOrderByRound),
+  }
+  if ('totalGameStartedAt' in raw) {
+    out.totalGameStartedAt =
+      typeof raw.totalGameStartedAt === 'number' ? raw.totalGameStartedAt : null
+  }
+  return out
+}
+
+/**
  * @param {unknown} snap
  * @returns {snap is GameTimerSyncPayload}
  */
 export function isValidSnapshot(snap) {
   if (!isRecord(snap)) return false
-  if (!Array.isArray(snap.players)) return false
-  if (!('activePlayerId' in snap) || !('turnStartedAt' in snap) || !('turnStartedRound' in snap)) return false
+  if (!Array.isArray(snap.players) && !isRecord(snap.players)) return false
+  if (snap.activePlayerId != null && typeof snap.activePlayerId !== 'string') return false
+  if (snap.turnStartedAt != null && typeof snap.turnStartedAt !== 'number') return false
+  if (snap.turnStartedRound != null && typeof snap.turnStartedRound !== 'number') return false
   if (typeof snap.round !== 'number') return false
   if (!snap.playerOrderByRound || typeof snap.playerOrderByRound !== 'object' || Array.isArray(snap.playerOrderByRound)) {
     return false
@@ -126,9 +222,10 @@ export function parseHostVisibility(data) {
  */
 export function parseGuestMessage(data) {
   if (!isRecord(data) || data.type !== MSG_GUEST_UPDATE) return null
-  if (!isValidSnapshot(data.snapshot)) return null
+  const snapshot = normalizeSnapshotFromRtdb(data.snapshot)
+  if (!isValidSnapshot(snapshot)) return null
   /** @type {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload, intent?: { kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } }} */
-  const out = { type: MSG_GUEST_UPDATE, snapshot: data.snapshot }
+  const out = { type: MSG_GUEST_UPDATE, snapshot }
   if (!('intent' in data)) return out
   if (isWellFormedGuestIntent(data.intent)) {
     out.intent = {
@@ -175,8 +272,10 @@ export function parseGuestHello(data) {
  * @returns {{ type: typeof MSG_HOST_SNAPSHOT, snapshot: GameTimerSyncPayload, seq: number } | null}
  */
 export function parseHostMessage(data) {
-  if (!isRecord(data) || data.type !== MSG_HOST_SNAPSHOT) return null
+  if (!isRecord(data)) return null
+  if (data.type != null && data.type !== MSG_HOST_SNAPSHOT) return null
   if (typeof data.seq !== 'number' || data.seq < 1) return null
-  if (!isValidSnapshot(data.snapshot)) return null
-  return { type: MSG_HOST_SNAPSHOT, snapshot: data.snapshot, seq: data.seq }
+  const snapshot = normalizeSnapshotFromRtdb(data.snapshot)
+  if (!isValidSnapshot(snapshot)) return null
+  return { type: MSG_HOST_SNAPSHOT, snapshot, seq: data.seq }
 }
