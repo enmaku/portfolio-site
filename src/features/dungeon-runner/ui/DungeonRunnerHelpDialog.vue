@@ -140,12 +140,14 @@ defineEmits(['update:modelValue'])
 </script>
 
 <style scoped lang="scss">
+@use 'sass:color';
+
 .dr-help-link {
-  color: lighten($primary, 38%);
+  color: color.adjust($primary, $lightness: 38%);
   text-decoration: none;
 
   &:hover {
-    color: lighten($primary, 48%);
+    color: color.adjust($primary, $lightness: 48%);
     text-decoration: underline;
   }
 }

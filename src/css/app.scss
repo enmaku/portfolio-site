@@ -3,6 +3,8 @@
 // Quasar toggles dark mode by applying `body--dark` to <body>.
 // These overrides keep the page background consistent with the dark palette.
 
+@use 'sass:color';
+
 @import './gt-ui.scss';
 
 .body--dark {
@@ -14,7 +16,7 @@
 
     &:hover,
     &:focus-visible {
-      color: lighten($info, 12%);
+      color: color.adjust($info, $lightness: 12%);
     }
   }
 }
