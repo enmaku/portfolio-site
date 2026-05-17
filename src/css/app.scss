@@ -7,6 +7,16 @@
 
 .body--dark {
   background-color: $dark-page;
+
+  // $primary is for chrome and buttons; on dark surfaces it is too dim for inline links.
+  a.text-primary:not(.q-btn):not(.q-item) {
+    color: $info;
+
+    &:hover,
+    &:focus-visible {
+      color: lighten($info, 12%);
+    }
+  }
 }
 
 .bg-toolbar-menu {

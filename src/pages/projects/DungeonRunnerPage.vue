@@ -16,6 +16,14 @@
       <div class="text-h6 dr-header-title">Dungeon Runner</div>
       <q-space />
       <q-btn
+        flat
+        dense
+        icon="help"
+        aria-label="How to play"
+        :disable="match && dungeonOutcomeDialogOpen"
+        @click="helpOpen = true"
+      />
+      <q-btn
         v-if="match"
         flat
         dense
@@ -569,6 +577,8 @@
         </div>
       </q-card>
     </q-dialog>
+
+    <DungeonRunnerHelpDialog v-model="helpOpen" />
   </q-page>
 </template>
 
@@ -641,6 +651,7 @@ import {
   isDungeonOutcomeDialogOpen,
 } from '../../features/dungeon-runner/ui/dungeonOutcomeDialog.js'
 import MonsterCardFace from '../../components/dungeon-runner/MonsterCardFace.vue'
+import DungeonRunnerHelpDialog from '../../features/dungeon-runner/ui/DungeonRunnerHelpDialog.vue'
 import { closeDeckSplay, createMemoryAidState, setMemoryAidEnabled, tapDeck } from '../../features/dungeon-runner/ui/memoryAidState.js'
 import { isDungeonPresentationTraceEnabled } from '../../features/dungeon-runner/ui/dungeonPresentationTrace.js'
 import { usePresentationMotion } from '../../features/dungeon-runner/ui/usePresentationMotion.js'
@@ -650,6 +661,7 @@ const completedMatchReplayUpload = createCompletedMatchReplayUploadTracker(windo
 
 const setup = reactive(createDefaultSetupConfig())
 const $q = useQuasar()
+const helpOpen = ref(false)
 const match = ref(null)
 const opponentTypeOptions = [
   { label: 'Random bot', value: 'randombot' },
