@@ -28,9 +28,13 @@ Seat count and **opponent** roles (human, neural opponent, random bot) chosen be
 
 A non-human seat in **setup** (neural opponent or random bot).
 
+_Avoid_: “Role badge,” seat-type chips during play (role is fixed at **setup**; **setup** controls already show human vs **opponent** type).
+
 ### History
 
 Ordered canonical actions and RNG step metadata that fully determine how a **match** unfolded.
+
+_Avoid_: “History panel,” “action log” as in-match player UI (no play-surface for **history**; use **replay envelope** export when inspection is needed).
 
 ### Seed
 
@@ -150,3 +154,5 @@ The canonical ordering of **monster** **species** ids for neural observation enc
 
 - “Game” in casual speech usually means **match**; “run” usually means **dungeon run**.
 - “Catalog” without qualifier may mean the neural **model catalog** or the **game data catalog** — use the full term.
+- In-match “history panel” was considered and rejected — **history** stays engine/replay data only.
+- Seat “role badges” during play were considered and rejected — **opponent** type belongs in **setup** only.
