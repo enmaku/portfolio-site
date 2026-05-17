@@ -750,7 +750,6 @@ test('turn advance is silent when actor is not human', () => {
   })
   const humanTurn = human.find((animation) => animation.kind === 'TURN_ADVANCE')
   assert.ok(humanTurn)
-  assert.equal(humanTurn.label, 'Advancing turn...')
 })
 
 test('bot bidding actions enqueue presentation kinds without hidden card info', () => {

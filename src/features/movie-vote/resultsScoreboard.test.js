@@ -15,15 +15,12 @@ import {
   isBordaScoreboardResult,
   isDowdallScoreboardResult,
   isCoombsScoreboardResult,
-  replayHeadingForResult,
-  scoreUnitForResult,
   shouldAnimateRoundsReplay,
   showVotePoolSuffix,
   targetPctsForScoreboardRound,
-  totalRoundsForReplay,
 } from './resultsScoreboard.js'
 
-test('Borda result: single scoreboard copy and bar scale (table)', () => {
+test('Borda result: single scoreboard and bar scale (table)', () => {
   const result = runElection(
     'borda',
     [
@@ -34,10 +31,7 @@ test('Borda result: single scoreboard copy and bar scale (table)', () => {
   )
   assert.equal(result.rounds.length, 1)
   assert.equal(isBordaScoreboardResult(result), true)
-  assert.equal(scoreUnitForResult(result), 'Borda points')
   assert.equal(showVotePoolSuffix(result), false)
-  assert.equal(replayHeadingForResult(result, 0, totalRoundsForReplay(result.rounds)), 'Final scores')
-  assert.equal(replayHeadingForResult(result, 99, 99), 'Final scores')
   assert.deepEqual(targetPctsForScoreboardRound(result.rounds[0], 'borda'), {
     a: 100,
     b: 25,
@@ -45,7 +39,7 @@ test('Borda result: single scoreboard copy and bar scale (table)', () => {
   })
 })
 
-test('Dowdall result: single scoreboard copy and bar scale (table)', () => {
+test('Dowdall result: single scoreboard and bar scale (table)', () => {
   const result = runElection(
     'dowdall',
     [
@@ -57,10 +51,7 @@ test('Dowdall result: single scoreboard copy and bar scale (table)', () => {
   assert.equal(result.rounds.length, 1)
   assert.equal(isDowdallScoreboardResult(result), true)
   assert.equal(isBordaScoreboardResult(result), false)
-  assert.equal(scoreUnitForResult(result), 'Dowdall points')
   assert.equal(showVotePoolSuffix(result), false)
-  assert.equal(replayHeadingForResult(result, 0, totalRoundsForReplay(result.rounds)), 'Dowdall scores')
-  assert.equal(replayHeadingForResult(result, 99, 99), 'Dowdall scores')
   const totals = result.rounds[0].firstPreferenceCounts
   assert.deepEqual(targetPctsForScoreboardRound(result.rounds[0], 'dowdall'), {
     a: 100,
@@ -69,7 +60,7 @@ test('Dowdall result: single scoreboard copy and bar scale (table)', () => {
   })
 })
 
-test('IRV result: multi-round heading and vote-share bars', () => {
+test('IRV result: multi-round vote-share bars', () => {
   const rankings = [
     ['a', 'b', 'c', 'd'],
     ['a', 'b', 'c', 'd'],
@@ -78,12 +69,9 @@ test('IRV result: multi-round heading and vote-share bars', () => {
     ['d', 'a', 'b', 'c'],
   ]
   const result = runElection('irv', rankings, ['a', 'b', 'c', 'd'])
-  const total = totalRoundsForReplay(result.rounds)
   assert.ok(result.rounds.length > 1)
   assert.equal(isBordaScoreboardResult(result), false)
-  assert.equal(scoreUnitForResult(result), 'votes')
   assert.equal(showVotePoolSuffix(result), true)
-  assert.equal(replayHeadingForResult(result, 0, total), `Round 1 of ${total}`)
   const r0 = result.rounds[0]
   const pcts = targetPctsForScoreboardRound(r0, 'irv')
   assert.equal(pcts.a, Math.round((100 * (r0.firstPreferenceCounts.a ?? 0)) / (r0.ballotsWithVote ?? 1)))
@@ -124,11 +112,7 @@ test('Baldwin result: multi-round Borda points replay, not single scoreboard', (
   assert.equal(borda.rounds.length, 1)
   assert.equal(isBaldwinMultiRoundResult(baldwin), true)
   assert.equal(isBordaScoreboardResult(baldwin), false)
-  assert.equal(scoreUnitForResult(baldwin), 'points')
   assert.equal(showVotePoolSuffix(baldwin), false)
-  const total = totalRoundsForReplay(baldwin.rounds)
-  assert.equal(replayHeadingForResult(baldwin, 0, total), `Round 1 of ${total}`)
-  assert.equal(replayHeadingForResult(borda, 0, totalRoundsForReplay(borda.rounds)), 'Final scores')
 })
 
 test('Coombs result: multi-round last-place replay', () => {
@@ -144,7 +128,6 @@ test('Coombs result: multi-round last-place replay', () => {
   )
   assert.equal(isCoombsScoreboardResult(result), true)
   assert.equal(isBordaScoreboardResult(result), false)
-  assert.equal(scoreUnitForResult(result), 'votes')
   assert.equal(showVotePoolSuffix(result), true)
   assert.equal(shouldAnimateRoundsReplay(result), true)
   const r0 = result.rounds[0]

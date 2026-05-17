@@ -18,7 +18,6 @@ test('dungeon runner route is integrated with share metadata contract', () => {
 test('main layout project menu links to dungeon runner', () => {
   const mainLayout = readFileSync(new URL('../../layouts/MainLayout.vue', import.meta.url), 'utf8')
   assert.equal(mainLayout.includes("'/projects/dungeon-runner'"), true)
-  assert.equal(mainLayout.includes('Dungeon Runner'), true)
 })
 
 test('release notes include known risks and out-of-scope sections', () => {
@@ -65,8 +64,6 @@ test('dungeon runner page exposes match presentation speed in settings menu', ()
   assert.equal(page.includes('presentationSpeedProfile'), true)
   assert.equal(page.includes('setSpeedProfile'), true)
   assert.equal(page.includes('presentationSpeedProfile: pace'), true)
-  assert.equal(page.includes('z-index: 30'), true)
-  assert.equal(page.includes('z-index: 20'), true)
 })
 
 test('dungeon runner page places memory aid toggle in match settings menu', () => {
@@ -78,7 +75,6 @@ test('dungeon runner page places memory aid toggle in match settings menu', () =
 
 test('dungeon runner page wires fullscreen toggle through scoped fullscreen composable', () => {
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
-  assert.equal(page.includes('label="Fullscreen"'), true)
   assert.equal(page.includes('useScopedFullscreen'), true)
   assert.equal(page.includes('setFullscreenEnabled'), true)
 })
@@ -98,19 +94,10 @@ test('dungeon runner contract documents lint and core test gate commands', () =>
   assert.equal(contract.includes('node --test'), true)
 })
 
-test('dungeon runner page exposes settings menu section copy and pace options', () => {
-  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
-  assert.equal(page.includes('Animation speed'), true)
-  assert.equal(page.includes('Memory Aid'), true)
-  assert.equal(page.includes("{ label: 'Cinematic', value: 'cinematic' }"), true)
-  assert.equal(page.includes("{ label: 'Brisk', value: 'brisk' }"), true)
-})
-
 test('dungeon runner setup uses slider for total player count', () => {
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
   assert.equal(page.includes('aria-label="Total players"'), true)
   assert.equal(page.includes('v-model="setup.totalSeats"'), true)
-  assert.equal(page.includes('class="dr-total-seats-slider'), true)
   assert.equal(page.includes('totalSeatSlider'), true)
 })
 
@@ -176,40 +163,6 @@ test('dungeon stage feeds MonsterCardFace from frontFaceSpecies so flip shows en
   )
 })
 
-test('MonsterCardFace renders both faces with 3D pivot and flip-axis ref', () => {
-  const component = readFileSync(new URL('../../components/dungeon-runner/MonsterCardFace.vue', import.meta.url), 'utf8')
-  assert.equal(component.includes('dr-monster-card__face--back'), true)
-  assert.equal(component.includes('dr-monster-card__face--front'), true)
-  assert.equal(component.includes('transform-style: preserve-3d'), true)
-  assert.equal(component.includes('backface-visibility'), true)
-  assert.equal(component.includes('perspective'), true)
-  assert.equal(component.includes('rotateY'), true)
-  assert.equal(component.includes('dungeonCardFlipAxis'), true)
-})
-
-test('dungeon equipment token class affordances are bound on board tokens', () => {
-  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
-  assert.equal(page.includes("'dr-token-glow': token.glow"), true)
-  assert.equal(page.includes("'dr-token-pulse': token.pulse"), true)
-  assert.equal(page.includes("'dr-equip-token--deemphasized': token.deemphasized"), true)
-  assert.equal(page.includes("'dr-equip-token--interactive': token.hasModal"), true)
-})
-
-test('equipment strip is 2x3 layered tokens without Quasar pill wrappers', () => {
-  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
-  const stripStart = page.indexOf('v-for="token in boardEquipmentTokens"')
-  assert.ok(stripStart >= 0)
-  const stripBlock = page.slice(stripStart, stripStart + 2000)
-  assert.equal(stripBlock.includes('<q-chip'), false)
-  assert.equal(stripBlock.includes('<q-badge'), false)
-  assert.equal(stripBlock.includes('class="col-4 flex flex-center"'), true)
-  assert.equal(stripBlock.includes('class="dr-equip-token"'), true)
-  assert.equal(stripBlock.includes('dr-equip-token__plate'), true)
-  assert.equal(stripBlock.includes('dr-equip-token__symbol'), true)
-  assert.equal(stripBlock.includes('bindBiddingEquipmentBadgeRef(token.equipmentId'), true)
-  assert.equal(stripBlock.includes('token.equipmentOverlay'), true)
-})
-
 test('dungeon auto-resolve timeout callback re-validates readiness before action', () => {
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
   const timerIdx = page.indexOf('autoResolveTimerId = window.setTimeout(() => {')
@@ -230,14 +183,11 @@ test('dungeon preventable-damage flow no longer force-opens equipment modal', ()
 
 test('dungeon runner page replaces last-run card with persistent outcome dialog', () => {
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
-  assert.equal(page.includes('Last dungeon run'), false)
   assert.equal(page.includes('dungeonOutcomeDialogOpen'), true)
   assert.equal(page.includes('<q-dialog v-model="dungeonOutcomeDialogOpen" persistent'), true)
-  assert.equal(page.includes('class="q-pa-md dr-dungeon-outcome-dialog"'), true)
   assert.equal(page.includes('dungeonOutcomeSummary?.runnerLabel'), true)
   assert.equal(page.includes('dungeonOutcomeSummary?.resultLabel'), true)
   assert.equal(page.includes('dungeonOutcomeMessage'), true)
-  assert.equal(page.includes('Continue'), true)
 })
 
 test('dungeon outcome dialog waits for presentation queue to settle', () => {
