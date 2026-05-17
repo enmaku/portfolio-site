@@ -58,6 +58,32 @@ export default defineConfig((/* ctx */) => {
 
       // extendViteConf (viteConf) {},
       // viteVuePluginOptions: {},
+      extendViteConf(viteConf) {
+        viteConf.server ??= {}
+        viteConf.server.watch ??= {}
+        const shouldUsePolling =
+          process.env.CHOKIDAR_USEPOLLING === '1' ||
+          (process.platform === 'darwin' && process.env.CHOKIDAR_USEPOLLING !== '0')
+
+        if (shouldUsePolling) {
+          viteConf.server.watch.usePolling = true
+          viteConf.server.watch.interval = Number(process.env.CHOKIDAR_INTERVAL || 300)
+        }
+        const ignored = Array.isArray(viteConf.server.watch.ignored)
+          ? viteConf.server.watch.ignored
+          : viteConf.server.watch.ignored
+            ? [viteConf.server.watch.ignored]
+            : []
+        viteConf.server.watch.ignored = [
+          ...ignored,
+          '**/.venv*/**',
+          '**/.python-venv*/**',
+          '**/.quasar/**',
+          '**/dist/**',
+          '**/src/assets/photos/thumbs/**',
+          '**/public/models/dungeon-runner/**',
+        ]
+      },
 
       vitePlugins: [
         [

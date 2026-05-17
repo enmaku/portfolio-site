@@ -6,6 +6,7 @@
 - [Star-room P2P](./src/features/p2p/CONTEXT.md) — Shared realtime “room” connection pattern used by multiplayer projects (host/guest roles, reconnect).
 - [Game Timer](./src/features/game-timer/CONTEXT.md) — Synchronized tabletop-style countdown timers for multiple players.
 - [Movie Vote](./src/features/movie-vote/CONTEXT.md) — Group movie nomination, ballots, and instant-runoff tally.
+- [Dungeon Runner](./src/features/dungeon-runner/CONTEXT.md) — Single-device deterministic card match vs AI opponents; completed **match** replays for later analysis.
 
 ## Relationships
 
@@ -16,6 +17,7 @@
 - **Movie Vote ↔ Game Timer**: Both use star-room roles and the same persisted **room** lifecycle shape; **Game Timer** stores one authoritative **snapshot** per **room** instead of vote-phase payloads.
 - **Portfolio site ↔ sharing**: Publishable URLs and shared-link summaries for selected routes belong to the portfolio context; implementations read shared metadata keyed by route.
 - **Portfolio site ↔ Star-room P2P**: **Join links** live on canonical `/projects/…` paths with `room` query params; **public site origin** anchors absolute URLs when builds need a stable host.
+- **Dungeon Runner**: Local **match** play only (no star-room **room**); when a **match** reaches **match over**, a **completed match replay** may be archived remotely using the same Firebase project as multiplayer **projects** (write-only; no sync).
 
 ## Architecture
 
