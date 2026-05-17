@@ -85,7 +85,7 @@ test('dungeon runner route record still imports layout and page modules', () => 
   const drIdx = routesSource.indexOf("path: '/projects/dungeon-runner'")
   assert.ok(drIdx >= 0)
   const window = routesSource.slice(drIdx, drIdx + 900)
-  assert.equal(window.includes("import('layouts/projects/DungeonRunnerLayout.vue')"), true)
+  assert.equal(window.includes("import('layouts/projects/ProjectShellLayout.vue')"), true)
   assert.equal(window.includes("import('pages/projects/DungeonRunnerPage.vue')"), true)
 })
 

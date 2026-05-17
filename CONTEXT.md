@@ -106,7 +106,9 @@ _Avoid_: Conflating with immersive **project** layouts.
 
 ### Project shell
 
-Full-viewport layout for interactive **projects** (no portfolio masthead), giving controls and timers the full screen.
+Full-viewport layout for interactive **projects** (no portfolio masthead), giving controls and timers the full screen. **Game Timer**, **Movie Vote**, and **Dungeon Runner** use the same shell pattern (immersive chrome, trapped browser back).
+
+_Avoid_: “Fullscreen layout” when meaning **project shell** (confuses with the browser Fullscreen API toggle on **Game Timer**).
 
 ### Paste unfurl
 

@@ -5,19 +5,20 @@ useTrapBrowserBack()
 </script>
 
 <template>
-  <q-layout view="lHh Lpr fFf" class="mv-layout">
-    <q-page-container class="mv-layout__page-container">
+  <!-- No app bar: mobile-style full-height shell (see Quasar `view` — `l` = no header band). -->
+  <q-layout view="lHh Lpr fFf" class="project-shell">
+    <q-page-container class="project-shell__page-container">
       <router-view />
     </q-page-container>
   </q-layout>
 </template>
 
 <style scoped>
-.mv-layout {
+.project-shell {
   min-height: 100vh;
 }
 
-.mv-layout__page-container {
+.project-shell__page-container {
   flex: 1 1 0;
   min-height: 0;
   display: flex;
@@ -25,7 +26,7 @@ useTrapBrowserBack()
   overflow: hidden;
 }
 
-.mv-layout__page-container > * {
+.project-shell__page-container > * {
   flex: 1 1 0;
   min-height: 0;
   display: flex;

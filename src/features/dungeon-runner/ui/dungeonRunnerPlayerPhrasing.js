@@ -1,4 +1,5 @@
-import { equipmentShortName, sacrificeActionLabel } from './equipmentDisplayCatalog.js'
+import { equipmentShortName, sacrificeActionLabel } from '../data/gameDataCatalog.js'
+import { getHeroIdentity } from './heroIdentity.js'
 
 /** @type {Record<string, string>} */
 const PHASE_LABELS = {
@@ -8,21 +9,13 @@ const PHASE_LABELS = {
   'match-over': 'Match over',
 }
 
-/** @type {Record<string, string>} */
-const HERO_LABELS = {
-  WARRIOR: 'Warrior',
-  BARBARIAN: 'Barbarian',
-  MAGE: 'Mage',
-  ROGUE: 'Rogue',
-}
-
 /**
  * @param {string} actorLabel
  * @param {string} hero
  * @returns {string}
  */
 export function adventurerChoiceHeadline(actorLabel, hero) {
-  const label = HERO_LABELS[hero] ?? hero
+  const label = getHeroIdentity(hero).shortLabel
   return `${actorLabel} chose ${label}`
 }
 
@@ -54,7 +47,7 @@ export function legalActionBoardLabel(action) {
       return `Declare ${action.species ?? 'species'}`
     case 'CHOOSE_NEXT_ADVENTURER': {
       const hero = action.hero ?? ''
-      const label = HERO_LABELS[hero] ?? hero
+      const label = getHeroIdentity(hero).shortLabel
       return `Play as ${label}`
     }
     case 'REVEAL_OR_CONTINUE':
@@ -100,7 +93,7 @@ export function historyHeadlineForHistoryEntry(actor, entry) {
       return `${actor} declared ${action.species ?? 'species'}.`
     case 'CHOOSE_NEXT_ADVENTURER': {
       const hero = action.hero ?? ''
-      const label = HERO_LABELS[hero] ?? hero
+      const label = getHeroIdentity(hero).shortLabel
       return `${actor} chose to play as ${label}.`
     }
     case 'REVEAL_OR_CONTINUE':

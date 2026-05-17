@@ -4,8 +4,8 @@ import path from 'node:path'
 import test from 'node:test'
 import { dungeonRunnerAssetPack, DUNGEON_RUNNER_RUNTIME_BASE } from './assetPack.js'
 import {
-  MONSTER_CARD_SPECS,
   cardBlankUrl,
+  listMonsterCardSpecs,
   monsterBackUrl,
   monsterDoodleUrl,
   revealedMonsterTemplateUrl,
@@ -16,7 +16,7 @@ function *monsterCardGrammarRuntimeUrls() {
   yield cardBlankUrl()
   yield monsterBackUrl()
   yield revealedMonsterTemplateUrl()
-  for (const spec of MONSTER_CARD_SPECS) {
+  for (const spec of listMonsterCardSpecs()) {
     yield monsterDoodleUrl(spec.species)
     for (const icon of spec.icons) {
       yield symbolUrl(icon)

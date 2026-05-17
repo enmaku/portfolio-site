@@ -55,10 +55,11 @@ test('armor token overlays use engine max HP values', () => {
   )
 })
 
-test('shield token overlays are always plus three', () => {
+test('shield token overlays use engine max HP values', () => {
   const shieldIds = ['B_SHIELD', 'M_BRACE', 'R_BUCK', 'W_SHIELD']
   for (const id of shieldIds) {
-    assert.deepEqual(equipmentTokenAppearance(id), { symbolKey: 'shield', overlay: 3 })
+    assert.equal(equipmentTokenAppearance(id).overlay, hpForEquip(id))
+    assert.equal(equipmentTokenAppearance(id).symbolKey, 'shield')
   }
 })
 
