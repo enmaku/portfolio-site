@@ -9,7 +9,11 @@ import {
   normalizeCustomTitle,
   pickDedupeKey,
 } from '../features/movie-vote/core.js'
-import { isDeclaredIrvTie } from '../features/movie-vote/irv.js'
+import { isDeclaredElectionTie } from '../features/movie-vote/election.js'
+import {
+  DEFAULT_VOTING_METHOD,
+  normalizeVotingMethod,
+} from '../features/movie-vote/votingMethod.js'
 
 /**
  * Normalize incoming picks (handles legacy picks that predate `source`).
@@ -72,6 +76,8 @@ export const useMovieVoteStore = defineStore('movieVote', {
     voteProgress: null,
     /** Distinct suggested movies in the room (host-computed; suggest phase). */
     uniqueSuggestedMovieCount: 0,
+    /** @type {import('../features/movie-vote/votingMethod.js').VotingMethod} */
+    votingMethod: DEFAULT_VOTING_METHOD,
   }),
 
   actions: {
@@ -87,6 +93,11 @@ export const useMovieVoteStore = defineStore('movieVote', {
     /** @param {string} localId */
     removeDraftPick(localId) {
       this.myDraftPicks = this.myDraftPicks.filter((p) => p.localId !== localId)
+    },
+
+    clearAllDraftPicks() {
+      this.myDraftPicks = []
+      this.readyToVote = false
     },
 
     /** @param {MoviePick[]} ordered */
@@ -117,12 +128,19 @@ export const useMovieVoteStore = defineStore('movieVote', {
         typeof n === 'number' && n >= 0 && Number.isFinite(n) ? Math.floor(n) : 0
     },
 
+    /** @param {import('../features/movie-vote/votingMethod.js').VotingMethod} method */
+    setVotingMethod(method) {
+      if (this.phase !== 'suggest') return
+      this.votingMethod = normalizeVotingMethod(method)
+    },
+
     /**
      * Apply host broadcast (guest or host refresh).
      * @param {import('../features/movie-vote/types.js').MovieVotePublicPayload} p
      */
     applyPublicPayload(p) {
       const wasVoting = this.phase === 'voting'
+      const wasResults = this.phase === 'results'
       this.phase = p.phase
       this.setParticipants(p.participants)
       if (p.phase === 'suggest') {
@@ -134,6 +152,9 @@ export const useMovieVoteStore = defineStore('movieVote', {
         this.votesByParticipant = {}
         this.irvResult = null
         this.voteProgress = null
+        if (wasVoting || wasResults) {
+          this.readyToVote = false
+        }
       } else if (p.ballotMovies && p.ballotOrderIds) {
         const incomingIds = [...p.ballotOrderIds]
         const prevIds = this.ballotOrderIds
@@ -161,7 +182,8 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.setUniqueSuggestedMovieCount(
         typeof p.uniqueSuggestedMovieCount === 'number' ? p.uniqueSuggestedMovieCount : 0,
       )
-      if (p.phase === 'results' && p.irvResult && !isDeclaredIrvTie(p.irvResult)) {
+      this.votingMethod = normalizeVotingMethod(p.votingMethod)
+      if (p.phase === 'results' && p.irvResult && !isDeclaredElectionTie(p.irvResult)) {
         this.myDraftPicks = []
       }
       const pid = this.myParticipantId
@@ -237,7 +259,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
     setResults(result) {
       this.phase = 'results'
       this.irvResult = result
-      if (!isDeclaredIrvTie(result)) {
+      if (!isDeclaredElectionTie(result)) {
         this.myDraftPicks = []
       }
     },
@@ -256,6 +278,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.irvResult = null
       this.voteProgress = null
       this.uniqueSuggestedMovieCount = 0
+      this.votingMethod = DEFAULT_VOTING_METHOD
     },
 
     /**
@@ -310,6 +333,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       'votesByParticipant',
       'voteProgress',
       'irvResult',
+      'votingMethod',
     ],
   },
 })

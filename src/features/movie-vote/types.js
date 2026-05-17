@@ -9,6 +9,10 @@
  */
 
 /**
+ * @typedef {import('./votingMethod.js').VotingMethod} VotingMethod
+ */
+
+/**
  * Multiplayer UI / RTDB session phase (`p2p/session.js`, sync control).
  *
  * @typedef {'idle' | 'connecting' | 'reconnecting' | 'hosting' | 'guest_connected'} MovieVoteSessionPhase
@@ -65,6 +69,7 @@
  * @property {{ submitted: number, total: number } | null} voteProgress
  * @property {import('./irv.js').IrvResult | null} [irvResult]
  * @property {number} [uniqueSuggestedMovieCount] Distinct titles across all draft picks (suggest phase); 0 otherwise.
+ * @property {VotingMethod} [votingMethod] Active single-winner rule for this room; defaults to instant-runoff when omitted (legacy payloads).
  */
 
 export {}
