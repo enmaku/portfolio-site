@@ -100,10 +100,18 @@ test('dungeon runner contract documents lint and core test gate commands', () =>
 
 test('dungeon runner page exposes settings menu section copy and pace options', () => {
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
-  assert.equal(page.includes('Match presentation'), true)
-  assert.equal(page.includes('Match recall'), true)
+  assert.equal(page.includes('Animation speed'), true)
+  assert.equal(page.includes('Memory Aid'), true)
   assert.equal(page.includes("{ label: 'Cinematic', value: 'cinematic' }"), true)
   assert.equal(page.includes("{ label: 'Brisk', value: 'brisk' }"), true)
+})
+
+test('dungeon runner setup uses slider for total player count', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes('aria-label="Total players"'), true)
+  assert.equal(page.includes('v-model="setup.totalSeats"'), true)
+  assert.equal(page.includes('class="dr-total-seats-slider'), true)
+  assert.equal(page.includes('totalSeatSlider'), true)
 })
 
 test('dungeon runner page syncs presentation speed ref into orchestrator', () => {
