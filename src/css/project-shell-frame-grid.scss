@@ -1,0 +1,39 @@
+@use 'sass:math';
+
+// Quasar flex grid breakpoints use the browser viewport. Inside the **desktop phone frame**
+// (~390px column) the viewport is still wide, so `col-sm-*` / `col-md-*` would otherwise
+// apply tablet/desktop widths. Clamp grid children to xs-style layout within the frame.
+
+body.project-shell--desktop-frame {
+  .project-shell__frame-column {
+    .row > .col-sm-auto,
+    .row > .col-md-auto,
+    .row > .col-lg-auto,
+    .row > .col-xl-auto {
+      width: 100% !important;
+      max-width: 100% !important;
+      flex: 0 0 100% !important;
+    }
+
+    @for $i from 1 through 12 {
+      .row > .col-sm-#{$i},
+      .row > .col-md-#{$i},
+      .row > .col-lg-#{$i},
+      .row > .col-xl-#{$i} {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 0 0 100% !important;
+      }
+
+      .row > .col-#{$i}[class*='col-sm-'],
+      .row > .col-#{$i}[class*='col-md-'],
+      .row > .col-#{$i}[class*='col-lg-'],
+      .row > .col-#{$i}[class*='col-xl-'] {
+        $width: percentage(math.div($i, 12));
+        width: $width !important;
+        max-width: $width !important;
+        flex: 0 0 $width !important;
+      }
+    }
+  }
+}

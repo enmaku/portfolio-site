@@ -490,6 +490,7 @@ test('bot bidding sacrifice factory ghost-flies consumed equipment to card and p
   const flightLayer = {
     nodeType: 1,
     appended: [],
+    getBoundingClientRect: () => ({ left: 50, top: 50, width: 400, height: 600 }),
     appendChild(n) {
       this.appended.push(n)
     },
@@ -542,7 +543,20 @@ test('bot bidding sacrifice factory ghost-flies consumed equipment to card and p
   })
 
   assert.equal(flightLayer.appended.length, 1)
-  assert.ok(toCalls.some((c) => c.target === flightLayer.appended[0] && c.vars?.ease === 'power2.inOut'))
+  const ghost = flightLayer.appended[0]
+  const ghostSet = sets.find((s) => s.el === ghost)
+  assert.equal(ghostSet?.props?.position, 'absolute')
+  assert.equal(ghostSet?.props?.left, -50)
+  assert.equal(ghostSet?.props?.top, 450)
+  assert.ok(
+    toCalls.some(
+      (c) =>
+        c.target === ghost &&
+        c.vars?.ease === 'power2.inOut' &&
+        c.vars?.left === 114 &&
+        c.vars?.top === 84,
+    ),
+  )
   assert.ok(sets.some((s) => s.el === badge && s.props.opacity === 0.38))
   assert.ok(fromToCalls.some((c) => c.target === card && c.fromVars?.filter === 'brightness(1)'))
   assert.ok(toCalls.some((c) => c.target === card && Number(c.vars?.x ?? 0) > 50))
@@ -1183,6 +1197,7 @@ test('dungeon neutralize factory ghost-flies consumed equipment toward card with
   const flightLayer = {
     nodeType: 1,
     appended: [],
+    getBoundingClientRect: () => ({ left: 40, top: 20, width: 400, height: 600 }),
     appendChild(n) {
       this.appended.push(n)
     },
@@ -1229,7 +1244,9 @@ test('dungeon neutralize factory ghost-flies consumed equipment toward card with
   })
 
   assert.equal(flightLayer.appended.length, 1)
-  assert.ok(toCalls.some((c) => c.target === flightLayer.appended[0]))
+  const ghost = flightLayer.appended[0]
+  assert.equal(sets.find((s) => s.el === ghost)?.props?.position, 'absolute')
+  assert.ok(toCalls.some((c) => c.target === ghost))
   assert.ok(sets.some((s) => s.el === badge && s.props.opacity === 0.38))
   assert.ok(fromToCalls.some((c) => c.target === card && c.fromVars?.x === 0))
 })

@@ -1,5 +1,5 @@
 <template>
-  <q-page class="dr-page column no-wrap">
+  <q-page class="dr-page column fit no-wrap">
     <div class="dr-header row items-center q-px-md q-pt-md q-pb-sm">
       <div class="row items-center q-gutter-xs">
         <q-btn
@@ -599,7 +599,7 @@ import { shouldEnableDebugOnBoot } from '../../features/dungeon-runner/debug/mod
 import { buildStateFromReplayEnvelope } from '../../features/dungeon-runner/debug/replaySession.js'
 import { exportReplayEnvelope, importReplayEnvelope } from '../../features/dungeon-runner/debug/replay.js'
 import { chooseRandombotAction } from '../../features/dungeon-runner/bots/randombot.js'
-import { chooseNnActionWithFallback } from '../../features/dungeon-runner/nn/runtime.js'
+import { chooseNnActionWithFallback, warmNnModelCache } from '../../features/dungeon-runner/nn/runtime.js'
 import { createModelFailureRecovery } from '../../features/dungeon-runner/nn/recovery.js'
 import { fetchModelCatalog } from '../../features/dungeon-runner/models/catalog.js'
 import { pickDefaultModelId, validateSelectedModels } from '../../features/dungeon-runner/models/discovery.js'
@@ -611,6 +611,13 @@ import {
   DUNGEON_RUNNER_PRESENTATION_ADVANCE_MS,
   runPresentationIntervalTick,
 } from '../../features/dungeon-runner/ui/dungeonRunnerPresentationInterval.js'
+import { buildAiTurnRunToken } from '../../features/dungeon-runner/ui/dungeonRunnerAiTurnToken.js'
+import {
+  consumeAiTurnPrefetch,
+  resetAiTurnPrefetch,
+  startAiTurnPrefetch,
+} from '../../features/dungeon-runner/ui/dungeonRunnerAiTurnPrefetch.js'
+import { createPipelineStepLogger } from '../../features/dungeon-runner/nn/nnPipelineTrace.js'
 import {
   dungeonRunnerAssetPack,
   dungeonRunnerEquipmentSymbolRuntimePath,
@@ -824,7 +831,51 @@ let presentationTimerId = null
 let aiTurnTimerId = null
 let autoResolveTimerId = null
 let aiTurnInFlight = false
+let lastAppliedAiTurnToken = null
+let presentationInputWasLocked = false
 let lastPresentationTraceKey = null
+let lastScheduleSkipKey = ''
+let lastPrimeSkipTraceKey = ''
+/** @type {Promise<void> | null} */
+let nnModelsWarmPromise = null
+
+const AI_TURN_SCHEDULE_DELAY_MS = 300
+
+function aiTurnTrace(baseContext = {}) {
+  return createPipelineStepLogger('AITurn', debugMode.value, {
+    matchId: match.value?.id ?? null,
+    ...baseContext,
+  })
+}
+
+const SCHEDULE_SKIP_THROTTLE_REASONS = new Set([
+  'gameplay-locked',
+  'timer-pending',
+  'in-flight',
+  'already-applied-token',
+  'deferred-post-dungeon',
+])
+
+function logAiTurnScheduleSkip(reason, detail = {}) {
+  if (!debugMode.value) return
+  const key = `${reason}:${detail.runToken ?? detail.activeKind ?? ''}`
+  if (SCHEDULE_SKIP_THROTTLE_REASONS.has(reason) && key === lastScheduleSkipKey) return
+  lastScheduleSkipKey = key
+  console.warn('[DungeonRunner][AITurn][Schedule] skip', reason, detail)
+}
+
+function logAiTurnPrimeSkip(reason, detail = {}) {
+  if (!debugMode.value) return
+  const key = `${reason}:${detail.runToken ?? detail.phase ?? detail.seatId ?? detail.roleType ?? ''}`
+  if (key === lastPrimeSkipTraceKey) return
+  lastPrimeSkipTraceKey = key
+  aiTurnTrace()('prefetch.prime.skip', { reason, ...detail })
+}
+
+function scheduleAiTurnOnPresentationTick() {
+  if (!match.value || isHumanTurn.value || deferredPostDungeonState.value) return
+  scheduleAiTurnIfReady()
+}
 const uiAssets = dungeonRunnerAssetPack
 
 watch(presentationSpeedProfile, (next) => {
@@ -1173,7 +1224,7 @@ onMounted(() => {
   presentationTimerId = window.setInterval(() => {
     runPresentationIntervalTick(presentationOrchestrator, DUNGEON_RUNNER_PRESENTATION_ADVANCE_MS, {
       syncPresentationLabel,
-      scheduleAiTurnIfReady,
+      scheduleAiTurnIfReady: scheduleAiTurnOnPresentationTick,
       scheduleHumanAutoResolveIfReady,
     })
   }, DUNGEON_RUNNER_PRESENTATION_ADVANCE_MS)
@@ -1280,6 +1331,10 @@ function startNewMatch() {
   nnDebugTraceText.value = ''
   nnDebugTraceHistory.value = []
   presentationOrchestrator.clear()
+  lastAppliedAiTurnToken = null
+  resetAiTurnPrefetch()
+  presentationInputWasLocked = false
+  nnModelsWarmPromise = preloadNnModelsForSetup(setupSnapshot)
   syncPresentationLabel()
 }
 
@@ -1323,11 +1378,35 @@ function rematch() {
   nnDebugTraceText.value = ''
   nnDebugTraceHistory.value = []
   presentationOrchestrator.clear()
+  lastAppliedAiTurnToken = null
+  resetAiTurnPrefetch()
+  presentationInputWasLocked = false
+  nnModelsWarmPromise = preloadNnModelsForSetup(setupSnapshot)
   syncPresentationLabel()
+}
+
+function preloadNnModelsForSetup(setupSnapshot) {
+  const modelIds = [
+    ...new Set(
+      (setupSnapshot?.opponents ?? [])
+        .filter((opponent) => opponent.type === 'nn')
+        .map((opponent) => opponent.modelId ?? 'latest'),
+    ),
+  ]
+  if (!modelIds.length) return Promise.resolve()
+  return warmNnModelCache(modelIds)
+}
+
+async function ensureNnModelsReady() {
+  await nnModelsWarmPromise?.catch(() => {})
 }
 
 function backToSetup() {
   match.value = null
+  lastAppliedAiTurnToken = null
+  resetAiTurnPrefetch()
+  nnModelsWarmPromise = null
+  presentationInputWasLocked = false
   deferredPostDungeonState.value = null
   clearCurrentMatch(window.localStorage)
   nnDebugTraceText.value = ''
@@ -1340,6 +1419,7 @@ function takeHumanAction(action) {
   if (!match.value || !humanSeatId.value) {
     return
   }
+  resetAiTurnPrefetch()
   if (gameplayInputLocked.value) {
     return
   }
@@ -1458,57 +1538,103 @@ function confirmVorpalDeclaration() {
 }
 
 async function runAiTurn() {
-  if (aiTurnInFlight) return
+  const trace = aiTurnTrace()
+  if (aiTurnInFlight) {
+    trace('run.skip', { reason: 'in-flight' })
+    return
+  }
+  if (gameplayInputLocked.value) {
+    trace('run.skip', {
+      reason: 'gameplay-locked',
+      activePresentation: activePresentation.value?.kind ?? null,
+      queueMs: presentationOrchestrator.getQueueSnapshot().reduce((sum, item) => sum + item.remainingMs, 0),
+    })
+    return
+  }
   if (
     !match.value ||
     (match.value.state.phase !== 'bidding' &&
       match.value.state.phase !== 'dungeon' &&
       match.value.state.phase !== 'pick-adventurer')
   ) {
+    trace('run.skip', { reason: 'phase-not-actionable', phase: match.value?.state?.phase ?? null })
     return
   }
   const seatId = match.value.state.turn.activeSeatId
-  if (!seatId || seatId === humanSeatId.value) return
-  const runToken = `${match.value.id}:${match.value.state.turn.turnNumber}:${match.value.state.phase}:${seatId}`
+  if (!seatId || seatId === humanSeatId.value) {
+    trace('run.skip', { reason: 'not-ai-seat', seatId, humanSeatId: humanSeatId.value })
+    return
+  }
+  const runToken = buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
+  if (runToken === lastAppliedAiTurnToken) {
+    trace('run.skip', { reason: 'duplicate-token', runToken, lastAppliedAiTurnToken })
+    return
+  }
   aiTurnInFlight = true
   try {
-  if (debugMode.value) {
-    console.log('[DungeonRunner][AITurn][Start]', {
-      phase: match.value.state.phase,
-      seatId,
-      humanSeatId: humanSeatId.value,
-      turnNumber: match.value.state.turn.turnNumber,
-    })
-  }
+  trace('run.begin', {
+    runToken,
+    phase: match.value.state.phase,
+    seatId,
+    turnNumber: match.value.state.turn.turnNumber,
+    biddingSubphase: match.value.state.bidding?.subphase ?? null,
+    revealedMonsterCard: match.value.state.bidding?.revealedMonsterCard ?? null,
+    dungeonSubphase: match.value.state.dungeon?.subphase ?? null,
+  })
   const seat = match.value.state.seats.find((candidate) => candidate.id === seatId)
   const roleType = seat?.role?.type
   let action = null
   if (roleType === 'nn') {
     const modelId = seat.role.modelId ?? 'latest'
-    if (debugMode.value) console.log('[DungeonRunner][AITurn][NN]', { seatId, modelId })
     if (nnFailureRecovery.isCoolingDown(modelId)) {
+      trace('choose.randombot', { reason: 'model-cooldown', modelId })
       action = chooseRandombotAction(match.value.state, { seatId })
     } else {
-      action = await chooseNnActionWithFallback(match.value.state, { seatId }, nnRuntimeOptions(modelId))
+      await ensureNnModelsReady()
+      action = await consumeAiTurnPrefetch(runToken, (step, detail) => trace(step, detail))
+      if (action) {
+        trace('choose.prefetch-hit', { modelId, actionType: action.type })
+      } else {
+        trace('choose.nn.begin', { modelId })
+        action = await chooseNnActionWithFallback(match.value.state, { seatId }, nnRuntimeOptions(modelId))
+        trace('choose.nn.done', { modelId, actionType: action?.type ?? null, fallbackReason: action?.meta?.fallbackReason ?? null })
+      }
       if (action?.meta?.fallbackReason === 'MODEL_LOAD_FAILED') {
-        action = await handleNnModelFailure(seat, modelId, seatId, action)
+        // Use the safe fallback for this turn; recovery UI must not block the AI pipeline.
+        void handleNnModelFailure(seat, modelId, seatId, action)
       }
     }
   } else {
-    if (debugMode.value) console.log('[DungeonRunner][AITurn][Randombot]', { seatId })
+    trace('choose.randombot', { seatId })
     action = chooseRandombotAction(match.value.state, { seatId })
   }
-  if (debugMode.value) console.log('[DungeonRunner][AITurn][Action]', { seatId, action })
-  if (!action) return
-  if (!match.value) return
-  const currentToken = `${match.value.id}:${match.value.state.turn.turnNumber}:${match.value.state.phase}:${match.value.state.turn.activeSeatId}`
-  if (runToken !== currentToken) return
+  if (!action) {
+    trace('choose.empty', { seatId, roleType })
+    action = chooseRandombotAction(match.value.state, { seatId })
+  }
+  if (!action) {
+    trace('run.abort', { reason: 'no-action' })
+    return
+  }
+  if (!match.value) {
+    trace('run.abort', { reason: 'match-cleared' })
+    return
+  }
+  const currentToken = buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
+  if (runToken !== currentToken) {
+    trace('run.abort', { reason: 'stale-token', runToken, currentToken })
+    return
+  }
   const prevState = match.value.state
   if (humanSeatId.value) {
     previousVisibleState.value = getPlayerView(prevState, { seatId: humanSeatId.value })
   }
   const result = applyAction(prevState, action, { seatId })
-  if (!result.ok) return
+  if (!result.ok) {
+    trace('run.abort', { reason: 'apply-failed', actionType: action.type })
+    return
+  }
+  lastAppliedAiTurnToken = runToken
   const deferExit = shouldDeferDungeonExitUntilOutcomeAck(prevState, result.state)
   if (deferExit) {
     deferredPostDungeonState.value = result.state
@@ -1517,10 +1643,68 @@ async function runAiTurn() {
     deferredPostDungeonState.value = null
     match.value = { ...match.value, state: result.state }
   }
+  trace('run.applied', {
+    actionType: action.type,
+    nextRunToken: buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state }),
+    phaseAfter: match.value.state.phase,
+    turnAfterSeatId: match.value.state.turn.activeSeatId,
+    deferExit,
+  })
   enqueuePresentationTransition(prevState, result.state, action, seatId, roleType ?? 'randombot')
+  if (debugMode.value) {
+    const snap = presentationOrchestrator.getQueueSnapshot()
+    trace('presentation.enqueued', {
+      queue: snap.map((item) => item.kind),
+      queueMs: snap.reduce((sum, item) => sum + item.remainingMs, 0),
+    })
+  }
+  primeAiTurnPrefetch()
   } finally {
     aiTurnInFlight = false
+    trace('run.finally', { inFlight: false })
   }
+}
+
+function primeAiTurnPrefetch() {
+  const trace = aiTurnTrace()
+  if (!match.value || isHumanTurn.value) {
+    logAiTurnPrimeSkip(!match.value ? 'no-match' : 'human-turn')
+    return
+  }
+  const state = match.value.state
+  const seatId = state.turn?.activeSeatId
+  if (!seatId || seatId === humanSeatId.value) {
+    logAiTurnPrimeSkip('not-ai-seat', { seatId })
+    return
+  }
+  if (
+    state.phase !== 'bidding' &&
+    state.phase !== 'dungeon' &&
+    state.phase !== 'pick-adventurer'
+  ) {
+    logAiTurnPrimeSkip('phase', { phase: state.phase })
+    return
+  }
+  const runToken = buildAiTurnRunToken({ matchId: match.value.id, state })
+  if (!runToken || runToken === lastAppliedAiTurnToken) {
+    logAiTurnPrimeSkip('token-not-ready', { runToken })
+    return
+  }
+  const seat = state.seats.find((candidate) => candidate.id === seatId)
+  if (seat?.role?.type !== 'nn') {
+    logAiTurnPrimeSkip('not-nn-seat', { roleType: seat?.role?.type ?? null })
+    return
+  }
+  lastPrimeSkipTraceKey = ''
+  const modelId = seat.role.modelId ?? 'latest'
+  startAiTurnPrefetch({
+    runToken,
+    trace: (step, detail) => trace(step, detail),
+    compute: async () => {
+      await ensureNnModelsReady()
+      return chooseNnActionWithFallback(state, { seatId }, nnRuntimeOptions(modelId))
+    },
+  })
 }
 
 function shouldDeferDungeonExitUntilOutcomeAck(prevState, nextState) {
@@ -1627,7 +1811,23 @@ function enrichPresentationForViewer(head) {
 function syncPresentationLabel() {
   activePresentation.value = enrichPresentationForViewer(presentationOrchestrator.getActiveAnimation())
   activePresentationLabel.value = activePresentation.value?.label ?? ''
-  gameplayInputLocked.value = presentationOrchestrator.isGameplayInputLocked()
+  const locked = presentationOrchestrator.isGameplayInputLocked()
+  gameplayInputLocked.value = locked
+  if (presentationInputWasLocked && !locked) {
+    lastScheduleSkipKey = ''
+    lastPrimeSkipTraceKey = ''
+    if (debugMode.value) {
+      const snap = presentationOrchestrator.getQueueSnapshot()
+      aiTurnTrace()('presentation.unlock', {
+        queuedKinds: snap.map((item) => item.kind),
+        isHumanTurn: isHumanTurn.value,
+        activeSeatId: match.value?.state?.turn?.activeSeatId ?? null,
+      })
+    }
+    scheduleAiTurnIfReady()
+    scheduleHumanAutoResolveIfReady()
+  }
+  presentationInputWasLocked = locked
   if (presentationTraceEnabled()) {
     const a = activePresentation.value
     const key = a ? `${a.id}:${a.kind}` : 'idle'
@@ -1655,21 +1855,59 @@ function humanDungeonAutoRevealGapMs() {
 }
 
 function scheduleAiTurnIfReady() {
-  if (aiTurnInFlight) return
-  if (deferredPostDungeonState.value) return
-  if (!match.value || gameplayInputLocked.value || isHumanTurn.value) return
+  if (aiTurnInFlight) {
+    logAiTurnScheduleSkip('in-flight')
+    return
+  }
+  if (deferredPostDungeonState.value) {
+    logAiTurnScheduleSkip('deferred-post-dungeon')
+    return
+  }
+  if (!match.value || isHumanTurn.value) {
+    return
+  }
+  if (gameplayInputLocked.value) {
+    const snap = presentationOrchestrator.getQueueSnapshot()
+    const runToken = buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
+    logAiTurnScheduleSkip('gameplay-locked', {
+      activeKind: snap[0]?.kind ?? null,
+      queueMs: snap.reduce((sum, item) => sum + item.remainingMs, 0),
+      queueKinds: snap.map((item) => item.kind),
+      runToken,
+    })
+    primeAiTurnPrefetch()
+    if (aiTurnTimerId) {
+      window.clearTimeout(aiTurnTimerId)
+      aiTurnTimerId = null
+    }
+    return
+  }
+  primeAiTurnPrefetch()
   if (
     match.value.state.phase !== 'bidding' &&
     match.value.state.phase !== 'dungeon' &&
     match.value.state.phase !== 'pick-adventurer'
   ) {
+    logAiTurnScheduleSkip('phase-not-actionable', { phase: match.value.state.phase })
     return
   }
-  if (aiTurnTimerId) return
+  const runToken = buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
+  if (runToken && runToken === lastAppliedAiTurnToken) {
+    logAiTurnScheduleSkip('already-applied-token', { runToken })
+    return
+  }
+  if (aiTurnTimerId) {
+    logAiTurnScheduleSkip('timer-pending', { runToken })
+    return
+  }
+  if (debugMode.value) {
+    aiTurnTrace()('schedule.timer-armed', { runToken, delayMs: AI_TURN_SCHEDULE_DELAY_MS })
+  }
   aiTurnTimerId = window.setTimeout(() => {
     aiTurnTimerId = null
+    if (debugMode.value) aiTurnTrace()('schedule.timer-fired', { runToken })
     void runAiTurn()
-  }, 900)
+  }, AI_TURN_SCHEDULE_DELAY_MS)
 }
 
 function scheduleHumanAutoResolveIfReady() {
@@ -1755,6 +1993,7 @@ function nnRuntimeOptions(modelId) {
   if (!debugMode.value) return { modelId }
   return {
     modelId,
+    pipelineTrace: true,
     debugTrace: true,
     debugLogger(trace) {
       const payload = {
@@ -1856,6 +2095,9 @@ function importReplay() {
 .dr-page {
   flex: 1 1 0;
   min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
 }
 
 .dr-scroll {

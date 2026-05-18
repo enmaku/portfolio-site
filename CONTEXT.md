@@ -106,9 +106,15 @@ _Avoid_: Conflating with immersive **project** layouts.
 
 ### Project shell
 
-Full-viewport layout for interactive **projects** (no portfolio masthead), giving controls and timers the full screen. **Game Timer**, **Movie Vote**, and **Dungeon Runner** use the same shell pattern (immersive chrome, trapped browser back).
+Full-viewport layout for interactive **projects** (no portfolio masthead), giving controls and timers the full screen. **Game Timer**, **Movie Vote**, and **Dungeon Runner** share one shell (immersive chrome, trapped browser back). On wide viewports the same shell applies a **desktop phone frame** around the app instead of stretching it edge-to-edge.
 
 _Avoid_: “Fullscreen layout” when meaning **project shell** (confuses with the browser Fullscreen API toggle on **Game Timer**).
+
+### Desktop phone frame
+
+On desktop-class viewports (Quasar **`md` and up**, ≥1024px), the **project shell** letterboxes each mobile **project** inside a centered portrait column sized like a phone display, with neutral gutter space on the sides (and above/below when the window is very tall). The column is **390px** wide; height is capped at roughly **19.5∶9** portrait (`min(90dvh, width × 19.5/9)`), shrinking on short windows while width stays 390px when space allows. Gutter uses the site dark background; the column gets subtle rounding and a light edge (shadow or border)—not a hardware mockup (no notch or bezel art). **Game Timer** and **Dungeon Runner** keep their existing Fullscreen toggle here: it still fullscreens the whole tab and exits the letterbox. Dialogs, **Notify** toasts, and other portaled overlays anchor **inside the column** on **`md+`** (not against the whole monitor). Viewports below **`md`** keep today’s full-bleed **project shell** behavior and viewport-scoped overlays.
+
+_Avoid_: “Desktop project” as a separate nav app; “expand the 390px column only” as fullscreen—the **Projects drawer sections** label “Desktop” remains a placeholder, and fullscreen still means the browser tab.
 
 ### Paste unfurl
 
@@ -120,8 +126,8 @@ _Avoid_: Assuming in-tab meta tag updates alone fix every preview provider.
 
 - The **portfolio site** includes the **photo gallery**, about content (**résumé data**), navigation, and routed **projects**.
 - **Photography (navigation)** names the same home experience as the **photo gallery**.
-- **Portfolio shell** wraps the gallery and about; **project shell** wraps each `/projects/…` route.
-- Drawer shortcuts use **detached project launch** so multiplayer **projects** typically run outside the shell tab.
+- **Portfolio shell** wraps the gallery and about; **project shell** wraps each `/projects/…` route and may add a **desktop phone frame** on wide viewports.
+- Drawer shortcuts use **detached project launch** so multiplayer **projects** typically run outside the shell tab; the **desktop phone frame** does not change that—wide viewports still open the same project routes in a separate tab.
 - **Projects drawer sections** organize how **projects** appear in navigation without changing their public routes.
 - Each **paste-unfurl eligible** path is a **shareable route** with exactly one **shared link summary**; **paste unfurl** surfaces those fields to link previews.
 - The **share metadata catalog** is the authority for **shared link summary** fields and **route document chrome** on **shareable routes**; router paths align with catalog paths rather than parallel ids.
@@ -140,6 +146,9 @@ _Avoid_: Assuming in-tab meta tag updates alone fix every preview provider.
 
 > **Dev:** “Why does `/projects/game-timer` look different from `/about`?”  
 > **Domain owner:** “**Portfolio shell** vs **project shell**—projects are immersive; about and home keep the standard site chrome.”
+
+> **Dev:** “On a laptop, why is Game Timer a narrow column?”  
+> **Domain owner:** “**Desktop phone frame** in the **project shell**—same mobile **project**, letterboxed at **`md+`** so we don’t stretch table UI across a 27″ monitor. Fullscreen still blows up the whole tab when you need it.”
 
 > **Dev:** “Why does Game Timer open in a new tab from the drawer?”  
 > **Domain owner:** “**Detached project launch** keeps the gallery/about shell stable while timers or votes run fullscreen in their own tab.”
