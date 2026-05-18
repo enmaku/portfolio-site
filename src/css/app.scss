@@ -11,10 +11,12 @@
 body.project-shell--desktop-frame {
   background-color: $dark-page;
 
-  // Contain Quasar `fixed` / `fullscreen` overlays inside the phone-frame column.
+  // Stack portaled overlays above routed content without `transform` — transform would make
+  // `position: fixed` menus/dialogs use the column as their containing block while Quasar’s
+  // position engine still sets viewport `top`/`left` from getBoundingClientRect().
   .project-shell__frame-column,
   .project-shell__frame-portal {
-    transform: translateZ(0);
+    isolation: isolate;
   }
 
   // QPage defaults to min-height: $q.screen.height, which is taller than the framed

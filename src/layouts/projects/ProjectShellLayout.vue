@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onUnmounted, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { Notify, useQuasar } from 'quasar'
 import { useTrapBrowserBack } from '../../composables/useTrapBrowserBack.js'
 import { getDesktopPhoneFrameLayout } from './desktopPhoneFrame.js'
@@ -34,6 +34,8 @@ const frameLayout = computed(() =>
 
 const desktopFrameActive = computed(() => frameLayout.value.active)
 
+const framePortalRef = ref(null)
+
 const frameGutterStyle = computed(() =>
   resolveProjectShellFrameGutterInlineStyle(frameLayout.value),
 )
@@ -42,28 +44,31 @@ const frameColumnStyle = computed(() =>
   resolveProjectShellFrameColumnInlineStyle(frameLayout.value),
 )
 
-watch(
-  desktopFrameActive,
-  (active) => {
-    if (typeof document === 'undefined') return
-    document.body.classList.toggle(PROJECT_SHELL_DESKTOP_FRAME_BODY_CLASS, active)
-    const syncOverlayPortal = () => syncProjectShellOverlayPortalTarget(active)
+function syncDesktopFrameChrome(active) {
+  if (typeof document === 'undefined') return
 
+  document.body.classList.toggle(PROJECT_SHELL_DESKTOP_FRAME_BODY_CLASS, active)
+  syncProjectShellOverlayPortalTarget(active)
+
+  const notifyReady = syncProjectShellLayoutNotifyFrame({
+    notifyApi: Notify,
+    frameActive: active,
+  })
+
+  return (
+    !active ||
+    (resolveProjectShellOverlayPortalMount(true) != null && notifyReady)
+  )
+}
+
+watch(
+  [desktopFrameActive, framePortalRef],
+  ([active]) => {
     nextTick(() => {
-      syncOverlayPortal()
-      if (active && resolveProjectShellOverlayPortalMount(true) == null) {
-        nextTick(syncOverlayPortal)
-      }
-      const syncNotifyFrame = () => {
-        const notifyReady = syncProjectShellLayoutNotifyFrame({
-          notifyApi: Notify,
-          frameActive: active,
-        })
-        if (active && !notifyReady) {
-          nextTick(syncNotifyFrame)
-        }
-      }
-      syncNotifyFrame()
+      if (syncDesktopFrameChrome(active)) return
+      nextTick(() => {
+        syncDesktopFrameChrome(active)
+      })
     })
   },
   { immediate: true },
@@ -102,6 +107,7 @@ onUnmounted(() => {
           <div
             v-if="desktopFrameActive"
             :id="PROJECT_SHELL_FRAME_PORTAL_ELEMENT_ID"
+            ref="framePortalRef"
             :class="PROJECT_SHELL_FRAME_PORTAL_LAYER_CLASS"
           />
         </div>
@@ -191,9 +197,16 @@ onUnmounted(() => {
   inset: 0;
   z-index: 6000;
   pointer-events: none;
-  overflow: hidden;
+  overflow: visible;
 
-  :deep(> *) {
+  :deep(#q-notify) {
+    pointer-events: none;
+  }
+
+  :deep(#q-notify .q-notification),
+  :deep(.q-menu),
+  :deep(.q-dialog),
+  :deep(.q-dialog__backdrop) {
     pointer-events: auto;
   }
 }
