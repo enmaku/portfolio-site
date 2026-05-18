@@ -6,6 +6,17 @@
 @use 'sass:color';
 
 @import './gt-ui.scss';
+@import './project-shell-frame-grid.scss';
+
+body.project-shell--desktop-frame {
+  background-color: $dark-page;
+
+  // Contain Quasar `fixed` / `fullscreen` overlays inside the phone-frame column.
+  .project-shell__frame-column,
+  .project-shell__frame-portal {
+    transform: translateZ(0);
+  }
+}
 
 .body--dark {
   background-color: $dark-page;

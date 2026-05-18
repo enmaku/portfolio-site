@@ -156,7 +156,7 @@ test('nn runtime uses worker path when available', async () => {
   }
 })
 
-test('nn runtime retries once before illegal-output fallback', async () => {
+test('nn runtime falls back on illegal worker output without retrying', async () => {
   const originalWorker = globalThis.Worker
   let calls = 0
   class FakeWorker {
@@ -190,7 +190,7 @@ test('nn runtime retries once before illegal-output fallback', async () => {
     )
     const seatId = state.turn.activeSeatId
     const action = await chooseNnActionWithFallback(state, { seatId }, { modelId: 'latest' })
-    assert.equal(calls, 2)
+    assert.equal(calls, 1)
     const legal = getLegalActions(state, { seatId })
     assert.equal(legal.some((candidate) => candidate.type === action.type), true)
     assert.equal(action.meta.fallbackReason, 'ILLEGAL_OUTPUT')
@@ -200,7 +200,7 @@ test('nn runtime retries once before illegal-output fallback', async () => {
   }
 })
 
-test('nn runtime retries once before model-load-failed fallback', async () => {
+test('nn runtime falls back on model-load failure without retrying', async () => {
   const originalWorker = globalThis.Worker
   let calls = 0
   class FakeWorker {
@@ -227,7 +227,7 @@ test('nn runtime retries once before model-load-failed fallback', async () => {
     )
     const seatId = state.turn.activeSeatId
     const action = await chooseNnActionWithFallback(state, { seatId }, { modelId: 'latest' })
-    assert.equal(calls, 2)
+    assert.equal(calls, 1)
     const legal = getLegalActions(state, { seatId })
     assert.equal(legal.some((candidate) => candidate.type === action.type), true)
     assert.equal(action.meta.fallbackReason, 'MODEL_LOAD_FAILED')
@@ -345,6 +345,44 @@ test('nn runtime emits debug trace on model-load fallback path', async () => {
   assert.equal(traces.at(-1).fallbackReason, 'MODEL_LOAD_FAILED')
 })
 
+test('hanging worker times out and falls back without blocking the inference queue', async () => {
+  const originalWorker = globalThis.Worker
+  class HangingWorker {
+    constructor() {
+      this.onmessage = null
+      this.onerror = null
+    }
+
+    postMessage() {
+      // Intentionally never responds.
+    }
+
+    terminate() {}
+  }
+  globalThis.Worker = HangingWorker
+  resetNnRuntimeForTests()
+  try {
+    const state = createInitialMatchState(
+      { totalSeats: 2, opponents: [{ type: 'nn', modelId: 'latest' }] },
+      { seed: 153 },
+    )
+    const seatId = state.turn.activeSeatId
+    const started = Date.now()
+    const action = await chooseNnActionWithFallback(state, { seatId }, {
+      modelId: 'latest',
+      workerTimeoutMs: 40,
+      loadTimeoutMs: 40,
+    })
+    const elapsed = Date.now() - started
+    const legal = getLegalActions(state, { seatId })
+    assert.equal(legal.some((candidate) => candidate.type === action.type), true)
+    assert.ok(elapsed < 500, `expected bounded inference time, got ${elapsed}ms`)
+  } finally {
+    globalThis.Worker = originalWorker
+    resetNnRuntimeForTests()
+  }
+})
+
 test('worker-side model load errors do not masquerade as pass actions', async () => {
   const originalWorker = globalThis.Worker
   class FakeWorker {
@@ -378,6 +416,53 @@ test('worker-side model load errors do not masquerade as pass actions', async ()
     const legal = getLegalActions(state, { seatId })
     assert.equal(legal.some((candidate) => candidate.type === action.type), true)
     assert.equal(action.meta?.fallbackReason, 'MODEL_LOAD_FAILED')
+  } finally {
+    globalThis.Worker = originalWorker
+    resetNnRuntimeForTests()
+  }
+})
+
+test('inferBudgetMs falls back without waiting for slow inference', async () => {
+  const originalWorker = globalThis.Worker
+  class SlowWorker {
+    constructor() {
+      this.onmessage = null
+      this.onerror = null
+    }
+
+    postMessage(payload) {
+      setTimeout(() => {
+        this.onmessage?.({
+          data: {
+            requestId: payload.requestId,
+            action: { type: 'PASS' },
+            backend: 'webgl',
+            modelId: payload.modelId,
+          },
+        })
+      }, 500)
+    }
+
+    terminate() {}
+  }
+  globalThis.Worker = SlowWorker
+  resetNnRuntimeForTests()
+  try {
+    const state = createInitialMatchState(
+      { totalSeats: 2, opponents: [{ type: 'nn', modelId: 'latest' }] },
+      { seed: 153 },
+    )
+    const seatId = state.turn.activeSeatId
+    const start = performance.now()
+    const action = await chooseNnActionWithFallback(state, { seatId }, {
+      modelId: 'latest',
+      inferBudgetMs: 40,
+    })
+    const elapsed = performance.now() - start
+    assert.ok(elapsed < 250, `expected budget cap, got ${elapsed}ms`)
+    const legal = getLegalActions(state, { seatId })
+    assert.equal(legal.some((candidate) => candidate.type === action.type), true)
+    assert.equal(action.meta.fallbackReason, 'INFER_BUDGET_EXCEEDED')
   } finally {
     globalThis.Worker = originalWorker
     resetNnRuntimeForTests()

@@ -5,6 +5,18 @@ const modelCache = new Map()
 
 self.onmessage = async (event) => {
   const data = event?.data ?? {}
+  if (data.kind === 'warm') {
+    try {
+      await loadModel(data.modelId)
+      self.postMessage({ requestId: data.requestId, warmed: true })
+    } catch (error) {
+      self.postMessage({
+        requestId: data.requestId,
+        error: error instanceof Error ? error.message : 'MODEL_LOAD_FAILED',
+      })
+    }
+    return
+  }
   const { requestId, modelId, legalActions, legalMask, features, samplingMode, randomSeed, debugTrace, hero, activeSeatId, seatLoadout } = data
   try {
     const model = await loadModel(modelId)
