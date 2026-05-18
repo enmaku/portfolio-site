@@ -155,11 +155,24 @@ onUnmounted(() => {
 .project-shell__frame-column {
   flex: 0 0 auto;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   border-radius: var(--project-shell-frame-column-radius);
   border-width: var(--project-shell-frame-column-edge-border-width);
   border-style: solid;
   border-color: var(--project-shell-frame-column-edge-border-color);
   box-shadow: var(--project-shell-frame-column-surface-box-shadow);
+  overflow: hidden;
+}
+
+.project-shell.project-shell--desktop-frame .project-shell__frame-inner > :not(.project-shell__frame-portal) {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 

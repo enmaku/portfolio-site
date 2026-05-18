@@ -16,6 +16,15 @@ body.project-shell--desktop-frame {
   .project-shell__frame-portal {
     transform: translateZ(0);
   }
+
+  // QPage defaults to min-height: $q.screen.height, which is taller than the framed
+  // column and gets clipped — internal scroll regions and bottom bars never activate.
+  .project-shell__frame-column > .q-page {
+    min-height: 0 !important;
+    height: 100%;
+    max-height: 100%;
+    box-sizing: border-box;
+  }
 }
 
 .body--dark {

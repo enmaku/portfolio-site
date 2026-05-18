@@ -43,6 +43,39 @@ function ghostFlightTargetRect(el) {
 }
 
 /**
+ * Viewport rects → clone `left`/`top` for ghost flight. Prefer layer-local `absolute`
+ * coords on `presentationFlightLayer` so motion stays aligned when an ancestor (project
+ * shell desktop frame) uses `transform` and re-parents `position: fixed`.
+ *
+ * @param {Element | null | undefined} flightRoot
+ * @param {DOMRect} srcRect
+ * @param {DOMRect} dstRect
+ */
+function ghostFlightCloneCoords(flightRoot, srcRect, dstRect) {
+  const endLeft = dstRect.left + dstRect.width / 2 - srcRect.width / 2
+  const endTop = dstRect.top + dstRect.height / 2 - srcRect.height / 2
+
+  if (isDomElement(flightRoot) && typeof flightRoot.getBoundingClientRect === 'function') {
+    const rootRect = flightRoot.getBoundingClientRect()
+    return {
+      position: 'absolute',
+      startLeft: srcRect.left - rootRect.left,
+      startTop: srcRect.top - rootRect.top,
+      endLeft: endLeft - rootRect.left,
+      endTop: endTop - rootRect.top,
+    }
+  }
+
+  return {
+    position: 'fixed',
+    startLeft: srcRect.left,
+    startTop: srcRect.top,
+    endLeft,
+    endTop,
+  }
+}
+
+/**
  * @param {Element} fromEl
  * @param {Element} toEl
  * @returns {{ dx: number, dy: number, ok: boolean }}
@@ -291,10 +324,16 @@ function addEquipmentActivationGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
       )
     }
 
+    const flightCoords = ghostFlightCloneCoords(
+      mount === flightRoot ? flightRoot : null,
+      srcRect,
+      dstRect,
+    )
+
     set(clone, {
-      position: 'fixed',
-      left: srcRect.left,
-      top: srcRect.top,
+      position: flightCoords.position,
+      left: flightCoords.startLeft,
+      top: flightCoords.startTop,
       width: srcRect.width,
       height: srcRect.height,
       maxWidth: srcRect.width,
@@ -306,14 +345,11 @@ function addEquipmentActivationGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
       overflow: 'hidden',
     })
 
-    const destLeft = dstRect.left + dstRect.width / 2 - srcRect.width / 2
-    const destTop = dstRect.top + dstRect.height / 2 - srcRect.height / 2
-
     tl.to(
       clone,
       {
-        left: destLeft,
-        top: destTop,
+        left: flightCoords.endLeft,
+        top: flightCoords.endTop,
         duration: flightDur,
         ease: 'power2.inOut',
       },
@@ -334,7 +370,7 @@ function addEquipmentActivationGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
  * - **`dungeonCardFlipAxis`** — inner flip pivot in `MonsterCardFace` (`transform-style: preserve-3d`). `DUNGEON_REVEAL` tweens `rotationY` 0→180 here; inline props cleared on teardown so settled rotation comes from the card’s CSS when `faceDown` is false.
  * - **`deckBadge`** — deck pile control; `BIDDING_ADD` / `BIDDING_DRAW` anchor deck motion here.
  * - **`heroChangeInterstitialOverlay`** — full-screen `.dr-hero-interstitial` control. `HERO_CHANGE_INTERSTITIAL` runs entrance / hold / exit here only (the board shell is not tweened for this beat).
- * - **`presentationFlightLayer`** — absolutely positioned, `pointer-events: none` host for fixed-position equipment ghost clones (`DUNGEON_NEUTRALIZE`, `BIDDING_SACRIFICE`).
+ * - **`presentationFlightLayer`** — absolutely positioned, `pointer-events: none` host for equipment ghost clones (`DUNGEON_NEUTRALIZE`, `BIDDING_SACRIFICE`); clones use layer-local `absolute` coords (not viewport `fixed`).
  * - **`equipment_<id>`** — in-play equipment token cell. Iterated from `payload.responsibleEquipmentIds` (`consumedEquipmentIds` retained as a back-compat alias). Source tile dims when `id` is in `payload.expendedEquipmentIds`; otherwise it gets a brief sunlight-colored activation pulse during the ghost flight.
  *
  * @typedef {{
