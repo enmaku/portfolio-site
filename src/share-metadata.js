@@ -72,8 +72,8 @@ export const SHARE_CATALOG = [
     title: 'Dungeon Runner',
     description:
       'Play Welcome to the Dungeon against configurable AI opponents with deterministic browser-only simulation.',
-    ogImage: DEFAULT_OG_IMAGE,
-    favicon: 'default',
+    ogImage: 'icons/favicon-shield.svg',
+    favicon: 'shield',
   },
 ]
 
