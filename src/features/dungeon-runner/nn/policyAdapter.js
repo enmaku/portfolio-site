@@ -103,7 +103,7 @@ export function decodePolicyIndexToAction(index, legalActions, state = null, act
   return null
 }
 
-function encodeActionIndex(state, actor, action) {
+export function encodeActionIndex(state, actor, action) {
   if (action.type === ACTION_TYPES.PASS) return POLICY_INDEX.PASS
   if (action.type === ACTION_TYPES.DRAW) return POLICY_INDEX.DRAW
   if (action.type === ACTION_TYPES.ADD_TO_DUNGEON) return POLICY_INDEX.ADD
