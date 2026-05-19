@@ -1,6 +1,7 @@
 import { getApps, initializeApp } from 'firebase/app'
 import { getDatabase, ref, set } from 'firebase/database'
 
+/** RTDB root for completed **match over** payloads ([Replay envelope contract (v1)](../CONTRACT.md#replay-envelope-contract-v1)). */
 const COMPLETED_MATCHES_ROOT = 'dungeonRunnerCompletedMatches'
 
 /** @param {Record<string, unknown>} env */
@@ -69,6 +70,7 @@ export function getDungeonRunnerDatabase() {
 
 /**
  * RTDB path for a completed match (no leading slash).
+ * Value at this path is the v1 replay envelope body (match id is the path key only).
  * @param {string} matchId
  * @returns {string}
  */
@@ -87,8 +89,8 @@ export function dungeonRunnerCompletedMatchRef(matchId) {
 }
 
 /**
- * RTDB rejects `undefined` anywhere in the tree; replay envelopes may omit
- * optional fields as undefined.
+ * RTDB rejects `undefined` anywhere in the tree. v1 envelopes may omit optional
+ * fields (`createdAt`, `presentationSpeedProfile`) as undefined before write.
  * @param {unknown} value
  * @returns {unknown}
  */

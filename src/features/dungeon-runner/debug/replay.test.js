@@ -128,3 +128,48 @@ test('importReplayEnvelope accepts optional presentationSpeedProfile', () => {
   assert.equal(imported.ok, true)
   assert.equal(imported.replay.presentationSpeedProfile, 'brisk')
 })
+
+test('exportReplayEnvelope emits integer version 1', () => {
+  const replay = exportReplayEnvelope({
+    seed: 0,
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    history: [],
+  })
+  assert.equal(replay.version, 1)
+  assert.equal(Number.isInteger(replay.version), true)
+})
+
+test('importReplayEnvelope accepts empty history', () => {
+  const result = importReplayEnvelope({
+    version: 1,
+    seed: 7,
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    history: [],
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.replay.history, [])
+})
+
+test('importReplayEnvelope preserves unknown top-level keys', () => {
+  const result = importReplayEnvelope({
+    version: 1,
+    seed: 0,
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    history: [],
+    rulesHash: 'abc',
+    extra: { nested: true },
+  })
+  assert.equal(result.ok, true)
+  assert.equal(result.replay.rulesHash, 'abc')
+  assert.deepEqual(result.replay.extra, { nested: true })
+})
+
+test('importReplayEnvelope rejects non-integer version', () => {
+  const base = {
+    seed: 0,
+    setup: { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    history: [],
+  }
+  assert.equal(importReplayEnvelope({ ...base, version: '1' }).ok, false)
+  assert.equal(importReplayEnvelope({ ...base, version: 1.5 }).ok, false)
+})

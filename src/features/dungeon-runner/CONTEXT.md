@@ -132,6 +132,14 @@ The standard ordered list of **monster** **species** ids (including duplicates) 
 
 The canonical ordering of **monster** **species** ids for neural observation encoding; fixed in the **game data catalog** and stable across balance edits unless models are retrained.
 
+### TF.js model sync
+
+Maintainer workflow after dungeon-runner **gated promotion**: convert promoted H5 weights to TF.js under `public/models/dungeon-runner/<promoted version>/`, regenerate the neural **model catalog**, and refresh **web deployed latest** only when the synced id equals dungeon-runner **production latest** (`models/latest` symlink). Semver dirs are immutable **deployed model version** pins; `latest/` is the moving production alias (`modelId: 'latest'` in default setup).
+
+_Maintainer doc_: [`scripts/MODEL_RELEASE.md`](../../../scripts/MODEL_RELEASE.md) (**two-repo model release**, **release smoke**).
+
+_Avoid_: Conflating **game data catalog** with the neural **model catalog**; syncing training-run ids (`bc-*`) instead of **promoted version** semver dirs.
+
 ## Relationships
 
 - The **game data catalog** is the sole maintainer of **equipment**, **monster**, **adventurer**, and **monster deck** static definitions; older parallel tables are removed rather than re-exported.
@@ -144,6 +152,7 @@ The canonical ordering of **monster** **species** ids for neural observation enc
 - A **match** contains one or more **dungeon runs** before **match over**.
 - A **completed match replay** is a **replay envelope** captured when **match over** is reached.
 - **History** supplies the ordered actions recorded in a **replay envelope**.
+- **TF.js model sync** runs in portfolio-site after dungeon-runner promote; default NN opponents load **web deployed latest** without setup changes.
 
 ## Example dialogue
 
