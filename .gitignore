@@ -47,4 +47,4 @@ artifacts/*
 !/src/assets/photos/thumbs/.gitkeep
 
 # model replay data
-data/replays/*__pycache__/
+data/replays/*
