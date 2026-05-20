@@ -256,6 +256,76 @@ test('--from-latest resolves symlink without ledger line for older id', async ()
   rmSync(work, { recursive: true, force: true })
 })
 
+test('explicit sync accepts promotions.jsonl without per-dir promotion.json', async () => {
+  const temp = mkdtempSync(path.join(tmpdir(), 'dr-sync-'))
+  const work = mkdtempSync(path.join(tmpdir(), 'dr-sync-work-'))
+  mkdirSync(path.join(work, 'public', 'models', 'dungeon-runner'), { recursive: true })
+  makeRepoLayout(temp, {
+    versions: ['v0.1.29a', 'v0.1.30a'],
+    productionLatest: 'v0.1.30a',
+    ledger: [{ promoted_version: 'v0.1.29a', run_id: 'run-a' }],
+  })
+
+  const result = await runSync({
+    cwd: work,
+    parsed: { ...parseSyncArgs(['v0.1.29a']), ok: true },
+    repoRoot: temp,
+    convertModel: await mockConvert(work),
+    updateCatalog: async () => ({ status: 0 }),
+  })
+
+  assert.equal(result.status, 0)
+  assert.ok(existsModel(work, 'v0.1.29a'))
+  assert.equal(existsModel(work, 'latest'), false)
+  rmSync(temp, { recursive: true, force: true })
+  rmSync(work, { recursive: true, force: true })
+})
+
+test('--all succeeds without promotion ledger entries', async () => {
+  const temp = mkdtempSync(path.join(tmpdir(), 'dr-sync-'))
+  const work = mkdtempSync(path.join(tmpdir(), 'dr-sync-work-'))
+  mkdirSync(path.join(work, 'public', 'models', 'dungeon-runner'), { recursive: true })
+  makeRepoLayout(temp, { versions: ['v0.1.29a', 'v0.1.30a'], productionLatest: 'v0.1.30a' })
+
+  const result = await runSync({
+    cwd: work,
+    parsed: { ...parseSyncArgs(['--all']), ok: true },
+    repoRoot: temp,
+    convertModel: await mockConvert(work),
+    updateCatalog: async () => ({ status: 0 }),
+  })
+
+  assert.equal(result.status, 0)
+  assert.ok(existsModel(work, 'v0.1.29a'))
+  assert.ok(existsModel(work, 'v0.1.30a'))
+  const latest = JSON.parse(readFileSync(path.join(work, 'public', 'models', 'dungeon-runner', 'latest', 'model.json'), 'utf8'))
+  assert.equal(latest.modelId, 'v0.1.30a')
+  rmSync(temp, { recursive: true, force: true })
+  rmSync(work, { recursive: true, force: true })
+})
+
+test('--all fails when production latest symlink is missing', async () => {
+  const temp = mkdtempSync(path.join(tmpdir(), 'dr-sync-'))
+  const work = mkdtempSync(path.join(tmpdir(), 'dr-sync-work-'))
+  mkdirSync(path.join(work, 'public', 'models', 'dungeon-runner'), { recursive: true })
+  const modelsRoot = path.join(temp, 'models')
+  mkdirSync(path.join(modelsRoot, 'v0.1.30a'), { recursive: true })
+  writeFileSync(path.join(modelsRoot, 'v0.1.30a', 'policy.weights.h5'), 'weights')
+
+  const result = await runSync({
+    cwd: work,
+    parsed: { ...parseSyncArgs(['--all']), ok: true },
+    repoRoot: temp,
+    convertModel: await mockConvert(work),
+    updateCatalog: async () => ({ status: 0 }),
+  })
+
+  assert.equal(result.status, 1)
+  assert.match(result.message, /Production latest path not found/)
+  rmSync(temp, { recursive: true, force: true })
+  rmSync(work, { recursive: true, force: true })
+})
+
 test('--all converts semver dirs and refreshes web latest once from production latest', async () => {
   const temp = mkdtempSync(path.join(tmpdir(), 'dr-sync-'))
   const work = mkdtempSync(path.join(tmpdir(), 'dr-sync-work-'))

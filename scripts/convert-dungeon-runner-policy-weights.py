@@ -4,8 +4,14 @@ import json
 import pathlib
 import sys
 
+_SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPT_DIR / "lib"))
+
 import tensorflow as tf
-import tensorflowjs as tfjs
+
+from tfjs_export import load_save_keras_model
+
+save_keras_model = load_save_keras_model()
 
 LOGIT_MASK = -1.0e9
 
@@ -39,7 +45,7 @@ def main() -> int:
   copy_weights(model, export_model)
 
   output_dir.mkdir(parents=True, exist_ok=True)
-  tfjs.converters.save_keras_model(export_model, str(output_dir))
+  save_keras_model(export_model, str(output_dir))
   normalize_tfjs_model_json(output_dir / "model.json")
   return 0
 

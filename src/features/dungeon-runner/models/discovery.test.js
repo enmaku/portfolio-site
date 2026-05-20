@@ -24,6 +24,13 @@ test('sortModelIdsForDisplay supports prerelease-style letter suffix versions', 
   )
 })
 
+test('sortModelIdsForDisplay includes replay-line base versions like v0.2', () => {
+  assert.deepEqual(
+    sortModelIdsForDisplay(['latest', 'v0.1.30a', 'v0.2', 'v0.1.29a']),
+    ['latest', 'v0.2', 'v0.1.30a', 'v0.1.29a'],
+  )
+})
+
 test('sortModelIdsForDisplay hides unavailable/non-model ids', () => {
   assert.deepEqual(sortModelIdsForDisplay(['latest', 'v1.0.0', 'README', 'tmp-model', 'v0.1']), ['latest', 'v1.0.0'])
 })

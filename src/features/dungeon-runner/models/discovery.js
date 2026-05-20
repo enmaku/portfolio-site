@@ -11,6 +11,12 @@ export function sortModelIdsForDisplay(modelIds) {
   return [...(hasLatest ? ['latest'] : []), ...semver]
 }
 
+/** Align with dungeon-runner promoted-version ids (scripts/lib/dungeon-runner-model-id.mjs). */
+const LEGACY_EPOCH_RE = /^v0\.1\.\d+a$/i
+const REPLAY_BASE_RE = /^v\d+\.\d+$/i
+const REPLAY_PATCH_RE = /^v\d+\.\d+\.\d{2}$/i
+const GENERIC_SEMVER_RE = /^v\d+\.\d+\.\d+[a-z0-9.-]*$/i
+
 function compareSemverDesc(a, b) {
   const aa = parseModelVersionId(a)
   const bb = parseModelVersionId(b)
@@ -25,11 +31,43 @@ function compareSemverDesc(a, b) {
 }
 
 function isModelVersionId(id) {
-  return /^v\d+\.\d+\.\d+[a-z0-9.-]*$/i.test(id)
+  if (LEGACY_EPOCH_RE.test(id) || REPLAY_PATCH_RE.test(id) || GENERIC_SEMVER_RE.test(id)) {
+    return true
+  }
+  if (!REPLAY_BASE_RE.test(id)) return false
+  // v0.1.NNa legacy ids use three segments; bare v0.1 is not a promoted version.
+  return !/^v0\.1$/i.test(id)
 }
 
 function parseModelVersionId(id) {
-  const match = /^v(\d+)\.(\d+)\.(\d+)([a-z0-9.-]*)$/i.exec(id)
+  let match = /^v0\.1\.(\d+)([a-z0-9.-]*)$/i.exec(id)
+  if (match) {
+    return {
+      major: 0,
+      minor: 1,
+      patch: Number(match[1]),
+      suffix: (match[2] ?? '').toLowerCase(),
+    }
+  }
+  match = /^v(\d+)\.(\d+)$/i.exec(id)
+  if (match) {
+    return {
+      major: Number(match[1]),
+      minor: Number(match[2]),
+      patch: 0,
+      suffix: '',
+    }
+  }
+  match = /^v(\d+)\.(\d+)\.(\d{2})$/i.exec(id)
+  if (match) {
+    return {
+      major: Number(match[1]),
+      minor: Number(match[2]),
+      patch: Number(match[3]),
+      suffix: '',
+    }
+  }
+  match = /^v(\d+)\.(\d+)\.(\d+)([a-z0-9.-]*)$/i.exec(id)
   if (!match) return null
   return {
     major: Number(match[1]),

@@ -45,7 +45,7 @@ Ingest-only extensions (skip-reason table, RTDB REST paths, **raw envelope store
 | Field | Type | Semantics |
 | --- | --- | --- |
 | `version` | integer | Must be exactly `1`. Export always emits integer `1`. Import rejects non-integer or other values with `INVALID_REPLAY`. |
-| `seed` | integer | RNG seed for `createInitialMatchState(setup, { seed })`. |
+| `seed` | integer | Match RNG seed. Replay consumers must call `bootstrapMatchStateForReplay(setup, seed)` (seat/deck shuffle + pick-adventurer start) before stepping `history`; see `debug/replayBootstrap.js`. |
 | `setup` | object | Match setup passed to the engine (e.g. `totalSeats`, `opponents`). |
 | `history` | array | Ordered turn-boundary entries (see below). May be `[]`; import accepts empty history; terminal failure (e.g. match never reaches **match over**) is deferred to the replay verifier, not import. |
 

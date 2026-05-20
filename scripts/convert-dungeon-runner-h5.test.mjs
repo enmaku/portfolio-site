@@ -12,6 +12,8 @@ import { validatePromotedVersionId } from './lib/dungeon-runner-model-id.mjs'
 test('validatePromotedVersionId rejects training run ids and accepts semver', () => {
   assert.equal(validatePromotedVersionId('bc-run-1').ok, false)
   assert.equal(validatePromotedVersionId('v0.1.30a').ok, true)
+  assert.equal(validatePromotedVersionId('v0.2').ok, true)
+  assert.equal(validatePromotedVersionId('v0.2.01').ok, true)
   assert.equal(validatePromotedVersionId('latest').ok, false)
 })
 

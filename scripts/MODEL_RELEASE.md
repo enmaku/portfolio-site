@@ -17,6 +17,8 @@ Domain terms: **TF.js model sync**, **web deployed latest**, **deployed model ve
    ```bash
    # .env — sibling dungeon-runner checkout (preferred over shallow clone)
    DUNGEON_RUNNER_ROOT=../dungeon-runner
+   # Python with TensorFlow + tensorflowjs (training venv)
+   PYTHON_BIN=../dungeon-runner/.venv/bin/python
 
    npm run sync-dungeon-runner-model -- v0.2.01
    # or, without typing semver:
