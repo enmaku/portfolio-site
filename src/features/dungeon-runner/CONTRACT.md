@@ -19,6 +19,8 @@
 - NN runtime returns legal canonical actions and falls back to `PASS` on model/runtime failures.
 - NN runtime retries once on illegal model output before falling back to `PASS`.
 - Default NN sampling mode is stochastic with deterministic code-level override support.
+- At runtime, **pick-adventurer** may bypass NN and use uniform random choice unless `VITE_DUNGEON_RUNNER_NN_PICK_ADVENTURER` is a strict truthy value (`1`, `true`, `yes`); this dev toggle is not part of the replay envelope.
+- `encodeActionIndex` in `nn/policyAdapter.js` is a public export for dungeon-runner replay verification (maps canonical actions to policy head indices).
 
 ## Determinism Contract (v1)
 

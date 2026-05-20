@@ -595,6 +595,7 @@ import {
 import { createDefaultSetupConfig, validateSetupConfig } from '../../features/dungeon-runner/setup/config.js'
 import { canStartMatchFromSetup, normalizeSetupState } from '../../features/dungeon-runner/setup/state.js'
 import { createMatchSeed } from '../../features/dungeon-runner/setup/seed.js'
+import { isNnAdventurerPickEnabled } from '../../features/dungeon-runner/setup/nnAdventurerPick.js'
 import { shouldEnableDebugOnBoot } from '../../features/dungeon-runner/debug/mode.js'
 import { buildStateFromReplayEnvelope } from '../../features/dungeon-runner/debug/replaySession.js'
 import { exportReplayEnvelope, importReplayEnvelope } from '../../features/dungeon-runner/debug/replay.js'
@@ -1586,7 +1587,10 @@ async function runAiTurn() {
   let action = null
   if (roleType === 'nn') {
     const modelId = seat.role.modelId ?? 'latest'
-    if (nnFailureRecovery.isCoolingDown(modelId)) {
+    if (match.value.state.phase === 'pick-adventurer' && !isNnAdventurerPickEnabled()) {
+      trace('choose.random-adventurer', { seatId })
+      action = chooseRandombotAction(match.value.state, { seatId })
+    } else if (nnFailureRecovery.isCoolingDown(modelId)) {
       trace('choose.randombot', { reason: 'model-cooldown', modelId })
       action = chooseRandombotAction(match.value.state, { seatId })
     } else {
@@ -1693,6 +1697,10 @@ function primeAiTurnPrefetch() {
   const seat = state.seats.find((candidate) => candidate.id === seatId)
   if (seat?.role?.type !== 'nn') {
     logAiTurnPrimeSkip('not-nn-seat', { roleType: seat?.role?.type ?? null })
+    return
+  }
+  if (state.phase === 'pick-adventurer' && !isNnAdventurerPickEnabled()) {
+    logAiTurnPrimeSkip('random-pick-adventurer')
     return
   }
   lastPrimeSkipTraceKey = ''
