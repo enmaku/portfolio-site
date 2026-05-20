@@ -59,8 +59,9 @@ function markMatchIdUploaded(matchId, storage, uploadedIds) {
 }
 
 /**
+ * Persists a v1 replay envelope at `dungeonRunnerCompletedMatches/{matchId}`.
  * @param {string} matchId
- * @param {unknown} envelope
+ * @param {unknown} envelope — [Replay envelope contract (v1)](../CONTRACT.md#replay-envelope-contract-v1)
  */
 async function defaultSetCompletedMatch(matchId, envelope) {
   const matchRef = dungeonRunnerCompletedMatchRef(matchId)
@@ -81,6 +82,8 @@ export function createCompletedMatchReplayUploadTracker(storage) {
 }
 
 /**
+ * On **match over**, builds payload via `exportReplayEnvelope` (integer `version: 1`)
+ * per [Replay envelope contract (v1)](../CONTRACT.md#replay-envelope-contract-v1).
  * @param {import('../engine/kernel.js').Match | { id?: string, setup?: unknown, state?: { phase?: string, rng?: { seed?: number }, history?: unknown[] }, history?: unknown[], presentationSpeedProfile?: string } | null | undefined} match
  * @param {CompletedMatchReplayUploadDeps} deps
  */
