@@ -45,4 +45,6 @@ artifacts/*
 # Generated from src/assets/photos/* (see scripts/generate-photo-thumbs.mjs)
 /src/assets/photos/thumbs/*
 !/src/assets/photos/thumbs/.gitkeep
+
+# model replay data
 data/replays/*

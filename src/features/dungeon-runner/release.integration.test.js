@@ -38,6 +38,33 @@ test('release checklist codifies npm test and lint gates', () => {
   assert.equal(checklist.includes('`npm run lint`'), true)
 })
 
+test('release checklist documents TF.js sync and release smoke', () => {
+  const checklist = readFileSync(new URL('./RELEASE_CHECKLIST.md', import.meta.url), 'utf8')
+  assert.equal(checklist.includes('TF.js model sync'), true)
+  assert.equal(checklist.includes('release smoke'), true)
+  assert.equal(checklist.includes('MODEL_RELEASE.md'), true)
+})
+
+test('MODEL_RELEASE.md documents sync commands semver vs latest and release smoke', () => {
+  const doc = readFileSync(new URL('../../../scripts/MODEL_RELEASE.md', import.meta.url), 'utf8')
+  assert.equal(doc.includes('sync-dungeon-runner-model'), true)
+  assert.equal(doc.includes('web deployed latest'), true)
+  assert.equal(doc.includes('Release smoke'), true)
+})
+
+test('dungeon runner CONTEXT links TF.js model sync to MODEL_RELEASE.md', () => {
+  const context = readFileSync(new URL('./CONTEXT.md', import.meta.url), 'utf8')
+  assert.equal(context.includes('TF.js model sync'), true)
+  assert.equal(context.includes('scripts/MODEL_RELEASE.md'), true)
+  assert.equal(context.includes('web deployed latest'), true)
+})
+
+test('.env.example documents DUNGEON_RUNNER_ROOT for model sync', () => {
+  const envExample = readFileSync(new URL('../../../.env.example', import.meta.url), 'utf8')
+  assert.equal(envExample.includes('DUNGEON_RUNNER_ROOT'), true)
+  assert.equal(envExample.includes('sync-dungeon-runner-model'), true)
+})
+
 test('dungeon runner page header gates on dungeon outcome dialog', () => {
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
   assert.equal(page.includes('aria-label="Start new match"'), true)

@@ -9,6 +9,7 @@ import {
   buildPolicyObservation,
   buildPolicyLegalMask,
   decodePolicyIndexToAction,
+  encodeActionIndex,
 } from './policyAdapter.js'
 
 const pythonFixtures = JSON.parse(
@@ -32,6 +33,19 @@ test('policy legal mask maps canonical legal actions into 26-index space', () =>
   assert.equal(mask[POLICY_INDEX.PASS], 1)
   assert.equal(mask[POLICY_INDEX.DRAW], 1)
   assert.equal(mask[POLICY_INDEX.ADD], 0)
+})
+
+test('encodeActionIndex round-trips legal actions for replay verifier', () => {
+  const state = createInitialMatchState({ totalSeats: 2, opponents: [{ type: 'nn', modelId: 'latest' }] }, { seed: 4 })
+  const seatId = state.turn.activeSeatId
+  const actor = { seatId }
+  const legal = getLegalActions(state, actor)
+  for (const action of legal) {
+    const index = encodeActionIndex(state, actor, action)
+    assert.ok(index >= 0, `expected encodable action type ${action.type}`)
+    const decoded = decodePolicyIndexToAction(index, legal, state, actor)
+    assert.deepEqual(decoded, action)
+  }
 })
 
 test('policy decoder supports indexed sacrifice slots', () => {
