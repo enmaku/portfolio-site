@@ -307,7 +307,7 @@ async function inferAction(model, state, legal, options, randomSeed) {
   obsInput.dispose()
   maskInput?.dispose()
   disposePrediction(prediction)
-  const selected = selectActionFromScores(values, legalMask, legal, options, randomSeed, state, { seatId: state.turn.activeSeatId })
+  const selected = selectActionFromScores(values, legalMask, legal, options, randomSeed, state)
   return {
     ...selected.action,
     __debug: {
@@ -402,7 +402,7 @@ function getOrCreateWorker() {
   return sharedWorker
 }
 
-function selectActionFromScores(values, legalMask, legalActions, options, randomSeed, state, actor) {
+function selectActionFromScores(values, legalMask, legalActions, options, randomSeed, state) {
   if (values.length === 4) {
     const legacyActionType = selectLegacyActionType(values, options, randomSeed)
     const action = legalActions.find((candidate) => candidate.type === legacyActionType) ?? legalActions[0]
@@ -417,7 +417,7 @@ function selectActionFromScores(values, legalMask, legalActions, options, random
   if (samplingMode === 'deterministic') {
     const bestIndex = argmaxOverIndices(maskedValues, legalIndices)
     return {
-      action: decodePolicyIndexToAction(bestIndex, legalActions, state, actor) ?? legalActions[0],
+      action: decodePolicyIndexToAction(bestIndex, legalActions, state) ?? legalActions[0],
       selectedIndex: bestIndex,
       mode: 'policy-26',
     }
@@ -425,7 +425,7 @@ function selectActionFromScores(values, legalMask, legalActions, options, random
   const randomFn = options?.random ?? seededRandomFactory(randomSeed)
   const pickedIndex = sampleIndexFromScores(maskedValues, randomFn)
   return {
-    action: decodePolicyIndexToAction(pickedIndex, legalActions, state, actor) ?? legalActions[0],
+    action: decodePolicyIndexToAction(pickedIndex, legalActions, state) ?? legalActions[0],
     selectedIndex: pickedIndex,
     mode: 'policy-26',
   }

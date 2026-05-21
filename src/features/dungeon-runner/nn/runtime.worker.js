@@ -87,7 +87,7 @@ async function inferAction(model, features, legalMask, legalActions, samplingMod
       turn: { activeSeatId },
     }
     return {
-      action: decodePolicyIndexToAction(best, legalActions, state, { seatId: activeSeatId }) ?? legalActions[0] ?? { type: 'PASS' },
+      action: decodePolicyIndexToAction(best, legalActions, state) ?? legalActions[0] ?? { type: 'PASS' },
       debug: { values, legalMask, selectedIndex: best, mode: 'policy-26' },
     }
   }
@@ -98,7 +98,7 @@ async function inferAction(model, features, legalMask, legalActions, samplingMod
     turn: { activeSeatId },
   }
   return {
-    action: decodePolicyIndexToAction(picked, legalActions, state, { seatId: activeSeatId }) ?? legalActions[0] ?? { type: 'PASS' },
+    action: decodePolicyIndexToAction(picked, legalActions, state) ?? legalActions[0] ?? { type: 'PASS' },
     debug: { values, legalMask, selectedIndex: picked, mode: 'policy-26' },
   }
 }

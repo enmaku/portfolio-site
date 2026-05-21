@@ -41,9 +41,9 @@ test('encodeActionIndex round-trips legal actions for replay verifier', () => {
   const actor = { seatId }
   const legal = getLegalActions(state, actor)
   for (const action of legal) {
-    const index = encodeActionIndex(state, actor, action)
+    const index = encodeActionIndex(state, action)
     assert.ok(index >= 0, `expected encodable action type ${action.type}`)
-    const decoded = decodePolicyIndexToAction(index, legal, state, actor)
+    const decoded = decodePolicyIndexToAction(index, legal, state)
     assert.deepEqual(decoded, action)
   }
 })
@@ -79,7 +79,7 @@ test('policy sacrifice slot mapping follows python slot order semantics', () => 
     },
   }
   const legal = getLegalActions(pendingState, { seatId })
-  const action = decodePolicyIndexToAction(POLICY_INDEX.SACRIFICE_BASE + 1, legal, pendingState, { seatId })
+  const action = decodePolicyIndexToAction(POLICY_INDEX.SACRIFICE_BASE + 1, legal, pendingState)
   assert.equal(action?.type, ACTION_TYPES.SACRIFICE)
   assert.equal(action?.equipmentId, 'W_SHIELD')
   const mask = buildPolicyLegalMask(pendingState, { seatId }, legal)
@@ -104,7 +104,7 @@ test('policy sacrifice slots use hero-specific loadout order', () => {
     },
   }
   const legal = getLegalActions(barbarianState, { seatId })
-  const action = decodePolicyIndexToAction(POLICY_INDEX.SACRIFICE_BASE + 3, legal, barbarianState, { seatId })
+  const action = decodePolicyIndexToAction(POLICY_INDEX.SACRIFICE_BASE + 3, legal, barbarianState)
   assert.equal(action?.type, ACTION_TYPES.SACRIFICE)
   assert.equal(action?.equipmentId, 'B_AXE')
 })

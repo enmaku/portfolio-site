@@ -70,18 +70,18 @@ export function buildPolicyObservation(state, actor) {
 export function buildPolicyLegalMask(state, actor, legalActions) {
   const mask = new Array(POLICY_ACTIONS).fill(0)
   for (const action of legalActions ?? []) {
-    const index = encodeActionIndex(state, actor, action)
+    const index = encodeActionIndex(state, action)
     if (index >= 0 && index < POLICY_ACTIONS) mask[index] = 1
   }
   return mask
 }
 
-export function decodePolicyIndexToAction(index, legalActions, state = null, actor = null) {
+export function decodePolicyIndexToAction(index, legalActions, state = null) {
   if (index === POLICY_INDEX.PASS) return chooseLegalByType(legalActions, ACTION_TYPES.PASS)
   if (index === POLICY_INDEX.DRAW) return chooseLegalByType(legalActions, ACTION_TYPES.DRAW)
   if (index === POLICY_INDEX.ADD) return chooseLegalByType(legalActions, ACTION_TYPES.ADD_TO_DUNGEON)
   if (index >= POLICY_INDEX.SACRIFICE_BASE && index < POLICY_INDEX.SACRIFICE_BASE + 6) {
-    const equipmentSlots = getSacrificeSlots(state, actor)
+    const equipmentSlots = getSacrificeSlots(state)
     const equipmentId = equipmentSlots[index - POLICY_INDEX.SACRIFICE_BASE]
     return (
       legalActions.find((action) => action.type === ACTION_TYPES.SACRIFICE && action.equipmentId === equipmentId) ?? null
@@ -103,12 +103,12 @@ export function decodePolicyIndexToAction(index, legalActions, state = null, act
   return null
 }
 
-export function encodeActionIndex(state, actor, action) {
+export function encodeActionIndex(state, action) {
   if (action.type === ACTION_TYPES.PASS) return POLICY_INDEX.PASS
   if (action.type === ACTION_TYPES.DRAW) return POLICY_INDEX.DRAW
   if (action.type === ACTION_TYPES.ADD_TO_DUNGEON) return POLICY_INDEX.ADD
   if (action.type === ACTION_TYPES.SACRIFICE) {
-    const equipmentSlots = getSacrificeSlots(state, actor)
+    const equipmentSlots = getSacrificeSlots(state)
     const index = equipmentSlots.indexOf(action.equipmentId)
     return index === -1 ? -1 : POLICY_INDEX.SACRIFICE_BASE + index
   }
@@ -132,7 +132,7 @@ function chooseLegalByType(legalActions, type) {
   return legalActions.find((action) => action.type === type) ?? null
 }
 
-function getSacrificeSlots(state, actor) {
+function getSacrificeSlots(state) {
   const slots = getHeroEquipmentSlots(state?.hero)
   if (!state) return slots
   const inPlay = new Set(state.centerEquipment ?? [])
