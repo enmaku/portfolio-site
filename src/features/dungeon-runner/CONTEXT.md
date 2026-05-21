@@ -2,6 +2,8 @@
 
 Single-device card **match** against AI **opponents**; play is deterministic from **setup**, **seed**, and the action **history**.
 
+**Cross-repo vocabulary** (link only—do not merge glossaries): [`CROSS_REPO.md`](../../../CROSS_REPO.md) ↔ dungeon-runner [`CROSS_REPO.md`](https://github.com/enmaku/dungeon-runner/blob/main/CROSS_REPO.md). Training pipeline terms: [dungeon-runner `CONTEXT.md`](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md) (`$DUNGEON_RUNNER_ROOT/CONTEXT.md`).
+
 ## Language
 
 ### Match
@@ -174,7 +176,7 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 
 ## Flagged ambiguities
 
-- **Empty dungeon run** vs [dungeon-runner](https://github.com/enmaku/dungeon-runner) training: the physical game and this web **match** treat an empty pile as a runner win. The Python training simulator historically scored it as a runner **loss** so policies would not farm wins by passing forever without adding **monsters**. Exported NN weights were trained under that rule; runtime play here follows table rules.
+- **Empty dungeon run** vs [dungeon-runner](https://github.com/enmaku/dungeon-runner) training: the physical game and this web **match** treat an empty pile as a runner win. The Python training simulator historically scored it as a runner **loss** so policies would not farm wins by passing forever without adding **monsters**. Exported NN weights were trained under that rule; runtime play here follows table rules. Documented as an intentional divergence in [`CROSS_REPO.md`](../../../CROSS_REPO.md) (not unified).
 - “Game” in casual speech usually means **match**; “run” usually means **dungeon run**.
 - “Catalog” without qualifier may mean the neural **model catalog** or the **game data catalog** — use the full term.
 - In-match “history panel” was considered and rejected — **history** stays engine/replay data only.

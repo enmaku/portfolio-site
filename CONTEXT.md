@@ -2,6 +2,8 @@
 
 Personal site for **David J. Perry**: photography gallery, résumé-style about content, navigation, and embedded small multiplayer **projects**.
 
+**Sibling repo:** [dungeon-runner](https://github.com/enmaku/dungeon-runner) (replay training, **gated promotion**) — cross-vocabulary in [`CROSS_REPO.md`](./CROSS_REPO.md); contexts in [`CONTEXT-MAP.md`](./CONTEXT-MAP.md).
+
 ## Language
 
 ### David J. Perry

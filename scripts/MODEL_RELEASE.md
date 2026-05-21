@@ -1,6 +1,6 @@
 # Dungeon Runner — two-repo model release
 
-Domain terms: **TF.js model sync**, **web deployed latest**, **deployed model version**, **production latest**, **promotion manifest** (see [dungeon-runner CONTEXT](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md)).
+Domain terms: **TF.js model sync**, **web deployed latest**, **deployed model version**, **production latest**, **promotion manifest** (see [dungeon-runner CONTEXT](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md)). Cross-repo links (no term translation): [CROSS_REPO.md](../CROSS_REPO.md) ↔ [dungeon-runner CROSS_REPO.md](https://github.com/enmaku/dungeon-runner/blob/main/CROSS_REPO.md).
 
 ## Repos
 
@@ -63,6 +63,7 @@ After **gated promotion** in dungeon-runner, run **TF.js model sync** from portf
 
 ## Related
 
+- Cross-repo vocabulary: [`CROSS_REPO.md`](../CROSS_REPO.md)
 - Web feature glossary: `src/features/dungeon-runner/CONTEXT.md` (**TF.js model sync**)
 - dungeon-runner epic [#11](https://github.com/enmaku/dungeon-runner/issues/11)
 - portfolio-site [#127](https://github.com/enmaku/portfolio-site/issues/127) / [#128](https://github.com/enmaku/portfolio-site/issues/128)

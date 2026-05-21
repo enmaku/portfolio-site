@@ -19,6 +19,11 @@
 - **Portfolio site ↔ Star-room P2P**: **Join links** live on canonical `/projects/…` paths with `room` query params; **public site origin** anchors absolute URLs when builds need a stable host.
 - **Dungeon Runner**: Local **match** play only (no star-room **room**); when a **match** reaches **match over**, a **completed match replay** may be archived remotely using the same Firebase project as multiplayer **projects** (write-only; no sync).
 
+## Sibling repositories
+
+- [dungeon-runner](https://github.com/enmaku/dungeon-runner) — Replay ingest, BC/PPO training, **gated promotion**, H5 **production latest**. Cross-vocabulary (no term translation): [CROSS_REPO.md](./CROSS_REPO.md) ↔ [dungeon-runner `CROSS_REPO.md`](https://github.com/enmaku/dungeon-runner/blob/main/CROSS_REPO.md). Training glossary: [dungeon-runner `CONTEXT.md`](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md).
+- **Dungeon Runner** (this repo) ↔ dungeon-runner: playable **match** and **replay envelope** export here; training pipeline and promote/sync handoff in sibling repo—see [Dungeon Runner](./src/features/dungeon-runner/CONTEXT.md) and [MODEL_RELEASE.md](./scripts/MODEL_RELEASE.md).
+
 ## Architecture
 
 - [ADR 0001 — Hash SPA with static link previews](./docs/adr/0001-hash-spa-with-static-link-previews.md) — why paste previews use extra HTML entry points alongside the hash router.
