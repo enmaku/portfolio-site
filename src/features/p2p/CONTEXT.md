@@ -80,6 +80,18 @@ Failure bucket treated like other non-fatal signals—eligible for **star-room s
 
 Stopping live RTDB listeners and writes without discarding persisted **room** identity (narrow cleanup during reconnect orchestration).
 
+### Path-scoped RTDB access
+
+Clients may read and write only under known **app-scoped room paths** and the portfolio **completed match replay** archive root—not at the database root. No Firebase sign-in is required; **stable client identity** remains the in-room principal.
+
+_Avoid_: “Anonymous Firebase auth” when meaning this model (Firebase Auth is not used); “secured database” implying account login.
+
+### Room suffix gate
+
+Admission to an RTDB **room** subtree is keyed only by knowing the **room suffix**; rules do not further restrict suffix shape beyond living under the correct **app-scoped room path**.
+
+_Avoid_: “Firebase secured the room” (suffix secrecy is the gate, not account login).
+
 ## Relationships
 
 - The **host** role is fixed for a **room**’s lifetime—never migrated to another **participant**.
@@ -92,6 +104,7 @@ Stopping live RTDB listeners and writes without discarding persisted **room** id
 - **Stable client identity** ties reconnecting browsers to prior participation without exposing account sign-in.
 - **Fatal session error** resets persistence and ends the collaboration; **non-fatal disconnect** and **transient disconnect** paths feed reconnect instead of immediate teardown.
 - **Reconnect generation** must match across sleep/backoff slices or the client abandons stale attempts.
+- **Path-scoped RTDB access** applies to all star-room **projects** and the Dungeon Runner replay archive on the shared Firebase project; see [dungeon-runner RTDB ingest access](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md) for maintainer read paths.
 
 ## Example dialogue
 

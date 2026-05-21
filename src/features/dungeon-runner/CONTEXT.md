@@ -58,6 +58,12 @@ A **replay envelope** for a **match** that has reached **match over**, captured 
 
 _Avoid_: “Telemetry,” “training data,” “upload,” “save prompt,” “consent flow” (pipeline, transport, and opt-in UX are out of glossary scope).
 
+### Completed match replay archive
+
+The RTDB subtree where **completed match replay** envelopes are stored keyed by match id; each key is written at most once from the browser. Root-level read includes **archive listing** for maintainer ingest (see dungeon-runner `CONTEXT.md`).
+
+_Avoid_: Treating the archive as a live **room** or expecting the play app to read it during a **match**.
+
 ### Game data catalog
 
 The single source of truth for static **equipment** and **monster** definitions shared by rules resolution and presentation.
@@ -151,6 +157,7 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - **Equipment** and **monster** definitions are consulted during **dungeon runs** and bidding within a **match**.
 - A **match** contains one or more **dungeon runs** before **match over**.
 - A **completed match replay** is a **replay envelope** captured when **match over** is reached.
+- The **completed match replay archive** holds **completed match replay** envelopes keyed by match id; each key is written at most once from the browser; **archive listing** at the root is allowed for maintainer ingest.
 - **History** supplies the ordered actions recorded in a **replay envelope**.
 - **TF.js model sync** runs in portfolio-site after dungeon-runner promote; default NN opponents load **web deployed latest** without setup changes.
 
