@@ -21,7 +21,7 @@
 
 ## Sibling repositories
 
-- [dungeon-runner](https://github.com/enmaku/dungeon-runner) — Replay ingest, BC/PPO training, **gated promotion**, H5 **production latest**. Cross-vocabulary (no term translation): [CROSS_REPO.md](./CROSS_REPO.md) ↔ [dungeon-runner `CROSS_REPO.md`](https://github.com/enmaku/dungeon-runner/blob/main/CROSS_REPO.md). Training glossary: [dungeon-runner `CONTEXT.md`](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md).
+- [dungeon-runner](https://github.com/enmaku/dungeon-runner) — Replay ingest, BC/PPO training, **gated promotion**, H5 **production latest**. Shared terms: [UBIQUITOUS_LANGUAGE.md](./UBIQUITOUS_LANGUAGE.md) ↔ [dungeon-runner `UBIQUITOUS_LANGUAGE.md`](https://github.com/enmaku/dungeon-runner/blob/main/UBIQUITOUS_LANGUAGE.md). Index: [CROSS_REPO.md](./CROSS_REPO.md).
 - **Dungeon Runner** (this repo) ↔ dungeon-runner: playable **match** and **replay envelope** export here; training pipeline and promote/sync handoff in sibling repo—see [Dungeon Runner](./src/features/dungeon-runner/CONTEXT.md) and [MODEL_RELEASE.md](./scripts/MODEL_RELEASE.md).
 
 ## Architecture

@@ -1,9 +1,9 @@
 # Cross-repo vocabulary (portfolio-site ↔ dungeon-runner)
 
-This repo owns the playable **match**, **replay envelope** export, and TF.js **web deployed latest**. [dungeon-runner](https://github.com/enmaku/dungeon-runner) owns replay ingest, BC/PPO training, **gated promotion**, and H5 **production latest**. Terms are **not translated** across repos—link to the other glossary and keep local names.
+This repo owns the playable **match**, **replay envelope** export, and TF.js **web deployed latest**. [dungeon-runner](https://github.com/enmaku/dungeon-runner) owns replay ingest, BC/PPO training, **gated promotion**, and H5 **production latest**. Shared canonical terms: [`UBIQUITOUS_LANGUAGE.md`](./UBIQUITOUS_LANGUAGE.md) ↔ [dungeon-runner `UBIQUITOUS_LANGUAGE.md`](https://github.com/enmaku/dungeon-runner/blob/main/UBIQUITOUS_LANGUAGE.md).
 
-**Local play glossary:** [`src/features/dungeon-runner/CONTEXT.md`](./src/features/dungeon-runner/CONTEXT.md)  
-**Sibling training glossary:** [`dungeon-runner` `CONTEXT.md`](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md) (checkout: `$DUNGEON_RUNNER_ROOT/CONTEXT.md`)
+**Play glossary:** [`src/features/dungeon-runner/CONTEXT.md`](./src/features/dungeon-runner/CONTEXT.md)  
+**Training glossary:** [`dungeon-runner` `CONTEXT.md`](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md) (`$DUNGEON_RUNNER_ROOT/CONTEXT.md`)
 
 ## Sibling checkout
 
@@ -18,6 +18,7 @@ Default sibling layout: `../dungeon-runner` and `../portfolio-site`.
 
 | Topic | portfolio-site | dungeon-runner |
 | --- | --- | --- |
+| Consolidated ubiquitous language | [`UBIQUITOUS_LANGUAGE.md`](./UBIQUITOUS_LANGUAGE.md) | [`UBIQUITOUS_LANGUAGE.md`](https://github.com/enmaku/dungeon-runner/blob/main/UBIQUITOUS_LANGUAGE.md) |
 | Play + envelope glossary | [`src/features/dungeon-runner/CONTEXT.md`](./src/features/dungeon-runner/CONTEXT.md) | [`CONTEXT.md`](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md) |
 | Cross-repo index | this file | [`CROSS_REPO.md`](https://github.com/enmaku/dungeon-runner/blob/main/CROSS_REPO.md) |
 | Replay envelope v1 (normative fields) | [`src/features/dungeon-runner/CONTRACT.md`](./src/features/dungeon-runner/CONTRACT.md) | cross-link in training `CONTEXT.md` |
@@ -51,12 +52,12 @@ Default sibling layout: `../dungeon-runner` and `../portfolio-site`.
 | **Non-NN history step** (CONTRACT) | **Non-NN history step** / **Human step** | No `modelId`; human seat + `is_human` only at dataset build in dungeon-runner. |
 | (no promote step) | **Gated promotion** | portfolio-site sync only; promotion is dungeon-runner `publish`. |
 
-## Intentional divergences (do not unify)
+## Intentional divergences (documented, not unified)
 
-| Topic | portfolio-site | dungeon-runner | Cross-link |
+| Topic | portfolio-site | dungeon-runner | Canonical doc |
 | --- | --- | --- | --- |
-| **Match** vs “game” | **Match** is canonical | Avoid “game” in training docs | feature [`CONTEXT.md`](./src/features/dungeon-runner/CONTEXT.md) |
-| **Empty dungeon run** | Runner wins on empty pile (web/table) | Python sim trained runner **loss** on empty pile | feature Flagged ambiguities |
+| **Match** vs “game” | **Match** is canonical | Use **match** in product-chain docs | Both [`UBIQUITOUS_LANGUAGE.md`](./UBIQUITOUS_LANGUAGE.md) |
+| **Empty dungeon pile at bidding end** | **Web game engine**: **dungeon run** success | **Sim empty-pile forfeit** (not **match over**) | Both `UBIQUITOUS_LANGUAGE.md` flagged sections |
 | **Catalog** | **Game data catalog** vs neural **model catalog** | **Model catalog** = weights only | use full term in docs and UI copy |
 | Envelope `version` | `importReplayEnvelope` rejection rules | Ingest integer `1` strict | eligibility parity tests; edge-type doc in pipeline |
 

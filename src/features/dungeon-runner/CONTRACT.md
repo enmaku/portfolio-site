@@ -109,7 +109,7 @@ Documented for future envelopes only; v1 import/export does not read or emit the
 
 ## Secondary Reference
 
-- Cross-repo term links (no translation): portfolio-site [`CROSS_REPO.md`](../../../CROSS_REPO.md) ↔ dungeon-runner [`CROSS_REPO.md`](https://github.com/enmaku/dungeon-runner/blob/main/CROSS_REPO.md).
+- Consolidated vocabulary: [`UBIQUITOUS_LANGUAGE.md`](../../../UBIQUITOUS_LANGUAGE.md) ↔ dungeon-runner [`UBIQUITOUS_LANGUAGE.md`](https://github.com/enmaku/dungeon-runner/blob/main/UBIQUITOUS_LANGUAGE.md).
 - Training pipeline glossary and ingest extensions: dungeon-runner [`CONTEXT.md`](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md), [`docs/replay-pipeline.md`](https://github.com/enmaku/dungeon-runner/blob/main/docs/replay-pipeline.md).
 
 ## Further Notes

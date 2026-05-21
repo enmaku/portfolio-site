@@ -1,6 +1,6 @@
 # Dungeon Runner — two-repo model release
 
-Domain terms: **TF.js model sync**, **web deployed latest**, **deployed model version**, **production latest**, **promotion manifest** (see [dungeon-runner CONTEXT](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md)). Cross-repo links (no term translation): [CROSS_REPO.md](../CROSS_REPO.md) ↔ [dungeon-runner CROSS_REPO.md](https://github.com/enmaku/dungeon-runner/blob/main/CROSS_REPO.md).
+Domain terms: [UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) ↔ [dungeon-runner UBIQUITOUS_LANGUAGE.md](https://github.com/enmaku/dungeon-runner/blob/main/UBIQUITOUS_LANGUAGE.md). Exhaustive training glossary: [dungeon-runner CONTEXT](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md). Index: [CROSS_REPO.md](../CROSS_REPO.md).
 
 ## Repos
 

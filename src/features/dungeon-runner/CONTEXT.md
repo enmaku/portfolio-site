@@ -2,7 +2,7 @@
 
 Single-device card **match** against AI **opponents**; play is deterministic from **setup**, **seed**, and the action **history**.
 
-**Cross-repo vocabulary** (link only—do not merge glossaries): [`CROSS_REPO.md`](../../../CROSS_REPO.md) ↔ dungeon-runner [`CROSS_REPO.md`](https://github.com/enmaku/dungeon-runner/blob/main/CROSS_REPO.md). Training pipeline terms: [dungeon-runner `CONTEXT.md`](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md) (`$DUNGEON_RUNNER_ROOT/CONTEXT.md`).
+**Ubiquitous language (consolidated):** [`UBIQUITOUS_LANGUAGE.md`](../../../UBIQUITOUS_LANGUAGE.md) ↔ [dungeon-runner `UBIQUITOUS_LANGUAGE.md`](https://github.com/enmaku/dungeon-runner/blob/main/UBIQUITOUS_LANGUAGE.md). Training detail: [dungeon-runner `CONTEXT.md`](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md). Index: [`CROSS_REPO.md`](../../../CROSS_REPO.md).
 
 ## Language
 
@@ -14,9 +14,9 @@ _Avoid_: “Game” alone (ambiguous with the whole app or a single dungeon run)
 
 ### Match over
 
-The **match** has ended; a winner seat is recorded and the player sees the match-over outcome.
+**Web game engine** terminal phase `match-over` with a recorded winner (`matchWinnerSeatId`). Authoritative for play, **completed match replay** upload, and dungeon-runner **replay verifier**. Not **Python training sim** **sim empty-pile forfeit** or other sim-only endings without a winner.
 
-_Avoid_: “Finished game,” “complete game” (use **match** vocabulary).
+_Avoid_: “Finished game,” “complete game”; calling sim forfeit “match over.”
 
 ### Dungeon run
 
@@ -30,13 +30,25 @@ _Avoid_: Treating an empty pile as a stuck dungeon phase or as a runner loss in 
 
 ### Setup
 
-Seat count and **opponent** roles (human, neural opponent, random bot) chosen before a **match** starts.
+Seat count and **opponent** roles (human, **neural opponent**, **Randombot**) chosen before a **match** starts.
 
 ### Opponent
 
-A non-human seat in **setup** (neural opponent or random bot).
+A non-human seat in **setup** (**neural opponent** or **Randombot**).
 
-_Avoid_: “Role badge,” seat-type chips during play (role is fixed at **setup**; **setup** controls already show human vs **opponent** type).
+_Avoid_: “Role badge,” seat-type chips during play (role is fixed at **setup**; **setup** controls already show human vs **opponent** type); random bot (two words).
+
+### Randombot
+
+A **setup** **opponent** with role `randombot` (lowercase id in CONTRACT). Chooses legal actions without TF.js; produces **Non-NN history step** entries without `modelId`.
+
+_Avoid_: Random bot, **RandomBot** (Python code spelling only in maintainer notes).
+
+### Human player seat
+
+The single seat whose setup role is `human` after seat shuffle, identified by **actor seat id** in **history** (`seat-1`…`seat-4`). Exactly one per **match**; not in `setup.opponents`. dungeon-runner resolves it at **dataset build** for **Human step** / `is_human` (not from `modelId` absent alone).
+
+_Avoid_: Assuming `seat-1`; conflating with **Non-NN history step** or **Randombot** steps without `modelId`.
 
 ### History
 
@@ -50,9 +62,15 @@ The numeric RNG starting point for a **match**; with the same **setup** and **se
 
 ### Replay envelope
 
-Versioned export shape: **seed**, **setup**, **history**, and optional **presentation pace** (e.g. cinematic or brisk)—used to rebuild state and share/debug a **match**.
+Versioned export shape: **seed**, **setup**, **history**, and optional **presentation pace**—used to rebuild state and share/debug a **match**.
 
 _Avoid_: Treating the envelope as only a debug artifact; it is also the canonical serialized form of a finished **match** for archival.
+
+### Presentation pace
+
+Optional **replay envelope** field `presentationSpeedProfile`: `cinematic` or `brisk`. Playback hint for debug/replay UI only; not rules state, not used by dungeon-runner **replay verifier** or **derived training rows**.
+
+_Avoid_: Presentation pace as a training label; invalid enum at import (`INVALID_REPLAY` when key present).
 
 ### Completed match replay
 
@@ -158,6 +176,7 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - **Adventurer identity** fields are **ui** only; the engine/kernel consumes **catalog rules** only, not **ui**.
 - **Equipment** and **monster** definitions are consulted during **dungeon runs** and bidding within a **match**.
 - A **match** contains one or more **dungeon runs** before **match over**.
+- Each **match** has exactly one **human player seat**; the human is not an **opponent** in **setup**.
 - A **completed match replay** is a **replay envelope** captured when **match over** is reached.
 - The **completed match replay archive** holds **completed match replay** envelopes keyed by match id; each key is written at most once from the browser; **archive listing** at the root is allowed for maintainer ingest.
 - **History** supplies the ordered actions recorded in a **replay envelope**.
@@ -176,7 +195,7 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 
 ## Flagged ambiguities
 
-- **Empty dungeon run** vs [dungeon-runner](https://github.com/enmaku/dungeon-runner) training: the physical game and this web **match** treat an empty pile as a runner win. The Python training simulator historically scored it as a runner **loss** so policies would not farm wins by passing forever without adding **monsters**. Exported NN weights were trained under that rule; runtime play here follows table rules. Documented as an intentional divergence in [`CROSS_REPO.md`](../../../CROSS_REPO.md) (not unified).
+- **Empty dungeon pile at bidding end** vs **sim empty-pile forfeit**: **web game engine** gives an immediate successful **dungeon run** (see kernel test). **Python training sim** uses **sim empty-pile forfeit** (`EMPTY_DUNGEON_FORFEIT`, no winner)—an anti-pass-farming rule from early training that remains a sim **local minima**; runtime play follows web/table rules. See [`UBIQUITOUS_LANGUAGE.md`](../../../UBIQUITOUS_LANGUAGE.md).
 - “Game” in casual speech usually means **match**; “run” usually means **dungeon run**.
 - “Catalog” without qualifier may mean the neural **model catalog** or the **game data catalog** — use the full term.
 - In-match “history panel” was considered and rejected — **history** stays engine/replay data only.
