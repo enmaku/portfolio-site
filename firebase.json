@@ -10,6 +10,9 @@
     }
   ],
   "emulators": {
+    "database": {
+      "port": 9001
+    },
     "firestore": {
       "port": 8080
     },
