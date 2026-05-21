@@ -1,6 +1,25 @@
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    ".read": false,
+    ".write": false,
+    "gameTimerRooms": {
+      "$suffix": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "movieVoteRooms": {
+      "$suffix": {
+        ".read": true,
+        ".write": true
+      }
+    },
+    "dungeonRunnerCompletedMatches": {
+      ".read": true,
+      ".write": false,
+      "$matchId": {
+        ".write": "!data.exists()"
+      }
+    }
   }
 }
