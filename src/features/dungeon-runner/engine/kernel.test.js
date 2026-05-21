@@ -536,6 +536,34 @@ test('draw action updates top card only for acting seat view', () => {
   assert.equal(otherView.bidding.revealedMonsterCard, null)
 })
 
+test('sacrifice legal actions only include equipment still on the table', () => {
+  const state = createInitialMatchState(
+    {
+      totalSeats: 2,
+      opponents: [{ type: 'randombot' }],
+    },
+    { seed: 77 },
+  )
+  const seat1 = state.turn.activeSeatId
+  const seat2 = state.seats.find((seat) => seat.id !== seat1).id
+  const draw1 = applyAction(state, { type: ACTION_TYPES.DRAW }, { seatId: seat1 })
+  assert.equal(draw1.ok, true)
+  const sacrifice = applyAction(
+    draw1.state,
+    { type: ACTION_TYPES.SACRIFICE, equipmentId: 'W_SHIELD' },
+    { seatId: seat1 },
+  )
+  assert.equal(sacrifice.ok, true)
+  assert.equal(sacrifice.state.centerEquipment.includes('W_SHIELD'), false)
+
+  const draw2 = applyAction(sacrifice.state, { type: ACTION_TYPES.DRAW }, { seatId: seat2 })
+  assert.equal(draw2.ok, true)
+  const legal = getLegalActions(draw2.state, { seatId: seat2 })
+  const sacrificeIds = legal.filter((action) => action.type === ACTION_TYPES.SACRIFICE).map((a) => a.equipmentId)
+  assert.equal(sacrificeIds.includes('W_SHIELD'), false)
+  assert.equal(sacrificeIds.every((id) => draw2.state.centerEquipment.includes(id)), true)
+})
+
 test('sacrifice action removes selected equipment and advances turn', () => {
   const state = createInitialMatchState(
     {

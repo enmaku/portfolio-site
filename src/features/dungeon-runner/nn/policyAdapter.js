@@ -135,10 +135,9 @@ function chooseLegalByType(legalActions, type) {
 function getSacrificeSlots(state, actor) {
   const slots = getHeroEquipmentSlots(state?.hero)
   if (!state) return slots
-  const seatId = actor?.seatId ?? state?.turn?.activeSeatId ?? null
-  const loadout = seatId ? state?.heroLoadout?.[seatId] ?? [] : []
-  if (!loadout.length) return slots
-  return slots.filter((equipmentId) => loadout.includes(equipmentId))
+  const inPlay = new Set(state.centerEquipment ?? [])
+  if (!inPlay.size) return slots
+  return slots.filter((equipmentId) => inPlay.has(equipmentId))
 }
 
 function getHeroEquipmentSlots(hero) {

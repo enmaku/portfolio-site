@@ -239,8 +239,7 @@ export function getLegalActions(state, actor) {
 
   if (state.bidding.revealedMonsterCard) {
     const actions = [{ type: ACTION_TYPES.ADD_TO_DUNGEON }]
-    const equipment = state.heroLoadout[actor.seatId] ?? []
-    for (const equipmentId of equipment) {
+    for (const equipmentId of state.centerEquipment ?? []) {
       actions.push({ type: ACTION_TYPES.SACRIFICE, equipmentId })
     }
     return actions
@@ -486,8 +485,9 @@ function applyDrawAction(state, actor) {
 }
 
 function applySacrificeAction(state, action, actor) {
+  const centerEquipment = state.centerEquipment ?? []
+  if (!centerEquipment.includes(action.equipmentId) || !state.bidding.revealedMonsterCard) return null
   const loadout = state.heroLoadout[actor.seatId] ?? []
-  if (!loadout.includes(action.equipmentId) || !state.bidding.revealedMonsterCard) return null
   return {
     ...state,
     heroLoadout: {
