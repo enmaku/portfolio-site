@@ -495,6 +495,7 @@
             color="primary"
             unelevated
             label="Use"
+            :disable="equipmentModalActionsDisabled"
             @click="takeEquipmentUseAction"
           />
           <q-btn flat color="primary" label="Continue" @click="continueFromEquipmentModal" />
@@ -1031,7 +1032,7 @@ const boardEquipmentTokens = computed(() => {
       pulse: actionable,
       deemphasized: isDungeonPhase && hasActionable && !actionable && !removed,
       canUseNow: dungeonToken?.canUseNow ?? false,
-      hasModal: !removed,
+      hasModal: true,
     }
   })
 })
@@ -1042,6 +1043,9 @@ const selectedEquipmentModalView = computed(() => {
     legalActions: legalActions.value,
   })
 })
+const equipmentModalActionsDisabled = computed(
+  () => gameplayInputLocked.value || dungeonOutcomeDialogOpen.value || !isHumanTurn.value,
+)
 const vorpalPromptView = computed(() =>
   createVorpalDeclarationPromptView({
     isHumanTurn: isHumanTurn.value,
@@ -1489,13 +1493,13 @@ function onConfirmationDialogCancel() {
 }
 
 function openEquipmentModal(token) {
-  if (!token?.hasModal || gameplayInputLocked.value || !isHumanTurn.value || dungeonOutcomeDialogOpen.value) return
+  if (!token?.hasModal || dungeonOutcomeDialogOpen.value) return
   selectedEquipmentTokenId.value = token.equipmentId
   equipmentModalOpen.value = true
 }
 
 function takeEquipmentUseAction() {
-  if (!selectedEquipmentModalView.value?.useAction) return
+  if (equipmentModalActionsDisabled.value || !selectedEquipmentModalView.value?.useAction) return
   takeHumanAction(selectedEquipmentModalView.value.useAction)
 }
 
@@ -1511,7 +1515,7 @@ async function startNewMatchIntentional() {
 }
 
 function continueFromEquipmentModal() {
-  if (selectedEquipmentModalView.value?.continueAction) {
+  if (!equipmentModalActionsDisabled.value && selectedEquipmentModalView.value?.continueAction) {
     takeHumanAction(selectedEquipmentModalView.value.continueAction)
     return
   }
@@ -2478,8 +2482,8 @@ function importReplay() {
 </style>
 
 <style>
-/* Quasar portals dialogs outside scoped tree; keep equipment modal above board texture & memory-aid layers */
+/* Quasar portals dialogs outside scoped tree; above presentation ghost flights (z-index 10050) */
 .dr-equipment-dialog .q-dialog__inner {
-  z-index: 9000 !important;
+  z-index: 10100 !important;
 }
 </style>

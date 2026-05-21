@@ -274,9 +274,11 @@ test('persistent dungeon outcome dialog locks all background interactions while 
     `expected gameplay action buttons to gate on dungeonOutcomeDialogOpen (found ${disabledActionBindings.length})`,
   )
   assert.equal(
-    page.includes('if (!token?.hasModal || gameplayInputLocked.value || !isHumanTurn.value || dungeonOutcomeDialogOpen.value) return'),
+    page.includes('if (!token?.hasModal || dungeonOutcomeDialogOpen.value) return'),
     true,
   )
+  assert.equal(page.includes('equipmentModalActionsDisabled'), true)
+  assert.equal(page.includes('z-index: 10100 !important'), true)
 })
 
 test('outcome dialog reopens when match resets last-run state to null between runs', () => {

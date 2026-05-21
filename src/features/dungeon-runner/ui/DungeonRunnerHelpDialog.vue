@@ -26,7 +26,7 @@
         </p>
         <p class="q-ma-none q-mb-md">
           In each round the runner will pick an adventurer from the available classes. The adventurer will have a starting 
-          HP and equipment. On your turn you can click on any equipment tile to see a description of what it does.
+          HP and equipment. You can click any equipment tile at any time—including spent or sacrificed pieces—to read what it does.
         </p>
 
         <p class="text-subtitle2 text-weight-medium q-mb-xs">Bidding</p>
