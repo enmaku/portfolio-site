@@ -84,6 +84,8 @@ Stopping live RTDB listeners and writes without discarding persisted **room** id
 
 Clients may read and write only under known **app-scoped room paths** and the portfolio **completed match replay** archive root—not at the database root. No Firebase sign-in is required; **stable client identity** remains the in-room principal.
 
+Star-room **projects** (Game Timer, Movie Vote) share one write-sanitization path for payloads bound for those **app-scoped room paths**; the **completed match replay** archive uses the same Firebase project but a separate write path.
+
 _Avoid_: “Anonymous Firebase auth” when meaning this model (Firebase Auth is not used); “secured database” implying account login.
 
 ### Room suffix gate
