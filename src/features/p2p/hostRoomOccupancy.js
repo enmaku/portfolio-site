@@ -1,7 +1,17 @@
-import { isRoomMarkedEnded } from './sessionRoomRtdb.js'
+/**
+ * Shared host room occupancy for star-room RTDB sessions (Game Timer, Movie Vote).
+ */
 
 /** Legacy rooms without `hostClientId` still use ping freshness for occupancy. */
 export const HOST_PING_FRESH_MS = 120_000
+
+/**
+ * @param {unknown} endedSnapVal RTDB `ended` node value.
+ * @returns {boolean}
+ */
+export function isRoomMarkedEnded(endedSnapVal) {
+  return endedSnapVal != null
+}
 
 /**
  * @param {unknown} ts
@@ -36,6 +46,21 @@ export function isRoomOccupiedByOtherHost(pingVal, hostClientId, stableClientId,
 }
 
 /**
+ * Same browser reclaiming its room after refresh (do not wipe RTDB session payload).
+ * @param {unknown} hostClientId
+ * @param {unknown} endedVal
+ * @param {string} stableClientId
+ * @returns {boolean}
+ */
+export function isReclaimOwnHostRoom(hostClientId, endedVal, stableClientId) {
+  return (
+    typeof hostClientId === 'string' &&
+    hostClientId === stableClientId &&
+    !isRoomMarkedEnded(endedVal)
+  )
+}
+
+/**
  * @param {unknown} pingVal RTDB `hostPing` value.
  * @param {unknown} endedVal RTDB `ended` value.
  * @param {{
@@ -63,4 +88,21 @@ export function canClaimHostRoom(pingVal, endedVal, opts = {}) {
     return !isRoomOccupiedByOtherHost(pingVal, hostClientId, stableClientId, nowMs)
   }
   return !isHostPingFresh(pingVal, nowMs)
+}
+
+/**
+ * Host occupancy guard before finish/resume paths wire the room.
+ * @param {unknown} pingVal RTDB `hostPing` value.
+ * @param {unknown} endedVal RTDB `ended` value.
+ * @param {{
+ *   nowMs?: number,
+ *   hostClientId?: unknown,
+ *   stableClientId?: string,
+ * }} [opts]
+ * @returns {void}
+ */
+export function assertHostRoomClaimable(pingVal, endedVal, opts = {}) {
+  if (!canClaimHostRoom(pingVal, endedVal, opts)) {
+    throw new Error('Room code in use')
+  }
 }

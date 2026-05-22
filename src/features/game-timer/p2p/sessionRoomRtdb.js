@@ -5,11 +5,3 @@ export const ROOM_CLAIM_RESET_PATHS = Object.freeze([
   'ended',
   'hostVisible',
 ])
-
-/**
- * @param {unknown} endedSnapVal RTDB `ended` node value.
- * @returns {boolean}
- */
-export function isRoomMarkedEnded(endedSnapVal) {
-  return endedSnapVal != null
-}

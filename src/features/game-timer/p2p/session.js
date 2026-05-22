@@ -10,6 +10,7 @@ import {
   get,
   onChildAdded,
   onValue,
+  onDisconnect,
   ref as dbRef,
   remove,
 } from 'firebase/database'
@@ -19,6 +20,7 @@ import {
   runGuestStarReconnectLoop,
   runHostStarReconnectLoop,
 } from '../../p2p/starRoomShell.js'
+import { createStarRoomSession } from '../../p2p/starRoomSessionCore.js'
 import { deriveStableHostSuffix, getStableClientId } from '../../p2p/identity.js'
 import {
   encodeGuestHello,
@@ -34,12 +36,7 @@ import {
   parseHostMessage,
   parseHostVisibility,
 } from './protocol.js'
-import {
-  canClaimHostRoom,
-  isHostPingPresent,
-  isReclaimOwnHostRoom,
-} from './sessionHostPing.js'
-import { isRoomMarkedEnded, ROOM_CLAIM_RESET_PATHS } from './sessionRoomRtdb.js'
+import { ROOM_CLAIM_RESET_PATHS } from './sessionRoomRtdb.js'
 import {
   generateRoomSuffix,
   isValidRoomSuffix,
@@ -74,19 +71,9 @@ let handlers = {
   applySnapshot: () => {},
 }
 
-let isHost = false
-
 let nextSeq = 0
 
 let lastSeenSeq = 0
-
-let reconnectGeneration = 0
-
-/** @type {string | null} */
-let guestStableId = null
-
-/** @type {Array<() => void>} */
-let wireUnsubs = []
 
 /** Reactive session UI state for multiplayer (Vue ref; safe to use outside components). */
 export const sessionPhase = ref(/** @type {GameTimerSessionPhase} */ ('idle'))
@@ -106,9 +93,6 @@ export const remoteHostTabVisible = ref(true)
  */
 export const remoteHostPresent = ref(true)
 
-/** @type {(() => void) | null} */
-let hostVisibilityTeardown = null
-
 /**
  * @param {string} suffix
  * @param {string} path
@@ -117,12 +101,67 @@ function roomChild(suffix, path) {
   return child(gameTimerRoomRef(suffix), path)
 }
 
-/**
- * @param {() => void} unsub
- */
-function trackUnsub(unsub) {
-  wireUnsubs.push(unsub)
+const rtdbPort = {
+  get,
+  set: (ref, value) => setRtdb(ref, value),
+  remove,
+  onValue,
+  onChildAdded,
+  onDisconnect,
 }
+
+const core = createStarRoomSession({
+  guestPresence: 'loose',
+  claimResetPaths: ROOM_CLAIM_RESET_PATHS,
+  getStableClientId,
+  roomChild,
+  rtdb: rtdbPort,
+  protocolAdapter: {
+    encodeGuestHello,
+    parseHostVisibility,
+    hasGuestJoinableState: (stateVal) => parseHostMessage(stateVal) != null,
+    encodeHostVisibility,
+  },
+  onPhaseChange: (phase) => {
+    sessionPhase.value = phase
+  },
+  onSuffixChange: (s) => {
+    sessionSuffix.value = s
+  },
+  onSessionEvent: (event) => {
+    if (event.type === 'host_ended_room') {
+      handleGuestHostEnded()
+      return
+    }
+    if (event.type === 'host_ping_present') {
+      remoteHostPresent.value = event.present
+      return
+    }
+    if (event.type === 'host_tab_visible') {
+      remoteHostTabVisible.value = event.visible
+      return
+    }
+    if (event.type === 'connectivity_offline') {
+      if (event.role === 'guest') {
+        const suffix = core.getSuffix()
+        if (suffix) void guestReconnectLoop(suffix, core.getReconnectGeneration())
+      } else {
+        const suffix = core.getSuffix()
+        if (suffix) void hostReconnectLoop(suffix, core.getReconnectGeneration())
+      }
+    }
+  },
+  onHostInboxMessage: (stableId, raw) => handleHostInboxMessage(stableId, raw),
+  onGuestAuthorityMessage: (raw) => handleGuestInbound(raw),
+  hydrateHost: hydrateHostFromRtdb,
+  subscribeFirebaseConnected: (onOffline) => {
+    const connectedRef = dbRef(getGameTimerDatabase(), '.info/connected')
+    return onValue(connectedRef, (snap) => {
+      if (snap.val() !== false) return
+      onOffline()
+    })
+  },
+})
 
 /**
  * @param {string} message
@@ -155,62 +194,19 @@ function clearRoomPersistence() {
   }
 }
 
-function clearHeartbeatAndWatch() {
-  if (hostVisibilityTeardown) {
-    hostVisibilityTeardown()
-    hostVisibilityTeardown = null
-  }
-}
-
-function clearWireUnsubs() {
-  for (const unsub of wireUnsubs) {
-    try {
-      unsub()
-    } catch {
-      void 0
-    }
-  }
-  wireUnsubs = []
-}
-
-function broadcastHostVisibility(visible) {
-  if (!isHost || !sessionSuffix.value) return
-  setRtdb(roomChild(sessionSuffix.value, 'hostVisible'), encodeHostVisibility(visible)).catch(() => {})
-}
-
-function startHostVisibilityWatch() {
-  if (typeof document === 'undefined' || hostVisibilityTeardown) return
-  const onVis = () => {
-    broadcastHostVisibility(document.visibilityState === 'visible')
-  }
-  document.addEventListener('visibilitychange', onVis)
-  hostVisibilityTeardown = () => document.removeEventListener('visibilitychange', onVis)
-  broadcastHostVisibility(document.visibilityState === 'visible')
-}
-
-function wireDatabaseConnectivity() {
-  const connectedRef = dbRef(getGameTimerDatabase(), '.info/connected')
-  trackUnsub(
-    onValue(connectedRef, (snap) => {
-      if (snap.val() !== false) return
-      if (isHost && sessionPhase.value === 'hosting') onHostDisconnected()
-      else if (!isHost && sessionPhase.value === 'guest_connected') onGuestDisconnected()
-    }),
-  )
-}
-
-function destroyWireOnly() {
-  clearHeartbeatAndWatch()
-  clearWireUnsubs()
-  guestStableId = null
-  isHost = false
+function resetHostGuestWireState() {
   nextSeq = 0
   lastSeenSeq = 0
   hostGuestIntentDeduper = createGuestIntentDeduper()
 }
 
+function destroyWireOnly() {
+  resetHostGuestWireState()
+  core.destroyWireOnly()
+}
+
 function hostPublishSnapshot(snapshot) {
-  if (!isHost || !sessionSuffix.value) return
+  if (!core.isHostRole() || !sessionSuffix.value) return
   const msg = encodeHostSnapshot(snapshot, ++nextSeq)
   setRtdb(roomChild(sessionSuffix.value, 'state'), msg).catch(() => {})
 }
@@ -219,7 +215,7 @@ function hostPublishSnapshot(snapshot) {
  * @param {string} stableId
  */
 function onGuestHello(stableId) {
-  if (!isHost || !sessionSuffix.value) return
+  if (!core.isHostRole() || !sessionSuffix.value) return
   void stableId
   try {
     hostPublishSnapshot(handlers.getSnapshot())
@@ -281,116 +277,11 @@ function handleHostInboxMessage(stableId, raw) {
   hostPublishSnapshot(snap)
 }
 
-/**
- * @param {string} suffix
- */
-function wireHostRoom(suffix) {
-  wireDatabaseConnectivity()
-
-  const inboxRef = roomChild(suffix, 'inbox')
-  trackUnsub(
-    onChildAdded(inboxRef, (snap) => {
-      const stableId = snap.key
-      if (!stableId) return
-      const itemRef = snap.ref
-      trackUnsub(
-        onValue(itemRef, (itemSnap) => {
-          const val = itemSnap.val()
-          if (val != null) handleHostInboxMessage(stableId, val)
-        }),
-      )
-    }),
-  )
-}
-
-/**
- * @param {string} suffix
- */
-function wireGuestRoom(suffix) {
-  wireDatabaseConnectivity()
-
-  trackUnsub(
-    onValue(roomChild(suffix, 'state'), (snap) => {
-      const raw = snap.val()
-      if (raw != null) handleGuestInbound(raw)
-    }),
-  )
-
-  trackUnsub(
-    onValue(roomChild(suffix, 'ended'), (snap) => {
-      if (isRoomMarkedEnded(snap.val())) handleGuestHostEnded()
-    }),
-  )
-
-  trackUnsub(
-    onValue(roomChild(suffix, 'hostPing'), (snap) => {
-      remoteHostPresent.value = isHostPingPresent(snap.val())
-    }),
-  )
-
-  trackUnsub(
-    onValue(roomChild(suffix, 'hostVisible'), (snap) => {
-      const vis = parseHostVisibility(snap.val())
-      if (!vis) return
-      remoteHostTabVisible.value = vis.visible
-    }),
-  )
-}
-
 function handleGuestHostEnded() {
   notifyP2P('The host ended the room.', 'info')
-  reconnectGeneration += 1
+  core.bumpReconnectGeneration()
   clearRoomPersistence()
   teardownSession()
-}
-
-/**
- * @param {string} suffix
- */
-async function clearRoomEnded(suffix) {
-  await remove(roomChild(suffix, 'ended')).catch(() => {})
-}
-
-/**
- * @param {string} suffix
- */
-async function resetStaleRoomRtdbForClaim(suffix) {
-  await Promise.all(
-    ROOM_CLAIM_RESET_PATHS.map((path) => remove(roomChild(suffix, path)).catch(() => {})),
-  )
-}
-
-/**
- * @param {string} suffix
- * @returns {Promise<boolean>}
- */
-async function tryClaimHostRoom(suffix) {
-  const pingRef = roomChild(suffix, 'hostPing')
-  const stableClientId = getStableClientId()
-  const [pingSnap, endedSnap, hostClientSnap] = await Promise.all([
-    get(pingRef),
-    get(roomChild(suffix, 'ended')),
-    get(roomChild(suffix, 'hostClientId')),
-  ])
-  const pingVal = pingSnap.val()
-  const endedVal = endedSnap.val()
-  if (
-    !canClaimHostRoom(pingVal, endedVal, {
-      hostClientId: hostClientSnap.val(),
-      stableClientId,
-    })
-  ) {
-    return false
-  }
-
-  const reclaimOwn = isReclaimOwnHostRoom(hostClientSnap.val(), endedVal, stableClientId)
-
-  await setRtdb(pingRef, Date.now())
-  await setRtdb(roomChild(suffix, 'hostClientId'), stableClientId)
-  if (!reclaimOwn) {
-    await resetStaleRoomRtdbForClaim(suffix)
-  }
-  return true
 }
 
 /**
@@ -410,42 +301,10 @@ async function hydrateHostFromRtdb(suffix) {
 
 /**
  * @param {string} suffix
- * @returns {Promise<void>}
- */
-async function assertHostRoomReclaimable(suffix) {
-  const stableClientId = getStableClientId()
-  const [pingSnap, endedSnap, hostClientSnap] = await Promise.all([
-    get(roomChild(suffix, 'hostPing')),
-    get(roomChild(suffix, 'ended')),
-    get(roomChild(suffix, 'hostClientId')),
-  ])
-  if (
-    !canClaimHostRoom(pingSnap.val(), endedSnap.val(), {
-      hostClientId: hostClientSnap.val(),
-      stableClientId,
-    })
-  ) {
-    throw new Error('Room code in use')
-  }
-}
-
-/**
- * @param {string} suffix
  */
 async function finishHostSession(suffix) {
-  await assertHostRoomReclaimable(suffix)
-  await clearRoomEnded(suffix)
-  isHost = true
-  sessionSuffix.value = suffix
-  nextSeq = 0
-  lastSeenSeq = 0
-  hostGuestIntentDeduper = createGuestIntentDeduper()
-  await hydrateHostFromRtdb(suffix)
-  wireHostRoom(suffix)
-  sessionPhase.value = 'hosting'
-  startHostVisibilityWatch()
-  await setRtdb(roomChild(suffix, 'hostPing'), Date.now())
-  await setRtdb(roomChild(suffix, 'hostClientId'), getStableClientId())
+  resetHostGuestWireState()
+  await core.finishHostSession(suffix)
   try {
     useGameTimerRoomSessionStore().setHost(suffix)
   } catch {
@@ -458,34 +317,9 @@ async function finishHostSession(suffix) {
  * @param {string} suffix
  */
 async function establishGuestSession(suffix) {
-  const [pingSnap, endedSnap, stateSnap] = await Promise.all([
-    get(roomChild(suffix, 'hostPing')),
-    get(roomChild(suffix, 'ended')),
-    get(roomChild(suffix, 'state')),
-  ])
-
-  if (isRoomMarkedEnded(endedSnap.val())) {
-    throw new Error('No active room for that code')
-  }
-
-  const hostPingPresent = isHostPingPresent(pingSnap.val())
-  const hasRoomState = parseHostMessage(stateSnap.val()) != null
-  if (!hostPingPresent && !hasRoomState) {
-    throw new Error('No active room for that code')
-  }
-
-  guestStableId = getStableClientId()
   lastSeenSeq = 0
-  isHost = false
-  sessionSuffix.value = suffix
   remoteHostTabVisible.value = true
-  remoteHostPresent.value = hostPingPresent
-
-  wireGuestRoom(suffix)
-  await setRtdb(roomChild(suffix, `inbox/${guestStableId}`), encodeGuestHello(guestStableId))
-
-  sessionPhase.value = 'guest_connected'
-
+  await core.establishGuestSession(suffix)
   try {
     useGameTimerRoomSessionStore().setGuest(suffix)
   } catch {
@@ -542,48 +376,6 @@ export function handleGuestInbound(raw) {
   }
 }
 
-function onGuestDisconnected() {
-  if (isHost) return
-  if (sessionPhase.value !== 'guest_connected') return
-
-  const suffix = sessionSuffix.value
-  if (!suffix) {
-    destroyWireOnly()
-    sessionPhase.value = 'idle'
-    return
-  }
-
-  reconnectGeneration += 1
-  const gen = reconnectGeneration
-
-  destroyWireOnly()
-  sessionPhase.value = 'reconnecting'
-  sessionSuffix.value = suffix
-
-  void guestReconnectLoop(suffix, gen)
-}
-
-function onHostDisconnected() {
-  if (!isHost) return
-  if (sessionPhase.value !== 'hosting') return
-
-  const suffix = sessionSuffix.value
-  if (!suffix) {
-    destroyWireOnly()
-    sessionPhase.value = 'idle'
-    return
-  }
-
-  reconnectGeneration += 1
-  const gen = reconnectGeneration
-
-  destroyWireOnly()
-  sessionPhase.value = 'reconnecting'
-  sessionSuffix.value = suffix
-
-  void hostReconnectLoop(suffix, gen)
-}
-
 /**
  * @param {string} suffix
  * @param {number} gen
@@ -591,7 +383,7 @@ function onHostDisconnected() {
 function guestReconnectLoop(suffix, gen) {
   return runGuestStarReconnectLoop({
     gen,
-    getReconnectGeneration: () => reconnectGeneration,
+    getReconnectGeneration: () => core.getReconnectGeneration(),
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
     notifyReconnectingGuest: (attempt, max) =>
       notifyP2P(`Reconnecting… attempt ${attempt} of ${max}`, 'warning'),
@@ -612,7 +404,7 @@ function guestReconnectLoop(suffix, gen) {
 function hostReconnectLoop(suffix, gen) {
   return runHostStarReconnectLoop({
     gen,
-    getReconnectGeneration: () => reconnectGeneration,
+    getReconnectGeneration: () => core.getReconnectGeneration(),
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
     notifyReconnectingHost: (attempt, max) =>
       notifyP2P(`Reconnecting as host… attempt ${attempt} of ${max}`, 'warning'),
@@ -649,7 +441,7 @@ function hostStartSuffixOrder() {
  * @returns {Promise<{ suffix: string }>}
  */
 export async function resumeAsHost(rawSuffix, maxAttempts = 10) {
-  reconnectGeneration += 1
+  core.bumpReconnectGeneration()
   teardownSession()
 
   const suffix = normalizeRoomSuffixInput(rawSuffix)
@@ -711,7 +503,7 @@ export function resumeP2PSessionIfNeeded() {
  * @returns {Promise<{ suffix: string }>}
  */
 export async function startAsHost(maxAttempts = 12) {
-  reconnectGeneration += 1
+  core.bumpReconnectGeneration()
   teardownSession()
   sessionPhase.value = 'connecting'
 
@@ -723,7 +515,7 @@ export async function startAsHost(maxAttempts = 12) {
       attempt < fixedSuffixes.length ? fixedSuffixes[attempt] : generateRoomSuffix(6)
 
     try {
-      if (!(await tryClaimHostRoom(suffix))) {
+      if (!(await core.tryClaimHostRoom(suffix))) {
         lastErr = new Error('Room code in use')
         continue
       }
@@ -746,7 +538,7 @@ export async function startAsHost(maxAttempts = 12) {
  * @returns {Promise<void>}
  */
 export async function joinRoom(rawSuffix) {
-  reconnectGeneration += 1
+  core.bumpReconnectGeneration()
   teardownSession()
 
   const suffix = normalizeRoomSuffixInput(rawSuffix)
@@ -781,16 +573,14 @@ export function broadcastGameTimerSnapshot(snapshot, intent) {
   const suffix = sessionSuffix.value
   if (!suffix) return
 
-  if (isHost) {
+  if (core.isHostRole()) {
     hostPublishSnapshot(snapshot)
     return
   }
 
-  if (guestStableId) {
-    setRtdb(
-      roomChild(suffix, `inbox/${guestStableId}`),
-      encodeGuestUpdate(snapshot, intent),
-    ).catch(() => {})
+  const guestId = core.getGuestStableId()
+  if (guestId) {
+    core.writeGuestInbox(encodeGuestUpdate(snapshot, intent))
   }
 }
 
@@ -799,11 +589,9 @@ export function broadcastGameTimerSnapshot(snapshot, intent) {
  * @returns {void}
  */
 export function teardownSession() {
-  sessionPhase.value = 'idle'
-  sessionSuffix.value = null
   remoteHostTabVisible.value = true
   remoteHostPresent.value = true
-  destroyWireOnly()
+  core.teardownSession()
 }
 
 /**
@@ -812,14 +600,8 @@ export function teardownSession() {
  * @returns {void}
  */
 export function leaveSession() {
-  reconnectGeneration += 1
-  if (isHost && sessionPhase.value === 'hosting' && sessionSuffix.value) {
-    const suffix = sessionSuffix.value
-    setRtdb(roomChild(suffix, 'ended'), Date.now()).catch(() => {})
-    remove(roomChild(suffix, 'hostPing')).catch(() => {})
-  }
   clearRoomPersistence()
-  teardownSession()
+  core.leaveSession()
 }
 
 /**

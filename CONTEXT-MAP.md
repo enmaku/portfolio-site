@@ -29,4 +29,5 @@
 - [ADR 0001 — Hash SPA with static link previews](./docs/adr/0001-hash-spa-with-static-link-previews.md) — why paste previews use extra HTML entry points alongside the hash router.
 - [ADR 0002 — Game Timer display wake delegated to Nosleep.js](./docs/adr/0002-delegate-game-timer-display-wake-to-library.md) — keep-display-on behavior uses a small dependency instead of custom wake/video code.
 - [ADR 0004 — Movie Vote multi-method elections](./docs/adr/0004-movie-vote-multi-method-elections.md) — textbook IRV, Borda, Condorcet, Copeland, …; **no algorithmic tiebreak**; **Smith set** for Condorcet cycles; **Copeland score** leaders for Copeland ties; **voting method** locked at **voting phase**.
+- [ADR 0006 — Star-room session core](./docs/adr/0006-star-room-session-core.md) — shared host/guest wire factory for Timer and Movie Vote; `guestPresence` loose vs strict; feature facades unchanged.
 - [ADR 0003 — Movie Vote ranked-points IRV](./docs/adr/0003-movie-vote-ranked-points-per-irv-round.md) — **Superseded** by ADR 0004 (historical ranked-points hybrid per IRV round).
