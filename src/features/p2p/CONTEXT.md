@@ -139,7 +139,7 @@ _Avoid_: “Firebase secured the room” (suffix secrecy is the gate, not accoun
 - **Host reclaim** preserves in-**room** authority and payloads for the same **host** principal; only an un-**ended** **room** with a matching host id qualifies—missing `hostPing` after refresh still counts as reclaim, not a contested takeover.
 - **Host occupancy guard** runs on every **host** finish path in the **star-room session core**, including Movie Vote resume flows that skipped it before.
 - **Stable client identity** ties reconnecting browsers to prior participation without exposing account sign-in.
-- **Host abrupt disconnect** sets the same **ended** signal **guests** already watch after a deliberate **host** leave; star-room **projects** share one registration path in the **star-room session core**.
+- **Host abrupt disconnect** clears **hostPing** only (refresh or tab close); **guests** stay in the **room** until the **host** explicitly ends it or the RTDB **ended** marker is set via **leaveSession**.
 - **Loose guest attachment** and **strict guest presence** are intentional alternatives—do not unify guest `hostPing` teardown or online tracking across **projects**.
 - **Fatal session error** resets persistence and ends the collaboration; **non-fatal disconnect** and **transient disconnect** paths feed reconnect instead of immediate teardown.
 - **Reconnect generation** must match across sleep/backoff slices or the client abandons stale attempts.

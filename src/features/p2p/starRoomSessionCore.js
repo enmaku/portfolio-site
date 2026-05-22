@@ -139,7 +139,6 @@ export function createStarRoomSession(opts) {
     clearWireUnsubs()
     guestStableId = null
     isHost = false
-    strictGuestSawHostPing = false
   }
 
   /**
@@ -200,7 +199,6 @@ export function createStarRoomSession(opts) {
   async function registerHostOnDisconnect(roomSuffix) {
     try {
       await rtdb.onDisconnect(roomChild(roomSuffix, 'hostPing')).remove()
-      await rtdb.onDisconnect(roomChild(roomSuffix, 'ended')).set(now())
     } catch {
       void 0
     }
@@ -295,15 +293,13 @@ export function createStarRoomSession(opts) {
       }),
     )
 
-    trackUnsub(
-      rtdb.onValue(roomChild(roomSuffix, 'hostPing'), (snap) => {
-        if (guestPresence === 'loose') {
+    if (guestPresence === 'loose') {
+      trackUnsub(
+        rtdb.onValue(roomChild(roomSuffix, 'hostPing'), (snap) => {
           onSessionEvent({ type: 'host_ping_present', present: isHostPingPresent(snap.val()) })
-        } else {
-          void handleStrictGuestHostPing(snap.val())
-        }
-      }),
-    )
+        }),
+      )
+    }
 
     trackUnsub(
       rtdb.onValue(roomChild(roomSuffix, 'hostVisible'), (snap) => {
@@ -312,17 +308,6 @@ export function createStarRoomSession(opts) {
         onSessionEvent({ type: 'host_tab_visible', visible: vis.visible })
       }),
     )
-  }
-
-  let strictGuestSawHostPing = false
-
-  /**
-   * @param {unknown} pingVal
-   */
-  function handleStrictGuestHostPing(pingVal) {
-    const present = isHostPingPresent(pingVal)
-    if (present) strictGuestSawHostPing = true
-    if (strictGuestSawHostPing && !present) handleGuestHostEnded()
   }
 
   /**
@@ -363,7 +348,6 @@ export function createStarRoomSession(opts) {
     }
 
     guestStableId = getStableClientId()
-    strictGuestSawHostPing = hostPingPresent
     isHost = false
     setSuffix(roomSuffix)
     if (guestPresence === 'loose') {

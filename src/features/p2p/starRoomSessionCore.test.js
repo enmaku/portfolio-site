@@ -214,19 +214,18 @@ test('finishHostSession rejects when occupancy guard fails', async () => {
   await assert.rejects(() => session.finishHostSession(suffix), /Room code in use/)
 })
 
-test('finishHostSession registers host abrupt disconnect handlers', async () => {
+test('finishHostSession registers hostPing onDisconnect only (not ended)', async () => {
   const { session, fake } = createLooseSession()
   const suffix = 'DISC01'
   await session.finishHostSession(suffix)
 
   assert.ok(fake.onDisconnectHandlers.has(fake.roomRef(suffix, 'hostPing').path))
-  assert.ok(fake.onDisconnectHandlers.has(fake.roomRef(suffix, 'ended').path))
+  assert.equal(fake.onDisconnectHandlers.has(fake.roomRef(suffix, 'ended').path), false)
 
   await fake.triggerOnDisconnect(fake.roomRef(suffix, 'hostPing').path)
-  await fake.triggerOnDisconnect(fake.roomRef(suffix, 'ended').path)
 
   assert.equal(fake.data.has(fake.roomRef(suffix, 'hostPing').path), false)
-  assert.ok(fake.data.has(fake.roomRef(suffix, 'ended').path))
+  assert.equal(fake.data.has(fake.roomRef(suffix, 'ended').path), false)
 })
 
 test('loose guest observes ended but not teardown on hostPing removal', async () => {
@@ -355,7 +354,7 @@ test('finishHostSession resumes host reclaim without clearing state', async () =
   })
 })
 
-test('loose guest receives host_ended_room after host abrupt disconnect', async () => {
+test('loose guest stays connected when host tab disconnect clears hostPing only', async () => {
   const fake = createFakeRtdb()
   const suffix = 'ABRUPT'
   /** @type {import('./starRoomSessionCore.js').StarRoomSessionEvent[]} */
@@ -410,9 +409,9 @@ test('loose guest receives host_ended_room after host abrupt disconnect', async 
   guestEvents.length = 0
 
   await fake.triggerOnDisconnect(fake.roomRef(suffix, 'hostPing').path)
-  await fake.triggerOnDisconnect(fake.roomRef(suffix, 'ended').path)
 
-  assert.ok(guestEvents.some((e) => e.type === 'host_ended_room'))
+  assert.ok(guestEvents.some((e) => e.type === 'host_ping_present' && e.present === false))
+  assert.ok(!guestEvents.some((e) => e.type === 'host_ended_room'))
   assert.equal(guest.getPhase(), 'guest_connected')
 })
 
@@ -443,7 +442,7 @@ function createStrictSession(overrides = {}) {
   return createLooseSession({ guestPresence: 'strict', ...overrides })
 }
 
-test('strict guest ends room when hostPing clears after it was seen', async () => {
+test('strict guest stays connected when hostPing clears after it was seen', async () => {
   const fake = createFakeRtdb()
   /** @type {import('./starRoomSessionCore.js').StarRoomSessionEvent[]} */
   const events = []
@@ -476,8 +475,8 @@ test('strict guest ends room when hostPing clears after it was seen', async () =
   events.length = 0
 
   await fake.port.remove(fake.roomRef(suffix, 'hostPing'))
-  assert.ok(events.some((e) => e.type === 'host_ended_room'))
-  assert.ok(!events.some((e) => e.type === 'host_ping_present'))
+  assert.ok(!events.some((e) => e.type === 'host_ended_room'))
+  assert.equal(session.getPhase(), 'guest_connected')
 })
 
 test('strict finishHostSession rejects occupied suffix on resume', async () => {
@@ -525,7 +524,7 @@ test('strict guest ignores hostPing loss before ping was ever seen', async () =>
   assert.equal(session.getPhase(), 'guest_connected')
 })
 
-test('destroyWireOnly resets strict hostPing seen tracking for re-establish', async () => {
+test('strict guest hostPing loss does not end room after wire-only teardown and re-establish', async () => {
   const fake = createFakeRtdb()
   /** @type {import('./starRoomSessionCore.js').StarRoomSessionEvent[]} */
   const events = []
@@ -555,10 +554,10 @@ test('destroyWireOnly resets strict hostPing seen tracking for re-establish', as
   fake.data.set(fake.roomRef(suffix, 'state').path, { seq: 1 })
 
   await session.establishGuestSession(suffix)
-  await fake.port.remove(fake.roomRef(suffix, 'hostPing'))
-  assert.ok(events.some((e) => e.type === 'host_ended_room'))
-
   events.length = 0
+  await fake.port.remove(fake.roomRef(suffix, 'hostPing'))
+  assert.ok(!events.some((e) => e.type === 'host_ended_room'))
+
   session.destroyWireOnly()
   fake.data.set(fake.roomRef(suffix, 'state').path, { seq: 2 })
 

@@ -231,7 +231,7 @@ const JOINABLE_SUGGEST_PAYLOAD = buildMovieVotePublicPayload(
 const rtdbLifecycleTests = { skip: !mock.module }
 
 test(
-  'guest hostPing loss after seen ends session and clears room persistence',
+  'guest hostPing loss after seen stays connected and keeps room persistence',
   rtdbLifecycleTests,
   async () => {
     mock.reset()
@@ -253,10 +253,10 @@ test(
       onHostPing({ val: () => 5_000_000 })
       onHostPing({ val: () => null })
 
-      assert.equal(sessionPhase.value, 'idle')
-      assert.equal(sessionSuffix.value, null)
-      assert.equal(room.role, null)
-      assert.equal(room.suffix, null)
+      assert.equal(sessionPhase.value, 'guest_connected')
+      assert.equal(sessionSuffix.value, 'ABC123')
+      assert.equal(room.role, 'guest')
+      assert.equal(room.suffix, 'ABC123')
     })
   },
 )
