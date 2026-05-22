@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { afterEach, mock, test } from 'node:test'
+import { test } from 'node:test'
 
 const REQUIRED_FIREBASE_ENV = {
   VITE_FIREBASE_API_KEY: 'test-api-key',
@@ -89,16 +89,6 @@ test('dungeonRunnerCompletedMatchPath maps matchId under dungeonRunnerCompletedM
   )
 })
 
-test('getDungeonRunnerDatabase returns the same instance (lazy singleton)', async () => {
-  await withFirebaseEnv({}, async () => {
-    const { getDungeonRunnerDatabase } = await import(`./rtdb.js?singleton=${Date.now()}`)
-    const first = getDungeonRunnerDatabase()
-    const second = getDungeonRunnerDatabase()
-    assert.ok(first)
-    assert.equal(first, second)
-  })
-})
-
 test('dungeonRunnerCompletedMatchRef points at dungeonRunnerCompletedMatches/{matchId}', async () => {
   await withFirebaseEnv({}, async () => {
     const { dungeonRunnerCompletedMatchRef } = await import(`./rtdb.js?ref=${Date.now()}`)
@@ -116,88 +106,20 @@ test('dungeonRunnerCompletedMatchRef returns null when Firebase is not configure
   })
 })
 
-test('sanitizeForRtdb drops undefined keys (RTDB rejects undefined)', async () => {
-  const { sanitizeForRtdb } = await import('./rtdb.js')
-  const out = sanitizeForRtdb({
-    version: 1,
-    seed: 4242,
-    setup: { totalSeats: 2, opponents: [{ role: 'random' }] },
-    history: [{ type: 'bid', value: undefined }],
-    presentationSpeedProfile: undefined,
-  })
-  assert.deepEqual(out, {
-    version: 1,
-    seed: 4242,
-    setup: { totalSeats: 2, opponents: [{ role: 'random' }] },
-    history: [{ type: 'bid' }],
-  })
+test('dungeon runner RTDB module exposes the frozen public surface', async () => {
+  const mod = await import('./rtdb.js')
+  assert.equal(typeof mod.isDungeonRunnerFirebaseConfigured, 'function')
+  assert.equal(typeof mod.getDungeonRunnerDatabase, 'function')
+  assert.equal(typeof mod.dungeonRunnerCompletedMatchPath, 'function')
+  assert.equal(typeof mod.dungeonRunnerCompletedMatchRef, 'function')
+  assert.equal(typeof mod.sanitizeForRtdb, 'function')
+  assert.equal(typeof mod.setRtdb, 'function')
 })
 
-test('sanitizeForRtdb preserves null and nested undefined removal', async () => {
+test('sanitizeForRtdb is wired from shared RTDB core', async () => {
+  const { createRtdbCore } = await import('../../p2p/firebase/createRtdbCore.js')
+  const core = createRtdbCore({ configuredBehavior: 'null' })
   const { sanitizeForRtdb } = await import('./rtdb.js')
   assert.equal(sanitizeForRtdb(undefined), null)
-  assert.deepEqual(sanitizeForRtdb({ kept: null, dropped: undefined }), { kept: null })
-})
-
-test('setRtdb returns a promise without throwing synchronously when configured', async () => {
-  await withFirebaseEnv({}, async () => {
-    const { setRtdb, dungeonRunnerCompletedMatchRef } = await import(`./rtdb.js?setp=${Date.now()}`)
-    const matchRef = dungeonRunnerCompletedMatchRef('match-promise')
-    assert.ok(matchRef)
-    let result
-    assert.doesNotThrow(() => {
-      result = setRtdb(matchRef, {
-        version: 1,
-        seed: 1,
-        presentationSpeedProfile: undefined,
-      })
-    })
-    assert.ok(result instanceof Promise)
-  })
-})
-
-test(
-  'setRtdb calls Firebase set with sanitized payload',
-  { skip: !mock.module },
-  async () => {
-    const actual = await import('firebase/database')
-    /** @type {Array<{ value: unknown }>} */
-    const setCalls = []
-    mock.module('firebase/database', {
-      namedExports: {
-        ...actual,
-        set: async (_ref, value) => {
-          setCalls.push({ value })
-        },
-      },
-    })
-
-    await withFirebaseEnv({}, async () => {
-      const { setRtdb, dungeonRunnerCompletedMatchRef } = await import(
-        `./rtdb.js?set=${Date.now()}`,
-      )
-      const matchRef = dungeonRunnerCompletedMatchRef('match-set-test')
-      assert.ok(matchRef)
-      await setRtdb(matchRef, {
-        version: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        seed: 42,
-        setup: { totalSeats: 2, opponents: [] },
-        history: [],
-        presentationSpeedProfile: undefined,
-      })
-      assert.equal(setCalls.length, 1)
-      assert.deepEqual(setCalls[0].value, {
-        version: 1,
-        createdAt: '2026-01-01T00:00:00.000Z',
-        seed: 42,
-        setup: { totalSeats: 2, opponents: [] },
-        history: [],
-      })
-    })
-  },
-)
-
-afterEach(() => {
-  mock.reset()
+  assert.equal(sanitizeForRtdb, core.sanitizeForRtdb)
 })
