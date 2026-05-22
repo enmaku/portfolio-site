@@ -179,6 +179,7 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - Each **match** has exactly one **human player seat**; the human is not an **opponent** in **setup**.
 - A **completed match replay** is a **replay envelope** captured when **match over** is reached.
 - The **completed match replay archive** holds **completed match replay** envelopes keyed by match id; each key is written at most once from the browser; **archive listing** at the root is allowed for maintainer ingest.
+- **Completed match replay archive** writes use the same RTDB payload sanitization as star-room **projects** (Game Timer, Movie Vote); they are not a separate Firebase stack—only the path and optional-upload behavior differ (see [ADR 0005](../../../docs/adr/0005-shared-firebase-rtdb-core.md)).
 - **History** supplies the ordered actions recorded in a **replay envelope**.
 - **TF.js model sync** runs in portfolio-site after dungeon-runner promote; default NN opponents load **web deployed latest** without setup changes.
 
