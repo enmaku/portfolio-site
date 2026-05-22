@@ -292,7 +292,7 @@ test('dungeon decision sequence advances through python-style subphases', () => 
   assert.equal(result.state.phase, MATCH_PHASES.PICK_ADVENTURER)
 })
 
-test('declining fire axe does not open polymorph when no next monster exists', () => {
+test('declining fire axe on final monster still offers polymorph (#144)', () => {
   const base = createInitialMatchState(
     { totalSeats: 2, opponents: [{ type: 'randombot' }] },
     { seed: 6231 },
@@ -308,7 +308,7 @@ test('declining fire axe does not open polymorph when no next monster exists', (
       ...base.dungeon,
       subphase: DUNGEON_SUBPHASES.VORPAL,
       remainingMonsters: ['goblin'],
-      hp: 2,
+      hp: 20,
       inPlayEquipmentIds: ['B_AXE', 'M_POLY'],
       polySpent: false,
       axeSpent: false,
@@ -320,9 +320,70 @@ test('declining fire axe does not open polymorph when no next monster exists', (
   assert.equal(state.dungeon.subphase, DUNGEON_SUBPHASES.PICK_FIRE_AXE)
   const decline = applyAction(state, { type: ACTION_TYPES.DECLINE_FIRE_AXE }, { seatId })
   assert.equal(decline.ok, true)
-  assert.equal(decline.state.dungeon.subphase, null)
-  assert.equal(decline.state.phase, MATCH_PHASES.PICK_ADVENTURER)
-  assert.equal(decline.state.scoreboard[seatId].lives, 2)
+  assert.equal(decline.state.dungeon.subphase, DUNGEON_SUBPHASES.PICK_POLYMORPH)
+  assert.deepEqual(
+    getLegalActions(decline.state, { seatId }).map((action) => action.type),
+    [ACTION_TYPES.USE_POLYMORPH, ACTION_TYPES.DECLINE_POLYMORPH],
+  )
+})
+
+test('reveal on final monster offers polymorph when only mage poly is in play (#144)', () => {
+  const base = createInitialMatchState(
+    { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    { seed: 6232 },
+  )
+  const seatId = base.seats[0].id
+  const state = {
+    ...base,
+    hero: 'MAGE',
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { ...base.turn, activeSeatId: seatId },
+    bidding: { ...base.bidding, runnerSeatId: seatId, dungeonMonsters: ['goblin'] },
+    dungeon: {
+      ...base.dungeon,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+      currentMonster: null,
+      remainingMonsters: ['goblin'],
+      hp: 20,
+      inPlayEquipmentIds: ['M_POLY'],
+      polySpent: false,
+      axeSpent: true,
+    },
+  }
+  const reveal = applyAction(state, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId })
+  assert.equal(reveal.ok, true)
+  assert.equal(reveal.state.dungeon.subphase, DUNGEON_SUBPHASES.PICK_POLYMORPH)
+  assert.equal(reveal.state.dungeon.currentMonster, 'goblin')
+  assert.deepEqual(reveal.state.dungeon.remainingMonsters, [])
+})
+
+test('using polymorph on final monster clears dungeon successfully (#144)', () => {
+  const base = createInitialMatchState(
+    { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    { seed: 6233 },
+  )
+  const seatId = base.seats[0].id
+  const state = {
+    ...base,
+    hero: 'MAGE',
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { ...base.turn, activeSeatId: seatId },
+    bidding: { ...base.bidding, runnerSeatId: seatId, dungeonMonsters: ['goblin'] },
+    dungeon: {
+      ...base.dungeon,
+      subphase: DUNGEON_SUBPHASES.PICK_POLYMORPH,
+      currentMonster: 'goblin',
+      remainingMonsters: [],
+      hp: 20,
+      inPlayEquipmentIds: ['M_POLY'],
+      polySpent: false,
+    },
+  }
+  const used = applyAction(state, { type: ACTION_TYPES.USE_POLYMORPH }, { seatId })
+  assert.equal(used.ok, true)
+  assert.equal(used.state.phase, MATCH_PHASES.PICK_ADVENTURER)
+  assert.equal(used.state.scoreboard[seatId].successes, 1)
+  assert.equal(used.state.dungeon.inPlayEquipmentIds.includes('M_POLY'), false)
 })
 
 test('reveal skips pick-fire-axe when B_AXE not in play (warrior center loadout)', () => {

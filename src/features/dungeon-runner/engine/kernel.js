@@ -341,6 +341,15 @@ const EQUIP_POLY = 'M_POLY'
 const EQUIP_FIRE_AXE = 'B_AXE'
 const EQUIP_HEAL_POT = new Set(['B_HEAL', 'R_HEAL'])
 
+/**
+ * @param {NonNullable<ReturnType<typeof createInitialMatchState>['dungeon']>} dungeon
+ * @param {string | null | undefined} currentMonster
+ */
+function canOfferPolymorph(dungeon, currentMonster) {
+  const inPlay = new Set(dungeon.inPlayEquipmentIds ?? [])
+  return !dungeon.polySpent && inPlay.has(EQUIP_POLY) && currentMonster != null
+}
+
 /** @type {readonly string[]} */
 export const EQUIPMENT_IDS = catalogRules.equipmentIds
 
@@ -699,7 +708,7 @@ function applyRevealOrContinueAction(state, actor) {
 
   const inPlay = new Set(d0.inPlayEquipmentIds ?? [])
   const axeLegal = !d0.axeSpent && inPlay.has(EQUIP_FIRE_AXE)
-  const polyLegal = !d0.polySpent && inPlay.has(EQUIP_POLY) && remaining.length > 0
+  const polyLegal = canOfferPolymorph(d0, current)
   if (axeLegal) {
     return {
       ...state,
@@ -808,9 +817,7 @@ function applyFireAxeDeclineAction(state, actor) {
     return null
   }
   const d0 = state.dungeon
-  const inPlay = new Set(d0.inPlayEquipmentIds ?? [])
-  const polyLegal = !d0.polySpent && inPlay.has(EQUIP_POLY) && d0.currentMonster != null && (d0.remainingMonsters?.length ?? 0) > 0
-  if (polyLegal) {
+  if (canOfferPolymorph(d0, d0.currentMonster)) {
     return applyDungeonStepAction(state, DUNGEON_SUBPHASES.PICK_POLYMORPH)
   }
   return applyMonsterCombatHits(state, d0)
