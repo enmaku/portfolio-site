@@ -45,6 +45,7 @@ test('getMovieVoteDatabase throws when Firebase env is missing', async () => {
         () => getMovieVoteDatabase(),
         (err) => {
           assert.ok(err instanceof Error)
+          assert.match(err.message, /Movie Vote Firebase RTDB/)
           assert.match(err.message, /VITE_FIREBASE_\*/)
           assert.match(err.message, /\.env\.example/)
           return true
