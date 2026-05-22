@@ -2,11 +2,20 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   HOST_PING_FRESH_MS,
+  assertHostRoomClaimable,
   canClaimHostRoom,
   isHostPingFresh,
   isHostPingPresent,
+  isReclaimOwnHostRoom,
+  isRoomMarkedEnded,
   isRoomOccupiedByOtherHost,
-} from './sessionHostPing.js'
+} from './hostRoomOccupancy.js'
+
+test('isRoomMarkedEnded is false only when ended node is absent', () => {
+  assert.equal(isRoomMarkedEnded(null), false)
+  assert.equal(isRoomMarkedEnded(undefined), false)
+  assert.equal(isRoomMarkedEnded(1_700_000_000_000), true)
+})
 
 test('isHostPingFresh accepts recent numeric timestamps', () => {
   const now = 1_000_000
@@ -76,4 +85,47 @@ test('canClaimHostRoom allows reclaim when hostClientId matches this browser', (
 test('canClaimHostRoom allows claim when hostPing is absent', () => {
   const now = 7_000_000
   assert.equal(canClaimHostRoom(null, null, { nowMs: now, stableClientId: 'GUEST' }), true)
+})
+
+test('isReclaimOwnHostRoom allows reclaim without hostPing after refresh', () => {
+  assert.equal(isReclaimOwnHostRoom('CLIENT-ABC', null, 'CLIENT-ABC'), true)
+  assert.equal(isReclaimOwnHostRoom('CLIENT-ABC', 1_700_000_000_000, 'CLIENT-ABC'), false)
+  assert.equal(isReclaimOwnHostRoom('OTHER', null, 'CLIENT-ABC'), false)
+})
+
+test('isReclaimOwnHostRoom matches game-timer reclaim without requiring hostPing', () => {
+  const now = 8_000_000
+  const stalePing = now - HOST_PING_FRESH_MS - 1
+  assert.equal(isReclaimOwnHostRoom('CLIENT-ABC', null, 'CLIENT-ABC'), true)
+  assert.equal(
+    canClaimHostRoom(stalePing, null, {
+      nowMs: now,
+      hostClientId: 'CLIENT-ABC',
+      stableClientId: 'CLIENT-ABC',
+    }),
+    true,
+  )
+})
+
+test('assertHostRoomClaimable throws when another host occupies suffix', () => {
+  const now = 9_000_000
+  const freshPing = now - 1
+  assert.throws(
+    () =>
+      assertHostRoomClaimable(freshPing, null, {
+        nowMs: now,
+        hostClientId: 'OTHER-HOST',
+        stableClientId: 'CLIENT-ABC',
+      }),
+    /Room code in use/,
+  )
+})
+
+test('assertHostRoomClaimable allows same-principal resume without hostPing', () => {
+  assert.doesNotThrow(() =>
+    assertHostRoomClaimable(null, null, {
+      hostClientId: 'CLIENT-ABC',
+      stableClientId: 'CLIENT-ABC',
+    }),
+  )
 })

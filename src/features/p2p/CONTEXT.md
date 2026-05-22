@@ -22,9 +22,27 @@ A browser/tab that joins **host**, sends updates upward, and follows **host**-is
 
 With a valid **join link** and an existing **room**, attachment is immediate: the shared **room code** is the admission signal—no separate **host** approval step unless a product explicitly adds one.
 
+### Loose guest attachment
+
+Star-room **project** posture where **guests** may drop in and out without the **host** treating brief wire loss as **room** end—the **host** keeps broadcasting authoritative state and **guests** reattach when they can (Game Timer).
+
+### Strict guest presence
+
+Star-room **project** posture where the **host** must know which **guest** principals are live right now—brief loss of **host** presence or **guest** online signals can end or stall quorum-style flows (Movie Vote readiness and voting).
+
+### Guest online signal
+
+Under **strict guest presence**, an RTDB flag keyed by **stable client identity** showing whether that **guest** browser is connected now—the **host** uses it for live counts; the **star-room session core** maintains it, while **participant id** mapping stays in the **project**.
+
+_Avoid_: Assuming one guest wire policy fits all star-room **projects**.
+
 ### Star-room shell
 
 Cross-feature wiring for backoff-based reconnect loops; individual products supply how to establish **host**/ **guest**, notify users, and clear persistence—including shared persisted **room** artifacts when a product ends a **room** on the same user-visible teardown moments as today. Products may also define retention or automated cleanup for **rooms** that never receive a clean teardown.
+
+### Star-room session core
+
+Shared implementation-layer wiring for **room** claim, RTDB listeners, host ping, guest hello, and visibility broadcast—sitting above the **star-room shell** reconnect loops (`createStarRoomSession` in this package). Star-room **projects** inject domain messages and user-visible notifications; the core does not own product state stores. Guest observers follow a **guest presence mode** (**loose guest attachment** vs **strict guest presence**) so wire policy is explicit, not inferred from the **project**.
 
 ### Room code
 
@@ -54,6 +72,16 @@ Star-topology center for a **room**—the same collaborator role as **host**; **
 
 Deterministic **room suffix** derived from **stable client identity** plus an app tag so returning hosts usually reclaim the same join code unless the **room** is already claimed.
 
+### Host reclaim
+
+When the same **host** principal (**stable client identity** matches the **room**’s recorded host id) resumes an un-**ended** **room**, collaborators keep the existing **room** payload—claim does not clear stored play state. A fresh claim by a different principal still resets stale RTDB children per product rules.
+
+### Host occupancy guard
+
+Before a browser finishes becoming **host** (create, resume, or reconnect), it must pass a shared occupancy check—another live **host** principal still holding the suffix blocks attach with a user-visible “in use” outcome.
+
+_Avoid_: “Resume session” in user-facing copy—say the **host** rejoined the **room** or the **room code** still works.
+
 ### Stable client identity
 
 Opaque per-browser identifier that lets a **host** treat a returning **guest** as the same collaborator after refresh or reconnect (so counts and submissions stay coherent).
@@ -63,6 +91,10 @@ The shell picks **one** persisted principal as canonical for that remapping; fea
 ### Reconnect generation
 
 Logical counter incremented when a fatal session error clears the **room**, used to invalidate in-flight retries.
+
+### Host abrupt disconnect
+
+When the **host** browser loses connection without a deliberate leave, the **room** should still signal closure—clearing **host** presence and marking the **room** **ended** so **guests** are not left on a dead hub.
 
 ### Fatal session error
 
@@ -99,11 +131,16 @@ _Avoid_: “Firebase secured the room” (suffix secrecy is the gate, not accoun
 - The **host** role is fixed for a **room**’s lifetime—never migrated to another **participant**.
 - Every **guest** attaches to exactly one **host** in a running **star-room shell** pairing (star **hub**).
 - **Guests** enter using **join links**; the shared **room code** admits them without a **host** approval gate unless a product deliberately adds one.
+- The **star-room session core** delegates backoff reconnect to the **star-room shell**; products pass establish/teardown hooks into both layers.
 - A **room suffix** is drawn from the **unambiguous room alphabet** and selects the RTDB **room** document.
 - A **room code**/**room suffix** selects which **host** **guest** browsers join; **join links** encode that suffix for copying.
 - **App-scoped room paths** keep namespaces disjoint across products sharing the same Firebase project.
 - **Stable host suffix preference** complements random suffix generation when hosts want repeatable codes until contested.
+- **Host reclaim** preserves in-**room** authority and payloads for the same **host** principal; only an un-**ended** **room** with a matching host id qualifies—missing `hostPing` after refresh still counts as reclaim, not a contested takeover.
+- **Host occupancy guard** runs on every **host** finish path in the **star-room session core**, including Movie Vote resume flows that skipped it before.
 - **Stable client identity** ties reconnecting browsers to prior participation without exposing account sign-in.
+- **Host abrupt disconnect** clears **hostPing** only (refresh or tab close); **guests** stay in the **room** until the **host** explicitly ends it or the RTDB **ended** marker is set via **leaveSession**.
+- **Loose guest attachment** and **strict guest presence** are intentional alternatives—do not unify guest `hostPing` teardown or online tracking across **projects**.
 - **Fatal session error** resets persistence and ends the collaboration; **non-fatal disconnect** and **transient disconnect** paths feed reconnect instead of immediate teardown.
 - **Reconnect generation** must match across sleep/backoff slices or the client abandons stale attempts.
 - **Path-scoped RTDB access** applies to all star-room **projects** and the Dungeon Runner replay archive on the shared Firebase project; see [dungeon-runner RTDB ingest access](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md) for maintainer read paths.
@@ -123,6 +160,7 @@ _Avoid_: “Firebase secured the room” (suffix secrecy is the gate, not accoun
 
 ## Flagged ambiguities
 
+- Guest `hostPing` reaction: Resolved — **loose guest attachment** (Game Timer) vs **strict guest presence** (Movie Vote); shared session core must not collapse these into one behavior.
 - “Session” vs “Room”: Resolved — persist user-facing wording as **room**; reserve **session** for implementation layers that include phase machines inside a product-specific store.
 - **Host** reassignment: Resolved — never; a **room**’s **host** is fixed for that **room**’s lifetime.
 - **Room** cleanup: Resolved — user-visible teardown clears shared persisted **room** artifacts; abandoned **rooms** may be purged by a product-defined time-based backstop whose clock **participant** activity refreshes—not **host**-only signals.

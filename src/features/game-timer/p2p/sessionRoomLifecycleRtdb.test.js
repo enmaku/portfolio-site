@@ -83,7 +83,12 @@ async function importSession(nonce) {
   return import(`./session.js?rtdb-lifecycle=${nonce}`)
 }
 
-test('guest RTDB ended marker clears room persistence but keeps roster', async () => {
+const rtdbLifecycleTests = { skip: !mock.module }
+
+test(
+  'guest RTDB ended marker clears room persistence but keeps roster',
+  rtdbLifecycleTests,
+  async () => {
   mock.reset()
   const { listeners } = await installRtdbLifecycleMocks()
 
@@ -114,9 +119,13 @@ test('guest RTDB ended marker clears room persistence but keeps roster', async (
     assert.equal(store.players.length, 1)
     assert.deepEqual(store.players.map((p) => p.id), playerIds)
   })
-})
+  },
+)
 
-test('guest RTDB hostPing removal stays connected and keeps room persistence', async () => {
+test(
+  'guest RTDB hostPing removal stays connected and keeps room persistence',
+  rtdbLifecycleTests,
+  async () => {
   mock.reset()
   const { listeners } = await installRtdbLifecycleMocks()
 
@@ -149,7 +158,8 @@ test('guest RTDB hostPing removal stays connected and keeps room persistence', a
     assert.equal(store.players.length, 1)
     assert.equal(store.players[0].name, 'Guest')
   })
-})
+  },
+)
 
 afterEach(async () => {
   mock.reset()

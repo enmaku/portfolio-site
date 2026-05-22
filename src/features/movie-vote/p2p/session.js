@@ -18,6 +18,7 @@ import {
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { useMovieVoteRoomSessionStore } from '../../../stores/movieVoteRoomSession.js'
 import { getMovieVoteDatabase, movieVoteRoomRef, setRtdb } from '../firebase/rtdb.js'
+import { createStarRoomSession } from '../../p2p/starRoomSessionCore.js'
 import {
   HOST_PARTICIPANT_ID,
   compileBallotMovies,
@@ -46,8 +47,7 @@ import {
   parseVote,
   parseWelcome,
 } from './protocol.js'
-import { canClaimHostRoom, isHostPingPresent } from './sessionHostPing.js'
-import { isRoomMarkedEnded, ROOM_CLAIM_RESET_PATHS } from './sessionRoomRtdb.js'
+import { ROOM_CLAIM_RESET_PATHS } from './sessionRoomRtdb.js'
 import {
   generateAnonymousVoterId,
   generateRoomSuffix,
@@ -57,16 +57,9 @@ import {
 
 const STABLE_HOST_SUFFIX_APP = 'movievote'
 
-let isHost = false
-
 let nextSeq = 0
 
 let lastSeenSeq = 0
-
-let reconnectGeneration = 0
-
-/** @type {string | null} */
-let guestStableId = null
 
 /**
  * Stable client id → participant id.
@@ -92,7 +85,7 @@ const guestDrafts = new Map()
 const pendingRemovalTimers = new Map()
 
 /** @type {Array<() => void>} */
-let wireUnsubs = []
+let featureWireUnsubs = []
 
 /** Reactive session UI state for multiplayer (Vue ref; safe to use outside components). */
 export const sessionPhase = vueRef(/** @type {import('./types.js').MovieVoteSessionPhase} */ ('idle'))
@@ -110,8 +103,52 @@ const GUEST_REMOVAL_GRACE_MS = 45_000
 
 const MIN_DISTINCT_SUGGESTIONS_FOR_READY = 2
 
-/** @type {(() => void) | null} */
-let hostVisibilityTeardown = null
+/** @param {string} step @param {Record<string, unknown>} [detail] */
+function debugQuorum(step, detail = {}) {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+    console.debug('[movieVote quorum]', step, detail)
+  }
+}
+
+/**
+ * @returns {string | null} null when every gate passes
+ */
+function allParticipantsReadyReason() {
+  const store = useMovieVoteStore()
+  if (!store.readyToVote) return 'host_not_ready'
+  const distinct = distinctSuggestedMovieCount()
+  if (distinct < MIN_DISTINCT_SUGGESTIONS_FOR_READY) {
+    return `distinct_movies_${distinct}_lt_${MIN_DISTINCT_SUGGESTIONS_FOR_READY}`
+  }
+  if (guestDrafts.size < 1) return 'no_guest_drafts'
+  for (const [pid, g] of guestDrafts) {
+    if (!g.ready) return `guest_not_ready:${pid}`
+  }
+  return null
+}
+
+/** @returns {Record<string, unknown>} */
+function quorumSnapshot() {
+  const store = useMovieVoteStore()
+  return {
+    phase: store.phase,
+    sessionPhase: sessionPhase.value,
+    hostReady: store.readyToVote,
+    distinctMovies: distinctSuggestedMovieCount(),
+    guestDraftCount: guestDrafts.size,
+    guests: [...guestDrafts.entries()].map(([pid, g]) => ({
+      pid,
+      ready: g.ready,
+      pickCount: g.picks.length,
+    })),
+    activeGuestStableIds: [...activeGuestStableIds],
+    blockReason: allParticipantsReadyReason(),
+  }
+}
+
+if (typeof import.meta !== 'undefined' && import.meta.env?.DEV && typeof globalThis !== 'undefined') {
+  globalThis.__movieVoteQuorumSnapshot = () => quorumSnapshot()
+}
 
 /**
  * @param {string} suffix
@@ -121,11 +158,80 @@ function roomChild(suffix, path) {
   return child(movieVoteRoomRef(suffix), path)
 }
 
+const rtdbPort = {
+  get,
+  set: (ref, value) => setRtdb(ref, value),
+  remove,
+  onValue,
+  onChildAdded,
+  onDisconnect,
+}
+
+const core = createStarRoomSession({
+  guestPresence: 'strict',
+  claimResetPaths: ROOM_CLAIM_RESET_PATHS,
+  getStableClientId,
+  roomChild,
+  rtdb: rtdbPort,
+  protocolAdapter: {
+    encodeGuestHello: encodeHello,
+    parseHostVisibility,
+    hasGuestJoinableState: (stateVal) => parseState(stateVal) != null,
+    encodeHostVisibility,
+  },
+  onPhaseChange: (phase) => {
+    sessionPhase.value = phase
+  },
+  onSuffixChange: (s) => {
+    sessionSuffix.value = s
+  },
+  onSessionEvent: (event) => {
+    if (event.type === 'host_ended_room') {
+      handleGuestHostEnded()
+      return
+    }
+    if (event.type === 'host_tab_visible') {
+      remoteHostTabVisible.value = event.visible
+      return
+    }
+    if (event.type === 'connectivity_offline') {
+      const suffix = core.getSuffix()
+      if (!suffix) return
+      if (event.role === 'guest') {
+        void guestReconnectLoop(suffix, core.getReconnectGeneration())
+      } else {
+        void hostReconnectLoop(suffix, core.getReconnectGeneration())
+      }
+    }
+  },
+  onHostInboxMessage: (stableId, raw) => handleHostInboxMessage(stableId, raw),
+  onGuestAuthorityMessage: (raw) => handleGuestState(raw),
+  hydrateHost: hydrateHostFromRtdb,
+  subscribeFirebaseConnected: (onOffline) => {
+    const connectedRef = dbRef(getMovieVoteDatabase(), '.info/connected')
+    return onValue(connectedRef, (snap) => {
+      if (snap.val() !== false) return
+      onOffline()
+    })
+  },
+})
+
 /**
  * @param {() => void} unsub
  */
-function trackUnsub(unsub) {
-  wireUnsubs.push(unsub)
+function trackFeatureUnsub(unsub) {
+  featureWireUnsubs.push(unsub)
+}
+
+function clearFeatureWireUnsubs() {
+  for (const unsub of featureWireUnsubs) {
+    try {
+      unsub()
+    } catch {
+      void 0
+    }
+  }
+  featureWireUnsubs = []
 }
 
 /**
@@ -159,50 +265,6 @@ function clearRoomPersistence() {
   }
 }
 
-function clearHeartbeatAndWatch() {
-  if (hostVisibilityTeardown) {
-    hostVisibilityTeardown()
-    hostVisibilityTeardown = null
-  }
-}
-
-function clearWireUnsubs() {
-  for (const unsub of wireUnsubs) {
-    try {
-      unsub()
-    } catch {
-      void 0
-    }
-  }
-  wireUnsubs = []
-}
-
-function broadcastHostVisibility(visible) {
-  if (!isHost || !sessionSuffix.value) return
-  setRtdb(roomChild(sessionSuffix.value, 'hostVisible'), encodeHostVisibility(visible)).catch(() => {})
-}
-
-function startHostVisibilityWatch() {
-  if (typeof document === 'undefined' || hostVisibilityTeardown) return
-  const onVis = () => {
-    broadcastHostVisibility(document.visibilityState === 'visible')
-  }
-  document.addEventListener('visibilitychange', onVis)
-  hostVisibilityTeardown = () => document.removeEventListener('visibilitychange', onVis)
-  broadcastHostVisibility(document.visibilityState === 'visible')
-}
-
-function wireDatabaseConnectivity() {
-  const connectedRef = dbRef(getMovieVoteDatabase(), '.info/connected')
-  trackUnsub(
-    onValue(connectedRef, (snap) => {
-      if (snap.val() !== false) return
-      if (isHost && sessionPhase.value === 'hosting') onHostDisconnected()
-      else if (!isHost && sessionPhase.value === 'guest_connected') onGuestDisconnected()
-    }),
-  )
-}
-
 /**
  * @param {string} suffix
  * @param {string} stableId
@@ -222,24 +284,20 @@ async function markGuestOffline(suffix, stableId) {
 }
 
 function destroyWireOnly() {
-  clearHeartbeatAndWatch()
-  clearWireUnsubs()
-
-  const suffix = sessionSuffix.value
-  const sid = guestStableId
-  if (!isHost && suffix && sid) {
+  const suffix = core.getSuffix()
+  const sid = core.getGuestStableId()
+  if (!core.isHostRole() && suffix && sid) {
     void markGuestOffline(suffix, sid)
   }
 
+  clearFeatureWireUnsubs()
   stableIdToParticipant.clear()
   activeGuestStableIds.clear()
   guestDrafts.clear()
   for (const t of pendingRemovalTimers.values()) clearTimeout(t)
   pendingRemovalTimers.clear()
-  guestStableId = null
-  isHost = false
-  nextSeq = 0
   lastSeenSeq = 0
+  core.destroyWireOnly()
 }
 
 function allDraftPicksFlat() {
@@ -261,7 +319,7 @@ function buildPublicPayload() {
 }
 
 function hostBroadcastState() {
-  if (!isHost || !sessionSuffix.value) return
+  if (!core.isHostRole() || !sessionSuffix.value) return
   const payload = buildPublicPayload()
   try {
     const st = useMovieVoteStore()
@@ -276,25 +334,17 @@ function hostBroadcastState() {
   setRtdb(roomChild(sessionSuffix.value, 'state'), msg).catch(() => {})
 }
 
-function roomHasEnoughDistinctSuggestionsForReady() {
-  return distinctSuggestedMovieCount() >= MIN_DISTINCT_SUGGESTIONS_FOR_READY
-}
-
-function allParticipantsReady() {
-  const store = useMovieVoteStore()
-  if (!store.readyToVote) return false
-  if (!roomHasEnoughDistinctSuggestionsForReady()) return false
-  if (guestDrafts.size < 1) return false
-  for (const [, g] of guestDrafts) {
-    if (!g.ready) return false
-  }
-  return true
-}
-
 function tryCompileBallot() {
   const store = useMovieVoteStore()
-  if (store.phase !== 'suggest') return
-  if (!allParticipantsReady()) return
+  if (store.phase !== 'suggest') {
+    debugQuorum('compile_skipped', { reason: 'phase_not_suggest', ...quorumSnapshot() })
+    return
+  }
+  const blockReason = allParticipantsReadyReason()
+  if (blockReason) {
+    debugQuorum('compile_blocked', { reason: blockReason, ...quorumSnapshot() })
+    return
+  }
 
   /** @type {import('../types.js').MoviePick[]} */
   const allPicks = store.myDraftPicks.map((p) => ({ ...p }))
@@ -303,12 +353,22 @@ function tryCompileBallot() {
   }
   const movies = compileBallotMovies(allPicks)
   if (movies.length < MIN_DISTINCT_SUGGESTIONS_FOR_READY) {
+    debugQuorum('compile_blocked', {
+      reason: 'compiled_ballot_lt_min',
+      compiledCount: movies.length,
+      ...quorumSnapshot(),
+    })
     notifyP2P('Need at least two different movies before voting.', 'warning')
     return
   }
 
   const orderIds = movies.map((m) => m.publicId)
   const voterIds = [HOST_PARTICIPANT_ID, ...guestDrafts.keys()]
+  debugQuorum('compile_entering_voting', {
+    ballotMovieCount: movies.length,
+    voterIds,
+    ...quorumSnapshot(),
+  })
   store.setVotingState(movies, orderIds, voterIds)
   hostBroadcastState()
 }
@@ -388,21 +448,42 @@ function bindStableIdFromGuestPayload(stableId, raw) {
 function handleHostInboxMessage(stableId, raw) {
   const hello = parseHello(raw)
   if (hello) {
-    if (hello.stableId !== stableId) return
+    if (hello.stableId !== stableId) {
+      debugQuorum('inbox_hello_ignored', { stableId, helloStableId: hello.stableId })
+      return
+    }
+    debugQuorum('inbox_hello', { stableId })
     onGuestHello(stableId)
     return
   }
 
   const expectedPid = bindStableIdFromGuestPayload(stableId, raw)
-  if (!expectedPid) return
+  if (!expectedPid) {
+    debugQuorum('inbox_unbound', { stableId })
+    return
+  }
 
   const store = useMovieVoteStore()
   const draft = parseDraft(raw)
   if (draft) {
-    if (draft.participantId !== expectedPid) return
+    if (draft.participantId !== expectedPid) {
+      debugQuorum('inbox_draft_pid_mismatch', {
+        stableId,
+        expectedPid,
+        draftPid: draft.participantId,
+      })
+      return
+    }
     guestDrafts.set(expectedPid, {
       picks: normalizePicks(draft.picks),
       ready: draft.ready,
+    })
+    debugQuorum('inbox_draft', {
+      stableId,
+      participantId: expectedPid,
+      ready: draft.ready,
+      pickCount: draft.picks?.length ?? 0,
+      ...quorumSnapshot(),
     })
     tryCompileBallot()
     hostBroadcastState()
@@ -429,7 +510,7 @@ function handleHostInboxMessage(stableId, raw) {
 
 function handleGuestHostEnded() {
   notifyP2P('The host ended the room.', 'info')
-  reconnectGeneration += 1
+  core.bumpReconnectGeneration()
   clearRoomPersistence()
   resetLocalStateAfterRoomExit()
 }
@@ -458,39 +539,24 @@ function handleGuestState(raw) {
 /**
  * @param {string} suffix
  */
-function wireHostRoom(suffix) {
-  wireDatabaseConnectivity()
-
-  const inboxRef = roomChild(suffix, 'inbox')
-  trackUnsub(
-    onChildAdded(inboxRef, (snap) => {
-      const stableId = snap.key
-      if (!stableId) return
-      const itemRef = snap.ref
-      trackUnsub(
-        onValue(itemRef, (itemSnap) => {
-          const val = itemSnap.val()
-          if (val != null) handleHostInboxMessage(stableId, val)
-        }),
-      )
-    }),
-  )
-
+function wireHostGuestOnline(suffix) {
   const guestOnlineRef = roomChild(suffix, 'guestOnline')
-  trackUnsub(
+  trackFeatureUnsub(
     onChildAdded(guestOnlineRef, (snap) => {
       const stableId = snap.key
       if (!stableId) return
       const onlineRef = snap.ref
-      trackUnsub(
+      trackFeatureUnsub(
         onValue(onlineRef, (onlineSnap) => {
           const pid = stableIdToParticipant.get(stableId)
           if (!pid) return
           if (onlineSnap.val() === true) {
             activeGuestStableIds.add(stableId)
             cancelParticipantRemoval(pid)
+            debugQuorum('guest_online', { stableId, participantId: pid, ...quorumSnapshot() })
           } else {
             activeGuestStableIds.delete(stableId)
+            debugQuorum('guest_offline', { stableId, participantId: pid, ...quorumSnapshot() })
             if (!activeGuestStableIds.has(stableId)) scheduleParticipantRemoval(pid)
           }
         }),
@@ -503,90 +569,13 @@ function wireHostRoom(suffix) {
  * @param {string} suffix
  * @param {string} stableId
  */
-function wireGuestRoom(suffix, stableId) {
-  wireDatabaseConnectivity()
-
-  trackUnsub(
-    onValue(roomChild(suffix, 'state'), (snap) => {
-      const raw = snap.val()
-      if (raw != null) handleGuestState(raw)
-    }),
-  )
-
-  trackUnsub(
+function wireGuestWelcome(suffix, stableId) {
+  trackFeatureUnsub(
     onValue(roomChild(suffix, `welcome/${stableId}`), (snap) => {
       const raw = snap.val()
       if (raw != null) handleGuestWelcome(raw)
     }),
   )
-
-  trackUnsub(
-    onValue(roomChild(suffix, 'ended'), (snap) => {
-      if (isRoomMarkedEnded(snap.val())) handleGuestHostEnded()
-    }),
-  )
-
-  let sawHostPing = false
-  trackUnsub(
-    onValue(roomChild(suffix, 'hostPing'), (snap) => {
-      const ping = snap.val()
-      if (typeof ping === 'number') {
-        sawHostPing = true
-        return
-      }
-      if (sawHostPing && ping == null) handleGuestHostEnded()
-    }),
-  )
-
-  trackUnsub(
-    onValue(roomChild(suffix, 'hostVisible'), (snap) => {
-      const vis = parseHostVisibility(snap.val())
-      if (!vis) return
-      remoteHostTabVisible.value = vis.visible
-    }),
-  )
-}
-
-function onGuestDisconnected() {
-  if (isHost) return
-  if (sessionPhase.value !== 'guest_connected') return
-
-  const suffix = sessionSuffix.value
-  if (!suffix) {
-    destroyWireOnly()
-    sessionPhase.value = 'idle'
-    return
-  }
-
-  reconnectGeneration += 1
-  const gen = reconnectGeneration
-
-  destroyWireOnly()
-  sessionPhase.value = 'reconnecting'
-  sessionSuffix.value = suffix
-
-  void guestReconnectLoop(suffix, gen)
-}
-
-function onHostDisconnected() {
-  if (!isHost) return
-  if (sessionPhase.value !== 'hosting') return
-
-  const suffix = sessionSuffix.value
-  if (!suffix) {
-    destroyWireOnly()
-    sessionPhase.value = 'idle'
-    return
-  }
-
-  reconnectGeneration += 1
-  const gen = reconnectGeneration
-
-  destroyWireOnly()
-  sessionPhase.value = 'reconnecting'
-  sessionSuffix.value = suffix
-
-  void hostReconnectLoop(suffix, gen)
 }
 
 /**
@@ -596,7 +585,7 @@ function onHostDisconnected() {
 function guestReconnectLoop(suffix, gen) {
   return runGuestStarReconnectLoop({
     gen,
-    getReconnectGeneration: () => reconnectGeneration,
+    getReconnectGeneration: () => core.getReconnectGeneration(),
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
     notifyReconnectingGuest: (attempt, max) =>
       notifyP2P(`Reconnecting… attempt ${attempt} of ${max}`, 'warning'),
@@ -617,7 +606,7 @@ function guestReconnectLoop(suffix, gen) {
 function hostReconnectLoop(suffix, gen) {
   return runHostStarReconnectLoop({
     gen,
-    getReconnectGeneration: () => reconnectGeneration,
+    getReconnectGeneration: () => core.getReconnectGeneration(),
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
     notifyReconnectingHost: (attempt, max) =>
       notifyP2P(`Reconnecting as host… attempt ${attempt} of ${max}`, 'warning'),
@@ -637,15 +626,25 @@ function scheduleParticipantRemoval(pid) {
   if (stableId && activeGuestStableIds.has(stableId)) return
   const existing = pendingRemovalTimers.get(pid)
   if (existing) clearTimeout(existing)
+  debugQuorum('removal_scheduled', {
+    participantId: pid,
+    stableId: stableId ?? null,
+    graceMs: GUEST_REMOVAL_GRACE_MS,
+    ...quorumSnapshot(),
+  })
   const t = setTimeout(() => {
     pendingRemovalTimers.delete(pid)
-    if (stableId && activeGuestStableIds.has(stableId)) return
+    if (stableId && activeGuestStableIds.has(stableId)) {
+      debugQuorum('removal_cancelled_online', { participantId: pid, stableId })
+      return
+    }
     guestDrafts.delete(pid)
     if (stableId) {
       stableIdToParticipant.delete(stableId)
       activeGuestStableIds.delete(stableId)
     }
-    if (isHost && sessionPhase.value === 'hosting') {
+    debugQuorum('removal_executed', { participantId: pid, stableId: stableId ?? null, ...quorumSnapshot() })
+    if (core.isHostRole() && sessionPhase.value === 'hosting') {
       useMovieVoteStore().removeParticipantFromVote(pid)
       tryCompileBallot()
       tryFinishVoting()
@@ -679,6 +678,7 @@ function onGuestHello(stableId) {
   }
 
   activeGuestStableIds.add(stableId)
+  debugQuorum('guest_hello', { stableId, participantId: pid, resumed, ...quorumSnapshot() })
 
   const suffix = sessionSuffix.value
   if (!suffix) return
@@ -734,90 +734,17 @@ async function hydrateHostFromRtdb(suffix) {
       if (isOnline === true) activeGuestStableIds.add(stableId)
     }
   }
-}
-
-/**
- * @param {string} suffix
- */
-async function clearRoomEnded(suffix) {
-  await remove(roomChild(suffix, 'ended')).catch(() => {})
-}
-
-/**
- * Drop stale guest/host payloads after claiming an idle room suffix.
- * @param {string} suffix
- */
-async function resetStaleRoomRtdbForClaim(suffix) {
-  await Promise.all(
-    ROOM_CLAIM_RESET_PATHS.map((path) => remove(roomChild(suffix, path)).catch(() => {})),
-  )
-}
-
-/**
- * @param {string} suffix
- * @returns {Promise<boolean>} true if suffix is free to claim
- */
-async function tryClaimHostRoom(suffix) {
-  const pingRef = roomChild(suffix, 'hostPing')
-  const stableClientId = getStableClientId()
-  const [pingSnap, endedSnap, hostClientSnap] = await Promise.all([
-    get(pingRef),
-    get(roomChild(suffix, 'ended')),
-    get(roomChild(suffix, 'hostClientId')),
-  ])
-  const pingVal = pingSnap.val()
-  const endedVal = endedSnap.val()
-  if (
-    !canClaimHostRoom(pingVal, endedVal, {
-      hostClientId: hostClientSnap.val(),
-      stableClientId,
-    })
-  ) {
-    return false
-  }
-
-  const reclaimOwn =
-    typeof hostClientSnap.val() === 'string' &&
-    hostClientSnap.val() === stableClientId &&
-    isHostPingPresent(pingVal) &&
-    !isRoomMarkedEnded(endedVal)
-
-  await setRtdb(pingRef, Date.now())
-  await setRtdb(roomChild(suffix, 'hostClientId'), stableClientId)
-  if (!reclaimOwn) {
-    await resetStaleRoomRtdbForClaim(suffix)
-  }
-  return true
-}
-
-/**
- * @param {string} suffix
- */
-async function registerHostOnDisconnect(suffix) {
-  try {
-    onDisconnect(roomChild(suffix, 'hostPing')).remove()
-    onDisconnect(roomChild(suffix, 'ended')).set(Date.now())
-  } catch {
-    void 0
-  }
+  debugQuorum('host_hydrated', quorumSnapshot())
 }
 
 /**
  * @param {string} suffix
  */
 async function finishHostSession(suffix) {
-  await clearRoomEnded(suffix)
-  isHost = true
-  sessionSuffix.value = suffix
   nextSeq = 0
   lastSeenSeq = 0
-  await hydrateHostFromRtdb(suffix)
-  wireHostRoom(suffix)
-  sessionPhase.value = 'hosting'
-  startHostVisibilityWatch()
-  await setRtdb(roomChild(suffix, 'hostPing'), Date.now())
-  await setRtdb(roomChild(suffix, 'hostClientId'), getStableClientId())
-  await registerHostOnDisconnect(suffix)
+  await core.finishHostSession(suffix)
+  wireHostGuestOnline(suffix)
   useMovieVoteStore().setMyParticipantId(HOST_PARTICIPANT_ID)
   try {
     useMovieVoteRoomSessionStore().setHost(suffix)
@@ -831,27 +758,13 @@ async function finishHostSession(suffix) {
  * @param {string} suffix
  */
 async function establishGuestSession(suffix) {
-  const pingSnap = await get(roomChild(suffix, 'hostPing'))
-  if (!isHostPingPresent(pingSnap.val())) {
-    throw new Error('No active room for that code')
-  }
-
-  const endedSnap = await get(roomChild(suffix, 'ended'))
-  if (isRoomMarkedEnded(endedSnap.val())) {
-    throw new Error('No active room for that code')
-  }
-
-  guestStableId = getStableClientId()
   lastSeenSeq = 0
-  isHost = false
   remoteHostTabVisible.value = true
-
-  wireGuestRoom(suffix, guestStableId)
-  await markGuestOnline(suffix, guestStableId)
-  await setRtdb(roomChild(suffix, `inbox/${guestStableId}`), encodeHello(guestStableId))
-
-  sessionPhase.value = 'guest_connected'
-
+  await core.establishGuestSession(suffix)
+  const stableId = core.getGuestStableId()
+  if (!stableId) throw new Error('No active room for that code')
+  await markGuestOnline(suffix, stableId)
+  wireGuestWelcome(suffix, stableId)
   try {
     useMovieVoteRoomSessionStore().setGuest(suffix)
   } catch {
@@ -860,7 +773,7 @@ async function establishGuestSession(suffix) {
 }
 
 export async function resumeAsHost(rawSuffix, maxAttempts = 10) {
-  reconnectGeneration += 1
+  core.bumpReconnectGeneration()
   teardownSession()
 
   const suffix = normalizeRoomSuffixInput(rawSuffix)
@@ -928,7 +841,7 @@ function hostStartSuffixOrder() {
 }
 
 export async function startAsHost(maxAttempts = 12) {
-  reconnectGeneration += 1
+  core.bumpReconnectGeneration()
   teardownSession()
   sessionPhase.value = 'connecting'
 
@@ -940,7 +853,7 @@ export async function startAsHost(maxAttempts = 12) {
       attempt < fixedSuffixes.length ? fixedSuffixes[attempt] : generateRoomSuffix(6)
 
     try {
-      if (!(await tryClaimHostRoom(suffix))) {
+      if (!(await core.tryClaimHostRoom(suffix))) {
         lastErr = new Error('Room code in use')
         continue
       }
@@ -958,7 +871,7 @@ export async function startAsHost(maxAttempts = 12) {
 }
 
 export async function joinRoom(rawSuffix) {
-  reconnectGeneration += 1
+  core.bumpReconnectGeneration()
   teardownSession()
 
   const suffix = normalizeRoomSuffixInput(rawSuffix)
@@ -987,10 +900,10 @@ export async function joinRoom(rawSuffix) {
 }
 
 export function teardownSession() {
-  sessionPhase.value = 'idle'
-  sessionSuffix.value = null
   remoteHostTabVisible.value = true
   destroyWireOnly()
+  core.setPhase('idle')
+  core.setSuffix(null)
 }
 
 function resetLocalStateAfterRoomExit() {
@@ -1003,9 +916,9 @@ function resetLocalStateAfterRoomExit() {
 }
 
 export function leaveSession() {
-  reconnectGeneration += 1
-  if (isHost && sessionPhase.value === 'hosting' && sessionSuffix.value) {
-    const suffix = sessionSuffix.value
+  core.bumpReconnectGeneration()
+  if (core.isHostRole() && core.getPhase() === 'hosting' && core.getSuffix()) {
+    const suffix = core.getSuffix()
     setRtdb(roomChild(suffix, 'ended'), Date.now()).catch(() => {})
     remove(roomChild(suffix, 'hostPing')).catch(() => {})
     try {
@@ -1024,44 +937,48 @@ export function isMovieVoteP2PSessionActive() {
 }
 
 export function movieVoteHostLocalChanged() {
-  if (!isHost || sessionPhase.value !== 'hosting') return
+  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
+  debugQuorum('host_local_changed', quorumSnapshot())
   tryCompileBallot()
   hostBroadcastState()
 }
 
 /** After results reset: everyone must toggle ready again before the next ballot. */
 export function movieVoteHostResetToSuggest() {
-  if (!isHost || sessionPhase.value !== 'hosting') return
+  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
   clearGuestDraftReadyFlags(guestDrafts)
   hostBroadcastState()
 }
 
 export function movieVoteHostVotingMethodChanged() {
-  if (!isHost || sessionPhase.value !== 'hosting') return
+  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
   hostBroadcastState()
 }
 
 export function movieVoteGuestPushDraft() {
-  if (isHost || !guestStableId || !sessionSuffix.value) return
+  if (core.isHostRole()) return
   const store = useMovieVoteStore()
   const pid = store.myParticipantId
   if (!pid) return
-  setRtdb(
-    roomChild(sessionSuffix.value, `inbox/${guestStableId}`),
-    encodeDraft(store.myDraftPicks, store.readyToVote, pid),
-  ).catch(() => {})
+  debugQuorum('guest_push_draft', {
+    participantId: pid,
+    ready: store.readyToVote,
+    pickCount: store.myDraftPicks.length,
+    phase: store.phase,
+  })
+  core.writeGuestInbox(encodeDraft(store.myDraftPicks, store.readyToVote, pid))
 }
 
 export function movieVoteGuestSubmitVote(ranking) {
-  if (isHost || !guestStableId || !sessionSuffix.value) return
+  if (core.isHostRole()) return
   const store = useMovieVoteStore()
   const pid = store.myParticipantId
   if (!pid) return
-  setRtdb(roomChild(sessionSuffix.value, `inbox/${guestStableId}`), encodeVote(pid, ranking)).catch(() => {})
+  core.writeGuestInbox(encodeVote(pid, ranking))
 }
 
 export function movieVoteHostAfterVoteSubmit() {
-  if (!isHost || sessionPhase.value !== 'hosting') return
+  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
   hostBroadcastState()
   tryFinishVoting()
 }
