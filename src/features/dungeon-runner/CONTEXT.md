@@ -50,6 +50,24 @@ The single seat whose setup role is `human` after seat shuffle, identified by **
 
 _Avoid_: Assuming `seat-1`; conflating with **Non-NN history step** or **Randombot** steps without `modelId`.
 
+### Eliminated
+
+A seat with no lives remaining after losing **dungeon runs** as the runner (two failures from the starting two lives); that seat takes no further turns for the rest of the **match**.
+
+_Avoid_: “Out,” “dead,” “removed from play” without tying to lives; treating a single failed **dungeon run** as **eliminated** while lives remain.
+
+### Elimination end (human)
+
+The **match** is over for the **human player seat** once that seat is **eliminated**; remaining **opponent** play may finish without presentation before **match over** is recorded. A brief **finishing match** state may appear while that remainder resolves. The end dialog uses elimination-focused copy and does not name the winning **opponent**.
+
+_Avoid_: “Forfeit,” “concede,” “quit”; implying the whole **match** stops for all seats when only the human is **eliminated** (under normal rules **opponents** continue until one wins); showing the winning **opponent** on the elimination end dialog.
+
+### Defeat (human, not eliminated)
+
+The human lost **match over** while still having lives (e.g. an **opponent** reached two wins first). The end dialog names the winning seat as today.
+
+_Avoid_: Using elimination end copy when the human was not **eliminated**; conflating with **Elimination end (human)**.
+
 ### History
 
 Ordered canonical actions and RNG step metadata that fully determine how a **match** unfolded.
@@ -176,6 +194,8 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - **Adventurer identity** fields are **ui** only; the engine/kernel consumes **catalog rules** only, not **ui**.
 - **Equipment** and **monster** definitions are consulted during **dungeon runs** and bidding within a **match**.
 - A **match** contains one or more **dungeon runs** before **match over**.
+- **Elimination end (human)** and **Defeat (human, not eliminated)** use different end-dialog copy; only the latter names the winning seat.
+- Headless completion of remaining **opponent** play after human **elimination** uses the same action choosers as live play (not a simplified bot).
 - Each **match** has exactly one **human player seat**; the human is not an **opponent** in **setup**.
 - A **completed match replay** is a **replay envelope** captured when **match over** is reached.
 - The **completed match replay archive** holds **completed match replay** envelopes keyed by match id; each key is written at most once from the browser; **archive listing** at the root is allowed for maintainer ingest.

@@ -311,7 +311,7 @@
                 size="lg"
                 class="col-12 col-sm-auto"
                 :label="actionLabel(action)"
-                :disable="gameplayInputLocked || dungeonOutcomeDialogOpen"
+                :disable="humanGameplayBlocked"
                 @click="takeHumanAction(action)"
               />
               <q-btn-dropdown
@@ -322,7 +322,7 @@
                 size="lg"
                 class="col-12 col-sm-auto"
                 label="Sacrifice equipment"
-                :disable="gameplayInputLocked || dungeonOutcomeDialogOpen"
+                :disable="humanGameplayBlocked"
               >
                 <q-list dense>
                   <q-item
@@ -352,7 +352,7 @@
                     class="dr-hero-pick-grid__btn full-width"
                     :label="getHeroIdentity(action.hero).shortLabel"
                     :aria-label="actionLabel(action)"
-                    :disable="gameplayInputLocked || dungeonOutcomeDialogOpen"
+                    :disable="humanGameplayBlocked"
                     @click="takeHumanAction(action)"
                   />
                 </div>
@@ -368,7 +368,7 @@
                   size="lg"
                   class="col-12 col-sm-auto"
                   :label="actionLabel(action)"
-                  :disable="gameplayInputLocked || dungeonOutcomeDialogOpen"
+                  :disable="humanGameplayBlocked"
                   @click="takeHumanAction(action)"
                 />
               </template>
@@ -477,7 +477,9 @@
         <div class="text-overline dr-outcome-kicker">Match complete</div>
         <div class="text-h5 text-weight-bold q-mb-sm dr-outcome-title">{{ matchOverSummary.title }}</div>
         <div class="text-body1 q-mb-xs">{{ matchOverSummary.message }}</div>
-        <div class="text-body2 q-mb-md">Winner: {{ matchOverSummary.winnerLabel }}</div>
+        <div v-if="matchOverSummary.showWinner" class="text-body2 q-mb-md">
+          Winner: {{ matchOverSummary.winnerLabel }}
+        </div>
         <div class="row q-gutter-sm justify-end">
           <q-btn color="primary" unelevated label="Rematch" class="dr-outcome-btn" @click="rematch" />
           <q-btn flat color="primary" label="Back to setup" class="dr-outcome-btn-secondary" @click="backToSetup" />
@@ -536,7 +538,7 @@
             color="primary"
             unelevated
             label="Confirm"
-            :disable="!selectedVorpalSpecies || gameplayInputLocked"
+            :disable="!selectedVorpalSpecies || humanGameplayBlocked"
             @click="confirmVorpalDeclaration"
           />
         </div>
@@ -567,6 +569,14 @@
         </div>
       </q-card>
     </q-dialog>
+
+    <q-inner-loading
+      :showing="headlessCompletionInFlight"
+      data-testid="finishing-match-overlay"
+      class="dr-finishing-match-overlay"
+    >
+      <q-spinner size="50px" color="primary" />
+    </q-inner-loading>
 
     <DungeonRunnerHelpDialog v-model="helpOpen" />
   </q-page>
@@ -600,8 +610,11 @@ import { isNnAdventurerPickEnabled } from '../../features/dungeon-runner/setup/n
 import { shouldEnableDebugOnBoot } from '../../features/dungeon-runner/debug/mode.js'
 import { buildStateFromReplayEnvelope } from '../../features/dungeon-runner/debug/replaySession.js'
 import { exportReplayEnvelope, importReplayEnvelope } from '../../features/dungeon-runner/debug/replay.js'
-import { chooseRandombotAction } from '../../features/dungeon-runner/bots/randombot.js'
-import { chooseNnActionWithFallback, warmNnModelCache } from '../../features/dungeon-runner/nn/runtime.js'
+import {
+  abandonScheduledInferenceQueue,
+  chooseNnActionWithFallback,
+  warmNnModelCache,
+} from '../../features/dungeon-runner/nn/runtime.js'
 import { createModelFailureRecovery } from '../../features/dungeon-runner/nn/recovery.js'
 import { fetchModelCatalog } from '../../features/dungeon-runner/models/catalog.js'
 import { pickDefaultModelId, validateSelectedModels } from '../../features/dungeon-runner/models/discovery.js'
@@ -653,6 +666,13 @@ import {
   buildDungeonOutcomeSummary,
   isDungeonOutcomeDialogOpen,
 } from '../../features/dungeon-runner/ui/dungeonOutcomeDialog.js'
+import { MATCH_OVER_END_VARIANTS } from '../../features/dungeon-runner/ui/humanEliminationCompletionPolicy.js'
+import {
+  createLivePlayActionChooser,
+  runMaybeHeadlessMatchCompletionFromState,
+  shouldDeferDungeonExitUntilOutcomeAck,
+} from '../../features/dungeon-runner/ui/headlessMatchCompletionRunner.js'
+import { buildMatchOverSummary } from '../../features/dungeon-runner/ui/matchOverSummaryBuilder.js'
 import MonsterCardFace from '../../components/dungeon-runner/MonsterCardFace.vue'
 import DungeonRunnerHelpDialog from '../../features/dungeon-runner/ui/DungeonRunnerHelpDialog.vue'
 import { closeDeckSplay, createMemoryAidState, setMemoryAidEnabled, tapDeck } from '../../features/dungeon-runner/ui/memoryAidState.js'
@@ -856,6 +876,7 @@ const SCHEDULE_SKIP_THROTTLE_REASONS = new Set([
   'in-flight',
   'already-applied-token',
   'deferred-post-dungeon',
+  'headless-completion',
 ])
 
 function logAiTurnScheduleSkip(reason, detail = {}) {
@@ -875,7 +896,9 @@ function logAiTurnPrimeSkip(reason, detail = {}) {
 }
 
 function scheduleAiTurnOnPresentationTick() {
-  if (!match.value || isHumanTurn.value || deferredPostDungeonState.value) return
+  if (!match.value || isHumanTurn.value || deferredPostDungeonState.value || headlessCompletionInFlight.value) {
+    return
+  }
   scheduleAiTurnIfReady()
 }
 const uiAssets = dungeonRunnerAssetPack
@@ -962,6 +985,7 @@ const showActionPane = computed(
 const biddingSacrificeActions = computed(() => visibleLegalActions.value.filter((a) => a.type === 'SACRIFICE'))
 const biddingNonSacrificeActions = computed(() => visibleLegalActions.value.filter((a) => a.type !== 'SACRIFICE'))
 const gameplayInputLocked = ref(false)
+const headlessCompletionInFlight = ref(false)
 const visibleState = computed(() => {
   if (!match.value || !humanSeatId.value) return null
   return getPlayerView(match.value.state, { seatId: humanSeatId.value })
@@ -1043,9 +1067,6 @@ const selectedEquipmentModalView = computed(() => {
     legalActions: legalActions.value,
   })
 })
-const equipmentModalActionsDisabled = computed(
-  () => gameplayInputLocked.value || dungeonOutcomeDialogOpen.value || !isHumanTurn.value,
-)
 const vorpalPromptView = computed(() =>
   createVorpalDeclarationPromptView({
     isHumanTurn: isHumanTurn.value,
@@ -1157,6 +1178,7 @@ const dungeonOutcomeMessage = computed(() =>
 const dungeonOutcomeDialogOpen = computed({
   get() {
     return (
+      !headlessCompletionInFlight.value &&
       !gameplayInputLocked.value &&
       isDungeonOutcomeDialogOpen({
       lastDungeonRun: match.value?.state?.lastDungeonRun ?? null,
@@ -1169,31 +1191,27 @@ const dungeonOutcomeDialogOpen = computed({
     continueFromDungeonOutcome()
   },
 })
-const matchOverSummary = computed(() => {
-  const fallback = {
-    title: 'Match over',
-    message: 'The match has ended.',
-    winnerLabel: 'Unknown',
-  }
-  if (!match.value || match.value.state.phase !== MATCH_PHASES.MATCH_OVER) return fallback
-  const winnerSeatId = match.value.state.matchWinnerSeatId
-  const winnerSeat = match.value.state.seats.find((seat) => seat.id === winnerSeatId)
-  const winnerLabel = winnerSeat?.label ?? winnerSeatId ?? 'Unknown'
-  const isHumanWinner = winnerSeatId != null && winnerSeatId === humanSeatId.value
-  if (isHumanWinner) {
-    return {
-      title: 'Victory!',
-      message: 'You won the match. Great run.',
-      winnerLabel,
-    }
-  }
-  return {
-    title: 'Defeat',
-    message: `${winnerLabel} won this match.`,
-    winnerLabel,
-  }
-})
-const matchOverToneClass = computed(() => (matchOverSummary.value.title === 'Victory!' ? 'dr-outcome--success' : 'dr-outcome--failure'))
+const humanGameplayBlocked = computed(
+  () =>
+    gameplayInputLocked.value ||
+    dungeonOutcomeDialogOpen.value ||
+    headlessCompletionInFlight.value,
+)
+const equipmentModalActionsDisabled = computed(
+  () => humanGameplayBlocked.value || !isHumanTurn.value,
+)
+const matchOverSummary = computed(() =>
+  buildMatchOverSummary({
+    state: match.value?.state ?? null,
+    humanPlayerSeatId: humanSeatId.value,
+    seats: match.value?.state?.seats ?? [],
+  }),
+)
+const matchOverToneClass = computed(() =>
+  matchOverSummary.value.variant === MATCH_OVER_END_VARIANTS.VICTORY
+    ? 'dr-outcome--success'
+    : 'dr-outcome--failure',
+)
 const matchOverDialogOpen = computed({
   get() {
     return !!match.value && match.value.state.phase === MATCH_PHASES.MATCH_OVER
@@ -1224,6 +1242,7 @@ onMounted(() => {
     presentationSpeedProfile.value = pace
     presentationOrchestrator.setSpeedProfile(pace)
     syncPresentationLabel()
+    void maybeRunHeadlessMatchCompletion()
   }
   void loadModelCatalog()
   presentationTimerId = window.setInterval(() => {
@@ -1425,7 +1444,7 @@ function takeHumanAction(action) {
     return
   }
   resetAiTurnPrefetch()
-  if (gameplayInputLocked.value) {
+  if (humanGameplayBlocked.value) {
     return
   }
   if (autoResolveTimerId) {
@@ -1493,7 +1512,7 @@ function onConfirmationDialogCancel() {
 }
 
 function openEquipmentModal(token) {
-  if (!token?.hasModal || dungeonOutcomeDialogOpen.value) return
+  if (!token?.hasModal || humanGameplayBlocked.value) return
   selectedEquipmentTokenId.value = token.equipmentId
   equipmentModalOpen.value = true
 }
@@ -1522,7 +1541,7 @@ function continueFromEquipmentModal() {
   equipmentModalOpen.value = false
 }
 
-function continueFromDungeonOutcome() {
+async function continueFromDungeonOutcome() {
   const run = match.value?.state?.lastDungeonRun
   if (!run) return
   dismissedDungeonRun.value = run
@@ -1532,6 +1551,68 @@ function continueFromDungeonOutcome() {
   }
   presentationOrchestrator.flushPostDungeonOutcomeAnimations()
   syncPresentationLabel()
+  await maybeRunHeadlessMatchCompletion()
+}
+
+function teardownForHeadlessMatchCompletion() {
+  if (aiTurnTimerId) {
+    window.clearTimeout(aiTurnTimerId)
+    aiTurnTimerId = null
+  }
+  if (autoResolveTimerId) {
+    window.clearTimeout(autoResolveTimerId)
+    autoResolveTimerId = null
+  }
+  resetAiTurnPrefetch()
+  abandonScheduledInferenceQueue()
+  presentationOrchestrator.clear()
+  deferredPostDungeonState.value = null
+  lastAppliedAiTurnToken = null
+  const run = match.value?.state?.lastDungeonRun
+  if (run) dismissedDungeonRun.value = run
+}
+
+function createPageHeadlessCompletionFlightGate() {
+  return {
+    get inFlight() {
+      return headlessCompletionInFlight.value
+    },
+    tryStart() {
+      if (headlessCompletionInFlight.value) return false
+      headlessCompletionInFlight.value = true
+      return true
+    },
+    finish() {
+      headlessCompletionInFlight.value = false
+    },
+  }
+}
+
+async function maybeRunHeadlessMatchCompletion() {
+  if (!match.value) return
+  const humanId = humanSeatId.value
+  if (!humanId) return
+
+  const chooseAction = createLivePlayActionChooser({
+    nnFailureRecovery,
+    ensureNnModelsReady,
+    nnRuntimeOptions,
+  })
+  try {
+    const result = await runMaybeHeadlessMatchCompletionFromState(match.value.state, {
+      humanPlayerSeatId: humanId,
+      chooseAction,
+      gate: createPageHeadlessCompletionFlightGate(),
+      afterFlightStart: teardownForHeadlessMatchCompletion,
+    })
+    if (result.ran && !result.failed) {
+      match.value = { ...match.value, state: result.state }
+    } else if (result.ran && result.failed && debugMode.value) {
+      console.warn('[DungeonRunner][headless] completion failed', result.errorCode, result.actionCount)
+    }
+  } finally {
+    syncPresentationLabel()
+  }
 }
 
 function confirmVorpalDeclaration() {
@@ -1546,6 +1627,10 @@ async function runAiTurn() {
   const trace = aiTurnTrace()
   if (aiTurnInFlight) {
     trace('run.skip', { reason: 'in-flight' })
+    return
+  }
+  if (headlessCompletionInFlight.value) {
+    trace('run.skip', { reason: 'headless-completion' })
     return
   }
   if (gameplayInputLocked.value) {
@@ -1588,37 +1673,16 @@ async function runAiTurn() {
   })
   const seat = match.value.state.seats.find((candidate) => candidate.id === seatId)
   const roleType = seat?.role?.type
-  let action = null
-  if (roleType === 'nn') {
+  const chooseAction = createLivePlayActionChooser({
+    nnFailureRecovery,
+    ensureNnModelsReady,
+    nnRuntimeOptions,
+    tryConsumePrefetch: async () => consumeAiTurnPrefetch(runToken, (step, detail) => trace(step, detail)),
+  })
+  let action = await chooseAction({ state: match.value.state, seatId, runToken })
+  if (roleType === 'nn' && action?.meta?.fallbackReason === 'MODEL_LOAD_FAILED') {
     const modelId = seat.role.modelId ?? 'latest'
-    if (match.value.state.phase === 'pick-adventurer' && !isNnAdventurerPickEnabled()) {
-      trace('choose.random-adventurer', { seatId })
-      action = chooseRandombotAction(match.value.state, { seatId })
-    } else if (nnFailureRecovery.isCoolingDown(modelId)) {
-      trace('choose.randombot', { reason: 'model-cooldown', modelId })
-      action = chooseRandombotAction(match.value.state, { seatId })
-    } else {
-      await ensureNnModelsReady()
-      action = await consumeAiTurnPrefetch(runToken, (step, detail) => trace(step, detail))
-      if (action) {
-        trace('choose.prefetch-hit', { modelId, actionType: action.type })
-      } else {
-        trace('choose.nn.begin', { modelId })
-        action = await chooseNnActionWithFallback(match.value.state, { seatId }, nnRuntimeOptions(modelId))
-        trace('choose.nn.done', { modelId, actionType: action?.type ?? null, fallbackReason: action?.meta?.fallbackReason ?? null })
-      }
-      if (action?.meta?.fallbackReason === 'MODEL_LOAD_FAILED') {
-        // Use the safe fallback for this turn; recovery UI must not block the AI pipeline.
-        void handleNnModelFailure(seat, modelId, seatId, action)
-      }
-    }
-  } else {
-    trace('choose.randombot', { seatId })
-    action = chooseRandombotAction(match.value.state, { seatId })
-  }
-  if (!action) {
-    trace('choose.empty', { seatId, roleType })
-    action = chooseRandombotAction(match.value.state, { seatId })
+    void handleNnModelFailure(seat, modelId, seatId, action)
   }
   if (!action) {
     trace('run.abort', { reason: 'no-action' })
@@ -1675,6 +1739,10 @@ async function runAiTurn() {
 
 function primeAiTurnPrefetch() {
   const trace = aiTurnTrace()
+  if (headlessCompletionInFlight.value) {
+    logAiTurnPrimeSkip('headless-completion')
+    return
+  }
   if (!match.value || isHumanTurn.value) {
     logAiTurnPrimeSkip(!match.value ? 'no-match' : 'human-turn')
     return
@@ -1717,14 +1785,6 @@ function primeAiTurnPrefetch() {
       return chooseNnActionWithFallback(state, { seatId }, nnRuntimeOptions(modelId))
     },
   })
-}
-
-function shouldDeferDungeonExitUntilOutcomeAck(prevState, nextState) {
-  return (
-    prevState.phase === MATCH_PHASES.DUNGEON &&
-    nextState.phase === MATCH_PHASES.PICK_ADVENTURER &&
-    nextState.lastDungeonRun != null
-  )
 }
 
 function enqueuePresentationTransition(prevState, nextState, action, actorSeatId, actorRoleType) {
@@ -1871,6 +1931,10 @@ function scheduleAiTurnIfReady() {
     logAiTurnScheduleSkip('in-flight')
     return
   }
+  if (headlessCompletionInFlight.value) {
+    logAiTurnScheduleSkip('headless-completion')
+    return
+  }
   if (deferredPostDungeonState.value) {
     logAiTurnScheduleSkip('deferred-post-dungeon')
     return
@@ -1926,7 +1990,7 @@ function scheduleHumanAutoResolveIfReady() {
   if (!match.value) {
     return
   }
-  if (gameplayInputLocked.value) {
+  if (humanGameplayBlocked.value) {
     return
   }
   if (!isHumanTurn.value) {

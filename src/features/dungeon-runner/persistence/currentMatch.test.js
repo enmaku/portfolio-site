@@ -1,5 +1,24 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { chooseRandombotAction } from '../bots/randombot.js'
+import {
+  ACTION_TYPES,
+  DUNGEON_SUBPHASES,
+  MATCH_PHASES,
+  applyAction,
+  createInitialMatchState,
+} from '../engine/kernel.js'
+import {
+  buildDeferredDungeonOutcomeDisplayState,
+  DEFAULT_MAX_HEADLESS_ACTIONS,
+  resolveHeadlessCompletionStartState,
+  runMaybeHeadlessMatchCompletionFromState,
+} from '../ui/headlessMatchCompletionRunner.js'
+import {
+  getMatchOverEndDialogVariant,
+  MATCH_OVER_END_VARIANTS,
+  needsHeadlessCompletion,
+} from '../ui/humanEliminationCompletionPolicy.js'
 import {
   CURRENT_MATCH_SCHEMA_VERSION,
   clearCurrentMatch,
@@ -7,6 +26,35 @@ import {
   loadCurrentMatch,
   persistCurrentMatch,
 } from './currentMatch.js'
+
+const FOUR_PLAYER_SETUP = {
+  totalSeats: 4,
+  opponents: [{ type: 'randombot' }, { type: 'randombot' }, { type: 'randombot' }],
+}
+
+function seatByRole(state, roleType) {
+  return state.seats.find((seat) => seat.role.type === roleType)
+}
+
+function lethalRevealDungeonState(state, runnerSeatId) {
+  return {
+    ...state,
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { ...state.turn, activeSeatId: runnerSeatId },
+    bidding: { ...state.bidding, runnerSeatId, dungeonMonsters: ['dragon'] },
+    dungeon: {
+      ...state.dungeon,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+      currentMonster: null,
+      remainingMonsters: ['dragon'],
+      hp: 3,
+      inPlayEquipmentIds: ['W_VORPAL'],
+      discardedRunMonsters: [],
+      polySpent: true,
+      axeSpent: true,
+    },
+  }
+}
 
 function createMemoryStorage() {
   const map = new Map()
@@ -129,6 +177,49 @@ test('persisted match may include presentationSpeedProfile', () => {
   const loaded = loadCurrentMatch(storage)
   assert.equal(loaded.ok, true)
   assert.equal(loaded.match.presentationSpeedProfile, 'brisk')
+})
+
+test('persisted eliminated-before-match-over resumes headless completion to match over', async () => {
+  const storage = createMemoryStorage()
+  const initial = createInitialMatchState(FOUR_PLAYER_SETUP, { seed: 9100 })
+  const human = seatByRole(initial, 'human')
+  assert.ok(human)
+  const onLastLife = {
+    ...lethalRevealDungeonState(initial, human.id),
+    scoreboard: {
+      ...initial.scoreboard,
+      [human.id]: { ...initial.scoreboard[human.id], lives: 1, eliminated: false },
+    },
+    turn: { ...initial.turn, activeSeatId: human.id },
+  }
+  const eliminated = applyAction(onLastLife, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: human.id })
+  assert.equal(eliminated.ok, true)
+  const { displayState } = buildDeferredDungeonOutcomeDisplayState(onLastLife, eliminated.state)
+  assert.equal(displayState.phase, MATCH_PHASES.DUNGEON)
+  assert.equal(needsHeadlessCompletion(eliminated.state, human.id), true)
+
+  persistCurrentMatch(storage, {
+    schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
+    id: 'm-headless-resume',
+    setup: FOUR_PLAYER_SETUP,
+    state: displayState,
+    history: eliminated.state.history,
+  })
+
+  const loaded = loadCurrentMatch(storage)
+  assert.equal(loaded.ok, true)
+  assert.equal(decideResumeFlow(storage).mode, 'resume-or-start-new')
+
+  const start = resolveHeadlessCompletionStartState(loaded.match.state, human.id)
+  const completion = await runMaybeHeadlessMatchCompletionFromState(start, {
+    humanPlayerSeatId: human.id,
+    chooseAction: async ({ state, seatId }) => chooseRandombotAction(state, { seatId }),
+    maxActions: DEFAULT_MAX_HEADLESS_ACTIONS,
+  })
+
+  assert.equal(completion.ran, true)
+  assert.equal(completion.state.phase, MATCH_PHASES.MATCH_OVER)
+  assert.equal(getMatchOverEndDialogVariant(completion.state, human.id), MATCH_OVER_END_VARIANTS.ELIMINATION_END_HUMAN)
 })
 
 test('invalid presentationSpeedProfile rejects persisted match', () => {
