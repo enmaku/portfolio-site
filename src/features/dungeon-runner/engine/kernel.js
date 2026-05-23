@@ -557,12 +557,13 @@ function findNextActiveSeatId(state, seatId, passedSeatIds) {
   return null
 }
 
+function pickAdventurerSeatId(state, runnerSeatId, scoreboard) {
+  if (!scoreboard[runnerSeatId]?.eliminated) return runnerSeatId
+  return findNextActiveSeatId(state, runnerSeatId, []) ?? runnerSeatId
+}
+
 function enterPickAdventurerPhase(state, runnerSeatId, scoreboard, result) {
-  const runnerScore = scoreboard[runnerSeatId]
-  const seatIndex = state.seats.findIndex((seat) => seat.id === runnerSeatId)
-  const pickSeatId = runnerScore?.eliminated
-    ? state.seats[(seatIndex - 1 + state.seats.length) % state.seats.length]?.id ?? runnerSeatId
-    : runnerSeatId
+  const pickSeatId = pickAdventurerSeatId(state, runnerSeatId, scoreboard)
   return {
     ...state,
     phase: MATCH_PHASES.PICK_ADVENTURER,
@@ -596,6 +597,8 @@ function enterPickAdventurerPhase(state, runnerSeatId, scoreboard, result) {
 
 function applyChooseNextAdventurerAction(state, action, actor) {
   if (state.phase !== MATCH_PHASES.PICK_ADVENTURER) return null
+  const designatedPickerId = state.pickAdventurer?.activeSeatId ?? null
+  if (!designatedPickerId || actor.seatId !== designatedPickerId) return null
   const loadout = catalogRules.adventurerLoadouts[action.hero] ?? catalogRules.defaultLoadout
   const shuffledDeck = shuffle(createInitialMonsterDeck(), state.rng)
   return {

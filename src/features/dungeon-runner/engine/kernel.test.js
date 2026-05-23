@@ -801,6 +801,84 @@ test('runner clears dungeon via reveal chain and enters pick-adventurer', () => 
   assert.equal(reveal.state.scoreboard[runnerId].successes, 1)
 })
 
+test('eliminated runner yields pick to next surviving seat in turn order (#146)', () => {
+  const state = createInitialMatchState(
+    {
+      totalSeats: 4,
+      opponents: [{ type: 'randombot' }, { type: 'randombot' }, { type: 'randombot' }],
+    },
+    { seed: 2 },
+  )
+  const runnerId = state.seats[2].id
+  const nextSurvivorId = state.seats[3].id
+  const previousSeatId = state.seats[1].id
+  const dungeonState = {
+    ...state,
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { ...state.turn, activeSeatId: runnerId },
+    bidding: { ...state.bidding, runnerSeatId: runnerId, dungeonMonsters: ['dragon'] },
+    scoreboard: {
+      ...state.scoreboard,
+      [runnerId]: { successes: 0, lives: 1, eliminated: false },
+    },
+    dungeon: {
+      ...state.dungeon,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+      currentMonster: null,
+      remainingMonsters: ['dragon'],
+      hp: 1,
+      inPlayEquipmentIds: [],
+      discardedRunMonsters: [],
+      polySpent: true,
+      axeSpent: true,
+    },
+  }
+  const result = applyAction(dungeonState, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runnerId })
+  assert.equal(result.ok, true)
+  assert.equal(result.state.phase, MATCH_PHASES.PICK_ADVENTURER)
+  assert.equal(result.state.scoreboard[runnerId].eliminated, true)
+  assert.equal(result.state.lastDungeonRun?.runnerSeatId, runnerId)
+  assert.equal(result.state.turn.activeSeatId, nextSurvivorId)
+  assert.equal(result.state.pickAdventurer.activeSeatId, nextSurvivorId)
+  assert.notEqual(result.state.turn.activeSeatId, previousSeatId)
+  assert.equal(getLegalActions(result.state, { seatId: runnerId }).length, 0)
+  assert.equal(getLegalActions(result.state, { seatId: nextSurvivorId }).length, 4)
+})
+
+test('runner who survives failure still picks next adventurer (#146)', () => {
+  const state = createInitialMatchState(
+    {
+      totalSeats: 4,
+      opponents: [{ type: 'randombot' }, { type: 'randombot' }, { type: 'randombot' }],
+    },
+    { seed: 2 },
+  )
+  const runnerId = state.seats[2].id
+  const dungeonState = {
+    ...state,
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { ...state.turn, activeSeatId: runnerId },
+    bidding: { ...state.bidding, runnerSeatId: runnerId, dungeonMonsters: ['goblin'] },
+    dungeon: {
+      ...state.dungeon,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+      currentMonster: null,
+      remainingMonsters: ['goblin'],
+      hp: 1,
+      inPlayEquipmentIds: [],
+      discardedRunMonsters: [],
+      polySpent: true,
+      axeSpent: true,
+    },
+  }
+  const result = applyAction(dungeonState, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runnerId })
+  assert.equal(result.ok, true)
+  assert.equal(result.state.phase, MATCH_PHASES.PICK_ADVENTURER)
+  assert.equal(result.state.scoreboard[runnerId].eliminated, false)
+  assert.equal(result.state.turn.activeSeatId, runnerId)
+  assert.equal(getLegalActions(result.state, { seatId: runnerId }).length, 4)
+})
+
 test('runner failure in dungeon transitions to pick-adventurer with life loss', () => {
   const state = createInitialMatchState(
     {
