@@ -231,7 +231,7 @@ const JOINABLE_SUGGEST_PAYLOAD = buildMovieVotePublicPayload(
 const rtdbLifecycleTests = { skip: !mock.module }
 
 test(
-  'guest hostPing loss after seen stays connected and keeps room persistence',
+  'strict guest does not wire hostPing and stays connected with room persistence',
   rtdbLifecycleTests,
   async () => {
     mock.reset()
@@ -245,13 +245,11 @@ test(
       await joinRoom('ABC123')
       assert.equal(sessionPhase.value, 'guest_connected')
       assert.equal(room.role, 'guest')
-
-      const hostPingPath = [...listeners.keys()].find((p) => p.endsWith('hostPing'))
-      assert.ok(hostPingPath)
-      const onHostPing = listeners.get(hostPingPath)
-      assert.ok(onHostPing)
-      onHostPing({ val: () => 5_000_000 })
-      onHostPing({ val: () => null })
+      assert.equal(
+        [...listeners.keys()].some((p) => p.endsWith('hostPing')),
+        false,
+        'strict guest should not subscribe to hostPing',
+      )
 
       assert.equal(sessionPhase.value, 'guest_connected')
       assert.equal(sessionSuffix.value, 'ABC123')
@@ -513,7 +511,7 @@ test(
 )
 
 test(
-  'guest hostPing loss before seen keeps session when state is joinable',
+  'strict guest joins without hostPing when state is joinable',
   rtdbLifecycleTests,
   async () => {
     mock.reset()
@@ -534,15 +532,11 @@ test(
       await joinRoom('NOPING')
       assert.equal(sessionPhase.value, 'guest_connected')
       assert.equal(sessionSuffix.value, 'NOPING')
-
-      const hostPingPath = [...listeners.keys()].find((p) => p.endsWith('hostPing'))
-      assert.ok(hostPingPath)
-      const onHostPing = listeners.get(hostPingPath)
-      assert.ok(onHostPing)
-      onHostPing({ val: () => null })
-
-      assert.equal(sessionPhase.value, 'guest_connected')
-      assert.equal(sessionSuffix.value, 'NOPING')
+      assert.equal(
+        [...listeners.keys()].some((p) => p.endsWith('hostPing')),
+        false,
+        'strict guest should not subscribe to hostPing',
+      )
       assert.equal(room.role, 'guest')
     })
   },
