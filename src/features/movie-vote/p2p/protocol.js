@@ -141,11 +141,12 @@ export function parseDraft(data) {
   if (!isRecord(data) || data.type !== MSG_MV_DRAFT) return null
   if (typeof data.participantId !== 'string') return null
   if (typeof data.ready !== 'boolean') return null
-  if (!Array.isArray(data.picks)) return null
+  // RTDB omits empty arrays; guest drafts with zero picks arrive without `picks`.
+  const picks = Array.isArray(data.picks) ? data.picks : []
   return {
     participantId: data.participantId,
     ready: data.ready,
-    picks: /** @type {import('../types.js').MoviePick[]} */ (data.picks),
+    picks: /** @type {import('../types.js').MoviePick[]} */ (picks),
   }
 }
 

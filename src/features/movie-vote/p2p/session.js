@@ -103,13 +103,6 @@ const GUEST_REMOVAL_GRACE_MS = 45_000
 
 const MIN_DISTINCT_SUGGESTIONS_FOR_READY = 2
 
-/** @param {string} step @param {Record<string, unknown>} [detail] */
-function debugQuorum(step, detail = {}) {
-  if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
-    console.debug('[movieVote quorum]', step, detail)
-  }
-}
-
 /**
  * @returns {string | null} null when every gate passes
  */
@@ -122,32 +115,25 @@ function allParticipantsReadyReason() {
   }
   if (guestDrafts.size < 1) return 'no_guest_drafts'
   for (const [pid, g] of guestDrafts) {
+    const stableId = [...stableIdToParticipant.entries()].find(([, p]) => p === pid)?.[0]
+    if (stableId && !activeGuestStableIds.has(stableId)) continue
     if (!g.ready) return `guest_not_ready:${pid}`
   }
+  const hasOnlineGuest = [...stableIdToParticipant.entries()].some(
+    ([stableId]) => activeGuestStableIds.has(stableId) && stableIdToParticipant.get(stableId) !== HOST_PARTICIPANT_ID,
+  )
+  if (!hasOnlineGuest) return 'no_online_guests'
   return null
 }
 
-/** @returns {Record<string, unknown>} */
-function quorumSnapshot() {
-  const store = useMovieVoteStore()
-  return {
-    phase: store.phase,
-    sessionPhase: sessionPhase.value,
-    hostReady: store.readyToVote,
-    distinctMovies: distinctSuggestedMovieCount(),
-    guestDraftCount: guestDrafts.size,
-    guests: [...guestDrafts.entries()].map(([pid, g]) => ({
-      pid,
-      ready: g.ready,
-      pickCount: g.picks.length,
-    })),
-    activeGuestStableIds: [...activeGuestStableIds],
-    blockReason: allParticipantsReadyReason(),
+/** Guest participant ids with a stable id currently marked online. */
+function onlineGuestParticipantIds() {
+  /** @type {string[]} */
+  const out = []
+  for (const [stableId, pid] of stableIdToParticipant) {
+    if (activeGuestStableIds.has(stableId)) out.push(pid)
   }
-}
-
-if (typeof import.meta !== 'undefined' && import.meta.env?.DEV && typeof globalThis !== 'undefined') {
-  globalThis.__movieVoteQuorumSnapshot = () => quorumSnapshot()
+  return out
 }
 
 /**
@@ -336,15 +322,8 @@ function hostBroadcastState() {
 
 function tryCompileBallot() {
   const store = useMovieVoteStore()
-  if (store.phase !== 'suggest') {
-    debugQuorum('compile_skipped', { reason: 'phase_not_suggest', ...quorumSnapshot() })
-    return
-  }
-  const blockReason = allParticipantsReadyReason()
-  if (blockReason) {
-    debugQuorum('compile_blocked', { reason: blockReason, ...quorumSnapshot() })
-    return
-  }
+  if (store.phase !== 'suggest') return
+  if (allParticipantsReadyReason()) return
 
   /** @type {import('../types.js').MoviePick[]} */
   const allPicks = store.myDraftPicks.map((p) => ({ ...p }))
@@ -353,22 +332,12 @@ function tryCompileBallot() {
   }
   const movies = compileBallotMovies(allPicks)
   if (movies.length < MIN_DISTINCT_SUGGESTIONS_FOR_READY) {
-    debugQuorum('compile_blocked', {
-      reason: 'compiled_ballot_lt_min',
-      compiledCount: movies.length,
-      ...quorumSnapshot(),
-    })
     notifyP2P('Need at least two different movies before voting.', 'warning')
     return
   }
 
   const orderIds = movies.map((m) => m.publicId)
-  const voterIds = [HOST_PARTICIPANT_ID, ...guestDrafts.keys()]
-  debugQuorum('compile_entering_voting', {
-    ballotMovieCount: movies.length,
-    voterIds,
-    ...quorumSnapshot(),
-  })
+  const voterIds = [HOST_PARTICIPANT_ID, ...onlineGuestParticipantIds()]
   store.setVotingState(movies, orderIds, voterIds)
   hostBroadcastState()
 }
@@ -448,42 +417,21 @@ function bindStableIdFromGuestPayload(stableId, raw) {
 function handleHostInboxMessage(stableId, raw) {
   const hello = parseHello(raw)
   if (hello) {
-    if (hello.stableId !== stableId) {
-      debugQuorum('inbox_hello_ignored', { stableId, helloStableId: hello.stableId })
-      return
-    }
-    debugQuorum('inbox_hello', { stableId })
+    if (hello.stableId !== stableId) return
     onGuestHello(stableId)
     return
   }
 
   const expectedPid = bindStableIdFromGuestPayload(stableId, raw)
-  if (!expectedPid) {
-    debugQuorum('inbox_unbound', { stableId })
-    return
-  }
+  if (!expectedPid) return
 
   const store = useMovieVoteStore()
   const draft = parseDraft(raw)
   if (draft) {
-    if (draft.participantId !== expectedPid) {
-      debugQuorum('inbox_draft_pid_mismatch', {
-        stableId,
-        expectedPid,
-        draftPid: draft.participantId,
-      })
-      return
-    }
+    if (draft.participantId !== expectedPid) return
     guestDrafts.set(expectedPid, {
       picks: normalizePicks(draft.picks),
       ready: draft.ready,
-    })
-    debugQuorum('inbox_draft', {
-      stableId,
-      participantId: expectedPid,
-      ready: draft.ready,
-      pickCount: draft.picks?.length ?? 0,
-      ...quorumSnapshot(),
     })
     tryCompileBallot()
     hostBroadcastState()
@@ -553,10 +501,8 @@ function wireHostGuestOnline(suffix) {
           if (onlineSnap.val() === true) {
             activeGuestStableIds.add(stableId)
             cancelParticipantRemoval(pid)
-            debugQuorum('guest_online', { stableId, participantId: pid, ...quorumSnapshot() })
           } else {
             activeGuestStableIds.delete(stableId)
-            debugQuorum('guest_offline', { stableId, participantId: pid, ...quorumSnapshot() })
             if (!activeGuestStableIds.has(stableId)) scheduleParticipantRemoval(pid)
           }
         }),
@@ -626,24 +572,14 @@ function scheduleParticipantRemoval(pid) {
   if (stableId && activeGuestStableIds.has(stableId)) return
   const existing = pendingRemovalTimers.get(pid)
   if (existing) clearTimeout(existing)
-  debugQuorum('removal_scheduled', {
-    participantId: pid,
-    stableId: stableId ?? null,
-    graceMs: GUEST_REMOVAL_GRACE_MS,
-    ...quorumSnapshot(),
-  })
   const t = setTimeout(() => {
     pendingRemovalTimers.delete(pid)
-    if (stableId && activeGuestStableIds.has(stableId)) {
-      debugQuorum('removal_cancelled_online', { participantId: pid, stableId })
-      return
-    }
+    if (stableId && activeGuestStableIds.has(stableId)) return
     guestDrafts.delete(pid)
     if (stableId) {
       stableIdToParticipant.delete(stableId)
       activeGuestStableIds.delete(stableId)
     }
-    debugQuorum('removal_executed', { participantId: pid, stableId: stableId ?? null, ...quorumSnapshot() })
     if (core.isHostRole() && sessionPhase.value === 'hosting') {
       useMovieVoteStore().removeParticipantFromVote(pid)
       tryCompileBallot()
@@ -678,7 +614,6 @@ function onGuestHello(stableId) {
   }
 
   activeGuestStableIds.add(stableId)
-  debugQuorum('guest_hello', { stableId, participantId: pid, resumed, ...quorumSnapshot() })
 
   const suffix = sessionSuffix.value
   if (!suffix) return
@@ -734,7 +669,6 @@ async function hydrateHostFromRtdb(suffix) {
       if (isOnline === true) activeGuestStableIds.add(stableId)
     }
   }
-  debugQuorum('host_hydrated', quorumSnapshot())
 }
 
 /**
@@ -938,7 +872,6 @@ export function isMovieVoteP2PSessionActive() {
 
 export function movieVoteHostLocalChanged() {
   if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
-  debugQuorum('host_local_changed', quorumSnapshot())
   tryCompileBallot()
   hostBroadcastState()
 }
@@ -960,12 +893,6 @@ export function movieVoteGuestPushDraft() {
   const store = useMovieVoteStore()
   const pid = store.myParticipantId
   if (!pid) return
-  debugQuorum('guest_push_draft', {
-    participantId: pid,
-    ready: store.readyToVote,
-    pickCount: store.myDraftPicks.length,
-    phase: store.phase,
-  })
   core.writeGuestInbox(encodeDraft(store.myDraftPicks, store.readyToVote, pid))
 }
 

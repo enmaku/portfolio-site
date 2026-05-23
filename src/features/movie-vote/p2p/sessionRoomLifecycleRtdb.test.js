@@ -4,7 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { HOST_PARTICIPANT_ID } from '../core.js'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { useMovieVoteRoomSessionStore } from '../../../stores/movieVoteRoomSession.js'
-import { encodeHello, encodeState } from './protocol.js'
+import { encodeHello, encodeState, MSG_MV_DRAFT } from './protocol.js'
 import { ROOM_CLAIM_RESET_PATHS } from './sessionRoomRtdb.js'
 import { buildMovieVotePublicPayload } from '../publicPayload.js'
 
@@ -602,6 +602,90 @@ test(
     })
 
     mock.timers.reset()
+  },
+)
+
+test(
+  'host enters voting when guest signals ready with zero picks (RTDB omits empty picks)',
+  rtdbLifecycleTests,
+  async () => {
+    mock.reset()
+
+    const hostStableId = 'MVHOSTZERO1'
+    const guestStableId = 'MVGUESTZERO1'
+    const suffix = 'ZERO01'
+
+    mock.module('../../p2p/identity.js', {
+      namedExports: {
+        ...(await import('../../p2p/identity.js')),
+        getStableClientId: () => hostStableId,
+        deriveStableHostSuffix: () => suffix,
+      },
+    })
+
+    const harness = await installRtdbLifecycleMocks({
+      getHostPing: () => null,
+      getEnded: () => null,
+      getHostClientId: () => null,
+    })
+
+    await withFirebaseEnv(async () => {
+      const { startAsHost, movieVoteHostLocalChanged, sessionPhase } = await importSession(
+        `zero-picks-ready-${Date.now()}`,
+      )
+      setActivePinia(createPinia())
+      const store = useMovieVoteStore()
+
+      await startAsHost(3)
+      assert.equal(sessionPhase.value, 'hosting')
+
+      store.myDraftPicks = [
+        {
+          localId: 'h1',
+          source: 'custom',
+          tmdbId: null,
+          customKey: 'alpha',
+          title: 'Alpha',
+          posterPath: null,
+          overview: '',
+        },
+        {
+          localId: 'h2',
+          source: 'custom',
+          tmdbId: null,
+          customKey: 'beta',
+          title: 'Beta',
+          posterPath: null,
+          overview: '',
+        },
+      ]
+
+      const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
+
+      simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
+      harness.emitChildAdded(guestOnlineRoot, guestStableId)
+      harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
+      movieVoteHostLocalChanged()
+
+      const guestPid = guestParticipantIds(store)[0]
+      assert.ok(guestPid)
+
+      simulateHostInboxMessage(harness, suffix, guestStableId, {
+        v: 1,
+        type: MSG_MV_DRAFT,
+        participantId: guestPid,
+        ready: true,
+      })
+
+      store.setReadyToVote(true)
+      movieVoteHostLocalChanged()
+
+      assert.equal(store.phase, 'voting')
+      assert.ok(store.voterIds.includes(HOST_PARTICIPANT_ID))
+      assert.ok(store.voterIds.includes(guestPid))
+      assert.equal(store.voterIds.length, 2)
+      assert.equal(store.voteProgress?.total, 2)
+    })
   },
 )
 
