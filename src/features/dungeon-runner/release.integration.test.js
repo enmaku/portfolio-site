@@ -268,15 +268,12 @@ test('persistent dungeon outcome dialog locks all background interactions while 
       page.indexOf(':disable="dungeonOutcomeDialogOpen"', page.indexOf('aria-label="Start new match"')) > -1,
     'start-new should be disabled when outcome dialog is open',
   )
-  const disabledActionBindings = page.match(/:disable="gameplayInputLocked \|\| dungeonOutcomeDialogOpen"/g) ?? []
+  const disabledActionBindings = page.match(/:disable="humanGameplayBlocked"/g) ?? []
   assert.ok(
     disabledActionBindings.length >= 4,
-    `expected gameplay action buttons to gate on dungeonOutcomeDialogOpen (found ${disabledActionBindings.length})`,
+    `expected gameplay action buttons to gate on humanGameplayBlocked (found ${disabledActionBindings.length})`,
   )
-  assert.equal(
-    page.includes('if (!token?.hasModal || dungeonOutcomeDialogOpen.value) return'),
-    true,
-  )
+  assert.equal(page.includes('if (!token?.hasModal || humanGameplayBlocked.value) return'), true)
   assert.equal(page.includes('equipmentModalActionsDisabled'), true)
   assert.equal(page.includes('z-index: 10100 !important'), true)
 })
@@ -332,4 +329,61 @@ test('completed match replay upload has no debug or host gate on page', () => {
   assert.equal(uploadBlock.includes('debugMode'), false)
   assert.equal(uploadBlock.includes('localhost'), false)
   assert.equal(uploadBlock.includes('shouldEnableDebugOnBoot'), false)
+})
+
+test('dungeon runner page wires headless match completion after human elimination', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes('runMaybeHeadlessMatchCompletionFromState'), true)
+  assert.equal(page.includes('createLivePlayActionChooser'), true)
+  assert.equal(page.includes('maybeRunHeadlessMatchCompletion'), true)
+  assert.equal(page.includes('teardownForHeadlessMatchCompletion'), true)
+  assert.equal(page.includes('abandonScheduledInferenceQueue'), true)
+  assert.equal(page.includes('data-testid="finishing-match-overlay"'), true)
+  assert.equal(page.includes('headlessCompletionInFlight'), true)
+})
+
+test('continueFromDungeonOutcome triggers headless completion when policy requires it', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  const fnIdx = page.indexOf('async function continueFromDungeonOutcome()')
+  assert.ok(fnIdx >= 0)
+  const fnBlock = page.slice(fnIdx, fnIdx + 520)
+  assert.equal(fnBlock.includes('await maybeRunHeadlessMatchCompletion()'), true)
+})
+
+test('resume on mount may run headless completion without spectator scheduling', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  const mountedIdx = page.indexOf('onMounted(() => {')
+  assert.ok(mountedIdx >= 0)
+  const mountedBlock = page.slice(mountedIdx, mountedIdx + 1200)
+  assert.equal(mountedBlock.includes('void maybeRunHeadlessMatchCompletion()'), true)
+  assert.equal(mountedBlock.includes('scheduleAiTurnIfReady'), false)
+})
+
+test('live AI scheduling is gated while headless completion runs', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes("logAiTurnScheduleSkip('headless-completion')"), true)
+  assert.equal(page.includes("trace('run.skip', { reason: 'headless-completion' })"), true)
+  assert.equal(page.includes("logAiTurnPrimeSkip('headless-completion')"), true)
+})
+
+test('human gameplay is blocked while headless completion runs', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes('const humanGameplayBlocked = computed('), true)
+  assert.equal(page.includes('headlessCompletionInFlight.value'), true)
+  const takeHumanIdx = page.indexOf('function takeHumanAction(action)')
+  assert.ok(takeHumanIdx >= 0)
+  const takeHumanBlock = page.slice(takeHumanIdx, takeHumanIdx + 280)
+  assert.equal(takeHumanBlock.includes('humanGameplayBlocked.value'), true)
+  assert.equal(page.includes(':disable="humanGameplayBlocked"'), true)
+})
+
+test('runAiTurn delegates action choice to createLivePlayActionChooser', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  const fnIdx = page.indexOf('async function runAiTurn()')
+  assert.ok(fnIdx >= 0)
+  const fnBlock = page.slice(fnIdx, fnIdx + 2200)
+  assert.equal(fnBlock.includes('createLivePlayActionChooser'), true)
+  assert.equal(fnBlock.includes('tryConsumePrefetch'), true)
+  assert.equal(fnBlock.includes('chooseNnActionWithFallback'), false)
+  assert.equal(fnBlock.includes('chooseRandombotAction'), false)
 })

@@ -1,11 +1,67 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { MATCH_PHASES } from '../engine/kernel.js'
+import { chooseRandombotAction } from '../bots/randombot.js'
+import { MATCH_PHASES, createInitialMatchState } from '../engine/kernel.js'
+import {
+  DEFAULT_MAX_HEADLESS_ACTIONS,
+  runHeadlessMatchCompletion,
+} from '../ui/headlessMatchCompletionRunner.js'
+import { needsHeadlessCompletion } from '../ui/humanEliminationCompletionPolicy.js'
 import {
   UPLOADED_MATCH_IDS_STORAGE_KEY,
   createCompletedMatchReplayUploadTracker,
   maybeUploadCompletedMatchReplay,
 } from './completedMatchReplayUpload.js'
+
+const FOUR_PLAYER_SETUP = {
+  totalSeats: 4,
+  opponents: [{ type: 'randombot' }, { type: 'randombot' }, { type: 'randombot' }],
+}
+
+function seatByRole(state, roleType) {
+  return state.seats.find((seat) => seat.role.type === roleType)
+}
+
+function humanEliminatedBeforeMatchOver(state, humanSeatId) {
+  const opponent = state.seats.find(
+    (seat) => seat.id !== humanSeatId && !state.scoreboard[seat.id]?.eliminated,
+  )
+  assert.ok(opponent)
+  return {
+    ...state,
+    phase: MATCH_PHASES.PICK_ADVENTURER,
+    scoreboard: {
+      ...state.scoreboard,
+      [humanSeatId]: {
+        ...state.scoreboard[humanSeatId],
+        lives: 0,
+        eliminated: true,
+        successes: 0,
+      },
+    },
+    turn: { ...state.turn, activeSeatId: opponent.id, turnNumber: state.turn.turnNumber + 1 },
+    pickAdventurer: {
+      ...state.pickAdventurer,
+      activeSeatId: opponent.id,
+    },
+  }
+}
+
+async function buildHeadlessCompletedFourPlayerMatch(seed) {
+  const initial = createInitialMatchState(FOUR_PLAYER_SETUP, { seed })
+  const human = seatByRole(initial, 'human')
+  assert.ok(human)
+  const start = humanEliminatedBeforeMatchOver(initial, human.id)
+  assert.equal(needsHeadlessCompletion(start, human.id), true)
+  const result = await runHeadlessMatchCompletion(start, {
+    chooseAction: async ({ state, seatId }) => chooseRandombotAction(state, { seatId }),
+    humanPlayerSeatId: human.id,
+    maxActions: DEFAULT_MAX_HEADLESS_ACTIONS,
+  })
+  assert.equal(result.ok, true)
+  assert.equal(result.state.phase, MATCH_PHASES.MATCH_OVER)
+  return { initial, human, result }
+}
 
 /** @param {Record<string, unknown>} overrides */
 function sampleMatch(overrides = {}) {
@@ -363,4 +419,26 @@ test('createCompletedMatchReplayUploadTracker exposes maybeUpload', () => {
   const tracker = createCompletedMatchReplayUploadTracker(createMemoryStorage())
   assert.equal(typeof tracker.maybeUpload, 'function')
   assert.doesNotThrow(() => tracker.maybeUpload(null))
+})
+
+test('maybeUpload uploads headless-completed multi-seat match replay envelope', async () => {
+  const { initial, result } = await buildHeadlessCompletedFourPlayerMatch(8801)
+  const { deps, setCalls } = createDeps()
+  const match = {
+    id: 'match-headless-complete',
+    setup: FOUR_PLAYER_SETUP,
+    state: result.state,
+    presentationSpeedProfile: 'brisk',
+  }
+
+  assert.ok(match.state.history.length > initial.history.length)
+
+  maybeUploadCompletedMatchReplay(match, deps)
+
+  assert.equal(setCalls.length, 1)
+  assert.equal(setCalls[0].matchId, 'match-headless-complete')
+  assert.equal(setCalls[0].envelope.seed, initial.rng.seed)
+  assert.deepEqual(setCalls[0].envelope.setup, FOUR_PLAYER_SETUP)
+  assert.deepEqual(setCalls[0].envelope.history, match.state.history)
+  assert.equal(setCalls[0].envelope.presentationSpeedProfile, 'brisk')
 })
