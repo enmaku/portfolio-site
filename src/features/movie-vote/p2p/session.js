@@ -57,6 +57,18 @@ import {
 
 const STABLE_HOST_SUFFIX_APP = 'movievote'
 
+/**
+ * @typedef {object} MovieVoteP2PHandlers
+ * @property {(payload: import('../types.js').MovieVotePublicPayload) => void} applyPublicPayload
+ * @property {() => void} onWireTeardown
+ */
+
+/** @type {MovieVoteP2PHandlers} */
+let handlers = {
+  applyPublicPayload: () => {},
+  onWireTeardown: () => {},
+}
+
 let nextSeq = 0
 
 let lastSeenSeq = 0
@@ -304,8 +316,11 @@ function buildPublicPayload() {
   return buildMovieVotePublicPayload(store, guestDrafts)
 }
 
+let hostStateBroadcastProbe = 0
+
 function hostBroadcastState() {
   if (!core.isHostRole() || !sessionSuffix.value) return
+  hostStateBroadcastProbe += 1
   const payload = buildPublicPayload()
   try {
     const st = useMovieVoteStore()
@@ -470,18 +485,109 @@ function handleGuestWelcome(raw) {
   const welcome = parseWelcome(raw)
   if (!welcome) return
   useMovieVoteStore().setMyParticipantId(welcome.participantId)
-  movieVoteGuestPushDraft()
 }
 
 /**
+ * Dispatches inbound hub state on the guest (sequenced public payload).
  * @param {unknown} raw
+ * @returns {void}
  */
 function handleGuestState(raw) {
   const st = parseState(raw)
   if (!st) return
   if (st.seq <= lastSeenSeq) return
   lastSeenSeq = st.seq
-  useMovieVoteStore().applyPublicPayload(st.payload)
+  try {
+    handlers.applyPublicPayload(st.payload)
+  } catch {
+    return
+  }
+}
+
+/**
+ * @typedef {object} MovieVoteP2POutboundSync
+ * @property {() => void} hostLocalChanged
+ * @property {() => void} hostResetToSuggest
+ * @property {() => void} hostVotingMethodChanged
+ * @property {() => void} guestPushDraft
+ * @property {(ranking: string[]) => void} guestSubmitVote
+ * @property {() => void} hostAfterVoteSubmit
+ */
+
+/** @type {MovieVoteP2POutboundSync} */
+const movieVoteP2POutboundSync = {
+  hostLocalChanged() {
+    if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
+    tryCompileBallot()
+    hostBroadcastState()
+  },
+  hostResetToSuggest() {
+    if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
+    clearGuestDraftReadyFlags(guestDrafts)
+    hostBroadcastState()
+  },
+  hostVotingMethodChanged() {
+    if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
+    hostBroadcastState()
+  },
+  guestPushDraft() {
+    if (core.isHostRole()) return
+    const store = useMovieVoteStore()
+    const pid = store.myParticipantId
+    if (!pid) return
+    core.writeGuestInbox(encodeDraft(store.myDraftPicks, store.readyToVote, pid))
+  },
+  guestSubmitVote(ranking) {
+    if (core.isHostRole()) return
+    const store = useMovieVoteStore()
+    const pid = store.myParticipantId
+    if (!pid) return
+    core.writeGuestInbox(encodeVote(pid, ranking))
+  },
+  hostAfterVoteSubmit() {
+    if (sessionPhase.value !== 'hosting') return
+    hostBroadcastState()
+    tryFinishVoting()
+  },
+}
+
+/**
+ * Installed once by the Pinia bridge; supplies public payload apply and wire teardown for the session.
+ * @param {Partial<MovieVoteP2PHandlers>} h
+ * @returns {MovieVoteP2POutboundSync}
+ */
+export function bindMovieVoteP2PHandlers(h) {
+  handlers = { ...handlers, ...h }
+  return movieVoteP2POutboundSync
+}
+
+/** @returns {void} */
+export function resetHostStateBroadcastProbeForTests() {
+  hostStateBroadcastProbe = 0
+}
+
+/** @returns {number} */
+export function drainHostStateBroadcastProbeForTests() {
+  const n = hostStateBroadcastProbe
+  hostStateBroadcastProbe = 0
+  return n
+}
+
+/**
+ * @param {string} participantId
+ * @param {{ picks: import('../types.js').MoviePick[], ready: boolean }} entry
+ * @returns {void}
+ */
+export function setGuestDraftForTests(participantId, entry) {
+  guestDrafts.set(participantId, entry)
+}
+
+/**
+ * @param {string} participantId
+ * @returns {boolean | undefined}
+ */
+export function getGuestDraftReadyForTests(participantId) {
+  return guestDrafts.get(participantId)?.ready
 }
 
 /**
@@ -643,7 +749,10 @@ async function hydrateHostFromRtdb(suffix) {
   const parsed = parseState(stateSnap.val())
   if (parsed) nextSeq = parsed.seq
   try {
-    applyHostStoreFromRtdbHydrate(parsed, useMovieVoteStore())
+    applyHostStoreFromRtdbHydrate(parsed, {
+      applyPublicPayload: (p) => handlers.applyPublicPayload(p),
+      votingMethod: useMovieVoteStore().votingMethod,
+    })
   } catch {
     void 0
   }
@@ -843,6 +952,11 @@ export function teardownSession() {
 function resetLocalStateAfterRoomExit() {
   teardownSession()
   try {
+    handlers.onWireTeardown()
+  } catch {
+    void 0
+  }
+  try {
     useMovieVoteStore().resetForRoomExit()
   } catch {
     void 0
@@ -868,44 +982,4 @@ export function leaveSession() {
 
 export function isMovieVoteP2PSessionActive() {
   return sessionPhase.value === 'hosting' || sessionPhase.value === 'guest_connected'
-}
-
-export function movieVoteHostLocalChanged() {
-  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
-  tryCompileBallot()
-  hostBroadcastState()
-}
-
-/** After results reset: everyone must toggle ready again before the next ballot. */
-export function movieVoteHostResetToSuggest() {
-  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
-  clearGuestDraftReadyFlags(guestDrafts)
-  hostBroadcastState()
-}
-
-export function movieVoteHostVotingMethodChanged() {
-  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
-  hostBroadcastState()
-}
-
-export function movieVoteGuestPushDraft() {
-  if (core.isHostRole()) return
-  const store = useMovieVoteStore()
-  const pid = store.myParticipantId
-  if (!pid) return
-  core.writeGuestInbox(encodeDraft(store.myDraftPicks, store.readyToVote, pid))
-}
-
-export function movieVoteGuestSubmitVote(ranking) {
-  if (core.isHostRole()) return
-  const store = useMovieVoteStore()
-  const pid = store.myParticipantId
-  if (!pid) return
-  core.writeGuestInbox(encodeVote(pid, ranking))
-}
-
-export function movieVoteHostAfterVoteSubmit() {
-  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
-  hostBroadcastState()
-  tryFinishVoting()
 }

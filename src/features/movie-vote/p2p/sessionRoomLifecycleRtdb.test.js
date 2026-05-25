@@ -1,3 +1,10 @@
+/**
+ * Run: node --experimental-test-module-mocks --test src/features/movie-vote/p2p/sessionRoomLifecycleRtdb.test.js
+ *
+ * Uses dynamic `importSession` so RTDB mocks apply before `session.js` loads; host
+ * participant reconciliation still calls `outbound.hostLocalChanged()` where session
+ * has no matching store action (guest hello / guestOnline), not removed sync exports.
+ */
 import assert from 'node:assert/strict'
 import { afterEach, mock, test } from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
@@ -7,31 +14,7 @@ import { useMovieVoteRoomSessionStore } from '../../../stores/movieVoteRoomSessi
 import { encodeHello, encodeState, MSG_MV_DRAFT } from './protocol.js'
 import { ROOM_CLAIM_RESET_PATHS } from './sessionRoomRtdb.js'
 import { buildMovieVotePublicPayload } from '../publicPayload.js'
-
-const REQUIRED_FIREBASE_ENV = {
-  VITE_FIREBASE_API_KEY: 'test-api-key',
-  VITE_FIREBASE_AUTH_DOMAIN: 'test.firebaseapp.com',
-  VITE_FIREBASE_DATABASE_URL: 'https://test-default-rtdb.firebaseio.com',
-  VITE_FIREBASE_PROJECT_ID: 'test-project',
-  VITE_FIREBASE_APP_ID: '1:123456789:web:abc',
-}
-
-/** @param {() => void | Promise<void>} fn */
-async function withFirebaseEnv(fn) {
-  const saved = {}
-  for (const key of Object.keys(REQUIRED_FIREBASE_ENV)) {
-    saved[key] = process.env[key]
-    process.env[key] = REQUIRED_FIREBASE_ENV[key]
-  }
-  try {
-    await fn()
-  } finally {
-    for (const key of Object.keys(REQUIRED_FIREBASE_ENV)) {
-      if (saved[key] === undefined) delete process.env[key]
-      else process.env[key] = saved[key]
-    }
-  }
-}
+import { installRtdbLifecycleMocks, withFirebaseEnv } from './sessionRtdbLifecycleHarness.js'
 
 /**
  * @param {{ key?: string | null, parent?: { key?: string | null, parent?: unknown } | null }} ref
@@ -45,136 +28,6 @@ function refPath(ref) {
     cur = cur.parent ?? null
   }
   return parts.join('/')
-}
-
-/**
- * @param {string} dotPath
- * @returns {{ key?: string | null, parent?: { key?: string | null, parent?: unknown } | null }}
- */
-function buildRef(dotPath) {
-  const parts = dotPath.split('/').filter(Boolean)
-  /** @type {{ key?: string | null, parent?: { key?: string | null, parent?: unknown } | null } | null} */
-  let node = null
-  for (const part of parts) {
-    node = { key: part, parent: node }
-  }
-  return /** @type {{ key?: string | null, parent?: { key?: string | null, parent?: unknown } | null }} */ (
-    node ?? { key: null, parent: null }
-  )
-}
-
-/**
- * @param {{
- *   getHostPing?: () => unknown,
- *   getEnded?: () => unknown,
- *   getHostClientId?: () => unknown,
- *   getState?: () => unknown,
- *   getWelcome?: () => unknown,
- *   getGuestOnline?: () => unknown,
- * }} [opts]
- * @returns {Promise<{
- *   listeners: Map<string, (snap: { val: () => unknown }) => void>,
- *   sets: Array<{ path: string, value: unknown }>,
- *   removes: Array<{ path: string }>,
- *   emitChildAdded: (parentPath: string, childKey: string) => void,
- *   emitValue: (path: string, value: unknown) => void,
- * }>}
- */
-async function installRtdbLifecycleMocks(opts = {}) {
-  /** @type {Map<string, (snap: { val: () => unknown }) => void>} */
-  const listeners = new Map()
-  /** @type {Map<string, Set<(snap: { key: string | null, ref: ReturnType<typeof buildRef> }) => void>>} */
-  const childAddedHandlers = new Map()
-  /** @type {Array<{ path: string, value: unknown }>} */
-  const sets = []
-  /** @type {Array<{ path: string }>} */
-  const removes = []
-
-  /**
-   * @param {string} parentPath
-   * @param {string} childKey
-   */
-  function emitChildAdded(parentPath, childKey) {
-    const handlers = childAddedHandlers.get(parentPath)
-    if (!handlers?.size) return
-    const childPath = `${parentPath}/${childKey}`
-    const snap = { key: childKey, ref: buildRef(childPath) }
-    for (const handler of handlers) handler(snap)
-  }
-
-  /**
-   * @param {string} path
-   * @param {unknown} value
-   */
-  function emitValue(path, value) {
-    const handler = listeners.get(path)
-    if (handler) handler({ val: () => value })
-  }
-
-  const actual = await import('firebase/database')
-
-  mock.module('firebase/database', {
-    namedExports: {
-      ...actual,
-      get: async (ref) => {
-        if (ref.key === 'hostPing') {
-          return {
-            val: () => (opts.getHostPing !== undefined ? opts.getHostPing() : Date.now()),
-          }
-        }
-        if (ref.key === 'ended') {
-          return { val: () => (opts.getEnded !== undefined ? opts.getEnded() : null) }
-        }
-        if (ref.key === 'hostClientId') {
-          return {
-            val: () => (opts.getHostClientId !== undefined ? opts.getHostClientId() : null),
-          }
-        }
-        if (ref.key === 'state') {
-          return { val: () => (opts.getState !== undefined ? opts.getState() : null) }
-        }
-        if (ref.key === 'welcome') {
-          return { val: () => (opts.getWelcome !== undefined ? opts.getWelcome() : null) }
-        }
-        if (ref.key === 'guestOnline') {
-          return {
-            val: () => (opts.getGuestOnline !== undefined ? opts.getGuestOnline() : null),
-          }
-        }
-        return { val: () => null }
-      },
-      set: async (ref, value) => {
-        sets.push({ path: refPath(ref), value })
-      },
-      remove: async (ref) => {
-        removes.push({ path: refPath(ref) })
-      },
-      onDisconnect: () => ({
-        remove: () => Promise.resolve(),
-        set: () => Promise.resolve(),
-      }),
-      onChildAdded: (ref, cb) => {
-        const path = refPath(ref)
-        if (!childAddedHandlers.has(path)) childAddedHandlers.set(path, new Set())
-        childAddedHandlers.get(path)?.add(cb)
-        return () => childAddedHandlers.get(path)?.delete(cb)
-      },
-      onValue: (ref, cb) => {
-        const path = refPath(ref)
-        listeners.set(path, cb)
-        return () => listeners.delete(path)
-      },
-    },
-  })
-
-  return {
-    listeners,
-    sets,
-    removes,
-    childAddedParentPaths: () => [...childAddedHandlers.keys()],
-    emitChildAdded,
-    emitValue,
-  }
 }
 
 /**
@@ -211,6 +64,33 @@ function guestParticipantIds(store) {
   return store.participants
     .filter((p) => p.id !== HOST_PARTICIPANT_ID)
     .map((p) => p.id)
+}
+
+/**
+ * Store + same `bindMovieVoteP2PHandlers` contract as the Pinia plugin, on the
+ * session module instance loaded by `importSession` (must not import the bridge
+ * before mocks — it would bind a different session copy).
+ * @param {Awaited<ReturnType<typeof importSession>>} sessionMod
+ */
+async function installLifecyclePinia(sessionMod) {
+  const { createApp } = await import('vue')
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  const store = useMovieVoteStore()
+  const outbound = sessionMod.bindMovieVoteP2PHandlers({
+    applyPublicPayload: (payload) => {
+      store.applyPublicPayload(payload)
+    },
+    onWireTeardown: () => {},
+  })
+  const app = createApp({ render: () => null })
+  app.use(pinia)
+  return { store, outbound }
+}
+
+/** Host suggest sync via outbound wire (replaces removed host sync exports). */
+function hostSyncParticipantsFromRoom(outbound) {
+  outbound.hostLocalChanged()
 }
 
 /** @type {import('../types.js').MovieVotePublicPayload} */
@@ -568,11 +448,9 @@ test(
     })
 
     await withFirebaseEnv(async () => {
-      const { startAsHost, movieVoteHostLocalChanged, sessionPhase } = await importSession(
-        `quorum-offline-${Date.now()}`,
-      )
-      setActivePinia(createPinia())
-      const store = useMovieVoteStore()
+      const sessionMod = await importSession(`quorum-offline-${Date.now()}`)
+      const { startAsHost, sessionPhase } = sessionMod
+      const { store, outbound } = await installLifecyclePinia(sessionMod)
 
       await startAsHost(3)
       assert.equal(sessionPhase.value, 'hosting')
@@ -582,14 +460,14 @@ test(
       simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
-      movieVoteHostLocalChanged()
+      hostSyncParticipantsFromRoom(outbound)
 
       const guestIdsAfterJoin = guestParticipantIds(store)
       assert.equal(guestIdsAfterJoin.length, 1)
 
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, false)
       mock.timers.tick(45_000)
-      movieVoteHostLocalChanged()
+      hostSyncParticipantsFromRoom(outbound)
 
       assert.equal(guestParticipantIds(store).length, 0)
       assert.ok(!guestParticipantIds(store).includes(guestIdsAfterJoin[0]))
@@ -624,42 +502,38 @@ test(
     })
 
     await withFirebaseEnv(async () => {
-      const { startAsHost, movieVoteHostLocalChanged, sessionPhase } = await importSession(
-        `zero-picks-ready-${Date.now()}`,
-      )
-      setActivePinia(createPinia())
-      const store = useMovieVoteStore()
+      const sessionMod = await importSession(`zero-picks-ready-${Date.now()}`)
+      const { startAsHost, sessionPhase } = sessionMod
+      const { store, outbound } = await installLifecyclePinia(sessionMod)
 
       await startAsHost(3)
       assert.equal(sessionPhase.value, 'hosting')
 
-      store.myDraftPicks = [
-        {
-          localId: 'h1',
-          source: 'custom',
-          tmdbId: null,
-          customKey: 'alpha',
-          title: 'Alpha',
-          posterPath: null,
-          overview: '',
-        },
-        {
-          localId: 'h2',
-          source: 'custom',
-          tmdbId: null,
-          customKey: 'beta',
-          title: 'Beta',
-          posterPath: null,
-          overview: '',
-        },
-      ]
+      store.addDraftPick({
+        localId: 'h1',
+        source: 'custom',
+        tmdbId: null,
+        customKey: 'alpha',
+        title: 'Alpha',
+        posterPath: null,
+        overview: '',
+      })
+      store.addDraftPick({
+        localId: 'h2',
+        source: 'custom',
+        tmdbId: null,
+        customKey: 'beta',
+        title: 'Beta',
+        posterPath: null,
+        overview: '',
+      })
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
       simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
-      movieVoteHostLocalChanged()
+      hostSyncParticipantsFromRoom(outbound)
 
       const guestPid = guestParticipantIds(store)[0]
       assert.ok(guestPid)
@@ -672,7 +546,7 @@ test(
       })
 
       store.setReadyToVote(true)
-      movieVoteHostLocalChanged()
+      hostSyncParticipantsFromRoom(outbound)
 
       assert.equal(store.phase, 'voting')
       assert.ok(store.voterIds.includes(HOST_PARTICIPANT_ID))
@@ -709,11 +583,9 @@ test(
     })
 
     await withFirebaseEnv(async () => {
-      const { startAsHost, movieVoteHostLocalChanged, sessionPhase } = await importSession(
-        `quorum-grace-${Date.now()}`,
-      )
-      setActivePinia(createPinia())
-      const store = useMovieVoteStore()
+      const sessionMod = await importSession(`quorum-grace-${Date.now()}`)
+      const { startAsHost, sessionPhase } = sessionMod
+      const { store, outbound } = await installLifecyclePinia(sessionMod)
 
       await startAsHost(3)
       assert.equal(sessionPhase.value, 'hosting')
@@ -723,7 +595,7 @@ test(
       simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
-      movieVoteHostLocalChanged()
+      hostSyncParticipantsFromRoom(outbound)
 
       const guestPid = guestParticipantIds(store)[0]
       assert.ok(guestPid)
@@ -732,7 +604,7 @@ test(
       mock.timers.tick(20_000)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       mock.timers.tick(45_000)
-      movieVoteHostLocalChanged()
+      hostSyncParticipantsFromRoom(outbound)
 
       assert.deepEqual(guestParticipantIds(store), [guestPid])
     })
