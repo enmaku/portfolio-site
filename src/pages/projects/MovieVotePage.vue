@@ -86,7 +86,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import { useRoute, useRouter } from 'vue-router'
@@ -101,14 +101,7 @@ import {
   isValidRoomSuffix,
   normalizeRoomSuffixInput,
 } from '../../features/movie-vote/p2p/roomId.js'
-import {
-  joinRoom,
-  movieVoteGuestPushDraft,
-  movieVoteGuestSubmitVote,
-  movieVoteHostAfterVoteSubmit,
-  movieVoteHostLocalChanged,
-  movieVoteHostResetToSuggest,
-} from '../../features/movie-vote/p2p/session.js'
+import { joinRoom } from '../../features/movie-vote/p2p/session.js'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
 
 const $q = useQuasar()
@@ -125,7 +118,7 @@ const {
   uniqueSuggestedMovieCount,
 } = storeToRefs(store)
 
-const { isGuest, isHosting, isInSession } = useMovieVoteP2P()
+const { isGuest, isInSession } = useMovieVoteP2P()
 
 /** Distinct movies in the room (TMDB-deduped) meet the minimum to mark ready. */
 const roomCanMarkReadyForVote = computed(() => uniqueSuggestedMovieCount.value >= 2)
@@ -134,49 +127,6 @@ const roomCanMarkReadyForVote = computed(() => uniqueSuggestedMovieCount.value >
 const roomShowsOthersSuggestionHint = computed(
   () => isInSession.value && uniqueSuggestedMovieCount.value >= 1,
 )
-
-let guestDraftTimer = 0
-function scheduleGuestDraftPush() {
-  if (!isGuest.value) return
-  window.clearTimeout(guestDraftTimer)
-  guestDraftTimer = window.setTimeout(() => {
-    guestDraftTimer = 0
-    movieVoteGuestPushDraft()
-  }, 320)
-}
-
-watch(
-  [myDraftPicks, () => store.readyToVote, phase, isGuest, uniqueSuggestedMovieCount],
-  () => {
-    if (isGuest.value && phase.value === 'suggest') {
-      scheduleGuestDraftPush()
-    }
-  },
-  { deep: true },
-)
-
-watch(
-  [() => store.myParticipantId, isGuest, phase],
-  () => {
-    if (isGuest.value && phase.value === 'suggest' && store.myParticipantId) {
-      movieVoteGuestPushDraft()
-    }
-  },
-)
-
-watch(
-  [myDraftPicks, () => store.readyToVote, phase, isHosting],
-  () => {
-    if (isHosting.value) {
-      movieVoteHostLocalChanged()
-    }
-  },
-  { deep: true },
-)
-
-onUnmounted(() => {
-  window.clearTimeout(guestDraftTimer)
-})
 
 const readyModel = computed({
   get: () => store.readyToVote,
@@ -204,32 +154,13 @@ function confirmClearMovies() {
 
 function onDoneVoting() {
   const ranking = [...store.myRanking]
-  if (ranking.length !== store.ballotOrderIds.length) {
+  if (!store.submitVote(ranking)) {
     $q.notify({ type: 'warning', message: 'Rank every movie.', position: 'top' })
-    return
   }
-  if (isGuest.value) {
-    movieVoteGuestSubmitVote(ranking)
-    store.markVoteSubmitted()
-    return
-  }
-  if (isHosting.value) {
-    store.submitMyVoteLocal(ranking)
-    movieVoteHostAfterVoteSubmit()
-    return
-  }
-  $q.notify({
-    type: 'warning',
-    message: 'Host or join a room to vote with others.',
-    position: 'top',
-  })
 }
 
 function onResetResults() {
   store.resetToSuggest()
-  if (isHosting.value) {
-    movieVoteHostResetToSuggest()
-  }
 }
 
 onMounted(() => {

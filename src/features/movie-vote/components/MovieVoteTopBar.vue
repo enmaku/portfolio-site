@@ -76,7 +76,6 @@ import MovieVoteSyncControl from './MovieVoteSyncControl.vue'
 import { useMovieVoteP2P } from '../composables/useMovieVoteP2P.js'
 import { getMovieVoteSettingsModel } from '../settingsModel.js'
 import { normalizeVotingMethod, VOTING_METHOD_OPTIONS } from '../votingMethod.js'
-import { movieVoteHostVotingMethodChanged } from '../p2p/session.js'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 
 const helpOpen = ref(false)
@@ -97,7 +96,6 @@ const votingMethodModel = computed({
     const next = normalizeVotingMethod(v)
     if (next === votingMethod.value) return
     store.setVotingMethod(next)
-    movieVoteHostVotingMethodChanged()
   },
 })
 </script>
