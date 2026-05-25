@@ -37,7 +37,8 @@ yarn-error.log*
 .env
 .env.local*
 .venv*/*
-artifacts/*
+artifacts
+data
 *.log
 
 # python stuff
