@@ -213,6 +213,26 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.myRanking = [...ranking]
     },
 
+    /**
+     * Submit a full ballot ranking. Returns false without mutating when invalid.
+     * Host merges locally; guest locks UI until host state confirms.
+     * @param {string[]} ranking
+     * @returns {boolean}
+     */
+    submitVote(ranking) {
+      if (this.phase !== 'voting' || this.myVoteSubmitted) return false
+      if (!isRankingForBallot(ranking, this.ballotOrderIds)) return false
+
+      const pid = this.myParticipantId ?? HOST_PARTICIPANT_ID
+      if (pid === HOST_PARTICIPANT_ID) {
+        this.submitMyVoteLocal(ranking)
+      } else {
+        this.myRanking = [...ranking]
+        this.markVoteSubmitted()
+      }
+      return true
+    },
+
     /** Host records own vote */
     submitMyVoteLocal(ranking) {
       const pid = this.myParticipantId ?? HOST_PARTICIPANT_ID
