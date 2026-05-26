@@ -17,7 +17,7 @@ Personal site for **David J. Perry**, deployed as [Focus Disorder](https://focus
 
 ```bash
 npm install
-npm run dev
+quasar dev
 ```
 
 Open the dev server URL Quasar prints (typically `http://localhost:9000`). Routes use hash mode (`/#/`, `/#/about`, `/#/projects/...`).
