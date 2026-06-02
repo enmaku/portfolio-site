@@ -6,6 +6,7 @@ const EXPECTED_TILE_IDS = [
   'total-matches',
   'human-win-rate',
   'human-eliminated-rate',
+  'rolling-human-win-rate',
   'end-variant-breakdown',
   'winner-role-breakdown',
 ]
@@ -43,4 +44,11 @@ test('breakdown tiles use breakdown presentation', () => {
     assert.ok(tile)
     assert.equal(tile.presentation, 'breakdown')
   }
+})
+
+test('rolling human win rate tile is fourth with timeseries presentation and full span', () => {
+  const tile = DUNGEON_RUNNER_STATS_TILE_REGISTRY[3]
+  assert.equal(tile.id, 'rolling-human-win-rate')
+  assert.equal(tile.presentation, 'timeseries')
+  assert.equal(tile.span, 'full')
 })

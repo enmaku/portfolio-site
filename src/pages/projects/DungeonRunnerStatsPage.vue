@@ -19,9 +19,14 @@
       <div
         v-for="tile in pageModel.tiles"
         :key="tile.id"
-        class="col-12 col-sm-6 col-md-4"
+        :class="tileColumnClass(tile)"
       >
-        <DungeonRunnerStatsTile :tile="tile" :tile-deps="tileDeps" />
+        <DungeonRunnerStatsTimeseriesTile
+          v-if="tile.presentation === 'timeseries'"
+          :tile="tile"
+          :tile-deps="tileDeps"
+        />
+        <DungeonRunnerStatsTile v-else :tile="tile" :tile-deps="tileDeps" />
       </div>
     </div>
   </q-page>
@@ -30,6 +35,7 @@
 <script setup>
 import { computed } from 'vue'
 import DungeonRunnerStatsTile from 'src/features/dungeon-runner/stats/components/DungeonRunnerStatsTile.vue'
+import DungeonRunnerStatsTimeseriesTile from 'src/features/dungeon-runner/stats/components/DungeonRunnerStatsTimeseriesTile.vue'
 import { createDungeonRunnerStatsTileDeps } from 'src/features/dungeon-runner/stats/createDungeonRunnerStatsTileDeps.js'
 import { isDungeonRunnerFirebaseConfigured } from 'src/features/dungeon-runner/firebase/firestore.js'
 import { buildDungeonRunnerStatsPageModel } from 'src/features/dungeon-runner/stats/dungeonRunnerStatsPageModel.js'
@@ -41,4 +47,14 @@ const pageModel = computed(() =>
     isFirebaseConfigured: isDungeonRunnerFirebaseConfigured(),
   }),
 )
+
+/**
+ * @param {{ span?: string }} tile
+ */
+function tileColumnClass(tile) {
+  if (tile.span === 'full') {
+    return 'col-12'
+  }
+  return 'col-12 col-sm-6 col-md-4'
+}
 </script>

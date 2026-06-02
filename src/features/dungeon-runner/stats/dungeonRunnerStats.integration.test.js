@@ -52,6 +52,8 @@ test('dungeon runner stats page gates on Firebase configured without Firestore r
   assert.equal(page.includes('data-testid="dungeon-stats-dashboard-error"'), true)
   assert.equal(page.includes('data-testid="dungeon-stats-tile-grid"'), true)
   assert.equal(page.includes('col-12 col-sm-6 col-md-4'), true)
+  assert.equal(page.includes('tileColumnClass'), true)
+  assert.equal(page.includes('DungeonRunnerStatsTimeseriesTile'), true)
 })
 
 test('dungeon runner stats tile registry is wired through page model', async () => {
@@ -59,6 +61,7 @@ test('dungeon runner stats tile registry is wired through page model', async () 
   assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'total-matches'), true)
   assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'human-win-rate'), true)
   assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'human-eliminated-rate'), true)
+  assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'rolling-human-win-rate'), true)
   assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'end-variant-breakdown'), true)
   assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'winner-role-breakdown'), true)
 })
@@ -70,7 +73,11 @@ test('stats tile shell and orchestration stay free of Firestore imports', () => 
   )
   const tile = readFileSync(new URL('./components/DungeonRunnerStatsTile.vue', import.meta.url), 'utf8')
   const runner = readFileSync(new URL('./useDungeonRunnerStatsTile.js', import.meta.url), 'utf8')
-  for (const source of [shell, tile, runner]) {
+  const timeseriesRunner = readFileSync(
+    new URL('./useRollingHumanWinRateTile.js', import.meta.url),
+    'utf8',
+  )
+  for (const source of [shell, tile, runner, timeseriesRunner]) {
     assert.equal(source.includes('firebase'), false)
     assert.equal(source.includes('getCountFromServer'), false)
     assert.equal(source.includes('getDocs'), false)
@@ -139,4 +146,27 @@ test('breakdown tile loaders use filtered count queries only', () => {
   }
   assert.equal(endVariantLoader.includes("'endVariant'"), true)
   assert.equal(winnerRoleLoader.includes("'winnerRole.type'"), true)
+})
+
+test('rolling human win rate tile uses bounded human win series query only', () => {
+  const seriesQuery = readFileSync(
+    new URL('../firebase/humanWinSeriesQuery.js', import.meta.url),
+    'utf8',
+  )
+  const loader = readFileSync(
+    new URL('./tiles/rollingHumanWinRateLoader.js', import.meta.url),
+    'utf8',
+  )
+  const timeseriesTile = readFileSync(
+    new URL('./components/DungeonRunnerStatsTimeseriesTile.vue', import.meta.url),
+    'utf8',
+  )
+  assert.equal(seriesQuery.includes('getDocs'), true)
+  assert.equal(seriesQuery.includes("'createdAt', 'desc'"), true)
+  assert.equal(seriesQuery.includes('humanWon'), true)
+  assert.equal(seriesQuery.includes('HUMAN_WIN_SERIES_FETCH_LIMIT'), true)
+  assert.equal(loader.includes('fetchHumanWinSeries'), true)
+  assert.equal(loader.includes('getDocs'), false)
+  assert.equal(timeseriesTile.includes('firebase'), false)
+  assert.equal(timeseriesTile.includes('getDocs'), false)
 })

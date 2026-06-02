@@ -7,10 +7,31 @@
  */
 
 /**
+ * @typedef {object} RollingHumanWinRateChartPayload
+ * @property {string[]} labels
+ * @property {number[]} percents
+ */
+
+/**
+ * @typedef {object} RollingHumanWinRateWindowBounds
+ * @property {number} min
+ * @property {number} max
+ * @property {number} default
+ */
+
+/**
+ * @typedef {object} HumanWinSeriesPoint
+ * @property {boolean} humanWon
+ */
+
+/**
  * @typedef {object} DungeonRunnerStatsTileState
  * @property {DungeonRunnerStatsTileStatus} status
  * @property {number | string} [value]
  * @property {DungeonRunnerStatsBreakdownRow[]} [breakdown]
+ * @property {RollingHumanWinRateChartPayload} [chart]
+ * @property {HumanWinSeriesPoint[]} [humanWonSeries]
+ * @property {RollingHumanWinRateWindowBounds} [windowBounds]
  */
 
 /**
@@ -25,7 +46,39 @@ function isDisplayableTileValue(value) {
  * @param {unknown} result
  * @returns {DungeonRunnerStatsTileState | null}
  */
+function isRollingChartPayload(chart) {
+  return (
+    chart &&
+    Array.isArray(chart.labels) &&
+    Array.isArray(chart.percents) &&
+    chart.labels.length === chart.percents.length &&
+    chart.labels.length > 0 &&
+    chart.percents.every((value) => Number.isFinite(value))
+  )
+}
+
 function mapLoaderOkResult(result) {
+  if (isRollingChartPayload(result.chart)) {
+    const humanWonSeries = Array.isArray(result.humanWonSeries)
+      ? result.humanWonSeries.filter((point) => point && typeof point.humanWon === 'boolean')
+      : []
+    const bounds = result.windowBounds
+    if (
+      humanWonSeries.length < 5 ||
+      !bounds ||
+      !Number.isFinite(bounds.min) ||
+      !Number.isFinite(bounds.max) ||
+      !Number.isFinite(bounds.default)
+    ) {
+      return null
+    }
+    return {
+      status: 'ok',
+      chart: result.chart,
+      humanWonSeries,
+      windowBounds: bounds,
+    }
+  }
   if (Array.isArray(result.breakdown)) {
     const breakdown = result.breakdown.filter(
       (row) =>
@@ -49,6 +102,7 @@ function mapLoaderOkResult(result) {
  * @param {(deps?: unknown) => Promise<
  *   | { status: 'ok', value: number | string }
  *   | { status: 'ok', breakdown: DungeonRunnerStatsBreakdownRow[] }
+ *   | { status: 'ok', chart: RollingHumanWinRateChartPayload, humanWonSeries: HumanWinSeriesPoint[], windowBounds: RollingHumanWinRateWindowBounds }
  *   | { status: 'error' }
  * >} loadQuery
  * @param {unknown} [deps]
