@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960">
+  <circle cx="480" cy="-480" r="680" fill="#ECEFF1" />
+  <!-- Material Symbols: bar_chart (Apache-2.0) -->
+  <path
+    fill="#263238"
+    d="M120-520v-320h160v320H120Zm240 0v-560h160v560H360Zm240 0v-240h160v240H600Z"
+  />
+</svg>

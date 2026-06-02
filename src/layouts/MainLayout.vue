@@ -25,6 +25,7 @@
               :name="t.to"
               :icon="t.icon"
               :label="t.label"
+              :exact="t.to === '/'"
             />
           </q-tabs>
           <q-btn-dropdown
@@ -56,7 +57,11 @@
                     v-ripple
                     clickable
                     v-close-popup
-                    @click="openProjectInNewTab(p.to)"
+                    :to="p.navigateInTab ? p.to : undefined"
+                    :manual-active="p.navigateInTab === true"
+                    :active="isProjectNavLinkActive(p)"
+                    active-class="projects-nav-link--current"
+                    @click="p.navigateInTab ? undefined : openProjectInNewTab(p.to)"
                   >
                     <q-item-section avatar>
                       <q-icon :name="p.icon" />
@@ -118,7 +123,11 @@
                 v-ripple
                 clickable
                 :inset-level="2"
-                @click="openProjectInNewTab(p.to)"
+                :to="p.navigateInTab ? p.to : undefined"
+                :manual-active="p.navigateInTab === true"
+                :active="isProjectNavLinkActive(p)"
+                active-class="projects-nav-link--current"
+                @click="p.navigateInTab ? undefined : openProjectInNewTab(p.to)"
               >
                 <q-item-section avatar>
                   <q-icon :name="p.icon" />
@@ -166,8 +175,14 @@ const projectSections = [
   },
   {
     label: 'Desktop',
-    comingSoon: true,
-    links: [],
+    links: [
+      {
+        to: '/projects/dungeon-runner/stats',
+        label: 'Dungeon Runner Stats',
+        icon: 'bar_chart',
+        navigateInTab: true,
+      },
+    ],
   },
 ]
 
@@ -187,6 +202,10 @@ function openProjectInNewTab (to) {
   const { href } = router.resolve(to)
   window.open(href, '_blank', 'noopener,noreferrer')
   leftDrawerOpen.value = false
+}
+
+function isProjectNavLinkActive (link) {
+  return link.navigateInTab === true && route.path === link.to
 }
 
 const activePath = computed(() => route.path)

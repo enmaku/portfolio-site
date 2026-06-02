@@ -75,6 +75,16 @@ export const SHARE_CATALOG = [
     ogImage: 'icons/favicon-shield.svg',
     favicon: 'shield',
   },
+  {
+    routePath: '/projects/dungeon-runner/stats',
+    pasteUnfurl: true,
+    shareSlug: 'projects/dungeon-runner/stats',
+    title: 'Dungeon Runner Stats',
+    description:
+      'Aggregate statistics from completed Dungeon Runner matches — wins, eliminations, and opponent outcomes.',
+    ogImage: 'icons/favicon-bar_chart.svg',
+    favicon: 'bar_chart',
+  },
 ]
 
 /** @type {Map<string, ShareCatalogEntry>} */

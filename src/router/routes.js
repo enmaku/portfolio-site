@@ -20,6 +20,10 @@ const routes = [
         path: 'about',
         component: () => import('pages/AboutPage.vue'),
       },
+      {
+        path: 'projects/dungeon-runner/stats',
+        component: () => import('pages/projects/DungeonRunnerStatsPage.vue'),
+      },
     ],
   },
   {
