@@ -13,13 +13,15 @@
 
 - AI agents read only `getLegalActions` output and submit one canonical action object.
 - Engine remains authoritative on legality and rejects out-of-contract actions.
-- Initial runtime AI strategy can choose from legal actions only; fallback is `PASS`.
 - Seat role types are `human`, `nn`, and `randombot`.
 - Model selection default is `latest`, else highest available semver.
-- NN runtime returns legal canonical actions and falls back to `PASS` on model/runtime failures.
-- NN runtime retries once on illegal model output before falling back to `PASS`.
+- NN inference runtime (`chooseNnAction`) returns a typed outcome: success with one legal canonical action and `meta` (`modelId`, `backend`), or failure with kind `LOAD`, `INFER`, or `ILLEGAL_OUTPUT` — never a substituted legal action on failure.
+- Exactly one legal action is returned immediately without inference; an empty legal set yields `null` (existing handling).
+- **Neural runtime recovery** is coordinated per `modelId` (shared model cache): split load (N=3) and infer (M=3) attempt counters, `recovering` flag, backend escalation (WebGL on attempts 1–2, CPU on attempt 3+), and terminal outcomes `NONE`, `REFRESH` (infer exhausted — refresh page, **match** may stay persisted), or `SETUP` (load exhausted — return to **setup** with **setup** preserved). Live play blocks only the active **neural opponent** seat while recovering.
+- **Match neural load gate** runs before the first turn on new **match** start and on resume-from-storage: preload each **setup** NN `modelId` once; any load failure immediately yields terminal **SETUP** (clear persisted **match**, restore **setup** snapshot) without multi-strike recovery.
+- `resetRuntimeForModel(modelId)` disposes the cached model, abandons the scheduled inference queue, and may reset the TF backend or force CPU for repair.
 - Default NN sampling mode is stochastic with deterministic code-level override support.
-- At runtime, **pick-adventurer** may bypass NN and use uniform random choice unless `VITE_DUNGEON_RUNNER_NN_PICK_ADVENTURER` is a strict truthy value (`1`, `true`, `yes`); this dev toggle is not part of the replay envelope.
+- For **neural opponent** seats, the sole intentional non-NN action path at runtime is the env-gated **pick-adventurer** bypass (uniform random choice when `VITE_DUNGEON_RUNNER_NN_PICK_ADVENTURER` is not a strict truthy value: `1`, `true`, `yes`); this dev toggle is not part of the replay envelope.
 - `encodeActionIndex` in `nn/policyAdapter.js` is a public export for dungeon-runner replay verification (maps canonical actions to policy head indices).
 
 ## Determinism Contract (v1)
@@ -33,6 +35,7 @@
 - Current match is stored as one local blob at `dungeon-runner/current-match`.
 - Resume flow is `resume-or-start-new` when a valid current match exists.
 - Schema mismatch must hard-reset persisted data.
+- Optional `neuralRecoveryByModelId` on the current **match** blob records per-`modelId` recovery coordinator counters and terminal outcome when infer/load exhaustion occurs during **finishing match** / headless completion so resume can surface the same blocking refresh or **setup** UX as live play (**REFRESH** keeps the **match**; **SETUP** is handled by clearing the blob).
 - Completed **match over** replays uploaded to RTDB use the same envelope shape as [Replay envelope contract (v1)](#replay-envelope-contract-v1); path root `dungeonRunnerCompletedMatches/{matchId}` (see `firebase/rtdb.js`). Field definitions are not duplicated here.
 - Completed **match over** outcomes uploaded to Firestore use [Match outcome record (v1)](#match-outcome-record-v1); path `dungeonRunnerMatchOutcomes/{matchId}` (see `firebase/firestore.js`). Paired replay and outcome share the same caller-supplied `createdAt`.
 

@@ -158,6 +158,13 @@
                 >
                   <span class="text-caption">{{ row.label }}</span>
                 </q-badge>
+                <div
+                  v-if="row.recovering"
+                  class="row items-center justify-center q-mt-xs"
+                  :data-testid="row.recoveryTestId"
+                >
+                  <q-spinner size="16px" color="primary" />
+                </div>
                 <div class="dr-seat-progress-cell text-caption" :aria-label="row.ariaLabel">
                   <span
                     v-for="index in row.successes"
@@ -516,6 +523,42 @@
       </q-card>
     </q-dialog>
 
+    <q-dialog v-model="neuralLoadGateTerminalOpen" persistent data-testid="neural-load-gate-terminal">
+      <q-card class="q-pa-md" style="min-width: 320px">
+        <div class="text-subtitle1 q-mb-xs">Neural opponent unavailable</div>
+        <div class="text-body2 q-mb-md">
+          A selected neural model could not load. Adjust setup and start a new match.
+        </div>
+        <div class="row justify-end">
+          <q-btn
+            color="primary"
+            unelevated
+            label="Back to setup"
+            data-testid="neural-load-gate-terminal-dismiss"
+            @click="dismissNeuralLoadGateTerminal"
+          />
+        </div>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="neuralRefreshTerminalOpen" persistent data-testid="neural-refresh-terminal">
+      <q-card class="q-pa-md" style="min-width: 320px">
+        <div class="text-subtitle1 q-mb-xs">Neural opponent unavailable</div>
+        <div class="text-body2 q-mb-md">
+          Inference could not recover. Refresh the page to reload the neural runtime; your match stays saved.
+        </div>
+        <div class="row justify-end">
+          <q-btn
+            color="primary"
+            unelevated
+            label="Refresh page"
+            data-testid="neural-refresh-terminal-reload"
+            @click="reloadPageForNeuralRefreshTerminal"
+          />
+        </div>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="vorpalDialogOpen" persistent>
       <q-card class="q-pa-md" style="min-width: 320px">
         <div class="text-subtitle1 q-mb-xs">Vorpal target</div>
@@ -604,7 +647,11 @@ import {
   persistCurrentMatch,
 } from '../../features/dungeon-runner/persistence/currentMatch.js'
 import { createDefaultSetupConfig, validateSetupConfig } from '../../features/dungeon-runner/setup/config.js'
-import { canStartMatchFromSetup, normalizeSetupState } from '../../features/dungeon-runner/setup/state.js'
+import {
+  applySetupSnapshot,
+  canStartMatchFromSetup,
+  normalizeSetupState,
+} from '../../features/dungeon-runner/setup/state.js'
 import { createMatchSeed } from '../../features/dungeon-runner/setup/seed.js'
 import { isNnAdventurerPickEnabled } from '../../features/dungeon-runner/setup/nnAdventurerPick.js'
 import { shouldEnableDebugOnBoot } from '../../features/dungeon-runner/debug/mode.js'
@@ -612,10 +659,14 @@ import { buildStateFromReplayEnvelope } from '../../features/dungeon-runner/debu
 import { exportReplayEnvelope, importReplayEnvelope } from '../../features/dungeon-runner/debug/replay.js'
 import {
   abandonScheduledInferenceQueue,
-  chooseNnActionWithFallback,
-  warmNnModelCache,
+  loadNnModel,
 } from '../../features/dungeon-runner/nn/runtime.js'
-import { createModelFailureRecovery } from '../../features/dungeon-runner/nn/recovery.js'
+import { createNeuralRuntimeRecoveryCoordinator } from '../../features/dungeon-runner/nn/recovery.js'
+import { createChooseNnActionWithRecovery, NeuralRecoveryTerminalError } from '../../features/dungeon-runner/nn/chooseWithRecovery.js'
+import {
+  resolveNeuralLoadGateSetupTerminal,
+  runMatchNeuralLoadGate,
+} from '../../features/dungeon-runner/nn/matchNeuralLoadGate.js'
 import { fetchModelCatalog } from '../../features/dungeon-runner/models/catalog.js'
 import { pickDefaultModelId, validateSelectedModels } from '../../features/dungeon-runner/models/discovery.js'
 import {
@@ -628,8 +679,10 @@ import {
 } from '../../features/dungeon-runner/ui/dungeonRunnerPresentationInterval.js'
 import { buildAiTurnRunToken } from '../../features/dungeon-runner/ui/dungeonRunnerAiTurnToken.js'
 import {
+  cancelAiTurnPrefetch,
   consumeAiTurnPrefetch,
   resetAiTurnPrefetch,
+  setAiTurnPrefetchRecoveryGate,
   startAiTurnPrefetch,
 } from '../../features/dungeon-runner/ui/dungeonRunnerAiTurnPrefetch.js'
 import { createPipelineStepLogger } from '../../features/dungeon-runner/nn/nnPipelineTrace.js'
@@ -680,6 +733,16 @@ import { isDungeonPresentationTraceEnabled } from '../../features/dungeon-runner
 import { isDungeonOrchestratorPresentationKind } from '../../features/dungeon-runner/ui/orchestratorPresentationKinds.js'
 import { usePresentationMotion } from '../../features/dungeon-runner/ui/usePresentationMotion.js'
 import { createCompletedMatchReplayUploadTracker } from '../../features/dungeon-runner/firebase/completedMatchReplayUpload.js'
+import {
+  buildSeatRecoveryIndicators,
+  resolveNeuralRecoveryTerminalUx,
+  shouldBlockAiTurnScheduleForRecovery,
+} from '../../features/dungeon-runner/ui/neuralSeatRecoveryView.js'
+import {
+  attachNeuralRecoverySnapshotToMatch,
+  shouldRunHeadlessMatchCompletion,
+  surfacePersistedNeuralRecoveryTerminal,
+} from '../../features/dungeon-runner/ui/headlessNeuralRecoveryPersistence.js'
 
 const completedMatchReplayUpload = createCompletedMatchReplayUploadTracker(window.sessionStorage)
 
@@ -697,7 +760,48 @@ function presentationTraceEnabled() {
   return isDungeonPresentationTraceEnabled()
 }
 const modelOptions = ref([])
-const nnFailureRecovery = createModelFailureRecovery()
+const nnRecovery = createNeuralRuntimeRecoveryCoordinator()
+const nnRecoveryRevision = ref(0)
+function notifyNnRecoveryStateChanged() {
+  nnRecoveryRevision.value += 1
+}
+setAiTurnPrefetchRecoveryGate(nnRecovery)
+
+function logNnRecoveryTrace(modelId, step, detail = {}) {
+  if (!debugMode.value) return
+  aiTurnTrace({ modelId })(`recovery.${step}`, {
+    loadAttempts: nnRecovery.getLoadAttempts(modelId),
+    inferAttempts: nnRecovery.getInferAttempts(modelId),
+    loadBackend: nnRecovery.getBackendPreference(modelId, 'load'),
+    inferBackend: nnRecovery.getBackendPreference(modelId, 'infer'),
+    ...detail,
+  })
+}
+
+const chooseNnActionWithRecovery = createChooseNnActionWithRecovery({
+  recovery: nnRecovery,
+  onRecoveryBegin: (modelId) => {
+    cancelAiTurnPrefetch()
+    notifyNnRecoveryStateChanged()
+    logNnRecoveryTrace(modelId, 'begin')
+  },
+  onRecoveryAttempt: (detail) => {
+    notifyNnRecoveryStateChanged()
+    logNnRecoveryTrace(detail.modelId, 'attempt', detail)
+  },
+  onRecoverySettled: () => notifyNnRecoveryStateChanged(),
+})
+
+function buildLivePlayChooserDeps(extra = {}) {
+  return {
+    nnRecovery,
+    ensureNnModelsReady,
+    nnRuntimeOptions,
+    chooseNnActionWithRecovery,
+    onRecoveryBegin: () => cancelAiTurnPrefetch(),
+    ...extra,
+  }
+}
 const replayImportText = ref('')
 const replayExportText = ref('')
 const nnDebugTraceText = ref('')
@@ -836,6 +940,9 @@ usePresentationMotion({
 const activePresentationLabel = ref('')
 const equipmentModalOpen = ref(false)
 const selectedEquipmentTokenId = ref(null)
+const neuralLoadGateTerminalOpen = ref(false)
+const neuralRefreshTerminalOpen = ref(false)
+const matchNeuralLoadGateInFlight = ref(false)
 const confirmationDialogOpen = ref(false)
 const confirmationDialogTitle = ref('Confirm')
 const confirmationDialogMessage = ref('')
@@ -1099,11 +1206,17 @@ const biddingBoard = computed(() =>
   }),
 )
 const seatRunTrackerRows = computed(() => {
+  void nnRecoveryRevision.value
   const scoreboard = match.value?.state?.scoreboard ?? {}
+  const seats = match.value?.state?.seats ?? []
+  const recoveryBySeatId = new Map(
+    buildSeatRecoveryIndicators({ seats, recovery: nnRecovery }).map((entry) => [entry.seatId, entry]),
+  )
   return biddingBoard.value.secondary.seats.map((row) => {
     const score = scoreboard[row.seatId] ?? {}
     const successes = Math.max(0, Number(score.successes ?? 0))
     const failures = Math.max(0, 2 - Number(score.lives ?? 2))
+    const recovery = recoveryBySeatId.get(row.seatId)
     return {
       seatId: row.seatId,
       label: row.label,
@@ -1111,6 +1224,8 @@ const seatRunTrackerRows = computed(() => {
       isActive: row.isActive,
       successes,
       failures,
+      recovering: recovery?.recovering ?? false,
+      recoveryTestId: recovery?.testId ?? null,
       ariaLabel: `${row.label}: ${successes} successful run${successes === 1 ? '' : 's'}, ${failures} failed run${failures === 1 ? '' : 's'}`,
     }
   })
@@ -1195,7 +1310,8 @@ const humanGameplayBlocked = computed(
   () =>
     gameplayInputLocked.value ||
     dungeonOutcomeDialogOpen.value ||
-    headlessCompletionInFlight.value,
+    headlessCompletionInFlight.value ||
+    neuralRefreshTerminalOpen.value,
 )
 const equipmentModalActionsDisabled = computed(
   () => humanGameplayBlocked.value || !isHumanTurn.value,
@@ -1229,21 +1345,7 @@ onMounted(() => {
       '[DungeonRunner][presentation] trace on — localStorage.setItem("dungeonPresentationTrace","1") — also logs [card-flight] for pile/deck → card motion',
     )
   }
-  const loaded = loadCurrentMatch(window.localStorage)
-  if (loaded.ok) {
-    const pace =
-      loaded.match.presentationSpeedProfile === 'brisk' || loaded.match.presentationSpeedProfile === 'cinematic'
-        ? loaded.match.presentationSpeedProfile
-        : 'cinematic'
-    dungeonRunnerSettingsStore.setAnimationPace(pace)
-    match.value = { ...loaded.match, presentationSpeedProfile: pace }
-    deferredPostDungeonState.value = null
-    presentationOrchestrator.clear()
-    presentationSpeedProfile.value = pace
-    presentationOrchestrator.setSpeedProfile(pace)
-    syncPresentationLabel()
-    void maybeRunHeadlessMatchCompletion()
-  }
+  void bootstrapDungeonRunnerPage()
   void loadModelCatalog()
   presentationTimerId = window.setInterval(() => {
     runPresentationIntervalTick(presentationOrchestrator, DUNGEON_RUNNER_PRESENTATION_ADVANCE_MS, {
@@ -1253,6 +1355,49 @@ onMounted(() => {
     })
   }, DUNGEON_RUNNER_PRESENTATION_ADVANCE_MS)
 })
+
+async function bootstrapDungeonRunnerPage() {
+  const loaded = loadCurrentMatch(window.localStorage)
+  if (!loaded.ok) return
+  const setupSnapshot = cloneSetup(loaded.match.setup)
+  matchNeuralLoadGateInFlight.value = true
+  try {
+    const gate = await runMatchNeuralLoadGate(setupSnapshot, { loadModel: loadNnModel })
+    if (!gate.ok) {
+      applyNeuralLoadGateSetupTerminal(setupSnapshot)
+      return
+    }
+    const pace =
+      loaded.match.presentationSpeedProfile === 'brisk' || loaded.match.presentationSpeedProfile === 'cinematic'
+        ? loaded.match.presentationSpeedProfile
+        : 'cinematic'
+    dungeonRunnerSettingsStore.setAnimationPace(pace)
+    matchNeuralLoadGateInFlight.value = false
+    match.value = { ...loaded.match, presentationSpeedProfile: pace }
+    deferredPostDungeonState.value = null
+    presentationOrchestrator.clear()
+    presentationSpeedProfile.value = pace
+    presentationOrchestrator.setSpeedProfile(pace)
+    nnModelsWarmPromise = Promise.resolve()
+    syncPresentationLabel()
+    const surfacedTerminal = surfacePersistedNeuralRecoveryTerminal({
+      recovery: nnRecovery,
+      neuralRecoveryByModelId: loaded.match.neuralRecoveryByModelId,
+      hasMatchSetup: Boolean(loaded.match.setup),
+      applySetupTerminal: () => applyNeuralLoadGateSetupTerminal(cloneSetup(loaded.match.setup)),
+      openRefreshTerminal: () => {
+        neuralRefreshTerminalOpen.value = true
+      },
+    })
+    if (surfacedTerminal) {
+      notifyNnRecoveryStateChanged()
+      return
+    }
+    void maybeRunHeadlessMatchCompletion()
+  } finally {
+    matchNeuralLoadGateInFlight.value = false
+  }
+}
 
 onBeforeUnmount(() => {
   if (presentationTimerId) window.clearInterval(presentationTimerId)
@@ -1282,6 +1427,18 @@ watch(
   },
   { deep: true },
 )
+
+const activeNnRecoveryBlocking = computed(() => {
+  void nnRecoveryRevision.value
+  if (!match.value?.state) return false
+  return shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })
+})
+
+watch(activeNnRecoveryBlocking, (blocking, wasBlocking) => {
+  if (wasBlocking && !blocking) {
+    scheduleAiTurnIfReady()
+  }
+})
 
 watch(
   () => match.value?.state?.lastDungeonRun ?? null,
@@ -1313,7 +1470,7 @@ watch(
   },
 )
 
-function startNewMatch() {
+async function startNewMatch() {
   const modelValidation = validateSelectedModels(setup.opponents, modelOptions.value)
   if (!modelValidation.ok) {
     $q.notify({
@@ -1325,104 +1482,163 @@ function startNewMatch() {
     })
     return
   }
-  clearCurrentMatch(window.localStorage)
-  const seed = createMatchSeed()
-  const id = `match-${Date.now()}`
   const setupSnapshot = cloneSetup()
-  const baseState = createInitialMatchState(setupSnapshot, { seed })
-  const shuffledState = shuffleMatchDeck(shuffleMatchSeats(baseState, { seed: seed ^ 0x5f3759df }), {
-    seed: seed ^ 0x9e3779b9,
-  })
-  const firstSeatId = shuffledState.turn.activeSeatId
-  const initialPickState = {
-    ...shuffledState,
-    phase: MATCH_PHASES.PICK_ADVENTURER,
-    hero: null,
-    pickAdventurer: {
-      ...shuffledState.pickAdventurer,
-      activeSeatId: firstSeatId,
-    },
-  }
-  match.value = {
-    schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
-    id,
-    setup: setupSnapshot,
-    state: initialPickState,
-    history: [],
-    presentationSpeedProfile: presentationSpeedProfile.value,
-  }
-  deferredPostDungeonState.value = null
-  nnDebugTraceText.value = ''
-  nnDebugTraceHistory.value = []
-  presentationOrchestrator.clear()
-  lastAppliedAiTurnToken = null
-  resetAiTurnPrefetch()
-  presentationInputWasLocked = false
-  nnModelsWarmPromise = preloadNnModelsForSetup(setupSnapshot)
-  syncPresentationLabel()
-}
-
-function rematch() {
-  if (!match.value) return
-  const seed = createMatchSeed()
-  const id = `match-${Date.now()}`
-  const setupSnapshot = cloneSetup(match.value.setup)
-  const baseState = createInitialMatchState(setupSnapshot, { seed })
-  const preservedBotLabels = match.value.state.seats
-    .filter((seat) => seat.role?.type !== 'human' && seat.label)
-    .map((seat) => seat.label)
-  const shuffledState = shuffleMatchDeck(
-    shuffleMatchSeats(baseState, {
-      seed: seed ^ 0x5f3759df,
-      preservedBotLabels,
-    }),
-    {
+  matchNeuralLoadGateInFlight.value = true
+  try {
+    const gate = await runMatchNeuralLoadGate(setupSnapshot, { loadModel: loadNnModel })
+    if (!gate.ok) {
+      applyNeuralLoadGateSetupTerminal(setupSnapshot)
+      return
+    }
+    clearCurrentMatch(window.localStorage)
+    const seed = createMatchSeed()
+    const id = `match-${Date.now()}`
+    const baseState = createInitialMatchState(setupSnapshot, { seed })
+    const shuffledState = shuffleMatchDeck(shuffleMatchSeats(baseState, { seed: seed ^ 0x5f3759df }), {
       seed: seed ^ 0x9e3779b9,
-    },
-  )
-  const firstSeatId = shuffledState.turn.activeSeatId
-  const initialPickState = {
-    ...shuffledState,
-    phase: MATCH_PHASES.PICK_ADVENTURER,
-    hero: null,
-    pickAdventurer: {
-      ...shuffledState.pickAdventurer,
-      activeSeatId: firstSeatId,
-    },
+    })
+    const firstSeatId = shuffledState.turn.activeSeatId
+    const initialPickState = {
+      ...shuffledState,
+      phase: MATCH_PHASES.PICK_ADVENTURER,
+      hero: null,
+      pickAdventurer: {
+        ...shuffledState.pickAdventurer,
+        activeSeatId: firstSeatId,
+      },
+    }
+    match.value = {
+      schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
+      id,
+      setup: setupSnapshot,
+      state: initialPickState,
+      history: [],
+      presentationSpeedProfile: presentationSpeedProfile.value,
+    }
+    deferredPostDungeonState.value = null
+    nnDebugTraceText.value = ''
+    nnDebugTraceHistory.value = []
+    presentationOrchestrator.clear()
+    lastAppliedAiTurnToken = null
+    resetAiTurnPrefetch()
+    presentationInputWasLocked = false
+    nnModelsWarmPromise = Promise.resolve()
+    syncPresentationLabel()
+  } finally {
+    matchNeuralLoadGateInFlight.value = false
+    scheduleAiTurnIfReady()
+    scheduleHumanAutoResolveIfReady()
   }
-  match.value = {
-    schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
-    id,
-    setup: setupSnapshot,
-    state: initialPickState,
-    history: [],
-    presentationSpeedProfile: presentationSpeedProfile.value,
-  }
-  deferredPostDungeonState.value = null
-  nnDebugTraceText.value = ''
-  nnDebugTraceHistory.value = []
-  presentationOrchestrator.clear()
-  lastAppliedAiTurnToken = null
-  resetAiTurnPrefetch()
-  presentationInputWasLocked = false
-  nnModelsWarmPromise = preloadNnModelsForSetup(setupSnapshot)
-  syncPresentationLabel()
 }
 
-function preloadNnModelsForSetup(setupSnapshot) {
-  const modelIds = [
-    ...new Set(
-      (setupSnapshot?.opponents ?? [])
-        .filter((opponent) => opponent.type === 'nn')
-        .map((opponent) => opponent.modelId ?? 'latest'),
-    ),
-  ]
-  if (!modelIds.length) return Promise.resolve()
-  return warmNnModelCache(modelIds)
+async function rematch() {
+  if (!match.value) return
+  const setupSnapshot = cloneSetup(match.value.setup)
+  matchNeuralLoadGateInFlight.value = true
+  try {
+    const gate = await runMatchNeuralLoadGate(setupSnapshot, { loadModel: loadNnModel })
+    if (!gate.ok) {
+      applyNeuralLoadGateSetupTerminal(setupSnapshot)
+      return
+    }
+    const seed = createMatchSeed()
+    const id = `match-${Date.now()}`
+    const baseState = createInitialMatchState(setupSnapshot, { seed })
+    const preservedBotLabels = match.value.state.seats
+      .filter((seat) => seat.role?.type !== 'human' && seat.label)
+      .map((seat) => seat.label)
+    const shuffledState = shuffleMatchDeck(
+      shuffleMatchSeats(baseState, {
+        seed: seed ^ 0x5f3759df,
+        preservedBotLabels,
+      }),
+      {
+        seed: seed ^ 0x9e3779b9,
+      },
+    )
+    const firstSeatId = shuffledState.turn.activeSeatId
+    const initialPickState = {
+      ...shuffledState,
+      phase: MATCH_PHASES.PICK_ADVENTURER,
+      hero: null,
+      pickAdventurer: {
+        ...shuffledState.pickAdventurer,
+        activeSeatId: firstSeatId,
+      },
+    }
+    match.value = {
+      schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
+      id,
+      setup: setupSnapshot,
+      state: initialPickState,
+      history: [],
+      presentationSpeedProfile: presentationSpeedProfile.value,
+    }
+    deferredPostDungeonState.value = null
+    nnDebugTraceText.value = ''
+    nnDebugTraceHistory.value = []
+    presentationOrchestrator.clear()
+    lastAppliedAiTurnToken = null
+    resetAiTurnPrefetch()
+    presentationInputWasLocked = false
+    nnModelsWarmPromise = Promise.resolve()
+    syncPresentationLabel()
+  } finally {
+    matchNeuralLoadGateInFlight.value = false
+    scheduleAiTurnIfReady()
+    scheduleHumanAutoResolveIfReady()
+  }
 }
 
 async function ensureNnModelsReady() {
   await nnModelsWarmPromise?.catch(() => {})
+}
+
+function applyNeuralLoadGateSetupTerminal(setupSnapshot) {
+  resolveNeuralLoadGateSetupTerminal({
+    storage: window.localStorage,
+    setupSnapshot,
+    clearCurrentMatch,
+    applySetupSnapshot,
+    setupTarget: setup,
+  })
+  match.value = null
+  lastAppliedAiTurnToken = null
+  resetAiTurnPrefetch()
+  nnModelsWarmPromise = null
+  presentationInputWasLocked = false
+  deferredPostDungeonState.value = null
+  nnDebugTraceText.value = ''
+  nnDebugTraceHistory.value = []
+  presentationOrchestrator.clear()
+  syncPresentationLabel()
+  neuralLoadGateTerminalOpen.value = true
+}
+
+function dismissNeuralLoadGateTerminal() {
+  neuralLoadGateTerminalOpen.value = false
+}
+
+function reloadPageForNeuralRefreshTerminal() {
+  window.location.reload()
+}
+
+function handleNeuralRecoveryTerminalError(error) {
+  if (!(error instanceof NeuralRecoveryTerminalError)) return false
+  const ux = resolveNeuralRecoveryTerminalUx({
+    terminal: error.terminal,
+    hasMatchSetup: Boolean(match.value?.setup),
+  })
+  if (ux.action === 'setup-restore') {
+    applyNeuralLoadGateSetupTerminal(cloneSetup(match.value.setup))
+  } else if (ux.action === 'refresh-dialog') {
+    neuralRefreshTerminalOpen.value = true
+    logNnRecoveryTrace(error.modelId, 'terminal', {
+      terminal: error.terminal,
+      failureKind: error.failureKind ?? null,
+    })
+  }
+  return true
 }
 
 function backToSetup() {
@@ -1592,12 +1808,11 @@ async function maybeRunHeadlessMatchCompletion() {
   if (!match.value) return
   const humanId = humanSeatId.value
   if (!humanId) return
+  if (!shouldRunHeadlessMatchCompletion(match.value, humanId)) {
+    return
+  }
 
-  const chooseAction = createLivePlayActionChooser({
-    nnFailureRecovery,
-    ensureNnModelsReady,
-    nnRuntimeOptions,
-  })
+  const chooseAction = createLivePlayActionChooser(buildLivePlayChooserDeps())
   try {
     const result = await runMaybeHeadlessMatchCompletionFromState(match.value.state, {
       humanPlayerSeatId: humanId,
@@ -1606,10 +1821,32 @@ async function maybeRunHeadlessMatchCompletion() {
       afterFlightStart: teardownForHeadlessMatchCompletion,
     })
     if (result.ran && !result.failed) {
-      match.value = { ...match.value, state: result.state }
+      const nextMatch = attachNeuralRecoverySnapshotToMatch(
+        { ...match.value, state: result.state },
+        nnRecovery,
+      )
+      delete nextMatch.neuralRecoveryByModelId
+      match.value = nextMatch
+      persistCurrentMatch(window.localStorage, match.value)
     } else if (result.ran && result.failed && debugMode.value) {
       console.warn('[DungeonRunner][headless] completion failed', result.errorCode, result.actionCount)
     }
+  } catch (error) {
+    if (handleNeuralRecoveryTerminalError(error)) {
+      if (error instanceof NeuralRecoveryTerminalError && match.value) {
+        const ux = resolveNeuralRecoveryTerminalUx({
+          terminal: error.terminal,
+          hasMatchSetup: Boolean(match.value.setup),
+        })
+        if (ux.action === 'refresh-dialog') {
+          match.value = attachNeuralRecoverySnapshotToMatch(match.value, nnRecovery)
+          persistCurrentMatch(window.localStorage, match.value)
+          notifyNnRecoveryStateChanged()
+        }
+      }
+      return
+    }
+    throw error
   } finally {
     syncPresentationLabel()
   }
@@ -1625,6 +1862,10 @@ function confirmVorpalDeclaration() {
 
 async function runAiTurn() {
   const trace = aiTurnTrace()
+  if (neuralRefreshTerminalOpen.value) {
+    trace('run.skip', { reason: 'neural-refresh-terminal' })
+    return
+  }
   if (aiTurnInFlight) {
     trace('run.skip', { reason: 'in-flight' })
     return
@@ -1655,6 +1896,10 @@ async function runAiTurn() {
     trace('run.skip', { reason: 'not-ai-seat', seatId, humanSeatId: humanSeatId.value })
     return
   }
+  if (shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })) {
+    trace('run.skip', { reason: 'model-recovering', seatId })
+    return
+  }
   const runToken = buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
   if (runToken === lastAppliedAiTurnToken) {
     trace('run.skip', { reason: 'duplicate-token', runToken, lastAppliedAiTurnToken })
@@ -1673,16 +1918,26 @@ async function runAiTurn() {
   })
   const seat = match.value.state.seats.find((candidate) => candidate.id === seatId)
   const roleType = seat?.role?.type
-  const chooseAction = createLivePlayActionChooser({
-    nnFailureRecovery,
-    ensureNnModelsReady,
-    nnRuntimeOptions,
-    tryConsumePrefetch: async () => consumeAiTurnPrefetch(runToken, (step, detail) => trace(step, detail)),
-  })
-  let action = await chooseAction({ state: match.value.state, seatId, runToken })
-  if (roleType === 'nn' && action?.meta?.fallbackReason === 'MODEL_LOAD_FAILED') {
-    const modelId = seat.role.modelId ?? 'latest'
-    void handleNnModelFailure(seat, modelId, seatId, action)
+  const chooseAction = createLivePlayActionChooser(buildLivePlayChooserDeps({
+    tryConsumePrefetch: async ({ modelId }) => consumeAiTurnPrefetch(
+      runToken,
+      (step, detail) => trace(step, detail),
+      modelId,
+    ),
+  }))
+  let action
+  try {
+    action = await chooseAction({ state: match.value.state, seatId, runToken })
+  } catch (error) {
+    if (handleNeuralRecoveryTerminalError(error)) {
+      trace('run.abort', {
+        reason: 'nn-recovery-terminal',
+        terminal: error.terminal,
+        modelId: error.modelId,
+      })
+      return
+    }
+    throw error
   }
   if (!action) {
     trace('run.abort', { reason: 'no-action' })
@@ -1777,12 +2032,21 @@ function primeAiTurnPrefetch() {
   }
   lastPrimeSkipTraceKey = ''
   const modelId = seat.role.modelId ?? 'latest'
+  if (neuralRefreshTerminalOpen.value) {
+    logAiTurnPrimeSkip('neural-refresh-terminal', { modelId })
+    return
+  }
+  if (nnRecovery.isRecovering(modelId)) {
+    logAiTurnPrimeSkip('model-recovering', { modelId })
+    return
+  }
   startAiTurnPrefetch({
     runToken,
+    modelId,
     trace: (step, detail) => trace(step, detail),
     compute: async () => {
       await ensureNnModelsReady()
-      return chooseNnActionWithFallback(state, { seatId }, nnRuntimeOptions(modelId))
+      return chooseNnActionWithRecovery(state, { seatId }, nnRuntimeOptions(modelId))
     },
   })
 }
@@ -1927,6 +2191,14 @@ function humanDungeonAutoRevealGapMs() {
 }
 
 function scheduleAiTurnIfReady() {
+  if (neuralRefreshTerminalOpen.value) {
+    logAiTurnScheduleSkip('neural-refresh-terminal')
+    return
+  }
+  if (matchNeuralLoadGateInFlight.value) {
+    logAiTurnScheduleSkip('neural-load-gate')
+    return
+  }
   if (aiTurnInFlight) {
     logAiTurnScheduleSkip('in-flight')
     return
@@ -1940,6 +2212,17 @@ function scheduleAiTurnIfReady() {
     return
   }
   if (!match.value || isHumanTurn.value) {
+    return
+  }
+  if (shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })) {
+    logAiTurnScheduleSkip('model-recovering', {
+      activeSeatId: match.value.state.turn?.activeSeatId ?? null,
+    })
+    primeAiTurnPrefetch()
+    if (aiTurnTimerId) {
+      window.clearTimeout(aiTurnTimerId)
+      aiTurnTimerId = null
+    }
     return
   }
   if (gameplayInputLocked.value) {
@@ -2031,38 +2314,6 @@ function scheduleHumanAutoResolveIfReady() {
     if (!ok) return
     takeHumanAction(action)
   }, humanDungeonAutoRevealGapMs())
-}
-
-async function handleNnModelFailure(seat, modelId, seatId, fallbackAction) {
-  nnFailureRecovery.recordFailure(modelId)
-  const downgradeTarget = getDowngradeModelId(modelId)
-  const wantsRetry = await requestConfirmation({
-    title: 'Model load failed',
-    message: `Model "${modelId}" failed to load. Retry once?`,
-    okLabel: 'Retry',
-    cancelLabel: 'Recovery options',
-  })
-  if (wantsRetry) {
-    return chooseNnActionWithFallback(match.value.state, { seatId }, nnRuntimeOptions(modelId))
-  }
-  if (downgradeTarget) {
-    const wantsDowngrade = await requestConfirmation({
-      title: 'Downgrade model?',
-      message: `Downgrade to "${downgradeTarget}"?`,
-      okLabel: 'Downgrade',
-      cancelLabel: 'Use safe fallback',
-    })
-    if (wantsDowngrade) {
-      seat.role.modelId = downgradeTarget
-      return chooseNnActionWithFallback(match.value.state, { seatId }, nnRuntimeOptions(downgradeTarget))
-    }
-  }
-  return fallbackAction
-}
-
-function getDowngradeModelId(failedModelId) {
-  const candidates = modelOptions.value.filter((id) => id !== failedModelId && !nnFailureRecovery.isCoolingDown(id))
-  return candidates[0] ?? null
 }
 
 function nnRuntimeOptions(modelId) {
