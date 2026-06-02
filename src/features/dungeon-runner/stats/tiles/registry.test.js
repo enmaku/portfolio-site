@@ -37,12 +37,12 @@ test('rate tiles use rate presentation', () => {
   }
 })
 
-test('breakdown tiles use breakdown presentation', () => {
+test('breakdown tiles use breakdown-chart presentation', () => {
   const breakdownTileIds = ['end-variant-breakdown', 'winner-role-breakdown']
   for (const id of breakdownTileIds) {
     const tile = DUNGEON_RUNNER_STATS_TILE_REGISTRY.find((entry) => entry.id === id)
     assert.ok(tile)
-    assert.equal(tile.presentation, 'breakdown')
+    assert.equal(tile.presentation, 'breakdown-chart')
   }
 })
 

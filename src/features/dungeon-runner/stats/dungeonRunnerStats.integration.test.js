@@ -54,6 +54,8 @@ test('dungeon runner stats page gates on Firebase configured without Firestore r
   assert.equal(page.includes('col-12 col-sm-6 col-md-4'), true)
   assert.equal(page.includes('tileColumnClass'), true)
   assert.equal(page.includes('DungeonRunnerStatsTimeseriesTile'), true)
+  assert.equal(page.includes('DungeonRunnerStatsBreakdownTile'), true)
+  assert.equal(page.includes("'breakdown-chart'"), true)
 })
 
 test('dungeon runner stats tile registry is wired through page model', async () => {
@@ -77,7 +79,11 @@ test('stats tile shell and orchestration stay free of Firestore imports', () => 
     new URL('./useRollingHumanWinRateTile.js', import.meta.url),
     'utf8',
   )
-  for (const source of [shell, tile, runner, timeseriesRunner]) {
+  const breakdownTile = readFileSync(
+    new URL('./components/DungeonRunnerStatsBreakdownTile.vue', import.meta.url),
+    'utf8',
+  )
+  for (const source of [shell, tile, runner, timeseriesRunner, breakdownTile]) {
     assert.equal(source.includes('firebase'), false)
     assert.equal(source.includes('getCountFromServer'), false)
     assert.equal(source.includes('getDocs'), false)
@@ -90,6 +96,10 @@ test('stats page renders one tile component per registry entry with independent 
     'utf8',
   )
   const tile = readFileSync(new URL('./components/DungeonRunnerStatsTile.vue', import.meta.url), 'utf8')
+  const breakdownTile = readFileSync(
+    new URL('./components/DungeonRunnerStatsBreakdownTile.vue', import.meta.url),
+    'utf8',
+  )
   const shell = readFileSync(
     new URL('./components/DungeonRunnerStatsTileShell.vue', import.meta.url),
     'utf8',
@@ -98,6 +108,8 @@ test('stats page renders one tile component per registry entry with independent 
   assert.equal(page.includes(':key="tile.id"'), true)
   assert.equal(page.includes(':tile="tile"'), true)
   assert.equal(tile.includes('useDungeonRunnerStatsTile(props.tile.loadQuery'), true)
+  assert.equal(breakdownTile.includes('useDungeonRunnerStatsTile(props.tile.loadQuery'), true)
+  assert.equal(breakdownTile.includes('buildMatchOutcomeBreakdownChart'), true)
   assert.equal(tile.includes('tileState.status'), true)
   assert.equal(shell.includes('data-testid="dungeon-stats-tile-loading"'), true)
   assert.equal(shell.includes('data-testid="dungeon-stats-tile-error"'), true)
@@ -129,6 +141,20 @@ test('rate tile loaders use filtered and total count queries only', () => {
   }
   assert.equal(winLoader.includes("'humanWon'"), true)
   assert.equal(eliminatedLoader.includes("'humanEliminated'"), true)
+})
+
+test('breakdown chart tile keeps chart data shaping out of loaders', () => {
+  const breakdownTile = readFileSync(
+    new URL('./components/DungeonRunnerStatsBreakdownTile.vue', import.meta.url),
+    'utf8',
+  )
+  const chartBuilder = readFileSync(
+    new URL('./buildMatchOutcomeBreakdownChart.js', import.meta.url),
+    'utf8',
+  )
+  assert.equal(breakdownTile.includes('buildMatchOutcomeBreakdownChart'), true)
+  assert.equal(chartBuilder.includes('chart.js'), false)
+  assert.equal(breakdownTile.includes('getDocs'), false)
 })
 
 test('breakdown tile loaders use filtered count queries only', () => {

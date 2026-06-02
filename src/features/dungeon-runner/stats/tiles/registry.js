@@ -14,7 +14,7 @@ import { loadWinnerRoleBreakdownTile } from './winnerRoleBreakdownLoader.js'
  * @typedef {object} DungeonRunnerStatsTileDefinition
  * @property {string} id
  * @property {string} title
- * @property {'count' | 'rate' | 'breakdown' | 'timeseries'} presentation
+ * @property {'count' | 'rate' | 'breakdown-chart' | 'timeseries'} presentation
  * @property {'default' | 'full'} [span]
  * @property {(deps?: unknown) => Promise<
  *   | CountStatsTileLoadResult
@@ -54,13 +54,13 @@ export const DUNGEON_RUNNER_STATS_TILE_REGISTRY = [
   {
     id: 'end-variant-breakdown',
     title: 'Match over end variant',
-    presentation: 'breakdown',
+    presentation: 'breakdown-chart',
     loadQuery: (deps) => loadEndVariantBreakdownTile(deps),
   },
   {
     id: 'winner-role-breakdown',
     title: 'Winner role',
-    presentation: 'breakdown',
+    presentation: 'breakdown-chart',
     loadQuery: (deps) => loadWinnerRoleBreakdownTile(deps),
   },
 ]
