@@ -1,0 +1,249 @@
+{
+  "version": 1,
+  "createdAt": "2026-05-27T12:00:00.000Z",
+  "seed": 4242,
+  "setup": {
+    "totalSeats": 4,
+    "opponents": [
+      {
+        "type": "nn",
+        "modelId": "nn-v1.0.0"
+      },
+      {
+        "type": "randombot"
+      },
+      {
+        "type": "nn",
+        "modelId": "nn-v2.0.0"
+      }
+    ]
+  },
+  "history": [
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "WARRIOR"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 0,
+      "rngStepAfter": 13,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 13,
+      "rngStepAfter": 14,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 14,
+      "rngStepAfter": 15,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "pick-adventurer",
+      "rngStepBefore": 15,
+      "rngStepAfter": 16,
+      "dungeonRunResult": "success"
+    },
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "WARRIOR"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 16,
+      "rngStepAfter": 29,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 29,
+      "rngStepAfter": 30,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 30,
+      "rngStepAfter": 31,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "pick-adventurer",
+      "rngStepBefore": 31,
+      "rngStepAfter": 32,
+      "dungeonRunResult": "success"
+    },
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "WARRIOR"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 32,
+      "rngStepAfter": 45,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 45,
+      "rngStepAfter": 46,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 46,
+      "rngStepAfter": 47,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "pick-adventurer",
+      "rngStepBefore": 47,
+      "rngStepAfter": 48,
+      "dungeonRunResult": "success"
+    },
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "WARRIOR"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 48,
+      "rngStepAfter": 61,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 61,
+      "rngStepAfter": 62,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 62,
+      "rngStepAfter": 63,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "pick-adventurer",
+      "rngStepBefore": 63,
+      "rngStepAfter": 64,
+      "dungeonRunResult": "success"
+    },
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "WARRIOR"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 64,
+      "rngStepAfter": 77,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 77,
+      "rngStepAfter": 78,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 78,
+      "rngStepAfter": 79,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "match-over",
+      "rngStepBefore": 79,
+      "rngStepAfter": 80,
+      "dungeonRunResult": null
+    }
+  ],
+  "matchId": "match-not-numeric"
+}

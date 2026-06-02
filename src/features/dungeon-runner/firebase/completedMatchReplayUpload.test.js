@@ -103,10 +103,13 @@ function createDeps(overrides = {}) {
   const uploadedIds = new Set()
   /** @type {Array<{ matchId: string, envelope: unknown }>} */
   const setCalls = []
+  /** @type {Array<{ match: unknown, createdAt: string }>} */
+  const outcomeCalls = []
   return {
     storage,
     uploadedIds,
     setCalls,
+    outcomeCalls,
     deps: {
       storage,
       uploadedIds,
@@ -124,6 +127,9 @@ function createDeps(overrides = {}) {
       }),
       setCompletedMatch: async (matchId, envelope) => {
         setCalls.push({ matchId, envelope })
+      },
+      createOutcome: async (match, createdAt) => {
+        outcomeCalls.push({ match, createdAt })
       },
       ...overrides,
     },
@@ -150,6 +156,41 @@ test('match over uses exportReplayEnvelope for RTDB payload shape', async () => 
   assert.deepEqual(setCalls[0].envelope.history, expected.history)
   assert.equal(setCalls[0].envelope.presentationSpeedProfile, expected.presentationSpeedProfile)
   assert.equal(typeof setCalls[0].envelope.createdAt, 'string')
+})
+
+test('match over passes replay envelope createdAt to outcome upload', async () => {
+  const { deps, setCalls, outcomeCalls } = createDeps()
+  const match = sampleMatch()
+
+  maybeUploadCompletedMatchReplay(match, deps)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+
+  assert.equal(setCalls.length, 1)
+  assert.equal(outcomeCalls.length, 1)
+  assert.equal(outcomeCalls[0].createdAt, setCalls[0].envelope.createdAt)
+  assert.equal(outcomeCalls[0].match, match)
+})
+
+test('repeat match over does not call outcome upload again', async () => {
+  const { deps, outcomeCalls } = createDeps()
+  const match = sampleMatch()
+
+  maybeUploadCompletedMatchReplay(match, deps)
+  maybeUploadCompletedMatchReplay(match, deps)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+
+  assert.equal(outcomeCalls.length, 1)
+})
+
+test('not configured skips outcome upload', async () => {
+  const { deps, outcomeCalls } = createDeps({
+    isConfigured: () => false,
+  })
+
+  maybeUploadCompletedMatchReplay(sampleMatch(), deps)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+
+  assert.equal(outcomeCalls.length, 0)
 })
 
 test('match over uploads envelope once via setCompletedMatch', async () => {
@@ -189,19 +230,21 @@ test('exportReplayEnvelope payload uses state.history not match.history', async 
 })
 
 test('already uploaded id in memory does not call set again', async () => {
-  const { deps, setCalls, uploadedIds } = createDeps()
+  const { deps, setCalls, outcomeCalls, uploadedIds } = createDeps()
   uploadedIds.add('match-test-1')
 
   maybeUploadCompletedMatchReplay(sampleMatch(), deps)
   assert.equal(setCalls.length, 0)
+  assert.equal(outcomeCalls.length, 0)
 })
 
 test('already uploaded id in sessionStorage does not call set again', async () => {
-  const { deps, setCalls, storage } = createDeps()
+  const { deps, setCalls, outcomeCalls, storage } = createDeps()
   storage.setItem(UPLOADED_MATCH_IDS_STORAGE_KEY, JSON.stringify(['match-test-1']))
 
   maybeUploadCompletedMatchReplay(sampleMatch(), deps)
   assert.equal(setCalls.length, 0)
+  assert.equal(outcomeCalls.length, 0)
 })
 
 test('not configured skips upload', async () => {
@@ -374,7 +417,7 @@ test('not configured does not mark sessionStorage', () => {
 })
 
 test('write failure still marks uploaded to avoid duplicate attempts', async () => {
-  const { deps, storage } = createDeps({
+  const { deps, storage, outcomeCalls } = createDeps({
     setCompletedMatch: async () => {
       throw new Error('network')
     },
@@ -384,6 +427,11 @@ test('write failure still marks uploaded to avoid duplicate attempts', async () 
   await new Promise((resolve) => setTimeout(resolve, 0))
 
   assert.deepEqual(JSON.parse(storage.getItem(UPLOADED_MATCH_IDS_STORAGE_KEY)), ['match-test-1'])
+  assert.equal(outcomeCalls.length, 1)
+
+  maybeUploadCompletedMatchReplay(sampleMatch(), deps)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  assert.equal(outcomeCalls.length, 1)
 })
 
 test('appends new match id to existing sessionStorage list', () => {

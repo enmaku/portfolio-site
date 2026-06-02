@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "dungeonRunnerMatchOutcomes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "humanWon", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "dungeonRunnerMatchOutcomes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "opponentModelIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

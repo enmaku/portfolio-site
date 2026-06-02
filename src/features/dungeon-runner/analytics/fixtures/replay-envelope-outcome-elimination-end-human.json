@@ -1,0 +1,1929 @@
+{
+  "version": 1,
+  "createdAt": "2026-05-27T12:00:00.000Z",
+  "seed": 6,
+  "setup": {
+    "totalSeats": 4,
+    "opponents": [
+      {
+        "type": "nn",
+        "modelId": "nn-v1.0.0"
+      },
+      {
+        "type": "randombot"
+      },
+      {
+        "type": "nn",
+        "modelId": "nn-v2.0.0"
+      }
+    ]
+  },
+  "history": [
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "WARRIOR"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 0,
+      "rngStepAfter": 13,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 13,
+      "rngStepAfter": 14,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 14,
+      "rngStepAfter": 15,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 15,
+      "rngStepAfter": 16,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 16,
+      "rngStepAfter": 17,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 17,
+      "rngStepAfter": 18,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 18,
+      "rngStepAfter": 19,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 19,
+      "rngStepAfter": 20,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 20,
+      "rngStepAfter": 21,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 21,
+      "rngStepAfter": 22,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 22,
+      "rngStepAfter": 23,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 23,
+      "rngStepAfter": 24,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 24,
+      "rngStepAfter": 25,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 25,
+      "rngStepAfter": 26,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 26,
+      "rngStepAfter": 27,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 27,
+      "rngStepAfter": 28,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 28,
+      "rngStepAfter": 29,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 29,
+      "rngStepAfter": 30,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 30,
+      "rngStepAfter": 31,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 31,
+      "rngStepAfter": 32,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 32,
+      "rngStepAfter": 33,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 33,
+      "rngStepAfter": 34,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 34,
+      "rngStepAfter": 35,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 35,
+      "rngStepAfter": 36,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 36,
+      "rngStepAfter": 37,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 37,
+      "rngStepAfter": 38,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 38,
+      "rngStepAfter": 39,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 39,
+      "rngStepAfter": 40,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 40,
+      "rngStepAfter": 41,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 41,
+      "rngStepAfter": 42,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DECLARE_VORPAL",
+        "species": "orc"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 42,
+      "rngStepAfter": 43,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 43,
+      "rngStepAfter": 44,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 44,
+      "rngStepAfter": 45,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 45,
+      "rngStepAfter": 46,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 46,
+      "rngStepAfter": 47,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 47,
+      "rngStepAfter": 48,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 48,
+      "rngStepAfter": 49,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 49,
+      "rngStepAfter": 50,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 50,
+      "rngStepAfter": 51,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 51,
+      "rngStepAfter": 52,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 52,
+      "rngStepAfter": 53,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 53,
+      "rngStepAfter": 54,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 54,
+      "rngStepAfter": 55,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "pick-adventurer",
+      "rngStepBefore": 55,
+      "rngStepAfter": 56,
+      "dungeonRunResult": "failure"
+    },
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "WARRIOR"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 56,
+      "rngStepAfter": 69,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 69,
+      "rngStepAfter": 70,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 70,
+      "rngStepAfter": 71,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 71,
+      "rngStepAfter": 72,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 72,
+      "rngStepAfter": 73,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 73,
+      "rngStepAfter": 74,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 74,
+      "rngStepAfter": 75,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 75,
+      "rngStepAfter": 76,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 76,
+      "rngStepAfter": 77,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 77,
+      "rngStepAfter": 78,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 78,
+      "rngStepAfter": 79,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 79,
+      "rngStepAfter": 80,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 80,
+      "rngStepAfter": 81,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 81,
+      "rngStepAfter": 82,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 82,
+      "rngStepAfter": 83,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 83,
+      "rngStepAfter": 84,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 84,
+      "rngStepAfter": 85,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 85,
+      "rngStepAfter": 86,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 86,
+      "rngStepAfter": 87,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 87,
+      "rngStepAfter": 88,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 88,
+      "rngStepAfter": 89,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 89,
+      "rngStepAfter": 90,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 90,
+      "rngStepAfter": 91,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 91,
+      "rngStepAfter": 92,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DECLARE_VORPAL",
+        "species": "dragon"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 92,
+      "rngStepAfter": 93,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 93,
+      "rngStepAfter": 94,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 94,
+      "rngStepAfter": 95,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 95,
+      "rngStepAfter": 96,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 96,
+      "rngStepAfter": 97,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 97,
+      "rngStepAfter": 98,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 98,
+      "rngStepAfter": 99,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "pick-adventurer",
+      "rngStepBefore": 99,
+      "rngStepAfter": 100,
+      "dungeonRunResult": "failure"
+    },
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "BARBARIAN"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 100,
+      "rngStepAfter": 113,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 113,
+      "rngStepAfter": 114,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 114,
+      "rngStepAfter": 115,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 115,
+      "rngStepAfter": 116,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 116,
+      "rngStepAfter": 117,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 117,
+      "rngStepAfter": 118,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 118,
+      "rngStepAfter": 119,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 119,
+      "rngStepAfter": 120,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 120,
+      "rngStepAfter": 121,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 121,
+      "rngStepAfter": 122,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 122,
+      "rngStepAfter": 123,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 123,
+      "rngStepAfter": 124,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 124,
+      "rngStepAfter": 125,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 125,
+      "rngStepAfter": 126,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 126,
+      "rngStepAfter": 127,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "pick-adventurer",
+      "rngStepBefore": 127,
+      "rngStepAfter": 128,
+      "dungeonRunResult": "success"
+    },
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "MAGE"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 128,
+      "rngStepAfter": 141,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 141,
+      "rngStepAfter": 142,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 142,
+      "rngStepAfter": 143,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 143,
+      "rngStepAfter": 144,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 144,
+      "rngStepAfter": 145,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 145,
+      "rngStepAfter": 146,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 146,
+      "rngStepAfter": 147,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 147,
+      "rngStepAfter": 148,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 148,
+      "rngStepAfter": 149,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "USE_POLYMORPH"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 149,
+      "rngStepAfter": 150,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "pick-adventurer",
+      "rngStepBefore": 150,
+      "rngStepAfter": 151,
+      "dungeonRunResult": "success"
+    },
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "BARBARIAN"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 151,
+      "rngStepAfter": 164,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 164,
+      "rngStepAfter": 165,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 165,
+      "rngStepAfter": 166,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 166,
+      "rngStepAfter": 167,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "SACRIFICE",
+        "equipmentId": "B_HEAL"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 167,
+      "rngStepAfter": 168,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 168,
+      "rngStepAfter": 169,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 169,
+      "rngStepAfter": 170,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 170,
+      "rngStepAfter": 171,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 171,
+      "rngStepAfter": 172,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 172,
+      "rngStepAfter": 173,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "SACRIFICE",
+        "equipmentId": "B_AXE"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 173,
+      "rngStepAfter": 174,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 174,
+      "rngStepAfter": 175,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 175,
+      "rngStepAfter": 176,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 176,
+      "rngStepAfter": 177,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 177,
+      "rngStepAfter": 178,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 178,
+      "rngStepAfter": 179,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 179,
+      "rngStepAfter": 180,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 180,
+      "rngStepAfter": 181,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 181,
+      "rngStepAfter": 182,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 182,
+      "rngStepAfter": 183,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 183,
+      "rngStepAfter": 184,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 184,
+      "rngStepAfter": 185,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 185,
+      "rngStepAfter": 186,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 186,
+      "rngStepAfter": 187,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 187,
+      "rngStepAfter": 188,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 188,
+      "rngStepAfter": 189,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 189,
+      "rngStepAfter": 190,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 190,
+      "rngStepAfter": 191,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 191,
+      "rngStepAfter": 192,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 192,
+      "rngStepAfter": 193,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-4",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "pick-adventurer",
+      "rngStepBefore": 193,
+      "rngStepAfter": 194,
+      "dungeonRunResult": "failure"
+    },
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "MAGE"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 194,
+      "rngStepAfter": 207,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 207,
+      "rngStepAfter": 208,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "SACRIFICE",
+        "equipmentId": "M_BRACE"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 208,
+      "rngStepAfter": 209,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 209,
+      "rngStepAfter": 210,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "SACRIFICE",
+        "equipmentId": "M_POLY"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 210,
+      "rngStepAfter": 211,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 211,
+      "rngStepAfter": 212,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 212,
+      "rngStepAfter": 213,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 213,
+      "rngStepAfter": 214,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 214,
+      "rngStepAfter": 215,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 215,
+      "rngStepAfter": 216,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 216,
+      "rngStepAfter": 217,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 217,
+      "rngStepAfter": 218,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 218,
+      "rngStepAfter": 219,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 219,
+      "rngStepAfter": 220,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 220,
+      "rngStepAfter": 221,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 221,
+      "rngStepAfter": 222,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 222,
+      "rngStepAfter": 223,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 223,
+      "rngStepAfter": 224,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 224,
+      "rngStepAfter": 225,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 225,
+      "rngStepAfter": 226,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 226,
+      "rngStepAfter": 227,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 227,
+      "rngStepAfter": 228,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 228,
+      "rngStepAfter": 229,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 229,
+      "rngStepAfter": 230,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 230,
+      "rngStepAfter": 231,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 231,
+      "rngStepAfter": 232,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 232,
+      "rngStepAfter": 233,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 233,
+      "rngStepAfter": 234,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 234,
+      "rngStepAfter": 235,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 235,
+      "rngStepAfter": 236,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 236,
+      "rngStepAfter": 237,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 237,
+      "rngStepAfter": 238,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-1",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "pick-adventurer",
+      "rngStepBefore": 238,
+      "rngStepAfter": 239,
+      "dungeonRunResult": "failure"
+    },
+    {
+      "action": {
+        "type": "CHOOSE_NEXT_ADVENTURER",
+        "hero": "BARBARIAN"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "pick-adventurer",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 239,
+      "rngStepAfter": 252,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "DRAW"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 252,
+      "rngStepAfter": 253,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "ADD_TO_DUNGEON"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "bidding",
+      "phaseAfter": "bidding",
+      "rngStepBefore": 253,
+      "rngStepAfter": 254,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "PASS"
+      },
+      "actorSeatId": "seat-3",
+      "phaseBefore": "bidding",
+      "phaseAfter": "dungeon",
+      "rngStepBefore": 254,
+      "rngStepAfter": 255,
+      "dungeonRunResult": null
+    },
+    {
+      "action": {
+        "type": "REVEAL_OR_CONTINUE"
+      },
+      "actorSeatId": "seat-2",
+      "phaseBefore": "dungeon",
+      "phaseAfter": "match-over",
+      "rngStepBefore": 255,
+      "rngStepAfter": 256,
+      "dungeonRunResult": null
+    }
+  ],
+  "matchId": "match-1716900000000"
+}

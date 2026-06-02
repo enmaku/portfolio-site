@@ -1,0 +1,103 @@
+{
+  "outcomeSchemaVersion": 1,
+  "matchId": "match-1716811200000",
+  "createdAt": "2026-05-27T12:00:00.000Z",
+  "setup": {
+    "totalSeats": 4,
+    "opponents": [
+      {
+        "type": "nn",
+        "modelId": "nn-v1.0.0"
+      },
+      {
+        "type": "randombot"
+      },
+      {
+        "type": "nn",
+        "modelId": "nn-v2.0.0"
+      }
+    ]
+  },
+  "seats": [
+    {
+      "seatId": "seat-4",
+      "role": {
+        "type": "nn",
+        "modelId": "nn-v2.0.0"
+      },
+      "label": "Judy"
+    },
+    {
+      "seatId": "seat-2",
+      "role": {
+        "type": "nn",
+        "modelId": "nn-v1.0.0"
+      },
+      "label": "Victor"
+    },
+    {
+      "seatId": "seat-3",
+      "role": {
+        "type": "randombot"
+      },
+      "label": "Zoe"
+    },
+    {
+      "seatId": "seat-1",
+      "role": {
+        "type": "human"
+      },
+      "label": "Player"
+    }
+  ],
+  "humanWon": true,
+  "endVariant": "victory",
+  "humanPlayerSeatId": "seat-1",
+  "matchWinnerSeatId": "seat-1",
+  "humanEliminated": false,
+  "winnerRole": {
+    "type": "human"
+  },
+  "scoreboard": {
+    "seat-1": {
+      "successes": 2,
+      "lives": 2,
+      "eliminated": false
+    },
+    "seat-2": {
+      "successes": 1,
+      "lives": 2,
+      "eliminated": false
+    },
+    "seat-3": {
+      "successes": 1,
+      "lives": 2,
+      "eliminated": false
+    },
+    "seat-4": {
+      "successes": 1,
+      "lives": 2,
+      "eliminated": false
+    }
+  },
+  "opponentModelIds": [
+    "nn-v1.0.0",
+    "nn-v2.0.0"
+  ],
+  "opponentCountByType": {
+    "nn": 2,
+    "randombot": 1
+  },
+  "historyStepCount": 20,
+  "historyActionStepCount": 20,
+  "historyStepsBySeatRole": {
+    "human": 4,
+    "nn": 11,
+    "randombot": 5
+  },
+  "historyModelIds": [],
+  "finalRngStep": 80,
+  "equipmentSacrificeCount": 0,
+  "matchIdEpochMs": 1716811200000,
+  "presentationSpeedProfile": "brisk"
+}

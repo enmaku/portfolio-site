@@ -34,6 +34,7 @@
 - Resume flow is `resume-or-start-new` when a valid current match exists.
 - Schema mismatch must hard-reset persisted data.
 - Completed **match over** replays uploaded to RTDB use the same envelope shape as [Replay envelope contract (v1)](#replay-envelope-contract-v1); path root `dungeonRunnerCompletedMatches/{matchId}` (see `firebase/rtdb.js`). Field definitions are not duplicated here.
+- Completed **match over** outcomes uploaded to Firestore use [Match outcome record (v1)](#match-outcome-record-v1); path `dungeonRunnerMatchOutcomes/{matchId}` (see `firebase/firestore.js`). Paired replay and outcome share the same caller-supplied `createdAt`.
 
 ## Replay envelope contract (v1)
 
@@ -90,6 +91,54 @@ Documented for future envelopes only; v1 import/export does not read or emit the
 - Terminal metadata — match-over outcome fields beyond v1 history.
 - `rulesHash` — fingerprint of rules/catalog version for parity checks.
 
+## Match outcome record (v1)
+
+Normative Firestore document shape for **completed match outcome** at **match over**. Produced only by `analytics/buildMatchOutcomeRecord.js` (live upload and dungeon-runner **derive_match_outcome**). Does **not** include **replay envelope** `version` or `seed` — join the paired **completed match replay** on RTDB when those fields are needed.
+
+Path: `dungeonRunnerMatchOutcomes/{matchId}` (doc id equals local match id and RTDB replay key).
+
+### Required fields
+
+| Field | Type | Semantics |
+| --- | --- | --- |
+| `outcomeSchemaVersion` | integer | Must be exactly `1`. |
+| `matchId` | string | Local / archive match id (e.g. `match-{epochMs}`). |
+| `createdAt` | string | ISO-8601 timestamp; caller supplies (live: same instant as paired replay envelope `createdAt`; backfill: copied from envelope). Builder does not invent this field. |
+| `setup` | object | Match setup: `{ totalSeats, opponents: Array<{ type: 'nn' \| 'randombot', modelId?: string }> }`. |
+| `seats` | array | Resolved seats at **match over**: `{ seatId, role: { type, modelId? }, label }`. |
+| `humanWon` | boolean | `true` only when `endVariant` is `victory` (same policy as `getMatchOverEndDialogVariant` / end dialog). |
+| `endVariant` | string | `victory` \| `defeat-not-eliminated` \| `elimination-end-human`. |
+| `humanPlayerSeatId` | string | **Human player seat** id. |
+| `matchWinnerSeatId` | string | Winner seat id from terminal state. |
+| `humanEliminated` | boolean | Whether human seat is **eliminated** on terminal **scoreboard**. |
+| `winnerRole` | object | `{ type, modelId? }` for `matchWinnerSeatId`. |
+| `scoreboard` | object | Terminal per-seat `{ successes, lives, eliminated }` map. |
+| `opponentModelIds` | string[] | Distinct `modelId` values from NN entries in `setup.opponents` (sorted). |
+| `opponentCountByType` | object | `{ nn, randombot }` counts from `setup.opponents`. |
+| `historyStepCount` | integer | Length of terminal `history` array. |
+| `historyActionStepCount` | integer | History entries with a non-empty `action.type`. |
+| `historyStepsBySeatRole` | object | Step counts by actor seat role: `{ human, nn, randombot }`. |
+| `historyModelIds` | string[] | Distinct `action.modelId` values in **history** (sorted). |
+| `finalRngStep` | integer \| null | `rngStepAfter` of the last history entry, or `null` when **history** is empty. |
+| `equipmentSacrificeCount` | integer | Count of canonical `SACRIFICE` actions in **history**. |
+| `matchIdEpochMs` | integer \| null | Milliseconds parsed from `match-{digits}` when the id matches; else `null`. Charting aid only. |
+
+### Optional fields
+
+| Field | Type | Semantics |
+| --- | --- | --- |
+| `presentationSpeedProfile` | `'cinematic' \| 'brisk'` | Included only when valid; mirrors optional replay envelope field. |
+
+### Builder input
+
+`buildMatchOutcomeRecord({ matchId, createdAt, setup, state, seats, humanPlayerSeatId, presentationSpeedProfile? })` — `state` must be terminal **match** state (`phase` `match-over`) for correct `endVariant` / **scoreboard** fields; caller supplies `createdAt`.
+
+### Reference
+
+- Implementation: `analytics/buildMatchOutcomeRecord.js`, `analytics/matchOutcomeRollups.js`.
+- Golden fixtures: `analytics/fixtures/outcome-*.json`.
+- End-dialog policy: `ui/humanEliminationCompletionPolicy.js`, `ui/matchOverSummaryBuilder.js`.
+
 ## Debug Contract (v1)
 
 - Debug mode activates only on `localhost`/`127.0.0.1` with `?debug=true`.
@@ -116,4 +165,4 @@ Documented for future envelopes only; v1 import/export does not read or emit the
 
 - **Replay pipeline documentation** (ingest extensions, **ingest manifest** skip reasons): sibling path `../dungeon-runner/docs/replay-pipeline.md` from the portfolio-site repo root; content owned by [dungeon-runner #10](https://github.com/enmaku/dungeon-runner/issues/10) until that file ships—cross-link back to this [Replay envelope contract (v1)](#replay-envelope-contract-v1) from the runbook.
 - **Envelope contract coordination:** [dungeon-runner #9](https://github.com/enmaku/dungeon-runner/issues/9).
-- **Reference code:** `debug/replay.js` (export/import); `firebase/rtdb.js` and `firebase/completedMatchReplayUpload.js` (completed **match over** RTDB write using `exportReplayEnvelope`).
+- **Reference code:** `debug/replay.js` (export/import); `firebase/rtdb.js` and `firebase/completedMatchReplayUpload.js` (completed **match over** RTDB write using `exportReplayEnvelope`); `firebase/firestore.js` and `firebase/completedMatchOutcomeUpload.js` (paired Firestore outcome create at **match over**); `analytics/buildMatchOutcomeRecord.js` (**completed match outcome** v1 builder).
