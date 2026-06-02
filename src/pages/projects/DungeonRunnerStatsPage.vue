@@ -1,0 +1,44 @@
+<template>
+  <q-page class="q-pa-md">
+    <div class="text-h5 text-weight-medium q-mb-md">Dungeon Runner Stats</div>
+
+    <q-banner
+      v-if="pageModel.showDashboardError"
+      data-testid="dungeon-stats-dashboard-error"
+      class="bg-grey-9 text-grey-3"
+      rounded
+    >
+      Unable to load match statistics.
+    </q-banner>
+
+    <div
+      v-else-if="pageModel.showTileGrid"
+      data-testid="dungeon-stats-tile-grid"
+      class="row q-col-gutter-md"
+    >
+      <div
+        v-for="tile in pageModel.tiles"
+        :key="tile.id"
+        class="col-12 col-sm-6 col-md-4"
+      >
+        <DungeonRunnerStatsTile :tile="tile" :tile-deps="tileDeps" />
+      </div>
+    </div>
+  </q-page>
+</template>
+
+<script setup>
+import { computed } from 'vue'
+import DungeonRunnerStatsTile from 'src/features/dungeon-runner/stats/components/DungeonRunnerStatsTile.vue'
+import { createDungeonRunnerStatsTileDeps } from 'src/features/dungeon-runner/stats/createDungeonRunnerStatsTileDeps.js'
+import { isDungeonRunnerFirebaseConfigured } from 'src/features/dungeon-runner/firebase/firestore.js'
+import { buildDungeonRunnerStatsPageModel } from 'src/features/dungeon-runner/stats/dungeonRunnerStatsPageModel.js'
+
+const tileDeps = createDungeonRunnerStatsTileDeps()
+
+const pageModel = computed(() =>
+  buildDungeonRunnerStatsPageModel({
+    isFirebaseConfigured: isDungeonRunnerFirebaseConfigured(),
+  }),
+)
+</script>

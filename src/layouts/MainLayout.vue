@@ -56,7 +56,8 @@
                     v-ripple
                     clickable
                     v-close-popup
-                    @click="openProjectInNewTab(p.to)"
+                    :to="p.navigateInTab ? p.to : undefined"
+                    @click="p.navigateInTab ? undefined : openProjectInNewTab(p.to)"
                   >
                     <q-item-section avatar>
                       <q-icon :name="p.icon" />
@@ -118,7 +119,8 @@
                 v-ripple
                 clickable
                 :inset-level="2"
-                @click="openProjectInNewTab(p.to)"
+                :to="p.navigateInTab ? p.to : undefined"
+                @click="p.navigateInTab ? undefined : openProjectInNewTab(p.to)"
               >
                 <q-item-section avatar>
                   <q-icon :name="p.icon" />
@@ -166,8 +168,14 @@ const projectSections = [
   },
   {
     label: 'Desktop',
-    comingSoon: true,
-    links: [],
+    links: [
+      {
+        to: '/projects/dungeon-runner/stats',
+        label: 'Dungeon Runner Stats',
+        icon: 'bar_chart',
+        navigateInTab: true,
+      },
+    ],
   },
 ]
 
