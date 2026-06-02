@@ -56,6 +56,9 @@ test('dungeon runner stats page gates on Firebase configured without Firestore r
   assert.equal(page.includes('DungeonRunnerStatsTimeseriesTile'), true)
   assert.equal(page.includes('DungeonRunnerStatsBreakdownTile'), true)
   assert.equal(page.includes("'breakdown-chart'"), true)
+  assert.equal(page.includes('DungeonRunnerStatsSeriesChartTile'), true)
+  assert.equal(page.includes("'line-series'"), true)
+  assert.equal(page.includes("'bar-series'"), true)
 })
 
 test('dungeon runner stats tile registry is wired through page model', async () => {
@@ -66,6 +69,9 @@ test('dungeon runner stats tile registry is wired through page model', async () 
   assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'rolling-human-win-rate'), true)
   assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'end-variant-breakdown'), true)
   assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'winner-role-breakdown'), true)
+  assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'defeat-flavor-breakdown'), true)
+  assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'match-length-over-time'), true)
+  assert.equal(DUNGEON_RUNNER_STATS_TILES.some((tile) => tile.id === 'matches-per-week'), true)
 })
 
 test('stats tile shell and orchestration stay free of Firestore imports', () => {
@@ -83,7 +89,11 @@ test('stats tile shell and orchestration stay free of Firestore imports', () => 
     new URL('./components/DungeonRunnerStatsBreakdownTile.vue', import.meta.url),
     'utf8',
   )
-  for (const source of [shell, tile, runner, timeseriesRunner, breakdownTile]) {
+  const seriesChartTile = readFileSync(
+    new URL('./components/DungeonRunnerStatsSeriesChartTile.vue', import.meta.url),
+    'utf8',
+  )
+  for (const source of [shell, tile, runner, timeseriesRunner, breakdownTile, seriesChartTile]) {
     assert.equal(source.includes('firebase'), false)
     assert.equal(source.includes('getCountFromServer'), false)
     assert.equal(source.includes('getDocs'), false)
@@ -166,12 +176,68 @@ test('breakdown tile loaders use filtered count queries only', () => {
     new URL('./tiles/winnerRoleBreakdownLoader.js', import.meta.url),
     'utf8',
   )
-  for (const source of [endVariantLoader, winnerRoleLoader]) {
+  const defeatFlavorLoader = readFileSync(
+    new URL('./tiles/defeatFlavorBreakdownLoader.js', import.meta.url),
+    'utf8',
+  )
+  for (const source of [endVariantLoader, winnerRoleLoader, defeatFlavorLoader]) {
     assert.equal(source.includes('countMatchOutcomesWhere'), true)
     assert.equal(source.includes('getDocs'), false)
   }
   assert.equal(endVariantLoader.includes("'endVariant'"), true)
   assert.equal(winnerRoleLoader.includes("'winnerRole.type'"), true)
+  assert.equal(defeatFlavorLoader.includes("'endVariant'"), true)
+})
+
+test('defeat flavor breakdown loader counts only non-victory end variants', () => {
+  const loader = readFileSync(
+    new URL('./tiles/defeatFlavorBreakdownLoader.js', import.meta.url),
+    'utf8',
+  )
+  assert.equal(loader.includes('DEFEAT_FLAVOR_BREAKDOWN_KEYS'), true)
+  assert.equal(loader.includes('ELIMINATION_END_HUMAN'), true)
+  assert.equal(loader.includes('VICTORY'), false)
+})
+
+test('match length over time uses bounded match length series query only', () => {
+  const seriesQuery = readFileSync(
+    new URL('../firebase/matchLengthSeriesQuery.js', import.meta.url),
+    'utf8',
+  )
+  const loader = readFileSync(
+    new URL('./tiles/matchLengthOverTimeLoader.js', import.meta.url),
+    'utf8',
+  )
+  assert.equal(seriesQuery.includes('getDocs'), true)
+  assert.equal(seriesQuery.includes('historyStepCount'), true)
+  assert.equal(seriesQuery.includes('MATCH_LENGTH_SERIES_FETCH_LIMIT'), true)
+  assert.equal(loader.includes('fetchMatchLengthSeries'), true)
+  assert.equal(loader.includes('getDocs'), false)
+  assert.equal(loader.includes('buildMatchLengthOverTimeChart'), true)
+})
+
+test('matches per week uses aggregate count queries per week bucket', () => {
+  const countQuery = readFileSync(
+    new URL('../firebase/matchOutcomeCountQuery.js', import.meta.url),
+    'utf8',
+  )
+  const loader = readFileSync(new URL('./tiles/matchesPerWeekLoader.js', import.meta.url), 'utf8')
+  assert.equal(countQuery.includes('countMatchOutcomesCreatedBetween'), true)
+  assert.equal(loader.includes('countMatchOutcomesCreatedBetween'), true)
+  const weekChart = readFileSync(
+    new URL('./buildMatchesPerWeekChart.js', import.meta.url),
+    'utf8',
+  )
+  assert.equal(weekChart.includes('MATCHES_PER_WEEK_MAX_WEEKS'), true)
+  assert.equal(weekChart.includes('computeRollingWeekAverage'), true)
+  assert.equal(loader.includes('rollingAverageValues'), true)
+  assert.equal(loader.includes('getDocs'), false)
+  const seriesTile = readFileSync(
+    new URL('./components/DungeonRunnerStatsSeriesChartTile.vue', import.meta.url),
+    'utf8',
+  )
+  assert.equal(seriesTile.includes('rollingAverageValues'), true)
+  assert.equal(seriesTile.includes('#eab308'), true)
 })
 
 test('rolling human win rate tile uses bounded human win series query only', () => {

@@ -39,3 +39,24 @@ export async function countMatchOutcomesWhere(field, value, deps = {}) {
   const snapshot = await (deps.getCountFromServer ?? getCountFromServer)(filtered)
   return snapshot.data().count
 }
+
+/**
+ * Count outcomes whose `createdAt` falls in [startInclusive, endExclusive).
+ *
+ * @param {string} startInclusive ISO-8601 timestamp
+ * @param {string} endExclusive ISO-8601 timestamp
+ * @param {MatchOutcomeCountQueryDeps} [deps]
+ * @returns {Promise<number>}
+ */
+export async function countMatchOutcomesCreatedBetween(startInclusive, endExclusive, deps = {}) {
+  const db = (deps.getFirestore ?? getDungeonRunnerFirestore)()
+  if (!db) throw new Error('Dungeon Runner Firestore is not configured')
+  const coll = (deps.collection ?? collection)(db, MATCH_OUTCOMES_COLLECTION)
+  const filtered = (deps.query ?? query)(
+    coll,
+    (deps.where ?? where)('createdAt', '>=', startInclusive),
+    (deps.where ?? where)('createdAt', '<', endExclusive),
+  )
+  const snapshot = await (deps.getCountFromServer ?? getCountFromServer)(filtered)
+  return snapshot.data().count
+}

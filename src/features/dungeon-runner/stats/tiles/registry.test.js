@@ -9,6 +9,9 @@ const EXPECTED_TILE_IDS = [
   'rolling-human-win-rate',
   'end-variant-breakdown',
   'winner-role-breakdown',
+  'defeat-flavor-breakdown',
+  'match-length-over-time',
+  'matches-per-week',
 ]
 
 test('dungeon runner stats tile registry includes all v1 tile ids', () => {
@@ -38,7 +41,11 @@ test('rate tiles use rate presentation', () => {
 })
 
 test('breakdown tiles use breakdown-chart presentation', () => {
-  const breakdownTileIds = ['end-variant-breakdown', 'winner-role-breakdown']
+  const breakdownTileIds = [
+    'end-variant-breakdown',
+    'winner-role-breakdown',
+    'defeat-flavor-breakdown',
+  ]
   for (const id of breakdownTileIds) {
     const tile = DUNGEON_RUNNER_STATS_TILE_REGISTRY.find((entry) => entry.id === id)
     assert.ok(tile)
@@ -51,4 +58,17 @@ test('rolling human win rate tile is fourth with timeseries presentation and ful
   assert.equal(tile.id, 'rolling-human-win-rate')
   assert.equal(tile.presentation, 'timeseries')
   assert.equal(tile.span, 'full')
+})
+
+test('match length and matches per week tiles span full row', () => {
+  const matchLength = DUNGEON_RUNNER_STATS_TILE_REGISTRY.find(
+    (entry) => entry.id === 'match-length-over-time',
+  )
+  const matchesPerWeek = DUNGEON_RUNNER_STATS_TILE_REGISTRY.find(
+    (entry) => entry.id === 'matches-per-week',
+  )
+  assert.equal(matchLength?.presentation, 'line-series')
+  assert.equal(matchLength?.span, 'full')
+  assert.equal(matchesPerWeek?.presentation, 'bar-series')
+  assert.equal(matchesPerWeek?.span, 'full')
 })

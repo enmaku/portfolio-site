@@ -13,6 +13,13 @@
  */
 
 /**
+ * @typedef {object} StatsNumericSeriesChartPayload
+ * @property {string[]} labels
+ * @property {number[]} values
+ * @property {(number | null)[]} [rollingAverageValues]
+ */
+
+/**
  * @typedef {object} RollingHumanWinRateWindowBounds
  * @property {number} min
  * @property {number} max
@@ -29,7 +36,7 @@
  * @property {DungeonRunnerStatsTileStatus} status
  * @property {number | string} [value]
  * @property {DungeonRunnerStatsBreakdownRow[]} [breakdown]
- * @property {RollingHumanWinRateChartPayload} [chart]
+ * @property {RollingHumanWinRateChartPayload | StatsNumericSeriesChartPayload} [chart]
  * @property {HumanWinSeriesPoint[]} [humanWonSeries]
  * @property {RollingHumanWinRateWindowBounds} [windowBounds]
  */
@@ -57,6 +64,30 @@ function isRollingChartPayload(chart) {
   )
 }
 
+function isValidRollingAverageValues(values, rollingAverageValues) {
+  if (rollingAverageValues === undefined) {
+    return true
+  }
+  if (!Array.isArray(rollingAverageValues) || rollingAverageValues.length !== values.length) {
+    return false
+  }
+  return rollingAverageValues.every(
+    (value) => value === null || Number.isFinite(value),
+  )
+}
+
+function isNumericSeriesChartPayload(chart) {
+  return (
+    chart &&
+    Array.isArray(chart.labels) &&
+    Array.isArray(chart.values) &&
+    chart.labels.length === chart.values.length &&
+    chart.labels.length > 0 &&
+    chart.values.every((value) => Number.isFinite(value)) &&
+    isValidRollingAverageValues(chart.values, chart.rollingAverageValues)
+  )
+}
+
 function mapLoaderOkResult(result) {
   if (isRollingChartPayload(result.chart)) {
     const humanWonSeries = Array.isArray(result.humanWonSeries)
@@ -78,6 +109,9 @@ function mapLoaderOkResult(result) {
       humanWonSeries,
       windowBounds: bounds,
     }
+  }
+  if (isNumericSeriesChartPayload(result.chart)) {
+    return { status: 'ok', chart: result.chart }
   }
   if (Array.isArray(result.breakdown)) {
     const breakdown = result.breakdown.filter(
@@ -103,6 +137,7 @@ function mapLoaderOkResult(result) {
  *   | { status: 'ok', value: number | string }
  *   | { status: 'ok', breakdown: DungeonRunnerStatsBreakdownRow[] }
  *   | { status: 'ok', chart: RollingHumanWinRateChartPayload, humanWonSeries: HumanWinSeriesPoint[], windowBounds: RollingHumanWinRateWindowBounds }
+ *   | { status: 'ok', chart: StatsNumericSeriesChartPayload }
  *   | { status: 'error' }
  * >} loadQuery
  * @param {unknown} [deps]

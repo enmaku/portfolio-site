@@ -12,10 +12,17 @@ export const WINNER_ROLE_BREAKDOWN_CHART_COLORS = {
   randombot: '#cbd5e1',
 }
 
+/** @type {Readonly<Record<string, string>>} */
+export const DEFEAT_FLAVOR_BREAKDOWN_CHART_COLORS = {
+  'defeat-not-eliminated': '#f59e0b',
+  'elimination-end-human': '#ef4444',
+}
+
 /** @type {Readonly<Record<string, Readonly<Record<string, string>>>>} */
 export const DUNGEON_RUNNER_STATS_BREAKDOWN_CHART_COLORS_BY_TILE = {
   'end-variant-breakdown': END_VARIANT_BREAKDOWN_CHART_COLORS,
   'winner-role-breakdown': WINNER_ROLE_BREAKDOWN_CHART_COLORS,
+  'defeat-flavor-breakdown': DEFEAT_FLAVOR_BREAKDOWN_CHART_COLORS,
 }
 
 /**

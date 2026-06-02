@@ -41,6 +41,23 @@ test('runDungeonRunnerStatsTileLoad maps ok breakdown loader result to ok state'
   })
 })
 
+test('runDungeonRunnerStatsTileLoad maps ok numeric series chart loader result', async () => {
+  const state = await runDungeonRunnerStatsTileLoad(async () => ({
+    status: 'ok',
+    chart: {
+      labels: ['May 1', 'May 8'],
+      values: [3, 5],
+    },
+  }))
+  assert.deepEqual(state, {
+    status: 'ok',
+    chart: {
+      labels: ['May 1', 'May 8'],
+      values: [3, 5],
+    },
+  })
+})
+
 test('runDungeonRunnerStatsTileLoad maps invalid breakdown rows to error state', async () => {
   const state = await runDungeonRunnerStatsTileLoad(async () => ({
     status: 'ok',

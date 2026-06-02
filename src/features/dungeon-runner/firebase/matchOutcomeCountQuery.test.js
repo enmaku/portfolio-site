@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   countAllMatchOutcomes,
+  countMatchOutcomesCreatedBetween,
   countMatchOutcomesWhere,
 } from './matchOutcomeCountQuery.js'
 
@@ -65,6 +66,30 @@ test('countMatchOutcomesWhere applies field equality filter', async () => {
   assert.equal(result, 7)
   assert.deepEqual(whereArgs, [['humanWon', '==', true]])
   assert.deepEqual(countTarget, { kind: 'query' })
+})
+
+test('countMatchOutcomesCreatedBetween applies createdAt range filters', async () => {
+  /** @type {unknown[]} */
+  const whereArgs = []
+  const result = await countMatchOutcomesCreatedBetween(
+    '2026-05-01T00:00:00.000Z',
+    '2026-05-08T00:00:00.000Z',
+    {
+      getFirestore: () => fakeDb,
+      collection: () => ({ kind: 'collection' }),
+      where: (...args) => {
+        whereArgs.push(args)
+        return { kind: `where-${whereArgs.length}` }
+      },
+      query: (_coll, ...filters) => ({ kind: 'query', filters }),
+      getCountFromServer: async () => ({ data: () => ({ count: 9 }) }),
+    },
+  )
+  assert.equal(result, 9)
+  assert.deepEqual(whereArgs, [
+    ['createdAt', '>=', '2026-05-01T00:00:00.000Z'],
+    ['createdAt', '<', '2026-05-08T00:00:00.000Z'],
+  ])
 })
 
 test('countAllMatchOutcomes throws when Firestore is unavailable', async () => {

@@ -31,6 +31,11 @@
           :tile="tile"
           :tile-deps="tileDeps"
         />
+        <DungeonRunnerStatsSeriesChartTile
+          v-else-if="tile.presentation === 'line-series' || tile.presentation === 'bar-series'"
+          :tile="tile"
+          :tile-deps="tileDeps"
+        />
         <DungeonRunnerStatsTile v-else :tile="tile" :tile-deps="tileDeps" />
       </div>
     </div>
@@ -40,6 +45,7 @@
 <script setup>
 import { computed } from 'vue'
 import DungeonRunnerStatsBreakdownTile from 'src/features/dungeon-runner/stats/components/DungeonRunnerStatsBreakdownTile.vue'
+import DungeonRunnerStatsSeriesChartTile from 'src/features/dungeon-runner/stats/components/DungeonRunnerStatsSeriesChartTile.vue'
 import DungeonRunnerStatsTile from 'src/features/dungeon-runner/stats/components/DungeonRunnerStatsTile.vue'
 import DungeonRunnerStatsTimeseriesTile from 'src/features/dungeon-runner/stats/components/DungeonRunnerStatsTimeseriesTile.vue'
 import { createDungeonRunnerStatsTileDeps } from 'src/features/dungeon-runner/stats/createDungeonRunnerStatsTileDeps.js'

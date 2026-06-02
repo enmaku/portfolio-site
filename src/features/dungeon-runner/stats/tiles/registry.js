@@ -1,6 +1,9 @@
+import { loadDefeatFlavorBreakdownTile } from './defeatFlavorBreakdownLoader.js'
 import { loadEndVariantBreakdownTile } from './endVariantBreakdownLoader.js'
 import { loadHumanEliminatedRateTile } from './humanEliminatedRateLoader.js'
 import { loadHumanWinRateTile } from './humanWinRateLoader.js'
+import { loadMatchLengthOverTimeTile } from './matchLengthOverTimeLoader.js'
+import { loadMatchesPerWeekTile } from './matchesPerWeekLoader.js'
 import { loadRollingHumanWinRateTile } from './rollingHumanWinRateLoader.js'
 import { loadTotalMatchesTile } from './totalMatchesLoader.js'
 import { loadWinnerRoleBreakdownTile } from './winnerRoleBreakdownLoader.js'
@@ -9,18 +12,22 @@ import { loadWinnerRoleBreakdownTile } from './winnerRoleBreakdownLoader.js'
 /** @typedef {import('./humanWinRateLoader.js').HumanWinRateTileResult} RateStatsTileLoadResult */
 /** @typedef {import('./endVariantBreakdownLoader.js').EndVariantBreakdownTileResult} BreakdownStatsTileLoadResult */
 /** @typedef {import('./rollingHumanWinRateLoader.js').RollingHumanWinRateTileResult} TimeseriesStatsTileLoadResult */
+/** @typedef {import('./matchLengthOverTimeLoader.js').MatchLengthOverTimeTileResult} LineSeriesStatsTileLoadResult */
+/** @typedef {import('./matchesPerWeekLoader.js').MatchesPerWeekTileResult} BarSeriesStatsTileLoadResult */
 
 /**
  * @typedef {object} DungeonRunnerStatsTileDefinition
  * @property {string} id
  * @property {string} title
- * @property {'count' | 'rate' | 'breakdown-chart' | 'timeseries'} presentation
+ * @property {'count' | 'rate' | 'breakdown-chart' | 'timeseries' | 'line-series' | 'bar-series'} presentation
  * @property {'default' | 'full'} [span]
  * @property {(deps?: unknown) => Promise<
  *   | CountStatsTileLoadResult
  *   | RateStatsTileLoadResult
  *   | BreakdownStatsTileLoadResult
  *   | TimeseriesStatsTileLoadResult
+ *   | LineSeriesStatsTileLoadResult
+ *   | BarSeriesStatsTileLoadResult
  * >} loadQuery
  */
 
@@ -62,5 +69,25 @@ export const DUNGEON_RUNNER_STATS_TILE_REGISTRY = [
     title: 'Winner role',
     presentation: 'breakdown-chart',
     loadQuery: (deps) => loadWinnerRoleBreakdownTile(deps),
+  },
+  {
+    id: 'defeat-flavor-breakdown',
+    title: 'Defeat flavor',
+    presentation: 'breakdown-chart',
+    loadQuery: (deps) => loadDefeatFlavorBreakdownTile(deps),
+  },
+  {
+    id: 'match-length-over-time',
+    title: 'Match length over time',
+    presentation: 'line-series',
+    span: 'full',
+    loadQuery: (deps) => loadMatchLengthOverTimeTile(deps),
+  },
+  {
+    id: 'matches-per-week',
+    title: 'Matches per week',
+    presentation: 'bar-series',
+    span: 'full',
+    loadQuery: (deps) => loadMatchesPerWeekTile(deps),
   },
 ]
