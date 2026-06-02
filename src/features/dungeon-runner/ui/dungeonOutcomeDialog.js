@@ -5,6 +5,39 @@ export function isDungeonOutcomeDialogOpen({
   return !!lastDungeonRun && lastDungeonRun !== dismissedDungeonRun
 }
 
+export function shouldShowDungeonOutcomeDialog({
+  gameplayInputLocked = false,
+  headlessCompletionInFlight = false,
+  lastDungeonRun = null,
+  dismissedDungeonRun = null,
+} = {}) {
+  if (headlessCompletionInFlight || gameplayInputLocked) return false
+  return isDungeonOutcomeDialogOpen({ lastDungeonRun, dismissedDungeonRun })
+}
+
+export function countCenterEquipmentRemaining(centerEquipment) {
+  return Array.isArray(centerEquipment) ? centerEquipment.length : 0
+}
+
+/**
+ * @returns {{ dismissedDungeonRun: null, equipmentRemainingAtResolution: null } | { equipmentRemainingAtResolution: number }}
+ */
+export function resolveLastDungeonRunWatcherUpdate(lastDungeonRun, centerEquipment) {
+  if (!lastDungeonRun) {
+    return {
+      dismissedDungeonRun: null,
+      equipmentRemainingAtResolution: null,
+    }
+  }
+  return {
+    equipmentRemainingAtResolution: countCenterEquipmentRemaining(centerEquipment),
+  }
+}
+
+export function dismissDungeonRunForOutcomeDialog(lastDungeonRun) {
+  return lastDungeonRun ?? null
+}
+
 export function buildDungeonOutcomeSummary({
   lastDungeonRun = null,
   seats = [],

@@ -83,6 +83,10 @@ export function createCompletedMatchReplayUploadTracker(storage) {
   }
 }
 
+export function shouldUploadCompletedMatchReplayForPhase(phase) {
+  return phase === MATCH_PHASES.MATCH_OVER
+}
+
 /**
  * On **match over**, builds payload via `exportReplayEnvelope` (integer `version: 1`)
  * per [Replay envelope contract (v1)](../CONTRACT.md#replay-envelope-contract-v1).

@@ -717,8 +717,16 @@ import {
 } from '../../features/dungeon-runner/ui/dungeonResolutionFlow.js'
 import {
   buildDungeonOutcomeSummary,
+  dismissDungeonRunForOutcomeDialog,
   isDungeonOutcomeDialogOpen,
+  resolveLastDungeonRunWatcherUpdate,
+  shouldShowDungeonOutcomeDialog,
 } from '../../features/dungeon-runner/ui/dungeonOutcomeDialog.js'
+import {
+  isEquipmentModalActionsDisabled,
+  isHumanGameplayBlocked,
+  shouldRejectEquipmentTokenTap,
+} from '../../features/dungeon-runner/ui/humanGameplayGate.js'
 import { MATCH_OVER_END_VARIANTS } from '../../features/dungeon-runner/ui/humanEliminationCompletionPolicy.js'
 import {
   runMaybeHeadlessMatchCompletionFromState,
@@ -732,7 +740,12 @@ import { closeDeckSplay, createMemoryAidState, setMemoryAidEnabled, tapDeck } fr
 import { isDungeonPresentationTraceEnabled } from '../../features/dungeon-runner/ui/dungeonPresentationTrace.js'
 import { isDungeonOrchestratorPresentationKind } from '../../features/dungeon-runner/ui/orchestratorPresentationKinds.js'
 import { usePresentationMotion } from '../../features/dungeon-runner/ui/usePresentationMotion.js'
-import { createCompletedMatchReplayUploadTracker } from '../../features/dungeon-runner/firebase/completedMatchReplayUpload.js'
+import {
+  resolveAiTurnPrefetchSkipReason,
+  resolveAiTurnRunSkipReason,
+  resolveAiTurnScheduleSkipReason,
+} from '../../features/dungeon-runner/ui/liveAiTurnScheduleGate.js'
+import { createCompletedMatchReplayUploadTracker, shouldUploadCompletedMatchReplayForPhase } from '../../features/dungeon-runner/firebase/completedMatchReplayUpload.js'
 import {
   buildSeatRecoveryIndicators,
   resolveNeuralRecoveryTerminalUx,
@@ -1292,29 +1305,31 @@ const dungeonOutcomeMessage = computed(() =>
 )
 const dungeonOutcomeDialogOpen = computed({
   get() {
-    return (
-      !headlessCompletionInFlight.value &&
-      !gameplayInputLocked.value &&
-      isDungeonOutcomeDialogOpen({
+    return shouldShowDungeonOutcomeDialog({
+      headlessCompletionInFlight: headlessCompletionInFlight.value,
+      gameplayInputLocked: gameplayInputLocked.value,
       lastDungeonRun: match.value?.state?.lastDungeonRun ?? null,
       dismissedDungeonRun: dismissedDungeonRun.value,
     })
-    )
   },
   set(open) {
     if (open) return
     continueFromDungeonOutcome()
   },
 })
-const humanGameplayBlocked = computed(
-  () =>
-    gameplayInputLocked.value ||
-    dungeonOutcomeDialogOpen.value ||
-    headlessCompletionInFlight.value ||
-    neuralRefreshTerminalOpen.value,
+const humanGameplayBlocked = computed(() =>
+  isHumanGameplayBlocked({
+    gameplayInputLocked: gameplayInputLocked.value,
+    dungeonOutcomeDialogOpen: dungeonOutcomeDialogOpen.value,
+    headlessCompletionInFlight: headlessCompletionInFlight.value,
+    neuralRefreshTerminalOpen: neuralRefreshTerminalOpen.value,
+  }),
 )
-const equipmentModalActionsDisabled = computed(
-  () => humanGameplayBlocked.value || !isHumanTurn.value,
+const equipmentModalActionsDisabled = computed(() =>
+  isEquipmentModalActionsDisabled({
+    humanGameplayBlocked: humanGameplayBlocked.value,
+    isHumanTurn: isHumanTurn.value,
+  }),
 )
 const matchOverSummary = computed(() =>
   buildMatchOverSummary({
@@ -1412,7 +1427,9 @@ onBeforeUnmount(() => {
 watch(
   () => match.value?.state?.phase,
   (phase) => {
-    if (phase === MATCH_PHASES.MATCH_OVER) completedMatchReplayUpload.maybeUpload(match.value)
+    if (shouldUploadCompletedMatchReplayForPhase(phase)) {
+      completedMatchReplayUpload.maybeUpload(match.value)
+    }
   },
   { immediate: true },
 )
@@ -1443,13 +1460,13 @@ watch(activeNnRecoveryBlocking, (blocking, wasBlocking) => {
 watch(
   () => match.value?.state?.lastDungeonRun ?? null,
   (run) => {
-    if (!run) {
-      dismissedDungeonRun.value = null
-      equipmentRemainingAtResolution.value = null
+    const update = resolveLastDungeonRunWatcherUpdate(run, match.value?.state?.centerEquipment)
+    if ('dismissedDungeonRun' in update) {
+      dismissedDungeonRun.value = update.dismissedDungeonRun
+      equipmentRemainingAtResolution.value = update.equipmentRemainingAtResolution
       return
     }
-    const center = match.value?.state?.centerEquipment
-    equipmentRemainingAtResolution.value = Array.isArray(center) ? center.length : 0
+    equipmentRemainingAtResolution.value = update.equipmentRemainingAtResolution
   },
   { immediate: true },
 )
@@ -1728,7 +1745,7 @@ function onConfirmationDialogCancel() {
 }
 
 function openEquipmentModal(token) {
-  if (!token?.hasModal || humanGameplayBlocked.value) return
+  if (shouldRejectEquipmentTokenTap({ hasModal: token?.hasModal, humanGameplayBlocked: humanGameplayBlocked.value })) return
   selectedEquipmentTokenId.value = token.equipmentId
   equipmentModalOpen.value = true
 }
@@ -1760,7 +1777,7 @@ function continueFromEquipmentModal() {
 async function continueFromDungeonOutcome() {
   const run = match.value?.state?.lastDungeonRun
   if (!run) return
-  dismissedDungeonRun.value = run
+  dismissedDungeonRun.value = dismissDungeonRunForOutcomeDialog(run)
   if (deferredPostDungeonState.value) {
     match.value = { ...match.value, state: deferredPostDungeonState.value }
     deferredPostDungeonState.value = null
@@ -1862,47 +1879,43 @@ function confirmVorpalDeclaration() {
 
 async function runAiTurn() {
   const trace = aiTurnTrace()
-  if (neuralRefreshTerminalOpen.value) {
-    trace('run.skip', { reason: 'neural-refresh-terminal' })
-    return
-  }
-  if (aiTurnInFlight) {
-    trace('run.skip', { reason: 'in-flight' })
-    return
-  }
-  if (headlessCompletionInFlight.value) {
-    trace('run.skip', { reason: 'headless-completion' })
-    return
-  }
-  if (gameplayInputLocked.value) {
-    trace('run.skip', {
-      reason: 'gameplay-locked',
-      activePresentation: activePresentation.value?.kind ?? null,
-      queueMs: presentationOrchestrator.getQueueSnapshot().reduce((sum, item) => sum + item.remainingMs, 0),
-    })
-    return
-  }
-  if (
-    !match.value ||
-    (match.value.state.phase !== 'bidding' &&
-      match.value.state.phase !== 'dungeon' &&
-      match.value.state.phase !== 'pick-adventurer')
-  ) {
-    trace('run.skip', { reason: 'phase-not-actionable', phase: match.value?.state?.phase ?? null })
-    return
-  }
-  const seatId = match.value.state.turn.activeSeatId
-  if (!seatId || seatId === humanSeatId.value) {
-    trace('run.skip', { reason: 'not-ai-seat', seatId, humanSeatId: humanSeatId.value })
-    return
-  }
-  if (shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })) {
-    trace('run.skip', { reason: 'model-recovering', seatId })
-    return
-  }
-  const runToken = buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
-  if (runToken === lastAppliedAiTurnToken) {
-    trace('run.skip', { reason: 'duplicate-token', runToken, lastAppliedAiTurnToken })
+  const seatId = match.value?.state?.turn?.activeSeatId ?? null
+  const runToken = match.value
+    ? buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
+    : ''
+  const skipReason = resolveAiTurnRunSkipReason({
+    neuralRefreshTerminalOpen: neuralRefreshTerminalOpen.value,
+    aiTurnInFlight,
+    headlessCompletionInFlight: headlessCompletionInFlight.value,
+    gameplayInputLocked: gameplayInputLocked.value,
+    hasMatch: !!match.value,
+    phase: match.value?.state?.phase ?? null,
+    seatId,
+    humanSeatId: humanSeatId.value,
+    blockForRecovery: match.value
+      ? shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })
+      : false,
+    runToken,
+    lastAppliedAiTurnToken,
+  })
+  if (skipReason) {
+    if (skipReason === 'gameplay-locked') {
+      trace('run.skip', {
+        reason: skipReason,
+        activePresentation: activePresentation.value?.kind ?? null,
+        queueMs: presentationOrchestrator.getQueueSnapshot().reduce((sum, item) => sum + item.remainingMs, 0),
+      })
+    } else if (skipReason === 'phase-not-actionable') {
+      trace('run.skip', { reason: skipReason, phase: match.value?.state?.phase ?? null })
+    } else if (skipReason === 'not-ai-seat') {
+      trace('run.skip', { reason: skipReason, seatId, humanSeatId: humanSeatId.value })
+    } else if (skipReason === 'model-recovering') {
+      trace('run.skip', { reason: skipReason, seatId })
+    } else if (skipReason === 'duplicate-token') {
+      trace('run.skip', { reason: skipReason, runToken, lastAppliedAiTurnToken })
+    } else {
+      trace('run.skip', { reason: skipReason })
+    }
     return
   }
   aiTurnInFlight = true
@@ -1994,52 +2007,42 @@ async function runAiTurn() {
 
 function primeAiTurnPrefetch() {
   const trace = aiTurnTrace()
-  if (headlessCompletionInFlight.value) {
-    logAiTurnPrimeSkip('headless-completion')
-    return
-  }
-  if (!match.value || isHumanTurn.value) {
-    logAiTurnPrimeSkip(!match.value ? 'no-match' : 'human-turn')
-    return
-  }
-  const state = match.value.state
-  const seatId = state.turn?.activeSeatId
-  if (!seatId || seatId === humanSeatId.value) {
-    logAiTurnPrimeSkip('not-ai-seat', { seatId })
-    return
-  }
-  if (
-    state.phase !== 'bidding' &&
-    state.phase !== 'dungeon' &&
-    state.phase !== 'pick-adventurer'
-  ) {
-    logAiTurnPrimeSkip('phase', { phase: state.phase })
-    return
-  }
-  const runToken = buildAiTurnRunToken({ matchId: match.value.id, state })
-  if (!runToken || runToken === lastAppliedAiTurnToken) {
-    logAiTurnPrimeSkip('token-not-ready', { runToken })
-    return
-  }
-  const seat = state.seats.find((candidate) => candidate.id === seatId)
-  if (seat?.role?.type !== 'nn') {
-    logAiTurnPrimeSkip('not-nn-seat', { roleType: seat?.role?.type ?? null })
-    return
-  }
-  if (state.phase === 'pick-adventurer' && !isNnAdventurerPickEnabled()) {
-    logAiTurnPrimeSkip('random-pick-adventurer')
+  const state = match.value?.state
+  const seatId = state?.turn?.activeSeatId ?? null
+  const seat = state?.seats?.find((candidate) => candidate.id === seatId)
+  const runToken = match.value ? buildAiTurnRunToken({ matchId: match.value.id, state }) : ''
+  const modelId = seat?.role?.type === 'nn' ? seat.role.modelId ?? 'latest' : null
+  const skipReason = resolveAiTurnPrefetchSkipReason({
+    headlessCompletionInFlight: headlessCompletionInFlight.value,
+    hasMatch: !!match.value,
+    isHumanTurn: isHumanTurn.value,
+    phase: state?.phase ?? null,
+    seatId,
+    humanSeatId: humanSeatId.value,
+    roleType: seat?.role?.type ?? null,
+    pickAdventurerNnEnabled: isNnAdventurerPickEnabled(),
+    runToken,
+    lastAppliedAiTurnToken,
+    neuralRefreshTerminalOpen: neuralRefreshTerminalOpen.value,
+    modelRecovering: modelId ? nnRecovery.isRecovering(modelId) : false,
+  })
+  if (skipReason) {
+    if (skipReason === 'not-ai-seat') {
+      logAiTurnPrimeSkip(skipReason, { seatId })
+    } else if (skipReason === 'phase') {
+      logAiTurnPrimeSkip(skipReason, { phase: state.phase })
+    } else if (skipReason === 'token-not-ready') {
+      logAiTurnPrimeSkip(skipReason, { runToken })
+    } else if (skipReason === 'not-nn-seat') {
+      logAiTurnPrimeSkip(skipReason, { roleType: seat?.role?.type ?? null })
+    } else if (skipReason === 'neural-refresh-terminal' || skipReason === 'model-recovering') {
+      logAiTurnPrimeSkip(skipReason, { modelId })
+    } else {
+      logAiTurnPrimeSkip(skipReason)
+    }
     return
   }
   lastPrimeSkipTraceKey = ''
-  const modelId = seat.role.modelId ?? 'latest'
-  if (neuralRefreshTerminalOpen.value) {
-    logAiTurnPrimeSkip('neural-refresh-terminal', { modelId })
-    return
-  }
-  if (nnRecovery.isRecovering(modelId)) {
-    logAiTurnPrimeSkip('model-recovering', { modelId })
-    return
-  }
   startAiTurnPrefetch({
     runToken,
     modelId,
@@ -2191,30 +2194,29 @@ function humanDungeonAutoRevealGapMs() {
 }
 
 function scheduleAiTurnIfReady() {
-  if (neuralRefreshTerminalOpen.value) {
-    logAiTurnScheduleSkip('neural-refresh-terminal')
-    return
-  }
-  if (matchNeuralLoadGateInFlight.value) {
-    logAiTurnScheduleSkip('neural-load-gate')
-    return
-  }
-  if (aiTurnInFlight) {
-    logAiTurnScheduleSkip('in-flight')
-    return
-  }
-  if (headlessCompletionInFlight.value) {
-    logAiTurnScheduleSkip('headless-completion')
-    return
-  }
-  if (deferredPostDungeonState.value) {
-    logAiTurnScheduleSkip('deferred-post-dungeon')
+  const runToken = match.value
+    ? buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
+    : ''
+  const blockForRecovery = match.value
+    ? shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })
+    : false
+  const earlySkip = resolveAiTurnScheduleSkipReason({
+    neuralRefreshTerminalOpen: neuralRefreshTerminalOpen.value,
+    matchNeuralLoadGateInFlight: matchNeuralLoadGateInFlight.value,
+    aiTurnInFlight,
+    headlessCompletionInFlight: headlessCompletionInFlight.value,
+    deferredPostDungeonState: deferredPostDungeonState.value,
+    hasMatch: !!match.value,
+    isHumanTurn: isHumanTurn.value,
+  })
+  if (earlySkip) {
+    logAiTurnScheduleSkip(earlySkip)
     return
   }
   if (!match.value || isHumanTurn.value) {
     return
   }
-  if (shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })) {
+  if (blockForRecovery) {
     logAiTurnScheduleSkip('model-recovering', {
       activeSeatId: match.value.state.turn?.activeSeatId ?? null,
     })
@@ -2227,7 +2229,6 @@ function scheduleAiTurnIfReady() {
   }
   if (gameplayInputLocked.value) {
     const snap = presentationOrchestrator.getQueueSnapshot()
-    const runToken = buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
     logAiTurnScheduleSkip('gameplay-locked', {
       activeKind: snap[0]?.kind ?? null,
       queueMs: snap.reduce((sum, item) => sum + item.remainingMs, 0),
@@ -2242,21 +2243,22 @@ function scheduleAiTurnIfReady() {
     return
   }
   primeAiTurnPrefetch()
-  if (
-    match.value.state.phase !== 'bidding' &&
-    match.value.state.phase !== 'dungeon' &&
-    match.value.state.phase !== 'pick-adventurer'
-  ) {
-    logAiTurnScheduleSkip('phase-not-actionable', { phase: match.value.state.phase })
-    return
-  }
-  const runToken = buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
-  if (runToken && runToken === lastAppliedAiTurnToken) {
-    logAiTurnScheduleSkip('already-applied-token', { runToken })
-    return
-  }
-  if (aiTurnTimerId) {
-    logAiTurnScheduleSkip('timer-pending', { runToken })
+  const lateSkip = resolveAiTurnScheduleSkipReason({
+    hasMatch: true,
+    isHumanTurn: false,
+    phase: match.value.state.phase,
+    runToken,
+    lastAppliedAiTurnToken,
+    timerPending: !!aiTurnTimerId,
+  })
+  if (lateSkip) {
+    if (lateSkip === 'phase-not-actionable') {
+      logAiTurnScheduleSkip(lateSkip, { phase: match.value.state.phase })
+    } else if (lateSkip === 'already-applied-token') {
+      logAiTurnScheduleSkip(lateSkip, { runToken })
+    } else if (lateSkip === 'timer-pending') {
+      logAiTurnScheduleSkip(lateSkip, { runToken })
+    }
     return
   }
   if (debugMode.value) {
