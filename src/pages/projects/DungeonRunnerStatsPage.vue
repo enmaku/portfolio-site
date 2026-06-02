@@ -14,12 +14,12 @@
     <div
       v-else-if="pageModel.showTileGrid"
       data-testid="dungeon-stats-tile-grid"
-      class="row q-col-gutter-md"
+      class="row q-col-gutter-md items-stretch"
     >
       <div
         v-for="tile in pageModel.tiles"
         :key="tile.id"
-        :class="tileColumnClass(tile)"
+        :class="[tileColumnClass(tile), 'flex column']"
       >
         <DungeonRunnerStatsTimeseriesTile
           v-if="tile.presentation === 'timeseries'"

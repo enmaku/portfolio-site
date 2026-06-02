@@ -52,6 +52,8 @@ test('dungeon runner stats page gates on Firebase configured without Firestore r
   assert.equal(page.includes('data-testid="dungeon-stats-dashboard-error"'), true)
   assert.equal(page.includes('data-testid="dungeon-stats-tile-grid"'), true)
   assert.equal(page.includes('col-12 col-sm-6 col-md-4'), true)
+  assert.equal(page.includes('items-stretch'), true)
+  assert.equal(page.includes("'flex column'"), true)
   assert.equal(page.includes('tileColumnClass'), true)
   assert.equal(page.includes('DungeonRunnerStatsTimeseriesTile'), true)
   assert.equal(page.includes('DungeonRunnerStatsBreakdownTile'), true)

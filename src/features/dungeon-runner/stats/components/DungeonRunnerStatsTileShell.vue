@@ -1,9 +1,13 @@
 <template>
-  <q-card flat bordered class="dungeon-stats-tile">
-    <q-card-section>
+  <q-card flat bordered class="dungeon-stats-tile col full-width">
+    <q-card-section class="column col">
       <div class="text-subtitle2 text-grey-5">{{ title }}</div>
 
-      <div v-if="loading" class="q-mt-md flex flex-center" data-testid="dungeon-stats-tile-loading">
+      <div
+        v-if="loading"
+        class="q-mt-md col flex flex-center"
+        data-testid="dungeon-stats-tile-loading"
+      >
         <q-spinner color="primary" size="32px" />
       </div>
 
@@ -17,7 +21,7 @@
         Unable to load match statistics.
       </q-banner>
 
-      <div v-else class="q-mt-sm" data-testid="dungeon-stats-tile-success">
+      <div v-else class="q-mt-sm col column" data-testid="dungeon-stats-tile-success">
         <slot />
       </div>
     </q-card-section>
@@ -40,3 +44,9 @@ defineProps({
   },
 })
 </script>
+
+<style scoped>
+.dungeon-stats-tile {
+  min-height: 100%;
+}
+</style>
