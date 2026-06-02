@@ -40,11 +40,13 @@ Drawer and toolbar label for the `/about` route—the **résumé data** / about 
 
 ### Projects drawer sections
 
-“Mobile” and “Desktop” groupings in the drawer’s Projects expansion; listed **projects** live under Mobile today while Desktop is a placeholder.
+“Mobile” and “Desktop” groupings in the portfolio Projects menu (drawer on small viewports, toolbar dropdown on desktop). **Mobile** lists phone-framed play **projects** (Game Timer, Movie Vote, Dungeon Runner). **Desktop** lists full-width **project** surfaces that are not the phone-framed play UI—starting with the Dungeon Runner **match outcome dashboard**.
 
 ### Detached project launch
 
-Opening a **project** from the portfolio drawer in a new browser tab (`noopener`) instead of navigating inside the current shell tab.
+Opening a phone-framed play **project** from the portfolio Projects menu in a new browser tab (`noopener`) instead of navigating inside the current shell tab. Applies to **Mobile** project links only; **Desktop** entries (e.g. **Dungeon Runner Stats**) navigate in the current tab.
+
+_Avoid_: Assuming every Projects menu row opens a new tab.
 
 ### Public site origin
 
@@ -54,7 +56,7 @@ Canonical HTTPS base for the deployed site (`focusdisorder.com`), used when buil
 
 A path marked **paste-unfurl eligible** in the share metadata catalog: it gets its own **shared link summary** and crawler-readable HTML so chat and social previews read sensibly despite client-side routing.
 
-The eligible set is home (`/`), **About (navigation)** (`/about`), **Game Timer**, **Movie Vote**, and **Dungeon Runner**—only routes meant to be pasted publicly.
+The eligible set is home (`/`), **About (navigation)** (`/about`), **Game Timer**, **Movie Vote**, **Dungeon Runner**, and the Dungeon Runner **match outcome dashboard**—only routes meant to be pasted publicly.
 
 _Avoid_: “OG route,” “SEO page” unless the audience expects those terms; treating every routed page as shareable when it only needs a tab title.
 

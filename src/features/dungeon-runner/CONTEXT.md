@@ -112,7 +112,31 @@ _Avoid_: Treating the archive as a live **room** or expecting the play app to re
 
 A write-once, queryable **analytics snapshot** at **match over**, keyed by match id in Firestore. Denormalizes setup, resolved seats, terminal **scoreboard**, outcome semantics, replay linkage fields, and **history** rollups so future dashboards rarely need schema migrations or second backfills. Does **not** embed the full **history** array (that stays on **completed match replay**). **`humanWon`** is `true` only when **match over end variant** is `victory` (same policy as the end dialog, not envelope-only data).
 
-_Avoid_: “Summary,” “telemetry”; treating it as part of the **replay envelope**; minimal field sets that force re-backfill when new charts are added; storing full **history** on the outcome doc; duplicating **replay envelope version** or **seed** on the outcome (join via **completed match replay** if needed); dashboard UI scope (charts and routes are separate).
+_Avoid_: “Summary,” “telemetry”; treating it as part of the **replay envelope**; minimal field sets that force re-backfill when new charts are added; storing full **history** on the outcome doc; duplicating **replay envelope version** or **seed** on the outcome (join via **completed match replay** if needed).
+
+### Match outcome dashboard
+
+A public portfolio page at `/projects/dungeon-runner/stats` (**Dungeon Runner Stats** in navigation) that aggregates **completed match outcome** docs into human-readable play statistics (counts, rates, simple charts). Uses the portfolio **shell** (`MainLayout`), not the phone-framed Dungeon Runner play **project** shell. Desktop-first layout; responsive Quasar page composition should remain usable on narrow viewports. Listed under **Projects drawer sections** → Desktop with a chart-style nav icon (`bar_chart`). Opens via in-tab navigation (not **detached project launch**). **Paste-unfurl eligible** with share title `Dungeon Runner Stats` and a description summarizing aggregate completed-**match** results (wins, eliminations, opponent outcomes).
+
+Each **dashboard tile** loads its own Firestore query and shows a loading state until that query settles—no single “fetch every **completed match outcome**” pass on page load. V1 tiles use count and filtered-count queries only (no collection-wide averages).
+
+_Avoid_: “Analytics portal,” “telemetry console”; conflating with **completed match replay** ingest or maintainer backfill tools; treating it as part of the mobile-forward play route; one monolithic in-memory snapshot shared by all tiles (v1).
+
+### Dashboard tile
+
+One modular statistic block on the **match outcome dashboard**, backed by its own Firestore query and loading UI. V1 set: total completed **matches**; human win rate; counts by **match over end variant**; human **eliminated** rate; winner role breakdown (human / nn / randombot). Each tile is an independently registered unit so new tiles can be added without rewiring the whole page.
+
+_Avoid_: Reusing the term for phone-framed play UI panels; v1 tiles that require scanning every outcome doc for means (e.g. average **history** length)—defer until aggregation exists.
+
+### Dashboard error state
+
+A failed **dashboard tile** shows the same generic error presentation (not success UI and not silent zeros). Zero completed **matches** in the archive is an error, not an empty success. Successful tiles still render when their queries succeed; one broken tile does not hide the rest.
+
+Visitor-facing copy for any **dashboard error state** (page or tile): “Unable to load match statistics.” Rate **dashboard tiles** show rounded whole percents (e.g. `67%`).
+
+_Avoid_: Per-tile “0 matches yet” or all-zero headline stats; distinct visitor-facing error copy per failure mode in v1 (maintainer detail stays in console/logs only); collapsing the whole page because a single non-critical tile failed.
+
+When Firebase is not configured for the site, the page shows only the generic **dashboard error state** and does not run **dashboard tile** queries. Configured layout uses a responsive tile grid (one column on narrow viewports, more columns as width grows).
 
 ### Completed match outcome archive
 
@@ -230,6 +254,7 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - A **completed match replay** is a **replay envelope** captured when **match over** is reached.
 - The **completed match replay archive** holds **completed match replay** envelopes keyed by match id; each key is written at most once from the browser; **archive listing** at the root is allowed for maintainer ingest.
 - Each **match** has at most one **completed match replay** and at most one **completed match outcome**, both keyed by the same match id; the outcome is stored separately from the envelope (Firestore, not RTDB).
+- The **match outcome dashboard** reads the **completed match outcome archive** only; it does not require **completed match replay** payloads for v1 summary metrics.
 - **Completed match outcome** writes: browser create-only (doc must not exist); no client update/delete. Maintainer **backfill-outcomes** uses Admin SDK and skips existing docs (delete to re-run). Same trust model as **completed match replay archive** (analytics best-effort, not training truth).
 - **`buildMatchOutcomeRecord`** lives in portfolio-site; live upload and dungeon-runner **derive_match_outcome** (via **web engine root**) call the same function—same pattern as **replay verifier** importing the **web game engine** kernel in Node.
 - **Match outcome derive parity** (`analytics/matchOutcomeDeriveParity.test.mjs`): with `DUNGEON_RUNNER_ROOT` set, replays `analytics/fixtures/replay-envelope-outcome-*.json` through the web engine and asserts `buildMatchOutcomeRecord` deep-equals `derive_match_outcome.mjs` stdout and portfolio outcome goldens.
