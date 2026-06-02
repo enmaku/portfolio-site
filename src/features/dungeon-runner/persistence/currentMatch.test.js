@@ -12,11 +12,11 @@ import { NeuralRecoveryTerminalError, createChooseNnActionWithRecovery } from '.
 import { NN_FAILURE_KIND } from '../nn/runtime.js'
 import {
   buildDeferredDungeonOutcomeDisplayState,
-  createLivePlayActionChooser,
   DEFAULT_MAX_HEADLESS_ACTIONS,
   resolveHeadlessCompletionStartState,
   runMaybeHeadlessMatchCompletionFromState,
 } from '../ui/headlessMatchCompletionRunner.js'
+import { createLivePlayActionChooser } from '../ui/livePlayActionChooser.js'
 import {
   shouldDeferHeadlessForPersistedNeuralTerminal,
   shouldRunHeadlessMatchCompletion,

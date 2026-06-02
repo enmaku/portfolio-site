@@ -5,7 +5,7 @@ import { MATCH_PHASES, createInitialMatchState } from '../engine/kernel.js'
 import { createNeuralRuntimeRecoveryCoordinator } from '../nn/recovery.js'
 import { NeuralRecoveryTerminalError, createChooseNnActionWithRecovery } from '../nn/chooseWithRecovery.js'
 import { NEURAL_RECOVERY_TERMINAL } from '../nn/recovery.js'
-import { createLivePlayActionChooser } from './headlessMatchCompletionRunner.js'
+import { createLivePlayActionChooser } from './livePlayActionChooser.js'
 
 const RANDOMBOT_SETUP = {
   totalSeats: 2,

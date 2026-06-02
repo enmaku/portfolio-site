@@ -721,10 +721,10 @@ import {
 } from '../../features/dungeon-runner/ui/dungeonOutcomeDialog.js'
 import { MATCH_OVER_END_VARIANTS } from '../../features/dungeon-runner/ui/humanEliminationCompletionPolicy.js'
 import {
-  createLivePlayActionChooser,
   runMaybeHeadlessMatchCompletionFromState,
   shouldDeferDungeonExitUntilOutcomeAck,
 } from '../../features/dungeon-runner/ui/headlessMatchCompletionRunner.js'
+import { createLivePlayActionChooser } from '../../features/dungeon-runner/ui/livePlayActionChooser.js'
 import { buildMatchOverSummary } from '../../features/dungeon-runner/ui/matchOverSummaryBuilder.js'
 import MonsterCardFace from '../../components/dungeon-runner/MonsterCardFace.vue'
 import DungeonRunnerHelpDialog from '../../features/dungeon-runner/ui/DungeonRunnerHelpDialog.vue'
