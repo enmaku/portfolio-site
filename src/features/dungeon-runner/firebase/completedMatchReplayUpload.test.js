@@ -13,6 +13,7 @@ import {
   UPLOADED_MATCH_IDS_STORAGE_KEY,
   createCompletedMatchReplayUploadTracker,
   maybeUploadCompletedMatchReplay,
+  shouldUploadCompletedMatchReplayForPhase,
 } from './completedMatchReplayUpload.js'
 
 const FOUR_PLAYER_SETUP = {
@@ -469,6 +470,12 @@ test('createCompletedMatchReplayUploadTracker exposes maybeUpload', () => {
   const tracker = createCompletedMatchReplayUploadTracker(createMemoryStorage())
   assert.equal(typeof tracker.maybeUpload, 'function')
   assert.doesNotThrow(() => tracker.maybeUpload(null))
+})
+
+test('completed match replay upload triggers only on match-over phase', () => {
+  assert.equal(shouldUploadCompletedMatchReplayForPhase(MATCH_PHASES.MATCH_OVER), true)
+  assert.equal(shouldUploadCompletedMatchReplayForPhase(MATCH_PHASES.DUNGEON), false)
+  assert.equal(shouldUploadCompletedMatchReplayForPhase(MATCH_PHASES.PICK_ADVENTURER), false)
 })
 
 const NN_FOUR_PLAYER_SETUP = {
