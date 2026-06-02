@@ -4,10 +4,10 @@ import { chooseRandombotAction } from '../bots/randombot.js'
 import { MATCH_PHASES, createInitialMatchState } from '../engine/kernel.js'
 import { createNeuralRuntimeRecoveryCoordinator } from '../nn/recovery.js'
 import {
-  createLivePlayActionChooser,
   DEFAULT_MAX_HEADLESS_ACTIONS,
   runHeadlessMatchCompletion,
 } from '../ui/headlessMatchCompletionRunner.js'
+import { createLivePlayActionChooser } from '../ui/livePlayActionChooser.js'
 import { needsHeadlessCompletion } from '../ui/humanEliminationCompletionPolicy.js'
 import {
   UPLOADED_MATCH_IDS_STORAGE_KEY,
