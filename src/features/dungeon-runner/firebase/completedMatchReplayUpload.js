@@ -1,5 +1,6 @@
 import { exportReplayEnvelope } from '../debug/replay.js'
 import { MATCH_PHASES } from '../engine/kernel.js'
+import { maybeCreateCompletedMatchOutcome } from './completedMatchOutcomeUpload.js'
 import {
   dungeonRunnerCompletedMatchRef,
   isDungeonRunnerFirebaseConfigured,
@@ -15,6 +16,7 @@ export const UPLOADED_MATCH_IDS_STORAGE_KEY = 'dungeonRunner:uploadedMatchIds'
  * @property {() => boolean} [isConfigured]
  * @property {typeof exportReplayEnvelope} [exportEnvelope]
  * @property {(matchId: string, envelope: unknown) => Promise<void>} [setCompletedMatch]
+ * @property {(match: import('../engine/kernel.js').Match, createdAt: string) => Promise<void>} [createOutcome]
  */
 
 /**
@@ -108,8 +110,15 @@ export function maybeUploadCompletedMatchReplay(match, deps) {
 
     markMatchIdUploaded(matchId, storage, uploadedIds)
 
+    const createdAt = envelope.createdAt
     const setCompletedMatch = deps.setCompletedMatch ?? defaultSetCompletedMatch
     void setCompletedMatch(matchId, envelope).catch(() => {})
+
+    const createOutcome =
+      deps.createOutcome ??
+      ((uploadMatch, uploadCreatedAt) =>
+        maybeCreateCompletedMatchOutcome(uploadMatch, uploadCreatedAt, deps))
+    void createOutcome(match, createdAt).catch(() => {})
   } catch {
     // Never throw to caller.
   }

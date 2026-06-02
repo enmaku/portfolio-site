@@ -59,10 +59,11 @@ test('dungeon runner CONTEXT links TF.js model sync to MODEL_RELEASE.md', () => 
   assert.equal(context.includes('web deployed latest'), true)
 })
 
-test('.env.example documents DUNGEON_RUNNER_ROOT for model sync', () => {
+test('.env.example documents DUNGEON_RUNNER_ROOT for model sync and outcome derive parity', () => {
   const envExample = readFileSync(new URL('../../../.env.example', import.meta.url), 'utf8')
   assert.equal(envExample.includes('DUNGEON_RUNNER_ROOT'), true)
   assert.equal(envExample.includes('sync-dungeon-runner-model'), true)
+  assert.equal(envExample.includes('matchOutcomeDeriveParity'), true)
 })
 
 test('dungeon runner page header gates on dungeon outcome dialog', () => {

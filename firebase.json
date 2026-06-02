@@ -2,9 +2,16 @@
   "database": {
     "rules": "database.rules.json"
   },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
   "emulators": {
     "database": {
       "port": 9001
+    },
+    "firestore": {
+      "port": 8080
     },
     "ui": {
       "enabled": false

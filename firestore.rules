@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /dungeonRunnerMatchOutcomes/{matchId} {
+      allow read: if true;
+      allow create: if !exists(/databases/$(database)/documents/dungeonRunnerMatchOutcomes/$(matchId));
+      allow update, delete: if false;
+    }
+  }
+}

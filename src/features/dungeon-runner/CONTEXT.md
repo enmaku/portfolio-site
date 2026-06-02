@@ -68,6 +68,12 @@ The human lost **match over** while still having lives (e.g. an **opponent** rea
 
 _Avoid_: Using elimination end copy when the human was not **eliminated**; conflating with **Elimination end (human)**.
 
+### Match over end variant
+
+How the **human player seat** experienced **match over**, as one of: `victory`, `defeat-not-eliminated`, or `elimination-end-human`. Same classification as the end dialog (`getMatchOverEndDialogVariant`). Persisted on **completed match outcome** as `endVariant`.
+
+_Avoid_: Inferring variant from **replay envelope** alone (no terminal winner on envelope v1); conflating **elimination end (human)** with a normal score-race defeat.
+
 ### History
 
 Ordered canonical actions and RNG step metadata that fully determine how a **match** unfolded.
@@ -101,6 +107,30 @@ _Avoid_: “Telemetry,” “training data,” “upload,” “save prompt,” 
 The RTDB subtree where **completed match replay** envelopes are stored keyed by match id; each key is written at most once from the browser. Root-level read includes **archive listing** for maintainer ingest (see dungeon-runner `CONTEXT.md`).
 
 _Avoid_: Treating the archive as a live **room** or expecting the play app to read it during a **match**.
+
+### Completed match outcome
+
+A write-once, queryable **analytics snapshot** at **match over**, keyed by match id in Firestore. Denormalizes setup, resolved seats, terminal **scoreboard**, outcome semantics, replay linkage fields, and **history** rollups so future dashboards rarely need schema migrations or second backfills. Does **not** embed the full **history** array (that stays on **completed match replay**). **`humanWon`** is `true` only when **match over end variant** is `victory` (same policy as the end dialog, not envelope-only data).
+
+_Avoid_: “Summary,” “telemetry”; treating it as part of the **replay envelope**; minimal field sets that force re-backfill when new charts are added; storing full **history** on the outcome doc; duplicating **replay envelope version** or **seed** on the outcome (join via **completed match replay** if needed); dashboard UI scope (charts and routes are separate).
+
+### Completed match outcome archive
+
+Firestore collection `dungeonRunnerMatchOutcomes/{matchId}` holding **completed match outcome** docs. Doc id equals RTDB **completed match replay** key and local match id. Outcome `createdAt` always matches the paired envelope `createdAt` (live: one timestamp for both writes; backfill: copy from RTDB).
+
+_Avoid_: Nesting under a generic `analytics/` path; a different id scheme than the replay archive; a separate outcome timestamp that diverges from the replay envelope.
+
+### Match id epoch
+
+Optional numeric `matchIdEpochMs` on **completed match outcome**: milliseconds parsed from `match-{digits}` when the id follows that pattern, else `null`. Charting aid only—not a substitute for outcome `createdAt`.
+
+_Avoid_: Treating it as authoritative match start time if id format changes; using it instead of envelope `createdAt` for upload ordering.
+
+### Equipment sacrifice count
+
+On **completed match outcome**, the number of canonical `SACRIFICE` actions in **history** for that **match** (one per piece removed from the table during bidding). Rolled up at **match over**, not stored per step on the outcome doc.
+
+_Avoid_: Counting equipment merely played or discarded in **dungeon runs**; inferring from **scoreboard** alone.
 
 ### Game data catalog
 
@@ -199,6 +229,10 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - Each **match** has exactly one **human player seat**; the human is not an **opponent** in **setup**.
 - A **completed match replay** is a **replay envelope** captured when **match over** is reached.
 - The **completed match replay archive** holds **completed match replay** envelopes keyed by match id; each key is written at most once from the browser; **archive listing** at the root is allowed for maintainer ingest.
+- Each **match** has at most one **completed match replay** and at most one **completed match outcome**, both keyed by the same match id; the outcome is stored separately from the envelope (Firestore, not RTDB).
+- **Completed match outcome** writes: browser create-only (doc must not exist); no client update/delete. Maintainer **backfill-outcomes** uses Admin SDK and skips existing docs (delete to re-run). Same trust model as **completed match replay archive** (analytics best-effort, not training truth).
+- **`buildMatchOutcomeRecord`** lives in portfolio-site; live upload and dungeon-runner **derive_match_outcome** (via **web engine root**) call the same function—same pattern as **replay verifier** importing the **web game engine** kernel in Node.
+- **Match outcome derive parity** (`analytics/matchOutcomeDeriveParity.test.mjs`): with `DUNGEON_RUNNER_ROOT` set, replays `analytics/fixtures/replay-envelope-outcome-*.json` through the web engine and asserts `buildMatchOutcomeRecord` deep-equals `derive_match_outcome.mjs` stdout and portfolio outcome goldens.
 - **Completed match replay archive** writes use the same RTDB payload sanitization as star-room **projects** (Game Timer, Movie Vote); they are not a separate Firebase stack—only the path and optional-upload behavior differ (see [ADR 0005](../../../docs/adr/0005-shared-firebase-rtdb-core.md)).
 - **History** supplies the ordered actions recorded in a **replay envelope**.
 - **TF.js model sync** runs in portfolio-site after dungeon-runner promote; default NN opponents load **web deployed latest** without setup changes.
