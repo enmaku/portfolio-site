@@ -341,6 +341,21 @@ test('dungeon runner page wires headless match completion after human eliminatio
   assert.equal(page.includes('abandonScheduledInferenceQueue'), true)
   assert.equal(page.includes('data-testid="finishing-match-overlay"'), true)
   assert.equal(page.includes('headlessCompletionInFlight'), true)
+  assert.equal(page.includes('attachNeuralRecoverySnapshotToMatch'), true)
+  assert.equal(page.includes('surfacePersistedNeuralRecoveryTerminal'), true)
+  assert.equal(page.includes('shouldRunHeadlessMatchCompletion'), true)
+})
+
+test('headless nn terminal failure persists refresh snapshot for resume', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  const fnIdx = page.indexOf('async function maybeRunHeadlessMatchCompletion()')
+  assert.ok(fnIdx >= 0)
+  const fnBlock = page.slice(fnIdx, fnIdx + 2000)
+  assert.equal(fnBlock.includes('shouldRunHeadlessMatchCompletion'), true)
+  assert.equal(fnBlock.includes("ux.action === 'refresh-dialog'"), true)
+  assert.equal(fnBlock.includes('attachNeuralRecoverySnapshotToMatch'), true)
+  assert.equal(fnBlock.includes('persistCurrentMatch'), true)
+  assert.equal(fnBlock.includes('chooseRandombotAction'), false)
 })
 
 test('continueFromDungeonOutcome triggers headless completion when policy requires it', () => {
@@ -353,11 +368,89 @@ test('continueFromDungeonOutcome triggers headless completion when policy requir
 
 test('resume on mount may run headless completion without spectator scheduling', () => {
   const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
-  const mountedIdx = page.indexOf('onMounted(() => {')
-  assert.ok(mountedIdx >= 0)
-  const mountedBlock = page.slice(mountedIdx, mountedIdx + 1200)
-  assert.equal(mountedBlock.includes('void maybeRunHeadlessMatchCompletion()'), true)
-  assert.equal(mountedBlock.includes('scheduleAiTurnIfReady'), false)
+  const bootstrapIdx = page.indexOf('async function bootstrapDungeonRunnerPage()')
+  assert.ok(bootstrapIdx >= 0)
+  const bootstrapBlock = page.slice(bootstrapIdx, bootstrapIdx + 1600)
+  assert.equal(bootstrapBlock.includes('runMatchNeuralLoadGate'), true)
+  assert.equal(bootstrapBlock.includes('void maybeRunHeadlessMatchCompletion()'), true)
+  assert.equal(bootstrapBlock.includes('scheduleAiTurnIfReady'), false)
+})
+
+test('match neural load gate blocks match entry and clears persisted match on hard load failure', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes('runMatchNeuralLoadGate'), true)
+  assert.equal(page.includes('applyNeuralLoadGateSetupTerminal'), true)
+  assert.equal(page.includes('handleNeuralRecoveryTerminalError'), true)
+  assert.equal(page.includes('data-testid="neural-load-gate-terminal"'), true)
+  assert.equal(page.includes('handleNnModelFailure'), false)
+  assert.equal(page.includes('getDowngradeModelId'), false)
+  assert.equal(page.includes("logAiTurnScheduleSkip('neural-load-gate')"), true)
+})
+
+test('live neural recovery surfaces seat spinner and refresh terminal without clearing match', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes('buildSeatRecoveryIndicators'), true)
+  assert.equal(page.includes('recoveryTestId'), true)
+  assert.equal(page.includes('data-testid="neural-refresh-terminal"'), true)
+  assert.equal(page.includes('neuralRefreshTerminalOpen'), true)
+  assert.equal(page.includes('reloadPageForNeuralRefreshTerminal'), true)
+  assert.equal(page.includes('resolveNeuralRecoveryTerminalUx'), true)
+  assert.equal(page.includes("logAiTurnScheduleSkip('model-recovering'"), true)
+  assert.equal(page.includes('chooseNnActionWithFallback'), false)
+  const refreshHandlerIdx = page.indexOf('function handleNeuralRecoveryTerminalError(error)')
+  assert.ok(refreshHandlerIdx >= 0)
+  const refreshHandlerBlock = page.slice(refreshHandlerIdx, refreshHandlerIdx + 520)
+  assert.equal(refreshHandlerBlock.includes("'refresh-dialog'"), true)
+  assert.equal(refreshHandlerBlock.includes('neuralRefreshTerminalOpen.value = true'), true)
+  assert.equal(refreshHandlerBlock.includes('clearCurrentMatch'), false)
+})
+
+test('human gameplay is not blocked by nn recovery coordinator state', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  const blockIdx = page.indexOf('const humanGameplayBlocked = computed(')
+  assert.ok(blockIdx >= 0)
+  const block = page.slice(blockIdx, blockIdx + 320)
+  assert.equal(block.includes('headlessCompletionInFlight.value'), true)
+  assert.equal(block.includes('neuralRefreshTerminalOpen.value'), true)
+  assert.equal(block.includes('nnRecovery'), false)
+  assert.equal(block.includes('shouldBlockAiTurnScheduleForRecovery'), false)
+})
+
+test('mid-match neural load exhaustion restores setup through recovery handler', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  const handlerIdx = page.indexOf('function handleNeuralRecoveryTerminalError(error)')
+  assert.ok(handlerIdx >= 0)
+  const handlerBlock = page.slice(handlerIdx, handlerIdx + 520)
+  assert.equal(handlerBlock.includes("'setup-restore'"), true)
+  assert.equal(handlerBlock.includes('applyNeuralLoadGateSetupTerminal'), true)
+})
+
+test('live play prefetch primes nn actions through recovery-aware chooser', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  const fnIdx = page.indexOf('function primeAiTurnPrefetch()')
+  assert.ok(fnIdx >= 0)
+  const fnBlock = page.slice(fnIdx, fnIdx + 2000)
+  assert.equal(fnBlock.includes('chooseNnActionWithRecovery'), true)
+  assert.equal(fnBlock.includes('chooseNnActionWithFallback'), false)
+  assert.equal(fnBlock.includes("logAiTurnPrimeSkip('model-recovering'"), true)
+})
+
+test('refresh terminal blocks live ai scheduling while open', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes("logAiTurnScheduleSkip('neural-refresh-terminal'"), true)
+  const scheduleIdx = page.indexOf('function scheduleAiTurnIfReady()')
+  assert.ok(scheduleIdx >= 0)
+  const scheduleBlock = page.slice(scheduleIdx, scheduleIdx + 400)
+  assert.equal(scheduleBlock.includes('neuralRefreshTerminalOpen.value'), true)
+})
+
+test('active nn recovery watch resumes ai scheduling after recovery settles', () => {
+  const page = readFileSync(new URL('../../pages/projects/DungeonRunnerPage.vue', import.meta.url), 'utf8')
+  assert.equal(page.includes('const activeNnRecoveryBlocking = computed('), true)
+  const watchIdx = page.indexOf('watch(activeNnRecoveryBlocking')
+  assert.ok(watchIdx >= 0)
+  const watchBlock = page.slice(watchIdx, watchIdx + 200)
+  assert.equal(watchBlock.includes('scheduleAiTurnIfReady()'), true)
 })
 
 test('live AI scheduling is gated while headless completion runs', () => {

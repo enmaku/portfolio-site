@@ -5,7 +5,7 @@
 - Route + portfolio integration: complete.
 - Deterministic engine setup, legal actions, and transition contracts: complete.
 - Current match persistence and resume/start-new flow: complete.
-- Randombot and NN action paths with legality/fallback safety: complete.
+- Randombot and NN action paths with legality checks and neural runtime recovery: complete.
 - Localhost-gated debug mode and replay envelope workflow: complete.
 
 ## Known Risks

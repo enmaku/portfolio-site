@@ -2,10 +2,23 @@
 let prefetchEntry = null
 /** @type {string | null} */
 let lastPrefetchSkipLogKey = null
+/** @type {{ isRecovering: (modelId: string) => boolean } | null} */
+let prefetchRecoveryGate = null
 
 export function resetAiTurnPrefetch() {
   prefetchEntry = null
   lastPrefetchSkipLogKey = null
+}
+
+/**
+ * @param {{ isRecovering: (modelId: string) => boolean } | null} gate
+ */
+export function setAiTurnPrefetchRecoveryGate(gate) {
+  prefetchRecoveryGate = gate
+}
+
+export function cancelAiTurnPrefetch() {
+  prefetchEntry = null
 }
 
 /**
@@ -15,8 +28,12 @@ export function resetAiTurnPrefetch() {
  *   trace?: (step: string, detail?: Record<string, unknown>) => void
  * }} params
  */
-export function startAiTurnPrefetch({ runToken, compute, trace }) {
+export function startAiTurnPrefetch({ runToken, compute, trace, modelId }) {
   if (!runToken) return
+  if (modelId && prefetchRecoveryGate?.isRecovering(modelId)) {
+    trace?.('prefetch.skip', { reason: 'model-recovering', runToken, modelId })
+    return
+  }
   if (prefetchEntry?.runToken === runToken) {
     const skipKey = `already-in-flight:${runToken}`
     if (lastPrefetchSkipLogKey !== skipKey) {
@@ -59,7 +76,11 @@ export function startAiTurnPrefetch({ runToken, compute, trace }) {
  * @param {(step: string, detail?: Record<string, unknown>) => void} [trace]
  * @returns {Promise<object|null>}
  */
-export async function consumeAiTurnPrefetch(runToken, trace) {
+export async function consumeAiTurnPrefetch(runToken, trace, modelId) {
+  if (modelId && prefetchRecoveryGate?.isRecovering(modelId)) {
+    trace?.('prefetch.consume.blocked', { runToken, modelId, reason: 'model-recovering' })
+    return null
+  }
   if (!prefetchEntry || prefetchEntry.runToken !== runToken) {
     trace?.('prefetch.consume.miss', {
       runToken,

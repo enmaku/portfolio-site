@@ -8,17 +8,32 @@ import {
   applyAction,
   createInitialMatchState,
 } from '../engine/kernel.js'
+import { NeuralRecoveryTerminalError, createChooseNnActionWithRecovery } from '../nn/chooseWithRecovery.js'
+import { NN_FAILURE_KIND } from '../nn/runtime.js'
 import {
   buildDeferredDungeonOutcomeDisplayState,
+  createLivePlayActionChooser,
   DEFAULT_MAX_HEADLESS_ACTIONS,
   resolveHeadlessCompletionStartState,
   runMaybeHeadlessMatchCompletionFromState,
 } from '../ui/headlessMatchCompletionRunner.js'
 import {
+  shouldDeferHeadlessForPersistedNeuralTerminal,
+  shouldRunHeadlessMatchCompletion,
+} from '../ui/headlessNeuralRecoveryPersistence.js'
+import {
   getMatchOverEndDialogVariant,
   MATCH_OVER_END_VARIANTS,
   needsHeadlessCompletion,
 } from '../ui/humanEliminationCompletionPolicy.js'
+import { applySetupSnapshot } from '../setup/state.js'
+import { resolveNeuralLoadGateSetupTerminal } from '../nn/matchNeuralLoadGate.js'
+import { NEURAL_RECOVERY_TERMINAL } from '../nn/recovery.js'
+import {
+  attachNeuralRecoverySnapshotToMatch,
+  surfacePersistedNeuralRecoveryTerminal,
+} from '../ui/headlessNeuralRecoveryPersistence.js'
+import { createNeuralRuntimeRecoveryCoordinator } from '../nn/recovery.js'
 import {
   CURRENT_MATCH_SCHEMA_VERSION,
   clearCurrentMatch,
@@ -235,4 +250,174 @@ test('invalid presentationSpeedProfile rejects persisted match', () => {
   const loaded = loadCurrentMatch(storage)
   assert.equal(loaded.ok, false)
   assert.equal(loaded.errorCode, 'INVALID_SHAPE')
+})
+
+const NN_TWO_PLAYER_SETUP = {
+  totalSeats: 2,
+  opponents: [{ type: 'nn', modelId: 'latest' }],
+}
+
+function humanEliminatedPickState(state, humanSeatId) {
+  const opponent = state.seats.find(
+    (seat) => seat.id !== humanSeatId && !state.scoreboard[seat.id]?.eliminated,
+  )
+  assert.ok(opponent)
+  return {
+    ...state,
+    phase: MATCH_PHASES.PICK_ADVENTURER,
+    scoreboard: {
+      ...state.scoreboard,
+      [humanSeatId]: {
+        ...state.scoreboard[humanSeatId],
+        lives: 0,
+        eliminated: true,
+        successes: 0,
+      },
+    },
+    turn: { ...state.turn, activeSeatId: opponent.id, turnNumber: state.turn.turnNumber + 1 },
+    pickAdventurer: {
+      ...state.pickAdventurer,
+      activeSeatId: opponent.id,
+    },
+  }
+}
+
+test('headless infer terminal persists refresh snapshot and defers completion on reload', async () => {
+  const storage = createMemoryStorage()
+  const initial = createInitialMatchState(NN_TWO_PLAYER_SETUP, { seed: 9200 })
+  const human = seatByRole(initial, 'human')
+  assert.ok(human)
+  const start = humanEliminatedPickState(initial, human.id)
+  assert.equal(needsHeadlessCompletion(start, human.id), true)
+
+  const baseMatch = {
+    schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
+    id: 'm-headless-nn-refresh',
+    setup: NN_TWO_PLAYER_SETUP,
+    state: start,
+    history: start.history,
+  }
+  persistCurrentMatch(storage, baseMatch)
+
+  const recovery = createNeuralRuntimeRecoveryCoordinator({ inferMaxAttempts: 1 })
+  const chooseAction = createLivePlayActionChooser({
+    nnRecovery: recovery,
+    nnRuntimeOptions: () => ({}),
+    chooseNnActionWithRecovery: createChooseNnActionWithRecovery({
+      recovery,
+      chooseNnAction: async () => ({ ok: false, kind: NN_FAILURE_KIND.INFER, modelId: 'latest' }),
+      resetRuntimeForModel: () => {},
+    }),
+  })
+
+  await assert.rejects(
+    () => runMaybeHeadlessMatchCompletionFromState(start, {
+      humanPlayerSeatId: human.id,
+      chooseAction,
+      maxActions: DEFAULT_MAX_HEADLESS_ACTIONS,
+    }),
+    (error) => error instanceof NeuralRecoveryTerminalError,
+  )
+
+  const withTerminal = attachNeuralRecoverySnapshotToMatch(baseMatch, recovery)
+  persistCurrentMatch(storage, withTerminal)
+  const loaded = loadCurrentMatch(storage)
+  assert.equal(loaded.ok, true)
+  assert.equal(
+    loaded.match.neuralRecoveryByModelId.latest.terminal,
+    NEURAL_RECOVERY_TERMINAL.REFRESH,
+  )
+  assert.equal(shouldDeferHeadlessForPersistedNeuralTerminal(loaded.match.neuralRecoveryByModelId), true)
+
+  let refreshOpen = false
+  const resumedRecovery = createNeuralRuntimeRecoveryCoordinator()
+  assert.equal(
+    surfacePersistedNeuralRecoveryTerminal({
+      recovery: resumedRecovery,
+      neuralRecoveryByModelId: loaded.match.neuralRecoveryByModelId,
+      hasMatchSetup: true,
+      openRefreshTerminal: () => {
+        refreshOpen = true
+      },
+    }),
+    true,
+  )
+  assert.equal(refreshOpen, true)
+  assert.equal(shouldRunHeadlessMatchCompletion(loaded.match, human.id), false)
+})
+
+test('persisted neural recovery terminal round-trips and surfaces refresh on resume', () => {
+  const storage = createMemoryStorage()
+  const recovery = createNeuralRuntimeRecoveryCoordinator({ inferMaxAttempts: 1 })
+  recovery.beginRecovery('latest')
+  recovery.recordInferFailure('latest')
+  const base = {
+    schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
+    id: 'm-nn-refresh',
+    setup: { totalSeats: 2, opponents: [{ type: 'nn', modelId: 'latest' }] },
+    state: { turn: { activeSeatId: 'seat-2' } },
+    history: [],
+  }
+  persistCurrentMatch(storage, attachNeuralRecoverySnapshotToMatch(base, recovery))
+  const loaded = loadCurrentMatch(storage)
+  assert.equal(loaded.ok, true)
+  assert.equal(
+    loaded.match.neuralRecoveryByModelId.latest.terminal,
+    NEURAL_RECOVERY_TERMINAL.REFRESH,
+  )
+
+  const resumedRecovery = createNeuralRuntimeRecoveryCoordinator()
+  let refreshOpen = false
+  assert.equal(
+    surfacePersistedNeuralRecoveryTerminal({
+      recovery: resumedRecovery,
+      neuralRecoveryByModelId: loaded.match.neuralRecoveryByModelId,
+      hasMatchSetup: true,
+      openRefreshTerminal: () => {
+        refreshOpen = true
+      },
+    }),
+    true,
+  )
+  assert.equal(refreshOpen, true)
+})
+
+test('invalid neuralRecoveryByModelId rejects persisted match', () => {
+  const storage = createMemoryStorage()
+  persistCurrentMatch(storage, {
+    schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
+    id: 'm-bad-recovery',
+    setup: { totalSeats: 2, opponents: [{ type: 'nn', modelId: 'latest' }] },
+    state: {},
+    history: [],
+    neuralRecoveryByModelId: { latest: { terminal: 'UNKNOWN' } },
+  })
+  const loaded = loadCurrentMatch(storage)
+  assert.equal(loaded.ok, false)
+  assert.equal(loaded.errorCode, 'INVALID_SHAPE')
+})
+
+test('neural load gate setup terminal clears persisted match while preserving setup snapshot', () => {
+  const storage = createMemoryStorage()
+  const setupSnapshot = {
+    totalSeats: 3,
+    opponents: [{ type: 'nn', modelId: 'v1.0.0' }, { type: 'randombot' }],
+  }
+  persistCurrentMatch(storage, {
+    schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
+    id: 'm-gate-fail',
+    setup: setupSnapshot,
+    state: { turn: { activeSeatId: 'seat-2' } },
+    history: [],
+  })
+  const setupTarget = { totalSeats: 2, opponents: [{ type: 'randombot' }] }
+  resolveNeuralLoadGateSetupTerminal({
+    storage,
+    setupSnapshot,
+    clearCurrentMatch,
+    applySetupSnapshot,
+    setupTarget,
+  })
+  assert.equal(loadCurrentMatch(storage).ok, false)
+  assert.deepEqual(setupTarget, setupSnapshot)
 })

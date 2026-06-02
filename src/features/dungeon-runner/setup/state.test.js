@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { canStartMatchFromSetup, normalizeSetupState } from './state.js'
+import { applySetupSnapshot, canStartMatchFromSetup, normalizeSetupState } from './state.js'
 
 test('normalizeSetupState keeps opponents aligned with total seats', () => {
   const setup = normalizeSetupState({
@@ -44,4 +44,18 @@ test('canStartMatchFromSetup allows valid NN and randombot mix', () => {
     }),
     true,
   )
+})
+
+test('applySetupSnapshot restores opponents and table size from persisted setup', () => {
+  const target = {
+    totalSeats: 2,
+    opponents: [{ type: 'randombot' }],
+  }
+  applySetupSnapshot(target, {
+    totalSeats: 4,
+    opponents: [{ type: 'nn', modelId: 'v1.0.0' }, { type: 'nn', modelId: 'v0.9.0' }, { type: 'randombot' }],
+  })
+  assert.equal(target.totalSeats, 4)
+  assert.equal(target.opponents.length, 3)
+  assert.equal(target.opponents[0].modelId, 'v1.0.0')
 })

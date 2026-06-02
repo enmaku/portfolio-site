@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { chooseRandombotAction } from '../bots/randombot.js'
 import { MATCH_PHASES, createInitialMatchState } from '../engine/kernel.js'
+import { createNeuralRuntimeRecoveryCoordinator } from '../nn/recovery.js'
 import {
+  createLivePlayActionChooser,
   DEFAULT_MAX_HEADLESS_ACTIONS,
   runHeadlessMatchCompletion,
 } from '../ui/headlessMatchCompletionRunner.js'
@@ -467,6 +469,53 @@ test('createCompletedMatchReplayUploadTracker exposes maybeUpload', () => {
   const tracker = createCompletedMatchReplayUploadTracker(createMemoryStorage())
   assert.equal(typeof tracker.maybeUpload, 'function')
   assert.doesNotThrow(() => tracker.maybeUpload(null))
+})
+
+const NN_FOUR_PLAYER_SETUP = {
+  totalSeats: 4,
+  opponents: [{ type: 'nn', modelId: 'latest' }, { type: 'randombot' }, { type: 'randombot' }],
+}
+
+async function buildHeadlessCompletedNnMatch(seed) {
+  const initial = createInitialMatchState(NN_FOUR_PLAYER_SETUP, { seed })
+  const human = seatByRole(initial, 'human')
+  assert.ok(human)
+  const start = humanEliminatedBeforeMatchOver(initial, human.id)
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  const chooseAction = createLivePlayActionChooser({
+    nnRecovery: recovery,
+    nnRuntimeOptions: () => ({}),
+    chooseNnActionWithRecovery: async (state, actor) =>
+      chooseRandombotAction(state, { seatId: actor.seatId }),
+  })
+  const result = await runHeadlessMatchCompletion(start, {
+    chooseAction,
+    humanPlayerSeatId: human.id,
+    maxActions: DEFAULT_MAX_HEADLESS_ACTIONS,
+  })
+  assert.equal(result.ok, true)
+  assert.equal(result.state.phase, MATCH_PHASES.MATCH_OVER)
+  return { initial, human, result }
+}
+
+test('maybeUpload uploads headless-completed nn match replay envelope', async () => {
+  const { initial, result } = await buildHeadlessCompletedNnMatch(8802)
+  const { deps, setCalls } = createDeps()
+  const match = {
+    id: 'match-headless-nn-complete',
+    setup: NN_FOUR_PLAYER_SETUP,
+    state: result.state,
+    presentationSpeedProfile: 'cinematic',
+  }
+
+  assert.ok(match.state.history.length > initial.history.length)
+
+  maybeUploadCompletedMatchReplay(match, deps)
+
+  assert.equal(setCalls.length, 1)
+  assert.equal(setCalls[0].matchId, 'match-headless-nn-complete')
+  assert.deepEqual(setCalls[0].envelope.setup, NN_FOUR_PLAYER_SETUP)
+  assert.deepEqual(setCalls[0].envelope.history, match.state.history)
 })
 
 test('maybeUpload uploads headless-completed multi-seat match replay envelope', async () => {

@@ -1,3 +1,5 @@
+import { isValidNeuralRecoveryByModelId } from '../nn/recovery.js'
+
 export const CURRENT_MATCH_SCHEMA_VERSION = 1
 
 const STORAGE_KEY = 'dungeon-runner/current-match'
@@ -47,6 +49,13 @@ function isValidMatchShape(match) {
     match.presentationSpeedProfile != null &&
     match.presentationSpeedProfile !== 'cinematic' &&
     match.presentationSpeedProfile !== 'brisk'
+  ) {
+    return false
+  }
+  if (
+    'neuralRecoveryByModelId' in match &&
+    match.neuralRecoveryByModelId != null &&
+    !isValidNeuralRecoveryByModelId(match.neuralRecoveryByModelId)
   ) {
     return false
   }

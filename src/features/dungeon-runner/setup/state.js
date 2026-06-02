@@ -23,3 +23,13 @@ export function canStartMatchFromSetup(setup) {
   if (!Array.isArray(setup?.opponents) || setup.opponents.length === 0) return false
   return validateSetupConfig(normalizeSetupState(setup)).ok
 }
+
+export function applySetupSnapshot(target, snapshot) {
+  const normalized = normalizeSetupState(snapshot)
+  target.totalSeats = normalized.totalSeats
+  target.opponents.splice(
+    0,
+    target.opponents.length,
+    ...normalized.opponents.map((opponent) => ({ ...opponent })),
+  )
+}

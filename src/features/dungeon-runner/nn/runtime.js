@@ -14,6 +14,12 @@ let scheduledInferenceQueue = Promise.resolve()
  */
 let workerPathDisabled = true
 
+export const NN_FAILURE_KIND = Object.freeze({
+  LOAD: 'LOAD',
+  INFER: 'INFER',
+  ILLEGAL_OUTPUT: 'ILLEGAL_OUTPUT',
+})
+
 export const DEFAULT_NN_WORKER_TIMEOUT_MS = 8_000
 export const DEFAULT_NN_MODEL_LOAD_TIMEOUT_MS = 12_000
 /** Cap time spent in the scheduled inference queue for one sample (0 = no cap). */
@@ -43,7 +49,12 @@ function promiseWithTimeout(promise, timeoutMs, createError) {
   })
 }
 
-export async function chooseNnActionWithFallback(state, actor, options) {
+/**
+ * @typedef {{ ok: true, action: object }} NnChooseSuccess
+ * @typedef {{ ok: false, kind: keyof typeof NN_FAILURE_KIND, errorMessage?: string, modelId: string }} NnChooseFailure
+ */
+
+export async function chooseNnAction(state, actor, options) {
   const trace = createPipelineStepLogger('NN', Boolean(options?.pipelineTrace), {
     modelId: options?.modelId ?? 'latest',
     seatId: actor.seatId,
@@ -64,57 +75,54 @@ export async function chooseNnActionWithFallback(state, actor, options) {
       selectedAction: legal[0],
       seatId: actor.seatId,
     })
-    return legal[0]
+    return { ok: true, action: legal[0] }
   }
   const modelId = options?.modelId ?? 'latest'
-  const backend = tf.getBackend() || 'cpu'
   trace('choose.sample.begin', { legalCount: legal.length })
   const sample = await attemptSample(modelId, state, legal, options)
   if (sample.ok && sample.action) {
-    if (sample.action.meta?.fallbackReason === 'INFER_BUDGET_EXCEEDED') {
-      trace('choose.fallback-budget', { actionType: sample.action.type })
-    } else {
-      trace('choose.sample.ok', { actionType: sample.action.type, backend: sample.action.meta?.backend })
-    }
-    return sample.action
+    trace('choose.sample.ok', { actionType: sample.action.type, backend: sample.action.meta?.backend })
+    return { ok: true, action: sample.action }
   }
   if (!sample.ok) {
-    trace('choose.sample.failed', { errorMessage: sample.errorMessage })
-    const fallback = createFallbackAction(legal, state, {
-      backend,
-      fallbackReason: 'MODEL_LOAD_FAILED',
-      modelId,
-    })
+    trace('choose.sample.failed', { kind: sample.kind, errorMessage: sample.errorMessage })
     options?.debugLogger?.({
-      kind: 'fallback',
-      fallbackReason: 'MODEL_LOAD_FAILED',
+      kind: 'failure',
+      failureKind: sample.kind,
       firstError: sample.errorMessage,
       legalActions: legal,
-      selectedAction: fallback,
       seatId: actor.seatId,
     })
-    return fallback
+    return {
+      ok: false,
+      kind: sample.kind,
+      errorMessage: sample.errorMessage,
+      modelId,
+    }
   }
-  const fallback = createFallbackAction(legal, state, {
-    backend,
-    fallbackReason: 'ILLEGAL_OUTPUT',
-    modelId,
-  })
+  trace('choose.illegal-output')
   options?.debugLogger?.({
-    kind: 'fallback',
-    fallbackReason: 'ILLEGAL_OUTPUT',
+    kind: 'failure',
+    failureKind: NN_FAILURE_KIND.ILLEGAL_OUTPUT,
     legalActions: legal,
-    selectedAction: fallback,
     seatId: actor.seatId,
   })
-  trace('choose.fallback', { fallbackReason: 'ILLEGAL_OUTPUT', actionType: fallback.type })
-  return fallback
+  return {
+    ok: false,
+    kind: NN_FAILURE_KIND.ILLEGAL_OUTPUT,
+    modelId,
+  }
 }
 
 /** Preload TF.js models so the first AI turn does not pay fetch/parse cost. */
 export async function warmNnModelCache(modelIds, options = {}) {
   const unique = [...new Set((modelIds ?? []).filter(Boolean))]
   await Promise.all(unique.map((modelId) => loadModel(modelId, options).catch(() => {})))
+}
+
+/** Load one NN model for match-start gating; throws on failure. */
+export async function loadNnModel(modelId, options = {}) {
+  return loadModel(modelId, options)
 }
 
 /** Preload models on the main thread and in the inference worker. */
@@ -146,23 +154,35 @@ async function attemptSample(modelId, state, legal, options) {
     const sample = await sampleAction(modelId, state, legal, options)
     if (sample.inferBudgetExceeded) {
       return {
-        ok: true,
-        action: createFallbackAction(legal, state, {
-          backend: tf.getBackend() || 'cpu',
-          fallbackReason: 'INFER_BUDGET_EXCEEDED',
-          modelId,
-        }),
-        errorMessage: null,
+        ok: false,
+        kind: NN_FAILURE_KIND.INFER,
+        errorMessage: 'INFER_BUDGET_EXCEEDED',
       }
     }
-    return { ok: true, action: sample.action, errorMessage: null }
+    if (sample.action) {
+      return { ok: true, action: sample.action }
+    }
+    return { ok: false, kind: NN_FAILURE_KIND.ILLEGAL_OUTPUT }
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
     return {
       ok: false,
-      action: null,
-      errorMessage: error instanceof Error ? error.message : String(error),
+      kind: classifyNnFailureKind(message),
+      errorMessage: message,
     }
   }
+}
+
+function classifyNnFailureKind(message) {
+  if (
+    message === 'MODEL_LOAD_TIMEOUT' ||
+    message === 'missing model' ||
+    message === 'MODEL_LOAD_FAILED' ||
+    message === 'NN_WORKER_WARM_TIMEOUT'
+  ) {
+    return NN_FAILURE_KIND.LOAD
+  }
+  return NN_FAILURE_KIND.INFER
 }
 
 async function sampleAction(modelId, state, legal, options) {
@@ -208,6 +228,29 @@ export function abandonScheduledInferenceQueue() {
   scheduledInferenceQueue = Promise.resolve()
 }
 
+/**
+ * @param {string} modelId
+ * @param {{ forceCpu?: boolean, resetBackend?: boolean }} [options]
+ */
+export function resetRuntimeForModel(modelId, options = {}) {
+  const cached = modelCache.get(modelId)
+  if (cached) {
+    cached.dispose()
+    modelCache.delete(modelId)
+  }
+  abandonScheduledInferenceQueue()
+  if (options.resetBackend) {
+    try {
+      tf.disposeVariables()
+    } catch {
+      // Backend may not be initialized in tests.
+    }
+  }
+  if (options.forceCpu) {
+    void tf.setBackend('cpu')
+  }
+}
+
 async function runScheduledInference(task, options) {
   const trace = createPipelineStepLogger('NN', Boolean(options?.pipelineTrace), {
     modelId: options?.modelId ?? 'latest',
@@ -232,7 +275,7 @@ async function loadModel(modelId, options = {}) {
     trace('model.cache-hit')
     return modelCache.get(modelId)
   }
-  const baseUrl = import.meta.env?.BASE_URL ?? '/'
+  const baseUrl = options.publicBaseUrl ?? import.meta.env?.BASE_URL ?? '/'
   const prefix = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
   const modelUrl = `${prefix}models/dungeon-runner/${modelId}/model.json?ts=${Date.now()}`
   const timeoutMs = options.loadTimeoutMs ?? DEFAULT_NN_MODEL_LOAD_TIMEOUT_MS
@@ -255,8 +298,9 @@ async function inferActionWithBestRuntime(modelId, state, legal, options) {
   })
   const backendHint = tf.getBackend() || 'cpu'
   const randomSeed = createSamplingSeed(state, modelId, backendHint)
-  trace('infer.begin', { backend: backendHint, workerPathDisabled, legalCount: legal.length })
-  if (typeof Worker === 'function' && !workerPathDisabled) {
+  const useWorkerPath = options?.disableWorkerPath !== true && typeof Worker === 'function' && !workerPathDisabled
+  trace('infer.begin', { backend: backendHint, workerPathDisabled: !useWorkerPath, legalCount: legal.length })
+  if (useWorkerPath) {
     try {
       trace('infer.worker.begin')
       const workerStart = performance.now()
@@ -271,6 +315,12 @@ async function inferActionWithBestRuntime(modelId, state, legal, options) {
       trace('infer.worker.error', { message })
       if (message === 'NN_WORKER_TIMEOUT') {
         terminateSharedWorker()
+      }
+      if (classifyNnFailureKind(message) === NN_FAILURE_KIND.LOAD) {
+        throw error
+      }
+      if (options?.allowMainThreadInfer === false) {
+        throw error
       }
     }
   }
@@ -476,14 +526,6 @@ function disposePrediction(prediction) {
   prediction.dispose()
 }
 
-function createFallbackAction(legalActions, state, meta) {
-  const seed = state?.rng?.state ?? 1
-  const next = (Math.imul(seed >>> 0, 1664525) + 1013904223) >>> 0
-  const index = legalActions.length > 0 ? next % legalActions.length : 0
-  const sample = legalActions[index] ?? legalActions[0]
-  return { ...sample, meta }
-}
-
 function applyPolicyMask(values, legalMask) {
   const masked = [...values]
   for (let i = 0; i < masked.length; i += 1) {
@@ -527,10 +569,23 @@ function seededRandomFactory(seed) {
   }
 }
 
+/** @internal Test-only cache inspection. */
+export function isNnModelCachedForTests(modelId) {
+  return modelCache.has(modelId)
+}
+
+/** @internal Test-only cache seeding. */
+export function cacheNnModelForTests(modelId, model) {
+  modelCache.set(modelId, model)
+}
+
 export function resetNnRuntimeForTests() {
   terminateSharedWorker()
   workerRequestId = 1
   scheduledInferenceQueue = Promise.resolve()
+  for (const model of modelCache.values()) {
+    model.dispose()
+  }
   modelCache.clear()
   workerPathDisabled = false
 }

@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { createNeuralRuntimeRecoveryCoordinator } from '../nn/recovery.js'
 import {
+  cancelAiTurnPrefetch,
   consumeAiTurnPrefetch,
   resetAiTurnPrefetch,
+  setAiTurnPrefetchRecoveryGate,
   startAiTurnPrefetch,
 } from './dungeonRunnerAiTurnPrefetch.js'
 
@@ -92,4 +95,50 @@ test('consume awaits in-flight prefetch to completion', async () => {
   assert.deepEqual(action, { type: 'DRAW' })
   assert.ok(steps.includes('prefetch.consume.hit'))
   assert.equal(steps.includes('prefetch.consume.timeout'), false)
+})
+
+test('prefetch start is skipped while modelId is recovering', async () => {
+  resetAiTurnPrefetch()
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  recovery.beginRecovery('latest')
+  setAiTurnPrefetchRecoveryGate(recovery)
+  const steps = []
+  startAiTurnPrefetch({
+    runToken: 'a',
+    modelId: 'latest',
+    trace: (step) => steps.push(step),
+    compute: async () => ({ type: 'PASS' }),
+  })
+  assert.ok(steps.includes('prefetch.skip'))
+  assert.equal(await consumeAiTurnPrefetch('a', () => {}, 'latest'), null)
+  setAiTurnPrefetchRecoveryGate(null)
+})
+
+test('prefetch consume is blocked while modelId is recovering', async () => {
+  resetAiTurnPrefetch()
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  setAiTurnPrefetchRecoveryGate(recovery)
+  startAiTurnPrefetch({
+    runToken: 'a',
+    compute: async () => ({ type: 'DRAW' }),
+  })
+  recovery.beginRecovery('latest')
+  const steps = []
+  assert.equal(await consumeAiTurnPrefetch('a', (step) => steps.push(step), 'latest'), null)
+  assert.ok(steps.includes('prefetch.consume.blocked'))
+  setAiTurnPrefetchRecoveryGate(null)
+})
+
+test('cancelAiTurnPrefetch clears in-flight entry', async () => {
+  resetAiTurnPrefetch()
+  let resolveCompute
+  startAiTurnPrefetch({
+    runToken: 'a',
+    compute: () => new Promise((resolve) => {
+      resolveCompute = resolve
+    }),
+  })
+  cancelAiTurnPrefetch()
+  assert.equal(await consumeAiTurnPrefetch('a', () => {}), null)
+  resolveCompute({ type: 'DRAW' })
 })
