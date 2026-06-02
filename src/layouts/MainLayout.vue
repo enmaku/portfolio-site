@@ -25,6 +25,7 @@
               :name="t.to"
               :icon="t.icon"
               :label="t.label"
+              :exact="t.to === '/'"
             />
           </q-tabs>
           <q-btn-dropdown
@@ -57,6 +58,9 @@
                     clickable
                     v-close-popup
                     :to="p.navigateInTab ? p.to : undefined"
+                    :manual-active="p.navigateInTab === true"
+                    :active="isProjectNavLinkActive(p)"
+                    active-class="projects-nav-link--current"
                     @click="p.navigateInTab ? undefined : openProjectInNewTab(p.to)"
                   >
                     <q-item-section avatar>
@@ -120,6 +124,9 @@
                 clickable
                 :inset-level="2"
                 :to="p.navigateInTab ? p.to : undefined"
+                :manual-active="p.navigateInTab === true"
+                :active="isProjectNavLinkActive(p)"
+                active-class="projects-nav-link--current"
                 @click="p.navigateInTab ? undefined : openProjectInNewTab(p.to)"
               >
                 <q-item-section avatar>
@@ -195,6 +202,10 @@ function openProjectInNewTab (to) {
   const { href } = router.resolve(to)
   window.open(href, '_blank', 'noopener,noreferrer')
   leftDrawerOpen.value = false
+}
+
+function isProjectNavLinkActive (link) {
+  return link.navigateInTab === true && route.path === link.to
 }
 
 const activePath = computed(() => route.path)
