@@ -1,6 +1,7 @@
 /**
  * @typedef {object} HumanWinSeriesPoint
  * @property {boolean} humanWon
+ * @property {unknown} [createdAt]
  */
 
 /**

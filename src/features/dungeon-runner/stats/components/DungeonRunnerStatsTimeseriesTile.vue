@@ -21,7 +21,7 @@
         />
       </div>
       <div class="dungeon-stats-timeseries-chart">
-        <Line :data="chartData" :options="chartOptions" />
+        <Line :data="chartData" :options="chartOptions" :plugins="chartPlugins" />
       </div>
     </div>
   </DungeonRunnerStatsTileShell>
@@ -39,6 +39,7 @@ import {
 import { computed } from 'vue'
 import { Line } from 'vue-chartjs'
 import DungeonRunnerStatsTileShell from './DungeonRunnerStatsTileShell.vue'
+import { createModelPublishLinePlugin } from '../dungeonRunnerModelPublishTickPlugin.js'
 import { useRollingHumanWinRateTile } from '../useRollingHumanWinRateTile.js'
 
 ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Tooltip)
@@ -59,6 +60,15 @@ const { tileState, windowSize } = useRollingHumanWinRateTile(
   props.tileDeps,
 )
 
+const modelPublishMarkers = computed(() => {
+  if (tileState.value.status !== 'ok' || !tileState.value.chart?.modelPublishMarkers) {
+    return []
+  }
+  return tileState.value.chart.modelPublishMarkers
+})
+
+const chartPlugins = computed(() => [createModelPublishLinePlugin(modelPublishMarkers.value)])
+
 const chartData = computed(() => {
   if (tileState.value.status !== 'ok' || !tileState.value.chart) {
     return { labels: [], datasets: [] }
@@ -77,9 +87,14 @@ const chartData = computed(() => {
   }
 })
 
-const chartOptions = {
+const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  layout: {
+    padding: {
+      top: modelPublishMarkers.value.length > 0 ? 14 : 0,
+    },
+  },
   plugins: {
     legend: {
       display: false,
@@ -89,6 +104,15 @@ const chartOptions = {
         label(context) {
           const value = context.parsed.y
           return `${value}%`
+        },
+        afterBody(tooltipItems) {
+          const item = tooltipItems[0]
+          if (!item) return []
+          const marker = modelPublishMarkers.value.find(
+            (candidate) => candidate.labelIndex === item.dataIndex,
+          )
+          if (!marker) return []
+          return [`Model published: ${marker.modelId}`]
         },
       },
     },
@@ -115,7 +139,7 @@ const chartOptions = {
       },
     },
   },
-}
+}))
 </script>
 
 <style scoped>

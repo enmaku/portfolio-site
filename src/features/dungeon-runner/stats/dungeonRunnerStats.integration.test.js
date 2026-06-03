@@ -263,4 +263,12 @@ test('rolling human win rate tile uses bounded human win series query only', () 
   assert.equal(loader.includes('getDocs'), false)
   assert.equal(timeseriesTile.includes('firebase'), false)
   assert.equal(timeseriesTile.includes('getDocs'), false)
+  assert.equal(timeseriesTile.includes('buildModelPublishMarkersForWinSeries'), false)
+  assert.equal(timeseriesTile.includes('createModelPublishLinePlugin'), true)
+  const markerBuilder = readFileSync(
+    new URL('./buildModelPublishMarkersForWinSeries.js', import.meta.url),
+    'utf8',
+  )
+  assert.equal(markerBuilder.includes('latest'), true)
+  assert.equal(markerBuilder.includes('publishedAtByModelId'), true)
 })

@@ -24,7 +24,11 @@ export function useRollingHumanWinRateTile(loadQuery, deps) {
     if (tileState.value.status !== 'ok' || !tileState.value.humanWonSeries) {
       return
     }
-    const rebuilt = buildRollingHumanWinRateChart(tileState.value.humanWonSeries, windowSize.value)
+    const rebuilt = buildRollingHumanWinRateChart(
+      tileState.value.humanWonSeries,
+      windowSize.value,
+      tileState.value.publishedAtByModelId,
+    )
     if (rebuilt.status === 'error') {
       tileState.value = { status: 'error' }
       return

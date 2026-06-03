@@ -13,15 +13,15 @@ const SERIES = [
 test('loadRollingHumanWinRateTile returns series, bounds, and default-window chart', async () => {
   const result = await loadRollingHumanWinRateTile({
     fetchHumanWinSeries: async () => SERIES,
+    fetchModelCatalog: async () => ({ models: [], publishedAtByModelId: {} }),
   })
   assert.equal(result.status, 'ok')
   if (result.status !== 'ok') return
   assert.deepEqual(result.windowBounds, { min: 5, max: 5, default: 5 })
-  assert.deepEqual(result.humanWonSeries, SERIES.map(({ humanWon }) => ({ humanWon })))
-  assert.deepEqual(result.chart, {
-    labels: ['5'],
-    percents: [60],
-  })
+  assert.deepEqual(result.humanWonSeries, SERIES)
+  assert.deepEqual(result.chart?.labels, ['5'])
+  assert.deepEqual(result.chart?.percents, [60])
+  assert.deepEqual(result.chart?.modelPublishMarkers, [])
 })
 
 test('loadRollingHumanWinRateTile returns error when series has fewer than five matches', async () => {

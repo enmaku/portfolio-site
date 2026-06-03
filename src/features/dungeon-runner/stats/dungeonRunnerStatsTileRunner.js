@@ -10,6 +10,7 @@
  * @typedef {object} RollingHumanWinRateChartPayload
  * @property {string[]} labels
  * @property {number[]} percents
+ * @property {Array<{ sequence: number, modelId: string, labelIndex: number }>} [modelPublishMarkers]
  */
 
 /**
@@ -29,6 +30,7 @@
 /**
  * @typedef {object} HumanWinSeriesPoint
  * @property {boolean} humanWon
+ * @property {unknown} [createdAt]
  */
 
 /**
@@ -39,6 +41,7 @@
  * @property {RollingHumanWinRateChartPayload | StatsNumericSeriesChartPayload} [chart]
  * @property {HumanWinSeriesPoint[]} [humanWonSeries]
  * @property {RollingHumanWinRateWindowBounds} [windowBounds]
+ * @property {Record<string, string>} [publishedAtByModelId]
  */
 
 /**
@@ -108,6 +111,10 @@ function mapLoaderOkResult(result) {
       chart: result.chart,
       humanWonSeries,
       windowBounds: bounds,
+      publishedAtByModelId:
+        result.publishedAtByModelId && typeof result.publishedAtByModelId === 'object'
+          ? result.publishedAtByModelId
+          : {},
     }
   }
   if (isNumericSeriesChartPayload(result.chart)) {
@@ -136,7 +143,7 @@ function mapLoaderOkResult(result) {
  * @param {(deps?: unknown) => Promise<
  *   | { status: 'ok', value: number | string }
  *   | { status: 'ok', breakdown: DungeonRunnerStatsBreakdownRow[] }
- *   | { status: 'ok', chart: RollingHumanWinRateChartPayload, humanWonSeries: HumanWinSeriesPoint[], windowBounds: RollingHumanWinRateWindowBounds }
+ *   | { status: 'ok', chart: RollingHumanWinRateChartPayload, humanWonSeries: HumanWinSeriesPoint[], windowBounds: RollingHumanWinRateWindowBounds, publishedAtByModelId?: Record<string, string> }
  *   | { status: 'ok', chart: StatsNumericSeriesChartPayload }
  *   | { status: 'error' }
  * >} loadQuery
