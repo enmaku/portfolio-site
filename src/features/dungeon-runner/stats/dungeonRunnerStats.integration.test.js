@@ -55,7 +55,7 @@ test('dungeon runner stats page gates on Firebase configured without Firestore r
   assert.equal(page.includes('items-stretch'), true)
   assert.equal(page.includes("'flex column'"), true)
   assert.equal(page.includes('tileColumnClass'), true)
-  assert.equal(page.includes('DungeonRunnerStatsTimeseriesTile'), true)
+  assert.equal(page.includes('DungeonRunnerStatsTimeseriesTile'), false)
   assert.equal(page.includes('DungeonRunnerStatsBreakdownTile'), true)
   assert.equal(page.includes("'breakdown-chart'"), true)
   assert.equal(page.includes('DungeonRunnerStatsSeriesChartTile'), true)
@@ -83,8 +83,8 @@ test('stats tile shell and orchestration stay free of Firestore imports', () => 
   )
   const tile = readFileSync(new URL('./components/DungeonRunnerStatsTile.vue', import.meta.url), 'utf8')
   const runner = readFileSync(new URL('./useDungeonRunnerStatsTile.js', import.meta.url), 'utf8')
-  const timeseriesRunner = readFileSync(
-    new URL('./useRollingHumanWinRateTile.js', import.meta.url),
+  const seriesChartRunner = readFileSync(
+    new URL('./useDungeonRunnerStatsSeriesChartTile.js', import.meta.url),
     'utf8',
   )
   const breakdownTile = readFileSync(
@@ -95,7 +95,7 @@ test('stats tile shell and orchestration stay free of Firestore imports', () => 
     new URL('./components/DungeonRunnerStatsSeriesChartTile.vue', import.meta.url),
     'utf8',
   )
-  for (const source of [shell, tile, runner, timeseriesRunner, breakdownTile, seriesChartTile]) {
+  for (const source of [shell, tile, runner, seriesChartRunner, breakdownTile, seriesChartTile]) {
     assert.equal(source.includes('firebase'), false)
     assert.equal(source.includes('getCountFromServer'), false)
     assert.equal(source.includes('getDocs'), false)
@@ -232,8 +232,9 @@ test('match length over time uses bounded match length series query only', () =>
   )
   assert.equal(seriesTile.includes('createModelPublishLinePlugin'), true)
   assert.equal(seriesTile.includes('match-length-over-time'), true)
-  assert.equal(seriesTile.includes('dungeon-stats-match-length-trend-window-slider'), true)
+  assert.equal(seriesTile.includes('rolling-human-win-rate'), true)
   assert.equal(seriesTile.includes('useDungeonRunnerStatsSeriesChartTile'), true)
+  assert.equal(seriesTile.includes('dungeon-stats-trend-window-slider'), true)
 })
 
 test('matches per week uses aggregate count queries per week bucket', () => {
@@ -258,9 +259,13 @@ test('matches per week uses aggregate count queries per week bucket', () => {
   )
   assert.equal(seriesTile.includes('rollingAverageValues'), true)
   assert.equal(seriesTile.includes('#eab308'), true)
+  assert.equal(seriesTile.includes('matches-per-week'), true)
+  assert.equal(seriesTile.includes('dungeon-stats-trend-window-slider'), true)
+  assert.equal(loader.includes('resolveMatchesPerWeekTrendWindowSize'), true)
+  assert.equal(loader.includes('weeklyCounts'), true)
 })
 
-test('rolling human win rate tile uses bounded human win series query only', () => {
+test('human win rate over time tile uses bounded human win series query only', () => {
   const seriesQuery = readFileSync(
     new URL('../firebase/humanWinSeriesQuery.js', import.meta.url),
     'utf8',
@@ -269,8 +274,12 @@ test('rolling human win rate tile uses bounded human win series query only', () 
     new URL('./tiles/rollingHumanWinRateLoader.js', import.meta.url),
     'utf8',
   )
-  const timeseriesTile = readFileSync(
-    new URL('./components/DungeonRunnerStatsTimeseriesTile.vue', import.meta.url),
+  const winRateChart = readFileSync(
+    new URL('./buildHumanWinRateOverTimeChart.js', import.meta.url),
+    'utf8',
+  )
+  const seriesTile = readFileSync(
+    new URL('./components/DungeonRunnerStatsSeriesChartTile.vue', import.meta.url),
     'utf8',
   )
   assert.equal(seriesQuery.includes('getDocs'), true)
@@ -279,10 +288,12 @@ test('rolling human win rate tile uses bounded human win series query only', () 
   assert.equal(seriesQuery.includes('HUMAN_WIN_SERIES_FETCH_LIMIT'), true)
   assert.equal(loader.includes('fetchHumanWinSeries'), true)
   assert.equal(loader.includes('getDocs'), false)
-  assert.equal(timeseriesTile.includes('firebase'), false)
-  assert.equal(timeseriesTile.includes('getDocs'), false)
-  assert.equal(timeseriesTile.includes('buildModelPublishMarkersForWinSeries'), false)
-  assert.equal(timeseriesTile.includes('createModelPublishLinePlugin'), true)
+  assert.equal(loader.includes('resolveMatchLengthTrendWindowSize'), true)
+  assert.equal(loader.includes('buildHumanWinRateOverTimeChart'), true)
+  assert.equal(winRateChart.includes('computeRollingAverage'), true)
+  assert.equal(seriesTile.includes('rolling-human-win-rate'), true)
+  assert.equal(seriesTile.includes('dungeon-stats-trend-window-slider'), true)
+  assert.equal(seriesTile.includes('createModelPublishLinePlugin'), true)
   const markerBuilder = readFileSync(
     new URL('./buildModelPublishMarkersForWinSeries.js', import.meta.url),
     'utf8',

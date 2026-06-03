@@ -53,20 +53,26 @@ test('breakdown tiles use breakdown-chart presentation', () => {
   }
 })
 
-test('rolling human win rate tile is fourth with timeseries presentation and full span', () => {
+test('human win rate over time tile is fourth with line-series presentation and full span', () => {
   const tile = DUNGEON_RUNNER_STATS_TILE_REGISTRY[3]
   assert.equal(tile.id, 'rolling-human-win-rate')
-  assert.equal(tile.presentation, 'timeseries')
+  assert.equal(tile.title, 'Human win rate over time')
+  assert.equal(tile.presentation, 'line-series')
   assert.equal(tile.span, 'full')
 })
 
-test('match length and matches per week tiles span full row', () => {
+test('over-time line charts and matches per week span full row', () => {
+  const humanWinRateOverTime = DUNGEON_RUNNER_STATS_TILE_REGISTRY.find(
+    (entry) => entry.id === 'rolling-human-win-rate',
+  )
   const matchLength = DUNGEON_RUNNER_STATS_TILE_REGISTRY.find(
     (entry) => entry.id === 'match-length-over-time',
   )
   const matchesPerWeek = DUNGEON_RUNNER_STATS_TILE_REGISTRY.find(
     (entry) => entry.id === 'matches-per-week',
   )
+  assert.equal(humanWinRateOverTime?.presentation, 'line-series')
+  assert.equal(humanWinRateOverTime?.span, 'full')
   assert.equal(matchLength?.presentation, 'line-series')
   assert.equal(matchLength?.span, 'full')
   assert.equal(matchesPerWeek?.presentation, 'bar-series')

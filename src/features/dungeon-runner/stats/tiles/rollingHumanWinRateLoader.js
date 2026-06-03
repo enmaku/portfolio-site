@@ -1,7 +1,7 @@
 import { fetchHumanWinSeries } from '../../firebase/humanWinSeriesQuery.js'
 import { fetchModelCatalog } from '../../models/catalog.js'
-import { buildRollingHumanWinRateChart } from '../buildRollingHumanWinRateChart.js'
-import { resolveRollingWindowSize } from '../resolveRollingWindowSize.js'
+import { buildHumanWinRateOverTimeChart } from '../buildHumanWinRateOverTimeChart.js'
+import { resolveMatchLengthTrendWindowSize } from '../resolveMatchLengthTrendWindowSize.js'
 
 /**
  * @typedef {object} ModelPublishMarkerView
@@ -11,14 +11,15 @@ import { resolveRollingWindowSize } from '../resolveRollingWindowSize.js'
  */
 
 /**
- * @typedef {object} RollingHumanWinRateChart
- * @property {string[]} labels match sequence ordinals as strings
- * @property {number[]} percents whole-percent Y values
- * @property {ModelPublishMarkerView[]} [modelPublishMarkers]
+ * @typedef {object} StatsNumericSeriesChart
+ * @property {string[]} labels
+ * @property {number[]} values
+ * @property {number[]} rollingAverageValues
+ * @property {ModelPublishMarkerView[]} modelPublishMarkers
  */
 
 /**
- * @typedef {object} RollingHumanWinRateWindowBounds
+ * @typedef {object} HumanWinRateTrendWindowBounds
  * @property {number} min
  * @property {number} max
  * @property {number} default
@@ -31,7 +32,7 @@ import { resolveRollingWindowSize } from '../resolveRollingWindowSize.js'
  */
 
 /**
- * @typedef {{ status: 'ok', humanWonSeries: HumanWinSeriesPoint[], windowBounds: RollingHumanWinRateWindowBounds, chart: RollingHumanWinRateChart, publishedAtByModelId: Record<string, string> } | { status: 'error' }} RollingHumanWinRateTileResult
+ * @typedef {{ status: 'ok', chart: StatsNumericSeriesChart, humanWonSeries: HumanWinSeriesPoint[], windowBounds: HumanWinRateTrendWindowBounds, publishedAtByModelId: Record<string, string> } | { status: 'error' }} RollingHumanWinRateTileResult
  */
 
 /**
@@ -54,7 +55,7 @@ export async function loadRollingHumanWinRateTile(deps = {}) {
       humanWon: record.humanWon,
       createdAt: record.createdAt,
     }))
-    const boundsResult = resolveRollingWindowSize(humanWonSeries.length)
+    const boundsResult = resolveMatchLengthTrendWindowSize(humanWonSeries.length)
     if (boundsResult.status === 'error') {
       return { status: 'error' }
     }
@@ -65,10 +66,10 @@ export async function loadRollingHumanWinRateTile(deps = {}) {
     }
     const catalog = await fetchCatalog()
     const publishedAtByModelId = catalog.publishedAtByModelId ?? {}
-    const chartResult = buildRollingHumanWinRateChart(
+    const chartResult = buildHumanWinRateOverTimeChart(
       humanWonSeries,
-      windowBounds.default,
       publishedAtByModelId,
+      windowBounds.default,
     )
     if (chartResult.status === 'error') {
       return { status: 'error' }

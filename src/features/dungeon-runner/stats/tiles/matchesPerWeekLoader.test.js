@@ -25,6 +25,8 @@ test('loadMatchesPerWeekTile aggregates weekly counts via createdAt range querie
   assert.equal(result.status, 'ok')
   assert.deepEqual(result.chart.values, [4, 1])
   assert.deepEqual(result.chart.rollingAverageValues, [4, (4 + 1) / 2])
+  assert.deepEqual(result.windowBounds, { min: 1, max: 2, default: 2 })
+  assert.deepEqual(result.weeklyCounts, [4, 1])
   assert.equal(calls.length, 2)
 })
 
@@ -51,6 +53,7 @@ test('loadMatchesPerWeekTile includes rolling averages when at least three weeks
   })
   assert.equal(result.status, 'ok')
   assert.deepEqual(result.chart.rollingAverageValues, [1, 1, 1])
+  assert.deepEqual(result.windowBounds, { min: 1, max: 3, default: 3 })
 })
 
 test('loadMatchesPerWeekTile returns error when weekly total is zero', async () => {

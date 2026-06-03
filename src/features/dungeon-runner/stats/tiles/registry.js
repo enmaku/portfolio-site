@@ -11,7 +11,7 @@ import { loadWinnerRoleBreakdownTile } from './winnerRoleBreakdownLoader.js'
 /** @typedef {import('./totalMatchesLoader.js').TotalMatchesTileResult} CountStatsTileLoadResult */
 /** @typedef {import('./humanWinRateLoader.js').HumanWinRateTileResult} RateStatsTileLoadResult */
 /** @typedef {import('./endVariantBreakdownLoader.js').EndVariantBreakdownTileResult} BreakdownStatsTileLoadResult */
-/** @typedef {import('./rollingHumanWinRateLoader.js').RollingHumanWinRateTileResult} TimeseriesStatsTileLoadResult */
+/** @typedef {import('./rollingHumanWinRateLoader.js').RollingHumanWinRateTileResult} HumanWinRateOverTimeTileLoadResult */
 /** @typedef {import('./matchLengthOverTimeLoader.js').MatchLengthOverTimeTileResult} LineSeriesStatsTileLoadResult */
 /** @typedef {import('./matchesPerWeekLoader.js').MatchesPerWeekTileResult} BarSeriesStatsTileLoadResult */
 
@@ -19,13 +19,13 @@ import { loadWinnerRoleBreakdownTile } from './winnerRoleBreakdownLoader.js'
  * @typedef {object} DungeonRunnerStatsTileDefinition
  * @property {string} id
  * @property {string} title
- * @property {'count' | 'rate' | 'breakdown-chart' | 'timeseries' | 'line-series' | 'bar-series'} presentation
+ * @property {'count' | 'rate' | 'breakdown-chart' | 'line-series' | 'bar-series'} presentation
  * @property {'default' | 'full'} [span]
  * @property {(deps?: unknown) => Promise<
  *   | CountStatsTileLoadResult
  *   | RateStatsTileLoadResult
  *   | BreakdownStatsTileLoadResult
- *   | TimeseriesStatsTileLoadResult
+ *   | HumanWinRateOverTimeTileLoadResult
  *   | LineSeriesStatsTileLoadResult
  *   | BarSeriesStatsTileLoadResult
  * >} loadQuery
@@ -53,8 +53,8 @@ export const DUNGEON_RUNNER_STATS_TILE_REGISTRY = [
   },
   {
     id: 'rolling-human-win-rate',
-    title: 'Rolling human win rate',
-    presentation: 'timeseries',
+    title: 'Human win rate over time',
+    presentation: 'line-series',
     span: 'full',
     loadQuery: (deps) => loadRollingHumanWinRateTile(deps),
   },

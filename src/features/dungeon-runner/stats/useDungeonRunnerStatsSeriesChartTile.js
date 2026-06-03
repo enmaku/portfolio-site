@@ -1,5 +1,7 @@
 import { onMounted, ref, watch } from 'vue'
+import { buildHumanWinRateOverTimeChart } from './buildHumanWinRateOverTimeChart.js'
 import { buildMatchLengthOverTimeChart } from './buildMatchLengthOverTimeChart.js'
+import { buildMatchesPerWeekChart } from './buildMatchesPerWeekChart.js'
 import {
   createDungeonRunnerStatsTileLoadingState,
   runDungeonRunnerStatsTileLoad,
@@ -8,50 +10,67 @@ import {
 /**
  * @param {(deps?: unknown) => Promise<unknown>} loadQuery
  * @param {unknown} [deps]
- * @param {{ supportsMatchLengthTrendWindow?: boolean }} [options]
+ * @param {{ supportsTrendWindow?: boolean, supportsWeekTrendWindow?: boolean }} [options]
  */
 export function useDungeonRunnerStatsSeriesChartTile(loadQuery, deps, options = {}) {
-  const supportsMatchLengthTrendWindow = options.supportsMatchLengthTrendWindow === true
+  const supportsTrendWindow = options.supportsTrendWindow === true
+  const supportsWeekTrendWindow = options.supportsWeekTrendWindow === true
+  const hasTrendWindowControl = supportsTrendWindow || supportsWeekTrendWindow
   const tileState = ref(createDungeonRunnerStatsTileLoadingState())
   const trendWindowSize = ref(10)
 
   async function loadInitial() {
     tileState.value = await runDungeonRunnerStatsTileLoad(loadQuery, deps)
-    if (
-      supportsMatchLengthTrendWindow &&
-      tileState.value.status === 'ok' &&
-      tileState.value.windowBounds
-    ) {
+    if (hasTrendWindowControl && tileState.value.status === 'ok' && tileState.value.windowBounds) {
       trendWindowSize.value = tileState.value.windowBounds.default
     }
   }
 
   function applyTrendWindowSize() {
-    if (
-      !supportsMatchLengthTrendWindow ||
-      tileState.value.status !== 'ok' ||
-      !tileState.value.matchLengthSeries
-    ) {
+    if (!hasTrendWindowControl || tileState.value.status !== 'ok') {
       return
     }
-    const rebuilt = buildMatchLengthOverTimeChart(
-      tileState.value.matchLengthSeries,
-      tileState.value.publishedAtByModelId,
-      trendWindowSize.value,
-    )
-    if (rebuilt.status === 'error') {
+    let rebuilt = null
+    if (tileState.value.weeklyCounts && tileState.value.weekBuckets) {
+      rebuilt = buildMatchesPerWeekChart(
+        tileState.value.weekBuckets,
+        tileState.value.weeklyCounts,
+        trendWindowSize.value,
+      )
+    } else if (tileState.value.matchLengthSeries) {
+      rebuilt = buildMatchLengthOverTimeChart(
+        tileState.value.matchLengthSeries,
+        tileState.value.publishedAtByModelId,
+        trendWindowSize.value,
+      )
+    } else if (tileState.value.humanWonSeries) {
+      rebuilt = buildHumanWinRateOverTimeChart(
+        tileState.value.humanWonSeries,
+        tileState.value.publishedAtByModelId,
+        trendWindowSize.value,
+      )
+    }
+    if (!rebuilt || rebuilt.status === 'error') {
       tileState.value = { status: 'error' }
       return
     }
+    const chart =
+      tileState.value.weeklyCounts && tileState.value.weekBuckets
+        ? {
+            labels: rebuilt.chart.labels,
+            values: rebuilt.chart.values,
+            rollingAverageValues: rebuilt.chart.rollingAverageValues,
+          }
+        : rebuilt.chart
     tileState.value = {
       ...tileState.value,
-      chart: rebuilt.chart,
+      chart,
     }
   }
 
   onMounted(loadInitial)
 
-  if (supportsMatchLengthTrendWindow) {
+  if (hasTrendWindowControl) {
     watch(trendWindowSize, applyTrendWindowSize)
   }
 

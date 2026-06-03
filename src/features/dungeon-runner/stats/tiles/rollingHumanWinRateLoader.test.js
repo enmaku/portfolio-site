@@ -3,11 +3,11 @@ import test from 'node:test'
 import { loadRollingHumanWinRateTile } from './rollingHumanWinRateLoader.js'
 
 const SERIES = [
-  { humanWon: true, createdAt: 1 },
-  { humanWon: false, createdAt: 2 },
-  { humanWon: true, createdAt: 3 },
-  { humanWon: true, createdAt: 4 },
-  { humanWon: false, createdAt: 5 },
+  { humanWon: true, createdAt: '2026-05-01T00:00:00.000Z' },
+  { humanWon: false, createdAt: '2026-05-02T00:00:00.000Z' },
+  { humanWon: true, createdAt: '2026-05-03T00:00:00.000Z' },
+  { humanWon: true, createdAt: '2026-05-04T00:00:00.000Z' },
+  { humanWon: false, createdAt: '2026-05-05T00:00:00.000Z' },
 ]
 
 test('loadRollingHumanWinRateTile returns series, bounds, and default-window chart', async () => {
@@ -17,16 +17,17 @@ test('loadRollingHumanWinRateTile returns series, bounds, and default-window cha
   })
   assert.equal(result.status, 'ok')
   if (result.status !== 'ok') return
-  assert.deepEqual(result.windowBounds, { min: 5, max: 5, default: 5 })
+  assert.deepEqual(result.windowBounds, { min: 2, max: 5, default: 5 })
   assert.deepEqual(result.humanWonSeries, SERIES)
-  assert.deepEqual(result.chart?.labels, ['5'])
-  assert.deepEqual(result.chart?.percents, [60])
-  assert.deepEqual(result.chart?.modelPublishMarkers, [])
+  assert.deepEqual(result.chart.labels, ['1', '2', '3', '4', '5'])
+  assert.deepEqual(result.chart.values, [100, 0, 100, 100, 0])
+  assert.deepEqual(result.chart.rollingAverageValues, [100, 50, 66.66666666666667, 75, 60])
+  assert.deepEqual(result.chart.modelPublishMarkers, [])
 })
 
-test('loadRollingHumanWinRateTile returns error when series has fewer than five matches', async () => {
+test('loadRollingHumanWinRateTile returns error when series is empty', async () => {
   const result = await loadRollingHumanWinRateTile({
-    fetchHumanWinSeries: async () => SERIES.slice(0, 4),
+    fetchHumanWinSeries: async () => [],
   })
   assert.deepEqual(result, { status: 'error' })
 })

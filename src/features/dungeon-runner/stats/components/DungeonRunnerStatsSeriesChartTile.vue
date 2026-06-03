@@ -8,8 +8,8 @@
       v-if="tileState.status === 'ok' && tileState.chart"
       :data-testid="chartTestId"
     >
-      <div v-if="supportsMatchLengthTrendWindow" class="q-mb-md">
-        <div class="text-caption text-grey-5 q-mb-xs">Trend window (matches)</div>
+      <div v-if="hasTrendWindowControl" class="q-mb-md">
+        <div class="text-caption text-grey-5 q-mb-xs">{{ trendWindowLabel }}</div>
         <q-slider
           v-model="trendWindowSize"
           :min="tileState.windowBounds.min"
@@ -17,7 +17,7 @@
           :step="1"
           label
           color="primary"
-          data-testid="dungeon-stats-match-length-trend-window-slider"
+          data-testid="dungeon-stats-trend-window-slider"
         />
       </div>
       <div class="dungeon-stats-series-chart">
@@ -26,9 +26,15 @@
           :data="chartData"
           :options="chartOptions"
           :plugins="lineChartPlugins"
-          :update-mode="supportsMatchLengthTrendWindow ? 'none' : undefined"
+          :update-mode="hasTrendWindowControl ? 'none' : undefined"
         />
-        <Chart v-else-if="useMixedBarLineChart" type="bar" :data="chartData" :options="chartOptions" />
+        <Chart
+          v-else-if="useMixedBarLineChart"
+          type="bar"
+          :data="chartData"
+          :options="chartOptions"
+          :update-mode="hasTrendWindowControl ? 'none' : undefined"
+        />
         <Bar v-else :data="chartData" :options="chartOptions" />
       </div>
     </div>
@@ -48,6 +54,7 @@ import {
 } from 'chart.js'
 import { computed } from 'vue'
 import { Bar, Chart, Line } from 'vue-chartjs'
+import { createMatchOutcomeBandsPlugin } from '../dungeonRunnerMatchOutcomeBandsPlugin.js'
 import { createModelPublishLinePlugin } from '../dungeonRunnerModelPublishTickPlugin.js'
 import { useDungeonRunnerStatsSeriesChartTile } from '../useDungeonRunnerStatsSeriesChartTile.js'
 import DungeonRunnerStatsTileShell from './DungeonRunnerStatsTileShell.vue'
@@ -62,6 +69,9 @@ ChartJS.register(
   Tooltip,
 )
 
+const OVER_TIME_LINE_TILE_IDS = new Set(['match-length-over-time', 'rolling-human-win-rate'])
+const WEEK_TREND_TILE_IDS = new Set(['matches-per-week'])
+
 const props = defineProps({
   tile: {
     type: Object,
@@ -73,30 +83,41 @@ const props = defineProps({
   },
 })
 
-const supportsMatchLengthTrendWindow = props.tile.id === 'match-length-over-time'
+const supportsMatchTrendWindow = OVER_TIME_LINE_TILE_IDS.has(props.tile.id)
+const supportsWeekTrendWindow = WEEK_TREND_TILE_IDS.has(props.tile.id)
+const hasTrendWindowControl = supportsMatchTrendWindow || supportsWeekTrendWindow
+const isHumanWinRateOverTime = props.tile.id === 'rolling-human-win-rate'
+
+const trendWindowLabel = supportsWeekTrendWindow
+  ? 'Trend window (weeks)'
+  : 'Trend window (matches)'
 
 const { tileState, trendWindowSize } = useDungeonRunnerStatsSeriesChartTile(
   props.tile.loadQuery,
   props.tileDeps,
-  { supportsMatchLengthTrendWindow },
+  { supportsTrendWindow: supportsMatchTrendWindow, supportsWeekTrendWindow },
 )
 
 const modelPublishMarkers = computed(() => {
-  if (
-    props.tile.id !== 'match-length-over-time' ||
-    tileState.value.status !== 'ok' ||
-    !tileState.value.chart?.modelPublishMarkers
-  ) {
+  if (!supportsMatchTrendWindow || tileState.value.status !== 'ok' || !tileState.value.chart?.modelPublishMarkers) {
     return []
   }
   return tileState.value.chart.modelPublishMarkers
 })
 
 const lineChartPlugins = computed(() => {
-  if (props.tile.id !== 'match-length-over-time') {
-    return []
+  const plugins = []
+  if (
+    isHumanWinRateOverTime &&
+    tileState.value.status === 'ok' &&
+    Array.isArray(tileState.value.chart?.values)
+  ) {
+    plugins.push(createMatchOutcomeBandsPlugin(tileState.value.chart.values))
   }
-  return [createModelPublishLinePlugin(modelPublishMarkers.value)]
+  if (supportsMatchTrendWindow) {
+    plugins.push(createModelPublishLinePlugin(modelPublishMarkers.value))
+  }
+  return plugins
 })
 
 const hasRollingTrend = computed(
@@ -120,7 +141,7 @@ const chartTestId = computed(() =>
 )
 
 const seriesStyle = computed(() => {
-  if (props.tile.id === 'match-length-over-time') {
+  if (supportsMatchTrendWindow) {
     return {
       borderColor: '#38bdf8',
       backgroundColor: 'rgba(56, 189, 248, 0.2)',
@@ -138,7 +159,7 @@ const ROLLING_TREND_COLOR = '#eab308'
  * @param {(number | null)[]} rollingAverageValues
  * @returns {object}
  */
-function buildRollingTrendDataset(rollingAverageValues, options = {}) {
+function buildRollingTrendDataset(rollingAverageValues) {
   return {
     type: 'line',
     order: 1,
@@ -150,7 +171,7 @@ function buildRollingTrendDataset(rollingAverageValues, options = {}) {
     pointBackgroundColor: ROLLING_TREND_COLOR,
     tension: 0.2,
     spanGaps: false,
-    ...(options.disableAnimation
+    ...(hasTrendWindowControl
       ? {
           animations: {
             x: { duration: 0 },
@@ -183,13 +204,17 @@ const chartData = computed(() => {
           borderColor: seriesStyle.value.borderColor,
           backgroundColor: seriesStyle.value.backgroundColor,
         },
-        buildRollingTrendDataset(chart.rollingAverageValues, {
-          disableAnimation: supportsMatchLengthTrendWindow,
-        }),
+        buildRollingTrendDataset(chart.rollingAverageValues),
       ],
     }
   }
   if (useDualLineChart.value) {
+    if (isHumanWinRateOverTime) {
+      return {
+        labels: chart.labels,
+        datasets: [buildRollingTrendDataset(chart.rollingAverageValues)],
+      }
+    }
     return {
       labels: chart.labels,
       datasets: [
@@ -202,9 +227,7 @@ const chartData = computed(() => {
           pointRadius: 2,
           fill: true,
         },
-        buildRollingTrendDataset(chart.rollingAverageValues, {
-          disableAnimation: supportsMatchLengthTrendWindow,
-        }),
+        buildRollingTrendDataset(chart.rollingAverageValues),
       ],
     }
   }
@@ -226,7 +249,7 @@ const chartOptions = computed(() => {
   return {
     responsive: true,
     maintainAspectRatio: false,
-    ...(supportsMatchLengthTrendWindow
+    ...(hasTrendWindowControl
       ? {
           animation: false,
           transitions: {
@@ -252,24 +275,37 @@ const chartOptions = computed(() => {
             const value = context.parsed.y
             if (value === null || !Number.isFinite(value)) return ''
             if (context.dataset.trend) {
-              if (props.tile.id === 'match-length-over-time') {
-                return `${trendWindowSize.value}-match avg: ${value.toFixed(1)}`
+              const unit = supportsWeekTrendWindow ? 'week' : 'match'
+              if (isHumanWinRateOverTime) {
+                return `${trendWindowSize.value}-${unit} avg: ${value.toFixed(1)}%`
               }
-              return `3-week avg: ${value.toFixed(1)}`
+              return `${trendWindowSize.value}-${unit} avg: ${value.toFixed(1)}`
+            }
+            if (isHumanWinRateOverTime) {
+              return value >= 50 ? 'Win' : 'Loss'
             }
             return String(Math.round(value))
           },
           afterBody(tooltipItems) {
-            if (props.tile.id !== 'match-length-over-time') {
-              return []
-            }
             const item = tooltipItems[0]
             if (!item) return []
+            const lines = []
+            if (isHumanWinRateOverTime && tileState.value.status === 'ok') {
+              const outcome = tileState.value.chart?.values?.[item.dataIndex]
+              if (Number.isFinite(outcome)) {
+                lines.push(outcome >= 50 ? 'Win' : 'Loss')
+              }
+            }
+            if (!supportsMatchTrendWindow) {
+              return lines
+            }
             const marker = modelPublishMarkers.value.find(
               (candidate) => candidate.labelIndex === item.dataIndex,
             )
-            if (!marker) return []
-            return [`Model published: ${marker.modelId}`]
+            if (marker) {
+              lines.push(`Model published: ${marker.modelId}`)
+            }
+            return lines
           },
         },
       },
@@ -277,13 +313,22 @@ const chartOptions = computed(() => {
     scales: {
       y: {
         beginAtZero: true,
+        ...(isHumanWinRateOverTime ? { min: 0, max: 100 } : {}),
         ticks: {
           color: '#9ca3af',
           precision: 0,
+          ...(isHumanWinRateOverTime
+            ? {
+                stepSize: 10,
+                callback(value) {
+                  return `${value}%`
+                },
+              }
+            : {}),
         },
         title: {
           display: true,
-          text: isLine ? 'History steps' : 'Matches',
+          text: isHumanWinRateOverTime ? 'Win rate' : isLine ? 'History steps' : 'Matches',
           color: '#9ca3af',
         },
       },
@@ -297,12 +342,7 @@ const chartOptions = computed(() => {
         },
         title: {
           display: true,
-          text:
-            props.tile.id === 'match-length-over-time'
-              ? 'Match sequence'
-              : isLine
-                ? 'Match date'
-                : 'Week starting',
+          text: supportsMatchTrendWindow || isLine ? 'Match sequence' : 'Week starting',
           color: '#9ca3af',
         },
       },

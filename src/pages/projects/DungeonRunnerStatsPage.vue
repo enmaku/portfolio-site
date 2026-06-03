@@ -21,13 +21,8 @@
         :key="tile.id"
         :class="[tileColumnClass(tile), 'flex column']"
       >
-        <DungeonRunnerStatsTimeseriesTile
-          v-if="tile.presentation === 'timeseries'"
-          :tile="tile"
-          :tile-deps="tileDeps"
-        />
         <DungeonRunnerStatsBreakdownTile
-          v-else-if="tile.presentation === 'breakdown-chart'"
+          v-if="tile.presentation === 'breakdown-chart'"
           :tile="tile"
           :tile-deps="tileDeps"
         />
@@ -47,7 +42,6 @@ import { computed } from 'vue'
 import DungeonRunnerStatsBreakdownTile from 'src/features/dungeon-runner/stats/components/DungeonRunnerStatsBreakdownTile.vue'
 import DungeonRunnerStatsSeriesChartTile from 'src/features/dungeon-runner/stats/components/DungeonRunnerStatsSeriesChartTile.vue'
 import DungeonRunnerStatsTile from 'src/features/dungeon-runner/stats/components/DungeonRunnerStatsTile.vue'
-import DungeonRunnerStatsTimeseriesTile from 'src/features/dungeon-runner/stats/components/DungeonRunnerStatsTimeseriesTile.vue'
 import { createDungeonRunnerStatsTileDeps } from 'src/features/dungeon-runner/stats/createDungeonRunnerStatsTileDeps.js'
 import { isDungeonRunnerFirebaseConfigured } from 'src/features/dungeon-runner/firebase/firestore.js'
 import { buildDungeonRunnerStatsPageModel } from 'src/features/dungeon-runner/stats/dungeonRunnerStatsPageModel.js'

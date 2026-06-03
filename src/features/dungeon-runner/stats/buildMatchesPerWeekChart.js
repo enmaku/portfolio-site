@@ -1,5 +1,8 @@
 import { buildUtcWeekBuckets } from './buildUtcWeekBuckets.js'
-import { computeRollingWeekAverage } from './computeRollingWeekAverage.js'
+import {
+  computeRollingWeekAverage,
+  MATCHES_PER_WEEK_ROLLING_WINDOW_WEEKS,
+} from './computeRollingWeekAverage.js'
 
 export const MATCHES_PER_WEEK_MAX_WEEKS = 52
 
@@ -18,9 +21,14 @@ export const MATCHES_PER_WEEK_MAX_WEEKS = 52
 /**
  * @param {UtcWeekBucket[]} buckets
  * @param {number[]} counts parallel to buckets
+ * @param {number} [windowSize]
  * @returns {{ status: 'ok', chart: MatchesPerWeekChart } | { status: 'error' }}
  */
-export function buildMatchesPerWeekChart(buckets, counts) {
+export function buildMatchesPerWeekChart(
+  buckets,
+  counts,
+  windowSize = MATCHES_PER_WEEK_ROLLING_WINDOW_WEEKS,
+) {
   if (!Array.isArray(buckets) || buckets.length === 0) {
     return { status: 'error' }
   }
@@ -35,7 +43,10 @@ export function buildMatchesPerWeekChart(buckets, counts) {
     return { status: 'error' }
   }
 
-  const rolling = computeRollingWeekAverage(counts)
+  if (!Number.isFinite(windowSize) || windowSize < 1) {
+    return { status: 'error' }
+  }
+  const rolling = computeRollingWeekAverage(counts, windowSize)
   if (rolling.status === 'error') {
     return { status: 'error' }
   }

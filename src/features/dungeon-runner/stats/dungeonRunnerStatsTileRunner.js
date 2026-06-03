@@ -7,13 +7,6 @@
  */
 
 /**
- * @typedef {object} RollingHumanWinRateChartPayload
- * @property {string[]} labels
- * @property {number[]} percents
- * @property {Array<{ sequence: number, modelId: string, labelIndex: number }>} [modelPublishMarkers]
- */
-
-/**
  * @typedef {object} StatsNumericSeriesChartPayload
  * @property {string[]} labels
  * @property {number[]} values
@@ -45,10 +38,12 @@
  * @property {DungeonRunnerStatsTileStatus} status
  * @property {number | string} [value]
  * @property {DungeonRunnerStatsBreakdownRow[]} [breakdown]
- * @property {RollingHumanWinRateChartPayload | StatsNumericSeriesChartPayload} [chart]
+ * @property {StatsNumericSeriesChartPayload} [chart]
  * @property {HumanWinSeriesPoint[]} [humanWonSeries]
  * @property {RollingHumanWinRateWindowBounds} [windowBounds]
  * @property {MatchLengthSeriesRecord[]} [matchLengthSeries]
+ * @property {number[]} [weeklyCounts]
+ * @property {import('./buildMatchesPerWeekChart.js').UtcWeekBucket[]} [weekBuckets]
  * @property {Record<string, string>} [publishedAtByModelId]
  */
 
@@ -64,17 +59,6 @@ function isDisplayableTileValue(value) {
  * @param {unknown} result
  * @returns {DungeonRunnerStatsTileState | null}
  */
-function isRollingChartPayload(chart) {
-  return (
-    chart &&
-    Array.isArray(chart.labels) &&
-    Array.isArray(chart.percents) &&
-    chart.labels.length === chart.percents.length &&
-    chart.labels.length > 0 &&
-    chart.percents.every((value) => Number.isFinite(value))
-  )
-}
-
 function isValidRollingAverageValues(values, rollingAverageValues) {
   if (rollingAverageValues === undefined) {
     return true
@@ -128,37 +112,23 @@ function isNumericSeriesChartPayload(chart) {
   )
 }
 
+/**
+ * @param {unknown} point
+ * @returns {point is HumanWinSeriesPoint}
+ */
+function isHumanWinSeriesPoint(point) {
+  return !!point && typeof point.humanWon === 'boolean'
+}
+
 function mapLoaderOkResult(result) {
-  if (isRollingChartPayload(result.chart)) {
-    const humanWonSeries = Array.isArray(result.humanWonSeries)
-      ? result.humanWonSeries.filter((point) => point && typeof point.humanWon === 'boolean')
-      : []
-    const bounds = result.windowBounds
-    if (
-      humanWonSeries.length < 5 ||
-      !bounds ||
-      !Number.isFinite(bounds.min) ||
-      !Number.isFinite(bounds.max) ||
-      !Number.isFinite(bounds.default)
-    ) {
-      return null
-    }
-    return {
-      status: 'ok',
-      chart: result.chart,
-      humanWonSeries,
-      windowBounds: bounds,
-      publishedAtByModelId:
-        result.publishedAtByModelId && typeof result.publishedAtByModelId === 'object'
-          ? result.publishedAtByModelId
-          : {},
-    }
-  }
   if (isNumericSeriesChartPayload(result.chart)) {
-    const rawSeries = result.matchLengthSeries
-    if (Array.isArray(rawSeries) && isTrendWindowBounds(result.windowBounds)) {
-      const matchLengthSeries = rawSeries.filter(isMatchLengthSeriesRecord)
-      if (matchLengthSeries.length !== rawSeries.length) {
+    if (!isTrendWindowBounds(result.windowBounds)) {
+      return { status: 'ok', chart: result.chart }
+    }
+    const rawMatchLengthSeries = result.matchLengthSeries
+    if (Array.isArray(rawMatchLengthSeries)) {
+      const matchLengthSeries = rawMatchLengthSeries.filter(isMatchLengthSeriesRecord)
+      if (matchLengthSeries.length !== rawMatchLengthSeries.length) {
         return null
       }
       return {
@@ -170,6 +140,49 @@ function mapLoaderOkResult(result) {
           result.publishedAtByModelId && typeof result.publishedAtByModelId === 'object'
             ? result.publishedAtByModelId
             : {},
+      }
+    }
+    const rawHumanWonSeries = result.humanWonSeries
+    if (Array.isArray(rawHumanWonSeries)) {
+      const humanWonSeries = rawHumanWonSeries.filter(isHumanWinSeriesPoint)
+      if (humanWonSeries.length !== rawHumanWonSeries.length) {
+        return null
+      }
+      return {
+        status: 'ok',
+        chart: result.chart,
+        humanWonSeries,
+        windowBounds: result.windowBounds,
+        publishedAtByModelId:
+          result.publishedAtByModelId && typeof result.publishedAtByModelId === 'object'
+            ? result.publishedAtByModelId
+            : {},
+      }
+    }
+    const rawWeeklyCounts = result.weeklyCounts
+    const rawWeekBuckets = result.weekBuckets
+    if (Array.isArray(rawWeeklyCounts) && Array.isArray(rawWeekBuckets)) {
+      const weeklyCounts = rawWeeklyCounts.filter((count) => Number.isFinite(count) && count >= 0)
+      const weekBuckets = rawWeekBuckets.filter(
+        (bucket) =>
+          bucket &&
+          typeof bucket.startInclusive === 'string' &&
+          typeof bucket.endExclusive === 'string' &&
+          typeof bucket.label === 'string',
+      )
+      if (
+        weeklyCounts.length !== rawWeeklyCounts.length ||
+        weekBuckets.length !== rawWeekBuckets.length ||
+        weeklyCounts.length !== weekBuckets.length
+      ) {
+        return null
+      }
+      return {
+        status: 'ok',
+        chart: result.chart,
+        weeklyCounts,
+        weekBuckets,
+        windowBounds: result.windowBounds,
       }
     }
     return { status: 'ok', chart: result.chart }
@@ -197,7 +210,7 @@ function mapLoaderOkResult(result) {
  * @param {(deps?: unknown) => Promise<
  *   | { status: 'ok', value: number | string }
  *   | { status: 'ok', breakdown: DungeonRunnerStatsBreakdownRow[] }
- *   | { status: 'ok', chart: RollingHumanWinRateChartPayload, humanWonSeries: HumanWinSeriesPoint[], windowBounds: RollingHumanWinRateWindowBounds, publishedAtByModelId?: Record<string, string> }
+ *   | { status: 'ok', chart: StatsNumericSeriesChartPayload, humanWonSeries?: HumanWinSeriesPoint[], matchLengthSeries?: MatchLengthSeriesRecord[], windowBounds?: RollingHumanWinRateWindowBounds, publishedAtByModelId?: Record<string, string> }
  *   | { status: 'ok', chart: StatsNumericSeriesChartPayload }
  *   | { status: 'error' }
  * >} loadQuery

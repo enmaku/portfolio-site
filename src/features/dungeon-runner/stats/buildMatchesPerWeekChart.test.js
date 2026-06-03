@@ -45,6 +45,29 @@ test('buildMatchesPerWeekChart includes three-week rolling averages', () => {
   assert.deepEqual(result.chart.rollingAverageValues, [2, (2 + 4) / 2, (2 + 4 + 6) / 3])
 })
 
+test('buildMatchesPerWeekChart accepts custom rolling window size', () => {
+  const buckets = [
+    {
+      startInclusive: '2026-05-01T00:00:00.000Z',
+      endExclusive: '2026-05-08T00:00:00.000Z',
+      label: 'May 1',
+    },
+    {
+      startInclusive: '2026-05-08T00:00:00.000Z',
+      endExclusive: '2026-05-15T00:00:00.000Z',
+      label: 'May 8',
+    },
+    {
+      startInclusive: '2026-05-15T00:00:00.000Z',
+      endExclusive: '2026-05-22T00:00:00.000Z',
+      label: 'May 15',
+    },
+  ]
+  const result = buildMatchesPerWeekChart(buckets, [2, 4, 6], 2)
+  assert.equal(result.status, 'ok')
+  assert.deepEqual(result.chart.rollingAverageValues, [2, (2 + 4) / 2, (4 + 6) / 2])
+})
+
 test('buildMatchesPerWeekChart returns error when all counts are zero', () => {
   const buckets = [
     {

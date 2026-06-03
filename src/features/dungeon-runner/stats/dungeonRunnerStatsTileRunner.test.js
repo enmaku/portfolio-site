@@ -41,6 +41,28 @@ test('runDungeonRunnerStatsTileLoad maps ok breakdown loader result to ok state'
   })
 })
 
+test('runDungeonRunnerStatsTileLoad maps ok human win rate over time loader result', async () => {
+  const state = await runDungeonRunnerStatsTileLoad(async () => ({
+    status: 'ok',
+    chart: {
+      labels: ['1', '2'],
+      values: [100, 0],
+      rollingAverageValues: [100, 50],
+      modelPublishMarkers: [],
+    },
+    humanWonSeries: [
+      { humanWon: true, createdAt: '2026-05-01T00:00:00.000Z' },
+      { humanWon: false, createdAt: '2026-05-02T00:00:00.000Z' },
+    ],
+    windowBounds: { min: 2, max: 2, default: 2 },
+    publishedAtByModelId: {},
+  }))
+  assert.equal(state.status, 'ok')
+  if (state.status !== 'ok') return
+  assert.equal(state.humanWonSeries?.length, 2)
+  assert.deepEqual(state.windowBounds, { min: 2, max: 2, default: 2 })
+})
+
 test('runDungeonRunnerStatsTileLoad maps ok match length over time loader result', async () => {
   const state = await runDungeonRunnerStatsTileLoad(async () => ({
     status: 'ok',
@@ -61,6 +83,35 @@ test('runDungeonRunnerStatsTileLoad maps ok match length over time loader result
   if (state.status !== 'ok') return
   assert.equal(state.matchLengthSeries?.length, 2)
   assert.deepEqual(state.windowBounds, { min: 2, max: 2, default: 2 })
+})
+
+test('runDungeonRunnerStatsTileLoad maps ok matches per week loader result', async () => {
+  const state = await runDungeonRunnerStatsTileLoad(async () => ({
+    status: 'ok',
+    chart: {
+      labels: ['May 1', 'May 8'],
+      values: [3, 5],
+      rollingAverageValues: [3, 4],
+    },
+    weeklyCounts: [3, 5],
+    weekBuckets: [
+      {
+        startInclusive: '2026-05-01T00:00:00.000Z',
+        endExclusive: '2026-05-08T00:00:00.000Z',
+        label: 'May 1',
+      },
+      {
+        startInclusive: '2026-05-08T00:00:00.000Z',
+        endExclusive: '2026-05-15T00:00:00.000Z',
+        label: 'May 8',
+      },
+    ],
+    windowBounds: { min: 1, max: 2, default: 2 },
+  }))
+  assert.equal(state.status, 'ok')
+  if (state.status !== 'ok') return
+  assert.deepEqual(state.weeklyCounts, [3, 5])
+  assert.deepEqual(state.windowBounds, { min: 1, max: 2, default: 2 })
 })
 
 test('runDungeonRunnerStatsTileLoad maps ok numeric series chart loader result', async () => {
