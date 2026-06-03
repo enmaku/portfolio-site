@@ -18,6 +18,7 @@
  * @property {string[]} labels
  * @property {number[]} values
  * @property {(number | null)[]} [rollingAverageValues]
+ * @property {Array<{ sequence: number, modelId: string, labelIndex: number }>} [modelPublishMarkers]
  */
 
 /**
@@ -25,6 +26,12 @@
  * @property {number} min
  * @property {number} max
  * @property {number} default
+ */
+
+/**
+ * @typedef {object} MatchLengthSeriesRecord
+ * @property {string} createdAt
+ * @property {number} historyStepCount
  */
 
 /**
@@ -41,6 +48,7 @@
  * @property {RollingHumanWinRateChartPayload | StatsNumericSeriesChartPayload} [chart]
  * @property {HumanWinSeriesPoint[]} [humanWonSeries]
  * @property {RollingHumanWinRateWindowBounds} [windowBounds]
+ * @property {MatchLengthSeriesRecord[]} [matchLengthSeries]
  * @property {Record<string, string>} [publishedAtByModelId]
  */
 
@@ -76,6 +84,35 @@ function isValidRollingAverageValues(values, rollingAverageValues) {
   }
   return rollingAverageValues.every(
     (value) => value === null || Number.isFinite(value),
+  )
+}
+
+/**
+ * @param {unknown} record
+ * @returns {record is MatchLengthSeriesRecord}
+ */
+function isMatchLengthSeriesRecord(record) {
+  return (
+    !!record &&
+    typeof record.createdAt === 'string' &&
+    Number.isFinite(record.historyStepCount)
+  )
+}
+
+/**
+ * @param {unknown} bounds
+ * @returns {bounds is RollingHumanWinRateWindowBounds}
+ */
+function isTrendWindowBounds(bounds) {
+  return (
+    !!bounds &&
+    Number.isFinite(bounds.min) &&
+    Number.isFinite(bounds.max) &&
+    Number.isFinite(bounds.default) &&
+    bounds.min >= 1 &&
+    bounds.max >= bounds.min &&
+    bounds.default >= bounds.min &&
+    bounds.default <= bounds.max
   )
 }
 
@@ -118,6 +155,23 @@ function mapLoaderOkResult(result) {
     }
   }
   if (isNumericSeriesChartPayload(result.chart)) {
+    const rawSeries = result.matchLengthSeries
+    if (Array.isArray(rawSeries) && isTrendWindowBounds(result.windowBounds)) {
+      const matchLengthSeries = rawSeries.filter(isMatchLengthSeriesRecord)
+      if (matchLengthSeries.length !== rawSeries.length) {
+        return null
+      }
+      return {
+        status: 'ok',
+        chart: result.chart,
+        matchLengthSeries,
+        windowBounds: result.windowBounds,
+        publishedAtByModelId:
+          result.publishedAtByModelId && typeof result.publishedAtByModelId === 'object'
+            ? result.publishedAtByModelId
+            : {},
+      }
+    }
     return { status: 'ok', chart: result.chart }
   }
   if (Array.isArray(result.breakdown)) {

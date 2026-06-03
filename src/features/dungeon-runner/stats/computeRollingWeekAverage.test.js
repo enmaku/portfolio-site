@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { computeRollingWeekAverage } from './computeRollingWeekAverage.js'
+import { computeRollingAverage, computeRollingWeekAverage } from './computeRollingWeekAverage.js'
+
+test('computeRollingAverage uses expanding window at series start', () => {
+  const result = computeRollingAverage([40, 55, 70])
+  assert.equal(result.status, 'ok')
+  assert.deepEqual(result.values, [40, (40 + 55) / 2, (40 + 55 + 70) / 3])
+})
 
 test('computeRollingWeekAverage uses expanding window at series start', () => {
   const result = computeRollingWeekAverage([2, 4, 6])

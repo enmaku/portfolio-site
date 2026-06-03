@@ -216,6 +216,24 @@ test('match length over time uses bounded match length series query only', () =>
   assert.equal(loader.includes('fetchMatchLengthSeries'), true)
   assert.equal(loader.includes('getDocs'), false)
   assert.equal(loader.includes('buildMatchLengthOverTimeChart'), true)
+  const lengthChart = readFileSync(
+    new URL('./buildMatchLengthOverTimeChart.js', import.meta.url),
+    'utf8',
+  )
+  assert.equal(lengthChart.includes('computeRollingAverage'), true)
+  assert.equal(lengthChart.includes('rollingAverageValues'), true)
+  assert.equal(lengthChart.includes('buildModelPublishMarkersForWinSeries'), true)
+  assert.equal(loader.includes('fetchModelCatalog'), true)
+  assert.equal(loader.includes('resolveMatchLengthTrendWindowSize'), true)
+  assert.equal(loader.includes('matchLengthSeries'), true)
+  const seriesTile = readFileSync(
+    new URL('./components/DungeonRunnerStatsSeriesChartTile.vue', import.meta.url),
+    'utf8',
+  )
+  assert.equal(seriesTile.includes('createModelPublishLinePlugin'), true)
+  assert.equal(seriesTile.includes('match-length-over-time'), true)
+  assert.equal(seriesTile.includes('dungeon-stats-match-length-trend-window-slider'), true)
+  assert.equal(seriesTile.includes('useDungeonRunnerStatsSeriesChartTile'), true)
 })
 
 test('matches per week uses aggregate count queries per week bucket', () => {

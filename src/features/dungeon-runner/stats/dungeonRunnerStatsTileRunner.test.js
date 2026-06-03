@@ -41,6 +41,28 @@ test('runDungeonRunnerStatsTileLoad maps ok breakdown loader result to ok state'
   })
 })
 
+test('runDungeonRunnerStatsTileLoad maps ok match length over time loader result', async () => {
+  const state = await runDungeonRunnerStatsTileLoad(async () => ({
+    status: 'ok',
+    chart: {
+      labels: ['1', '2'],
+      values: [10, 20],
+      rollingAverageValues: [10, 15],
+      modelPublishMarkers: [],
+    },
+    matchLengthSeries: [
+      { createdAt: '2026-05-01T00:00:00.000Z', historyStepCount: 10 },
+      { createdAt: '2026-05-02T00:00:00.000Z', historyStepCount: 20 },
+    ],
+    windowBounds: { min: 2, max: 2, default: 2 },
+    publishedAtByModelId: { 'v0.1.0': '2026-05-01T00:00:00.000Z' },
+  }))
+  assert.equal(state.status, 'ok')
+  if (state.status !== 'ok') return
+  assert.equal(state.matchLengthSeries?.length, 2)
+  assert.deepEqual(state.windowBounds, { min: 2, max: 2, default: 2 })
+})
+
 test('runDungeonRunnerStatsTileLoad maps ok numeric series chart loader result', async () => {
   const state = await runDungeonRunnerStatsTileLoad(async () => ({
     status: 'ok',
