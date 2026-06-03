@@ -424,8 +424,8 @@ test('runSync invokes catalog writer so models.json lists converted dirs', async
 
   assert.equal(result.status, 0)
   const catalog = JSON.parse(readFileSync(path.join(modelsOut, 'models.json'), 'utf8'))
-  assert.ok(catalog.models.includes('v0.1.30a'))
-  assert.ok(catalog.models.includes('latest'))
+  assert.ok(catalog.models.some((entry) => (entry.id ?? entry) === 'v0.1.30a'))
+  assert.ok(catalog.models.some((entry) => (entry.id ?? entry) === 'latest'))
   rmSync(temp, { recursive: true, force: true })
   rmSync(work, { recursive: true, force: true })
 })

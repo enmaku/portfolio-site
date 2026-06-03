@@ -1,8 +1,37 @@
 import { sortModelIdsForDisplay } from './discovery.js'
 
+function parseCatalogModelIds(rawModels) {
+  if (!Array.isArray(rawModels)) return []
+  const ids = []
+  for (const entry of rawModels) {
+    if (typeof entry === 'string' && entry.trim()) {
+      ids.push(entry.trim())
+      continue
+    }
+    if (entry && typeof entry === 'object' && typeof entry.id === 'string' && entry.id.trim()) {
+      ids.push(entry.id.trim())
+    }
+  }
+  return ids
+}
+
+function parseCatalogPublishedAtByModelId(rawModels) {
+  if (!Array.isArray(rawModels)) return {}
+  /** @type {Record<string, string>} */
+  const publishedAtByModelId = {}
+  for (const entry of rawModels) {
+    if (!entry || typeof entry !== 'object' || typeof entry.id !== 'string' || !entry.id.trim()) continue
+    if (typeof entry.publishedAt === 'string' && entry.publishedAt.trim()) {
+      publishedAtByModelId[entry.id.trim()] = entry.publishedAt.trim()
+    }
+  }
+  return publishedAtByModelId
+}
+
 export function normalizeModelCatalog(raw) {
-  const models = Array.isArray(raw?.models) ? raw.models.filter((id) => typeof id === 'string' && id.trim()) : []
-  return { models: sortModelIdsForDisplay([...new Set(models)]) }
+  const models = sortModelIdsForDisplay([...new Set(parseCatalogModelIds(raw?.models))])
+  const publishedAtByModelId = parseCatalogPublishedAtByModelId(raw?.models)
+  return { models, publishedAtByModelId }
 }
 
 export async function fetchModelCatalog() {

@@ -27,7 +27,15 @@ Domain terms: [UBIQUITOUS_LANGUAGE.md](../UBIQUITOUS_LANGUAGE.md) ↔ [dungeon-r
 
 3. `sync` converts `models/<id>/policy.weights.h5` → `public/models/dungeon-runner/<id>/` (logits-only, unchanged converter).
 4. **Web deployed latest** (`public/models/dungeon-runner/latest/`) is overwritten **only** when `<id>` equals dungeon-runner **production latest** (symlink target). Older semver re-sync updates that tree only.
-5. **Model catalog** (`models.json`) is regenerated automatically.
+5. **Model catalog** (`models.json`) is regenerated automatically; existing `publishedAt` values are preserved and new semver entries pick up `promoted_at` from the dungeon-runner promotion ledger when `DUNGEON_RUNNER_ROOT` is set.
+
+## Model catalog (`models.json`)
+
+Each entry is `{ "id": "<modelId>", "publishedAt"?: "<ISO-8601>" }`.
+
+- **`publishedAt`** — when the **promoted version** was published in dungeon-runner. Backfilled legacy ids (`v0.1.29a`, `v0.1.30a`) use first-commit dates on `models/<id>/policy.weights.h5`; newer semver uses first-commit dates on the promoted weights dir until the promotion ledger is authoritative.
+- **`latest`** — **web deployed latest** alias; `publishedAt` tracks the current **production latest** promoted version.
+- Regenerating the catalog preserves existing timestamps and merges `promoted_at` from `models/promotions.jsonl` / `models/<id>/promotion.json` for newly synced ids.
 
 ## Semver vs `latest`
 

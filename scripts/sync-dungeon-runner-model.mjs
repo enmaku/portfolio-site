@@ -52,6 +52,7 @@ const result = await runSync({
   updateCatalog: () =>
     spawnSync('node', ['./scripts/update-dungeon-runner-model-catalog.mjs'], {
       stdio: 'inherit',
+      env: { ...process.env, DUNGEON_RUNNER_ROOT: repoRoot },
     }),
 })
 
