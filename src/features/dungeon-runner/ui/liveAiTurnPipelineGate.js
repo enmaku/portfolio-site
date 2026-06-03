@@ -10,7 +10,7 @@ export function isActionableAiTurnPhase(phase) {
   return ACTIONABLE_AI_TURN_PHASES.has(phase)
 }
 
-export function resolveAiTurnScheduleSkipReason({
+function resolveScheduleSkipReasonFromInputs({
   neuralRefreshTerminalOpen = false,
   matchNeuralLoadGateInFlight = false,
   aiTurnInFlight = false,
@@ -39,34 +39,44 @@ export function resolveAiTurnScheduleSkipReason({
   return null
 }
 
-export function resolveAiTurnRunSkipReason({
+function resolveRunSkipReasonFromInputs({
   neuralRefreshTerminalOpen = false,
+  matchNeuralLoadGateInFlight = false,
   aiTurnInFlight = false,
   headlessCompletionInFlight = false,
-  gameplayInputLocked = false,
+  deferredPostDungeonState = null,
   hasMatch = true,
+  isHumanTurn = false,
+  blockForRecovery = false,
+  gameplayInputLocked = false,
   phase = null,
   seatId = null,
   humanSeatId = null,
-  blockForRecovery = false,
   runToken = '',
   lastAppliedAiTurnToken = '',
 } = {}) {
   if (neuralRefreshTerminalOpen) return 'neural-refresh-terminal'
+  if (matchNeuralLoadGateInFlight) return 'neural-load-gate'
   if (aiTurnInFlight) return 'in-flight'
   if (headlessCompletionInFlight) return 'headless-completion'
-  if (gameplayInputLocked) return 'gameplay-locked'
-  if (!hasMatch || (phase != null && !isActionableAiTurnPhase(phase))) return 'phase-not-actionable'
-  if (!seatId || seatId === humanSeatId) return 'not-ai-seat'
+  if (deferredPostDungeonState) return 'deferred-post-dungeon'
+  if (!hasMatch || isHumanTurn) return 'phase-not-actionable'
   if (blockForRecovery) return 'model-recovering'
+  if (gameplayInputLocked) return 'gameplay-locked'
+  if (phase != null && !isActionableAiTurnPhase(phase)) return 'phase-not-actionable'
+  if (!seatId || seatId === humanSeatId) return 'not-ai-seat'
   if (runToken && runToken === lastAppliedAiTurnToken) return 'duplicate-token'
   return null
 }
 
-export function resolveAiTurnPrefetchSkipReason({
+function resolvePrefetchSkipReasonFromInputs({
   headlessCompletionInFlight = false,
+  matchNeuralLoadGateInFlight = false,
+  neuralRefreshTerminalOpen = false,
+  deferredPostDungeonState = null,
   hasMatch = true,
   isHumanTurn = false,
+  blockForRecovery = false,
   phase = null,
   seatId = null,
   humanSeatId = null,
@@ -74,10 +84,12 @@ export function resolveAiTurnPrefetchSkipReason({
   pickAdventurerNnEnabled = true,
   runToken = '',
   lastAppliedAiTurnToken = '',
-  neuralRefreshTerminalOpen = false,
   modelRecovering = false,
 } = {}) {
   if (headlessCompletionInFlight) return 'headless-completion'
+  if (matchNeuralLoadGateInFlight) return 'neural-load-gate'
+  if (neuralRefreshTerminalOpen) return 'neural-refresh-terminal'
+  if (deferredPostDungeonState) return 'deferred-post-dungeon'
   if (!hasMatch) return 'no-match'
   if (isHumanTurn) return 'human-turn'
   if (!seatId || seatId === humanSeatId) return 'not-ai-seat'
@@ -85,7 +97,33 @@ export function resolveAiTurnPrefetchSkipReason({
   if (!runToken || runToken === lastAppliedAiTurnToken) return 'token-not-ready'
   if (roleType !== 'nn') return 'not-nn-seat'
   if (phase === MATCH_PHASES.PICK_ADVENTURER && !pickAdventurerNnEnabled) return 'random-pick-adventurer'
-  if (neuralRefreshTerminalOpen) return 'neural-refresh-terminal'
-  if (modelRecovering) return 'model-recovering'
+  if (modelRecovering && !blockForRecovery) return 'model-recovering'
   return null
+}
+
+export function evaluateLiveAiTurnPipelineGate(inputs = {}) {
+  const scheduleSkipReason = resolveScheduleSkipReasonFromInputs(inputs)
+  const runSkipReason = resolveRunSkipReasonFromInputs(inputs)
+  const prefetchSkipReason = resolvePrefetchSkipReasonFromInputs(inputs)
+
+  return {
+    maySchedule: scheduleSkipReason === null,
+    mayPrefetch: prefetchSkipReason === null,
+    mayRunTurn: runSkipReason === null,
+    scheduleSkipReason,
+    runSkipReason,
+    prefetchSkipReason,
+  }
+}
+
+export function resolveAiTurnScheduleSkipReason(inputs = {}) {
+  return evaluateLiveAiTurnPipelineGate(inputs).scheduleSkipReason
+}
+
+export function resolveAiTurnRunSkipReason(inputs = {}) {
+  return evaluateLiveAiTurnPipelineGate(inputs).runSkipReason
+}
+
+export function resolveAiTurnPrefetchSkipReason(inputs = {}) {
+  return evaluateLiveAiTurnPipelineGate(inputs).prefetchSkipReason
 }

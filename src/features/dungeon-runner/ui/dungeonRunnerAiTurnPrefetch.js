@@ -2,19 +2,10 @@
 let prefetchEntry = null
 /** @type {string | null} */
 let lastPrefetchSkipLogKey = null
-/** @type {{ isRecovering: (modelId: string) => boolean } | null} */
-let prefetchRecoveryGate = null
 
 export function resetAiTurnPrefetch() {
   prefetchEntry = null
   lastPrefetchSkipLogKey = null
-}
-
-/**
- * @param {{ isRecovering: (modelId: string) => boolean } | null} gate
- */
-export function setAiTurnPrefetchRecoveryGate(gate) {
-  prefetchRecoveryGate = gate
 }
 
 export function cancelAiTurnPrefetch() {
@@ -26,12 +17,20 @@ export function cancelAiTurnPrefetch() {
  *   runToken: string
  *   compute: () => Promise<object|null>
  *   trace?: (step: string, detail?: Record<string, unknown>) => void
+ *   mayPrefetch?: boolean
+ *   prefetchSkipReason?: string | null
  * }} params
  */
-export function startAiTurnPrefetch({ runToken, compute, trace, modelId }) {
+export function startAiTurnPrefetch({
+  runToken,
+  compute,
+  trace,
+  mayPrefetch = true,
+  prefetchSkipReason = null,
+}) {
   if (!runToken) return
-  if (modelId && prefetchRecoveryGate?.isRecovering(modelId)) {
-    trace?.('prefetch.skip', { reason: 'model-recovering', runToken, modelId })
+  if (!mayPrefetch) {
+    trace?.('prefetch.skip', { reason: prefetchSkipReason ?? 'blocked', runToken })
     return
   }
   if (prefetchEntry?.runToken === runToken) {
@@ -72,13 +71,25 @@ export function startAiTurnPrefetch({ runToken, compute, trace, modelId }) {
 }
 
 /**
- * @param {string} runToken
- * @param {(step: string, detail?: Record<string, unknown>) => void} [trace]
+ * @param {{
+ *   runToken: string
+ *   trace?: (step: string, detail?: Record<string, unknown>) => void
+ *   mayPrefetch?: boolean
+ *   prefetchSkipReason?: string | null
+ * }} params
  * @returns {Promise<object|null>}
  */
-export async function consumeAiTurnPrefetch(runToken, trace, modelId) {
-  if (modelId && prefetchRecoveryGate?.isRecovering(modelId)) {
-    trace?.('prefetch.consume.blocked', { runToken, modelId, reason: 'model-recovering' })
+export async function consumeAiTurnPrefetch({
+  runToken,
+  trace,
+  mayPrefetch = true,
+  prefetchSkipReason = null,
+}) {
+  if (!mayPrefetch) {
+    trace?.('prefetch.consume.blocked', {
+      runToken,
+      reason: prefetchSkipReason ?? 'blocked',
+    })
     return null
   }
   if (!prefetchEntry || prefetchEntry.runToken !== runToken) {

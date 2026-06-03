@@ -106,3 +106,169 @@ test('shouldBlockTurn while recovering before terminal', () => {
   recovery.recordInferFailure('latest')
   assert.equal(recovery.shouldBlockTurn('latest'), true)
 })
+
+test('subscribe returns an unsubscribe function', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  const unsubscribe = recovery.subscribe(() => {})
+  assert.equal(typeof unsubscribe, 'function')
+  unsubscribe()
+})
+
+test('subscribe notifies on beginRecovery', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  let calls = 0
+  recovery.subscribe(() => {
+    calls += 1
+  })
+  recovery.beginRecovery('latest')
+  assert.equal(calls, 1)
+})
+
+test('subscribe notifies on recordLoadFailure and terminal SETUP', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator({ loadMaxAttempts: 3 })
+  let calls = 0
+  recovery.subscribe(() => {
+    calls += 1
+  })
+  recovery.beginRecovery('latest')
+  recovery.recordLoadFailure('latest')
+  recovery.recordLoadFailure('latest')
+  recovery.recordLoadFailure('latest')
+  assert.equal(calls, 4)
+  assert.equal(recovery.getTerminalOutcome('latest'), NEURAL_RECOVERY_TERMINAL.SETUP)
+})
+
+test('subscribe notifies on recordInferFailure and terminal REFRESH', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator({ inferMaxAttempts: 3 })
+  let calls = 0
+  recovery.subscribe(() => {
+    calls += 1
+  })
+  recovery.beginRecovery('latest')
+  recovery.recordInferFailure('latest')
+  recovery.recordInferFailure('latest')
+  recovery.recordInferFailure('latest')
+  assert.equal(calls, 4)
+  assert.equal(recovery.getTerminalOutcome('latest'), NEURAL_RECOVERY_TERMINAL.REFRESH)
+})
+
+test('subscribe notifies on recordSuccess', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  let calls = 0
+  recovery.subscribe(() => {
+    calls += 1
+  })
+  recovery.beginRecovery('latest')
+  recovery.recordLoadFailure('latest')
+  recovery.recordSuccess('latest')
+  assert.equal(calls, 3)
+})
+
+test('subscribe notifies on importSnapshot', () => {
+  const source = createNeuralRuntimeRecoveryCoordinator({ inferMaxAttempts: 1 })
+  source.beginRecovery('latest')
+  source.recordInferFailure('latest')
+  const snapshot = source.exportSnapshot()
+
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  let calls = 0
+  recovery.subscribe(() => {
+    calls += 1
+  })
+  recovery.importSnapshot(snapshot)
+  assert.equal(calls, 1)
+  assert.equal(recovery.getTerminalOutcome('latest'), NEURAL_RECOVERY_TERMINAL.REFRESH)
+})
+
+test('subscribe does not notify on read-only queries', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  let calls = 0
+  recovery.subscribe(() => {
+    calls += 1
+  })
+  recovery.isRecovering('latest')
+  recovery.getTerminalOutcome('latest')
+  recovery.getLoadAttempts('latest')
+  recovery.getInferAttempts('latest')
+  recovery.getBackendPreference('latest', 'load')
+  recovery.shouldBlockTurn('latest')
+  recovery.exportSnapshot()
+  assert.equal(calls, 0)
+})
+
+test('unsubscribe prevents further notifications', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  let calls = 0
+  const unsubscribe = recovery.subscribe(() => {
+    calls += 1
+  })
+  recovery.beginRecovery('latest')
+  assert.equal(calls, 1)
+  unsubscribe()
+  recovery.recordLoadFailure('latest')
+  recovery.recordSuccess('latest')
+  assert.equal(calls, 1)
+})
+
+test('unsubscribe removes only the subscribed listener', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  let firstCalls = 0
+  let secondCalls = 0
+  const unsubscribeFirst = recovery.subscribe(() => {
+    firstCalls += 1
+  })
+  recovery.subscribe(() => {
+    secondCalls += 1
+  })
+  recovery.beginRecovery('latest')
+  assert.equal(firstCalls, 1)
+  assert.equal(secondCalls, 1)
+  unsubscribeFirst()
+  recovery.recordLoadFailure('latest')
+  assert.equal(firstCalls, 1)
+  assert.equal(secondCalls, 2)
+})
+
+test('subscribe notifies all listeners on each mutation', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  let firstCalls = 0
+  let secondCalls = 0
+  recovery.subscribe(() => {
+    firstCalls += 1
+  })
+  recovery.subscribe(() => {
+    secondCalls += 1
+  })
+  recovery.beginRecovery('latest')
+  recovery.recordLoadFailure('latest')
+  assert.equal(firstCalls, 2)
+  assert.equal(secondCalls, 2)
+})
+
+test('importSnapshot no-op inputs do not notify subscribers', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  let calls = 0
+  recovery.subscribe(() => {
+    calls += 1
+  })
+  recovery.importSnapshot(null)
+  recovery.importSnapshot(undefined)
+  recovery.importSnapshot({})
+  recovery.importSnapshot({ latest: null })
+  recovery.importSnapshot({ latest: 'invalid' })
+  assert.equal(calls, 0)
+})
+
+test('double unsubscribe is safe', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  let calls = 0
+  const unsubscribe = recovery.subscribe(() => {
+    calls += 1
+  })
+  recovery.beginRecovery('latest')
+  assert.equal(calls, 1)
+  unsubscribe()
+  unsubscribe()
+  recovery.recordLoadFailure('latest')
+  assert.equal(calls, 1)
+})
