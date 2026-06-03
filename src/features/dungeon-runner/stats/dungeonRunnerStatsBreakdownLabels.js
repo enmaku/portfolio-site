@@ -3,8 +3,8 @@ import { MATCH_OVER_END_VARIANTS } from '../ui/humanEliminationCompletionPolicy.
 /** @type {Readonly<Record<string, string>>} */
 export const END_VARIANT_BREAKDOWN_LABELS = {
   [MATCH_OVER_END_VARIANTS.VICTORY]: 'Victory',
-  [MATCH_OVER_END_VARIANTS.DEFEAT_NOT_ELIMINATED]: 'Defeat (not eliminated)',
-  [MATCH_OVER_END_VARIANTS.ELIMINATION_END_HUMAN]: 'Elimination end (human)',
+  [MATCH_OVER_END_VARIANTS.DEFEAT_NOT_ELIMINATED]: 'Defeat',
+  [MATCH_OVER_END_VARIANTS.ELIMINATION_END_HUMAN]: 'Elimination',
 }
 
 /** @type {Readonly<Record<string, string>>} */
@@ -16,8 +16,8 @@ export const WINNER_ROLE_BREAKDOWN_LABELS = {
 
 /** @type {Readonly<Record<string, string>>} */
 export const DEFEAT_FLAVOR_BREAKDOWN_LABELS = {
-  [MATCH_OVER_END_VARIANTS.DEFEAT_NOT_ELIMINATED]: 'Defeat (not eliminated)',
-  [MATCH_OVER_END_VARIANTS.ELIMINATION_END_HUMAN]: 'Elimination end (human)',
+  [MATCH_OVER_END_VARIANTS.DEFEAT_NOT_ELIMINATED]: 'Defeat',
+  [MATCH_OVER_END_VARIANTS.ELIMINATION_END_HUMAN]: 'Elimination',
 }
 
 /** @type {Readonly<Record<string, Readonly<Record<string, string>>>>} */
