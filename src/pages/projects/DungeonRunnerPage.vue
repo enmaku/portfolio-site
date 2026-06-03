@@ -634,16 +634,12 @@ import { useDungeonRunnerSettingsStore } from '../../stores/dungeonRunnerSetting
 import {
   MATCH_PHASES,
   applyAction,
-  createInitialMatchState,
   getLegalActions,
   getPlayerView,
-  shuffleMatchDeck,
-  shuffleMatchSeats,
 } from '../../features/dungeon-runner/engine/kernel.js'
 import {
   CURRENT_MATCH_SCHEMA_VERSION,
   clearCurrentMatch,
-  loadCurrentMatch,
   persistCurrentMatch,
 } from '../../features/dungeon-runner/persistence/currentMatch.js'
 import { createDefaultSetupConfig, validateSetupConfig } from '../../features/dungeon-runner/setup/config.js'
@@ -663,10 +659,6 @@ import {
 } from '../../features/dungeon-runner/nn/runtime.js'
 import { createNeuralRuntimeRecoveryCoordinator } from '../../features/dungeon-runner/nn/recovery.js'
 import { createChooseNnActionWithRecovery, NeuralRecoveryTerminalError } from '../../features/dungeon-runner/nn/chooseWithRecovery.js'
-import {
-  resolveNeuralLoadGateSetupTerminal,
-  runMatchNeuralLoadGate,
-} from '../../features/dungeon-runner/nn/matchNeuralLoadGate.js'
 import { fetchModelCatalog } from '../../features/dungeon-runner/models/catalog.js'
 import { pickDefaultModelId, validateSelectedModels } from '../../features/dungeon-runner/models/discovery.js'
 import {
@@ -728,9 +720,16 @@ import {
 } from '../../features/dungeon-runner/ui/humanGameplayGate.js'
 import { MATCH_OVER_END_VARIANTS } from '../../features/dungeon-runner/ui/humanEliminationCompletionPolicy.js'
 import {
-  runMaybeHeadlessMatchCompletionFromState,
   shouldDeferDungeonExitUntilOutcomeAck,
 } from '../../features/dungeon-runner/ui/headlessMatchCompletionRunner.js'
+import {
+  applyNeuralLoadGateSetupTerminalForPage,
+  bootstrapCurrentMatchFromStorage,
+  runHeadlessMatchCompletionForPage,
+  buildNewMatchEnvelope,
+  runMatchEntryNeuralLoadGateForPage,
+} from '../../features/dungeon-runner/matchPageOrchestration.js'
+import { resetLiveMatchPageState } from '../../features/dungeon-runner/resetLiveMatchPageState.js'
 import { createLivePlayActionChooser } from '../../features/dungeon-runner/ui/livePlayActionChooser.js'
 import { buildMatchOverSummary } from '../../features/dungeon-runner/ui/matchOverSummaryBuilder.js'
 import MonsterCardFace from '../../components/dungeon-runner/MonsterCardFace.vue'
@@ -751,11 +750,6 @@ import {
   resolveNeuralRecoveryTerminalUx,
   shouldBlockAiTurnScheduleForRecovery,
 } from '../../features/dungeon-runner/ui/neuralSeatRecoveryView.js'
-import {
-  attachNeuralRecoverySnapshotToMatch,
-  shouldRunHeadlessMatchCompletion,
-  surfacePersistedNeuralRecoveryTerminal,
-} from '../../features/dungeon-runner/ui/headlessNeuralRecoveryPersistence.js'
 
 const completedMatchReplayUpload = createCompletedMatchReplayUploadTracker(window.sessionStorage)
 
@@ -1405,50 +1399,47 @@ onMounted(() => {
   }, DUNGEON_RUNNER_PRESENTATION_ADVANCE_MS)
 })
 
+function applyBootstrappedMatchSession(matchEnvelope, pace) {
+  dungeonRunnerSettingsStore.setAnimationPace(pace)
+  match.value = matchEnvelope
+  syncSeatRecoveryIndicators()
+  activeSeatRecoveryBlocking = resolveActiveSeatRecoveryBlocking()
+  deferredPostDungeonState.value = null
+  presentationOrchestrator.clear()
+  presentationSpeedProfile.value = pace
+  presentationOrchestrator.setSpeedProfile(pace)
+  nnModelsWarmPromise = Promise.resolve()
+  syncPresentationLabel()
+}
+
 async function bootstrapDungeonRunnerPage() {
-  const loaded = loadCurrentMatch(window.localStorage)
-  if (!loaded.ok) return
-  const setupSnapshot = cloneSetup(loaded.match.setup)
-  matchNeuralLoadGateInFlight.value = true
-  try {
-    const gate = await runMatchNeuralLoadGate(setupSnapshot, { loadModel: loadNnModel })
-    if (!gate.ok) {
-      applyNeuralLoadGateSetupTerminal(setupSnapshot)
-      return
-    }
-    const pace =
-      loaded.match.presentationSpeedProfile === 'brisk' || loaded.match.presentationSpeedProfile === 'cinematic'
-        ? loaded.match.presentationSpeedProfile
-        : 'cinematic'
-    dungeonRunnerSettingsStore.setAnimationPace(pace)
-    matchNeuralLoadGateInFlight.value = false
-    match.value = { ...loaded.match, presentationSpeedProfile: pace }
-    syncSeatRecoveryIndicators()
-    activeSeatRecoveryBlocking = resolveActiveSeatRecoveryBlocking()
-    deferredPostDungeonState.value = null
-    presentationOrchestrator.clear()
-    presentationSpeedProfile.value = pace
-    presentationOrchestrator.setSpeedProfile(pace)
-    nnModelsWarmPromise = Promise.resolve()
-    syncPresentationLabel()
-    const surfacedTerminal = surfacePersistedNeuralRecoveryTerminal({
-      recovery: nnRecovery,
-      neuralRecoveryByModelId: loaded.match.neuralRecoveryByModelId,
-      hasMatchSetup: Boolean(loaded.match.setup),
-      applySetupTerminal: () => applyNeuralLoadGateSetupTerminal(cloneSetup(loaded.match.setup)),
-      openRefreshTerminal: () => {
-        neuralRefreshTerminalOpen.value = true
-      },
-    })
-    if (surfacedTerminal) {
-      syncSeatRecoveryIndicators()
-      activeSeatRecoveryBlocking = resolveActiveSeatRecoveryBlocking()
-      return
-    }
-    void maybeRunHeadlessMatchCompletion()
-  } finally {
-    matchNeuralLoadGateInFlight.value = false
+  const result = await bootstrapCurrentMatchFromStorage({
+    storage: window.localStorage,
+    loadModel: loadNnModel,
+    setMatchNeuralLoadGateInFlight: (inFlight) => {
+      matchNeuralLoadGateInFlight.value = inFlight
+    },
+    clearCurrentMatch,
+    applySetupSnapshot,
+    setupTarget: setup,
+    cloneSetup,
+    recovery: nnRecovery,
+  })
+
+  if (result.kind === 'no-saved-match') return
+  if (result.kind === 'setup-terminal') {
+    resetLiveMatchPageStateForSetupTerminal()
+    return
   }
+
+  applyBootstrappedMatchSession(result.match, result.presentationSpeedProfile)
+
+  if (result.kind === 'refresh-terminal') {
+    neuralRefreshTerminalOpen.value = true
+    return
+  }
+
+  void maybeRunHeadlessMatchCompletion()
 }
 
 onBeforeUnmount(() => {
@@ -1516,6 +1507,76 @@ watch(
   },
 )
 
+function createLiveMatchPageSessionSink() {
+  return {
+    setMatchNull: () => {
+      match.value = null
+    },
+    setNnModelsWarmPromise: (promise) => {
+      nnModelsWarmPromise = promise
+    },
+    resetAiTurnPrefetch,
+    setLastAppliedAiTurnTokenNull: () => {
+      lastAppliedAiTurnToken = null
+    },
+    setPresentationInputWasLockedFalse: () => {
+      presentationInputWasLocked = false
+    },
+    setDeferredPostDungeonStateNull: () => {
+      deferredPostDungeonState.value = null
+    },
+    clearDebugTraces: () => {
+      nnDebugTraceText.value = ''
+      nnDebugTraceHistory.value = []
+    },
+    clearPresentation: () => {
+      presentationOrchestrator.clear()
+    },
+    syncPresentationLabel,
+    setNeuralLoadGateTerminalOpen: (open) => {
+      neuralLoadGateTerminalOpen.value = open
+    },
+    clearPersistedMatch: () => {
+      clearCurrentMatch(window.localStorage)
+    },
+  }
+}
+
+function resetLiveMatchPageStateForSetupTerminal() {
+  resetLiveMatchPageState(createLiveMatchPageSessionSink(), {
+    clearMatch: true,
+    openNeuralLoadGateTerminal: true,
+  })
+}
+
+function resetLiveMatchPageStateForFreshMatchEntry() {
+  resetLiveMatchPageState(createLiveMatchPageSessionSink(), {
+    warmModelsResolved: true,
+  })
+}
+
+function resetLiveMatchPageStateForBackToSetup() {
+  resetLiveMatchPageState(createLiveMatchPageSessionSink(), {
+    clearMatch: true,
+    clearPersistedMatch: true,
+  })
+}
+
+async function runLivePageMatchEntryGate(setupSnapshot) {
+  return runMatchEntryNeuralLoadGateForPage({
+    setupSnapshot,
+    loadModel: loadNnModel,
+    setMatchNeuralLoadGateInFlight: (inFlight) => {
+      matchNeuralLoadGateInFlight.value = inFlight
+    },
+    releaseInFlightAfterGate: false,
+    storage: window.localStorage,
+    clearCurrentMatch,
+    applySetupSnapshot,
+    setupTarget: setup,
+  })
+}
+
 async function startNewMatch() {
   const modelValidation = validateSelectedModels(setup.opponents, modelOptions.value)
   if (!modelValidation.ok) {
@@ -1531,45 +1592,20 @@ async function startNewMatch() {
   const setupSnapshot = cloneSetup()
   matchNeuralLoadGateInFlight.value = true
   try {
-    const gate = await runMatchNeuralLoadGate(setupSnapshot, { loadModel: loadNnModel })
-    if (!gate.ok) {
-      applyNeuralLoadGateSetupTerminal(setupSnapshot)
+    const gateResult = await runLivePageMatchEntryGate(setupSnapshot)
+    if (gateResult.kind === 'setup-terminal') {
+      resetLiveMatchPageStateForSetupTerminal()
       return
     }
     clearCurrentMatch(window.localStorage)
     const seed = createMatchSeed()
-    const id = `match-${Date.now()}`
-    const baseState = createInitialMatchState(setupSnapshot, { seed })
-    const shuffledState = shuffleMatchDeck(shuffleMatchSeats(baseState, { seed: seed ^ 0x5f3759df }), {
-      seed: seed ^ 0x9e3779b9,
-    })
-    const firstSeatId = shuffledState.turn.activeSeatId
-    const initialPickState = {
-      ...shuffledState,
-      phase: MATCH_PHASES.PICK_ADVENTURER,
-      hero: null,
-      pickAdventurer: {
-        ...shuffledState.pickAdventurer,
-        activeSeatId: firstSeatId,
-      },
-    }
-    match.value = {
-      schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
-      id,
-      setup: setupSnapshot,
-      state: initialPickState,
-      history: [],
+    resetLiveMatchPageStateForFreshMatchEntry()
+    match.value = buildNewMatchEnvelope({
+      setupSnapshot,
+      seed,
+      id: `match-${Date.now()}`,
       presentationSpeedProfile: presentationSpeedProfile.value,
-    }
-    deferredPostDungeonState.value = null
-    nnDebugTraceText.value = ''
-    nnDebugTraceHistory.value = []
-    presentationOrchestrator.clear()
-    lastAppliedAiTurnToken = null
-    resetAiTurnPrefetch()
-    presentationInputWasLocked = false
-    nnModelsWarmPromise = Promise.resolve()
-    syncPresentationLabel()
+    })
   } finally {
     matchNeuralLoadGateInFlight.value = false
     scheduleAiTurnIfReady()
@@ -1582,53 +1618,23 @@ async function rematch() {
   const setupSnapshot = cloneSetup(match.value.setup)
   matchNeuralLoadGateInFlight.value = true
   try {
-    const gate = await runMatchNeuralLoadGate(setupSnapshot, { loadModel: loadNnModel })
-    if (!gate.ok) {
-      applyNeuralLoadGateSetupTerminal(setupSnapshot)
+    const gateResult = await runLivePageMatchEntryGate(setupSnapshot)
+    if (gateResult.kind === 'setup-terminal') {
+      resetLiveMatchPageStateForSetupTerminal()
       return
     }
-    const seed = createMatchSeed()
-    const id = `match-${Date.now()}`
-    const baseState = createInitialMatchState(setupSnapshot, { seed })
     const preservedBotLabels = match.value.state.seats
       .filter((seat) => seat.role?.type !== 'human' && seat.label)
       .map((seat) => seat.label)
-    const shuffledState = shuffleMatchDeck(
-      shuffleMatchSeats(baseState, {
-        seed: seed ^ 0x5f3759df,
-        preservedBotLabels,
-      }),
-      {
-        seed: seed ^ 0x9e3779b9,
-      },
-    )
-    const firstSeatId = shuffledState.turn.activeSeatId
-    const initialPickState = {
-      ...shuffledState,
-      phase: MATCH_PHASES.PICK_ADVENTURER,
-      hero: null,
-      pickAdventurer: {
-        ...shuffledState.pickAdventurer,
-        activeSeatId: firstSeatId,
-      },
-    }
-    match.value = {
-      schemaVersion: CURRENT_MATCH_SCHEMA_VERSION,
-      id,
-      setup: setupSnapshot,
-      state: initialPickState,
-      history: [],
+    const seed = createMatchSeed()
+    resetLiveMatchPageStateForFreshMatchEntry()
+    match.value = buildNewMatchEnvelope({
+      setupSnapshot,
+      seed,
+      id: `match-${Date.now()}`,
       presentationSpeedProfile: presentationSpeedProfile.value,
-    }
-    deferredPostDungeonState.value = null
-    nnDebugTraceText.value = ''
-    nnDebugTraceHistory.value = []
-    presentationOrchestrator.clear()
-    lastAppliedAiTurnToken = null
-    resetAiTurnPrefetch()
-    presentationInputWasLocked = false
-    nnModelsWarmPromise = Promise.resolve()
-    syncPresentationLabel()
+      preservedBotLabels,
+    })
   } finally {
     matchNeuralLoadGateInFlight.value = false
     scheduleAiTurnIfReady()
@@ -1641,24 +1647,14 @@ async function ensureNnModelsReady() {
 }
 
 function applyNeuralLoadGateSetupTerminal(setupSnapshot) {
-  resolveNeuralLoadGateSetupTerminal({
+  applyNeuralLoadGateSetupTerminalForPage({
     storage: window.localStorage,
     setupSnapshot,
     clearCurrentMatch,
     applySetupSnapshot,
     setupTarget: setup,
   })
-  match.value = null
-  lastAppliedAiTurnToken = null
-  resetAiTurnPrefetch()
-  nnModelsWarmPromise = null
-  presentationInputWasLocked = false
-  deferredPostDungeonState.value = null
-  nnDebugTraceText.value = ''
-  nnDebugTraceHistory.value = []
-  presentationOrchestrator.clear()
-  syncPresentationLabel()
-  neuralLoadGateTerminalOpen.value = true
+  resetLiveMatchPageStateForSetupTerminal()
 }
 
 function dismissNeuralLoadGateTerminal() {
@@ -1688,17 +1684,7 @@ function handleNeuralRecoveryTerminalError(error) {
 }
 
 function backToSetup() {
-  match.value = null
-  lastAppliedAiTurnToken = null
-  resetAiTurnPrefetch()
-  nnModelsWarmPromise = null
-  presentationInputWasLocked = false
-  deferredPostDungeonState.value = null
-  clearCurrentMatch(window.localStorage)
-  nnDebugTraceText.value = ''
-  nnDebugTraceHistory.value = []
-  presentationOrchestrator.clear()
-  syncPresentationLabel()
+  resetLiveMatchPageStateForBackToSetup()
 }
 
 function takeHumanAction(action) {
@@ -1851,47 +1837,31 @@ function createPageHeadlessCompletionFlightGate() {
 }
 
 async function maybeRunHeadlessMatchCompletion() {
-  if (!match.value) return
-  const humanId = humanSeatId.value
-  if (!humanId) return
-  if (!shouldRunHeadlessMatchCompletion(match.value, humanId)) {
-    return
-  }
-
-  const chooseAction = createLivePlayActionChooser(buildLivePlayChooserDeps())
   try {
-    const result = await runMaybeHeadlessMatchCompletionFromState(match.value.state, {
-      humanPlayerSeatId: humanId,
-      chooseAction,
+    const result = await runHeadlessMatchCompletionForPage({
+      match: match.value,
+      humanPlayerSeatId: humanSeatId.value,
+      chooseAction: createLivePlayActionChooser(buildLivePlayChooserDeps()),
+      recovery: nnRecovery,
       gate: createPageHeadlessCompletionFlightGate(),
-      afterFlightStart: teardownForHeadlessMatchCompletion,
+      teardown: teardownForHeadlessMatchCompletion,
+      storage: window.localStorage,
+      persistCurrentMatch,
+      applySetupTerminal: (setupSnapshot) => applyNeuralLoadGateSetupTerminal(cloneSetup(setupSnapshot)),
     })
-    if (result.ran && !result.failed) {
-      const nextMatch = attachNeuralRecoverySnapshotToMatch(
-        { ...match.value, state: result.state },
-        nnRecovery,
-      )
-      delete nextMatch.neuralRecoveryByModelId
-      match.value = nextMatch
-      persistCurrentMatch(window.localStorage, match.value)
-    } else if (result.ran && result.failed && debugMode.value) {
+
+    if (result.kind === 'completed' || result.kind === 'refresh-terminal') {
+      match.value = result.match
+    }
+    if (result.kind === 'refresh-terminal') {
+      neuralRefreshTerminalOpen.value = true
+      logNnRecoveryTrace(result.modelId, 'terminal', {
+        terminal: result.terminal,
+        failureKind: result.failureKind ?? null,
+      })
+    } else if (result.kind === 'failed' && debugMode.value) {
       console.warn('[DungeonRunner][headless] completion failed', result.errorCode, result.actionCount)
     }
-  } catch (error) {
-    if (handleNeuralRecoveryTerminalError(error)) {
-      if (error instanceof NeuralRecoveryTerminalError && match.value) {
-        const ux = resolveNeuralRecoveryTerminalUx({
-          terminal: error.terminal,
-          hasMatchSetup: Boolean(match.value.setup),
-        })
-        if (ux.action === 'refresh-dialog') {
-          match.value = attachNeuralRecoverySnapshotToMatch(match.value, nnRecovery)
-          persistCurrentMatch(window.localStorage, match.value)
-        }
-      }
-      return
-    }
-    throw error
   } finally {
     syncPresentationLabel()
   }
