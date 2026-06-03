@@ -1,9 +1,14 @@
 import { parseMatchOutcomeCreatedAtMs } from './parseMatchOutcomeCreatedAtMs.js'
 
 /**
- * @typedef {object} HumanWinSeriesPointWithTime
- * @property {boolean} humanWon
+ * Timeline point for publish-marker placement; only `createdAt` is read.
+ *
+ * @typedef {object} MatchTimelinePoint
  * @property {unknown} [createdAt]
+ */
+
+/**
+ * @typedef {MatchTimelinePoint & { humanWon?: boolean }} HumanWinSeriesPointWithTime
  */
 
 /**

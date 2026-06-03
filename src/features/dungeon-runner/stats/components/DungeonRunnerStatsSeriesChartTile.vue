@@ -54,6 +54,10 @@ import {
 } from 'chart.js'
 import { computed } from 'vue'
 import { Bar, Chart, Line } from 'vue-chartjs'
+import {
+  CHART_JS_TREND_WINDOW_CHART_ANIMATION_OPTIONS,
+  CHART_JS_TREND_WINDOW_DATASET_ANIMATION_OPTIONS,
+} from '../chartJsTrendWindowAnimationOptions.js'
 import { createMatchOutcomeBandsPlugin } from '../dungeonRunnerMatchOutcomeBandsPlugin.js'
 import { createModelPublishLinePlugin } from '../dungeonRunnerModelPublishTickPlugin.js'
 import { useDungeonRunnerStatsSeriesChartTile } from '../useDungeonRunnerStatsSeriesChartTile.js'
@@ -171,19 +175,7 @@ function buildRollingTrendDataset(rollingAverageValues) {
     pointBackgroundColor: ROLLING_TREND_COLOR,
     tension: 0.2,
     spanGaps: false,
-    ...(hasTrendWindowControl
-      ? {
-          animations: {
-            x: { duration: 0 },
-            y: { duration: 0 },
-          },
-          transitions: {
-            active: { animation: { duration: 0 } },
-            show: { animations: { x: { duration: 0 }, y: { duration: 0 } } },
-            hide: { animations: { x: { duration: 0 }, y: { duration: 0 } } },
-          },
-        }
-      : {}),
+    ...(hasTrendWindowControl ? CHART_JS_TREND_WINDOW_DATASET_ANIMATION_OPTIONS : {}),
   }
 }
 
@@ -249,17 +241,7 @@ const chartOptions = computed(() => {
   return {
     responsive: true,
     maintainAspectRatio: false,
-    ...(hasTrendWindowControl
-      ? {
-          animation: false,
-          transitions: {
-            active: { animation: { duration: 0 } },
-            resize: { animation: { duration: 0 } },
-            show: { animations: { x: { duration: 0 }, y: { duration: 0 } } },
-            hide: { animations: { x: { duration: 0 }, y: { duration: 0 } } },
-          },
-        }
-      : {}),
+    ...(hasTrendWindowControl ? CHART_JS_TREND_WINDOW_CHART_ANIMATION_OPTIONS : {}),
     layout: {
       padding: {
         top: modelPublishMarkers.value.length > 0 ? 14 : 0,

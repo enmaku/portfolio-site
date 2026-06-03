@@ -7,18 +7,8 @@
  */
 
 /**
- * @typedef {object} StatsNumericSeriesChartPayload
- * @property {string[]} labels
- * @property {number[]} values
- * @property {(number | null)[]} [rollingAverageValues]
- * @property {Array<{ sequence: number, modelId: string, labelIndex: number }>} [modelPublishMarkers]
- */
-
-/**
- * @typedef {object} RollingHumanWinRateWindowBounds
- * @property {number} min
- * @property {number} max
- * @property {number} default
+ * @typedef {import('./dungeonRunnerStatsChartTypes.js').StatsNumericSeriesChart} StatsNumericSeriesChartPayload
+ * @typedef {import('./dungeonRunnerStatsChartTypes.js').TrendWindowBounds} TrendWindowBounds
  */
 
 /**
@@ -28,9 +18,7 @@
  */
 
 /**
- * @typedef {object} HumanWinSeriesPoint
- * @property {boolean} humanWon
- * @property {unknown} [createdAt]
+ * @typedef {import('./dungeonRunnerStatsChartTypes.js').HumanWinSeriesPoint} HumanWinSeriesPoint
  */
 
 /**
@@ -40,7 +28,7 @@
  * @property {DungeonRunnerStatsBreakdownRow[]} [breakdown]
  * @property {StatsNumericSeriesChartPayload} [chart]
  * @property {HumanWinSeriesPoint[]} [humanWonSeries]
- * @property {RollingHumanWinRateWindowBounds} [windowBounds]
+ * @property {TrendWindowBounds} [windowBounds]
  * @property {MatchLengthSeriesRecord[]} [matchLengthSeries]
  * @property {number[]} [weeklyCounts]
  * @property {import('./buildMatchesPerWeekChart.js').UtcWeekBucket[]} [weekBuckets]
@@ -85,7 +73,7 @@ function isMatchLengthSeriesRecord(record) {
 
 /**
  * @param {unknown} bounds
- * @returns {bounds is RollingHumanWinRateWindowBounds}
+ * @returns {bounds is TrendWindowBounds}
  */
 function isTrendWindowBounds(bounds) {
   return (
@@ -120,6 +108,41 @@ function isHumanWinSeriesPoint(point) {
   return !!point && typeof point.humanWon === 'boolean'
 }
 
+/**
+ * @param {unknown} publishedAtByModelId
+ * @returns {Record<string, string>}
+ */
+function normalizePublishedAtByModelId(publishedAtByModelId) {
+  return publishedAtByModelId && typeof publishedAtByModelId === 'object' ? publishedAtByModelId : {}
+}
+
+/**
+ * @template {string} TKey
+ * @param {{
+ *   chart: StatsNumericSeriesChartPayload,
+ *   windowBounds: TrendWindowBounds,
+ *   publishedAtByModelId: unknown,
+ *   seriesKey: TKey,
+ *   rawSeries: unknown[],
+ *   validatePoint: (point: unknown) => boolean,
+ * }} input
+ * @returns {({ status: 'ok', chart: StatsNumericSeriesChartPayload, windowBounds: TrendWindowBounds, publishedAtByModelId: Record<string, string> } & Record<TKey, unknown[]>) | null}
+ */
+function mapSeriesChartWithCatalog(input) {
+  const { chart, windowBounds, publishedAtByModelId, seriesKey, rawSeries, validatePoint } = input
+  const series = rawSeries.filter(validatePoint)
+  if (series.length !== rawSeries.length) {
+    return null
+  }
+  return {
+    status: 'ok',
+    chart,
+    windowBounds,
+    publishedAtByModelId: normalizePublishedAtByModelId(publishedAtByModelId),
+    [seriesKey]: series,
+  }
+}
+
 function mapLoaderOkResult(result) {
   if (isNumericSeriesChartPayload(result.chart)) {
     if (!isTrendWindowBounds(result.windowBounds)) {
@@ -127,37 +150,25 @@ function mapLoaderOkResult(result) {
     }
     const rawMatchLengthSeries = result.matchLengthSeries
     if (Array.isArray(rawMatchLengthSeries)) {
-      const matchLengthSeries = rawMatchLengthSeries.filter(isMatchLengthSeriesRecord)
-      if (matchLengthSeries.length !== rawMatchLengthSeries.length) {
-        return null
-      }
-      return {
-        status: 'ok',
+      return mapSeriesChartWithCatalog({
         chart: result.chart,
-        matchLengthSeries,
         windowBounds: result.windowBounds,
-        publishedAtByModelId:
-          result.publishedAtByModelId && typeof result.publishedAtByModelId === 'object'
-            ? result.publishedAtByModelId
-            : {},
-      }
+        publishedAtByModelId: result.publishedAtByModelId,
+        seriesKey: 'matchLengthSeries',
+        rawSeries: rawMatchLengthSeries,
+        validatePoint: isMatchLengthSeriesRecord,
+      })
     }
     const rawHumanWonSeries = result.humanWonSeries
     if (Array.isArray(rawHumanWonSeries)) {
-      const humanWonSeries = rawHumanWonSeries.filter(isHumanWinSeriesPoint)
-      if (humanWonSeries.length !== rawHumanWonSeries.length) {
-        return null
-      }
-      return {
-        status: 'ok',
+      return mapSeriesChartWithCatalog({
         chart: result.chart,
-        humanWonSeries,
         windowBounds: result.windowBounds,
-        publishedAtByModelId:
-          result.publishedAtByModelId && typeof result.publishedAtByModelId === 'object'
-            ? result.publishedAtByModelId
-            : {},
-      }
+        publishedAtByModelId: result.publishedAtByModelId,
+        seriesKey: 'humanWonSeries',
+        rawSeries: rawHumanWonSeries,
+        validatePoint: isHumanWinSeriesPoint,
+      })
     }
     const rawWeeklyCounts = result.weeklyCounts
     const rawWeekBuckets = result.weekBuckets
@@ -210,7 +221,7 @@ function mapLoaderOkResult(result) {
  * @param {(deps?: unknown) => Promise<
  *   | { status: 'ok', value: number | string }
  *   | { status: 'ok', breakdown: DungeonRunnerStatsBreakdownRow[] }
- *   | { status: 'ok', chart: StatsNumericSeriesChartPayload, humanWonSeries?: HumanWinSeriesPoint[], matchLengthSeries?: MatchLengthSeriesRecord[], windowBounds?: RollingHumanWinRateWindowBounds, publishedAtByModelId?: Record<string, string> }
+ *   | { status: 'ok', chart: StatsNumericSeriesChartPayload, humanWonSeries?: HumanWinSeriesPoint[], matchLengthSeries?: MatchLengthSeriesRecord[], windowBounds?: TrendWindowBounds, publishedAtByModelId?: Record<string, string> }
  *   | { status: 'ok', chart: StatsNumericSeriesChartPayload }
  *   | { status: 'error' }
  * >} loadQuery

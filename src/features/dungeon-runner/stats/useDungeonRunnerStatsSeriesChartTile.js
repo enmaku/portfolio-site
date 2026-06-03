@@ -8,6 +8,50 @@ import {
 } from './dungeonRunnerStatsTileRunner.js'
 
 /**
+ * @typedef {import('./dungeonRunnerStatsTileRunner.js').DungeonRunnerStatsTileState} DungeonRunnerStatsTileState
+ */
+
+/**
+ * @param {DungeonRunnerStatsTileState} state
+ * @returns {unknown[] | null}
+ */
+function getMatchSequenceSeries(state) {
+  if (state.matchLengthSeries) {
+    return state.matchLengthSeries
+  }
+  if (state.humanWonSeries) {
+    return state.humanWonSeries
+  }
+  return null
+}
+
+/**
+ * @param {DungeonRunnerStatsTileState} state
+ * @param {number} trendWindowSize
+ * @param {(series: unknown[], publishedAtByModelId: Record<string, string> | undefined, windowSize: number) => { status: string, chart?: object }} buildChart
+ * @returns {{ status: string, chart?: object } | null}
+ */
+function rebuildMatchSequenceChart(state, trendWindowSize, buildChart) {
+  const series = getMatchSequenceSeries(state)
+  if (!series) {
+    return null
+  }
+  return buildChart(series, state.publishedAtByModelId, trendWindowSize)
+}
+
+/**
+ * @param {{ status: string, chart: { labels: string[], values: number[], rollingAverageValues?: (number | null)[] } }} built
+ * @returns {{ labels: string[], values: number[], rollingAverageValues?: (number | null)[] }}
+ */
+function chartPayloadFromWeekRebuild(built) {
+  return {
+    labels: built.chart.labels,
+    values: built.chart.values,
+    rollingAverageValues: built.chart.rollingAverageValues,
+  }
+}
+
+/**
  * @param {(deps?: unknown) => Promise<unknown>} loadQuery
  * @param {unknown} [deps]
  * @param {{ supportsTrendWindow?: boolean, supportsWeekTrendWindow?: boolean }} [options]
@@ -31,40 +75,32 @@ export function useDungeonRunnerStatsSeriesChartTile(loadQuery, deps, options = 
       return
     }
     let rebuilt = null
+    let chartFromRebuild = null
     if (tileState.value.weeklyCounts && tileState.value.weekBuckets) {
       rebuilt = buildMatchesPerWeekChart(
         tileState.value.weekBuckets,
         tileState.value.weeklyCounts,
         trendWindowSize.value,
       )
-    } else if (tileState.value.matchLengthSeries) {
-      rebuilt = buildMatchLengthOverTimeChart(
-        tileState.value.matchLengthSeries,
-        tileState.value.publishedAtByModelId,
-        trendWindowSize.value,
-      )
-    } else if (tileState.value.humanWonSeries) {
-      rebuilt = buildHumanWinRateOverTimeChart(
-        tileState.value.humanWonSeries,
-        tileState.value.publishedAtByModelId,
-        trendWindowSize.value,
-      )
+      if (rebuilt?.status === 'ok') {
+        chartFromRebuild = chartPayloadFromWeekRebuild(rebuilt)
+      }
+    } else {
+      const buildChart = tileState.value.matchLengthSeries
+        ? buildMatchLengthOverTimeChart
+        : buildHumanWinRateOverTimeChart
+      rebuilt = rebuildMatchSequenceChart(tileState.value, trendWindowSize.value, buildChart)
+      if (rebuilt?.status === 'ok') {
+        chartFromRebuild = rebuilt.chart
+      }
     }
-    if (!rebuilt || rebuilt.status === 'error') {
+    if (!rebuilt || rebuilt.status === 'error' || !chartFromRebuild) {
       tileState.value = { status: 'error' }
       return
     }
-    const chart =
-      tileState.value.weeklyCounts && tileState.value.weekBuckets
-        ? {
-            labels: rebuilt.chart.labels,
-            values: rebuilt.chart.values,
-            rollingAverageValues: rebuilt.chart.rollingAverageValues,
-          }
-        : rebuilt.chart
     tileState.value = {
       ...tileState.value,
-      chart,
+      chart: chartFromRebuild,
     }
   }
 

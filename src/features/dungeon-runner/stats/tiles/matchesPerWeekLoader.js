@@ -6,17 +6,8 @@ import {
 import { resolveMatchesPerWeekTrendWindowSize } from '../resolveMatchesPerWeekTrendWindowSize.js'
 
 /**
- * @typedef {object} StatsNumericSeriesChart
- * @property {string[]} labels
- * @property {number[]} values
- * @property {(number | null)[]} [rollingAverageValues]
- */
-
-/**
- * @typedef {object} MatchesPerWeekTrendWindowBounds
- * @property {number} min
- * @property {number} max
- * @property {number} default
+ * @typedef {import('../dungeonRunnerStatsChartTypes.js').StatsNumericSeriesChart} StatsNumericSeriesChart
+ * @typedef {import('../dungeonRunnerStatsChartTypes.js').TrendWindowBounds} TrendWindowBounds
  */
 
 /**
@@ -24,7 +15,7 @@ import { resolveMatchesPerWeekTrendWindowSize } from '../resolveMatchesPerWeekTr
  */
 
 /**
- * @typedef {{ status: 'ok', chart: StatsNumericSeriesChart, weeklyCounts: number[], weekBuckets: UtcWeekBucket[], windowBounds: MatchesPerWeekTrendWindowBounds } | { status: 'error' }} MatchesPerWeekTileResult
+ * @typedef {{ status: 'ok', chart: StatsNumericSeriesChart, weeklyCounts: number[], weekBuckets: UtcWeekBucket[], windowBounds: TrendWindowBounds } | { status: 'error' }} MatchesPerWeekTileResult
  */
 
 /**

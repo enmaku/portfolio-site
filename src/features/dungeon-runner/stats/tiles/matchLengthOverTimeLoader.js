@@ -1,25 +1,14 @@
 import { fetchMatchLengthSeries } from '../../firebase/matchLengthSeriesQuery.js'
-import { fetchModelCatalog } from '../../models/catalog.js'
 import { buildMatchLengthOverTimeChart } from '../buildMatchLengthOverTimeChart.js'
-import { resolveMatchLengthTrendWindowSize } from '../resolveMatchLengthTrendWindowSize.js'
+import { loadMatchSequenceChartTile } from '../loadMatchSequenceChartTile.js'
 
 /**
- * @typedef {object} StatsNumericSeriesChart
- * @property {string[]} labels
- * @property {number[]} values
- * @property {number[]} [rollingAverageValues]
- * @property {import('../buildMatchLengthOverTimeChart.js').ModelPublishMarkerView[]} [modelPublishMarkers]
+ * @typedef {import('../dungeonRunnerStatsChartTypes.js').StatsNumericSeriesChart} StatsNumericSeriesChart
+ * @typedef {import('../dungeonRunnerStatsChartTypes.js').TrendWindowBounds} TrendWindowBounds
  */
 
 /**
- * @typedef {object} MatchLengthTrendWindowBounds
- * @property {number} min
- * @property {number} max
- * @property {number} default
- */
-
-/**
- * @typedef {{ status: 'ok', chart: StatsNumericSeriesChart, matchLengthSeries: import('../../firebase/matchLengthSeriesQuery.js').MatchLengthSeriesRecord[], windowBounds: MatchLengthTrendWindowBounds, publishedAtByModelId: Record<string, string> } | { status: 'error' }} MatchLengthOverTimeTileResult
+ * @typedef {{ status: 'ok', chart: StatsNumericSeriesChart, matchLengthSeries: import('../../firebase/matchLengthSeriesQuery.js').MatchLengthSeriesRecord[], windowBounds: TrendWindowBounds, publishedAtByModelId: Record<string, string> } | { status: 'error' }} MatchLengthOverTimeTileResult
  */
 
 /**
@@ -34,37 +23,11 @@ import { resolveMatchLengthTrendWindowSize } from '../resolveMatchLengthTrendWin
  * @returns {Promise<MatchLengthOverTimeTileResult>}
  */
 export async function loadMatchLengthOverTimeTile(deps = {}) {
-  try {
-    const fetchSeries = deps.fetchMatchLengthSeries ?? fetchMatchLengthSeries
-    const fetchCatalog = deps.fetchModelCatalog ?? fetchModelCatalog
-    const matchLengthSeries = await fetchSeries(deps.seriesQueryDeps)
-    const boundsResult = resolveMatchLengthTrendWindowSize(matchLengthSeries.length)
-    if (boundsResult.status === 'error') {
-      return { status: 'error' }
-    }
-    const windowBounds = {
-      min: boundsResult.min,
-      max: boundsResult.max,
-      default: boundsResult.default,
-    }
-    const catalog = await fetchCatalog()
-    const publishedAtByModelId = catalog.publishedAtByModelId ?? {}
-    const built = buildMatchLengthOverTimeChart(
-      matchLengthSeries,
-      publishedAtByModelId,
-      windowBounds.default,
-    )
-    if (built.status === 'error') {
-      return { status: 'error' }
-    }
-    return {
-      status: 'ok',
-      chart: built.chart,
-      matchLengthSeries,
-      windowBounds,
-      publishedAtByModelId,
-    }
-  } catch {
-    return { status: 'error' }
-  }
+  const fetchSeries = deps.fetchMatchLengthSeries ?? fetchMatchLengthSeries
+  return loadMatchSequenceChartTile({
+    fetchSeries: () => fetchSeries(deps.seriesQueryDeps),
+    prepareSeries: (matchLengthSeries) => ({ timelineSeries: matchLengthSeries, matchLengthSeries }),
+    buildChart: buildMatchLengthOverTimeChart,
+    fetchModelCatalog: deps.fetchModelCatalog,
+  })
 }

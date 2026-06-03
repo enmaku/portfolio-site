@@ -1,38 +1,15 @@
 import { fetchHumanWinSeries } from '../../firebase/humanWinSeriesQuery.js'
-import { fetchModelCatalog } from '../../models/catalog.js'
 import { buildHumanWinRateOverTimeChart } from '../buildHumanWinRateOverTimeChart.js'
-import { resolveMatchLengthTrendWindowSize } from '../resolveMatchLengthTrendWindowSize.js'
+import { loadMatchSequenceChartTile } from '../loadMatchSequenceChartTile.js'
 
 /**
- * @typedef {object} ModelPublishMarkerView
- * @property {number} sequence
- * @property {string} modelId
- * @property {number} labelIndex
+ * @typedef {import('../dungeonRunnerStatsChartTypes.js').StatsNumericSeriesChart} StatsNumericSeriesChart
+ * @typedef {import('../dungeonRunnerStatsChartTypes.js').TrendWindowBounds} TrendWindowBounds
+ * @typedef {import('../dungeonRunnerStatsChartTypes.js').HumanWinSeriesPoint} HumanWinSeriesPoint
  */
 
 /**
- * @typedef {object} StatsNumericSeriesChart
- * @property {string[]} labels
- * @property {number[]} values
- * @property {number[]} rollingAverageValues
- * @property {ModelPublishMarkerView[]} modelPublishMarkers
- */
-
-/**
- * @typedef {object} HumanWinRateTrendWindowBounds
- * @property {number} min
- * @property {number} max
- * @property {number} default
- */
-
-/**
- * @typedef {object} HumanWinSeriesPoint
- * @property {boolean} humanWon
- * @property {unknown} [createdAt]
- */
-
-/**
- * @typedef {{ status: 'ok', chart: StatsNumericSeriesChart, humanWonSeries: HumanWinSeriesPoint[], windowBounds: HumanWinRateTrendWindowBounds, publishedAtByModelId: Record<string, string> } | { status: 'error' }} RollingHumanWinRateTileResult
+ * @typedef {{ status: 'ok', chart: StatsNumericSeriesChart, humanWonSeries: HumanWinSeriesPoint[], windowBounds: TrendWindowBounds, publishedAtByModelId: Record<string, string> } | { status: 'error' }} RollingHumanWinRateTileResult
  */
 
 /**
@@ -47,41 +24,17 @@ import { resolveMatchLengthTrendWindowSize } from '../resolveMatchLengthTrendWin
  * @returns {Promise<RollingHumanWinRateTileResult>}
  */
 export async function loadRollingHumanWinRateTile(deps = {}) {
-  try {
-    const fetchSeries = deps.fetchHumanWinSeries ?? fetchHumanWinSeries
-    const fetchCatalog = deps.fetchModelCatalog ?? fetchModelCatalog
-    const records = await fetchSeries(deps.seriesQueryDeps)
-    const humanWonSeries = records.map((record) => ({
-      humanWon: record.humanWon,
-      createdAt: record.createdAt,
-    }))
-    const boundsResult = resolveMatchLengthTrendWindowSize(humanWonSeries.length)
-    if (boundsResult.status === 'error') {
-      return { status: 'error' }
-    }
-    const windowBounds = {
-      min: boundsResult.min,
-      max: boundsResult.max,
-      default: boundsResult.default,
-    }
-    const catalog = await fetchCatalog()
-    const publishedAtByModelId = catalog.publishedAtByModelId ?? {}
-    const chartResult = buildHumanWinRateOverTimeChart(
-      humanWonSeries,
-      publishedAtByModelId,
-      windowBounds.default,
-    )
-    if (chartResult.status === 'error') {
-      return { status: 'error' }
-    }
-    return {
-      status: 'ok',
-      humanWonSeries,
-      windowBounds,
-      publishedAtByModelId,
-      chart: chartResult.chart,
-    }
-  } catch {
-    return { status: 'error' }
-  }
+  const fetchSeries = deps.fetchHumanWinSeries ?? fetchHumanWinSeries
+  return loadMatchSequenceChartTile({
+    fetchSeries: () => fetchSeries(deps.seriesQueryDeps),
+    prepareSeries: (records) => {
+      const humanWonSeries = records.map((record) => ({
+        humanWon: record.humanWon,
+        createdAt: record.createdAt,
+      }))
+      return { timelineSeries: humanWonSeries, humanWonSeries }
+    },
+    buildChart: buildHumanWinRateOverTimeChart,
+    fetchModelCatalog: deps.fetchModelCatalog,
+  })
 }

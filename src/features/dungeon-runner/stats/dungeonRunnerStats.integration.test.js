@@ -215,16 +215,20 @@ test('match length over time uses bounded match length series query only', () =>
   assert.equal(seriesQuery.includes('MATCH_LENGTH_SERIES_FETCH_LIMIT'), true)
   assert.equal(loader.includes('fetchMatchLengthSeries'), true)
   assert.equal(loader.includes('getDocs'), false)
+  assert.equal(loader.includes('loadMatchSequenceChartTile'), true)
   assert.equal(loader.includes('buildMatchLengthOverTimeChart'), true)
-  const lengthChart = readFileSync(
-    new URL('./buildMatchLengthOverTimeChart.js', import.meta.url),
+  const sequenceChart = readFileSync(
+    new URL('./buildMatchSequenceOverTimeChart.js', import.meta.url),
     'utf8',
   )
-  assert.equal(lengthChart.includes('computeRollingAverage'), true)
-  assert.equal(lengthChart.includes('rollingAverageValues'), true)
-  assert.equal(lengthChart.includes('buildModelPublishMarkersForWinSeries'), true)
-  assert.equal(loader.includes('fetchModelCatalog'), true)
-  assert.equal(loader.includes('resolveMatchLengthTrendWindowSize'), true)
+  const sequenceLoader = readFileSync(
+    new URL('./loadMatchSequenceChartTile.js', import.meta.url),
+    'utf8',
+  )
+  assert.equal(sequenceChart.includes('computeRollingAverage'), true)
+  assert.equal(sequenceChart.includes('buildModelPublishMarkersForWinSeries'), true)
+  assert.equal(sequenceLoader.includes('resolveMatchSequenceTrendWindowSize'), true)
+  assert.equal(sequenceLoader.includes('fetchModelCatalog'), true)
   assert.equal(loader.includes('matchLengthSeries'), true)
   const seriesTile = readFileSync(
     new URL('./components/DungeonRunnerStatsSeriesChartTile.vue', import.meta.url),
@@ -274,8 +278,8 @@ test('human win rate over time tile uses bounded human win series query only', (
     new URL('./tiles/rollingHumanWinRateLoader.js', import.meta.url),
     'utf8',
   )
-  const winRateChart = readFileSync(
-    new URL('./buildHumanWinRateOverTimeChart.js', import.meta.url),
+  const sequenceLoader = readFileSync(
+    new URL('./loadMatchSequenceChartTile.js', import.meta.url),
     'utf8',
   )
   const seriesTile = readFileSync(
@@ -288,9 +292,9 @@ test('human win rate over time tile uses bounded human win series query only', (
   assert.equal(seriesQuery.includes('HUMAN_WIN_SERIES_FETCH_LIMIT'), true)
   assert.equal(loader.includes('fetchHumanWinSeries'), true)
   assert.equal(loader.includes('getDocs'), false)
-  assert.equal(loader.includes('resolveMatchLengthTrendWindowSize'), true)
+  assert.equal(loader.includes('loadMatchSequenceChartTile'), true)
   assert.equal(loader.includes('buildHumanWinRateOverTimeChart'), true)
-  assert.equal(winRateChart.includes('computeRollingAverage'), true)
+  assert.equal(sequenceLoader.includes('resolveMatchSequenceTrendWindowSize'), true)
   assert.equal(seriesTile.includes('rolling-human-win-rate'), true)
   assert.equal(seriesTile.includes('dungeon-stats-trend-window-slider'), true)
   assert.equal(seriesTile.includes('createModelPublishLinePlugin'), true)
