@@ -12,6 +12,12 @@ One full play from **setup** through **match over**, including bidding, dungeon 
 
 _Avoid_: “Game” alone (ambiguous with the whole app or a single dungeon run).
 
+### Current match
+
+The locally persisted in-progress **match** until **match over** or explicit clear: **setup**, engine state, **history**, and optional **persisted neural recovery**. Distinct from a finished **match** archived as **completed match replay**.
+
+_Avoid_: “Saved game,” “session blob”; conflating with **replay envelope** or **completed match outcome**; treating **current match** as live-only with no storage.
+
 ### Match over
 
 **Web game engine** terminal phase `match-over` with a recorded winner (`matchWinnerSeatId`). Authoritative for play, **completed match replay** upload, and dungeon-runner **replay verifier**. Not **Python training sim** **sim empty-pile forfeit** or other sim-only endings without a winner.
@@ -44,6 +50,36 @@ A **setup** **opponent** with role `randombot` (lowercase id in CONTRACT). Choos
 
 _Avoid_: Random bot, **RandomBot** (Python code spelling only in maintainer notes).
 
+### Neural opponent
+
+A **setup** **opponent** with role `nn` that chooses legal actions via TF.js inference for a configured `modelId` (defaults to **web deployed latest**). Subject to **neural runtime recovery** when load or infer fails.
+
+_Avoid_: “NN seat,” “AI opponent” without **setup** role; treating **Randombot** as a **neural opponent**; conflating `modelId` with **game data catalog** ids.
+
+### Neural runtime recovery
+
+Coordinated handling of TF.js load and infer failures for a **neural opponent** `modelId` (shared model cache): retries with escalating repair until success clears the coordinator or a **neural recovery terminal outcome** is reached. While recovery is in progress and non-terminal, only the active **neural opponent** seat’s turn is blocked.
+
+_Avoid_: Retry counts, backend names, or coordinator field names (see `CONTRACT.md`); blocking human or **Randombot** turns during NN recovery; substituting a legal action on failure.
+
+### Match neural load gate
+
+Pre-**match** check that runs before the first turn on new **match** start and on resume-from-storage: preload each **neural opponent** `modelId` from **setup** once. Any load failure immediately yields **neural recovery terminal outcome** **SETUP** (clear the **current match**, restore the **setup** snapshot) without **neural runtime recovery** retries.
+
+_Avoid_: Conflating with per-turn **neural runtime recovery**; expecting multi-strike load retries at **match** bootstrap; treating gate failure as **REFRESH**.
+
+### Neural recovery terminal outcome
+
+The terminal state of **neural runtime recovery** for a given **neural opponent** `modelId`: `NONE` (no terminal outcome—recovery may still be in progress or cleared after success), `REFRESH` (infer failures exhausted—the player must refresh the page and the **current match** may remain), or `SETUP` (load failures exhausted—return to **setup** with the last **setup** choices preserved and the **current match** cleared).
+
+_Avoid_: Separate glossary entries for `REFRESH` and `SETUP`; treating **SETUP** as discarding **setup** choices; conflating **REFRESH** with abandoning the **match**.
+
+### Persisted neural recovery
+
+Optional state on the in-progress **current match** (`neuralRecoveryByModelId`): per-`modelId` **neural runtime recovery** coordinator state and **neural recovery terminal outcome** when exhaustion occurs during **finishing match** or headless completion, so resume surfaces the same blocking refresh or **setup** UX as live play. **REFRESH** keeps the **current match** and defers headless completion until the player refreshes; **SETUP** clears the **current match** and restores **setup**.
+
+_Avoid_: “Recovery blob,” “NN persistence JSON”; treating **persisted neural recovery** as part of **history** or **replay envelope**; running headless completion while **REFRESH** is persisted.
+
 ### Human player seat
 
 The single seat whose setup role is `human` after seat shuffle, identified by **actor seat id** in **history** (`seat-1`…`seat-4`). Exactly one per **match**; not in `setup.opponents`. dungeon-runner resolves it at **dataset build** for **Human step** / `is_human` (not from `modelId` absent alone).
@@ -56,9 +92,15 @@ A seat with no lives remaining after losing **dungeon runs** as the runner (two 
 
 _Avoid_: “Out,” “dead,” “removed from play” without tying to lives; treating a single failed **dungeon run** as **eliminated** while lives remain.
 
+### Finishing match
+
+Headless resolution of remaining **opponent** play after the **human player seat** is **eliminated**, before **match over** is recorded; may run with or without live presentation. A brief **finishing match** presentation state may appear while that remainder resolves.
+
+_Avoid_: Treating **finishing match** as **match over**; implying the whole **match** stops when only the human is **eliminated**; conflating with **neural runtime recovery** blocking (recovery can interrupt headless completion).
+
 ### Elimination end (human)
 
-The **match** is over for the **human player seat** once that seat is **eliminated**; remaining **opponent** play may finish without presentation before **match over** is recorded. A brief **finishing match** state may appear while that remainder resolves. The end dialog uses elimination-focused copy and does not name the winning **opponent**.
+The **match** is over for the **human player seat** once that seat is **eliminated**; remaining **opponent** play finishes in **finishing match** before **match over** is recorded. The end dialog uses elimination-focused copy and does not name the winning **opponent**.
 
 _Avoid_: “Forfeit,” “concede,” “quit”; implying the whole **match** stops for all seats when only the human is **eliminated** (under normal rules **opponents** continue until one wins); showing the winning **opponent** on the elimination end dialog.
 
@@ -266,6 +308,11 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - A **match** contains one or more **dungeon runs** before **match over**.
 - **Elimination end (human)** and **Defeat (human, not eliminated)** use different end-dialog copy; only the latter names the winning seat.
 - Headless completion of remaining **opponent** play after human **elimination** uses the same action choosers as live play (not a simplified bot).
+- The **current match** holds in-progress **match** state locally until **match over** or clear; optional **persisted neural recovery** may be attached.
+- **Match neural load gate** runs before the first turn on new **match** start and on **current match** resume; gate load failure yields **neural recovery terminal outcome** **SETUP** without **neural runtime recovery** retries.
+- **Neural runtime recovery** coordinates load/infer failures per **neural opponent** `modelId`; non-terminal recovery blocks only the active **neural opponent** seat.
+- **Neural recovery terminal outcome** **SETUP** clears the **current match** and restores **setup**; **REFRESH** keeps the **current match** and requires a page refresh.
+- **Persisted neural recovery** on the **current match** lets resume after **finishing match** or headless exhaustion surface the same blocking UX as live play; **REFRESH** defers headless completion until refresh.
 - Each **match** has exactly one **human player seat**; the human is not an **opponent** in **setup**.
 - A **completed match replay** is a **replay envelope** captured when **match over** is reached.
 - The **completed match replay archive** holds **completed match replay** envelopes keyed by match id; each key is written at most once from the browser; **archive listing** at the root is allowed for maintainer ingest.
@@ -289,6 +336,9 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 
 > **Dev:** “Should HP and goblin strength live in `equipmentDisplayCatalog`?”
 > **Domain expert:** “No — one **game data catalog** entry per id/species; labels and symbol keys live in the entry’s **ui** slice, not a parallel table.”
+
+> **Dev:** “NN infer fails during **finishing match** — do we wipe the **current match**?”
+> **Domain expert:** “No — that’s **REFRESH**: keep the **current match**, block until the player refreshes. **SETUP** is for load exhaustion — clear the **current match** and restore **setup**, like **match neural load gate** failure at resume.”
 
 ## Flagged ambiguities
 
