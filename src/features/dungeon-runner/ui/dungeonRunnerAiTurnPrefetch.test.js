@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createNeuralRuntimeRecoveryCoordinator } from '../nn/recovery.js'
 import {
   cancelAiTurnPrefetch,
   consumeAiTurnPrefetch,
   resetAiTurnPrefetch,
-  setAiTurnPrefetchRecoveryGate,
   startAiTurnPrefetch,
 } from './dungeonRunnerAiTurnPrefetch.js'
 
@@ -15,8 +13,8 @@ test('prefetch is consumed only for the matching run token', async () => {
     runToken: 'a',
     compute: async () => ({ type: 'PASS' }),
   })
-  assert.deepEqual(await consumeAiTurnPrefetch('a', () => {}), { type: 'PASS' })
-  assert.equal(await consumeAiTurnPrefetch('a', () => {}), null)
+  assert.deepEqual(await consumeAiTurnPrefetch({ runToken: 'a', trace: () => {} }), { type: 'PASS' })
+  assert.equal(await consumeAiTurnPrefetch({ runToken: 'a', trace: () => {} }), null)
 })
 
 test('stale prefetch token is ignored', async () => {
@@ -25,8 +23,8 @@ test('stale prefetch token is ignored', async () => {
     runToken: 'a',
     compute: async () => ({ type: 'DRAW' }),
   })
-  assert.equal(await consumeAiTurnPrefetch('b', () => {}), null)
-  assert.deepEqual(await consumeAiTurnPrefetch('a', () => {}), { type: 'DRAW' })
+  assert.equal(await consumeAiTurnPrefetch({ runToken: 'b', trace: () => {} }), null)
+  assert.deepEqual(await consumeAiTurnPrefetch({ runToken: 'a', trace: () => {} }), { type: 'DRAW' })
 })
 
 test('duplicate in-flight prefetch logs skip once per run token', async () => {
@@ -50,7 +48,7 @@ test('duplicate in-flight prefetch logs skip once per run token', async () => {
     ['prefetch.skip'],
   )
   resolveCompute({ type: 'DRAW' })
-  await consumeAiTurnPrefetch('a', () => {})
+  await consumeAiTurnPrefetch({ runToken: 'a', trace: () => {} })
 })
 
 test('new run token supersedes in-flight prefetch', async () => {
@@ -73,9 +71,9 @@ test('new run token supersedes in-flight prefetch', async () => {
     compute: async () => ({ type: 'PASS' }),
   })
   assert.ok(steps.includes('prefetch.supersede'))
-  assert.deepEqual(await consumeAiTurnPrefetch('b', trace), { type: 'PASS' })
+  assert.deepEqual(await consumeAiTurnPrefetch({ runToken: 'b', trace }), { type: 'PASS' })
   resolveA({ type: 'DRAW' })
-  assert.equal(await consumeAiTurnPrefetch('a', trace), null)
+  assert.equal(await consumeAiTurnPrefetch({ runToken: 'a', trace }), null)
 })
 
 test('consume awaits in-flight prefetch to completion', async () => {
@@ -91,42 +89,77 @@ test('consume awaits in-flight prefetch to completion', async () => {
       setTimeout(() => resolve({ type: 'DRAW' }), 40)
     }),
   })
-  const action = await consumeAiTurnPrefetch('a', trace)
+  const action = await consumeAiTurnPrefetch({ runToken: 'a', trace })
   assert.deepEqual(action, { type: 'DRAW' })
   assert.ok(steps.includes('prefetch.consume.hit'))
   assert.equal(steps.includes('prefetch.consume.timeout'), false)
 })
 
-test('prefetch start is skipped while modelId is recovering', async () => {
+test('prefetch start is skipped when mayPrefetch is false', async () => {
   resetAiTurnPrefetch()
-  const recovery = createNeuralRuntimeRecoveryCoordinator()
-  recovery.beginRecovery('latest')
-  setAiTurnPrefetchRecoveryGate(recovery)
-  const steps = []
+  let computeCalls = 0
+  const traceEvents = []
   startAiTurnPrefetch({
     runToken: 'a',
-    modelId: 'latest',
-    trace: (step) => steps.push(step),
-    compute: async () => ({ type: 'PASS' }),
+    mayPrefetch: false,
+    prefetchSkipReason: 'model-recovering',
+    trace: (step, detail) => traceEvents.push({ step, detail }),
+    compute: async () => {
+      computeCalls += 1
+      return { type: 'PASS' }
+    },
   })
-  assert.ok(steps.includes('prefetch.skip'))
-  assert.equal(await consumeAiTurnPrefetch('a', () => {}, 'latest'), null)
-  setAiTurnPrefetchRecoveryGate(null)
+  assert.equal(computeCalls, 0)
+  assert.deepEqual(traceEvents, [{
+    step: 'prefetch.skip',
+    detail: { reason: 'model-recovering', runToken: 'a' },
+  }])
+  assert.equal(await consumeAiTurnPrefetch({ runToken: 'a', trace: () => {} }), null)
 })
 
-test('prefetch consume is blocked while modelId is recovering', async () => {
+test('prefetch start skip falls back to blocked when skip reason omitted', async () => {
   resetAiTurnPrefetch()
-  const recovery = createNeuralRuntimeRecoveryCoordinator()
-  setAiTurnPrefetchRecoveryGate(recovery)
+  const traceEvents = []
+  startAiTurnPrefetch({
+    runToken: 'a',
+    mayPrefetch: false,
+    trace: (step, detail) => traceEvents.push({ step, detail }),
+    compute: async () => ({ type: 'PASS' }),
+  })
+  assert.equal(traceEvents[0]?.detail?.reason, 'blocked')
+})
+
+test('prefetch consume is blocked when mayPrefetch is false', async () => {
+  resetAiTurnPrefetch()
   startAiTurnPrefetch({
     runToken: 'a',
     compute: async () => ({ type: 'DRAW' }),
   })
-  recovery.beginRecovery('latest')
-  const steps = []
-  assert.equal(await consumeAiTurnPrefetch('a', (step) => steps.push(step), 'latest'), null)
-  assert.ok(steps.includes('prefetch.consume.blocked'))
-  setAiTurnPrefetchRecoveryGate(null)
+  const traceEvents = []
+  assert.equal(await consumeAiTurnPrefetch({
+    runToken: 'a',
+    mayPrefetch: false,
+    prefetchSkipReason: 'model-recovering',
+    trace: (step, detail) => traceEvents.push({ step, detail }),
+  }), null)
+  assert.deepEqual(traceEvents, [{
+    step: 'prefetch.consume.blocked',
+    detail: { runToken: 'a', reason: 'model-recovering' },
+  }])
+})
+
+test('prefetch is allowed when mayPrefetch is true', async () => {
+  resetAiTurnPrefetch()
+  startAiTurnPrefetch({
+    runToken: 'a',
+    mayPrefetch: true,
+    compute: async () => ({ type: 'PASS' }),
+  })
+  assert.deepEqual(await consumeAiTurnPrefetch({
+    runToken: 'a',
+    mayPrefetch: true,
+    trace: () => {},
+  }), { type: 'PASS' })
 })
 
 test('cancelAiTurnPrefetch clears in-flight entry', async () => {
@@ -139,6 +172,6 @@ test('cancelAiTurnPrefetch clears in-flight entry', async () => {
     }),
   })
   cancelAiTurnPrefetch()
-  assert.equal(await consumeAiTurnPrefetch('a', () => {}), null)
+  assert.equal(await consumeAiTurnPrefetch({ runToken: 'a', trace: () => {} }), null)
   resolveCompute({ type: 'DRAW' })
 })

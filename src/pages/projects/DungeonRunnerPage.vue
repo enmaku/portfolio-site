@@ -682,7 +682,6 @@ import {
   cancelAiTurnPrefetch,
   consumeAiTurnPrefetch,
   resetAiTurnPrefetch,
-  setAiTurnPrefetchRecoveryGate,
   startAiTurnPrefetch,
 } from '../../features/dungeon-runner/ui/dungeonRunnerAiTurnPrefetch.js'
 import { createPipelineStepLogger } from '../../features/dungeon-runner/nn/nnPipelineTrace.js'
@@ -740,11 +739,12 @@ import { closeDeckSplay, createMemoryAidState, setMemoryAidEnabled, tapDeck } fr
 import { isDungeonPresentationTraceEnabled } from '../../features/dungeon-runner/ui/dungeonPresentationTrace.js'
 import { isDungeonOrchestratorPresentationKind } from '../../features/dungeon-runner/ui/orchestratorPresentationKinds.js'
 import { usePresentationMotion } from '../../features/dungeon-runner/ui/usePresentationMotion.js'
+import { evaluateLiveAiTurnPipelineGateForContext } from '../../features/dungeon-runner/ui/liveAiTurnPipelineGateContext.js'
 import {
-  resolveAiTurnPrefetchSkipReason,
-  resolveAiTurnRunSkipReason,
-  resolveAiTurnScheduleSkipReason,
-} from '../../features/dungeon-runner/ui/liveAiTurnScheduleGate.js'
+  buildAiTurnPrefetchSkipTrace,
+  buildAiTurnRunSkipTrace,
+  buildAiTurnScheduleSkipTrace,
+} from '../../features/dungeon-runner/ui/liveAiTurnPipelineGateTrace.js'
 import { createCompletedMatchReplayUploadTracker, shouldUploadCompletedMatchReplayForPhase } from '../../features/dungeon-runner/firebase/completedMatchReplayUpload.js'
 import {
   buildSeatRecoveryIndicators,
@@ -774,11 +774,34 @@ function presentationTraceEnabled() {
 }
 const modelOptions = ref([])
 const nnRecovery = createNeuralRuntimeRecoveryCoordinator()
-const nnRecoveryRevision = ref(0)
-function notifyNnRecoveryStateChanged() {
-  nnRecoveryRevision.value += 1
+const seatRecoveryIndicators = ref([])
+/** @type {(() => void) | null} */
+let unsubscribeNnRecovery = null
+let activeSeatRecoveryBlocking = false
+
+function syncSeatRecoveryIndicators() {
+  const seats = match.value?.state?.seats ?? []
+  seatRecoveryIndicators.value = buildSeatRecoveryIndicators({ seats, recovery: nnRecovery })
 }
-setAiTurnPrefetchRecoveryGate(nnRecovery)
+
+function resolveActiveSeatRecoveryBlocking() {
+  return match.value?.state
+    ? shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })
+    : false
+}
+
+function applySeatRecoveryBlockingTransition(blocking) {
+  if (!activeSeatRecoveryBlocking && blocking) {
+    cancelAiTurnPrefetch()
+  }
+  activeSeatRecoveryBlocking = blocking
+}
+
+function onNnRecoveryChanged() {
+  syncSeatRecoveryIndicators()
+  applySeatRecoveryBlockingTransition(resolveActiveSeatRecoveryBlocking())
+  scheduleAiTurnIfReady()
+}
 
 function logNnRecoveryTrace(modelId, step, detail = {}) {
   if (!debugMode.value) return
@@ -793,16 +816,9 @@ function logNnRecoveryTrace(modelId, step, detail = {}) {
 
 const chooseNnActionWithRecovery = createChooseNnActionWithRecovery({
   recovery: nnRecovery,
-  onRecoveryBegin: (modelId) => {
-    cancelAiTurnPrefetch()
-    notifyNnRecoveryStateChanged()
-    logNnRecoveryTrace(modelId, 'begin')
-  },
-  onRecoveryAttempt: (detail) => {
-    notifyNnRecoveryStateChanged()
-    logNnRecoveryTrace(detail.modelId, 'attempt', detail)
-  },
-  onRecoverySettled: () => notifyNnRecoveryStateChanged(),
+  onRecoveryBegin: (modelId) => logNnRecoveryTrace(modelId, 'begin'),
+  onRecoveryAttempt: (detail) => logNnRecoveryTrace(detail.modelId, 'attempt', detail),
+  onRecoverySettled: (modelId) => logNnRecoveryTrace(modelId, 'settled'),
 })
 
 function buildLivePlayChooserDeps(extra = {}) {
@@ -811,9 +827,28 @@ function buildLivePlayChooserDeps(extra = {}) {
     ensureNnModelsReady,
     nnRuntimeOptions,
     chooseNnActionWithRecovery,
-    onRecoveryBegin: () => cancelAiTurnPrefetch(),
     ...extra,
   }
+}
+
+function evaluatePageAiTurnPipelineGate({ runToken = '', timerPending = false } = {}) {
+  return evaluateLiveAiTurnPipelineGateForContext({
+    matchState: match.value?.state ?? null,
+    humanSeatId: humanSeatId.value,
+    isHumanTurn: isHumanTurn.value,
+    hasMatch: !!match.value,
+    neuralRefreshTerminalOpen: neuralRefreshTerminalOpen.value,
+    matchNeuralLoadGateInFlight: matchNeuralLoadGateInFlight.value,
+    aiTurnInFlight,
+    headlessCompletionInFlight: headlessCompletionInFlight.value,
+    deferredPostDungeonState: deferredPostDungeonState.value,
+    gameplayInputLocked: gameplayInputLocked.value,
+    recovery: nnRecovery,
+    runToken,
+    lastAppliedAiTurnToken,
+    timerPending,
+    pickAdventurerNnEnabled: isNnAdventurerPickEnabled(),
+  })
 }
 const replayImportText = ref('')
 const replayExportText = ref('')
@@ -1219,13 +1254,11 @@ const biddingBoard = computed(() =>
   }),
 )
 const seatRunTrackerRows = computed(() => {
-  void nnRecoveryRevision.value
-  const scoreboard = match.value?.state?.scoreboard ?? {}
-  const seats = match.value?.state?.seats ?? []
   const recoveryBySeatId = new Map(
-    buildSeatRecoveryIndicators({ seats, recovery: nnRecovery }).map((entry) => [entry.seatId, entry]),
+    seatRecoveryIndicators.value.map((entry) => [entry.seatId, entry]),
   )
   return biddingBoard.value.secondary.seats.map((row) => {
+    const scoreboard = match.value?.state?.scoreboard ?? {}
     const score = scoreboard[row.seatId] ?? {}
     const successes = Math.max(0, Number(score.successes ?? 0))
     const failures = Math.max(0, 2 - Number(score.lives ?? 2))
@@ -1355,6 +1388,7 @@ const matchOverDialogOpen = computed({
 onMounted(() => {
   debugMode.value = shouldEnableDebugOnBoot(window.location.href)
   presentationOrchestrator.setSpeedProfile(presentationSpeedProfile.value)
+  unsubscribeNnRecovery = nnRecovery.subscribe(onNnRecoveryChanged)
   if (presentationTraceEnabled()) {
     console.log(
       '[DungeonRunner][presentation] trace on — localStorage.setItem("dungeonPresentationTrace","1") — also logs [card-flight] for pile/deck → card motion',
@@ -1389,6 +1423,8 @@ async function bootstrapDungeonRunnerPage() {
     dungeonRunnerSettingsStore.setAnimationPace(pace)
     matchNeuralLoadGateInFlight.value = false
     match.value = { ...loaded.match, presentationSpeedProfile: pace }
+    syncSeatRecoveryIndicators()
+    activeSeatRecoveryBlocking = resolveActiveSeatRecoveryBlocking()
     deferredPostDungeonState.value = null
     presentationOrchestrator.clear()
     presentationSpeedProfile.value = pace
@@ -1405,7 +1441,8 @@ async function bootstrapDungeonRunnerPage() {
       },
     })
     if (surfacedTerminal) {
-      notifyNnRecoveryStateChanged()
+      syncSeatRecoveryIndicators()
+      activeSeatRecoveryBlocking = resolveActiveSeatRecoveryBlocking()
       return
     }
     void maybeRunHeadlessMatchCompletion()
@@ -1415,6 +1452,8 @@ async function bootstrapDungeonRunnerPage() {
 }
 
 onBeforeUnmount(() => {
+  unsubscribeNnRecovery?.()
+  unsubscribeNnRecovery = null
   if (presentationTimerId) window.clearInterval(presentationTimerId)
   if (aiTurnTimerId) window.clearTimeout(aiTurnTimerId)
   if (autoResolveTimerId) window.clearTimeout(autoResolveTimerId)
@@ -1438,24 +1477,14 @@ watch(
   () => match.value?.state,
   (state) => {
     if (!match.value || !state) return
+    syncSeatRecoveryIndicators()
+    applySeatRecoveryBlockingTransition(resolveActiveSeatRecoveryBlocking())
     persistCurrentMatch(window.localStorage, match.value)
     scheduleAiTurnIfReady()
     scheduleHumanAutoResolveIfReady()
   },
   { deep: true },
 )
-
-const activeNnRecoveryBlocking = computed(() => {
-  void nnRecoveryRevision.value
-  if (!match.value?.state) return false
-  return shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })
-})
-
-watch(activeNnRecoveryBlocking, (blocking, wasBlocking) => {
-  if (wasBlocking && !blocking) {
-    scheduleAiTurnIfReady()
-  }
-})
 
 watch(
   () => match.value?.state?.lastDungeonRun ?? null,
@@ -1858,7 +1887,6 @@ async function maybeRunHeadlessMatchCompletion() {
         if (ux.action === 'refresh-dialog') {
           match.value = attachNeuralRecoverySnapshotToMatch(match.value, nnRecovery)
           persistCurrentMatch(window.localStorage, match.value)
-          notifyNnRecoveryStateChanged()
         }
       }
       return
@@ -1883,38 +1911,20 @@ async function runAiTurn() {
   const runToken = match.value
     ? buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
     : ''
-  const skipReason = resolveAiTurnRunSkipReason({
-    neuralRefreshTerminalOpen: neuralRefreshTerminalOpen.value,
-    aiTurnInFlight,
-    headlessCompletionInFlight: headlessCompletionInFlight.value,
-    gameplayInputLocked: gameplayInputLocked.value,
-    hasMatch: !!match.value,
-    phase: match.value?.state?.phase ?? null,
-    seatId,
-    humanSeatId: humanSeatId.value,
-    blockForRecovery: match.value
-      ? shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })
-      : false,
-    runToken,
-    lastAppliedAiTurnToken,
-  })
-  if (skipReason) {
-    if (skipReason === 'gameplay-locked') {
-      trace('run.skip', {
-        reason: skipReason,
-        activePresentation: activePresentation.value?.kind ?? null,
-        queueMs: presentationOrchestrator.getQueueSnapshot().reduce((sum, item) => sum + item.remainingMs, 0),
-      })
-    } else if (skipReason === 'phase-not-actionable') {
-      trace('run.skip', { reason: skipReason, phase: match.value?.state?.phase ?? null })
-    } else if (skipReason === 'not-ai-seat') {
-      trace('run.skip', { reason: skipReason, seatId, humanSeatId: humanSeatId.value })
-    } else if (skipReason === 'model-recovering') {
-      trace('run.skip', { reason: skipReason, seatId })
-    } else if (skipReason === 'duplicate-token') {
-      trace('run.skip', { reason: skipReason, runToken, lastAppliedAiTurnToken })
-    } else {
-      trace('run.skip', { reason: skipReason })
+  const gate = evaluatePageAiTurnPipelineGate({ runToken })
+  if (!gate.mayRunTurn) {
+    const presentationQueueSnapshot = presentationOrchestrator.getQueueSnapshot()
+    const skipTrace = buildAiTurnRunSkipTrace(gate, {
+      runToken,
+      seatId,
+      humanSeatId: humanSeatId.value,
+      phase: match.value?.state?.phase ?? null,
+      activePresentationKind: activePresentation.value?.kind ?? null,
+      queueMs: presentationQueueSnapshot.reduce((sum, item) => sum + item.remainingMs, 0),
+      lastAppliedAiTurnToken,
+    })
+    if (skipTrace) {
+      trace(skipTrace.step, skipTrace.detail)
     }
     return
   }
@@ -1932,11 +1942,15 @@ async function runAiTurn() {
   const seat = match.value.state.seats.find((candidate) => candidate.id === seatId)
   const roleType = seat?.role?.type
   const chooseAction = createLivePlayActionChooser(buildLivePlayChooserDeps({
-    tryConsumePrefetch: async ({ modelId }) => consumeAiTurnPrefetch(
-      runToken,
-      (step, detail) => trace(step, detail),
-      modelId,
-    ),
+    tryConsumePrefetch: async ({ runToken: consumeRunToken }) => {
+      const prefetchGate = evaluatePageAiTurnPipelineGate({ runToken: consumeRunToken ?? runToken })
+      return consumeAiTurnPrefetch({
+        runToken: consumeRunToken ?? runToken,
+        mayPrefetch: prefetchGate.mayPrefetch,
+        prefetchSkipReason: prefetchGate.prefetchSkipReason,
+        trace: (step, detail) => trace(step, detail),
+      })
+    },
   }))
   let action
   try {
@@ -2005,47 +2019,32 @@ async function runAiTurn() {
   }
 }
 
-function primeAiTurnPrefetch() {
+function primeAiTurnPrefetch(precomputedGate = null) {
   const trace = aiTurnTrace()
   const state = match.value?.state
   const seatId = state?.turn?.activeSeatId ?? null
   const seat = state?.seats?.find((candidate) => candidate.id === seatId)
   const runToken = match.value ? buildAiTurnRunToken({ matchId: match.value.id, state }) : ''
   const modelId = seat?.role?.type === 'nn' ? seat.role.modelId ?? 'latest' : null
-  const skipReason = resolveAiTurnPrefetchSkipReason({
-    headlessCompletionInFlight: headlessCompletionInFlight.value,
-    hasMatch: !!match.value,
-    isHumanTurn: isHumanTurn.value,
-    phase: state?.phase ?? null,
-    seatId,
-    humanSeatId: humanSeatId.value,
-    roleType: seat?.role?.type ?? null,
-    pickAdventurerNnEnabled: isNnAdventurerPickEnabled(),
-    runToken,
-    lastAppliedAiTurnToken,
-    neuralRefreshTerminalOpen: neuralRefreshTerminalOpen.value,
-    modelRecovering: modelId ? nnRecovery.isRecovering(modelId) : false,
-  })
-  if (skipReason) {
-    if (skipReason === 'not-ai-seat') {
-      logAiTurnPrimeSkip(skipReason, { seatId })
-    } else if (skipReason === 'phase') {
-      logAiTurnPrimeSkip(skipReason, { phase: state.phase })
-    } else if (skipReason === 'token-not-ready') {
-      logAiTurnPrimeSkip(skipReason, { runToken })
-    } else if (skipReason === 'not-nn-seat') {
-      logAiTurnPrimeSkip(skipReason, { roleType: seat?.role?.type ?? null })
-    } else if (skipReason === 'neural-refresh-terminal' || skipReason === 'model-recovering') {
-      logAiTurnPrimeSkip(skipReason, { modelId })
-    } else {
-      logAiTurnPrimeSkip(skipReason)
+  const gate = precomputedGate ?? evaluatePageAiTurnPipelineGate({ runToken })
+  if (!gate.mayPrefetch) {
+    const skipTrace = buildAiTurnPrefetchSkipTrace(gate, {
+      seatId,
+      phase: state?.phase ?? null,
+      runToken,
+      modelId,
+      roleType: seat?.role?.type ?? null,
+    })
+    if (skipTrace) {
+      logAiTurnPrimeSkip(skipTrace.reason, skipTrace.detail)
     }
     return
   }
   lastPrimeSkipTraceKey = ''
   startAiTurnPrefetch({
     runToken,
-    modelId,
+    mayPrefetch: true,
+    prefetchSkipReason: null,
     trace: (step, detail) => trace(step, detail),
     compute: async () => {
       await ensureNnModelsReady()
@@ -2194,73 +2193,33 @@ function humanDungeonAutoRevealGapMs() {
 }
 
 function scheduleAiTurnIfReady() {
-  const runToken = match.value
-    ? buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
-    : ''
-  const blockForRecovery = match.value
-    ? shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })
-    : false
-  const earlySkip = resolveAiTurnScheduleSkipReason({
-    neuralRefreshTerminalOpen: neuralRefreshTerminalOpen.value,
-    matchNeuralLoadGateInFlight: matchNeuralLoadGateInFlight.value,
-    aiTurnInFlight,
-    headlessCompletionInFlight: headlessCompletionInFlight.value,
-    deferredPostDungeonState: deferredPostDungeonState.value,
-    hasMatch: !!match.value,
-    isHumanTurn: isHumanTurn.value,
-  })
-  if (earlySkip) {
-    logAiTurnScheduleSkip(earlySkip)
-    return
-  }
   if (!match.value || isHumanTurn.value) {
     return
   }
-  if (blockForRecovery) {
-    logAiTurnScheduleSkip('model-recovering', {
-      activeSeatId: match.value.state.turn?.activeSeatId ?? null,
-    })
-    primeAiTurnPrefetch()
-    if (aiTurnTimerId) {
-      window.clearTimeout(aiTurnTimerId)
-      aiTurnTimerId = null
-    }
-    return
-  }
-  if (gameplayInputLocked.value) {
-    const snap = presentationOrchestrator.getQueueSnapshot()
-    logAiTurnScheduleSkip('gameplay-locked', {
-      activeKind: snap[0]?.kind ?? null,
-      queueMs: snap.reduce((sum, item) => sum + item.remainingMs, 0),
-      queueKinds: snap.map((item) => item.kind),
+  const runToken = buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
+  const gate = evaluatePageAiTurnPipelineGate({ runToken, timerPending: !!aiTurnTimerId })
+  if (!gate.maySchedule) {
+    const skipTrace = buildAiTurnScheduleSkipTrace(gate, {
       runToken,
+      phase: match.value?.state?.phase ?? null,
+      activeSeatId: match.value?.state?.turn?.activeSeatId ?? null,
+      presentationQueueSnapshot: presentationOrchestrator.getQueueSnapshot(),
     })
-    primeAiTurnPrefetch()
-    if (aiTurnTimerId) {
-      window.clearTimeout(aiTurnTimerId)
-      aiTurnTimerId = null
+    if (skipTrace) {
+      logAiTurnScheduleSkip(skipTrace.reason, skipTrace.detail)
+    }
+    if (gate.mayPrefetch) {
+      primeAiTurnPrefetch(gate)
+    }
+    if (gate.scheduleSkipReason === 'model-recovering' || gate.scheduleSkipReason === 'gameplay-locked') {
+      if (aiTurnTimerId) {
+        window.clearTimeout(aiTurnTimerId)
+        aiTurnTimerId = null
+      }
     }
     return
   }
-  primeAiTurnPrefetch()
-  const lateSkip = resolveAiTurnScheduleSkipReason({
-    hasMatch: true,
-    isHumanTurn: false,
-    phase: match.value.state.phase,
-    runToken,
-    lastAppliedAiTurnToken,
-    timerPending: !!aiTurnTimerId,
-  })
-  if (lateSkip) {
-    if (lateSkip === 'phase-not-actionable') {
-      logAiTurnScheduleSkip(lateSkip, { phase: match.value.state.phase })
-    } else if (lateSkip === 'already-applied-token') {
-      logAiTurnScheduleSkip(lateSkip, { runToken })
-    } else if (lateSkip === 'timer-pending') {
-      logAiTurnScheduleSkip(lateSkip, { runToken })
-    }
-    return
-  }
+  primeAiTurnPrefetch(gate)
   if (debugMode.value) {
     aiTurnTrace()('schedule.timer-armed', { runToken, delayMs: AI_TURN_SCHEDULE_DELAY_MS })
   }

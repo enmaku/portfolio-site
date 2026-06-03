@@ -58,15 +58,23 @@ _Avoid_: “NN seat,” “AI opponent” without **setup** role; treating **Ran
 
 ### Neural runtime recovery
 
-Coordinated handling of TF.js load and infer failures for a **neural opponent** `modelId` (shared model cache): retries with escalating repair until success clears the coordinator or a **neural recovery terminal outcome** is reached. While recovery is in progress and non-terminal, only the active **neural opponent** seat’s turn is blocked.
+Coordinated handling of TF.js load and infer failures for a **neural opponent** `modelId` (shared model cache): retries with escalating repair until success clears the coordinator or a **neural recovery terminal outcome** is reached. While recovery is in progress and non-terminal, only the active **neural opponent** seat’s turn is blocked. Consumers subscribe to coordinator changes rather than polling opaque internal state. Live-play reactions to recovery (re-schedule, prefetch cancel, recovery UI) consolidate in one page subscribe handler; persistence of **persisted neural recovery** stays at explicit terminal or headless events, not in the subscribe path.
 
-_Avoid_: Retry counts, backend names, or coordinator field names (see `CONTRACT.md`); blocking human or **Randombot** turns during NN recovery; substituting a legal action on failure.
+_Avoid_: Retry counts, backend names, or coordinator field names (see `CONTRACT.md`); blocking human or **Randombot** turns during NN recovery; substituting a legal action on failure; Vue-specific reactivity hacks (e.g. revision counters) inside recovery modules; folding **current match** persistence into recovery subscribe callbacks.
 
 ### Match neural load gate
 
 Pre-**match** check that runs before the first turn on new **match** start and on resume-from-storage: preload each **neural opponent** `modelId` from **setup** once. Any load failure immediately yields **neural recovery terminal outcome** **SETUP** (clear the **current match**, restore the **setup** snapshot) without **neural runtime recovery** retries.
 
 _Avoid_: Conflating with per-turn **neural runtime recovery**; expecting multi-strike load retries at **match** bootstrap; treating gate failure as **REFRESH**.
+
+### Live AI turn pipeline gate
+
+Single live-play policy for whether an **opponent** turn may be scheduled, prefetched, or run. Evaluated from **match** state, **neural runtime recovery**, **match neural load gate** in-flight, **neural recovery terminal outcome** UX (e.g. refresh dialog open), presentation lock, and headless-completion in-flight. Returns all three permissions from one snapshot so schedule, prefetch, and run cannot drift.
+
+Schedule and prefetch may diverge: while an active **neural opponent** is recovering or presentation locks gameplay input, schedule stays blocked but prefetch may still run to warm inference for the upcoming turn. Prefetch stays blocked when the **match neural load gate** is in flight, a **neural recovery terminal outcome** refresh dialog is open, or **finishing match** headless completion is in flight. **Run** shares schedule’s blockers (including load gate and deferred post-dungeon state); only prefetch may be permitted while schedule is blocked.
+
+_Avoid_: “AI pipeline,” “scheduling gates” without **live** scope; conflating with **match neural load gate** (bootstrap-only) or headless **finishing match** chooser wiring; three independent skip checks in the play page; assuming schedule blocked always implies prefetch blocked; letting run proceed when schedule would not.
 
 ### Neural recovery terminal outcome
 
@@ -310,6 +318,7 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - Headless completion of remaining **opponent** play after human **elimination** uses the same action choosers as live play (not a simplified bot).
 - The **current match** holds in-progress **match** state locally until **match over** or clear; optional **persisted neural recovery** may be attached.
 - **Match neural load gate** runs before the first turn on new **match** start and on **current match** resume; gate load failure yields **neural recovery terminal outcome** **SETUP** without **neural runtime recovery** retries.
+- **Live AI turn pipeline gate** decides schedule, prefetch, and run together during live play; distinct from **match neural load gate** and from headless **finishing match** resolution (headless supplies in-flight state as an input only).
 - **Neural runtime recovery** coordinates load/infer failures per **neural opponent** `modelId`; non-terminal recovery blocks only the active **neural opponent** seat.
 - **Neural recovery terminal outcome** **SETUP** clears the **current match** and restores **setup**; **REFRESH** keeps the **current match** and requires a page refresh.
 - **Persisted neural recovery** on the **current match** lets resume after **finishing match** or headless exhaustion surface the same blocking UX as live play; **REFRESH** defers headless completion until refresh.

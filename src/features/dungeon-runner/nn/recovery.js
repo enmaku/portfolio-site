@@ -13,6 +13,14 @@ export function createNeuralRuntimeRecoveryCoordinator(options = {}) {
   const loadMaxAttempts = options.loadMaxAttempts ?? 3
   const inferMaxAttempts = options.inferMaxAttempts ?? 3
   const stateByModelId = new Map()
+  /** @type {Set<() => void>} */
+  const listeners = new Set()
+
+  function notifyListeners() {
+    for (const listener of listeners) {
+      listener()
+    }
+  }
 
   function createEmptyState() {
     return {
@@ -35,9 +43,16 @@ export function createNeuralRuntimeRecoveryCoordinator(options = {}) {
   }
 
   return {
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => {
+        listeners.delete(listener)
+      }
+    },
     beginRecovery(modelId) {
       const state = getState(modelId)
       state.recovering = true
+      notifyListeners()
     },
     recordLoadFailure(modelId) {
       const state = getState(modelId)
@@ -47,6 +62,7 @@ export function createNeuralRuntimeRecoveryCoordinator(options = {}) {
         state.terminal = NEURAL_RECOVERY_TERMINAL.SETUP
         state.recovering = false
       }
+      notifyListeners()
     },
     recordInferFailure(modelId) {
       const state = getState(modelId)
@@ -56,9 +72,11 @@ export function createNeuralRuntimeRecoveryCoordinator(options = {}) {
         state.terminal = NEURAL_RECOVERY_TERMINAL.REFRESH
         state.recovering = false
       }
+      notifyListeners()
     },
     recordSuccess(modelId) {
       stateByModelId.set(modelId, createEmptyState())
+      notifyListeners()
     },
     isRecovering(modelId) {
       const state = getState(modelId)
@@ -99,6 +117,7 @@ export function createNeuralRuntimeRecoveryCoordinator(options = {}) {
     },
     importSnapshot(snapshot) {
       if (!snapshot || typeof snapshot !== 'object') return
+      let changed = false
       for (const [modelId, state] of Object.entries(snapshot)) {
         if (!state || typeof state !== 'object') continue
         stateByModelId.set(modelId, {
@@ -109,6 +128,10 @@ export function createNeuralRuntimeRecoveryCoordinator(options = {}) {
             ? state.terminal
             : NEURAL_RECOVERY_TERMINAL.NONE,
         })
+        changed = true
+      }
+      if (changed) {
+        notifyListeners()
       }
     },
   }
