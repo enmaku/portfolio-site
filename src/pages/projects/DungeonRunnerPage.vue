@@ -740,6 +740,11 @@ import { isDungeonPresentationTraceEnabled } from '../../features/dungeon-runner
 import { isDungeonOrchestratorPresentationKind } from '../../features/dungeon-runner/ui/orchestratorPresentationKinds.js'
 import { usePresentationMotion } from '../../features/dungeon-runner/ui/usePresentationMotion.js'
 import { evaluateLiveAiTurnPipelineGateForContext } from '../../features/dungeon-runner/ui/liveAiTurnPipelineGateContext.js'
+import {
+  buildAiTurnPrefetchSkipTrace,
+  buildAiTurnRunSkipTrace,
+  buildAiTurnScheduleSkipTrace,
+} from '../../features/dungeon-runner/ui/liveAiTurnPipelineGateTrace.js'
 import { createCompletedMatchReplayUploadTracker, shouldUploadCompletedMatchReplayForPhase } from '../../features/dungeon-runner/firebase/completedMatchReplayUpload.js'
 import {
   buildSeatRecoveryIndicators,
@@ -1900,77 +1905,6 @@ function confirmVorpalDeclaration() {
   })
 }
 
-function logAiTurnScheduleSkipFromGate(gate, runToken) {
-  const reason = gate.scheduleSkipReason
-  if (!reason) return
-  if (reason === 'gameplay-locked') {
-    const snap = presentationOrchestrator.getQueueSnapshot()
-    logAiTurnScheduleSkip(reason, {
-      activeKind: snap[0]?.kind ?? null,
-      queueMs: snap.reduce((sum, item) => sum + item.remainingMs, 0),
-      queueKinds: snap.map((item) => item.kind),
-      runToken,
-    })
-    return
-  }
-  if (reason === 'model-recovering') {
-    logAiTurnScheduleSkip(reason, {
-      activeSeatId: match.value?.state?.turn?.activeSeatId ?? null,
-    })
-    return
-  }
-  if (reason === 'phase-not-actionable') {
-    logAiTurnScheduleSkip(reason, { phase: match.value?.state?.phase ?? null })
-    return
-  }
-  if (reason === 'already-applied-token' || reason === 'timer-pending') {
-    logAiTurnScheduleSkip(reason, { runToken })
-    return
-  }
-  logAiTurnScheduleSkip(reason)
-}
-
-function logAiTurnRunSkipFromGate(gate, { runToken, seatId }) {
-  const reason = gate.runSkipReason
-  if (!reason) return
-  const trace = aiTurnTrace()
-  if (reason === 'gameplay-locked') {
-    trace('run.skip', {
-      reason,
-      activePresentation: activePresentation.value?.kind ?? null,
-      queueMs: presentationOrchestrator.getQueueSnapshot().reduce((sum, item) => sum + item.remainingMs, 0),
-    })
-  } else if (reason === 'phase-not-actionable') {
-    trace('run.skip', { reason, phase: match.value?.state?.phase ?? null })
-  } else if (reason === 'not-ai-seat') {
-    trace('run.skip', { reason, seatId, humanSeatId: humanSeatId.value })
-  } else if (reason === 'model-recovering') {
-    trace('run.skip', { reason, seatId })
-  } else if (reason === 'duplicate-token') {
-    trace('run.skip', { reason, runToken, lastAppliedAiTurnToken })
-  } else {
-    trace('run.skip', { reason })
-  }
-}
-
-function logAiTurnPrefetchSkipFromGate(gate, { seatId, phase, runToken, modelId, roleType }) {
-  const reason = gate.prefetchSkipReason
-  if (!reason) return
-  if (reason === 'not-ai-seat') {
-    logAiTurnPrimeSkip(reason, { seatId })
-  } else if (reason === 'phase') {
-    logAiTurnPrimeSkip(reason, { phase })
-  } else if (reason === 'token-not-ready') {
-    logAiTurnPrimeSkip(reason, { runToken })
-  } else if (reason === 'not-nn-seat') {
-    logAiTurnPrimeSkip(reason, { roleType })
-  } else if (reason === 'neural-refresh-terminal' || reason === 'model-recovering') {
-    logAiTurnPrimeSkip(reason, { modelId })
-  } else {
-    logAiTurnPrimeSkip(reason)
-  }
-}
-
 async function runAiTurn() {
   const trace = aiTurnTrace()
   const seatId = match.value?.state?.turn?.activeSeatId ?? null
@@ -1979,7 +1913,19 @@ async function runAiTurn() {
     : ''
   const gate = evaluatePageAiTurnPipelineGate({ runToken })
   if (!gate.mayRunTurn) {
-    logAiTurnRunSkipFromGate(gate, { runToken, seatId })
+    const presentationQueueSnapshot = presentationOrchestrator.getQueueSnapshot()
+    const skipTrace = buildAiTurnRunSkipTrace(gate, {
+      runToken,
+      seatId,
+      humanSeatId: humanSeatId.value,
+      phase: match.value?.state?.phase ?? null,
+      activePresentationKind: activePresentation.value?.kind ?? null,
+      queueMs: presentationQueueSnapshot.reduce((sum, item) => sum + item.remainingMs, 0),
+      lastAppliedAiTurnToken,
+    })
+    if (skipTrace) {
+      trace(skipTrace.step, skipTrace.detail)
+    }
     return
   }
   aiTurnInFlight = true
@@ -2082,13 +2028,16 @@ function primeAiTurnPrefetch(precomputedGate = null) {
   const modelId = seat?.role?.type === 'nn' ? seat.role.modelId ?? 'latest' : null
   const gate = precomputedGate ?? evaluatePageAiTurnPipelineGate({ runToken })
   if (!gate.mayPrefetch) {
-    logAiTurnPrefetchSkipFromGate(gate, {
+    const skipTrace = buildAiTurnPrefetchSkipTrace(gate, {
       seatId,
       phase: state?.phase ?? null,
       runToken,
       modelId,
       roleType: seat?.role?.type ?? null,
     })
+    if (skipTrace) {
+      logAiTurnPrimeSkip(skipTrace.reason, skipTrace.detail)
+    }
     return
   }
   lastPrimeSkipTraceKey = ''
@@ -2250,7 +2199,15 @@ function scheduleAiTurnIfReady() {
   const runToken = buildAiTurnRunToken({ matchId: match.value.id, state: match.value.state })
   const gate = evaluatePageAiTurnPipelineGate({ runToken, timerPending: !!aiTurnTimerId })
   if (!gate.maySchedule) {
-    logAiTurnScheduleSkipFromGate(gate, runToken)
+    const skipTrace = buildAiTurnScheduleSkipTrace(gate, {
+      runToken,
+      phase: match.value?.state?.phase ?? null,
+      activeSeatId: match.value?.state?.turn?.activeSeatId ?? null,
+      presentationQueueSnapshot: presentationOrchestrator.getQueueSnapshot(),
+    })
+    if (skipTrace) {
+      logAiTurnScheduleSkip(skipTrace.reason, skipTrace.detail)
+    }
     if (gate.mayPrefetch) {
       primeAiTurnPrefetch(gate)
     }

@@ -73,6 +73,7 @@ function resolvePrefetchSkipReasonFromInputs({
   headlessCompletionInFlight = false,
   matchNeuralLoadGateInFlight = false,
   neuralRefreshTerminalOpen = false,
+  aiTurnInFlight = false,
   deferredPostDungeonState = null,
   hasMatch = true,
   isHumanTurn = false,
@@ -89,6 +90,7 @@ function resolvePrefetchSkipReasonFromInputs({
   if (headlessCompletionInFlight) return 'headless-completion'
   if (matchNeuralLoadGateInFlight) return 'neural-load-gate'
   if (neuralRefreshTerminalOpen) return 'neural-refresh-terminal'
+  if (aiTurnInFlight) return 'in-flight'
   if (deferredPostDungeonState) return 'deferred-post-dungeon'
   if (!hasMatch) return 'no-match'
   if (isHumanTurn) return 'human-turn'
@@ -101,6 +103,19 @@ function resolvePrefetchSkipReasonFromInputs({
   return null
 }
 
+/**
+ * Evaluate schedule, run, and prefetch permissions from one input snapshot.
+ *
+ * @param {Parameters<typeof resolveScheduleSkipReasonFromInputs>[0]} [inputs]
+ * @returns {{
+ *   maySchedule: boolean
+ *   mayPrefetch: boolean
+ *   mayRunTurn: boolean
+ *   scheduleSkipReason: string | null
+ *   runSkipReason: string | null
+ *   prefetchSkipReason: string | null
+ * }}
+ */
 export function evaluateLiveAiTurnPipelineGate(inputs = {}) {
   const scheduleSkipReason = resolveScheduleSkipReasonFromInputs(inputs)
   const runSkipReason = resolveRunSkipReasonFromInputs(inputs)
@@ -116,14 +131,35 @@ export function evaluateLiveAiTurnPipelineGate(inputs = {}) {
   }
 }
 
+/**
+ * Schedule skip reason only. Each call re-evaluates the full gate; when you need more than one
+ * skip reason or permission from the same inputs, use {@link evaluateLiveAiTurnPipelineGate} once.
+ *
+ * @param {Parameters<typeof resolveScheduleSkipReasonFromInputs>[0]} [inputs]
+ * @returns {string | null}
+ */
 export function resolveAiTurnScheduleSkipReason(inputs = {}) {
   return evaluateLiveAiTurnPipelineGate(inputs).scheduleSkipReason
 }
 
+/**
+ * Run skip reason only. Each call re-evaluates the full gate; when you need more than one
+ * skip reason or permission from the same inputs, use {@link evaluateLiveAiTurnPipelineGate} once.
+ *
+ * @param {Parameters<typeof resolveRunSkipReasonFromInputs>[0]} [inputs]
+ * @returns {string | null}
+ */
 export function resolveAiTurnRunSkipReason(inputs = {}) {
   return evaluateLiveAiTurnPipelineGate(inputs).runSkipReason
 }
 
+/**
+ * Prefetch skip reason only. Each call re-evaluates the full gate; when you need more than one
+ * skip reason or permission from the same inputs, use {@link evaluateLiveAiTurnPipelineGate} once.
+ *
+ * @param {Parameters<typeof resolvePrefetchSkipReasonFromInputs>[0]} [inputs]
+ * @returns {string | null}
+ */
 export function resolveAiTurnPrefetchSkipReason(inputs = {}) {
   return evaluateLiveAiTurnPipelineGate(inputs).prefetchSkipReason
 }

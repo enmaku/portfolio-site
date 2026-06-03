@@ -101,6 +101,13 @@ test('live ai turn pipeline gate matrix', () => {
       prefetchSkipReason: 'neural-load-gate',
     },
     {
+      name: 'ai turn in flight',
+      inputs: { aiTurnInFlight: true },
+      scheduleSkipReason: 'in-flight',
+      runSkipReason: 'in-flight',
+      prefetchSkipReason: 'in-flight',
+    },
+    {
       name: 'active neural opponent recovery',
       inputs: { blockForRecovery: true, modelRecovering: true },
       scheduleSkipReason: 'model-recovering',
