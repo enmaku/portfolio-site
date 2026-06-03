@@ -1,31 +1,17 @@
 import { NeuralRecoveryTerminalError } from './nn/chooseWithRecovery.js'
-import {
-  resolveNeuralLoadGateSetupTerminal,
-  runMatchNeuralLoadGate,
-} from './nn/matchNeuralLoadGate.js'
+import { runMatchNeuralLoadGate } from './nn/matchNeuralLoadGate.js'
 import { CURRENT_MATCH_SCHEMA_VERSION, loadCurrentMatch } from './persistence/currentMatch.js'
-import { surfacePersistedNeuralRecoveryTerminal } from './ui/headlessNeuralRecoveryPersistence.js'
-import { materializeNewMatchState } from './setup/materializeNewMatchState.js'
 import {
   attachNeuralRecoverySnapshotToMatch,
   shouldRunHeadlessMatchCompletion,
+  surfacePersistedNeuralRecoveryTerminal,
 } from './ui/headlessNeuralRecoveryPersistence.js'
+import { materializeNewMatchState } from './setup/materializeNewMatchState.js'
 import { resolveNeuralRecoveryTerminalUx } from './ui/neuralSeatRecoveryView.js'
 import { runMaybeHeadlessMatchCompletionFromState } from './ui/headlessMatchCompletionRunner.js'
 
-/**
- * @param {{
- *   setupSnapshot: object
- *   loadModel: (modelId: string) => Promise<void>
- *   setMatchNeuralLoadGateInFlight: (inFlight: boolean) => void
- *   releaseInFlightAfterGate?: boolean
- *   storage: Storage
- *   clearCurrentMatch: (storage: Storage) => void
- *   applySetupSnapshot: (setupTarget: object, setupSnapshot: object) => void
- *   setupTarget: object
- * }} options
- * @returns {Promise<{ kind: 'success' } | { kind: 'setup-terminal' }>}
- */
+/** @typedef {import('./createMatchPageOrchestrationContext.js').MatchPageOrchestrationContext} MatchPageOrchestrationContext */
+
 function resolvePresentationSpeedProfile(profile) {
   if (profile === 'brisk' || profile === 'cinematic') {
     return profile
@@ -34,16 +20,7 @@ function resolvePresentationSpeedProfile(profile) {
 }
 
 /**
- * @param {{
- *   storage: Storage
- *   loadModel: (modelId: string) => Promise<void>
- *   setMatchNeuralLoadGateInFlight: (inFlight: boolean) => void
- *   clearCurrentMatch: (storage: Storage) => void
- *   applySetupSnapshot: (setupTarget: object, setupSnapshot: object) => void
- *   setupTarget: object
- *   cloneSetup: (setup: object) => object
- *   recovery: ReturnType<import('./nn/recovery.js').createNeuralRuntimeRecoveryCoordinator>
- * }} options
+ * @param {MatchPageOrchestrationContext} ctx
  * @returns {Promise<
  *   { kind: 'no-saved-match' }
  *   | { kind: 'setup-terminal' }
@@ -51,22 +28,16 @@ function resolvePresentationSpeedProfile(profile) {
  *   | { kind: 'resume', match: object, presentationSpeedProfile: string }
  * >}
  */
-export async function bootstrapCurrentMatchFromStorage(options) {
-  const loaded = loadCurrentMatch(options.storage)
+export async function bootstrapCurrentMatchFromStorage(ctx) {
+  const loaded = loadCurrentMatch(ctx.storage)
   if (!loaded.ok) {
     return { kind: 'no-saved-match' }
   }
 
-  const setupSnapshot = options.cloneSetup(loaded.match.setup)
-  const gateResult = await runMatchEntryNeuralLoadGateForPage({
+  const setupSnapshot = ctx.cloneSetup(loaded.match.setup)
+  const gateResult = await runMatchEntryNeuralLoadGateForPage(ctx, {
     setupSnapshot,
-    loadModel: options.loadModel,
-    setMatchNeuralLoadGateInFlight: options.setMatchNeuralLoadGateInFlight,
     releaseInFlightAfterGate: true,
-    storage: options.storage,
-    clearCurrentMatch: options.clearCurrentMatch,
-    applySetupSnapshot: options.applySetupSnapshot,
-    setupTarget: options.setupTarget,
   })
   if (gateResult.kind === 'setup-terminal') {
     return { kind: 'setup-terminal' }
@@ -77,30 +48,19 @@ export async function bootstrapCurrentMatchFromStorage(options) {
   )
   const match = { ...loaded.match, presentationSpeedProfile }
 
-  let surfacedAction = null
-  const surfaced = surfacePersistedNeuralRecoveryTerminal({
-    recovery: options.recovery,
+  const recoverySurface = surfacePersistedNeuralRecoveryTerminal({
+    recovery: ctx.recovery,
     neuralRecoveryByModelId: loaded.match.neuralRecoveryByModelId,
     hasMatchSetup: Boolean(loaded.match.setup),
     applySetupTerminal: () => {
-      surfacedAction = 'setup-restore'
-      resolveNeuralLoadGateSetupTerminal({
-        storage: options.storage,
-        setupSnapshot: options.cloneSetup(loaded.match.setup),
-        clearCurrentMatch: options.clearCurrentMatch,
-        applySetupSnapshot: options.applySetupSnapshot,
-        setupTarget: options.setupTarget,
-      })
-    },
-    openRefreshTerminal: () => {
-      surfacedAction = 'refresh-dialog'
+      ctx.resolveSetupTerminal(ctx.cloneSetup(loaded.match.setup))
     },
   })
 
-  if (surfaced && surfacedAction === 'setup-restore') {
+  if (recoverySurface.surfaced && recoverySurface.action === 'setup-restore') {
     return { kind: 'setup-terminal' }
   }
-  if (surfaced && surfacedAction === 'refresh-dialog') {
+  if (recoverySurface.surfaced && recoverySurface.action === 'refresh-dialog') {
     return { kind: 'refresh-terminal', match, presentationSpeedProfile }
   }
 
@@ -108,44 +68,33 @@ export async function bootstrapCurrentMatchFromStorage(options) {
 }
 
 /**
+ * @param {MatchPageOrchestrationContext} ctx
  * @param {{
- *   storage: Storage
  *   setupSnapshot: object
- *   clearCurrentMatch: (storage: Storage) => void
- *   applySetupSnapshot: (setupTarget: object, setupSnapshot: object) => void
- *   setupTarget: object
+ *   releaseInFlightAfterGate?: boolean
  * }} options
+ * @returns {Promise<{ kind: 'success' } | { kind: 'setup-terminal' }>}
  */
-export function applyNeuralLoadGateSetupTerminalForPage(options) {
-  resolveNeuralLoadGateSetupTerminal(options)
-}
-
-export async function runMatchEntryNeuralLoadGateForPage(options) {
+export async function runMatchEntryNeuralLoadGateForPage(ctx, options) {
   const releaseInFlightAfterGate = options.releaseInFlightAfterGate ?? false
-  options.setMatchNeuralLoadGateInFlight(true)
+  ctx.setMatchNeuralLoadGateInFlight(true)
   try {
     const gate = await runMatchNeuralLoadGate(options.setupSnapshot, {
-      loadModel: options.loadModel,
+      loadModel: ctx.loadModel,
     })
     if (!gate.ok) {
-      resolveNeuralLoadGateSetupTerminal({
-        storage: options.storage,
-        setupSnapshot: options.setupSnapshot,
-        clearCurrentMatch: options.clearCurrentMatch,
-        applySetupSnapshot: options.applySetupSnapshot,
-        setupTarget: options.setupTarget,
-      })
+      ctx.resolveSetupTerminal(options.setupSnapshot)
       if (releaseInFlightAfterGate) {
-        options.setMatchNeuralLoadGateInFlight(false)
+        ctx.setMatchNeuralLoadGateInFlight(false)
       }
       return { kind: 'setup-terminal' }
     }
     if (releaseInFlightAfterGate) {
-      options.setMatchNeuralLoadGateInFlight(false)
+      ctx.setMatchNeuralLoadGateInFlight(false)
     }
     return { kind: 'success' }
   } catch (error) {
-    options.setMatchNeuralLoadGateInFlight(false)
+    ctx.setMatchNeuralLoadGateInFlight(false)
     throw error
   }
 }
@@ -175,20 +124,17 @@ export function buildNewMatchEnvelope(options) {
 }
 
 /**
+ * @param {MatchPageOrchestrationContext} ctx
  * @param {{
  *   match: object | null | undefined
  *   humanPlayerSeatId: string | null | undefined
  *   chooseAction: (ctx: { state: object, seatId: string }) => Promise<object | null> | object | null
- *   recovery: ReturnType<import('./nn/recovery.js').createNeuralRuntimeRecoveryCoordinator>
  *   gate: { inFlight: boolean, tryStart(): boolean, finish(): void }
  *   teardown?: () => void
- *   storage: Storage
- *   persistCurrentMatch: (storage: Storage, match: object) => void
- *   applySetupTerminal: (setupSnapshot: object) => void
  * }} options
  * @param {{ maxActions?: number, yieldEvery?: number }} [runOptions]
  */
-export async function runHeadlessMatchCompletionForPage(options, runOptions = {}) {
+export async function runHeadlessMatchCompletionForPage(ctx, options, runOptions = {}) {
   const match = options.match
   const humanPlayerSeatId = options.humanPlayerSeatId
 
@@ -232,12 +178,12 @@ export async function runHeadlessMatchCompletionForPage(options, runOptions = {}
 
     let nextMatch = attachNeuralRecoverySnapshotToMatch(
       { ...match, state: result.state },
-      options.recovery,
+      ctx.recovery,
     )
     if ('neuralRecoveryByModelId' in nextMatch) {
       delete nextMatch.neuralRecoveryByModelId
     }
-    options.persistCurrentMatch(options.storage, nextMatch)
+    ctx.persistCurrentMatch(ctx.storage, nextMatch)
     return { kind: 'completed', match: nextMatch }
   } catch (error) {
     if (!(error instanceof NeuralRecoveryTerminalError) || !match) {
@@ -250,13 +196,13 @@ export async function runHeadlessMatchCompletionForPage(options, runOptions = {}
     })
 
     if (ux.action === 'setup-restore') {
-      options.applySetupTerminal(match.setup)
+      ctx.applySetupTerminal(match.setup)
       return { kind: 'setup-terminal' }
     }
 
     if (ux.action === 'refresh-dialog') {
-      const nextMatch = attachNeuralRecoverySnapshotToMatch(match, options.recovery)
-      options.persistCurrentMatch(options.storage, nextMatch)
+      const nextMatch = attachNeuralRecoverySnapshotToMatch(match, ctx.recovery)
+      ctx.persistCurrentMatch(ctx.storage, nextMatch)
       return {
         kind: 'refresh-terminal',
         match: nextMatch,

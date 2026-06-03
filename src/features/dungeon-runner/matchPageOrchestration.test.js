@@ -27,13 +27,14 @@ import {
 } from './ui/headlessMatchCompletionRunner.js'
 import { createLivePlayActionChooser } from './ui/livePlayActionChooser.js'
 import { needsHeadlessCompletion } from './ui/humanEliminationCompletionPolicy.js'
+import { resolveNeuralLoadGateSetupTerminal } from './nn/matchNeuralLoadGate.js'
 import {
-  applyNeuralLoadGateSetupTerminalForPage,
   bootstrapCurrentMatchFromStorage,
   buildNewMatchEnvelope,
   runHeadlessMatchCompletionForPage,
   runMatchEntryNeuralLoadGateForPage,
 } from './matchPageOrchestration.js'
+import { createMatchPageOrchestrationContext } from './createMatchPageOrchestrationContext.js'
 import { materializeNewMatchState } from './setup/materializeNewMatchState.js'
 
 const FOUR_PLAYER_SETUP = {
@@ -106,31 +107,27 @@ function buildMatchEnvelope(setup, state, overrides = {}) {
   }
 }
 
-function createPageDeps(overrides = {}) {
+function createPageContext(overrides = {}) {
   const storage = overrides.storage ?? createMemoryStorage()
   const recovery = overrides.recovery ?? createNeuralRuntimeRecoveryCoordinator()
-  const gate = overrides.gate ?? createHeadlessCompletionFlightGate()
   const setupTarget = overrides.setupTarget ?? { totalSeats: 2, opponents: [] }
   let setupTerminalCalls = 0
 
-  return {
+  const ctx = createMatchPageOrchestrationContext({
     storage,
     recovery,
-    gate,
+    loadModel: async () => {},
+    setMatchNeuralLoadGateInFlight: () => {},
+    clearCurrentMatch,
+    persistCurrentMatch,
+    applySetupSnapshot,
     setupTarget,
-    setupTerminalCalls: () => setupTerminalCalls,
-    deps: {
-      match: overrides.match,
-      humanPlayerSeatId: overrides.humanPlayerSeatId,
-      chooseAction: overrides.chooseAction,
-      recovery,
-      gate,
-      teardown: overrides.teardown ?? (() => {}),
-      storage,
-      persistCurrentMatch,
-      applySetupTerminal: overrides.applySetupTerminal ?? ((setupSnapshot) => {
+    cloneSetup: (setup) => structuredClone(setup),
+    applySetupTerminal:
+      overrides.applySetupTerminal ??
+      ((setupSnapshot) => {
         setupTerminalCalls += 1
-        applyNeuralLoadGateSetupTerminalForPage({
+        resolveNeuralLoadGateSetupTerminal({
           storage,
           setupSnapshot,
           clearCurrentMatch,
@@ -138,6 +135,33 @@ function createPageDeps(overrides = {}) {
           setupTarget,
         })
       }),
+  })
+
+  return {
+    storage,
+    recovery,
+    setupTarget,
+    ctx,
+    setupTerminalCalls: () => setupTerminalCalls,
+  }
+}
+
+function createPageDeps(overrides = {}) {
+  const gate = overrides.gate ?? createHeadlessCompletionFlightGate()
+  const { ctx, storage, setupTarget, setupTerminalCalls } = createPageContext(overrides)
+
+  return {
+    storage,
+    gate,
+    setupTarget,
+    setupTerminalCalls,
+    ctx,
+    deps: {
+      match: overrides.match,
+      humanPlayerSeatId: overrides.humanPlayerSeatId,
+      chooseAction: overrides.chooseAction,
+      gate,
+      teardown: overrides.teardown ?? (() => {}),
     },
   }
 }
@@ -148,47 +172,56 @@ function createMatchEntryGateDeps(overrides = {}) {
   const inFlightCalls = []
   const loadCalls = []
 
+  const ctx = createMatchPageOrchestrationContext({
+    storage,
+    recovery: createNeuralRuntimeRecoveryCoordinator(),
+    loadModel:
+      overrides.loadModel ??
+      ((modelId) => {
+        loadCalls.push(modelId)
+        return Promise.resolve()
+      }),
+    setMatchNeuralLoadGateInFlight: (inFlight) => {
+      inFlightCalls.push(inFlight)
+    },
+    clearCurrentMatch,
+    persistCurrentMatch,
+    applySetupSnapshot,
+    setupTarget,
+    cloneSetup: (setup) => structuredClone(setup),
+  })
+
   return {
     storage,
     setupTarget,
     inFlightCalls,
     loadCalls,
-    deps: {
+    ctx,
+    gateOptions: {
       setupSnapshot: overrides.setupSnapshot ?? NN_TWO_PLAYER_SETUP,
-      loadModel: overrides.loadModel ?? ((modelId) => {
-        loadCalls.push(modelId)
-        return Promise.resolve()
-      }),
-      setMatchNeuralLoadGateInFlight: (inFlight) => {
-        inFlightCalls.push(inFlight)
-      },
       releaseInFlightAfterGate: overrides.releaseInFlightAfterGate,
-      storage,
-      clearCurrentMatch,
-      applySetupSnapshot,
-      setupTarget,
     },
   }
 }
 
 test('runMatchEntryNeuralLoadGateForPage returns success when every nn model loads', async () => {
-  const { deps, inFlightCalls, loadCalls } = createMatchEntryGateDeps()
+  const { ctx, gateOptions, inFlightCalls, loadCalls } = createMatchEntryGateDeps()
 
-  const result = await runMatchEntryNeuralLoadGateForPage(deps)
+  const result = await runMatchEntryNeuralLoadGateForPage(ctx, gateOptions)
   assert.equal(result.kind, 'success')
   assert.deepEqual(loadCalls, ['latest'])
   assert.deepEqual(inFlightCalls, [true])
 })
 
 test('runMatchEntryNeuralLoadGateForPage succeeds without load attempts when setup has no nn seats', async () => {
-  const { deps, inFlightCalls, loadCalls } = createMatchEntryGateDeps({
+  const { ctx, gateOptions, inFlightCalls, loadCalls } = createMatchEntryGateDeps({
     setupSnapshot: {
       totalSeats: 2,
       opponents: [{ type: 'randombot' }],
     },
   })
 
-  const result = await runMatchEntryNeuralLoadGateForPage(deps)
+  const result = await runMatchEntryNeuralLoadGateForPage(ctx, gateOptions)
   assert.equal(result.kind, 'success')
   assert.deepEqual(loadCalls, [])
   assert.deepEqual(inFlightCalls, [true])
@@ -205,7 +238,7 @@ test('runMatchEntryNeuralLoadGateForPage returns setup-terminal and clears persi
     id: 'm-entry-gate-setup',
   })
   persistCurrentMatch(storage, match)
-  const { deps, inFlightCalls } = createMatchEntryGateDeps({
+  const { ctx, gateOptions, inFlightCalls } = createMatchEntryGateDeps({
     storage,
     setupTarget,
     setupSnapshot,
@@ -214,7 +247,7 @@ test('runMatchEntryNeuralLoadGateForPage returns setup-terminal and clears persi
     },
   })
 
-  const result = await runMatchEntryNeuralLoadGateForPage(deps)
+  const result = await runMatchEntryNeuralLoadGateForPage(ctx, gateOptions)
   assert.equal(result.kind, 'setup-terminal')
   assert.deepEqual(setupTarget, setupSnapshot)
   assert.equal(loadCurrentMatch(storage).ok, false)
@@ -222,21 +255,23 @@ test('runMatchEntryNeuralLoadGateForPage returns setup-terminal and clears persi
 })
 
 test('runMatchEntryNeuralLoadGateForPage keeps in-flight until page release by default', async () => {
-  const { deps, inFlightCalls } = createMatchEntryGateDeps()
+  const { ctx, gateOptions, inFlightCalls } = createMatchEntryGateDeps()
 
-  await runMatchEntryNeuralLoadGateForPage(deps)
+  await runMatchEntryNeuralLoadGateForPage(ctx, gateOptions)
   assert.deepEqual(inFlightCalls, [true])
 })
 
 test('runMatchEntryNeuralLoadGateForPage releases in-flight after gate when requested', async () => {
-  const { deps, inFlightCalls } = createMatchEntryGateDeps({ releaseInFlightAfterGate: true })
+  const { ctx, gateOptions, inFlightCalls } = createMatchEntryGateDeps({
+    releaseInFlightAfterGate: true,
+  })
 
-  const result = await runMatchEntryNeuralLoadGateForPage(deps)
+  const result = await runMatchEntryNeuralLoadGateForPage(ctx, gateOptions)
   assert.equal(result.kind, 'success')
   assert.deepEqual(inFlightCalls, [true, false])
 })
 
-test('applyNeuralLoadGateSetupTerminalForPage restores setup and clears persisted match', () => {
+test('resolveNeuralLoadGateSetupTerminal restores setup and clears persisted match', () => {
   const storage = createMemoryStorage()
   const setupTarget = { totalSeats: 2, opponents: [{ type: 'randombot' }] }
   const setupSnapshot = NN_TWO_PLAYER_SETUP
@@ -247,7 +282,7 @@ test('applyNeuralLoadGateSetupTerminalForPage restores setup and clears persiste
     }),
   )
 
-  applyNeuralLoadGateSetupTerminalForPage({
+  resolveNeuralLoadGateSetupTerminal({
     storage,
     setupSnapshot,
     clearCurrentMatch,
@@ -274,6 +309,25 @@ function createBootstrapDeps(overrides = {}) {
     },
   }
 
+  const ctx = createMatchPageOrchestrationContext({
+    storage,
+    recovery: wrappedRecovery,
+    loadModel:
+      overrides.loadModel ??
+      ((modelId) => {
+        loadCalls.push(modelId)
+        return Promise.resolve()
+      }),
+    setMatchNeuralLoadGateInFlight: (inFlight) => {
+      inFlightCalls.push(inFlight)
+    },
+    clearCurrentMatch,
+    persistCurrentMatch,
+    applySetupSnapshot,
+    setupTarget,
+    cloneSetup: overrides.cloneSetup ?? ((setup) => structuredClone(setup)),
+  })
+
   return {
     storage,
     setupTarget,
@@ -281,28 +335,14 @@ function createBootstrapDeps(overrides = {}) {
     loadCalls,
     importCalls,
     recovery: wrappedRecovery,
-    deps: {
-      storage,
-      loadModel: overrides.loadModel ?? ((modelId) => {
-        loadCalls.push(modelId)
-        return Promise.resolve()
-      }),
-      setMatchNeuralLoadGateInFlight: (inFlight) => {
-        inFlightCalls.push(inFlight)
-      },
-      clearCurrentMatch,
-      applySetupSnapshot,
-      setupTarget,
-      cloneSetup: overrides.cloneSetup ?? ((setup) => structuredClone(setup)),
-      recovery: wrappedRecovery,
-    },
+    ctx,
   }
 }
 
 test('bootstrapCurrentMatchFromStorage returns no-saved-match when storage is empty', async () => {
-  const { deps } = createBootstrapDeps()
+  const { ctx } = createBootstrapDeps()
 
-  const result = await bootstrapCurrentMatchFromStorage(deps)
+  const result = await bootstrapCurrentMatchFromStorage(ctx)
   assert.equal(result.kind, 'no-saved-match')
 })
 
@@ -317,7 +357,7 @@ test('bootstrapCurrentMatchFromStorage returns setup-terminal when neural load g
     id: 'm-bootstrap-gate-setup',
   })
   persistCurrentMatch(storage, match)
-  const { deps, inFlightCalls, importCalls } = createBootstrapDeps({
+  const { ctx, inFlightCalls, importCalls } = createBootstrapDeps({
     storage,
     setupTarget,
     loadModel: async () => {
@@ -325,7 +365,7 @@ test('bootstrapCurrentMatchFromStorage returns setup-terminal when neural load g
     },
   })
 
-  const result = await bootstrapCurrentMatchFromStorage(deps)
+  const result = await bootstrapCurrentMatchFromStorage(ctx)
   assert.equal(result.kind, 'setup-terminal')
   assert.deepEqual(setupTarget, setupSnapshot)
   assert.equal(loadCurrentMatch(storage).ok, false)
@@ -334,14 +374,14 @@ test('bootstrapCurrentMatchFromStorage returns setup-terminal when neural load g
 })
 
 test('runMatchEntryNeuralLoadGateForPage releases in-flight on setup-terminal when requested', async () => {
-  const { deps, inFlightCalls } = createMatchEntryGateDeps({
+  const { ctx, gateOptions, inFlightCalls } = createMatchEntryGateDeps({
     releaseInFlightAfterGate: true,
     loadModel: async () => {
       throw new Error('missing model')
     },
   })
 
-  const result = await runMatchEntryNeuralLoadGateForPage(deps)
+  const result = await runMatchEntryNeuralLoadGateForPage(ctx, gateOptions)
   assert.equal(result.kind, 'setup-terminal')
   assert.deepEqual(inFlightCalls, [true, false])
 })
@@ -363,9 +403,9 @@ test('bootstrapCurrentMatchFromStorage returns setup-terminal for persisted SETU
     },
   })
   persistCurrentMatch(storage, match)
-  const { deps, importCalls } = createBootstrapDeps({ storage, setupTarget })
+  const { ctx, importCalls } = createBootstrapDeps({ storage, setupTarget })
 
-  const result = await bootstrapCurrentMatchFromStorage(deps)
+  const result = await bootstrapCurrentMatchFromStorage(ctx)
   assert.equal(result.kind, 'setup-terminal')
   assert.deepEqual(setupTarget, setupSnapshot)
   assert.equal(loadCurrentMatch(storage).ok, false)
@@ -389,9 +429,9 @@ test('bootstrapCurrentMatchFromStorage returns refresh-terminal for persisted RE
     },
   })
   persistCurrentMatch(storage, match)
-  const { deps } = createBootstrapDeps({ storage })
+  const { ctx } = createBootstrapDeps({ storage })
 
-  const result = await bootstrapCurrentMatchFromStorage(deps)
+  const result = await bootstrapCurrentMatchFromStorage(ctx)
   assert.equal(result.kind, 'refresh-terminal')
   assert.equal(result.presentationSpeedProfile, 'brisk')
   assert.equal(result.match.id, 'm-bootstrap-persisted-refresh')
@@ -417,9 +457,9 @@ test('bootstrapCurrentMatchFromStorage returns resume with normalized presentati
   })
   delete match.presentationSpeedProfile
   persistCurrentMatch(storage, match)
-  const { deps, loadCalls, importCalls } = createBootstrapDeps({ storage })
+  const { ctx, loadCalls, importCalls } = createBootstrapDeps({ storage })
 
-  const result = await bootstrapCurrentMatchFromStorage(deps)
+  const result = await bootstrapCurrentMatchFromStorage(ctx)
   assert.equal(result.kind, 'resume')
   assert.equal(result.presentationSpeedProfile, 'cinematic')
   assert.equal(result.match.id, 'm-bootstrap-resume')
@@ -439,9 +479,9 @@ test('bootstrapCurrentMatchFromStorage returns resume preserving brisk presentat
       presentationSpeedProfile: 'brisk',
     }),
   )
-  const { deps } = createBootstrapDeps({ storage })
+  const { ctx } = createBootstrapDeps({ storage })
 
-  const result = await bootstrapCurrentMatchFromStorage(deps)
+  const result = await bootstrapCurrentMatchFromStorage(ctx)
   assert.equal(result.kind, 'resume')
   assert.equal(result.presentationSpeedProfile, 'brisk')
   assert.equal(result.match.presentationSpeedProfile, 'brisk')
@@ -467,14 +507,14 @@ test('bootstrapCurrentMatchFromStorage gate failure does not import persisted re
       },
     }),
   )
-  const { deps, importCalls } = createBootstrapDeps({
+  const { ctx, importCalls } = createBootstrapDeps({
     storage,
     loadModel: async () => {
       throw new Error('missing model')
     },
   })
 
-  const result = await bootstrapCurrentMatchFromStorage(deps)
+  const result = await bootstrapCurrentMatchFromStorage(ctx)
   assert.equal(result.kind, 'setup-terminal')
   assert.equal(importCalls.length, 0)
 })
@@ -495,20 +535,20 @@ test('bootstrapCurrentMatchFromStorage runs load gate before importing persisted
   })
   persistCurrentMatch(storage, match)
   const order = []
-  const { deps } = createBootstrapDeps({
+  const { ctx } = createBootstrapDeps({
     storage,
     loadModel: async (modelId) => {
       order.push(['load', modelId])
     },
     recovery: createNeuralRuntimeRecoveryCoordinator(),
   })
-  const originalImport = deps.recovery.importSnapshot.bind(deps.recovery)
-  deps.recovery.importSnapshot = (snapshot) => {
+  const originalImport = ctx.recovery.importSnapshot.bind(ctx.recovery)
+  ctx.recovery.importSnapshot = (snapshot) => {
     order.push(['import', snapshot])
     return originalImport(snapshot)
   }
 
-  await bootstrapCurrentMatchFromStorage(deps)
+  await bootstrapCurrentMatchFromStorage(ctx)
   assert.deepEqual(order, [['load', 'latest'], ['import', match.neuralRecoveryByModelId]])
 })
 
@@ -517,29 +557,36 @@ test('bootstrapCurrentMatchFromStorage releases in-flight after gate before reco
   const setupSnapshot = NN_TWO_PLAYER_SETUP
   const initial = createInitialMatchState(setupSnapshot, { seed: 205 })
   persistCurrentMatch(storage, buildMatchEnvelope(setupSnapshot, initial))
-  const { deps, inFlightCalls } = createBootstrapDeps({ storage })
+  const { ctx, inFlightCalls } = createBootstrapDeps({ storage })
 
-  const result = await bootstrapCurrentMatchFromStorage(deps)
+  const result = await bootstrapCurrentMatchFromStorage(ctx)
   assert.equal(result.kind, 'resume')
   assert.deepEqual(inFlightCalls, [true, false])
 })
 
 test('runMatchEntryNeuralLoadGateForPage releases in-flight when gate throws unexpectedly', async () => {
   const inFlightCalls = []
-  const deps = {
-    setupSnapshot: NN_TWO_PLAYER_SETUP,
+  const ctx = createMatchPageOrchestrationContext({
+    storage: createMemoryStorage(),
+    recovery: createNeuralRuntimeRecoveryCoordinator(),
+    loadModel: async () => {},
     setMatchNeuralLoadGateInFlight: (inFlight) => {
       inFlightCalls.push(inFlight)
     },
-    releaseInFlightAfterGate: false,
-    storage: createMemoryStorage(),
     clearCurrentMatch,
+    persistCurrentMatch,
     applySetupSnapshot,
     setupTarget: { totalSeats: 2, opponents: [] },
-  }
+    cloneSetup: (setup) => structuredClone(setup),
+  })
+  ctx.loadModel = undefined
 
   await assert.rejects(
-    () => runMatchEntryNeuralLoadGateForPage(deps),
+    () =>
+      runMatchEntryNeuralLoadGateForPage(ctx, {
+        setupSnapshot: NN_TWO_PLAYER_SETUP,
+        releaseInFlightAfterGate: false,
+      }),
     /loadModel required/,
   )
   assert.deepEqual(inFlightCalls, [true, false])
@@ -597,26 +644,26 @@ test('buildNewMatchEnvelope omits preservedBotLabels when rematch has none', () 
 })
 
 test('runHeadlessMatchCompletionForPage skips when match is missing', async () => {
-  const { deps } = createPageDeps({
+  const { ctx, deps } = createPageDeps({
     match: null,
     humanPlayerSeatId: 'seat-human',
     chooseAction: async () => null,
   })
 
-  const result = await runHeadlessMatchCompletionForPage(deps)
+  const result = await runHeadlessMatchCompletionForPage(ctx, deps)
   assert.equal(result.kind, 'skipped')
   assert.equal(result.reason, 'NO_MATCH')
 })
 
 test('runHeadlessMatchCompletionForPage skips when human seat is missing', async () => {
   const initial = createInitialMatchState(FOUR_PLAYER_SETUP, { seed: 99 })
-  const { deps } = createPageDeps({
+  const { ctx, deps } = createPageDeps({
     match: buildMatchEnvelope(FOUR_PLAYER_SETUP, initial),
     humanPlayerSeatId: null,
     chooseAction: async () => null,
   })
 
-  const result = await runHeadlessMatchCompletionForPage(deps)
+  const result = await runHeadlessMatchCompletionForPage(ctx, deps)
   assert.equal(result.kind, 'skipped')
   assert.equal(result.reason, 'NO_HUMAN')
 })
@@ -625,13 +672,13 @@ test('runHeadlessMatchCompletionForPage skips when headless is not needed', asyn
   const initial = createInitialMatchState(FOUR_PLAYER_SETUP, { seed: 100 })
   const human = seatByRole(initial, 'human')
   assert.ok(human)
-  const { deps } = createPageDeps({
+  const { ctx, deps } = createPageDeps({
     match: buildMatchEnvelope(FOUR_PLAYER_SETUP, initial),
     humanPlayerSeatId: human.id,
     chooseAction: async () => null,
   })
 
-  const result = await runHeadlessMatchCompletionForPage(deps)
+  const result = await runHeadlessMatchCompletionForPage(ctx, deps)
   assert.equal(result.kind, 'skipped')
   assert.equal(result.reason, 'NOT_NEEDED')
 })
@@ -652,13 +699,13 @@ test('runHeadlessMatchCompletionForPage skips when persisted neural recovery is 
       },
     },
   })
-  const { deps } = createPageDeps({
+  const { ctx, deps } = createPageDeps({
     match,
     humanPlayerSeatId: human.id,
     chooseAction: async () => null,
   })
 
-  const result = await runHeadlessMatchCompletionForPage(deps)
+  const result = await runHeadlessMatchCompletionForPage(ctx, deps)
   assert.equal(result.kind, 'skipped')
   assert.equal(result.reason, 'REFRESH_DEFERRED')
 })
@@ -671,7 +718,7 @@ test('runHeadlessMatchCompletionForPage skips duplicate start while in flight', 
   const gate = createHeadlessCompletionFlightGate()
   assert.equal(gate.tryStart(), true)
   let teardownCalls = 0
-  const { deps } = createPageDeps({
+  const { ctx, deps } = createPageDeps({
     match: buildMatchEnvelope(FOUR_PLAYER_SETUP, start),
     humanPlayerSeatId: human.id,
     chooseAction: async ({ state, seatId }) => chooseRandombotAction(state, { seatId }),
@@ -681,7 +728,7 @@ test('runHeadlessMatchCompletionForPage skips duplicate start while in flight', 
     },
   })
 
-  const result = await runHeadlessMatchCompletionForPage(deps)
+  const result = await runHeadlessMatchCompletionForPage(ctx, deps)
   assert.equal(result.kind, 'skipped')
   assert.equal(result.reason, 'IN_FLIGHT')
   assert.equal(teardownCalls, 0)
@@ -693,7 +740,7 @@ test('runHeadlessMatchCompletionForPage does not teardown when skipped before fl
   const human = seatByRole(initial, 'human')
   assert.ok(human)
   let teardownCalls = 0
-  const { deps } = createPageDeps({
+  const { ctx, deps } = createPageDeps({
     match: buildMatchEnvelope(FOUR_PLAYER_SETUP, initial),
     humanPlayerSeatId: human.id,
     chooseAction: async () => null,
@@ -702,7 +749,7 @@ test('runHeadlessMatchCompletionForPage does not teardown when skipped before fl
     },
   })
 
-  const result = await runHeadlessMatchCompletionForPage(deps)
+  const result = await runHeadlessMatchCompletionForPage(ctx, deps)
   assert.equal(result.kind, 'skipped')
   assert.equal(result.reason, 'NOT_NEEDED')
   assert.equal(teardownCalls, 0)
@@ -716,7 +763,7 @@ test('runHeadlessMatchCompletionForPage teardown runs after flight start then cl
   const gate = createHeadlessCompletionFlightGate()
   let sawOverlayDuringTeardown = false
   let teardownCalls = 0
-  const { deps } = createPageDeps({
+  const { ctx, deps } = createPageDeps({
     match: buildMatchEnvelope(FOUR_PLAYER_SETUP, start),
     humanPlayerSeatId: human.id,
     chooseAction: async ({ state, seatId }) => chooseRandombotAction(state, { seatId }),
@@ -730,7 +777,7 @@ test('runHeadlessMatchCompletionForPage teardown runs after flight start then cl
     },
   })
 
-  const result = await runHeadlessMatchCompletionForPage(deps)
+  const result = await runHeadlessMatchCompletionForPage(ctx, deps)
   assert.equal(result.kind, 'completed')
   assert.equal(teardownCalls, 1)
   assert.equal(sawOverlayDuringTeardown, true)
@@ -746,14 +793,14 @@ test('runHeadlessMatchCompletionForPage completes and persists updated match', a
   const start = humanEliminatedPickState(initial, human.id)
   const match = buildMatchEnvelope(FOUR_PLAYER_SETUP, start, { id: 'm-headless-complete' })
   persistCurrentMatch(storage, match)
-  const { deps } = createPageDeps({
+  const { ctx, deps } = createPageDeps({
     storage,
     match,
     humanPlayerSeatId: human.id,
     chooseAction: async ({ state, seatId }) => chooseRandombotAction(state, { seatId }),
   })
 
-  const result = await runHeadlessMatchCompletionForPage(deps)
+  const result = await runHeadlessMatchCompletionForPage(ctx, deps)
   assert.equal(result.kind, 'completed')
   assert.equal(result.match.state.phase, MATCH_PHASES.MATCH_OVER)
   assert.equal('neuralRecoveryByModelId' in result.match, false)
@@ -783,7 +830,7 @@ test('runHeadlessMatchCompletionForPage returns setup-terminal and clears curren
       resetRuntimeForModel: () => {},
     }),
   })
-  const { deps, setupTerminalCalls, setupTarget: target } = createPageDeps({
+  const { ctx, deps, setupTerminalCalls, setupTarget: target } = createPageDeps({
     storage,
     setupTarget,
     recovery,
@@ -792,7 +839,7 @@ test('runHeadlessMatchCompletionForPage returns setup-terminal and clears curren
     chooseAction,
   })
 
-  const result = await runHeadlessMatchCompletionForPage(deps)
+  const result = await runHeadlessMatchCompletionForPage(ctx, deps)
   assert.equal(result.kind, 'setup-terminal')
   assert.equal(setupTerminalCalls(), 1)
   assert.deepEqual(target, NN_TWO_PLAYER_SETUP)
@@ -817,7 +864,7 @@ test('runHeadlessMatchCompletionForPage returns refresh-terminal and persists re
       resetRuntimeForModel: () => {},
     }),
   })
-  const { deps } = createPageDeps({
+  const { ctx, deps } = createPageDeps({
     storage,
     recovery,
     match,
@@ -825,7 +872,7 @@ test('runHeadlessMatchCompletionForPage returns refresh-terminal and persists re
     chooseAction,
   })
 
-  const result = await runHeadlessMatchCompletionForPage(deps)
+  const result = await runHeadlessMatchCompletionForPage(ctx, deps)
   assert.equal(result.kind, 'refresh-terminal')
   assert.equal(result.match.neuralRecoveryByModelId.latest.terminal, NEURAL_RECOVERY_TERMINAL.REFRESH)
   assert.equal(result.modelId, 'latest')
@@ -850,7 +897,7 @@ test('runHeadlessMatchCompletionForPage returns failed when safety cap is exceed
     const legal = getLegalActions(state, { seatId })
     return legal[0] ?? null
   }
-  const { deps } = createPageDeps({
+  const { ctx, deps } = createPageDeps({
     match: buildMatchEnvelope(FOUR_PLAYER_SETUP, start),
     humanPlayerSeatId: human.id,
     chooseAction,
@@ -861,7 +908,7 @@ test('runHeadlessMatchCompletionForPage returns failed when safety cap is exceed
     },
   })
 
-  const result = await runHeadlessMatchCompletionForPage(deps, { maxActions: 3 })
+  const result = await runHeadlessMatchCompletionForPage(ctx, deps, { maxActions: 3 })
   assert.equal(result.kind, 'failed')
   assert.equal(result.errorCode, HEADLESS_COMPLETION_ERROR_CODES.SAFETY_CAP)
   assert.equal(result.actionCount, 3)
