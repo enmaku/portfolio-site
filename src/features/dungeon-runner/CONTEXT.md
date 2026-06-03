@@ -318,6 +318,7 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - Headless completion of remaining **opponent** play after human **elimination** uses the same action choosers as live play (not a simplified bot).
 - The **current match** holds in-progress **match** state locally until **match over** or clear; optional **persisted neural recovery** may be attached.
 - **Match neural load gate** runs before the first turn on new **match** start and on **current match** resume; gate load failure yields **neural recovery terminal outcome** **SETUP** without **neural runtime recovery** retries.
+- On **current match** resume, **match neural load gate** must succeed before surfacing **persisted neural recovery** or **finishing match** headless resolution.
 - **Live AI turn pipeline gate** decides schedule, prefetch, and run together during live play; distinct from **match neural load gate** and from headless **finishing match** resolution (headless supplies in-flight state as an input only).
 - **Neural runtime recovery** coordinates load/infer failures per **neural opponent** `modelId`; non-terminal recovery blocks only the active **neural opponent** seat.
 - **Neural recovery terminal outcome** **SETUP** clears the **current match** and restores **setup**; **REFRESH** keeps the **current match** and requires a page refresh.

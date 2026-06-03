@@ -25,12 +25,12 @@ export function attachNeuralRecoverySnapshotToMatch(match, recovery) {
  *   applySetupTerminal?: () => void
  *   openRefreshTerminal?: () => void
  * }} options
- * @returns {boolean} whether a blocking terminal UX was surfaced
+ * @returns {{ surfaced: false } | { surfaced: true, action: 'setup-restore' | 'refresh-dialog' }}
  */
 export function surfacePersistedNeuralRecoveryTerminal(options) {
   const snapshot = options.neuralRecoveryByModelId
   if (!snapshot || !neuralRecoverySnapshotHasTerminal(snapshot)) {
-    return false
+    return { surfaced: false }
   }
   options.recovery.importSnapshot(snapshot)
   for (const state of Object.values(snapshot)) {
@@ -41,14 +41,14 @@ export function surfacePersistedNeuralRecoveryTerminal(options) {
     })
     if (ux.action === 'setup-restore') {
       options.applySetupTerminal?.()
-      return true
+      return { surfaced: true, action: 'setup-restore' }
     }
     if (ux.action === 'refresh-dialog') {
       options.openRefreshTerminal?.()
-      return true
+      return { surfaced: true, action: 'refresh-dialog' }
     }
   }
-  return false
+  return { surfaced: false }
 }
 
 /**

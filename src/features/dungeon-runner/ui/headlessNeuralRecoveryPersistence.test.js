@@ -44,7 +44,8 @@ test('surfacePersistedNeuralRecoveryTerminal opens refresh dialog for REFRESH sn
       refreshOpen = true
     },
   })
-  assert.equal(surfaced, true)
+  assert.equal(surfaced.surfaced, true)
+  assert.equal(surfaced.action, 'refresh-dialog')
   assert.equal(refreshOpen, true)
   assert.equal(recovery.getTerminalOutcome('latest'), NEURAL_RECOVERY_TERMINAL.REFRESH)
 })
@@ -67,7 +68,8 @@ test('surfacePersistedNeuralRecoveryTerminal restores setup for SETUP snapshot',
       setupRestored = true
     },
   })
-  assert.equal(surfaced, true)
+  assert.equal(surfaced.surfaced, true)
+  assert.equal(surfaced.action, 'setup-restore')
   assert.equal(setupRestored, true)
   assert.equal(recovery.getTerminalOutcome('latest'), NEURAL_RECOVERY_TERMINAL.SETUP)
 })

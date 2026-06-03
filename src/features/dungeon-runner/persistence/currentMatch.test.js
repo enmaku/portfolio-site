@@ -339,7 +339,7 @@ test('headless infer terminal persists refresh snapshot and defers completion on
       openRefreshTerminal: () => {
         refreshOpen = true
       },
-    }),
+    }).surfaced,
     true,
   )
   assert.equal(refreshOpen, true)
@@ -376,7 +376,7 @@ test('persisted neural recovery terminal round-trips and surfaces refresh on res
       openRefreshTerminal: () => {
         refreshOpen = true
       },
-    }),
+    }).surfaced,
     true,
   )
   assert.equal(refreshOpen, true)
