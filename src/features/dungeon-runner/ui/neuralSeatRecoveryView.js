@@ -1,5 +1,3 @@
-import { NEURAL_RECOVERY_TERMINAL } from '../nn/recovery.js'
-
 /**
  * @param {{ role?: { type?: string, modelId?: string } }} seat
  * @returns {string | null}
@@ -34,18 +32,4 @@ export function isActiveNnSeatRecovering({ state, recovery }) {
   const modelId = nnSeatModelId(seat)
   if (!modelId) return false
   return recovery.isRecovering(modelId)
-}
-
-/**
- * @param {{ terminal: string, hasMatchSetup?: boolean }} params
- * @returns {{ action: 'setup-restore' | 'refresh-dialog' } | { action: null }}
- */
-export function resolveNeuralRecoveryTerminalUx({ terminal, hasMatchSetup = false }) {
-  if (terminal === NEURAL_RECOVERY_TERMINAL.SETUP && hasMatchSetup) {
-    return { action: 'setup-restore' }
-  }
-  if (terminal === NEURAL_RECOVERY_TERMINAL.REFRESH) {
-    return { action: 'refresh-dialog' }
-  }
-  return { action: null }
 }

@@ -283,6 +283,48 @@ test('handleNeuralRecoveryTerminalOutcome restores setup for persisted SETUP sna
   assert.equal(recovery.getTerminalOutcome('latest'), NEURAL_RECOVERY_TERMINAL.SETUP)
 })
 
+test('handleNeuralRecoveryTerminalOutcome prefers REFRESH over SETUP when multiple models are terminal', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator()
+  const match = {
+    id: 'm-multi-terminal',
+    setup: {
+      totalSeats: 3,
+      opponents: [{ type: 'nn', modelId: 'aaa-setup' }, { type: 'nn', modelId: 'zzz-refresh' }],
+    },
+    state: {},
+    history: [],
+    neuralRecoveryByModelId: {
+      'aaa-setup': {
+        loadAttempts: 3,
+        inferAttempts: 0,
+        recovering: false,
+        terminal: NEURAL_RECOVERY_TERMINAL.SETUP,
+      },
+      'zzz-refresh': {
+        loadAttempts: 0,
+        inferAttempts: 3,
+        recovering: false,
+        terminal: NEURAL_RECOVERY_TERMINAL.REFRESH,
+      },
+    },
+  }
+  const { restoreSetup, restoreCalls } = createSetupRestoreDeps()
+
+  const result = handleNeuralRecoveryTerminalOutcome({
+    kind: 'persisted-snapshot',
+    recovery,
+    neuralRecoveryByModelId: match.neuralRecoveryByModelId,
+    hasMatchSetup: true,
+    match,
+    restoreSetup,
+  })
+
+  assert.equal(result.surfaced, true)
+  assert.equal(result.action, 'refresh-dialog')
+  assert.equal(result.match, match)
+  assert.equal(restoreCalls(), 0)
+})
+
 test('handleNeuralRecoveryTerminalOutcome returns not surfaced when persisted snapshot has no terminal', () => {
   const recovery = createNeuralRuntimeRecoveryCoordinator()
   const { restoreSetup } = createSetupRestoreDeps()
@@ -382,4 +424,23 @@ test('handleNeuralRecoveryTerminalOutcome restores setup for terminal-event SETU
   assert.equal(deps.restoreCalls(), 1)
   assert.deepEqual(setupTarget, setupSnapshot)
   assert.equal(loadCurrentMatch(storage).ok, false)
+})
+
+test('handleNeuralRecoveryTerminalOutcome returns not surfaced for terminal-event SETUP when match setup is missing', () => {
+  const recovery = createNeuralRuntimeRecoveryCoordinator({ loadMaxAttempts: 1 })
+  recovery.beginRecovery('latest')
+  recovery.recordLoadFailure('latest')
+  const { restoreSetup, restoreCalls } = createSetupRestoreDeps()
+
+  const result = handleNeuralRecoveryTerminalOutcome({
+    kind: 'terminal-event',
+    recovery,
+    terminal: NEURAL_RECOVERY_TERMINAL.SETUP,
+    hasMatchSetup: true,
+    match: {},
+    restoreSetup,
+  })
+
+  assert.equal(result.surfaced, false)
+  assert.equal(restoreCalls(), 0)
 })

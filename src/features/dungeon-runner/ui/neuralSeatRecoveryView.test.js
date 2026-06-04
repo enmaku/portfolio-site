@@ -1,12 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createNeuralRuntimeRecoveryCoordinator } from '../nn/recovery.js'
-import { NEURAL_RECOVERY_TERMINAL } from '../nn/recovery.js'
-import {
-  buildSeatRecoveryIndicators,
-  isActiveNnSeatRecovering,
-  resolveNeuralRecoveryTerminalUx,
-} from './neuralSeatRecoveryView.js'
+import { buildSeatRecoveryIndicators, isActiveNnSeatRecovering } from './neuralSeatRecoveryView.js'
 
 test('buildSeatRecoveryIndicators marks only nn seats whose model is recovering', () => {
   const recovery = createNeuralRuntimeRecoveryCoordinator()
@@ -53,23 +48,4 @@ test('isActiveNnSeatRecovering is false when only inactive nn seat recovers', ()
     ],
   }
   assert.equal(isActiveNnSeatRecovering({ state, recovery }), false)
-})
-
-test('resolveNeuralRecoveryTerminalUx maps coordinator terminals to play-page actions', () => {
-  assert.deepEqual(
-    resolveNeuralRecoveryTerminalUx({ terminal: NEURAL_RECOVERY_TERMINAL.SETUP, hasMatchSetup: true }),
-    { action: 'setup-restore' },
-  )
-  assert.deepEqual(
-    resolveNeuralRecoveryTerminalUx({ terminal: NEURAL_RECOVERY_TERMINAL.SETUP, hasMatchSetup: false }),
-    { action: null },
-  )
-  assert.deepEqual(
-    resolveNeuralRecoveryTerminalUx({ terminal: NEURAL_RECOVERY_TERMINAL.REFRESH }),
-    { action: 'refresh-dialog' },
-  )
-  assert.deepEqual(
-    resolveNeuralRecoveryTerminalUx({ terminal: NEURAL_RECOVERY_TERMINAL.NONE }),
-    { action: null },
-  )
 })

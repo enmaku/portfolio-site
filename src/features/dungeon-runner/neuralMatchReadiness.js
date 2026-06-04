@@ -2,8 +2,11 @@ import {
   NEURAL_RECOVERY_TERMINAL,
   neuralRecoverySnapshotHasTerminal,
 } from './nn/recovery.js'
+import {
+  resolveNeuralRecoveryTerminalUx,
+  selectPersistedNeuralRecoveryTerminal,
+} from './neuralRecoveryTerminalPolicy.js'
 import { needsHeadlessCompletion } from './ui/humanEliminationCompletionPolicy.js'
-import { resolveNeuralRecoveryTerminalUx } from './ui/neuralSeatRecoveryView.js'
 
 export function collectNeuralModelIdsFromSetup(setup) {
   return [
@@ -80,6 +83,7 @@ export function shouldRunHeadlessMatchCompletion(match, humanPlayerSeatId) {
  *   kind: 'persisted-snapshot'
  *   recovery: ReturnType<import('./nn/recovery.js').createNeuralRuntimeRecoveryCoordinator>
  *   neuralRecoveryByModelId?: Record<string, { terminal?: string }>
+ *   preferredModelId?: string
  *   hasMatchSetup?: boolean
  *   match?: object
  *   restoreSetup: (setupSnapshot: object) => void
@@ -114,23 +118,26 @@ function handlePersistedNeuralRecoveryTerminalOutcome(options) {
     return { surfaced: false }
   }
   options.recovery.importSnapshot(snapshot)
-  for (const state of Object.values(snapshot)) {
-    const terminal = state?.terminal ?? NEURAL_RECOVERY_TERMINAL.NONE
-    const { action } = resolveNeuralRecoveryTerminalUx({
-      terminal,
-      hasMatchSetup: options.hasMatchSetup === true,
-    })
-    if (action === 'setup-restore') {
-      const setupSnapshot = options.match?.setup
-      if (!setupSnapshot) {
-        return { surfaced: false }
-      }
-      options.restoreSetup(setupSnapshot)
-      return { surfaced: true, action: 'setup-restore' }
+  const selected = selectPersistedNeuralRecoveryTerminal(snapshot, {
+    preferredModelId: options.preferredModelId,
+  })
+  if (!selected) {
+    return { surfaced: false }
+  }
+  const { action } = resolveNeuralRecoveryTerminalUx({
+    terminal: selected.terminal,
+    hasMatchSetup: options.hasMatchSetup === true,
+  })
+  if (action === 'setup-restore') {
+    const setupSnapshot = options.match?.setup
+    if (!setupSnapshot) {
+      return { surfaced: false }
     }
-    if (action === 'refresh-dialog') {
-      return { surfaced: true, action: 'refresh-dialog', match: options.match }
-    }
+    options.restoreSetup(setupSnapshot)
+    return { surfaced: true, action: 'setup-restore' }
+  }
+  if (action === 'refresh-dialog') {
+    return { surfaced: true, action: 'refresh-dialog', match: options.match }
   }
   return { surfaced: false }
 }
@@ -147,7 +154,11 @@ function handleNeuralRecoveryTerminalEventOutcome(options) {
     return { surfaced: false }
   }
   if (action === 'setup-restore') {
-    options.restoreSetup(options.match.setup)
+    const setupSnapshot = options.match?.setup
+    if (!setupSnapshot) {
+      return { surfaced: false }
+    }
+    options.restoreSetup(setupSnapshot)
     return { surfaced: true, action: 'setup-restore' }
   }
   const nextMatch = attachNeuralRecoverySnapshotToMatch(options.match, options.recovery)
