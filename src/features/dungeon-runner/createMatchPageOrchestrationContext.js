@@ -1,4 +1,4 @@
-import { resolveNeuralLoadGateSetupTerminal } from './nn/matchNeuralLoadGate.js'
+import { applyNeuralRecoverySetupTerminal } from './neuralMatchReadiness.js'
 
 /**
  * Page-local dependencies shared by match/NN orchestration entry points.
@@ -39,7 +39,7 @@ import { resolveNeuralLoadGateSetupTerminal } from './nn/matchNeuralLoadGate.js'
 export function createMatchPageOrchestrationContext(deps) {
   /** @param {object} setupSnapshot */
   function resolveSetupTerminal(setupSnapshot) {
-    resolveNeuralLoadGateSetupTerminal({
+    applyNeuralRecoverySetupTerminal({
       storage: deps.storage,
       setupSnapshot,
       clearCurrentMatch: deps.clearCurrentMatch,

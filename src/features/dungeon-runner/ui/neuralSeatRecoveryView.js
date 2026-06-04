@@ -1,5 +1,3 @@
-import { NEURAL_RECOVERY_TERMINAL } from '../nn/recovery.js'
-
 /**
  * @param {{ role?: { type?: string, modelId?: string } }} seat
  * @returns {string | null}
@@ -25,7 +23,7 @@ export function buildSeatRecoveryIndicators({ seats, recovery }) {
 }
 
 /**
- * @param {{ state: { turn?: { activeSeatId?: string }, seats?: object[] }, recovery: { shouldBlockTurn: (modelId: string) => boolean } }} params
+ * @param {{ state: { turn?: { activeSeatId?: string }, seats?: object[] }, recovery: { isRecovering: (modelId: string) => boolean } }} params
  */
 export function isActiveNnSeatRecovering({ state, recovery }) {
   const activeSeatId = state?.turn?.activeSeatId
@@ -33,26 +31,5 @@ export function isActiveNnSeatRecovering({ state, recovery }) {
   const seat = state.seats?.find((candidate) => candidate.id === activeSeatId)
   const modelId = nnSeatModelId(seat)
   if (!modelId) return false
-  return recovery.shouldBlockTurn(modelId)
-}
-
-/**
- * @param {{ state: { turn?: { activeSeatId?: string }, seats?: object[] }, recovery: { shouldBlockTurn: (modelId: string) => boolean } }} params
- */
-export function shouldBlockAiTurnScheduleForRecovery({ state, recovery }) {
-  return isActiveNnSeatRecovering({ state, recovery })
-}
-
-/**
- * @param {{ terminal: string, hasMatchSetup?: boolean }} params
- * @returns {{ action: 'setup-restore' | 'refresh-dialog' } | { action: null }}
- */
-export function resolveNeuralRecoveryTerminalUx({ terminal, hasMatchSetup = false }) {
-  if (terminal === NEURAL_RECOVERY_TERMINAL.SETUP && hasMatchSetup) {
-    return { action: 'setup-restore' }
-  }
-  if (terminal === NEURAL_RECOVERY_TERMINAL.REFRESH) {
-    return { action: 'refresh-dialog' }
-  }
-  return { action: null }
+  return recovery.isRecovering(modelId)
 }

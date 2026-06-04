@@ -82,9 +82,6 @@ export function createNeuralRuntimeRecoveryCoordinator(options = {}) {
       const state = getState(modelId)
       return state.recovering && state.terminal === NEURAL_RECOVERY_TERMINAL.NONE
     },
-    shouldBlockTurn(modelId) {
-      return this.isRecovering(modelId)
-    },
     getTerminalOutcome(modelId) {
       return getState(modelId).terminal
     },

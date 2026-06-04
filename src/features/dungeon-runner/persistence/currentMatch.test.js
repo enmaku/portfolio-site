@@ -18,22 +18,19 @@ import {
 } from '../ui/headlessMatchCompletionRunner.js'
 import { createLivePlayActionChooser } from '../ui/livePlayActionChooser.js'
 import {
+  applyNeuralRecoverySetupTerminal,
+  attachNeuralRecoverySnapshotToMatch,
+  handleNeuralRecoveryTerminalOutcome,
   shouldDeferHeadlessForPersistedNeuralTerminal,
   shouldRunHeadlessMatchCompletion,
-} from '../ui/headlessNeuralRecoveryPersistence.js'
+} from '../neuralMatchReadiness.js'
+import { createNeuralRuntimeRecoveryCoordinator, NEURAL_RECOVERY_TERMINAL } from '../nn/recovery.js'
 import {
   getMatchOverEndDialogVariant,
   MATCH_OVER_END_VARIANTS,
   needsHeadlessCompletion,
 } from '../ui/humanEliminationCompletionPolicy.js'
 import { applySetupSnapshot } from '../setup/state.js'
-import { resolveNeuralLoadGateSetupTerminal } from '../nn/matchNeuralLoadGate.js'
-import { NEURAL_RECOVERY_TERMINAL } from '../nn/recovery.js'
-import {
-  attachNeuralRecoverySnapshotToMatch,
-  surfacePersistedNeuralRecoveryTerminal,
-} from '../ui/headlessNeuralRecoveryPersistence.js'
-import { createNeuralRuntimeRecoveryCoordinator } from '../nn/recovery.js'
 import {
   CURRENT_MATCH_SCHEMA_VERSION,
   clearCurrentMatch,
@@ -329,20 +326,17 @@ test('headless infer terminal persists refresh snapshot and defers completion on
   )
   assert.equal(shouldDeferHeadlessForPersistedNeuralTerminal(loaded.match.neuralRecoveryByModelId), true)
 
-  let refreshOpen = false
   const resumedRecovery = createNeuralRuntimeRecoveryCoordinator()
-  assert.equal(
-    surfacePersistedNeuralRecoveryTerminal({
-      recovery: resumedRecovery,
-      neuralRecoveryByModelId: loaded.match.neuralRecoveryByModelId,
-      hasMatchSetup: true,
-      openRefreshTerminal: () => {
-        refreshOpen = true
-      },
-    }).surfaced,
-    true,
-  )
-  assert.equal(refreshOpen, true)
+  const resumed = handleNeuralRecoveryTerminalOutcome({
+    kind: 'persisted-snapshot',
+    recovery: resumedRecovery,
+    neuralRecoveryByModelId: loaded.match.neuralRecoveryByModelId,
+    hasMatchSetup: true,
+    match: loaded.match,
+    restoreSetup: () => {},
+  })
+  assert.equal(resumed.surfaced, true)
+  assert.equal(resumed.action, 'refresh-dialog')
   assert.equal(shouldRunHeadlessMatchCompletion(loaded.match, human.id), false)
 })
 
@@ -367,19 +361,16 @@ test('persisted neural recovery terminal round-trips and surfaces refresh on res
   )
 
   const resumedRecovery = createNeuralRuntimeRecoveryCoordinator()
-  let refreshOpen = false
-  assert.equal(
-    surfacePersistedNeuralRecoveryTerminal({
-      recovery: resumedRecovery,
-      neuralRecoveryByModelId: loaded.match.neuralRecoveryByModelId,
-      hasMatchSetup: true,
-      openRefreshTerminal: () => {
-        refreshOpen = true
-      },
-    }).surfaced,
-    true,
-  )
-  assert.equal(refreshOpen, true)
+  const resumed = handleNeuralRecoveryTerminalOutcome({
+    kind: 'persisted-snapshot',
+    recovery: resumedRecovery,
+    neuralRecoveryByModelId: loaded.match.neuralRecoveryByModelId,
+    hasMatchSetup: true,
+    match: loaded.match,
+    restoreSetup: () => {},
+  })
+  assert.equal(resumed.surfaced, true)
+  assert.equal(resumed.action, 'refresh-dialog')
 })
 
 test('invalid neuralRecoveryByModelId rejects persisted match', () => {
@@ -411,7 +402,7 @@ test('neural load gate setup terminal clears persisted match while preserving se
     history: [],
   })
   const setupTarget = { totalSeats: 2, opponents: [{ type: 'randombot' }] }
-  resolveNeuralLoadGateSetupTerminal({
+  applyNeuralRecoverySetupTerminal({
     storage,
     setupSnapshot,
     clearCurrentMatch,
