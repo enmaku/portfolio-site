@@ -106,6 +106,36 @@ Headless resolution of remaining **opponent** play after the **human player seat
 
 _Avoid_: Treating **finishing match** as **match over**; implying the whole **match** stops when only the human is **eliminated**; conflating with **neural runtime recovery** blocking (recovery can interrupt headless completion).
 
+### Play setup surface
+
+The pre-**match** play UI for seat count, **opponent** roles, validation, and starting a **match**; active while there is no **current match** in play-route state (including after **neural recovery terminal outcome** **SETUP** or **match neural load gate** failure clears the **current match**).
+
+_Avoid_: “Setup screen,” “lobby”; conflating with **setup** (configuration data, not the surface); switching here because a blocking dialog is open while a **current match** still exists (**REFRESH** stays on **live match shell**).
+
+### Live match shell
+
+The in-progress play surface from first turn through **finishing match** (if any): board, human actions, **opponent** turn scheduling, presentation bindings, and mid-**match** dialogs ( **dungeon run** outcome, equipment, Vorpal, deck splay, **finishing match** overlay, **REFRESH** terminal). Active while a **current match** exists in play-route state and **match-over shell** has not taken over—including when blocked by **REFRESH** terminal, **finishing match**, or presentation locks.
+
+_Avoid_: “Game board” alone when meaning the whole live surface; treating **finishing match** as **match over**; conflating with **play setup surface**; using open dialogs alone as the shell switch; hosting **match neural load gate** pre-**match** failure UI here (that belongs on **play setup surface** when no **current match** yet exists).
+
+### Match-over shell
+
+The post-**match over** play surface: outcome dialog, **completed match replay** upload hooks, rematch, and return to **play setup surface**. Replaces the **live match shell** once the engine records **match over**—not during **finishing match**. The bidding/dungeon board is not rendered while this surface is active; **current match** data may remain in memory for upload and rematch until cleared. **Rematch** starts a new **match** with the same **setup** snapshot and enters **live match shell** directly (after **match neural load gate**); **Back to setup** clears the **current match** and restores **play setup surface** with prior **setup** choices. **Completed match replay** and **completed match outcome** upload run once when this surface activates (background, idempotent—not deferred until the player dismisses outcome UX).
+
+_Avoid_: “End screen” without **match over** scope; conflating with **dungeon run** outcome dialogs (mid-**match**); activating during **finishing match**; leaving the live board mounted behind the outcome dialog; routing **Rematch** through **play setup surface** unless gate failure yields **SETUP** terminal; waiting for **Rematch**/**Back to setup** before upload; triggering upload from **live match shell** board wiring.
+
+### Play route chrome
+
+Shared header and controls on the Dungeon Runner play route outside the three shells: title, help, settings (**presentation pace**, memory aid, fullscreen), debug badge, and **play route bootstrap**. Shell-specific actions (e.g. intentional new **match** during live play) wire through the active shell but reuse this chrome frame. **Play route bootstrap** (resume **current match** from storage on first open) is coordinated here via orchestration modules—shells do not re-run gate, terminal recovery, or headless-completion policy.
+
+_Avoid_: Duplicating header/settings per shell; treating **match outcome dashboard** chrome as **play route chrome** (stats uses **portfolio shell**, not play **project** shell); duplicating **SETUP**/**REFRESH** bootstrap branches inside shells.
+
+### Debug replay panel
+
+Maintainer-only replay export/import UI when debug mode is on. Full panel (import, export, NN trace history) lives in **live match shell**; **match-over shell** may expose export-only when debug mode is on; **play setup surface** shows neither.
+
+_Avoid_: “Debug menu” without scope; import on **match-over shell** or **play setup surface**; moving the debug badge out of **play route chrome**.
+
 ### Elimination end (human)
 
 The **match** is over for the **human player seat** once that seat is **eliminated**; remaining **opponent** play finishes in **finishing match** before **match over** is recorded. The end dialog uses elimination-focused copy and does not name the winning **opponent**.
@@ -316,6 +346,21 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - A **match** contains one or more **dungeon runs** before **match over**.
 - **Elimination end (human)** and **Defeat (human, not eliminated)** use different end-dialog copy; only the latter names the winning seat.
 - Headless completion of remaining **opponent** play after human **elimination** uses the same action choosers as live play (not a simplified bot).
+- **Play setup surface**, **live match shell**, and **match-over shell** partition the play route; exactly one is active at a time.
+- **Play setup surface** ↔ **live match shell** is driven by whether a **current match** exists in play-route state, not by which dialog is open.
+- **Live match shell** stays active during **REFRESH** terminal blocking ( **current match** retained).
+- **Finishing match** belongs to the **live match shell**, not the **match-over shell**.
+- **Match-over shell** activates only after engine **match over**, not when the human is **eliminated** but **opponents** still play.
+- While **match-over shell** is active, the **live match shell** board is unmounted (outcome UX only); **current match** may persist in memory until rematch or return to **play setup surface**.
+- **Play route chrome** wraps all three shells; **presentation pace** and memory aid settings apply across **play setup surface** and **live match shell** (and rematch inherits them).
+- From **match-over shell**, **Rematch** reuses **setup** and enters **live match shell** without visiting **play setup surface**; **Back to setup** returns to **play setup surface** with **setup** restored.
+- Mid-**match** dialogs and **finishing match** overlay belong to **live match shell**; **match neural load gate** failure before a **current match** exists is shown on **play setup surface**.
+- **Play route bootstrap** maps orchestration outcomes to the active shell: no saved **match** or **SETUP** terminal → **play setup surface**; **REFRESH** terminal or successful resume → **live match shell** (headless completion when applicable).
+- **Completed match replay** and **completed match outcome** upload trigger when **match-over shell** activates, not from **live match shell**; not deferred until outcome dismissal.
+- **Opponent** turn scheduling, prefetch, **live AI turn pipeline gate** wiring, presentation-orchestrator callbacks during play, and the **neural runtime recovery** subscribe handler belong to **live match shell** (not **play setup surface** or **match-over shell**).
+- Debug badge stays on **play route chrome**; full **debug replay panel** on **live match shell**; export-only on **match-over shell** when debug mode is on.
+- **Play route bootstrap** with a **current match** already at **match over** enters **match-over shell** (outcome UX again, board unmounted); upload re-runs idempotently. **Persisted neural recovery** **REFRESH** on resume takes precedence over outcome (**live match shell** + refresh dialog)—**REFRESH** and terminal **match over** must not coexist on one saved **current match**.
+- Shared play-route state (**setup**, **current match**, orchestration inputs) lives outside the three shells; shells receive it via the page entry/session seam and own shell-local UI only—not a single composable owning the full **match** lifecycle (#176 rejection stands).
 - The **current match** holds in-progress **match** state locally until **match over** or clear; optional **persisted neural recovery** may be attached.
 - **Match neural load gate** runs before the first turn on new **match** start and on **current match** resume; gate load failure yields **neural recovery terminal outcome** **SETUP** without **neural runtime recovery** retries.
 - On **current match** resume, **match neural load gate** must succeed before surfacing **persisted neural recovery** or **finishing match** headless resolution.
@@ -350,6 +395,9 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 > **Dev:** “NN infer fails during **finishing match** — do we wipe the **current match**?”
 > **Domain expert:** “No — that’s **REFRESH**: keep the **current match**, block until the player refreshes. **SETUP** is for load exhaustion — clear the **current match** and restore **setup**, like **match neural load gate** failure at resume.”
 
+> **Dev:** “Player reloads mid-outcome — do we drop them on the board or back to **setup**?”
+> **Domain expert:** “**Match-over shell** again — same outcome UX, upload is idempotent. Only **REFRESH** persisted recovery overrides that and keeps **live match shell** blocked.”
+
 ## Flagged ambiguities
 
 - **Empty dungeon pile at bidding end** vs **sim empty-pile forfeit**: **web game engine** gives an immediate successful **dungeon run** (see kernel test). **Python training sim** uses **sim empty-pile forfeit** (`EMPTY_DUNGEON_FORFEIT`, no winner)—an anti-pass-farming rule from early training that remains a sim **local minima**; runtime play follows web/table rules. See [`UBIQUITOUS_LANGUAGE.md`](../../../UBIQUITOUS_LANGUAGE.md).
@@ -357,3 +405,4 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - “Catalog” without qualifier may mean the neural **model catalog** or the **game data catalog** — use the full term.
 - In-match “history panel” was considered and rejected — **history** stays engine/replay data only.
 - Seat “role badges” during play were considered and rejected — **opponent** type belongs in **setup** only.
+- Play page shell split (#212) moves wiring only; **presentation motion registry** consolidation stays a separate slice (#216)—shells consume existing orchestrator/registry seams unchanged.
