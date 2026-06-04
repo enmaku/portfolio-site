@@ -58,7 +58,7 @@ _Avoid_: “NN seat,” “AI opponent” without **setup** role; treating **Ran
 
 ### Neural runtime recovery
 
-Coordinated handling of TF.js load and infer failures for a **neural opponent** `modelId` (shared model cache): retries with escalating repair until success clears the coordinator or a **neural recovery terminal outcome** is reached. While recovery is in progress and non-terminal, only the active **neural opponent** seat’s turn is blocked. Consumers subscribe to coordinator changes rather than polling opaque internal state. Live-play reactions to recovery (re-schedule, prefetch cancel, recovery UI) consolidate in one page subscribe handler; persistence of **persisted neural recovery** stays at explicit terminal or headless events, not in the subscribe path.
+Coordinated handling of TF.js load and infer failures for a **neural opponent** `modelId` (shared model cache): retries with escalating repair until success clears the coordinator or a **neural recovery terminal outcome** is reached. While recovery is in progress and non-terminal, only the active **neural opponent** seat’s turn is blocked. Consumers subscribe to coordinator changes rather than polling opaque internal state. Live-play reactions to recovery (re-schedule, prefetch cancel, recovery UI) consolidate in one page subscribe handler; **persisted neural recovery** is written at the terminal moment (including live-play **REFRESH** before refresh UX is shown), not in the subscribe path.
 
 _Avoid_: Retry counts, backend names, or coordinator field names (see `CONTRACT.md`); blocking human or **Randombot** turns during NN recovery; substituting a legal action on failure; Vue-specific reactivity hacks (e.g. revision counters) inside recovery modules; folding **current match** persistence into recovery subscribe callbacks.
 
@@ -84,7 +84,7 @@ _Avoid_: Separate glossary entries for `REFRESH` and `SETUP`; treating **SETUP**
 
 ### Persisted neural recovery
 
-Optional state on the in-progress **current match** (`neuralRecoveryByModelId`): per-`modelId` **neural runtime recovery** coordinator state and **neural recovery terminal outcome** when exhaustion occurs during **finishing match** or headless completion, so resume surfaces the same blocking refresh or **setup** UX as live play. **REFRESH** keeps the **current match** and defers headless completion until the player refreshes; **SETUP** clears the **current match** and restores **setup**.
+Optional state on the in-progress **current match** (`neuralRecoveryByModelId`): per-`modelId` **neural runtime recovery** coordinator state and **neural recovery terminal outcome** when exhaustion occurs during live play, **finishing match**, or headless completion, so reload and resume surface the same blocking refresh or **setup** UX. **REFRESH** keeps the **current match** and defers headless completion until the player refreshes; **SETUP** clears the **current match** and restores **setup**.
 
 _Avoid_: “Recovery blob,” “NN persistence JSON”; treating **persisted neural recovery** as part of **history** or **replay envelope**; running headless completion while **REFRESH** is persisted.
 
@@ -322,7 +322,7 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - **Live AI turn pipeline gate** decides schedule, prefetch, and run together during live play; distinct from **match neural load gate** and from headless **finishing match** resolution (headless supplies in-flight state as an input only).
 - **Neural runtime recovery** coordinates load/infer failures per **neural opponent** `modelId`; non-terminal recovery blocks only the active **neural opponent** seat.
 - **Neural recovery terminal outcome** **SETUP** clears the **current match** and restores **setup**; **REFRESH** keeps the **current match** and requires a page refresh.
-- **Persisted neural recovery** on the **current match** lets resume after **finishing match** or headless exhaustion surface the same blocking UX as live play; **REFRESH** defers headless completion until refresh.
+- **Persisted neural recovery** on the **current match** is written when any path reaches a terminal outcome (live play, **finishing match**, or headless completion); reload and resume surface the same blocking UX; **REFRESH** defers headless completion until refresh.
 - Each **match** has exactly one **human player seat**; the human is not an **opponent** in **setup**.
 - A **completed match replay** is a **replay envelope** captured when **match over** is reached.
 - The **completed match replay archive** holds **completed match replay** envelopes keyed by match id; each key is written at most once from the browser; **archive listing** at the root is allowed for maintainer ingest.
