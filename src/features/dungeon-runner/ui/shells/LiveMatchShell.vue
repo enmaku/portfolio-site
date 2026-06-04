@@ -1,23 +1,23 @@
 <template>
   <div :data-testid="LIVE_MATCH_SHELL_TEST_IDS.root">
-    <div :ref="session.bindBoardShellRef" class="dr-board-shell">
+    <div :ref="session.board.bindBoardShellRef" class="dr-board-shell">
       <div
-        v-if="session.showDungeonStage && session.dungeonStageView.hpBar"
+        v-if="session.board.showDungeonStage && session.board.dungeonStageView.hpBar"
         class="dr-dungeon-hp-bar q-mb-sm"
         role="meter"
         aria-label="Adventurer HP"
         aria-valuemin="0"
-        :aria-valuemax="session.dungeonStageView.hpBar.displayMaxHp"
-        :aria-valuenow="session.dungeonStageView.hpBar.currentHp"
+        :aria-valuemax="session.board.dungeonStageView.hpBar.displayMaxHp"
+        :aria-valuenow="session.board.dungeonStageView.hpBar.currentHp"
       >
         <div class="row items-center justify-between q-mb-xs">
           <span class="text-caption text-weight-medium">HP</span>
-          <span class="text-caption">{{ session.dungeonStageView.hpBar.text }}</span>
+          <span class="text-caption">{{ session.board.dungeonStageView.hpBar.text }}</span>
         </div>
         <div class="dr-dungeon-hp-bar__track">
           <div
             class="dr-dungeon-hp-bar__fill"
-            :style="{ width: `${session.dungeonStageView.hpBar.percent}%` }"
+            :style="{ width: `${session.board.dungeonStageView.hpBar.percent}%` }"
           />
         </div>
       </div>
@@ -25,16 +25,16 @@
         flat
         bordered
         class="q-pa-sm q-mb-sm dr-bidding-board"
-        :class="session.biddingBoard.heroCue.accentClass"
+        :class="session.board.biddingBoard.heroCue.accentClass"
       >
       <div
-        v-if="session.seatRunTrackerRows.length"
+        v-if="session.board.seatRunTrackerRows.length"
         class="dr-seat-strip q-mb-sm"
       >
         <div class="row q-col-gutter-xs">
-          <div v-for="row in session.seatRunTrackerRows" :key="`seat-${row.seatId}`" class="col dr-seat-stack">
+          <div v-for="row in session.board.seatRunTrackerRows" :key="`seat-${row.seatId}`" class="col dr-seat-stack">
             <q-badge
-              :color="row.passed ? 'grey-9' : session.biddingBoard.heroCue.badgeColor"
+              :color="row.passed ? 'grey-9' : session.board.biddingBoard.heroCue.badgeColor"
               text-color="white"
               class="dr-seat-chip q-px-sm full-width"
               :class="{ 'dr-token-glow': row.isActive }"
@@ -69,89 +69,89 @@
       </div>
       <q-card-section class="q-pa-none q-mb-sm dr-board-primary">
         <div
-          :ref="session.bindHeroCardSlotRef"
+          :ref="session.board.bindHeroCardSlotRef"
           class="dr-hero-card-slot"
           :class="{
-            'dr-dungeon-stage': session.showDungeonStage,
-            [session.dungeonStageAnimationClass]: session.showDungeonStage && session.dungeonStageAnimationClass,
+            'dr-dungeon-stage': session.board.showDungeonStage,
+            [session.board.dungeonStageAnimationClass]: session.board.showDungeonStage && session.board.dungeonStageAnimationClass,
           }"
         >
-          <div :ref="session.bindDungeonCardMotionWrapRef" class="dr-dungeon-card-motion-wrap">
+          <div :ref="session.board.bindDungeonCardMotionWrapRef" class="dr-dungeon-card-motion-wrap">
             <MonsterCardFace
-              :ref="session.bindDungeonCardFaceRef"
+              :ref="session.board.bindDungeonCardFaceRef"
               class="dr-hero-card-control"
-              :empty="session.monsterCardSlotEmpty"
-              :hide-empty-slot="session.showDungeonStage"
-              :species="session.showDungeonStage ? session.dungeonStageView.monster.frontFaceSpecies : session.biddingStageSpecies"
+              :empty="session.board.monsterCardSlotEmpty"
+              :hide-empty-slot="session.board.showDungeonStage"
+              :species="session.board.showDungeonStage ? session.board.dungeonStageView.monster.frontFaceSpecies : session.board.biddingStageSpecies"
               :face-down="
-                session.showDungeonStage
-                  ? session.dungeonStageView.monster.visibility === 'face-down'
-                  : session.biddingStageFaceDown
+                session.board.showDungeonStage
+                  ? session.board.dungeonStageView.monster.visibility === 'face-down'
+                  : session.board.biddingStageFaceDown
               "
             />
           </div>
           <q-badge
-            v-if="session.showDungeonStage && session.dungeonStageView.hpDelta"
+            v-if="session.board.showDungeonStage && session.board.dungeonStageView.hpDelta"
             class="dr-dungeon-stage__hp-chip"
-            :color="session.dungeonStageView.hpDelta.tone === 'damage' ? 'negative' : 'positive'"
+            :color="session.board.dungeonStageView.hpDelta.tone === 'damage' ? 'negative' : 'positive'"
             text-color="white"
           >
-            {{ session.dungeonStageView.hpDelta.text }}
+            {{ session.board.dungeonStageView.hpDelta.text }}
           </q-badge>
         </div>
       </q-card-section>
       <div class="row q-col-gutter-xs items-start">
         <div class="col-4">
           <q-badge
-            :ref="session.bindDeckBadgeRef"
+            :ref="session.board.bindDeckBadgeRef"
             text-color="white"
             class="full-width q-py-xs justify-between dr-deck-badge dr-pile-badge dr-pile-badge--deck"
-            :style="{ '--dr-pile': `url('${session.uiAssets.piles.deck.runtimePath}')` }"
+            :style="{ '--dr-pile': `url('${session.board.uiAssets.piles.deck.runtimePath}')` }"
             :class="{
-              'dr-deck-badge--interactive': session.biddingBoard.memoryAid.deckTapEnabled,
+              'dr-deck-badge--interactive': session.board.biddingBoard.memoryAid.deckTapEnabled,
             }"
-            @click="session.onDeckTap"
+            @click="session.board.onDeckTap"
           >
             <span>Deck</span>
-            <span>{{ session.biddingBoard.secondary.deckCount }}</span>
+            <span>{{ session.board.biddingBoard.secondary.deckCount }}</span>
           </q-badge>
-          <div v-if="session.biddingBoard.memoryAid.knownDeckCountHint !== null" class="text-caption text-grey-6 q-mt-xs">
-            Known to you: {{ session.biddingBoard.memoryAid.knownDeckCountHint }}
+          <div v-if="session.board.biddingBoard.memoryAid.knownDeckCountHint !== null" class="text-caption text-grey-6 q-mt-xs">
+            Known to you: {{ session.board.biddingBoard.memoryAid.knownDeckCountHint }}
           </div>
         </div>
         <div class="col-4">
-          <div :ref="session.bindDungeonPileMotionAnchorRef" class="full-width">
+          <div :ref="session.board.bindDungeonPileMotionAnchorRef" class="full-width">
             <q-badge
               text-color="white"
               class="full-width q-py-xs justify-between dr-pile-badge dr-pile-badge--dungeon"
-              :style="{ '--dr-pile': `url('${session.uiAssets.piles.dungeon.runtimePath}')` }"
+              :style="{ '--dr-pile': `url('${session.board.uiAssets.piles.dungeon.runtimePath}')` }"
             >
               <span>Dungeon</span>
-              <span>{{ session.biddingBoard.secondary.dungeonCount }}</span>
+              <span>{{ session.board.biddingBoard.secondary.dungeonCount }}</span>
             </q-badge>
           </div>
         </div>
         <div class="col-4">
           <div class="row no-wrap items-center full-width dr-turn-hero-row">
             <q-chip
-              :color="session.biddingBoard.heroCue.badgeColor"
+              :color="session.board.biddingBoard.heroCue.badgeColor"
               text-color="white"
               dense
-              :aria-label="session.biddingBoard.heroCue.shortLabel"
+              :aria-label="session.board.biddingBoard.heroCue.shortLabel"
             >
-              {{ session.biddingBoard.heroCue.shortLabel }}
+              {{ session.board.biddingBoard.heroCue.shortLabel }}
             </q-chip>
           </div>
         </div>
       </div>
       <div class="row q-mt-none">
         <div
-          v-for="token in session.boardEquipmentTokens"
+          v-for="token in session.board.boardEquipmentTokens"
           :key="token.equipmentId"
           class="col-4 flex flex-center"
         >
           <div
-            :ref="(el) => session.bindBiddingEquipmentBadgeRef(token.equipmentId, el)"
+            :ref="(el) => session.board.bindBiddingEquipmentBadgeRef(token.equipmentId, el)"
             class="dr-equip-token"
             :class="{
               'dr-equip-token--spent': token.removed,
@@ -164,13 +164,13 @@
             :role="token.hasModal ? 'button' : 'img'"
             :aria-disabled="token.hasModal ? undefined : 'true'"
             :aria-label="token.ariaLabel"
-            @click="session.openEquipmentModal(token)"
-            @keydown.enter.prevent="session.openEquipmentModal(token)"
-            @keydown.space.prevent="session.openEquipmentModal(token)"
+            @click="session.board.openEquipmentModal(token)"
+            @keydown.enter.prevent="session.board.openEquipmentModal(token)"
+            @keydown.space.prevent="session.board.openEquipmentModal(token)"
           >
             <img
               class="dr-equip-token__plate"
-              :src="session.uiAssets.equipment.plate.runtimePath"
+              :src="session.board.uiAssets.equipment.plate.runtimePath"
               alt=""
               draggable="false"
             />
@@ -188,114 +188,114 @@
       </div>
     </q-card>
     
-    <q-card v-if="session.showActionPane" flat bordered class="q-pa-sm q-mb-md">
-      <div v-if="session.activePresentationLabel" class="text-body2 text-grey-6 q-mb-xs">{{ session.activePresentationLabel }}</div>
-      <div v-if="session.isHumanTurn" class="row q-col-gutter-sm q-gutter-y-sm">
-        <template v-if="session.match?.state?.phase === 'bidding' && session.biddingSacrificeActions.length > 1">
+    <q-card v-if="session.board.showActionPane" flat bordered class="q-pa-sm q-mb-md">
+      <div v-if="session.board.activePresentationLabel" class="text-body2 text-grey-6 q-mb-xs">{{ session.board.activePresentationLabel }}</div>
+      <div v-if="session.board.isHumanTurn" class="row q-col-gutter-sm q-gutter-y-sm">
+        <template v-if="session.board.match?.state?.phase === 'bidding' && session.board.biddingSacrificeActions.length > 1">
           <q-btn
-            v-for="action in session.biddingNonSacrificeActions"
-            :key="session.actionKey(action)"
-            :color="session.biddingBoard.heroCue.buttonColor"
+            v-for="action in session.board.biddingNonSacrificeActions"
+            :key="session.board.actionKey(action)"
+            :color="session.board.biddingBoard.heroCue.buttonColor"
             unelevated
             no-caps
             size="lg"
             class="col-12 col-sm-auto"
-            :label="session.actionLabel(action)"
-            :disable="session.humanGameplayBlocked"
-            @click="session.takeHumanAction(action)"
+            :label="session.board.actionLabel(action)"
+            :disable="session.board.humanGameplayBlocked"
+            @click="session.board.takeHumanAction(action)"
           />
           <q-btn-dropdown
-            :color="session.biddingBoard.heroCue.buttonColor"
+            :color="session.board.biddingBoard.heroCue.buttonColor"
             unelevated
             no-caps
             dense
             size="lg"
             class="col-12 col-sm-auto"
             label="Sacrifice equipment"
-            :disable="session.humanGameplayBlocked"
+            :disable="session.board.humanGameplayBlocked"
           >
             <q-list dense>
               <q-item
-                v-for="action in session.biddingSacrificeActions"
-                :key="session.actionKey(action)"
+                v-for="action in session.board.biddingSacrificeActions"
+                :key="session.board.actionKey(action)"
                 v-close-popup
                 clickable
-                @click="session.takeHumanAction(action)"
+                @click="session.board.takeHumanAction(action)"
               >
-                <q-item-section>{{ session.actionLabel(action) }}</q-item-section>
+                <q-item-section>{{ session.board.actionLabel(action) }}</q-item-section>
               </q-item>
             </q-list>
           </q-btn-dropdown>
         </template>
         <template v-else>
-          <template v-if="session.showHeroPickActionGrid">
+          <template v-if="session.board.showHeroPickActionGrid">
             <div class="col-12 text-h5 text-weight-medium text-grey-5 q-mb-xs" style="text-align: center;">Select Adventurer</div>
             <div class="dr-hero-pick-grid col-12">
               <q-btn
-                v-for="action in session.heroPickActionsOrdered"
-                :key="session.actionKey(action)"
-                :color="session.getHeroIdentity(action.hero).buttonColor"
+                v-for="action in session.board.heroPickActionsOrdered"
+                :key="session.board.actionKey(action)"
+                :color="session.board.getHeroIdentity(action.hero).buttonColor"
                 unelevated
                 no-caps
                 dense
                 size="lg"
                 class="dr-hero-pick-grid__btn full-width"
-                :label="session.getHeroIdentity(action.hero).shortLabel"
-                :aria-label="session.actionLabel(action)"
-                :disable="session.humanGameplayBlocked"
-                @click="session.takeHumanAction(action)"
+                :label="session.board.getHeroIdentity(action.hero).shortLabel"
+                :aria-label="session.board.actionLabel(action)"
+                :disable="session.board.humanGameplayBlocked"
+                @click="session.board.takeHumanAction(action)"
               />
             </div>
           </template>
           <template v-else>
             <q-btn
-              v-for="action in session.visiblePrimaryActions"
-              :key="session.actionKey(action)"
-              :color="session.biddingBoard.heroCue.buttonColor"
+              v-for="action in session.board.visiblePrimaryActions"
+              :key="session.board.actionKey(action)"
+              :color="session.board.biddingBoard.heroCue.buttonColor"
               unelevated
               no-caps
               dense
               size="lg"
               class="col-12 col-sm-auto"
-              :label="session.actionLabel(action)"
-              :disable="session.humanGameplayBlocked"
-              @click="session.takeHumanAction(action)"
+              :label="session.board.actionLabel(action)"
+              :disable="session.board.humanGameplayBlocked"
+              @click="session.board.takeHumanAction(action)"
             />
           </template>
         </template>
       </div>
-      <div v-if="session.isHumanTurn && session.dungeonOutcomeTransitionControls.length" class="row q-col-gutter-sm q-gutter-y-sm q-mt-xs">
+      <div v-if="session.board.isHumanTurn && session.board.dungeonOutcomeTransitionControls.length" class="row q-col-gutter-sm q-gutter-y-sm q-mt-xs">
         <q-btn
-          v-for="control in session.dungeonOutcomeTransitionControls"
+          v-for="control in session.board.dungeonOutcomeTransitionControls"
           :key="control.key"
-          :color="session.biddingBoard.heroCue.buttonColor"
+          :color="session.board.biddingBoard.heroCue.buttonColor"
           unelevated
           no-caps
           dense
           size="md"
           class="col-12 col-sm-auto"
           :label="control.label"
-          :disable="session.gameplayInputLocked || session.dungeonOutcomeDialogOpen"
-          @click="session.takeHumanAction(control.action)"
+          :disable="session.board.gameplayInputLocked || session.dialogs.dungeonOutcomeDialogOpen"
+          @click="session.board.takeHumanAction(control.action)"
         />
       </div>
     </q-card>
     
-    <q-card v-if="session.debugMode" flat bordered class="q-pa-md q-mb-md">
+    <q-card v-if="session.debug.debugMode" flat bordered class="q-pa-md q-mb-md">
       <div class="text-subtitle2 q-mb-sm">Debug replay</div>
-      <div v-if="session.nnDebugTraceHistory.length" class="q-mb-sm">
+      <div v-if="session.debug.nnDebugTraceHistory.length" class="q-mb-sm">
         <div class="text-caption text-grey-5 q-mb-xs">NN trace history</div>
-        <div v-for="(entry, index) in session.nnDebugTraceHistory" :key="`nn-trace-${index}`" class="text-caption">
+        <div v-for="(entry, index) in session.debug.nnDebugTraceHistory" :key="`nn-trace-${index}`" class="text-caption">
           {{ entry.at }} | {{ entry.modelId }} | {{ entry.trace.kind }} |
           {{ entry.trace.fallbackReason ?? entry.trace.mode ?? 'sample' }}
         </div>
       </div>
       <div class="row q-gutter-sm q-mb-sm">
-        <q-btn color="primary" flat label="Export replay" @click="session.exportReplay" />
-        <q-btn color="primary" flat label="Import replay" @click="session.importReplay" />
+        <q-btn color="primary" flat label="Export replay" @click="session.debug.exportReplay" />
+        <q-btn color="primary" flat label="Import replay" @click="session.debug.importReplay" />
       </div>
       <q-input
-        v-model="session.replayExportText"
+        v-model="session.debug.replayExportText"
         type="textarea"
         autogrow
         readonly
@@ -304,9 +304,9 @@
         dense
         class="q-mb-sm"
       />
-      <q-input v-model="session.replayImportText" type="textarea" autogrow label="Import payload" outlined dense />
+      <q-input v-model="session.debug.replayImportText" type="textarea" autogrow label="Import payload" outlined dense />
       <q-input
-        v-model="session.nnDebugTraceText"
+        v-model="session.debug.nnDebugTraceText"
         type="textarea"
         autogrow
         readonly
@@ -318,78 +318,78 @@
     </q-card>
     
       <div
-        :ref="session.bindPresentationFlightLayerRef"
+        :ref="session.board.bindPresentationFlightLayerRef"
         class="dr-presentation-flight-layer"
         aria-hidden="true"
       />
     </div>
 
     <button
-      v-if="session.activePresentation?.kind === 'HERO_CHANGE_INTERSTITIAL' && session.heroChangeInterstitialView"
-      :ref="session.bindHeroChangeInterstitialOverlayRef"
+      v-if="session.board.activePresentation?.kind === 'HERO_CHANGE_INTERSTITIAL' && session.board.heroChangeInterstitialView"
+      :ref="session.board.bindHeroChangeInterstitialOverlayRef"
       type="button"
       class="dr-hero-interstitial"
-      :aria-label="session.heroChangeInterstitialAriaLabel"
-      @click="session.skipActivePresentation"
+      :aria-label="session.board.heroChangeInterstitialAriaLabel"
+      @click="session.board.skipActivePresentation"
     >
-      <p class="dr-hero-interstitial__headline">{{ session.heroChangeInterstitialView.headline }}</p>
+      <p class="dr-hero-interstitial__headline">{{ session.board.heroChangeInterstitialView.headline }}</p>
       <q-avatar
-        :color="session.heroChangeInterstitialView.chosen.badgeColor"
+        :color="session.board.heroChangeInterstitialView.chosen.badgeColor"
         text-color="white"
         size="56px"
         font-size="1.25rem"
         class="dr-hero-interstitial__avatar"
       >
-        {{ session.heroChangeInterstitialView.chosen.badgeGlyph }}
+        {{ session.board.heroChangeInterstitialView.chosen.badgeGlyph }}
       </q-avatar>
     </button>
     
-    <q-dialog v-model="session.dungeonOutcomeDialogOpen" persistent transition-show="scale" transition-hide="scale">
-      <q-card class="q-pa-md dr-dungeon-outcome-dialog" :class="session.dungeonOutcomeToneClass" style="min-width: 340px">
+    <q-dialog v-model="session.dialogs.dungeonOutcomeDialogOpen" persistent transition-show="scale" transition-hide="scale">
+      <q-card class="q-pa-md dr-dungeon-outcome-dialog" :class="session.dialogs.dungeonOutcomeToneClass" style="min-width: 340px">
         <div class="text-overline dr-outcome-kicker">Dungeon run resolved</div>
         <div class="text-h5 text-weight-bold q-mb-sm dr-outcome-title">
-          {{ session.dungeonOutcomeSummary?.resultLabel }}
+          {{ session.dialogs.dungeonOutcomeSummary?.resultLabel }}
         </div>
         <div class="text-body1 q-mb-xs">
-          Runner: <span class="text-weight-bold">{{ session.dungeonOutcomeSummary?.runnerLabel }}</span>
+          Runner: <span class="text-weight-bold">{{ session.dialogs.dungeonOutcomeSummary?.runnerLabel }}</span>
         </div>
-        <div class="text-body2 q-mb-md dr-outcome-message">{{ session.dungeonOutcomeMessage }}</div>
+        <div class="text-body2 q-mb-md dr-outcome-message">{{ session.dialogs.dungeonOutcomeMessage }}</div>
         <div class="row justify-end">
-          <q-btn color="primary" unelevated label="Continue" class="dr-outcome-btn" @click="session.continueFromDungeonOutcome" />
+          <q-btn color="primary" unelevated label="Continue" class="dr-outcome-btn" @click="session.dialogs.continueFromDungeonOutcome" />
         </div>
       </q-card>
     </q-dialog>
     
-    <q-dialog v-model="session.equipmentModalOpen" class="dr-equipment-dialog">
+    <q-dialog v-model="session.dialogs.equipmentModalOpen" class="dr-equipment-dialog">
       <q-card class="q-pa-md" style="min-width: 320px">
-        <div class="text-subtitle1 q-mb-xs">{{ session.selectedEquipmentModalView?.title }}</div>
-        <div class="text-body2 q-mb-md">{{ session.selectedEquipmentModalView?.details }}</div>
+        <div class="text-subtitle1 q-mb-xs">{{ session.dialogs.selectedEquipmentModalView?.title }}</div>
+        <div class="text-body2 q-mb-md">{{ session.dialogs.selectedEquipmentModalView?.details }}</div>
         <div class="row justify-end q-gutter-sm">
           <q-btn
-            v-if="session.selectedEquipmentModalView?.showUseButton"
+            v-if="session.dialogs.selectedEquipmentModalView?.showUseButton"
             color="primary"
             unelevated
             label="Use"
-            :disable="session.equipmentModalActionsDisabled"
-            @click="session.takeEquipmentUseAction"
+            :disable="session.dialogs.equipmentModalActionsDisabled"
+            @click="session.dialogs.takeEquipmentUseAction"
           />
-          <q-btn flat color="primary" label="Continue" @click="session.continueFromEquipmentModal" />
+          <q-btn flat color="primary" label="Continue" @click="session.dialogs.continueFromEquipmentModal" />
         </div>
       </q-card>
     </q-dialog>
     
-    <q-dialog v-model="session.confirmationDialogOpen" persistent>
+    <q-dialog v-model="session.dialogs.confirmationDialogOpen" persistent>
       <q-card class="q-pa-md" style="min-width: 320px">
-        <div class="text-subtitle1 q-mb-xs">{{ session.confirmationDialogTitle }}</div>
-        <div class="text-body2 q-mb-md">{{ session.confirmationDialogMessage }}</div>
+        <div class="text-subtitle1 q-mb-xs">{{ session.dialogs.confirmationDialogTitle }}</div>
+        <div class="text-body2 q-mb-md">{{ session.dialogs.confirmationDialogMessage }}</div>
         <div class="row justify-end q-gutter-sm">
-          <q-btn flat color="primary" :label="session.confirmationDialogCancelLabel" @click="session.onConfirmationDialogCancel" />
-          <q-btn color="primary" unelevated :label="session.confirmationDialogOkLabel" @click="session.onConfirmationDialogOk" />
+          <q-btn flat color="primary" :label="session.dialogs.confirmationDialogCancelLabel" @click="session.dialogs.onConfirmationDialogCancel" />
+          <q-btn color="primary" unelevated :label="session.dialogs.confirmationDialogOkLabel" @click="session.dialogs.onConfirmationDialogOk" />
         </div>
       </q-card>
     </q-dialog>
     
-    <q-dialog v-model="session.neuralRefreshTerminalOpen" persistent :data-testid="LIVE_MATCH_SHELL_TEST_IDS.neuralRefreshTerminal">
+    <q-dialog v-model="session.dialogs.neuralRefreshTerminalOpen" persistent :data-testid="LIVE_MATCH_SHELL_TEST_IDS.neuralRefreshTerminal">
       <q-card class="q-pa-md" style="min-width: 320px">
         <div class="text-subtitle1 q-mb-xs">Neural opponent unavailable</div>
         <div class="text-body2 q-mb-md">
@@ -401,19 +401,19 @@
             unelevated
             label="Refresh page"
             :data-testid="LIVE_MATCH_SHELL_TEST_IDS.neuralRefreshTerminalReload"
-            @click="session.reloadPageForNeuralRefreshTerminal"
+            @click="session.dialogs.reloadPageForNeuralRefreshTerminal"
           />
         </div>
       </q-card>
     </q-dialog>
     
-    <q-dialog v-model="session.vorpalDialogOpen" persistent>
+    <q-dialog v-model="session.dialogs.vorpalDialogOpen" persistent>
       <q-card class="q-pa-md" style="min-width: 320px">
         <div class="text-subtitle1 q-mb-xs">Vorpal target</div>
         <div class="text-body2 q-mb-md">Choose a species before entering the dungeon.</div>
         <q-select
-          v-model="session.selectedVorpalSpecies"
-          :options="session.vorpalSelectOptions"
+          v-model="session.dialogs.selectedVorpalSpecies"
+          :options="session.dialogs.vorpalSelectOptions"
           emit-value
           map-options
           option-value="value"
@@ -429,24 +429,24 @@
             color="primary"
             unelevated
             label="Confirm"
-            :disable="!session.selectedVorpalSpecies || session.humanGameplayBlocked"
-            @click="session.confirmVorpalDeclaration"
+            :disable="!session.dialogs.selectedVorpalSpecies || session.board.humanGameplayBlocked"
+            @click="session.dialogs.confirmVorpalDeclaration"
           />
         </div>
       </q-card>
     </q-dialog>
-    <q-dialog v-model="session.deckSplayOpen" maximized>
+    <q-dialog v-model="session.dialogs.deckSplayOpen" maximized>
       <q-card class="dr-deck-splay-panel">
         <div class="row items-center q-px-md q-pt-md q-pb-sm">
           <div class="text-subtitle1">Deck splay</div>
           <q-space />
-          <q-btn flat dense icon="close" aria-label="Close deck splay" @click="session.onCloseDeckSplay" />
+          <q-btn flat dense icon="close" aria-label="Close deck splay" @click="session.dialogs.onCloseDeckSplay" />
         </div>
         <q-separator />
         <div class="q-pa-md dr-deck-splay-scroll">
           <div class="row q-col-gutter-sm q-row-gutter-sm">
             <div
-              v-for="(slot, index) in session.biddingBoard.memoryAid.deckSplayCards"
+              v-for="(slot, index) in session.board.biddingBoard.memoryAid.deckSplayCards"
               :key="`deck-card-${index}`"
               class="col-6 col-sm-4 col-md-3"
             >
@@ -462,7 +462,7 @@
     </q-dialog>
     
     <q-inner-loading
-      :showing="session.headlessCompletionInFlight"
+      :showing="session.board.headlessCompletionInFlight"
       :data-testid="LIVE_MATCH_SHELL_TEST_IDS.finishingMatchOverlay"
       class="dr-finishing-match-overlay"
     >

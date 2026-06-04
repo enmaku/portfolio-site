@@ -12,49 +12,27 @@ export const PLAY_SHELL = {
  *   neuralRefreshTerminalSurfaced: boolean
  *   matchNeuralLoadGateInFlight?: boolean
  * }} inputs
- * @returns {{
- *   hasCurrentMatch: boolean
- *   matchPhase: string | null
- *   neuralRefreshTerminalSurfaced: boolean
- *   matchNeuralLoadGateInFlight: boolean
- * }}
+ * @returns {typeof PLAY_SHELL[keyof typeof PLAY_SHELL]}
  */
-export function buildPlayShellSnapshot({
+export function resolveActivePlayShell({
   match,
   neuralRefreshTerminalSurfaced,
   matchNeuralLoadGateInFlight = false,
 }) {
-  return {
-    hasCurrentMatch: Boolean(match),
-    matchPhase: match?.state?.phase ?? null,
-    neuralRefreshTerminalSurfaced,
-    matchNeuralLoadGateInFlight,
-  }
-}
-
-/**
- * @param {{
- *   hasCurrentMatch: boolean
- *   matchPhase: string | null
- *   neuralRefreshTerminalSurfaced: boolean
- *   matchNeuralLoadGateInFlight?: boolean
- * }} snapshot
- * @returns {typeof PLAY_SHELL[keyof typeof PLAY_SHELL]}
- */
-export function resolveActivePlayShell(snapshot) {
-  if (!snapshot.hasCurrentMatch) {
+  if (!match) {
     return PLAY_SHELL.PLAY_SETUP
   }
-  if (snapshot.neuralRefreshTerminalSurfaced) {
+  if (neuralRefreshTerminalSurfaced) {
     return PLAY_SHELL.LIVE_MATCH
   }
-  if (snapshot.matchNeuralLoadGateInFlight) {
-    if (snapshot.matchPhase === MATCH_PHASES.MATCH_OVER) {
+  const matchPhase = match.state?.phase ?? null
+  if (matchNeuralLoadGateInFlight) {
+    if (matchPhase === MATCH_PHASES.MATCH_OVER) {
       return PLAY_SHELL.MATCH_OVER
     }
     return PLAY_SHELL.LIVE_MATCH
   }
-  if (snapshot.matchPhase === MATCH_PHASES.MATCH_OVER) {
+  if (matchPhase === MATCH_PHASES.MATCH_OVER) {
     return PLAY_SHELL.MATCH_OVER
   }
   return PLAY_SHELL.LIVE_MATCH

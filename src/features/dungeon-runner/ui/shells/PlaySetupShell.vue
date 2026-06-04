@@ -98,7 +98,7 @@ import { normalizeSetupState } from '../../setup/state.js'
 import {
   PLAY_SETUP_SHELL_TEST_IDS,
   applyNnDefaultModelIds,
-  isPlaySetupStartEnabled,
+  evaluatePlaySetupStart,
 } from '../playSetupShell.js'
 
 const setup = defineModel('setup', { type: Object, required: true })
@@ -124,11 +124,12 @@ const props = defineProps({
 
 const emit = defineEmits(['start-match', 'update:neuralLoadGateTerminalOpen'])
 
-const setupIsValid = computed(() =>
-  isPlaySetupStartEnabled({
-    setup: setup.value,
-    modelOptions: props.modelOptions,
-  }),
+const setupIsValid = computed(
+  () =>
+    evaluatePlaySetupStart({
+      setup: setup.value,
+      modelOptions: props.modelOptions,
+    }).ok,
 )
 
 watch(

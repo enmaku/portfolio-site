@@ -8,7 +8,7 @@
           dense
           icon="refresh"
           aria-label="Start new match"
-          :disable="liveMatch.dungeonOutcomeDialogOpen"
+          :disable="liveMatch.dialogs.dungeonOutcomeDialogOpen"
           @click="startNewMatchIntentional"
         />
         <q-badge v-if="debugMode" color="negative" label="Debug" />
@@ -20,7 +20,7 @@
         dense
         icon="help"
         aria-label="How to play"
-        :disable="match && liveMatch.dungeonOutcomeDialogOpen"
+        :disable="match && liveMatch.dialogs.dungeonOutcomeDialogOpen"
         @click="helpOpen = true"
       />
       <q-btn
@@ -28,7 +28,7 @@
         dense
         icon="settings"
         aria-label="Dungeon Runner settings"
-        :disable="Boolean(match) && liveMatch.dungeonOutcomeDialogOpen"
+        :disable="Boolean(match) && liveMatch.dialogs.dungeonOutcomeDialogOpen"
       >
         <q-menu anchor="bottom right" self="top right" :offset="[0, 6]">
           <div class="dr-match-settings-menu q-pa-md" style="min-width: 260px">
@@ -57,7 +57,7 @@
     <div class="col dr-scroll q-px-md q-pb-md">
       <PlaySetupShell
         v-if="activePlayShell === PLAY_SHELL.PLAY_SETUP"
-        v-model:setup="setup"
+        :setup="setup"
         :model-options="modelOptions"
         :total-seat-slider="totalSeatSlider"
         :opponent-type-options="opponentTypeOptions"
@@ -92,9 +92,12 @@ import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import { useScopedFullscreen } from '../../features/game-timer/composables/useScopedFullscreen.js'
 import { useDungeonRunnerSettingsStore } from '../../stores/dungeonRunnerSettings.js'
+import {
+  collectPreservedBotLabelsFromMatchState,
+  enterMatchFromSetupSnapshot,
+} from '../../features/dungeon-runner/enterMatchFromSetupSnapshot.js'
 import { clearCurrentMatch } from '../../features/dungeon-runner/persistence/currentMatch.js'
 import { createDefaultSetupConfig } from '../../features/dungeon-runner/setup/config.js'
-import { createMatchSeed } from '../../features/dungeon-runner/setup/seed.js'
 import { shouldEnableDebugOnBoot } from '../../features/dungeon-runner/debug/mode.js'
 import { createNeuralRuntimeRecoveryCoordinator } from '../../features/dungeon-runner/nn/recovery.js'
 import { fetchModelCatalog } from '../../features/dungeon-runner/models/catalog.js'
@@ -103,7 +106,6 @@ import { bootstrapCurrentMatchFromStorage } from '../../features/dungeon-runner/
 import DungeonRunnerHelpDialog from '../../features/dungeon-runner/ui/DungeonRunnerHelpDialog.vue'
 import {
   PLAY_SHELL,
-  buildPlayShellSnapshot,
   resolveActivePlayShell,
 } from '../../features/dungeon-runner/ui/playShellResolver.js'
 import PlaySetupShell from '../../features/dungeon-runner/ui/shells/PlaySetupShell.vue'
@@ -201,22 +203,20 @@ const humanSeatId = computed(
 )
 
 const activePlayShell = computed(() =>
-  resolveActivePlayShell(
-    buildPlayShellSnapshot({
-      match: match.value,
-      neuralRefreshTerminalSurfaced: liveMatch.neuralRefreshTerminalOpen,
-      matchNeuralLoadGateInFlight: matchNeuralLoadGateInFlight.value,
-    }),
-  ),
+  resolveActivePlayShell({
+    match: match.value,
+    neuralRefreshTerminalSurfaced: liveMatch.dialogs.neuralRefreshTerminalOpen,
+    matchNeuralLoadGateInFlight: matchNeuralLoadGateInFlight.value,
+  }),
 )
 
 watch(
   activePlayShell,
   (shell) => {
     if (shell === PLAY_SHELL.LIVE_MATCH) {
-      liveMatch.mountLiveMatchShell()
+      liveMatch.page.mountLiveMatchShell()
     } else {
-      liveMatch.unmountLiveMatchShell()
+      liveMatch.page.unmountLiveMatchShell()
     }
   },
   { immediate: true },
@@ -229,12 +229,29 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  liveMatch.unmountLiveMatchShell()
+  liveMatch.page.unmountLiveMatchShell()
 })
 
 async function bootstrapDungeonRunnerPage() {
-  const result = await bootstrapCurrentMatchFromStorage(liveMatch.matchPageOrchestrationCtx)
-  liveMatch.processBootstrappedSession(result)
+  const result = await bootstrapCurrentMatchFromStorage(liveMatch.page.matchPageOrchestrationCtx)
+  liveMatch.page.processBootstrappedSession(result)
+}
+
+function liveMatchEntryDeps(overrides = {}) {
+  return {
+    presentationSpeedProfile: presentationSpeedProfile.value,
+    runMatchEntryGate: liveMatch.page.runLivePageMatchEntryGate,
+    resetForSetupTerminal: liveMatch.page.resetForSetupTerminal,
+    resetForFreshMatchEntry: liveMatch.page.resetForFreshMatchEntry,
+    buildNewMatchEnvelope: liveMatch.page.buildNewMatchEnvelope,
+    kickMatchAutomation: liveMatch.page.kickMatchAutomation,
+    setMatchNeuralLoadGateInFlight: (inFlight) => {
+      matchNeuralLoadGateInFlight.value = inFlight
+    },
+    clearCurrentMatch,
+    storage: window.localStorage,
+    ...overrides,
+  }
 }
 
 async function startNewMatch() {
@@ -252,67 +269,38 @@ async function startNewMatch() {
     $q.notify({ type: 'negative', message })
     return
   }
-  const setupSnapshot = cloneSetup()
-  matchNeuralLoadGateInFlight.value = true
-  try {
-    const gateResult = await liveMatch.runLivePageMatchEntryGate(setupSnapshot)
-    if (gateResult.kind === 'setup-terminal') {
-      liveMatch.resetForSetupTerminal()
-      return
-    }
-    clearCurrentMatch(window.localStorage)
-    const seed = createMatchSeed()
-    liveMatch.resetForFreshMatchEntry()
-    match.value = liveMatch.buildNewMatchEnvelope({
-      setupSnapshot,
-      seed,
-      id: `match-${Date.now()}`,
-      presentationSpeedProfile: presentationSpeedProfile.value,
-    })
-  } finally {
-    matchNeuralLoadGateInFlight.value = false
-    liveMatch.kickMatchAutomation()
+  const result = await enterMatchFromSetupSnapshot({
+    setupSnapshot: cloneSetup(),
+    clearPersistedMatch: true,
+    ...liveMatchEntryDeps(),
+  })
+  if (result.kind === 'entered') {
+    match.value = result.match
   }
 }
 
 async function rematch() {
   if (!match.value) return
-  const setupSnapshot = cloneSetup(match.value.setup)
-  matchNeuralLoadGateInFlight.value = true
-  try {
-    const gateResult = await liveMatch.runLivePageMatchEntryGate(setupSnapshot)
-    if (gateResult.kind === 'setup-terminal') {
-      liveMatch.resetForSetupTerminal()
-      return
-    }
-    const preservedBotLabels = match.value.state.seats
-      .filter((seat) => seat.role?.type !== 'human' && seat.label)
-      .map((seat) => seat.label)
-    const seed = createMatchSeed()
-    liveMatch.resetForFreshMatchEntry()
-    match.value = liveMatch.buildNewMatchEnvelope({
-      setupSnapshot,
-      seed,
-      id: `match-${Date.now()}`,
-      presentationSpeedProfile: presentationSpeedProfile.value,
-      preservedBotLabels,
-    })
-  } finally {
-    matchNeuralLoadGateInFlight.value = false
-    liveMatch.kickMatchAutomation()
+  const result = await enterMatchFromSetupSnapshot({
+    setupSnapshot: cloneSetup(match.value.setup),
+    preservedBotLabels: collectPreservedBotLabelsFromMatchState(match.value.state.seats),
+    ...liveMatchEntryDeps(),
+  })
+  if (result.kind === 'entered') {
+    match.value = result.match
   }
 }
 
 function backToSetup() {
-  liveMatch.resetForBackToSetup()
+  liveMatch.page.resetForBackToSetup()
 }
 
 function exportReplay() {
-  liveMatch.exportReplay()
+  liveMatch.debug.exportReplay()
 }
 
 async function startNewMatchIntentional() {
-  const shouldStartFresh = await liveMatch.requestConfirmation({
+  const shouldStartFresh = await liveMatch.page.requestConfirmation({
     title: 'Start a new match?',
     message: 'This will discard your current match and return to setup.',
     okLabel: 'Start new',

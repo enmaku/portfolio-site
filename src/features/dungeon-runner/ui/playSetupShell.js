@@ -30,13 +30,6 @@ export function evaluatePlaySetupStart({ setup, modelOptions }) {
 }
 
 /**
- * @param {{ setup: { totalSeats: number, opponents: Array<{ type: string, modelId?: string }> }, modelOptions: Array<string | { value?: string }> }} inputs
- */
-export function isPlaySetupStartEnabled(inputs) {
-  return evaluatePlaySetupStart(inputs).ok
-}
-
-/**
  * @param {{ opponents: Array<{ type: string, modelId?: string }> }} setup
  * @param {Array<string | { value?: string }>} modelOptions
  */
