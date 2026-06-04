@@ -25,7 +25,7 @@ export function buildSeatRecoveryIndicators({ seats, recovery }) {
 }
 
 /**
- * @param {{ state: { turn?: { activeSeatId?: string }, seats?: object[] }, recovery: { shouldBlockTurn: (modelId: string) => boolean } }} params
+ * @param {{ state: { turn?: { activeSeatId?: string }, seats?: object[] }, recovery: { isRecovering: (modelId: string) => boolean } }} params
  */
 export function isActiveNnSeatRecovering({ state, recovery }) {
   const activeSeatId = state?.turn?.activeSeatId
@@ -33,14 +33,7 @@ export function isActiveNnSeatRecovering({ state, recovery }) {
   const seat = state.seats?.find((candidate) => candidate.id === activeSeatId)
   const modelId = nnSeatModelId(seat)
   if (!modelId) return false
-  return recovery.shouldBlockTurn(modelId)
-}
-
-/**
- * @param {{ state: { turn?: { activeSeatId?: string }, seats?: object[] }, recovery: { shouldBlockTurn: (modelId: string) => boolean } }} params
- */
-export function shouldBlockAiTurnScheduleForRecovery({ state, recovery }) {
-  return isActiveNnSeatRecovering({ state, recovery })
+  return recovery.isRecovering(modelId)
 }
 
 /**

@@ -1,13 +1,12 @@
 import { NeuralRecoveryTerminalError } from './nn/chooseWithRecovery.js'
-import { runMatchNeuralLoadGate } from './nn/matchNeuralLoadGate.js'
-import { CURRENT_MATCH_SCHEMA_VERSION, loadCurrentMatch } from './persistence/currentMatch.js'
 import {
   attachNeuralRecoverySnapshotToMatch,
+  handleNeuralRecoveryTerminalOutcome,
+  runMatchNeuralLoadGate,
   shouldRunHeadlessMatchCompletion,
-  surfacePersistedNeuralRecoveryTerminal,
-} from './ui/headlessNeuralRecoveryPersistence.js'
+} from './neuralMatchReadiness.js'
+import { CURRENT_MATCH_SCHEMA_VERSION, loadCurrentMatch } from './persistence/currentMatch.js'
 import { materializeNewMatchState } from './setup/materializeNewMatchState.js'
-import { resolveNeuralRecoveryTerminalUx } from './ui/neuralSeatRecoveryView.js'
 import { runMaybeHeadlessMatchCompletionFromState } from './ui/headlessMatchCompletionRunner.js'
 
 /** @typedef {import('./createMatchPageOrchestrationContext.js').MatchPageOrchestrationContext} MatchPageOrchestrationContext */
@@ -48,12 +47,14 @@ export async function bootstrapCurrentMatchFromStorage(ctx) {
   )
   const match = { ...loaded.match, presentationSpeedProfile }
 
-  const recoverySurface = surfacePersistedNeuralRecoveryTerminal({
+  const recoverySurface = handleNeuralRecoveryTerminalOutcome({
+    kind: 'persisted-snapshot',
     recovery: ctx.recovery,
     neuralRecoveryByModelId: loaded.match.neuralRecoveryByModelId,
     hasMatchSetup: Boolean(loaded.match.setup),
-    applySetupTerminal: () => {
-      ctx.resolveSetupTerminal(ctx.cloneSetup(loaded.match.setup))
+    match,
+    restoreSetup: (setupSnapshot) => {
+      ctx.resolveSetupTerminal(ctx.cloneSetup(setupSnapshot))
     },
   })
 
@@ -190,22 +191,27 @@ export async function runHeadlessMatchCompletionForPage(ctx, options, runOptions
       throw error
     }
 
-    const ux = resolveNeuralRecoveryTerminalUx({
+    const outcome = handleNeuralRecoveryTerminalOutcome({
+      kind: 'terminal-event',
+      recovery: ctx.recovery,
       terminal: error.terminal,
       hasMatchSetup: Boolean(match.setup),
+      match,
+      storage: ctx.storage,
+      persistCurrentMatch: ctx.persistCurrentMatch,
+      restoreSetup: (setupSnapshot) => {
+        ctx.applySetupTerminal(setupSnapshot)
+      },
     })
 
-    if (ux.action === 'setup-restore') {
-      ctx.applySetupTerminal(match.setup)
+    if (outcome.surfaced && outcome.action === 'setup-restore') {
       return { kind: 'setup-terminal' }
     }
 
-    if (ux.action === 'refresh-dialog') {
-      const nextMatch = attachNeuralRecoverySnapshotToMatch(match, ctx.recovery)
-      ctx.persistCurrentMatch(ctx.storage, nextMatch)
+    if (outcome.surfaced && outcome.action === 'refresh-dialog') {
       return {
         kind: 'refresh-terminal',
-        match: nextMatch,
+        match: outcome.match,
         modelId: error.modelId,
         terminal: error.terminal,
         failureKind: error.failureKind,

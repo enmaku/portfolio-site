@@ -658,7 +658,7 @@ import {
   loadNnModel,
 } from '../../features/dungeon-runner/nn/runtime.js'
 import { createNeuralRuntimeRecoveryCoordinator } from '../../features/dungeon-runner/nn/recovery.js'
-import { createChooseNnActionWithRecovery, NeuralRecoveryTerminalError } from '../../features/dungeon-runner/nn/chooseWithRecovery.js'
+import { createChooseNnActionWithRecovery } from '../../features/dungeon-runner/nn/chooseWithRecovery.js'
 import { fetchModelCatalog } from '../../features/dungeon-runner/models/catalog.js'
 import { pickDefaultModelId, validateSelectedModels } from '../../features/dungeon-runner/models/discovery.js'
 import {
@@ -748,9 +748,9 @@ import {
 import { createCompletedMatchReplayUploadTracker, shouldUploadCompletedMatchReplayForPhase } from '../../features/dungeon-runner/firebase/completedMatchReplayUpload.js'
 import {
   buildSeatRecoveryIndicators,
-  resolveNeuralRecoveryTerminalUx,
-  shouldBlockAiTurnScheduleForRecovery,
+  isActiveNnSeatRecovering,
 } from '../../features/dungeon-runner/ui/neuralSeatRecoveryView.js'
+import { handleLivePlayNeuralRecoveryTerminalError } from '../../features/dungeon-runner/ui/livePlayNeuralRecoveryTerminal.js'
 
 const completedMatchReplayUpload = createCompletedMatchReplayUploadTracker(window.sessionStorage)
 
@@ -781,7 +781,7 @@ function syncSeatRecoveryIndicators() {
 
 function resolveActiveSeatRecoveryBlocking() {
   return match.value?.state
-    ? shouldBlockAiTurnScheduleForRecovery({ state: match.value.state, recovery: nnRecovery })
+    ? isActiveNnSeatRecovering({ state: match.value.state, recovery: nnRecovery })
     : false
 }
 
@@ -1632,10 +1632,6 @@ async function ensureNnModelsReady() {
   await nnModelsWarmPromise?.catch(() => {})
 }
 
-function applyNeuralLoadGateSetupTerminal(setupSnapshot) {
-  matchPageOrchestrationCtx.applySetupTerminal(setupSnapshot)
-}
-
 function dismissNeuralLoadGateTerminal() {
   neuralLoadGateTerminalOpen.value = false
 }
@@ -1645,18 +1641,23 @@ function reloadPageForNeuralRefreshTerminal() {
 }
 
 function handleNeuralRecoveryTerminalError(error) {
-  if (!(error instanceof NeuralRecoveryTerminalError)) return false
-  const ux = resolveNeuralRecoveryTerminalUx({
-    terminal: error.terminal,
-    hasMatchSetup: Boolean(match.value?.setup),
+  const result = handleLivePlayNeuralRecoveryTerminalError({
+    error,
+    match: match.value,
+    recovery: nnRecovery,
+    storage: window.localStorage,
+    persistCurrentMatch,
+    restoreSetup: (setupSnapshot) => {
+      matchPageOrchestrationCtx.applySetupTerminal(cloneSetup(setupSnapshot))
+    },
   })
-  if (ux.action === 'setup-restore') {
-    applyNeuralLoadGateSetupTerminal(cloneSetup(match.value.setup))
-  } else if (ux.action === 'refresh-dialog') {
+  if (!result.handled) return false
+  if (result.action === 'refresh-dialog') {
+    match.value = result.match
     neuralRefreshTerminalOpen.value = true
-    logNnRecoveryTrace(error.modelId, 'terminal', {
-      terminal: error.terminal,
-      failureKind: error.failureKind ?? null,
+    logNnRecoveryTrace(result.trace.modelId, 'terminal', {
+      terminal: result.trace.terminal,
+      failureKind: result.trace.failureKind,
     })
   }
   return true

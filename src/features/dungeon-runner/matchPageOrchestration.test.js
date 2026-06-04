@@ -27,7 +27,7 @@ import {
 } from './ui/headlessMatchCompletionRunner.js'
 import { createLivePlayActionChooser } from './ui/livePlayActionChooser.js'
 import { needsHeadlessCompletion } from './ui/humanEliminationCompletionPolicy.js'
-import { resolveNeuralLoadGateSetupTerminal } from './nn/matchNeuralLoadGate.js'
+import { applyNeuralRecoverySetupTerminal } from './neuralMatchReadiness.js'
 import {
   bootstrapCurrentMatchFromStorage,
   buildNewMatchEnvelope,
@@ -127,7 +127,7 @@ function createPageContext(overrides = {}) {
       overrides.applySetupTerminal ??
       ((setupSnapshot) => {
         setupTerminalCalls += 1
-        resolveNeuralLoadGateSetupTerminal({
+        applyNeuralRecoverySetupTerminal({
           storage,
           setupSnapshot,
           clearCurrentMatch,
@@ -271,7 +271,7 @@ test('runMatchEntryNeuralLoadGateForPage releases in-flight after gate when requ
   assert.deepEqual(inFlightCalls, [true, false])
 })
 
-test('resolveNeuralLoadGateSetupTerminal restores setup and clears persisted match', () => {
+test('applyNeuralRecoverySetupTerminal restores setup and clears persisted match', () => {
   const storage = createMemoryStorage()
   const setupTarget = { totalSeats: 2, opponents: [{ type: 'randombot' }] }
   const setupSnapshot = NN_TWO_PLAYER_SETUP
@@ -282,7 +282,7 @@ test('resolveNeuralLoadGateSetupTerminal restores setup and clears persisted mat
     }),
   )
 
-  resolveNeuralLoadGateSetupTerminal({
+  applyNeuralRecoverySetupTerminal({
     storage,
     setupSnapshot,
     clearCurrentMatch,

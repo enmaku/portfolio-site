@@ -6,7 +6,6 @@ import {
   buildSeatRecoveryIndicators,
   isActiveNnSeatRecovering,
   resolveNeuralRecoveryTerminalUx,
-  shouldBlockAiTurnScheduleForRecovery,
 } from './neuralSeatRecoveryView.js'
 
 test('buildSeatRecoveryIndicators marks only nn seats whose model is recovering', () => {
@@ -42,24 +41,7 @@ test('isActiveNnSeatRecovering is true only for active nn seat in recovery', () 
   )
 })
 
-test('shouldBlockAiTurnScheduleForRecovery when active nn model is recovering', () => {
-  const recovery = createNeuralRuntimeRecoveryCoordinator()
-  recovery.beginRecovery('latest')
-  const state = {
-    turn: { activeSeatId: 'nn-1' },
-    seats: [{ id: 'nn-1', role: { type: 'nn', modelId: 'latest' } }],
-  }
-  assert.equal(shouldBlockAiTurnScheduleForRecovery({ state, recovery }), true)
-  assert.equal(
-    shouldBlockAiTurnScheduleForRecovery({
-      state: { ...state, turn: { activeSeatId: 'human' } },
-      recovery,
-    }),
-    false,
-  )
-})
-
-test('shouldBlockAiTurnScheduleForRecovery is false when only inactive nn seat recovers', () => {
+test('isActiveNnSeatRecovering is false when only inactive nn seat recovers', () => {
   const recovery = createNeuralRuntimeRecoveryCoordinator()
   recovery.beginRecovery('model-b')
   const state = {
@@ -70,7 +52,7 @@ test('shouldBlockAiTurnScheduleForRecovery is false when only inactive nn seat r
       { id: 'nn-b', role: { type: 'nn', modelId: 'model-b' } },
     ],
   }
-  assert.equal(shouldBlockAiTurnScheduleForRecovery({ state, recovery }), false)
+  assert.equal(isActiveNnSeatRecovering({ state, recovery }), false)
 })
 
 test('resolveNeuralRecoveryTerminalUx maps coordinator terminals to play-page actions', () => {

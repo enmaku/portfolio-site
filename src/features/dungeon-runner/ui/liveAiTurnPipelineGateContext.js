@@ -1,5 +1,5 @@
 import { evaluateLiveAiTurnPipelineGate } from './liveAiTurnPipelineGate.js'
-import { nnSeatModelId, shouldBlockAiTurnScheduleForRecovery } from './neuralSeatRecoveryView.js'
+import { isActiveNnSeatRecovering, nnSeatModelId } from './neuralSeatRecoveryView.js'
 
 /**
  * @param {{
@@ -13,7 +13,7 @@ import { nnSeatModelId, shouldBlockAiTurnScheduleForRecovery } from './neuralSea
  *   headlessCompletionInFlight?: boolean
  *   deferredPostDungeonState?: object | null
  *   gameplayInputLocked?: boolean
- *   recovery?: { isRecovering: (modelId: string) => boolean, shouldBlockTurn?: (modelId: string) => boolean }
+ *   recovery?: { isRecovering: (modelId: string) => boolean }
  *   runToken?: string
  *   lastAppliedAiTurnToken?: string | null
  *   timerPending?: boolean
@@ -43,7 +43,7 @@ export function buildLiveAiTurnPipelineGateInputs({
   const modelId = nnSeatModelId(seat)
   const blockForRecovery =
     matchState && recovery
-      ? shouldBlockAiTurnScheduleForRecovery({ state: matchState, recovery })
+      ? isActiveNnSeatRecovering({ state: matchState, recovery })
       : false
   const modelRecovering = modelId && recovery ? recovery.isRecovering(modelId) : false
 

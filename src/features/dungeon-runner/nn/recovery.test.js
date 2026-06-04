@@ -40,7 +40,7 @@ test('third load failure reaches SETUP terminal', () => {
   recovery.recordLoadFailure('latest')
   recovery.recordLoadFailure('latest')
   assert.equal(recovery.getTerminalOutcome('latest'), NEURAL_RECOVERY_TERMINAL.SETUP)
-  assert.equal(recovery.shouldBlockTurn('latest'), false)
+  assert.equal(recovery.isRecovering('latest'), false)
 })
 
 test('third infer failure reaches REFRESH terminal', () => {
@@ -50,7 +50,7 @@ test('third infer failure reaches REFRESH terminal', () => {
   recovery.recordInferFailure('latest')
   recovery.recordInferFailure('latest')
   assert.equal(recovery.getTerminalOutcome('latest'), NEURAL_RECOVERY_TERMINAL.REFRESH)
-  assert.equal(recovery.shouldBlockTurn('latest'), false)
+  assert.equal(recovery.isRecovering('latest'), false)
 })
 
 test('load backend escalation uses webgl for attempts 1-2 and cpu on attempt 3+', () => {
@@ -99,12 +99,12 @@ test('recordSuccess clears recovering state and counters', () => {
   assert.equal(recovery.getTerminalOutcome('latest'), NEURAL_RECOVERY_TERMINAL.NONE)
 })
 
-test('shouldBlockTurn while recovering before terminal', () => {
+test('isRecovering while recovering before terminal', () => {
   const recovery = createNeuralRuntimeRecoveryCoordinator()
   recovery.beginRecovery('latest')
-  assert.equal(recovery.shouldBlockTurn('latest'), true)
+  assert.equal(recovery.isRecovering('latest'), true)
   recovery.recordInferFailure('latest')
-  assert.equal(recovery.shouldBlockTurn('latest'), true)
+  assert.equal(recovery.isRecovering('latest'), true)
 })
 
 test('subscribe returns an unsubscribe function', () => {
@@ -191,7 +191,6 @@ test('subscribe does not notify on read-only queries', () => {
   recovery.getLoadAttempts('latest')
   recovery.getInferAttempts('latest')
   recovery.getBackendPreference('latest', 'load')
-  recovery.shouldBlockTurn('latest')
   recovery.exportSnapshot()
   assert.equal(calls, 0)
 })
