@@ -6,11 +6,11 @@ import {
   validateSetupConfig,
 } from './config.js'
 
-test('default setup has one human and one opponent', () => {
+test('default setup has one human and two opponents', () => {
   const setup = createDefaultSetupConfig()
-  assert.equal(setup.totalSeats, 2)
-  assert.equal(setup.opponents.length, 1)
-  assert.equal(setup.opponents[0].type, 'nn')
+  assert.equal(setup.totalSeats, 3)
+  assert.equal(setup.opponents.length, 2)
+  assert.equal(setup.opponents.every((opponent) => opponent.type === 'nn'), true)
 })
 
 test('validateSetupConfig rejects zero opponents', () => {

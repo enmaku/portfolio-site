@@ -7,8 +7,8 @@ const BOT_SEAT_NAMES = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Gra
 
 export function createDefaultSetupConfig() {
   return {
-    totalSeats: 2,
-    opponents: [{ type: 'nn' }],
+    totalSeats: 3,
+    opponents: [{ type: 'nn' }, { type: 'nn' }],
   }
 }
 
