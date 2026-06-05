@@ -102,7 +102,7 @@ import GameTimerPlayerList from '../../features/game-timer/components/GameTimerP
 import GameTimerRoundBar from '../../features/game-timer/components/GameTimerRoundBar.vue'
 import GameTimerTurnControls from '../../features/game-timer/components/GameTimerTurnControls.vue'
 import { useGameTimerP2P } from '../../features/game-timer/composables/useGameTimerP2P.js'
-import { useScopedFullscreen } from '../../features/game-timer/composables/useScopedFullscreen.js'
+import { useProjectShellBrowserFullscreen } from '../../layouts/projects/composables/useProjectShellBrowserFullscreen.js'
 import { useNoSleep } from '../../features/game-timer/composables/useNoSleep.js'
 import { nextDefaultColor } from '../../features/game-timer/core.js'
 import {
@@ -126,19 +126,10 @@ const hasHeldTurn = computed(() => activePlayerId.value != null)
 /** While a session has players, keep the display awake. */
 useNoSleep(computed(() => players.value.length > 0))
 
-useScopedFullscreen({
+useProjectShellBrowserFullscreen({
   enabled: fullscreenEnabled,
   setEnabled: (next) => store.setFullscreenEnabled(next),
-  getTargetElement: () => document.documentElement,
-  onRequestFailure: () => {
-    $q.notify({
-      type: 'warning',
-      message: 'Fullscreen could not be enabled.',
-      timeout: 2500,
-      position: 'top',
-      classes: 'gt-notify',
-    })
-  },
+  notify: $q.notify,
 })
 
 onMounted(() => {

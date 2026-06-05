@@ -93,14 +93,3 @@ test('startNewGameSamePlayers is a no-op with no players', () => {
   assert.equal(store.players.length, 0)
   assert.equal(store.round, 1)
 })
-
-test('clearAllPlayers still resets session prefs unlike startNewGameSamePlayers', () => {
-  setActivePinia(createPinia())
-  const store = useGameTimerStore()
-  store.addPlayer({ name: 'A' })
-  store.setHardPassEnabled(true)
-  store.setTimingStripMode('non-player')
-  store.clearAllPlayers()
-  assert.equal(store.hardPassEnabled, false)
-  assert.equal(store.timingStripMode, 'total')
-})

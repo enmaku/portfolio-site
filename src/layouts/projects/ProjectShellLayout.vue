@@ -20,6 +20,9 @@ import {
   syncProjectShellLayoutNotifyFrame,
   teardownProjectShellLayoutNotifyFrame,
 } from './projectShellLayoutNotify.js'
+import { provideProjectShellMobilePlayFullscreenChrome } from './projectShellFullscreenChrome.js'
+
+provideProjectShellMobilePlayFullscreenChrome()
 
 useTrapBrowserBack()
 

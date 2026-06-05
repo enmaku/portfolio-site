@@ -234,13 +234,13 @@
               <q-btn
                 v-for="action in session.board.heroPickActionsOrdered"
                 :key="session.board.actionKey(action)"
-                :color="session.board.getHeroIdentity(action.hero).buttonColor"
+                :color="session.board.getAdventurerIdentity(action.hero).buttonColor"
                 unelevated
                 no-caps
                 dense
                 size="lg"
                 class="dr-hero-pick-grid__btn full-width"
-                :label="session.board.getHeroIdentity(action.hero).shortLabel"
+                :label="session.board.getAdventurerIdentity(action.hero).shortLabel"
                 :aria-label="session.board.actionLabel(action)"
                 :disable="session.board.humanGameplayBlocked"
                 @click="session.board.takeHumanAction(action)"

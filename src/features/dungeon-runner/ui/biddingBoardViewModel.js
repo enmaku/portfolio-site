@@ -1,6 +1,6 @@
 import { BIDDING_SUBPHASES, MATCH_PHASES } from '../engine/kernel.js'
 import { viewerMaySeeBiddingDrawFace } from './biddingPresentationVisibility.js'
-import { getHeroIdentity } from './heroIdentity.js'
+import { getAdventurerIdentity } from '../data/gameDataCatalog.js'
 
 const BIDDING_CARD_BEATS = new Set(['BIDDING_DRAW', 'BIDDING_ADD', 'BIDDING_SACRIFICE'])
 
@@ -18,7 +18,7 @@ export function createBiddingBoardViewModel({ state, visibleState, activeAnimati
     removed: !centerSet.has(equipmentId),
     consumed: consumedSet.has(equipmentId),
   }))
-  const heroCue = getHeroIdentity(state?.hero)
+  const heroCue = getAdventurerIdentity(state?.hero)
   const memoryAidEnabled = settings?.memoryAidEnabled === true
   const ownAdds = (visibleState?.playerOwnPileAdds ?? {})[viewerSeatId ?? ''] ?? []
   const monsterDeck = state?.bidding?.monsterDeck ?? []

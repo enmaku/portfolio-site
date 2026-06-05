@@ -134,4 +134,3 @@ test('setEnabled(false) exits fullscreen when target is active', async () => {
   assert.equal(api.fullscreenElement, null)
   assert.equal(persisted, false)
 })
-

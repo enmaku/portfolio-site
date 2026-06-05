@@ -112,11 +112,19 @@ _Avoid_: Conflating with immersive **project** layouts.
 
 Full-viewport layout for interactive **projects** (no portfolio masthead), giving controls and timers the full screen. **Game Timer**, **Movie Vote**, and **Dungeon Runner** share one shell (immersive chrome, trapped browser back). On wide viewports the same shell applies a **desktop phone frame** around the app instead of stretching it edge-to-edge.
 
-_Avoid_: “Fullscreen layout” when meaning **project shell** (confuses with the browser Fullscreen API toggle on **Game Timer**).
+_Avoid_: “Fullscreen layout” when meaning **project shell** (confuses with the **browser fullscreen toggle**).
+
+### Browser fullscreen toggle
+
+Optional **project** chrome control that requests whole-tab browser fullscreen (exits the **desktop phone frame** letterbox on wide viewports). Shared **project shell** capability—each **mobile** **project** that uses the phone-framed play UI exposes the same toggle behavior and persists its own on/off preference independently (**per-app** persistence, not one shared site-wide flag). The preference is **display-only**: it survives leave-room, clear-session, new match, and phase changes—only an explicit user toggle or a failed browser request changes it. **Host** and **guest** alike control their own toggle—it is personal display preference, not **room** authority. **Game Timer**, **Movie Vote**, and **Dungeon Runner** all offer it in each project's settings chrome. **Desktop** **project** surfaces (e.g. **Dungeon Runner Stats**) do not—those routes are full-width analytics, not phone-framed play.
+
+_Avoid_: One global fullscreen preference across **projects**; treating it as **Game Timer** domain logic; offering it on **Desktop** **project** routes; confusing with **project shell** layout itself; resetting the preference when clearing session or room state.
+
+When the browser rejects a request, each **mobile** **project** shows the same warning feedback (message and **project shell** toast placement—including inside the **desktop phone frame** on wide viewports).
 
 ### Desktop phone frame
 
-On desktop-class viewports (Quasar **`md` and up**, ≥1024px), the **project shell** letterboxes each mobile **project** inside a centered portrait column sized like a phone display, with neutral gutter space on the sides (and above/below when the window is very tall). The column is **390px** wide; height is capped at roughly **19.5∶9** portrait (`min(90dvh, width × 19.5/9)`), shrinking on short windows while width stays 390px when space allows. Gutter uses the site dark background; the column gets subtle rounding and a light edge (shadow or border)—not a hardware mockup (no notch or bezel art). **Game Timer** and **Dungeon Runner** keep their existing Fullscreen toggle here: it still fullscreens the whole tab and exits the letterbox. Dialogs, **Notify** toasts, and other portaled overlays anchor **inside the column** on **`md+`** (not against the whole monitor). Viewports below **`md`** keep today’s full-bleed **project shell** behavior and viewport-scoped overlays.
+On desktop-class viewports (Quasar **`md` and up**, ≥1024px), the **project shell** letterboxes each mobile **project** inside a centered portrait column sized like a phone display, with neutral gutter space on the sides (and above/below when the window is very tall). The column is **390px** wide; height is capped at roughly **19.5∶9** portrait (`min(90dvh, width × 19.5/9)`), shrinking on short windows while width stays 390px when space allows. Gutter uses the site dark background; the column gets subtle rounding and a light edge (shadow or border)—not a hardware mockup (no notch or bezel art). The **browser fullscreen toggle** still fullscreens the whole tab and exits the letterbox when a **project** exposes it. Dialogs, **Notify** toasts, and other portaled overlays anchor **inside the column** on **`md+`** (not against the whole monitor). Viewports below **`md`** keep today’s full-bleed **project shell** behavior and viewport-scoped overlays.
 
 _Avoid_: “Desktop project” as a separate nav app; “expand the 390px column only” as fullscreen—the **Projects drawer sections** label “Desktop” remains a placeholder, and fullscreen still means the browser tab.
 
@@ -130,7 +138,7 @@ _Avoid_: Assuming in-tab meta tag updates alone fix every preview provider.
 
 - The **portfolio site** includes the **photo gallery**, about content (**résumé data**), navigation, and routed **projects**.
 - **Photography (navigation)** names the same home experience as the **photo gallery**.
-- **Portfolio shell** wraps the gallery and about; **project shell** wraps each `/projects/…` route and may add a **desktop phone frame** on wide viewports.
+- **Portfolio shell** wraps the gallery and about; **project shell** wraps each `/projects/…` route and may add a **desktop phone frame** on wide viewports. The **browser fullscreen toggle** is shared **project shell** chrome for **mobile** **projects**; each **project** persists its own preference (**per-app**).
 - Drawer shortcuts use **detached project launch** so multiplayer **projects** typically run outside the shell tab; the **desktop phone frame** does not change that—wide viewports still open the same project routes in a separate tab.
 - **Projects drawer sections** organize how **projects** appear in navigation without changing their public routes.
 - Each **paste-unfurl eligible** path is a **shareable route** with exactly one **shared link summary**; **paste unfurl** surfaces those fields to link previews.

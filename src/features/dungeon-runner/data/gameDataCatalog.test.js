@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { EQUIPMENT_IDS, getMonsterStrength, hpForEquip } from '../engine/kernel.js'
 import { equipmentTokenAppearance } from '../equipmentTokenAppearance.js'
-import { getHeroIdentity } from '../ui/heroIdentity.js'
 import {
   adventurers,
   catalogRules,
@@ -193,14 +192,34 @@ test('Warrior hero loadout equals default loadout', () => {
   assert.equal(getDefaultLoadout(), defaultLoadout)
 })
 
-test('adventurer identities match heroIdentity module', () => {
+test('getAdventurerIdentity resolves catalog ui entries for each adventurer', () => {
   for (const adventurerId of catalogRules.adventurerIds) {
-    assert.deepEqual(getAdventurerIdentity(adventurerId), getHeroIdentity(adventurerId))
     assert.deepEqual(
+      getAdventurerIdentity(adventurerId),
       adventurers[adventurerId].ui.adventurerIdentity,
-      getHeroIdentity(adventurerId),
     )
   }
+})
+
+test('getAdventurerIdentity maps each adventurer to cue tokens and compact badge glyph', () => {
+  const mage = getAdventurerIdentity('MAGE')
+  assert.equal(mage.hero, 'MAGE')
+  assert.equal(mage.accentClass, 'dr-hero--mage')
+  assert.equal(mage.badgeColor, 'deep-purple')
+  assert.equal(mage.buttonColor, 'deep-purple')
+  assert.equal(mage.badgeGlyph, 'M')
+  assert.equal(mage.shortLabel, 'Mage')
+
+  const warrior = getAdventurerIdentity('WARRIOR')
+  assert.equal(warrior.buttonColor, warrior.badgeColor)
+  assert.equal(warrior.badgeGlyph, 'W')
+})
+
+test('getAdventurerIdentity defaults unknown or missing adventurer to warrior', () => {
+  assert.equal(getAdventurerIdentity(null).hero, 'WARRIOR')
+  assert.equal(getAdventurerIdentity(undefined).hero, 'WARRIOR')
+  assert.equal(getAdventurerIdentity('').hero, 'WARRIOR')
+  assert.equal(getAdventurerIdentity('NOT_A_HERO').hero, 'WARRIOR')
 })
 
 test('catalog rules accessors resolve entries', () => {
@@ -220,7 +239,7 @@ test('base adventurer HP values are positive integers', () => {
 
 const FEATURE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
-const REMOVED_PARALLEL_CATALOG_FILES = ['ui/equipmentDisplayCatalog.js']
+const REMOVED_PARALLEL_CATALOG_FILES = ['ui/equipmentDisplayCatalog.js', 'ui/heroIdentity.js']
 
 const FORBIDDEN_PARALLEL_TABLE_MARKERS = [
   /\bexport const MONSTER_CARD_SPECS\b/,
@@ -231,6 +250,11 @@ const FORBIDDEN_PARALLEL_TABLE_MARKERS = [
   /\bconst BASE_MONSTER_DECK\b/,
   /\bconst HERO_EQUIPMENT_SLOTS\b/,
   /\bconst MONSTER_SPECIES\b/,
+]
+
+const FORBIDDEN_HERO_IDENTITY_UI_MARKERS = [
+  /\bgetHeroIdentity\b/,
+  /from\s+['"].*\/heroIdentity\.js['"]/,
 ]
 
 function listFeatureJsFiles(dir, acc = []) {
@@ -258,6 +282,19 @@ test('thin UI helpers do not host parallel static tables', () => {
     if (file.endsWith(`${path.sep}data${path.sep}gameDataCatalog.js`)) continue
     const src = readFileSync(file, 'utf8')
     for (const pattern of FORBIDDEN_PARALLEL_TABLE_MARKERS) {
+      if (pattern.test(src)) {
+        offenders.push(`${path.relative(FEATURE_ROOT, file)}: ${pattern}`)
+      }
+    }
+  }
+  assert.deepEqual(offenders, [])
+})
+
+test('UI modules resolve adventurer identity via catalog, not heroIdentity pass-through', () => {
+  const offenders = []
+  for (const file of listFeatureJsFiles(FEATURE_ROOT)) {
+    const src = readFileSync(file, 'utf8')
+    for (const pattern of FORBIDDEN_HERO_IDENTITY_UI_MARKERS) {
       if (pattern.test(src)) {
         offenders.push(`${path.relative(FEATURE_ROOT, file)}: ${pattern}`)
       }

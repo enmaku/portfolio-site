@@ -102,6 +102,7 @@ import {
   normalizeRoomSuffixInput,
 } from '../../features/movie-vote/p2p/roomId.js'
 import { joinRoom } from '../../features/movie-vote/p2p/session.js'
+import { useProjectShellBrowserFullscreen } from '../../layouts/projects/composables/useProjectShellBrowserFullscreen.js'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
 
 const $q = useQuasar()
@@ -116,9 +117,16 @@ const {
   myVoteSubmitted,
   voteProgress,
   uniqueSuggestedMovieCount,
+  fullscreenEnabled,
 } = storeToRefs(store)
 
 const { isGuest, isInSession } = useMovieVoteP2P()
+
+useProjectShellBrowserFullscreen({
+  enabled: fullscreenEnabled,
+  setEnabled: (next) => store.setFullscreenEnabled(next),
+  notify: $q.notify,
+})
 
 /** Distinct movies in the room (TMDB-deduped) meet the minimum to mark ready. */
 const roomCanMarkReadyForVote = computed(() => uniqueSuggestedMovieCount.value >= 2)

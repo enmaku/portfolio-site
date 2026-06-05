@@ -109,7 +109,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, unref } from 'vue'
 import { storeToRefs } from 'pinia'
 import GameTimerSyncControl from './GameTimerSyncControl.vue'
 import { displayedMsForPlayer, formatDurationMs } from '../core.js'
@@ -117,8 +117,10 @@ import { useGameTimerNow } from '../composables/useGameTimerNow.js'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 import { getGameTimerSettingsModel } from '../settingsModel.js'
+import { useProjectShellBrowserFullscreenChrome } from '../../../layouts/projects/projectShellFullscreenChrome.js'
 
 const { isGuest } = useGameTimerP2P()
+const fullscreenChromeExposed = useProjectShellBrowserFullscreenChrome()
 const store = useGameTimerStore()
 const now = useGameTimerNow(1000)
 const { round, players, hardPassEnabled, hardPassOrderNextRound, fullscreenEnabled, timingStripMode } =
@@ -127,7 +129,12 @@ const hasPlayers = computed(() => players.value.length > 0)
 const showStartNewGame = computed(() => !isGuest.value && hasPlayers.value)
 const newGameDialogOpen = ref(false)
 const canGoPreviousRound = computed(() => hasPlayers.value && round.value > 1)
-const settingsModel = computed(() => getGameTimerSettingsModel({ isGuest: isGuest.value }))
+const settingsModel = computed(() =>
+  getGameTimerSettingsModel({
+    isGuest: isGuest.value,
+    fullscreenChromeExposed: unref(fullscreenChromeExposed),
+  }),
+)
 const totalGameElapsedMs = computed(() => {
   if (store.totalGameStartedAt == null) return 0
   return Math.max(0, now.value - store.totalGameStartedAt)

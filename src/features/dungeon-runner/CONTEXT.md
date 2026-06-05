@@ -278,7 +278,9 @@ Starting hero HP for an **adventurer** class before **equipment** HP bonuses app
 
 ### Adventurer identity
 
-Badge colors, glyphs, and concise labels for an **adventurer** class; lives in the **ui** slice of that **adventurer** catalog entry.
+Badge colors, glyphs, and concise labels for an **adventurer** class; lives in the **ui** slice of that **adventurer** catalog entry. UI code resolves it via **`getAdventurerIdentity`** on the **game data catalog**—not a separate **hero**-named re-export layer.
+
+_Avoid_: **`getHeroIdentity`** or other **hero**-prefixed UI helpers when meaning **adventurer** class presentation ( **`hero`** remains fine on engine/action payloads).
 
 ### Equipment
 

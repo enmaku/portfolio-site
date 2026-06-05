@@ -22,7 +22,7 @@ import {
 import { createPipelineStepLogger } from '../../nn/nnPipelineTrace.js'
 import { dungeonRunnerAssetPack, dungeonRunnerEquipmentSymbolRuntimePath } from '../assetPack.js'
 import { equipmentTokenAppearance } from '../../equipmentTokenAppearance.js'
-import { equipmentShortName } from '../../data/gameDataCatalog.js'
+import { equipmentShortName, getAdventurerIdentity } from '../../data/gameDataCatalog.js'
 import { adventurerChoiceHeadline, legalActionBoardLabel } from '../dungeonRunnerPlayerPhrasing.js'
 import {
   buildDungeonEquipmentTokenView,
@@ -35,7 +35,6 @@ import {
   viewerMaySeeAddToDungeonFlipDown,
   viewerMaySeeBiddingDrawFace,
 } from '../biddingPresentationVisibility.js'
-import { getHeroIdentity } from '../heroIdentity.js'
 import { createDungeonResolutionViewModel } from '../dungeonResolutionViewModel.js'
 import {
   buildDungeonOutcomeTransitionControls,
@@ -643,7 +642,7 @@ export function useLiveMatchShell(deps) {
     const actorSeatId = payload.actorSeatId ?? null
     const actorLabel =
       seats.find((seat) => seat.id === actorSeatId)?.label ?? actorSeatId ?? 'Unknown'
-    const chosen = getHeroIdentity(payload.heroAfter)
+    const chosen = getAdventurerIdentity(payload.heroAfter)
     return {
       headline: adventurerChoiceHeadline(actorLabel, payload.heroAfter),
       chosen,
@@ -1634,7 +1633,7 @@ export function useLiveMatchShell(deps) {
       takeHumanAction,
       showHeroPickActionGrid,
       heroPickActionsOrdered,
-      getHeroIdentity,
+      getAdventurerIdentity,
       visiblePrimaryActions,
       dungeonOutcomeTransitionControls,
       gameplayInputLocked,
