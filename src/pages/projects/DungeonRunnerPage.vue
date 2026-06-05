@@ -90,8 +90,7 @@
 import { computed, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
-import { useScopedFullscreen } from '../../layouts/projects/composables/useScopedFullscreen.js'
-import { notifyProjectShellFullscreenFailure } from '../../layouts/projects/notifyProjectShellFullscreenFailure.js'
+import { useProjectShellBrowserFullscreen } from '../../layouts/projects/composables/useProjectShellBrowserFullscreen.js'
 import { useDungeonRunnerSettingsStore } from '../../stores/dungeonRunnerSettings.js'
 import {
   collectPreservedBotLabelsFromMatchState,
@@ -140,11 +139,10 @@ const matchNeuralLoadGateInFlight = ref(false)
 const dungeonRunnerSettingsStore = useDungeonRunnerSettingsStore()
 const { fullscreenEnabled } = storeToRefs(dungeonRunnerSettingsStore)
 
-useScopedFullscreen({
+useProjectShellBrowserFullscreen({
   enabled: fullscreenEnabled,
   setEnabled: (next) => dungeonRunnerSettingsStore.setFullscreenEnabled(next),
-  getTargetElement: () => document.documentElement,
-  onRequestFailure: () => notifyProjectShellFullscreenFailure($q.notify),
+  notify: $q.notify,
 })
 
 const fullscreenModel = computed({

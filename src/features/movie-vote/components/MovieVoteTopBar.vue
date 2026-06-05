@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, unref } from 'vue'
 import { storeToRefs } from 'pinia'
 import MovieVoteHelpDialog from './MovieVoteHelpDialog.vue'
 import MovieVoteVotingMethodHelpDialog from './MovieVoteVotingMethodHelpDialog.vue'
@@ -81,15 +81,21 @@ import { useMovieVoteP2P } from '../composables/useMovieVoteP2P.js'
 import { getMovieVoteSettingsModel } from '../settingsModel.js'
 import { normalizeVotingMethod, VOTING_METHOD_OPTIONS } from '../votingMethod.js'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
+import { useProjectShellBrowserFullscreenChrome } from '../../../layouts/projects/projectShellFullscreenChrome.js'
 
 const helpOpen = ref(false)
 const votingMethodHelpOpen = ref(false)
 const store = useMovieVoteStore()
 const { phase, votingMethod, fullscreenEnabled } = storeToRefs(store)
 const { isGuest } = useMovieVoteP2P()
+const fullscreenChromeExposed = useProjectShellBrowserFullscreenChrome()
 
 const settingsModel = computed(() =>
-  getMovieVoteSettingsModel({ isGuest: isGuest.value, phase: phase.value }),
+  getMovieVoteSettingsModel({
+    isGuest: isGuest.value,
+    phase: phase.value,
+    fullscreenChromeExposed: unref(fullscreenChromeExposed),
+  }),
 )
 const votingMethodOptions = VOTING_METHOD_OPTIONS
 
