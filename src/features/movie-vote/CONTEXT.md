@@ -98,7 +98,7 @@ _Avoid_: Invented tally names, “ranked-points” as a stand-in for **Borda cou
 
 ### Voting method settings
 
-Top-bar settings control for **voting method**: the **host** edits during **suggest phase** only; **guests** see the current choice read-only so rules are visible before **ranking**. Default for a new **room** is **instant-runoff voting**.
+Top-bar settings control for **voting method**: the **host** edits during **suggest phase** only; **guests** see the current choice read-only so rules are visible before **ranking**. Default for a new **room** is **instant-runoff voting**. The same settings menu also holds the **browser fullscreen toggle** (personal display preference for **host** and **guest**—see [**Portfolio site**](../../../CONTEXT.md)).
 
 ### Instant-runoff voting (IRV)
 
