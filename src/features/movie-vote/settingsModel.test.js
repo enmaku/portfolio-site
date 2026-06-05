@@ -23,3 +23,12 @@ test('guest always sees voting method read-only', () => {
     assert.equal(model.votingMethodReadOnly, true, phase)
   }
 })
+
+test('host and guest always see fullscreen toggle', () => {
+  for (const isGuest of [false, true]) {
+    for (const phase of ['suggest', 'voting', 'results']) {
+      const model = getMovieVoteSettingsModel({ isGuest, phase })
+      assert.equal(model.showFullscreen, true, `${isGuest ? 'guest' : 'host'} ${phase}`)
+    }
+  }
+})

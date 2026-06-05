@@ -6,5 +6,6 @@ export function getMovieVoteSettingsModel(input) {
   return {
     votingMethodEditable: !input.isGuest && !locked,
     votingMethodReadOnly: input.isGuest || locked,
+    showFullscreen: true,
   }
 }

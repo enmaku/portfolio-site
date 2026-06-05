@@ -123,6 +123,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
       'hardPassEnabled',
       'hardPassOrderNextRound',
       'hardPassOrderByRound',
+      'fullscreenEnabled',
       'totalGameStartedAt',
       'timingStripMode',
     ],
@@ -149,6 +150,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
       if (store.timingStripMode !== 'total' && store.timingStripMode !== 'non-player') {
         store.timingStripMode = 'total'
       }
+      store.fullscreenEnabled = store.fullscreenEnabled === true
       store._applyOrderForActiveRound()
     },
   },
@@ -525,7 +527,6 @@ export const useGameTimerStore = defineStore('gameTimer', {
       this.hardPassEnabled = false
       this.hardPassOrderNextRound = false
       this.hardPassOrderByRound = {}
-      this.fullscreenEnabled = false
       this.totalGameStartedAt = null
       this.timingStripMode = 'total'
     },

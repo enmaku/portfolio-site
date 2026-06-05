@@ -78,6 +78,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
     uniqueSuggestedMovieCount: 0,
     /** @type {import('../features/movie-vote/votingMethod.js').VotingMethod} */
     votingMethod: DEFAULT_VOTING_METHOD,
+    fullscreenEnabled: false,
   }),
 
   actions: {
@@ -132,6 +133,10 @@ export const useMovieVoteStore = defineStore('movieVote', {
     setVotingMethod(method) {
       if (this.phase !== 'suggest') return
       this.votingMethod = normalizeVotingMethod(method)
+    },
+
+    setFullscreenEnabled(value) {
+      this.fullscreenEnabled = Boolean(value)
     },
 
     /**
@@ -354,7 +359,11 @@ export const useMovieVoteStore = defineStore('movieVote', {
       'voteProgress',
       'irvResult',
       'votingMethod',
+      'fullscreenEnabled',
     ],
+    afterHydrate: (ctx) => {
+      ctx.store.fullscreenEnabled = ctx.store.fullscreenEnabled === true
+    },
   },
 })
 

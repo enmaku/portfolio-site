@@ -90,7 +90,8 @@
 import { computed, onBeforeUnmount, onMounted, provide, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
-import { useScopedFullscreen } from '../../features/game-timer/composables/useScopedFullscreen.js'
+import { useScopedFullscreen } from '../../layouts/projects/composables/useScopedFullscreen.js'
+import { notifyProjectShellFullscreenFailure } from '../../layouts/projects/notifyProjectShellFullscreenFailure.js'
 import { useDungeonRunnerSettingsStore } from '../../stores/dungeonRunnerSettings.js'
 import {
   collectPreservedBotLabelsFromMatchState,
@@ -143,14 +144,7 @@ useScopedFullscreen({
   enabled: fullscreenEnabled,
   setEnabled: (next) => dungeonRunnerSettingsStore.setFullscreenEnabled(next),
   getTargetElement: () => document.documentElement,
-  onRequestFailure: () => {
-    $q.notify({
-      type: 'warning',
-      message: 'Fullscreen could not be enabled.',
-      timeout: 2500,
-      position: 'top',
-    })
-  },
+  onRequestFailure: () => notifyProjectShellFullscreenFailure($q.notify),
 })
 
 const fullscreenModel = computed({

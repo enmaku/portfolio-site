@@ -45,6 +45,10 @@
               <template v-if="isGuest">Chosen by the host for this room.</template>
               <template v-else>Locked once voting starts.</template>
             </div>
+            <q-separator v-if="settingsModel.showFullscreen" class="q-my-md" />
+            <div v-if="settingsModel.showFullscreen">
+              <q-toggle v-model="fullscreenModel" color="primary" label="Fullscreen" />
+            </div>
           </div>
         </q-menu>
       </q-btn>
@@ -81,7 +85,7 @@ import { useMovieVoteStore } from '../../../stores/movieVote.js'
 const helpOpen = ref(false)
 const votingMethodHelpOpen = ref(false)
 const store = useMovieVoteStore()
-const { phase, votingMethod } = storeToRefs(store)
+const { phase, votingMethod, fullscreenEnabled } = storeToRefs(store)
 const { isGuest } = useMovieVoteP2P()
 
 const settingsModel = computed(() =>
@@ -97,6 +101,11 @@ const votingMethodModel = computed({
     if (next === votingMethod.value) return
     store.setVotingMethod(next)
   },
+})
+
+const fullscreenModel = computed({
+  get: () => fullscreenEnabled.value,
+  set: (v) => store.setFullscreenEnabled(Boolean(v)),
 })
 </script>
 
