@@ -692,10 +692,10 @@ const session = inject(LIVE_MATCH_SHELL_SESSION_KEY)
   border-radius: 50%;
   pointer-events: none;
   box-shadow:
-    0 0 0 2px rgba(239, 83, 80, 0.95),
-    0 0 0 4px rgba(229, 57, 53, 0.45),
-    0 0 18px rgba(239, 83, 80, 0.65),
-    0 0 32px rgba(229, 57, 53, 0.3);
+    0 0 0 2px rgba(211, 47, 0, 0.95),
+    0 0 0 4px rgba(154, 20, 0, 0.45),
+    0 0 18px rgba(211, 47, 0, 0.65),
+    0 0 32px rgba(154, 20, 0, 0.3);
   animation: dr-token-pulse 0.85s ease-in-out infinite alternate;
 }
 
