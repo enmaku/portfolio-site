@@ -3,4 +3,6 @@ export const LIVE_MATCH_SHELL_TEST_IDS = {
   finishingMatchOverlay: 'finishing-match-overlay',
   neuralRefreshTerminal: 'neural-refresh-terminal',
   neuralRefreshTerminalReload: 'neural-refresh-terminal-reload',
+  vorpalPickerConfirm: 'vorpal-picker-confirm',
+  vorpalPickerCard: 'vorpal-picker-card',
 }

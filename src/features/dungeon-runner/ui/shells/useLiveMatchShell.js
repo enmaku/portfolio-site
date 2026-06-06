@@ -27,7 +27,6 @@ import { adventurerChoiceHeadline, legalActionBoardLabel } from '../dungeonRunne
 import {
   buildDungeonEquipmentTokenView,
   createDungeonEquipmentModalView,
-  createVorpalDeclarationPromptView,
   filterVisibleLegalActions,
 } from '../dungeonEquipmentInteractions.js'
 import {
@@ -39,6 +38,10 @@ import {
   legalSacrificeEquipmentIds,
   shouldUseBiddingSacrificeEquipmentModalView,
 } from '../biddingSacrificeInteractions.js'
+import {
+  applyVorpalPickerSpeciesTap,
+  createVorpalDeclarationPickerView,
+} from '../vorpalDeclarationPickerInteractions.js'
 import { createBiddingBoardViewModel } from '../biddingBoardViewModel.js'
 import {
   viewerMaySeeAddToDungeonFlipDown,
@@ -584,8 +587,8 @@ export function useLiveMatchShell(deps) {
       legalActions: legalActions.value,
     })
   })
-  const vorpalPromptView = computed(() =>
-    createVorpalDeclarationPromptView({
+  const vorpalPickerView = computed(() =>
+    createVorpalDeclarationPickerView({
       isHumanTurn: isHumanTurn.value,
       gameplayInputLocked: gameplayInputLocked.value,
       phase: match.value?.state?.phase ?? null,
@@ -593,17 +596,10 @@ export function useLiveMatchShell(deps) {
       legalActions: legalActions.value,
       memoryAidEnabled: memoryAidState.value.enabled,
       viewerOwnPileAdds: visibleState.value?.playerOwnPileAdds?.[humanSeatId.value ?? ''] ?? [],
+      selectedSpecies: selectedVorpalSpecies.value,
+      humanGameplayBlocked: humanGameplayBlocked.value,
     }),
   )
-  const vorpalSelectOptions = computed(() => {
-    const pv = vorpalPromptView.value
-    const counts = pv.vorpalSpeciesOwnPileCounts
-    return pv.speciesOptions.map((species) => {
-      const n = counts?.[species] ?? 0
-      const label = n > 0 ? `${species} (${n})` : species
-      return { label, value: species }
-    })
-  })
   const biddingBoard = computed(() =>
     createBiddingBoardViewModel({
       state: match.value?.state ?? null,
@@ -817,7 +813,7 @@ export function useLiveMatchShell(deps) {
   )
 
   watch(
-    () => vorpalPromptView.value.open,
+    () => vorpalPickerView.value.open,
     (open) => {
       if (!open) {
         vorpalDialogOpen.value = false
@@ -825,13 +821,7 @@ export function useLiveMatchShell(deps) {
         return
       }
       vorpalDialogOpen.value = true
-      const firstSpecies = vorpalPromptView.value.speciesOptions[0] ?? null
-      if (
-        !selectedVorpalSpecies.value ||
-        !vorpalPromptView.value.speciesOptions.includes(selectedVorpalSpecies.value)
-      ) {
-        selectedVorpalSpecies.value = firstSpecies
-      }
+      selectedVorpalSpecies.value = null
     },
   )
 
@@ -1120,12 +1110,18 @@ export function useLiveMatchShell(deps) {
     }
   }
 
-  function confirmVorpalDeclaration() {
-    if (!selectedVorpalSpecies.value) return
-    takeHumanAction({
-      type: 'DECLARE_VORPAL',
-      species: selectedVorpalSpecies.value,
+  function onVorpalPickerCardTap(species) {
+    selectedVorpalSpecies.value = applyVorpalPickerSpeciesTap({
+      selectedSpecies: selectedVorpalSpecies.value,
+      tappedSpecies: species,
+      humanGameplayBlocked: humanGameplayBlocked.value,
     })
+  }
+
+  function confirmVorpalDeclaration() {
+    const action = vorpalPickerView.value.confirmAction
+    if (!action) return
+    takeHumanAction(action)
   }
 
   async function runAiTurn() {
@@ -1753,8 +1749,8 @@ export function useLiveMatchShell(deps) {
       neuralRefreshTerminalOpen,
       reloadPageForNeuralRefreshTerminal,
       vorpalDialogOpen,
-      vorpalSelectOptions,
-      selectedVorpalSpecies,
+      vorpalPickerView,
+      onVorpalPickerCardTap,
       confirmVorpalDeclaration,
       deckSplayOpen,
       onCloseDeckSplay,
