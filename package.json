@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "eslint -c ./eslint.config.js \"./src*/**/*.{js,cjs,mjs,vue}\"",
     "format": "prettier --write \"**/*.{js,vue,scss,html,md,json}\" --ignore-path .gitignore",
-    "test": "node --experimental-test-module-mocks --test \"src/features/**/*.test.js\" \"src/features/**/*.test.mjs\" \"src/layouts/**/*.test.js\" \"src/share-metadata.test.js\" \"src/router/**/*.test.js\" \"scripts/generate-share-pages.test.mjs\" \"scripts/sync-dungeon-runner-model.test.mjs\" \"scripts/dungeon-runner-model-catalog.test.mjs\" \"scripts/convert-dungeon-runner-h5.test.mjs\" \"scripts/dungeon-runner-model-artifacts.test.mjs\"",
+    "test": "node --experimental-test-module-mocks --test \"src/composables/**/*.test.js\" \"src/features/**/*.test.js\" \"src/features/**/*.test.mjs\" \"src/layouts/**/*.test.js\" \"src/share-metadata.test.js\" \"src/router/**/*.test.js\" \"scripts/generate-share-pages.test.mjs\" \"scripts/sync-dungeon-runner-model.test.mjs\" \"scripts/dungeon-runner-model-catalog.test.mjs\" \"scripts/convert-dungeon-runner-h5.test.mjs\" \"scripts/dungeon-runner-model-artifacts.test.mjs\"",
     "test:database-rules": "firebase emulators:exec --only database \"node --test database.rules.test.mjs\"",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"node --test firestore.rules.test.mjs\"",
     "dev": "quasar dev",

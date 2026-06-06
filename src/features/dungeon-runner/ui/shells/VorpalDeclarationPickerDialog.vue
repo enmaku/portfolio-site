@@ -20,9 +20,9 @@
         class="q-pa-md dr-deck-splay-scroll dr-vorpal-picker-scroll"
         :class="{ 'dr-vorpal-picker-scroll--dragging': vorpalPickerDragActive }"
         @pointerdown="onVorpalPickerPointerDown"
-        @pointermove="onVorpalPickerPointerMove"
-        @pointerup="onVorpalPickerPointerEnd"
-        @pointercancel="onVorpalPickerPointerEnd"
+        @pointermove="vorpalPickerDragHandlers.onMove"
+        @pointerup="vorpalPickerDragHandlers.onEnd"
+        @pointercancel="vorpalPickerDragHandlers.onEnd"
       >
         <div
           class="dr-vorpal-picker-hand"
@@ -77,6 +77,8 @@
 <script setup>
 import { computed, nextTick, ref, toRef, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { filterMousePrimaryButton } from '../../../../composables/pointerDragScrollController.js'
+import { usePointerDragScroll } from '../../../../composables/usePointerDragScroll.js'
 import { getDesktopPhoneFrameLayout } from '../../../../layouts/projects/desktopPhoneFrame.js'
 import { LIVE_MATCH_SHELL_TEST_IDS } from './liveMatchShellTestIds.js'
 import MonsterCardFace from '../../../../components/dungeon-runner/MonsterCardFace.vue'
@@ -119,67 +121,34 @@ const emit = defineEmits(['card-tap', 'confirm'])
 
 const pickerView = toRef(props, 'pickerView')
 const vorpalPickerScrollEl = ref(null)
-const vorpalPickerDragActive = ref(false)
-const vorpalPickerPanMoved = ref(false)
-const vorpalPickerDragStart = {
-  x: 0,
-  y: 0,
-  scrollTop: 0,
-}
-
-const VORPAL_PICKER_DRAG_THRESHOLD_PX = 4
-
-function beginVorpalPickerDrag(event, captureEl) {
-  const scrollEl = vorpalPickerScrollEl.value
-  if (!scrollEl || !(captureEl instanceof Element)) return
-
-  vorpalPickerDragActive.value = true
-  vorpalPickerPanMoved.value = false
-  vorpalPickerDragStart.x = event.clientX
-  vorpalPickerDragStart.y = event.clientY
-  vorpalPickerDragStart.scrollTop = scrollEl.scrollTop
-
-  captureEl.setPointerCapture(event.pointerId)
-}
+const { dragActive: vorpalPickerDragActive, handlers: vorpalPickerDragHandlers } = usePointerDragScroll({
+  scrollElRef: vorpalPickerScrollEl,
+  axis: 'y',
+  scrollBeforeThreshold: false,
+  shouldBegin: filterMousePrimaryButton,
+})
 
 function onVorpalPickerPointerDown(event) {
-  if (event.pointerType !== 'mouse' || event.button !== 0) return
-
   const scrollEl = vorpalPickerScrollEl.value
   if (!scrollEl) return
 
-  beginVorpalPickerDrag(event, scrollEl)
+  vorpalPickerDragHandlers.beginDrag(event, {
+    captureEl: scrollEl,
+    suppressClickOnPan: false,
+  })
 }
 
 function onVorpalPickerCardPointerDown(event) {
-  if (event.pointerType !== 'mouse' || event.button !== 0) return
   if (!(event.currentTarget instanceof HTMLButtonElement)) return
 
-  beginVorpalPickerDrag(event, event.currentTarget)
-}
-
-function onVorpalPickerPointerMove(event) {
-  if (!vorpalPickerDragActive.value) return
-
-  const scrollEl = vorpalPickerScrollEl.value
-  if (!scrollEl) return
-
-  const deltaY = event.clientY - vorpalPickerDragStart.y
-  if (Math.abs(deltaY) <= VORPAL_PICKER_DRAG_THRESHOLD_PX) return
-
-  vorpalPickerPanMoved.value = true
-  scrollEl.scrollTop = vorpalPickerDragStart.scrollTop - deltaY
-}
-
-function onVorpalPickerPointerEnd() {
-  vorpalPickerDragActive.value = false
+  vorpalPickerDragHandlers.beginDrag(event, {
+    captureEl: event.currentTarget,
+    suppressClickOnPan: true,
+  })
 }
 
 function onVorpalPickerCardTap(species) {
-  if (vorpalPickerPanMoved.value) {
-    vorpalPickerPanMoved.value = false
-    return
-  }
+  if (vorpalPickerDragHandlers.consumePanClick()) return
 
   emit('card-tap', species)
 }
