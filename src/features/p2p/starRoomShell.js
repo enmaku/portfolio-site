@@ -8,8 +8,8 @@
  * **runGuestStarReconnectLoop** — After guest sets phase to `reconnecting`:
  * 1. `sleep(RECONNECT_INITIAL_PAUSE_MS)`; abort if `gen !== getReconnectGeneration()`.
  * 2. For attempts 1..`RECONNECT_MAX_ATTEMPTS`: optional notify + backoff sleep;
- *    `destroyWireOnly()` then `await establishGuest()`; if generation changed,
- *    `leaveSession()` and return; on success return.
+ *    `destroyWireOnly()` then `await establishGuest()`; if generation changed after
+ *    establish, `destroyWireOnly()` + `teardownSession()` and return; on success return.
  * 3. On exhaustion: `clearRoomPersistence`, `notifyGuestReconnectFailed`, `teardownSession`.
  *
  * **runHostStarReconnectLoop** — Same structure; `establishHost` replaces
@@ -27,7 +27,6 @@ import { RECONNECT_INITIAL_PAUSE_MS, RECONNECT_MAX_ATTEMPTS } from './starRoomTi
  * @property {(attempt: number, maxAttempts: number) => void} notifyReconnectingGuest
  * @property {() => void} destroyWireOnly
  * @property {() => Promise<void>} establishGuest
- * @property {() => void} leaveSession
  * @property {() => void} clearRoomPersistence
  * @property {() => void} notifyGuestReconnectFailed
  * @property {() => void} teardownSession
@@ -55,7 +54,8 @@ export async function runGuestStarReconnectLoop(h) {
       h.destroyWireOnly()
       await h.establishGuest()
       if (h.gen !== h.getReconnectGeneration()) {
-        h.leaveSession()
+        h.destroyWireOnly()
+        h.teardownSession()
         return
       }
       return
@@ -79,7 +79,6 @@ export async function runGuestStarReconnectLoop(h) {
  * @property {(attempt: number, maxAttempts: number) => void} notifyReconnectingHost
  * @property {() => void} destroyWireOnly
  * @property {() => Promise<void>} establishHost
- * @property {() => void} leaveSession
  * @property {() => void} clearRoomPersistence
  * @property {() => void} notifyHostReconnectFailed
  * @property {() => void} teardownSession
@@ -107,7 +106,8 @@ export async function runHostStarReconnectLoop(h) {
       h.destroyWireOnly()
       await h.establishHost()
       if (h.gen !== h.getReconnectGeneration()) {
-        h.leaveSession()
+        h.destroyWireOnly()
+        h.teardownSession()
         return
       }
       return
