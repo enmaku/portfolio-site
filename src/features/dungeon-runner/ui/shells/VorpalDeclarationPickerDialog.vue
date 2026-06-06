@@ -18,6 +18,11 @@
       <div
         ref="vorpalPickerScrollEl"
         class="q-pa-md dr-deck-splay-scroll dr-vorpal-picker-scroll"
+        :class="{ 'dr-vorpal-picker-scroll--dragging': vorpalPickerDragActive }"
+        @pointerdown="onVorpalPickerPointerDown"
+        @pointermove="onVorpalPickerPointerMove"
+        @pointerup="onVorpalPickerPointerEnd"
+        @pointercancel="onVorpalPickerPointerEnd"
       >
         <div
           class="dr-vorpal-picker-hand"
@@ -38,7 +43,9 @@
             }"
             :disabled="!card.selectable"
             :data-testid="`${LIVE_MATCH_SHELL_TEST_IDS.vorpalPickerCard}-${card.species}`"
-            @click="emit('card-tap', card.species)"
+            @dragstart.prevent
+            @pointerdown.stop="onVorpalPickerCardPointerDown"
+            @click="onVorpalPickerCardTap(card.species)"
           >
             <div class="dr-vorpal-picker-card-stack">
               <MonsterCardFace class="dr-vorpal-picker-card-face" :species="card.species" />
@@ -112,6 +119,70 @@ const emit = defineEmits(['card-tap', 'confirm'])
 
 const pickerView = toRef(props, 'pickerView')
 const vorpalPickerScrollEl = ref(null)
+const vorpalPickerDragActive = ref(false)
+const vorpalPickerPanMoved = ref(false)
+const vorpalPickerDragStart = {
+  x: 0,
+  y: 0,
+  scrollTop: 0,
+}
+
+const VORPAL_PICKER_DRAG_THRESHOLD_PX = 4
+
+function beginVorpalPickerDrag(event, captureEl) {
+  const scrollEl = vorpalPickerScrollEl.value
+  if (!scrollEl || !(captureEl instanceof Element)) return
+
+  vorpalPickerDragActive.value = true
+  vorpalPickerPanMoved.value = false
+  vorpalPickerDragStart.x = event.clientX
+  vorpalPickerDragStart.y = event.clientY
+  vorpalPickerDragStart.scrollTop = scrollEl.scrollTop
+
+  captureEl.setPointerCapture(event.pointerId)
+}
+
+function onVorpalPickerPointerDown(event) {
+  if (event.pointerType !== 'mouse' || event.button !== 0) return
+
+  const scrollEl = vorpalPickerScrollEl.value
+  if (!scrollEl) return
+
+  beginVorpalPickerDrag(event, scrollEl)
+}
+
+function onVorpalPickerCardPointerDown(event) {
+  if (event.pointerType !== 'mouse' || event.button !== 0) return
+  if (!(event.currentTarget instanceof HTMLButtonElement)) return
+
+  beginVorpalPickerDrag(event, event.currentTarget)
+}
+
+function onVorpalPickerPointerMove(event) {
+  if (!vorpalPickerDragActive.value) return
+
+  const scrollEl = vorpalPickerScrollEl.value
+  if (!scrollEl) return
+
+  const deltaY = event.clientY - vorpalPickerDragStart.y
+  if (Math.abs(deltaY) <= VORPAL_PICKER_DRAG_THRESHOLD_PX) return
+
+  vorpalPickerPanMoved.value = true
+  scrollEl.scrollTop = vorpalPickerDragStart.scrollTop - deltaY
+}
+
+function onVorpalPickerPointerEnd() {
+  vorpalPickerDragActive.value = false
+}
+
+function onVorpalPickerCardTap(species) {
+  if (vorpalPickerPanMoved.value) {
+    vorpalPickerPanMoved.value = false
+    return
+  }
+
+  emit('card-tap', species)
+}
 
 function waitForNextFrame() {
   return new Promise((resolve) => {
@@ -168,6 +239,16 @@ watch(
   min-height: 0;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .dr-vorpal-picker-scroll {
+    cursor: grab;
+  }
+
+  .dr-vorpal-picker-scroll--dragging {
+    cursor: grabbing;
+  }
+}
+
 .dr-vorpal-picker-hand {
   --dr-vorpal-picker-card-width: var(--dr-vorpal-picker-card-outer-width, min(400px, 94vw));
   --dr-vorpal-picker-card-height: calc(var(--dr-vorpal-picker-card-width) * 245 / 384);
@@ -197,8 +278,13 @@ watch(
   overflow: visible;
   padding: 0;
   position: relative;
+  user-select: none;
   width: 100%;
   z-index: 1;
+}
+
+.dr-vorpal-picker-card :deep(img) {
+  -webkit-user-drag: none;
 }
 
 .dr-vorpal-picker-card:disabled {
