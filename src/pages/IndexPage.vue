@@ -453,7 +453,7 @@ function onImageClick(event) {
 
 async function zoomInToPoint(ratioX, ratioY) {
   isZoomed.value = true
-  isDragging.value = false
+  imageDragHandlers.onEnd()
 
   await nextTick()
 
