@@ -643,7 +643,6 @@ function guestReconnectLoop(suffix, gen) {
       notifyP2P(`Reconnecting… attempt ${attempt} of ${max}`, 'warning'),
     destroyWireOnly,
     establishGuest: () => establishGuestSession(suffix),
-    leaveSession,
     clearRoomPersistence,
     notifyGuestReconnectFailed: () =>
       notifyP2P('Could not reconnect. Use Host room / Join room to try again.', 'negative'),
@@ -664,7 +663,6 @@ function hostReconnectLoop(suffix, gen) {
       notifyP2P(`Reconnecting as host… attempt ${attempt} of ${max}`, 'warning'),
     destroyWireOnly,
     establishHost: () => finishHostSession(suffix),
-    leaveSession,
     clearRoomPersistence,
     notifyHostReconnectFailed: () =>
       notifyP2P('Could not restore hosting. Start a new room or try again later.', 'negative'),
