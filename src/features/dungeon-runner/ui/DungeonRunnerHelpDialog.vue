@@ -57,6 +57,13 @@
           adventurer's starting HP and the equipment you have in play.
         </p>
         <p class="q-ma-none q-mb-sm">
+          If you have Vorpal equipment in play when the dungeon run starts, you must declare a species before the
+          first monster is revealed. A card picker shows every roster species—tap a card to select it, then tap
+          <strong>Confirm</strong> to declare. With memory aid on, cards may show how many of that species you added
+          to dungeon piles during bidding (only when the count is greater than zero). You cannot dismiss this picker;
+          see the Vorpal Sword or Dagger description for the full rules.
+        </p>
+        <p class="q-ma-none q-mb-sm">
           Reveal and resolve each monster in order. Most of the time, advancing through the dungeon is automatic. However, 
           sometimes you'll have the option (or be required) to choose an action from the equipment buttons at the bottom.
         </p>

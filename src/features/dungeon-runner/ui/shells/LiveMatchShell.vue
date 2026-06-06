@@ -417,34 +417,12 @@
       </q-card>
     </q-dialog>
     
-    <q-dialog v-model="session.dialogs.vorpalDialogOpen" persistent>
-      <q-card class="q-pa-md" style="min-width: 320px">
-        <div class="text-subtitle1 q-mb-xs">Vorpal target</div>
-        <div class="text-body2 q-mb-md">Choose a species before entering the dungeon.</div>
-        <q-select
-          v-model="session.dialogs.selectedVorpalSpecies"
-          :options="session.dialogs.vorpalSelectOptions"
-          emit-value
-          map-options
-          option-value="value"
-          option-label="label"
-          label="Species"
-          behavior="menu"
-          outlined
-          dense
-          class="q-mb-md"
-        />
-        <div class="row justify-end">
-          <q-btn
-            color="primary"
-            unelevated
-            label="Confirm"
-            :disable="!session.dialogs.selectedVorpalSpecies || session.board.humanGameplayBlocked"
-            @click="session.dialogs.confirmVorpalDeclaration"
-          />
-        </div>
-      </q-card>
-    </q-dialog>
+    <VorpalDeclarationPickerDialog
+      :open="session.dialogs.vorpalPickerView.open"
+      :picker-view="session.dialogs.vorpalPickerView"
+      @card-tap="session.dialogs.onVorpalPickerCardTap"
+      @confirm="session.dialogs.confirmVorpalDeclaration"
+    />
     <q-dialog v-model="session.dialogs.deckSplayOpen" maximized>
       <q-card class="dr-deck-splay-panel">
         <div class="row items-center q-px-md q-pt-md q-pb-sm">
@@ -486,6 +464,7 @@ import { inject } from 'vue'
 import { LIVE_MATCH_SHELL_TEST_IDS } from './liveMatchShellTestIds.js'
 import { LIVE_MATCH_SHELL_SESSION_KEY } from './liveMatchShellSessionKey.js'
 import MonsterCardFace from '../../../../components/dungeon-runner/MonsterCardFace.vue'
+import VorpalDeclarationPickerDialog from './VorpalDeclarationPickerDialog.vue'
 
 const session = inject(LIVE_MATCH_SHELL_SESSION_KEY)
 </script>

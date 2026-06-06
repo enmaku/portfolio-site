@@ -128,10 +128,10 @@
             ref="dialogImageWrap"
             class="dialog-image-wrap"
             :class="{ 'dialog-image-wrap--zoomed': isZoomed }"
-            @pointermove="onDragMove"
-            @pointerup="onDragEnd"
-            @pointercancel="onDragEnd"
-            @pointerleave="onDragEnd"
+            @pointermove="imageDragHandlers.onMove"
+            @pointerup="imageDragHandlers.onEnd"
+            @pointercancel="imageDragHandlers.onEnd"
+            @pointerleave="imageDragHandlers.onEnd"
           >
             <img
               :src="dialogSrc"
@@ -141,7 +141,7 @@
                 'dialog-image--zoomed': isZoomed,
                 'dialog-image--dragging': isDragging,
               }"
-              @pointerdown="onDragStart"
+              @pointerdown="onImagePointerDown"
               @click="onImageClick"
               @dragstart.prevent
             />
@@ -172,6 +172,7 @@
 import exifr from 'exifr'
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
+import { usePointerDragScroll } from 'src/composables/usePointerDragScroll.js'
 import { exifSummaryLines, exifToRows } from 'src/utils/exifFormat.js'
 
 const googlePhotosUrl = 'https://photos.app.goo.gl/pjuSWsZbgcp3eC7o6'
@@ -365,22 +366,19 @@ const dialogLabel = ref('')
 const exifPanelOpen = ref(true)
 const dialogExifRows = ref([])
 const isZoomed = ref(false)
-const isDragging = ref(false)
 const dialogImageWrap = ref(null)
-
-const dragStart = {
-  x: 0,
-  y: 0,
-  scrollLeft: 0,
-  scrollTop: 0,
-}
-const dragMoved = ref(false)
+const { dragActive: isDragging, handlers: imageDragHandlers } = usePointerDragScroll({
+  scrollElRef: dialogImageWrap,
+  axis: 'both',
+  scrollBeforeThreshold: true,
+  shouldBegin: () => isZoomed.value,
+})
 
 async function openPhoto(photo) {
   dialogSrc.value = photo.src
   dialogLabel.value = photo.label
   isZoomed.value = false
-  isDragging.value = false
+  imageDragHandlers.onEnd()
   dialogExifRows.value = []
   galleryScrollRestore.value = {
     x: window.scrollX,
@@ -398,7 +396,7 @@ async function openPhoto(photo) {
 function toggleZoom() {
   const shouldZoomIn = isZoomed.value === false
   isZoomed.value = !isZoomed.value
-  isDragging.value = false
+  imageDragHandlers.onEnd()
 
   if (shouldZoomIn) {
     void centerZoomedImage()
@@ -424,50 +422,17 @@ async function centerZoomedImage() {
   })
 }
 
-function onDragStart(event) {
-  if (!isZoomed.value || dialogImageWrap.value === null) {
-    return
-  }
+function onImagePointerDown(event) {
+  if (!event.target) return
 
-  isDragging.value = true
-  dragMoved.value = false
-  dragStart.x = event.clientX
-  dragStart.y = event.clientY
-  dragStart.scrollLeft = dialogImageWrap.value.scrollLeft
-  dragStart.scrollTop = dialogImageWrap.value.scrollTop
-
-  if (event.target && typeof event.target.setPointerCapture === 'function') {
-    event.target.setPointerCapture(event.pointerId)
-  }
-}
-
-function onDragMove(event) {
-  if (!isDragging.value || dialogImageWrap.value === null) {
-    return
-  }
-
-  const deltaX = event.clientX - dragStart.x
-  const deltaY = event.clientY - dragStart.y
-  const dragThreshold = 4
-
-  if (Math.abs(deltaX) > dragThreshold || Math.abs(deltaY) > dragThreshold) {
-    dragMoved.value = true
-  }
-
-  dialogImageWrap.value.scrollLeft = dragStart.scrollLeft - deltaX
-  dialogImageWrap.value.scrollTop = dragStart.scrollTop - deltaY
-}
-
-function onDragEnd() {
-  isDragging.value = false
+  imageDragHandlers.beginDrag(event, {
+    captureEl: event.target,
+    suppressClickOnPan: true,
+  })
 }
 
 function onImageClick(event) {
-  // Ignore click events emitted at the end of a drag-pan gesture.
-  if (dragMoved.value) {
-    dragMoved.value = false
-    return
-  }
+  if (imageDragHandlers.consumePanClick()) return
 
   if (!isZoomed.value) {
     const imgRect = event.currentTarget?.getBoundingClientRect?.()
@@ -488,7 +453,7 @@ function onImageClick(event) {
 
 async function zoomInToPoint(ratioX, ratioY) {
   isZoomed.value = true
-  isDragging.value = false
+  imageDragHandlers.onEnd()
 
   await nextTick()
 
