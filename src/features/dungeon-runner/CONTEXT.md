@@ -258,6 +258,18 @@ Transient human-player UI during **bidding**, after a **draw** reveals a monster
 
 _Avoid_: “Sacrifice picker,” dropdown-by-name as the primary sacrifice UX; red highlight on tiles that rules do not allow sacrificing; treating sacrifice mode as a separate **match** phase; leaving **Add to dungeon** enabled alongside sacrifice mode; one-tap human sacrifice shortcuts that bypass tile selection and confirmation; changing how **neural opponent** or **Randombot** choose sacrifices; persisting sacrifice mode across reload (ephemeral **live match shell** UI only).
 
+### Vorpal declaration (dungeon)
+
+The pre-reveal **species** choice at **dungeon run** start when the runner has Vorpal **equipment** in play (`W_VORPAL` or `R_VORP`). Mandatory whenever that gear is in play and the dungeon lane is non-empty—no skip or dismiss. The human names one **species** from the fixed roster (`DECLARE_VORPAL`); all eight roster **species** are always legal regardless of dungeon pile contents (hidden-info). If the first revealed **monster** matches that **species**, Vorpal neutralizes it. Human **live match shell** UX: a persistent near-fullscreen blocking panel (same class as **deck splay**) over a dimmed board, showing all eight **monster** card faces (one per **species**) in a vertically scrollable overlapping “hand” (cards slightly stacked; the selected card drawn larger toward center); scroll browses only—tap a card to select (enlarged toward center with a selection outline), then **Confirm** to declare—no **Cancel**, no species pre-selected on open. **Play route chrome** (help, settings, and similar system surfaces) stays usable—including while the picker is open and while presentation locks gameplay input on the board. Card taps and **Confirm** follow the same interactability gate as other human turn actions (disabled when gameplay input is locked). With **memory aid** on, each card may show how many of that **species** the human added to dungeon piles (caption only when count > 0).
+
+_Avoid_: “Vorpal target,” “vorpal weapon target,” or “vorpal blade” without clarifying it is a **species** declaration on Vorpal **equipment** in play, not picking a visible lane card; “equipment pile” when meaning bidding center table or discard piles (use **in play** for the runner’s dungeon kit); filtering the roster by pile composition; treating declaration as “which **monster** is up next” from hidden lane state; pre-selecting a default **species** when the picker opens; one-tap declaration without **Confirm**; a dismiss or **Cancel** affordance that implies the choice is optional; scroll changing the selected **species** without a tap; showing `0` own-pile counts on every card when **memory aid** is on; changing **neural opponent** or **Randombot** declaration interfaces or action spaces.
+
+### Vorpal declaration picker (human)
+
+The human-player card-hand UI for **vorpal declaration (dungeon)** in **live match shell** only. Ephemeral presentation layer over the same `DECLARE_VORPAL` action—**neural opponent** and **Randombot** interfaces unchanged.
+
+_Avoid_: “Vorpal UI,” “vorpal dialog” without **human** scope; any picker or affordance on **opponent** turns; conflating with engine legality or policy encoding; a second “are you sure?” step after **Confirm**; persisting picker or selected **species** on **current match** reload; re-tapping the selected card to deselect or to commit without **Confirm**.
+
 ### Game data catalog
 
 The single source of truth for static **equipment** and **monster** definitions shared by rules resolution and presentation.
@@ -324,15 +336,17 @@ The canonical id string for a **monster** catalog entry (e.g. `goblin`); keys de
 
 ### Strength
 
-The combat value on a **monster** entry; each strength maps to exactly one **species** (e.g. strength 2 is always skeleton, 3 always orc).
+The combat value on a **monster** entry; each strength maps to exactly one **species** (e.g. strength 2 is always skeleton, 3 always orc). Catalog strengths run 1–7 then 9 (dragon)—there is no strength-8 **monster**.
 
 ### Monster deck
 
-The standard ordered list of **monster** **species** ids (including duplicates) used to build the dungeon lane at **match** start.
+The standard ordered list of **monster** **species** ids (including duplicates) used to build the dungeon lane at **match** start. Distinct from **policy species order** (unique roster, ascending **strength**).
 
 ### Policy species order
 
-The canonical ordering of **monster** **species** ids for neural observation encoding; fixed in the **game data catalog** and stable across balance edits unless models are retrained.
+The canonical ascending-**strength** ordering of all eight **monster** **species** in the **game data catalog**: goblin (1), skeleton (2), orc (3), vampire (4), golem (5), lich (6), demon (7), dragon (9). Shared roster for `DECLARE_VORPAL` legal actions, **vorpal declaration picker (human)** card-hand layout, and **neural opponent** observation slots—fixed unless models are retrained.
+
+_Avoid_: Confusing with **monster deck** deal order; alphabetical order; assuming contiguous strengths 1–8; re-sorting the roster in human UI only.
 
 ### TF.js model sync
 
@@ -353,6 +367,12 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - **Equipment** and **monster** definitions are consulted during **dungeon runs** and bidding within a **match**.
 - After a bidding **draw**, the drawer may **Add to dungeon** or enter **sacrifice mode (bidding)** to discard one legally sacrificable center-table **equipment** piece instead; only highlighted tiles accept sacrifice confirmation. While sacrifice mode is active, **Add to dungeon** and other turn actions are unavailable until **Cancel** or a confirmed sacrifice resolves the choice.
 - **Sacrifice mode (bidding)** is **human player seat** UX in **live match shell** only; **opponent** sacrifice is unchanged. Ephemeral—clears on reload; not part of **current match** persistence. Bidding help copy describes enter → pick highlighted tile → confirm → **Cancel**.
+- **Vorpal declaration (dungeon)** is a hidden-info **species** pick from the full roster, not a choice among visible lane **monsters**; optional memory-aid own-pile counts are supplementary hints only.
+- **Vorpal declaration picker (human)** is **human player seat** UX in **live match shell** only; **neural opponent** and **Randombot** `DECLARE_VORPAL` behavior and interfaces are unchanged. Ephemeral—clears on reload; not part of **current match** persistence.
+- **Vorpal declaration picker (human)** lists cards in **policy species order** (ascending **strength**), same roster order as `DECLARE_VORPAL` legality and the former dropdown.
+- Dungeon-run help copy describes **vorpal declaration picker (human)** flow (mandatory picker → tap card → **Confirm**; memory-aid counts when enabled).
+- **Vorpal declaration picker (human)** follows the same presentation-lock interactability rules as **sacrifice mode (bidding)**; **play route chrome** is never blocked by the picker or by gameplay-input locks.
+- **Policy species order** is not **monster deck** order—the deck includes duplicates and follows deal composition, not the unique strength ladder.
 - A **match** contains one or more **dungeon runs** before **match over**.
 - **Elimination end (human)** and **Defeat (human, not eliminated)** use different end-dialog copy; only the latter names the winning seat.
 - Headless completion of remaining **opponent** play after human **elimination** uses the same action choosers as live play (not a simplified bot).
