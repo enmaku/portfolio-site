@@ -69,7 +69,6 @@ function createReconnectStubs(role, options = {}) {
   let clearRoomPersistenceCalls = 0
   let fatalNotifyCalls = 0
   let teardownSessionCalls = 0
-  let leaveSessionCalls = 0
 
   /** @param {number} ms */
   const sleep = sleepOverride
@@ -97,10 +96,6 @@ function createReconnectStubs(role, options = {}) {
     teardownSession: () => {
       teardownSessionCalls += 1
       eventLog.push('teardownSession')
-    },
-    leaveSession: () => {
-      leaveSessionCalls += 1
-      eventLog.push('leaveSession')
     },
   }
 
@@ -149,9 +144,6 @@ function createReconnectStubs(role, options = {}) {
     },
     get teardownSessionCalls() {
       return teardownSessionCalls
-    },
-    get leaveSessionCalls() {
-      return leaveSessionCalls
     },
   }
 }
@@ -284,7 +276,6 @@ for (const role of /** @type {const} */ (['guest', 'host'])) {
     assert.equal(stubs.teardownSessionCalls, 0)
     assert.equal(stubs.fatalNotifyCalls, 0)
     assert.equal(stubs.clearRoomPersistenceCalls, 0)
-    assert.equal(stubs.leaveSessionCalls, 0)
     assertDestroyBeforeEachEstablish(stubs.eventLog, role)
     assert.equal(stubs.eventLog.at(-1), establishEvent(role))
   })
@@ -304,7 +295,6 @@ for (const role of /** @type {const} */ (['guest', 'host'])) {
     assert.equal(stubs.establishCalls.length, 1)
     assert.equal(stubs.destroyWireOnlyCalls.length, 2)
     assert.equal(stubs.teardownSessionCalls, 1)
-    assert.equal(stubs.leaveSessionCalls, 0)
     assert.equal(stubs.fatalNotifyCalls, 0)
     assert.equal(stubs.clearRoomPersistenceCalls, 0)
     assert.deepEqual(stubs.eventLog, [
@@ -313,7 +303,6 @@ for (const role of /** @type {const} */ (['guest', 'host'])) {
       'destroyWireOnly',
       'teardownSession',
     ])
-    assert.ok(!stubs.eventLog.includes('leaveSession'))
     assert.ok(!stubs.eventLog.includes('notifyFatal'))
   })
 
@@ -326,10 +315,8 @@ for (const role of /** @type {const} */ (['guest', 'host'])) {
     assert.equal(stubs.clearRoomPersistenceCalls, 1)
     assert.equal(stubs.fatalNotifyCalls, 1)
     assert.equal(stubs.teardownSessionCalls, 1)
-    assert.equal(stubs.leaveSessionCalls, 0)
     const fatalTrio = stubs.eventLog.slice(-3)
     assert.deepEqual(fatalTrio, ['clearRoomPersistence', 'notifyFatal', 'teardownSession'])
-    assert.ok(!stubs.eventLog.includes('leaveSession'))
   })
 
   test(`${role} reconnect loop silently aborts after exhaustion on generation mismatch`, async () => {

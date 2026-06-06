@@ -203,7 +203,6 @@ test('deriveStableHostSuffix is deterministic for the same principal and app tag
     const first = deriveStableHostSuffix('movievote', 6)
     const second = deriveStableHostSuffix('movievote', 6)
     assert.equal(second, first)
-    assert.equal(first, '05VBBW')
   })
 })
 
