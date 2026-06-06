@@ -322,7 +322,6 @@ export function useLiveMatchShell(deps) {
   const confirmationDialogOkLabel = ref('OK')
   const confirmationDialogCancelLabel = ref('Cancel')
   let confirmationDialogResolve = null
-  const vorpalDialogOpen = ref(false)
   const selectedVorpalSpecies = ref(null)
   const memoryAidState = ref(
     createMemoryAidState({ enabled: dungeonRunnerSettingsStore.memoryAidEnabled }),
@@ -814,13 +813,7 @@ export function useLiveMatchShell(deps) {
 
   watch(
     () => vorpalPickerView.value.open,
-    (open) => {
-      if (!open) {
-        vorpalDialogOpen.value = false
-        selectedVorpalSpecies.value = null
-        return
-      }
-      vorpalDialogOpen.value = true
+    () => {
       selectedVorpalSpecies.value = null
     },
   )
@@ -1748,7 +1741,6 @@ export function useLiveMatchShell(deps) {
       onConfirmationDialogOk,
       neuralRefreshTerminalOpen,
       reloadPageForNeuralRefreshTerminal,
-      vorpalDialogOpen,
       vorpalPickerView,
       onVorpalPickerCardTap,
       confirmVorpalDeclaration,

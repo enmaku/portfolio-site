@@ -58,6 +58,28 @@ test('picker card selected flag tracks selectedSpecies', () => {
   )
 })
 
+test('hasSelection is false without selectedSpecies and true when set', () => {
+  const noSelection = createVorpalDeclarationPickerView(OPEN_INPUT)
+  assert.equal(noSelection.hasSelection, false)
+
+  const withSelection = createVorpalDeclarationPickerView({
+    ...OPEN_INPUT,
+    selectedSpecies: 'goblin',
+  })
+  assert.equal(withSelection.hasSelection, true)
+})
+
+test('returned selectedSpecies echoes the input', () => {
+  const unset = createVorpalDeclarationPickerView(OPEN_INPUT)
+  assert.equal(unset.selectedSpecies, null)
+
+  const set = createVorpalDeclarationPickerView({
+    ...OPEN_INPUT,
+    selectedSpecies: 'dragon',
+  })
+  assert.equal(set.selectedSpecies, 'dragon')
+})
+
 test('picker cards are not selectable when human gameplay is blocked', () => {
   const view = createVorpalDeclarationPickerView({
     ...OPEN_INPUT,

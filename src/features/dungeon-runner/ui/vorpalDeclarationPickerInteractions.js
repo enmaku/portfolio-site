@@ -89,6 +89,8 @@ export function createVorpalDeclarationPickerView({
 
   return {
     open: prompt.open,
+    selectedSpecies,
+    hasSelection: selectedSpecies != null,
     cards,
     handCards,
     confirmEnabled,
