@@ -75,7 +75,7 @@ test('dungeon phase keeps continue-skip actions visible in flat button row', () 
   assert.deepEqual(visible, [{ type: 'DECLINE_FIRE_AXE' }, { type: 'DECLINE_POLYMORPH' }])
 })
 
-test('bidding phase still lists sacrifice alongside other non-vorpal actions', () => {
+test('bidding phase filterVisibleLegalActions still passes sacrifice through for engine visibility', () => {
   const legal = [
     { type: 'ADD_TO_DUNGEON' },
     { type: 'SACRIFICE', equipmentId: 'W_SHIELD' },

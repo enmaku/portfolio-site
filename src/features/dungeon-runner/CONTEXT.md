@@ -252,6 +252,12 @@ On **completed match outcome**, the number of canonical `SACRIFICE` actions in *
 
 _Avoid_: Counting equipment merely played or discarded in **dungeon runs**; inferring from **scoreboard** alone.
 
+### Sacrifice mode (bidding)
+
+Transient human-player UI during **bidding**, after a **draw** reveals a monster only to the drawer. Entered via **Sacrifice equipment**; highlights only center-table **equipment** that is legally sacrificable right now with a red border and subtle pulse (distinct from dungeon-phase usability glow); tile selection opens the usual **equipment** description with an explicit **Sacrifice** confirmation (no further confirmation dialog). Dismissing that modal via **Continue** without **Sacrifice** leaves sacrifice mode active. Always used for human sacrifice—even when only one piece is legal—replacing name-based sacrifice buttons or dropdowns. While active, the only **bidding** game actions are confirming a sacrifice or **Cancel** (exit sacrifice mode without discarding)—the drawer must exit sacrifice mode before **Add to dungeon** or other turn actions. **Cancel** also closes any open **equipment** description modal. Spent or removed **equipment** tiles stay readable but are not highlighted and cannot be confirmed for sacrifice; tapping them during sacrifice mode still opens the description modal, and dismissing that modal leaves sacrifice mode active. **Play route chrome** affordances (settings, help, and similar system surfaces) stay available. Entering or using sacrifice mode follows the same human gameplay interactability rules as other **bidding** turn actions (e.g. **Draw**, **Add to dungeon**): blocked while presentation locks gameplay input. Human **live match shell** presentation only; **opponent** sacrifice behavior and the legal **SACRIFICE** action space are unchanged.
+
+_Avoid_: “Sacrifice picker,” dropdown-by-name as the primary sacrifice UX; red highlight on tiles that rules do not allow sacrificing; treating sacrifice mode as a separate **match** phase; leaving **Add to dungeon** enabled alongside sacrifice mode; one-tap human sacrifice shortcuts that bypass tile selection and confirmation; changing how **neural opponent** or **Randombot** choose sacrifices; persisting sacrifice mode across reload (ephemeral **live match shell** UI only).
+
 ### Game data catalog
 
 The single source of truth for static **equipment** and **monster** definitions shared by rules resolution and presentation.
@@ -345,6 +351,8 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - **Equipment** optional use/decline action types are **catalog rules**; effect help prose lives in **ui** `details`.
 - **Adventurer identity** fields are **ui** only; the engine/kernel consumes **catalog rules** only, not **ui**.
 - **Equipment** and **monster** definitions are consulted during **dungeon runs** and bidding within a **match**.
+- After a bidding **draw**, the drawer may **Add to dungeon** or enter **sacrifice mode (bidding)** to discard one legally sacrificable center-table **equipment** piece instead; only highlighted tiles accept sacrifice confirmation. While sacrifice mode is active, **Add to dungeon** and other turn actions are unavailable until **Cancel** or a confirmed sacrifice resolves the choice.
+- **Sacrifice mode (bidding)** is **human player seat** UX in **live match shell** only; **opponent** sacrifice is unchanged. Ephemeral—clears on reload; not part of **current match** persistence. Bidding help copy describes enter → pick highlighted tile → confirm → **Cancel**.
 - A **match** contains one or more **dungeon runs** before **match over**.
 - **Elimination end (human)** and **Defeat (human, not eliminated)** use different end-dialog copy; only the latter names the winning seat.
 - Headless completion of remaining **opponent** play after human **elimination** uses the same action choosers as live play (not a simplified bot).

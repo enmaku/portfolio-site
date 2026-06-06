@@ -157,6 +157,7 @@
               'dr-equip-token--spent': token.removed,
               'dr-token-glow': token.glow,
               'dr-token-pulse': token.pulse,
+              'dr-equip-token--sacrifice-target': token.isSacrificeTarget,
               'dr-equip-token--deemphasized': token.deemphasized,
               'dr-equip-token--interactive': token.hasModal,
             }"
@@ -191,41 +192,42 @@
     <q-card v-if="session.board.showActionPane" flat bordered class="q-pa-sm q-mb-md">
       <div v-if="session.board.activePresentationLabel" class="text-body2 text-grey-6 q-mb-xs">{{ session.board.activePresentationLabel }}</div>
       <div v-if="session.board.isHumanTurn" class="row q-col-gutter-sm q-gutter-y-sm">
-        <template v-if="session.board.match?.state?.phase === 'bidding' && session.board.biddingSacrificeActions.length > 1">
-          <q-btn
-            v-for="action in session.board.biddingNonSacrificeActions"
-            :key="session.board.actionKey(action)"
-            :color="session.board.biddingBoard.heroCue.buttonColor"
-            unelevated
-            no-caps
-            size="lg"
-            class="col-12 col-sm-auto"
-            :label="session.board.actionLabel(action)"
-            :disable="session.board.humanGameplayBlocked"
-            @click="session.board.takeHumanAction(action)"
-          />
-          <q-btn-dropdown
-            :color="session.board.biddingBoard.heroCue.buttonColor"
-            unelevated
-            no-caps
-            dense
-            size="lg"
-            class="col-12 col-sm-auto"
-            label="Sacrifice equipment"
-            :disable="session.board.humanGameplayBlocked"
-          >
-            <q-list dense>
-              <q-item
-                v-for="action in session.board.biddingSacrificeActions"
-                :key="session.board.actionKey(action)"
-                v-close-popup
-                clickable
-                @click="session.board.takeHumanAction(action)"
-              >
-                <q-item-section>{{ session.board.actionLabel(action) }}</q-item-section>
-              </q-item>
-            </q-list>
-          </q-btn-dropdown>
+        <template v-if="session.board.showBiddingPostDrawActionPane">
+          <template v-for="item in session.board.biddingPostDrawActionPane" :key="session.board.biddingPostDrawActionPaneKey(item)">
+            <q-btn
+              v-if="item.kind === 'engine'"
+              :color="session.board.biddingBoard.heroCue.buttonColor"
+              unelevated
+              no-caps
+              size="lg"
+              class="col-12 col-sm-auto"
+              :label="session.board.actionLabel(item.action)"
+              :disable="session.board.humanGameplayBlocked"
+              @click="session.board.takeHumanAction(item.action)"
+            />
+            <q-btn
+              v-else-if="item.kind === 'enterSacrificeMode'"
+              :color="session.board.biddingBoard.heroCue.buttonColor"
+              unelevated
+              no-caps
+              size="lg"
+              class="col-12 col-sm-auto"
+              label="Sacrifice equipment"
+              :disable="session.board.humanGameplayBlocked"
+              @click="session.board.enterSacrificeMode"
+            />
+            <q-btn
+              v-else-if="item.kind === 'cancelSacrificeMode'"
+              :color="session.board.biddingBoard.heroCue.buttonColor"
+              unelevated
+              no-caps
+              size="lg"
+              class="col-12 col-sm-auto"
+              label="Cancel"
+              :disable="session.board.humanGameplayBlocked"
+              @click="session.board.cancelSacrificeMode"
+            />
+          </template>
         </template>
         <template v-else>
           <template v-if="session.board.showHeroPickActionGrid">
@@ -365,6 +367,14 @@
         <div class="text-subtitle1 q-mb-xs">{{ session.dialogs.selectedEquipmentModalView?.title }}</div>
         <div class="text-body2 q-mb-md">{{ session.dialogs.selectedEquipmentModalView?.details }}</div>
         <div class="row justify-end q-gutter-sm">
+          <q-btn
+            v-if="session.dialogs.selectedEquipmentModalView?.showSacrificeButton"
+            color="negative"
+            unelevated
+            label="Sacrifice"
+            :disable="session.dialogs.equipmentModalActionsDisabled"
+            @click="session.dialogs.takeEquipmentSacrificeAction"
+          />
           <q-btn
             v-if="session.dialogs.selectedEquipmentModalView?.showUseButton"
             color="primary"
@@ -671,7 +681,7 @@ const session = inject(LIVE_MATCH_SHELL_SESSION_KEY)
   border-radius: 6px;
 }
 
-.dr-token-glow {
+.dr-token-glow:not(.dr-equip-token) {
   box-shadow:
     0 0 0 2px rgba(255, 193, 7, 0.95),
     0 0 0 4px rgba(255, 152, 0, 0.45),
@@ -679,7 +689,34 @@ const session = inject(LIVE_MATCH_SHELL_SESSION_KEY)
     0 0 40px rgba(255, 160, 0, 0.35);
 }
 
-.dr-token-pulse {
+.dr-equip-token.dr-token-glow::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 2px rgba(255, 193, 7, 0.95),
+    0 0 0 4px rgba(255, 152, 0, 0.45),
+    0 0 22px rgba(255, 193, 7, 0.75),
+    0 0 40px rgba(255, 160, 0, 0.35);
+}
+
+.dr-equip-token.dr-token-pulse::after {
+  animation: dr-token-pulse 0.85s ease-in-out infinite alternate;
+}
+
+.dr-equip-token--sacrifice-target::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 2px rgba(239, 83, 80, 0.95),
+    0 0 0 4px rgba(229, 57, 53, 0.45),
+    0 0 18px rgba(239, 83, 80, 0.65),
+    0 0 32px rgba(229, 57, 53, 0.3);
   animation: dr-token-pulse 0.85s ease-in-out infinite alternate;
 }
 
