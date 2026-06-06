@@ -196,8 +196,7 @@ function appendCardFlyFromAnchorThenMaybeFlip(gsapApi, tl, opts) {
   }
 }
 
-/** Sunlight-colored activation glow used for reusable (non-expended) equipment that fires a ghost flight. */
-const REUSABLE_ACTIVATION_GLOW = '0 0 14px 3px rgba(255, 240, 180, 0.78)'
+export const EQUIPMENT_ACTIVATION_PULSE_CLASS = 'dr-equip-token--activation-pulse'
 
 /**
  * Ghost flight for `payload.responsibleEquipmentIds`: clone → fixed layer → tween toward card. Sources
@@ -231,6 +230,8 @@ function addEquipmentActivationGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
 
   /** @type {Element[]} */
   const clones = []
+  /** @type {Element[]} */
+  const activationPulseSources = []
   const killTweens = gsapApi?.killTweensOf
   const removeClones = () => {
     for (const node of clones) {
@@ -247,9 +248,19 @@ function addEquipmentActivationGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
     }
     clones.length = 0
   }
+  const clearActivationPulse = () => {
+    for (const node of activationPulseSources) {
+      node.classList?.remove(EQUIPMENT_ACTIVATION_PULSE_CLASS)
+    }
+    activationPulseSources.length = 0
+  }
+  const cleanupGhostFlight = () => {
+    removeClones()
+    clearActivationPulse()
+  }
 
   if (typeof tl.eventCallback === 'function') {
-    tl.eventCallback('onKill', removeClones)
+    tl.eventCallback('onKill', cleanupGhostFlight)
   }
 
   let warnedMissingCard = false
@@ -309,17 +320,33 @@ function addEquipmentActivationGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
     if (isExpended) {
       set(source, { opacity: 0.38, filter: 'brightness(0.85)' })
     } else {
+      source.classList?.add(EQUIPMENT_ACTIVATION_PULSE_CLASS)
+      activationPulseSources.push(source)
       const pulseDur = Math.min(0.22, dur * 0.32)
       const fadeDur = Math.max(0.12, dur - pulseDur)
       tl.fromTo(
         source,
-        { boxShadow: '0 0 0 0 rgba(255, 240, 180, 0)', scale: 1, transformOrigin: 'center center' },
-        { boxShadow: REUSABLE_ACTIVATION_GLOW, scale: 1.05, duration: pulseDur, ease: 'power2.out' },
+        {
+          '--dr-equip-activation-glow-opacity': 0,
+          scale: 1,
+          transformOrigin: 'center center',
+        },
+        {
+          '--dr-equip-activation-glow-opacity': 1,
+          scale: 1.05,
+          duration: pulseDur,
+          ease: 'power2.out',
+        },
         0,
       )
       tl.to(
         source,
-        { boxShadow: '0 0 0 0 rgba(255, 240, 180, 0)', scale: 1, duration: fadeDur, ease: 'power2.inOut' },
+        {
+          '--dr-equip-activation-glow-opacity': 0,
+          scale: 1,
+          duration: fadeDur,
+          ease: 'power2.inOut',
+        },
         pulseDur,
       )
     }
@@ -357,8 +384,9 @@ function addEquipmentActivationGhostFlights(gsapApi, tl, ctx, flightOpts = {}) {
     )
   }
 
-  if (clones.length && typeof tl.add === 'function') {
-    tl.add(removeClones, flightDur)
+  if (typeof tl.add === 'function') {
+    if (clones.length) tl.add(removeClones, flightDur)
+    if (activationPulseSources.length) tl.add(clearActivationPulse, dur)
   }
 }
 

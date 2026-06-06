@@ -102,7 +102,8 @@ test('resetPresentationMotionTargets uses narrow clearProps for equipment_* keys
     gsap.sets.some(
       (s) =>
         s.el === equip &&
-        s.props.clearProps === 'opacity,filter,boxShadow,transform,transformOrigin',
+        s.props.clearProps ===
+          'opacity,filter,boxShadow,transform,transformOrigin,--dr-equip-activation-glow-opacity',
     ),
   )
 })
@@ -368,7 +369,8 @@ test('presentation motion teardown clears neutralize targets including payload e
     mockGsap.sets.some(
       (s) =>
         s.el === equip &&
-        s.props.clearProps === 'opacity,filter,boxShadow,transform,transformOrigin',
+        s.props.clearProps ===
+          'opacity,filter,boxShadow,transform,transformOrigin,--dr-equip-activation-glow-opacity',
     ),
   )
   assert.ok(mockGsap.sets.some((s) => s.el === shell && s.props.clearProps === 'all'))
@@ -439,7 +441,8 @@ test('presentation motion teardown clears sacrifice targets including payload eq
     mockGsap.sets.some(
       (s) =>
         s.el === equip &&
-        s.props.clearProps === 'opacity,filter,boxShadow,transform,transformOrigin',
+        s.props.clearProps ===
+          'opacity,filter,boxShadow,transform,transformOrigin,--dr-equip-activation-glow-opacity',
     ),
   )
   assert.ok(mockGsap.sets.some((s) => s.el === shell && s.props.clearProps === 'all'))

@@ -699,6 +699,16 @@ const session = inject(LIVE_MATCH_SHELL_SESSION_KEY)
   animation: dr-token-pulse 0.85s ease-in-out infinite alternate;
 }
 
+.dr-equip-token--activation-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 14px 3px rgba(255, 240, 180, 0.78);
+  opacity: var(--dr-equip-activation-glow-opacity, 0);
+}
+
 .dr-equip-token--deemphasized {
   opacity: 0.5;
   filter: saturate(0.7);

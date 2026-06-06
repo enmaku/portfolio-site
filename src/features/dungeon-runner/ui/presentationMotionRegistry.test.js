@@ -20,6 +20,7 @@ import {
   createDungeonOutcomePresentationMotionTimeline,
   createDungeonRevealPresentationMotionTimeline,
   createHeroChangeInterstitialPresentationMotionTimeline,
+  EQUIPMENT_ACTIVATION_PULSE_CLASS,
   createPresentationMotionTimeline,
   createPresentationResizeFallbackMotionTimeline,
   presentationMotionClearKeys,
@@ -1473,10 +1474,17 @@ test('dungeon neutralize factory pulses (not dims) reusable equipment when not i
     tagName: 'DIV',
     getBoundingClientRect: () => ({ left: 50, top: 30, width: 180, height: 240 }),
   }
+  const activationPulseClasses = []
   const badge = {
     nodeType: 1,
     tagName: 'DIV',
     getBoundingClientRect: () => ({ left: 5, top: 300, width: 64, height: 30 }),
+    classList: {
+      add(cls) {
+        activationPulseClasses.push(cls)
+      },
+      remove() {},
+    },
     cloneNode() {
       return { nodeType: 1, setAttribute() {}, remove() {} }
     },
@@ -1534,7 +1542,15 @@ test('dungeon neutralize factory pulses (not dims) reusable equipment when not i
 
   assert.equal(flightLayer.appended.length, 1)
   assert.equal(sets.some((s) => s.el === badge && s.props.opacity === 0.38), false)
-  assert.ok(fromToCalls.some((c) => c.target === badge && String(c.toVars?.boxShadow ?? '').includes('255, 240, 180')))
+  assert.deepEqual(activationPulseClasses, [EQUIPMENT_ACTIVATION_PULSE_CLASS])
+  assert.ok(
+    fromToCalls.some(
+      (c) =>
+        c.target === badge &&
+        c.toVars?.['--dr-equip-activation-glow-opacity'] === 1 &&
+        c.fromVars?.['--dr-equip-activation-glow-opacity'] === 0,
+    ),
+  )
 })
 
 test('dungeon neutralize factory dims expended equipment but not reusable equipment in same flight', () => {

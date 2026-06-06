@@ -5,6 +5,7 @@ import { loadPresentationGsap } from './loadPresentationGsap.js'
 import {
   createPresentationMotionTimeline,
   createPresentationResizeFallbackMotionTimeline,
+  EQUIPMENT_ACTIVATION_PULSE_CLASS,
   presentationMotionClearKeys,
   presentationMotionIsLayoutFragile,
   purgePresentationEquipmentGhostNodes,
@@ -42,7 +43,7 @@ function ensurePresentationMotionResizePlaceholder() {
  */
 function clearPropsForPresentationRefKey(key) {
   if (typeof key === 'string' && key.startsWith('equipment_')) {
-    return 'opacity,filter,boxShadow,transform,transformOrigin'
+    return 'opacity,filter,boxShadow,transform,transformOrigin,--dr-equip-activation-glow-opacity'
   }
   return 'all'
 }
@@ -69,6 +70,9 @@ export function resetPresentationMotionTargets(gsapApi, refs, keys, opts = {}) {
         clearProps = 'filter'
       }
       set(value, { clearProps })
+      if (typeof key === 'string' && key.startsWith('equipment_')) {
+        value.classList?.remove(EQUIPMENT_ACTIVATION_PULSE_CLASS)
+      }
     }
   }
 }
