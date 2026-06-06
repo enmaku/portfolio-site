@@ -1,5 +1,4 @@
 import { ACTION_TYPES } from '../engine/kernel.js'
-import { equipment, getEquipmentShortName } from '../data/gameDataCatalog.js'
 import { createDungeonEquipmentModalView } from './dungeonEquipmentInteractions.js'
 
 export function legalSacrificeEquipmentIds(legalActions = []) {
@@ -46,19 +45,14 @@ export function buildBiddingPostDrawActionPane({
   return items
 }
 
-export function buildBiddingSacrificeTokenFlags({
+export function isSacrificeTargetEquipmentToken({
   sacrificeModeActive = false,
   equipmentId = '',
   removed = false,
   legalSacrificeEquipmentIds: sacrificableIds = [],
 } = {}) {
   const sacrificable = new Set(sacrificableIds)
-  const highlight =
-    sacrificeModeActive && !removed && sacrificable.has(equipmentId)
-  return {
-    sacrificeHighlight: highlight,
-    sacrificePulse: highlight,
-  }
+  return sacrificeModeActive && !removed && sacrificable.has(equipmentId)
 }
 
 export function createBiddingSacrificeEquipmentModalView({
@@ -66,15 +60,11 @@ export function createBiddingSacrificeEquipmentModalView({
   legalActions = [],
   sacrificeModeActive = false,
 } = {}) {
-  const entry = equipment[equipmentId]
-  const sacrificableIds = new Set(legalSacrificeEquipmentIds(legalActions))
-  const showSacrificeButton =
-    sacrificeModeActive && sacrificableIds.has(equipmentId)
   const base = createDungeonEquipmentModalView({ equipmentId, legalActions: [] })
+  const showSacrificeButton =
+    sacrificeModeActive && new Set(legalSacrificeEquipmentIds(legalActions)).has(equipmentId)
   return {
-    equipmentId,
-    title: entry?.ui?.label ?? getEquipmentShortName(equipmentId),
-    details: entry?.ui?.details ?? base.details,
+    ...base,
     showUseButton: false,
     useAction: null,
     continueAction: null,

@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { createDungeonEquipmentModalView } from './dungeonEquipmentInteractions.js'
 import {
   buildBiddingPostDrawActionPane,
-  buildBiddingSacrificeTokenFlags,
   canEnterBiddingSacrificeMode,
   createBiddingSacrificeEquipmentModalView,
   isBiddingPostDrawContext,
+  isSacrificeTargetEquipmentToken,
   legalSacrificeEquipmentIds,
   shouldUseBiddingSacrificeEquipmentModalView,
 } from './biddingSacrificeInteractions.js'
@@ -42,6 +43,14 @@ test('isBiddingPostDrawContext requires bidding phase, revealed card, and legal 
       phase: 'bidding',
       revealedMonsterCard: null,
       legalActions: POST_DRAW_LEGAL,
+    }),
+    false,
+  )
+  assert.equal(
+    isBiddingPostDrawContext({
+      phase: 'bidding',
+      revealedMonsterCard: 'goblin',
+      legalActions: [{ type: 'ADD_TO_DUNGEON' }],
     }),
     false,
   )
@@ -109,32 +118,35 @@ test('buildBiddingPostDrawActionPane omits enter when gameplay blocked', () => {
   assert.deepEqual(pane, [{ kind: 'engine', action: { type: 'ADD_TO_DUNGEON' } }])
 })
 
-test('buildBiddingSacrificeTokenFlags highlights only legal center equipment in mode', () => {
+test('isSacrificeTargetEquipmentToken is true only for legal center equipment in mode', () => {
   const ids = ['W_SHIELD', 'B_AXE']
-  const shield = buildBiddingSacrificeTokenFlags({
-    sacrificeModeActive: true,
-    equipmentId: 'W_SHIELD',
-    removed: false,
-    legalSacrificeEquipmentIds: ids,
-  })
-  assert.equal(shield.sacrificeHighlight, true)
-  assert.equal(shield.sacrificePulse, true)
-
-  const spent = buildBiddingSacrificeTokenFlags({
-    sacrificeModeActive: true,
-    equipmentId: 'W_SHIELD',
-    removed: true,
-    legalSacrificeEquipmentIds: ids,
-  })
-  assert.equal(spent.sacrificeHighlight, false)
-
-  const idle = buildBiddingSacrificeTokenFlags({
-    sacrificeModeActive: false,
-    equipmentId: 'W_SHIELD',
-    removed: false,
-    legalSacrificeEquipmentIds: ids,
-  })
-  assert.equal(idle.sacrificeHighlight, false)
+  assert.equal(
+    isSacrificeTargetEquipmentToken({
+      sacrificeModeActive: true,
+      equipmentId: 'W_SHIELD',
+      removed: false,
+      legalSacrificeEquipmentIds: ids,
+    }),
+    true,
+  )
+  assert.equal(
+    isSacrificeTargetEquipmentToken({
+      sacrificeModeActive: true,
+      equipmentId: 'W_SHIELD',
+      removed: true,
+      legalSacrificeEquipmentIds: ids,
+    }),
+    false,
+  )
+  assert.equal(
+    isSacrificeTargetEquipmentToken({
+      sacrificeModeActive: false,
+      equipmentId: 'W_SHIELD',
+      removed: false,
+      legalSacrificeEquipmentIds: ids,
+    }),
+    false,
+  )
 })
 
 test('createBiddingSacrificeEquipmentModalView exposes sacrifice action for legal tiles in mode', () => {
@@ -146,6 +158,17 @@ test('createBiddingSacrificeEquipmentModalView exposes sacrifice action for lega
   assert.equal(modal.showSacrificeButton, true)
   assert.deepEqual(modal.sacrificeAction, { type: 'SACRIFICE', equipmentId: 'W_SHIELD' })
   assert.equal(modal.showUseButton, false)
+})
+
+test('createBiddingSacrificeEquipmentModalView reuses dungeon modal title and details', () => {
+  const base = createDungeonEquipmentModalView({ equipmentId: 'W_SHIELD', legalActions: [] })
+  const modal = createBiddingSacrificeEquipmentModalView({
+    equipmentId: 'W_SHIELD',
+    legalActions: POST_DRAW_LEGAL,
+    sacrificeModeActive: false,
+  })
+  assert.equal(modal.title, base.title)
+  assert.equal(modal.details, base.details)
 })
 
 test('createBiddingSacrificeEquipmentModalView is read-only for non-sacrificable tiles in mode', () => {

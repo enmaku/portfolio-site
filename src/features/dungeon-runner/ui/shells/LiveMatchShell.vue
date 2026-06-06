@@ -157,8 +157,7 @@
               'dr-equip-token--spent': token.removed,
               'dr-token-glow': token.glow,
               'dr-token-pulse': token.pulse,
-              'dr-equip-token--sacrifice-highlight': token.sacrificeHighlight,
-              'dr-equip-token--sacrifice-pulse': token.sacrificePulse,
+              'dr-equip-token--sacrifice-target': token.isSacrificeTarget,
               'dr-equip-token--deemphasized': token.deemphasized,
               'dr-equip-token--interactive': token.hasModal,
             }"
@@ -707,7 +706,7 @@ const session = inject(LIVE_MATCH_SHELL_SESSION_KEY)
   animation: dr-token-pulse 0.85s ease-in-out infinite alternate;
 }
 
-.dr-equip-token--sacrifice-highlight::after {
+.dr-equip-token--sacrifice-target::after {
   content: '';
   position: absolute;
   inset: 7px;
@@ -718,9 +717,6 @@ const session = inject(LIVE_MATCH_SHELL_SESSION_KEY)
     0 0 0 4px rgba(229, 57, 53, 0.45),
     0 0 18px rgba(239, 83, 80, 0.65),
     0 0 32px rgba(229, 57, 53, 0.3);
-}
-
-.dr-equip-token--sacrifice-pulse::after {
   animation: dr-token-pulse 0.85s ease-in-out infinite alternate;
 }
 

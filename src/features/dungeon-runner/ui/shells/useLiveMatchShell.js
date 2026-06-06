@@ -32,10 +32,10 @@ import {
 } from '../dungeonEquipmentInteractions.js'
 import {
   buildBiddingPostDrawActionPane,
-  buildBiddingSacrificeTokenFlags,
   canEnterBiddingSacrificeMode,
   createBiddingSacrificeEquipmentModalView,
   isBiddingPostDrawContext,
+  isSacrificeTargetEquipmentToken,
   legalSacrificeEquipmentIds,
   shouldUseBiddingSacrificeEquipmentModalView,
 } from '../biddingSacrificeInteractions.js'
@@ -446,6 +446,13 @@ export function useLiveMatchShell(deps) {
     if (!match.value || !isHumanTurn.value) return []
     return getLegalActions(match.value.state, { seatId: humanSeatId.value })
   })
+  const isHumanBiddingPostDrawContext = computed(() =>
+    isBiddingPostDrawContext({
+      phase: match.value?.state?.phase ?? null,
+      revealedMonsterCard: humanBiddingRevealedMonsterCard.value,
+      legalActions: legalActions.value,
+    }),
+  )
   const visibleLegalActions = computed(() =>
     filterVisibleLegalActions({
       phase: match.value?.state?.phase ?? null,
@@ -454,13 +461,7 @@ export function useLiveMatchShell(deps) {
   )
   const visiblePrimaryActions = computed(() => {
     const actions = visibleLegalActions.value.filter((action) => action.type !== 'REVEAL_OR_CONTINUE')
-    if (
-      isBiddingPostDrawContext({
-        phase: match.value?.state?.phase ?? null,
-        revealedMonsterCard: humanBiddingRevealedMonsterCard.value,
-        legalActions: legalActions.value,
-      })
-    ) {
+    if (isHumanBiddingPostDrawContext.value) {
       return actions.filter((action) => action.type !== 'SACRIFICE')
     }
     return actions
@@ -547,7 +548,7 @@ export function useLiveMatchShell(deps) {
         (isDungeonPhase && !dungeonTokenById.has(equipment.equipmentId))
       const actionable = isDungeonPhase && actionableEquipmentIds.value.has(equipment.equipmentId)
       const appearance = equipmentTokenAppearance(equipment.equipmentId)
-      const sacrificeFlags = buildBiddingSacrificeTokenFlags({
+      const isSacrificeTarget = isSacrificeTargetEquipmentToken({
         sacrificeModeActive: sacrificeModeActive.value,
         equipmentId: equipment.equipmentId,
         removed,
@@ -564,8 +565,7 @@ export function useLiveMatchShell(deps) {
         deemphasized: isDungeonPhase && hasActionable && !actionable && !removed,
         canUseNow: dungeonToken?.canUseNow ?? false,
         hasModal: true,
-        sacrificeHighlight: sacrificeFlags.sacrificeHighlight,
-        sacrificePulse: sacrificeFlags.sacrificePulse,
+        isSacrificeTarget,
       }
     })
   })
@@ -734,13 +734,7 @@ export function useLiveMatchShell(deps) {
       isHumanTurn: isHumanTurn.value,
     }),
   )
-  const showBiddingPostDrawActionPane = computed(() =>
-    isBiddingPostDrawContext({
-      phase: match.value?.state?.phase ?? null,
-      revealedMonsterCard: humanBiddingRevealedMonsterCard.value,
-      legalActions: legalActions.value,
-    }),
-  )
+  const showBiddingPostDrawActionPane = isHumanBiddingPostDrawContext
   const biddingPostDrawActionPane = computed(() =>
     buildBiddingPostDrawActionPane({
       sacrificeModeActive: sacrificeModeActive.value,
@@ -841,24 +835,9 @@ export function useLiveMatchShell(deps) {
     },
   )
 
-  watch(
-    () => [
-      match.value?.state?.phase ?? null,
-      match.value?.state?.turn?.activeSeatId ?? null,
-      humanBiddingRevealedMonsterCard.value,
-    ],
-    () => {
-      if (
-        !isBiddingPostDrawContext({
-          phase: match.value?.state?.phase ?? null,
-          revealedMonsterCard: humanBiddingRevealedMonsterCard.value,
-          legalActions: legalActions.value,
-        })
-      ) {
-        sacrificeModeActive.value = false
-      }
-    },
-  )
+  watch(isHumanBiddingPostDrawContext, (active) => {
+    if (!active) sacrificeModeActive.value = false
+  })
 
   function resetForSetupTerminal() {
     resetLiveMatchPageState(liveMatchPageSessionSink, {
