@@ -1,5 +1,12 @@
 <template>
-  <q-dialog :model-value="open" maximized persistent>
+  <q-dialog
+    :model-value="open"
+    class="dr-vorpal-picker-dialog"
+    :class="{ 'dr-vorpal-picker-dialog--desktop-frame': desktopFramePresentation.framed }"
+    :style="desktopFramePresentation.dialogStyle"
+    maximized
+    persistent
+  >
     <q-card class="dr-deck-splay-panel dr-vorpal-picker-panel">
       <div class="q-px-md q-pt-md q-pb-sm">
         <div class="text-subtitle1">Vorpal declaration</div>
@@ -61,9 +68,34 @@
 </template>
 
 <script setup>
-import { nextTick, ref, toRef, watch } from 'vue'
+import { computed, nextTick, ref, toRef, watch } from 'vue'
+import { useQuasar } from 'quasar'
+import { getDesktopPhoneFrameLayout } from '../../../../layouts/projects/desktopPhoneFrame.js'
 import { LIVE_MATCH_SHELL_TEST_IDS } from './liveMatchShellTestIds.js'
 import MonsterCardFace from '../../../../components/dungeon-runner/MonsterCardFace.vue'
+
+const $q = useQuasar()
+
+const desktopFramePresentation = computed(() => {
+  const frame = getDesktopPhoneFrameLayout({
+    viewportWidthPx: $q.screen.width,
+    viewportHeightPx: $q.screen.height,
+  })
+  if (!frame.active || frame.columnWidthPx == null || frame.columnHeightPx == null) {
+    return { framed: false, dialogStyle: undefined }
+  }
+
+  const cardWidthPx = Math.min(400, Math.round(frame.columnWidthPx * 0.94))
+
+  return {
+    framed: true,
+    dialogStyle: {
+      '--dr-vorpal-picker-frame-width': `${frame.columnWidthPx}px`,
+      '--dr-vorpal-picker-frame-height': `${frame.columnHeightPx}px`,
+      '--dr-vorpal-picker-card-outer-width': `${cardWidthPx}px`,
+    },
+  }
+})
 
 const props = defineProps({
   open: {
@@ -117,20 +149,18 @@ watch(
 </script>
 
 <style scoped>
-.dr-deck-splay-panel {
-  width: min(960px, 100vw);
-  height: 100dvh;
-  margin: 0 auto;
+.dr-deck-splay-panel.dr-vorpal-picker-panel {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  margin: 0 auto;
+  max-height: 100%;
+  max-width: 100%;
+  width: 100%;
 }
 
 .dr-deck-splay-scroll {
   overflow-y: auto;
-}
-
-.dr-vorpal-picker-panel {
-  max-width: min(960px, 100vw);
 }
 
 .dr-vorpal-picker-scroll {
@@ -139,7 +169,7 @@ watch(
 }
 
 .dr-vorpal-picker-hand {
-  --dr-vorpal-picker-card-width: min(400px, 94vw);
+  --dr-vorpal-picker-card-width: var(--dr-vorpal-picker-card-outer-width, min(400px, 94vw));
   --dr-vorpal-picker-card-height: calc(var(--dr-vorpal-picker-card-width) * 245 / 384);
   --dr-vorpal-picker-peek: 76px;
   --dr-vorpal-picker-hand-tail: calc(
@@ -247,5 +277,21 @@ watch(
 
 .dr-vorpal-picker-footer {
   flex-shrink: 0;
+}
+</style>
+
+<style>
+/* Quasar `maximized` is viewport-sized; on md+ pin the sheet to the same px box as ProjectShellLayout. */
+.dr-vorpal-picker-dialog--desktop-frame .q-dialog__inner,
+.dr-vorpal-picker-dialog--desktop-frame .q-dialog__inner--maximized {
+  bottom: auto !important;
+  height: var(--dr-vorpal-picker-frame-height) !important;
+  left: 50% !important;
+  max-height: var(--dr-vorpal-picker-frame-height) !important;
+  max-width: var(--dr-vorpal-picker-frame-width) !important;
+  right: auto !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: var(--dr-vorpal-picker-frame-width) !important;
 }
 </style>
