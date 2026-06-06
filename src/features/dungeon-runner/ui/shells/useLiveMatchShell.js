@@ -30,6 +30,15 @@ import {
   createVorpalDeclarationPromptView,
   filterVisibleLegalActions,
 } from '../dungeonEquipmentInteractions.js'
+import {
+  buildBiddingPostDrawActionPane,
+  buildBiddingSacrificeTokenFlags,
+  canEnterBiddingSacrificeMode,
+  createBiddingSacrificeEquipmentModalView,
+  isBiddingPostDrawContext,
+  legalSacrificeEquipmentIds,
+  shouldUseBiddingSacrificeEquipmentModalView,
+} from '../biddingSacrificeInteractions.js'
 import { createBiddingBoardViewModel } from '../biddingBoardViewModel.js'
 import {
   viewerMaySeeAddToDungeonFlipDown,
@@ -429,6 +438,10 @@ export function useLiveMatchShell(deps) {
       humanSeatId.value != null &&
       match.value.state.turn.activeSeatId === humanSeatId.value,
   )
+  const humanBiddingRevealedMonsterCard = computed(() => {
+    if (!isHumanTurn.value || !match.value) return null
+    return match.value.state.bidding?.revealedMonsterCard ?? null
+  })
   const legalActions = computed(() => {
     if (!match.value || !isHumanTurn.value) return []
     return getLegalActions(match.value.state, { seatId: humanSeatId.value })
@@ -439,9 +452,19 @@ export function useLiveMatchShell(deps) {
       legalActions: legalActions.value,
     }),
   )
-  const visiblePrimaryActions = computed(() =>
-    visibleLegalActions.value.filter((action) => action.type !== 'REVEAL_OR_CONTINUE'),
-  )
+  const visiblePrimaryActions = computed(() => {
+    const actions = visibleLegalActions.value.filter((action) => action.type !== 'REVEAL_OR_CONTINUE')
+    if (
+      isBiddingPostDrawContext({
+        phase: match.value?.state?.phase ?? null,
+        revealedMonsterCard: humanBiddingRevealedMonsterCard.value,
+        legalActions: legalActions.value,
+      })
+    ) {
+      return actions.filter((action) => action.type !== 'SACRIFICE')
+    }
+    return actions
+  })
   /** Matches engine pick-adventurer legal action order. */
   const HERO_CHOICE_ACTION_ORDER = ['WARRIOR', 'BARBARIAN', 'MAGE', 'ROGUE']
   const showHeroPickActionGrid = computed(() => {
@@ -454,19 +477,7 @@ export function useLiveMatchShell(deps) {
     const byHero = new Map(visiblePrimaryActions.value.map((a) => [a.hero, a]))
     return HERO_CHOICE_ACTION_ORDER.map((hero) => byHero.get(hero)).filter(Boolean)
   })
-  const showActionPane = computed(
-    () =>
-      !!activePresentationLabel.value ||
-      (isHumanTurn.value &&
-        (visiblePrimaryActions.value.length > 0 ||
-          dungeonOutcomeTransitionControls.value.length > 0)),
-  )
-  const biddingSacrificeActions = computed(() =>
-    visibleLegalActions.value.filter((a) => a.type === 'SACRIFICE'),
-  )
-  const biddingNonSacrificeActions = computed(() =>
-    visibleLegalActions.value.filter((a) => a.type !== 'SACRIFICE'),
-  )
+  const sacrificeModeActive = ref(false)
   const gameplayInputLocked = ref(false)
   const headlessCompletionInFlight = ref(false)
   const visibleState = computed(() => {
@@ -527,6 +538,7 @@ export function useLiveMatchShell(deps) {
     )
     const isDungeonPhase = match.value?.state?.phase === 'dungeon'
     const hasActionable = actionableEquipmentIds.value.size > 0
+    const sacrificableIds = legalSacrificeEquipmentIds(legalActions.value)
     return biddingBoard.value.secondary.equipment.map((equipment) => {
       const dungeonToken = dungeonTokenById.get(equipment.equipmentId)
       const removed =
@@ -535,6 +547,12 @@ export function useLiveMatchShell(deps) {
         (isDungeonPhase && !dungeonTokenById.has(equipment.equipmentId))
       const actionable = isDungeonPhase && actionableEquipmentIds.value.has(equipment.equipmentId)
       const appearance = equipmentTokenAppearance(equipment.equipmentId)
+      const sacrificeFlags = buildBiddingSacrificeTokenFlags({
+        sacrificeModeActive: sacrificeModeActive.value,
+        equipmentId: equipment.equipmentId,
+        removed,
+        legalSacrificeEquipmentIds: sacrificableIds,
+      })
       return {
         equipmentId: equipment.equipmentId,
         ariaLabel: equipmentShortName(equipment.equipmentId),
@@ -546,11 +564,21 @@ export function useLiveMatchShell(deps) {
         deemphasized: isDungeonPhase && hasActionable && !actionable && !removed,
         canUseNow: dungeonToken?.canUseNow ?? false,
         hasModal: true,
+        sacrificeHighlight: sacrificeFlags.sacrificeHighlight,
+        sacrificePulse: sacrificeFlags.sacrificePulse,
       }
     })
   })
   const selectedEquipmentModalView = computed(() => {
     if (!selectedEquipmentTokenId.value) return null
+    const phase = match.value?.state?.phase ?? null
+    if (shouldUseBiddingSacrificeEquipmentModalView({ phase, sacrificeModeActive: sacrificeModeActive.value })) {
+      return createBiddingSacrificeEquipmentModalView({
+        equipmentId: selectedEquipmentTokenId.value,
+        legalActions: legalActions.value,
+        sacrificeModeActive: sacrificeModeActive.value,
+      })
+    }
     return createDungeonEquipmentModalView({
       equipmentId: selectedEquipmentTokenId.value,
       legalActions: legalActions.value,
@@ -706,6 +734,30 @@ export function useLiveMatchShell(deps) {
       isHumanTurn: isHumanTurn.value,
     }),
   )
+  const showBiddingPostDrawActionPane = computed(() =>
+    isBiddingPostDrawContext({
+      phase: match.value?.state?.phase ?? null,
+      revealedMonsterCard: humanBiddingRevealedMonsterCard.value,
+      legalActions: legalActions.value,
+    }),
+  )
+  const biddingPostDrawActionPane = computed(() =>
+    buildBiddingPostDrawActionPane({
+      sacrificeModeActive: sacrificeModeActive.value,
+      phase: match.value?.state?.phase ?? null,
+      revealedMonsterCard: humanBiddingRevealedMonsterCard.value,
+      legalActions: legalActions.value,
+      humanGameplayBlocked: humanGameplayBlocked.value,
+    }),
+  )
+  const showActionPane = computed(
+    () =>
+      !!activePresentationLabel.value ||
+      (isHumanTurn.value &&
+        (visiblePrimaryActions.value.length > 0 ||
+          biddingPostDrawActionPane.value.length > 0 ||
+          dungeonOutcomeTransitionControls.value.length > 0)),
+  )
   function applyBootstrappedMatchSession(matchEnvelope, pace) {
     dungeonRunnerSettingsStore.setAnimationPace(pace)
     match.value = matchEnvelope
@@ -785,6 +837,25 @@ export function useLiveMatchShell(deps) {
         !vorpalPromptView.value.speciesOptions.includes(selectedVorpalSpecies.value)
       ) {
         selectedVorpalSpecies.value = firstSpecies
+      }
+    },
+  )
+
+  watch(
+    () => [
+      match.value?.state?.phase ?? null,
+      match.value?.state?.turn?.activeSeatId ?? null,
+      humanBiddingRevealedMonsterCard.value,
+    ],
+    () => {
+      if (
+        !isBiddingPostDrawContext({
+          phase: match.value?.state?.phase ?? null,
+          revealedMonsterCard: humanBiddingRevealedMonsterCard.value,
+          legalActions: legalActions.value,
+        })
+      ) {
+        sacrificeModeActive.value = false
       }
     },
   )
@@ -877,6 +948,7 @@ export function useLiveMatchShell(deps) {
       autoResolveTimerId = null
     }
     if (equipmentModalOpen.value) equipmentModalOpen.value = false
+    if (action.type === 'SACRIFICE') sacrificeModeActive.value = false
     const prevState = match.value.state
     previousVisibleState.value = getPlayerView(prevState, { seatId: humanSeatId.value })
     const result = applyAction(prevState, action, { seatId: humanSeatId.value })
@@ -935,6 +1007,33 @@ export function useLiveMatchShell(deps) {
 
   function onConfirmationDialogCancel() {
     settleConfirmationDialog(false)
+  }
+
+  function enterSacrificeMode() {
+    if (
+      !canEnterBiddingSacrificeMode({
+        isHumanTurn: isHumanTurn.value,
+        phase: match.value?.state?.phase ?? null,
+        revealedMonsterCard: humanBiddingRevealedMonsterCard.value,
+        legalActions: legalActions.value,
+        humanGameplayBlocked: humanGameplayBlocked.value,
+      })
+    ) {
+      return
+    }
+    sacrificeModeActive.value = true
+  }
+
+  function cancelSacrificeMode() {
+    sacrificeModeActive.value = false
+    equipmentModalOpen.value = false
+  }
+
+  function takeEquipmentSacrificeAction() {
+    if (equipmentModalActionsDisabled.value || !selectedEquipmentModalView.value?.sacrificeAction) {
+      return
+    }
+    takeHumanAction(selectedEquipmentModalView.value.sacrificeAction)
   }
 
   function openEquipmentModal(token) {
@@ -1482,6 +1581,11 @@ export function useLiveMatchShell(deps) {
     return id ? `${action.type}-${id}` : action.type
   }
 
+  function biddingPostDrawActionPaneKey(item) {
+    if (item.kind === 'engine') return actionKey(item.action)
+    return item.kind
+  }
+
   function skipActivePresentation() {
     presentationOrchestrator.skipActiveAnimation()
     syncPresentationLabel()
@@ -1625,8 +1729,11 @@ export function useLiveMatchShell(deps) {
       showActionPane,
       activePresentationLabel,
       isHumanTurn,
-      biddingSacrificeActions,
-      biddingNonSacrificeActions,
+      showBiddingPostDrawActionPane,
+      biddingPostDrawActionPane,
+      biddingPostDrawActionPaneKey,
+      enterSacrificeMode,
+      cancelSacrificeMode,
       actionKey,
       actionLabel,
       humanGameplayBlocked,
@@ -1655,6 +1762,7 @@ export function useLiveMatchShell(deps) {
       selectedEquipmentModalView,
       equipmentModalActionsDisabled,
       takeEquipmentUseAction,
+      takeEquipmentSacrificeAction,
       continueFromEquipmentModal,
       confirmationDialogOpen,
       confirmationDialogTitle,

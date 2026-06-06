@@ -39,6 +39,12 @@
           lane the runner will face) or <strong>sacrifice equipment</strong> to discard that card instead, giving up the
           gear permanently.
         </p>
+        <p class="q-ma-none q-mb-sm">
+          To sacrifice, tap <strong>Sacrifice equipment</strong>. Legally sacrificable pieces on the table highlight with a
+          red border. Tap a highlighted piece to read its full description, then tap <strong>Sacrifice</strong> to confirm.
+          Tap <strong>Cancel</strong> to leave sacrifice mode without discarding, or <strong>Continue</strong> in the
+          description to compare other pieces. You must cancel sacrifice mode before you can add the monster to the dungeon.
+        </p>
         <p class="q-ma-none q-mb-md">
           Passing drops you out for this round. When every active player except one has passed, the remaining player
           becomes the <strong>runner</strong> and the match moves to the dungeon phase. The dungeon pile is whatever
