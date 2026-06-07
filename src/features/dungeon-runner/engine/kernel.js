@@ -1,5 +1,6 @@
 import { catalogRules } from '../data/gameDataCatalog.js'
-import { DUNGEON_RUN_WIN_VIA, shouldOmnipotenceSave } from './omnipotencePolicy.js'
+import { DUNGEON_RUN_WIN_VIA } from '../dungeonRunOutcome.js'
+import { shouldOmnipotenceSave } from './omnipotencePolicy.js'
 
 export const ACTION_TYPES = {
   PASS: 'PASS',
@@ -769,7 +770,7 @@ function applyMonsterCombatHits(state, dungeon) {
     if (
       shouldOmnipotenceSave({
         inPlayEquipmentIds: [...inPlay],
-        omnipotenceSet: dungeon.omnipotenceSet ?? state.bidding?.dungeonMonsters,
+        omnipotenceSet: dungeon.omnipotenceSet,
       })
     ) {
       return concludeDungeonSuccess(

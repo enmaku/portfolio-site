@@ -7,7 +7,7 @@ import {
   applyAction,
   createInitialMatchState,
 } from './kernel.js'
-import { DUNGEON_RUN_WIN_VIA } from './omnipotencePolicy.js'
+import { DUNGEON_RUN_WIN_VIA } from '../dungeonRunOutcome.js'
 
 /**
  * @param {object} params
@@ -139,6 +139,26 @@ test('omnipotence is gated by M_OMNI in play rather than adventurer identity', (
   const result = applyAction(state, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId })
   assert.equal(result.ok, true)
   assert.equal(result.state.lastDungeonRun?.result, 'success')
+})
+
+test('omnipotence does not save when omnipotenceSet snapshot is missing', () => {
+  const base = createInitialMatchState(
+    { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    { seed: 7009 },
+  )
+  const seatId = base.seats[0].id
+  const state = buildLethalRevealState({
+    base,
+    seatId,
+    dungeonMonsters: ['goblin', 'orc', 'dragon'],
+    inPlayEquipmentIds: ['M_OMNI'],
+    hp: 1,
+    remainingMonsters: ['goblin'],
+  })
+  delete state.dungeon.omnipotenceSet
+  const result = applyAction(state, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId })
+  assert.equal(result.ok, true)
+  assert.equal(result.state.lastDungeonRun?.result, 'failure')
 })
 
 test('healing potion revives before omnipotence alternate win is considered', () => {

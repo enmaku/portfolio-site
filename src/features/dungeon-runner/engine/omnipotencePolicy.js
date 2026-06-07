@@ -1,7 +1,3 @@
-export const DUNGEON_RUN_WIN_VIA = Object.freeze({
-  OMNIPOTENCE: 'omnipotence',
-})
-
 const OMNI_EQUIPMENT_ID = 'M_OMNI'
 
 /**

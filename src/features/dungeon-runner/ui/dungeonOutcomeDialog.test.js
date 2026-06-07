@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { DUNGEON_RUN_WIN_VIA } from '../engine/omnipotencePolicy.js'
+import { DUNGEON_RUN_WIN_VIA } from '../dungeonRunOutcome.js'
 import {
   buildDungeonOutcomeSummary,
   countCenterEquipmentRemaining,

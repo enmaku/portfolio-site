@@ -1,4 +1,4 @@
-import { DUNGEON_RUN_WIN_VIA } from '../engine/omnipotencePolicy.js'
+import { DUNGEON_RUN_WIN_VIA } from '../dungeonRunOutcome.js'
 
 export const DUNGEON_OUTCOME_MESSAGE_KIND = Object.freeze({
   CLEARED: 'cleared',

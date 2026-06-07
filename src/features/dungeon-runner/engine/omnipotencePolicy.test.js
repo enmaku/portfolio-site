@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  DUNGEON_RUN_WIN_VIA,
   isOmnipotenceSetSpeciesUnique,
   shouldOmnipotenceSave,
 } from './omnipotencePolicy.js'
@@ -29,8 +28,4 @@ test('shouldOmnipotenceSave requires M_OMNI in play and a species-unique omnipot
     }),
     true,
   )
-})
-
-test('DUNGEON_RUN_WIN_VIA exposes omnipotence win metadata key', () => {
-  assert.equal(DUNGEON_RUN_WIN_VIA.OMNIPOTENCE, 'omnipotence')
 })
