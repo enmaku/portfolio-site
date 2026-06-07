@@ -586,8 +586,8 @@ export function broadcastGameTimerSnapshot(snapshot, intent) {
 
 /**
  * Ends the session for this tab: clears phase and suffix, then tears down RTDB listeners.
- * Does not reset host/guest seq counters or handler bindings — use
- * {@link resetGameTimerP2PWireStateForTests} in tests when reusing one module instance.
+ * Does not reset host/guest seq counters or handler bindings — use `session.testExports.js`
+ * when reusing one module instance in tests.
  * @returns {void}
  */
 export function teardownSession() {
@@ -596,37 +596,42 @@ export function teardownSession() {
   core.teardownSession()
 }
 
-/**
- * Test-only: advances reconnect generation without clearing join persistence (supersede in-flight loops).
- * @returns {void}
- */
-export function bumpGameTimerReconnectGenerationForTests() {
-  core.bumpReconnectGeneration()
+/** @returns {import('../types.js').GameTimerSyncPayload} */
+function emptyGameTimerSnapshot() {
+  return {
+    players: [],
+    activePlayerId: null,
+    turnStartedAt: null,
+    turnStartedRound: null,
+    round: 1,
+    playerOrderByRound: {},
+  }
 }
 
 /**
- * Test-only: clears module-level P2P wire state (seq counters, deduper, listeners, reactive refs,
- * handler bindings). Prefer nonce-based `importGameTimerSession` for isolation; call after
- * `teardownSession` when a test reuses one `session.js` instance.
- * @returns {void}
+ * Test-only wire access for `session.testExports.js`. Do not import from production code.
+ * @returns {{
+ *   core: ReturnType<typeof createStarRoomSession>,
+ *   remoteHostTabVisible: typeof remoteHostTabVisible,
+ *   remoteHostPresent: typeof remoteHostPresent,
+ *   resetHostGuestWireState: typeof resetHostGuestWireState,
+ *   emptyHandlers: () => GameTimerP2PHandlers,
+ *   setHandlers: (h: GameTimerP2PHandlers) => void,
+ * }}
  */
-export function resetGameTimerP2PWireStateForTests() {
-  remoteHostTabVisible.value = true
-  remoteHostPresent.value = true
-  resetHostGuestWireState()
-  core.destroyWireOnly()
-  sessionPhase.value = 'idle'
-  sessionSuffix.value = null
-  handlers = {
-    getSnapshot: () => ({
-      players: [],
-      activePlayerId: null,
-      turnStartedAt: null,
-      turnStartedRound: null,
-      round: 1,
-      playerOrderByRound: {},
+export function getGameTimerSessionTestWireAccess() {
+  return {
+    core,
+    remoteHostTabVisible,
+    remoteHostPresent,
+    resetHostGuestWireState,
+    emptyHandlers: () => ({
+      getSnapshot: () => emptyGameTimerSnapshot(),
+      applySnapshot: () => {},
     }),
-    applySnapshot: () => {},
+    setHandlers: (h) => {
+      handlers = h
+    },
   }
 }
 

@@ -12,6 +12,7 @@ import {
   installRtdbLifecycleMocks,
   withFirebaseEnv,
 } from './sessionRtdbLifecycleHarness.js'
+import { resetMovieVoteFacadeWireStateForTests } from './session.testExports.js'
 
 const harnessTests = { skip: !mock.module }
 const rtdbAfterEach = createRtdbLifecycleAfterEach(mock)
@@ -63,12 +64,7 @@ test(
 
     await withFirebaseEnv(async () => {
       const sessionMod = await importMovieVoteSession(`last-seen-${Date.now()}`)
-      const {
-        joinRoom,
-        teardownSession,
-        resetMovieVoteFacadeWireStateForTests,
-        bindMovieVoteP2PHandlers,
-      } = sessionMod
+      const { joinRoom, teardownSession, bindMovieVoteP2PHandlers } = sessionMod
 
       setActivePinia(createPinia())
       let applyCount = 0
@@ -89,7 +85,7 @@ test(
       assert.equal(applyCount, 1, 'duplicate seq should be ignored while module is live')
 
       teardownSession()
-      resetMovieVoteFacadeWireStateForTests()
+      resetMovieVoteFacadeWireStateForTests(sessionMod)
       applyCount = 0
       bindMovieVoteP2PHandlers({
         applyPublicPayload: () => {

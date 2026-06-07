@@ -11,6 +11,7 @@ import {
   installRtdbLifecycleMocks,
   withFirebaseEnv,
 } from './sessionRtdbLifecycleHarness.js'
+import { resetGameTimerP2PWireStateForTests } from './session.testExports.js'
 
 const harnessTests = { skip: !mock.module }
 const rtdbAfterEach = createRtdbLifecycleAfterEach(mock)
@@ -53,12 +54,7 @@ test(
 
     await withFirebaseEnv(async () => {
       const sessionMod = await importGameTimerSession(`last-seen-${Date.now()}`)
-      const {
-        joinRoom,
-        teardownSession,
-        resetGameTimerP2PWireStateForTests,
-        bindGameTimerP2PHandlers,
-      } = sessionMod
+      const { joinRoom, teardownSession, bindGameTimerP2PHandlers } = sessionMod
 
       setActivePinia(createPinia())
       let applyCount = 0
@@ -86,7 +82,7 @@ test(
       assert.equal(applyCount, 1, 'duplicate seq should be ignored while module is live')
 
       teardownSession()
-      resetGameTimerP2PWireStateForTests()
+      resetGameTimerP2PWireStateForTests(sessionMod)
       applyCount = 0
       bindGameTimerP2PHandlers({
         getSnapshot: () => ({

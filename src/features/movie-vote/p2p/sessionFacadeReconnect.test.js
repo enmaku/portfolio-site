@@ -17,6 +17,7 @@ import {
   refPath,
   withFirebaseEnv,
 } from './sessionRtdbLifecycleHarness.js'
+import { bumpMovieVoteReconnectGenerationForTests } from './session.testExports.js'
 
 const facadeReconnectTests = { skip: !mock.module }
 const rtdbAfterEach = createRtdbLifecycleAfterEach(mock)
@@ -44,17 +45,6 @@ async function waitForPhase(condition, label) {
 }
 
 /**
- * @param {() => string} readPhase
- * @returns {Promise<void>}
- */
-async function waitForReconnectExhaustion(readPhase) {
-  const deadline = Date.now() + 3_000
-  while (readPhase() !== 'idle' && Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 20))
-  }
-}
-
-/**
  * @param {import('../../p2p/starRoomShell.js').StarRoomGuestReconnectHandlers} h
  * @returns {Promise<void>}
  */
@@ -65,7 +55,7 @@ async function runGuestReconnectWithSupersedeHook(h) {
     sleep: async () => {},
     establishGuest: async () => {
       await h.establishGuest()
-      guestSessionForShellHook?.bumpMovieVoteReconnectGenerationForTests()
+      if (guestSessionForShellHook) bumpMovieVoteReconnectGenerationForTests(guestSessionForShellHook)
     },
   })
 }
@@ -94,20 +84,6 @@ async function installGuestReconnectShellHook() {
       ...shellActual,
       runGuestStarReconnectLoop: runGuestReconnectWithSupersedeHook,
       runHostStarReconnectLoop: shellActual.runHostStarReconnectLoop,
-    },
-  })
-}
-
-/**
- * @returns {Promise<void>}
- */
-async function installFastGuestReconnectShell() {
-  const shellActual = await import('../../p2p/starRoomShell.js')
-  mock.module('../../p2p/starRoomShell.js', {
-    namedExports: {
-      ...shellActual,
-      runGuestStarReconnectLoop: (h) =>
-        shellActual.runGuestStarReconnectLoop({ ...h, sleep: async () => {} }),
     },
   })
 }
@@ -421,10 +397,12 @@ test(
 )
 
 test(
-  'fatal reconnect exhaustion clears persistence and returns tab to idle',
+  'host fatal reconnect exhaustion clears persistence without deliberate room end',
   facadeReconnectTests,
   async () => {
     mock.reset()
+    realGuestStarReconnectLoop = null
+    realHostStarReconnectLoop = null
 
     mock.module('../../p2p/starRoomReconnectDelay.js', {
       namedExports: {
@@ -440,43 +418,61 @@ test(
       },
     })
 
-    await installFastGuestReconnectShell()
+    const hostStableId = 'MVHOSTFATAL1'
+    const suffix = 'HFATAL1'
 
-    const actualRtdb = await import('../firebase/rtdb.js')
-    mock.module('../firebase/rtdb.js', {
-      namedExports: { ...actualRtdb },
+    mock.module('../../p2p/identity.js', {
+      namedExports: {
+        ...(await import('../../p2p/identity.js')),
+        getStableClientId: () => hostStableId,
+        deriveStableHostSuffix: () => suffix,
+      },
     })
 
-    let roomJoinable = true
+    await installHostReconnectShellHook()
+
+    let roomOccupiedByOther = false
     const harness = await installRtdbLifecycleMocks({
-      getHostPing: () => (roomJoinable ? Date.now() : null),
-      getState: () => (roomJoinable ? JOINABLE_HOST_STATE : null),
+      getHostPing: () => (roomOccupiedByOther ? Date.now() : null),
+      getHostClientId: () => (roomOccupiedByOther ? 'occupant-other-host' : hostStableId),
       getEnded: () => null,
+      getState: () => JOINABLE_HOST_STATE,
     })
 
     await withFirebaseEnv(async () => {
-      const sessionMod = await importMovieVoteSession(`fatal-${Date.now()}`)
-      const { joinRoom, sessionPhase, sessionSuffix } = sessionMod
-      bindFakeHandlers(sessionMod)
-
       setActivePinia(createPinia())
-      const room = useMovieVoteRoomSessionStore()
+      const hostRoom = useMovieVoteRoomSessionStore()
 
-      await joinRoom('FATAL1')
-      assert.equal(sessionPhase.value, 'guest_connected')
-      assert.equal(room.role, 'guest')
-      assert.equal(room.suffix, 'FATAL1')
+      const hostMod = await importMovieVoteSession(`host-fatal-${Date.now()}`)
+      bindFakeHandlers(hostMod)
+      const { startAsHost, sessionPhase, sessionSuffix } = hostMod
 
-      roomJoinable = false
-      getConnectedEmitter(harness.listeners)(false)
+      await startAsHost(3)
+      assert.equal(sessionPhase.value, 'hosting')
+      assert.equal(hostRoom.role, 'host')
+
+      roomOccupiedByOther = true
+
+      const connectedPath = [...harness.listeners.keys()].find((p) => p.endsWith('connected'))
+      assert.ok(connectedPath)
+      const hostOnConnected = harness.listeners.get(connectedPath)
+      assert.ok(hostOnConnected)
+      hostOnConnected({ val: () => false })
       assert.equal(sessionPhase.value, 'reconnecting')
 
-      await waitForReconnectExhaustion(() => sessionPhase.value)
+      const deadline = Date.now() + 3_000
+      while (sessionPhase.value !== 'idle' && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      }
+      assert.equal(sessionPhase.value, 'idle', 'host fatal exhaustion')
 
-      assert.equal(sessionPhase.value, 'idle')
       assert.equal(sessionSuffix.value, null)
-      assert.equal(room.role, null)
-      assert.equal(room.suffix, null)
+      assert.equal(hostRoom.role, null)
+      assert.equal(
+        harness.sets.some((s) => s.path.endsWith('/ended')),
+        false,
+        'host fatal exhaustion must not broadcast deliberate room end',
+      )
     })
   },
 )

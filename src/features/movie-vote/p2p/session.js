@@ -40,6 +40,8 @@ import {
   encodeState,
   encodeVote,
   encodeWelcome,
+  isHostEndedNotice,
+  isHostPing,
   parseDraft,
   parseHello,
   parseHostVisibility,
@@ -505,21 +507,28 @@ function handleGuestState(raw) {
 }
 
 /**
- * Guest inbound sequenced public state (domain wire tests and direct dispatch).
+ * Dispatches inbound hub messages on the guest: room ended, ping, visibility, welcome, or sequenced state.
  * @param {unknown} raw
  * @returns {void}
  */
-export function handleGuestInboundState(raw) {
+export function handleGuestInbound(raw) {
+  if (isHostEndedNotice(raw)) {
+    handleGuestHostEnded()
+    return
+  }
+  if (isHostPing(raw)) {
+    return
+  }
+  const vis = parseHostVisibility(raw)
+  if (vis) {
+    remoteHostTabVisible.value = vis.visible
+    return
+  }
+  if (parseWelcome(raw)) {
+    handleGuestWelcome(raw)
+    return
+  }
   handleGuestState(raw)
-}
-
-/**
- * Guest inbound welcome (participant slot reattach on reconnect).
- * @param {unknown} raw
- * @returns {void}
- */
-export function handleGuestWelcomeInbound(raw) {
-  handleGuestWelcome(raw)
 }
 
 /**
@@ -577,35 +586,6 @@ const movieVoteP2POutboundSync = {
 export function bindMovieVoteP2PHandlers(h) {
   handlers = { ...handlers, ...h }
   return movieVoteP2POutboundSync
-}
-
-/** @returns {void} */
-export function resetHostStateBroadcastProbeForTests() {
-  hostStateBroadcastProbe = 0
-}
-
-/** @returns {number} */
-export function drainHostStateBroadcastProbeForTests() {
-  const n = hostStateBroadcastProbe
-  hostStateBroadcastProbe = 0
-  return n
-}
-
-/**
- * @param {string} participantId
- * @param {{ picks: import('../types.js').MoviePick[], ready: boolean }} entry
- * @returns {void}
- */
-export function setGuestDraftForTests(participantId, entry) {
-  guestDrafts.set(participantId, entry)
-}
-
-/**
- * @param {string} participantId
- * @returns {boolean | undefined}
- */
-export function getGuestDraftReadyForTests(participantId) {
-  return guestDrafts.get(participantId)?.ready
 }
 
 /**
@@ -960,8 +940,8 @@ export async function joinRoom(rawSuffix) {
 
 /**
  * Ends the session for this tab: clears phase and suffix, then tears down RTDB listeners.
- * Does not reset `nextSeq` or handler bindings — use {@link resetMovieVoteFacadeWireStateForTests}
- * in tests when reusing one module instance.
+ * Does not reset `nextSeq` or handler bindings — use `session.testExports.js` when reusing
+ * one module instance in tests.
  * @returns {void}
  */
 export function teardownSession() {
@@ -972,36 +952,53 @@ export function teardownSession() {
 }
 
 /**
- * Test-only: advances reconnect generation without clearing join persistence (supersede in-flight loops).
- * @returns {void}
+ * Test-only wire access for `session.testExports.js`. Do not import from production code.
+ * @returns {{
+ *   core: ReturnType<typeof createStarRoomSession>,
+ *   remoteHostTabVisible: typeof remoteHostTabVisible,
+ *   clearFeatureWireUnsubs: typeof clearFeatureWireUnsubs,
+ *   stableIdToParticipant: typeof stableIdToParticipant,
+ *   activeGuestStableIds: typeof activeGuestStableIds,
+ *   guestDrafts: typeof guestDrafts,
+ *   pendingRemovalTimers: typeof pendingRemovalTimers,
+ *   getHostStateBroadcastProbe: () => number,
+ *   setHostStateBroadcastProbe: (n: number) => void,
+ *   getNextSeq: () => number,
+ *   setNextSeq: (n: number) => void,
+ *   getLastSeenSeq: () => number,
+ *   setLastSeenSeq: (n: number) => void,
+ *   emptyHandlers: () => MovieVoteP2PHandlers,
+ *   setHandlers: (h: MovieVoteP2PHandlers) => void,
+ * }}
  */
-export function bumpMovieVoteReconnectGenerationForTests() {
-  core.bumpReconnectGeneration()
-}
-
-/**
- * Test-only: clears module-level facade wire state without RTDB guest-offline writes.
- * Prefer nonce-based `importMovieVoteSession` for isolation; call after `teardownSession`
- * when a test reuses one `session.js` instance.
- * @returns {void}
- */
-export function resetMovieVoteFacadeWireStateForTests() {
-  remoteHostTabVisible.value = true
-  clearFeatureWireUnsubs()
-  stableIdToParticipant.clear()
-  activeGuestStableIds.clear()
-  guestDrafts.clear()
-  for (const t of pendingRemovalTimers.values()) clearTimeout(t)
-  pendingRemovalTimers.clear()
-  nextSeq = 0
-  lastSeenSeq = 0
-  hostStateBroadcastProbe = 0
-  core.destroyWireOnly()
-  sessionPhase.value = 'idle'
-  sessionSuffix.value = null
-  handlers = {
-    applyPublicPayload: () => {},
-    onWireTeardown: () => {},
+export function getMovieVoteSessionTestWireAccess() {
+  return {
+    core,
+    remoteHostTabVisible,
+    clearFeatureWireUnsubs,
+    stableIdToParticipant,
+    activeGuestStableIds,
+    guestDrafts,
+    pendingRemovalTimers,
+    getHostStateBroadcastProbe: () => hostStateBroadcastProbe,
+    setHostStateBroadcastProbe: (n) => {
+      hostStateBroadcastProbe = n
+    },
+    getNextSeq: () => nextSeq,
+    setNextSeq: (n) => {
+      nextSeq = n
+    },
+    getLastSeenSeq: () => lastSeenSeq,
+    setLastSeenSeq: (n) => {
+      lastSeenSeq = n
+    },
+    emptyHandlers: () => ({
+      applyPublicPayload: () => {},
+      onWireTeardown: () => {},
+    }),
+    setHandlers: (h) => {
+      handlers = h
+    },
   }
 }
 

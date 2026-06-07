@@ -10,15 +10,15 @@ import { createPinia, setActivePinia } from 'pinia'
 import { HOST_PARTICIPANT_ID } from '../core.js'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { encodeState, encodeWelcome, MSG_MV_STATE } from './protocol.js'
+import * as sessionMod from './session.js'
 import {
   bindMovieVoteP2PHandlers,
-  handleGuestInboundState,
-  handleGuestWelcomeInbound,
-  resetMovieVoteFacadeWireStateForTests,
+  handleGuestInbound,
   sessionPhase,
   sessionSuffix,
   teardownSession,
 } from './session.js'
+import { resetMovieVoteFacadeWireStateForTests } from './session.testExports.js'
 
 /** @returns {import('../types.js').BallotMovie} */
 function ballotMovie(publicId, title) {
@@ -106,16 +106,16 @@ test('guest inbound state applies only when seq strictly increases', () => {
   const suggestA = suggestPayload({ uniqueSuggestedMovieCount: 1 })
   const suggestB = suggestPayload({ uniqueSuggestedMovieCount: 2 })
 
-  handleGuestInboundState(encodeState(suggestA, 1))
+  handleGuestInbound(encodeState(suggestA, 1))
   assert.equal(wire.applyCount, 1)
   assert.equal(wire.mirror?.phase, 'suggest')
   assert.equal(wire.mirror?.uniqueSuggestedMovieCount, 1)
 
-  handleGuestInboundState(encodeState(suggestB, 1))
+  handleGuestInbound(encodeState(suggestB, 1))
   assert.equal(wire.applyCount, 1, 'equal seq must not re-apply')
   assert.equal(wire.mirror?.uniqueSuggestedMovieCount, 1)
 
-  handleGuestInboundState(encodeState(votingPayload(['m_a', 'm_b']), 2))
+  handleGuestInbound(encodeState(votingPayload(['m_a', 'm_b']), 2))
   assert.equal(wire.applyCount, 2)
   assert.equal(wire.mirror?.phase, 'voting')
   assert.deepEqual(wire.mirror?.ballotOrderIds, ['m_a', 'm_b'])
@@ -125,21 +125,21 @@ test('guest inbound state ignores regressive seq without changing mirror', () =>
   const wire = bindFakeMirrorHandlers()
   const authoritative = votingPayload(['m_a', 'm_b'])
 
-  handleGuestInboundState(encodeState(authoritative, 5))
+  handleGuestInbound(encodeState(authoritative, 5))
   assert.equal(wire.applyCount, 1)
 
   wire.setLocalFork(votingPayload(['m_b', 'm_a']))
 
-  handleGuestInboundState(encodeState(votingPayload(['m_x', 'm_y']), 3))
+  handleGuestInbound(encodeState(votingPayload(['m_x', 'm_y']), 3))
   assert.equal(wire.applyCount, 1, 'regressive seq is a no-op on applyPublicPayload')
   assert.equal(wire.mirror?.phase, 'voting', 'regressive seq must not rewind phase')
   assert.deepEqual(wire.mirror?.ballotOrderIds, ['m_b', 'm_a'])
 
-  handleGuestInboundState(encodeState(suggestPayload({ uniqueSuggestedMovieCount: 99 }), 4))
+  handleGuestInbound(encodeState(suggestPayload({ uniqueSuggestedMovieCount: 99 }), 4))
   assert.equal(wire.applyCount, 1, 'regressive suggest broadcast must not rewind voting phase')
   assert.equal(wire.mirror?.phase, 'voting')
 
-  handleGuestInboundState(encodeState(authoritative, 5))
+  handleGuestInbound(encodeState(authoritative, 5))
   assert.equal(wire.applyCount, 1, 'duplicate max seq is still ignored')
   assert.deepEqual(wire.mirror?.ballotOrderIds, ['m_b', 'm_a'])
 })
@@ -148,7 +148,7 @@ test('guest inbound state ignores invalid and malformed wire shapes', () => {
   const wire = bindFakeMirrorHandlers()
   const valid = encodeState(suggestPayload(), 1)
 
-  handleGuestInboundState(valid)
+  handleGuestInbound(valid)
   assert.equal(wire.applyCount, 1)
 
   const malformed = [
@@ -162,7 +162,7 @@ test('guest inbound state ignores invalid and malformed wire shapes', () => {
   ]
 
   for (const raw of malformed) {
-    handleGuestInboundState(raw)
+    handleGuestInbound(raw)
   }
 
   assert.equal(wire.applyCount, 1, 'malformed host state must not touch mirror handlers')
@@ -181,7 +181,7 @@ test('guest reconnect coherence: welcome + sequenced state reattaches seat witho
     ],
   })
 
-  handleGuestInboundState(encodeState(beforeDisconnect, 1))
+  handleGuestInbound(encodeState(beforeDisconnect, 1))
   assert.equal(wire.mirror?.phase, 'suggest')
 
   store.setMyParticipantId('guest-seat-1')
@@ -211,7 +211,7 @@ test('guest reconnect coherence: welcome + sequenced state reattaches seat witho
   store.ballotOrderIds = ['m_b', 'm_a']
   store.myRanking = ['m_b', 'm_a']
 
-  handleGuestWelcomeInbound(encodeWelcome('guest-seat-1', true))
+  handleGuestInbound(encodeWelcome('guest-seat-1', true))
   assert.equal(store.myParticipantId, 'guest-seat-1')
 
   const afterReconnect = votingPayload(['m_a', 'm_b'], {
@@ -221,7 +221,7 @@ test('guest reconnect coherence: welcome + sequenced state reattaches seat witho
       { id: 'guest-seat-1', ready: true, pickCount: 1 },
     ],
   })
-  handleGuestInboundState(encodeState(afterReconnect, 2))
+  handleGuestInbound(encodeState(afterReconnect, 2))
 
   assert.equal(wire.applyCount, 2)
   assert.equal(wire.mirror?.phase, 'voting')
@@ -244,7 +244,7 @@ test('guest reconnect coherence: suggest-phase welcome + state reattaches draft 
   const store = useMovieVoteStore()
   const wire = bindFakeMirrorHandlers()
 
-  handleGuestInboundState(
+  handleGuestInbound(
     encodeState(
       suggestPayload({
         uniqueSuggestedMovieCount: 1,
@@ -277,7 +277,7 @@ test('guest reconnect coherence: suggest-phase welcome + state reattaches draft 
     }),
   )
 
-  handleGuestWelcomeInbound(encodeWelcome('guest-seat-1', true))
+  handleGuestInbound(encodeWelcome('guest-seat-1', true))
   assert.equal(store.myParticipantId, 'guest-seat-1')
 
   const hostTruth = suggestPayload({
@@ -287,7 +287,7 @@ test('guest reconnect coherence: suggest-phase welcome + state reattaches draft 
       { id: 'guest-seat-1', ready: false, pickCount: 1 },
     ],
   })
-  handleGuestInboundState(encodeState(hostTruth, 2))
+  handleGuestInbound(encodeState(hostTruth, 2))
 
   assert.equal(wire.applyCount, 2)
   assert.equal(wire.mirror?.phase, 'suggest')
@@ -309,7 +309,7 @@ test('guest outbound draft and vote sync do not promote local state as mirror tr
   const wire = bindFakeMirrorHandlers()
   const hostTruth = votingPayload(['m_a', 'm_b'])
 
-  handleGuestInboundState(encodeState(hostTruth, 1))
+  handleGuestInbound(encodeState(hostTruth, 1))
   assert.equal(wire.applyCount, 1)
 
   sessionSuffix.value = 'WIRE01'
@@ -339,5 +339,5 @@ test('guest outbound draft and vote sync do not promote local state as mirror tr
 
 afterEach(() => {
   teardownSession()
-  resetMovieVoteFacadeWireStateForTests()
+  resetMovieVoteFacadeWireStateForTests(sessionMod)
 })

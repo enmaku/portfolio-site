@@ -7,14 +7,15 @@
 import assert from 'node:assert/strict'
 import { afterEach, test } from 'node:test'
 import { encodeHostSnapshot, MSG_HOST_SNAPSHOT } from './protocol.js'
+import * as sessionMod from './session.js'
 import {
   bindGameTimerP2PHandlers,
   broadcastGameTimerSnapshot,
   handleGuestInbound,
-  resetGameTimerP2PWireStateForTests,
   sessionSuffix,
   teardownSession,
 } from './session.js'
+import { resetGameTimerP2PWireStateForTests } from './session.testExports.js'
 
 /** @returns {GameTimerSyncPayload} */
 function baseSnapshot(overrides = {}) {
@@ -170,5 +171,5 @@ test('guest broadcastGameTimerSnapshot does not promote local state as mirror tr
 
 afterEach(() => {
   teardownSession()
-  resetGameTimerP2PWireStateForTests()
+  resetGameTimerP2PWireStateForTests(sessionMod)
 })

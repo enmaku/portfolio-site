@@ -384,8 +384,8 @@ function bindGuestMirrorHandlers(sessionMod, ballotOrderIds) {
     votingMethod: /** @type {const} */ ('irv'),
   }
 
-  sessionMod.handleGuestWelcomeInbound(encodeWelcome('guest-seat-1', true))
-  sessionMod.handleGuestInboundState(encodeState(votingPayload, 1))
+  sessionMod.handleGuestInbound(encodeWelcome('guest-seat-1', true))
+  sessionMod.handleGuestInbound(encodeState(votingPayload, 1))
   store.setMyParticipantId('guest-seat-1')
   store.phase = 'voting'
   store.ballotOrderIds = [...ballotOrderIds]
@@ -534,7 +534,7 @@ test(
     assert.equal(guestWire.mirror?.phase, 'voting', 'local recompute must not promote mirror to results')
     assert.equal(guestWire.mirror?.irvResult, null)
 
-    guestWire.sessionMod.handleGuestInboundState(
+    guestWire.sessionMod.handleGuestInbound(
       encodeState(
         {
           phase: 'results',
@@ -614,7 +614,7 @@ test(
         await importMovieVoteSession(`vote-results-guest-${Date.now()}`),
         ballotOrderIds,
       )
-      guestWire.sessionMod.handleGuestInboundState(
+      guestWire.sessionMod.handleGuestInbound(
         encodeState(
           {
             phase: 'voting',
@@ -641,7 +641,7 @@ test(
         uniqueSuggestedMovieCount: 0,
         votingMethod: /** @type {const} */ ('irv'),
       }
-      guestWire.sessionMod.handleGuestInboundState(encodeState(forgedResults, 1))
+      guestWire.sessionMod.handleGuestInbound(encodeState(forgedResults, 1))
       assert.equal(
         guestWire.mirror?.phase,
         'voting',

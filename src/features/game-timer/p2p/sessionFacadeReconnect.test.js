@@ -15,6 +15,7 @@ import {
   installRtdbLifecycleMocks,
   withFirebaseEnv,
 } from './sessionRtdbLifecycleHarness.js'
+import { bumpGameTimerReconnectGenerationForTests } from './session.testExports.js'
 
 const facadeReconnectTests = { skip: !mock.module }
 const rtdbAfterEach = createRtdbLifecycleAfterEach(mock)
@@ -69,7 +70,7 @@ async function runGuestReconnectWithSupersedeHook(h) {
     sleep: async () => {},
     establishGuest: async () => {
       await h.establishGuest()
-      guestSessionForShellHook?.bumpGameTimerReconnectGenerationForTests()
+      if (guestSessionForShellHook) bumpGameTimerReconnectGenerationForTests(guestSessionForShellHook)
     },
   })
 }
@@ -374,6 +375,98 @@ test(
       const nextPublish = broadcastSets.find((s) => s.path.endsWith('/state'))
       assert.ok(nextPublish, 'host broadcast should write authoritative state')
       assert.equal(nextPublish.value.seq, 7, 'subsequent broadcast should monotonically advance seq')
+    })
+  },
+)
+
+test(
+  'host fatal reconnect exhaustion clears persistence without deliberate room end',
+  facadeReconnectTests,
+  async () => {
+    mock.reset()
+    realGuestStarReconnectLoop = null
+    realHostStarReconnectLoop = null
+
+    mock.module('../../p2p/starRoomReconnectDelay.js', {
+      namedExports: {
+        starRoomReconnectDelayMs: () => 5,
+      },
+    })
+    mock.module('../../p2p/starRoomTiming.js', {
+      namedExports: {
+        RECONNECT_MAX_ATTEMPTS: 3,
+        RECONNECT_INITIAL_PAUSE_MS: 5,
+        RECONNECT_BASE_DELAY_MS: 5,
+        RECONNECT_MAX_DELAY_MS: 5,
+      },
+    })
+
+    const hostStableId = 'GTHOSTFATAL1'
+    const suffix = 'HFATAL1'
+    const joinableState = encodeHostSnapshot(
+      {
+        players: [{ id: 'p1', name: 'Host', color: '#111111' }],
+        activePlayerId: 'p1',
+        turnStartedAt: null,
+        turnStartedRound: null,
+        round: 1,
+        playerOrderByRound: {},
+      },
+      1,
+    )
+
+    mock.module('../../p2p/identity.js', {
+      namedExports: {
+        ...(await import('../../p2p/identity.js')),
+        getStableClientId: () => hostStableId,
+        deriveStableHostSuffix: () => suffix,
+      },
+    })
+
+    await installHostReconnectShellHook()
+
+    let roomOccupiedByOther = false
+    const harness = await installRtdbLifecycleMocks({
+      getHostPing: () => (roomOccupiedByOther ? Date.now() : null),
+      getHostClientId: () => (roomOccupiedByOther ? 'occupant-other-host' : hostStableId),
+      getEnded: () => null,
+      getState: () => joinableState,
+    })
+
+    await withFirebaseEnv(async () => {
+      setActivePinia(createPinia())
+      const hostRoom = useGameTimerRoomSessionStore()
+
+      const hostMod = await importGameTimerSession(`host-fatal-${Date.now()}`)
+      bindFakeHandlers(hostMod)
+      const { startAsHost, sessionPhase, sessionSuffix } = hostMod
+
+      await startAsHost(3)
+      assert.equal(sessionPhase.value, 'hosting')
+      assert.equal(hostRoom.role, 'host')
+
+      roomOccupiedByOther = true
+
+      const connectedPath = [...harness.listeners.keys()].find((p) => p.endsWith('connected'))
+      assert.ok(connectedPath)
+      const hostOnConnected = harness.listeners.get(connectedPath)
+      assert.ok(hostOnConnected)
+      hostOnConnected({ val: () => false })
+      assert.equal(sessionPhase.value, 'reconnecting')
+
+      const deadline = Date.now() + 3_000
+      while (sessionPhase.value !== 'idle' && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      }
+      assert.equal(sessionPhase.value, 'idle', 'host fatal exhaustion')
+
+      assert.equal(sessionSuffix.value, null)
+      assert.equal(hostRoom.role, null)
+      assert.equal(
+        harness.sets.some((s) => s.path.endsWith('/ended')),
+        false,
+        'host fatal exhaustion must not broadcast deliberate room end',
+      )
     })
   },
 )
