@@ -505,6 +505,24 @@ function handleGuestState(raw) {
 }
 
 /**
+ * Guest inbound sequenced public state (domain wire tests and direct dispatch).
+ * @param {unknown} raw
+ * @returns {void}
+ */
+export function handleGuestInboundState(raw) {
+  handleGuestState(raw)
+}
+
+/**
+ * Guest inbound welcome (participant slot reattach on reconnect).
+ * @param {unknown} raw
+ * @returns {void}
+ */
+export function handleGuestWelcomeInbound(raw) {
+  handleGuestWelcome(raw)
+}
+
+/**
  * @typedef {object} MovieVoteP2POutboundSync
  * @property {() => void} hostLocalChanged
  * @property {() => void} hostResetToSuggest
@@ -940,11 +958,51 @@ export async function joinRoom(rawSuffix) {
   }
 }
 
+/**
+ * Ends the session for this tab: clears phase and suffix, then tears down RTDB listeners.
+ * Does not reset `nextSeq` or handler bindings — use {@link resetMovieVoteFacadeWireStateForTests}
+ * in tests when reusing one module instance.
+ * @returns {void}
+ */
 export function teardownSession() {
   remoteHostTabVisible.value = true
   destroyWireOnly()
   core.setPhase('idle')
   core.setSuffix(null)
+}
+
+/**
+ * Test-only: advances reconnect generation without clearing join persistence (supersede in-flight loops).
+ * @returns {void}
+ */
+export function bumpMovieVoteReconnectGenerationForTests() {
+  core.bumpReconnectGeneration()
+}
+
+/**
+ * Test-only: clears module-level facade wire state without RTDB guest-offline writes.
+ * Prefer nonce-based `importMovieVoteSession` for isolation; call after `teardownSession`
+ * when a test reuses one `session.js` instance.
+ * @returns {void}
+ */
+export function resetMovieVoteFacadeWireStateForTests() {
+  remoteHostTabVisible.value = true
+  clearFeatureWireUnsubs()
+  stableIdToParticipant.clear()
+  activeGuestStableIds.clear()
+  guestDrafts.clear()
+  for (const t of pendingRemovalTimers.values()) clearTimeout(t)
+  pendingRemovalTimers.clear()
+  nextSeq = 0
+  lastSeenSeq = 0
+  hostStateBroadcastProbe = 0
+  core.destroyWireOnly()
+  sessionPhase.value = 'idle'
+  sessionSuffix.value = null
+  handlers = {
+    applyPublicPayload: () => {},
+    onWireTeardown: () => {},
+  }
 }
 
 function resetLocalStateAfterRoomExit() {

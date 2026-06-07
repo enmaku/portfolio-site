@@ -14,21 +14,9 @@ import { useMovieVoteRoomSessionStore } from '../../../stores/movieVoteRoomSessi
 import { encodeHello, encodeState, MSG_MV_DRAFT } from './protocol.js'
 import { ROOM_CLAIM_RESET_PATHS } from './sessionRoomRtdb.js'
 import { buildMovieVotePublicPayload } from '../publicPayload.js'
-import { installRtdbLifecycleMocks, withFirebaseEnv } from './sessionRtdbLifecycleHarness.js'
+import { installRtdbLifecycleMocks, withFirebaseEnv, refPath, importMovieVoteSession, createRtdbLifecycleAfterEach } from './sessionRtdbLifecycleHarness.js'
 
-/**
- * @param {{ key?: string | null, parent?: { key?: string | null, parent?: unknown } | null }} ref
- * @returns {string}
- */
-function refPath(ref) {
-  const parts = []
-  let cur = ref
-  while (cur) {
-    if (cur.key) parts.unshift(cur.key)
-    cur = cur.parent ?? null
-  }
-  return parts.join('/')
-}
+const rtdbAfterEach = createRtdbLifecycleAfterEach(mock)
 
 /**
  * @param {ReturnType<typeof installRtdbLifecycleMocks> extends Promise<infer T> ? T : never} harness
@@ -53,7 +41,7 @@ function simulateHostInboxMessage(harness, suffix, guestStableId, payload) {
 
 /** @param {string} nonce */
 async function importSession(nonce) {
-  return import(`./session.js?mv-rtdb-lifecycle=${nonce}`)
+  return importMovieVoteSession(nonce)
 }
 
 /**
@@ -613,7 +601,4 @@ test(
   },
 )
 
-afterEach(async () => {
-  mock.timers.reset()
-  mock.reset()
-})
+afterEach(rtdbAfterEach)

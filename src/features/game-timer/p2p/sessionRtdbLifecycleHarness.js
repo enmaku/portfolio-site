@@ -1,14 +1,14 @@
 /**
- * Shared RTDB mocks for Movie Vote P2P lifecycle / facade contract tests.
+ * Shared RTDB mocks for Game Timer P2P lifecycle / facade contract tests.
  * Requires `node --experimental-test-module-mocks`.
  *
  * ## Module hygiene
  *
- * - Prefer {@link importMovieVoteSession} with a unique nonce per test so each case gets a fresh
- *   `session.js` instance (isolated maps, seq counters, and listener registrations).
+ * - Prefer {@link importGameTimerSession} with a unique nonce per test so each case gets a fresh
+ *   `session.js` instance (isolated `nextSeq`, `lastSeenSeq`, and listener maps).
  * - When reusing one session module (e.g. static `import('./session.js')`), call
- *   `teardownSession()` then {@link resetMovieVoteFacadeWireStateForTests} from that module in
- *   `afterEach` so parallel runs do not leak handlers, `nextSeq`, or `lastSeenSeq`.
+ *   `teardownSession()` then {@link resetGameTimerP2PWireStateForTests} from that module in
+ *   `afterEach` so parallel runs do not leak handlers or seq counters.
  * - Use {@link createRtdbLifecycleAfterEach} for standard mock/timer cleanup after each case.
  */
 
@@ -80,8 +80,6 @@ function buildRef(dotPath) {
  *   getEnded?: () => unknown,
  *   getHostClientId?: () => unknown,
  *   getState?: () => unknown,
- *   getWelcome?: () => unknown,
- *   getGuestOnline?: () => unknown,
  * }} [opts]
  * @returns {Promise<{
  *   listeners: Map<string, (snap: { val: () => unknown }) => void>,
@@ -144,14 +142,6 @@ export async function installRtdbLifecycleMocks(opts = {}) {
         if (ref.key === 'state') {
           return { val: () => (opts.getState !== undefined ? opts.getState() : null) }
         }
-        if (ref.key === 'welcome') {
-          return { val: () => (opts.getWelcome !== undefined ? opts.getWelcome() : null) }
-        }
-        if (ref.key === 'guestOnline') {
-          return {
-            val: () => (opts.getGuestOnline !== undefined ? opts.getGuestOnline() : null),
-          }
-        }
         return { val: () => null }
       },
       set: async (ref, value) => {
@@ -193,8 +183,8 @@ export async function installRtdbLifecycleMocks(opts = {}) {
 }
 
 /** @param {string} nonce */
-export async function importMovieVoteSession(nonce) {
-  return import(`./session.js?mv-rtdb-lifecycle=${nonce}`)
+export async function importGameTimerSession(nonce) {
+  return import(`./session.js?gt-rtdb-lifecycle=${nonce}`)
 }
 
 /**

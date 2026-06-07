@@ -251,18 +251,18 @@ function handleHostInboxMessage(stableId, raw) {
   }
 
   const now = Date.now()
-  let snap
+  /** @type {{ broadcastSnapshot: GameTimerSyncPayload, appliedGuestSnapshot: boolean } | null} */
+  let mergeResult = null
   try {
-    const result = authoritativeSnapshotAfterGuestMessage(
+    mergeResult = authoritativeSnapshotAfterGuestMessage(
       msg,
       hostGuestIntentDeduper,
       now,
       (s) => handlers.applySnapshot(s),
       () => handlers.getSnapshot(),
     )
-    snap = result.broadcastSnapshot
     if (
-      !result.appliedGuestSnapshot &&
+      !mergeResult.appliedGuestSnapshot &&
       msg.intent &&
       typeof import.meta !== 'undefined' &&
       import.meta.env &&
@@ -274,7 +274,9 @@ function handleHostInboxMessage(stableId, raw) {
     return
   }
 
-  hostPublishSnapshot(snap)
+  if (mergeResult.appliedGuestSnapshot) {
+    hostPublishSnapshot(mergeResult.broadcastSnapshot)
+  }
 }
 
 function handleGuestHostEnded() {
@@ -584,12 +586,48 @@ export function broadcastGameTimerSnapshot(snapshot, intent) {
 
 /**
  * Ends the session for this tab: clears phase and suffix, then tears down RTDB listeners.
+ * Does not reset host/guest seq counters or handler bindings — use
+ * {@link resetGameTimerP2PWireStateForTests} in tests when reusing one module instance.
  * @returns {void}
  */
 export function teardownSession() {
   remoteHostTabVisible.value = true
   remoteHostPresent.value = true
   core.teardownSession()
+}
+
+/**
+ * Test-only: advances reconnect generation without clearing join persistence (supersede in-flight loops).
+ * @returns {void}
+ */
+export function bumpGameTimerReconnectGenerationForTests() {
+  core.bumpReconnectGeneration()
+}
+
+/**
+ * Test-only: clears module-level P2P wire state (seq counters, deduper, listeners, reactive refs,
+ * handler bindings). Prefer nonce-based `importGameTimerSession` for isolation; call after
+ * `teardownSession` when a test reuses one `session.js` instance.
+ * @returns {void}
+ */
+export function resetGameTimerP2PWireStateForTests() {
+  remoteHostTabVisible.value = true
+  remoteHostPresent.value = true
+  resetHostGuestWireState()
+  core.destroyWireOnly()
+  sessionPhase.value = 'idle'
+  sessionSuffix.value = null
+  handlers = {
+    getSnapshot: () => ({
+      players: [],
+      activePlayerId: null,
+      turnStartedAt: null,
+      turnStartedRound: null,
+      round: 1,
+      playerOrderByRound: {},
+    }),
+    applySnapshot: () => {},
+  }
 }
 
 /**
