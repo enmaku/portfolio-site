@@ -330,6 +330,24 @@ Compact **equipment** label for tight UI (e.g. sacrifice phrasing); from the ent
 
 Full **equipment** title for modals and token chrome; from the entry’s **ui** `label` (may differ from **equipment short name**).
 
+### Omnipotence
+
+**Equipment** (`M_OMNI`) that grants a second way to win a **dungeon run** after the runner would otherwise lose to combat: if every **monster** in the **omnipotence set** has a distinct **species**, the run succeeds instead of failing. A passing check yields immediate **dungeon run** success (same scoring as clearing the lane) with **omnipotence success copy** in the outcome acknowledgment—not a mid-run revive and not a failure outcome that is reversed later.
+
+_Avoid_: Treating Omnipotence like a healing potion (revive and continue fighting); counting bidding-sacrifice discards or never-drawn **monster deck** cards in the uniqueness check; recording a failed **dungeon run** before applying the alternate win; applying Omnipotence after **M_OMNI** was removed from play (e.g. bidding **equipment** sacrifice); gating **Omnipotence** on **adventurer** identity when **M_OMNI** in play is the rule gate.
+
+### Omnipotence success copy
+
+User-facing acknowledgment text in the mid-**match** **dungeon run** outcome acknowledgment—the same dialog beat as ordinary success/failure copy—when the run succeeded via **Omnipotence** rather than by clearing the lane through combat. Distinct wording only there; **equipment** `details` and help describe the rule, not run-specific outcomes.
+
+_Avoid_: Generic success-only copy when Omnipotence caused the win; implying a different score or life outcome than a standard successful **dungeon run**; failure copy or “almost saved” hints when **Omnipotence** was in play but uniqueness failed (**Omnipotence** is a passive alternate win, not a player choice); duplicating run-outcome copy on the **scoreboard** or in replay export metadata in v1.
+
+### Omnipotence set
+
+The **monster** pile as it existed when the **dungeon run** began—every card placed into the dungeon during bidding, frozen before any lane card is revealed. Excludes cards removed by sacrificing **equipment** during bidding and cards never drawn from the **monster deck**. Lane resolution during the run (defeats, **equipment** removals, Polymorph, and so on) does not shrink or alter this set. Uniqueness is judged at **species** level: duplicate **species** in that initial pile (e.g. strengths 1, 1, 3, 4) fail **Omnipotence**; all distinct **species** (e.g. 1, 3, 4) pass.
+
+_Avoid_: “Full dungeon set” without this definition; `discardedMonsterCards` (sacrifice discards); the remaining **monster deck** after bidding ends; rebuilding the set from defeated/current/unrevealed lane state at the moment of defeat; card-instance uniqueness when the **monster deck** allows duplicate **species** in the pile.
+
 ### Species
 
 The canonical id string for a **monster** catalog entry (e.g. `goblin`); keys deck composition, rules lookup, and doodle assets.
@@ -365,6 +383,8 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - **Equipment** optional use/decline action types are **catalog rules**; effect help prose lives in **ui** `details`.
 - **Adventurer identity** fields are **ui** only; the engine/kernel consumes **catalog rules** only, not **ui**.
 - **Equipment** and **monster** definitions are consulted during **dungeon runs** and bidding within a **match**.
+- **Omnipotence** is gated by **M_OMNI** in play, not by **adventurer** identity—the Mage is the only **adventurer** with **M_OMNI** in the catalog today, but alternate loadouts may add it elsewhere later. Rules: [ADR 0008](../../../docs/adr/0008-dungeon-runner-omnipotence-alternate-win.md).
+- **Omnipotence** evaluates **species** uniqueness in the **omnipotence set** (initial pile at **dungeon run** start) only when the runner would lose to combat and **M_OMNI** is still in play; a passing check yields the same successful **dungeon run** outcome as clearing the lane, not a mid-run revive. A healing potion, if present, resolves before **Omnipotence** (revive and continue); the Mage loadout has no healing potion, so that ordering is not player-visible in standard play.
 - After a bidding **draw**, the drawer may **Add to dungeon** or enter **sacrifice mode (bidding)** to discard one legally sacrificable center-table **equipment** piece instead; only highlighted tiles accept sacrifice confirmation. While sacrifice mode is active, **Add to dungeon** and other turn actions are unavailable until **Cancel** or a confirmed sacrifice resolves the choice.
 - **Sacrifice mode (bidding)** is **human player seat** UX in **live match shell** only; **opponent** sacrifice is unchanged. Ephemeral—clears on reload; not part of **current match** persistence. Bidding help copy describes enter → pick highlighted tile → confirm → **Cancel**.
 - **Vorpal declaration (dungeon)** is a hidden-info **species** pick from the full roster, not a choice among visible lane **monsters**; optional memory-aid own-pile counts are supplementary hints only.
@@ -428,8 +448,15 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 > **Dev:** “Player reloads mid-outcome — do we drop them on the board or back to **setup**?”
 > **Domain expert:** “**Match-over shell** again — same outcome UX, upload is idempotent. Only **REFRESH** persisted recovery overrides that and keeps **live match shell** blocked.”
 
+> **Dev:** “Omnipotence failed even though three lane cards looked unique — a bot sacrificed a duplicate **species** during bidding. Bug?”
+> **Domain expert:** “Check the initial pile, not the lane at defeat. Sacrifice discards never entered the dungeon. Omnipotence only cares about **species** uniqueness in the pile frozen at **dungeon run** start.”
+
+> **Dev:** “Is Omnipotence a revive like a healing potion?”
+> **Domain expert:** “No — passive alternate win after combat would defeat the runner. Immediate success with **omnipotence success copy** in the outcome acknowledgment; ordinary failure copy when uniqueness fails.”
+
 ## Flagged ambiguities
 
+- **Omnipotence** engine behavior vs this glossary (2026-06): kernel still checks a live lane partition plus `discardedMonsterCards` and gates on Mage **adventurer** until [ADR 0008](../../../docs/adr/0008-dungeon-runner-omnipotence-alternate-win.md) is implemented—see ADR for authoritative rules.
 - **Empty dungeon pile at bidding end** vs **sim empty-pile forfeit**: **web game engine** gives an immediate successful **dungeon run** (see kernel test). **Python training sim** uses **sim empty-pile forfeit** (`EMPTY_DUNGEON_FORFEIT`, no winner)—an anti-pass-farming rule from early training that remains a sim **local minima**; runtime play follows web/table rules. See [`UBIQUITOUS_LANGUAGE.md`](../../../UBIQUITOUS_LANGUAGE.md).
 - “Game” in casual speech usually means **match**; “run” usually means **dungeon run**.
 - “Catalog” without qualifier may mean the neural **model catalog** or the **game data catalog** — use the full term.
