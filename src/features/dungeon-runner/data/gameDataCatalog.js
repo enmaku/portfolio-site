@@ -159,7 +159,7 @@ const EQUIPMENT_ENTRIES = {
       shortName: 'Omni',
       label: 'Omnipotence',
       details:
-        'If you would die, you win instead only when every monster species in the full dungeon set is unique.',
+        'If you would die, you win instead when every species in the dungeon pile at run start is unique (bidding sacrifice discards do not count).',
       symbolKey: 'omni',
     },
   },
