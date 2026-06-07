@@ -1,4 +1,3 @@
-import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import {
   isHostEndedNotice,
   isHostPing,
@@ -14,6 +13,7 @@ import {
  * @param {(n: number) => void} deps.setLastSeenSeq
  * @param {(payload: import('../types.js').MovieVotePublicPayload) => void} deps.applyPublicPayload
  * @param {() => void} deps.onGuestHostEnded
+ * @param {(participantId: string) => void} deps.setMyParticipantId
  */
 export function createGuestInboundWire(deps) {
   /**
@@ -22,7 +22,7 @@ export function createGuestInboundWire(deps) {
   function handleGuestWelcome(raw) {
     const welcome = parseWelcome(raw)
     if (!welcome) return
-    useMovieVoteStore().setMyParticipantId(welcome.participantId)
+    deps.setMyParticipantId(welcome.participantId)
   }
 
   /**

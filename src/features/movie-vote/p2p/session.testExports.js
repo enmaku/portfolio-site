@@ -3,20 +3,32 @@
  * Import from tests only — not from production code.
  */
 
+import { getMovieVoteSessionTestWireAccess } from './session.testWireAccess.js'
+
 /**
- * @param {{ getMovieVoteSessionTestWireAccess: () => ReturnType<typeof import('./session.js').getMovieVoteSessionTestWireAccess> }} sessionMod
- * @returns {void}
+ * @param {{ MOVIE_VOTE_SESSION_TEST_MODULE_KEY: symbol }} sessionMod
+ * @returns {ReturnType<typeof getMovieVoteSessionTestWireAccess>}
  */
-export function bumpMovieVoteReconnectGenerationForTests(sessionMod) {
-  sessionMod.getMovieVoteSessionTestWireAccess().core.bumpReconnectGeneration()
+function wireAccess(sessionMod) {
+  return /** @type {ReturnType<typeof getMovieVoteSessionTestWireAccess>} */ (
+    getMovieVoteSessionTestWireAccess(sessionMod.MOVIE_VOTE_SESSION_TEST_MODULE_KEY)
+  )
 }
 
 /**
- * @param {{ getMovieVoteSessionTestWireAccess: () => ReturnType<typeof import('./session.js').getMovieVoteSessionTestWireAccess> }} sessionMod
+ * @param {{ MOVIE_VOTE_SESSION_TEST_MODULE_KEY: symbol }} sessionMod
+ * @returns {void}
+ */
+export function bumpMovieVoteReconnectGenerationForTests(sessionMod) {
+  wireAccess(sessionMod).core.bumpReconnectGeneration()
+}
+
+/**
+ * @param {{ MOVIE_VOTE_SESSION_TEST_MODULE_KEY: symbol }} sessionMod
  * @returns {void}
  */
 export function resetMovieVoteFacadeWireStateForTests(sessionMod) {
-  const access = sessionMod.getMovieVoteSessionTestWireAccess()
+  const access = wireAccess(sessionMod)
   access.remoteHostTabVisible.value = true
   access.clearFeatureWireUnsubs()
   access.resetMovieVoteWireState()
@@ -29,39 +41,39 @@ export function resetMovieVoteFacadeWireStateForTests(sessionMod) {
 }
 
 /**
- * @param {{ getMovieVoteSessionTestWireAccess: () => ReturnType<typeof import('./session.js').getMovieVoteSessionTestWireAccess> }} sessionMod
+ * @param {{ MOVIE_VOTE_SESSION_TEST_MODULE_KEY: symbol }} sessionMod
  * @returns {void}
  */
 export function resetHostStateBroadcastProbeForTests(sessionMod) {
-  sessionMod.getMovieVoteSessionTestWireAccess().setHostStateBroadcastProbe(0)
+  wireAccess(sessionMod).setHostStateBroadcastProbe(0)
 }
 
 /**
- * @param {{ getMovieVoteSessionTestWireAccess: () => ReturnType<typeof import('./session.js').getMovieVoteSessionTestWireAccess> }} sessionMod
+ * @param {{ MOVIE_VOTE_SESSION_TEST_MODULE_KEY: symbol }} sessionMod
  * @returns {number}
  */
 export function drainHostStateBroadcastProbeForTests(sessionMod) {
-  const access = sessionMod.getMovieVoteSessionTestWireAccess()
+  const access = wireAccess(sessionMod)
   const n = access.getHostStateBroadcastProbe()
   access.setHostStateBroadcastProbe(0)
   return n
 }
 
 /**
- * @param {{ getMovieVoteSessionTestWireAccess: () => ReturnType<typeof import('./session.js').getMovieVoteSessionTestWireAccess> }} sessionMod
+ * @param {{ MOVIE_VOTE_SESSION_TEST_MODULE_KEY: symbol }} sessionMod
  * @param {string} participantId
  * @param {{ picks: import('../types.js').MoviePick[], ready: boolean }} entry
  * @returns {void}
  */
 export function setGuestDraftForTests(sessionMod, participantId, entry) {
-  sessionMod.getMovieVoteSessionTestWireAccess().seedGuestDraft(participantId, entry)
+  wireAccess(sessionMod).seedGuestDraft(participantId, entry)
 }
 
 /**
- * @param {{ getMovieVoteSessionTestWireAccess: () => ReturnType<typeof import('./session.js').getMovieVoteSessionTestWireAccess> }} sessionMod
+ * @param {{ MOVIE_VOTE_SESSION_TEST_MODULE_KEY: symbol }} sessionMod
  * @param {string} participantId
  * @returns {boolean | undefined}
  */
 export function getGuestDraftReadyForTests(sessionMod, participantId) {
-  return sessionMod.getMovieVoteSessionTestWireAccess().getGuestDraftReady(participantId)
+  return wireAccess(sessionMod).getGuestDraftReady(participantId)
 }

@@ -1,5 +1,3 @@
-import { useMovieVoteStore } from '../../../stores/movieVote.js'
-
 const GUEST_REMOVAL_GRACE_MS = 45_000
 
 /**
@@ -16,6 +14,7 @@ const GUEST_REMOVAL_GRACE_MS = 45_000
  * @param {() => void} deps.tryCompileBallot
  * @param {() => void} deps.tryFinishVoting
  * @param {() => void} deps.hostBroadcastState
+ * @param {(participantId: string) => void} deps.removeParticipantFromVote
  * @param {(fn: () => void, ms: number) => ReturnType<typeof setTimeout>} [deps.scheduleTimer]
  * @param {(id: ReturnType<typeof setTimeout>) => void} [deps.cancelTimer]
  */
@@ -62,7 +61,7 @@ export function createGuestOnlineWire(deps) {
         activeGuestStableIds.delete(stableId)
       }
       if (deps.isHostRole() && deps.getSessionPhase() === 'hosting') {
-        useMovieVoteStore().removeParticipantFromVote(pid)
+        deps.removeParticipantFromVote(pid)
         deps.tryCompileBallot()
         deps.tryFinishVoting()
         deps.hostBroadcastState()

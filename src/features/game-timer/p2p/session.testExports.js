@@ -3,20 +3,32 @@
  * Import from tests only — not from production code.
  */
 
+import { getGameTimerSessionTestWireAccess } from './session.testWireAccess.js'
+
 /**
- * @param {{ getGameTimerSessionTestWireAccess: () => ReturnType<typeof import('./session.js').getGameTimerSessionTestWireAccess> }} sessionMod
- * @returns {void}
+ * @param {{ GAME_TIMER_SESSION_TEST_MODULE_KEY: symbol }} sessionMod
+ * @returns {ReturnType<typeof getGameTimerSessionTestWireAccess>}
  */
-export function bumpGameTimerReconnectGenerationForTests(sessionMod) {
-  sessionMod.getGameTimerSessionTestWireAccess().core.bumpReconnectGeneration()
+function wireAccess(sessionMod) {
+  return /** @type {ReturnType<typeof getGameTimerSessionTestWireAccess>} */ (
+    getGameTimerSessionTestWireAccess(sessionMod.GAME_TIMER_SESSION_TEST_MODULE_KEY)
+  )
 }
 
 /**
- * @param {{ getGameTimerSessionTestWireAccess: () => ReturnType<typeof import('./session.js').getGameTimerSessionTestWireAccess> }} sessionMod
+ * @param {{ GAME_TIMER_SESSION_TEST_MODULE_KEY: symbol }} sessionMod
+ * @returns {void}
+ */
+export function bumpGameTimerReconnectGenerationForTests(sessionMod) {
+  wireAccess(sessionMod).core.bumpReconnectGeneration()
+}
+
+/**
+ * @param {{ GAME_TIMER_SESSION_TEST_MODULE_KEY: symbol }} sessionMod
  * @returns {void}
  */
 export function resetGameTimerP2PWireStateForTests(sessionMod) {
-  const access = sessionMod.getGameTimerSessionTestWireAccess()
+  const access = wireAccess(sessionMod)
   access.remoteHostTabVisible.value = true
   access.remoteHostPresent.value = true
   access.resetHostGuestWireState()

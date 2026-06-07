@@ -1,6 +1,8 @@
 /**
- * @import '../types.js'
  * Firebase RTDB star hub for Game Timer (`gameTimerRooms/<suffix>`).
+ *
+ * Production code imports this module only. Tests use `session.testExports.js` and
+ * `session.testWireAccess.js` for facade contract helpers.
  */
 
 import { ref } from 'vue'
@@ -46,6 +48,7 @@ import {
   authoritativeSnapshotAfterGuestMessage,
   createGuestIntentDeduper,
 } from './guestIntentDedupe.js'
+import { registerGameTimerTestWireAccess } from './session.testWireAccess.js'
 
 const STABLE_HOST_SUFFIX_APP = 'gametimer'
 
@@ -609,32 +612,22 @@ function emptyGameTimerSnapshot() {
   }
 }
 
-/**
- * Test-only wire access for `session.testExports.js`. Do not import from production code.
- * @returns {{
- *   core: ReturnType<typeof createStarRoomSession>,
- *   remoteHostTabVisible: typeof remoteHostTabVisible,
- *   remoteHostPresent: typeof remoteHostPresent,
- *   resetHostGuestWireState: typeof resetHostGuestWireState,
- *   emptyHandlers: () => GameTimerP2PHandlers,
- *   setHandlers: (h: GameTimerP2PHandlers) => void,
- * }}
- */
-export function getGameTimerSessionTestWireAccess() {
-  return {
-    core,
-    remoteHostTabVisible,
-    remoteHostPresent,
-    resetHostGuestWireState,
-    emptyHandlers: () => ({
-      getSnapshot: () => emptyGameTimerSnapshot(),
-      applySnapshot: () => {},
-    }),
-    setHandlers: (h) => {
-      handlers = h
-    },
-  }
-}
+/** Test-only module instance key for `session.testWireAccess.js`. */
+export const GAME_TIMER_SESSION_TEST_MODULE_KEY = Symbol('gameTimerSessionTestModuleKey')
+
+registerGameTimerTestWireAccess(GAME_TIMER_SESSION_TEST_MODULE_KEY, () => ({
+  core,
+  remoteHostTabVisible,
+  remoteHostPresent,
+  resetHostGuestWireState,
+  emptyHandlers: () => ({
+    getSnapshot: () => emptyGameTimerSnapshot(),
+    applySnapshot: () => {},
+  }),
+  setHandlers: (h) => {
+    handlers = h
+  },
+}))
 
 /**
  * User-initiated exit: signals guests via RTDB if hosting, clears persisted room role, then tears down.

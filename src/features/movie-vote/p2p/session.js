@@ -1,7 +1,9 @@
 /**
- * @import '../types.js'
  * Firebase RTDB star hub for Movie Vote (`movieVoteRooms/<suffix>`).
  * Typed messages; host aggregates guest drafts and runs the election facade.
+ *
+ * Production code imports this module only. Tests use `session.testExports.js` and
+ * `session.testWireAccess.js` for facade contract helpers.
  */
 
 import { ref as vueRef } from 'vue'
@@ -52,6 +54,7 @@ import { createGuestInboundWire } from './guestInboundWire.js'
 import { createGuestOnlineWire } from './guestOnlineWire.js'
 import { createHostInboxWire } from './hostInboxWire.js'
 import { createMovieVoteWireState } from './movieVoteWireState.js'
+import { registerMovieVoteTestWireAccess } from './session.testWireAccess.js'
 
 const STABLE_HOST_SUFFIX_APP = 'movievote'
 
@@ -264,12 +267,45 @@ function tryFinishVoting() {
   hostBroadcastState()
 }
 
+/**
+ * @param {string} participantId
+ * @param {{ picks: import('../types.js').MoviePick[], ready: boolean }} entry
+ */
+function applyGuestDraftFromInbox(participantId, entry) {
+  guestDrafts.set(participantId, entry)
+  tryCompileBallot()
+  hostBroadcastState()
+}
+
+/**
+ * @param {string} participantId
+ * @param {string[]} ranking
+ * @returns {boolean}
+ */
+function applyGuestVoteFromInbox(participantId, ranking) {
+  const store = useMovieVoteStore()
+  if (store.phase !== 'voting') return false
+  if (!store.voterIds.includes(participantId)) return false
+  const valid = new Set(store.ballotOrderIds)
+  if (ranking.length !== store.ballotOrderIds.length) return false
+  const seen = new Set()
+  for (const id of ranking) {
+    if (!valid.has(id) || seen.has(id)) return false
+    seen.add(id)
+  }
+  store.mergeGuestVote(participantId, ranking)
+  return true
+}
+
 function handleGuestHostEnded() {
   notifyP2P('The host ended the room.', 'info')
   core.bumpReconnectGeneration()
   clearRoomPersistence()
   resetLocalStateAfterRoomExit()
 }
+
+/** @type {ReturnType<typeof createStarRoomSession>} */
+let core
 
 const guestOnlineWire = createGuestOnlineWire({
   wireState,
@@ -286,6 +322,7 @@ const guestOnlineWire = createGuestOnlineWire({
   tryCompileBallot,
   tryFinishVoting,
   hostBroadcastState,
+  removeParticipantFromVote: (pid) => useMovieVoteStore().removeParticipantFromVote(pid),
 })
 
 const hostInboxWire = createHostInboxWire({
@@ -299,9 +336,10 @@ const hostInboxWire = createHostInboxWire({
   },
   buildPublicPayload,
   hostBroadcastState,
-  tryCompileBallot,
   tryFinishVoting,
   cancelParticipantRemoval: guestOnlineWire.cancelParticipantRemoval,
+  applyGuestDraft: applyGuestDraftFromInbox,
+  applyGuestVote: applyGuestVoteFromInbox,
 })
 
 const guestInboundWire = createGuestInboundWire({
@@ -312,11 +350,12 @@ const guestInboundWire = createGuestInboundWire({
   },
   applyPublicPayload: (payload) => handlers.applyPublicPayload(payload),
   onGuestHostEnded: handleGuestHostEnded,
+  setMyParticipantId: (id) => useMovieVoteStore().setMyParticipantId(id),
 })
 
 export const handleGuestInbound = guestInboundWire.handleGuestInbound
 
-const core = createStarRoomSession({
+core = createStarRoomSession({
   guestPresence: 'strict',
   claimResetPaths: ROOM_CLAIM_RESET_PATHS,
   getStableClientId,
@@ -702,54 +741,36 @@ export function teardownSession() {
   core.setSuffix(null)
 }
 
-/**
- * Test-only wire access for `session.testExports.js`. Do not import from production code.
- * @returns {{
- *   core: ReturnType<typeof createStarRoomSession>,
- *   remoteHostTabVisible: typeof remoteHostTabVisible,
- *   clearFeatureWireUnsubs: typeof clearFeatureWireUnsubs,
- *   resetMovieVoteWireState: typeof resetMovieVoteWireState,
- *   seedGuestDraft: typeof wireState.seedGuestDraft,
- *   getGuestDraftReady: typeof wireState.getGuestDraftReady,
- *   getHostStateBroadcastProbe: () => number,
- *   setHostStateBroadcastProbe: (n: number) => void,
- *   getNextSeq: () => number,
- *   setNextSeq: (n: number) => void,
- *   getLastSeenSeq: () => number,
- *   setLastSeenSeq: (n: number) => void,
- *   emptyHandlers: () => MovieVoteP2PHandlers,
- *   setHandlers: (h: MovieVoteP2PHandlers) => void,
- * }}
- */
-export function getMovieVoteSessionTestWireAccess() {
-  return {
-    core,
-    remoteHostTabVisible,
-    clearFeatureWireUnsubs,
-    resetMovieVoteWireState,
-    seedGuestDraft: wireState.seedGuestDraft,
-    getGuestDraftReady: wireState.getGuestDraftReady,
-    getHostStateBroadcastProbe: () => hostStateBroadcastProbe,
-    setHostStateBroadcastProbe: (n) => {
-      hostStateBroadcastProbe = n
-    },
-    getNextSeq: () => nextSeq,
-    setNextSeq: (n) => {
-      nextSeq = n
-    },
-    getLastSeenSeq: () => lastSeenSeq,
-    setLastSeenSeq: (n) => {
-      lastSeenSeq = n
-    },
-    emptyHandlers: () => ({
-      applyPublicPayload: () => {},
-      onWireTeardown: () => {},
-    }),
-    setHandlers: (h) => {
-      handlers = h
-    },
-  }
-}
+/** Test-only module instance key for `session.testWireAccess.js`. */
+export const MOVIE_VOTE_SESSION_TEST_MODULE_KEY = Symbol('movieVoteSessionTestModuleKey')
+
+registerMovieVoteTestWireAccess(MOVIE_VOTE_SESSION_TEST_MODULE_KEY, () => ({
+  core,
+  remoteHostTabVisible,
+  clearFeatureWireUnsubs,
+  resetMovieVoteWireState,
+  seedGuestDraft: wireState.seedGuestDraft,
+  getGuestDraftReady: wireState.getGuestDraftReady,
+  getHostStateBroadcastProbe: () => hostStateBroadcastProbe,
+  setHostStateBroadcastProbe: (n) => {
+    hostStateBroadcastProbe = n
+  },
+  getNextSeq: () => nextSeq,
+  setNextSeq: (n) => {
+    nextSeq = n
+  },
+  getLastSeenSeq: () => lastSeenSeq,
+  setLastSeenSeq: (n) => {
+    lastSeenSeq = n
+  },
+  emptyHandlers: () => ({
+    applyPublicPayload: () => {},
+    onWireTeardown: () => {},
+  }),
+  setHandlers: (h) => {
+    handlers = h
+  },
+}))
 
 function resetLocalStateAfterRoomExit() {
   teardownSession()

@@ -1,4 +1,3 @@
-import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { normalizeCustomTitle } from '../core.js'
 import {
   encodeHostVisibility,
@@ -50,9 +49,10 @@ function normalizePicks(picks) {
  * @param {(n: number) => void} deps.setNextSeq
  * @param {() => import('../types.js').MovieVotePublicPayload} deps.buildPublicPayload
  * @param {() => void} deps.hostBroadcastState
- * @param {() => void} deps.tryCompileBallot
  * @param {() => void} deps.tryFinishVoting
  * @param {(pid: string) => void} deps.cancelParticipantRemoval
+ * @param {(participantId: string, entry: { picks: import('../types.js').MoviePick[], ready: boolean }) => void} deps.applyGuestDraft
+ * @param {(participantId: string, ranking: string[]) => boolean} deps.applyGuestVote
  */
 export function createHostInboxWire(deps) {
   const {
@@ -133,34 +133,23 @@ export function createHostInboxWire(deps) {
     const expectedPid = bindStableIdFromGuestPayload(stableId, raw)
     if (!expectedPid) return
 
-    const store = useMovieVoteStore()
     const draft = parseDraft(raw)
     if (draft) {
       if (draft.participantId !== expectedPid) return
-      guestDrafts.set(expectedPid, {
+      deps.applyGuestDraft(expectedPid, {
         picks: normalizePicks(draft.picks),
         ready: draft.ready,
       })
-      deps.tryCompileBallot()
-      deps.hostBroadcastState()
       return
     }
 
     const vote = parseVote(raw)
     if (vote) {
       if (vote.participantId !== expectedPid) return
-      if (store.phase !== 'voting') return
-      if (!store.voterIds.includes(expectedPid)) return
-      const valid = new Set(store.ballotOrderIds)
-      if (vote.ranking.length !== store.ballotOrderIds.length) return
-      const seen = new Set()
-      for (const id of vote.ranking) {
-        if (!valid.has(id) || seen.has(id)) return
-        seen.add(id)
+      if (deps.applyGuestVote(expectedPid, vote.ranking)) {
+        deps.hostBroadcastState()
+        deps.tryFinishVoting()
       }
-      store.mergeGuestVote(expectedPid, vote.ranking)
-      deps.hostBroadcastState()
-      deps.tryFinishVoting()
     }
   }
 
