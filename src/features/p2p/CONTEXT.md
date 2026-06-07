@@ -42,17 +42,29 @@ Cross-feature wiring for backoff-based reconnect loops; individual products supp
 
 **Presence-mode-agnostic** — one shared reconnect orchestration for all star-room **projects**; **loose guest attachment**, **strict guest presence**, and future per-**project** quorum rules live in establish/wire hooks and the **star-room session core**, not forked shell loops.
 
-On reconnect exhaustion (**fatal session error**), the shell invokes role-specific failure hooks—**guest** copy steers toward **Join room** / **Host room**; **host** copy steers toward starting a new **room**. Same fatal outcome, different recovery guidance; not one neutral message for both roles.
+On reconnect exhaustion (**fatal session error**), the shell invokes role-specific failure hooks—**guest** recovery affordance category steers toward **Join room** / **Host room**; **host** category steers toward starting a new **room**. Same fatal outcome, different guidance category; not one neutral path for both roles. Exact **user-visible session messaging** is facade-owned.
 
 **Host** and **guest** share one reconnect budget—same initial pause, attempt count, and backoff curve; no role-specific longer or shorter recovery window.
 
-During **non-fatal disconnect** recovery, attempt 1 is silent after the initial pause; **warning** attempt-progress toasts (“attempt *n* of *max*”) start at **attempt 2** onward so brief blips that recover immediately never flash UI. Wording is shared across star-room **projects**; fatal failure still uses role-specific exhaustion copy.
+During **non-fatal disconnect** recovery, attempt 1 is silent after the initial pause; attempt-progress **user-visible session messaging** at **warning** severity starts at **attempt 2** onward so brief blips that recover immediately never flash UI. That pacing rule is behavioral; exact strings are not.
 
 A superseded in-flight loop that momentarily succeeds on the wire must unwind with **wire-only teardown** only—never **leaveSession** on the **host** path, which would broadcast **room** end to **guests** while a newer recovery owns the session.
 
+### Structured session event
+
+Machine-facing signal from the **star-room session core** to a feature facade (`host_ended_room`, `connectivity_offline`, `host_ping_present`, `host_tab_visible`, …)—part of the behavioral contract alongside **connection posture** outcomes.
+
+_Avoid_: Branching logic on toast strings; treating Notify copy as API.
+
+### User-visible session messaging
+
+Toast and banner copy a feature facade renders from **structured session events** and **star-room shell** hooks—outside the behavioral contract; wording may change without semantic regression.
+
+_Avoid_: Locking exact strings in logic, tests, or architecture decisions.
+
 ### Star-room session core
 
-Shared implementation-layer wiring for **room** claim, RTDB listeners, host ping, guest hello, and visibility broadcast—sitting above the **star-room shell** reconnect loops (`createStarRoomSession` in this package). Star-room **projects** inject domain messages and user-visible notifications; the core does not own product state stores. Guest observers follow a **guest presence mode** (**loose guest attachment** vs **strict guest presence**) so wire policy is explicit, not inferred from the **project**.
+Shared implementation-layer wiring for **room** claim, RTDB listeners, host ping, guest hello, and visibility broadcast—sitting above the **star-room shell** reconnect loops (`createStarRoomSession` in this package). Star-room **projects** inject domain messages and **user-visible session messaging**; the core emits **structured session events** only. Guest observers follow a **guest presence mode** (**loose guest attachment** vs **strict guest presence**) so wire policy is explicit, not inferred from the **project**.
 
 ### Room code
 
@@ -112,7 +124,17 @@ Logical counter incremented when a fatal session error clears the **room**, used
 
 ### Host abrupt disconnect
 
-When the **host** browser loses connection without a deliberate leave, the **room** should still signal closure—clearing **host** presence and marking the **room** **ended** so **guests** are not left on a dead hub.
+When the **host** browser loses connection without a deliberate leave—refresh, network blip, sleep—the **host** clears **hostPing** on the wire. This is **not** **room exit**: **guests** stay in the **room** with **connection posture** `guest_connected` and keep the last authoritative **project** state until the **host** returns or explicitly ends the **room**.
+
+Each star-room **project** may differ in what stalls or flickers while the **host** is away (**loose guest attachment** vs **strict guest presence**); shared rule is never treating **host** absence alone as **fatal session error** for **guests**.
+
+_Avoid_: Ending the **room** for **guests** when **hostPing** clears; forcing **guests** to `idle` on **host** refresh.
+
+### Connection posture
+
+Star-room transport and listener state (`idle`, `connecting`, `reconnecting`, `hosting`, `guest_connected`)—independent from any star-room **project**’s collaborative flow (Movie Vote **phase**, Game Timer **snapshot** play).
+
+_Avoid_: **Phase** for this concept in Movie Vote contexts; **session phase** in Game Timer names the same posture.
 
 ### Fatal session error
 
@@ -127,6 +149,36 @@ Treatable interruption where **guest** reconnect logic may run while **host** re
 ### Transient disconnect
 
 Failure bucket treated like other non-fatal signals—eligible for **star-room shell** reconnect orchestration rather than immediate session teardown.
+
+### Monotonic authority broadcast
+
+Every **host** authority rebroadcast carries a strictly increasing **seq**; **guests** apply a message only when its **seq** exceeds the last applied value—duplicates and out-of-order arrivals are dropped. Authority never rolls backward on the wire.
+
+_Avoid_: Last-write-wins or regressive **snapshot** / **room** state after reconnect races.
+
+### Guest reconnect coherence
+
+When a **guest** refreshes or reattaches, the **host** stays authoritative—the **guest** tab never promotes local state as truth until the **host** acknowledges it on the wire. Each star-room **project** defines merge rules on **guest hello**; reconnect replays identity and mirrors the latest **host** broadcast rather than elevating the **guest** copy.
+
+_Avoid_: **Guest** self-authorizing collaborative state after reconnect.
+
+### Deliberate host end
+
+The **host** explicitly ends the **room**—sets the RTDB `ended` marker and clears **hostPing**. Every still-connected **guest** receives `host_ended_room` and undergoes **room exit**. **Room**-wide, not tab-local.
+
+### Fatal session error (tab-local)
+
+This browser tab exhausts reconnect or hits an unrecoverable attach failure—**connection posture** → `idle`, join persistence cleared, **room exit** survival rules apply on this tab only. The RTDB **room** may remain live for other **participants** who did not fail.
+
+_Avoid_: Treating tab-local fatal give-up as **deliberate host end** for the whole **room**.
+
+### Room exit
+
+**Connection posture** returning to `idle` because the user left, **deliberate host end** was received, or a **fatal session error** fired on this tab—not a **non-fatal disconnect** still in reconnect.
+
+Each star-room **project** defines what local state survives **room exit** on the affected tab; persisted **room** join role/suffix always clears there.
+
+**Deliberate host end** and **fatal session error** share the same tab-local **room exit** outcome but differ in **room**-wide scope—only **deliberate host end** ends the collaboration for everyone still connected.
 
 ### Wire-only teardown
 
@@ -159,8 +211,14 @@ _Avoid_: “Firebase secured the room” (suffix secrecy is the gate, not accoun
 - **Host reclaim** preserves in-**room** authority and payloads for the same **host** principal; only an un-**ended** **room** with a matching host id qualifies—missing `hostPing` after refresh still counts as reclaim, not a contested takeover.
 - **Host occupancy guard** runs on every **host** finish path in the **star-room session core**, including Movie Vote resume flows that skipped it before.
 - **Stable client identity** ties reconnecting browsers to prior participation without exposing account sign-in.
-- **Host abrupt disconnect** clears **hostPing** only (refresh or tab close); **guests** stay in the **room** until the **host** explicitly ends it or the RTDB **ended** marker is set via **leaveSession**.
+- **Host abrupt disconnect** clears **hostPing** only; **guests** stay in the **room** with last **project** authority until **host** reclaim or explicit end—**loose guest attachment** and **strict guest presence** differ in quorum/stall rules, not in whether the **room** survives.
 - **Loose guest attachment** and **strict guest presence** are intentional alternatives—do not unify guest `hostPing` teardown or online tracking across **projects**; future star-room **projects** may add further presence rules without changing **star-room shell** backoff/reconnect shape.
+- **Connection posture** and each **project**’s collaborative flow are independent contracts—regressions in reconnect banners must not be conflated with regressions in ballots or timer **snapshots**.
+- On **room exit**, persisted **room** join info always clears; facilitator **roster** (Game Timer) or personal nomination drafts and display preferences (Movie Vote) may survive per **project** rules—see those glossaries.
+- **Guest reconnect coherence** is host-authoritative in every star-room **project**; only merge rules differ (Game Timer **snapshot** + **guest intent**; Movie Vote **participant id** remap + payloads).
+- **Monotonic authority broadcast** applies to every star-room **project** **host**→**guest** authority channel—shared semantics, different payloads.
+- **Structured session events** and **connection posture** outcomes are the contract; **user-visible session messaging** is not—logic and decisions must never depend on copy.
+- **Deliberate host end** ends the **room** for all connected **guests**; **fatal session error** is tab-local—the **room** may persist for others.
 - **Fatal session error** resets persistence and ends the collaboration; **non-fatal disconnect** and **transient disconnect** paths feed reconnect instead of immediate teardown.
 - **Reconnect generation** must match across sleep/backoff slices or the client abandons stale attempts **silently**—no user-visible toast; a newer recovery path, user-initiated **Host room** / **Join room**, or **fatal session error** superseded the in-flight loop. If an obsolete loop briefly re-establishes the wire before noticing the mismatch, it performs **wire-only teardown**—not **leaveSession**—so a superseded **host** reconnect cannot mark the **room** **ended** for **guests**.
 - **Path-scoped RTDB access** applies to all star-room **projects** and the Dungeon Runner replay archive on the shared Firebase project; see [dungeon-runner RTDB ingest access](https://github.com/enmaku/dungeon-runner/blob/main/CONTEXT.md) for maintainer read paths.
