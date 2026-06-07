@@ -137,9 +137,9 @@
               :color="session.board.biddingBoard.heroCue.badgeColor"
               text-color="white"
               dense
-              :aria-label="session.board.biddingBoard.heroCue.shortLabel"
+              :aria-label="session.board.biddingBoard.heroCue.typeChipLabel"
             >
-              {{ session.board.biddingBoard.heroCue.shortLabel }}
+              {{ session.board.biddingBoard.heroCue.typeChipLabel }}
             </q-chip>
           </div>
         </div>
@@ -242,7 +242,7 @@
                 dense
                 size="lg"
                 class="dr-hero-pick-grid__btn full-width"
-                :label="session.board.getAdventurerIdentity(action.hero).shortLabel"
+                :label="session.board.getAdventurerTypeChipLabel(action.hero)"
                 :aria-label="session.board.actionLabel(action)"
                 :disable="session.board.humanGameplayBlocked"
                 @click="session.board.takeHumanAction(action)"

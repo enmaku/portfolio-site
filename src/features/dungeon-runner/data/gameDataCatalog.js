@@ -508,6 +508,16 @@ export function getAdventurerIdentity(adventurerId) {
   return adventurers.WARRIOR.ui.adventurerIdentity
 }
 
+/**
+ * @param {string} adventurerId
+ * @returns {string}
+ */
+export function getAdventurerTypeChipLabel(adventurerId) {
+  const identity = getAdventurerIdentity(adventurerId)
+  const baseHp = catalogRules.baseAdventurerHp[identity.hero]
+  return `${identity.shortLabel} (${baseHp} HP)`
+}
+
 /** @returns {readonly string[]} */
 export function getDefaultLoadout() {
   return defaultLoadout

@@ -253,6 +253,7 @@ test('board view model exposes hero color cue tokens for in-match theming', () =
   assert.equal(model.heroCue.badgeColor, 'deep-purple')
   assert.equal(model.heroCue.badgeGlyph, 'M')
   assert.equal(model.heroCue.shortLabel, 'Mage')
+  assert.equal(model.heroCue.typeChipLabel, 'Mage (2 HP)')
   assert.equal(model.heroCue.buttonColor, 'deep-purple')
 })
 

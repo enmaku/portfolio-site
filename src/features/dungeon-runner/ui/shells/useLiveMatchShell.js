@@ -22,7 +22,11 @@ import {
 import { createPipelineStepLogger } from '../../nn/nnPipelineTrace.js'
 import { dungeonRunnerAssetPack, dungeonRunnerEquipmentSymbolRuntimePath } from '../assetPack.js'
 import { equipmentTokenAppearance } from '../../equipmentTokenAppearance.js'
-import { equipmentShortName, getAdventurerIdentity } from '../../data/gameDataCatalog.js'
+import {
+  equipmentShortName,
+  getAdventurerIdentity,
+  getAdventurerTypeChipLabel,
+} from '../../data/gameDataCatalog.js'
 import { adventurerChoiceHeadline, legalActionBoardLabel } from '../dungeonRunnerPlayerPhrasing.js'
 import {
   buildDungeonEquipmentTokenView,
@@ -1709,6 +1713,7 @@ export function useLiveMatchShell(deps) {
       showHeroPickActionGrid,
       heroPickActionsOrdered,
       getAdventurerIdentity,
+      getAdventurerTypeChipLabel,
       visiblePrimaryActions,
       dungeonOutcomeTransitionControls,
       gameplayInputLocked,
