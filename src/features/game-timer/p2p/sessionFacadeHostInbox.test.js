@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { afterEach, mock, test } from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { encodeGuestHello, encodeGuestUpdate, parseHostMessage } from './protocol.js'
+import { parseStateBroadcasts, simulateHostInboxMessage } from '../../p2p/test/hostInboxHarness.js'
 import {
   createRtdbLifecycleAfterEach,
   importGameTimerSession,
@@ -31,39 +32,9 @@ const HOST_TRUTH = {
   hardPassOrderByRound: {},
 }
 
-/**
- * @param {ReturnType<typeof installRtdbLifecycleMocks> extends Promise<infer T> ? T : never} harness
- * @param {string} suffix
- * @param {string} guestStableId
- * @param {unknown} payload
- */
-function simulateHostInboxMessage(harness, suffix, guestStableId, payload) {
-  const inboxParent = `gameTimerRooms/${suffix}/inbox`
-  assert.ok(
-    harness.childAddedParentPaths().some((p) => p === inboxParent || p.endsWith('/inbox')),
-    `host should wire inbox listener (${harness.childAddedParentPaths().join(', ')})`,
-  )
-  harness.emitChildAdded(inboxParent, guestStableId)
-  const childPath = `${inboxParent}/${guestStableId}`
-  assert.ok(
-    harness.listeners.has(childPath),
-    `host should subscribe to inbox child (${[...harness.listeners.keys()].join(', ')})`,
-  )
-  harness.emitValue(childPath, payload)
-}
-
-/**
- * @param {Array<{ path: string, value: unknown }>} sets
- * @returns {Array<{ seq: number, snapshot: import('../types.js').GameTimerSyncPayload }>}
- */
-function parseStateBroadcasts(sets) {
-  return sets
-    .filter((entry) => entry.path.endsWith('/state'))
-    .map((entry) => {
-      const parsed = parseHostMessage(entry.value)
-      assert.ok(parsed, 'state write must be a host snapshot message')
-      return { seq: parsed.seq, snapshot: parsed.snapshot }
-    })
+/** @param {Array<{ path: string, value: unknown }>} sets */
+function gtStateBroadcasts(sets) {
+  return parseStateBroadcasts(sets, parseHostMessage, 'snapshot')
 }
 
 /**
@@ -125,17 +96,17 @@ test(
       await startAsHost(3)
       assert.equal(sessionPhase.value, 'hosting')
 
-      const broadcastsAfterHostStart = parseStateBroadcasts(harness.sets)
+      const broadcastsAfterHostStart = gtStateBroadcasts(harness.sets)
       assert.equal(broadcastsAfterHostStart.length, 1)
       assert.equal(broadcastsAfterHostStart[0].seq, 1)
       assert.equal(broadcastsAfterHostStart[0].snapshot.activePlayerId, 'host-p')
       assert.equal(wire.applyCount, 0)
 
       const setsBeforeHello = harness.sets.length
-      simulateHostInboxMessage(harness, suffix, guestStableId, encodeGuestHello(guestStableId))
+      simulateHostInboxMessage(harness, 'gameTimerRooms', suffix, guestStableId, encodeGuestHello(guestStableId))
 
       assert.equal(wire.applyCount, 0, 'guest hello must not merge guest snapshot into host mirror')
-      const helloBroadcasts = parseStateBroadcasts(harness.sets.slice(setsBeforeHello))
+      const helloBroadcasts = gtStateBroadcasts(harness.sets.slice(setsBeforeHello))
       assert.equal(helloBroadcasts.length, 1)
       assert.ok(
         helloBroadcasts[0].seq > broadcastsAfterHostStart[0].seq,
@@ -192,12 +163,14 @@ test(
 
       simulateHostInboxMessage(
         harness,
+        'gameTimerRooms',
         suffix,
         guestStableId,
         encodeGuestUpdate(guestFirst, intent),
       )
       simulateHostInboxMessage(
         harness,
+        'gameTimerRooms',
         suffix,
         guestStableId,
         encodeGuestUpdate(guestSecond, intent),
@@ -207,7 +180,7 @@ test(
       assert.equal(wire.mirror.activePlayerId, 'guest-p')
       assert.equal(wire.mirror.round, 1, 'second duplicate must not apply competing snapshot')
 
-      const guestBroadcasts = parseStateBroadcasts(harness.sets.slice(setsBeforeGuest))
+      const guestBroadcasts = gtStateBroadcasts(harness.sets.slice(setsBeforeGuest))
       assert.equal(
         guestBroadcasts.length,
         1,

@@ -274,6 +274,7 @@ function handleHostInboxMessage(stableId, raw) {
     return
   }
 
+  // Guest hello still publishes via onGuestHello above; only rebroadcast when an update intent applied.
   if (mergeResult.appliedGuestSnapshot) {
     hostPublishSnapshot(mergeResult.broadcastSnapshot)
   }

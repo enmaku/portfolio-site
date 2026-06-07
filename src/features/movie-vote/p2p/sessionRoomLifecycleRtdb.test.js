@@ -14,30 +14,10 @@ import { useMovieVoteRoomSessionStore } from '../../../stores/movieVoteRoomSessi
 import { encodeHello, encodeState, MSG_MV_DRAFT } from './protocol.js'
 import { ROOM_CLAIM_RESET_PATHS } from './sessionRoomRtdb.js'
 import { buildMovieVotePublicPayload } from '../publicPayload.js'
+import { simulateHostInboxMessage } from '../../p2p/test/hostInboxHarness.js'
 import { installRtdbLifecycleMocks, withFirebaseEnv, refPath, importMovieVoteSession, createRtdbLifecycleAfterEach } from './sessionRtdbLifecycleHarness.js'
 
 const rtdbAfterEach = createRtdbLifecycleAfterEach(mock)
-
-/**
- * @param {ReturnType<typeof installRtdbLifecycleMocks> extends Promise<infer T> ? T : never} harness
- * @param {string} suffix
- * @param {string} guestStableId
- * @param {unknown} payload
- */
-function simulateHostInboxMessage(harness, suffix, guestStableId, payload) {
-  const inboxParent = `movieVoteRooms/${suffix}/inbox`
-  const childPath = `${inboxParent}/${guestStableId}`
-  assert.ok(
-    harness.childAddedParentPaths().some((p) => p === inboxParent || p.endsWith('/inbox')),
-    `host should wire inbox listener (${harness.childAddedParentPaths().join(', ')})`,
-  )
-  harness.emitChildAdded(inboxParent, guestStableId)
-  assert.ok(
-    harness.listeners.has(childPath),
-    `host should subscribe to inbox child (${[...harness.listeners.keys()].join(', ')})`,
-  )
-  harness.emitValue(childPath, payload)
-}
 
 /** @param {string} nonce */
 async function importSession(nonce) {
@@ -445,7 +425,7 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -518,7 +498,7 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -526,7 +506,7 @@ test(
       const guestPid = guestParticipantIds(store)[0]
       assert.ok(guestPid)
 
-      simulateHostInboxMessage(harness, suffix, guestStableId, {
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, {
         v: 1,
         type: MSG_MV_DRAFT,
         participantId: guestPid,
@@ -580,7 +560,7 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
