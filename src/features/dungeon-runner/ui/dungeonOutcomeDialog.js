@@ -1,3 +1,40 @@
+import { DUNGEON_RUN_WIN_VIA } from '../dungeonRunOutcome.js'
+
+export const DUNGEON_OUTCOME_MESSAGE_KIND = Object.freeze({
+  CLEARED: 'cleared',
+  OMNIPOTENCE: 'omnipotence',
+  FAILED: 'failed',
+})
+
+/**
+ * @param {{ result?: string; winVia?: string } | null | undefined} lastDungeonRun
+ */
+export function resolveDungeonOutcomeMessageKind(lastDungeonRun) {
+  if (!lastDungeonRun) return null
+  if (lastDungeonRun.result === 'failure') return DUNGEON_OUTCOME_MESSAGE_KIND.FAILED
+  if (lastDungeonRun.winVia === DUNGEON_RUN_WIN_VIA.OMNIPOTENCE) {
+    return DUNGEON_OUTCOME_MESSAGE_KIND.OMNIPOTENCE
+  }
+  if (lastDungeonRun.result === 'success') return DUNGEON_OUTCOME_MESSAGE_KIND.CLEARED
+  return null
+}
+
+const DUNGEON_OUTCOME_MESSAGES = Object.freeze({
+  [DUNGEON_OUTCOME_MESSAGE_KIND.CLEARED]: 'Clean run. The dungeon is cleared.',
+  [DUNGEON_OUTCOME_MESSAGE_KIND.OMNIPOTENCE]:
+    'Omnipotence prevailed. Every species in the initial dungeon pile was unique.',
+  [DUNGEON_OUTCOME_MESSAGE_KIND.FAILED]: 'The run failed.',
+})
+
+/**
+ * @param {{ result?: string; winVia?: string } | null | undefined} lastDungeonRun
+ */
+export function resolveDungeonOutcomeMessage(lastDungeonRun) {
+  const kind = resolveDungeonOutcomeMessageKind(lastDungeonRun)
+  if (!kind) return ''
+  return DUNGEON_OUTCOME_MESSAGES[kind] ?? ''
+}
+
 export function isDungeonOutcomeDialogOpen({
   lastDungeonRun = null,
   dismissedDungeonRun = null,
