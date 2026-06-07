@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { DUNGEON_RUN_WIN_VIA } from '../engine/omnipotencePolicy.js'
 import {
   buildDungeonOutcomeSummary,
   countCenterEquipmentRemaining,
+  DUNGEON_OUTCOME_MESSAGE_KIND,
   dismissDungeonRunForOutcomeDialog,
   isDungeonOutcomeDialogOpen,
+  resolveDungeonOutcomeMessageKind,
   resolveLastDungeonRunWatcherUpdate,
   shouldShowDungeonOutcomeDialog,
 } from './dungeonOutcomeDialog.js'
@@ -98,6 +101,25 @@ test('continue dismisses outcome dialog by run reference identity', () => {
   assert.equal(
     isDungeonOutcomeDialogOpen({ lastDungeonRun: run, dismissedDungeonRun: run }),
     false,
+  )
+})
+
+test('resolveDungeonOutcomeMessageKind maps lastDungeonRun metadata to stable outcome kinds', () => {
+  assert.equal(resolveDungeonOutcomeMessageKind(null), null)
+  assert.equal(
+    resolveDungeonOutcomeMessageKind({ result: 'failure' }),
+    DUNGEON_OUTCOME_MESSAGE_KIND.FAILED,
+  )
+  assert.equal(
+    resolveDungeonOutcomeMessageKind({ result: 'success' }),
+    DUNGEON_OUTCOME_MESSAGE_KIND.CLEARED,
+  )
+  assert.equal(
+    resolveDungeonOutcomeMessageKind({
+      result: 'success',
+      winVia: DUNGEON_RUN_WIN_VIA.OMNIPOTENCE,
+    }),
+    DUNGEON_OUTCOME_MESSAGE_KIND.OMNIPOTENCE,
   )
 })
 

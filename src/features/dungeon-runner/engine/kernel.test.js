@@ -668,6 +668,7 @@ test('bidding to dungeon initializes runner dungeon state like Python _end_biddi
   assert.equal(state.bidding.runnerSeatId, s2)
   assert.equal(state.bidding.dungeonMonsters.length, 2)
   const d = state.dungeon
+  assert.deepEqual(d.omnipotenceSet, state.bidding.dungeonMonsters)
   assert.equal(d.currentMonster, null)
   assert.equal(d.remainingMonsters.length, 2)
   assert.equal(d.subphase, DUNGEON_SUBPHASES.VORPAL)

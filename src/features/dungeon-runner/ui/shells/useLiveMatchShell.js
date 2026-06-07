@@ -58,6 +58,7 @@ import {
   buildDungeonOutcomeSummary,
   dismissDungeonRunForOutcomeDialog,
   isDungeonOutcomeDialogOpen,
+  resolveDungeonOutcomeMessage,
   resolveLastDungeonRunWatcherUpdate,
   shouldShowDungeonOutcomeDialog,
 } from '../dungeonOutcomeDialog.js'
@@ -697,9 +698,7 @@ export function useLiveMatchShell(deps) {
       : 'dr-outcome--failure',
   )
   const dungeonOutcomeMessage = computed(() =>
-    dungeonOutcomeSummary.value?.resultLabel === 'Success'
-      ? 'Clean run. The dungeon is cleared.'
-      : 'The run failed.',
+    resolveDungeonOutcomeMessage(match.value?.state?.lastDungeonRun ?? null),
   )
   const dungeonOutcomeDialogOpen = computed({
     get() {

@@ -456,7 +456,6 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 
 ## Flagged ambiguities
 
-- **Omnipotence** engine behavior vs this glossary (2026-06): kernel still checks a live lane partition plus `discardedMonsterCards` and gates on Mage **adventurer** until [ADR 0008](../../../docs/adr/0008-dungeon-runner-omnipotence-alternate-win.md) is implemented—see ADR for authoritative rules.
 - **Empty dungeon pile at bidding end** vs **sim empty-pile forfeit**: **web game engine** gives an immediate successful **dungeon run** (see kernel test). **Python training sim** uses **sim empty-pile forfeit** (`EMPTY_DUNGEON_FORFEIT`, no winner)—an anti-pass-farming rule from early training that remains a sim **local minima**; runtime play follows web/table rules. See [`UBIQUITOUS_LANGUAGE.md`](../../../UBIQUITOUS_LANGUAGE.md).
 - “Game” in casual speech usually means **match**; “run” usually means **dungeon run**.
 - “Catalog” without qualifier may mean the neural **model catalog** or the **game data catalog** — use the full term.

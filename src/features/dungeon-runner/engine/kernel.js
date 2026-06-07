@@ -1,4 +1,5 @@
 import { catalogRules } from '../data/gameDataCatalog.js'
+import { DUNGEON_RUN_WIN_VIA, shouldOmnipotenceSave } from './omnipotencePolicy.js'
 
 export const ACTION_TYPES = {
   PASS: 'PASS',
@@ -428,6 +429,7 @@ function buildDungeonStateOnEnter(state, nextBidding) {
     subphase,
     currentMonster: null,
     remainingMonsters: pile,
+    omnipotenceSet: [...(nextBidding.dungeonMonsters ?? [])],
     hp,
     startingHp: hp,
     inPlayEquipmentIds: inPlay,
@@ -562,8 +564,18 @@ function pickAdventurerSeatId(state, runnerSeatId, scoreboard) {
   return findNextActiveSeatId(state, runnerSeatId, []) ?? runnerSeatId
 }
 
-function enterPickAdventurerPhase(state, runnerSeatId, scoreboard, result) {
+function enterPickAdventurerPhase(state, runnerSeatId, scoreboard, result, options = {}) {
   const pickSeatId = pickAdventurerSeatId(state, runnerSeatId, scoreboard)
+  const lastDungeonRun = {
+    runnerSeatId,
+    monsters: [...state.bidding.dungeonMonsters],
+    heroLoadoutSize: state.heroLoadout[runnerSeatId]?.length ?? 0,
+    result,
+    steps: [],
+  }
+  if (options.winVia) {
+    lastDungeonRun.winVia = options.winVia
+  }
   return {
     ...state,
     phase: MATCH_PHASES.PICK_ADVENTURER,
@@ -572,13 +584,7 @@ function enterPickAdventurerPhase(state, runnerSeatId, scoreboard, result) {
       0,
       5 - Math.max(...Object.values(scoreboard).map((score) => score.successes ?? 0)),
     ),
-    lastDungeonRun: {
-      runnerSeatId,
-      monsters: [...state.bidding.dungeonMonsters],
-      heroLoadoutSize: state.heroLoadout[runnerSeatId]?.length ?? 0,
-      result,
-      steps: [],
-    },
+    lastDungeonRun,
     turn: {
       activeSeatId: pickSeatId,
       turnNumber: state.turn.turnNumber + 1,
@@ -760,17 +766,26 @@ function applyMonsterCombatHits(state, dungeon) {
         inPlayEquipmentIds: [...inPlay].filter((id) => id !== equipId),
       })
     }
-    if (state.hero === 'MAGE' && inPlay.has('M_OMNI') && omniSavesDungeon(state, dungeon)) {
-      return concludeDungeonSuccess(state, {
-        ...dungeon,
-        currentMonster: null,
-        remainingMonsters: [],
-        discardedRunMonsters: [
-          ...(dungeon.discardedRunMonsters ?? []),
-          current,
-          ...(dungeon.remainingMonsters ?? []),
-        ].filter(Boolean),
+    if (
+      shouldOmnipotenceSave({
+        inPlayEquipmentIds: [...inPlay],
+        omnipotenceSet: dungeon.omnipotenceSet ?? state.bidding?.dungeonMonsters,
       })
+    ) {
+      return concludeDungeonSuccess(
+        state,
+        {
+          ...dungeon,
+          currentMonster: null,
+          remainingMonsters: [],
+          discardedRunMonsters: [
+            ...(dungeon.discardedRunMonsters ?? []),
+            current,
+            ...(dungeon.remainingMonsters ?? []),
+          ].filter(Boolean),
+        },
+        { winVia: DUNGEON_RUN_WIN_VIA.OMNIPOTENCE },
+      )
     }
     return concludeDungeonFailure(state, dungeon)
   }
@@ -893,7 +908,7 @@ function transitionAfterDefeat(state, dungeon, defeatRecord = null) {
   }
 }
 
-function concludeDungeonSuccess(state, dungeon) {
+function concludeDungeonSuccess(state, dungeon, options = {}) {
   const runnerSeatId = state.bidding.runnerSeatId
   if (!runnerSeatId) return null
   const currentScore = state.scoreboard[runnerSeatId]
@@ -923,6 +938,7 @@ function concludeDungeonSuccess(state, dungeon) {
     runnerSeatId,
     scoreboard,
     'success',
+    options,
   )
 }
 
@@ -1044,17 +1060,6 @@ function applyAutoDefeat(state, dungeon) {
     )
   }
   return null
-}
-
-function omniSavesDungeon(state, dungeon) {
-  const allSpecies = [
-    ...(dungeon.discardedRunMonsters ?? []),
-    ...(state.bidding?.discardedMonsterCards ?? []),
-    ...(dungeon.currentMonster ? [dungeon.currentMonster] : []),
-    ...(dungeon.remainingMonsters ?? []),
-  ]
-  if (!allSpecies.length) return false
-  return allSpecies.length === new Set(allSpecies).size
 }
 
 function mergeNnSeatMetadata(prevState, nextState, action, actor) {
