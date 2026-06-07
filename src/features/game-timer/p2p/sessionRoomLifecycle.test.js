@@ -19,6 +19,11 @@ test('leaveSession clears room persistence but keeps game timer roster', () => {
   store.addPlayer({ name: 'Ada', color: '#111111' })
   store.addPlayer({ name: 'Bob', color: '#222222' })
   const ids = store.players.map((p) => p.id)
+  const names = store.players.map((p) => p.name)
+  store.setHardPassEnabled(true)
+  store.setHardPassOrderNextRound(true)
+  store.setFullscreenEnabled(true)
+  store.setTimingStripMode('non-player')
   room.setHost('abc123')
 
   leaveSession()
@@ -32,6 +37,14 @@ test('leaveSession clears room persistence but keeps game timer roster', () => {
     store.players.map((p) => p.id),
     ids,
   )
+  assert.deepEqual(
+    store.players.map((p) => p.name),
+    names,
+  )
+  assert.equal(store.hardPassEnabled, true)
+  assert.equal(store.hardPassOrderNextRound, true)
+  assert.equal(store.fullscreenEnabled, true)
+  assert.equal(store.timingStripMode, 'non-player')
 })
 
 test('guest host-ended protocol notice clears room persistence but keeps roster', () => {

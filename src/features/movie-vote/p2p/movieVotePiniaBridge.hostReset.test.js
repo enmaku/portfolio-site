@@ -9,6 +9,12 @@ import { createApp } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { installRtdbLifecycleMocks, withFirebaseEnv } from './sessionRtdbLifecycleHarness.js'
+import {
+  drainHostStateBroadcastProbeForTests,
+  getGuestDraftReadyForTests,
+  resetHostStateBroadcastProbeForTests,
+  setGuestDraftForTests,
+} from './session.testExports.js'
 
 /** @returns {import('../types.js').MoviePick} */
 function customPick(localId, title) {
@@ -50,7 +56,7 @@ test(
         const sessionMod = await import('./session.js')
         const bridgeMod = await import('./movieVotePiniaBridge.js')
 
-        sessionMod.resetHostStateBroadcastProbeForTests()
+        resetHostStateBroadcastProbeForTests(sessionMod)
 
         const pinia = createPinia()
         pinia.use(bridgeMod.movieVoteP2PPlugin)
@@ -62,14 +68,14 @@ test(
         await sessionMod.startAsHost(3)
         assert.equal(sessionMod.sessionPhase.value, 'hosting')
 
-        sessionMod.setGuestDraftForTests('guest-1', { picks: [], ready: true })
-        sessionMod.setGuestDraftForTests('guest-2', {
+        setGuestDraftForTests(sessionMod, 'guest-1', { picks: [], ready: true })
+        setGuestDraftForTests(sessionMod, 'guest-2', {
           picks: [customPick('g2', 'Guest Two')],
           ready: true,
         })
 
         store.phase = 'results'
-        sessionMod.drainHostStateBroadcastProbeForTests()
+        drainHostStateBroadcastProbeForTests(sessionMod)
         bridgeMod.resetMovieVoteHostResetToSuggestProbeForTests()
 
         store.resetToSuggest()
@@ -77,9 +83,9 @@ test(
         assert.deepEqual(bridgeMod.drainMovieVoteHostResetToSuggestProbeForTests(), [
           'resetToSuggest',
         ])
-        assert.equal(sessionMod.getGuestDraftReadyForTests('guest-1'), false)
-        assert.equal(sessionMod.getGuestDraftReadyForTests('guest-2'), false)
-        assert.ok(sessionMod.drainHostStateBroadcastProbeForTests() >= 1)
+        assert.equal(getGuestDraftReadyForTests(sessionMod, 'guest-1'), false)
+        assert.equal(getGuestDraftReadyForTests(sessionMod, 'guest-2'), false)
+        assert.ok(drainHostStateBroadcastProbeForTests(sessionMod) >= 1)
         assert.ok(
           harness.sets.some((s) => s.path.endsWith('/state')),
           'host reset should write sequenced hub state',

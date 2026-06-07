@@ -251,18 +251,18 @@ function handleHostInboxMessage(stableId, raw) {
   }
 
   const now = Date.now()
-  let snap
+  /** @type {{ broadcastSnapshot: GameTimerSyncPayload, appliedGuestSnapshot: boolean } | null} */
+  let mergeResult = null
   try {
-    const result = authoritativeSnapshotAfterGuestMessage(
+    mergeResult = authoritativeSnapshotAfterGuestMessage(
       msg,
       hostGuestIntentDeduper,
       now,
       (s) => handlers.applySnapshot(s),
       () => handlers.getSnapshot(),
     )
-    snap = result.broadcastSnapshot
     if (
-      !result.appliedGuestSnapshot &&
+      !mergeResult.appliedGuestSnapshot &&
       msg.intent &&
       typeof import.meta !== 'undefined' &&
       import.meta.env &&
@@ -274,7 +274,10 @@ function handleHostInboxMessage(stableId, raw) {
     return
   }
 
-  hostPublishSnapshot(snap)
+  // Guest hello still publishes via onGuestHello above; only rebroadcast when an update intent applied.
+  if (mergeResult.appliedGuestSnapshot) {
+    hostPublishSnapshot(mergeResult.broadcastSnapshot)
+  }
 }
 
 function handleGuestHostEnded() {
@@ -584,12 +587,53 @@ export function broadcastGameTimerSnapshot(snapshot, intent) {
 
 /**
  * Ends the session for this tab: clears phase and suffix, then tears down RTDB listeners.
+ * Does not reset host/guest seq counters or handler bindings — use `session.testExports.js`
+ * when reusing one module instance in tests.
  * @returns {void}
  */
 export function teardownSession() {
   remoteHostTabVisible.value = true
   remoteHostPresent.value = true
   core.teardownSession()
+}
+
+/** @returns {import('../types.js').GameTimerSyncPayload} */
+function emptyGameTimerSnapshot() {
+  return {
+    players: [],
+    activePlayerId: null,
+    turnStartedAt: null,
+    turnStartedRound: null,
+    round: 1,
+    playerOrderByRound: {},
+  }
+}
+
+/**
+ * Test-only wire access for `session.testExports.js`. Do not import from production code.
+ * @returns {{
+ *   core: ReturnType<typeof createStarRoomSession>,
+ *   remoteHostTabVisible: typeof remoteHostTabVisible,
+ *   remoteHostPresent: typeof remoteHostPresent,
+ *   resetHostGuestWireState: typeof resetHostGuestWireState,
+ *   emptyHandlers: () => GameTimerP2PHandlers,
+ *   setHandlers: (h: GameTimerP2PHandlers) => void,
+ * }}
+ */
+export function getGameTimerSessionTestWireAccess() {
+  return {
+    core,
+    remoteHostTabVisible,
+    remoteHostPresent,
+    resetHostGuestWireState,
+    emptyHandlers: () => ({
+      getSnapshot: () => emptyGameTimerSnapshot(),
+      applySnapshot: () => {},
+    }),
+    setHandlers: (h) => {
+      handlers = h
+    },
+  }
 }
 
 /**

@@ -42,15 +42,23 @@ Optional coupling where the sequence from **hard pass** events informs who goes 
 
 ### Snapshot
 
-Exchangeable authoritative slice of timer state (**players**, **active player**, **round**, timings, toggles such as hard-pass flags) kept in one **room**-level copy the **host** owns and **guests** mirror.
+Exchangeable authoritative slice of timer state (**players**, **active player**, **round**, timings, toggles such as hard-pass flags) kept in one **room**-level copy the **host** owns and **guests** mirror. Each **host** broadcast uses **monotonic authority broadcast** **seq**; **guests** never apply a regressive **snapshot**.
 
 ### Guest intent
 
 Facilitator gesture bundled with a **guest** update (player selection or hard-pass registration) so the **host** can collapse duplicate rapid sends while merging **snapshots**.
 
+### Guest reconnect coherence (Game Timer)
+
+On **guest** refresh or reattach, **stable client identity** on hello maps to the same logical **guest** slot; the **host** merges any pending **guest intent** (deduped) into the authoritative **snapshot** timeline and rebroadcasts. The **guest** mirrors that **snapshot**—local timer state is provisional until acknowledged.
+
+_Avoid_: Promoting local **banked time** or **active player** as truth before the next **host** broadcast.
+
 ### Session phase
 
-High-level connection posture for multiplayer control UI (idle, connecting, reconnecting, hosting, guest_connected).
+High-level **connection posture** for multiplayer control UI (`idle`, `connecting`, `reconnecting`, `hosting`, `guest_connected`)—the same shell contract Movie Vote calls **connection status**; not collaborative play state (**snapshot**, **round**, **banked time**).
+
+_Avoid_: **Phase** when you mean connectivity; Movie Vote reserves **phase** for **suggest** / **voting** / **results**.
 
 ### Host / Guest
 
@@ -59,6 +67,12 @@ Same role meanings as [**Star-room P2P**](../p2p/CONTEXT.md) and [**Movie Vote**
 ### Timing strip
 
 Compact session summary UI showing aggregate elapsed/session timing separate from round controls, anchored from the first **turn** selection once play has started.
+
+### Room exit survival
+
+After **room exit**, the **player** roster and timer session options stay; only persisted **room** join role and **room suffix** clear. Facilitators can **Host room** again without re-entering names.
+
+_Avoid_: Wiping the roster when the wire ends unless the user explicitly resets the game.
 
 ### New game with same players
 
@@ -79,7 +93,7 @@ _Avoid_: Implying a guarantee on every OS or browser—best-effort only.
 - **Rounds** own **player** order mappings; totals track both overall **banked** time and optionally per-round portions.
 - **Hard pass** interacts only with intra-**round** participation unless **pass order determines round order** binds outcomes to subsequent **round** ordering.
 - **Host** merges **guest** intents into authoritative **snapshot** timelines.
-- **Host** presence in a **room** is separate from the **room** itself; a temporary **host** disconnect (refresh, network blip) does not end the **room** for **guests**—only an explicit host end does. **Guests** keep the last **snapshot** until the **host** returns.
+- **Host** presence in a **room** is separate from the **room** itself; **host abrupt disconnect** does not end the **room** for **guests**—**connection posture** stays `guest_connected`, last **snapshot** stays authoritative, `remoteHostPresent` / `remoteHostTabVisible` may flicker informationally until **host reclaim** resumes broadcast (**loose guest attachment**).
 - **Keep display on** engages whenever the roster is non-empty so facilitators are less likely to lose the **room** mid-game.
 
 ## Example dialogue

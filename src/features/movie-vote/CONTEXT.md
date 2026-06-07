@@ -70,6 +70,12 @@ _Avoid_: Treating the host as “not a **participant**” in copy about counts.
 
 Guest → host bundle of provisional **movie picks** plus suggest-phase signals during **suggest phase**.
 
+### Guest reconnect coherence (Movie Vote)
+
+On **guest** refresh or reattach, **stable client identity** on hello remaps to the same **participant id** when the **host** preserves the binding; the **host** re-attaches **draft payload** and **ranking** to that seat and rebroadcasts **room** authority. The **guest** mirrors public state—local ballot or vote copies are provisional until acknowledged.
+
+_Avoid_: Promoting local **ballot order**, **ranking**, or tallies as truth before the next **host** broadcast.
+
 ### Ready flag
 
 Per-**participant** indicator that they finished nominating while drafts can still change.
@@ -184,6 +190,12 @@ Local star-room shell posture for transport and listeners (`idle`, `connecting`,
 
 _Avoid_: Saying “phase” when you mean connectivity or reconnect banners.
 
+### Room exit survival
+
+After **room exit**, all **room**-scoped collaboration resets—**phase**, **participants**, **ballot**, votes, results, **voting method** (back to default **instant-runoff voting**). Personal **movie pick** drafts and **browser fullscreen toggle** preference survive so a returning user is not forced to re-nominate from scratch.
+
+_Avoid_: Treating **room exit** like **resetSessionSoft** (join/resume hygiene); exit is a full collaborative wipe except personal prep and display prefs.
+
 ### Vote progress
 
 Submitted vs total ballot submission counts surfaced while ballots are still arriving.
@@ -200,12 +212,13 @@ _Avoid_: **Black’s method**, **Borda tiebreak**, subset runoffs, or any second
 
 ## Relationships
 
-- **Phase** (collaborative flow) and **connection status** (shell connectivity) stay independent—do not merge them in UI or persisted **room** fields.
+- **Phase** (collaborative flow) and **connection status** (shell **connection posture**) are two independent contracts—do not merge them in UI, diagnostics, or persisted **room** fields.
+- **Room exit survival** differs from Game Timer: Movie Vote wipes **room** authority; Game Timer keeps the facilitator **roster**—see [**Star-room P2P**](../p2p/CONTEXT.md) **room exit**.
 - A **participant** submits many **movie picks** during **suggest phase**, shipped incrementally inside **draft payloads** guarded by **ready flags**.
 - The **host** is a **participant** via the **host participant seat**; **guests** receive **participant id** seat labels from the **host** while **stable client identity** is the canonical browser principal for reconnect and per-**participant** persistence.
 - **Room**-level authority (**phase**, **ballot order**, **ballot compilation**) is **host**-owned; **participant**-scoped state (**draft payload**, **ready flag**, **ranking**) is **participant**-owned at persistence while the **host** still aggregates for compilation and tally.
-- The **host** is never reassigned for a **room**; **guest** **participants** do not lose the **room** because the **host** tab sleeps or disconnects—only **host**-only progression waits on the **host**.
-- What collaborators must agree on in a **room** has a single authoritative shared copy; each browser mirrors that copy locally for UI rather than treating local state as a competing source of truth.
+- The **host** is never reassigned for a **room**; **host abrupt disconnect** does not end the **room** for **guests**—**connection posture** stays `guest_connected`, last **room** authority remains, **host**-only moves wait, and **guest online signal** / readiness tallies follow **strict guest presence** rules until **host reclaim**.
+- What collaborators must agree on in a **room** has a single authoritative shared copy; each browser mirrors that copy locally for UI rather than treating local state as a competing source of truth. **Host** state rebroadcasts use **monotonic authority broadcast** **seq**; **guests** never apply regressive **room** authority.
 - **Unique suggested movie count** summarizes nomination breadth before compilation locks **ballot order**.
 - Compilation reduces picks to mutually distinct **ballot movies** keyed by TMDB id or **normalized custom title**.
 - **Voting phase** consumes exactly the compiled ballot; each **participant** submits one **ranking**.
