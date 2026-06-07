@@ -1,6 +1,7 @@
 import { fetchHumanWinSeries } from '../../firebase/humanWinSeriesQuery.js'
 import { buildHumanWinRateOverTimeChart } from '../buildHumanWinRateOverTimeChart.js'
 import { loadMatchSequenceChartTile } from '../loadMatchSequenceChartTile.js'
+import { resolveHumanWinRateTrendWindowSize } from '../resolveHumanWinRateTrendWindowSize.js'
 
 /**
  * @typedef {import('../dungeonRunnerStatsChartTypes.js').StatsNumericSeriesChart} StatsNumericSeriesChart
@@ -35,6 +36,7 @@ export async function loadRollingHumanWinRateTile(deps = {}) {
       return { timelineSeries: humanWonSeries, humanWonSeries }
     },
     buildChart: buildHumanWinRateOverTimeChart,
+    resolveWindowSize: resolveHumanWinRateTrendWindowSize,
     fetchModelCatalog: deps.fetchModelCatalog,
   })
 }

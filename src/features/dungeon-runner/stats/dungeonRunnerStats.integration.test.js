@@ -278,10 +278,6 @@ test('human win rate over time tile uses bounded human win series query only', (
     new URL('./tiles/rollingHumanWinRateLoader.js', import.meta.url),
     'utf8',
   )
-  const sequenceLoader = readFileSync(
-    new URL('./loadMatchSequenceChartTile.js', import.meta.url),
-    'utf8',
-  )
   const seriesTile = readFileSync(
     new URL('./components/DungeonRunnerStatsSeriesChartTile.vue', import.meta.url),
     'utf8',
@@ -294,7 +290,7 @@ test('human win rate over time tile uses bounded human win series query only', (
   assert.equal(loader.includes('getDocs'), false)
   assert.equal(loader.includes('loadMatchSequenceChartTile'), true)
   assert.equal(loader.includes('buildHumanWinRateOverTimeChart'), true)
-  assert.equal(sequenceLoader.includes('resolveMatchSequenceTrendWindowSize'), true)
+  assert.equal(loader.includes('resolveHumanWinRateTrendWindowSize'), true)
   assert.equal(seriesTile.includes('rolling-human-win-rate'), true)
   assert.equal(seriesTile.includes('dungeon-stats-trend-window-slider'), true)
   assert.equal(seriesTile.includes('createModelPublishLinePlugin'), true)

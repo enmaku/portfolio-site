@@ -25,6 +25,22 @@ test('loadRollingHumanWinRateTile returns series, bounds, and default-window cha
   assert.deepEqual(result.chart.modelPublishMarkers, [])
 })
 
+test('loadRollingHumanWinRateTile uses default twenty-match trend window when series is long enough', async () => {
+  const humanWonSeries = Array.from({ length: 25 }, (_, index) => ({
+    humanWon: index % 2 === 0,
+    createdAt: `2026-05-${String(index + 1).padStart(2, '0')}T00:00:00.000Z`,
+  }))
+  const result = await loadRollingHumanWinRateTile({
+    fetchHumanWinSeries: async () => humanWonSeries,
+    fetchModelCatalog: async () => ({ publishedAtByModelId: {} }),
+  })
+  assert.equal(result.status, 'ok')
+  if (result.status !== 'ok') return
+  assert.deepEqual(result.windowBounds, { min: 2, max: 25, default: 20 })
+  assert.equal(result.chart.rollingAverageValues.length, 25)
+  assert.equal(result.chart.rollingAverageValues[24], 50)
+})
+
 test('loadRollingHumanWinRateTile returns error when series is empty', async () => {
   const result = await loadRollingHumanWinRateTile({
     fetchHumanWinSeries: async () => [],
