@@ -12,6 +12,11 @@ import { runElection } from '../election.js'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { encodeHello, encodeState, encodeVote, MSG_MV_DRAFT, parseState, encodeWelcome } from './protocol.js'
 import {
+  maxStateSeq,
+  parseStateBroadcasts,
+  simulateHostInboxMessage,
+} from '../../p2p/test/hostInboxHarness.js'
+import {
   createRtdbLifecycleAfterEach,
   importMovieVoteSession,
   installRtdbLifecycleMocks,
@@ -21,47 +26,14 @@ import {
 const voteAuthorityTests = { skip: !mock.module }
 const rtdbAfterEach = createRtdbLifecycleAfterEach(mock)
 
-/**
- * @param {ReturnType<typeof installRtdbLifecycleMocks> extends Promise<infer T> ? T : never} harness
- * @param {string} suffix
- * @param {string} guestStableId
- * @param {unknown} payload
- */
-function simulateHostInboxMessage(harness, suffix, guestStableId, payload) {
-  const inboxParent = `movieVoteRooms/${suffix}/inbox`
-  const childPath = `${inboxParent}/${guestStableId}`
-  assert.ok(
-    harness.childAddedParentPaths().some((p) => p === inboxParent || p.endsWith('/inbox')),
-    `host should wire inbox listener (${harness.childAddedParentPaths().join(', ')})`,
-  )
-  harness.emitChildAdded(inboxParent, guestStableId)
-  assert.ok(
-    harness.listeners.has(childPath),
-    `host should subscribe to inbox child (${[...harness.listeners.keys()].join(', ')})`,
-  )
-  harness.emitValue(childPath, payload)
+/** @param {Array<{ path: string, value: unknown }>} sets */
+function mvStateBroadcasts(sets) {
+  return parseStateBroadcasts(sets, parseState, 'payload')
 }
 
-/**
- * @param {Array<{ path: string, value: unknown }>} sets
- * @returns {Array<{ seq: number, payload: import('../types.js').MovieVotePublicPayload }>}
- */
-function parseStateBroadcasts(sets) {
-  return sets
-    .filter((entry) => entry.path.endsWith('/state'))
-    .map((entry) => {
-      const parsed = parseState(entry.value)
-      assert.ok(parsed, 'state write must be a host snapshot message')
-      return { seq: parsed.seq, payload: parsed.payload }
-    })
-}
-
-/**
- * @param {Array<{ path: string, value: unknown }>} sets
- * @returns {number}
- */
-function maxStateSeq(sets) {
-  return parseStateBroadcasts(sets).reduce((max, entry) => Math.max(max, entry.seq), 0)
+/** @param {Array<{ path: string, value: unknown }>} sets */
+function mvMaxStateSeq(sets) {
+  return maxStateSeq(sets, parseState, 'payload')
 }
 
 /**
@@ -128,7 +100,7 @@ async function bootstrapHostVotingWithGuest(harness, suffix, guestStableId, sess
 
   const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-  simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
+  simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
   harness.emitChildAdded(guestOnlineRoot, guestStableId)
   harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
   hostSyncParticipantsFromRoom(outbound)
@@ -136,7 +108,7 @@ async function bootstrapHostVotingWithGuest(harness, suffix, guestStableId, sess
   const guestPid = guestParticipantIds(store)[0]
   assert.ok(guestPid)
 
-  simulateHostInboxMessage(harness, suffix, guestStableId, {
+  simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, {
     v: 1,
     type: MSG_MV_DRAFT,
     participantId: guestPid,
@@ -185,17 +157,18 @@ test(
         sessionMod,
       )
 
-      const baselineSeq = maxStateSeq(harness.sets)
+      const baselineSeq = mvMaxStateSeq(harness.sets)
       const setsBeforeVote = harness.sets.length
 
       simulateHostInboxMessage(
         harness,
+        'movieVoteRooms',
         suffix,
         guestStableId,
         encodeVote(guestPid, ballotOrderIds),
       )
 
-      const voteBroadcasts = parseStateBroadcasts(harness.sets.slice(setsBeforeVote))
+      const voteBroadcasts = mvStateBroadcasts(harness.sets.slice(setsBeforeVote))
       assert.ok(voteBroadcasts.length >= 1, 'valid vote should rebroadcast room authority')
       const latest = voteBroadcasts[voteBroadcasts.length - 1]
       assert.ok(latest.seq > baselineSeq, 'monotonic authority broadcast seq must increase after vote merge')
@@ -243,7 +216,7 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -251,19 +224,20 @@ test(
       const guestPid = guestParticipantIds(store)[0]
       assert.ok(guestPid)
 
-      const baselineSeq = maxStateSeq(harness.sets)
+      const baselineSeq = mvMaxStateSeq(harness.sets)
       const setsBeforeVote = harness.sets.length
 
       simulateHostInboxMessage(
         harness,
+        'movieVoteRooms',
         suffix,
         guestStableId,
         encodeVote(guestPid, ['fake-a', 'fake-b']),
       )
 
-      const strayBroadcasts = parseStateBroadcasts(harness.sets.slice(setsBeforeVote))
+      const strayBroadcasts = mvStateBroadcasts(harness.sets.slice(setsBeforeVote))
       assert.equal(strayBroadcasts.length, 0, 'suggest-phase vote must not rebroadcast authority')
-      assert.equal(maxStateSeq(harness.sets), baselineSeq)
+      assert.equal(mvMaxStateSeq(harness.sets), baselineSeq)
       assert.equal(Object.keys(store.votesByParticipant).length, 0)
       assert.equal(store.phase, 'suggest')
     })
@@ -312,34 +286,35 @@ test(
       ]
 
       for (const ranking of invalidRankings) {
-        const baselineSeq = maxStateSeq(harness.sets)
+        const baselineSeq = mvMaxStateSeq(harness.sets)
         const setsBefore = harness.sets.length
 
-        simulateHostInboxMessage(harness, suffix, guestStableId, encodeVote(guestPid, ranking))
+        simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeVote(guestPid, ranking))
 
-        const broadcasts = parseStateBroadcasts(harness.sets.slice(setsBefore))
+        const broadcasts = mvStateBroadcasts(harness.sets.slice(setsBefore))
         assert.equal(broadcasts.length, 0, `invalid ranking must not rebroadcast (${ranking.join(',')})`)
-        assert.equal(maxStateSeq(harness.sets), baselineSeq)
+        assert.equal(mvMaxStateSeq(harness.sets), baselineSeq)
         assert.equal(Object.keys(store.votesByParticipant).length, 0)
         assert.equal(store.voteProgress?.submitted, 0)
       }
 
-      const validSeq = maxStateSeq(harness.sets)
+      const validSeq = mvMaxStateSeq(harness.sets)
       const setsBeforeValid = harness.sets.length
       simulateHostInboxMessage(
         harness,
+        'movieVoteRooms',
         suffix,
         guestStableId,
         encodeVote(guestPid, ballotOrderIds),
       )
-      const validBroadcasts = parseStateBroadcasts(harness.sets.slice(setsBeforeValid))
+      const validBroadcasts = mvStateBroadcasts(harness.sets.slice(setsBeforeValid))
       assert.ok(validBroadcasts.length >= 1, 'valid vote after rejects should still merge')
       assert.ok(validBroadcasts[validBroadcasts.length - 1].seq > validSeq)
       assert.equal(store.voteProgress?.submitted, 1)
 
       store.submitMyVoteLocal([...ballotOrderIds])
       outbound.hostAfterVoteSubmit()
-      const resultsBroadcast = parseStateBroadcasts(harness.sets).find((b) => b.payload.phase === 'results')
+      const resultsBroadcast = mvStateBroadcasts(harness.sets).find((b) => b.payload.phase === 'results')
       assert.ok(resultsBroadcast, 'complete valid votes commit via hostAfterVoteSubmit path')
     })
   },
@@ -433,19 +408,20 @@ test(
         sessionMod,
       )
 
-      const baselineSeq = maxStateSeq(harness.sets)
+      const baselineSeq = mvMaxStateSeq(harness.sets)
       const setsBefore = harness.sets.length
 
       simulateHostInboxMessage(
         harness,
+        'movieVoteRooms',
         suffix,
         guestStableId,
         encodeVote(`${guestPid}-spoof`, ballotOrderIds),
       )
 
-      const broadcasts = parseStateBroadcasts(harness.sets.slice(setsBefore))
+      const broadcasts = mvStateBroadcasts(harness.sets.slice(setsBefore))
       assert.equal(broadcasts.length, 0, 'mismatched participant id must not rebroadcast authority')
-      assert.equal(maxStateSeq(harness.sets), baselineSeq)
+      assert.equal(mvMaxStateSeq(harness.sets), baselineSeq)
       assert.equal(Object.keys(store.votesByParticipant).length, 0)
       assert.equal(store.voteProgress?.submitted, 0)
     })
@@ -488,19 +464,20 @@ test(
       store.removeParticipantFromVote(guestPid)
       assert.ok(!store.voterIds.includes(guestPid))
 
-      const baselineSeq = maxStateSeq(harness.sets)
+      const baselineSeq = mvMaxStateSeq(harness.sets)
       const setsBefore = harness.sets.length
 
       simulateHostInboxMessage(
         harness,
+        'movieVoteRooms',
         suffix,
         guestStableId,
         encodeVote(guestPid, ballotOrderIds),
       )
 
-      const broadcasts = parseStateBroadcasts(harness.sets.slice(setsBefore))
+      const broadcasts = mvStateBroadcasts(harness.sets.slice(setsBefore))
       assert.equal(broadcasts.length, 0, 'departed voter vote must not rebroadcast authority')
-      assert.equal(maxStateSeq(harness.sets), baselineSeq)
+      assert.equal(mvMaxStateSeq(harness.sets), baselineSeq)
       assert.equal(Object.keys(store.votesByParticipant).length, 0)
       assert.equal(store.voteProgress?.submitted, 0)
     })
@@ -596,6 +573,7 @@ test(
       const setsBeforeGuestVote = harness.sets.length
       simulateHostInboxMessage(
         harness,
+        'movieVoteRooms',
         suffix,
         guestStableId,
         encodeVote(guestPid, ballotOrderIds),
@@ -603,7 +581,7 @@ test(
       assert.equal(store.phase, 'voting')
       assert.equal(store.voteProgress?.submitted, 1)
 
-      const guestVoteBroadcasts = parseStateBroadcasts(harness.sets.slice(setsBeforeGuestVote))
+      const guestVoteBroadcasts = mvStateBroadcasts(harness.sets.slice(setsBeforeGuestVote))
       assert.ok(
         guestVoteBroadcasts.every((b) => b.payload.phase === 'voting'),
         'partial votes must not commit results',
@@ -653,7 +631,7 @@ test(
       const setsBeforeCommit = harness.sets.length
       outbound.hostAfterVoteSubmit()
 
-      const commitBroadcasts = parseStateBroadcasts(harness.sets.slice(setsBeforeCommit))
+      const commitBroadcasts = mvStateBroadcasts(harness.sets.slice(setsBeforeCommit))
       assert.ok(commitBroadcasts.length >= 1, 'hostAfterVoteSubmit should rebroadcast committed results')
       const committed = commitBroadcasts[commitBroadcasts.length - 1]
       assert.equal(committed.payload.phase, 'results')
@@ -703,12 +681,13 @@ test(
       const setsBeforeGuestVote = harness.sets.length
       simulateHostInboxMessage(
         harness,
+        'movieVoteRooms',
         suffix,
         guestStableId,
         encodeVote(guestPid, ballotOrderIds),
       )
 
-      const commitBroadcasts = parseStateBroadcasts(harness.sets.slice(setsBeforeGuestVote))
+      const commitBroadcasts = mvStateBroadcasts(harness.sets.slice(setsBeforeGuestVote))
       assert.ok(commitBroadcasts.length >= 1, 'final inbox vote should auto-commit via host tally path')
       const committed = commitBroadcasts[commitBroadcasts.length - 1]
       assert.equal(committed.payload.phase, 'results')

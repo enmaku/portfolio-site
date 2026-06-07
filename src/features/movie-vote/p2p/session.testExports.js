@@ -19,13 +19,8 @@ export function resetMovieVoteFacadeWireStateForTests(sessionMod) {
   const access = sessionMod.getMovieVoteSessionTestWireAccess()
   access.remoteHostTabVisible.value = true
   access.clearFeatureWireUnsubs()
-  access.stableIdToParticipant.clear()
-  access.activeGuestStableIds.clear()
-  access.guestDrafts.clear()
-  for (const t of access.pendingRemovalTimers.values()) clearTimeout(t)
-  access.pendingRemovalTimers.clear()
+  access.resetMovieVoteWireState()
   access.setNextSeq(0)
-  access.setLastSeenSeq(0)
   access.setHostStateBroadcastProbe(0)
   access.core.destroyWireOnly()
   access.core.setPhase('idle')
@@ -59,7 +54,7 @@ export function drainHostStateBroadcastProbeForTests(sessionMod) {
  * @returns {void}
  */
 export function setGuestDraftForTests(sessionMod, participantId, entry) {
-  sessionMod.getMovieVoteSessionTestWireAccess().guestDrafts.set(participantId, entry)
+  sessionMod.getMovieVoteSessionTestWireAccess().seedGuestDraft(participantId, entry)
 }
 
 /**
@@ -68,5 +63,5 @@ export function setGuestDraftForTests(sessionMod, participantId, entry) {
  * @returns {boolean | undefined}
  */
 export function getGuestDraftReadyForTests(sessionMod, participantId) {
-  return sessionMod.getMovieVoteSessionTestWireAccess().guestDrafts.get(participantId)?.ready
+  return sessionMod.getMovieVoteSessionTestWireAccess().getGuestDraftReady(participantId)
 }

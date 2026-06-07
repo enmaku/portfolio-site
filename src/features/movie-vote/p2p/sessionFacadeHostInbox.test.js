@@ -11,6 +11,11 @@ import { HOST_PARTICIPANT_ID } from '../core.js'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { encodeDraft, encodeHello, parseState, parseWelcome } from './protocol.js'
 import {
+  maxStateSeq,
+  parseStateBroadcasts,
+  simulateHostInboxMessage,
+} from '../../p2p/test/hostInboxHarness.js'
+import {
   createRtdbLifecycleAfterEach,
   importMovieVoteSession,
   installRtdbLifecycleMocks,
@@ -20,47 +25,14 @@ import {
 const hostInboxTests = { skip: !mock.module }
 const rtdbAfterEach = createRtdbLifecycleAfterEach(mock)
 
-/**
- * @param {ReturnType<typeof installRtdbLifecycleMocks> extends Promise<infer T> ? T : never} harness
- * @param {string} suffix
- * @param {string} guestStableId
- * @param {unknown} payload
- */
-function simulateHostInboxMessage(harness, suffix, guestStableId, payload) {
-  const inboxParent = `movieVoteRooms/${suffix}/inbox`
-  const childPath = `${inboxParent}/${guestStableId}`
-  assert.ok(
-    harness.childAddedParentPaths().some((p) => p === inboxParent || p.endsWith('/inbox')),
-    `host should wire inbox listener (${harness.childAddedParentPaths().join(', ')})`,
-  )
-  harness.emitChildAdded(inboxParent, guestStableId)
-  assert.ok(
-    harness.listeners.has(childPath),
-    `host should subscribe to inbox child (${[...harness.listeners.keys()].join(', ')})`,
-  )
-  harness.emitValue(childPath, payload)
+/** @param {Array<{ path: string, value: unknown }>} sets */
+function mvStateBroadcasts(sets) {
+  return parseStateBroadcasts(sets, parseState, 'payload')
 }
 
-/**
- * @param {Array<{ path: string, value: unknown }>} sets
- * @returns {Array<{ seq: number, payload: import('../types.js').MovieVotePublicPayload }>}
- */
-function parseStateBroadcasts(sets) {
-  return sets
-    .filter((entry) => entry.path.endsWith('/state'))
-    .map((entry) => {
-      const parsed = parseState(entry.value)
-      assert.ok(parsed, 'state write must be a host snapshot message')
-      return { seq: parsed.seq, payload: parsed.payload }
-    })
-}
-
-/**
- * @param {Array<{ path: string, value: unknown }>} sets
- * @returns {number}
- */
-function maxStateSeq(sets) {
-  return parseStateBroadcasts(sets).reduce((max, entry) => Math.max(max, entry.seq), 0)
+/** @param {Array<{ path: string, value: unknown }>} sets */
+function mvMaxStateSeq(sets) {
+  return maxStateSeq(sets, parseState, 'payload')
 }
 
 /**
@@ -142,7 +114,7 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -157,7 +129,7 @@ test(
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, false)
 
       const setsBeforeReconnectHello = harness.sets.length
-      simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
 
@@ -208,7 +180,7 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, suffix, guestStableA, encodeHello(guestStableA))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableA, encodeHello(guestStableA))
       harness.emitChildAdded(guestOnlineRoot, guestStableA)
       harness.emitValue(`${guestOnlineRoot}/${guestStableA}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -220,7 +192,7 @@ test(
       assert.ok(pidA)
 
       const setsBeforeSecondGuest = harness.sets.length
-      simulateHostInboxMessage(harness, suffix, guestStableB, encodeHello(guestStableB))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableB, encodeHello(guestStableB))
       harness.emitChildAdded(guestOnlineRoot, guestStableB)
       harness.emitValue(`${guestOnlineRoot}/${guestStableB}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -267,11 +239,11 @@ test(
 
       await startAsHost(3)
       assert.equal(sessionPhase.value, 'hosting')
-      assert.ok(maxStateSeq(harness.sets) >= 1, 'host start should publish initial room authority')
+      assert.ok(mvMaxStateSeq(harness.sets) >= 1, 'host start should publish initial room authority')
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -279,7 +251,7 @@ test(
       const guestPid = guestParticipantIds(store)[0]
       assert.ok(guestPid)
 
-      const baselineSeq = maxStateSeq(harness.sets)
+      const baselineSeq = mvMaxStateSeq(harness.sets)
 
       const guestPick = {
         localId: 'g1',
@@ -294,12 +266,13 @@ test(
       const setsBeforeDraft = harness.sets.length
       simulateHostInboxMessage(
         harness,
+        'movieVoteRooms',
         suffix,
         guestStableId,
         encodeDraft([guestPick], false, guestPid),
       )
 
-      const draftBroadcasts = parseStateBroadcasts(harness.sets.slice(setsBeforeDraft))
+      const draftBroadcasts = mvStateBroadcasts(harness.sets.slice(setsBeforeDraft))
       assert.ok(draftBroadcasts.length >= 1, 'draft inbox should rebroadcast room authority')
       const latestDraft = draftBroadcasts[draftBroadcasts.length - 1]
       assert.ok(

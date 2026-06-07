@@ -7,6 +7,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 import { useGameTimerRoomSessionStore } from '../../../stores/gameTimerRoomSession.js'
 import { encodeGuestHello, parseHostMessage } from './protocol.js'
+import { simulateHostInboxMessage } from '../../p2p/test/hostInboxHarness.js'
 import {
   createRtdbLifecycleAfterEach,
   importGameTimerSession,
@@ -16,18 +17,6 @@ import {
 
 const rtdbLifecycleTests = { skip: !mock.module }
 const rtdbAfterEach = createRtdbLifecycleAfterEach(mock)
-
-/**
- * @param {ReturnType<typeof installRtdbLifecycleMocks> extends Promise<infer T> ? T : never} harness
- * @param {string} suffix
- * @param {string} guestStableId
- * @param {unknown} payload
- */
-function simulateHostInboxMessage(harness, suffix, guestStableId, payload) {
-  const inboxParent = `gameTimerRooms/${suffix}/inbox`
-  harness.emitChildAdded(inboxParent, guestStableId)
-  harness.emitValue(`${inboxParent}/${guestStableId}`, payload)
-}
 
 /**
  * @param {Array<{ path: string, value: unknown }>} sets
@@ -218,7 +207,7 @@ test(
       assert.equal(sessionPhase.value, 'hosting')
 
       const beforeHello = harness.sets.length
-      simulateHostInboxMessage(harness, suffix, guestStableId, encodeGuestHello(guestStableId))
+      simulateHostInboxMessage(harness, 'gameTimerRooms', suffix, guestStableId, encodeGuestHello(guestStableId))
 
       const helloBroadcasts = stateSeqWrites(harness.sets.slice(beforeHello))
       assert.equal(helloBroadcasts.length, 1)
