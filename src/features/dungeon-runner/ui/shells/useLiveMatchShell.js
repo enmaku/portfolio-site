@@ -71,7 +71,11 @@ import {
   isHumanGameplayBlocked,
   shouldRejectEquipmentTokenTap,
 } from '../humanGameplayGate.js'
-import { shouldDeferDungeonExitUntilOutcomeAck } from '../headlessMatchCompletionRunner.js'
+import {
+  canContinueFromDungeonOutcome,
+  shouldAutoContinueDeferredDungeonExit,
+  shouldDeferDungeonExitUntilOutcomeAck,
+} from '../headlessMatchCompletionRunner.js'
 import {
   runHeadlessMatchCompletionForPage,
   buildNewMatchEnvelope,
@@ -1028,8 +1032,17 @@ export function useLiveMatchShell(deps) {
 
   async function continueFromDungeonOutcome() {
     const run = match.value?.state?.lastDungeonRun
-    if (!run) return
-    dismissedDungeonRun.value = dismissDungeonRunForOutcomeDialog(run)
+    if (
+      !canContinueFromDungeonOutcome({
+        lastDungeonRun: run,
+        deferredPostDungeonState: deferredPostDungeonState.value,
+      })
+    ) {
+      return
+    }
+    if (run) {
+      dismissedDungeonRun.value = dismissDungeonRunForOutcomeDialog(run)
+    }
     if (deferredPostDungeonState.value) {
       match.value = { ...match.value, state: deferredPostDungeonState.value }
       deferredPostDungeonState.value = null
@@ -1399,6 +1412,15 @@ export function useLiveMatchShell(deps) {
       if (liveMatchShellLifecycleActive) {
         scheduleAiTurnIfReady()
         scheduleHumanAutoResolveIfReady()
+      }
+      if (
+        shouldAutoContinueDeferredDungeonExit({
+          deferredPostDungeonState: deferredPostDungeonState.value,
+          lastDungeonRun: match.value?.state?.lastDungeonRun ?? null,
+          dismissedDungeonRun: dismissedDungeonRun.value,
+        })
+      ) {
+        void continueFromDungeonOutcome()
       }
     }
     presentationInputWasLocked = locked

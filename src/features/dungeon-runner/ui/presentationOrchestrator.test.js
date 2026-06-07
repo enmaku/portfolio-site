@@ -728,6 +728,46 @@ test('deferPostDungeonOutcomeAck drains outcome then flush enqueues deferred pha
   assert.equal(orchestrator.getActiveAnimation()?.kind, 'PHASE_PICK_ADVENTURER')
 })
 
+test('deferPostDungeonOutcomeAck drains outcome then flush enqueues deferred match-over phase animation', () => {
+  const transition = {
+    phaseBefore: 'dungeon',
+    phaseAfter: 'match-over',
+    turnBeforeSeatId: 'seat-1',
+    turnAfterSeatId: null,
+    dungeonRunResult: null,
+    action: { type: 'REVEAL_OR_CONTINUE' },
+    dungeonBefore: dungeonSummary({
+      subphase: 'reveal',
+      currentMonster: 'demon',
+      remainingMonsterCount: 0,
+      discardedMonsterCount: 4,
+      hp: 1,
+    }),
+    dungeonAfter: dungeonSummary({
+      subphase: null,
+      currentMonster: null,
+      remainingMonsterCount: 0,
+      discardedMonsterCount: 5,
+      hp: 0,
+    }),
+  }
+  const full = mapEngineTransitionToAnimations(transition)
+  const { immediate } = splitPresentationAfterDungeonOutcome(full)
+  const immediateMs = immediate.reduce((sum, animation) => sum + animation.durationMs, 0)
+  const orchestrator = createPresentationOrchestrator()
+  orchestrator.enqueueEngineTransition(transition, { deferPostDungeonOutcomeAck: true })
+
+  const kindsBefore = orchestrator.getQueueSnapshot().map((a) => a.kind)
+  assert.ok(kindsBefore.includes('DUNGEON_OUTCOME'))
+  assert.equal(kindsBefore.includes('PHASE_MATCH_OVER'), false)
+
+  orchestrator.advance(immediateMs)
+  assert.equal(orchestrator.getActiveAnimation(), null)
+
+  orchestrator.flushPostDungeonOutcomeAnimations()
+  assert.equal(orchestrator.getActiveAnimation()?.kind, 'PHASE_MATCH_OVER')
+})
+
 test('dungeon conclusion to match-over still maps outcome animation when run result is absent', () => {
   const animations = mapEngineTransitionToAnimations({
     phaseBefore: 'dungeon',

@@ -1,4 +1,5 @@
 import { MATCH_PHASES, applyAction } from '../engine/kernel.js'
+import { isDungeonOutcomeDialogOpen } from './dungeonOutcomeDialog.js'
 import { isHumanEliminated, needsHeadlessCompletion } from './humanEliminationCompletionPolicy.js'
 
 export const DEFAULT_MAX_HEADLESS_ACTIONS = 500
@@ -19,11 +20,27 @@ const ACTIONABLE_PHASES = new Set([
 ])
 
 export function shouldDeferDungeonExitUntilOutcomeAck(prevState, nextState) {
+  if (prevState.phase !== MATCH_PHASES.DUNGEON) return false
+  if (nextState.phase === MATCH_PHASES.MATCH_OVER) return true
   return (
-    prevState.phase === MATCH_PHASES.DUNGEON &&
-    nextState.phase === MATCH_PHASES.PICK_ADVENTURER &&
-    nextState.lastDungeonRun != null
+    nextState.phase === MATCH_PHASES.PICK_ADVENTURER && nextState.lastDungeonRun != null
   )
+}
+
+export function shouldAutoContinueDeferredDungeonExit({
+  deferredPostDungeonState = null,
+  lastDungeonRun = null,
+  dismissedDungeonRun = null,
+} = {}) {
+  if (!deferredPostDungeonState) return false
+  return !isDungeonOutcomeDialogOpen({ lastDungeonRun, dismissedDungeonRun })
+}
+
+export function canContinueFromDungeonOutcome({
+  lastDungeonRun = null,
+  deferredPostDungeonState = null,
+} = {}) {
+  return Boolean(lastDungeonRun || deferredPostDungeonState)
 }
 
 /**

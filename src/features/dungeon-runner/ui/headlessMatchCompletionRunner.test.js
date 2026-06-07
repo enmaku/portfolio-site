@@ -24,7 +24,10 @@ import {
   resolveStateAfterDungeonOutcomeContinue,
   runContinueFromDeferredThenHeadlessCompletion,
   runHeadlessMatchCompletion,
+  canContinueFromDungeonOutcome,
+  shouldAutoContinueDeferredDungeonExit,
   shouldBlockLiveAiPipelineWhileHeadless,
+  shouldDeferDungeonExitUntilOutcomeAck,
   shouldShowFinishingMatchOverlay,
 } from './headlessMatchCompletionRunner.js'
 import { createLivePlayActionChooser } from './livePlayActionChooser.js'
@@ -82,6 +85,35 @@ function lethalRevealDungeonState(state, runnerSeatId) {
       remainingMonsters: ['dragon'],
       hp: 3,
       inPlayEquipmentIds: ['W_VORPAL'],
+      discardedRunMonsters: [],
+      polySpent: true,
+      axeSpent: true,
+    },
+  }
+}
+
+const ONE_V_ONE_SETUP = {
+  totalSeats: 2,
+  opponents: [{ type: 'randombot' }],
+}
+
+function secondSuccessMatchWinDungeonState(state, runnerSeatId) {
+  return {
+    ...state,
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { ...state.turn, activeSeatId: runnerSeatId },
+    bidding: { ...state.bidding, runnerSeatId, dungeonMonsters: [] },
+    scoreboard: {
+      ...state.scoreboard,
+      [runnerSeatId]: { ...state.scoreboard[runnerSeatId], successes: 1 },
+    },
+    dungeon: {
+      ...state.dungeon,
+      subphase: DUNGEON_SUBPHASES.REVEAL,
+      currentMonster: null,
+      remainingMonsters: [],
+      hp: 1,
+      inPlayEquipmentIds: [],
       discardedRunMonsters: [],
       polySpent: true,
       axeSpent: true,
@@ -204,6 +236,89 @@ test('buildDeferredDungeonOutcomeDisplayState defers pick-adventurer behind dung
   assert.equal(deferredState?.phase, MATCH_PHASES.PICK_ADVENTURER)
   const continued = resolveStateAfterDungeonOutcomeContinue(displayState, deferredState)
   assert.equal(continued.phase, MATCH_PHASES.PICK_ADVENTURER)
+})
+
+test('shouldDeferDungeonExitUntilOutcomeAck is true for dungeon to match-over', () => {
+  const initial = createInitialMatchState(ONE_V_ONE_SETUP, { seed: 1 })
+  const runnerId = initial.seats[0].id
+  const almostWon = secondSuccessMatchWinDungeonState(initial, runnerId)
+  const result = applyAction(almostWon, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runnerId })
+  assert.equal(result.ok, true)
+  assert.equal(result.state.phase, MATCH_PHASES.MATCH_OVER)
+  assert.equal(shouldDeferDungeonExitUntilOutcomeAck(almostWon, result.state), true)
+})
+
+test('buildDeferredDungeonOutcomeDisplayState defers match-over behind dungeon phase', () => {
+  const initial = createInitialMatchState(ONE_V_ONE_SETUP, { seed: 1 })
+  const runnerId = initial.seats[0].id
+  const almostWon = secondSuccessMatchWinDungeonState(initial, runnerId)
+  const result = applyAction(almostWon, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runnerId })
+  assert.equal(result.ok, true)
+  const { displayState, deferredState } = buildDeferredDungeonOutcomeDisplayState(almostWon, result.state)
+  assert.equal(displayState.phase, MATCH_PHASES.DUNGEON)
+  assert.equal(deferredState?.phase, MATCH_PHASES.MATCH_OVER)
+  assert.equal(deferredState?.matchWinnerSeatId, runnerId)
+  const continued = resolveStateAfterDungeonOutcomeContinue(displayState, deferredState)
+  assert.equal(continued.phase, MATCH_PHASES.MATCH_OVER)
+})
+
+test('shouldAutoContinueDeferredDungeonExit skips pick-adventurer exits that need dungeon-outcome ack', () => {
+  const initial = createInitialMatchState(FOUR_PLAYER_SETUP, { seed: 9001 })
+  const human = seatByRole(initial, 'human')
+  assert.ok(human)
+  const onLastLife = lethalRevealDungeonState(initial, human.id)
+  onLastLife.scoreboard = {
+    ...onLastLife.scoreboard,
+    [human.id]: { ...onLastLife.scoreboard[human.id], lives: 1, eliminated: false },
+  }
+  const eliminated = applyAction(onLastLife, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: human.id })
+  assert.equal(eliminated.ok, true)
+  const { deferredState } = buildDeferredDungeonOutcomeDisplayState(onLastLife, eliminated.state)
+  assert.equal(
+    shouldAutoContinueDeferredDungeonExit({
+      deferredPostDungeonState: deferredState,
+      lastDungeonRun: eliminated.state.lastDungeonRun,
+    }),
+    false,
+  )
+})
+
+test('shouldAutoContinueDeferredDungeonExit auto-continues deferred match-over without lastDungeonRun', () => {
+  const initial = createInitialMatchState(ONE_V_ONE_SETUP, { seed: 1 })
+  const runnerId = initial.seats[0].id
+  const almostWon = secondSuccessMatchWinDungeonState(initial, runnerId)
+  const result = applyAction(almostWon, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runnerId })
+  assert.equal(result.ok, true)
+  const { deferredState } = buildDeferredDungeonOutcomeDisplayState(almostWon, result.state)
+  assert.equal(
+    shouldAutoContinueDeferredDungeonExit({
+      deferredPostDungeonState: deferredState,
+      lastDungeonRun: result.state.lastDungeonRun,
+    }),
+    true,
+  )
+})
+
+test('canContinueFromDungeonOutcome allows deferred match-over without lastDungeonRun', () => {
+  const initial = createInitialMatchState(ONE_V_ONE_SETUP, { seed: 1 })
+  const runnerId = initial.seats[0].id
+  const almostWon = secondSuccessMatchWinDungeonState(initial, runnerId)
+  const result = applyAction(almostWon, { type: ACTION_TYPES.REVEAL_OR_CONTINUE }, { seatId: runnerId })
+  assert.equal(result.ok, true)
+  const { deferredState } = buildDeferredDungeonOutcomeDisplayState(almostWon, result.state)
+  assert.equal(result.state.lastDungeonRun, null)
+  assert.equal(
+    canContinueFromDungeonOutcome({
+      lastDungeonRun: result.state.lastDungeonRun,
+      deferredPostDungeonState: deferredState,
+    }),
+    true,
+  )
+  const continued = resolveStateAfterDungeonOutcomeContinue(
+    buildDeferredDungeonOutcomeDisplayState(almostWon, result.state).displayState,
+    deferredState,
+  )
+  assert.equal(continued.phase, MATCH_PHASES.MATCH_OVER)
 })
 
 test('headless completion appends actions to state history through match over', async () => {
