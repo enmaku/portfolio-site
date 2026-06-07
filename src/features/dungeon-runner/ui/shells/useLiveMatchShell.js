@@ -628,17 +628,21 @@ export function useLiveMatchShell(deps) {
       const score = scoreboard[row.seatId] ?? {}
       const successes = Math.max(0, Number(score.successes ?? 0))
       const failures = Math.max(0, 2 - Number(score.lives ?? 2))
+      const eliminated = !!score.eliminated
       const recovery = recoveryBySeatId.get(row.seatId)
       return {
         seatId: row.seatId,
         label: row.label,
         passed: row.passed,
         isActive: row.isActive,
+        eliminated,
         successes,
         failures,
         recovering: recovery?.recovering ?? false,
         recoveryTestId: recovery?.testId ?? null,
-        ariaLabel: `${row.label}: ${successes} successful run${successes === 1 ? '' : 's'}, ${failures} failed run${failures === 1 ? '' : 's'}`,
+        ariaLabel: eliminated
+          ? `${row.label}: eliminated from competition`
+          : `${row.label}: ${successes} successful run${successes === 1 ? '' : 's'}, ${failures} failed run${failures === 1 ? '' : 's'}`,
       }
     })
   })

@@ -33,14 +33,19 @@
       >
         <div class="row q-col-gutter-xs">
           <div v-for="row in session.board.seatRunTrackerRows" :key="`seat-${row.seatId}`" class="col dr-seat-stack">
-            <q-badge
-              :color="row.passed ? 'grey-9' : session.board.biddingBoard.heroCue.badgeColor"
-              text-color="white"
-              class="dr-seat-chip q-px-sm full-width"
-              :class="{ 'dr-token-glow': row.isActive }"
+            <div
+              class="dr-seat-chip-wrap full-width"
+              :class="{ 'dr-seat-chip-wrap--eliminated': row.eliminated }"
             >
-              <span class="text-caption">{{ row.label }}</span>
-            </q-badge>
+              <q-badge
+                :color="row.passed || row.eliminated ? 'grey-9' : session.board.biddingBoard.heroCue.badgeColor"
+                text-color="white"
+                class="dr-seat-chip q-px-sm full-width"
+                :class="{ 'dr-token-glow': row.isActive }"
+              >
+                <span class="text-caption">{{ row.label }}</span>
+              </q-badge>
+            </div>
             <div
               v-if="row.recovering"
               class="row items-center justify-center q-mt-xs"
@@ -622,6 +627,38 @@ const session = inject(LIVE_MATCH_SHELL_SESSION_KEY)
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+}
+
+.dr-seat-chip-wrap {
+  position: relative;
+}
+
+.dr-seat-chip-wrap--eliminated::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    linear-gradient(
+      to top right,
+      transparent 0,
+      transparent calc(50% - 2px),
+      #ef5350 calc(50% - 2px),
+      #ef5350 calc(50% + 2px),
+      transparent calc(50% + 2px),
+      transparent 100%
+    ),
+    linear-gradient(
+      to top left,
+      transparent 0,
+      transparent calc(50% - 2px),
+      #ef5350 calc(50% - 2px),
+      #ef5350 calc(50% + 2px),
+      transparent calc(50% + 2px),
+      transparent 100%
+    );
 }
 
 .dr-seat-progress-cell {
