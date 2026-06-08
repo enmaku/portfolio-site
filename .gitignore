@@ -39,6 +39,9 @@ yarn-error.log*
 .venv*/*
 artifacts
 /data
+/learning-records
+/lessons
+/reference
 *.log
 
 # python stuff
