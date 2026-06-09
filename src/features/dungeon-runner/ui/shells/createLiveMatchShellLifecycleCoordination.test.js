@@ -23,6 +23,8 @@ function createLifecycle(overrides = {}) {
   let autoResolveTimerId = null
   let lifecycleUnsubscribe = null
   let lifecyclePresentationTimerId = null
+  /** @type {(() => void) | null} */
+  let matchStateStopHandle = null
   /** @type {Parameters<typeof import('./liveMatchShellLifecycle.js').activateLiveMatchShellLifecycle>[0] | null} */
   let lastActivateOptions = null
   /** @type {Parameters<typeof import('./liveMatchShellLifecycle.js').deactivateLiveMatchShellLifecycle>[0] | null} */
@@ -85,6 +87,17 @@ function createLifecycle(overrides = {}) {
     },
     getConfirmationDialogResolve: () => overrides.confirmationDialogResolve ?? null,
     getAutoResolveTimerId: () => autoResolveTimerId,
+    subscribeMatchState: () => {
+      calls.push('subscribeMatchState')
+      matchStateStopHandle = () => {
+        calls.push('stopMatchStateSubscription')
+      }
+      return matchStateStopHandle
+    },
+    unsubscribeMatchState: (stopHandle) => {
+      calls.push(['unsubscribeMatchState', stopHandle === matchStateStopHandle])
+      if (typeof stopHandle === 'function') stopHandle()
+    },
     matchNeuralLoadGateInFlight: ref(false),
     neuralLoadGateTerminalOpen: ref(false),
     setup: { id: 'setup-default' },
@@ -164,6 +177,7 @@ test('mountLiveMatchShell activates lifecycle once and marks active', () => {
 
   assert.equal(lifecycle.isLifecycleActive(), true)
   assert.equal(calls.filter((entry) => entry === 'preparePresentationOnMount').length, 1)
+  assert.ok(calls.includes('subscribeMatchState'))
   assert.ok(calls.some((entry) => Array.isArray(entry) && entry[0] === 'activateLifecycle'))
 })
 
@@ -178,6 +192,8 @@ test('unmountLiveMatchShell tears down timers and clears active flag', () => {
   assert.equal(lifecycle.isLifecycleActive(), false)
   assert.deepEqual(calls.at(-1), ['deactivateLifecycle', 42, 99, 7, false])
   assert.ok(calls.includes('cancelAiTurnPrefetch'))
+  assert.ok(calls.some((entry) => Array.isArray(entry) && entry[0] === 'unsubscribeMatchState'))
+  assert.ok(calls.includes('stopMatchStateSubscription'))
 })
 
 test('processBootstrappedSession no-ops for no-saved-match', () => {

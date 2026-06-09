@@ -33,6 +33,7 @@ import { resetAiTurnPrefetch } from '../dungeonRunnerAiTurnPrefetch.js'
 import { shouldDeferDungeonExitUntilOutcomeAck } from '../headlessMatchCompletionRunner.js'
 import {
   applyVorpalPickerSpeciesTap,
+  createVorpalDeclarationPickerView,
 } from '../vorpalDeclarationPickerInteractions.js'
 import { shouldRejectEquipmentTokenTap } from '../humanGameplayGate.js'
 
@@ -329,6 +330,28 @@ export function createLiveMatchShellHumanGameplaySurface(deps) {
     if (!active) sacrificeModeActive.value = false
   })
 
+  const vorpalPickerView = computed(() =>
+    createVorpalDeclarationPickerView({
+      isHumanTurn: isHumanTurn.value,
+      gameplayInputLocked: deps.gameplayInputLocked.value,
+      phase: deps.match.value?.state?.phase ?? null,
+      subphase: deps.match.value?.state?.dungeon?.subphase ?? null,
+      legalActions: legalActions.value,
+      memoryAidEnabled: memoryAidState.value.enabled,
+      viewerOwnPileAdds:
+        visibleState.value?.playerOwnPileAdds?.[humanSeatId.value ?? ''] ?? [],
+      selectedSpecies: selectedVorpalSpecies.value,
+      humanGameplayBlocked: deps.getHumanGameplayBlocked(),
+    }),
+  )
+
+  watch(
+    () => vorpalPickerView.value.open,
+    () => {
+      resetVorpalPickerSelection()
+    },
+  )
+
   function clearAutoResolveTimer() {
     if (autoResolveTimerId) {
       clearTimeoutFn(autoResolveTimerId)
@@ -532,6 +555,7 @@ export function createLiveMatchShellHumanGameplaySurface(deps) {
     actionLabel,
     biddingPostDrawActionPaneKey,
     selectedVorpalSpecies,
+    vorpalPickerView,
     onVorpalPickerCardTap,
     confirmVorpalDeclaration,
     resetVorpalPickerSelection,

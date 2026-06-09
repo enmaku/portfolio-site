@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { computed, nextTick, ref } from 'vue'
-import { ACTION_TYPES, MATCH_PHASES } from '../../engine/kernel.js'
+import { ACTION_TYPES, MATCH_PHASES, createInitialMatchState } from '../../engine/kernel.js'
 import { createLiveMatchShellMidMatchDialogSurface } from './createLiveMatchShellMidMatchDialogSurface.js'
 import { createLiveMatchShellHumanGameplaySurface } from './createLiveMatchShellHumanGameplaySurface.js'
 
@@ -9,7 +9,8 @@ function createTestDeps(overrides = {}) {
   const match = ref({
     state: {
       lastDungeonRun: { result: 'success', runnerSeatId: 'seat-1' },
-      seats: [{ id: 'seat-1', label: 'You' }],
+      seats: [{ id: 'seat-1', role: { type: 'human' }, label: 'You' }],
+      turn: { activeSeatId: 'seat-1' },
       centerEquipment: ['eq-1', 'eq-2'],
     },
   })
@@ -19,7 +20,12 @@ function createTestDeps(overrides = {}) {
   const deferredPostDungeonState = ref(null)
   const calls = []
 
-  const selectedVorpalSpecies = ref(null)
+  const vorpalPickerView = computed(() => ({
+    open: false,
+    confirmAction: null,
+    hasSelection: false,
+    cards: [],
+  }))
 
   const deps = {
     match,
@@ -31,17 +37,12 @@ function createTestDeps(overrides = {}) {
     humanSeatId: computed(() => 'seat-1'),
     memoryAidState,
     deferredPostDungeonState,
-    selectedVorpalSpecies,
+    vorpalPickerView,
     onVorpalPickerCardTap: (species) => {
       calls.push(['vorpalTap', species])
-      selectedVorpalSpecies.value = species
     },
     confirmVorpalDeclaration: (action) => {
       calls.push(['vorpalConfirm', action?.type ?? null, action?.species ?? null])
-    },
-    resetVorpalPickerSelection: () => {
-      calls.push('resetVorpalPickerSelection')
-      selectedVorpalSpecies.value = null
     },
     presentationOrchestrator: {
       flushPostDungeonOutcomeAnimations: () => {
@@ -86,9 +87,30 @@ function createStorage() {
   }
 }
 
+function createWiredMatchRef(overrides = {}) {
+  return ref({
+    id: 'match-wired',
+    state: createInitialMatchState(
+      { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+      { seed: 1 },
+    ),
+    ...overrides,
+  })
+}
+
 function createWiredSurfaces(overrides = {}) {
   const equipmentModalBridge = { show: () => {} }
-  const ctx = createTestDeps(overrides.deps ?? {})
+  const humanGameplayGate = {
+    getBlocked: () => false,
+    getDungeonOutcomeAckPending: () => false,
+    getEquipmentModalOpen: () => false,
+    closeEquipmentModalIfOpen: () => {},
+    closeEquipmentModal: () => {},
+  }
+  const ctx = createTestDeps({
+    match: createWiredMatchRef(),
+    ...(overrides.deps ?? {}),
+  })
   const humanSurface = createLiveMatchShellHumanGameplaySurface({
     match: ctx.match,
     dungeonRunnerSettingsStore: { memoryAidEnabled: false },
@@ -98,14 +120,14 @@ function createWiredSurfaces(overrides = {}) {
     previousVisibleState: ref(null),
     deferredPostDungeonState: ctx.deferredPostDungeonState,
     seatRecoveryIndicators: ref([]),
-    getHumanGameplayBlocked: () => midSurface.humanGameplayBlocked.value,
-    getDungeonOutcomeAckPending: () => midSurface.dungeonOutcomeAckPending.value,
-    closeEquipmentModalIfOpen: () => midSurface.closeEquipmentModalIfOpen(),
-    closeEquipmentModal: () => midSurface.closeEquipmentModal(),
+    getHumanGameplayBlocked: () => humanGameplayGate.getBlocked(),
+    getDungeonOutcomeAckPending: () => humanGameplayGate.getDungeonOutcomeAckPending(),
+    closeEquipmentModalIfOpen: () => humanGameplayGate.closeEquipmentModalIfOpen(),
+    closeEquipmentModal: () => humanGameplayGate.closeEquipmentModal(),
     showEquipmentModal: (equipmentId) => equipmentModalBridge.show(equipmentId),
     enqueuePresentationTransition: () => {},
     isLifecycleActive: () => true,
-    getEquipmentModalOpen: () => midSurface.equipmentModalOpen.value,
+    getEquipmentModalOpen: () => humanGameplayGate.getEquipmentModalOpen(),
     humanDungeonAutoRevealGapMs: () => 0,
     storage: createStorage(),
     ...overrides.humanDeps,
@@ -124,12 +146,16 @@ function createWiredSurfaces(overrides = {}) {
     syncPresentationLabel: () => {},
     maybeRunHeadlessMatchCompletion: async () => {},
     takeHumanAction: (action) => ctx.calls.push(['takeHumanAction', action?.type ?? null, action?.equipmentId ?? null]),
-    selectedVorpalSpecies: humanSurface.selectedVorpalSpecies,
+    vorpalPickerView: humanSurface.vorpalPickerView,
     onVorpalPickerCardTap: humanSurface.onVorpalPickerCardTap,
     confirmVorpalDeclaration: humanSurface.confirmVorpalDeclaration,
-    resetVorpalPickerSelection: humanSurface.resetVorpalPickerSelection,
     ...overrides.midDeps,
   })
+  humanGameplayGate.getBlocked = () => midSurface.humanGameplayBlocked.value
+  humanGameplayGate.getDungeonOutcomeAckPending = () => midSurface.dungeonOutcomeAckPending.value
+  humanGameplayGate.closeEquipmentModalIfOpen = () => midSurface.closeEquipmentModalIfOpen()
+  humanGameplayGate.closeEquipmentModal = () => midSurface.closeEquipmentModal()
+  humanGameplayGate.getEquipmentModalOpen = () => midSurface.equipmentModalOpen.value
   equipmentModalBridge.show = midSurface.showEquipmentModal
   return { ...ctx, humanSurface, midSurface }
 }
@@ -609,41 +635,9 @@ test('closeEquipmentModal and closeEquipmentModalIfOpen clear modal open state',
   assert.equal(surface.equipmentModalOpen.value, false)
 })
 
-test('vorpal picker open transition delegates reset to human gameplay handler', async () => {
-  const legalActions = ref([
-    { type: 'DECLARE_VORPAL', species: 'dragon' },
-    { type: 'DECLARE_VORPAL', species: 'goblin' },
-  ])
-  const match = ref({
-    state: {
-      phase: 'dungeon',
-      dungeon: { subphase: 'vorpal' },
-      lastDungeonRun: null,
-      seats: [],
-      centerEquipment: [],
-    },
-  })
-  const { deps, calls } = createTestDeps({
-    match,
-    legalActions: computed(() => legalActions.value),
-  })
-  const surface = createLiveMatchShellMidMatchDialogSurface(deps)
-
-  await nextTick()
-  assert.equal(surface.dialogs.vorpalPickerView.value.open, true)
-
-  match.value = {
-    state: {
-      phase: 'dungeon',
-      dungeon: { subphase: 'reveal' },
-      lastDungeonRun: null,
-      seats: [],
-      centerEquipment: [],
-    },
-  }
-  await nextTick()
-  assert.equal(surface.dialogs.vorpalPickerView.value.open, false)
-  assert.ok(calls.includes('resetVorpalPickerSelection'))
+test('mid-match dialog forwards vorpal picker view from human gameplay surface', () => {
+  const { humanSurface, midSurface } = createWiredSurfaces()
+  assert.equal(midSurface.dialogs.vorpalPickerView, humanSurface.vorpalPickerView)
 })
 
 test('getConfirmationDialogResolve returns pending resolver for lifecycle teardown', () => {

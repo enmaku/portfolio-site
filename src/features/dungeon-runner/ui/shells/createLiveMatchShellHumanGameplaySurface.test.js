@@ -185,6 +185,7 @@ test('createLiveMatchShellHumanGameplaySurface exposes concern API shape', () =>
     'actionLabel',
     'biddingPostDrawActionPaneKey',
     'selectedVorpalSpecies',
+    'vorpalPickerView',
     'onVorpalPickerCardTap',
     'confirmVorpalDeclaration',
     'resetVorpalPickerSelection',
@@ -342,6 +343,43 @@ test('resetVorpalPickerSelection clears selected species', () => {
   const { surface } = createSurface()
   surface.selectedVorpalSpecies.value = 'goblin'
   surface.resetVorpalPickerSelection()
+  assert.equal(surface.selectedVorpalSpecies.value, null)
+})
+
+test('vorpal picker open transition resets selected species when picker closes', async () => {
+  const base = createInitialMatchState(
+    { totalSeats: 2, opponents: [{ type: 'randombot' }] },
+    { seed: 6211 },
+  )
+  const humanSeatId = base.seats.find((seat) => seat.role.type === 'human')?.id ?? base.seats[0].id
+  const vorpalState = {
+    ...base,
+    phase: MATCH_PHASES.DUNGEON,
+    turn: { ...base.turn, activeSeatId: humanSeatId },
+    bidding: { ...base.bidding, runnerSeatId: humanSeatId },
+    dungeon: { ...base.dungeon, subphase: DUNGEON_SUBPHASES.VORPAL },
+  }
+  const match = ref({ id: 'match-1', state: vorpalState })
+  const { surface } = createSurface({
+    deps: {
+      match,
+      getHumanGameplayBlocked: () => false,
+    },
+  })
+  surface.selectedVorpalSpecies.value = 'dragon'
+
+  await nextTick()
+  assert.equal(surface.vorpalPickerView.value.open, true)
+
+  match.value = {
+    ...match.value,
+    state: {
+      ...match.value.state,
+      dungeon: { ...match.value.state.dungeon, subphase: DUNGEON_SUBPHASES.REVEAL },
+    },
+  }
+  await nextTick()
+  assert.equal(surface.vorpalPickerView.value.open, false)
   assert.equal(surface.selectedVorpalSpecies.value, null)
 })
 

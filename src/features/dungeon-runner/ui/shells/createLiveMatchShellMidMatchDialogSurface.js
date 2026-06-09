@@ -6,7 +6,6 @@ import {
   createBiddingSacrificeEquipmentModalView,
   shouldUseBiddingSacrificeEquipmentModalView,
 } from '../biddingSacrificeInteractions.js'
-import { createVorpalDeclarationPickerView } from '../vorpalDeclarationPickerInteractions.js'
 import {
   buildDungeonOutcomeSummary,
   dismissDungeonRunForOutcomeDialog,
@@ -43,10 +42,9 @@ import { closeDeckSplay, tapDeck } from '../memoryAidState.js'
  *   syncPresentationLabel: () => void
  *   maybeRunHeadlessMatchCompletion: () => Promise<void>
  *   takeHumanAction: (action: object) => void
- *   selectedVorpalSpecies: import('vue').Ref<string | null>
+ *   vorpalPickerView: import('vue').ComputedRef<object>
  *   onVorpalPickerCardTap: (species: string) => void
  *   confirmVorpalDeclaration: (action: object | null | undefined) => void
- *   resetVorpalPickerSelection: () => void
  *   reloadPage?: () => void
  * }} deps
  */
@@ -141,21 +139,6 @@ export function createLiveMatchShellMidMatchDialogSurface(deps) {
       legalActions: deps.legalActions.value,
     })
   })
-
-  const vorpalPickerView = computed(() =>
-    createVorpalDeclarationPickerView({
-      isHumanTurn: deps.isHumanTurn.value,
-      gameplayInputLocked: deps.gameplayInputLocked.value,
-      phase: deps.match.value?.state?.phase ?? null,
-      subphase: deps.match.value?.state?.dungeon?.subphase ?? null,
-      legalActions: deps.legalActions.value,
-      memoryAidEnabled: deps.memoryAidState.value.enabled,
-      viewerOwnPileAdds:
-        deps.visibleState.value?.playerOwnPileAdds?.[deps.humanSeatId.value ?? ''] ?? [],
-      selectedSpecies: deps.selectedVorpalSpecies.value,
-      humanGameplayBlocked: humanGameplayBlocked.value,
-    }),
-  )
 
   const deckSplayOpen = computed({
     get() {
@@ -325,13 +308,6 @@ export function createLiveMatchShellMidMatchDialogSurface(deps) {
     { immediate: true },
   )
 
-  watch(
-    () => vorpalPickerView.value.open,
-    () => {
-      deps.resetVorpalPickerSelection()
-    },
-  )
-
   const dialogs = {
     dungeonOutcomeDialogOpen,
     dungeonOutcomeSummary,
@@ -353,10 +329,10 @@ export function createLiveMatchShellMidMatchDialogSurface(deps) {
     onConfirmationDialogOk,
     neuralRefreshTerminalOpen,
     reloadPageForNeuralRefreshTerminal,
-    vorpalPickerView,
+    vorpalPickerView: deps.vorpalPickerView,
     onVorpalPickerCardTap: deps.onVorpalPickerCardTap,
     confirmVorpalDeclaration: () =>
-      deps.confirmVorpalDeclaration(vorpalPickerView.value.confirmAction),
+      deps.confirmVorpalDeclaration(deps.vorpalPickerView.value.confirmAction),
     deckSplayOpen,
     onCloseDeckSplay,
   }

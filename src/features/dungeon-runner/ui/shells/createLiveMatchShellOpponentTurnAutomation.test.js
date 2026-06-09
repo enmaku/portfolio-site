@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { applyAction, getLegalActions, MATCH_PHASES } from '../../engine/kernel.js'
 import { bootstrapMatchStateForReplay } from '../../debug/replayBootstrap.js'
 import { buildAiTurnRunToken } from '../dungeonRunnerAiTurnToken.js'
@@ -53,6 +53,80 @@ function createMatchState(overrides = {}) {
   }
 }
 
+function mergeOpponentAutomationTestOverrides(base, overrides = {}) {
+  const {
+    human: humanOverrides,
+    presentation: presentationOverrides,
+    dialog: dialogOverrides,
+    lifecycle: lifecycleOverrides,
+    recovery: recoveryOverrides,
+    getHumanSeatId,
+    getIsHumanTurn,
+    onClearAutoResolveTimer,
+    gameplayInputLocked,
+    previousVisibleState,
+    presentationOrchestrator,
+    activePresentation,
+    enqueuePresentationTransition,
+    syncPresentationLabel,
+    clearPresentationOrchestrator,
+    getNeuralRefreshTerminalOpen,
+    getHeadlessCompletionInFlight,
+    createHeadlessCompletionFlightGate,
+    ackDungeonRunForTeardown,
+    isLifecycleActive,
+    getMatchPageOrchestrationCtx,
+    handleNeuralRecoveryTerminalError,
+    ensureNnModelsReady,
+    nnRuntimeOptions,
+    ...topLevelOverrides
+  } = overrides
+
+  return {
+    ...base,
+    ...topLevelOverrides,
+    human: {
+      ...base.human,
+      ...humanOverrides,
+      ...(getHumanSeatId ? { getHumanSeatId } : {}),
+      ...(getIsHumanTurn ? { getIsHumanTurn } : {}),
+      ...(onClearAutoResolveTimer ? { onClearAutoResolveTimer } : {}),
+    },
+    presentation: {
+      ...base.presentation,
+      ...presentationOverrides,
+      ...(gameplayInputLocked ? { gameplayInputLocked } : {}),
+      ...(previousVisibleState ? { previousVisibleState } : {}),
+      ...(presentationOrchestrator ? { presentationOrchestrator } : {}),
+      ...(activePresentation ? { activePresentation } : {}),
+      ...(enqueuePresentationTransition ? { enqueuePresentationTransition } : {}),
+      ...(syncPresentationLabel ? { syncPresentationLabel } : {}),
+      ...(clearPresentationOrchestrator ? { clearPresentationOrchestrator } : {}),
+    },
+    dialog: {
+      ...base.dialog,
+      ...dialogOverrides,
+      ...(getNeuralRefreshTerminalOpen ? { getNeuralRefreshTerminalOpen } : {}),
+      ...(getHeadlessCompletionInFlight ? { getHeadlessCompletionInFlight } : {}),
+      ...(createHeadlessCompletionFlightGate ? { createHeadlessCompletionFlightGate } : {}),
+      ...(ackDungeonRunForTeardown ? { ackDungeonRunForTeardown } : {}),
+    },
+    lifecycle: {
+      ...base.lifecycle,
+      ...lifecycleOverrides,
+      ...(isLifecycleActive ? { isLifecycleActive } : {}),
+      ...(getMatchPageOrchestrationCtx ? { getMatchPageOrchestrationCtx } : {}),
+      ...(handleNeuralRecoveryTerminalError ? { handleNeuralRecoveryTerminalError } : {}),
+    },
+    recovery: {
+      ...base.recovery,
+      ...recoveryOverrides,
+      ...(ensureNnModelsReady ? { ensureNnModelsReady } : {}),
+      ...(nnRuntimeOptions ? { nnRuntimeOptions } : {}),
+    },
+  }
+}
+
 function createAutomation(overrides = {}) {
   const match = ref({
     id: 'match-1',
@@ -74,56 +148,70 @@ function createAutomation(overrides = {}) {
     getQueueSnapshot: () => [],
   }
 
-  const automation = createLiveMatchShellOpponentTurnAutomation({
-    match,
-    debugMode,
-    nnRecovery: createMockRecovery(),
-    getHumanSeatId: () => 'seat-human',
-    getIsHumanTurn: () => false,
-    deferredPostDungeonState,
-    matchNeuralLoadGateInFlight,
-    gameplayInputLocked,
-    previousVisibleState,
-    presentationOrchestrator,
-    activePresentation,
-    enqueuePresentationTransition: (...args) => {
-      enqueueCalls.push(args)
-    },
-    getNeuralRefreshTerminalOpen: () => false,
-    getHeadlessCompletionInFlight: () => false,
-    ensureNnModelsReady: async () => {},
-    nnRuntimeOptions: () => ({}),
-    handleNeuralRecoveryTerminalError: () => false,
-    isLifecycleActive: () => lifecycleActive,
-    getMatchPageOrchestrationCtx: () => ({}),
-    createHeadlessCompletionFlightGate: () => ({
-      inFlight: false,
-      tryStart: () => true,
-      finish: () => {},
-    }),
-    syncPresentationLabel: () => {},
-    clearPresentationOrchestrator: () => {},
-    ackDungeonRunForTeardown: () => {},
-    onClearAutoResolveTimer: () => {},
-    storage: {
-      setItem: () => {},
-      getItem: () => null,
-      removeItem: () => {},
-    },
-    persistCurrentMatch: (_storage, envelope) => {
-      persistCalls.push(envelope)
-    },
-    createLivePlayActionChooser: () => async () => ({ type: 'PASS' }),
-    startAiTurnPrefetch: () => {},
-    setTimeout: (fn) => {
-      scheduled.push(fn)
-      return scheduled.length
-    },
-    clearTimeout: (id) => {
-      clearedTimerIds.push(id)
-    },
-    ...overrides.deps,
-  })
+  const automation = createLiveMatchShellOpponentTurnAutomation(
+    mergeOpponentAutomationTestOverrides(
+      {
+        match,
+        debugMode,
+        nnRecovery: createMockRecovery(),
+        deferredPostDungeonState,
+        matchNeuralLoadGateInFlight,
+        human: {
+          getHumanSeatId: () => 'seat-human',
+          getIsHumanTurn: () => false,
+          onClearAutoResolveTimer: () => {},
+        },
+        presentation: {
+          gameplayInputLocked,
+          previousVisibleState,
+          presentationOrchestrator,
+          activePresentation,
+          enqueuePresentationTransition: (...args) => {
+            enqueueCalls.push(args)
+          },
+          syncPresentationLabel: () => {},
+          clearPresentationOrchestrator: () => {},
+        },
+        dialog: {
+          getNeuralRefreshTerminalOpen: () => false,
+          getHeadlessCompletionInFlight: () => false,
+          createHeadlessCompletionFlightGate: () => ({
+            inFlight: false,
+            tryStart: () => true,
+            finish: () => {},
+          }),
+          ackDungeonRunForTeardown: () => {},
+        },
+        lifecycle: {
+          isLifecycleActive: () => lifecycleActive,
+          getMatchPageOrchestrationCtx: () => ({}),
+          handleNeuralRecoveryTerminalError: () => false,
+        },
+        recovery: {
+          ensureNnModelsReady: async () => {},
+          nnRuntimeOptions: () => ({}),
+        },
+        storage: {
+          setItem: () => {},
+          getItem: () => null,
+          removeItem: () => {},
+        },
+        persistCurrentMatch: (_storage, envelope) => {
+          persistCalls.push(envelope)
+        },
+        createLivePlayActionChooser: () => async () => ({ type: 'PASS' }),
+        startAiTurnPrefetch: () => {},
+        setTimeout: (fn) => {
+          scheduled.push(fn)
+          return scheduled.length
+        },
+        clearTimeout: (id) => {
+          clearedTimerIds.push(id)
+        },
+      },
+      overrides.deps ?? {},
+    ),
+  )
 
   return {
     automation,
@@ -543,4 +631,38 @@ test('teardownForHeadlessMatchCompletion runs when headless flight starts', asyn
   assert.equal(autoResolveClears.length, 1)
   assert.equal(ackCalls.length, 1)
   assert.equal(deferredPostDungeonState.value, null)
+})
+
+test('deactivateMatchStateSubscription stops further match-state callbacks', async () => {
+  const persistCalls = []
+  const { automation, match } = createAutomation()
+  const stop = automation.activateMatchStateSubscription({
+    persistMatch: (envelope) => {
+      persistCalls.push(envelope.state.turn.turnNumber)
+    },
+    isLifecycleActive: () => true,
+    scheduleHumanAutoResolveIfReady: () => {},
+  })
+
+  match.value = {
+    ...match.value,
+    state: {
+      ...match.value.state,
+      turn: { ...match.value.state.turn, turnNumber: 2 },
+    },
+  }
+  await nextTick()
+  assert.equal(persistCalls.length, 1)
+
+  automation.deactivateMatchStateSubscription(stop)
+
+  match.value = {
+    ...match.value,
+    state: {
+      ...match.value.state,
+      turn: { ...match.value.state.turn, turnNumber: 3 },
+    },
+  }
+  await nextTick()
+  assert.equal(persistCalls.length, 1)
 })

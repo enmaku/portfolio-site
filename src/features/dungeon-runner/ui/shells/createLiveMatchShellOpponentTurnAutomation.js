@@ -42,39 +42,49 @@ const SCHEDULE_SKIP_THROTTLE_REASONS = new Set([
  *   match: import('vue').Ref<object | null>
  *   debugMode: import('vue').Ref<boolean>
  *   nnRecovery: ReturnType<import('../../nn/recovery.js').createNeuralRuntimeRecoveryCoordinator>
- *   getHumanSeatId: () => string | null
- *   getIsHumanTurn: () => boolean
  *   deferredPostDungeonState: import('vue').Ref<object | null>
  *   matchNeuralLoadGateInFlight: import('vue').Ref<boolean>
- *   gameplayInputLocked: import('vue').Ref<boolean>
- *   previousVisibleState: import('vue').Ref<object | null>
- *   presentationOrchestrator: {
- *     getQueueSnapshot: () => Array<{ remainingMs: number }>
+ *   human: {
+ *     getHumanSeatId: () => string | null
+ *     getIsHumanTurn: () => boolean
+ *     onClearAutoResolveTimer: () => void
  *   }
- *   activePresentation: import('vue').Ref<object | null>
- *   enqueuePresentationTransition: (
- *     prevState: object,
- *     nextState: object,
- *     action: object,
- *     seatId: string,
- *     roleType: string,
- *   ) => void
- *   getNeuralRefreshTerminalOpen: () => boolean
- *   getHeadlessCompletionInFlight: () => boolean
- *   ensureNnModelsReady: () => Promise<void>
- *   nnRuntimeOptions: (modelId: string | null) => object
- *   handleNeuralRecoveryTerminalError: (error: unknown) => boolean
- *   isLifecycleActive: () => boolean
- *   getMatchPageOrchestrationCtx: () => object
- *   createHeadlessCompletionFlightGate: () => {
- *     inFlight: boolean
- *     tryStart(): boolean
- *     finish(): void
+ *   presentation: {
+ *     gameplayInputLocked: import('vue').Ref<boolean>
+ *     previousVisibleState: import('vue').Ref<object | null>
+ *     presentationOrchestrator: {
+ *       getQueueSnapshot: () => Array<{ remainingMs: number }>
+ *     }
+ *     activePresentation: import('vue').Ref<object | null>
+ *     enqueuePresentationTransition: (
+ *       prevState: object,
+ *       nextState: object,
+ *       action: object,
+ *       seatId: string,
+ *       roleType: string,
+ *     ) => void
+ *     syncPresentationLabel: () => void
+ *     clearPresentationOrchestrator: () => void
  *   }
- *   syncPresentationLabel: () => void
- *   clearPresentationOrchestrator: () => void
- *   ackDungeonRunForTeardown: (run: object | null | undefined) => void
- *   onClearAutoResolveTimer: () => void
+ *   dialog: {
+ *     getNeuralRefreshTerminalOpen: () => boolean
+ *     getHeadlessCompletionInFlight: () => boolean
+ *     createHeadlessCompletionFlightGate: () => {
+ *       inFlight: boolean
+ *       tryStart(): boolean
+ *       finish(): void
+ *     }
+ *     ackDungeonRunForTeardown: (run: object | null | undefined) => void
+ *   }
+ *   lifecycle: {
+ *     isLifecycleActive: () => boolean
+ *     getMatchPageOrchestrationCtx: () => object
+ *     handleNeuralRecoveryTerminalError: (error: unknown) => boolean
+ *   }
+ *   recovery: {
+ *     ensureNnModelsReady: () => Promise<void>
+ *     nnRuntimeOptions: (modelId: string | null) => object
+ *   }
  *   seatRecoveryIndicators?: import('vue').Ref<Array<object>>
  *   storage?: Storage
  *   persistCurrentMatch?: typeof persistCurrentMatch
@@ -91,27 +101,27 @@ export function createLiveMatchShellOpponentTurnAutomation(deps) {
   const match = deps.match
   const debugMode = deps.debugMode
   const nnRecovery = deps.nnRecovery
-  const getHumanSeatId = deps.getHumanSeatId
-  const getIsHumanTurn = deps.getIsHumanTurn
+  const getHumanSeatId = deps.human.getHumanSeatId
+  const getIsHumanTurn = deps.human.getIsHumanTurn
   const deferredPostDungeonState = deps.deferredPostDungeonState
   const matchNeuralLoadGateInFlight = deps.matchNeuralLoadGateInFlight
-  const gameplayInputLocked = deps.gameplayInputLocked
-  const previousVisibleState = deps.previousVisibleState
-  const presentationOrchestrator = deps.presentationOrchestrator
-  const activePresentation = deps.activePresentation
-  const enqueuePresentationTransition = deps.enqueuePresentationTransition
-  const getNeuralRefreshTerminalOpen = deps.getNeuralRefreshTerminalOpen
-  const getHeadlessCompletionInFlight = deps.getHeadlessCompletionInFlight
-  const ensureNnModelsReady = deps.ensureNnModelsReady
-  const nnRuntimeOptions = deps.nnRuntimeOptions
-  const handleNeuralRecoveryTerminalError = deps.handleNeuralRecoveryTerminalError
-  const isLifecycleActive = deps.isLifecycleActive
-  const getMatchPageOrchestrationCtx = deps.getMatchPageOrchestrationCtx
-  const createHeadlessCompletionFlightGate = deps.createHeadlessCompletionFlightGate
-  const syncPresentationLabel = deps.syncPresentationLabel
-  const clearPresentationOrchestrator = deps.clearPresentationOrchestrator
-  const ackDungeonRunForTeardown = deps.ackDungeonRunForTeardown
-  const onClearAutoResolveTimer = deps.onClearAutoResolveTimer
+  const gameplayInputLocked = deps.presentation.gameplayInputLocked
+  const previousVisibleState = deps.presentation.previousVisibleState
+  const presentationOrchestrator = deps.presentation.presentationOrchestrator
+  const activePresentation = deps.presentation.activePresentation
+  const enqueuePresentationTransition = deps.presentation.enqueuePresentationTransition
+  const getNeuralRefreshTerminalOpen = deps.dialog.getNeuralRefreshTerminalOpen
+  const getHeadlessCompletionInFlight = deps.dialog.getHeadlessCompletionInFlight
+  const ensureNnModelsReady = deps.recovery.ensureNnModelsReady
+  const nnRuntimeOptions = deps.recovery.nnRuntimeOptions
+  const handleNeuralRecoveryTerminalError = deps.lifecycle.handleNeuralRecoveryTerminalError
+  const isLifecycleActive = deps.lifecycle.isLifecycleActive
+  const getMatchPageOrchestrationCtx = deps.lifecycle.getMatchPageOrchestrationCtx
+  const createHeadlessCompletionFlightGate = deps.dialog.createHeadlessCompletionFlightGate
+  const syncPresentationLabel = deps.presentation.syncPresentationLabel
+  const clearPresentationOrchestrator = deps.presentation.clearPresentationOrchestrator
+  const ackDungeonRunForTeardown = deps.dialog.ackDungeonRunForTeardown
+  const onClearAutoResolveTimer = deps.human.onClearAutoResolveTimer
   const storage = deps.storage ?? window.localStorage
   const persistMatch = deps.persistCurrentMatch ?? persistCurrentMatch
   const buildRunToken = deps.buildAiTurnRunToken ?? buildAiTurnRunToken
@@ -519,6 +529,12 @@ export function createLiveMatchShellOpponentTurnAutomation(deps) {
     )
   }
 
+  function deactivateMatchStateSubscription(stopHandle) {
+    if (typeof stopHandle === 'function') {
+      stopHandle()
+    }
+  }
+
   /**
    * @param {{
    *   isLifecycleActive: () => boolean
@@ -557,6 +573,7 @@ export function createLiveMatchShellOpponentTurnAutomation(deps) {
     teardownOpponentTurnAutomation,
     maybeRunHeadlessMatchCompletion,
     activateMatchStateSubscription,
+    deactivateMatchStateSubscription,
     onPresentationGameplayUnlocked,
   }
 }

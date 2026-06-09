@@ -42,6 +42,8 @@ import {
  *   openNeuralRefreshTerminal: () => void
  *   getConfirmationDialogResolve: () => ((value: boolean) => void) | null
  *   getAutoResolveTimerId: () => ReturnType<typeof setTimeout> | null
+ *   subscribeMatchState: () => (() => void) | void
+ *   unsubscribeMatchState: (stopHandle: (() => void) | null | void) => void
  *   matchNeuralLoadGateInFlight: import('vue').Ref<boolean>
  *   neuralLoadGateTerminalOpen: import('vue').Ref<boolean>
  *   setup: object
@@ -80,6 +82,8 @@ export function createLiveMatchShellLifecycleCoordination(deps) {
   let unsubscribeNnRecovery = null
   /** @type {ReturnType<typeof setInterval> | null} */
   let presentationTimerId = null
+  /** @type {(() => void) | null} */
+  let stopMatchStateSubscription = null
 
   function resetForSetupTerminal() {
     resetPageState(deps.liveMatchPageSessionSink, {
@@ -213,6 +217,7 @@ export function createLiveMatchShellLifecycleCoordination(deps) {
     })
     unsubscribeNnRecovery = lifecycle.unsubscribe
     presentationTimerId = lifecycle.presentationTimerId
+    stopMatchStateSubscription = deps.subscribeMatchState() ?? null
     if (presentationTraceEnabled()) {
       console.log(
         '[DungeonRunner][presentation] trace on — localStorage.setItem("dungeonPresentationTrace","1") — also logs [card-flight] for pile/deck → card motion',
@@ -224,6 +229,8 @@ export function createLiveMatchShellLifecycleCoordination(deps) {
     if (!liveMatchShellLifecycleActive) return
     liveMatchShellLifecycleActive = false
     deps.cancelAiTurnPrefetch()
+    deps.unsubscribeMatchState(stopMatchStateSubscription)
+    stopMatchStateSubscription = null
     deactivateLifecycle({
       unsubscribe: unsubscribeNnRecovery,
       presentationTimerId,
