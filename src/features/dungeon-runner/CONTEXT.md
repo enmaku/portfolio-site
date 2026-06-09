@@ -118,6 +118,54 @@ The in-progress play surface from first turn through **finishing match** (if any
 
 _Avoid_: “Game board” alone when meaning the whole live surface; treating **finishing match** as **match over**; conflating with **play setup surface**; using open dialogs alone as the shell switch; hosting **match neural load gate** pre-**match** failure UI here (that belongs on **play setup surface** when no **current match** yet exists).
 
+### Live match shell concern
+
+A distinct live-play responsibility inside **live match shell**. Module boundaries follow these concerns; the Vue session inject groups (`board`, `dialogs`, `debug`, `page`) are presentation API only—not decomposition seams.
+
+_Avoid_: One-file-per-inject-group splits; treating inject groups as domain boundaries.
+
+### Presentation binding (live match shell)
+
+Orchestrator-driven presentation beats, motion anchor wiring, orchestrator-tied animation classes, and gameplay-input lock state during **live match shell**. Supplies lock state as an input to **live AI turn pipeline gate** and human interactability gates. Does not own board view models—those live in **human gameplay surface (live)**.
+
+_Avoid_: Conflating with **opponent turn automation (live)**; treating motion-registry consolidation (#216) as part of this slice—#216 deepens the motion seam later; this concern keeps live-shell wiring extractable until then; owning bidding/dungeon/seat display computeds.
+
+### Opponent turn automation (live)
+
+**Opponent** turn schedule, prefetch, and run during **live match shell**, plus **neural runtime recovery** subscribe reactions (re-schedule, prefetch cancel, seat recovery indicators). Evaluates **live AI turn pipeline gate** from shared inputs; does not own presentation motion or orchestrator internals.
+
+_Avoid_: “AI pipeline” without **live** scope; conflating with **match neural load gate** (bootstrap-only) or **finishing match** headless chooser policy; folding presentation DOM refs into this concern.
+
+### Human gameplay surface (live)
+
+Continuous **human player seat** board interaction during **live match shell**: board view models (bidding board, dungeon stage, seat tracker, equipment tokens, action pane), legal action handlers, **sacrifice mode (bidding)**, equipment token taps, hero pick, dungeon-phase actions, and memory-aid deck tap. Ephemeral human UX state only—not blocking overlay open/dismiss lifecycle.
+
+_Avoid_: Conflating with **mid-match dialog surface (live)** because both affect human interactability; persisting human UX state on **current match** reload; folding motion-anchor refs or orchestrator animation classes into board view models (**presentation binding** owns those).
+
+### Mid-match dialog surface (live)
+
+Blocking mid-**match** overlays during **live match shell**: **dungeon run** outcome acknowledgment, equipment description modal, generic confirmation, **REFRESH** terminal, deck splay overlay open/dismiss, **finishing match** overlay messaging. Owns open/dismiss/ack lifecycle distinct from continuous board interaction.
+
+_Avoid_: “Dialog layer” without **live** scope; conflating with **match-over shell** outcome UX; treating **vorpal declaration picker (human)** as generic dialog chrome—the picker is human declaration UX that renders as an overlay but belongs to **human gameplay surface (live)** wiring, not generic dialog orchestration; owning memory-aid deck tap or `memoryAidState` (**human gameplay surface (live)**).
+
+### Live match shell lifecycle coordination
+
+Shell activation and deactivation during **live match shell**: mount/unmount hooks, subscribe setup/teardown, timer cleanup, and invoking **play route bootstrap** / match orchestration entry points. Maps orchestration outcomes to shell-local state; does not own bootstrap gate policy, **neural recovery terminal outcome** routing rules, or headless **finishing match** runner policy (those stay in orchestration modules outside the shell).
+
+_Avoid_: Re-running **match neural load gate** or bootstrap branches inside shell modules; duplicating headless-completion policy already owned by **play route bootstrap**; conflating lifecycle wiring with **opponent turn automation (live)** execution.
+
+### Maintainer debug (live match shell)
+
+The full **debug replay panel** on **live match shell**: replay import/export and NN trace history/text. Active only when debug mode is on; isolated from play concerns—reads **current match** state but does not participate in turn scheduling, human interactability, or presentation beats.
+
+_Avoid_: Conflating with **play route chrome** debug badge; export-only **match-over shell** debug; folding maintainer replay import into **human gameplay surface (live)** or lifecycle coordination.
+
+### Live match shell session orchestrator
+
+The composable that instantiates **live match shell concern** modules, wires shared refs and interactability gates between them, and assembles the stable `board` / `dialogs` / `debug` / `page` inject API. Owns cross-concern plumbing only—not inline play business logic.
+
+_Avoid_: Retaining action handlers, AI scheduling, dialog lifecycle, or presentation beat code in the orchestrator; treating the orchestrator as a seventh concern with substantive behavior.
+
 ### Match-over shell
 
 The post-**match over** play surface: outcome dialog, **completed match replay** upload hooks, rematch, and return to **play setup surface**. Replaces the **live match shell** once the engine records **match over**—not during **finishing match**. The bidding/dungeon board is not rendered while this surface is active; **current match** data may remain in memory for upload and rematch until cleared. **Rematch** starts a new **match** with the same **setup** snapshot and enters **live match shell** directly (after **match neural load gate**); **Back to setup** clears the **current match** and restores **play setup surface** with prior **setup** choices. **Completed match replay** and **completed match outcome** upload run once when this surface activates (background, idempotent—not deferred until the player dismisses outcome UX).
@@ -408,6 +456,18 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - **Play route bootstrap** maps orchestration outcomes to the active shell: no saved **match** or **SETUP** terminal → **play setup surface**; **REFRESH** terminal or successful resume → **live match shell** (headless completion when applicable).
 - **Completed match replay** and **completed match outcome** upload trigger when **match-over shell** activates, not from **live match shell**; not deferred until outcome dismissal.
 - **Opponent** turn scheduling, prefetch, **live AI turn pipeline gate** wiring, presentation-orchestrator callbacks during play, and the **neural runtime recovery** subscribe handler belong to **live match shell** (not **play setup surface** or **match-over shell**).
+- **Live match shell** module boundaries follow **live match shell concern**s (behavioral responsibilities), not session inject groups; inject groups remain the stable outward API assembled by the orchestrator composable.
+- **Presentation binding (live match shell)** and **opponent turn automation (live)** are separate **live match shell concern**s; **live AI turn pipeline gate** is the shared policy seam between them (locks and recovery state in, schedule/prefetch/run permissions out).
+- **Human gameplay surface (live)** and **mid-match dialog surface (live)** are separate **live match shell concern**s; shared human interactability gates read dialog and presentation-lock state without merging the two lifecycles.
+- Board view models (bidding board, dungeon stage, seat tracker, equipment layout, action pane) belong to **human gameplay surface (live)**; **presentation binding (live match shell)** owns motion/orchestrator outputs only. **Opponent turn automation (live)** supplies recovery indicators as input to seat-tracker display, not row assembly.
+- Memory-aid **enabled** setting lives in **play route chrome** / settings store; **human gameplay surface (live)** owns `memoryAidState` and deck tap; **mid-match dialog surface (live)** owns deck splay overlay presentation only.
+- **Current match** persistence side effects stay colocated with the triggering **live match shell concern** (human actions → **human gameplay surface (live)**; opponent turns → **opponent turn automation (live)**; clear/reset → **live match shell lifecycle coordination**; **persisted neural recovery** terminal writes on existing neural-recovery paths)—no separate persistence concern.
+- Cross-concern interactability during presentation locks: **human gameplay surface (live)** actions blocked; **mid-match dialog surface (live)** may stay open with confirm actions disabled; **sacrifice mode (bidding)** state preserved; **play route chrome** stays usable; **opponent turn automation (live)** schedule blocked (prefetch may still run per **live AI turn pipeline gate**). Decomposition must preserve this via shared gates, not merged lifecycles.
+- **Vorpal declaration picker (human)** wires through **human gameplay surface (live)**; **mid-match dialog surface (live)** hosts its overlay presentation only.
+- **Live match shell lifecycle coordination** invokes orchestration modules and maps outcomes to shell-local state; headless **finishing match** kickoff lives here, execution in **opponent turn automation (live)**, overlay copy in **mid-match dialog surface (live)**.
+- **Maintainer debug (live match shell)** is an isolated **live match shell concern**—no coupling to play scheduling, human interactability, or presentation binding.
+- **Live match shell session orchestrator** assembles the six **live match shell concern**s into session inject groups; cross-concern wiring only.
+- **Live match shell** decomposition (#262) relocates composable-inline glue into **live match shell concern** modules that compose existing deep modules (`biddingSacrificeInteractions`, `dungeonOutcomeDialog`, `liveMatchShellLifecycle`, `matchPageOrchestration`, `liveAiTurnPipelineGateContext`, etc.)—their APIs and behavior stay unchanged; presentation motion-registry consolidation (#216) remains out of scope.
 - Debug badge stays on **play route chrome**; full **debug replay panel** on **live match shell**; export-only on **match-over shell** when debug mode is on.
 - **Play route bootstrap** with a **current match** already at **match over** enters **match-over shell** (outcome UX again, board unmounted); upload re-runs idempotently. **Persisted neural recovery** **REFRESH** on resume takes precedence over outcome (**live match shell** + refresh dialog)—**REFRESH** and terminal **match over** must not coexist on one saved **current match**.
 - Shared play-route state (**setup**, **current match**, orchestration inputs) lives outside the three shells; shells receive it via the page entry/session seam and own shell-local UI only—not a single composable owning the full **match** lifecycle (#176 rejection stands).
