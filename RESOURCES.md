@@ -31,7 +31,9 @@
 - [lessons/0002-systems-thinking-lens.html](./lessons/0002-systems-thinking-lens.html) — five-question lens for design & code review
 - [lessons/0003-star-room-wire.html](./lessons/0003-star-room-wire.html) — shared P2P factory + per-project protocols
 - [reference/star-room-wire.html](./reference/star-room-wire.html) — star-room interface cheat sheet
+- [lessons/0004-dungeon-runner-ui-stack.html](./lessons/0004-dungeon-runner-ui-stack.html) — DR engine → orchestrator → shells
+- [reference/dungeon-runner-ui-stack.html](./reference/dungeon-runner-ui-stack.html) — DR UI layer cheat sheet
+- [lessons/0005-comprehensive-assessment.html](./lessons/0005-comprehensive-assessment.html) — 24-question review (lessons 1–4)
 
 ## Gaps
 
-- Dungeon Runner UI orchestration (presentation pipeline, shells, headless runners) — atlas has layer cake; dedicated lesson still useful
