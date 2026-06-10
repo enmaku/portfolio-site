@@ -71,6 +71,24 @@ test('parseGuestMessage drops malformed intent but keeps snapshot', () => {
   assert.equal(parsed.intent, undefined)
 })
 
+test('guest update round-trips endTurnNext intent without playerId', () => {
+  const snap = baseSnapshot()
+  const intent = { kind: 'endTurnNext', sentAt: 42 }
+  const wire = encodeGuestUpdate(snap, intent)
+  const parsed = parseGuestMessage(wire)
+  assert.ok(parsed)
+  assert.deepEqual(parsed.intent, intent)
+})
+
+test('guest update round-trips undoHardPass intent with playerId', () => {
+  const snap = baseSnapshot()
+  const intent = { kind: 'undoHardPass', playerId: 'p2', sentAt: 7 }
+  const wire = encodeGuestUpdate(snap, intent)
+  const parsed = parseGuestMessage(wire)
+  assert.ok(parsed)
+  assert.deepEqual(parsed.intent, intent)
+})
+
 test('isValidSnapshot accepts RTDB-shaped snapshot with nullable turn keys omitted', () => {
   const rtdbSnap = stripRtdbNullKeys(sanitizeForRtdb(baseSnapshot()))
   assert.equal(isValidSnapshot(rtdbSnap), true)

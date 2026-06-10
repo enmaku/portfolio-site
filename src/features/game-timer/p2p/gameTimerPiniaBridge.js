@@ -32,6 +32,45 @@ const SYNC_ACTION_NAMES = new Set([
   'undoHardPass',
 ])
 
+/** @type {Set<string>} */
+const SCOPED_SYNC_ACTION_NAMES = new Set([
+  'selectPlayer',
+  'endTurnNext',
+  'goToNextRound',
+  'goToPreviousRound',
+  'registerHardPass',
+  'undoHardPass',
+])
+
+/**
+ * @param {string} name
+ * @param {unknown[]} args
+ * @param {number} sentAt
+ * @returns {import('./protocol.js').GuestIntent | undefined}
+ */
+export function guestIntentForAction(name, args, sentAt) {
+  if (!SCOPED_SYNC_ACTION_NAMES.has(name)) return undefined
+  if (name === 'selectPlayer' && typeof args[0] === 'string') {
+    return { kind: 'selectPlayer', playerId: args[0], sentAt }
+  }
+  if (name === 'registerHardPass' && typeof args[0] === 'string') {
+    return { kind: 'registerHardPass', playerId: args[0], sentAt }
+  }
+  if (name === 'undoHardPass' && typeof args[0] === 'string') {
+    return { kind: 'undoHardPass', playerId: args[0], sentAt }
+  }
+  if (name === 'endTurnNext') {
+    return { kind: 'endTurnNext', sentAt }
+  }
+  if (name === 'goToNextRound') {
+    return { kind: 'goToNextRound', sentAt }
+  }
+  if (name === 'goToPreviousRound') {
+    return { kind: 'goToPreviousRound', sentAt }
+  }
+  return undefined
+}
+
 /**
  * @param {import('pinia').Store} store `gameTimer` store instance.
  * @returns {GameTimerSyncPayload}
@@ -137,14 +176,7 @@ export function gameTimerP2PPlugin(ctx) {
       if (applyingRemote) return
       if (!SYNC_ACTION_NAMES.has(name)) return
       if (!isP2PSessionActive()) return
-      const sentAt = Date.now()
-      /** @type {{ kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } | undefined} */
-      let intent
-      if (name === 'selectPlayer' && typeof args[0] === 'string') {
-        intent = { kind: 'selectPlayer', playerId: args[0], sentAt }
-      } else if (name === 'registerHardPass' && typeof args[0] === 'string') {
-        intent = { kind: 'registerHardPass', playerId: args[0], sentAt }
-      }
+      const intent = guestIntentForAction(name, args, Date.now())
       try {
         broadcastGameTimerSnapshot(pickSnapshot(useGameTimerStore()), intent)
       } catch (e) {

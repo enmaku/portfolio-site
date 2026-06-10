@@ -46,14 +46,15 @@ import {
 } from './roomId.js'
 import {
   authoritativeSnapshotAfterGuestMessage,
-  createGuestIntentDeduper,
-} from './guestIntentDedupe.js'
+  createHostScopedActionCooldown,
+  isScopedGuestAction,
+} from './hostScopedActionCooldown.js'
 import { registerGameTimerTestWireAccess } from './session.testWireAccess.js'
 
 const STABLE_HOST_SUFFIX_APP = 'gametimer'
 
-/** @type {ReturnType<typeof createGuestIntentDeduper>} */
-let hostGuestIntentDeduper = createGuestIntentDeduper()
+/** @type {ReturnType<typeof createHostScopedActionCooldown>} */
+let hostScopedActionCooldown = createHostScopedActionCooldown()
 
 /**
  * @typedef {object} GameTimerP2PHandlers
@@ -200,7 +201,7 @@ function clearRoomPersistence() {
 function resetHostGuestWireState() {
   nextSeq = 0
   lastSeenSeq = 0
-  hostGuestIntentDeduper = createGuestIntentDeduper()
+  hostScopedActionCooldown = createHostScopedActionCooldown()
 }
 
 function destroyWireOnly() {
@@ -259,26 +260,24 @@ function handleHostInboxMessage(stableId, raw) {
   try {
     mergeResult = authoritativeSnapshotAfterGuestMessage(
       msg,
-      hostGuestIntentDeduper,
+      hostScopedActionCooldown,
       now,
       (s) => handlers.applySnapshot(s),
       () => handlers.getSnapshot(),
     )
     if (
-      !mergeResult.appliedGuestSnapshot &&
-      msg.intent &&
+      mergeResult.rejectedScopedGuest &&
       typeof import.meta !== 'undefined' &&
       import.meta.env &&
       import.meta.env.DEV
     ) {
-      console.debug('[gameTimer P2P] suppressed duplicate guest intent', msg.intent.kind)
+      console.debug('[gameTimer P2P] rejected scoped guest action during cooldown', msg.intent?.kind)
     }
   } catch {
     return
   }
 
-  // Guest hello still publishes via onGuestHello above; only rebroadcast when an update intent applied.
-  if (mergeResult.appliedGuestSnapshot) {
+  if (mergeResult.appliedGuestSnapshot || mergeResult.rejectedScopedGuest) {
     hostPublishSnapshot(mergeResult.broadcastSnapshot)
   }
 }
@@ -570,7 +569,7 @@ export async function joinRoom(rawSuffix) {
 /**
  * Push current snapshot to peers (after a local store mutation).
  * @param {GameTimerSyncPayload} snapshot
- * @param {{ kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } | undefined} [intent] guest → host only
+ * @param {import('./protocol.js').GuestIntent | undefined} [intent] guest → host action tag; host scoped honor signal
  * @returns {void}
  */
 export function broadcastGameTimerSnapshot(snapshot, intent) {
@@ -578,6 +577,9 @@ export function broadcastGameTimerSnapshot(snapshot, intent) {
   if (!suffix) return
 
   if (core.isHostRole()) {
+    if (isScopedGuestAction(intent)) {
+      hostScopedActionCooldown.notifyHonoredScopedAction(Date.now())
+    }
     hostPublishSnapshot(snapshot)
     return
   }
