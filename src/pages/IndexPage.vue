@@ -1,29 +1,29 @@
 <template>
   <q-page class="q-pa-md">
     <div
-      v-if="basePhotos.length > 0 && !galleryReady"
+      v-if="basePhotos.length > 0 && !gallery.ready"
       class="gallery-loading column items-center justify-center q-gutter-y-md"
     >
       <div class="text-body1 text-grey-8">Loading gallery…</div>
       <q-linear-progress
-        :value="loadProgress"
+        :value="gallery.loadProgress"
         color="primary"
         class="gallery-loading__bar rounded-borders"
         size="10px"
         instant-feedback
       />
       <div class="text-caption text-grey-6">
-        {{ loadedCount }} / {{ basePhotos.length }} images
+        {{ gallery.loadedCount }} / {{ basePhotos.length }} images
       </div>
     </div>
 
-    <div v-else-if="photos.length > 0" class="gallery-masonry">
+    <div v-else-if="gallery.photos.length > 0" class="gallery-masonry">
       <div
-        v-for="p in photos"
+        v-for="p in gallery.photos"
         :key="p.src"
         class="gallery-tile rounded-borders overflow-hidden"
-        @mouseenter="onThumbEnter(p)"
-        @mouseleave="onThumbLeave"
+        @mouseenter="gallery.onThumbEnter(p)"
+        @mouseleave="gallery.onThumbLeave"
       >
         <q-img
           :src="p.thumbSrc"
@@ -33,15 +33,15 @@
           class="gallery-thumb cursor-pointer"
           spinner-color="primary"
           fit="cover"
-          @click="openPhoto(p)"
+          @click="preview.openPhoto(p)"
         />
         <transition name="exif-slide">
           <div
-            v-show="hoveredPhotoSrc === p.src && thumbExifLines.length > 0"
+            v-show="gallery.hoveredPhotoSrc === p.src && gallery.thumbExifLines.length > 0"
             class="thumb-exif-overlay"
           >
             <div
-              v-for="(line, i) in thumbExifLines"
+              v-for="(line, i) in gallery.thumbExifLines"
               :key="i"
               class="text-caption text-white ellipsis"
             >
@@ -96,7 +96,7 @@
     </div>
 
     <q-dialog
-      v-model="dialogOpen"
+      v-model="preview.open"
       maximized
       transition-show="scale"
       transition-hide="scale"
@@ -106,54 +106,54 @@
         <q-bar class="dialog-card__bar">
           <q-space />
           <q-btn
-            v-if="dialogExifRows.length > 0"
+            v-if="preview.exifRows.length > 0"
             flat
             dense
-            :icon="exifPanelOpen ? 'info' : 'info_outline'"
+            :icon="preview.exifPanelOpen ? 'info' : 'info_outline'"
             aria-label="Toggle photo details"
-            @click="exifPanelOpen = !exifPanelOpen"
+            @click="preview.exifPanelOpen = !preview.exifPanelOpen"
           />
           <q-btn
             flat
             dense
-            :icon="isZoomed ? 'zoom_out' : 'zoom_in'"
-            :aria-label="isZoomed ? 'Zoom out to fit' : 'Zoom in'"
-            @click="toggleZoom"
+            :icon="preview.isZoomed ? 'zoom_out' : 'zoom_in'"
+            :aria-label="preview.isZoomed ? 'Zoom out to fit' : 'Zoom in'"
+            @click="preview.toggleZoom"
           />
           <q-btn flat dense icon="close" aria-label="Close" v-close-popup />
         </q-bar>
 
         <div class="dialog-card__body">
           <div
-            ref="dialogImageWrap"
+            :ref="(el) => { preview.imageWrap = el }"
             class="dialog-image-wrap"
-            :class="{ 'dialog-image-wrap--zoomed': isZoomed }"
-            @pointermove="imageDragHandlers.onMove"
-            @pointerup="imageDragHandlers.onEnd"
-            @pointercancel="imageDragHandlers.onEnd"
-            @pointerleave="imageDragHandlers.onEnd"
+            :class="{ 'dialog-image-wrap--zoomed': preview.isZoomed }"
+            @pointermove="preview.onImageWrapPointerMove"
+            @pointerup="preview.onImageWrapPointerEnd"
+            @pointercancel="preview.onImageWrapPointerEnd"
+            @pointerleave="preview.onImageWrapPointerEnd"
           >
             <img
-              :src="dialogSrc"
-              :alt="dialogLabel"
+              :src="preview.src"
+              :alt="preview.label"
               class="dialog-image"
               :class="{
-                'dialog-image--zoomed': isZoomed,
-                'dialog-image--dragging': isDragging,
+                'dialog-image--zoomed': preview.isZoomed,
+                'dialog-image--dragging': preview.isDragging,
               }"
-              @pointerdown="onImagePointerDown"
-              @click="onImageClick"
+              @pointerdown="preview.onImagePointerDown"
+              @click="preview.onImageClick"
               @dragstart.prevent
             />
           </div>
 
           <div
-            v-show="exifPanelOpen && dialogExifRows.length > 0"
+            v-show="preview.exifPanelOpen && preview.exifRows.length > 0"
             class="dialog-card__exif"
           >
             <q-scroll-area class="exif-scroll">
               <q-list dense dark separator>
-                <q-item v-for="(row, idx) in dialogExifRows" :key="idx" class="exif-row">
+                <q-item v-for="(row, idx) in preview.exifRows" :key="idx" class="exif-row">
                   <q-item-section>
                     <q-item-label caption class="text-grey-5">{{ row.label }}</q-item-label>
                     <q-item-label class="text-white text-wrap">{{ row.value }}</q-item-label>
@@ -171,31 +171,7 @@
 <script setup>
 import { usePhotoGallery } from 'src/composables/usePhotoGallery.js'
 
-const {
-  googlePhotosUrl,
-  basePhotos,
-  photos,
-  galleryReady,
-  loadProgress,
-  loadedCount,
-  hoveredPhotoSrc,
-  thumbExifLines,
-  onThumbEnter,
-  onThumbLeave,
-  dialogOpen,
-  dialogSrc,
-  dialogLabel,
-  exifPanelOpen,
-  dialogExifRows,
-  isZoomed,
-  isDragging,
-  dialogImageWrap,
-  openPhoto,
-  toggleZoom,
-  onImagePointerDown,
-  onImageClick,
-  imageDragHandlers,
-} = usePhotoGallery()
+const { googlePhotosUrl, basePhotos, gallery, preview } = usePhotoGallery()
 </script>
 
 <style scoped>

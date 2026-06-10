@@ -114,15 +114,16 @@ function parseExifDateTime(value) {
 /**
  * Human-readable date for a single EXIF datetime field (empty string if unparseable).
  * @param {unknown} value
+ * @param {Intl.LocalesArgument} [locales]
  * @returns {string}
  */
-export function formatExifTimestamp(value) {
+export function formatExifTimestamp(value, locales = undefined) {
   const d = parseExifDateTime(value)
   if (!d) {
     return ''
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(locales, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',

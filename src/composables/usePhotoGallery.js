@@ -1,5 +1,5 @@
 import exifr from 'exifr'
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 import { usePointerDragScroll } from 'src/composables/usePointerDragScroll.js'
 import { exifSummaryLines, exifToRows } from 'src/utils/exifFormat.js'
@@ -69,7 +69,7 @@ async function loadExif(src) {
       tiff: true,
       ifd0: true,
       exif: true,
-      gps: true,
+      gps: false,
       icc: false,
       mergeOutput: true,
     })
@@ -229,6 +229,14 @@ export function usePhotoGallery() {
     }
   }
 
+  function onImageWrapPointerMove(event) {
+    imageDragHandlers.onMove(event)
+  }
+
+  function onImageWrapPointerEnd(event) {
+    imageDragHandlers.onEnd(event)
+  }
+
   async function zoomInToPoint(ratioX, ratioY) {
     isZoomed.value = true
     imageDragHandlers.onEnd()
@@ -305,26 +313,31 @@ export function usePhotoGallery() {
   return {
     googlePhotosUrl,
     basePhotos,
-    photos,
-    galleryReady,
-    loadProgress,
-    loadedCount,
-    hoveredPhotoSrc,
-    thumbExifLines,
-    onThumbEnter,
-    onThumbLeave,
-    dialogOpen,
-    dialogSrc,
-    dialogLabel,
-    exifPanelOpen,
-    dialogExifRows,
-    isZoomed,
-    isDragging,
-    dialogImageWrap,
-    openPhoto,
-    toggleZoom,
-    onImagePointerDown,
-    onImageClick,
-    imageDragHandlers,
+    gallery: reactive({
+      photos,
+      ready: galleryReady,
+      loadProgress,
+      loadedCount,
+      hoveredPhotoSrc,
+      thumbExifLines,
+      onThumbEnter,
+      onThumbLeave,
+    }),
+    preview: reactive({
+      open: dialogOpen,
+      src: dialogSrc,
+      label: dialogLabel,
+      exifPanelOpen,
+      exifRows: dialogExifRows,
+      isZoomed,
+      isDragging,
+      imageWrap: dialogImageWrap,
+      openPhoto,
+      toggleZoom,
+      onImagePointerDown,
+      onImageClick,
+      onImageWrapPointerMove,
+      onImageWrapPointerEnd,
+    }),
   }
 }
