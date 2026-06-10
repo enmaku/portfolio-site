@@ -1,4 +1,4 @@
-import { presentationMotionInterpreterHelpers } from '../../presentationMotionHelpers.js'
+import { createDurationOnlyTimeline } from '../timelineHelpers.js'
 
 /** @type {import('../types.js').PresentationMotionCatalogEntry} */
 export const dungeonContinueCatalogEntry = {
@@ -10,11 +10,10 @@ export const dungeonContinueCatalogEntry = {
     const el = ctx.refs?.dungeonCardWrap
     const ms = Math.max(0, Number(ctx.durationMs) || 0)
     const dur = ms / 1000
-    const tl = gsapApi.timeline({ paused: true })
     if (!isDomElement(el)) {
-      if (dur > 0) tl.to({}, { duration: dur })
-      return tl
+      return createDurationOnlyTimeline(gsapApi, ctx.durationMs)
     }
+    const tl = gsapApi.timeline({ paused: true })
     tl.fromTo(
       el,
       { filter: 'brightness(1)' },
@@ -22,9 +21,4 @@ export const dungeonContinueCatalogEntry = {
     )
     return tl
   },
-}
-
-/** @param {import('gsap').GSAP} gsapApi @param {import('../types.js').PresentationMotionContext} ctx */
-export function createDungeonContinuePresentationMotionTimeline(gsapApi, ctx) {
-  return dungeonContinueCatalogEntry.buildInnerTimeline(gsapApi, ctx, presentationMotionInterpreterHelpers)
 }

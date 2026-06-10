@@ -1,4 +1,4 @@
-import { presentationMotionInterpreterHelpers } from '../../presentationMotionHelpers.js'
+import { createDurationOnlyTimeline } from '../timelineHelpers.js'
 
 /** @type {import('../types.js').PresentationMotionCatalogEntry} */
 export const biddingDrawCatalogEntry = {
@@ -12,15 +12,14 @@ export const biddingDrawCatalogEntry = {
     const flip = ctx.refs?.dungeonCardFlipAxis
     const ms = Math.max(0, Number(ctx.durationMs) || 0)
     const dur = ms / 1000
-    const tl = gsapApi.timeline({ paused: true })
     const payload = ctx.payload ?? {}
     const shouldFlip = payload.shouldFlipFaceAfterArrival === true
 
     if (!isDomElement(card) || dur <= 0) {
-      if (dur > 0) tl.to({}, { duration: dur })
-      return tl
+      return createDurationOnlyTimeline(gsapApi, ctx.durationMs)
     }
 
+    const tl = gsapApi.timeline({ paused: true })
     const flipEl = isDomElement(flip) ? flip : null
     appendCardFlyFromAnchorThenMaybeFlip(gsapApi, tl, {
       card,
@@ -35,9 +34,4 @@ export const biddingDrawCatalogEntry = {
 
     return tl
   },
-}
-
-/** @param {import('gsap').GSAP} gsapApi @param {import('../types.js').PresentationMotionContext} ctx */
-export function createBiddingDrawPresentationMotionTimeline(gsapApi, ctx) {
-  return biddingDrawCatalogEntry.buildInnerTimeline(gsapApi, ctx, presentationMotionInterpreterHelpers)
 }

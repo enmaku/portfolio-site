@@ -1,5 +1,10 @@
-import { presentationMotionInterpreterHelpers } from '../../presentationMotionHelpers.js'
-import { appendDurationPlaceholderIfNeeded, clearKeysWithEquipment, layoutFragileWhenEquipmentIds } from '../timelineHelpers.js'
+import {
+  appendDurationPlaceholderIfNeeded,
+  clearKeysWithEquipment,
+  computeCardExitSlideOffset,
+  exitPhaseTiming,
+  layoutFragileWhenEquipmentIds,
+} from '../timelineHelpers.js'
 
 /** @type {import('../types.js').PresentationMotionCatalogEntry} */
 export const dungeonNeutralizeCatalogEntry = {
@@ -29,33 +34,13 @@ export const dungeonNeutralizeCatalogEntry = {
     )
 
     const isFinalDefeat = ctx.payload?.isFinalDungeonMonsterDefeat === true
-    const exitStart = dur > 0 ? Math.min(dur * 0.58, dur - Math.max(0.22, dur * 0.12)) : 0
-    const exitDur = dur > exitStart ? dur - exitStart : 0
+    const { exitStart, exitDur } = exitPhaseTiming(dur)
     if (!isFinalDefeat && exitDur > 0) {
-      let off = 420
-      if (
-        typeof window !== 'undefined' &&
-        Number.isFinite(window.innerWidth) &&
-        typeof el.getBoundingClientRect === 'function'
-      ) {
-        const r = el.getBoundingClientRect()
-        if (Number.isFinite(r.left) && Number.isFinite(r.width)) {
-          off = Math.max(320, window.innerWidth - r.left + Math.max(28, r.width))
-        } else {
-          off = Math.max(320, window.innerWidth * 0.75)
-        }
-      } else if (typeof window !== 'undefined' && Number.isFinite(window.innerWidth)) {
-        off = Math.max(320, window.innerWidth * 0.75)
-      }
+      const off = computeCardExitSlideOffset(el)
       tl.to(el, { x: off, opacity: 0, duration: exitDur, ease: 'power3.in' }, exitStart)
     }
 
     appendDurationPlaceholderIfNeeded(tl, dur)
     return tl
   },
-}
-
-/** @param {import('gsap').GSAP} gsapApi @param {import('../types.js').PresentationMotionContext} ctx */
-export function createDungeonNeutralizePresentationMotionTimeline(gsapApi, ctx) {
-  return dungeonNeutralizeCatalogEntry.buildInnerTimeline(gsapApi, ctx, presentationMotionInterpreterHelpers)
 }

@@ -15,12 +15,16 @@
  * }} PresentationMotionContext
  */
 
+/** @typedef {typeof import('../presentationMotionHelpers.js').appendCardFlyFromAnchorThenMaybeFlip} AppendCardFlyFromAnchorThenMaybeFlip */
+/** @typedef {typeof import('../presentationMotionHelpers.js').addEquipmentActivationGhostFlights} AddEquipmentActivationGhostFlights */
+/** @typedef {typeof import('../presentationMotionHelpers.js').centerDeltaBetweenElements} CenterDeltaBetweenElements */
+
 /**
  * @typedef {{
  *   isDomElement: (value: unknown) => boolean,
- *   appendCardFlyFromAnchorThenMaybeFlip: Function,
- *   addEquipmentActivationGhostFlights: Function,
- *   centerDeltaBetweenElements: Function,
+ *   appendCardFlyFromAnchorThenMaybeFlip: AppendCardFlyFromAnchorThenMaybeFlip,
+ *   addEquipmentActivationGhostFlights: AddEquipmentActivationGhostFlights,
+ *   centerDeltaBetweenElements: CenterDeltaBetweenElements,
  * }} PresentationMotionInterpreterHelpers
  */
 

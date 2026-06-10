@@ -1,49 +1,21 @@
-import {
-  createBiddingAddPresentationMotionTimeline,
-  biddingAddCatalogEntry,
-} from './entries/biddingAdd.js'
-import {
-  createBiddingDrawPresentationMotionTimeline,
-  biddingDrawCatalogEntry,
-} from './entries/biddingDraw.js'
-import {
-  createBiddingSacrificePresentationMotionTimeline,
-  biddingSacrificeCatalogEntry,
-} from './entries/biddingSacrifice.js'
-import {
-  createDungeonContinuePresentationMotionTimeline,
-  dungeonContinueCatalogEntry,
-} from './entries/dungeonContinue.js'
-import {
-  createDungeonDamagePresentationMotionTimeline,
-  dungeonDamageCatalogEntry,
-} from './entries/dungeonDamage.js'
-import {
-  createDungeonNeutralizePresentationMotionTimeline,
-  dungeonNeutralizeCatalogEntry,
-} from './entries/dungeonNeutralize.js'
-import {
-  createDungeonOutcomePresentationMotionTimeline,
-  dungeonOutcomeCatalogEntry,
-} from './entries/dungeonOutcome.js'
-import {
-  createDungeonRevealPresentationMotionTimeline,
-  dungeonRevealCatalogEntry,
-} from './entries/dungeonReveal.js'
-import {
-  createHeroChangeInterstitialPresentationMotionTimeline,
-  heroChangeInterstitialCatalogEntry,
-} from './entries/heroChangeInterstitial.js'
-import {
-  createBoardShellPresentationMotionTimeline,
-  shellPulseCatalogEntry,
-} from './entries/shellPulse.js'
+import { ORCHESTRATOR_PRESENTATION_KINDS } from '../orchestratorPresentationKinds.js'
+import { presentationMotionInterpreterHelpers } from '../presentationMotionHelpers.js'
+import { biddingAddCatalogEntry } from './entries/biddingAdd.js'
+import { biddingDrawCatalogEntry } from './entries/biddingDraw.js'
+import { biddingSacrificeCatalogEntry } from './entries/biddingSacrifice.js'
+import { dungeonContinueCatalogEntry } from './entries/dungeonContinue.js'
+import { dungeonDamageCatalogEntry } from './entries/dungeonDamage.js'
+import { dungeonNeutralizeCatalogEntry } from './entries/dungeonNeutralize.js'
+import { dungeonOutcomeCatalogEntry } from './entries/dungeonOutcome.js'
+import { dungeonRevealCatalogEntry } from './entries/dungeonReveal.js'
+import { heroChangeInterstitialCatalogEntry } from './entries/heroChangeInterstitial.js'
+import { shellPulseCatalogEntry } from './entries/shellPulse.js'
 
 /** @typedef {import('./types.js').OrchestratorPresentationKind} OrchestratorPresentationKind */
 /** @typedef {import('./types.js').PresentationMotionCatalogEntry} PresentationMotionCatalogEntry */
 
-/** @type {Readonly<Record<OrchestratorPresentationKind, PresentationMotionCatalogEntry>>} */
-export const PRESENTATION_MOTION_CATALOG = Object.freeze({
+/** @type {Readonly<Partial<Record<OrchestratorPresentationKind, PresentationMotionCatalogEntry>>>} */
+const CATALOG_OVERRIDES = Object.freeze({
   BIDDING_ADD: biddingAddCatalogEntry,
   BIDDING_DRAW: biddingDrawCatalogEntry,
   BIDDING_SACRIFICE: biddingSacrificeCatalogEntry,
@@ -53,11 +25,17 @@ export const PRESENTATION_MOTION_CATALOG = Object.freeze({
   DUNGEON_OUTCOME: dungeonOutcomeCatalogEntry,
   DUNGEON_REVEAL: dungeonRevealCatalogEntry,
   HERO_CHANGE_INTERSTITIAL: heroChangeInterstitialCatalogEntry,
-  PHASE_ENTER_DUNGEON: shellPulseCatalogEntry,
-  PHASE_MATCH_OVER: shellPulseCatalogEntry,
-  PHASE_PICK_ADVENTURER: shellPulseCatalogEntry,
-  TURN_ADVANCE: shellPulseCatalogEntry,
 })
+
+/** @type {Readonly<Record<OrchestratorPresentationKind, PresentationMotionCatalogEntry>>} */
+export const PRESENTATION_MOTION_CATALOG = Object.freeze(
+  Object.fromEntries(
+    ORCHESTRATOR_PRESENTATION_KINDS.map((kind) => [
+      kind,
+      CATALOG_OVERRIDES[kind] ?? shellPulseCatalogEntry,
+    ]),
+  ),
+)
 
 /**
  * @param {OrchestratorPresentationKind} kind
@@ -67,22 +45,23 @@ export function getPresentationMotionCatalogEntry(kind) {
   return PRESENTATION_MOTION_CATALOG[kind]
 }
 
-/** @type {Readonly<Record<OrchestratorPresentationKind, Function>>} */
-export const PRESENTATION_MOTION_REGISTRY = Object.freeze({
-  BIDDING_ADD: createBiddingAddPresentationMotionTimeline,
-  BIDDING_DRAW: createBiddingDrawPresentationMotionTimeline,
-  BIDDING_SACRIFICE: createBiddingSacrificePresentationMotionTimeline,
-  DUNGEON_CONTINUE: createDungeonContinuePresentationMotionTimeline,
-  DUNGEON_DAMAGE: createDungeonDamagePresentationMotionTimeline,
-  DUNGEON_NEUTRALIZE: createDungeonNeutralizePresentationMotionTimeline,
-  DUNGEON_OUTCOME: createDungeonOutcomePresentationMotionTimeline,
-  DUNGEON_REVEAL: createDungeonRevealPresentationMotionTimeline,
-  HERO_CHANGE_INTERSTITIAL: createHeroChangeInterstitialPresentationMotionTimeline,
-  PHASE_ENTER_DUNGEON: createBoardShellPresentationMotionTimeline,
-  PHASE_MATCH_OVER: createBoardShellPresentationMotionTimeline,
-  PHASE_PICK_ADVENTURER: createBoardShellPresentationMotionTimeline,
-  TURN_ADVANCE: createBoardShellPresentationMotionTimeline,
-})
+/**
+ * @param {PresentationMotionCatalogEntry} entry
+ * @returns {(gsapApi: import('gsap').GSAP, ctx: import('./types.js').PresentationMotionContext) => import('gsap').core.Timeline}
+ */
+function createRegistryTimelineFactory(entry) {
+  return (gsapApi, ctx) => entry.buildInnerTimeline(gsapApi, ctx, presentationMotionInterpreterHelpers)
+}
+
+/** @type {Readonly<Record<OrchestratorPresentationKind, ReturnType<typeof createRegistryTimelineFactory>>>} */
+export const PRESENTATION_MOTION_REGISTRY = Object.freeze(
+  Object.fromEntries(
+    ORCHESTRATOR_PRESENTATION_KINDS.map((kind) => [
+      kind,
+      createRegistryTimelineFactory(PRESENTATION_MOTION_CATALOG[kind]),
+    ]),
+  ),
+)
 
 /**
  * @param {OrchestratorPresentationKind} kind
@@ -102,15 +81,14 @@ export function presentationMotionIsLayoutFragile(kind, payload) {
   return entry ? entry.layoutFragile(payload) : false
 }
 
-export {
-  createBiddingAddPresentationMotionTimeline,
-  createBiddingDrawPresentationMotionTimeline,
-  createBiddingSacrificePresentationMotionTimeline,
-  createBoardShellPresentationMotionTimeline,
-  createDungeonContinuePresentationMotionTimeline,
-  createDungeonDamagePresentationMotionTimeline,
-  createDungeonNeutralizePresentationMotionTimeline,
-  createDungeonOutcomePresentationMotionTimeline,
-  createDungeonRevealPresentationMotionTimeline,
-  createHeroChangeInterstitialPresentationMotionTimeline,
-}
+export const createBiddingAddPresentationMotionTimeline = PRESENTATION_MOTION_REGISTRY.BIDDING_ADD
+export const createBiddingDrawPresentationMotionTimeline = PRESENTATION_MOTION_REGISTRY.BIDDING_DRAW
+export const createBiddingSacrificePresentationMotionTimeline = PRESENTATION_MOTION_REGISTRY.BIDDING_SACRIFICE
+export const createBoardShellPresentationMotionTimeline = PRESENTATION_MOTION_REGISTRY.PHASE_ENTER_DUNGEON
+export const createDungeonContinuePresentationMotionTimeline = PRESENTATION_MOTION_REGISTRY.DUNGEON_CONTINUE
+export const createDungeonDamagePresentationMotionTimeline = PRESENTATION_MOTION_REGISTRY.DUNGEON_DAMAGE
+export const createDungeonNeutralizePresentationMotionTimeline = PRESENTATION_MOTION_REGISTRY.DUNGEON_NEUTRALIZE
+export const createDungeonOutcomePresentationMotionTimeline = PRESENTATION_MOTION_REGISTRY.DUNGEON_OUTCOME
+export const createDungeonRevealPresentationMotionTimeline = PRESENTATION_MOTION_REGISTRY.DUNGEON_REVEAL
+export const createHeroChangeInterstitialPresentationMotionTimeline =
+  PRESENTATION_MOTION_REGISTRY.HERO_CHANGE_INTERSTITIAL
