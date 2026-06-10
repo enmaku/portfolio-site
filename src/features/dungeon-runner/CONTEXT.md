@@ -128,7 +128,25 @@ _Avoid_: One-file-per-inject-group splits; treating inject groups as domain boun
 
 Orchestrator-driven presentation beats, motion anchor wiring, orchestrator-tied animation classes, and gameplay-input lock state during **live match shell**. Supplies lock state as an input to **live AI turn pipeline gate** and human interactability gates. Does not own board view models—those live in **human gameplay surface (live)**.
 
-_Avoid_: Conflating with **opponent turn automation (live)**; treating motion-registry consolidation (#216) as part of this slice—#216 deepens the motion seam later; this concern keeps live-shell wiring extractable until then; owning bidding/dungeon/seat display computeds.
+_Avoid_: Conflating with **opponent turn automation (live)**; absorbing **presentation motion pipeline** layer-3 consolidation into this concern—binding supplies refs and lock state; catalog/interpreter owns GSAP assembly; owning bidding/dungeon/seat display computeds.
+
+### Presentation behavior contract
+
+The player-visible bar for presentation changes during **live match shell** play: orchestrator **kind** sequence unchanged, **presentation pace** profiles unchanged, gameplay-input lock/unlock unchanged, and the same motion beat categories (reveal, damage, sacrifice exit, etc.). Not pixel-perfect GSAP parity—internal tween structure may change when the motion pipeline is consolidated.
+
+_Avoid_: Frame-accurate GSAP step parity as a refactor gate; treating **presentation pace** profile changes as in-scope for structural motion work.
+
+### Presentation motion pipeline
+
+Three layers during **live match shell** play, each with a distinct job: (1) the orchestrator maps engine transitions to queued presentation beats (`kind`, duration, beat-specific payload); (2) the motion composable watches the queue head, loads GSAP, and handles teardown, resize reconciliation, and target cleanup; (3) the motion catalog plus interpreter turn one beat plus DOM refs into a GSAP timeline. Consolidation (#216) replaces layer 3 only—the entry point for “run this beat” stays a single timeline factory invoked from the composable.
+
+**Presentation motion catalog:** Per-orchestrator-**kind** beat definitions—declarative tween steps where they fit; a registered strategy hook where procedural logic is required (ghost flights, clone positioning, sacrifice card exit). Not every **kind** must be pure data before consolidation closes.
+
+**Presentation motion interpreter:** Shared GSAP infrastructure only—timeline assembly, parallel `boardShell` wrapper rules, ghost-flight and clone helpers, teardown/clearProps key policy, resize fallback dispatch. One interpreter; many catalog entries.
+
+**Presentation motion ref contract:** Per-orchestrator-**kind** metadata—required ref keys, teardown clearKeys (payload-aware where needed), layout-fragile flag. **Presentation binding (live match shell)** resolves DOM refs and supplies them; the catalog/interpreter consumes the contract. Consolidation codifies this next to the catalog, not as a new session-inject API. “Narrow” means dedupe stale keys and fix outdated wiring docs, not drop refs motion still needs.
+
+_Avoid_: `{ kind, from, to, refs }` as a product-facing API shape (use existing beat `payload` for kind-specific data); folding orchestrator enqueue logic or **presentation binding** ref wiring into the catalog/interpreter split; one megamodule that owns all three layers; requiring every **kind** to be pure data as a done criterion; assuming every enqueued beat always renders GSAP on screen (**finishing match** headless path clears the orchestrator; **match-over shell** has no queue); moving orchestrator-tied CSS animation classes into the catalog/interpreter (**presentation binding** owns those).
 
 ### Opponent turn automation (live)
 
@@ -318,6 +336,12 @@ The human-player card-hand UI for **vorpal declaration (dungeon)** in **live mat
 
 _Avoid_: “Vorpal UI,” “vorpal dialog” without **human** scope; any picker or affordance on **opponent** turns; conflating with engine legality or policy encoding; a second “are you sure?” step after **Confirm**; persisting picker or selected **species** on **current match** reload; re-tapping the selected card to deselect or to commit without **Confirm**.
 
+### Deferred post-dungeon presentation beats
+
+Phase and turn presentation beats held in the orchestrator until the player acknowledges a **dungeon run** outcome dialog, then flushed when ack completes. Defer/flush policy stays in the orchestrator and **mid-match dialog surface (live)**; motion-pipeline consolidation only changes how those beats render once they reach the queue head—not when they enqueue or flush.
+
+_Avoid_: Folding defer/flush policy into the **presentation motion catalog** or interpreter; changing outcome-ack timing as part of structural motion work (#216).
+
 ### Game data catalog
 
 The single source of truth for static **equipment** and **monster** definitions shared by rules resolution and presentation.
@@ -458,6 +482,13 @@ _Avoid_: Conflating **game data catalog** with the neural **model catalog**; syn
 - **Opponent** turn scheduling, prefetch, **live AI turn pipeline gate** wiring, presentation-orchestrator callbacks during play, and the **neural runtime recovery** subscribe handler belong to **live match shell** (not **play setup surface** or **match-over shell**).
 - **Live match shell** module boundaries follow **live match shell concern**s (behavioral responsibilities), not session inject groups; inject groups remain the stable outward API assembled by the orchestrator composable.
 - **Presentation binding (live match shell)** and **opponent turn automation (live)** are separate **live match shell concern**s; **live AI turn pipeline gate** is the shared policy seam between them (locks and recovery state in, schedule/prefetch/run permissions out).
+- Motion-pipeline consolidation preserves the **presentation behavior contract**; **presentation binding (live match shell)** wiring and orchestrator queue semantics stay outside the GSAP catalog/interpreter split.
+- **Presentation motion pipeline** layer 3 (catalog + interpreter) sits below the orchestrator and motion composable; **presentation binding (live match shell)** resolves DOM refs and passes them into the timeline factory.
+- **Presentation motion pipeline** consolidation may land incrementally by beat category (shell-only, card-wrap, procedural strategy hooks) while preserving the **presentation behavior contract** end-to-end.
+- **Presentation motion ref contract** stays internal to **presentation binding (live match shell)** and layer 3; session inject groups unchanged.
+- **Presentation motion pipeline** layer 3 runs only when **live match shell** GSAP playback is active; headless **finishing match** clears the orchestrator; **match-over shell** has no presentation queue. Orchestrator timing and gameplay-input lock semantics stay in layers 1–2 regardless of whether tweens fire.
+- **Deferred post-dungeon presentation beats** defer/flush policy stays in the orchestrator and **mid-match dialog surface (live)**; motion consolidation preserves the same **kind** sequence after flush.
+- Motion-pipeline consolidation (#216) closes when layer 3 is catalog + interpreter, all orchestrator **kinds** migrated, **presentation motion ref contract** codified, and the **presentation behavior contract** preserved. Pure-data-for-every-**kind** and registry line-count targets are not required done gates.
 - **Human gameplay surface (live)** and **mid-match dialog surface (live)** are separate **live match shell concern**s; shared human interactability gates read dialog and presentation-lock state without merging the two lifecycles.
 - Board view models (bidding board, dungeon stage, seat tracker, equipment layout, action pane) belong to **human gameplay surface (live)**; **presentation binding (live match shell)** owns motion/orchestrator outputs only. **Opponent turn automation (live)** supplies recovery indicators as input to seat-tracker display, not row assembly.
 - Memory-aid **enabled** setting lives in **play route chrome** / settings store; **human gameplay surface (live)** owns `memoryAidState` and deck tap; **mid-match dialog surface (live)** owns deck splay overlay presentation only.
