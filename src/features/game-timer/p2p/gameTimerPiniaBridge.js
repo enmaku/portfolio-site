@@ -6,6 +6,7 @@
 
 import { nextDefaultColor } from '../core.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
+import { SCOPED_GUEST_INTENT_KIND_SET } from './protocol.js'
 import {
   bindGameTimerP2PHandlers,
   broadcastGameTimerSnapshot,
@@ -32,16 +33,6 @@ const SYNC_ACTION_NAMES = new Set([
   'undoHardPass',
 ])
 
-/** @type {Set<string>} */
-const SCOPED_SYNC_ACTION_NAMES = new Set([
-  'selectPlayer',
-  'endTurnNext',
-  'goToNextRound',
-  'goToPreviousRound',
-  'registerHardPass',
-  'undoHardPass',
-])
-
 /**
  * @param {string} name
  * @param {unknown[]} args
@@ -49,7 +40,7 @@ const SCOPED_SYNC_ACTION_NAMES = new Set([
  * @returns {import('./protocol.js').GuestIntent | undefined}
  */
 export function guestIntentForAction(name, args, sentAt) {
-  if (!SCOPED_SYNC_ACTION_NAMES.has(name)) return undefined
+  if (!SCOPED_GUEST_INTENT_KIND_SET.has(name)) return undefined
   if (name === 'selectPlayer' && typeof args[0] === 'string') {
     return { kind: 'selectPlayer', playerId: args[0], sentAt }
   }

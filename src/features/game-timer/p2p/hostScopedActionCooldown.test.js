@@ -4,6 +4,7 @@ import {
   HOST_SCOPED_ACTION_COOLDOWN_MS,
   authoritativeSnapshotAfterGuestMessage,
   createHostScopedActionCooldown,
+  honorScopedGuestAction,
   hostShouldApplyGuestSnapshot,
   isScopedGuestAction,
 } from './hostScopedActionCooldown.js'
@@ -63,6 +64,18 @@ test('isScopedGuestAction recognizes scoped kinds', () => {
   assert.equal(isScopedGuestAction({ kind: 'endTurnNext', sentAt: 1 }), true)
   assert.equal(isScopedGuestAction({ kind: 'addPlayer', sentAt: 1 }), false)
   assert.equal(isScopedGuestAction(null), false)
+})
+
+test('honorScopedGuestAction arms cooldown for scoped intent only', () => {
+  const cooldown = createHostScopedActionCooldown()
+  const t0 = 6_000_000
+  honorScopedGuestAction(cooldown, { kind: 'endTurnNext', sentAt: 1 }, t0)
+  assert.equal(cooldown.shouldRejectScopedGuestMessage(t0 + 1), true)
+  const fresh = createHostScopedActionCooldown()
+  honorScopedGuestAction(fresh, undefined, t0)
+  assert.equal(fresh.shouldRejectScopedGuestMessage(t0 + 1), false)
+  honorScopedGuestAction(fresh, { kind: 'addPlayer', sentAt: 1 }, t0)
+  assert.equal(fresh.shouldRejectScopedGuestMessage(t0 + 1), false)
 })
 
 test('authoritative path: scoped reject applies snapshot only once; returns rejectedScopedGuest flag', () => {

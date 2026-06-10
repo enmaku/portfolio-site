@@ -5,6 +5,19 @@
 
 /** @typedef {{ kind: 'selectPlayer' | 'registerHardPass' | 'undoHardPass', playerId: string, sentAt: number } | { kind: 'endTurnNext' | 'goToNextRound' | 'goToPreviousRound', sentAt: number }} GuestIntent */
 
+/** @type {readonly ['selectPlayer', 'registerHardPass', 'undoHardPass']} */
+export const GUEST_INTENT_KINDS_WITH_PLAYER_ID = ['selectPlayer', 'registerHardPass', 'undoHardPass']
+
+/** @type {readonly ['endTurnNext', 'goToNextRound', 'goToPreviousRound']} */
+export const GUEST_INTENT_KINDS_TIMESTAMP_ONLY = ['endTurnNext', 'goToNextRound', 'goToPreviousRound']
+
+export const SCOPED_GUEST_INTENT_KINDS = [
+  ...GUEST_INTENT_KINDS_WITH_PLAYER_ID,
+  ...GUEST_INTENT_KINDS_TIMESTAMP_ONLY,
+]
+
+export const SCOPED_GUEST_INTENT_KIND_SET = new Set(SCOPED_GUEST_INTENT_KINDS)
+
 /** Guest → hub: push snapshot after a local mutation. */
 export const MSG_GUEST_UPDATE = 'gt-u'
 
@@ -186,13 +199,21 @@ export function isWellFormedGuestIntent(intent) {
   if (intent == null || typeof intent !== 'object' || Array.isArray(intent)) return false
   const k = /** @type {{ kind?: unknown, playerId?: unknown, sentAt?: unknown }} */ (intent)
   if (typeof k.sentAt !== 'number') return false
-  if (k.kind === 'selectPlayer' || k.kind === 'registerHardPass' || k.kind === 'undoHardPass') {
+  if (GUEST_INTENT_KINDS_WITH_PLAYER_ID.includes(/** @type {string} */ (k.kind))) {
     return typeof k.playerId === 'string' && !!k.playerId
   }
-  if (k.kind === 'endTurnNext' || k.kind === 'goToNextRound' || k.kind === 'goToPreviousRound') {
+  if (GUEST_INTENT_KINDS_TIMESTAMP_ONLY.includes(/** @type {string} */ (k.kind))) {
     return true
   }
   return false
+}
+
+/**
+ * @param {unknown} intent
+ * @returns {intent is GuestIntent}
+ */
+export function isScopedGuestIntent(intent) {
+  return isWellFormedGuestIntent(intent)
 }
 
 /**

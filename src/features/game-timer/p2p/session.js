@@ -47,7 +47,7 @@ import {
 import {
   authoritativeSnapshotAfterGuestMessage,
   createHostScopedActionCooldown,
-  isScopedGuestAction,
+  honorScopedGuestAction,
 } from './hostScopedActionCooldown.js'
 import { registerGameTimerTestWireAccess } from './session.testWireAccess.js'
 
@@ -255,7 +255,7 @@ function handleHostInboxMessage(stableId, raw) {
   }
 
   const now = Date.now()
-  /** @type {{ broadcastSnapshot: GameTimerSyncPayload, appliedGuestSnapshot: boolean } | null} */
+  /** @type {{ broadcastSnapshot: GameTimerSyncPayload, appliedGuestSnapshot: boolean, rejectedScopedGuest: boolean } | null} */
   let mergeResult = null
   try {
     mergeResult = authoritativeSnapshotAfterGuestMessage(
@@ -577,9 +577,7 @@ export function broadcastGameTimerSnapshot(snapshot, intent) {
   if (!suffix) return
 
   if (core.isHostRole()) {
-    if (isScopedGuestAction(intent)) {
-      hostScopedActionCooldown.notifyHonoredScopedAction(Date.now())
-    }
+    honorScopedGuestAction(hostScopedActionCooldown, intent, Date.now())
     hostPublishSnapshot(snapshot)
     return
   }

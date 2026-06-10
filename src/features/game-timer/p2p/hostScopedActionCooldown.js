@@ -4,26 +4,27 @@
  * Uses host receive/honor time only; guest `sentAt` is wire metadata.
  */
 
-import { isWellFormedGuestIntent } from './protocol.js'
+import { isScopedGuestIntent } from './protocol.js'
 
 export const HOST_SCOPED_ACTION_COOLDOWN_MS = 500
-
-/** @type {Set<string>} */
-export const SCOPED_GUEST_ACTION_KINDS = new Set([
-  'selectPlayer',
-  'endTurnNext',
-  'registerHardPass',
-  'undoHardPass',
-  'goToNextRound',
-  'goToPreviousRound',
-])
 
 /**
  * @param {unknown} intent
  * @returns {boolean}
  */
 export function isScopedGuestAction(intent) {
-  return isWellFormedGuestIntent(intent) && SCOPED_GUEST_ACTION_KINDS.has(intent.kind)
+  return isScopedGuestIntent(intent)
+}
+
+/**
+ * @param {ReturnType<typeof createHostScopedActionCooldown>} cooldown
+ * @param {unknown} intent
+ * @param {number} nowMs
+ */
+export function honorScopedGuestAction(cooldown, intent, nowMs) {
+  if (isScopedGuestIntent(intent)) {
+    cooldown.notifyHonoredScopedAction(nowMs)
+  }
 }
 
 /**
@@ -81,14 +82,15 @@ export function authoritativeSnapshotAfterGuestMessage(
   applySnapshot,
   getSnapshot,
 ) {
-  const scoped = isScopedGuestAction(parsed.intent)
+  const scoped = isScopedGuestIntent(parsed.intent)
   const rejectedScopedGuest = scoped && cooldown.shouldRejectScopedGuestMessage(nowMs)
-  const appliedGuestSnapshot = !rejectedScopedGuest && hostShouldApplyGuestSnapshot(parsed, cooldown, nowMs)
-  if (appliedGuestSnapshot) {
+  if (!rejectedScopedGuest) {
     applySnapshot(parsed.snapshot)
-    if (scoped) {
-      cooldown.notifyHonoredScopedAction(nowMs)
-    }
+    honorScopedGuestAction(cooldown, parsed.intent, nowMs)
   }
-  return { broadcastSnapshot: getSnapshot(), appliedGuestSnapshot, rejectedScopedGuest }
+  return {
+    broadcastSnapshot: getSnapshot(),
+    appliedGuestSnapshot: !rejectedScopedGuest,
+    rejectedScopedGuest,
+  }
 }
