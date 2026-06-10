@@ -30,6 +30,48 @@ The masonry grid of photographs on the home route, sourced from checked-in image
 
 _Avoid_: “Portfolio grid” — overloaded with résumé connotations.
 
+### Empty gallery fallback
+
+When no photographs are checked in locally, the home route shows setup instructions and an embedded Google Photos album—not the normal **photo gallery** masonry grid.
+
+_Avoid_: Treating the Google Photos album as a second canonical **photo gallery**; expecting visitors to see this in production.
+
+### Gallery loading
+
+Blocking progress state on the home route while thumbnail aspect ratios are measured—progress bar and count until every tile is ready, then the full **photo gallery** masonry grid appears at once.
+
+_Avoid_: Partial grid or skeleton tiles as ratios arrive; an indefinite spinner with no progress when photos exist.
+
+### Photo preview
+
+The maximized in-app overlay for inspecting one **photo gallery** image—zoom, pan, and optional metadata.
+
+_Avoid_: “Lightbox” in product/domain language (fine in code comments); “modal” alone (too generic).
+
+### Photo details
+
+Metadata extracted from an image file and shown in the **photo gallery**—a compact hover summary on tiles and a toggleable panel in **photo preview**.
+
+_Avoid_: “EXIF” in product/domain language; surfacing GPS coordinates to visitors.
+
+### Missing photo details
+
+When a file has no usable metadata (stripped, unreadable, or empty), the photograph still displays; **photo details** are simply omitted—no error or “unavailable” messaging.
+
+_Avoid_: Blocking **photo preview** or grid tiles because metadata failed; surfacing parse failures to visitors.
+
+### Photo preview back navigation
+
+Browser Back while **photo preview** is open dismisses the preview and restores **photo gallery** scroll position—the preview behaves like a stack layer, not a navigation trap.
+
+_Avoid_: Trapping Back the way immersive **projects** do; leaving the preview open when the user expects Back to undo their last action.
+
+### Photo preview zoom
+
+In **photo preview**, the image fits the viewport by default; clicking zooms in at the click point, dragging pans when zoomed, and the toolbar toggles fit vs zoom.
+
+_Avoid_: Pinch-only zoom on desktop; resetting zoom when toggling **photo details**.
+
 ### Photography (navigation)
 
 Drawer and toolbar label for the `/` route—the same surface as the **photo gallery**.
@@ -138,6 +180,13 @@ _Avoid_: Assuming in-tab meta tag updates alone fix every preview provider.
 
 - The **portfolio site** includes the **photo gallery**, about content (**résumé data**), navigation, and routed **projects**.
 - **Photography (navigation)** names the same home experience as the **photo gallery**.
+- Production home is always the **photo gallery** grid when local photos exist; **empty gallery fallback** is for missing checked-in assets (e.g. local dev), not a parallel public gallery product.
+- **Gallery loading** gates the masonry grid until all tile aspect ratios are ready; no partial grid during measurement.
+- Clicking a **photo gallery** tile opens a **photo preview** for that image.
+- **Photo details** appear on tile hover and in **photo preview**; location (GPS) from the file is not shown to visitors.
+- **Missing photo details** omit metadata UI silently—the image itself is always shown.
+- **Photo preview back navigation** dismisses the overlay and restores gallery scroll; unlike **project shell** routes, Back is not trapped.
+- **Photo preview zoom** preserves fit-by-default, click-to-zoom-at-point, pan-when-zoomed, and toolbar toggle—unchanged by housekeeping refactors.
 - **Portfolio shell** wraps the gallery and about; **project shell** wraps each `/projects/…` route and may add a **desktop phone frame** on wide viewports. The **browser fullscreen toggle** is shared **project shell** chrome for **mobile** **projects**; each **project** persists its own preference (**per-app**).
 - Drawer shortcuts use **detached project launch** so multiplayer **projects** typically run outside the shell tab; the **desktop phone frame** does not change that—wide viewports still open the same project routes in a separate tab.
 - **Projects drawer sections** organize how **projects** appear in navigation without changing their public routes.
