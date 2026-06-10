@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   buildDungeonOutcomeTransitionControls,
   dungeonStageClassForKind,
+  dungeonStageClassForPresentation,
   shouldExecuteScheduledAutoResolve,
   shouldAutoResolveDungeonAdvance,
 } from './dungeonResolutionFlow.js'
@@ -15,6 +16,25 @@ test('maps dungeon orchestrator kinds to stage animation classes', () => {
   assert.equal(dungeonStageClassForKind('DUNGEON_CONTINUE'), '')
   assert.equal(dungeonStageClassForKind('DUNGEON_OUTCOME'), '')
   assert.equal(dungeonStageClassForKind('TURN_ADVANCE'), '')
+})
+
+test('dungeonStageClassForPresentation maps success outcome to glow stage class', () => {
+  assert.equal(
+    dungeonStageClassForPresentation({
+      kind: 'DUNGEON_OUTCOME',
+      payload: { dungeonRunResult: 'success' },
+    }),
+    'dr-dungeon-stage--outcome-success',
+  )
+  assert.equal(
+    dungeonStageClassForPresentation({
+      kind: 'DUNGEON_OUTCOME',
+      payload: { dungeonRunResult: 'failure' },
+    }),
+    '',
+  )
+  assert.equal(dungeonStageClassForPresentation({ kind: 'DUNGEON_REVEAL' }), '')
+  assert.equal(dungeonStageClassForPresentation(null), '')
 })
 
 test('dungeonResolutionFlow does not wire neutralize/continue to strike/consume CSS (#64)', () => {

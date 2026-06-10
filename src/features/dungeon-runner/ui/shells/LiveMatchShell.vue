@@ -25,7 +25,12 @@
         flat
         bordered
         class="q-pa-sm q-mb-sm dr-bidding-board"
-        :class="session.board.biddingBoard.heroCue.accentClass"
+        :class="[
+          session.board.biddingBoard.heroCue.accentClass,
+          session.board.dungeonStageAnimationClass === 'dr-dungeon-stage--outcome-success'
+            ? 'dr-bidding-board--outcome-glow'
+            : '',
+        ]"
       >
       <div
         v-if="session.board.seatRunTrackerRows.length"
@@ -506,6 +511,10 @@ const session = inject(LIVE_MATCH_SHELL_SESSION_KEY)
   overflow: hidden;
 }
 
+.dr-bidding-board--outcome-glow {
+  overflow: visible;
+}
+
 .dr-dungeon-hp-bar {
   border: 1px solid rgba(244, 67, 54, 0.35);
   border-radius: 10px;
@@ -610,6 +619,35 @@ const session = inject(LIVE_MATCH_SHELL_SESSION_KEY)
 .dr-dungeon-card-motion-wrap {
   width: 100%;
   display: block;
+}
+
+.dr-dungeon-stage--outcome-success .dr-dungeon-card-motion-wrap {
+  overflow: visible;
+}
+
+.dr-dungeon-stage--outcome-success .dr-hero-card-control {
+  isolation: isolate;
+  position: relative;
+}
+
+.dr-dungeon-stage--outcome-success .dr-hero-card-control::before {
+  border-radius: var(--dr-dungeon-card-glow-inset, 7cqw);
+  box-shadow:
+    0 0 0 3px rgba(102, 187, 106, 0.8),
+    0 0 0 6px rgba(76, 175, 80, 0.45),
+    0 0 40px rgba(102, 187, 106, 0.55),
+    0 0 60px rgba(76, 175, 80, 0.3);
+  content: '';
+  inset: var(--dr-dungeon-card-glow-inset, 7cqw);
+  opacity: var(--dr-dungeon-outcome-glow-opacity, 1);
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+.dr-dungeon-stage--outcome-success .dr-hero-card-control :deep(.dr-monster-card) {
+  position: relative;
+  z-index: 1;
 }
 
 .dr-hero-card-control :deep(.dr-monster-card) {

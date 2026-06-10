@@ -7,6 +7,17 @@ export function dungeonStageClassForKind(kind) {
   return ''
 }
 
+/**
+ * @param {{ kind?: string, payload?: { dungeonRunResult?: string } } | null | undefined} presentation
+ */
+export function dungeonStageClassForPresentation(presentation) {
+  const kind = presentation?.kind ?? null
+  if (kind === 'DUNGEON_OUTCOME' && presentation?.payload?.dungeonRunResult === 'success') {
+    return 'dr-dungeon-stage--outcome-success'
+  }
+  return dungeonStageClassForKind(kind)
+}
+
 export function shouldAutoResolveDungeonAdvance({
   phase = null,
   gameplayInputLocked = false,

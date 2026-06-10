@@ -1349,7 +1349,7 @@ test('createPresentationMotionTimeline tweens dungeonCardWrap for DUNGEON_CONTIN
   assert.deepEqual(calls[0].toVars.filter, 'brightness(0.88)')
 })
 
-test('createPresentationMotionTimeline tweens dungeonCardWrap for DUNGEON_OUTCOME (vertical lift; success uses glow)', () => {
+test('createPresentationMotionTimeline tweens dungeonCardWrap for DUNGEON_OUTCOME (vertical lift; success uses glow opacity)', () => {
   const dungeonCardWrap = { nodeType: 1, tagName: 'DIV' }
   const fromToCalls = []
   const toCalls = []
@@ -1384,7 +1384,8 @@ test('createPresentationMotionTimeline tweens dungeonCardWrap for DUNGEON_OUTCOM
         c.fromVars?.x === 0 &&
         (c.toVars?.y ?? 0) < 0 &&
         (c.toVars?.rotationZ ?? 0) < 0 &&
-        String(c.toVars?.boxShadow ?? '').includes('76, 175, 80'),
+        c.fromVars?.['--dr-dungeon-outcome-glow-opacity'] === 0 &&
+        c.toVars?.['--dr-dungeon-outcome-glow-opacity'] === 1,
     ),
   )
   assert.ok(
@@ -1393,8 +1394,12 @@ test('createPresentationMotionTimeline tweens dungeonCardWrap for DUNGEON_OUTCOM
         c.target === dungeonCardWrap &&
         c.vars?.y === 0 &&
         c.vars?.x === 0 &&
-        (c.vars?.rotationZ ?? 0) === 0,
+        (c.vars?.rotationZ ?? 0) === 0 &&
+        c.vars?.['--dr-dungeon-outcome-glow-opacity'] === 0,
     ),
+  )
+  assert.ok(
+    !fromToCalls.some((c) => String(c.toVars?.boxShadow ?? '').includes('76, 175, 80')),
   )
 })
 

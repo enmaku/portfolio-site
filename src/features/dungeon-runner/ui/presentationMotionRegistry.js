@@ -770,13 +770,14 @@ export function createDungeonOutcomePresentationMotionTimeline(gsapApi, ctx) {
       sink + holdSag,
     )
   } else if (result === 'success') {
+    const glowOpacity = '--dr-dungeon-outcome-glow-opacity'
     const peakVars = {
       x: 0,
       y: -10,
       scale: 1.07,
       rotationZ: -7,
-      boxShadow: '0 0 0 3px rgba(76, 175, 80, 0.55), 0 16px 36px rgba(0, 0, 0, 0.4)',
       filter: 'brightness(1.07)',
+      [glowOpacity]: 1,
       ...origin,
     }
     tl.fromTo(
@@ -786,8 +787,8 @@ export function createDungeonOutcomePresentationMotionTimeline(gsapApi, ctx) {
         y: 0,
         scale: 1,
         rotationZ: 0,
-        boxShadow: '0 0 0 0 rgba(76, 175, 80, 0)',
         filter: 'brightness(1)',
+        [glowOpacity]: 0,
         ...origin,
       },
       {
@@ -805,8 +806,8 @@ export function createDungeonOutcomePresentationMotionTimeline(gsapApi, ctx) {
         y: 0,
         scale: 1,
         rotationZ: 0,
-        boxShadow: '0 0 0 0 rgba(76, 175, 80, 0)',
         filter: 'brightness(1)',
+        [glowOpacity]: 0,
         duration: release,
         ease: 'power3.inOut',
       },

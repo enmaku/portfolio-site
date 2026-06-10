@@ -203,6 +203,15 @@ test('dungeonStageAnimationClass reflects synced active presentation kind', () =
     orchestrator.active = { id: 'r1', kind: 'DUNGEON_REVEAL', label: 'Reveal' }
     binding.syncPresentationLabel()
     assert.equal(binding.dungeonStageAnimationClass.value, '')
+
+    orchestrator.active = {
+      id: 'o1',
+      kind: 'DUNGEON_OUTCOME',
+      label: 'Dungeon cleared.',
+      payload: { dungeonRunResult: 'success' },
+    }
+    binding.syncPresentationLabel()
+    assert.equal(binding.dungeonStageAnimationClass.value, 'dr-dungeon-stage--outcome-success')
   })
   scope.stop()
 })

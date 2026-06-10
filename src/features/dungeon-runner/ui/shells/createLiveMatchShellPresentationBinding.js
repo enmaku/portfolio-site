@@ -9,7 +9,7 @@ import {
   viewerMaySeeBiddingDrawFace,
 } from '../biddingPresentationVisibility.js'
 import { isDungeonPresentationTraceEnabled } from '../dungeonPresentationTrace.js'
-import { dungeonStageClassForKind } from '../dungeonResolutionFlow.js'
+import { dungeonStageClassForPresentation } from '../dungeonResolutionFlow.js'
 import { usePresentationMotion } from '../usePresentationMotion.js'
 
 /**
@@ -152,7 +152,7 @@ export function createLiveMatchShellPresentationBinding(deps) {
   })
 
   const dungeonStageAnimationClass = computed(() =>
-    dungeonStageClassForKind(activePresentation.value?.kind ?? null),
+    dungeonStageClassForPresentation(activePresentation.value),
   )
 
   watch(presentationSpeedProfile, (next) => {
