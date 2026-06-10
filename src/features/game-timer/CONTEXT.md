@@ -46,11 +46,11 @@ Exchangeable authoritative slice of timer state (**players**, **active player**,
 
 ### Guest intent
 
-Facilitator gesture bundled with a **guest** update (player selection or hard-pass registration) so the **host** can collapse duplicate rapid sends while merging **snapshots**.
+Action tag bundled with a **guest** update (turn control, hard pass, round navigation) so the **host** can classify scoped changes and apply a brief **scoped-action cooldown** after honoring one—rejecting competing scoped merges from other facilitators while non-scoped edits still land immediately.
 
 ### Guest reconnect coherence (Game Timer)
 
-On **guest** refresh or reattach, **stable client identity** on hello maps to the same logical **guest** slot; the **host** merges any pending **guest intent** (deduped) into the authoritative **snapshot** timeline and rebroadcasts. The **guest** mirrors that **snapshot**—local timer state is provisional until acknowledged.
+On **guest** refresh or reattach, **stable client identity** on hello maps to the same logical **guest** slot; the **host** rebroadcasts the authoritative **snapshot** timeline. The **guest** mirrors that **snapshot**—local timer state is provisional until acknowledged.
 
 _Avoid_: Promoting local **banked time** or **active player** as truth before the next **host** broadcast.
 
@@ -62,7 +62,7 @@ _Avoid_: **Phase** when you mean connectivity; Movie Vote reserves **phase** for
 
 ### Host / Guest
 
-Same role meanings as [**Star-room P2P**](../p2p/CONTEXT.md) and [**Movie Vote**](../movie-vote/CONTEXT.md): **host** owns authoritative **snapshot** evolution; **guests** mirror and propose updates inside one **room**. No **participant** seats—only **stable client identity** for reconnect and **guest intent** dedupe on the **host**.
+Same role meanings as [**Star-room P2P**](../p2p/CONTEXT.md) and [**Movie Vote**](../movie-vote/CONTEXT.md): **host** owns authoritative **snapshot** evolution; **guests** mirror and propose updates inside one **room**. No **participant** seats—only **stable client identity** for reconnect and **scoped-action cooldown** on the **host** for turn-control settling.
 
 ### Timing strip
 
@@ -88,7 +88,7 @@ _Avoid_: Implying a guarantee on every OS or browser—best-effort only.
 
 - Exactly one **player** may be **active player** at once for turn timing.
 - **Lifetime banked time** plus optional **round-local banked time** together explain everything displayed beyond the live ticking segment.
-- **Guest intents** annotate **guest** updates when facilitators click faster than round-trip latency.
+- **Guest intents** annotate scoped **guest** updates so the **host** can settle cross-facilitator turn-control races without blocking roster or settings edits.
 - What collaborators must agree on in a **room** has a single authoritative **snapshot**; each browser mirrors it locally rather than treating local timer state as competing truth.
 - **Rounds** own **player** order mappings; totals track both overall **banked** time and optionally per-round portions.
 - **Hard pass** interacts only with intra-**round** participation unless **pass order determines round order** binds outcomes to subsequent **round** ordering.
@@ -104,8 +104,8 @@ _Avoid_: Implying a guarantee on every OS or browser—best-effort only.
 > **Dev:** “Tablet reloaded mid-round.”  
 > **Maintainer:** “**Guest** reconnect should replay the latest authoritative **snapshot** so **banked time** matches **host**.”
 
-> **Dev:** “Someone double-tapped next player while offline patches queued.”  
-> **Maintainer:** “**Guest intent** metadata lets **host** dedupe the redundant selects instead of applying two competing timelines.”
+> **Dev:** “Two phones tapped different players within half a second.”  
+> **Maintainer:** “**Scoped-action cooldown** on the **host** honors the first turn change, rejects the second scoped merge, and rebroadcasts authoritative truth so the losing device snaps back quietly.”
 
 ## Flagged ambiguities
 

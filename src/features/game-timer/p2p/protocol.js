@@ -3,7 +3,20 @@
  * Wire messages between game timer collaborators (JSON payloads on RTDB).
  */
 
-import { isWellFormedGuestIntent } from './guestIntentDedupe.js'
+/** @typedef {{ kind: 'selectPlayer' | 'registerHardPass' | 'undoHardPass', playerId: string, sentAt: number } | { kind: 'endTurnNext' | 'goToNextRound' | 'goToPreviousRound', sentAt: number }} GuestIntent */
+
+/** @type {readonly ['selectPlayer', 'registerHardPass', 'undoHardPass']} */
+export const GUEST_INTENT_KINDS_WITH_PLAYER_ID = ['selectPlayer', 'registerHardPass', 'undoHardPass']
+
+/** @type {readonly ['endTurnNext', 'goToNextRound', 'goToPreviousRound']} */
+export const GUEST_INTENT_KINDS_TIMESTAMP_ONLY = ['endTurnNext', 'goToNextRound', 'goToPreviousRound']
+
+export const SCOPED_GUEST_INTENT_KINDS = [
+  ...GUEST_INTENT_KINDS_WITH_PLAYER_ID,
+  ...GUEST_INTENT_KINDS_TIMESTAMP_ONLY,
+]
+
+export const SCOPED_GUEST_INTENT_KIND_SET = new Set(SCOPED_GUEST_INTENT_KINDS)
 
 /** Guest → hub: push snapshot after a local mutation. */
 export const MSG_GUEST_UPDATE = 'gt-u'
@@ -179,9 +192,34 @@ export function isValidSnapshot(snap) {
 }
 
 /**
+ * @param {unknown} intent
+ * @returns {intent is GuestIntent}
+ */
+export function isWellFormedGuestIntent(intent) {
+  if (intent == null || typeof intent !== 'object' || Array.isArray(intent)) return false
+  const k = /** @type {{ kind?: unknown, playerId?: unknown, sentAt?: unknown }} */ (intent)
+  if (typeof k.sentAt !== 'number') return false
+  if (GUEST_INTENT_KINDS_WITH_PLAYER_ID.includes(/** @type {string} */ (k.kind))) {
+    return typeof k.playerId === 'string' && !!k.playerId
+  }
+  if (GUEST_INTENT_KINDS_TIMESTAMP_ONLY.includes(/** @type {string} */ (k.kind))) {
+    return true
+  }
+  return false
+}
+
+/**
+ * @param {unknown} intent
+ * @returns {intent is GuestIntent}
+ */
+export function isScopedGuestIntent(intent) {
+  return isWellFormedGuestIntent(intent)
+}
+
+/**
  * @param {GameTimerSyncPayload} snapshot
- * @param {{ kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } | undefined} [intent]
- * @returns {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload, intent?: typeof intent }}
+ * @param {GuestIntent | undefined} [intent]
+ * @returns {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload, intent?: GuestIntent }}
  */
 export function encodeGuestUpdate(snapshot, intent) {
   if (intent != null) {
@@ -239,20 +277,28 @@ export function parseHostVisibility(data) {
 
 /**
  * @param {unknown} data
- * @returns {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload, intent?: { kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } } | null}
+ * @returns {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload, intent?: GuestIntent } | null}
  */
 export function parseGuestMessage(data) {
   if (!isRecord(data) || data.type !== MSG_GUEST_UPDATE) return null
   const snapshot = normalizeSnapshotFromRtdb(data.snapshot)
   if (!isValidSnapshot(snapshot)) return null
-  /** @type {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload, intent?: { kind: 'selectPlayer' | 'registerHardPass', playerId: string, sentAt: number } }} */
+  /** @type {{ type: typeof MSG_GUEST_UPDATE, snapshot: GameTimerSyncPayload, intent?: GuestIntent }} */
   const out = { type: MSG_GUEST_UPDATE, snapshot }
   if (!('intent' in data)) return out
   if (isWellFormedGuestIntent(data.intent)) {
-    out.intent = {
-      kind: data.intent.kind,
-      playerId: data.intent.playerId,
-      sentAt: data.intent.sentAt,
+    if (
+      data.intent.kind === 'selectPlayer' ||
+      data.intent.kind === 'registerHardPass' ||
+      data.intent.kind === 'undoHardPass'
+    ) {
+      out.intent = {
+        kind: data.intent.kind,
+        playerId: data.intent.playerId,
+        sentAt: data.intent.sentAt,
+      }
+    } else {
+      out.intent = { kind: data.intent.kind, sentAt: data.intent.sentAt }
     }
     return out
   }

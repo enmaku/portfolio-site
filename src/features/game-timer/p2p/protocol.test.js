@@ -6,10 +6,14 @@ import {
   coerceStringIdList,
   encodeGuestUpdate,
   encodeHostSnapshot,
+  GUEST_INTENT_KINDS_TIMESTAMP_ONLY,
+  GUEST_INTENT_KINDS_WITH_PLAYER_ID,
+  isScopedGuestIntent,
   isValidSnapshot,
   normalizeSnapshotFromRtdb,
   parseGuestMessage,
   parseHostMessage,
+  SCOPED_GUEST_INTENT_KINDS,
 } from './protocol.js'
 
 /** Simulates RTDB dropping keys whose value was written as `null`. */
@@ -69,6 +73,51 @@ test('parseGuestMessage drops malformed intent but keeps snapshot', () => {
   assert.ok(parsed)
   assert.deepEqual(parsed.snapshot, snap)
   assert.equal(parsed.intent, undefined)
+})
+
+test('guest update round-trips endTurnNext intent without playerId', () => {
+  const snap = baseSnapshot()
+  const intent = { kind: 'endTurnNext', sentAt: 42 }
+  const wire = encodeGuestUpdate(snap, intent)
+  const parsed = parseGuestMessage(wire)
+  assert.ok(parsed)
+  assert.deepEqual(parsed.intent, intent)
+})
+
+test('guest update round-trips undoHardPass intent with playerId', () => {
+  const snap = baseSnapshot()
+  const intent = { kind: 'undoHardPass', playerId: 'p2', sentAt: 7 }
+  const wire = encodeGuestUpdate(snap, intent)
+  const parsed = parseGuestMessage(wire)
+  assert.ok(parsed)
+  assert.deepEqual(parsed.intent, intent)
+})
+
+test('SCOPED_GUEST_INTENT_KINDS covers every scoped wire kind', () => {
+  assert.deepEqual(
+    [...SCOPED_GUEST_INTENT_KINDS].sort(),
+    [...GUEST_INTENT_KINDS_WITH_PLAYER_ID, ...GUEST_INTENT_KINDS_TIMESTAMP_ONLY].sort(),
+  )
+  assert.equal(SCOPED_GUEST_INTENT_KINDS.length, 6)
+})
+
+test('isScopedGuestIntent accepts well-formed scoped intents and rejects others', () => {
+  const snap = baseSnapshot()
+  for (const kind of GUEST_INTENT_KINDS_WITH_PLAYER_ID) {
+    const intent = { kind, playerId: 'p1', sentAt: 1 }
+    assert.equal(isScopedGuestIntent(intent), true, kind)
+    const wire = encodeGuestUpdate(snap, intent)
+    assert.deepEqual(parseGuestMessage(wire)?.intent, intent)
+  }
+  for (const kind of GUEST_INTENT_KINDS_TIMESTAMP_ONLY) {
+    const intent = { kind, sentAt: 1 }
+    assert.equal(isScopedGuestIntent(intent), true, kind)
+    const wire = encodeGuestUpdate(snap, intent)
+    assert.deepEqual(parseGuestMessage(wire)?.intent, intent)
+  }
+  assert.equal(isScopedGuestIntent(null), false)
+  assert.equal(isScopedGuestIntent({ kind: 'addPlayer', sentAt: 1 }), false)
+  assert.equal(isScopedGuestIntent({ kind: 'selectPlayer', playerId: '', sentAt: 1 }), false)
 })
 
 test('isValidSnapshot accepts RTDB-shaped snapshot with nullable turn keys omitted', () => {
