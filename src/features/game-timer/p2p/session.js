@@ -79,6 +79,9 @@ let nextSeq = 0
 
 let lastSeenSeq = 0
 
+/** While true, replayed guest inbox updates must not merge into host state during reclaim. */
+let suppressGuestInboxMergeOnHostReclaim = false
+
 /** Reactive session UI state for multiplayer (Vue ref; safe to use outside components). */
 export const sessionPhase = ref(/** @type {GameTimerSessionPhase} */ ('idle'))
 
@@ -240,6 +243,10 @@ function handleHostInboxMessage(stableId, raw) {
     return
   }
 
+  if (suppressGuestInboxMergeOnHostReclaim) {
+    return
+  }
+
   const msg = parseGuestMessage(raw)
   if (!msg) {
     if (
@@ -297,25 +304,26 @@ async function hydrateHostFromRtdb(suffix) {
   const parsed = parseHostMessage(stateSnap.val())
   if (!parsed) return
   nextSeq = parsed.seq
-  try {
-    handlers.applySnapshot(parsed.snapshot)
-  } catch {
-    void 0
-  }
+  // Returning host keeps locally persisted gameplay state; reclaim rebroadcasts it.
 }
 
 /**
  * @param {string} suffix
  */
 async function finishHostSession(suffix) {
-  resetHostGuestWireState()
-  await core.finishHostSession(suffix)
+  suppressGuestInboxMergeOnHostReclaim = true
   try {
-    useGameTimerRoomSessionStore().setHost(suffix)
-  } catch {
-    void 0
+    resetHostGuestWireState()
+    await core.finishHostSession(suffix)
+    try {
+      useGameTimerRoomSessionStore().setHost(suffix)
+    } catch {
+      void 0
+    }
+    hostPublishSnapshot(handlers.getSnapshot())
+  } finally {
+    suppressGuestInboxMergeOnHostReclaim = false
   }
-  hostPublishSnapshot(handlers.getSnapshot())
 }
 
 /**

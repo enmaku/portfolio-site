@@ -11,6 +11,7 @@ import {
   removePlayerSnapshot,
   selectPlayerSnapshot,
   startNewGameSamePlayersSnapshot,
+  syncOrderForActiveRoundOnStore,
   undoHardPassSnapshot,
 } from './timerRules.js'
 
@@ -304,4 +305,25 @@ test('applyPlayerOrder appends players missing from id order', () => {
   const players = [testPlayer('a'), testPlayer('b'), testPlayer('c')]
   const ordered = applyPlayerOrder(players, ['c', 'a'])
   assert.deepEqual(ordered.map((p) => p.id), ['c', 'a', 'b'])
+})
+
+test('syncOrderForActiveRoundOnStore reorders store players for active round', () => {
+  const store = {
+    players: [testPlayer('b'), testPlayer('a')],
+    activePlayerId: 'a',
+    turnStartedAt: null,
+    turnStartedRound: null,
+    round: 1,
+    playerOrderByRound: { '1': ['a', 'b'] },
+    hardPassEnabled: false,
+    hardPassOrderNextRound: false,
+    hardPassOrderByRound: {},
+    totalGameStartedAt: null,
+  }
+  syncOrderForActiveRoundOnStore(store)
+  assert.deepEqual(
+    store.players.map((p) => p.id),
+    ['a', 'b'],
+  )
+  assert.equal(store.activePlayerId, 'a')
 })

@@ -144,7 +144,7 @@ function saveOrderForRound(session) {
 /**
  * @param {GameTimerRuleSession} session
  */
-function applyOrderForActiveRound(session) {
+export function applyOrderForActiveRound(session) {
   const k = String(session.round)
   let ids = session.playerOrderByRound[k]
   if (!Array.isArray(ids) || ids.length === 0) {
@@ -165,7 +165,7 @@ function applyOrderForActiveRound(session) {
  * @param {GameTimerRuleSession} session
  * @param {number} n
  */
-function recomputeNextRoundOrderFromHardPasses(session, n) {
+export function recomputeNextRoundOrderFromHardPasses(session, n) {
   if (!session.hardPassEnabled || !session.hardPassOrderNextRound) return
   if (session.players.length === 0) return
   const nk = String(Math.max(1, Math.floor(n)))
@@ -455,20 +455,13 @@ export function ruleSessionFromStoreState(state) {
 }
 
 /**
- * @param {GameTimerRuleSession} session
- * @returns {Partial<GameTimerRuleSession>}
+ * Reorder `store.players` for the active round via the rule session adapter.
+ * @param {object} store Pinia game timer store instance
  */
-export function ruleSessionPatch(session) {
-  return {
-    players: session.players,
-    activePlayerId: session.activePlayerId,
-    turnStartedAt: session.turnStartedAt,
-    turnStartedRound: session.turnStartedRound,
-    round: session.round,
-    playerOrderByRound: session.playerOrderByRound,
-    hardPassOrderByRound: session.hardPassOrderByRound,
-    totalGameStartedAt: session.totalGameStartedAt,
-  }
+export function syncOrderForActiveRoundOnStore(store) {
+  const session = ruleSessionFromStoreState(store)
+  applyOrderForActiveRound(session)
+  store.players = session.players
 }
 
 /**

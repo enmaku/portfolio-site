@@ -5,17 +5,18 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import { createPlayerId, nextDefaultColor } from '../features/game-timer/core.js'
 import {
-  applyPlayerOrder,
   applyRuleSessionToStore,
   endTurnNextSnapshot,
   goToNextRoundSnapshot,
   goToPreviousRoundSnapshot,
   pauseLiveTurnSnapshot,
+  recomputeNextRoundOrderFromHardPasses,
   registerHardPassSnapshot,
   removePlayerSnapshot,
   ruleSessionFromStoreState,
   selectPlayerSnapshot,
   startNewGameSamePlayersSnapshot,
+  syncOrderForActiveRoundOnStore,
   undoHardPassSnapshot,
 } from '../features/game-timer/timerRules.js'
 
@@ -79,72 +80,11 @@ export const useGameTimerStore = defineStore('gameTimer', {
         store.timingStripMode = 'total'
       }
       store.fullscreenEnabled = store.fullscreenEnabled === true
-      store._applyOrderForActiveRound()
+      syncOrderForActiveRoundOnStore(store)
     },
   },
 
   actions: {
-    /** Persist the current `players` order under the active `round`. */
-    _saveOrderForRound() {
-      this.playerOrderByRound[String(this.round)] = this.players.map((p) => p.id)
-    },
-
-    /** Reorder `players` from `playerOrderByRound[round]`, merging in any new ids. */
-    _applyOrderForActiveRound() {
-      const k = String(this.round)
-      let ids = this.playerOrderByRound[k]
-      if (!Array.isArray(ids) || ids.length === 0) {
-        ids = this.players.map((p) => p.id)
-        this.playerOrderByRound[k] = [...ids]
-      } else {
-        const set = new Set(this.players.map((p) => p.id))
-        ids = ids.filter((id) => set.has(id))
-        for (const p of this.players) {
-          if (!ids.includes(p.id)) ids.push(p.id)
-        }
-        this.playerOrderByRound[k] = ids
-      }
-      this.players = applyPlayerOrder(this.players, ids)
-    },
-
-    /**
-     * When hard pass affects next round, set `playerOrderByRound[n+1]` from pass order + remaining ids.
-     * @param {number} n
-     */
-    _recomputeNextRoundOrderFromHardPasses(n) {
-      if (!this.hardPassEnabled || !this.hardPassOrderNextRound) return
-      if (this.players.length === 0) return
-      const nk = String(Math.max(1, Math.floor(n)))
-      const nextK = String(Math.max(1, Math.floor(n)) + 1)
-      const raw = this.hardPassOrderByRound[nk]
-      const passers = Array.isArray(raw)
-        ? raw.filter((id) => this.players.some((p) => p.id === id))
-        : []
-      if (passers.length === 0) {
-        this.playerOrderByRound[nextK] = this.players.map((p) => p.id)
-        return
-      }
-      const passerSet = new Set(passers)
-      const remaining = this.players.map((p) => p.id).filter((id) => !passerSet.has(id))
-      this.playerOrderByRound[nextK] = [...passers, ...remaining]
-    },
-
-    /**
-     * @param {number} fromIdx Index in `this.players` to start after (exclusive step pattern like end turn).
-     * @param {Set<string>} passed
-     * @returns {number | null} Next player index or null if none eligible.
-     */
-    _nextNonPassedPlayerIndex(fromIdx, passed) {
-      const n = this.players.length
-      if (n === 0) return null
-      let nextIdx = (fromIdx + 1) % n
-      for (let steps = 0; steps < n; steps++) {
-        if (!passed.has(this.players[nextIdx].id)) return nextIdx
-        nextIdx = (nextIdx + 1) % n
-      }
-      return null
-    },
-
     /**
      * Append a player and register them in the current round’s order.
      * @param {{ name?: string, color?: string }} [payload]
@@ -205,7 +145,7 @@ export const useGameTimerStore = defineStore('gameTimer', {
       if (this.hardPassOrderNextRound) {
         const arr = this.hardPassOrderByRound[String(this.round)]
         if (Array.isArray(arr) && arr.length > 0) {
-          this._recomputeNextRoundOrderFromHardPasses(this.round)
+          recomputeNextRoundOrderFromHardPasses(ruleSessionFromStoreState(this), this.round)
         }
       }
     },

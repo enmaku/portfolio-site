@@ -43,8 +43,8 @@
               class="gt-player-row rounded-borders relative-position overflow-hidden column"
               :class="{
                 'gt-player-row--active': rowForPlayer(player)?.isActive,
-                'gt-player-row--hard-passed': isHardPassed(player),
-                'gt-player-row--paused-turn': isPausedHeldTurn(player),
+                'gt-player-row--hard-passed': rowForPlayer(player)?.isHardPassed,
+                'gt-player-row--paused-turn': rowForPlayer(player)?.isPausedHeldTurn,
               }"
               :style="rowSurfaceStyle(player)"
               :data-gt-player-id="player.id"
@@ -53,7 +53,7 @@
                 <div class="gt-player-row__turn col-auto row flex-center" aria-hidden="true">
                   <q-icon
                     v-if="rowForPlayer(player)?.isActive"
-                    :name="isPausedHeldTurn(player) ? 'pause' : 'play_arrow'"
+                    :name="rowForPlayer(player)?.isPausedHeldTurn ? 'pause' : 'play_arrow'"
                     class="gt-player-row__turn-icon"
                   />
                 </div>
@@ -76,9 +76,9 @@
                   round
                   dense
                   padding="sm"
-                  :icon="isHardPassed(player) ? 'undo' : 'sports_score'"
+                  :icon="rowForPlayer(player)?.isHardPassed ? 'undo' : 'sports_score'"
                   class="gt-player-row__hard-pass gt-hard-pass-hit"
-                  :aria-label="isHardPassed(player) ? 'Undo hard pass' : 'Hard pass for this round'"
+                  :aria-label="rowForPlayer(player)?.isHardPassed ? 'Undo hard pass' : 'Hard pass for this round'"
                   @click.stop="onHardPassButton(player)"
                 />
               </div>
@@ -166,13 +166,16 @@ const $q = useQuasar()
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
 const now = useGameTimerNow(100)
-const { hasMultipleRounds, playerRowsById, isHardPassed, isPausedHeldTurn } =
-  useGameTimerPlayerListPresentation({ now })
+const { hasMultipleRounds, playerRowsById } = useGameTimerPlayerListPresentation({ now })
 
 const { hardPassEnabled } = storeToRefs(store)
 
+function rowForPlayer(player) {
+  return playerRowsById.value.get(player.id)
+}
+
 function onHardPassButton(player) {
-  if (isHardPassed(player)) {
+  if (rowForPlayer(player)?.isHardPassed) {
     store.undoHardPass(player.id)
   } else {
     store.registerHardPass(player.id)
@@ -215,10 +218,6 @@ const editDialogOpen = ref(false)
 const editPlayerId = ref(null)
 const editName = ref('')
 const editColor = ref(DEFAULT_PLAYER_COLORS[0])
-
-function rowForPlayer(player) {
-  return playerRowsById.value.get(player.id)
-}
 
 function rowTimeLabel(player) {
   const r = rowForPlayer(player)

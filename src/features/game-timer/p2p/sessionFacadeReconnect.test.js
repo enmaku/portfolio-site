@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { afterEach, mock, test } from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { useGameTimerRoomSessionStore } from '../../../stores/gameTimerRoomSession.js'
-import { encodeHostSnapshot } from './protocol.js'
+import { encodeHostSnapshot, parseHostMessage } from './protocol.js'
 import {
   createRtdbLifecycleAfterEach,
   importGameTimerSession,
@@ -123,11 +123,12 @@ async function installHostReconnectShellHook() {
 
 /**
  * @param {Awaited<ReturnType<typeof importGameTimerSession>>} sessionMod
+ * @param {import('../types.js').GameTimerSyncPayload} [initialSnapshot]
  * @returns {{ getSnapshot: () => import('../types.js').GameTimerSyncPayload, applied: import('../types.js').GameTimerSyncPayload[] }}
  */
-function bindFakeHandlers(sessionMod) {
+function bindFakeHandlers(sessionMod, initialSnapshot) {
   /** @type {import('../types.js').GameTimerSyncPayload} */
-  const snapshot = {
+  const snapshot = initialSnapshot ?? {
     players: [{ id: 'p1', name: 'Host', color: '#111111' }],
     activePlayerId: 'p1',
     turnStartedAt: null,
@@ -294,7 +295,7 @@ test(
 )
 
 test(
-  'host reclaim applies preserved snapshot and continues broadcast seq from RTDB',
+  'host reclaim keeps local snapshot and continues broadcast seq from RTDB',
   facadeReconnectTests,
   async () => {
     mock.reset()
@@ -302,7 +303,7 @@ test(
     const hostStableId = 'GTRECLAIM01'
     const suffix = 'RECLM1'
     /** @type {import('../types.js').GameTimerSyncPayload} */
-    const preservedSnapshot = {
+    const rtdbSnapshot = {
       players: [
         { id: 'p1', name: 'Host', color: '#111111' },
         { id: 'p2', name: 'Guest', color: '#222222' },
@@ -313,7 +314,16 @@ test(
       round: 2,
       playerOrderByRound: { 1: ['p1', 'p2'], 2: ['p2', 'p1'] },
     }
-    const preservedState = encodeHostSnapshot(preservedSnapshot, 5)
+    /** @type {import('../types.js').GameTimerSyncPayload} */
+    const localSnapshot = {
+      ...rtdbSnapshot,
+      activePlayerId: 'p1',
+      turnStartedAt: null,
+      turnStartedRound: null,
+      round: 1,
+      playerOrderByRound: { 1: ['p1', 'p2'] },
+    }
+    const preservedState = encodeHostSnapshot(rtdbSnapshot, 5)
 
     mock.module('../../p2p/identity.js', {
       namedExports: {
@@ -348,7 +358,7 @@ test(
     await withFirebaseEnv(async () => {
       const sessionMod = await importGameTimerSession(`reclaim-seq-${Date.now()}`)
       const { resumeAsHost, sessionPhase, broadcastGameTimerSnapshot } = sessionMod
-      const { getSnapshot, applied } = bindFakeHandlers(sessionMod)
+      const { getSnapshot, applied } = bindFakeHandlers(sessionMod, localSnapshot)
 
       setActivePinia(createPinia())
       useGameTimerRoomSessionStore().setHost(suffix)
@@ -356,13 +366,15 @@ test(
       const result = await resumeAsHost(suffix, 1)
       assert.equal(result.suffix, suffix)
       assert.equal(sessionPhase.value, 'hosting')
-      assert.equal(applied.length, 1)
-      assert.equal(applied[0].activePlayerId, preservedSnapshot.activePlayerId)
-      assert.equal(applied[0].round, preservedSnapshot.round)
-      assert.deepEqual(applied[0].players, preservedSnapshot.players)
+      assert.equal(applied.length, 0, 'host reclaim must not overwrite local state from RTDB')
 
       const resumePublish = broadcastSets.find((s) => s.path.endsWith('/state'))
-      assert.ok(resumePublish, 'host reclaim should publish hydrated authoritative state')
+      assert.ok(resumePublish, 'host reclaim should publish local authoritative state')
+      const resumeParsed = parseHostMessage(resumePublish.value)
+      assert.ok(resumeParsed)
+      assert.equal(resumeParsed.snapshot.activePlayerId, localSnapshot.activePlayerId)
+      assert.equal(resumeParsed.snapshot.round, localSnapshot.round)
+      assert.notEqual(resumeParsed.snapshot.activePlayerId, rtdbSnapshot.activePlayerId)
       assert.equal(
         resumePublish.value.seq,
         6,

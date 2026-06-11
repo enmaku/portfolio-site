@@ -5,6 +5,7 @@
  */
 
 import { nextDefaultColor } from '../core.js'
+import { syncOrderForActiveRoundOnStore } from '../timerRules.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 import { SCOPED_GUEST_INTENT_KIND_SET } from './protocol.js'
 import {
@@ -109,7 +110,7 @@ function normalizeAfterRemotePatch(store) {
   if (!store.hardPassOrderByRound || typeof store.hardPassOrderByRound !== 'object') {
     store.hardPassOrderByRound = {}
   }
-  store._applyOrderForActiveRound()
+  syncOrderForActiveRoundOnStore(store)
 }
 
 let handlersBound = false

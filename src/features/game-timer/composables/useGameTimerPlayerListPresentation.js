@@ -37,21 +37,8 @@ export function useGameTimerPlayerListPresentation({ now }) {
     }),
   )
 
-  function isHardPassed(player) {
-    if (!hardPassEnabled.value) return false
-    const arr = store.hardPassOrderByRound[String(round.value)]
-    return Array.isArray(arr) && arr.includes(player.id)
-  }
-
-  function isPausedHeldTurn(player) {
-    if (isHardPassed(player)) return false
-    return activePlayerId.value === player.id && turnStartedAt.value == null
-  }
-
   return {
     hasMultipleRounds: hasMultipleRoundsFlag,
     playerRowsById,
-    isHardPassed,
-    isPausedHeldTurn,
   }
 }
