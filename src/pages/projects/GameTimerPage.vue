@@ -42,7 +42,7 @@
         icon="add"
         aria-label="Add player"
         class="gt-actions-bar__fixed-btn"
-        :disable="hasMultipleRounds"
+        :disable="hasMultipleRoundsFlag"
         @click="openAddDialog"
       />
     </div>
@@ -104,7 +104,7 @@ import GameTimerTurnControls from '../../features/game-timer/components/GameTime
 import { useGameTimerP2P } from '../../features/game-timer/composables/useGameTimerP2P.js'
 import { useProjectShellBrowserFullscreen } from '../../layouts/projects/composables/useProjectShellBrowserFullscreen.js'
 import { useNoSleep } from '../../features/game-timer/composables/useNoSleep.js'
-import { nextDefaultColor } from '../../features/game-timer/core.js'
+import { nextDefaultColor, hasMultipleRounds } from '../../features/game-timer/core.js'
 import {
   GAME_TIMER_ROOM_QUERY_KEY,
   isValidRoomSuffix,
@@ -118,7 +118,15 @@ const route = useRoute()
 const router = useRouter()
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
-const { players, activePlayerId, hasMultipleRounds, fullscreenEnabled } = storeToRefs(store)
+const { players, activePlayerId, fullscreenEnabled } = storeToRefs(store)
+
+const hasMultipleRoundsFlag = computed(() =>
+  hasMultipleRounds({
+    round: store.round,
+    playerOrderByRound: store.playerOrderByRound,
+    players: players.value,
+  }),
+)
 
 /** True when a turn is held (clock running or paused); `activePlayerId` is set. */
 const hasHeldTurn = computed(() => activePlayerId.value != null)

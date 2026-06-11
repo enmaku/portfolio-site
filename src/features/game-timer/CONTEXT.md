@@ -42,7 +42,9 @@ Optional coupling where the sequence from **hard pass** events informs who goes 
 
 ### Snapshot
 
-Exchangeable authoritative slice of timer state (**players**, **active player**, **round**, timings, toggles such as hard-pass flags) kept in one **room**-level copy the **host** owns and **guests** mirror. Each **host** broadcast uses **monotonic authority broadcast** **seq**; **guests** never apply a regressive **snapshot**.
+Exchangeable authoritative slice of timer state (**players**, **active player**, **round**, timings, toggles such as hard-pass flags) kept in one **room**-level copy the **host** owns and **guests** mirror. Each **host** broadcast uses **monotonic authority broadcast** **seq**; **guests** never apply a regressive **snapshot**. Progress bars, formatted durations, and timing-strip totals are derived locally from the **snapshot** plus wall clock—not separately synced.
+
+_Avoid_: Treating on-screen bar fill or `m:ss` labels as fields collaborators must agree on beyond the underlying **banked time** and live-turn fields in the **snapshot**.
 
 ### Guest intent
 

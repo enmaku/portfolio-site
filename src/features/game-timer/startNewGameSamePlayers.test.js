@@ -1,21 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
+import { totalGameElapsedMs } from './core.js'
+import { withFakeNow } from './test/withFakeNow.js'
 import { useGameTimerStore } from '../../stores/gameTimer.js'
-
-function withFakeNow(startMs, run) {
-  const originalNow = Date.now
-  let now = startMs
-  Date.now = () => now
-  const advance = (ms) => {
-    now += ms
-  }
-  try {
-    run(advance)
-  } finally {
-    Date.now = originalNow
-  }
-}
 
 test('startNewGameSamePlayers keeps roster and clears clocks and rounds', () => {
   withFakeNow(1000, (advance) => {
@@ -52,7 +40,18 @@ test('startNewGameSamePlayers keeps roster and clears clocks and rounds', () => 
     assert.equal(store.turnStartedAt, null)
     assert.equal(store.turnStartedRound, null)
     assert.equal(store.totalGameStartedAt, null)
-    assert.equal(store.totalGameElapsedMs, 0)
+    assert.equal(
+      totalGameElapsedMs(
+        {
+          totalGameStartedAt: store.totalGameStartedAt,
+          players: store.players,
+          activePlayerId: store.activePlayerId,
+          turnStartedAt: store.turnStartedAt,
+        },
+        Date.now(),
+      ),
+      0,
+    )
     for (const p of store.players) {
       assert.equal(p.bankedMs, 0)
       assert.deepEqual(p.bankedMsByRound, {})

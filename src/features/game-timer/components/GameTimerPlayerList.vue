@@ -149,43 +149,24 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import Draggable from 'vuedraggable'
-import { useGameTimerNow } from '../composables/useGameTimerNow.js'
+import { useGameTimerPlayerListPresentation } from '../composables/useGameTimerPlayerListPresentation.js'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
 import {
   DEFAULT_PLAYER_COLORS,
-  displayedMsForPlayer,
-  displayedMsForPlayerInRound,
   formatDurationMs,
-  maxDisplayedMs,
-  maxDisplayedMsInRound,
   playerBarFillColor,
   playerBarRailColor,
   playerBarTrackColor,
-  progressRatio,
 } from '../core.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 
 const $q = useQuasar()
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
-const now = useGameTimerNow(100)
+const { hasMultipleRounds, playerRowsById, isHardPassed, isPausedHeldTurn } =
+  useGameTimerPlayerListPresentation()
 
-const { hasMultipleRounds, hardPassEnabled, round, activePlayerId, turnStartedAt } = storeToRefs(store)
-
-const hardPassIdsThisRound = computed(() => {
-  const arr = store.hardPassOrderByRound[String(round.value)]
-  return new Set(Array.isArray(arr) ? arr : [])
-})
-
-function isHardPassed(player) {
-  return hardPassEnabled.value && hardPassIdsThisRound.value.has(player.id)
-}
-
-/** Active row, clock paused; mild dim (hard-pass uses stronger styling). */
-function isPausedHeldTurn(player) {
-  if (isHardPassed(player)) return false
-  return activePlayerId.value === player.id && turnStartedAt.value == null
-}
+const { hardPassEnabled } = storeToRefs(store)
 
 function onHardPassButton(player) {
   if (isHardPassed(player)) {
@@ -231,39 +212,6 @@ const editDialogOpen = ref(false)
 const editPlayerId = ref(null)
 const editName = ref('')
 const editColor = ref(DEFAULT_PLAYER_COLORS[0])
-
-/**
- * @type {import('vue').ComputedRef<Map<string, import('../types.js').GameTimerPlayerRow>>}
- */
-const playerRowsById = computed(() => {
-  const session = {
-    activePlayerId: store.activePlayerId,
-    turnStartedAt: store.turnStartedAt,
-    turnStartedRound: store.turnStartedRound,
-  }
-  const currentRound = store.round
-  const nowMs = now.value
-  const list = store.players
-  const maxMs = maxDisplayedMs(list, session, nowMs)
-  const multi = hasMultipleRounds.value
-  const maxRoundMs = multi ? maxDisplayedMsInRound(list, session, nowMs, currentRound) : 0
-  const map = new Map()
-  for (const p of list) {
-    const displayedMs = displayedMsForPlayer(p, session, nowMs)
-    const displayedMsRound = multi ? displayedMsForPlayerInRound(p, session, nowMs, currentRound) : 0
-    map.set(p.id, {
-      id: p.id,
-      name: p.name,
-      color: p.color,
-      displayedMs,
-      progress: progressRatio(displayedMs, maxMs),
-      displayedMsRound,
-      progressRound: multi ? progressRatio(displayedMsRound, maxRoundMs) : 0,
-      isActive: session.activePlayerId === p.id,
-    })
-  }
-  return map
-})
 
 function rowForPlayer(player) {
   return playerRowsById.value.get(player.id)
