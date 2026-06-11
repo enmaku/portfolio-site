@@ -1,16 +1,15 @@
-import { computed } from 'vue'
+import { computed, unref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { hasMultipleRounds } from '../core.js'
 import { createPlayerListViewModel } from '../ui/createPlayerListViewModel.js'
-import { useGameTimerNow } from './useGameTimerNow.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 
 /**
  * Wires reactive store snapshot + wall clock into the player list view model.
+ * @param {{ now: import('vue').MaybeRefOrGetter<number> }} sources
  */
-export function useGameTimerPlayerListPresentation() {
+export function useGameTimerPlayerListPresentation({ now }) {
   const store = useGameTimerStore()
-  const now = useGameTimerNow(100)
   const { hardPassEnabled, round, activePlayerId, turnStartedAt, turnStartedRound, players } =
     storeToRefs(store)
 
@@ -34,7 +33,7 @@ export function useGameTimerPlayerListPresentation() {
       hardPassEnabled: hardPassEnabled.value,
       hardPassOrderByRound: store.hardPassOrderByRound,
       hasMultipleRounds: hasMultipleRoundsFlag.value,
-      nowMs: now.value,
+      nowMs: unref(now),
     }),
   )
 

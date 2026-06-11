@@ -208,6 +208,7 @@ function confirmResetAll() {
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y pinch-zoom;
 }
 
 .gt-actions-bar {

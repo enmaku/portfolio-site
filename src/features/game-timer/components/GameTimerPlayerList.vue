@@ -6,6 +6,7 @@
         item-key="id"
         tag="div"
         class="gt-draggable"
+        handle=".gt-player-row__turn"
         :disabled="isGuest"
         @contextmenu.prevent
         :animation="200"
@@ -150,6 +151,7 @@ import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import Draggable from 'vuedraggable'
 import { useGameTimerPlayerListPresentation } from '../composables/useGameTimerPlayerListPresentation.js'
+import { useGameTimerNow } from '../composables/useGameTimerNow.js'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
 import {
   DEFAULT_PLAYER_COLORS,
@@ -163,8 +165,9 @@ import { useGameTimerStore } from '../../../stores/gameTimer.js'
 const $q = useQuasar()
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
+const now = useGameTimerNow(100)
 const { hasMultipleRounds, playerRowsById, isHardPassed, isPausedHeldTurn } =
-  useGameTimerPlayerListPresentation()
+  useGameTimerPlayerListPresentation({ now })
 
 const { hardPassEnabled } = storeToRefs(store)
 
@@ -333,6 +336,7 @@ function progressRoundFillStyle(player) {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  touch-action: pan-x pinch-zoom;
 }
 
 .gt-sortable-ghost {
@@ -460,6 +464,12 @@ function progressRoundFillStyle(player) {
   width: 30px;
   flex-shrink: 0;
   align-self: stretch;
+  cursor: grab;
+  touch-action: none;
+}
+
+.gt-player-row__turn:active {
+  cursor: grabbing;
 }
 
 .gt-player-row__turn-icon {
