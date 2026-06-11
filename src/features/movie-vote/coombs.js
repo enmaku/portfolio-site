@@ -3,7 +3,7 @@
  */
 
 /**
- * @typedef {import('./irv.js').IrvResult} CoombsResult
+ * @typedef {import('./electionOutcomeTypes.js').ElectionOutcome} CoombsResult
  */
 
 /**
@@ -56,7 +56,7 @@ export function countLastPlaces(rankings, active) {
  * @returns {CoombsResult}
  */
 export function runCoombs(rankings, candidateIds) {
-  /** @type {import('./irv.js').IrvResult['rounds']} */
+  /** @type {import('./electionOutcomeTypes.js').ElectionRoundLog[]} */
   const rounds = []
   const active = new Set(candidateIds)
 

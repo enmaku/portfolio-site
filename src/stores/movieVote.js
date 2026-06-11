@@ -1,52 +1,20 @@
 /**
  * @import '../features/movie-vote/types.js'
- * @import '../features/movie-vote/irv.js'
  */
 
 import { defineStore, acceptHMRUpdate } from 'pinia'
 import {
+  clonePick,
   HOST_PARTICIPANT_ID,
-  normalizeCustomTitle,
+  isRankingForBallot,
   pickDedupeKey,
 } from '../features/movie-vote/core.js'
 import { isDeclaredElectionTie } from '../features/movie-vote/election.js'
+import { migrateLegacyPersistedElectionOutcome } from '../features/movie-vote/electionOutcomePersistMigration.js'
 import {
   DEFAULT_VOTING_METHOD,
   normalizeVotingMethod,
 } from '../features/movie-vote/votingMethod.js'
-
-/**
- * Normalize incoming picks (handles legacy picks that predate `source`).
- * @param {MoviePick} p
- * @returns {MoviePick}
- */
-function clonePick(p) {
-  const source = p.source ?? (typeof p.tmdbId === 'number' ? 'tmdb' : 'custom')
-  return {
-    localId: p.localId,
-    source,
-    tmdbId: source === 'tmdb' ? p.tmdbId : null,
-    customKey: source === 'custom' ? (p.customKey ?? normalizeCustomTitle(p.title)) : undefined,
-    title: p.title,
-    posterPath: p.posterPath ?? null,
-    overview: typeof p.overview === 'string' ? p.overview : '',
-    releaseDate: p.releaseDate,
-    runtime: p.runtime,
-  }
-}
-
-/** `ranking` is a full permutation of the ids in `ballotOrderIds` (same length, each id once). */
-function isRankingForBallot(ranking, ballotOrderIds) {
-  if (!Array.isArray(ranking) || !Array.isArray(ballotOrderIds)) return false
-  if (ranking.length !== ballotOrderIds.length || ballotOrderIds.length === 0) return false
-  const allowed = new Set(ballotOrderIds)
-  const seen = new Set()
-  for (const id of ranking) {
-    if (!allowed.has(id) || seen.has(id)) return false
-    seen.add(id)
-  }
-  return seen.size === ballotOrderIds.length
-}
 
 export const useMovieVoteStore = defineStore('movieVote', {
   state: () => ({
@@ -70,8 +38,8 @@ export const useMovieVoteStore = defineStore('movieVote', {
     voterIds: [],
     /** @type {Record<string, string[]>} */
     votesByParticipant: {},
-    /** @type {import('../features/movie-vote/irv.js').IrvResult | null} */
-    irvResult: null,
+    /** @type {import('../features/movie-vote/electionOutcomeTypes.js').ElectionOutcome | null} */
+    electionOutcome: null,
     /** @type {{ submitted: number, total: number } | null} */
     voteProgress: null,
     /** Distinct suggested movies in the room (host-computed; suggest phase). */
@@ -155,7 +123,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
         this.myVoteSubmitted = false
         this.voterIds = []
         this.votesByParticipant = {}
-        this.irvResult = null
+        this.electionOutcome = null
         this.voteProgress = null
         if (wasVoting || wasResults) {
           this.readyToVote = false
@@ -183,12 +151,12 @@ export const useMovieVoteStore = defineStore('movieVote', {
       if (p.voteProgress) {
         this.voteProgress = { ...p.voteProgress }
       }
-      this.irvResult = p.irvResult ?? null
+      this.electionOutcome = p.electionOutcome ?? null
       this.setUniqueSuggestedMovieCount(
         typeof p.uniqueSuggestedMovieCount === 'number' ? p.uniqueSuggestedMovieCount : 0,
       )
       this.votingMethod = normalizeVotingMethod(p.votingMethod)
-      if (p.phase === 'results' && p.irvResult && !isDeclaredElectionTie(p.irvResult)) {
+      if (p.phase === 'results' && p.electionOutcome && !isDeclaredElectionTie(p.electionOutcome)) {
         this.myDraftPicks = []
       }
       const pid = this.myParticipantId
@@ -207,7 +175,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.myVoteSubmitted = false
       this.voterIds = [...voterIds]
       this.votesByParticipant = {}
-      this.irvResult = null
+      this.electionOutcome = null
       this.voteProgress = { submitted: 0, total: voterIds.length }
       this.uniqueSuggestedMovieCount = 0
     },
@@ -280,10 +248,10 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.voteProgress = { submitted, total }
     },
 
-    /** @param {import('../features/movie-vote/irv.js').IrvResult} result */
-    setResults(result) {
+    /** @param {import('../features/movie-vote/electionOutcomeTypes.js').ElectionOutcome} result */
+    setElectionOutcome(result) {
       this.phase = 'results'
-      this.irvResult = result
+      this.electionOutcome = result
       if (!isDeclaredElectionTie(result)) {
         this.myDraftPicks = []
       }
@@ -300,7 +268,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.myVoteSubmitted = false
       this.voterIds = []
       this.votesByParticipant = {}
-      this.irvResult = null
+      this.electionOutcome = null
       this.voteProgress = null
       this.uniqueSuggestedMovieCount = 0
       this.votingMethod = DEFAULT_VOTING_METHOD
@@ -322,7 +290,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.myVoteSubmitted = false
       this.voterIds = []
       this.votesByParticipant = {}
-      this.irvResult = null
+      this.electionOutcome = null
       this.voteProgress = null
       this.uniqueSuggestedMovieCount = 0
     },
@@ -337,7 +305,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.myVoteSubmitted = false
       this.voterIds = []
       this.votesByParticipant = {}
-      this.irvResult = null
+      this.electionOutcome = null
       this.voteProgress = null
       this.participants = []
       this.uniqueSuggestedMovieCount = 0
@@ -357,12 +325,13 @@ export const useMovieVoteStore = defineStore('movieVote', {
       'voterIds',
       'votesByParticipant',
       'voteProgress',
-      'irvResult',
+      'electionOutcome',
       'votingMethod',
       'fullscreenEnabled',
     ],
     afterHydrate: (ctx) => {
       ctx.store.fullscreenEnabled = ctx.store.fullscreenEnabled === true
+      migrateLegacyPersistedElectionOutcome(ctx.store)
     },
   },
 })

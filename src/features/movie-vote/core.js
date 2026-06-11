@@ -99,6 +99,39 @@ export function uniqueMoviesInPicks(picks) {
  * @param {MoviePick[]} picks
  * @returns {BallotMovie[]}
  */
+/**
+ * Normalize incoming picks (handles legacy picks that predate `source`).
+ * @param {MoviePick} p
+ * @returns {MoviePick}
+ */
+export function clonePick(p) {
+  const source = p.source ?? (typeof p.tmdbId === 'number' ? 'tmdb' : 'custom')
+  return {
+    localId: p.localId,
+    source,
+    tmdbId: source === 'tmdb' ? p.tmdbId : null,
+    customKey: source === 'custom' ? (p.customKey ?? normalizeCustomTitle(p.title)) : undefined,
+    title: p.title,
+    posterPath: p.posterPath ?? null,
+    overview: typeof p.overview === 'string' ? p.overview : '',
+    releaseDate: p.releaseDate,
+    runtime: p.runtime,
+  }
+}
+
+/** `ranking` is a full permutation of the ids in `ballotOrderIds` (same length, each id once). */
+export function isRankingForBallot(ranking, ballotOrderIds) {
+  if (!Array.isArray(ranking) || !Array.isArray(ballotOrderIds)) return false
+  if (ranking.length !== ballotOrderIds.length || ballotOrderIds.length === 0) return false
+  const allowed = new Set(ballotOrderIds)
+  const seen = new Set()
+  for (const id of ranking) {
+    if (!allowed.has(id) || seen.has(id)) return false
+    seen.add(id)
+  }
+  return seen.size === ballotOrderIds.length
+}
+
 export function compileBallotMovies(picks) {
   const byKey = new Map()
   for (const p of picks) {

@@ -46,7 +46,7 @@ function finishVotingIfComplete(store) {
   }
   const rankings = voterIds.map((id) => votesByParticipant[id])
   const result = runElection(store.votingMethod, rankings, [...ballotOrderIds])
-  store.setResults(result)
+  store.setElectionOutcome(result)
   return true
 }
 
@@ -77,10 +77,10 @@ test('finish path: IRV majority winner and first-preference replay', () => {
   store.mergeGuestVote('guest1', ['a', 'c', 'b'])
   assert.equal(finishVotingIfComplete(store), true)
   assert.equal(store.phase, 'results')
-  assert.equal(store.irvResult?.winnerId, 'a')
-  assert.equal(store.irvResult?.votingMethod, 'irv')
-  assert.equal(store.irvResult?.rounds[0]?.firstPreferenceCounts?.a, 2)
-  assert.deepEqual(store.irvResult?.rounds[0]?.eliminatedIds, [])
+  assert.equal(store.electionOutcome?.winnerId, 'a')
+  assert.equal(store.electionOutcome?.votingMethod, 'irv')
+  assert.equal(store.electionOutcome?.rounds[0]?.firstPreferenceCounts?.a, 2)
+  assert.deepEqual(store.electionOutcome?.rounds[0]?.eliminatedIds, [])
 })
 
 test('finish path: locked borda winner and single scoreboard round', () => {
@@ -97,13 +97,13 @@ test('finish path: locked borda winner and single scoreboard round', () => {
   store.mergeGuestVote('guest1', ['a', 'b'])
   assert.equal(finishVotingIfComplete(store), true)
   assert.equal(store.phase, 'results')
-  assert.equal(store.irvResult?.votingMethod, 'borda')
-  assert.equal(store.irvResult?.winnerId, 'a')
-  assert.equal(store.irvResult?.rounds.length, 1)
-  assert.equal(store.irvResult?.rounds[0]?.firstPreferenceCounts?.a, 2)
-  assert.deepEqual(store.irvResult?.rounds[0]?.eliminatedIds, [])
-  assert.equal(isBordaScoreboardResult(store.irvResult), true)
-  assert.equal(shouldAnimateRoundsReplay(store.irvResult), true)
+  assert.equal(store.electionOutcome?.votingMethod, 'borda')
+  assert.equal(store.electionOutcome?.winnerId, 'a')
+  assert.equal(store.electionOutcome?.rounds.length, 1)
+  assert.equal(store.electionOutcome?.rounds[0]?.firstPreferenceCounts?.a, 2)
+  assert.deepEqual(store.electionOutcome?.rounds[0]?.eliminatedIds, [])
+  assert.equal(isBordaScoreboardResult(store.electionOutcome), true)
+  assert.equal(shouldAnimateRoundsReplay(store.electionOutcome), true)
 })
 
 test('finish path: locked dowdall winner and single scoreboard round', () => {
@@ -120,13 +120,13 @@ test('finish path: locked dowdall winner and single scoreboard round', () => {
   store.mergeGuestVote('guest1', ['a', 'b'])
   assert.equal(finishVotingIfComplete(store), true)
   assert.equal(store.phase, 'results')
-  assert.equal(store.irvResult?.votingMethod, 'dowdall')
-  assert.equal(store.irvResult?.winnerId, 'a')
-  assert.equal(store.irvResult?.rounds.length, 1)
-  assert.equal(store.irvResult?.rounds[0]?.firstPreferenceCounts?.a, 2)
-  assert.equal(isDowdallScoreboardResult(store.irvResult), true)
-  assert.equal(isBordaScoreboardResult(store.irvResult), false)
-  assert.equal(shouldAnimateRoundsReplay(store.irvResult), true)
+  assert.equal(store.electionOutcome?.votingMethod, 'dowdall')
+  assert.equal(store.electionOutcome?.winnerId, 'a')
+  assert.equal(store.electionOutcome?.rounds.length, 1)
+  assert.equal(store.electionOutcome?.rounds[0]?.firstPreferenceCounts?.a, 2)
+  assert.equal(isDowdallScoreboardResult(store.electionOutcome), true)
+  assert.equal(isBordaScoreboardResult(store.electionOutcome), false)
+  assert.equal(shouldAnimateRoundsReplay(store.electionOutcome), true)
 })
 
 test('finish path: locked dowdall top tie', () => {
@@ -138,8 +138,8 @@ test('finish path: locked dowdall top tie', () => {
   store.submitMyVoteLocal(['a', 'b'])
   store.mergeGuestVote('guest1', ['b', 'a'])
   assert.equal(finishVotingIfComplete(store), true)
-  assert.equal(store.irvResult?.winnerId, null)
-  assert.deepEqual(new Set(store.irvResult?.tieWinnerIds ?? []), new Set(['a', 'b']))
+  assert.equal(store.electionOutcome?.winnerId, null)
+  assert.deepEqual(new Set(store.electionOutcome?.tieWinnerIds ?? []), new Set(['a', 'b']))
 })
 
 test('finish path: locked borda top tie', () => {
@@ -151,8 +151,8 @@ test('finish path: locked borda top tie', () => {
   store.submitMyVoteLocal(['a', 'b'])
   store.mergeGuestVote('guest1', ['b', 'a'])
   assert.equal(finishVotingIfComplete(store), true)
-  assert.equal(store.irvResult?.winnerId, null)
-  assert.deepEqual(new Set(store.irvResult?.tieWinnerIds ?? []), new Set(['a', 'b']))
+  assert.equal(store.electionOutcome?.winnerId, null)
+  assert.deepEqual(new Set(store.electionOutcome?.tieWinnerIds ?? []), new Set(['a', 'b']))
 })
 
 test('finish path: locked condorcet winner and pairwise matrix on result', () => {
@@ -169,11 +169,11 @@ test('finish path: locked condorcet winner and pairwise matrix on result', () =>
   store.mergeGuestVote('guest1', ['a', 'c', 'b'])
   assert.equal(finishVotingIfComplete(store), true)
   assert.equal(store.phase, 'results')
-  assert.equal(store.irvResult?.votingMethod, 'condorcet')
-  assert.equal(store.irvResult?.winnerId, 'a')
-  assert.equal(store.irvResult?.tieWinnerIds, null)
-  assert.equal(store.irvResult?.rounds.length, 0)
-  assert.equal(store.irvResult?.pairwiseMatrix?.cells.a.b, 'win')
+  assert.equal(store.electionOutcome?.votingMethod, 'condorcet')
+  assert.equal(store.electionOutcome?.winnerId, 'a')
+  assert.equal(store.electionOutcome?.tieWinnerIds, null)
+  assert.equal(store.electionOutcome?.rounds.length, 0)
+  assert.equal(store.electionOutcome?.pairwiseMatrix?.cells.a.b, 'win')
 })
 
 test('finish path: locked copeland winner and pairwise matrix on result', () => {
@@ -190,11 +190,11 @@ test('finish path: locked copeland winner and pairwise matrix on result', () => 
   store.mergeGuestVote('guest1', ['a', 'c', 'b'])
   assert.equal(finishVotingIfComplete(store), true)
   assert.equal(store.phase, 'results')
-  assert.equal(store.irvResult?.votingMethod, 'copeland')
-  assert.equal(store.irvResult?.winnerId, 'a')
-  assert.equal(store.irvResult?.copelandScores?.a, 2)
-  assert.equal(store.irvResult?.pairwiseMatrix?.cells.a.b, 'win')
-  assert.equal(shouldAnimateRoundsReplay(store.irvResult), false)
+  assert.equal(store.electionOutcome?.votingMethod, 'copeland')
+  assert.equal(store.electionOutcome?.winnerId, 'a')
+  assert.equal(store.electionOutcome?.copelandScores?.a, 2)
+  assert.equal(store.electionOutcome?.pairwiseMatrix?.cells.a.b, 'win')
+  assert.equal(shouldAnimateRoundsReplay(store.electionOutcome), false)
 })
 
 test('finish path: locked copeland top tie', () => {
@@ -206,9 +206,9 @@ test('finish path: locked copeland top tie', () => {
   store.submitMyVoteLocal(['a', 'b'])
   store.mergeGuestVote('guest1', ['b', 'a'])
   assert.equal(finishVotingIfComplete(store), true)
-  assert.equal(store.irvResult?.winnerId, null)
-  assert.deepEqual(new Set(store.irvResult?.tieWinnerIds ?? []), new Set(['a', 'b']))
-  assert.equal(store.irvResult?.copelandScores?.a, 0)
+  assert.equal(store.electionOutcome?.winnerId, null)
+  assert.deepEqual(new Set(store.electionOutcome?.tieWinnerIds ?? []), new Set(['a', 'b']))
+  assert.equal(store.electionOutcome?.copelandScores?.a, 0)
 })
 
 test('finish path: locked condorcet cycle → Smith tie set and matrix', () => {
@@ -225,9 +225,9 @@ test('finish path: locked condorcet cycle → Smith tie set and matrix', () => {
   store.mergeGuestVote('guest1', ['b', 'c', 'a'])
   store.mergeGuestVote('guest2', ['c', 'a', 'b'])
   assert.equal(finishVotingIfComplete(store), true)
-  assert.equal(store.irvResult?.winnerId, null)
-  assert.deepEqual(new Set(store.irvResult?.tieWinnerIds ?? []), new Set(['a', 'b', 'c']))
-  assert.equal(store.irvResult?.pairwiseMatrix?.candidateIds.length, 3)
+  assert.equal(store.electionOutcome?.winnerId, null)
+  assert.deepEqual(new Set(store.electionOutcome?.tieWinnerIds ?? []), new Set(['a', 'b', 'c']))
+  assert.equal(store.electionOutcome?.pairwiseMatrix?.candidateIds.length, 3)
 })
 
 test('finish path: locked coombs winner and last-place replay', () => {
@@ -246,10 +246,10 @@ test('finish path: locked coombs winner and last-place replay', () => {
   store.mergeGuestVote('guest3', ['b', 'a'])
   assert.equal(finishVotingIfComplete(store), true)
   assert.equal(store.phase, 'results')
-  assert.equal(store.irvResult?.votingMethod, 'coombs')
-  assert.equal(store.irvResult?.winnerId, 'a')
-  assert.equal(store.irvResult?.rounds[0]?.lastPlaceCounts?.b, 3)
-  assert.deepEqual(store.irvResult?.rounds[0]?.eliminatedIds, ['b'])
+  assert.equal(store.electionOutcome?.votingMethod, 'coombs')
+  assert.equal(store.electionOutcome?.winnerId, 'a')
+  assert.equal(store.electionOutcome?.rounds[0]?.lastPlaceCounts?.b, 3)
+  assert.deepEqual(store.electionOutcome?.rounds[0]?.eliminatedIds, ['b'])
 })
 
 test('finish path: locked baldwin winner and Borda-on-survivors replay', () => {
@@ -267,14 +267,14 @@ test('finish path: locked baldwin winner and Borda-on-survivors replay', () => {
   store.mergeGuestVote('guest2', ['a', 'b', 'c'])
   assert.equal(finishVotingIfComplete(store), true)
   assert.equal(store.phase, 'results')
-  assert.equal(store.irvResult?.votingMethod, 'baldwin')
-  assert.equal(store.irvResult?.winnerId, 'a')
-  assert.ok((store.irvResult?.rounds.length ?? 0) >= 2)
-  assert.deepEqual(store.irvResult?.rounds[0]?.eliminatedIds, ['c'])
-  assert.equal(store.irvResult?.rounds[0]?.firstPreferenceCounts?.a, 6)
-  assert.equal(shouldAnimateRoundsReplay(store.irvResult), true)
-  assert.equal(isBaldwinMultiRoundResult(store.irvResult), true)
-  assert.equal(isBordaScoreboardResult(store.irvResult), false)
+  assert.equal(store.electionOutcome?.votingMethod, 'baldwin')
+  assert.equal(store.electionOutcome?.winnerId, 'a')
+  assert.ok((store.electionOutcome?.rounds.length ?? 0) >= 2)
+  assert.deepEqual(store.electionOutcome?.rounds[0]?.eliminatedIds, ['c'])
+  assert.equal(store.electionOutcome?.rounds[0]?.firstPreferenceCounts?.a, 6)
+  assert.equal(shouldAnimateRoundsReplay(store.electionOutcome), true)
+  assert.equal(isBaldwinMultiRoundResult(store.electionOutcome), true)
+  assert.equal(isBordaScoreboardResult(store.electionOutcome), false)
 })
 
 test('finish path: legacy ranked-points method string runs IRV', () => {
@@ -287,6 +287,6 @@ test('finish path: legacy ranked-points method string runs IRV', () => {
   store.setVotingState([ballotMovie('x'), ballotMovie('y')], ['x', 'y'], [HOST_PARTICIPANT_ID])
   store.submitMyVoteLocal(['x', 'y'])
   assert.equal(finishVotingIfComplete(store), true)
-  assert.equal(store.irvResult?.votingMethod, 'irv')
-  assert.equal(store.irvResult?.winnerId, 'x')
+  assert.equal(store.electionOutcome?.votingMethod, 'irv')
+  assert.equal(store.electionOutcome?.winnerId, 'x')
 })

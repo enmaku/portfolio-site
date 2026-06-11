@@ -3,7 +3,7 @@
  */
 
 /**
- * @typedef {import('./irv.js').IrvResult} BordaResult
+ * @typedef {import('./electionOutcomeTypes.js').ElectionOutcome} BordaResult
  */
 
 /**
@@ -64,7 +64,7 @@ export function runBorda(rankings, candidateIds) {
   const activeIds = [...candidateIds]
   const ballotsWithVote = rankings.length
 
-  /** @type {import('./irv.js').IrvRoundLog} */
+  /** @type {import('./electionOutcomeTypes.js').ElectionRoundLog} */
   const round = {
     firstPreferenceCounts: { ...totals },
     activeIds,

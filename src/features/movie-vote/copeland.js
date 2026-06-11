@@ -9,7 +9,7 @@ import { buildPairwiseMatrix } from './condorcet.js'
  */
 
 /**
- * @typedef {import('./irv.js').IrvResult & {
+ * @typedef {import('./electionOutcomeTypes.js').ElectionOutcome & {
  *   pairwiseMatrix?: PairwiseMatrix,
  *   copelandScores?: Record<string, number>,
  * }} CopelandResult

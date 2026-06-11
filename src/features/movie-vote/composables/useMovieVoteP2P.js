@@ -9,6 +9,7 @@ import {
   leaveSession,
   remoteHostTabVisible,
   resumeMovieVoteSessionIfNeeded,
+  roomAuthoritySeq,
   sessionPhase,
   sessionSuffix,
   startAsHost,
@@ -28,6 +29,7 @@ import {
  *   joinRoom: typeof joinRoom,
  *   leaveSession: typeof leaveSession,
  *   resumeMovieVoteSessionIfNeeded: typeof resumeMovieVoteSessionIfNeeded,
+ *   roomAuthoritySeq: typeof roomAuthoritySeq,
  * }}
  */
 export function useMovieVoteP2P() {
@@ -46,5 +48,6 @@ export function useMovieVoteP2P() {
     joinRoom,
     leaveSession,
     resumeMovieVoteSessionIfNeeded,
+    roomAuthoritySeq,
   }
 }

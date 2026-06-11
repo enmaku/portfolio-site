@@ -6,11 +6,10 @@ import test from 'node:test'
 import {
   countFirstPreferences,
   currentVoteForBallot,
-  isDeclaredIrvTie,
   runIrv,
 } from './irv.js'
 
-/** @param {import('./irv.js').IrvResult['rounds'][number]} round */
+/** @param {import('./electionOutcomeTypes.js').ElectionRoundLog} round */
 function assertFirstPreferenceRoundLog(round) {
   assert.ok('firstPreferenceCounts' in round)
   assert.ok('activeIds' in round)
@@ -26,18 +25,10 @@ function assertFirstPreferenceRoundLog(round) {
   assert.equal(round.ballotsWithVote, sum)
 }
 
-/** @param {import('./irv.js').IrvResult} result */
+/** @param {import('./electionOutcomeTypes.js').ElectionOutcome} result */
 function assertAllRoundsUseFirstPreferenceFields(result) {
   for (const round of result.rounds) assertFirstPreferenceRoundLog(round)
 }
-
-test('isDeclaredIrvTie: true only for non-empty tieWinnerIds', () => {
-  assert.equal(isDeclaredIrvTie(null), false)
-  assert.equal(isDeclaredIrvTie(undefined), false)
-  assert.equal(isDeclaredIrvTie({ tieWinnerIds: null, winnerId: 'x', rounds: [] }), false)
-  assert.equal(isDeclaredIrvTie({ tieWinnerIds: [], winnerId: null, rounds: [] }), false)
-  assert.equal(isDeclaredIrvTie({ tieWinnerIds: ['a', 'b'], winnerId: null, rounds: [] }), true)
-})
 
 test('currentVoteForBallot skips eliminated', () => {
   const active = new Set(['a', 'c'])

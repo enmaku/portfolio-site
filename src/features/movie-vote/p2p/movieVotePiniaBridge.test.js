@@ -63,7 +63,7 @@ function suggestPhasePayload(overrides = {}) {
     ballotMovies: null,
     ballotOrderIds: null,
     voteProgress: null,
-    irvResult: null,
+    electionOutcome: null,
     uniqueSuggestedMovieCount: 0,
     votingMethod: 'irv',
     ...overrides,
@@ -118,7 +118,7 @@ test('guest inbound state applies phase ballot and ready via bridge', () => {
     ],
     ballotOrderIds: ['m-a', 'm-b'],
     voteProgress: { submitted: 0, total: 2 },
-    irvResult: null,
+    electionOutcome: null,
     uniqueSuggestedMovieCount: 0,
     votingMethod: 'irv',
   }
@@ -500,13 +500,13 @@ test('mergeGuestVote does not host-suggest wire when session active', () => {
   assert.deepEqual(drainMovieVoteHostAfterSubmitProbeForTests(), [])
 })
 
-test('setResults does not host-suggest wire when session active', () => {
+test('setElectionOutcome does not host-suggest wire when session active', () => {
   resetMovieVoteHostSuggestProbeForTests()
   const store = installMovieVotePinia()
   store.setMyParticipantId(HOST_PARTICIPANT_ID)
   store.setVotingState([ballotMovie('a'), ballotMovie('b')], ['a', 'b'], [HOST_PARTICIPANT_ID])
   sessionPhase.value = 'hosting'
-  store.setResults({
+  store.setElectionOutcome({
     winnerId: 'a',
     rounds: [],
     declaredTie: false,

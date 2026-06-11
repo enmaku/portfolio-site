@@ -45,10 +45,8 @@
       </template>
 
       <template v-else-if="phase === 'results'">
-        <MovieVoteResultsPanel
+        <MovieVoteResultsComposer
           class="col"
-          :irv-result="irvResult"
-          :ballot-movies="ballotMovies"
           :allow-reset="!isGuest"
           @reset="onResetResults"
         />
@@ -93,7 +91,7 @@ import { useRoute, useRouter } from 'vue-router'
 import MovieBallotList from '../../features/movie-vote/components/MovieBallotList.vue'
 import MovieNominationList from '../../features/movie-vote/components/MovieNominationList.vue'
 import MovieSearchField from '../../features/movie-vote/components/MovieSearchField.vue'
-import MovieVoteResultsPanel from '../../features/movie-vote/components/MovieVoteResultsPanel.vue'
+import MovieVoteResultsComposer from '../../features/movie-vote/components/MovieVoteResultsComposer.vue'
 import MovieVoteTopBar from '../../features/movie-vote/components/MovieVoteTopBar.vue'
 import { useMovieVoteP2P } from '../../features/movie-vote/composables/useMovieVoteP2P.js'
 import {
@@ -112,8 +110,6 @@ const store = useMovieVoteStore()
 const {
   phase,
   myDraftPicks,
-  ballotMovies,
-  irvResult,
   myVoteSubmitted,
   voteProgress,
   uniqueSuggestedMovieCount,

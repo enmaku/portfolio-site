@@ -3,7 +3,7 @@
  */
 
 /**
- * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @param {import('./electionOutcomeTypes.js').ElectionOutcome | null | undefined} result
  * @returns {boolean}
  */
 export function isBordaScoreboardResult(result) {
@@ -11,7 +11,7 @@ export function isBordaScoreboardResult(result) {
 }
 
 /**
- * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @param {import('./electionOutcomeTypes.js').ElectionOutcome | null | undefined} result
  * @returns {boolean}
  */
 export function isDowdallScoreboardResult(result) {
@@ -19,7 +19,7 @@ export function isDowdallScoreboardResult(result) {
 }
 
 /**
- * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @param {import('./electionOutcomeTypes.js').ElectionOutcome | null | undefined} result
  * @returns {boolean}
  */
 function isSinglePassPointsScoreboard(result) {
@@ -27,7 +27,7 @@ function isSinglePassPointsScoreboard(result) {
 }
 
 /**
- * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @param {import('./electionOutcomeTypes.js').ElectionOutcome | null | undefined} result
  * @returns {boolean}
  */
 export function isBaldwinMultiRoundResult(result) {
@@ -35,7 +35,7 @@ export function isBaldwinMultiRoundResult(result) {
 }
 
 /**
- * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @param {import('./electionOutcomeTypes.js').ElectionOutcome | null | undefined} result
  * @returns {boolean}
  */
 export function isCoombsScoreboardResult(result) {
@@ -43,7 +43,7 @@ export function isCoombsScoreboardResult(result) {
 }
 
 /**
- * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @param {import('./electionOutcomeTypes.js').ElectionOutcome | null | undefined} result
  * @returns {string}
  */
 export function scoreUnitForResult(result) {
@@ -54,7 +54,7 @@ export function scoreUnitForResult(result) {
 }
 
 /**
- * @param {import('./irv.js').IrvRoundLog[]} rounds
+ * @param {import('./electionOutcomeTypes.js').ElectionRoundLog[]} rounds
  * @returns {number}
  */
 export function totalRoundsForReplay(rounds) {
@@ -62,7 +62,7 @@ export function totalRoundsForReplay(rounds) {
 }
 
 /**
- * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @param {import('./electionOutcomeTypes.js').ElectionOutcome | null | undefined} result
  * @param {number} roundIdx zero-based index into `result.rounds`
  * @param {number} totalRounds from {@link totalRoundsForReplay}
  * @returns {string}
@@ -76,7 +76,7 @@ export function replayHeadingForResult(result, roundIdx, totalRounds) {
 /**
  * Whether the animated multi-round replay runs (Borda: single pass; Condorcet/Copeland: skip).
  *
- * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @param {import('./electionOutcomeTypes.js').ElectionOutcome | null | undefined} result
  * @returns {boolean}
  */
 export function shouldAnimateRoundsReplay(result) {
@@ -87,7 +87,7 @@ export function shouldAnimateRoundsReplay(result) {
 }
 
 /**
- * @param {import('./irv.js').IrvRoundLog | null | undefined} round
+ * @param {import('./electionOutcomeTypes.js').ElectionRoundLog | null | undefined} round
  * @param {import('./votingMethod.js').VotingMethod | undefined} votingMethod
  * @returns {Record<string, number>}
  */
@@ -100,7 +100,7 @@ export function countsForScoreboardRound(round, votingMethod) {
 /**
  * Bar target %: IRV first-preference share, Coombs last-place share, or Borda points vs leader.
  *
- * @param {import('./irv.js').IrvRoundLog | null | undefined} round
+ * @param {import('./electionOutcomeTypes.js').ElectionRoundLog | null | undefined} round
  * @param {import('./votingMethod.js').VotingMethod | undefined} votingMethod
  * @returns {Record<string, number>}
  */
@@ -137,7 +137,7 @@ export function targetPctsForScoreboardRound(round, votingMethod) {
 }
 
 /**
- * @param {import('./irv.js').IrvResult | null | undefined} result
+ * @param {import('./electionOutcomeTypes.js').ElectionOutcome | null | undefined} result
  * @returns {boolean}
  */
 export function showVotePoolSuffix(result) {

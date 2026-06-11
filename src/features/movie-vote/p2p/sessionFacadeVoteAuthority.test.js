@@ -354,7 +354,7 @@ function bindGuestMirrorHandlers(sessionMod, ballotOrderIds) {
     })),
     ballotOrderIds: [...ballotOrderIds],
     voteProgress: { submitted: 0, total: 2 },
-    irvResult: null,
+    electionOutcome: null,
     uniqueSuggestedMovieCount: 0,
     votingMethod: /** @type {const} */ ('irv'),
   }
@@ -497,19 +497,19 @@ test(
     )
 
     assert.equal(guestWire.mirror?.phase, 'voting')
-    assert.equal(guestWire.mirror?.irvResult, null)
+    assert.equal(guestWire.mirror?.electionOutcome, null)
 
     const forgedLocal = runElection(
       'irv',
       [[ballotOrderIds[1], ballotOrderIds[0]], [ballotOrderIds[1], ballotOrderIds[0]]],
       ballotOrderIds,
     )
-    guestWire.store.setResults(forgedLocal)
+    guestWire.store.setElectionOutcome(forgedLocal)
 
     assert.equal(guestWire.store.phase, 'results')
-    assert.ok(guestWire.store.irvResult)
+    assert.ok(guestWire.store.electionOutcome)
     assert.equal(guestWire.mirror?.phase, 'voting', 'local recompute must not promote mirror to results')
-    assert.equal(guestWire.mirror?.irvResult, null)
+    assert.equal(guestWire.mirror?.electionOutcome, null)
 
     guestWire.sessionMod.handleGuestInbound(
       encodeState(
@@ -519,7 +519,7 @@ test(
           ballotMovies: guestWire.mirror?.ballotMovies ?? null,
           ballotOrderIds: [...ballotOrderIds],
           voteProgress: { submitted: 2, total: 2 },
-          irvResult: runElection(
+          electionOutcome: runElection(
             'irv',
             [[ballotOrderIds[0], ballotOrderIds[1]], [ballotOrderIds[0], ballotOrderIds[1]]],
             ballotOrderIds,
@@ -532,8 +532,8 @@ test(
     )
 
     assert.equal(guestWire.mirror?.phase, 'results')
-    assert.ok(guestWire.mirror?.irvResult)
-    assert.equal(guestWire.mirror?.irvResult?.winnerId, ballotOrderIds[0])
+    assert.ok(guestWire.mirror?.electionOutcome)
+    assert.equal(guestWire.mirror?.electionOutcome?.winnerId, ballotOrderIds[0])
   },
 )
 
@@ -586,7 +586,7 @@ test(
         guestVoteBroadcasts.every((b) => b.payload.phase === 'voting'),
         'partial votes must not commit results',
       )
-      assert.ok(guestVoteBroadcasts.every((b) => b.payload.irvResult == null))
+      assert.ok(guestVoteBroadcasts.every((b) => b.payload.electionOutcome == null))
 
       const guestWire = bindGuestMirrorHandlers(
         await importMovieVoteSession(`vote-results-guest-${Date.now()}`),
@@ -600,7 +600,7 @@ test(
             ballotMovies: guestWire.mirror?.ballotMovies ?? null,
             ballotOrderIds: [...ballotOrderIds],
             voteProgress: { submitted: 1, total: 2 },
-            irvResult: null,
+            electionOutcome: null,
             uniqueSuggestedMovieCount: 0,
             votingMethod: 'irv',
           },
@@ -615,7 +615,7 @@ test(
         ballotMovies: guestWire.mirror?.ballotMovies ?? null,
         ballotOrderIds: [...ballotOrderIds],
         voteProgress: { submitted: 2, total: 2 },
-        irvResult: { winnerId: ballotOrderIds[0], rounds: [], declaredTie: false },
+        electionOutcome: { winnerId: ballotOrderIds[0], rounds: [], declaredTie: false },
         uniqueSuggestedMovieCount: 0,
         votingMethod: /** @type {const} */ ('irv'),
       }
@@ -625,7 +625,7 @@ test(
         'voting',
         'regressive results replay must not overwrite voting mirror',
       )
-      assert.equal(guestWire.mirror?.irvResult, null)
+      assert.equal(guestWire.mirror?.electionOutcome, null)
 
       store.submitMyVoteLocal([...ballotOrderIds])
       const setsBeforeCommit = harness.sets.length
@@ -635,9 +635,9 @@ test(
       assert.ok(commitBroadcasts.length >= 1, 'hostAfterVoteSubmit should rebroadcast committed results')
       const committed = commitBroadcasts[commitBroadcasts.length - 1]
       assert.equal(committed.payload.phase, 'results')
-      assert.ok(committed.payload.irvResult)
+      assert.ok(committed.payload.electionOutcome)
       assert.equal(store.phase, 'results')
-      assert.ok(store.irvResult)
+      assert.ok(store.electionOutcome)
     })
   },
 )
@@ -691,9 +691,9 @@ test(
       assert.ok(commitBroadcasts.length >= 1, 'final inbox vote should auto-commit via host tally path')
       const committed = commitBroadcasts[commitBroadcasts.length - 1]
       assert.equal(committed.payload.phase, 'results')
-      assert.ok(committed.payload.irvResult)
+      assert.ok(committed.payload.electionOutcome)
       assert.equal(store.phase, 'results')
-      assert.ok(store.irvResult)
+      assert.ok(store.electionOutcome)
     })
   },
 )

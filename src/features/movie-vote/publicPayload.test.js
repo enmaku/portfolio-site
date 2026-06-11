@@ -12,7 +12,7 @@ test('public payload includes voting method from room store', () => {
       ballotMovies: [],
       ballotOrderIds: [],
       voteProgress: null,
-      irvResult: null,
+      electionOutcome: null,
       votingMethod: 'borda',
     },
     new Map(),
@@ -20,7 +20,7 @@ test('public payload includes voting method from room store', () => {
   assert.equal(payload.votingMethod, 'borda')
 })
 
-test('public payload carries Dowdall irvResult for guests', () => {
+test('public payload carries Dowdall electionOutcome for guests', () => {
   const dowdallResult = {
     votingMethod: 'dowdall',
     winnerId: 'a',
@@ -42,16 +42,16 @@ test('public payload carries Dowdall irvResult for guests', () => {
       ballotMovies: [],
       ballotOrderIds: [],
       voteProgress: null,
-      irvResult: dowdallResult,
+      electionOutcome: dowdallResult,
       votingMethod: 'dowdall',
     },
     new Map(),
   )
-  assert.equal(payload.irvResult?.votingMethod, 'dowdall')
-  assert.equal(payload.irvResult?.rounds[0]?.firstPreferenceCounts?.a, 1.5)
+  assert.equal(payload.electionOutcome?.votingMethod, 'dowdall')
+  assert.equal(payload.electionOutcome?.rounds[0]?.firstPreferenceCounts?.a, 1.5)
 })
 
-test('public payload carries Borda irvResult for guests', () => {
+test('public payload carries Borda electionOutcome for guests', () => {
   const bordaResult = {
     votingMethod: 'borda',
     winnerId: 'a',
@@ -73,15 +73,15 @@ test('public payload carries Borda irvResult for guests', () => {
       ballotMovies: [],
       ballotOrderIds: [],
       voteProgress: null,
-      irvResult: bordaResult,
+      electionOutcome: bordaResult,
       votingMethod: 'borda',
     },
     new Map(),
   )
   assert.equal(payload.phase, 'results')
-  assert.equal(payload.irvResult?.votingMethod, 'borda')
-  assert.equal(payload.irvResult?.winnerId, 'a')
-  assert.equal(payload.irvResult?.rounds.length, 1)
+  assert.equal(payload.electionOutcome?.votingMethod, 'borda')
+  assert.equal(payload.electionOutcome?.winnerId, 'a')
+  assert.equal(payload.electionOutcome?.rounds.length, 1)
 })
 
 test('public payload defaults voting method when store value is invalid', () => {
@@ -93,7 +93,7 @@ test('public payload defaults voting method when store value is invalid', () => 
       ballotMovies: [],
       ballotOrderIds: [],
       voteProgress: null,
-      irvResult: null,
+      electionOutcome: null,
       votingMethod: 'legacy-hybrid',
     },
     new Map(),
@@ -123,7 +123,7 @@ test('buildMovieVotePublicPayload reflects cleared guest ready flags', () => {
       ballotMovies: [],
       ballotOrderIds: [],
       voteProgress: null,
-      irvResult: null,
+      electionOutcome: null,
       votingMethod: 'irv',
     },
     guestDrafts,

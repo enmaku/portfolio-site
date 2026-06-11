@@ -91,6 +91,12 @@ export const sessionPhase = vueRef(/** @type {import('./types.js').MovieVoteSess
 export const sessionSuffix = vueRef(/** @type {string | null} */ (null))
 
 /**
+ * Monotonic authority `seq` of the last applied host broadcast (guest) or last published
+ * state message (host). Wire/sync metadata only — not persisted in Pinia.
+ */
+export const roomAuthoritySeq = vueRef(0)
+
+/**
  * Guest only: last host-reported tab visibility (`document.visibilityState === 'visible'` on host).
  * Stays `true` when idle / hosting / unknown.
  */
@@ -190,6 +196,7 @@ function clearRoomPersistence() {
 function resetMovieVoteWireState() {
   wireState.resetMaps()
   lastSeenSeq = 0
+  roomAuthoritySeq.value = 0
 }
 
 function allDraftPicksFlat() {
@@ -226,6 +233,7 @@ function hostBroadcastState() {
     void 0
   }
   const msg = encodeState(payload, ++nextSeq)
+  roomAuthoritySeq.value = nextSeq
   setRtdb(roomChild(sessionSuffix.value, 'state'), msg).catch(() => {})
 }
 
@@ -263,7 +271,7 @@ function tryFinishVoting() {
 
   const rankings = voterIds.map((id) => votesByParticipant[id])
   const result = runElection(store.votingMethod, rankings, [...ballotOrderIds])
-  store.setResults(result)
+  store.setElectionOutcome(result)
   hostBroadcastState()
 }
 
@@ -347,6 +355,7 @@ const guestInboundWire = createGuestInboundWire({
   getLastSeenSeq: () => lastSeenSeq,
   setLastSeenSeq: (n) => {
     lastSeenSeq = n
+    roomAuthoritySeq.value = n
   },
   applyPublicPayload: (payload) => handlers.applyPublicPayload(payload),
   onGuestHostEnded: handleGuestHostEnded,
@@ -533,7 +542,10 @@ function hostReconnectLoop(suffix, gen) {
 async function hydrateHostFromRtdb(suffix) {
   const stateSnap = await get(roomChild(suffix, 'state'))
   const parsed = parseState(stateSnap.val())
-  if (parsed) nextSeq = parsed.seq
+  if (parsed) {
+    nextSeq = parsed.seq
+    roomAuthoritySeq.value = parsed.seq
+  }
   try {
     applyHostStoreFromRtdbHydrate(parsed, {
       applyPublicPayload: (p) => handlers.applyPublicPayload(p),
@@ -572,6 +584,7 @@ async function hydrateHostFromRtdb(suffix) {
 async function finishHostSession(suffix) {
   nextSeq = 0
   lastSeenSeq = 0
+  roomAuthoritySeq.value = 0
   await core.finishHostSession(suffix)
   guestOnlineWire.wireHostGuestOnline(suffix)
   useMovieVoteStore().setMyParticipantId(HOST_PARTICIPANT_ID)
@@ -588,6 +601,7 @@ async function finishHostSession(suffix) {
  */
 async function establishGuestSession(suffix) {
   lastSeenSeq = 0
+  roomAuthoritySeq.value = 0
   remoteHostTabVisible.value = true
   await core.establishGuestSession(suffix)
   const stableId = core.getGuestStableId()
@@ -739,6 +753,7 @@ export function teardownSession() {
   destroyWireOnly()
   core.setPhase('idle')
   core.setSuffix(null)
+  roomAuthoritySeq.value = 0
 }
 
 /** Test-only module instance key for `session.testWireAccess.js`. */
@@ -762,7 +777,9 @@ registerMovieVoteTestWireAccess(MOVIE_VOTE_SESSION_TEST_MODULE_KEY, () => ({
   getLastSeenSeq: () => lastSeenSeq,
   setLastSeenSeq: (n) => {
     lastSeenSeq = n
+    roomAuthoritySeq.value = n
   },
+  getRoomAuthoritySeq: () => roomAuthoritySeq.value,
   emptyHandlers: () => ({
     applyPublicPayload: () => {},
     onWireTeardown: () => {},

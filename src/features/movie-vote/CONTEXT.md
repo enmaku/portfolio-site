@@ -18,9 +18,15 @@ Everyone contributes **movie picks** and marks readiness without locking the gro
 
 Participants submit **rankings** over the compiled **ballot**.
 
+### Election outcome
+
+The authoritative outcome package the **host** commits into **room**-level authority at **results phase** entry: `winnerId` or **declared tie** metadata, optional **rounds log**, optional **pairwise matrix** / **Copeland score** fields—one shape for every **voting method**, not IRV-specific.
+
+_Avoid_: `irvResult`, `IrvResult`, `IrvRoundLog`, `isDeclaredIrvTie` (legacy names from when IRV was the only method). Canonical types: `ElectionOutcome`, `ElectionRoundLog`; tie check: `isDeclaredElectionTie`. Shared types live in a neutral module—not in `irv.js`, which is the **instant-runoff voting** algorithm only.
+
 ### Results phase
 
-Shows the **room**’s authoritative election outcome—the **host** commits winner or **declared tie** metadata and the persisted **rounds log** (when the method produces one) into **room**-level authority when entering this **phase** (not a per-client recompute as the source of truth).
+Shows the **room**’s authoritative **election outcome**—the **host** commits winner or **declared tie** metadata and the persisted **rounds log** (when the method produces one) into **room**-level authority when entering this **phase** (not a per-client recompute as the source of truth).
 
 ### Movie pick
 
@@ -170,15 +176,39 @@ _Avoid_: Requiring every Smith member to beat every outsider in a single head-to
 
 ### Rounds log
 
-Per-round snapshots the **host** persists for runoff replay—**instant-runoff voting** first-preference counts, **Coombs method** last-place counts, **Baldwin method** Borda-on-survivors totals, active set, eliminations. **Borda count** and **Dowdall method** each use a single scored round in the same structure where applicable (point totals in the rounds log).
+Per-round snapshots in the **election outcome** the **host** persists for runoff replay—**instant-runoff voting** first-preference counts, **Coombs method** last-place counts, **Baldwin method** Borda-on-survivors totals, active set, eliminations. **Borda count** and **Dowdall method** each use a single scored round in the same structure where applicable (point totals in the rounds log).
 
-_Avoid_: **IRV rounds log** as the only name for every **voting method**; legacy field names like `counts` / `ballotsWithVote` in user-facing copy.
+_Avoid_: **IRV rounds log** as the only name for every **voting method**; legacy type names like `IrvRoundLog`; legacy field names like `counts` / `ballotsWithVote` in user-facing copy.
 
 ### Pairwise matrix
 
 Compact pairwise results view for **Condorcet method** and **Copeland method**: **ballot movies** on both axes with tiny poster thumbnails, each cell showing head-to-head outcome (win, loss, or pairwise tie) at a glance—dense and mobile-friendly for those who want detail. **Copeland method** also surfaces each movie’s **Copeland score** above the matrix.
 
 _Avoid_: Full **rounds log** replay for **Condorcet method** or **Copeland method**; oversized matrices on small screens.
+
+### Results phase surfaces
+
+The three presentation regions in **results phase**, composed surface-first—not one full layout per **voting method**:
+
+1. **Results summary** — winner or **declared tie** card (always shown when an outcome exists).
+2. **Rounds log replay** — animated scoreboard when the active method produces a **rounds log** worth replaying.
+3. **Pairwise matrix** — optional detail for **Condorcet method** and **Copeland method** only (**Copeland score** list lives here, not a separate surface).
+
+Method-specific display shaping feeds these surfaces; the surfaces are shared across methods where the glossary already groups them (e.g. **instant-runoff voting** and **Coombs method** share the replay shell). Presentation uses three surface shells plus a thin composer that mounts them— not one shell per **voting method**.
+
+**Rounds log replay** splits two concerns: a pure view model shapes each step’s rows, headings, and bar targets; a dedicated replay shell owns timers and motion (not the summary or matrix surfaces).
+
+Results presentation assembly (which surfaces mount, replay-skip policy, view-model inputs) lives in a feature-level composable seam—not in the Pinia store and not in the project page. The store mirrors raw **room** fields only; child surface components receive shaped props from that composable.
+
+The Pinia store does not gain getters or computed fields for results display. Ballot/pick validation helpers move out of the store into feature modules; the store keeps persistence, **phase**, and **room** sync actions only. Local persist migrates legacy `irvResult` to **election outcome** (`electionOutcome`) once on hydrate.
+
+This deepening slice is refactor-only: preserve current results UI behavior, visuals, timing, and surface order except minimal wrapper markup introduced by the component split—no results UX refresh.
+
+On a **fresh** transition into **results phase**, **Results summary** stays hidden until replay finishes (when replay runs)—no early spoiler. **Condorcet method** and **Copeland method** skip replay and show the summary immediately. On **re-entering results** (refresh, resume, remount), skip replay and show the summary (+ **pairwise matrix** when applicable) immediately; replay is a one-time reveal, not something that restarts on every load.
+
+Each client replays at most once per **results phase** authority commit, keyed by the monotonic room authority `seq` of the broadcast that carried the **election outcome** into **results phase**. Clients remember the last replayed `seq` per **room** (survives refresh within the tab) and skip replay when the current commit `seq` was already consumed. That `seq` is wire/sync metadata from the star-room session—not a field inside the **election outcome** package or the Pinia store; the session composable exposes it read-only to the results presentation layer.
+
+_Avoid_: Fingerprinting the **election outcome** blob for replay gating when authority `seq` already identifies the commit; mirroring authority `seq` into persisted store fields.
 
 ### Results summary
 

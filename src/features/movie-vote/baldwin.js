@@ -5,7 +5,7 @@
 import { bordaPointsForRank } from './borda.js'
 
 /**
- * @typedef {import('./irv.js').IrvResult} BaldwinResult
+ * @typedef {import('./electionOutcomeTypes.js').ElectionOutcome} BaldwinResult
  */
 
 /**
@@ -50,7 +50,7 @@ export function tallyBordaAmongActive(rankings, activeIds) {
  * @returns {BaldwinResult}
  */
 export function runBaldwin(rankings, candidateIds) {
-  /** @type {import('./irv.js').IrvRoundLog[]} */
+  /** @type {import('./electionOutcomeTypes.js').ElectionRoundLog[]} */
   const rounds = []
   const active = new Set(candidateIds)
 

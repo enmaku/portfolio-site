@@ -16,7 +16,7 @@ test('applyPublicPayload: returning to suggest from results clears ready', () =>
     ballotMovies: null,
     ballotOrderIds: null,
     voteProgress: null,
-    irvResult: null,
+    electionOutcome: null,
     uniqueSuggestedMovieCount: 2,
     votingMethod: 'irv',
   })
@@ -37,7 +37,7 @@ test('applyPublicPayload: suggest refresh without leaving suggest keeps ready fr
     ballotMovies: null,
     ballotOrderIds: null,
     voteProgress: null,
-    irvResult: null,
+    electionOutcome: null,
     uniqueSuggestedMovieCount: 2,
     votingMethod: 'irv',
   })

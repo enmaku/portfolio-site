@@ -9,7 +9,7 @@ import {
   tallyBordaAmongActive,
 } from './baldwin.js'
 
-/** @param {import('./irv.js').IrvResult['rounds'][number]} round */
+/** @param {import('./electionOutcomeTypes.js').ElectionRoundLog} round */
 function assertBaldwinRoundLog(round) {
   assert.ok('firstPreferenceCounts' in round)
   assert.ok('activeIds' in round)
