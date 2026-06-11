@@ -119,8 +119,12 @@ test('runElection condorcet matches runCondorcet and adds votingMethod', () => {
 })
 
 test('isDeclaredElectionTie matches tieWinnerIds shape', () => {
+  assert.equal(isDeclaredElectionTie(null), false)
+  assert.equal(isDeclaredElectionTie(undefined), false)
   assert.equal(isDeclaredElectionTie({ tieWinnerIds: ['a'], winnerId: null, rounds: [] }), true)
+  assert.equal(isDeclaredElectionTie({ tieWinnerIds: [], winnerId: null, rounds: [] }), false)
   assert.equal(isDeclaredElectionTie({ tieWinnerIds: null, winnerId: 'a', rounds: [] }), false)
+  assert.equal(isDeclaredElectionTie({ tieWinnerIds: ['a', 'b'], winnerId: null, rounds: [] }), true)
 })
 
 test('runElection irv matches runIrv and adds votingMethod', () => {

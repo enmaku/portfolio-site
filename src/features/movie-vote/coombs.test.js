@@ -11,7 +11,7 @@ import {
 } from './coombs.js'
 import { runIrv } from './irv.js'
 
-/** @param {import('./irv.js').IrvResult['rounds'][number]} round */
+/** @param {import('./electionOutcomeTypes.js').ElectionRoundLog} round */
 function assertLastPlaceRoundLog(round) {
   assert.ok('lastPlaceCounts' in round)
   assert.ok('activeIds' in round)
@@ -25,7 +25,7 @@ function assertLastPlaceRoundLog(round) {
   assert.equal(round.ballotsWithVote, sum)
 }
 
-/** @param {import('./irv.js').IrvResult} result */
+/** @param {import('./electionOutcomeTypes.js').ElectionOutcome} result */
 function assertAllRoundsUseLastPlaceFields(result) {
   for (const round of result.rounds) assertLastPlaceRoundLog(round)
 }

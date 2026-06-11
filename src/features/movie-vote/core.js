@@ -95,6 +95,39 @@ export function uniqueMoviesInPicks(picks) {
 }
 
 /**
+ * Normalize incoming picks (handles legacy picks that predate `source`).
+ * @param {MoviePick} p
+ * @returns {MoviePick}
+ */
+export function clonePick(p) {
+  const source = p.source ?? (typeof p.tmdbId === 'number' ? 'tmdb' : 'custom')
+  return {
+    localId: p.localId,
+    source,
+    tmdbId: source === 'tmdb' ? p.tmdbId : null,
+    customKey: source === 'custom' ? (p.customKey ?? normalizeCustomTitle(p.title)) : undefined,
+    title: p.title,
+    posterPath: p.posterPath ?? null,
+    overview: typeof p.overview === 'string' ? p.overview : '',
+    releaseDate: p.releaseDate,
+    runtime: p.runtime,
+  }
+}
+
+/** `ranking` is a full permutation of the ids in `ballotOrderIds` (same length, each id once). */
+export function isRankingForBallot(ranking, ballotOrderIds) {
+  if (!Array.isArray(ranking) || !Array.isArray(ballotOrderIds)) return false
+  if (ranking.length !== ballotOrderIds.length || ballotOrderIds.length === 0) return false
+  const allowed = new Set(ballotOrderIds)
+  const seen = new Set()
+  for (const id of ranking) {
+    if (!allowed.has(id) || seen.has(id)) return false
+    seen.add(id)
+  }
+  return seen.size === ballotOrderIds.length
+}
+
+/**
  * Dedupe by {@link pickDedupeKey}, shuffle, assign public ids.
  * @param {MoviePick[]} picks
  * @returns {BallotMovie[]}
@@ -102,19 +135,19 @@ export function uniqueMoviesInPicks(picks) {
 export function compileBallotMovies(picks) {
   const byKey = new Map()
   for (const p of picks) {
-    const key = pickDedupeKey(p)
+    const normalized = clonePick(p)
+    const key = pickDedupeKey(normalized)
     if (!key || byKey.has(key)) continue
-    const source = p.source ?? (typeof p.tmdbId === 'number' ? 'tmdb' : 'custom')
     byKey.set(key, {
       publicId: generatePublicId(),
-      source,
-      tmdbId: source === 'tmdb' ? p.tmdbId : null,
-      customKey: source === 'custom' ? (p.customKey ?? normalizeCustomTitle(p.title)) : undefined,
-      title: p.title,
-      posterPath: p.posterPath,
-      overview: p.overview,
-      releaseDate: p.releaseDate,
-      runtime: p.runtime,
+      source: normalized.source,
+      tmdbId: normalized.tmdbId,
+      customKey: normalized.customKey,
+      title: normalized.title,
+      posterPath: normalized.posterPath,
+      overview: normalized.overview,
+      releaseDate: normalized.releaseDate,
+      runtime: normalized.runtime,
     })
   }
   const out = [...byKey.values()]

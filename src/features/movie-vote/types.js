@@ -67,7 +67,8 @@
  * @property {BallotMovie[] | null} ballotMovies
  * @property {string[] | null} ballotOrderIds
  * @property {{ submitted: number, total: number } | null} voteProgress
- * @property {import('./irv.js').IrvResult | null} [irvResult]
+ * @property {import('./electionOutcomeTypes.js').ElectionOutcome | null} [electionOutcome]
+ * @property {import('./electionOutcomeTypes.js').ElectionOutcome | null} [irvResult] Deprecated inbound-only alias for {@link electionOutcome} (one release).
  * @property {number} [uniqueSuggestedMovieCount] Distinct titles across all draft picks (suggest phase); 0 otherwise.
  * @property {VotingMethod} [votingMethod] Active single-winner rule for this room; defaults to instant-runoff when omitted (legacy payloads).
  */

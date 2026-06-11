@@ -72,7 +72,7 @@ function seedCollaborationState(store) {
   store.voteProgress = { submitted: 2, total: 2 }
   store.uniqueSuggestedMovieCount = 3
   store.phase = 'results'
-  store.irvResult = {
+  store.electionOutcome = {
     winnerId: 'm-a',
     tieWinnerIds: null,
     rounds: [{ activeIds: ['m-a', 'm-b'], ballotsWithVote: 2, eliminatedIds: [] }],
@@ -109,7 +109,7 @@ function assertMovieVoteRoomExitSurvival(ctx) {
     'votes by participant should clear after room exit',
   )
   assert.equal(ctx.store.myRanking.length, 0, 'personal ranking should clear after room exit')
-  assert.equal(ctx.store.irvResult, null, 'election results should clear after room exit')
+  assert.equal(ctx.store.electionOutcome, null, 'election results should clear after room exit')
   assert.equal(ctx.store.voteProgress, null, 'vote progress should clear after room exit')
   assert.equal(
     ctx.store.uniqueSuggestedMovieCount,

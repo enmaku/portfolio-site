@@ -12,7 +12,7 @@ import { runIrv } from './irv.js'
 import { normalizeVotingMethod } from './votingMethod.js'
 
 /**
- * @typedef {import('./irv.js').IrvResult} ElectionResult
+ * @typedef {import('./electionOutcomeTypes.js').ElectionOutcome} ElectionOutcome
  */
 
 /**
@@ -27,7 +27,7 @@ export function isDeclaredElectionTie(result) {
  * @param {import('./votingMethod.js').VotingMethod | unknown} votingMethod
  * @param {string[][]} rankings
  * @param {string[]} candidateIds
- * @returns {ElectionResult}
+ * @returns {ElectionOutcome}
  */
 export function runElection(votingMethod, rankings, candidateIds) {
   const method = normalizeVotingMethod(votingMethod)
@@ -66,7 +66,7 @@ export function runElection(votingMethod, rankings, candidateIds) {
 /**
  * @param {import('./votingMethod.js').VotingMethod} method
  * @param {string[]} candidateIds
- * @returns {ElectionResult}
+ * @returns {ElectionOutcome}
  */
 function unsupportedElectionResult(method, candidateIds) {
   if (candidateIds.length === 0) {

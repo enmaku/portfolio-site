@@ -20,7 +20,7 @@ function distinctSuggestedMovieCountFromPicks(picks) {
  *   ballotMovies: import('./types.js').BallotMovie[],
  *   ballotOrderIds: string[],
  *   voteProgress: { submitted: number, total: number } | null,
- *   irvResult: import('./irv.js').IrvResult | null,
+ *   electionOutcome: import('./electionOutcomeTypes.js').ElectionOutcome | null,
  *   votingMethod: unknown,
  * }} store
  * @param {Map<string, { picks: import('./types.js').MoviePick[], ready: boolean }>} guestDrafts
@@ -62,7 +62,7 @@ export function buildMovieVotePublicPayload(store, guestDrafts) {
     ballotMovies: suggest ? null : store.ballotMovies.map((m) => ({ ...m })),
     ballotOrderIds: suggest ? null : [...store.ballotOrderIds],
     voteProgress: store.voteProgress ? { ...store.voteProgress } : null,
-    irvResult: store.irvResult,
+    electionOutcome: store.electionOutcome,
     uniqueSuggestedMovieCount: suggest ? distinctSuggestedMovieCountFromPicks(allPicks) : 0,
     votingMethod: normalizeVotingMethod(store.votingMethod),
   }

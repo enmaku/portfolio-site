@@ -13,7 +13,7 @@
  */
 
 /**
- * @typedef {import('./irv.js').IrvResult & { pairwiseMatrix?: PairwiseMatrix }} CondorcetResult
+ * @typedef {import('./electionOutcomeTypes.js').ElectionOutcome & { pairwiseMatrix?: PairwiseMatrix }} CondorcetResult
  */
 
 /**

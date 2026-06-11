@@ -44,7 +44,7 @@ const SYNC_ACTION_NAMES = new Set([
   'markVoteSubmitted',
   'mergeGuestVote',
   'removeParticipantFromVote',
-  'setResults',
+  'setElectionOutcome',
   'resetForRoomExit',
   'resetSessionSoft',
   'resetToSuggest',

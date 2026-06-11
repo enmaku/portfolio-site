@@ -30,7 +30,7 @@ const JOINABLE_SUGGEST_PAYLOAD = buildMovieVotePublicPayload(
     ballotMovies: [],
     ballotOrderIds: [],
     voteProgress: null,
-    irvResult: null,
+    electionOutcome: null,
     votingMethod: 'irv',
   },
   new Map(),

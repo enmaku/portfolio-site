@@ -3,7 +3,7 @@
  */
 
 /**
- * @typedef {import('./irv.js').IrvResult} DowdallResult
+ * @typedef {import('./electionOutcomeTypes.js').ElectionOutcome} DowdallResult
  */
 
 /**
@@ -61,7 +61,7 @@ export function runDowdall(rankings, candidateIds) {
   const activeIds = [...candidateIds]
   const ballotsWithVote = rankings.length
 
-  /** @type {import('./irv.js').IrvRoundLog} */
+  /** @type {import('./electionOutcomeTypes.js').ElectionRoundLog} */
   const round = {
     firstPreferenceCounts: { ...totals },
     activeIds,
