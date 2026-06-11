@@ -6,6 +6,7 @@
         item-key="id"
         tag="div"
         class="gt-draggable"
+        handle=".gt-player-row__turn"
         :disabled="isGuest"
         @contextmenu.prevent
         :animation="200"
@@ -42,8 +43,8 @@
               class="gt-player-row rounded-borders relative-position overflow-hidden column"
               :class="{
                 'gt-player-row--active': rowForPlayer(player)?.isActive,
-                'gt-player-row--hard-passed': isHardPassed(player),
-                'gt-player-row--paused-turn': isPausedHeldTurn(player),
+                'gt-player-row--hard-passed': rowForPlayer(player)?.isHardPassed,
+                'gt-player-row--paused-turn': rowForPlayer(player)?.isPausedHeldTurn,
               }"
               :style="rowSurfaceStyle(player)"
               :data-gt-player-id="player.id"
@@ -52,7 +53,7 @@
                 <div class="gt-player-row__turn col-auto row flex-center" aria-hidden="true">
                   <q-icon
                     v-if="rowForPlayer(player)?.isActive"
-                    :name="isPausedHeldTurn(player) ? 'pause' : 'play_arrow'"
+                    :name="rowForPlayer(player)?.isPausedHeldTurn ? 'pause' : 'play_arrow'"
                     class="gt-player-row__turn-icon"
                   />
                 </div>
@@ -75,9 +76,9 @@
                   round
                   dense
                   padding="sm"
-                  :icon="isHardPassed(player) ? 'undo' : 'sports_score'"
+                  :icon="rowForPlayer(player)?.isHardPassed ? 'undo' : 'sports_score'"
                   class="gt-player-row__hard-pass gt-hard-pass-hit"
-                  :aria-label="isHardPassed(player) ? 'Undo hard pass' : 'Hard pass for this round'"
+                  :aria-label="rowForPlayer(player)?.isHardPassed ? 'Undo hard pass' : 'Hard pass for this round'"
                   @click.stop="onHardPassButton(player)"
                 />
               </div>
@@ -149,19 +150,15 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import Draggable from 'vuedraggable'
+import { useGameTimerPlayerListPresentation } from '../composables/useGameTimerPlayerListPresentation.js'
 import { useGameTimerNow } from '../composables/useGameTimerNow.js'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
 import {
   DEFAULT_PLAYER_COLORS,
-  displayedMsForPlayer,
-  displayedMsForPlayerInRound,
   formatDurationMs,
-  maxDisplayedMs,
-  maxDisplayedMsInRound,
   playerBarFillColor,
   playerBarRailColor,
   playerBarTrackColor,
-  progressRatio,
 } from '../core.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 
@@ -169,26 +166,16 @@ const $q = useQuasar()
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
 const now = useGameTimerNow(100)
+const { hasMultipleRounds, playerRowsById } = useGameTimerPlayerListPresentation({ now })
 
-const { hasMultipleRounds, hardPassEnabled, round, activePlayerId, turnStartedAt } = storeToRefs(store)
+const { hardPassEnabled } = storeToRefs(store)
 
-const hardPassIdsThisRound = computed(() => {
-  const arr = store.hardPassOrderByRound[String(round.value)]
-  return new Set(Array.isArray(arr) ? arr : [])
-})
-
-function isHardPassed(player) {
-  return hardPassEnabled.value && hardPassIdsThisRound.value.has(player.id)
-}
-
-/** Active row, clock paused; mild dim (hard-pass uses stronger styling). */
-function isPausedHeldTurn(player) {
-  if (isHardPassed(player)) return false
-  return activePlayerId.value === player.id && turnStartedAt.value == null
+function rowForPlayer(player) {
+  return playerRowsById.value.get(player.id)
 }
 
 function onHardPassButton(player) {
-  if (isHardPassed(player)) {
+  if (rowForPlayer(player)?.isHardPassed) {
     store.undoHardPass(player.id)
   } else {
     store.registerHardPass(player.id)
@@ -231,43 +218,6 @@ const editDialogOpen = ref(false)
 const editPlayerId = ref(null)
 const editName = ref('')
 const editColor = ref(DEFAULT_PLAYER_COLORS[0])
-
-/**
- * @type {import('vue').ComputedRef<Map<string, import('../types.js').GameTimerPlayerRow>>}
- */
-const playerRowsById = computed(() => {
-  const session = {
-    activePlayerId: store.activePlayerId,
-    turnStartedAt: store.turnStartedAt,
-    turnStartedRound: store.turnStartedRound,
-  }
-  const currentRound = store.round
-  const nowMs = now.value
-  const list = store.players
-  const maxMs = maxDisplayedMs(list, session, nowMs)
-  const multi = hasMultipleRounds.value
-  const maxRoundMs = multi ? maxDisplayedMsInRound(list, session, nowMs, currentRound) : 0
-  const map = new Map()
-  for (const p of list) {
-    const displayedMs = displayedMsForPlayer(p, session, nowMs)
-    const displayedMsRound = multi ? displayedMsForPlayerInRound(p, session, nowMs, currentRound) : 0
-    map.set(p.id, {
-      id: p.id,
-      name: p.name,
-      color: p.color,
-      displayedMs,
-      progress: progressRatio(displayedMs, maxMs),
-      displayedMsRound,
-      progressRound: multi ? progressRatio(displayedMsRound, maxRoundMs) : 0,
-      isActive: session.activePlayerId === p.id,
-    })
-  }
-  return map
-})
-
-function rowForPlayer(player) {
-  return playerRowsById.value.get(player.id)
-}
 
 function rowTimeLabel(player) {
   const r = rowForPlayer(player)
@@ -385,6 +335,7 @@ function progressRoundFillStyle(player) {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  touch-action: pan-x pinch-zoom;
 }
 
 .gt-sortable-ghost {
@@ -512,6 +463,12 @@ function progressRoundFillStyle(player) {
   width: 30px;
   flex-shrink: 0;
   align-self: stretch;
+  cursor: grab;
+  touch-action: none;
+}
+
+.gt-player-row__turn:active {
+  cursor: grabbing;
 }
 
 .gt-player-row__turn-icon {

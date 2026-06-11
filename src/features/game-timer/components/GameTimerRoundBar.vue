@@ -112,7 +112,7 @@
 import { computed, ref, unref } from 'vue'
 import { storeToRefs } from 'pinia'
 import GameTimerSyncControl from './GameTimerSyncControl.vue'
-import { displayedMsForPlayer, formatDurationMs } from '../core.js'
+import { formatDurationMs, nonPlayerElapsedMs, totalGameElapsedMs } from '../core.js'
 import { useGameTimerNow } from '../composables/useGameTimerNow.js'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
@@ -135,27 +135,25 @@ const settingsModel = computed(() =>
     fullscreenChromeExposed: unref(fullscreenChromeExposed),
   }),
 )
-const totalGameElapsedMs = computed(() => {
-  if (store.totalGameStartedAt == null) return 0
-  return Math.max(0, now.value - store.totalGameStartedAt)
-})
-const playerTotalElapsedMs = computed(() => {
-  const session = {
-    activePlayerId: store.activePlayerId,
-    turnStartedAt: store.turnStartedAt,
-  }
-  let total = 0
-  for (const p of store.players) {
-    total += displayedMsForPlayer(p, session, now.value)
-  }
-  return total
-})
-const nonPlayerElapsedMs = computed(() => Math.max(0, totalGameElapsedMs.value - playerTotalElapsedMs.value))
+const timingSnapshot = computed(() => ({
+  totalGameStartedAt: store.totalGameStartedAt,
+  players: store.players,
+  activePlayerId: store.activePlayerId,
+  turnStartedAt: store.turnStartedAt,
+}))
+const totalGameElapsedMsValue = computed(() =>
+  totalGameElapsedMs(timingSnapshot.value, now.value),
+)
+const nonPlayerElapsedMsValue = computed(() =>
+  nonPlayerElapsedMs(timingSnapshot.value, now.value),
+)
 const timingStripLabel = computed(() =>
   timingStripMode.value === 'non-player' ? 'Non-player' : 'Total game',
 )
 const timingStripValue = computed(() =>
-  formatDurationMs(timingStripMode.value === 'non-player' ? nonPlayerElapsedMs.value : totalGameElapsedMs.value),
+  formatDurationMs(
+    timingStripMode.value === 'non-player' ? nonPlayerElapsedMsValue.value : totalGameElapsedMsValue.value,
+  ),
 )
 
 const hardPassEnabledModel = computed({

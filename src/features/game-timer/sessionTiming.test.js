@@ -1,19 +1,16 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
+import { nonPlayerElapsedMs, totalGameElapsedMs } from './core.js'
+import { withFakeNow } from './test/withFakeNow.js'
 import { useGameTimerStore } from '../../stores/gameTimer.js'
 
-function withFakeNow(startMs, run) {
-  const originalNow = Date.now
-  let now = startMs
-  Date.now = () => now
-  const advance = (ms) => {
-    now += ms
-  }
-  try {
-    run(advance)
-  } finally {
-    Date.now = originalNow
+function timingSnapshot(store) {
+  return {
+    totalGameStartedAt: store.totalGameStartedAt,
+    players: store.players,
+    activePlayerId: store.activePlayerId,
+    turnStartedAt: store.turnStartedAt,
   }
 }
 
@@ -24,13 +21,13 @@ test('game timer session timing starts on first selectPlayer only', () => {
     const p1 = store.addPlayer({ name: 'A' })
 
     assert.equal(store.totalGameStartedAt, null)
-    assert.equal(store.totalGameElapsedMs, 0)
-    assert.equal(store.nonPlayerElapsedMs, 0)
+    assert.equal(totalGameElapsedMs(timingSnapshot(store), Date.now()), 0)
+    assert.equal(nonPlayerElapsedMs(timingSnapshot(store), Date.now()), 0)
 
     advance(3_000)
     store.selectPlayer(p1)
     assert.equal(store.totalGameStartedAt, 4_000)
-    assert.equal(store.totalGameElapsedMs, 0)
+    assert.equal(totalGameElapsedMs(timingSnapshot(store), Date.now()), 0)
   })
 })
 
@@ -44,11 +41,12 @@ test('non-player time is total minus players and clamps at zero', () => {
     advance(5_000)
     store.selectPlayer(p1)
 
-    assert.equal(store.totalGameElapsedMs, 5_000)
-    assert.equal(store.nonPlayerElapsedMs, 0)
+    const snapshot = timingSnapshot(store)
+    assert.equal(totalGameElapsedMs(snapshot, Date.now()), 5_000)
+    assert.equal(nonPlayerElapsedMs(snapshot, Date.now()), 0)
 
     store.players[0].bankedMs = 12_000
-    assert.equal(store.nonPlayerElapsedMs, 0)
+    assert.equal(nonPlayerElapsedMs(timingSnapshot(store), Date.now()), 0)
   })
 })
 
@@ -62,7 +60,7 @@ test('clear all players resets session timing baseline', () => {
 
     store.clearAllPlayers()
     assert.equal(store.totalGameStartedAt, null)
-    assert.equal(store.totalGameElapsedMs, 0)
-    assert.equal(store.nonPlayerElapsedMs, 0)
+    assert.equal(totalGameElapsedMs(timingSnapshot(store), Date.now()), 0)
+    assert.equal(nonPlayerElapsedMs(timingSnapshot(store), Date.now()), 0)
   })
 })

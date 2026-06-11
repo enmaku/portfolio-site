@@ -228,6 +228,65 @@ export function nextDefaultColor(players) {
 }
 
 /**
+ * True when the session has multi-round UI (round > 1 or stored data for round 2+).
+ * Draft `playerOrderByRound` keys for rounds beyond `round` do not count.
+ * @param {{ round: number, playerOrderByRound: Record<string, string[]>, players: GameTimerPlayer[] }} snapshot
+ * @returns {boolean}
+ */
+export function hasMultipleRounds(snapshot) {
+  if (snapshot.round > 1) return true
+  const cur = snapshot.round
+  for (const k of Object.keys(snapshot.playerOrderByRound)) {
+    const nk = Number(k)
+    if (nk > 1 && nk <= cur) return true
+  }
+  for (const p of snapshot.players) {
+    const m = p.bankedMsByRound
+    if (!m || typeof m !== 'object') continue
+    for (const bk of Object.keys(m)) {
+      if (Number(bk) > 1) return true
+    }
+  }
+  return false
+}
+
+/**
+ * Total game elapsed wall-clock ms since first `selectPlayer`; 0 before start.
+ * @param {{ totalGameStartedAt?: number | null }} snapshot
+ * @param {number} nowMs
+ * @returns {number}
+ */
+export function totalGameElapsedMs(snapshot, nowMs) {
+  if (typeof snapshot.totalGameStartedAt !== 'number') return 0
+  return Math.max(0, nowMs - snapshot.totalGameStartedAt)
+}
+
+/**
+ * Session non-player ms: total game minus sum of all player displayed totals.
+ * @param {{
+ *   totalGameStartedAt?: number | null,
+ *   players: GameTimerPlayer[],
+ *   activePlayerId: string | null,
+ *   turnStartedAt: number | null,
+ * }} snapshot
+ * @param {number} nowMs
+ * @returns {number}
+ */
+export function nonPlayerElapsedMs(snapshot, nowMs) {
+  const total = totalGameElapsedMs(snapshot, nowMs)
+  if (total <= 0 || !Array.isArray(snapshot.players) || snapshot.players.length === 0) return total
+  const session = {
+    activePlayerId: snapshot.activePlayerId,
+    turnStartedAt: snapshot.turnStartedAt,
+  }
+  let playerSum = 0
+  for (const p of snapshot.players) {
+    playerSum += displayedMsForPlayer(p, session, nowMs)
+  }
+  return Math.max(0, total - playerSum)
+}
+
+/**
  * `m:ss` or `h:mm:ss` for display in the list UI.
  * @param {number} ms
  * @returns {string}
