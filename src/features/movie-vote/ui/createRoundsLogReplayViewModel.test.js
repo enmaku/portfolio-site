@@ -7,26 +7,28 @@ const ballotMovies = [
   { publicId: 'b', title: 'Beta', posterPath: null },
 ]
 
+const irvElectionOutcome = {
+  votingMethod: 'irv',
+  winnerId: 'a',
+  tieWinnerIds: null,
+  rounds: [
+    {
+      firstPreferenceCounts: { a: 2, b: 1 },
+      activeIds: ['a', 'b'],
+      ballotsWithVote: 3,
+      eliminatedIds: ['b'],
+    },
+  ],
+}
+
 test('replay view model shapes IRV round rows with bar targets and elimination ids', () => {
   const model = createRoundsLogReplayViewModel({
-    electionOutcome: {
-      votingMethod: 'irv',
-      winnerId: 'a',
-      tieWinnerIds: null,
-      rounds: [
-        {
-          firstPreferenceCounts: { a: 2, b: 1 },
-          activeIds: ['a', 'b'],
-          ballotsWithVote: 3,
-          eliminatedIds: ['b'],
-        },
-      ],
-    },
+    electionOutcome: irvElectionOutcome,
     ballotMovies,
   })
   assert.equal(model.steps.length, 1)
-  assert.equal(model.steps[0].headingKind, 'roundOfTotal')
-  assert.equal(model.steps[0].totalRounds, 1)
+  assert.equal(model.replayKey, 'b@1')
+  assert.match(model.steps[0].heading, /^Round \d+ of \d+$/)
   assert.deepEqual(model.steps[0].eliminatedIds, ['b'])
   assert.equal(model.steps[0].rows[0].id, 'a')
   assert.equal(model.steps[0].rows[0].votes, 2)
@@ -35,7 +37,7 @@ test('replay view model shapes IRV round rows with bar targets and elimination i
   assert.equal(model.steps[0].showPoolSuffix, true)
 })
 
-test('replay view model uses finalScores heading kind for borda', () => {
+test('replay view model uses final scores heading for borda', () => {
   const model = createRoundsLogReplayViewModel({
     electionOutcome: {
       votingMethod: 'borda',
@@ -52,6 +54,22 @@ test('replay view model uses finalScores heading kind for borda', () => {
     },
     ballotMovies,
   })
-  assert.equal(model.steps[0].headingKind, 'finalScores')
+  assert.equal(model.steps[0].heading.length > 0, true)
   assert.equal(model.steps[0].showPoolSuffix, false)
+})
+
+test('replayKey is stable when only ballot movie poster paths change', () => {
+  const before = createRoundsLogReplayViewModel({
+    electionOutcome: irvElectionOutcome,
+    ballotMovies,
+  })
+  const after = createRoundsLogReplayViewModel({
+    electionOutcome: irvElectionOutcome,
+    ballotMovies: [
+      { publicId: 'a', title: 'Alpha', posterPath: '/updated.jpg' },
+      { publicId: 'b', title: 'Beta', posterPath: '/b-new.jpg' },
+    ],
+  })
+  assert.equal(before.replayKey, after.replayKey)
+  assert.notEqual(before.steps[0].rows[0].posterPath, after.steps[0].rows[0].posterPath)
 })

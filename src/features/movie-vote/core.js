@@ -95,11 +95,6 @@ export function uniqueMoviesInPicks(picks) {
 }
 
 /**
- * Dedupe by {@link pickDedupeKey}, shuffle, assign public ids.
- * @param {MoviePick[]} picks
- * @returns {BallotMovie[]}
- */
-/**
  * Normalize incoming picks (handles legacy picks that predate `source`).
  * @param {MoviePick} p
  * @returns {MoviePick}
@@ -132,22 +127,27 @@ export function isRankingForBallot(ranking, ballotOrderIds) {
   return seen.size === ballotOrderIds.length
 }
 
+/**
+ * Dedupe by {@link pickDedupeKey}, shuffle, assign public ids.
+ * @param {MoviePick[]} picks
+ * @returns {BallotMovie[]}
+ */
 export function compileBallotMovies(picks) {
   const byKey = new Map()
   for (const p of picks) {
-    const key = pickDedupeKey(p)
+    const normalized = clonePick(p)
+    const key = pickDedupeKey(normalized)
     if (!key || byKey.has(key)) continue
-    const source = p.source ?? (typeof p.tmdbId === 'number' ? 'tmdb' : 'custom')
     byKey.set(key, {
       publicId: generatePublicId(),
-      source,
-      tmdbId: source === 'tmdb' ? p.tmdbId : null,
-      customKey: source === 'custom' ? (p.customKey ?? normalizeCustomTitle(p.title)) : undefined,
-      title: p.title,
-      posterPath: p.posterPath,
-      overview: p.overview,
-      releaseDate: p.releaseDate,
-      runtime: p.runtime,
+      source: normalized.source,
+      tmdbId: normalized.tmdbId,
+      customKey: normalized.customKey,
+      title: normalized.title,
+      posterPath: normalized.posterPath,
+      overview: normalized.overview,
+      releaseDate: normalized.releaseDate,
+      runtime: normalized.runtime,
     })
   }
   const out = [...byKey.values()]

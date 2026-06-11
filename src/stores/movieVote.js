@@ -151,12 +151,13 @@ export const useMovieVoteStore = defineStore('movieVote', {
       if (p.voteProgress) {
         this.voteProgress = { ...p.voteProgress }
       }
-      this.electionOutcome = p.electionOutcome ?? null
+      const electionOutcome = p.electionOutcome ?? p.irvResult ?? null
+      this.electionOutcome = electionOutcome
       this.setUniqueSuggestedMovieCount(
         typeof p.uniqueSuggestedMovieCount === 'number' ? p.uniqueSuggestedMovieCount : 0,
       )
       this.votingMethod = normalizeVotingMethod(p.votingMethod)
-      if (p.phase === 'results' && p.electionOutcome && !isDeclaredElectionTie(p.electionOutcome)) {
+      if (p.phase === 'results' && electionOutcome && !isDeclaredElectionTie(electionOutcome)) {
         this.myDraftPicks = []
       }
       const pid = this.myParticipantId

@@ -1,7 +1,5 @@
 import {
   countsForScoreboardRound,
-  isBordaScoreboardResult,
-  isDowdallScoreboardResult,
   replayHeadingForResult,
   scoreUnitForResult,
   showVotePoolSuffix,
@@ -11,11 +9,26 @@ import {
 import { buildBallotMovieIndex } from './ballotMovieIndex.js'
 
 /**
+ * @param {import('../electionOutcomeTypes.js').ElectionRoundLog[]} rounds
+ * @returns {string}
+ */
+function replayKeyForRounds(rounds) {
+  return (
+    rounds
+      .map((r) =>
+        (Array.isArray(r.eliminatedIds) ? r.eliminatedIds.filter(Boolean) : []).join('+'),
+      )
+      .join('/') + `@${rounds.length}`
+  )
+}
+
+/**
  * @param {{
  *   electionOutcome: import('../electionOutcomeTypes.js').ElectionOutcome | null | undefined,
  *   ballotMovies: import('../types.js').BallotMovie[],
  * }} args
  * @returns {{
+ *   replayKey: string,
  *   steps: Array<{
  *     roundIdx: number,
  *     heading: string,
@@ -29,7 +42,7 @@ import { buildBallotMovieIndex } from './ballotMovieIndex.js'
  */
 export function createRoundsLogReplayViewModel({ electionOutcome, ballotMovies }) {
   if (!electionOutcome?.rounds?.length) {
-    return { steps: [] }
+    return { replayKey: '', steps: [] }
   }
 
   const index = buildBallotMovieIndex(ballotMovies)
@@ -69,17 +82,8 @@ export function createRoundsLogReplayViewModel({ electionOutcome, ballotMovies }
       scoreUnit,
       showPoolSuffix,
       rows,
-      headingKind: isBordaScoreboardResult(electionOutcome)
-        ? 'finalScores'
-        : isDowdallScoreboardResult(electionOutcome)
-          ? 'dowdallScores'
-          : 'roundOfTotal',
-      totalRounds: isBordaScoreboardResult(electionOutcome) ||
-        isDowdallScoreboardResult(electionOutcome)
-        ? undefined
-        : totalRounds,
     }
   })
 
-  return { steps }
+  return { replayKey: replayKeyForRounds(rounds), steps }
 }

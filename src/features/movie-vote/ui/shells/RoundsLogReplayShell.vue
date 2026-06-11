@@ -216,7 +216,7 @@ async function runSequence(myRun) {
 }
 
 watch(
-  () => [props.visible, props.replayModel],
+  () => [props.visible, props.replayModel.replayKey],
   () => {
     if (!props.visible) {
       runId += 1
@@ -227,7 +227,7 @@ watch(
     const my = runId
     void runSequence(my)
   },
-  { immediate: true, deep: true },
+  { immediate: true },
 )
 
 onUnmounted(() => {

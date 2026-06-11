@@ -24,6 +24,30 @@ test('applyPublicPayload: returning to suggest from results clears ready', () =>
   assert.equal(store.readyToVote, false)
 })
 
+test('applyPublicPayload: legacy irvResult inbound populates electionOutcome', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  const legacyOutcome = {
+    votingMethod: 'irv',
+    winnerId: 'movie-a',
+    tieWinnerIds: null,
+    rounds: [],
+  }
+
+  store.applyPublicPayload({
+    phase: 'results',
+    participants: [],
+    ballotMovies: [],
+    ballotOrderIds: [],
+    voteProgress: null,
+    irvResult: legacyOutcome,
+    uniqueSuggestedMovieCount: 0,
+    votingMethod: 'irv',
+  })
+
+  assert.deepEqual(store.electionOutcome, legacyOutcome)
+})
+
 test('applyPublicPayload: suggest refresh without leaving suggest keeps ready from row', () => {
   setActivePinia(createPinia())
   const store = useMovieVoteStore()
