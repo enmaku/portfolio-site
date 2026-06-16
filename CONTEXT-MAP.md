@@ -7,11 +7,16 @@
 - [Game Timer](./src/features/game-timer/CONTEXT.md) — Synchronized tabletop-style countdown timers for multiple players.
 - [Movie Vote](./src/features/movie-vote/CONTEXT.md) — Group movie nomination, ballots, and configurable standard voting methods (IRV, Borda, Condorcet, Copeland, …).
 - [Dungeon Runner](./src/features/dungeon-runner/CONTEXT.md) — Single-device deterministic card match vs AI opponents; completed **match** replays for later analysis.
+- [Game Manager](./src/features/game-manager/CONTEXT.md) — Mobile-first collection management, **play sessions**, and **statistics**; optional **Game Timer** integration.
 
 ## Relationships
 
 - **Portfolio site → Shell**: Static pages (gallery, about) use the **portfolio shell**; each **project** uses its own **project shell** without the portfolio masthead.
-- **Portfolio site → Projects**: Routes and navigation expose **Game Timer**, **Movie Vote**, and **Dungeon Runner** as first-class **projects** alongside static portfolio content.
+- **Portfolio site → Projects**: Routes and navigation expose **Game Timer**, **Movie Vote**, **Dungeon Runner**, and **Game Manager** as first-class **projects** alongside static portfolio content.
+- **Game Manager ↔ Game Timer**: Separate **projects**; an optional **timer leg** launches a **manager-linked timer** from a **play session**; **game end** exports final **snapshot** data back for score entry. **Game Timer** works without auth or Game Manager for timer-only users.
+- **Game Manager ↔ Portfolio site**: Uses a **mobile-first project shell** at launch; **manager capability** stays shell-agnostic so a future **desktop project shell** can attach without rewriting domain behavior.
+- **Game Manager → identity (future)**: v1 is **account owner**–scoped; **recorded players** may be **unlinked** until **player claim** links them to authenticated accounts with backfill and shared future visibility.
+- **Game Manager → persistence**: **Manager store** in **Firestore**; **Game Timer** **room** sync unchanged in **Realtime Database**.
 - **Game Timer ↔ Star-room P2P**: Game Timer uses the star-room shell (host/guest roles, reconnect, **stable client identity**, **join links**); timer **snapshots** sync through an app-scoped persisted **room** like **Movie Vote**.
 - **Movie Vote ↔ Star-room P2P**: Movie Vote uses the same shell so a **host** aggregates **participant** drafts and votes into **room**-level authority.
 - **Movie Vote ↔ Game Timer**: Both use star-room roles and the same persisted **room** lifecycle shape; **Game Timer** stores one authoritative **snapshot** per **room** instead of vote-phase payloads.

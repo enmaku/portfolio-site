@@ -86,6 +86,16 @@ While any **player** remains on the roster, the app requests that the device avo
 
 _Avoid_: Implying a guarantee on every OS or browser—best-effort only.
 
+### Game end (Game Manager export)
+
+When **Game Timer** is a **manager-linked timer**, an explicit **game end** action finalizes the **snapshot** and returns timing data to the awaiting **play session** in **Game Manager**. Timer-only use is unchanged—no export action required.
+
+_Avoid_: Conflating with **new game with same players**; auto-export on **room exit**.
+
+### Manager-linked timer
+
+A timer session started from an in-progress **play session** in **Game Manager**—**player** roster pre-filled from **present players**; ends via **game end** export back to Game Manager.
+
 ## Relationships
 
 - Exactly one **player** may be **active player** at once for turn timing.
@@ -97,6 +107,7 @@ _Avoid_: Implying a guarantee on every OS or browser—best-effort only.
 - **Host** merges **guest** intents into authoritative **snapshot** timelines.
 - **Host** presence in a **room** is separate from the **room** itself; **host abrupt disconnect** does not end the **room** for **guests**—**connection posture** stays `guest_connected`, last **snapshot** stays authoritative, `remoteHostPresent` / `remoteHostTabVisible` may flicker informationally until **host reclaim** resumes broadcast (**loose guest attachment**).
 - **Keep display on** engages whenever the roster is non-empty so facilitators are less likely to lose the **room** mid-game.
+- **Manager-linked timer** sessions add **game end** export to **Game Manager**; standalone timer behavior is otherwise unchanged.
 
 ## Example dialogue
 
