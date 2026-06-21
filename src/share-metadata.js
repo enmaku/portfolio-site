@@ -85,6 +85,16 @@ export const SHARE_CATALOG = [
     ogImage: 'icons/favicon-bar_chart.svg',
     favicon: 'bar_chart',
   },
+  {
+    routePath: '/projects/world-builder',
+    pasteUnfurl: true,
+    shareSlug: 'projects/world-builder',
+    title: 'World Builder',
+    description:
+      'Procedural fantasy world geography — explore generated landmasses with biome-colored maps.',
+    ogImage: 'icons/favicon-default.svg',
+    favicon: 'public',
+  },
 ]
 
 /** @type {Map<string, ShareCatalogEntry>} */
