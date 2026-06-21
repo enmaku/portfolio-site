@@ -38,6 +38,15 @@ test('main layout desktop section links world builder in-tab with globe icon', (
   assert.strictEqual(mainLayout.includes('navigateInTab: true'), true)
 })
 
+test('world builder generation controls include wind slider test id', () => {
+  const controls = readFileSync(
+    new URL('./worldBuilderGenerationControls.js', import.meta.url),
+    'utf8',
+  )
+  assert.strictEqual(controls.includes('world-builder-wind-slider'), true)
+  assert.strictEqual(controls.includes('world-builder-control-sea-level'), true)
+})
+
 test('world builder page wires derived pipeline, lazy renderer, and control test ids', () => {
   const page = readFileSync(
     new URL('../src/pages/projects/WorldBuilderPage.vue', import.meta.url),
@@ -51,7 +60,8 @@ test('world builder page wires derived pipeline, lazy renderer, and control test
   )
   assert.strictEqual(page.includes('data-testid="world-builder-map-host"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-seed-input"'), true)
-  assert.strictEqual(page.includes('data-testid="world-builder-wind-slider"'), true)
+  assert.strictEqual(page.includes('data-testid="world-builder-generation-controls"'), true)
+  assert.strictEqual(page.includes('worldBuilderGenerationControls'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-regenerate"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-generation-report"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-generation-replay"'), true)

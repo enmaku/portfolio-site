@@ -11,6 +11,7 @@ import { deriveSalidityFromOcean } from './deriveSalidityFromOcean.js'
  * @param {Float32Array} params.drainage
  * @param {number} params.width
  * @param {number} params.height
+ * @param {Partial<import('../types.js').WorldGenerationOptions>} [params.options]
  * @returns {import('../types.js').ScalarFields}
  */
 export function refreshFieldsAfterErosion({
@@ -20,14 +21,16 @@ export function refreshFieldsAfterErosion({
   drainage,
   width,
   height,
+  options,
 }) {
-  const temperature = generateTemperature({ geographySeed, width, height, elevation })
+  const temperature = generateTemperature({ geographySeed, width, height, elevation, options })
   const rainfall = generateRainfall({
     geographySeed,
     width,
     height,
     elevation,
     prevailingWindDegrees,
+    options,
   })
   const salidity = deriveSalidityFromOcean({ elevation, width, height })
 

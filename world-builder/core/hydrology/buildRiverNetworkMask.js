@@ -10,6 +10,7 @@ import { downstreamIndex } from './computeFlowAccumulation.js'
  * @param {boolean[]} params.ocean
  * @param {number} params.width
  * @param {number} params.height
+ * @param {number} [params.navigableFlowCutoffScale]
  * @returns {Uint8Array}
  */
 export function buildRiverNetworkMask({
@@ -18,9 +19,13 @@ export function buildRiverNetworkMask({
   ocean,
   width,
   height,
+  navigableFlowCutoffScale = 1,
 }) {
   const cellCount = width * height
-  const cutoff = riverDisplayFlowCutoffForGrid(width)
+  const cutoff = Math.max(
+    2,
+    Math.round(riverDisplayFlowCutoffForGrid(width) * navigableFlowCutoffScale),
+  )
   const mask = new Uint8Array(cellCount)
   /** @type {Int8Array} */
   const flowsToOceanMemo = new Int8Array(cellCount).fill(-1)

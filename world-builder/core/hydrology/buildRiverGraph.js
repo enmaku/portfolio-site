@@ -15,6 +15,7 @@ import { downstreamIndex } from './computeFlowAccumulation.js'
  * @param {Uint8Array} params.lakeMask
  * @param {number} params.width
  * @param {number} params.height
+ * @param {number} [params.navigableFlowCutoffScale]
  * @returns {import('../types.js').RiverGraph}
  */
 export function buildRiverGraph({
@@ -25,9 +26,16 @@ export function buildRiverGraph({
   lakeMask,
   width,
   height,
+  navigableFlowCutoffScale = 1,
 }) {
-  const flowCutoff = navigableFlowCutoffForGrid(width)
-  const sourceFlowCutoff = sourceFlowCutoffForGrid(width)
+  const flowCutoff = Math.max(
+    2,
+    Math.round(navigableFlowCutoffForGrid(width) * navigableFlowCutoffScale),
+  )
+  const sourceFlowCutoff = Math.max(
+    2,
+    Math.round(sourceFlowCutoffForGrid(width) * navigableFlowCutoffScale),
+  )
   const gradientCutoff = scaleForGridSize(REFERENCE_NAVIGABLE_GRADIENT_CUTOFF, width)
   const cellCount = width * height
   const nodeByCell = new Map()

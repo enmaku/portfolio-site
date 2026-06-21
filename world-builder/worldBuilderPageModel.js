@@ -1,4 +1,26 @@
 import { derivePrevailingWindFromSeed } from './core/derivePrevailingWindFromSeed.js'
+import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.js'
+
+/**
+ * @returns {import('./core/types.js').WorldGenerationOptions}
+ */
+export function createDefaultGenerationOptions() {
+  return { ...DEFAULT_WORLD_GENERATION_OPTIONS }
+}
+
+/**
+ * @param {number} geographySeed
+ * @param {number} prevailingWindDegrees
+ * @param {import('./core/types.js').WorldGenerationOptions} options
+ * @returns {import('./core/types.js').DerivedGeographyParams}
+ */
+export function buildDerivedGeographyParams(geographySeed, prevailingWindDegrees, options) {
+  return {
+    geographySeed,
+    prevailingWindDegrees: normalizeWindDegrees(prevailingWindDegrees),
+    options: { ...options },
+  }
+}
 
 /**
  * @returns {number}

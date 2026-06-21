@@ -8,14 +8,16 @@ import { minLakeAreaForGrid } from '../types.js'
  * @param {number} params.width
  * @param {number} params.height
  * @param {boolean[]} params.ocean
+ * @param {number} [params.seaLevel]
+ * @param {number} [params.minLakeAreaScale]
  * @returns {{ lakeMask: Uint8Array, lakes: import('../types.js').LakeRecord[], filledElevation: Float32Array }}
  */
-export function fillLakes({ elevation, width, height, ocean }) {
+export function fillLakes({ elevation, width, height, ocean, seaLevel = SEA_LEVEL, minLakeAreaScale = 1 }) {
   const cellCount = width * height
   const filled = new Float32Array(elevation)
   const lakeMask = new Uint8Array(cellCount)
   const lakes = []
-  const minArea = minLakeAreaForGrid(width)
+  const minArea = Math.max(1, Math.round(minLakeAreaForGrid(width) * minLakeAreaScale))
   const processed = new Uint8Array(cellCount)
 
   for (let idx = 0; idx < cellCount; idx += 1) {
@@ -26,7 +28,7 @@ export function fillLakes({ elevation, width, height, ocean }) {
     const basin = collectBasin(filled, ocean, processed, width, height, idx)
     if (basin.cells.length < minArea) continue
 
-    const spill = findSpillLevel(filled, ocean, basin.cells, width, height)
+    const spill = findSpillLevel(filled, ocean, basin.cells, width, height, seaLevel)
     if (!spill) continue
 
     for (const cellIdx of basin.cells) {
@@ -123,8 +125,9 @@ function collectBasin(elevation, ocean, processed, width, height, startIdx) {
  * @param {number[]} cells
  * @param {number} width
  * @param {number} height
+ * @param {number} seaLevel
  */
-function findSpillLevel(elevation, ocean, cells, width, height) {
+function findSpillLevel(elevation, ocean, cells, width, height, seaLevel) {
   const cellSet = new Set(cells)
   let spillLevel = Infinity
   let outsideIdx = -1
@@ -142,7 +145,7 @@ function findSpillLevel(elevation, ocean, cells, width, height) {
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
       const nIdx = ny * width + nx
       if (cellSet.has(nIdx)) continue
-      const neighborElev = ocean[nIdx] ? SEA_LEVEL : elevation[nIdx]
+      const neighborElev = ocean[nIdx] ? seaLevel : elevation[nIdx]
       if (neighborElev < spillLevel) {
         spillLevel = neighborElev
         outsideIdx = nIdx

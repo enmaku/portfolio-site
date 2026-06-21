@@ -6,6 +6,7 @@
  * @param {number} params.width
  * @param {number} params.height
  * @param {number} params.prevailingWindDegrees meteorological bearing (0 = north, 90 = east)
+ * @param {number} [params.rainShadowStrength]
  * @returns {Float32Array}
  */
 export function applyRainShadow({
@@ -14,6 +15,7 @@ export function applyRainShadow({
   width,
   height,
   prevailingWindDegrees,
+  rainShadowStrength = 1,
 }) {
   const out = new Float32Array(rainfall)
   const radians = (prevailingWindDegrees * Math.PI) / 180
@@ -43,7 +45,7 @@ export function applyRainShadow({
       const uplift = maxUpwindElevation - cellElevation
       if (uplift > 0.08) {
         const shadowStrength = Math.min(1, uplift * 2.2)
-        out[idx] = rainfall[idx] * (1 - shadowStrength * 0.75)
+        out[idx] = rainfall[idx] * (1 - shadowStrength * 0.75 * rainShadowStrength)
       }
     }
   }

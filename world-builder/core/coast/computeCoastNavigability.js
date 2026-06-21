@@ -7,11 +7,12 @@ import { isOceanCell } from '../fields/applyClosedIslandRim.js'
  * @param {Float32Array} params.elevation
  * @param {number} params.width
  * @param {number} params.height
+ * @param {number} [params.seaLevel]
  * @returns {Float32Array}
  */
-export function computeCoastNavigability({ elevation, width, height }) {
+export function computeCoastNavigability({ elevation, width, height, seaLevel = SEA_LEVEL }) {
   const cellCount = width * height
-  const ocean = isOceanCell(elevation, width, height)
+  const ocean = isOceanCell(elevation, width, height, seaLevel)
   const out = new Float32Array(cellCount)
 
   for (let y = 0; y < height; y += 1) {
@@ -22,7 +23,7 @@ export function computeCoastNavigability({ elevation, width, height }) {
         continue
       }
 
-      const depth = Math.min(1, (SEA_LEVEL - elevation[idx]) / SEA_LEVEL)
+      const depth = Math.min(1, (seaLevel - elevation[idx]) / seaLevel)
       let landNeighbors = 0
       let sheltered = 0
       const neighbors = [
@@ -36,7 +37,7 @@ export function computeCoastNavigability({ elevation, width, height }) {
         const nIdx = ny * width + nx
         if (!ocean[nIdx]) {
           landNeighbors += 1
-          if (elevation[nIdx] >= SEA_LEVEL + 0.08) sheltered += 1
+          if (elevation[nIdx] >= seaLevel + 0.08) sheltered += 1
         }
       }
 

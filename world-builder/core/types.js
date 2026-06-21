@@ -117,11 +117,30 @@
  */
 
 /**
+ * @typedef {Object} WorldGenerationOptions
+ * @property {number} seaLevel
+ * @property {number} elevationScale
+ * @property {number} elevationFrequencyScale
+ * @property {number} elevationOctaves
+ * @property {number} elevationPersistence
+ * @property {number} erosionStepCount
+ * @property {number} erosionChannelWear
+ * @property {number} erosionPeakWear
+ * @property {number} rainShadowStrength
+ * @property {number} temperatureLapseRate
+ * @property {number} rainfallFrequencyScale
+ * @property {number} navigableFlowCutoffScale
+ * @property {number} minLakeAreaScale
+ * @property {number} maxSaltNodes
+ */
+
+/**
  * @typedef {Object} PhysicalTerrainBaselineParams
  * @property {number} geographySeed
  * @property {number} prevailingWindDegrees
  * @property {number} [width]
  * @property {number} [height]
+ * @property {Partial<WorldGenerationOptions>} [options]
  */
 
 /**

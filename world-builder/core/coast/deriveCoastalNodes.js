@@ -8,6 +8,7 @@ import { isOceanCell } from '../fields/applyClosedIslandRim.js'
  * @param {Float32Array} params.elevation
  * @param {number} params.width
  * @param {number} params.height
+ * @param {number} [params.seaLevel]
  * @returns {import('../types.js').CoastalNode[]}
  */
 export function deriveCoastalNodes({
@@ -16,10 +17,11 @@ export function deriveCoastalNodes({
   elevation,
   width,
   height,
+  seaLevel = SEA_LEVEL,
 }) {
   /** @type {import('../types.js').CoastalNode[]} */
   const nodes = []
-  const ocean = isOceanCell(elevation, width, height)
+  const ocean = isOceanCell(elevation, width, height, seaLevel)
   const nodeById = new Map(riverGraph.nodes.map((node) => [node.id, node]))
   const mouthKeys = new Set()
   let counter = 0
@@ -49,7 +51,7 @@ export function deriveCoastalNodes({
       if (!ocean[idx] || !isCoastOceanCell(ocean, width, height, x, y)) continue
       if (coastNavigability[idx] < 0.55) continue
 
-      if (isStrait(elevation, ocean, width, height, x, y)) {
+      if (isStrait(elevation, ocean, width, height, x, y, seaLevel)) {
         candidates.push({ x, y, kind: 'strait', score: coastNavigability[idx] + 0.2 })
         continue
       }
@@ -59,7 +61,7 @@ export function deriveCoastalNodes({
         continue
       }
 
-      if (elevation[idx] >= SEA_LEVEL - 0.08 && coastNavigability[idx] >= 0.5) {
+      if (elevation[idx] >= seaLevel - 0.08 && coastNavigability[idx] >= 0.5) {
         candidates.push({ x, y, kind: 'extraction', score: coastNavigability[idx] })
       }
     }
@@ -128,8 +130,9 @@ function selectSpacedCandidates(candidates, maxCount, minDistance) {
  * @param {number} height
  * @param {number} x
  * @param {number} y
+ * @param {number} seaLevel
  */
-function isStrait(elevation, ocean, width, height, x, y) {
+function isStrait(elevation, ocean, width, height, x, y, seaLevel) {
   const landLeft = x > 0 && !ocean[y * width + (x - 1)]
   const landRight = x < width - 1 && !ocean[y * width + (x + 1)]
   const landUp = y > 0 && !ocean[(y - 1) * width + x]
@@ -137,7 +140,7 @@ function isStrait(elevation, ocean, width, height, x, y) {
   const narrow =
     (landLeft && landRight && !landUp && !landDown) ||
     (landUp && landDown && !landLeft && !landRight)
-  return narrow && elevation[y * width + x] >= SEA_LEVEL - 0.12
+  return narrow && elevation[y * width + x] >= seaLevel - 0.12
 }
 
 /**

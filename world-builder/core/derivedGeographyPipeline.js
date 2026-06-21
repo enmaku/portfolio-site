@@ -22,6 +22,7 @@ import {
   PIPELINE_STAGE_DERIVED_GEOGRAPHY,
   PIPELINE_STAGE_PHYSICAL_TERRAIN_BASELINE,
 } from './types.js'
+import { resolveWorldGenerationOptions } from './worldGenerationOptions.js'
 
 /** @typedef {'physicalTerrainBaseline' | 'erosion' | 'hydrology' | 'fieldRefresh' | 'coastAndResources' | 'validation'} DerivedGeographyStepId */
 
@@ -39,6 +40,7 @@ export const DERIVED_GEOGRAPHY_STEPS = [
  * @typedef {Object} DerivedGeographyPipelineState
  * @property {number} geographySeed
  * @property {number} prevailingWindDegrees
+ * @property {import('./types.js').WorldGenerationOptions} options
  * @property {number} width
  * @property {number} height
  * @property {import('./types.js').WorldDocument | null} baselineDoc
@@ -68,10 +70,12 @@ export function createInitialPipelineState(params) {
   const height = params.height ?? DEFAULT_GRID_SIZE
   const geographySeed = params.geographySeed | 0
   const prevailingWindDegrees = normalizeWindDegrees(params.prevailingWindDegrees)
+  const options = resolveWorldGenerationOptions(params.options)
 
   return {
     geographySeed: geographySeed >= 0 ? geographySeed : geographySeed + 4294967296,
     prevailingWindDegrees,
+    options,
     width,
     height,
     baselineDoc: null,
@@ -138,6 +142,7 @@ export function buildWorldDocumentFromPipelineState(state) {
       },
       width,
       height,
+      state.options.seaLevel,
     )
 
   const isComplete = state.lastCompletedStep === 'validation'
@@ -186,6 +191,7 @@ function runPhysicalTerrainBaselineStep(state) {
     prevailingWindDegrees: state.prevailingWindDegrees,
     width: state.width,
     height: state.height,
+    options: state.options,
   })
   return {
     ...state,
@@ -206,6 +212,7 @@ function runErosionStep(state) {
     width: state.width,
     height: state.height,
     geographySeed: state.geographySeed,
+    options: state.options,
   })
   const previewFields = {
     ...state.baselineDoc.fields,
@@ -218,7 +225,7 @@ function runErosionStep(state) {
     erosionStepCount: stepCount,
     workingElevation: erodedElevation,
     fields: previewFields,
-    biomes: classifyBiomesFromFields(previewFields, state.width, state.height),
+    biomes: classifyBiomesFromFields(previewFields, state.width, state.height, state.options.seaLevel),
     lastCompletedStep: 'erosion',
   }
 }
@@ -233,17 +240,21 @@ function runHydrologyStep(state) {
     elevation: state.erodedElevation,
     width,
     height,
+    seaLevel: state.options.seaLevel,
   })
   const { lakeMask, lakes, filledElevation } = fillLakes({
     elevation: state.erodedElevation,
     width,
     height,
     ocean,
+    seaLevel: state.options.seaLevel,
+    minLakeAreaScale: state.options.minLakeAreaScale,
   })
   const { flowDirection, flowAccumulation, ocean: lakeOcean } = computeFlowAccumulation({
     elevation: filledElevation,
     width,
     height,
+    seaLevel: state.options.seaLevel,
   })
   const drainage = deriveDrainageFromFlow(flowAccumulation)
   const riverGraph = buildRiverGraph({
@@ -254,6 +265,7 @@ function runHydrologyStep(state) {
     lakeMask,
     width,
     height,
+    navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
   })
   const riverNetworkMask = buildRiverNetworkMask({
     flowAccumulation,
@@ -261,6 +273,7 @@ function runHydrologyStep(state) {
     ocean: lakeOcean,
     width,
     height,
+    navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
   })
   const previewFields = {
     ...(state.fields ?? state.baselineDoc.fields),
@@ -278,7 +291,7 @@ function runHydrologyStep(state) {
     biomes: classifyBiomesWithHydrology(previewFields, width, height, {
       lakeMask,
       riverCorridorMask: riverNetworkMask,
-    }),
+    }, state.options.seaLevel),
     lastCompletedStep: 'hydrology',
   }
 }
@@ -301,11 +314,12 @@ function runFieldRefreshStep(state) {
     drainage,
     width,
     height,
+    options: state.options,
   })
   const biomes = classifyBiomesWithHydrology(fields, width, height, {
     lakeMask: state.lakeMask,
     riverCorridorMask: state.riverNetworkMask,
-  })
+  }, state.options.seaLevel)
   return {
     ...state,
     fields,
@@ -326,6 +340,7 @@ function runCoastAndResourcesStep(state) {
     elevation: state.workingElevation,
     width,
     height,
+    seaLevel: state.options.seaLevel,
   })
   const coastalNodes = deriveCoastalNodes({
     riverGraph: state.riverGraph,
@@ -333,6 +348,7 @@ function runCoastAndResourcesStep(state) {
     elevation: state.workingElevation,
     width,
     height,
+    seaLevel: state.options.seaLevel,
   })
   const saltNodes = placeSaltNodes({
     elevation: state.workingElevation,
@@ -342,6 +358,8 @@ function runCoastAndResourcesStep(state) {
     width,
     height,
     geographySeed: state.geographySeed,
+    maxNodes: state.options.maxSaltNodes,
+    seaLevel: state.options.seaLevel,
   })
   return {
     ...state,

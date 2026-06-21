@@ -12,12 +12,13 @@ import { BIOMES, SEA_LEVEL } from './biomeIds.js'
 /**
  * Classify one cell from normalized scalar fields.
  * @param {FieldSample} sample
+ * @param {number} [seaLevel]
  * @returns {number} biome index
  */
-export function classifyBiomeFromSample(sample) {
+export function classifyBiomeFromSample(sample, seaLevel = SEA_LEVEL) {
   const { elevation, temperature, rainfall, drainage, salidity } = sample
 
-  if (elevation < SEA_LEVEL) {
+  if (elevation < seaLevel) {
     return BIOMES.OCEAN
   }
 
@@ -81,20 +82,24 @@ export function classifyBiomeFromSample(sample) {
  * @param {Float32Array} fields.salidity
  * @param {number} width
  * @param {number} height
+ * @param {number} [seaLevel]
  * @returns {Uint8Array}
  */
-export function classifyBiomesFromFields(fields, width, height) {
+export function classifyBiomesFromFields(fields, width, height, seaLevel = SEA_LEVEL) {
   const { elevation, temperature, rainfall, drainage, salidity } = fields
   const biomes = new Uint8Array(width * height)
 
   for (let i = 0; i < biomes.length; i += 1) {
-    biomes[i] = classifyBiomeFromSample({
-      elevation: elevation[i],
-      temperature: temperature[i],
-      rainfall: rainfall[i],
-      drainage: drainage[i],
-      salidity: salidity[i],
-    })
+    biomes[i] = classifyBiomeFromSample(
+      {
+        elevation: elevation[i],
+        temperature: temperature[i],
+        rainfall: rainfall[i],
+        drainage: drainage[i],
+        salidity: salidity[i],
+      },
+      seaLevel,
+    )
   }
 
   return biomes
@@ -113,10 +118,11 @@ export function classifyBiomesFromFields(fields, width, height) {
  * @param {Object} hydrology
  * @param {Uint8Array} hydrology.lakeMask
  * @param {Uint8Array} hydrology.riverCorridorMask
+ * @param {number} [seaLevel]
  * @returns {Uint8Array}
  */
-export function classifyBiomesWithHydrology(fields, width, height, hydrology) {
-  const biomes = classifyBiomesFromFields(fields, width, height)
+export function classifyBiomesWithHydrology(fields, width, height, hydrology, seaLevel = SEA_LEVEL) {
+  const biomes = classifyBiomesFromFields(fields, width, height, seaLevel)
   const { lakeMask, riverCorridorMask } = hydrology
   const corridorMask = dilateMask(riverCorridorMask, width, height, 1)
 

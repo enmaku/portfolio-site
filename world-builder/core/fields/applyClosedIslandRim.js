@@ -24,12 +24,13 @@ export function applyClosedIslandRim(elevation, width, height) {
  * @param {Float32Array} elevation
  * @param {number} width
  * @param {number} height
+ * @param {number} [seaLevel]
  * @returns {boolean[]}
  */
-export function isOceanCell(elevation, width, height) {
+export function isOceanCell(elevation, width, height, seaLevel = SEA_LEVEL) {
   const ocean = new Array(width * height)
   for (let i = 0; i < elevation.length; i += 1) {
-    ocean[i] = elevation[i] < SEA_LEVEL
+    ocean[i] = elevation[i] < seaLevel
   }
   for (let x = 0; x < width; x += 1) {
     ocean[x] = true

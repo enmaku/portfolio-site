@@ -1,6 +1,6 @@
-import { SEA_LEVEL } from '../biomeIds.js'
 import { deriveFieldSeed, createSeededRandom } from '../noise/seededRandom.js'
-import { EROSION_SNAPSHOT_INTERVAL, EROSION_STEP_COUNT } from '../types.js'
+import { EROSION_SNAPSHOT_INTERVAL } from '../types.js'
+import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
 
 const D8_OFFSETS = [
   [-1, -1],
@@ -22,7 +22,7 @@ const D8_DIST = [1.414, 1, 1.414, 1, 1, 1.414, 1, 1.414]
  * @param {number} params.width
  * @param {number} params.height
  * @param {number} params.geographySeed
- * @param {number} [params.stepCount]
+ * @param {Partial<import('../types.js').WorldGenerationOptions>} [params.options]
  * @returns {{ elevation: Float32Array, snapshots: Float32Array[], stepCount: number }}
  */
 export function applyErosion({
@@ -30,13 +30,16 @@ export function applyErosion({
   width,
   height,
   geographySeed,
-  stepCount = EROSION_STEP_COUNT,
+  options,
 }) {
+  const resolved = resolveWorldGenerationOptions(options)
+  const stepCount = resolved.erosionStepCount
+  const seaLevel = resolved.seaLevel
   const out = new Float32Array(elevation)
   const snapshots = []
   const random = createSeededRandom(deriveFieldSeed(geographySeed, 'erosion'))
-  const channelWear = 0.004
-  const peakWear = 0.002
+  const channelWear = resolved.erosionChannelWear
+  const peakWear = resolved.erosionPeakWear
   const peakThreshold = 0.72
 
   for (let step = 0; step < stepCount; step += 1) {
@@ -44,7 +47,7 @@ export function applyErosion({
       for (let x = 1; x < width - 1; x += 1) {
         const idx = y * width + x
         const elev = out[idx]
-        if (elev < SEA_LEVEL) continue
+        if (elev < seaLevel) continue
 
         let steepestDrop = 0
         let steepestIdx = -1
@@ -64,13 +67,13 @@ export function applyErosion({
 
         const tieBreak = random() * 0.0005
         const wear = channelWear * steepestDrop + tieBreak
-        out[idx] = Math.max(SEA_LEVEL, out[idx] - wear)
+        out[idx] = Math.max(seaLevel, out[idx] - wear)
         if (steepestIdx >= 0) {
-          out[steepestIdx] = Math.max(SEA_LEVEL, out[steepestIdx] - wear * 0.35)
+          out[steepestIdx] = Math.max(seaLevel, out[steepestIdx] - wear * 0.35)
         }
 
         if (elev >= peakThreshold && isLocalHigh(out, width, height, x, y)) {
-          out[idx] = Math.max(SEA_LEVEL, out[idx] - peakWear)
+          out[idx] = Math.max(seaLevel, out[idx] - peakWear)
         }
       }
     }

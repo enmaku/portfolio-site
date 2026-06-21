@@ -18,11 +18,12 @@ const D8_DIST = [1.414, 1, 1.414, 1, 1, 1.414, 1, 1.414]
  * @param {Float32Array} params.elevation
  * @param {number} params.width
  * @param {number} params.height
+ * @param {number} [params.seaLevel]
  * @returns {{ flowDirection: Int16Array, flowAccumulation: Float32Array, ocean: boolean[] }}
  */
-export function computeFlowAccumulation({ elevation, width, height }) {
+export function computeFlowAccumulation({ elevation, width, height, seaLevel }) {
   const cellCount = width * height
-  const ocean = isOceanCell(elevation, width, height)
+  const ocean = isOceanCell(elevation, width, height, seaLevel)
   const flowDirection = new Int16Array(cellCount).fill(-1)
   const inDegree = new Int16Array(cellCount)
 

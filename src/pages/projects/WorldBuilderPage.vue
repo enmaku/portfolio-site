@@ -1,31 +1,15 @@
 <template>
-  <q-page class="world-builder-page column">
+  <q-page class="world-builder-page column fit no-wrap">
     <div class="row items-center q-gutter-md q-pa-sm controls-row">
-      <q-input
-        v-model="seedInput"
-        data-testid="world-builder-seed-input"
-        type="number"
+      <q-btn
+        flat
+        round
         dense
-        outlined
-        label="Geography seed"
-        class="seed-input"
-        min="0"
-        :disable="isGenerating"
-        @update:model-value="onSeedInputChange"
+        icon="tune"
+        aria-label="Toggle generation controls"
+        @click="controlsDrawerOpen = !controlsDrawerOpen"
       />
-      <div class="col-grow wind-slider">
-        <div class="text-caption q-mb-xs">Prevailing wind: {{ prevailingWindDegrees }}°</div>
-        <q-slider
-          v-model="prevailingWindDegrees"
-          data-testid="world-builder-wind-slider"
-          :min="0"
-          :max="359"
-          :step="1"
-          label
-          color="primary"
-          :disable="isGenerating"
-        />
-      </div>
+      <q-space />
       <q-btn
         data-testid="world-builder-regenerate"
         color="primary"
@@ -77,6 +61,57 @@
       </div>
     </div>
     <div class="row col map-row">
+      <aside
+        v-show="controlsDrawerOpen"
+        data-testid="world-builder-generation-controls"
+        class="generation-controls-panel bg-grey-10"
+      >
+        <div class="panel-scroll q-pa-md">
+          <div class="text-subtitle2 q-mb-sm">Generation controls</div>
+          <q-input
+            v-model="seedInput"
+            data-testid="world-builder-seed-input"
+            type="number"
+            dense
+            outlined
+            label="Geography seed"
+            class="q-mb-md"
+            min="0"
+            :disable="isGenerating"
+            @update:model-value="onSeedInputChange"
+          />
+          <q-expansion-item
+            v-for="section in controlSections"
+            :key="section.section"
+            :label="section.section"
+            default-opened
+            dense
+            header-class="text-caption text-weight-medium"
+          >
+            <div
+              v-for="control in section.controls"
+              :key="control.key"
+              class="q-mb-md"
+            >
+              <div class="text-caption q-mb-xs">
+                {{ control.label }}:
+                {{ formatControlValue(control.key, controlValue(control.key)) }}
+              </div>
+              <q-slider
+                :model-value="controlValue(control.key)"
+                :data-testid="control.testId"
+                :min="control.min"
+                :max="control.max"
+                :step="control.step"
+                label
+                color="primary"
+                :disable="isGenerating"
+                @update:model-value="onControlChange(control.key, $event)"
+              />
+            </div>
+          </q-expansion-item>
+        </div>
+      </aside>
       <div
         ref="mapHostRef"
         data-testid="world-builder-map-host"
@@ -85,9 +120,9 @@
       <aside
         v-show="reportDrawerOpen"
         data-testid="world-builder-generation-report"
-        class="generation-report-panel column bg-grey-10"
+        class="generation-report-panel bg-grey-10"
       >
-        <div class="q-pa-md col scroll">
+        <div class="panel-scroll q-pa-md">
           <div class="text-subtitle2 q-mb-sm">Generation report</div>
           <div class="text-caption q-mb-md">
             Erosion steps: {{ stageSummary.erosionStepCount }} · Navigable rivers:
@@ -121,19 +156,24 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import {
   DERIVED_GEOGRAPHY_STEPS,
   runDerivedGeographyInWorker,
 } from '@world-builder/runDerivedGeographyInWorker.js'
 import {
+  WORLD_BUILDER_GENERATION_CONTROL_SECTIONS,
+  formatGenerationControlValue,
+} from '@world-builder/worldBuilderGenerationControls.js'
+import {
+  buildDerivedGeographyParams,
   createControlsStateForSeed,
+  createDefaultGenerationOptions,
   createGenerationStepStatuses,
   createRandomGeographySeed,
   createStageSummaryForDisplay,
   createValidationRowsForDisplay,
   generationProgressValue,
-  normalizeWindDegrees,
   parseGeographySeedInput,
   validationStatusColor,
   validationStatusIcon,
@@ -142,8 +182,11 @@ import {
 const mapHostRef = ref(null)
 const seedInput = ref('0')
 const prevailingWindDegrees = ref(0)
+const controlsDrawerOpen = ref(true)
 const reportDrawerOpen = ref(true)
 const isGenerating = ref(false)
+const generationOptions = reactive(createDefaultGenerationOptions())
+const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
 
 /** @type {import('vue').Ref<import('@world-builder/core/types.js').WorldDocument | null>} */
 const worldDocument = ref(null)
@@ -199,6 +242,36 @@ function resetGenerationProgress() {
 }
 
 /**
+ * @param {string} key
+ */
+function controlValue(key) {
+  if (key === 'prevailingWindDegrees') {
+    return prevailingWindDegrees.value
+  }
+  return generationOptions[key]
+}
+
+/**
+ * @param {string} key
+ * @param {number} value
+ */
+function onControlChange(key, value) {
+  if (key === 'prevailingWindDegrees') {
+    prevailingWindDegrees.value = value
+    return
+  }
+  generationOptions[key] = value
+}
+
+/**
+ * @param {string} key
+ * @param {number} value
+ */
+function formatControlValue(key, value) {
+  return formatGenerationControlValue(key, value)
+}
+
+/**
  * @param {import('@world-builder/core/types.js').WorldDocument} doc
  */
 async function applyWorldDocumentToMap(doc) {
@@ -226,10 +299,7 @@ function regenerate() {
   resetGenerationProgress()
 
   activeGenerationJob = runDerivedGeographyInWorker(
-    {
-      geographySeed: parsedSeed,
-      prevailingWindDegrees: normalizeWindDegrees(prevailingWindDegrees.value),
-    },
+    buildDerivedGeographyParams(parsedSeed, prevailingWindDegrees.value, generationOptions),
     {
       onStepStart({ stepIndex, stepCount, label }) {
         generationProgress.value = {
@@ -310,20 +380,13 @@ onUnmounted(() => {
 
 <style scoped>
 .world-builder-page {
-  height: calc(100vh - 50px);
-  min-height: 320px;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .controls-row {
   flex: 0 0 auto;
-}
-
-.seed-input {
-  width: 180px;
-}
-
-.wind-slider {
-  min-width: 180px;
 }
 
 .generation-progress {
@@ -335,20 +398,47 @@ onUnmounted(() => {
 }
 
 .map-row {
+  flex: 1 1 0;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
 }
 
 .map-host {
+  flex: 1 1 0;
+  min-width: 0;
   min-height: 0;
+  position: relative;
   overflow: hidden;
 }
 
+.map-host :deep(canvas) {
+  display: block;
+}
+
+.generation-controls-panel,
 .generation-report-panel {
-  flex: 0 0 320px;
-  width: 320px;
+  flex: 0 0 auto;
   min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.generation-controls-panel {
+  width: 300px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.generation-report-panel {
+  width: 320px;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.panel-scroll {
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
 }
 </style>
