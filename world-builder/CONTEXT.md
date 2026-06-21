@@ -24,6 +24,18 @@ Continental-scale geography output: elevation, coastlines, hydrology, **biomes**
 
 _Avoid_: “Map” alone when meaning the full **world** document; “terrain texture” for the political/economic layer; painting biomes or borders before underlying **fields** exist.
 
+### Physical terrain baseline
+
+Minimum **landmass** before **logistics pass**, **rejection sampling**, or **history log**: all continental **scalar fields** plus **biome** labels derived from field overlap (**fields before labels**). Erosion, river graph, lakes, **named regions**, and resource nodes are later **derived geography**—not required for the baseline.
+
+_Avoid_: Treating biome tint alone as “done” **landmass** when **scalar fields** were skipped or painted; calling the baseline the full **landmass pipeline**.
+
+### Closed island rim
+
+**Landmass** layout where map edges are forced to ocean so generated land reads as one surrounded continent (or archipelago) rather than an arbitrary rectangle clip. Distinct from cylindrical wrap or land bleeding off the viewport edge.
+
+_Avoid_: “Island generator” as the whole product; conflating with **maritime reach** economics.
+
 ### Landmass pipeline
 
 Ordered generation stages for one **landmass**: **scalar fields**, derived geography (biomes, hydrology), **logistics pass**, **rejection sampling**, then handoff to **culture engine**, **settlement** placement, and **history log**. Physical terrain completes before history simulation begins—same high-level split as Dwarf Fortress world creation (see research notes).
@@ -36,6 +48,24 @@ Continuous raster over the **landmass** grid—elevation, temperature, rainfall,
 
 _Avoid_: “Biome map” as the first artifact; discrete biome picker without sub-fields.
 
+### Rain shadow
+
+Leeward drying behind high terrain: prevailing moisture loses rainfall across uplift, producing dry belts on the far side of ranges. Part of rainfall **scalar field** generation—not a separate **biome** label painted by hand.
+
+_Avoid_: “Desert biome slider”; rain shadow as a post-hoc biome override without elevation input.
+
+### Prevailing wind
+
+Direction moisture crosses the **landmass** before **rain shadow** drying; one bearing per generation (often derived from **geography seed**, overridable in UI). Drives leeward dry belts—not a permanent **climate** simulation.
+
+_Avoid_: “Wind biome”; conflating with storm **natural threat** events.
+
+### Salinity
+
+**Scalar field** for salt content of water/soil exposure: maximum in ocean and **closed island rim**, tapering inland with distance from sea. Informs coastal and wetland **biome** boundaries—not a **strategic resource** node layer by itself.
+
+_Avoid_: “Salt layer” when meaning trade **strategic resource** placement; uniform inland salinity without coastal gradient.
+
 ### Fields before labels
 
 Design rule: generate basic geographic **fields**, derive classifications (biomes, marshes, arable bands), then run hydrology and **logistics pass**—never place political or settlement labels on a blank aesthetic map. Opposite of map-first border drawing (playlist #05).
@@ -47,6 +77,16 @@ _Avoid_: “Start with coastlines and kingdom names”; **culture** or **faction
 Contiguous geographic area with a generated label; may span several **biomes** if connected (e.g. one forest name across taiga and jungle). **Exchange** and **connectivity** often attach at **named region** scale, not only per tile.
 
 _Avoid_: “Kingdom” when meaning a pre-political geographic cluster; one biome equals one culture region.
+
+### Continental biomes (physical terrain baseline)
+
+**Biome** labels derived from **scalar field** overlap at **physical terrain baseline**—fourteen types in v1 of this layer:
+
+Ocean, Coast, Grassland, Savanna, Temperate forest, Tropical rainforest, Taiga, Tundra, Desert, Scrubland, Swamp, Hills, Mountain, Glacier.
+
+Freshwater-lake and river-corridor labels wait for hydrology **derived geography**. No Dwarf Fortress fantasy axes (good/evil, savagery).
+
+_Avoid_: Painting these labels before **fields before labels** completes; treating the list as **culture** names.
 
 ### Logistics pass
 
@@ -402,4 +442,4 @@ Used by **rejection sampling**; same role as Dwarf Fortress biome and feature qu
 - **Magic / industrial exceptions**: **ox paradox** and **population ceiling** assume pre-industrial logistics; teleportation, flying mounts, or preservation magic need explicit overrides or they break **supply-chain feudalism**.
 - **Map-first vs story-first**: playlist #05 warns against pretty maps before need; World Builder generates geography-first for simulation, but export should still answer “why is this port valuable?” like a journey-driven story map.
 - **Dwarf Fortress depth vs v1 scope**: DF history is full agent simulation; v1 **history log** may use lighter **epoch** ticks with stored **rivalry** causes—same “simulation log, not authored timeline” pattern, not necessarily DF agent count.
-- **DF research vs implementation**: terrain notes are conceptual; no requirement to match DF biomes, fantasy layers (good/evil, savagery), or rejection UX (hundreds of silent retries).
+- **DF research vs implementation**: terrain notes are conceptual inspiration for **fields before labels**, hydrology-as-derived-graph, and rejection *pattern*—not a mandate to match DF algorithms (e.g. midpoint-displacement elevation), biomes, fantasy layers (good/evil, savagery), or rejection UX (hundreds of silent retries). **`world-builder/core`** ships in JavaScript with JSDoc (portfolio repo convention), not a separate TypeScript toolchain.
