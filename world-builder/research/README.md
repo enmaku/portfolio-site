@@ -2,6 +2,13 @@
 
 Index for material that informs [`../CONTEXT.md`](../CONTEXT.md). Conceptual and domain language only—implementation lives elsewhere.
 
+## Map display & viewport
+
+How to render **world document** rasters and overlays in desktop + browser (GitHub Pages SPA).
+
+- **Decision:** [ADR 0009 — map display stack](../../docs/adr/0009-world-builder-map-display-stack.md) (PixiJS 8 + pixi-viewport, Tauri + SPA, Azgaar-style layers)
+- Research: [`map-display-research.md`](./map-display-research.md)
+
 ## Dwarf Fortress — terrain generation
 
 Comparison reference for **landmass pipeline** design (fields-first geography, hydrology, rejection sampling, history-as-simulation). Not a code port.
@@ -65,6 +72,7 @@ The script deduplicates YouTube's rolling-caption overlap, strips `[music]` mark
 
 | Layer | Primary source |
 | --- | --- |
+| **Map viewport**, layers, erosion animation, overlays | Map display research |
 | **Scalar fields**, hydrology, rejection, history-as-log | Dwarf Fortress research |
 | **Logistics pass**, settlement nodes, culture/conflict causality | Worldbuilding Insights playlist |
 | Canonical terms and pipeline order | [`../CONTEXT.md`](../CONTEXT.md) |
