@@ -3,7 +3,13 @@ import test from 'node:test'
 import {
   createGenerationStepStatuses,
   generationProgressValue,
+  normalizeGeographySeed,
 } from './worldBuilderPageModel.js'
+
+test('normalizeGeographySeed converts signed 32-bit values to unsigned', () => {
+  assert.strictEqual(normalizeGeographySeed(-1), 4294967295)
+  assert.strictEqual(normalizeGeographySeed(12345), 12345)
+})
 
 test('generationProgressValue scales by completed steps', () => {
   assert.strictEqual(generationProgressValue(0, 6), 17)

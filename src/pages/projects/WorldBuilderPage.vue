@@ -79,7 +79,20 @@
             min="0"
             :disable="isGenerating"
             @update:model-value="onSeedInputChange"
-          />
+          >
+            <template #append>
+              <q-btn
+                round
+                dense
+                flat
+                icon="casino"
+                data-testid="world-builder-seed-randomize"
+                aria-label="Random geography seed"
+                :disable="isGenerating"
+                @click="randomizeSeed"
+              />
+            </template>
+          </q-input>
           <q-expansion-item
             v-for="section in controlSections"
             :key="section.section"
@@ -156,7 +169,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import {
   DERIVED_GEOGRAPHY_STEPS,
   runDerivedGeographyInWorker,
@@ -167,8 +181,6 @@ import {
 } from '@world-builder/worldBuilderGenerationControls.js'
 import {
   buildDerivedGeographyParams,
-  createControlsStateForSeed,
-  createDefaultGenerationOptions,
   createGenerationStepStatuses,
   createRandomGeographySeed,
   createStageSummaryForDisplay,
@@ -178,14 +190,16 @@ import {
   validationStatusColor,
   validationStatusIcon,
 } from '@world-builder/worldBuilderPageModel.js'
+import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
+
+const settingsStore = useWorldBuilderSettingsStore()
+const { prevailingWindDegrees, generationOptions } = storeToRefs(settingsStore)
 
 const mapHostRef = ref(null)
 const seedInput = ref('0')
-const prevailingWindDegrees = ref(0)
 const controlsDrawerOpen = ref(true)
 const reportDrawerOpen = ref(true)
 const isGenerating = ref(false)
-const generationOptions = reactive(createDefaultGenerationOptions())
 const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
 
 /** @type {import('vue').Ref<import('@world-builder/core/types.js').WorldDocument | null>} */
@@ -248,7 +262,7 @@ function controlValue(key) {
   if (key === 'prevailingWindDegrees') {
     return prevailingWindDegrees.value
   }
-  return generationOptions[key]
+  return generationOptions.value[key]
 }
 
 /**
@@ -256,11 +270,7 @@ function controlValue(key) {
  * @param {number} value
  */
 function onControlChange(key, value) {
-  if (key === 'prevailingWindDegrees') {
-    prevailingWindDegrees.value = value
-    return
-  }
-  generationOptions[key] = value
+  settingsStore.setControl(key, value)
 }
 
 /**
@@ -299,7 +309,7 @@ function regenerate() {
   resetGenerationProgress()
 
   activeGenerationJob = runDerivedGeographyInWorker(
-    buildDerivedGeographyParams(parsedSeed, prevailingWindDegrees.value, generationOptions),
+    buildDerivedGeographyParams(parsedSeed, prevailingWindDegrees.value, generationOptions.value),
     {
       onStepStart({ stepIndex, stepCount, label }) {
         generationProgress.value = {
@@ -353,17 +363,18 @@ function onValidationRowClick(row) {
 }
 
 function onSeedInputChange() {
-  const parsedSeed = parseGeographySeedInput(seedInput.value)
-  if (parsedSeed === null) {
-    return
-  }
-  prevailingWindDegrees.value = createControlsStateForSeed(parsedSeed).prevailingWindDegrees
+  settingsStore.applySeed(seedInput.value)
+}
+
+function randomizeSeed() {
+  seedInput.value = String(createRandomGeographySeed())
+  settingsStore.applySeed(seedInput.value)
+  regenerate()
 }
 
 onMounted(async () => {
-  const initial = createControlsStateForSeed(createRandomGeographySeed())
-  seedInput.value = String(initial.geographySeed)
-  prevailingWindDegrees.value = initial.prevailingWindDegrees
+  settingsStore.ensureInitialized()
+  seedInput.value = String(settingsStore.geographySeed)
 
   const rendererModule = await import('@world-builder/renderer/createWorldBuilderMapViewport.js')
   createWorldBuilderMapViewport = rendererModule.createWorldBuilderMapViewport

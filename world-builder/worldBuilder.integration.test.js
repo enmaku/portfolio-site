@@ -60,6 +60,7 @@ test('world builder page wires derived pipeline, lazy renderer, and control test
   )
   assert.strictEqual(page.includes('data-testid="world-builder-map-host"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-seed-input"'), true)
+  assert.strictEqual(page.includes('data-testid="world-builder-seed-randomize"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-generation-controls"'), true)
   assert.strictEqual(page.includes('worldBuilderGenerationControls'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-regenerate"'), true)

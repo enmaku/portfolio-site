@@ -113,7 +113,7 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         label: 'Erosion passes',
         kind: 'slider',
         min: 0,
-        max: 24,
+        max: 48,
         step: 1,
         testId: 'world-builder-control-erosion-steps',
       },

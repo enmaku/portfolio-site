@@ -1,4 +1,9 @@
 import { deriveFieldSeed, createSeededRandom } from '../noise/seededRandom.js'
+import {
+  RIM_ELEVATION,
+  canDrainIntoRimCell,
+  isRimCell,
+} from '../fields/applyClosedIslandRim.js'
 import { EROSION_SNAPSHOT_INTERVAL } from '../types.js'
 import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
 
@@ -43,8 +48,8 @@ export function applyErosion({
   const peakThreshold = 0.72
 
   for (let step = 0; step < stepCount; step += 1) {
-    for (let y = 1; y < height - 1; y += 1) {
-      for (let x = 1; x < width - 1; x += 1) {
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
         const idx = y * width + x
         const elev = out[idx]
         if (elev < seaLevel) continue
@@ -55,11 +60,26 @@ export function applyErosion({
         for (let d = 0; d < D8_OFFSETS.length; d += 1) {
           const nx = x + D8_OFFSETS[d][0]
           const ny = y + D8_OFFSETS[d][1]
-          const nIdx = ny * width + nx
-          const drop = (elev - out[nIdx]) / D8_DIST[d]
+          let neighborElev
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+            if (!canDrainIntoRimCell(elev, seaLevel)) continue
+            neighborElev = RIM_ELEVATION
+          } else {
+            const nIdx = ny * width + nx
+            if (
+              (out[nIdx] < seaLevel || isRimCell(nIdx, width, height)) &&
+              !canDrainIntoRimCell(elev, seaLevel)
+            ) {
+              continue
+            }
+            neighborElev = out[nIdx]
+          }
+
+          const drop = (elev - neighborElev) / D8_DIST[d]
           if (drop > steepestDrop) {
             steepestDrop = drop
-            steepestIdx = nIdx
+            steepestIdx =
+              nx >= 0 && ny >= 0 && nx < width && ny < height ? ny * width + nx : -1
           }
         }
 
@@ -68,7 +88,7 @@ export function applyErosion({
         const tieBreak = random() * 0.0005
         const wear = channelWear * steepestDrop + tieBreak
         out[idx] = Math.max(seaLevel, out[idx] - wear)
-        if (steepestIdx >= 0) {
+        if (steepestIdx >= 0 && out[steepestIdx] >= seaLevel) {
           out[steepestIdx] = Math.max(seaLevel, out[steepestIdx] - wear * 0.35)
         }
 

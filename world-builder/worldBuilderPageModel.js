@@ -26,7 +26,16 @@ export function buildDerivedGeographyParams(geographySeed, prevailingWindDegrees
  * @returns {number}
  */
 export function createRandomGeographySeed() {
-  return (Math.random() * 4294967296) | 0
+  return normalizeGeographySeed((Math.random() * 4294967296) | 0)
+}
+
+/**
+ * @param {number} geographySeed
+ * @returns {number}
+ */
+export function normalizeGeographySeed(geographySeed) {
+  const normalizedSeed = geographySeed | 0
+  return normalizedSeed >= 0 ? normalizedSeed : normalizedSeed + 4294967296
 }
 
 /**
@@ -34,10 +43,10 @@ export function createRandomGeographySeed() {
  * @returns {{ geographySeed: number, prevailingWindDegrees: number }}
  */
 export function createControlsStateForSeed(geographySeed) {
-  const normalizedSeed = geographySeed | 0
+  const signedSeed = geographySeed | 0
   return {
-    geographySeed: normalizedSeed >= 0 ? normalizedSeed : normalizedSeed + 4294967296,
-    prevailingWindDegrees: derivePrevailingWindFromSeed(normalizedSeed),
+    geographySeed: normalizeGeographySeed(geographySeed),
+    prevailingWindDegrees: derivePrevailingWindFromSeed(signedSeed),
   }
 }
 

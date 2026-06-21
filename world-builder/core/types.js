@@ -156,7 +156,7 @@ export const DEFAULT_GRID_SIZE = 1024
 export const REFERENCE_GRID_SIZE = 256
 
 /** Total erosion iterations (stable contract for tests). */
-export const EROSION_STEP_COUNT = 12
+export const EROSION_STEP_COUNT = 24
 
 /** Snapshot every N erosion steps (inclusive of final). */
 export const EROSION_SNAPSHOT_INTERVAL = 3

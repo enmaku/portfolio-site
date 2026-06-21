@@ -22,14 +22,47 @@ test('deriveSnowCapMask matches glacier elevation and temperature thresholds', (
   assert.strictEqual(mask[0], 0)
 })
 
-test('deriveSnowMeltContribution adds flow only on snow-cap cells', () => {
+test('deriveSnowMeltContribution adds flow only on snow-cap edge cells', () => {
+  const width = 2
+  const height = 1
   const elevation = new Float32Array([0.5, SNOW_CAP_ELEVATION_MIN + 0.1])
   const temperature = new Float32Array([0.5, SNOW_CAP_TEMPERATURE_MAX - 0.05])
   const snowCapMask = new Uint8Array([0, 1])
-  const melt = deriveSnowMeltContribution({ elevation, temperature, snowCapMask })
+  const melt = deriveSnowMeltContribution({
+    elevation,
+    temperature,
+    snowCapMask,
+    width,
+    height,
+  })
 
   assert.strictEqual(melt[0], 0)
   assert.ok(melt[1] > 0)
+})
+
+test('deriveSnowMeltContribution skips interior snow-cap cells', () => {
+  const width = 5
+  const height = 5
+  const elevation = new Float32Array(width * height).fill(SNOW_CAP_ELEVATION_MIN + 0.08)
+  const temperature = new Float32Array(width * height).fill(SNOW_CAP_TEMPERATURE_MAX - 0.05)
+  const snowCapMask = new Uint8Array(width * height)
+  for (let y = 1; y < 4; y += 1) {
+    for (let x = 1; x < 4; x += 1) {
+      snowCapMask[y * width + x] = 1
+    }
+  }
+
+  const melt = deriveSnowMeltContribution({
+    elevation,
+    temperature,
+    snowCapMask,
+    width,
+    height,
+  })
+
+  assert.strictEqual(melt[2 * width + 2], 0)
+  assert.ok(melt[1 * width + 2] > 0)
+  assert.ok(melt[2 * width + 1] > 0)
 })
 
 test('snow melt on a peak produces a river corridor downhill to the sea', () => {
@@ -55,7 +88,13 @@ test('snow melt on a peak produces a river corridor downhill to the sea', () => 
   const snowCapMask = deriveSnowCapMask({ elevation, temperature, width, height, seaLevel: SEA_LEVEL })
   assert.ok(snowCapMask.some((value) => value === 1), 'expected a snow cap on the high slope')
 
-  const meltContribution = deriveSnowMeltContribution({ elevation, temperature, snowCapMask })
+  const meltContribution = deriveSnowMeltContribution({
+    elevation,
+    temperature,
+    snowCapMask,
+    width,
+    height,
+  })
   const { flowDirection, flowAccumulation, ocean } = computeFlowAccumulation({
     elevation,
     width,

@@ -273,6 +273,8 @@ function runHydrologyStep(state) {
     elevation: state.erodedElevation,
     temperature,
     snowCapMask,
+    width,
+    height,
   })
   const { flowDirection, flowAccumulation, ocean: lakeOcean } = computeFlowAccumulation({
     elevation: filledElevation,
