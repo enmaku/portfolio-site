@@ -1,0 +1,89 @@
+# Every Political System in History Runs on This One Engine
+
+Some of you told me my politics framework only works for feudal politics. I do get it, but it isn't. And let me prove it to you. Here's a merchant republic.
+
+No king, no bloodlines, just wealthy trading houses funding smear campaigns against each other. Here's a tribal confederation. There's no throne, no council chamber, no written law. It's just chiefs reputation and the slow collapse of consensus.
+
+So, two completely different systems, two completely different surfaces, but the same machine is underneath. By the end of this, you'll have one tool that builds the conflict engine under any political system you want to run. It doesn't matter how exotic, doesn't matter how far from feudalism it is. The skeleton is always the same.
+
+So, we're not going to survey every political system in fantasy. That would take forever and honestly be quite boring. Instead, we're going to strip politics down to its skeleton and find the thing that's actually doing the work underneath all of it. Then we're going to put two very different systems on that skeleton, a republic and a tribal confederation.
+
+First, we get the foundation straight and then we stress test it. The chapters and the timestamps are in the description if you want to jump around. And also make sure to grab the free worksheet from my website. Let's dive in.
+
+Here's the question every political system in history has been trying to answer. It is not who's in charge, not what are the laws. The real question is this: Who controls what and why does everyone else accept it? And that's it.
+
+Now, most people when they think about that question land on something like tradition or legitimacy or the social contract. Those are real things, but they're also the polished version, the version that got written down after the fact. The less polished version is this: The system is the answer the winners landed on. And somewhere underneath all the marble floors and the sacred doctrines and the oath ceremonies, there are losers who were forced to accept the answer.
+
+Sometimes by sword point, but sometimes slowly over generations until the original coercion became tradition, so to speak. But it started somewhere. Someone won, someone lost. And the system is what the winners built to make sure it stays that way, which means every political system, no matter how civilized and no matter how legitimately it looks on paper, is ultimately backed by the same thing.
+
+Violence, or the credible threat of it. A republic protects its council seats with laws, and the laws are enforced by guards, and the guards answer to someone. So, follow that chain far enough and you will always find the same thing at the end of it. The currency changes, but the hidden currency underneath never does.
+
+And this matters for your will building because it means every political system has two layers. The visible layer, the thing people say they fight over, like votes, lands, reputation, but also the invisible layer. And that's the force that makes the visible layer stick. And when those two layers come apart, when the threat stops being credible, the whole system starts to shake.
+
+And that is the skeleton. And sitting on that skeleton in every single system without exception are power centers, groups, institutions, factions, or individuals with enough influence to actually move things. The crown, the guild council, the priesthood, the chiefs. The names change, but the function does not.
+
+So, every system has them, and every system's conflict live between them. And the behavior running through it all, the wanting, the blocking, the maneuvering, the consequence that makes everything worse, that is the WOAC cycle. Want, obstacle, action, consequence. It is not a feudal tool.
+
+It's a human behavior tool. So, a senator and a vassal lord are running the same software. They want things, something's in the way, and they do something about it. And that action creates a new problem.
+
+So, before you build your political system, before you name the factions, draw the power structure, and figure out who hates who, strip it down first. Who are the power centers? What do they want to keep or gain? And what is stopping them?
+
+And that is your conflict engine. The throne is just furniture. The system changes, but the human behavior underneath it never does. So, let's do an example.
+
+The first system, a merchant republic. No king, no bloodlines. Power lives in a council of wealthy trading houses. And the way you win is by controlling enough seats to push your agenda through.
+
+On the surface, this looks nothing like feudalism. Different aesthetics entirely. Ledgers, trade routes, political marriages, but then you run the the cycle. The aesthetic stops mattering completely.
+
+Take Venice, the Italian city-states, the Phoenician Council of Ten. They were essentially a political scandal machine. Families bought votes, funded smear campaigns, backed reform movements specifically to create chaos. And that is not to say they didn't believe in those reforms, but the chaos was useful to them.
+
+You could call it corruption, but you could also say it was the system working exactly as designed. The power centers here are the guilds, specifically the silk guild and the iron guild, both with seats on the council, both with enough wealth to move votes. The silk guild wants to dominate the council vote on a new trade route. That's the want.
+
+The obstacle is that the iron guild has already bought two swing votes. So, the silk guild cannot win the count as it stands. So, they fund a scandal. They take one iron guild counselor, find something in his past, something embarrassing, something that makes other houses nervous about being seen with him.
+
+The scandal lands and he loses credibility. So, the vote shifts. And as a consequence, the Iron Guild does not fall. They back a reform movement, a genuine one, or close enough.
+
+A movement that argues the whole guild system is corrupt and needs to be dismantled, which if it gains traction threatens everyone's power, including the Silk Guild. The Silk Guild just created its own worst problem. Yeah, that. So, there is no king in that cycle.
+
+There is no vassal. Power center isn't a throne, it's a council seat. But the conflict loop is identical to anything you would find in a feudal system. Someone wants something, something blocks them, they act, and the action creates a new, often worse, problem.
+
+Different tokens, same rules. And it's the same people exploiting leverage on other people. So, let's take a quick pause here. We've got a skeleton.
+
+We've stress tested it on a republic built on votes, and now we push it to the extreme. A system with no formal institutions at all. And this is where it gets genuinely interesting. Because the obstacle is not just a rival power center anymore, the obstacle is the system itself.
+
+So, let's move on to the second system, the most alien of the two. It's a tribal confederation. As I said before, there's no throne, no council seat, and no divine mandate. So, power is earned through reputation, through strength, and through the ongoing consent of the other chiefs.
+
+The moment you stop being worth following, you stop being followed. That's the whole contract. The Iroquois Six Nations, or the pre-unification of the Mongol tribes. These were not systems where one strong leader dominated the others.
+
+They ran on consensus, and in fact, unanimous consent in many cases. The system itself actively resisted centralization, because every chief understood that centralization meant someone else's power growing at the expense of his own. That resistance is the politics. So, meet the rising chief.
+
+There is a real external threat. It's growing, credible, and the kind that requires unified action to survive. So, he's not wrong about the threat. He might not even be wrong about the solution.
+
+But, the confederation's rules require unanimous consent, and one chief is blocking. Maybe it is out of genuine principle, but maybe because centralization threat his own standing. And it's probably a bit of both. So, the rising chief cannot override him.
+
+He cannot remove him. He cannot go around him. The rules don't allow it. So, he works the other chiefs one by one until the blocker is isolated.
+
+Then, he frames it publicly, not as a power grab, but as a question of survival. This chief is the reason we're vulnerable. His pride is going to get people killed. And the blocker, now publicly shamed with no allies left, complies.
+
+And as a consequence, the president is set. Consensus is no longer sacred. The confederation starts fracturing from within. And it wasn't because of the external threat, not at all, but because of what was done to survive it.
+
+The same structure is everything we have run before. And here's the thing that only shows up when you run cycles honestly on a system like this. The system itself became the obstacle. The rules, the consensus requirement, the thing that holds the confederation together.
+
+That's what had to be broken to get the want. That is not a plot device. That's what happens when you follow the logic all the way through. Even when there are no rules, the framework will still find the conflict.
+
+So, if you want the worksheet that walks you through mapping your power centers and running the cycles on your own political system, it's free on my website, and the link is in the description. So, if the engine is always the same, the cycles run on every system, what actually makes these systems feel different? It is one thing. It is the currency of power.
+
+Land in a feudal kingdom, votes in a republic, divine favor in a theocracy. It's the same engine, but a different currency. And what matters for your world building is this: The currency doesn't just determine what people fight over, but it determines what power centers are made of and what the system is trying to protect. In a republic, the power centers are whoever controls the most wealth and the most votes.
+
+The whole structure exists to make sure they keep both. In a confederation, the power centers are the chiefs themselves. Their standing is their institution, which means attacking a chief's reputation isn't just personal, it is structural. And underneath all of this, underneath every visible currency, is the one we talked about at the start, the hidden currency, the threat of violence that makes every other currency stick.
+
+And when that stops being credible, it doesn't matter how much gold you have or how many chiefs you are nodding along to, the system is already hollow. It just hasn't fallen yet. So, break the currency, visible or hidden, and the whole system destabilizes. And that could be your biggest story lever.
+
+Doesn't have to be a war or a betrayal or a villain with a plan. Cool story idea. Use it. Anyway, before you run the cycles on your political systems, answer two questions.
+
+Who are the power centers? Don't do just the obvious ones, like the throne and the council, but look further, the ones underneath, the ones that might not have a title, but have leverage. And then ask this: What is the currency they're all fighting over? And once you have both of those, plug them into the cycles.
+
+The rest will build itself. So, the same skeleton, same engine, different furniture. That is the framework on any political system. We stripped it to its skeleton.
+
+We stress tested it on a republic built on votes, a confederation built on consensus. Different power centers, different currencies, but the same hidden currency underneath all of them. Same human behavior, same framework. If throne is furniture and a council chamber is as well, what's underneath it, the power centers, the wanting, the blocking, the acting, the consequence, and the quiet threat that makes all of it stick, that is the part that never changes.
+
+So, your one task is to identify the power centers, run your cycles, take the free worksheet that walks you through the whole process step-by-step. That would be your starting point. Everything else will follow. Good luck.
