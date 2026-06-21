@@ -182,6 +182,12 @@ const projectSections = [
         icon: 'bar_chart',
         navigateInTab: true,
       },
+      {
+        to: '/projects/world-builder',
+        label: 'World Builder',
+        icon: 'public',
+        navigateInTab: true,
+      },
     ],
   },
 ]
