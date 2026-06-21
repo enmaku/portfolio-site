@@ -1,4 +1,4 @@
-import { BIOMES, SEA_LEVEL } from './biomeIds.js'
+import { BIOMES, SEA_LEVEL, SNOW_CAP_ELEVATION_MIN, SNOW_CAP_TEMPERATURE_MAX } from './biomeIds.js'
 
 /**
  * @typedef {Object} FieldSample
@@ -26,7 +26,7 @@ export function classifyBiomeFromSample(sample, seaLevel = SEA_LEVEL) {
     return BIOMES.COAST
   }
 
-  if (elevation >= 0.82 && temperature <= 0.28) {
+  if (elevation >= SNOW_CAP_ELEVATION_MIN && temperature <= SNOW_CAP_TEMPERATURE_MAX) {
     return BIOMES.GLACIER
   }
 

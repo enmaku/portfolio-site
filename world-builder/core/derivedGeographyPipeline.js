@@ -15,7 +15,12 @@ import {
 import { buildRiverNetworkMask } from './hydrology/buildRiverNetworkMask.js'
 import { computeFlowAccumulation } from './hydrology/computeFlowAccumulation.js'
 import { deriveDrainageFromFlow } from './hydrology/deriveDrainageFromFlow.js'
+import {
+  deriveSnowCapMask,
+  deriveSnowMeltContribution,
+} from './hydrology/deriveSnowCapMask.js'
 import { fillLakes } from './hydrology/fillLakes.js'
+import { generateTemperature } from './fields/generateTemperature.js'
 import { placeSaltNodes } from './resources/placeSaltNodes.js'
 import {
   DEFAULT_GRID_SIZE,
@@ -250,11 +255,31 @@ function runHydrologyStep(state) {
     seaLevel: state.options.seaLevel,
     minLakeAreaScale: state.options.minLakeAreaScale,
   })
+  const temperature = generateTemperature({
+    geographySeed: state.geographySeed,
+    width,
+    height,
+    elevation: state.erodedElevation,
+    options: state.options,
+  })
+  const snowCapMask = deriveSnowCapMask({
+    elevation: state.erodedElevation,
+    temperature,
+    width,
+    height,
+    seaLevel: state.options.seaLevel,
+  })
+  const meltContribution = deriveSnowMeltContribution({
+    elevation: state.erodedElevation,
+    temperature,
+    snowCapMask,
+  })
   const { flowDirection, flowAccumulation, ocean: lakeOcean } = computeFlowAccumulation({
     elevation: filledElevation,
     width,
     height,
     seaLevel: state.options.seaLevel,
+    meltContribution,
   })
   const drainage = deriveDrainageFromFlow(flowAccumulation)
   const riverGraph = buildRiverGraph({
@@ -271,6 +296,7 @@ function runHydrologyStep(state) {
     flowAccumulation,
     flowDirection,
     ocean: lakeOcean,
+    lakeMask,
     width,
     height,
     navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,

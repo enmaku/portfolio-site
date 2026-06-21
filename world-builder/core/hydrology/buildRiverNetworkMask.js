@@ -2,7 +2,8 @@ import { riverDisplayFlowCutoffForGrid } from '../types.js'
 import { downstreamIndex } from './computeFlowAccumulation.js'
 
 /**
- * Continuous river cells: flow at or above display cutoff and downstream path reaches the sea.
+ * Continuous river cells: flow at or above display cutoff and downstream path reaches
+ * the sea or an inland lake spill.
  * Used for river-corridor biome rendering (distinct from navigable-haul edges on the graph).
  * @param {Object} params
  * @param {Float32Array} params.flowAccumulation
@@ -10,6 +11,7 @@ import { downstreamIndex } from './computeFlowAccumulation.js'
  * @param {boolean[]} params.ocean
  * @param {number} params.width
  * @param {number} params.height
+ * @param {Uint8Array} [params.lakeMask]
  * @param {number} [params.navigableFlowCutoffScale]
  * @returns {Uint8Array}
  */
@@ -19,6 +21,7 @@ export function buildRiverNetworkMask({
   ocean,
   width,
   height,
+  lakeMask,
   navigableFlowCutoffScale = 1,
 }) {
   const cellCount = width * height
@@ -28,45 +31,45 @@ export function buildRiverNetworkMask({
   )
   const mask = new Uint8Array(cellCount)
   /** @type {Int8Array} */
-  const flowsToOceanMemo = new Int8Array(cellCount).fill(-1)
+  const flowsToDrainMemo = new Int8Array(cellCount).fill(-1)
 
   /**
    * @param {number} idx
    * @param {Set<number>} stack
    */
-  function flowsToOcean(idx, stack) {
-    const cached = flowsToOceanMemo[idx]
+  function flowsToDrain(idx, stack) {
+    const cached = flowsToDrainMemo[idx]
     if (cached >= 0) {
       return cached === 1
     }
 
-    if (ocean[idx]) {
-      flowsToOceanMemo[idx] = 1
+    if (ocean[idx] || lakeMask?.[idx]) {
+      flowsToDrainMemo[idx] = 1
       return true
     }
 
     if (flowAccumulation[idx] < cutoff) {
-      flowsToOceanMemo[idx] = 0
+      flowsToDrainMemo[idx] = 0
       return false
     }
 
     if (stack.has(idx)) {
-      flowsToOceanMemo[idx] = 0
+      flowsToDrainMemo[idx] = 0
       return false
     }
 
     stack.add(idx)
     const downstream = downstreamIndex(idx, width, flowDirection)
-    const reachesSea =
-      downstream >= 0 && flowsToOcean(downstream, stack)
-    flowsToOceanMemo[idx] = reachesSea ? 1 : 0
+    const reachesDrain =
+      downstream >= 0 && flowsToDrain(downstream, stack)
+    flowsToDrainMemo[idx] = reachesDrain ? 1 : 0
     stack.delete(idx)
-    return reachesSea
+    return reachesDrain
   }
 
   for (let idx = 0; idx < cellCount; idx += 1) {
     if (ocean[idx] || flowAccumulation[idx] < cutoff) continue
-    if (flowsToOcean(idx, new Set())) {
+    if (flowsToDrain(idx, new Set())) {
       mask[idx] = 1
     }
   }

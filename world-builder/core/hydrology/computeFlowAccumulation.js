@@ -19,9 +19,16 @@ const D8_DIST = [1.414, 1, 1.414, 1, 1, 1.414, 1, 1.414]
  * @param {number} params.width
  * @param {number} params.height
  * @param {number} [params.seaLevel]
+ * @param {Float32Array} [params.meltContribution] extra flow units per land cell (e.g. snow melt)
  * @returns {{ flowDirection: Int16Array, flowAccumulation: Float32Array, ocean: boolean[] }}
  */
-export function computeFlowAccumulation({ elevation, width, height, seaLevel }) {
+export function computeFlowAccumulation({
+  elevation,
+  width,
+  height,
+  seaLevel,
+  meltContribution,
+}) {
   const cellCount = width * height
   const ocean = isOceanCell(elevation, width, height, seaLevel)
   const flowDirection = new Int16Array(cellCount).fill(-1)
@@ -60,7 +67,11 @@ export function computeFlowAccumulation({ elevation, width, height, seaLevel }) 
   const queue = []
 
   for (let i = 0; i < cellCount; i += 1) {
-    flowAccumulation[i] = ocean[i] ? 0 : 1
+    if (ocean[i]) {
+      flowAccumulation[i] = 0
+    } else {
+      flowAccumulation[i] = 1 + (meltContribution?.[i] ?? 0)
+    }
     if (!ocean[i] && inDegree[i] === 0) {
       queue.push(i)
     }
