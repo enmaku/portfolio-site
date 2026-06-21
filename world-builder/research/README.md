@@ -1,8 +1,20 @@
 # World Builder — research sources
 
+Index for material that informs [`../CONTEXT.md`](../CONTEXT.md). Conceptual and domain language only—implementation lives elsewhere.
+
+## Dwarf Fortress — terrain generation
+
+Comparison reference for **landmass pipeline** design (fields-first geography, hydrology, rejection sampling, history-as-simulation). Not a code port.
+
+- Notes: [`dwarf-fortress-terrain-notes.md`](./dwarf-fortress-terrain-notes.md)
+- Public config mirror: [Qartar/dwarf-fortress](https://github.com/Qartar/dwarf-fortress) (`data/init/world_gen.txt` on `legacy` branch)
+- Wiki: [Advanced world generation](https://dwarffortresswiki.org/Advanced_world_generation)
+
+**Takeaway:** Adopt DF’s geographic engine (scalar fields → biomes → erosion/rivers → named regions → reject until valid). World Builder adds the playlist’s **logistics pass** (ox paradox, haul-shed, population ceiling, strategic resources) on top.
+
 ## Worldbuilding Insights (YouTube playlist)
 
-Primary reference for the **culture engine** and logistics-first map thinking used in [`../CONTEXT.md`](../CONTEXT.md).
+Primary reference for the **culture engine** and logistics-first map thinking.
 
 - Playlist: [Worldbuilding Insights](https://www.youtube.com/watch?v=56OgvPJIi5s&list=PLph_A8rBjLxXCs3Gc4-qQVVgN7nEsDIzg)
 - Local transcripts: `youtube-subtitles/*.en.txt` (human-readable)
@@ -22,7 +34,7 @@ yt-dlp --skip-download --write-auto-sub --write-sub --sub-lang en \
 Then convert to readable transcripts:
 
 ```bash
-node ../scripts/srt-to-transcript.mjs
+node scripts/srt-to-transcript.mjs
 ```
 
 The script deduplicates YouTube's rolling-caption overlap, strips `[music]` markers, and writes `*.en.txt` beside `raw/*.en.srt`.
@@ -48,3 +60,11 @@ The script deduplicates YouTube's rolling-caption overlap, strips `[music]` mark
 | 16 | The Parasite City on Your Fantasy Map | **Drain city**, sea vs land **haul cost** |
 | 17 | Your Fantasy Capital Is Mathematically Impossible | **Population ceiling**, **arable envelope** |
 | 18 | Your Fantasy Map Has a Salt Problem | **Strategic resource**, preservation logistics |
+
+## How sources combine
+
+| Layer | Primary source |
+| --- | --- |
+| **Scalar fields**, hydrology, rejection, history-as-log | Dwarf Fortress research |
+| **Logistics pass**, settlement nodes, culture/conflict causality | Worldbuilding Insights playlist |
+| Canonical terms and pipeline order | [`../CONTEXT.md`](../CONTEXT.md) |

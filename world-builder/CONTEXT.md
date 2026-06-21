@@ -2,7 +2,7 @@
 
 Desktop app for procedural fantasy **worlds**: plausible **landmasses**, **settlements** and **trade networks** driven by logistics, and **histories** that produce **factions** and **rivalries** with traceable causes.
 
-Epic: [#293](https://github.com/enmaku/portfolio-site/issues/293). Research index: [`research/README.md`](./research/README.md) (Worldbuilding Insights playlist).
+Epic: [#293](https://github.com/enmaku/portfolio-site/issues/293). Research index: [`research/README.md`](./research/README.md) (Worldbuilding Insights playlist; [Dwarf Fortress terrain notes](./research/dwarf-fortress-terrain-notes.md)).
 
 ## Language
 
@@ -20,9 +20,57 @@ _Avoid_: “Setting” alone in export/schema keys; “planet” unless generati
 
 ### Landmass
 
-Continental-scale geography output: elevation, coastlines, hydrology, **biomes**, and derived movement-cost fields—not political borders.
+Continental-scale geography output: elevation, coastlines, hydrology, **biomes**, and derived movement-cost fields—not political borders. Produced by the **landmass pipeline** (scalar **fields** → derived geography → **logistics pass** → **rejection sampling**).
 
-_Avoid_: “Map” alone when meaning the full **world** document; “terrain texture” for the political/economic layer.
+_Avoid_: “Map” alone when meaning the full **world** document; “terrain texture” for the political/economic layer; painting biomes or borders before underlying **fields** exist.
+
+### Landmass pipeline
+
+Ordered generation stages for one **landmass**: **scalar fields**, derived geography (biomes, hydrology), **logistics pass**, **rejection sampling**, then handoff to **culture engine**, **settlement** placement, and **history log**. Physical terrain completes before history simulation begins—same high-level split as Dwarf Fortress world creation (see research notes).
+
+_Avoid_: “Worldgen” as a single opaque step; skipping **validation checks** and accepting incoherent geography.
+
+### Scalar field
+
+Continuous raster over the **landmass** grid—elevation, temperature, rainfall, drainage, salinity—generated before biome labels. Biomes and **resource rasters** **arise** from field overlap (**fields before labels**), not from painting forest/desert tiles first.
+
+_Avoid_: “Biome map” as the first artifact; discrete biome picker without sub-fields.
+
+### Fields before labels
+
+Design rule: generate basic geographic **fields**, derive classifications (biomes, marshes, arable bands), then run hydrology and **logistics pass**—never place political or settlement labels on a blank aesthetic map. Opposite of map-first border drawing (playlist #05).
+
+_Avoid_: “Start with coastlines and kingdom names”; **culture** or **faction** borders before **landmass** stages finish.
+
+### Named region
+
+Contiguous geographic area with a generated label; may span several **biomes** if connected (e.g. one forest name across taiga and jungle). **Exchange** and **connectivity** often attach at **named region** scale, not only per tile.
+
+_Avoid_: “Kingdom” when meaning a pre-political geographic cluster; one biome equals one culture region.
+
+### Logistics pass
+
+World Builder–specific **landmass pipeline** stage after physical terrain: **movement cost**, **haul-shed**, **maritime reach**, **arable envelope**, **strategic resource** placement, and **population ceiling** inputs—bulk haul economics the playlist defines and Dwarf Fortress does not model at macro scale.
+
+_Avoid_: “Economy sim” for the whole **world**; conflating with **history log** or **conflict engine** ticks.
+
+### Rejection sampling
+
+Regenerate the candidate **landmass** when **validation checks** fail (missing haul corridors, **population ceiling** violation, impossible capital site)—same belt-and-braces pattern as Dwarf Fortress world rejection, but grounded in logistics constraints rather than biome quotas alone.
+
+_Avoid_: “Retry button” without logged reject reasons; accepting broken worlds for speed.
+
+### Geography seed
+
+Deterministic input to **landmass pipeline** stages through **logistics pass** and **validation checks**. Same **geography seed** + params → same terrain fields and derived graph; independent of **history seed**.
+
+_Avoid_: “World seed” alone when history events must also be reproducible; conflating with **seed** when both are meant.
+
+### History seed
+
+Deterministic input to **history log** simulation after **landmass** and initial **settlement** / **faction** placement. Same **geography seed** with different **history seed** → same map, different **rivalry** and borders.
+
+_Avoid_: Single **seed** in export when authors need to share geography-only or replay history variants.
 
 ### Culture engine
 
@@ -261,18 +309,23 @@ _Avoid_: “Year 1042” precision without source events; real-time simulation i
 
 ### Seed
 
-Deterministic input to **landmass** and simulation stages; same **seed** + params → same **world**.
+Deterministic input to generation; same **seed** + params → same **world**. Prefer explicit **geography seed** and **history seed** in the **world document** when stages are separable.
 
-_Avoid_: “Random” without reproducibility; sharing worlds without **seed** export.
+_Avoid_: “Random” without reproducibility; sharing worlds without **seed** export; one opaque seed when debugging requires knowing which stage diverged.
 
 ### World document
 
-Serializable snapshot: **seed**, stage parameters, geography fields, **settlements**, **factions**, **trade routes**, **history log**, derived **culture** summaries.
+Serializable snapshot: **geography seed**, **history seed**, stage parameters, geography **fields**, **settlements**, **factions**, **trade routes**, **history log**, derived **culture** summaries.
 
 _Avoid_: “Save file” in UI copy when the artifact is author-facing; PNG-only export as the whole **world**.
 
 ## Relationships
 
+- **Landmass pipeline → fields before labels**: **scalar fields** (elevation, rainfall, temperature, drainage, salinity) overlap into **biomes** and **resource rasters**; hydrology is derived (erosion, river graph)—not painted first (Dwarf Fortress pattern; see research notes).
+- **Landmass pipeline → logistics pass**: after physical terrain, **ox paradox**, **arable envelope**, **maritime reach**, and **strategic resource** nodes apply—World Builder’s layer on top of DF-style geography.
+- **Rejection sampling → validation checks**: failed **population ceiling**, haul corridor, or node presence → regenerate candidate **landmass**; reject reasons inform tuning.
+- **Geography seed / history seed → world document**: same map with different **history log** when only **history seed** changes.
+- **Named region → culture engine**: **exchange** and **connectivity** pressures often differ by contiguous region cluster, not single-tile **biome**.
 - **Landmass → environmental pressure stack**: elevation, hydrology, and **climate** produce movement cost, visibility, connectivity, predictability, survival stress, and **resource profile** inputs.
 - **Environmental pressure stack → culture engine**: pressures run **WAAC cycles** that fill **six culture layers** per people; **exchange** modulates isolation vs synthesis.
 - **Culture engine → settlement simulation**: **survival strategy** and **resource profile** bias where people cluster (water, arable land, defensible **chokepoints**, junctions).
@@ -291,10 +344,22 @@ _Avoid_: “Save file” in UI copy when the artifact is author-facing; PNG-only
 - “The pass **chokepoint** explains the **vassal** fort; if we add a lowland road, **conditional loyalty** breaks because the **grain circle** bypasses them.”
 - “Run one **WAAC cycle** for the desert **environment** force before naming gods—wellkeepers are a **consequence**, not a aesthetic pick.”
 - “**Rivalry** here is trade denial on **salt**, not ‘evil neighbors’—check the **strategic resource** layer.”
+- “Same **geography seed**, new **history seed**—the delta’s still there; only the **faction** borders moved.”
+- “**Rejection sampling** dropped that map: capital over **population ceiling** with no **maritime reach**.”
 
 ## Landmass constraints (simulation inputs)
 
-Geography is not decorative: **landmass** stages must emit fields the **culture engine**, **settlement** placement, and **conflict engine** consume. Derived from logistics-first worldbuilding (playlist #05, #15–#18, #13).
+Geography is not decorative: **landmass pipeline** stages must emit fields the **culture engine**, **settlement** placement, and **conflict engine** consume. Logistics-first worldbuilding (playlist #05, #15–#18, #13); field-first terrain and rejection pattern informed by [Dwarf Fortress terrain research](./research/dwarf-fortress-terrain-notes.md).
+
+### Pipeline stages (canonical order)
+
+1. **Scalar fields** — elevation, temperature, rainfall (with rain shadow), drainage, salinity.
+2. **Derived geography** — **biomes**, erosion, river graph, lakes, coast navigability, mineral and **strategic resource** nodes.
+3. **Logistics pass** — **movement cost**, visibility, connectivity, **arable envelope**, **maritime reach**, natural threat zones.
+4. **Rejection sampling** — **validation checks**; regenerate on failure.
+5. **Downstream handoff** — **culture engine**, **settlement** nodes (choke, junction, surplus, refinery, **drain city**), **trade routes**, then **history log** (**epoch** ticks).
+
+Physical **landmass** completes before **history seed** simulation runs.
 
 ### Required geographic outputs
 
@@ -320,11 +385,15 @@ Interesting play locations tend to sit where pressures collide:
 
 ### Validation checks (world feels “read,” not invented)
 
+Used by **rejection sampling**; same role as Dwarf Fortress biome and feature quotas, but logistics-grounded:
+
 - No **population ceiling** violation: urban nodes fit their **arable envelope** and **haul** mode.
 - No impossible capitals: apex **settlements** sit on sea, river, or rich hinterland—not isolated peaks without **maritime reach**.
 - **Trade routes** follow low **movement cost** paths; long bulk hauls respect **ox paradox** unless **maritime reach** applies.
+- Viable haul corridors exist between arable zones and **drain city** candidates where params expect them.
 - **Political middle layer** aligns with **supply-chain feudalism** nodes, not random castles.
 - **Strategic resource** scarcity produces explainable **conflict engine** wants (salt wars, timber monopolies).
+- Resource-mismatch zones present where params expect interesting friction (fertile delta beside scarcity, rain-shadow dry belt).
 
 ## Flagged ambiguities
 
@@ -332,3 +401,5 @@ Interesting play locations tend to sit where pressures collide:
 - **Fantasy races** vs **culture**: playlist #14 argues species should diverge in cognition/biology; v1 **culture engine** may assume human-norm peoples unless a separate species layer is added later.
 - **Magic / industrial exceptions**: **ox paradox** and **population ceiling** assume pre-industrial logistics; teleportation, flying mounts, or preservation magic need explicit overrides or they break **supply-chain feudalism**.
 - **Map-first vs story-first**: playlist #05 warns against pretty maps before need; World Builder generates geography-first for simulation, but export should still answer “why is this port valuable?” like a journey-driven story map.
+- **Dwarf Fortress depth vs v1 scope**: DF history is full agent simulation; v1 **history log** may use lighter **epoch** ticks with stored **rivalry** causes—same “simulation log, not authored timeline” pattern, not necessarily DF agent count.
+- **DF research vs implementation**: terrain notes are conceptual; no requirement to match DF biomes, fantasy layers (good/evil, savagery), or rejection UX (hundreds of silent retries).

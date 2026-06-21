@@ -7,7 +7,7 @@
 - [Game Timer](./src/features/game-timer/CONTEXT.md) — Synchronized tabletop-style countdown timers for multiple players.
 - [Movie Vote](./src/features/movie-vote/CONTEXT.md) — Group movie nomination, ballots, and configurable standard voting methods (IRV, Borda, Condorcet, Copeland, …).
 - [Dungeon Runner](./src/features/dungeon-runner/CONTEXT.md) — Single-device deterministic card match vs AI opponents; completed **match** replays for later analysis.
-- [World Builder](./world-builder/CONTEXT.md) — Desktop procedural **worlds**: **landmass**, **culture engine**, logistics-bound **settlements** and **trade routes**, **history log** and **rivalry** (see [#293](https://github.com/enmaku/portfolio-site/issues/293)).
+- [World Builder](./world-builder/CONTEXT.md) — Desktop procedural **worlds**: **landmass pipeline**, **culture engine**, logistics-bound **settlements** and **trade routes**, **history log** and **rivalry** (see [#293](https://github.com/enmaku/portfolio-site/issues/293); terrain research: [DF notes](./world-builder/research/dwarf-fortress-terrain-notes.md)).
 
 ## Relationships
 
@@ -19,7 +19,7 @@
 - **Portfolio site ↔ sharing**: **Paste-unfurl eligible** routes are **shareable routes** with one **shared link summary** each; router, build, and runtime redirect read the **share metadata catalog** by `routePath` (no parallel share keys).
 - **Portfolio site ↔ Star-room P2P**: **Join links** live on canonical `/projects/…` paths with `room` query params; **public site origin** anchors absolute URLs when builds need a stable host.
 - **Dungeon Runner**: Local **match** play only (no star-room **room**); when a **match** reaches **match over**, a **completed match replay** may be archived remotely using the same Firebase project as multiplayer **projects** (write-only; no sync).
-- **World Builder**: Separate desktop app (not a portfolio **project** route); **culture engine** and logistics constraints inform simulation—no shared runtime with SPA **projects** in v1.
+- **World Builder**: Separate desktop app (not a portfolio **project** route); **landmass pipeline** (fields-first geography + **logistics pass**) and **culture engine** inform simulation—no shared runtime with SPA **projects** in v1. Research: [playlist](./world-builder/research/README.md), [Dwarf Fortress terrain notes](./world-builder/research/dwarf-fortress-terrain-notes.md).
 
 ## Sibling repositories
 
