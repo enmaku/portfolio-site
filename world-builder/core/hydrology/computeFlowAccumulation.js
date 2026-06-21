@@ -1,4 +1,9 @@
-import { isOceanCell } from '../fields/applyClosedIslandRim.js'
+import { SEA_LEVEL } from '../biomeIds.js'
+import {
+  canDrainIntoRimCell,
+  isOceanCell,
+  isRimCell,
+} from '../fields/applyClosedIslandRim.js'
 
 const D8_OFFSETS = [
   [-1, -1],
@@ -26,7 +31,7 @@ export function computeFlowAccumulation({
   elevation,
   width,
   height,
-  seaLevel,
+  seaLevel = SEA_LEVEL,
   meltContribution,
 }) {
   const cellCount = width * height
@@ -47,6 +52,9 @@ export function computeFlowAccumulation({
         const ny = y + D8_OFFSETS[d][1]
         if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
         const nIdx = ny * width + nx
+        if (isRimCell(nIdx, width, height) && !canDrainIntoRimCell(elevation[idx], seaLevel)) {
+          continue
+        }
         const drop = (elevation[idx] - elevation[nIdx]) / D8_DIST[d]
         if (drop > steepestDrop) {
           steepestDrop = drop

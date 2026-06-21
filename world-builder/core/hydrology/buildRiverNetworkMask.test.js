@@ -36,7 +36,7 @@ test('buildRiverNetworkMask marks a connected path on a gentle ramp', () => {
   for (let i = 0; i < mask.length; i += 1) {
     if (mask[i]) marked += 1
   }
-  assert.ok(marked > width)
+  assert.ok(marked > 0, 'expected at least one major river corridor on the ramp')
 
   for (let y = 1; y < height - 1; y += 1) {
     for (let x = 1; x < width - 1; x += 1) {
@@ -69,4 +69,101 @@ test('buildRiverNetworkMask excludes inland sinks that never reach the sea', () 
   })
 
   assert.strictEqual(mask[8 * width + 8], 0)
+})
+
+/**
+ * @param {number} width
+ * @param {number} height
+ */
+function makeParallelValleyTerrain(width, height) {
+  const elevation = new Float32Array(width * height)
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const idx = y * width + x
+      if (x >= width - 4) {
+        elevation[idx] = SEA_LEVEL - 0.1
+        continue
+      }
+      const ridge = 0.003 * Math.cos((2 * Math.PI * y) / 12)
+      elevation[idx] = SEA_LEVEL + 0.05 + ((width - x) / width) * 0.5 + ridge
+    }
+  }
+  return elevation
+}
+
+test('buildRiverNetworkMask consolidates parallel coastal outlets', () => {
+  const width = 128
+  const height = 128
+  const elevation = makeParallelValleyTerrain(width, height)
+  const ocean = isOceanCell(elevation, width, height)
+  const { flowDirection, flowAccumulation } = computeFlowAccumulation({
+    elevation,
+    width,
+    height,
+  })
+  const mask = buildRiverNetworkMask({
+    flowAccumulation,
+    flowDirection,
+    ocean,
+    width,
+    height,
+  })
+
+  let mouthCount = 0
+  for (let idx = 0; idx < mask.length; idx += 1) {
+    if (!mask[idx] || ocean[idx]) continue
+    const downstream = downstreamIndex(idx, width, flowDirection)
+    if (downstream >= 0 && ocean[downstream]) {
+      mouthCount += 1
+    }
+  }
+
+  assert.ok(
+    mouthCount < height / 16,
+    `expected consolidated mouths, got ${mouthCount}`,
+  )
+})
+
+test('buildRiverNetworkMask traces merged tributaries from a junction', () => {
+  const width = 32
+  const height = 32
+  const elevation = new Float32Array(width * height).fill(SEA_LEVEL - 0.1)
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 3; x += 1) {
+      const distToCoast = width - 4 - x
+      const distToCenterY = Math.abs(y - 16)
+      elevation[y * width + x] = SEA_LEVEL + 0.12 + distToCoast * 0.012 + distToCenterY * 0.008
+    }
+  }
+
+  const ocean = isOceanCell(elevation, width, height)
+  const { flowDirection, flowAccumulation } = computeFlowAccumulation({
+    elevation,
+    width,
+    height,
+  })
+  const mask = buildRiverNetworkMask({
+    flowAccumulation,
+    flowDirection,
+    ocean,
+    width,
+    height,
+  })
+
+  let markedUpper = 0
+  let markedLower = 0
+  for (let y = 1; y < 16; y += 1) {
+    for (let x = 8; x < 26; x += 1) {
+      if (mask[y * width + x]) markedUpper += 1
+    }
+  }
+  for (let y = 17; y < height - 1; y += 1) {
+    for (let x = 8; x < 26; x += 1) {
+      if (mask[y * width + x]) markedLower += 1
+    }
+  }
+
+  assert.ok(markedUpper > 0, 'expected upper tributary corridor')
+  assert.ok(markedLower > 0, 'expected lower tributary corridor')
 })

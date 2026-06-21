@@ -220,6 +220,26 @@ export function riverDisplayFlowCutoffForGrid(gridSize) {
 }
 
 /**
+ * Coastal radius within which only the largest river mouth is kept visible.
+ * Suppresses parallel finger outlets that never merged in flow accumulation.
+ * @param {number} gridSize
+ */
+export function coastalMouthMergeRadiusForGrid(gridSize) {
+  return Math.max(12, Math.round(scaleForGridSize(96, gridSize)))
+}
+
+/**
+ * Minimum mouth flow before fanning delta distributaries along the coast.
+ * @param {number} gridSize
+ */
+export function deltaFlowCutoffForGrid(gridSize) {
+  return Math.max(
+    sourceFlowCutoffForGrid(gridSize),
+    Math.round(navigableFlowCutoffForGrid(gridSize) * 0.45),
+  )
+}
+
+/**
  * @param {number} gridSize
  */
 export function minLakeAreaForGrid(gridSize) {
