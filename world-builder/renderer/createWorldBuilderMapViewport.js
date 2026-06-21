@@ -1,5 +1,6 @@
 import { biomeIndicesToRgba } from './biomeIndicesToRgba.js'
 import { BIOMES } from '../core/biomeIds.js'
+import { riverCorridorRadiusForDrainage } from '../core/hydrology/riverCorridorDisplay.js'
 import { buildTopographyContourCanvas } from './buildTopographyContourCanvas.js'
 
 /**
@@ -258,6 +259,21 @@ function drawOverlays(overlay, worldDocument) {
         overlay.rect(x, y, 1, 1)
         overlay.fill({ color: 0x3a8fd9, alpha: 0.25 })
       }
+    }
+  }
+
+  if (worldDocument.riverNetworkMask && worldDocument.fields?.drainage) {
+    const { gridWidth, riverNetworkMask, fields } = worldDocument
+    const { drainage } = fields
+    for (let i = 0; i < riverNetworkMask.length; i += 1) {
+      if (!riverNetworkMask[i]) continue
+      const radius = riverCorridorRadiusForDrainage(drainage[i])
+      const extent = radius * 2 + 1
+      const x = i % gridWidth
+      const y = Math.floor(i / gridWidth)
+      const alpha = 0.25 + drainage[i] * 0.35
+      overlay.rect(x - radius, y - radius, extent, extent)
+      overlay.fill({ color: 0x4fc3f7, alpha })
     }
   }
 }

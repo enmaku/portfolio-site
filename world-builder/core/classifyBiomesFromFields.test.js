@@ -64,7 +64,7 @@ test('classifyBiomesWithHydrology applies lake mask over land biomes', () => {
   assert.strictEqual(biomes[5], BIOMES.FRESHWATER_LAKE)
 })
 
-test('classifyBiomesWithHydrology applies river corridor with one-cell buffer', () => {
+test('classifyBiomesWithHydrology applies flow-weighted river corridor width', () => {
   const width = 5
   const height = 5
   const fields = {

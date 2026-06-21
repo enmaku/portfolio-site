@@ -18,6 +18,7 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   rainfallFrequencyScale: 1,
   navigableFlowCutoffScale: 1,
   minLakeAreaScale: 1,
+  soilDrainageScale: 0.75,
   maxSaltNodes: 12,
 }
 

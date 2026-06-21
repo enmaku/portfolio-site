@@ -24,7 +24,7 @@ export const BIOMES_COUNT = 16
 export const SEA_LEVEL = 0.38
 
 /** Normalized elevation at or above which cold cells gain a snow cap (glacier). */
-export const SNOW_CAP_ELEVATION_MIN = 0.82
+export const SNOW_CAP_ELEVATION_MIN = 0.74
 
 /** Normalized temperature at or below which high cells gain a snow cap (glacier). */
 export const SNOW_CAP_TEMPERATURE_MAX = 0.28

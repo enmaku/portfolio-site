@@ -145,6 +145,15 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         testId: 'world-builder-control-flow-cutoff',
       },
       {
+        key: 'soilDrainageScale',
+        label: 'Soil drainage',
+        kind: 'slider',
+        min: 0.2,
+        max: 2,
+        step: 0.05,
+        testId: 'world-builder-control-soil-drainage',
+      },
+      {
         key: 'minLakeAreaScale',
         label: 'Minimum lake size',
         kind: 'slider',

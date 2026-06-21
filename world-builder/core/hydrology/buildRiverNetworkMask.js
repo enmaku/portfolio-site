@@ -3,7 +3,6 @@ import {
   deltaFlowCutoffForGrid,
   riverDisplayFlowCutoffForGrid,
   scaleForGridSize,
-  sourceFlowCutoffForGrid,
 } from '../types.js'
 import { downstreamIndex } from './computeFlowAccumulation.js'
 
@@ -18,6 +17,7 @@ import { downstreamIndex } from './computeFlowAccumulation.js'
  * @param {number} params.width
  * @param {number} params.height
  * @param {Uint8Array} [params.lakeMask]
+ * @param {Float32Array} [params.meltContribution]
  * @param {number} [params.navigableFlowCutoffScale]
  * @returns {Uint8Array}
  */
@@ -28,16 +28,13 @@ export function buildRiverNetworkMask({
   width,
   height,
   lakeMask,
+  meltContribution,
   navigableFlowCutoffScale = 1,
 }) {
   const cellCount = width * height
   const tributaryCutoff = Math.max(
     2,
     Math.round(riverDisplayFlowCutoffForGrid(width) * navigableFlowCutoffScale),
-  )
-  const mouthCutoff = Math.max(
-    2,
-    Math.round(sourceFlowCutoffForGrid(width) * navigableFlowCutoffScale),
   )
   const deltaCutoff = Math.max(
     2,
@@ -76,7 +73,7 @@ export function buildRiverNetworkMask({
     flowAccumulation,
     width,
     mergeRadius,
-    mouthCutoff,
+    tributaryCutoff,
   )
 
   for (const outletIdx of majorMouths) {
@@ -102,6 +99,20 @@ export function buildRiverNetworkMask({
     if (downstream >= 0 && lakeMask?.[downstream]) {
       mask[downstream] = 1
     }
+  }
+
+  if (meltContribution) {
+    const meltHeadwaterCutoff = Math.max(2, Math.round(tributaryCutoff * 0.2))
+    traceMeltSourcedCorridors({
+      meltContribution,
+      mask,
+      flowAccumulation,
+      upstream,
+      flowDirection,
+      ocean,
+      width,
+      minBranchFlow: meltHeadwaterCutoff,
+    })
   }
 
   return mask
@@ -267,5 +278,34 @@ function markDownstreamToOcean(startIdx, mask, flowDirection, ocean, width, maxS
     const downstream = downstreamIndex(current, width, flowDirection)
     if (downstream < 0) break
     current = downstream
+  }
+}
+
+/**
+ * @param {Object} params
+ * @param {Float32Array} params.meltContribution
+ * @param {Uint8Array} params.mask
+ * @param {Float32Array} params.flowAccumulation
+ * @param {number[][]} params.upstream
+ * @param {Int16Array} params.flowDirection
+ * @param {boolean[]} params.ocean
+ * @param {number} params.width
+ * @param {number} params.minBranchFlow
+ */
+function traceMeltSourcedCorridors({
+  meltContribution,
+  mask,
+  flowAccumulation,
+  upstream,
+  flowDirection,
+  ocean,
+  width,
+  minBranchFlow,
+}) {
+  for (let idx = 0; idx < meltContribution.length; idx += 1) {
+    if (meltContribution[idx] <= 0 || ocean[idx]) continue
+    mask[idx] = 1
+    traceRiverUpstream(idx, mask, flowAccumulation, upstream, minBranchFlow)
+    markDownstreamToOcean(idx, mask, flowDirection, ocean, width, meltContribution.length)
   }
 }

@@ -25,6 +25,8 @@ const D8_DIST = [1.414, 1, 1.414, 1, 1, 1.414, 1, 1.414]
  * @param {number} params.height
  * @param {number} [params.seaLevel]
  * @param {Float32Array} [params.meltContribution] extra flow units per land cell (e.g. snow melt)
+ * @param {Float32Array} [params.soilDrainage] permeability field in [0, 1]
+ * @param {number} [params.soilDrainageScale]
  * @returns {{ flowDirection: Int16Array, flowAccumulation: Float32Array, ocean: boolean[] }}
  */
 export function computeFlowAccumulation({
@@ -33,6 +35,8 @@ export function computeFlowAccumulation({
   height,
   seaLevel = SEA_LEVEL,
   meltContribution,
+  soilDrainage,
+  soilDrainageScale = 1,
 }) {
   const cellCount = width * height
   const ocean = isOceanCell(elevation, width, height, seaLevel)
@@ -97,7 +101,17 @@ export function computeFlowAccumulation({
     const nx = x + D8_OFFSETS[dir][0]
     const ny = y + D8_OFFSETS[dir][1]
     const downstream = ny * width + nx
-    flowAccumulation[downstream] += flowAccumulation[idx]
+    const localFlow = 1 + (meltContribution?.[idx] ?? 0)
+    const inheritedFlow = flowAccumulation[idx] - localFlow
+    let downstreamContribution = inheritedFlow + localFlow
+    if (soilDrainage) {
+      const infiltration = Math.min(
+        0.8,
+        Math.max(0, soilDrainage[idx]) * 0.55 * soilDrainageScale,
+      )
+      downstreamContribution = inheritedFlow + localFlow * (1 - infiltration)
+    }
+    flowAccumulation[downstream] += downstreamContribution
 
     inDegree[downstream] -= 1
     if (inDegree[downstream] === 0 && !ocean[downstream]) {

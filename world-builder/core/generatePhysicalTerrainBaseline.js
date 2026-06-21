@@ -32,7 +32,7 @@ export function generatePhysicalTerrainBaseline(params) {
     prevailingWindDegrees,
     options,
   })
-  const drainage = generateDrainage({ geographySeed, width, height })
+  const drainage = generateDrainage({ geographySeed, width, height, options })
   const salidity = deriveSalidityFromOcean({ elevation, width, height })
 
   const fields = { elevation, temperature, rainfall, drainage, salidity }

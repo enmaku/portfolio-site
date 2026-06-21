@@ -109,6 +109,7 @@
  * @property {RiverGraph=} riverGraph
  * @property {LakeRecord[]=} lakes
  * @property {Uint8Array=} lakeMask
+ * @property {Uint8Array=} riverNetworkMask
  * @property {Float32Array=} coastNavigability
  * @property {CoastalNode[]=} coastalNodes
  * @property {SaltNode[]=} saltNodes
@@ -131,6 +132,7 @@
  * @property {number} rainfallFrequencyScale
  * @property {number} navigableFlowCutoffScale
  * @property {number} minLakeAreaScale
+ * @property {number} soilDrainageScale
  * @property {number} maxSaltNodes
  */
 
@@ -191,14 +193,16 @@ export function scaleForGridSize(value, gridSize) {
 }
 
 /**
- * Flow accumulation scales with catchment area, so cutoffs must scale quadratically.
+ * Flow cutoffs scale with grid width so a fixed fraction of the map can qualify
+ * as major drainage at any resolution. Linear scaling matches how mouth flow grows
+ * with coast length; quadratic cutoffs at 1024² made tributaries vanish.
  * @param {number} gridSize
  */
 export function navigableFlowCutoffForGrid(gridSize) {
-  const scale = gridSize / REFERENCE_GRID_SIZE
+  const linearScale = gridSize / REFERENCE_GRID_SIZE
   return Math.max(
     REFERENCE_NAVIGABLE_FLOW_CUTOFF,
-    Math.round(REFERENCE_NAVIGABLE_FLOW_CUTOFF * scale * scale),
+    Math.round(REFERENCE_NAVIGABLE_FLOW_CUTOFF * linearScale),
   )
 }
 

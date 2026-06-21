@@ -1,4 +1,5 @@
 import { BIOMES, SEA_LEVEL, SNOW_CAP_ELEVATION_MIN, SNOW_CAP_TEMPERATURE_MAX } from './biomeIds.js'
+import { buildFlowWeightedRiverCorridorMask } from './hydrology/riverCorridorDisplay.js'
 
 /**
  * @typedef {Object} FieldSample
@@ -124,7 +125,12 @@ export function classifyBiomesFromFields(fields, width, height, seaLevel = SEA_L
 export function classifyBiomesWithHydrology(fields, width, height, hydrology, seaLevel = SEA_LEVEL) {
   const biomes = classifyBiomesFromFields(fields, width, height, seaLevel)
   const { lakeMask, riverCorridorMask } = hydrology
-  const corridorMask = dilateMask(riverCorridorMask, width, height, 1)
+  const corridorMask = buildFlowWeightedRiverCorridorMask(
+    riverCorridorMask,
+    fields.drainage,
+    width,
+    height,
+  )
 
   for (let i = 0; i < biomes.length; i += 1) {
     if (lakeMask[i]) {
@@ -135,29 +141,4 @@ export function classifyBiomesWithHydrology(fields, width, height, hydrology, se
   }
 
   return biomes
-}
-
-/**
- * @param {Uint8Array} mask
- * @param {number} width
- * @param {number} height
- * @param {number} radius
- */
-function dilateMask(mask, width, height, radius) {
-  const out = new Uint8Array(mask.length)
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const idx = y * width + x
-      if (!mask[idx]) continue
-      for (let dy = -radius; dy <= radius; dy += 1) {
-        for (let dx = -radius; dx <= radius; dx += 1) {
-          const nx = x + dx
-          const ny = y + dy
-          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-          out[ny * width + nx] = 1
-        }
-      }
-    }
-  }
-  return out
 }

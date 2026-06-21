@@ -167,6 +167,7 @@ export function buildWorldDocumentFromPipelineState(state) {
     riverGraph: state.riverGraph ?? undefined,
     lakes: state.lakes ?? undefined,
     lakeMask: state.lakeMask ?? undefined,
+    riverNetworkMask: state.riverNetworkMask ?? undefined,
     coastNavigability: state.coastNavigability ?? undefined,
     coastalNodes: state.coastalNodes ?? undefined,
     saltNodes: state.saltNodes ?? undefined,
@@ -275,13 +276,17 @@ function runHydrologyStep(state) {
     snowCapMask,
     width,
     height,
+    prevailingWindDegrees: state.prevailingWindDegrees,
   })
+  const soilDrainage = state.baselineDoc?.fields.drainage ?? state.fields?.drainage
   const { flowDirection, flowAccumulation, ocean: lakeOcean } = computeFlowAccumulation({
     elevation: filledElevation,
     width,
     height,
     seaLevel: state.options.seaLevel,
     meltContribution,
+    soilDrainage,
+    soilDrainageScale: state.options.soilDrainageScale,
   })
   const drainage = deriveDrainageFromFlow(flowAccumulation)
   const riverGraph = buildRiverGraph({
@@ -301,6 +306,7 @@ function runHydrologyStep(state) {
     lakeMask,
     width,
     height,
+    meltContribution,
     navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
   })
   const previewFields = {
@@ -447,6 +453,7 @@ export function cloneWorldDocument(doc) {
     fields,
     biomes: new Uint8Array(doc.biomes),
     lakeMask: doc.lakeMask ? new Uint8Array(doc.lakeMask) : undefined,
+    riverNetworkMask: doc.riverNetworkMask ? new Uint8Array(doc.riverNetworkMask) : undefined,
     coastNavigability: doc.coastNavigability
       ? new Float32Array(doc.coastNavigability)
       : undefined,

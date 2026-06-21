@@ -51,3 +51,34 @@ test('coastal lowland adjacent to closed rim can drain into map-edge ocean', () 
 
   assert.strictEqual(downstream, 8 * width)
 })
+
+test('high soil drainage reduces downstream flow along a slope', () => {
+  const width = 16
+  const height = 3
+  const elevation = new Float32Array(width * height).fill(0.5)
+  for (let x = 2; x < width - 2; x += 1) {
+    elevation[1 * width + x] = 0.9 - (x - 2) * 0.04
+  }
+
+  const cellCount = width * height
+  const lowDrainage = new Float32Array(cellCount).fill(0.1)
+  const highDrainage = new Float32Array(cellCount).fill(0.95)
+  const mouthIdx = 1 * width + (width - 3)
+
+  const lowFlow = computeFlowAccumulation({
+    elevation,
+    width,
+    height,
+    soilDrainage: lowDrainage,
+    soilDrainageScale: 1,
+  }).flowAccumulation[mouthIdx]
+  const highFlow = computeFlowAccumulation({
+    elevation,
+    width,
+    height,
+    soilDrainage: highDrainage,
+    soilDrainageScale: 1,
+  }).flowAccumulation[mouthIdx]
+
+  assert.ok(highFlow < lowFlow)
+})

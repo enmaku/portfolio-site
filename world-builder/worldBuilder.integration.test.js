@@ -45,6 +45,7 @@ test('world builder generation controls include wind slider test id', () => {
   )
   assert.strictEqual(controls.includes('world-builder-wind-slider'), true)
   assert.strictEqual(controls.includes('world-builder-control-sea-level'), true)
+  assert.strictEqual(controls.includes('world-builder-control-soil-drainage'), true)
 })
 
 test('world builder page wires derived pipeline, lazy renderer, and control test ids', () => {

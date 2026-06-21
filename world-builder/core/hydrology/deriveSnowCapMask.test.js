@@ -61,8 +61,62 @@ test('deriveSnowMeltContribution skips interior snow-cap cells', () => {
   })
 
   assert.strictEqual(melt[2 * width + 2], 0)
-  assert.ok(melt[1 * width + 2] > 0)
-  assert.ok(melt[2 * width + 1] > 0)
+  const meltOutletCount = melt.filter((value, idx) => value > 0 && snowCapMask[idx]).length
+  assert.ok(meltOutletCount > 0)
+  assert.ok(meltOutletCount < 8)
+})
+
+test('deriveSnowMeltContribution favors leeward cap edges for outlet placement', () => {
+  const width = 9
+  const height = 9
+  const elevation = new Float32Array(width * height).fill(0.4)
+  const temperature = new Float32Array(width * height).fill(0.5)
+  const snowCapMask = new Uint8Array(width * height)
+  for (let y = 2; y < 7; y += 1) {
+    for (let x = 2; x < 7; x += 1) {
+      const idx = y * width + x
+      elevation[idx] = SNOW_CAP_ELEVATION_MIN + 0.08
+      temperature[idx] = SNOW_CAP_TEMPERATURE_MAX - 0.05
+      snowCapMask[idx] = 1
+    }
+  }
+
+  const eastWindMelt = deriveSnowMeltContribution({
+    elevation,
+    temperature,
+    snowCapMask,
+    width,
+    height,
+    prevailingWindDegrees: 90,
+  })
+  const westWindMelt = deriveSnowMeltContribution({
+    elevation,
+    temperature,
+    snowCapMask,
+    width,
+    height,
+    prevailingWindDegrees: 270,
+  })
+
+  let eastWindLeft = 0
+  let westWindLeft = 0
+  for (let y = 2; y < 7; y += 1) {
+    for (let x = 2; x < 7; x += 1) {
+      const idx = y * width + x
+      if (!snowCapMask[idx] || eastWindMelt[idx] <= 0) continue
+      if (x <= 3) eastWindLeft += 1
+    }
+  }
+  for (let y = 2; y < 7; y += 1) {
+    for (let x = 2; x < 7; x += 1) {
+      const idx = y * width + x
+      if (!snowCapMask[idx] || westWindMelt[idx] <= 0) continue
+      if (x <= 3) westWindLeft += 1
+    }
+  }
+
+  assert.ok(eastWindLeft > 0, 'expected east wind to place outlets on leeward west edge')
+  assert.ok(westWindLeft < eastWindLeft, 'expected west wind to shift outlets away from west edge')
 })
 
 test('snow melt on a peak produces a river corridor downhill to the sea', () => {
