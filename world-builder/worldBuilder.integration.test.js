@@ -38,12 +38,12 @@ test('main layout desktop section links world builder in-tab with globe icon', (
   assert.strictEqual(mainLayout.includes('navigateInTab: true'), true)
 })
 
-test('world builder page wires pipeline, lazy renderer, and control test ids', () => {
+test('world builder page wires derived pipeline, lazy renderer, and control test ids', () => {
   const page = readFileSync(
     new URL('../src/pages/projects/WorldBuilderPage.vue', import.meta.url),
     'utf8',
   )
-  assert.strictEqual(page.includes('generatePhysicalTerrainBaseline'), true)
+  assert.strictEqual(page.includes('runDerivedGeographyInWorker'), true)
   assert.strictEqual(page.includes('worldBuilderPageModel'), true)
   assert.strictEqual(
     page.includes("import('@world-builder/renderer/createWorldBuilderMapViewport.js')"),
@@ -53,13 +53,16 @@ test('world builder page wires pipeline, lazy renderer, and control test ids', (
   assert.strictEqual(page.includes('data-testid="world-builder-seed-input"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-wind-slider"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-regenerate"'), true)
+  assert.strictEqual(page.includes('data-testid="world-builder-generation-report"'), true)
+  assert.strictEqual(page.includes('data-testid="world-builder-generation-replay"'), true)
+  assert.strictEqual(page.includes('data-testid="world-builder-generation-progress"'), true)
+  assert.match(page, /world-builder-generation-step-\$\{step\.id\}/)
+  assert.match(page, /world-builder-validation-row-\$\{row\.checkId\}/)
 })
 
-test('world builder core pipeline module is importable', async () => {
-  const { generatePhysicalTerrainBaseline } = await import(
-    './core/generatePhysicalTerrainBaseline.js'
-  )
-  const doc = generatePhysicalTerrainBaseline({
+test('world builder derived geography pipeline module is importable', async () => {
+  const { generateDerivedGeography } = await import('./core/generateDerivedGeography.js')
+  const doc = generateDerivedGeography({
     geographySeed: 1,
     prevailingWindDegrees: 45,
     width: 4,
@@ -67,4 +70,6 @@ test('world builder core pipeline module is importable', async () => {
   })
   assert.strictEqual(doc.gridWidth, 4)
   assert.strictEqual(doc.biomes.length, 16)
+  assert.strictEqual(doc.pipelineStage, 'derivedGeography')
+  assert.ok(doc.generationReport)
 })

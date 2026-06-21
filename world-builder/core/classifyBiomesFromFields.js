@@ -99,3 +99,59 @@ export function classifyBiomesFromFields(fields, width, height) {
 
   return biomes
 }
+
+/**
+ * Apply freshwater hydrology overlays after continental classification.
+ * @param {Object} fields
+ * @param {Float32Array} fields.elevation
+ * @param {Float32Array} fields.temperature
+ * @param {Float32Array} fields.rainfall
+ * @param {Float32Array} fields.drainage
+ * @param {Float32Array} fields.salidity
+ * @param {number} width
+ * @param {number} height
+ * @param {Object} hydrology
+ * @param {Uint8Array} hydrology.lakeMask
+ * @param {Uint8Array} hydrology.riverCorridorMask
+ * @returns {Uint8Array}
+ */
+export function classifyBiomesWithHydrology(fields, width, height, hydrology) {
+  const biomes = classifyBiomesFromFields(fields, width, height)
+  const { lakeMask, riverCorridorMask } = hydrology
+  const corridorMask = dilateMask(riverCorridorMask, width, height, 1)
+
+  for (let i = 0; i < biomes.length; i += 1) {
+    if (lakeMask[i]) {
+      biomes[i] = BIOMES.FRESHWATER_LAKE
+    } else if (corridorMask[i]) {
+      biomes[i] = BIOMES.RIVER_CORRIDOR
+    }
+  }
+
+  return biomes
+}
+
+/**
+ * @param {Uint8Array} mask
+ * @param {number} width
+ * @param {number} height
+ * @param {number} radius
+ */
+function dilateMask(mask, width, height, radius) {
+  const out = new Uint8Array(mask.length)
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const idx = y * width + x
+      if (!mask[idx]) continue
+      for (let dy = -radius; dy <= radius; dy += 1) {
+        for (let dx = -radius; dx <= radius; dx += 1) {
+          const nx = x + dx
+          const ny = y + dy
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+          out[ny * width + nx] = 1
+        }
+      }
+    }
+  }
+  return out
+}

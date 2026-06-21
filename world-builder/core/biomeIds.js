@@ -14,9 +14,11 @@ export const BIOMES = {
   HILLS: 11,
   MOUNTAIN: 12,
   GLACIER: 13,
+  FRESHWATER_LAKE: 14,
+  RIVER_CORRIDOR: 15,
 }
 
-export const BIOMES_COUNT = 14
+export const BIOMES_COUNT = 16
 
 /** Normalized elevation below this value is ocean. */
 export const SEA_LEVEL = 0.38

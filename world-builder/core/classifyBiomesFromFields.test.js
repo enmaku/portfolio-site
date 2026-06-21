@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from './biomeIds.js'
-import { classifyBiomeFromSample } from './classifyBiomesFromFields.js'
+import { classifyBiomeFromSample, classifyBiomesWithHydrology } from './classifyBiomesFromFields.js'
 
 const cases = [
   {
@@ -41,3 +41,48 @@ for (const row of cases) {
     assert.strictEqual(classifyBiomeFromSample(row.sample), row.expected)
   })
 }
+
+test('classifyBiomesWithHydrology applies lake mask over land biomes', () => {
+  const width = 4
+  const height = 4
+  const fields = {
+    elevation: new Float32Array(16).fill(0.55),
+    temperature: new Float32Array(16).fill(0.5),
+    rainfall: new Float32Array(16).fill(0.5),
+    drainage: new Float32Array(16).fill(0.5),
+    salidity: new Float32Array(16).fill(0.1),
+  }
+  const lakeMask = new Uint8Array(16)
+  lakeMask[5] = 1
+  const riverCorridorMask = new Uint8Array(16)
+
+  const biomes = classifyBiomesWithHydrology(fields, width, height, {
+    lakeMask,
+    riverCorridorMask,
+  })
+
+  assert.strictEqual(biomes[5], BIOMES.FRESHWATER_LAKE)
+})
+
+test('classifyBiomesWithHydrology applies river corridor with one-cell buffer', () => {
+  const width = 5
+  const height = 5
+  const fields = {
+    elevation: new Float32Array(25).fill(0.55),
+    temperature: new Float32Array(25).fill(0.5),
+    rainfall: new Float32Array(25).fill(0.5),
+    drainage: new Float32Array(25).fill(0.5),
+    salidity: new Float32Array(25).fill(0.1),
+  }
+  const lakeMask = new Uint8Array(25)
+  const riverCorridorMask = new Uint8Array(25)
+  riverCorridorMask[12] = 1
+
+  const biomes = classifyBiomesWithHydrology(fields, width, height, {
+    lakeMask,
+    riverCorridorMask,
+  })
+
+  assert.strictEqual(biomes[12], BIOMES.RIVER_CORRIDOR)
+  assert.strictEqual(biomes[11], BIOMES.RIVER_CORRIDOR)
+})

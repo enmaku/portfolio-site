@@ -16,4 +16,6 @@ export const BIOMES_CATALOG = [
   { id: BIOMES.HILLS, label: 'Hills' },
   { id: BIOMES.MOUNTAIN, label: 'Mountain' },
   { id: BIOMES.GLACIER, label: 'Glacier' },
+  { id: BIOMES.FRESHWATER_LAKE, label: 'Freshwater lake' },
+  { id: BIOMES.RIVER_CORRIDOR, label: 'River corridor' },
 ]
