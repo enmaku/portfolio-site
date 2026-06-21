@@ -118,15 +118,19 @@ _Avoid_: “Manual game”; implying custom entries are second-class for **play 
 
 ### Session score
 
-Final numeric result for each **present player** at the end of a **play session**—entered manually by the **account owner**.
+Outcome data for a **play session**, entered manually by the **account owner**—always optional. Shape depends on **score entry mode**: per-**present player** numbers in **competitive** mode, one shared team number in **cooperative** mode, or per-player win/loss/tie in **win_loss** mode. Numeric scores may be negative (e.g. games where points below zero are normal).
 
-_Avoid_: Game-specific scoring rules or automatic score calculation in v1.
+_Avoid_: Game-specific scoring rules or automatic score calculation in v1; requiring scores to save or finish a **play session**.
 
 ### Score entry mode
 
-Manual choices at the end of a **play session** describing how results should be interpreted—e.g. competitive totals, cooperative shared scoring, or win/loss without points. Configured when entering scores, not baked into the **collection** item.
+How **session score** for a **play session** should be interpreted—chosen when entering scores, not baked into the **collection** item. v1 has exactly three modes:
 
-_Avoid_: “Scoring system”, “rules engine”; implying the app knows how each board game is scored.
+- **competitive** — one optional numeric **session score** per **present player** (negative values allowed).
+- **cooperative** — one optional shared team numeric **session score** for the group (negative values allowed).
+- **win_loss** — optional win, loss, or tie per **present player** (no numeric score).
+
+_Avoid_: “Scoring system”, “rules engine”; per-game presets; a fourth mode; implying the app knows how each board game is scored.
 
 ### Timer leg
 
@@ -232,7 +236,7 @@ Removing a **play session** from the **account owner’s** records so it no long
 - In v1, the **account owner** owns all manager data; **saved players** are the canonical roster; starting a **play session** means selecting **present players** from that roster and/or **one-off guests**, then choosing a game from the **collection**.
 - Each **play session** records one game in one sitting; multiple games in an evening are multiple **play sessions**.
 - **Collection** is **catalog-first** via the **BoardGameGeek** **catalog** (with **catalog attribution**); **custom collection entries** allowed when no match suffices.
-- **Play session** outcomes use **session score** per **present player** with a manual **score entry mode** (competitive, cooperative, win/loss-only, etc.) chosen at entry time—not per-game rules in v1.
+- **Play session** outcomes may include **session score** with a manual **score entry mode** (`competitive`, `cooperative`, or `win_loss`) chosen at entry time—scores are optional and numeric scores may be negative; not per-game rules in v1.
 - A **play session** may include an optional **timer leg** via a **manager-linked timer**; otherwise scores are entered without timer data.
 - **Game end** in a **manager-linked timer** exports the final **snapshot** back to the **play session**; handoff mechanics are implementation detail.
 - v1 **statistics** are **session-derived basics** only; deeper **statistics** deferred to a future **desktop project shell**.
