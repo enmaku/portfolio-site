@@ -2,6 +2,7 @@
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 
 import { defineConfig } from '#q-app/wrappers'
+import { fileURLToPath } from 'node:url'
 
 /** Public path for assets/router. CI sets `GH_PAGES_BASE` (root `/` for custom domain; `/<repo>/` only for github.io without a custom domain). */
 const pagesBase = process.env.GH_PAGES_BASE || '/'
@@ -74,6 +75,11 @@ export default defineConfig((/* ctx */) => {
           : viteConf.server.watch.ignored
             ? [viteConf.server.watch.ignored]
             : []
+        viteConf.resolve ??= {}
+        viteConf.resolve.alias ??= {}
+        viteConf.resolve.alias['@world-builder'] = fileURLToPath(
+          new URL('./world-builder', import.meta.url),
+        )
         viteConf.server.watch.ignored = [
           ...ignored,
           '**/.venv*/**',

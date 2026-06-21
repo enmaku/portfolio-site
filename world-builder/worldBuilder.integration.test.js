@@ -18,31 +18,53 @@ test('world builder route is a MainLayout child', () => {
 
 test('world builder route is not under ProjectShellLayout', () => {
   const shellRoute = routes.find((entry) => entry.path === '/projects/world-builder')
-  assert.equal(shellRoute, undefined)
+  assert.strictEqual(shellRoute, undefined)
 })
 
 test('world builder share catalog row is paste-unfurl eligible', () => {
   const entry = getShareEntryForPath(WORLD_BUILDER_PATH)
   assert.ok(entry)
-  assert.equal(entry.pasteUnfurl, true)
-  assert.equal(entry.title, 'World Builder')
-  assert.equal(entry.title.includes('—'), false)
-  assert.equal(PASTE_UNFURL_ROUTES.some((row) => row.routePath === WORLD_BUILDER_PATH), true)
+  assert.strictEqual(entry.pasteUnfurl, true)
+  assert.strictEqual(entry.title, 'World Builder')
+  assert.strictEqual(entry.title.includes('—'), false)
+  assert.strictEqual(PASTE_UNFURL_ROUTES.some((row) => row.routePath === WORLD_BUILDER_PATH), true)
 })
 
 test('main layout desktop section links world builder in-tab with globe icon', () => {
   const mainLayout = readFileSync(new URL('../src/layouts/MainLayout.vue', import.meta.url), 'utf8')
-  assert.equal(mainLayout.includes(`'${WORLD_BUILDER_PATH}'`), true)
-  assert.equal(mainLayout.includes("'World Builder'"), true)
-  assert.equal(mainLayout.includes("'public'"), true)
-  assert.equal(mainLayout.includes('navigateInTab: true'), true)
+  assert.strictEqual(mainLayout.includes(`'${WORLD_BUILDER_PATH}'`), true)
+  assert.strictEqual(mainLayout.includes("'World Builder'"), true)
+  assert.strictEqual(mainLayout.includes("'public'"), true)
+  assert.strictEqual(mainLayout.includes('navigateInTab: true'), true)
 })
 
-test('world builder page is a blank portfolio shell surface', () => {
+test('world builder page wires pipeline, lazy renderer, and control test ids', () => {
   const page = readFileSync(
     new URL('../src/pages/projects/WorldBuilderPage.vue', import.meta.url),
     'utf8',
   )
-  assert.equal(page.includes('World Builder'), true)
-  assert.equal(page.includes('q-page'), true)
+  assert.strictEqual(page.includes('generatePhysicalTerrainBaseline'), true)
+  assert.strictEqual(page.includes('worldBuilderPageModel'), true)
+  assert.strictEqual(
+    page.includes("import('@world-builder/renderer/createWorldBuilderMapViewport.js')"),
+    true,
+  )
+  assert.strictEqual(page.includes('data-testid="world-builder-map-host"'), true)
+  assert.strictEqual(page.includes('data-testid="world-builder-seed-input"'), true)
+  assert.strictEqual(page.includes('data-testid="world-builder-wind-slider"'), true)
+  assert.strictEqual(page.includes('data-testid="world-builder-regenerate"'), true)
+})
+
+test('world builder core pipeline module is importable', async () => {
+  const { generatePhysicalTerrainBaseline } = await import(
+    './core/generatePhysicalTerrainBaseline.js'
+  )
+  const doc = generatePhysicalTerrainBaseline({
+    geographySeed: 1,
+    prevailingWindDegrees: 45,
+    width: 4,
+    height: 4,
+  })
+  assert.strictEqual(doc.gridWidth, 4)
+  assert.strictEqual(doc.biomes.length, 16)
 })
