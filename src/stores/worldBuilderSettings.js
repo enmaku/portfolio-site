@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 import { resolveWorldGenerationOptions } from '@world-builder/core/worldGenerationOptions.js'
 import {
   createControlsStateForSeed,
+  createDefaultGenerationSettings,
   createDefaultGenerationOptions,
   createRandomGeographySeed,
   normalizeGeographySeed,
@@ -75,6 +76,13 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
         ...this.generationOptions,
         [key]: value,
       }
+    },
+
+    resetToDefaults() {
+      ensureGeographySeedInitialized(this)
+      const defaults = createDefaultGenerationSettings(this.geographySeed)
+      this.prevailingWindDegrees = defaults.prevailingWindDegrees
+      this.generationOptions = defaults.generationOptions
     },
   },
 })

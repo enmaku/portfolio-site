@@ -1,11 +1,46 @@
 import { derivePrevailingWindFromSeed } from './core/derivePrevailingWindFromSeed.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.js'
 
+/** Default geography seed for generation controls and reset. */
+export const DEFAULT_GEOGRAPHY_SEED = 0
+
 /**
  * @returns {import('./core/types.js').WorldGenerationOptions}
  */
 export function createDefaultGenerationOptions() {
   return { ...DEFAULT_WORLD_GENERATION_OPTIONS }
+}
+
+/**
+ * @returns {{
+ *   geographySeed: number,
+ *   prevailingWindDegrees: number,
+ *   generationOptions: import('./core/types.js').WorldGenerationOptions,
+ * }}
+ */
+export function createDefaultControlsState() {
+  const { geographySeed, prevailingWindDegrees } = createControlsStateForSeed(DEFAULT_GEOGRAPHY_SEED)
+  return {
+    geographySeed,
+    prevailingWindDegrees,
+    generationOptions: createDefaultGenerationOptions(),
+  }
+}
+
+/**
+ * Default generation sliders and seed-derived prevailing wind; geography seed unchanged.
+ * @param {number} geographySeed
+ * @returns {{
+ *   prevailingWindDegrees: number,
+ *   generationOptions: import('./core/types.js').WorldGenerationOptions,
+ * }}
+ */
+export function createDefaultGenerationSettings(geographySeed) {
+  const { prevailingWindDegrees } = createControlsStateForSeed(geographySeed)
+  return {
+    prevailingWindDegrees,
+    generationOptions: createDefaultGenerationOptions(),
+  }
 }
 
 /**

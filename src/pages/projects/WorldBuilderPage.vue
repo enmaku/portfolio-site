@@ -93,6 +93,18 @@
               />
             </template>
           </q-input>
+          <q-btn
+            flat
+            dense
+            color="primary"
+            class="full-width q-mb-md"
+            data-testid="world-builder-reset-defaults"
+            aria-label="Reset generation settings to defaults"
+            :disable="isGenerating"
+            @click="resetToDefaults"
+          >
+            Reset to defaults
+          </q-btn>
           <q-expansion-item
             v-for="section in controlSections"
             :key="section.section"
@@ -369,6 +381,11 @@ function onSeedInputChange() {
 function randomizeSeed() {
   seedInput.value = String(createRandomGeographySeed())
   settingsStore.applySeed(seedInput.value)
+  regenerate()
+}
+
+function resetToDefaults() {
+  settingsStore.resetToDefaults()
   regenerate()
 }
 
