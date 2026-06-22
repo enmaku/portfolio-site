@@ -173,7 +173,7 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       },
       {
         key: 'riverMergeStrength',
-        label: 'River merge strength',
+        label: 'River tributary merge',
         kind: 'slider',
         min: 0,
         max: 2,

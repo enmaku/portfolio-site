@@ -154,6 +154,8 @@ export function buildFractalWaypoints({
  * @param {boolean} [params.downhillOnly]
  * @param {boolean} [params.preferDownhill]
  * @param {number} [params.uphillTolerance]
+ * @param {Uint8Array | null} [params.sketchMask]
+ * @param {number} [params.offSketchPenalty]
  * @returns {number[] | null}
  */
 export function findLeastResistancePath({
@@ -168,6 +170,8 @@ export function findLeastResistancePath({
   downhillOnly = false,
   preferDownhill = false,
   uphillTolerance = 0.00015,
+  sketchMask = null,
+  offSketchPenalty = 0.18,
 }) {
   const cellCount = width * height
   const goalX = toIdx % width
@@ -237,12 +241,17 @@ export function findLeastResistancePath({
           if (arriveDeg > 55) turnPenalty += 0.15
           else if (arriveDeg > 35) turnPenalty += 0.05
         }
+        let sketchPenalty = 0
+        if (sketchMask && !sketchMask[next]) {
+          sketchPenalty = offSketchPenalty
+        }
         const tentative =
           gScore[current] +
           elevation[next] * stepLength +
           uphillPenalty +
           stepLength * 0.01 +
-          turnPenalty
+          turnPenalty +
+          sketchPenalty
         if (tentative >= gScore[next]) continue
 
         cameFrom[next] = current

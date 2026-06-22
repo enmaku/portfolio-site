@@ -25,9 +25,9 @@ import {
 } from './hydrology/deriveSnowCapMask.js'
 import { fillLakes } from './hydrology/fillLakes.js'
 import {
-  meanderAndSettleRivers,
+  refineRiverNetworkFromSketch,
   riverSettlementStepsForGrid,
-} from './hydrology/meanderAndSettleRivers.js'
+} from './hydrology/refineRiverNetwork.js'
 import { generateTemperature } from './fields/generateTemperature.js'
 import { placeSaltNodes } from './resources/placeSaltNodes.js'
 import {
@@ -319,12 +319,13 @@ function runHydrologyStep(state) {
       state.options.riverAttractionRadiusScale,
     ),
   })
-  const meandered = meanderAndSettleRivers({
-    riverNetworkMask,
+  const refined = refineRiverNetworkFromSketch({
+    sketchMask: riverNetworkMask,
     elevation: filledElevation,
     ocean: lakeOcean,
     flowDirection,
     flowAccumulation,
+    lakeMask,
     width,
     height,
     geographySeed: state.geographySeed,
@@ -336,10 +337,11 @@ function runHydrologyStep(state) {
     mergeStrength: state.options.riverMergeStrength,
     channelWear: state.options.erosionChannelWear * 0.85,
     seaLevel: state.options.seaLevel,
+    navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
   })
-  const settledElevation = meandered.elevation
+  const settledElevation = refined.elevation
   const settledRiverNetworkMask = connectNearbyRiverCorridors({
-    riverNetworkMask: meandered.riverNetworkMask,
+    riverNetworkMask: refined.riverNetworkMask,
     elevation: settledElevation,
     ocean: lakeOcean,
     width,
