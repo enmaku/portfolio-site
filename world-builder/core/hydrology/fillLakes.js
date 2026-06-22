@@ -1,8 +1,20 @@
 import { SEA_LEVEL } from '../biomeIds.js'
 import { minLakeAreaForGrid } from '../types.js'
+import { DEFAULT_BREACH_THRESHOLD } from '../worldGenerationOptions.js'
+import { priorityFloodFill } from './priorityFloodFill.js'
+
+const FILL_EPSILON = 1e-5
+const BREACH_EPSILON = 1e-4
+
+const D4_OFFSETS = [
+  [-1, 0],
+  [1, 0],
+  [0, -1],
+  [0, 1],
+]
 
 /**
- * Depression-fill lakes; ignore micro-basins below area cutoff.
+ * Depression-fill lakes via priority-flood, then hybrid breach-and-fill for closed basins.
  * @param {Object} params
  * @param {Float32Array} params.elevation
  * @param {number} params.width
@@ -10,86 +22,218 @@ import { minLakeAreaForGrid } from '../types.js'
  * @param {boolean[]} params.ocean
  * @param {number} [params.seaLevel]
  * @param {number} [params.minLakeAreaScale]
- * @returns {{ lakeMask: Uint8Array, lakes: import('../types.js').LakeRecord[], filledElevation: Float32Array }}
+ * @param {number} [params.breachThreshold]
+ * @returns {{
+ *   lakeMask: Uint8Array,
+ *   lakes: import('../types.js').LakeRecord[],
+ *   lakeMeta: import('../types.js').LakeMetaRecord[],
+ *   filledElevation: Float32Array,
+ *   spillOutlet: Int32Array,
+ *   breachCount: number,
+ *   endorheicCount: number,
+ * }}
  */
-export function fillLakes({ elevation, width, height, ocean, seaLevel = SEA_LEVEL, minLakeAreaScale = 1 }) {
+export function fillLakes({
+  elevation,
+  width,
+  height,
+  ocean,
+  seaLevel = SEA_LEVEL,
+  minLakeAreaScale = 1,
+  breachThreshold = DEFAULT_BREACH_THRESHOLD,
+}) {
   const cellCount = width * height
-  const filled = new Float32Array(elevation)
+  const { filledElevation, spillOutlet } = priorityFloodFill({
+    elevation,
+    width,
+    height,
+    ocean,
+    seaLevel,
+  })
   const lakeMask = new Uint8Array(cellCount)
   const lakes = []
+  const lakeMeta = []
   const minArea = Math.max(1, Math.round(minLakeAreaForGrid(width) * minLakeAreaScale))
   const processed = new Uint8Array(cellCount)
+  let breachCount = 0
+  let endorheicCount = 0
 
   for (let idx = 0; idx < cellCount; idx += 1) {
-    if (ocean[idx] || processed[idx] || !isDepressionCell(filled, ocean, width, height, idx)) {
+    if (ocean[idx] || processed[idx] || filledElevation[idx] <= elevation[idx] + FILL_EPSILON) {
       continue
     }
 
-    const basin = collectBasin(filled, ocean, processed, width, height, idx)
+    const basin = collectFilledBasin({
+      elevation,
+      filledElevation,
+      ocean,
+      processed,
+      width,
+      height,
+      startIdx: idx,
+    })
     if (basin.cells.length < minArea) continue
 
-    const spill = findSpillLevel(filled, ocean, basin.cells, width, height, seaLevel)
-    if (!spill) continue
+    const spillsToOcean = basinSpillsToOcean(basin.cells, spillOutlet, ocean)
+    const floorElev = basin.cells.reduce(
+      (min, cellIdx) => Math.min(min, elevation[cellIdx]),
+      Number.POSITIVE_INFINITY,
+    )
+    const pitCells = basin.cells.filter(
+      (cellIdx) => elevation[cellIdx] <= floorElev + FILL_EPSILON,
+    )
+    const { outletIdx, saddleElev, spillDepth } = findBasinSaddle(
+      pitCells.length > 0 ? pitCells : basin.cells,
+      elevation,
+      width,
+      height,
+    )
+    const surfaceElev =
+      outletIdx >= 0 ? saddleElev : basin.cells.reduce(
+        (max, cellIdx) => Math.max(max, filledElevation[cellIdx]),
+        Number.NEGATIVE_INFINITY,
+      )
+    const basinDepth = surfaceElev - floorElev
+    const spillRatio =
+      basinDepth > FILL_EPSILON && outletIdx >= 0 ? spillDepth / basinDepth : 0
+    const shouldBreach =
+      outletIdx >= 0 && !spillsToOcean && spillRatio <= breachThreshold + FILL_EPSILON
 
-    for (const cellIdx of basin.cells) {
-      if (filled[cellIdx] < spill.level) {
-        filled[cellIdx] = spill.level
+    if (shouldBreach) {
+      for (const cellIdx of basin.cells) {
+        filledElevation[cellIdx] = elevation[cellIdx]
+      }
+      filledElevation[outletIdx] = Math.min(floorElev, saddleElev) - BREACH_EPSILON
+      breachCount += 1
+    } else if (!spillsToOcean) {
+      for (const cellIdx of basin.cells) {
+        lakeMask[cellIdx] = 1
+      }
+      if (outletIdx >= 0) {
+        endorheicCount += 1
+      }
+    } else {
+      for (const cellIdx of basin.cells) {
         lakeMask[cellIdx] = 1
       }
     }
 
-    const endorheic = spill.outsideIdx < 0 || ocean[spill.outsideIdx]
+    const endorheic = !shouldBreach && !spillsToOcean && outletIdx >= 0
+    const outletX = shouldBreach ? outletIdx % width : undefined
+    const outletY = shouldBreach ? Math.floor(outletIdx / width) : undefined
+    const spillOutletIdx = findPrioritySpillOutlet(basin.cells, spillOutlet, filledElevation)
+    const spillX =
+      spillsToOcean && spillOutletIdx >= 0 ? spillOutletIdx % width : undefined
+    const spillY =
+      spillsToOcean && spillOutletIdx >= 0 ? Math.floor(spillOutletIdx / width) : undefined
+
     lakes.push({
       id: lakes.length,
       area: basin.cells.length,
       endorheic,
-      spillX: spill.outsideIdx >= 0 ? spill.outsideIdx % width : undefined,
-      spillY: spill.outsideIdx >= 0 ? Math.floor(spill.outsideIdx / width) : undefined,
+      spillX,
+      spillY,
+    })
+    lakeMeta.push({
+      endorheic,
+      surfaceElevation: shouldBreach ? floorElev : surfaceElev,
+      outletX: shouldBreach ? outletX : undefined,
+      outletY: shouldBreach ? outletY : undefined,
     })
   }
 
-  return { lakeMask, lakes, filledElevation: filled }
+  return {
+    lakeMask,
+    lakes,
+    lakeMeta,
+    filledElevation,
+    spillOutlet,
+    breachCount,
+    endorheicCount,
+  }
 }
 
 /**
- * @param {Float32Array} elevation
+ * @param {number[]} basinCells
+ * @param {Int32Array} spillOutlet
  * @param {boolean[]} ocean
+ */
+function basinSpillsToOcean(basinCells, spillOutlet, ocean) {
+  return basinCells.some((cellIdx) => {
+    const outlet = spillOutlet[cellIdx]
+    return outlet >= 0 && ocean[outlet]
+  })
+}
+
+/**
+ * Lowest saddle on the basin rim and spill depth to the highest neighboring rim cell.
+ * @param {number[]} seedCells
+ * @param {Float32Array} elevation
  * @param {number} width
  * @param {number} height
- * @param {number} idx
  */
-function isDepressionCell(elevation, ocean, width, height, idx) {
-  const elev = elevation[idx]
-  const x = idx % width
-  const y = Math.floor(idx / width)
-  let hasHigherNeighbor = false
+function findBasinSaddle(seedCells, elevation, width, height) {
+  const seedSet = new Set(seedCells)
+  let outletIdx = -1
+  let saddleElev = Number.POSITIVE_INFINITY
+  let maxBorderElev = Number.NEGATIVE_INFINITY
 
-  for (let dy = -1; dy <= 1; dy += 1) {
-    for (let dx = -1; dx <= 1; dx += 1) {
-      if (dx === 0 && dy === 0) continue
+  for (const cellIdx of seedCells) {
+    const x = cellIdx % width
+    const y = Math.floor(cellIdx / width)
+    for (const [dx, dy] of D4_OFFSETS) {
       const nx = x + dx
       const ny = y + dy
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-      const nIdx = ny * width + nx
-      if (ocean[nIdx]) continue
-      if (elevation[nIdx] < elev) return false
-      if (elevation[nIdx] > elev) hasHigherNeighbor = true
+      const neighborIdx = ny * width + nx
+      if (seedSet.has(neighborIdx)) continue
+
+      const neighborElev = elevation[neighborIdx]
+      maxBorderElev = Math.max(maxBorderElev, neighborElev)
+      if (neighborElev < saddleElev) {
+        saddleElev = neighborElev
+        outletIdx = neighborIdx
+      }
     }
   }
 
-  return hasHigherNeighbor
+  const spillDepth = outletIdx >= 0 ? maxBorderElev - saddleElev : Number.POSITIVE_INFINITY
+  return { outletIdx, saddleElev, spillDepth }
 }
 
 /**
- * @param {Float32Array} elevation
- * @param {boolean[]} ocean
- * @param {Uint8Array} processed
- * @param {number} width
- * @param {number} height
- * @param {number} startIdx
+ * @param {number[]} basinCells
+ * @param {Int32Array} spillOutlet
+ * @param {Float32Array} filledElevation
  */
-function collectBasin(elevation, ocean, processed, width, height, startIdx) {
-  const floorElev = elevation[startIdx]
+function findPrioritySpillOutlet(basinCells, spillOutlet, filledElevation) {
+  return basinCells.reduce((chosen, cellIdx) => {
+    const candidate = spillOutlet[cellIdx]
+    if (candidate < 0) return chosen
+    if (chosen < 0) return candidate
+    return filledElevation[candidate] < filledElevation[chosen] ? candidate : chosen
+  }, -1)
+}
+
+/**
+ * @param {Object} params
+ * @param {Float32Array} params.elevation
+ * @param {Float32Array} params.filledElevation
+ * @param {boolean[]} params.ocean
+ * @param {Uint8Array} params.processed
+ * @param {number} params.width
+ * @param {number} params.height
+ * @param {number} params.startIdx
+ */
+function collectFilledBasin({
+  elevation,
+  filledElevation,
+  ocean,
+  processed,
+  width,
+  height,
+  startIdx,
+}) {
   const cells = []
   const stack = [startIdx]
   const localVisited = new Set()
@@ -97,7 +241,7 @@ function collectBasin(elevation, ocean, processed, width, height, startIdx) {
   while (stack.length > 0) {
     const idx = stack.pop()
     if (localVisited.has(idx) || ocean[idx]) continue
-    if (elevation[idx] > floorElev + 0.0001) continue
+    if (filledElevation[idx] <= elevation[idx] + FILL_EPSILON) continue
 
     localVisited.add(idx)
     processed[idx] = 1
@@ -105,54 +249,13 @@ function collectBasin(elevation, ocean, processed, width, height, startIdx) {
 
     const x = idx % width
     const y = Math.floor(idx / width)
-    for (let dy = -1; dy <= 1; dy += 1) {
-      for (let dx = -1; dx <= 1; dx += 1) {
-        if (dx === 0 && dy === 0) continue
-        const nx = x + dx
-        const ny = y + dy
-        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-        stack.push(ny * width + nx)
-      }
+    for (const [dx, dy] of D4_OFFSETS) {
+      const nx = x + dx
+      const ny = y + dy
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+      stack.push(ny * width + nx)
     }
   }
 
   return { cells }
-}
-
-/**
- * @param {Float32Array} elevation
- * @param {boolean[]} ocean
- * @param {number[]} cells
- * @param {number} width
- * @param {number} height
- * @param {number} seaLevel
- */
-function findSpillLevel(elevation, ocean, cells, width, height, seaLevel) {
-  const cellSet = new Set(cells)
-  let spillLevel = Infinity
-  let outsideIdx = -1
-
-  for (const idx of cells) {
-    const x = idx % width
-    const y = Math.floor(idx / width)
-    const neighbors = [
-      [x - 1, y],
-      [x + 1, y],
-      [x, y - 1],
-      [x, y + 1],
-    ]
-    for (const [nx, ny] of neighbors) {
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-      const nIdx = ny * width + nx
-      if (cellSet.has(nIdx)) continue
-      const neighborElev = ocean[nIdx] ? seaLevel : elevation[nIdx]
-      if (neighborElev < spillLevel) {
-        spillLevel = neighborElev
-        outsideIdx = nIdx
-      }
-    }
-  }
-
-  if (spillLevel === Infinity) return null
-  return { level: spillLevel, outsideIdx }
 }

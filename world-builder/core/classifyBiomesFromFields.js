@@ -119,17 +119,19 @@ export function classifyBiomesFromFields(fields, width, height, seaLevel = SEA_L
  * @param {Object} hydrology
  * @param {Uint8Array} hydrology.lakeMask
  * @param {Uint8Array} hydrology.riverCorridorMask
+ * @param {Float32Array} [hydrology.channelWidth]
  * @param {number} [seaLevel]
  * @returns {Uint8Array}
  */
 export function classifyBiomesWithHydrology(fields, width, height, hydrology, seaLevel = SEA_LEVEL) {
   const biomes = classifyBiomesFromFields(fields, width, height, seaLevel)
-  const { lakeMask, riverCorridorMask } = hydrology
+  const { lakeMask, riverCorridorMask, channelWidth } = hydrology
   const corridorMask = buildFlowWeightedRiverCorridorMask(
     riverCorridorMask,
     fields.drainage,
     width,
     height,
+    { channelWidth },
   )
 
   for (let i = 0; i < biomes.length; i += 1) {

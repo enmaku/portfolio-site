@@ -41,6 +41,7 @@ test('connectNearbyRiverCorridors links nearby components through a low saddle',
     elevation,
     width,
     height,
+    rainfall: new Float32Array(width * height).fill(0.5),
   })
 
   const connected = connectNearbyRiverCorridors({
@@ -78,6 +79,7 @@ test('connectNearbyRiverCorridors meanders instead of cutting straight across', 
     elevation,
     width,
     height,
+    rainfall: new Float32Array(width * height).fill(0.5),
   })
   const flowDirection = new Int16Array(width * height).fill(-1)
   for (let x = 4; x < 8; x += 1) {

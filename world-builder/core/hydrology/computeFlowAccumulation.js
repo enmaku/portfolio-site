@@ -1,22 +1,11 @@
 import { SEA_LEVEL } from '../biomeIds.js'
+import { isOceanCell } from '../fields/applyClosedIslandRim.js'
+import { computeCellRunoff } from './computeCellRunoff.js'
 import {
-  canDrainIntoRimCell,
-  isOceanCell,
-  isRimCell,
-} from '../fields/applyClosedIslandRim.js'
-
-const D8_OFFSETS = [
-  [-1, -1],
-  [0, -1],
-  [1, -1],
-  [-1, 0],
-  [1, 0],
-  [-1, 1],
-  [0, 1],
-  [1, 1],
-]
-
-const D8_DIST = [1.414, 1, 1.414, 1, 1, 1.414, 1, 1.414]
+  computeFlowPartitions,
+  D8_OFFSETS,
+  partitionsToFlowDirection,
+} from './dInfinityFlow.js'
 
 /**
  * @param {Object} params
@@ -24,8 +13,9 @@ const D8_DIST = [1.414, 1, 1.414, 1, 1, 1.414, 1, 1.414]
  * @param {number} params.width
  * @param {number} params.height
  * @param {number} [params.seaLevel]
- * @param {Float32Array} [params.meltContribution] extra flow units per land cell (e.g. snow melt)
- * @param {Float32Array} [params.soilDrainage] permeability field in [0, 1]
+ * @param {Float32Array} params.rainfall
+ * @param {Float32Array} [params.meltContribution]
+ * @param {Float32Array} [params.soilDrainage]
  * @param {number} [params.soilDrainageScale]
  * @returns {{ flowDirection: Int16Array, flowAccumulation: Float32Array, ocean: boolean[] }}
  */
@@ -34,56 +24,56 @@ export function computeFlowAccumulation({
   width,
   height,
   seaLevel = SEA_LEVEL,
+  rainfall,
   meltContribution,
   soilDrainage,
   soilDrainageScale = 1,
 }) {
+  if (!rainfall) {
+    throw new Error('rainfall is required for precipitation-weighted flow accumulation')
+  }
+
   const cellCount = width * height
   const ocean = isOceanCell(elevation, width, height, seaLevel)
-  const flowDirection = new Int16Array(cellCount).fill(-1)
+  const cellRunoff = computeCellRunoff({
+    rainfall,
+    meltContribution,
+    soilDrainage,
+    soilDrainageScale,
+    ocean,
+  })
+  const partitions = computeFlowPartitions({
+    elevation,
+    width,
+    height,
+    ocean,
+    seaLevel,
+  })
+  const flowDirection = partitionsToFlowDirection(partitions)
+
   const inDegree = new Int16Array(cellCount)
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const idx = y * width + x
-      if (ocean[idx]) continue
-
-      let steepestDrop = 0
-      let steepestDir = -1
-
-      for (let d = 0; d < D8_OFFSETS.length; d += 1) {
-        const nx = x + D8_OFFSETS[d][0]
-        const ny = y + D8_OFFSETS[d][1]
-        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-        const nIdx = ny * width + nx
-        if (isRimCell(nIdx, width, height) && !canDrainIntoRimCell(elevation[idx], seaLevel)) {
-          continue
-        }
-        const drop = (elevation[idx] - elevation[nIdx]) / D8_DIST[d]
-        if (drop > steepestDrop) {
-          steepestDrop = drop
-          steepestDir = d
-        }
-      }
-
-      if (steepestDir >= 0) {
-        flowDirection[idx] = steepestDir
-        const nx = x + D8_OFFSETS[steepestDir][0]
-        const ny = y + D8_OFFSETS[steepestDir][1]
-        inDegree[ny * width + nx] += 1
-      }
+  for (let idx = 0; idx < cellCount; idx += 1) {
+    if (ocean[idx]) continue
+    const partition = partitions[idx]
+    if (partition.primaryIdx >= 0 && !ocean[partition.primaryIdx]) {
+      inDegree[partition.primaryIdx] += 1
+    }
+    if (
+      partition.secondaryIdx >= 0 &&
+      partition.secondaryIdx !== partition.primaryIdx &&
+      partition.secondaryFraction > 0 &&
+      !ocean[partition.secondaryIdx]
+    ) {
+      inDegree[partition.secondaryIdx] += 1
     }
   }
 
   const flowAccumulation = new Float32Array(cellCount)
+  /** @type {number[]} */
   const queue = []
 
   for (let i = 0; i < cellCount; i += 1) {
-    if (ocean[i]) {
-      flowAccumulation[i] = 0
-    } else {
-      flowAccumulation[i] = 1 + (meltContribution?.[i] ?? 0)
-    }
+    flowAccumulation[i] = ocean[i] ? 0 : cellRunoff[i]
     if (!ocean[i] && inDegree[i] === 0) {
       queue.push(i)
     }
@@ -93,33 +83,49 @@ export function computeFlowAccumulation({
   while (head < queue.length) {
     const idx = queue[head]
     head += 1
-    const dir = flowDirection[idx]
-    if (dir < 0) continue
+    const total = flowAccumulation[idx]
+    const partition = partitions[idx]
 
-    const x = idx % width
-    const y = Math.floor(idx / width)
-    const nx = x + D8_OFFSETS[dir][0]
-    const ny = y + D8_OFFSETS[dir][1]
-    const downstream = ny * width + nx
-    const localFlow = 1 + (meltContribution?.[idx] ?? 0)
-    const inheritedFlow = flowAccumulation[idx] - localFlow
-    let downstreamContribution = inheritedFlow + localFlow
-    if (soilDrainage) {
-      const infiltration = Math.min(
-        0.8,
-        Math.max(0, soilDrainage[idx]) * 0.55 * soilDrainageScale,
+    if (partition.primaryIdx >= 0 && partition.primaryFraction > 0) {
+      sendFlow(
+        total * partition.primaryFraction,
+        partition.primaryIdx,
+        ocean,
+        inDegree,
+        flowAccumulation,
+        queue,
       )
-      downstreamContribution = inheritedFlow + localFlow * (1 - infiltration)
     }
-    flowAccumulation[downstream] += downstreamContribution
-
-    inDegree[downstream] -= 1
-    if (inDegree[downstream] === 0 && !ocean[downstream]) {
-      queue.push(downstream)
+    if (partition.secondaryIdx >= 0 && partition.secondaryFraction > 0) {
+      sendFlow(
+        total * partition.secondaryFraction,
+        partition.secondaryIdx,
+        ocean,
+        inDegree,
+        flowAccumulation,
+        queue,
+      )
     }
   }
 
   return { flowDirection, flowAccumulation, ocean }
+}
+
+/**
+ * @param {number} amount
+ * @param {number} downstream
+ * @param {boolean[]} ocean
+ * @param {Int16Array} inDegree
+ * @param {Float32Array} flowAccumulation
+ * @param {number[]} queue
+ */
+function sendFlow(amount, downstream, ocean, inDegree, flowAccumulation, queue) {
+  if (downstream < 0 || ocean[downstream]) return
+  flowAccumulation[downstream] += amount
+  inDegree[downstream] -= 1
+  if (inDegree[downstream] === 0) {
+    queue.push(downstream)
+  }
 }
 
 /**

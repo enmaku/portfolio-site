@@ -108,7 +108,7 @@ test('refineRiverNetworkFromSketch adds lateral deviation when meandering is ena
     }
   }
 
-  const { ocean } = computeFlowAccumulation({ elevation, width, height })
+  const { ocean } = computeFlowAccumulation({ elevation, width, height, rainfall: new Float32Array(width * height).fill(0.5) })
   const flowDirection = new Int16Array(width * height).fill(-1)
   for (let x = 8; x < 38; x += 1) {
     flowDirection[24 * width + x] = 4

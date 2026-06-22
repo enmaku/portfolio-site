@@ -1,3 +1,4 @@
+import { isRimCell } from '../fields/applyClosedIslandRim.js'
 import {
   coastalMouthMergeRadiusForGrid,
   deltaFlowCutoffForGrid,
@@ -71,7 +72,10 @@ export function buildRiverNetworkMask({
   const majorMouths = selectCoastalMouths(
     oceanMouthCandidates,
     flowAccumulation,
+    flowDirection,
+    ocean,
     width,
+    height,
     mergeRadius,
     tributaryCutoff,
   )
@@ -102,7 +106,7 @@ export function buildRiverNetworkMask({
   }
 
   if (meltContribution) {
-    const meltHeadwaterCutoff = Math.max(2, Math.round(tributaryCutoff * 0.2))
+    const meltHeadwaterCutoff = Math.max(2, Math.round(tributaryCutoff * 0.5))
     traceMeltSourcedCorridors({
       meltContribution,
       mask,
@@ -140,14 +144,36 @@ function buildUpstreamAdjacency(cellCount, width, flowDirection, ocean) {
 /**
  * @param {number[]} candidates
  * @param {Float32Array} flowAccumulation
+ * @param {Int16Array} flowDirection
+ * @param {boolean[]} ocean
  * @param {number} width
+ * @param {number} height
  * @param {number} mergeRadius
  * @param {number} mouthCutoff
  * @returns {number[]}
  */
-function selectCoastalMouths(candidates, flowAccumulation, width, mergeRadius, mouthCutoff) {
+function selectCoastalMouths(
+  candidates,
+  flowAccumulation,
+  flowDirection,
+  ocean,
+  width,
+  height,
+  mergeRadius,
+  mouthCutoff,
+) {
   const qualifying = candidates.filter((idx) => flowAccumulation[idx] >= mouthCutoff)
-  qualifying.sort((a, b) => flowAccumulation[b] - flowAccumulation[a])
+  qualifying.sort((a, b) => {
+    const aDownstream = downstreamIndex(a, width, flowDirection)
+    const bDownstream = downstreamIndex(b, width, flowDirection)
+    const aRim = aDownstream >= 0 && ocean[aDownstream] && isRimCell(aDownstream, width, height)
+      ? 0.12
+      : 1
+    const bRim = bDownstream >= 0 && ocean[bDownstream] && isRimCell(bDownstream, width, height)
+      ? 0.12
+      : 1
+    return flowAccumulation[b] * bRim - flowAccumulation[a] * aRim
+  })
 
   /** @type {number[]} */
   const selected = []
@@ -302,10 +328,11 @@ function traceMeltSourcedCorridors({
   width,
   minBranchFlow,
 }) {
+  const maxDownstreamSteps = Math.max(16, Math.round(scaleForGridSize(48, width)))
   for (let idx = 0; idx < meltContribution.length; idx += 1) {
     if (meltContribution[idx] <= 0 || ocean[idx]) continue
     mask[idx] = 1
     traceRiverUpstream(idx, mask, flowAccumulation, upstream, minBranchFlow)
-    markDownstreamToOcean(idx, mask, flowDirection, ocean, width, meltContribution.length)
+    markDownstreamToOcean(idx, mask, flowDirection, ocean, width, maxDownstreamSteps)
   }
 }

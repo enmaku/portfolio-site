@@ -1,9 +1,24 @@
 import { DERIVED_GEOGRAPHY_STEPS } from './core/derivedGeographyPipeline.js'
+export { HYDROLOGY_SUBSTEPS } from './core/hydrology/hydrologySubsteps.js'
+
+/**
+ * @typedef {Object} HydrologySubstepEventPayload
+ * @property {string} stepId
+ * @property {string} substepId
+ * @property {number} substepIndex
+ * @property {number} substepCount
+ * @property {string} label
+ * @property {number=} progress
+ * @property {boolean=} skipped
+ */
 
 /**
  * @typedef {Object} DerivedGeographyWorkerCallbacks
  * @property {(payload: { stepId: string, stepIndex: number, stepCount: number, label: string }) => void} [onStepStart]
  * @property {(payload: { stepId: string, stepIndex: number, stepCount: number, label: string, worldDocument: import('./core/types.js').WorldDocument }) => void} [onStepComplete]
+ * @property {(payload: HydrologySubstepEventPayload) => void} [onSubstepStart]
+ * @property {(payload: HydrologySubstepEventPayload) => void} [onSubstepProgress]
+ * @property {(payload: HydrologySubstepEventPayload) => void} [onSubstepComplete]
  * @property {() => void} [onComplete]
  * @property {(message: string) => void} [onError]
  * @property {() => void} [onCancelled]
@@ -32,6 +47,15 @@ export function runDerivedGeographyInWorker(params, callbacks) {
         break
       case 'step-complete':
         callbacks.onStepComplete?.(message)
+        break
+      case 'substep-start':
+        callbacks.onSubstepStart?.(message)
+        break
+      case 'substep-progress':
+        callbacks.onSubstepProgress?.(message)
+        break
+      case 'substep-complete':
+        callbacks.onSubstepComplete?.(message)
         break
       case 'complete':
         callbacks.onComplete?.()

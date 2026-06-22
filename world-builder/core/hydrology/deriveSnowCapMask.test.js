@@ -153,6 +153,7 @@ test('snow melt on a peak produces a river corridor downhill to the sea', () => 
     elevation,
     width,
     height,
+    rainfall: new Float32Array(width * height).fill(1),
     meltContribution,
   })
   const mask = buildRiverNetworkMask({
@@ -161,6 +162,7 @@ test('snow melt on a peak produces a river corridor downhill to the sea', () => 
     ocean,
     width,
     height,
+    meltContribution,
   })
 
   let markedOnSlope = 0
@@ -202,6 +204,7 @@ test('buildRiverNetworkMask includes streams that terminate in inland lakes', ()
     elevation,
     width,
     height,
+    rainfall: new Float32Array(width * height).fill(1),
     meltContribution,
   })
   const mask = buildRiverNetworkMask({

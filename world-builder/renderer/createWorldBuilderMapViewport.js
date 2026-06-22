@@ -1,6 +1,10 @@
 import { biomeIndicesToRgba } from './biomeIndicesToRgba.js'
 import { BIOMES } from '../core/biomeIds.js'
-import { riverCorridorRadiusForDrainage } from '../core/hydrology/riverCorridorDisplay.js'
+import {
+  buildRiverCorridorRenderState,
+  resolveRiverCorridorNormalizedFlow,
+  resolveRiverCorridorRenderRadius,
+} from '../core/hydrology/riverCorridorDisplay.js'
 import { buildTopographyContourCanvas } from './buildTopographyContourCanvas.js'
 
 /**
@@ -262,16 +266,27 @@ function drawOverlays(overlay, worldDocument) {
     }
   }
 
-  if (worldDocument.riverNetworkMask && worldDocument.fields?.drainage) {
-    const { gridWidth, riverNetworkMask, fields } = worldDocument
-    const { drainage } = fields
+  const riverRenderState = buildRiverCorridorRenderState(worldDocument)
+  if (riverRenderState) {
+    const { gridWidth, riverNetworkMask, channelWidth } = worldDocument
+    const { maxChannelWidth, drainage, maxRadius } = riverRenderState
     for (let i = 0; i < riverNetworkMask.length; i += 1) {
       if (!riverNetworkMask[i]) continue
-      const radius = riverCorridorRadiusForDrainage(drainage[i])
+      const radius = resolveRiverCorridorRenderRadius({
+        drainage: drainage?.[i] ?? 0,
+        channelWidth: channelWidth?.[i] ?? 0,
+        maxChannelWidth,
+        maxRadius,
+      })
       const extent = radius * 2 + 1
       const x = i % gridWidth
       const y = Math.floor(i / gridWidth)
-      const alpha = 0.25 + drainage[i] * 0.35
+      const normalizedFlow = resolveRiverCorridorNormalizedFlow({
+        drainage: drainage?.[i] ?? 0,
+        channelWidth: channelWidth?.[i] ?? 0,
+        maxChannelWidth,
+      })
+      const alpha = 0.25 + normalizedFlow * 0.35
       overlay.rect(x - radius, y - radius, extent, extent)
       overlay.fill({ color: 0x4fc3f7, alpha })
     }

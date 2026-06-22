@@ -46,6 +46,14 @@ test('world builder generation controls include wind slider test id', () => {
   assert.strictEqual(controls.includes('world-builder-wind-slider'), true)
   assert.strictEqual(controls.includes('world-builder-control-sea-level'), true)
   assert.strictEqual(controls.includes('world-builder-control-soil-drainage'), true)
+  assert.strictEqual(controls.includes('world-builder-control-elevation-domain-warp'), true)
+  assert.strictEqual(controls.includes('world-builder-control-elevation-coast-bias'), true)
+  assert.strictEqual(controls.includes('world-builder-control-incise-iterations'), true)
+  assert.strictEqual(controls.includes('world-builder-control-stream-power-k'), true)
+  assert.strictEqual(controls.includes('world-builder-control-stream-power-m'), true)
+  assert.strictEqual(controls.includes('world-builder-control-stream-power-n'), true)
+  assert.strictEqual(controls.includes('world-builder-control-channel-initiation'), true)
+  assert.strictEqual(controls.includes('world-builder-control-meander-refine'), true)
 })
 
 test('world builder page wires derived pipeline, lazy renderer, and control test ids', () => {
@@ -70,6 +78,13 @@ test('world builder page wires derived pipeline, lazy renderer, and control test
   assert.strictEqual(page.includes('data-testid="world-builder-generation-replay"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-generation-progress"'), true)
   assert.match(page, /world-builder-generation-step-\$\{step\.id\}/)
+  assert.match(page, /world-builder-hydrology-substep-\$\{substep\.id\}/)
+  assert.strictEqual(page.includes('world-builder-hydrology-substep-timings'), true)
+  assert.strictEqual(page.includes('world-builder-hydrology-stats'), true)
+  assert.strictEqual(page.includes('world-builder-rejection-status'), true)
+  assert.strictEqual(page.includes('world-builder-rejection-reasons'), true)
+  assert.strictEqual(page.includes('createHydrologyStatsForDisplay'), true)
+  assert.strictEqual(page.includes('formatSlopeAreaConcavityForDisplay'), true)
   assert.match(page, /world-builder-validation-row-\$\{row\.checkId\}/)
 })
 

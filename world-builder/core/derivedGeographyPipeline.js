@@ -9,26 +9,7 @@ import { deriveCoastalNodes } from './coast/deriveCoastalNodes.js'
 import { applyErosion } from './erosion/applyErosion.js'
 import { refreshFieldsAfterErosion } from './fields/refreshFieldsAfterErosion.js'
 import { generatePhysicalTerrainBaseline } from './generatePhysicalTerrainBaseline.js'
-import {
-  buildRiverGraph,
-} from './hydrology/buildRiverGraph.js'
-import { buildRiverNetworkMask } from './hydrology/buildRiverNetworkMask.js'
-import {
-  connectNearbyRiverCorridors,
-  riverAttractionRadiusForGrid,
-} from './hydrology/connectNearbyRiverCorridors.js'
-import { computeFlowAccumulation } from './hydrology/computeFlowAccumulation.js'
-import { deriveDrainageFromFlow } from './hydrology/deriveDrainageFromFlow.js'
-import {
-  deriveSnowCapMask,
-  deriveSnowMeltContribution,
-} from './hydrology/deriveSnowCapMask.js'
-import { fillLakes } from './hydrology/fillLakes.js'
-import {
-  refineRiverNetworkFromSketch,
-  riverSettlementStepsForGrid,
-} from './hydrology/refineRiverNetwork.js'
-import { generateTemperature } from './fields/generateTemperature.js'
+import { runHydrologySubsteps } from './hydrology/hydrologySubsteps.js'
 import { placeSaltNodes } from './resources/placeSaltNodes.js'
 import {
   DEFAULT_GRID_SIZE,
@@ -62,16 +43,28 @@ export const DERIVED_GEOGRAPHY_STEPS = [
  * @property {number} erosionStepCount
  * @property {Uint8Array | null} lakeMask
  * @property {import('./types.js').LakeRecord[] | null} lakes
+ * @property {import('./types.js').LakeMetaRecord[] | null} lakeMeta
+ * @property {import('./types.js').HydrologyPipelineStats | null} hydrologyStats
  * @property {Float32Array | null} workingElevation
  * @property {import('./types.js').RiverGraph | null} riverGraph
  * @property {Uint8Array | null} riverNetworkMask
+ * @property {Float32Array | null} channelWidth
  * @property {import('./types.js').ScalarFields | null} fields
  * @property {Uint8Array | null} biomes
  * @property {Float32Array | null} coastNavigability
  * @property {import('./types.js').CoastalNode[] | null} coastalNodes
  * @property {import('./types.js').SaltNode[] | null} saltNodes
  * @property {import('./types.js').GenerationReport | null} generationReport
+ * @property {import('./hydrology/hydrologySubsteps.js').HydrologySubstepTiming[] | null} hydrologySubstepTimings
  * @property {DerivedGeographyStepId | null} lastCompletedStep
+ */
+
+/**
+ * @typedef {Object} PipelineStepOptions
+ * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string }) => void} [onSubstepStart]
+ * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, progress: number }) => void} [onSubstepProgress]
+ * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, progress: number }) => void} [onSubstepComplete]
+ * @property {() => boolean} [shouldCancel]
  */
 
 /**
@@ -97,15 +90,19 @@ export function createInitialPipelineState(params) {
     erosionStepCount: 0,
     lakeMask: null,
     lakes: null,
+    lakeMeta: null,
+    hydrologyStats: null,
     workingElevation: null,
     riverGraph: null,
     riverNetworkMask: null,
+    channelWidth: null,
     fields: null,
     biomes: null,
     coastNavigability: null,
     coastalNodes: null,
     saltNodes: null,
     generationReport: null,
+    hydrologySubstepTimings: null,
     lastCompletedStep: null,
   }
 }
@@ -113,16 +110,17 @@ export function createInitialPipelineState(params) {
 /**
  * @param {DerivedGeographyPipelineState} state
  * @param {DerivedGeographyStepId} stepId
+ * @param {PipelineStepOptions} [options]
  * @returns {DerivedGeographyPipelineState}
  */
-export function runPipelineStep(state, stepId) {
+export function runPipelineStep(state, stepId, options = {}) {
   switch (stepId) {
     case 'physicalTerrainBaseline':
       return runPhysicalTerrainBaselineStep(state)
     case 'erosion':
       return runErosionStep(state)
     case 'hydrology':
-      return runHydrologyStep(state)
+      return runHydrologyStep(state, options)
     case 'fieldRefresh':
       return runFieldRefreshStep(state)
     case 'coastAndResources':
@@ -174,8 +172,10 @@ export function buildWorldDocumentFromPipelineState(state) {
       : PIPELINE_STAGE_PHYSICAL_TERRAIN_BASELINE,
     riverGraph: state.riverGraph ?? undefined,
     lakes: state.lakes ?? undefined,
+    lakeMeta: state.lakeMeta ?? undefined,
     lakeMask: state.lakeMask ?? undefined,
     riverNetworkMask: state.riverNetworkMask ?? undefined,
+    channelWidth: state.channelWidth ?? undefined,
     coastNavigability: state.coastNavigability ?? undefined,
     coastalNodes: state.coastalNodes ?? undefined,
     saltNodes: state.saltNodes ?? undefined,
@@ -185,15 +185,40 @@ export function buildWorldDocumentFromPipelineState(state) {
 }
 
 /**
+ * @param {number} geographySeed
+ */
+function normalizeGeographySeed(geographySeed) {
+  const normalizedSeed = geographySeed | 0
+  return normalizedSeed >= 0 ? normalizedSeed : normalizedSeed + 4294967296
+}
+
+/**
  * @param {import('./types.js').DerivedGeographyParams} params
  * @returns {import('./types.js').WorldDocument}
  */
 export function runFullDerivedGeographyPipeline(params) {
-  let state = createInitialPipelineState(params)
-  for (const step of DERIVED_GEOGRAPHY_STEPS) {
-    state = runPipelineStep(state, step.id)
+  const options = resolveWorldGenerationOptions(params.options)
+  const maxValidationRetries = options.maxValidationRetries
+  const baseSeed = params.geographySeed | 0
+
+  /** @type {import('./types.js').WorldDocument | null} */
+  let lastDoc = null
+  for (let attempt = 0; attempt <= maxValidationRetries; attempt += 1) {
+    const attemptParams = {
+      ...params,
+      geographySeed: normalizeGeographySeed(baseSeed + attempt),
+      options,
+    }
+    let state = createInitialPipelineState(attemptParams)
+    for (const step of DERIVED_GEOGRAPHY_STEPS) {
+      state = runPipelineStep(state, step.id)
+    }
+    lastDoc = buildWorldDocumentFromPipelineState(state)
+    if (!lastDoc.generationReport?.shouldReject) {
+      return lastDoc
+    }
   }
-  return buildWorldDocumentFromPipelineState(state)
+  return lastDoc
 }
 
 /**
@@ -246,155 +271,18 @@ function runErosionStep(state) {
 
 /**
  * @param {DerivedGeographyPipelineState} state
+ * @param {PipelineStepOptions} [options]
  */
-function runHydrologyStep(state) {
-  if (!state.erodedElevation) throw new Error('Erosion required before hydrology')
-  const { width, height } = state
-  const { ocean } = computeFlowAccumulation({
-    elevation: state.erodedElevation,
-    width,
-    height,
-    seaLevel: state.options.seaLevel,
+function runHydrologyStep(state, options = {}) {
+  const { state: nextState, timings } = runHydrologySubsteps(state, {
+    onSubstepStart: options.onSubstepStart,
+    onSubstepProgress: options.onSubstepProgress,
+    onSubstepComplete: options.onSubstepComplete,
+    shouldCancel: options.shouldCancel,
   })
-  const { lakeMask, lakes, filledElevation } = fillLakes({
-    elevation: state.erodedElevation,
-    width,
-    height,
-    ocean,
-    seaLevel: state.options.seaLevel,
-    minLakeAreaScale: state.options.minLakeAreaScale,
-  })
-  const temperature = generateTemperature({
-    geographySeed: state.geographySeed,
-    width,
-    height,
-    elevation: state.erodedElevation,
-    options: state.options,
-  })
-  const snowCapMask = deriveSnowCapMask({
-    elevation: state.erodedElevation,
-    temperature,
-    width,
-    height,
-    seaLevel: state.options.seaLevel,
-  })
-  const meltContribution = deriveSnowMeltContribution({
-    elevation: state.erodedElevation,
-    temperature,
-    snowCapMask,
-    width,
-    height,
-    prevailingWindDegrees: state.prevailingWindDegrees,
-  })
-  const soilDrainage = state.baselineDoc?.fields.drainage ?? state.fields?.drainage
-  const { flowDirection, flowAccumulation, ocean: lakeOcean } = computeFlowAccumulation({
-    elevation: filledElevation,
-    width,
-    height,
-    seaLevel: state.options.seaLevel,
-    meltContribution,
-    soilDrainage,
-    soilDrainageScale: state.options.soilDrainageScale,
-  })
-  const baseRiverNetworkMask = buildRiverNetworkMask({
-    flowAccumulation,
-    flowDirection,
-    ocean: lakeOcean,
-    lakeMask,
-    width,
-    height,
-    meltContribution,
-    navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
-  })
-  const riverNetworkMask = connectNearbyRiverCorridors({
-    riverNetworkMask: baseRiverNetworkMask,
-    elevation: filledElevation,
-    ocean: lakeOcean,
-    width,
-    height,
-    geographySeed: state.geographySeed,
-    flowDirection,
-    attractionRadius: riverAttractionRadiusForGrid(
-      width,
-      state.options.riverAttractionRadiusScale,
-    ),
-  })
-  const refined = refineRiverNetworkFromSketch({
-    sketchMask: riverNetworkMask,
-    elevation: filledElevation,
-    ocean: lakeOcean,
-    flowDirection,
-    flowAccumulation,
-    lakeMask,
-    width,
-    height,
-    geographySeed: state.geographySeed,
-    meanderStrength: state.options.riverMeanderStrength,
-    settlementStepCount: riverSettlementStepsForGrid(
-      width,
-      state.options.riverSettlementSteps,
-    ),
-    mergeStrength: state.options.riverMergeStrength,
-    channelWear: state.options.erosionChannelWear * 0.85,
-    seaLevel: state.options.seaLevel,
-    navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
-  })
-  const settledElevation = refined.elevation
-  const settledRiverNetworkMask = connectNearbyRiverCorridors({
-    riverNetworkMask: refined.riverNetworkMask,
-    elevation: settledElevation,
-    ocean: lakeOcean,
-    width,
-    height,
-    geographySeed: state.geographySeed,
-    flowDirection,
-    attractionRadius: riverAttractionRadiusForGrid(
-      width,
-      state.options.riverAttractionRadiusScale,
-    ),
-  })
-  const {
-    flowDirection: settledFlowDirection,
-    flowAccumulation: settledFlowAccumulation,
-    ocean: settledOcean,
-  } = computeFlowAccumulation({
-    elevation: settledElevation,
-    width,
-    height,
-    seaLevel: state.options.seaLevel,
-    meltContribution,
-    soilDrainage,
-    soilDrainageScale: state.options.soilDrainageScale,
-  })
-  const settledDrainage = deriveDrainageFromFlow(settledFlowAccumulation)
-  const settledRiverGraph = buildRiverGraph({
-    elevation: settledElevation,
-    flowAccumulation: settledFlowAccumulation,
-    flowDirection: settledFlowDirection,
-    ocean: settledOcean,
-    lakeMask,
-    width,
-    height,
-    navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
-  })
-  const previewFields = {
-    ...(state.fields ?? state.baselineDoc.fields),
-    elevation: settledElevation,
-    drainage: settledDrainage,
-  }
   return {
-    ...state,
-    lakeMask,
-    lakes,
-    workingElevation: settledElevation,
-    riverGraph: settledRiverGraph,
-    riverNetworkMask: settledRiverNetworkMask,
-    fields: previewFields,
-    biomes: classifyBiomesWithHydrology(previewFields, width, height, {
-      lakeMask,
-      riverCorridorMask: settledRiverNetworkMask,
-    }, state.options.seaLevel),
-    lastCompletedStep: 'hydrology',
+    ...nextState,
+    hydrologySubstepTimings: timings,
   }
 }
 
@@ -421,6 +309,7 @@ function runFieldRefreshStep(state) {
   const biomes = classifyBiomesWithHydrology(fields, width, height, {
     lakeMask: state.lakeMask,
     riverCorridorMask: state.riverNetworkMask,
+    channelWidth: state.channelWidth ?? undefined,
   }, state.options.seaLevel)
   return {
     ...state,
@@ -487,6 +376,15 @@ function runValidationStep(state) {
     biomes: state.biomes,
     gridWidth: state.width,
     gridHeight: state.height,
+    hydrologySubstepTimings: state.hydrologySubstepTimings ?? [],
+    hydrologyStats: state.hydrologyStats ?? {
+      breachCount: 0,
+      endorheicCount: 0,
+      endorheicFraction: 0,
+      lakeCount: 0,
+    },
+    riverNetworkMask: state.riverNetworkMask ?? undefined,
+    validationOptions: state.options,
   })
   return {
     ...state,
@@ -522,6 +420,7 @@ export function cloneWorldDocument(doc) {
     biomes: new Uint8Array(doc.biomes),
     lakeMask: doc.lakeMask ? new Uint8Array(doc.lakeMask) : undefined,
     riverNetworkMask: doc.riverNetworkMask ? new Uint8Array(doc.riverNetworkMask) : undefined,
+    channelWidth: doc.channelWidth ? new Float32Array(doc.channelWidth) : undefined,
     coastNavigability: doc.coastNavigability
       ? new Float32Array(doc.coastNavigability)
       : undefined,
@@ -536,12 +435,18 @@ export function cloneWorldDocument(doc) {
         }
       : undefined,
     lakes: doc.lakes?.map((lake) => ({ ...lake })),
+    lakeMeta: doc.lakeMeta?.map((meta) => ({ ...meta })),
     coastalNodes: doc.coastalNodes?.map((node) => ({ ...node })),
     saltNodes: doc.saltNodes?.map((node) => ({ ...node })),
     generationReport: doc.generationReport
       ? {
           ...doc.generationReport,
           validationRows: doc.generationReport.validationRows.map((row) => ({ ...row })),
+          rejectionReasons: [...doc.generationReport.rejectionReasons],
+          hydrologySubstepTimings: doc.generationReport.hydrologySubstepTimings.map((row) => ({
+            ...row,
+          })),
+          hydrology: { ...doc.generationReport.hydrology },
         }
       : undefined,
   }

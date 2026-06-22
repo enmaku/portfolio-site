@@ -65,6 +65,56 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
     ],
   },
   {
+    section: 'River-friendly terrain',
+    controls: [
+      {
+        key: 'elevationDomainWarpStrength',
+        label: 'Terrain domain warp',
+        kind: 'slider',
+        min: 0,
+        max: 28,
+        step: 1,
+        testId: 'world-builder-control-elevation-domain-warp',
+      },
+      {
+        key: 'elevationCoastBiasStrength',
+        label: 'Coastal lowland bias',
+        kind: 'slider',
+        min: 0,
+        max: 0.2,
+        step: 0.005,
+        testId: 'world-builder-control-elevation-coast-bias',
+      },
+      {
+        key: 'elevationMidSmoothingStrength',
+        label: 'Mid-elevation smoothing',
+        kind: 'slider',
+        min: 0,
+        max: 1,
+        step: 0.02,
+        testId: 'world-builder-control-elevation-mid-smoothing',
+      },
+      {
+        key: 'elevationSlopeRoughnessStrength',
+        label: 'Steep-slope roughness',
+        kind: 'slider',
+        min: 0,
+        max: 0.15,
+        step: 0.005,
+        testId: 'world-builder-control-elevation-slope-roughness',
+      },
+      {
+        key: 'elevationGentleSlopePersistenceScale',
+        label: 'Lowland detail',
+        kind: 'slider',
+        min: 0,
+        max: 1,
+        step: 0.02,
+        testId: 'world-builder-control-elevation-gentle-persistence',
+      },
+    ],
+  },
+  {
     section: 'Climate',
     controls: [
       {
@@ -136,6 +186,51 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         testId: 'world-builder-control-erosion-peak-wear',
       },
       {
+        key: 'inciseIterations',
+        label: 'Stream-power passes',
+        kind: 'slider',
+        min: 0,
+        max: 12,
+        step: 1,
+        testId: 'world-builder-control-incise-iterations',
+      },
+      {
+        key: 'streamPowerK',
+        label: 'Stream-power rate (K)',
+        kind: 'slider',
+        min: 0,
+        max: 0.008,
+        step: 0.00025,
+        testId: 'world-builder-control-stream-power-k',
+      },
+      {
+        key: 'streamPowerM',
+        label: 'Drainage exponent (m)',
+        kind: 'slider',
+        min: 0.2,
+        max: 0.8,
+        step: 0.05,
+        testId: 'world-builder-control-stream-power-m',
+      },
+      {
+        key: 'streamPowerN',
+        label: 'Slope exponent (n)',
+        kind: 'slider',
+        min: 0.5,
+        max: 2,
+        step: 0.05,
+        testId: 'world-builder-control-stream-power-n',
+      },
+      {
+        key: 'channelInitiationThreshold',
+        label: 'Channel initiation',
+        kind: 'slider',
+        min: 0.005,
+        max: 0.06,
+        step: 0.001,
+        testId: 'world-builder-control-channel-initiation',
+      },
+      {
         key: 'navigableFlowCutoffScale',
         label: 'River size threshold',
         kind: 'slider',
@@ -152,6 +247,12 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         max: 24,
         step: 0.5,
         testId: 'world-builder-control-river-attraction',
+      },
+      {
+        key: 'enableMeanderRefine',
+        label: 'Meander refine',
+        kind: 'toggle',
+        testId: 'world-builder-control-meander-refine',
       },
       {
         key: 'riverMeanderStrength',
@@ -218,12 +319,15 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
 
 /**
  * @param {string} key
- * @param {number} value
+ * @param {number | boolean} value
  * @returns {string}
  */
 export function formatGenerationControlValue(key, value) {
   if (key === 'prevailingWindDegrees') {
     return `${Math.round(value)}°`
+  }
+  if (key === 'enableMeanderRefine') {
+    return value ? 'On' : 'Off'
   }
   if (key === 'riverAttractionRadiusScale' && value <= 0) {
     return 'Off'
@@ -237,17 +341,39 @@ export function formatGenerationControlValue(key, value) {
   if (key === 'riverMergeStrength' && value <= 0) {
     return 'Off'
   }
+  if (key === 'inciseIterations' && value <= 0) {
+    return 'Off'
+  }
+  if (key === 'streamPowerK' && value <= 0) {
+    return 'Off'
+  }
+  if (key === 'elevationDomainWarpStrength' && value <= 0) {
+    return 'Off'
+  }
+  if (key === 'elevationCoastBiasStrength' && value <= 0) {
+    return 'Off'
+  }
+  if (key === 'elevationMidSmoothingStrength' && value <= 0) {
+    return 'Off'
+  }
+  if (key === 'elevationSlopeRoughnessStrength' && value <= 0) {
+    return 'Off'
+  }
   if (
     key === 'elevationOctaves' ||
     key === 'erosionStepCount' ||
+    key === 'inciseIterations' ||
     key === 'riverSettlementSteps' ||
-    key === 'maxSaltNodes'
+    key === 'maxSaltNodes' ||
+    key === 'elevationDomainWarpStrength'
   ) {
     return String(Math.round(value))
   }
   if (
     key === 'erosionChannelWear' ||
     key === 'erosionPeakWear' ||
+    key === 'streamPowerK' ||
+    key === 'channelInitiationThreshold' ||
     key === 'seaLevel' ||
     key === 'elevationPersistence' ||
     key === 'temperatureLapseRate'

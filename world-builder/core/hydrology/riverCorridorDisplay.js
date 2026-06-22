@@ -1,17 +1,110 @@
-/** Maximum half-width in cells for the widest rivers on the grid. */
+/** Base corridor half-width in cells for the widest rivers at REFERENCE_GRID_SIZE. */
 export const RIVER_CORRIDOR_MAX_RADIUS = 2
+
+/**
+ * @param {number} gridSize
+ * @returns {number}
+ */
+export function riverCorridorMaxRadiusForGrid(gridSize) {
+  const scale = Math.sqrt(gridSize / 256)
+  return Math.min(8, Math.max(RIVER_CORRIDOR_MAX_RADIUS, Math.round(RIVER_CORRIDOR_MAX_RADIUS * scale)))
+}
 
 /**
  * Corridor half-width in cells from normalized drainage (flow / max flow on the map).
  * @param {number} drainage
+ * @param {number} [maxRadius]
  * @returns {number}
  */
-export function riverCorridorRadiusForDrainage(drainage) {
+export function riverCorridorRadiusForDrainage(drainage, maxRadius = RIVER_CORRIDOR_MAX_RADIUS) {
   if (drainage <= 0) return 0
-  return Math.min(
-    RIVER_CORRIDOR_MAX_RADIUS,
-    Math.floor(Math.sqrt(drainage) * (RIVER_CORRIDOR_MAX_RADIUS + 0.5)),
-  )
+  const scaled = Math.sqrt(drainage) * (maxRadius + 0.5)
+  return Math.min(maxRadius, Math.max(1, Math.floor(scaled)))
+}
+
+/**
+ * @param {Float32Array} channelWidth
+ * @param {Uint8Array} riverNetworkMask
+ * @returns {number}
+ */
+export function computeRiverNetworkMaxChannelWidth(channelWidth, riverNetworkMask) {
+  let maxChannelWidth = 0
+  for (let idx = 0; idx < channelWidth.length; idx += 1) {
+    if (!riverNetworkMask[idx]) continue
+    if (channelWidth[idx] > maxChannelWidth) {
+      maxChannelWidth = channelWidth[idx]
+    }
+  }
+  return maxChannelWidth
+}
+
+/**
+ * Corridor half-width in cells from extracted channel width (sqrt flow accumulation).
+ * @param {number} channelWidth
+ * @param {number} maxChannelWidth
+ * @param {number} [maxRadius]
+ * @returns {number}
+ */
+export function riverCorridorRadiusForChannelWidth(channelWidth, maxChannelWidth, maxRadius = RIVER_CORRIDOR_MAX_RADIUS) {
+  if (channelWidth <= 0 || maxChannelWidth <= 0) return 0
+  return riverCorridorRadiusForDrainage(channelWidth / maxChannelWidth, maxRadius)
+}
+
+/**
+ * @param {Object} params
+ * @param {number} [params.drainage]
+ * @param {number} [params.channelWidth]
+ * @param {number} [params.maxChannelWidth]
+ * @param {number} [params.maxRadius]
+ * @returns {number}
+ */
+export function resolveRiverCorridorRenderRadius({
+  drainage = 0,
+  channelWidth = 0,
+  maxChannelWidth = 0,
+  maxRadius = RIVER_CORRIDOR_MAX_RADIUS,
+}) {
+  if (channelWidth > 0 && maxChannelWidth > 0) {
+    return riverCorridorRadiusForChannelWidth(channelWidth, maxChannelWidth, maxRadius)
+  }
+  return riverCorridorRadiusForDrainage(drainage, maxRadius)
+}
+
+/**
+ * @param {Object} params
+ * @param {number} [params.drainage]
+ * @param {number} [params.channelWidth]
+ * @param {number} [params.maxChannelWidth]
+ * @returns {number}
+ */
+export function resolveRiverCorridorNormalizedFlow({
+  drainage = 0,
+  channelWidth = 0,
+  maxChannelWidth = 0,
+}) {
+  if (channelWidth > 0 && maxChannelWidth > 0) {
+    return channelWidth / maxChannelWidth
+  }
+  return drainage
+}
+
+/**
+ * @param {import('../types.js').WorldDocument} worldDocument
+ * @returns {{ maxChannelWidth: number, maxRadius: number, drainage: Float32Array | undefined } | null}
+ */
+export function buildRiverCorridorRenderState(worldDocument) {
+  const { riverNetworkMask, channelWidth, fields, gridWidth } = worldDocument
+  if (!riverNetworkMask) return null
+  const maxChannelWidth = channelWidth
+    ? computeRiverNetworkMaxChannelWidth(channelWidth, riverNetworkMask)
+    : 0
+  const drainage = fields?.drainage
+  if (maxChannelWidth <= 0 && !drainage) return null
+  return {
+    maxChannelWidth,
+    maxRadius: riverCorridorMaxRadiusForGrid(gridWidth ?? Math.round(Math.sqrt(riverNetworkMask.length))),
+    drainage,
+  }
 }
 
 /**
@@ -40,6 +133,9 @@ function stampDisk(out, width, height, x, y, radius) {
  * @param {Float32Array} drainage
  * @param {number} width
  * @param {number} height
+ * @param {Object} [options]
+ * @param {Float32Array} [options.channelWidth]
+ * @param {number} [options.maxChannelWidth]
  * @returns {Uint8Array}
  */
 export function buildFlowWeightedRiverCorridorMask(
@@ -47,13 +143,24 @@ export function buildFlowWeightedRiverCorridorMask(
   drainage,
   width,
   height,
+  options = {},
 ) {
+  const maxRadius = riverCorridorMaxRadiusForGrid(width)
+  const maxChannelWidth = options.maxChannelWidth
+    ?? (options.channelWidth
+      ? computeRiverNetworkMaxChannelWidth(options.channelWidth, riverNetworkMask)
+      : 0)
   const out = new Uint8Array(riverNetworkMask.length)
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const idx = y * width + x
       if (!riverNetworkMask[idx]) continue
-      const radius = riverCorridorRadiusForDrainage(drainage[idx])
+      const radius = resolveRiverCorridorRenderRadius({
+        drainage: drainage[idx],
+        channelWidth: options.channelWidth?.[idx] ?? 0,
+        maxChannelWidth,
+        maxRadius,
+      })
       stampDisk(out, width, height, x, y, radius)
     }
   }

@@ -25,6 +25,7 @@ const D8_OFFSETS = [
 const D8_DIST = [1.414, 1, 1.414, 1, 1, 1.414, 1, 1.414]
 
 /**
+ * Legacy A* / fractal meander refinement (opt-in via enableMeanderRefine on hydrologyRefine).
  * Turn a flow-accumulation river sketch into a connected corridor mask by extracting
  * structural nodes (sources, junctions, mouths) and routing least-resistance paths
  * between them, biased to stay near the sketch.

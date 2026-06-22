@@ -1,5 +1,7 @@
+import { computeCoastNavigability } from '../coast/computeCoastNavigability.js'
 import {
   REFERENCE_NAVIGABLE_GRADIENT_CUTOFF,
+  REFERENCE_RIVER_MOUTH_COAST_NAVIGABILITY_CUTOFF,
   navigableFlowCutoffForGrid,
   scaleForGridSize,
   sourceFlowCutoffForGrid,
@@ -16,6 +18,9 @@ import { downstreamIndex } from './computeFlowAccumulation.js'
  * @param {number} params.width
  * @param {number} params.height
  * @param {number} [params.navigableFlowCutoffScale]
+ * @param {Uint8Array} [params.channelMask]
+ * @param {Float32Array} [params.coastNavigability]
+ * @param {number} [params.seaLevel]
  * @returns {import('../types.js').RiverGraph}
  */
 export function buildRiverGraph({
@@ -27,15 +32,24 @@ export function buildRiverGraph({
   width,
   height,
   navigableFlowCutoffScale = 1,
+  channelMask,
+  coastNavigability,
+  seaLevel,
 }) {
+  const coastNav =
+    coastNavigability ??
+    computeCoastNavigability({ elevation, width, height, seaLevel })
   const flowCutoff = Math.max(
     2,
     Math.round(navigableFlowCutoffForGrid(width) * navigableFlowCutoffScale),
   )
+  const junctionFlowCutoff = channelMask ? 2 : flowCutoff
   const sourceFlowCutoff = Math.max(
     2,
     Math.round(sourceFlowCutoffForGrid(width) * navigableFlowCutoffScale),
   )
+  const mouthFlowCutoff = channelMask ? 2 : sourceFlowCutoff
+  const headwaterFlowCutoff = channelMask ? 2 : sourceFlowCutoff
   const gradientCutoff = scaleForGridSize(REFERENCE_NAVIGABLE_GRADIENT_CUTOFF, width)
   const cellCount = width * height
   const nodeByCell = new Map()
@@ -55,12 +69,19 @@ export function buildRiverGraph({
 
   for (let idx = 0; idx < cellCount; idx += 1) {
     if (ocean[idx]) continue
+    if (channelMask && !channelMask[idx]) continue
+    if (channelMask && lakeMask[idx]) continue
     const flow = flowAccumulation[idx]
     if (flow < 2) continue
 
     const downstream = downstreamIndex(idx, width, flowDirection)
-    const isMouthCandidate = downstream >= 0 && ocean[downstream]
-    const isMouth = isMouthCandidate && flow >= sourceFlowCutoff
+    const isMouthCandidate = isRiverMouthDrainageCell(
+      downstream,
+      ocean,
+      coastNav,
+      REFERENCE_RIVER_MOUTH_COAST_NAVIGABILITY_CUTOFF,
+    )
+    const isMouth = isMouthCandidate && flow >= mouthFlowCutoff
     const isSource = isHeadwater(idx, width, height, flowDirection, ocean)
     const isJunction = countUpstream(idx, width, height, flowDirection, ocean) >= 2
     const isLakeNode = lakeMask[idx] > 0
@@ -74,8 +95,8 @@ export function buildRiverGraph({
     const isGraphNode =
       isLakeNode ||
       isMouth ||
-      (isSource && flow >= sourceFlowCutoff) ||
-      (isJunction && flow >= flowCutoff)
+      (isSource && flow >= headwaterFlowCutoff) ||
+      (isJunction && flow >= junctionFlowCutoff)
     if (isGraphNode) {
       nodeByCell.set(idx, createNode(idx % width, Math.floor(idx / width), kind))
     }
@@ -114,6 +135,17 @@ export function buildRiverGraph({
   }
 
   return { nodes, edges }
+}
+
+/**
+ * @param {number} downstreamIdx
+ * @param {boolean[]} ocean
+ * @param {Float32Array} coastNavigability
+ * @param {number} cutoff
+ */
+export function isRiverMouthDrainageCell(downstreamIdx, ocean, coastNavigability, cutoff) {
+  if (downstreamIdx < 0 || !ocean[downstreamIdx]) return false
+  return coastNavigability[downstreamIdx] >= cutoff
 }
 
 /**

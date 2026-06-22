@@ -107,24 +107,28 @@ export function normalizeWindDegrees(degrees) {
 }
 
 /**
- * @param {'pass' | 'warn'} status
+ * @param {'pass' | 'warn' | 'fail'} status
  * @returns {string}
  */
 export function validationStatusColor(status) {
-  return status === 'pass' ? 'positive' : 'warning'
+  if (status === 'pass') return 'positive'
+  if (status === 'fail') return 'negative'
+  return 'warning'
 }
 
 /**
- * @param {'pass' | 'warn'} status
+ * @param {'pass' | 'warn' | 'fail'} status
  * @returns {string}
  */
 export function validationStatusIcon(status) {
-  return status === 'pass' ? 'check_circle' : 'warning'
+  if (status === 'pass') return 'check_circle'
+  if (status === 'fail') return 'cancel'
+  return 'warning'
 }
 
 /**
  * @param {import('./core/types.js').GenerationReport | undefined} report
- * @returns {Array<{ checkId: string, status: 'pass' | 'warn', summary: string, mapFocus?: import('./core/types.js').MapFocus }>}
+ * @returns {Array<{ checkId: string, status: 'pass' | 'warn' | 'fail', summary: string, mapFocus?: import('./core/types.js').MapFocus }>}
  */
 export function createValidationRowsForDisplay(report) {
   if (!report) return []
@@ -141,6 +145,87 @@ export function createStageSummaryForDisplay(report) {
     navigableRiverEdgeCount: report?.navigableRiverEdgeCount ?? 0,
     coastalNodeCount: report?.coastalNodeCount ?? 0,
   }
+}
+
+/**
+ * @param {import('./core/types.js').GenerationReport | undefined} report
+ */
+export function createHydrologyStatsForDisplay(report) {
+  if (!report?.hydrology) {
+    return {
+      riverCellCount: null,
+      navigableEdgeCount: null,
+      hacksLawExponent: null,
+      slopeAreaConcavityMedian: null,
+      slopeAreaConcavitySampleCount: 0,
+      parallelStrandRatio: null,
+      navigableKmEstimate: null,
+      mouthCount: null,
+      breachCount: null,
+      lakeCount: null,
+      endorheicFraction: null,
+      coastConnectedNavigablePathLength: null,
+      shouldReject: false,
+      rejectionReasons: [],
+    }
+  }
+  const slopeAreaConcavityMedian = medianHydrologySamples(
+    report.hydrology.slopeAreaConcavitySamples,
+  )
+  return {
+    riverCellCount: report.hydrology.riverCellCount,
+    navigableEdgeCount: report.hydrology.navigableEdgeCount,
+    hacksLawExponent: report.hydrology.hacksLawExponent,
+    slopeAreaConcavityMedian,
+    slopeAreaConcavitySampleCount: report.hydrology.slopeAreaConcavitySamples.length,
+    parallelStrandRatio: report.hydrology.parallelStrandRatio,
+    navigableKmEstimate: report.hydrology.navigableKmEstimate,
+    mouthCount: report.hydrology.mouthCount,
+    breachCount: report.hydrology.breachCount,
+    lakeCount: report.hydrology.lakeCount,
+    endorheicFraction: report.hydrology.endorheicFraction,
+    coastConnectedNavigablePathLength: report.hydrology.coastConnectedNavigablePathLength,
+    shouldReject: report.shouldReject,
+    rejectionReasons: [...report.rejectionReasons],
+  }
+}
+
+/**
+ * @param {number | null | undefined} value
+ * @param {number} [digits]
+ * @returns {string}
+ */
+export function formatHydrologyMetricValue(value, digits = 3) {
+  if (value === null || value === undefined) {
+    return 'n/a'
+  }
+  return value.toFixed(digits)
+}
+
+/**
+ * @param {number | null | undefined} median
+ * @param {number} sampleCount
+ * @returns {string}
+ */
+export function formatSlopeAreaConcavityForDisplay(median, sampleCount) {
+  if (median === null || median === undefined || sampleCount <= 0) {
+    return 'n/a'
+  }
+  return `${median.toFixed(2)} (${sampleCount} samples)`
+}
+
+/**
+ * @param {number[]} samples
+ * @returns {number | null}
+ */
+function medianHydrologySamples(samples) {
+  if (!samples || samples.length === 0) return null
+  const sorted = [...samples].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2
+  }
+  return sorted[mid]
 }
 
 /**
@@ -169,4 +254,50 @@ export function createGenerationStepStatuses(steps, activeStepIndex, completedSt
     }
     return { ...step, status: 'pending' }
   })
+}
+
+/**
+ * @param {ReadonlyArray<{ id: string, label: string }>} substeps
+ * @param {number} activeSubstepIndex
+ * @param {number} completedSubstepIndex
+ * @param {ReadonlySet<string>} [skippedSubstepIds]
+ * @returns {Array<{ id: string, label: string, status: 'pending' | 'active' | 'complete' | 'skipped' }>}
+ */
+export function createHydrologySubstepStatuses(
+  substeps,
+  activeSubstepIndex,
+  completedSubstepIndex,
+  skippedSubstepIds = new Set(),
+) {
+  return substeps.map((substep, index) => {
+    if (skippedSubstepIds.has(substep.id)) {
+      return { ...substep, status: 'skipped' }
+    }
+    if (index <= completedSubstepIndex) {
+      return { ...substep, status: 'complete' }
+    }
+    if (index === activeSubstepIndex) {
+      return { ...substep, status: 'active' }
+    }
+    return { ...substep, status: 'pending' }
+  })
+}
+
+/**
+ * @param {import('./core/types.js').HydrologySubstepTiming} row
+ * @returns {string}
+ */
+export function formatHydrologySubstepTimingForDisplay(row) {
+  if (row.skipped) {
+    return 'Skipped'
+  }
+  return `${row.durationMs.toFixed(1)} ms`
+}
+
+/**
+ * @param {import('./core/types.js').GenerationReport | undefined} report
+ * @returns {import('./core/types.js').HydrologySubstepTiming[]}
+ */
+export function createHydrologySubstepTimingsForDisplay(report) {
+  return report?.hydrologySubstepTimings ?? []
 }

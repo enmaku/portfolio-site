@@ -5,9 +5,18 @@ import {
   DERIVED_GEOGRAPHY_STEPS,
   runPipelineStep,
 } from '../core/derivedGeographyPipeline.js'
+import { resolveWorldGenerationOptions } from '../core/worldGenerationOptions.js'
 
 /** @type {boolean} */
 let cancelled = false
+
+/**
+ * @param {number} geographySeed
+ */
+function normalizeGeographySeed(geographySeed) {
+  const normalizedSeed = geographySeed | 0
+  return normalizedSeed >= 0 ? normalizedSeed : normalizedSeed + 4294967296
+}
 
 /**
  * @param {MessageEvent<{ type: string, params?: import('../core/types.js').DerivedGeographyParams }>} event
@@ -25,42 +34,101 @@ async function handleMessage(event) {
 
   cancelled = false
   const stepCount = DERIVED_GEOGRAPHY_STEPS.length
+  const options = resolveWorldGenerationOptions(message.params.options)
+  const maxValidationRetries = options.maxValidationRetries
+  const baseSeed = message.params.geographySeed | 0
 
   try {
-    let state = createInitialPipelineState(message.params)
-
-    for (let stepIndex = 0; stepIndex < stepCount; stepIndex += 1) {
+    for (let attempt = 0; attempt <= maxValidationRetries; attempt += 1) {
       if (cancelled) {
         postMessage({ type: 'cancelled' })
         return
       }
 
-      const step = DERIVED_GEOGRAPHY_STEPS[stepIndex]
-      postMessage({
-        type: 'step-start',
-        stepId: step.id,
-        stepIndex,
-        stepCount,
-        label: step.label,
-      })
+      const attemptParams = {
+        ...message.params,
+        geographySeed: normalizeGeographySeed(baseSeed + attempt),
+        options,
+      }
+      let state = createInitialPipelineState(attemptParams)
 
-      state = runPipelineStep(state, step.id)
-      const worldDocument = cloneWorldDocument(buildWorldDocumentFromPipelineState(state))
+      for (let stepIndex = 0; stepIndex < stepCount; stepIndex += 1) {
+        if (cancelled) {
+          postMessage({ type: 'cancelled' })
+          return
+        }
 
-      postMessage({
-        type: 'step-complete',
-        stepId: step.id,
-        stepIndex,
-        stepCount,
-        label: step.label,
-        worldDocument,
-      })
+        const step = DERIVED_GEOGRAPHY_STEPS[stepIndex]
+        postMessage({
+          type: 'step-start',
+          stepId: step.id,
+          stepIndex,
+          stepCount,
+          label: step.label,
+        })
 
-      await yieldToEventLoop()
+        const stepOptions = step.id === 'hydrology'
+          ? {
+              shouldCancel: () => cancelled,
+              onSubstepStart(payload) {
+                if (cancelled) return
+                postMessage({
+                  type: 'substep-start',
+                  stepId: step.id,
+                  ...payload,
+                })
+              },
+              onSubstepProgress(payload) {
+                if (cancelled) return
+                postMessage({
+                  type: 'substep-progress',
+                  stepId: step.id,
+                  ...payload,
+                })
+              },
+              onSubstepComplete(payload) {
+                if (cancelled) return
+                postMessage({
+                  type: 'substep-complete',
+                  stepId: step.id,
+                  ...payload,
+                })
+              },
+            }
+          : undefined
+
+        state = runPipelineStep(state, step.id, stepOptions)
+
+        if (cancelled) {
+          postMessage({ type: 'cancelled' })
+          return
+        }
+
+        const worldDocument = cloneWorldDocument(buildWorldDocumentFromPipelineState(state))
+
+        postMessage({
+          type: 'step-complete',
+          stepId: step.id,
+          stepIndex,
+          stepCount,
+          label: step.label,
+          worldDocument,
+        })
+
+        await yieldToEventLoop()
+      }
+
+      if (!state.generationReport?.shouldReject) {
+        break
+      }
     }
 
     postMessage({ type: 'complete' })
   } catch (error) {
+    if (cancelled) {
+      postMessage({ type: 'cancelled' })
+      return
+    }
     postMessage({
       type: 'error',
       message: error instanceof Error ? error.message : String(error),

@@ -43,6 +43,38 @@
  */
 
 /**
+ * @typedef {Object} LakeMetaRecord
+ * @property {boolean} endorheic
+ * @property {number} surfaceElevation
+ * @property {number=} outletX
+ * @property {number=} outletY
+ */
+
+/**
+ * @typedef {Object} HydrologyPipelineStats
+ * @property {number} breachCount
+ * @property {number} endorheicCount
+ * @property {number} endorheicFraction
+ * @property {number} lakeCount
+ */
+
+/**
+ * @typedef {Object} HydrologyReportStats
+ * @property {number} breachCount
+ * @property {number} endorheicCount
+ * @property {number} endorheicFraction
+ * @property {number} lakeCount
+ * @property {number} riverCellCount
+ * @property {number} navigableEdgeCount
+ * @property {number} navigableKmEstimate
+ * @property {number} mouthCount
+ * @property {number | null} hacksLawExponent
+ * @property {number[]} slopeAreaConcavitySamples
+ * @property {number} parallelStrandRatio
+ * @property {number} coastConnectedNavigablePathLength
+ */
+
+/**
  * @typedef {'mouth' | 'strait' | 'anchorage' | 'extraction'} CoastalNodeKind
  */
 
@@ -82,9 +114,17 @@
 /**
  * @typedef {Object} ValidationRow
  * @property {string} checkId
- * @property {'pass' | 'warn'} status
+ * @property {'pass' | 'warn' | 'fail'} status
  * @property {string} summary
  * @property {MapFocus=} mapFocus
+ */
+
+/**
+ * @typedef {Object} HydrologySubstepTiming
+ * @property {string} substepId
+ * @property {string} label
+ * @property {number} durationMs
+ * @property {boolean=} skipped
  */
 
 /**
@@ -93,6 +133,10 @@
  * @property {number} navigableRiverEdgeCount
  * @property {number} coastalNodeCount
  * @property {ValidationRow[]} validationRows
+ * @property {boolean} shouldReject
+ * @property {string[]} rejectionReasons
+ * @property {HydrologySubstepTiming[]} hydrologySubstepTimings
+ * @property {HydrologyReportStats} hydrology
  */
 
 /**
@@ -108,8 +152,10 @@
  * @property {'physicalTerrainBaseline' | 'derivedGeography'} pipelineStage
  * @property {RiverGraph=} riverGraph
  * @property {LakeRecord[]=} lakes
+ * @property {LakeMetaRecord[]=} lakeMeta
  * @property {Uint8Array=} lakeMask
  * @property {Uint8Array=} riverNetworkMask
+ * @property {Float32Array=} channelWidth
  * @property {Float32Array=} coastNavigability
  * @property {CoastalNode[]=} coastalNodes
  * @property {SaltNode[]=} saltNodes
@@ -124,20 +170,47 @@
  * @property {number} elevationFrequencyScale
  * @property {number} elevationOctaves
  * @property {number} elevationPersistence
+ * @property {number} elevationDomainWarpStrength
+ * @property {number} elevationCoastBiasStrength
+ * @property {number} elevationMidSmoothingStrength
+ * @property {number} elevationSlopeRoughnessStrength
+ * @property {number} elevationGentleSlopePersistenceScale
  * @property {number} erosionStepCount
  * @property {number} erosionChannelWear
  * @property {number} erosionPeakWear
+ * @property {number} inciseIterations
+ * @property {number} streamPowerK
+ * @property {number} streamPowerM
+ * @property {number} streamPowerN
+ * @property {number} channelInitiationThreshold
  * @property {number} rainShadowStrength
  * @property {number} temperatureLapseRate
  * @property {number} rainfallFrequencyScale
  * @property {number} navigableFlowCutoffScale
  * @property {number} riverAttractionRadiusScale
+ * @property {boolean} enableMeanderRefine
  * @property {number} riverMeanderStrength
  * @property {number} riverSettlementSteps
  * @property {number} riverMergeStrength
  * @property {number} minLakeAreaScale
  * @property {number} soilDrainageScale
  * @property {number} maxSaltNodes
+ * @property {number} breachThreshold
+ * @property {boolean} enforceNavigableRiverQuota
+ * @property {boolean} enforceCoastMouth
+ * @property {boolean} enforceHacksLawExponent
+ * @property {boolean} enforceSlopeAreaConcavity
+ * @property {boolean} enforceParallelStrandRatio
+ * @property {boolean} enforceCoastConnectedNavigablePath
+ * @property {boolean} enforceEndorheicFractionCap
+ * @property {number} maxValidationRetries
+ * @property {number} minHacksLawExponent
+ * @property {number} maxHacksLawExponent
+ * @property {number} minSlopeAreaConcavity
+ * @property {number} maxSlopeAreaConcavity
+ * @property {number} maxParallelStrandRatio
+ * @property {number} minCoastConnectedNavigablePathCells
+ * @property {number} maxEndorheicFraction
  */
 
 /**
@@ -173,6 +246,9 @@ export const REFERENCE_NAVIGABLE_FLOW_CUTOFF = 48
 /** Maximum segment gradient for navigable rivers (elevation delta per cell). */
 export const REFERENCE_NAVIGABLE_GRADIENT_CUTOFF = 0.012
 
+/** Minimum coast-navigability score on the downstream ocean cell for a river mouth. */
+export const REFERENCE_RIVER_MOUTH_COAST_NAVIGABILITY_CUTOFF = 0.35
+
 /** Minimum lake area in cells (reference grid). */
 export const REFERENCE_MIN_LAKE_AREA = 16
 
@@ -197,16 +273,16 @@ export function scaleForGridSize(value, gridSize) {
 }
 
 /**
- * Flow cutoffs scale with grid width so a fixed fraction of the map can qualify
- * as major drainage at any resolution. Linear scaling matches how mouth flow grows
- * with coast length; quadratic cutoffs at 1024² made tributaries vanish.
+ * Flow cutoffs scale sub-linearly with grid width when runoff is normalized
+ * precipitation (0..1 per cell). Linear scaling outpaced mouth discharge growth
+ * at 1024² and erased flow-traced river networks.
  * @param {number} gridSize
  */
 export function navigableFlowCutoffForGrid(gridSize) {
-  const linearScale = gridSize / REFERENCE_GRID_SIZE
+  const scale = Math.sqrt(gridSize / REFERENCE_GRID_SIZE)
   return Math.max(
-    REFERENCE_NAVIGABLE_FLOW_CUTOFF,
-    Math.round(REFERENCE_NAVIGABLE_FLOW_CUTOFF * linearScale),
+    6,
+    Math.round(10 * scale),
   )
 }
 
@@ -224,7 +300,8 @@ export function sourceFlowCutoffForGrid(gridSize) {
  * @param {number} gridSize
  */
 export function riverDisplayFlowCutoffForGrid(gridSize) {
-  return Math.max(8, Math.round(navigableFlowCutoffForGrid(gridSize) * 0.15))
+  const scale = Math.sqrt(gridSize / REFERENCE_GRID_SIZE)
+  return Math.max(4, Math.round(4 * scale))
 }
 
 /**

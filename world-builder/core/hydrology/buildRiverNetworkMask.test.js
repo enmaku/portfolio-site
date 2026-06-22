@@ -23,6 +23,7 @@ test('buildRiverNetworkMask marks a connected path on a gentle ramp', () => {
     elevation,
     width,
     height,
+    rainfall: new Float32Array(width * height).fill(1),
   })
   const mask = buildRiverNetworkMask({
     flowAccumulation,
@@ -59,6 +60,7 @@ test('buildRiverNetworkMask excludes inland sinks that never reach the sea', () 
     elevation,
     width,
     height,
+    rainfall: new Float32Array(width * height).fill(1),
   })
   const mask = buildRiverNetworkMask({
     flowAccumulation,
@@ -100,6 +102,7 @@ test('buildRiverNetworkMask consolidates parallel coastal outlets', () => {
     elevation,
     width,
     height,
+    rainfall: new Float32Array(width * height).fill(1),
   })
   const mask = buildRiverNetworkMask({
     flowAccumulation,
@@ -133,7 +136,8 @@ test('buildRiverNetworkMask traces merged tributaries from a junction', () => {
     for (let x = 1; x < width - 3; x += 1) {
       const distToCoast = width - 4 - x
       const distToCenterY = Math.abs(y - 16)
-      elevation[y * width + x] = SEA_LEVEL + 0.12 + distToCoast * 0.012 + distToCenterY * 0.008
+      elevation[y * width + x] =
+        SEA_LEVEL + 0.12 + distToCoast * 0.004 + distToCenterY * 0.012
     }
   }
 
@@ -142,6 +146,7 @@ test('buildRiverNetworkMask traces merged tributaries from a junction', () => {
     elevation,
     width,
     height,
+    rainfall: new Float32Array(width * height).fill(4),
   })
   const mask = buildRiverNetworkMask({
     flowAccumulation,
@@ -149,6 +154,7 @@ test('buildRiverNetworkMask traces merged tributaries from a junction', () => {
     ocean,
     width,
     height,
+    navigableFlowCutoffScale: 0.5,
   })
 
   let markedUpper = 0

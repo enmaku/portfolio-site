@@ -46,17 +46,37 @@
         rounded
       />
       <div class="row q-gutter-xs q-mt-xs generation-step-row">
-        <q-chip
+        <template
           v-for="step in generationStepStatuses"
           :key="step.id"
-          dense
-          :data-testid="`world-builder-generation-step-${step.id}`"
-          :color="stepStatusColor(step.status)"
-          text-color="white"
-          :outline="step.status === 'pending'"
         >
-          {{ step.label }}
-        </q-chip>
+          <q-chip
+            dense
+            :data-testid="`world-builder-generation-step-${step.id}`"
+            :color="stepStatusColor(step.status)"
+            text-color="white"
+            :outline="step.status === 'pending'"
+          >
+            {{ step.label }}
+          </q-chip>
+          <div
+            v-if="step.id === 'hydrology' && step.status === 'active'"
+            class="row q-gutter-xs items-center hydrology-substep-row"
+          >
+            <q-chip
+              v-for="substep in hydrologySubstepStatuses"
+              :key="substep.id"
+              dense
+              :data-testid="`world-builder-hydrology-substep-${substep.id}`"
+              :color="stepStatusColor(substep.status)"
+              text-color="white"
+              :outline="substep.status === 'pending'"
+              size="sm"
+            >
+              {{ substep.label }}
+            </q-chip>
+          </div>
+        </template>
       </div>
     </div>
     <div class="row col map-row">
@@ -118,7 +138,15 @@
                 {{ control.label }}:
                 {{ formatControlValue(control.key, controlValue(control.key)) }}
               </div>
+              <q-toggle
+                v-if="control.kind === 'toggle'"
+                :model-value="Boolean(controlValue(control.key))"
+                :data-testid="control.testId"
+                color="primary"
+                @update:model-value="onControlChange(control.key, $event)"
+              />
               <q-slider
+                v-else
                 :model-value="controlValue(control.key)"
                 :data-testid="control.testId"
                 :min="control.min"
@@ -148,6 +176,61 @@
             Erosion steps: {{ stageSummary.erosionStepCount }} · Navigable rivers:
             {{ stageSummary.navigableRiverEdgeCount }} · Coastal nodes:
             {{ stageSummary.coastalNodeCount }}
+          </div>
+          <div
+            class="text-caption q-mb-md"
+            data-testid="world-builder-hydrology-stats"
+          >
+            <div>River cells: {{ hydrologyStats.riverCellCount ?? 'n/a' }}</div>
+            <div>Navigable edges: {{ hydrologyStats.navigableEdgeCount ?? 'n/a' }}</div>
+            <div>Hack's law exponent: {{ formatHydrologyMetricValue(hydrologyStats.hacksLawExponent) }}</div>
+            <div>
+              Slope–area concavity:
+              {{
+                formatSlopeAreaConcavityForDisplay(
+                  hydrologyStats.slopeAreaConcavityMedian,
+                  hydrologyStats.slopeAreaConcavitySampleCount,
+                )
+              }}
+            </div>
+            <div>Parallel strand ratio: {{ formatHydrologyMetricValue(hydrologyStats.parallelStrandRatio) }}</div>
+            <div>Navigable km estimate: {{ formatHydrologyMetricValue(hydrologyStats.navigableKmEstimate, 1) }}</div>
+            <div>Mouth count: {{ hydrologyStats.mouthCount ?? 'n/a' }}</div>
+            <div>Lake count: {{ hydrologyStats.lakeCount ?? 'n/a' }}</div>
+            <div>Breach count: {{ hydrologyStats.breachCount ?? 'n/a' }}</div>
+            <div>Endorheic fraction: {{ formatHydrologyMetricValue(hydrologyStats.endorheicFraction) }}</div>
+            <div>
+              Coast-connected navigable path:
+              {{ hydrologyStats.coastConnectedNavigablePathLength ?? 'n/a' }} cells
+            </div>
+            <div data-testid="world-builder-rejection-status">
+              Rejected:
+              {{ hydrologyStats.shouldReject ? 'yes' : 'no' }}
+            </div>
+            <div
+              v-if="hydrologyStats.rejectionReasons.length > 0"
+              data-testid="world-builder-rejection-reasons"
+            >
+              <div
+                v-for="reason in hydrologyStats.rejectionReasons"
+                :key="reason"
+              >
+                {{ reason }}
+              </div>
+            </div>
+          </div>
+          <div
+            v-if="hydrologySubstepTimings.length > 0"
+            class="text-caption q-mb-md"
+            data-testid="world-builder-hydrology-substep-timings"
+          >
+            <div
+              v-for="row in hydrologySubstepTimings"
+              :key="row.substepId"
+              :data-testid="`world-builder-hydrology-timing-${row.substepId}`"
+            >
+              {{ row.label }}: {{ formatHydrologySubstepTimingForDisplay(row) }}
+            </div>
           </div>
           <q-list bordered separator>
             <q-item
@@ -180,6 +263,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import {
   DERIVED_GEOGRAPHY_STEPS,
+  HYDROLOGY_SUBSTEPS,
   runDerivedGeographyInWorker,
 } from '@world-builder/runDerivedGeographyInWorker.js'
 import {
@@ -189,9 +273,15 @@ import {
 import {
   buildDerivedGeographyParams,
   createGenerationStepStatuses,
+  createHydrologyStatsForDisplay,
+  createHydrologySubstepStatuses,
+  createHydrologySubstepTimingsForDisplay,
+  formatHydrologySubstepTimingForDisplay,
   createRandomGeographySeed,
   createStageSummaryForDisplay,
   createValidationRowsForDisplay,
+  formatHydrologyMetricValue,
+  formatSlopeAreaConcavityForDisplay,
   generationProgressValue,
   parseGeographySeedInput,
   validationStatusColor,
@@ -212,12 +302,15 @@ const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
 /** @type {import('vue').Ref<import('@world-builder/core/types.js').WorldDocument | null>} */
 const worldDocument = ref(null)
 
-/** @type {import('vue').Ref<{ percent: number, activeStepIndex: number, completedStepIndex: number, label: string }>} */
+/** @type {import('vue').Ref<{ percent: number, activeStepIndex: number, completedStepIndex: number, label: string, activeHydrologySubstepIndex: number, completedHydrologySubstepIndex: number }>} */
 const generationProgress = ref({
   percent: 0,
   activeStepIndex: -1,
   completedStepIndex: -1,
   label: '',
+  activeHydrologySubstepIndex: -1,
+  completedHydrologySubstepIndex: -1,
+  skippedHydrologySubstepIds: [],
 })
 
 /** @type {{ updateWorldDocument: Function, focusOn: Function, playErosionSnapshots: Function, destroy: Function } | null} */
@@ -235,6 +328,9 @@ const validationRows = computed(() =>
 const stageSummary = computed(() =>
   createStageSummaryForDisplay(worldDocument.value?.generationReport),
 )
+const hydrologyStats = computed(() =>
+  createHydrologyStatsForDisplay(worldDocument.value?.generationReport),
+)
 const canReplay = computed(() => (worldDocument.value?.erosionSnapshots?.length ?? 0) > 0)
 const generationStepStatuses = computed(() =>
   createGenerationStepStatuses(
@@ -243,13 +339,25 @@ const generationStepStatuses = computed(() =>
     generationProgress.value.completedStepIndex,
   ),
 )
+const hydrologySubstepStatuses = computed(() =>
+  createHydrologySubstepStatuses(
+    HYDROLOGY_SUBSTEPS,
+    generationProgress.value.activeHydrologySubstepIndex,
+    generationProgress.value.completedHydrologySubstepIndex,
+    new Set(generationProgress.value.skippedHydrologySubstepIds),
+  ),
+)
+const hydrologySubstepTimings = computed(() =>
+  createHydrologySubstepTimingsForDisplay(worldDocument.value?.generationReport),
+)
 
 /**
- * @param {'pending' | 'active' | 'complete'} status
+ * @param {'pending' | 'active' | 'complete' | 'skipped'} status
  */
 function stepStatusColor(status) {
   if (status === 'complete') return 'positive'
   if (status === 'active') return 'primary'
+  if (status === 'skipped') return 'grey-6'
   return 'grey-8'
 }
 
@@ -259,6 +367,9 @@ function resetGenerationProgress() {
     activeStepIndex: -1,
     completedStepIndex: -1,
     label: '',
+    activeHydrologySubstepIndex: -1,
+    completedHydrologySubstepIndex: -1,
+    skippedHydrologySubstepIds: [],
   }
 }
 
@@ -274,7 +385,7 @@ function controlValue(key) {
 
 /**
  * @param {string} key
- * @param {number} value
+ * @param {number | boolean} value
  */
 function onControlChange(key, value) {
   settingsStore.setControl(key, value)
@@ -283,7 +394,7 @@ function onControlChange(key, value) {
 
 /**
  * @param {string} key
- * @param {number} value
+ * @param {number | boolean} value
  */
 function formatControlValue(key, value) {
   return formatGenerationControlValue(key, value)
@@ -319,20 +430,50 @@ function regenerate() {
   activeGenerationJob = runDerivedGeographyInWorker(
     buildDerivedGeographyParams(parsedSeed, prevailingWindDegrees.value, generationOptions.value),
     {
-      onStepStart({ stepIndex, stepCount, label }) {
+      onStepStart({ stepIndex, stepCount, label, stepId }) {
         generationProgress.value = {
           percent: generationProgressValue(stepIndex, stepCount),
           activeStepIndex: stepIndex,
           completedStepIndex: generationProgress.value.completedStepIndex,
           label,
+          activeHydrologySubstepIndex: -1,
+          completedHydrologySubstepIndex: stepId === 'hydrology'
+            ? -1
+            : generationProgress.value.completedHydrologySubstepIndex,
+          skippedHydrologySubstepIds: stepId === 'hydrology'
+            ? []
+            : generationProgress.value.skippedHydrologySubstepIds,
         }
       },
-      onStepComplete({ stepIndex, stepCount, label, worldDocument: doc }) {
+      onSubstepStart({ substepIndex }) {
+        generationProgress.value = {
+          ...generationProgress.value,
+          activeHydrologySubstepIndex: substepIndex,
+        }
+      },
+      onSubstepComplete({ substepIndex, substepId, skipped }) {
+        generationProgress.value = {
+          ...generationProgress.value,
+          activeHydrologySubstepIndex: substepIndex,
+          completedHydrologySubstepIndex: substepIndex,
+          skippedHydrologySubstepIds: skipped
+            ? [...generationProgress.value.skippedHydrologySubstepIds, substepId]
+            : generationProgress.value.skippedHydrologySubstepIds,
+        }
+      },
+      onStepComplete({ stepIndex, stepCount, label, stepId, worldDocument: doc }) {
         generationProgress.value = {
           percent: generationProgressValue(stepIndex, stepCount),
           activeStepIndex: stepIndex,
           completedStepIndex: stepIndex,
           label,
+          activeHydrologySubstepIndex: -1,
+          completedHydrologySubstepIndex: stepId === 'hydrology'
+            ? -1
+            : generationProgress.value.completedHydrologySubstepIndex,
+          skippedHydrologySubstepIds: stepId === 'hydrology'
+            ? []
+            : generationProgress.value.skippedHydrologySubstepIds,
         }
         applyWorldDocumentToMap(doc)
       },
@@ -420,6 +561,11 @@ onUnmounted(() => {
 
 .generation-step-row {
   overflow-x: auto;
+}
+
+.hydrology-substep-row {
+  flex: 0 0 100%;
+  padding-left: 0.5rem;
 }
 
 .map-row {

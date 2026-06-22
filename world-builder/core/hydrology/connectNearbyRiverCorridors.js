@@ -13,6 +13,7 @@ import {
 /** @typedef {{ minX: number, minY: number, maxX: number, maxY: number }} ComponentBounds */
 
 /**
+ * Legacy heuristic (opt-in via riverAttractionRadiusScale > 0). Default hydrology skips this.
  * When two river corridors pass within the attraction radius, connect them along the
  * lowest-resistance path (preferring low, downhill terrain).
  * @param {Object} params
