@@ -58,7 +58,7 @@ export function buildRiverNetworkMask({
     if (downstream < 0) continue
 
     if (ocean[downstream]) {
-      if (flowAccumulation[idx] >= tributaryCutoff) {
+      if (!isRimCell(downstream, width, height) && flowAccumulation[idx] >= tributaryCutoff) {
         oceanMouthCandidates.push(idx)
       }
       continue
@@ -72,10 +72,7 @@ export function buildRiverNetworkMask({
   const majorMouths = selectCoastalMouths(
     oceanMouthCandidates,
     flowAccumulation,
-    flowDirection,
-    ocean,
     width,
-    height,
     mergeRadius,
     tributaryCutoff,
   )
@@ -115,6 +112,7 @@ export function buildRiverNetworkMask({
       flowDirection,
       ocean,
       width,
+      height,
       minBranchFlow: meltHeadwaterCutoff,
     })
   }
@@ -144,36 +142,14 @@ function buildUpstreamAdjacency(cellCount, width, flowDirection, ocean) {
 /**
  * @param {number[]} candidates
  * @param {Float32Array} flowAccumulation
- * @param {Int16Array} flowDirection
- * @param {boolean[]} ocean
  * @param {number} width
- * @param {number} height
  * @param {number} mergeRadius
  * @param {number} mouthCutoff
  * @returns {number[]}
  */
-function selectCoastalMouths(
-  candidates,
-  flowAccumulation,
-  flowDirection,
-  ocean,
-  width,
-  height,
-  mergeRadius,
-  mouthCutoff,
-) {
+function selectCoastalMouths(candidates, flowAccumulation, width, mergeRadius, mouthCutoff) {
   const qualifying = candidates.filter((idx) => flowAccumulation[idx] >= mouthCutoff)
-  qualifying.sort((a, b) => {
-    const aDownstream = downstreamIndex(a, width, flowDirection)
-    const bDownstream = downstreamIndex(b, width, flowDirection)
-    const aRim = aDownstream >= 0 && ocean[aDownstream] && isRimCell(aDownstream, width, height)
-      ? 0.12
-      : 1
-    const bRim = bDownstream >= 0 && ocean[bDownstream] && isRimCell(bDownstream, width, height)
-      ? 0.12
-      : 1
-    return flowAccumulation[b] * bRim - flowAccumulation[a] * aRim
-  })
+  qualifying.sort((a, b) => flowAccumulation[b] - flowAccumulation[a])
 
   /** @type {number[]} */
   const selected = []
@@ -282,6 +258,7 @@ function addDeltaDistributaries(
         flowDirection,
         ocean,
         width,
+        height,
         Math.min(step + 2, fanReach),
       )
     }
@@ -296,12 +273,13 @@ function addDeltaDistributaries(
  * @param {number} width
  * @param {number} maxSteps
  */
-function markDownstreamToOcean(startIdx, mask, flowDirection, ocean, width, maxSteps) {
+function markDownstreamToOcean(startIdx, mask, flowDirection, ocean, width, height, maxSteps) {
   let current = startIdx
   for (let step = 0; step <= maxSteps; step += 1) {
     if (ocean[current]) break
-    mask[current] = 1
     const downstream = downstreamIndex(current, width, flowDirection)
+    if (downstream >= 0 && ocean[downstream] && isRimCell(downstream, width, height)) break
+    mask[current] = 1
     if (downstream < 0) break
     current = downstream
   }
@@ -316,6 +294,7 @@ function markDownstreamToOcean(startIdx, mask, flowDirection, ocean, width, maxS
  * @param {Int16Array} params.flowDirection
  * @param {boolean[]} params.ocean
  * @param {number} params.width
+ * @param {number} params.height
  * @param {number} params.minBranchFlow
  */
 function traceMeltSourcedCorridors({
@@ -326,13 +305,16 @@ function traceMeltSourcedCorridors({
   flowDirection,
   ocean,
   width,
+  height,
   minBranchFlow,
 }) {
   const maxDownstreamSteps = Math.max(16, Math.round(scaleForGridSize(48, width)))
   for (let idx = 0; idx < meltContribution.length; idx += 1) {
     if (meltContribution[idx] <= 0 || ocean[idx]) continue
+    const downstream = downstreamIndex(idx, width, flowDirection)
+    if (downstream >= 0 && ocean[downstream] && isRimCell(downstream, width, height)) continue
     mask[idx] = 1
     traceRiverUpstream(idx, mask, flowAccumulation, upstream, minBranchFlow)
-    markDownstreamToOcean(idx, mask, flowDirection, ocean, width, maxDownstreamSteps)
+    markDownstreamToOcean(idx, mask, flowDirection, ocean, width, height, maxDownstreamSteps)
   }
 }

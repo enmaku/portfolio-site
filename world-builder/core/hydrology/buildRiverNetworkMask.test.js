@@ -6,11 +6,14 @@ import { computeFlowAccumulation, downstreamIndex } from './computeFlowAccumulat
 import { buildRiverNetworkMask } from './buildRiverNetworkMask.js'
 
 function makeRamp(width, height) {
-  const elevation = new Float32Array(width * height)
+  const elevation = new Float32Array(width * height).fill(SEA_LEVEL + 0.5)
   for (let y = 1; y < height - 1; y += 1) {
-    for (let x = 1; x < width - 1; x += 1) {
+    for (let x = 1; x < width - 2; x += 1) {
       elevation[y * width + x] = SEA_LEVEL + 0.1 + (0.5 * x) / width
     }
+  }
+  for (let y = 1; y < height - 1; y += 1) {
+    elevation[y * width + (width - 2)] = SEA_LEVEL - 0.05
   }
   return elevation
 }
@@ -71,6 +74,39 @@ test('buildRiverNetworkMask excludes inland sinks that never reach the sea', () 
   })
 
   assert.strictEqual(mask[8 * width + 8], 0)
+})
+
+test('buildRiverNetworkMask skips outlets that drain to the closed-island rim', () => {
+  const width = 16
+  const height = 16
+  const elevation = new Float32Array(width * height).fill(0.55)
+  for (let y = 1; y < height - 1; y += 1) {
+    elevation[y * width + 1] = 0.7 - (y - 1) * 0.04
+  }
+  const ocean = isOceanCell(elevation, width, height)
+  const { flowDirection, flowAccumulation } = computeFlowAccumulation({
+    elevation,
+    width,
+    height,
+    rainfall: new Float32Array(width * height).fill(0.6),
+  })
+
+  const mask = buildRiverNetworkMask({
+    flowAccumulation,
+    flowDirection,
+    ocean,
+    width,
+    height,
+  })
+
+  for (let idx = 0; idx < mask.length; idx += 1) {
+    if (!mask[idx]) continue
+    const downstream = downstreamIndex(idx, width, flowDirection)
+    assert.ok(
+      !(downstream >= 0 && ocean[downstream] && (downstream % width === 0 || downstream % width === width - 1)),
+      'river mask should not include cells draining to the map rim',
+    )
+  }
 })
 
 /**

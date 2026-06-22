@@ -1,4 +1,5 @@
 import { computeCoastNavigability } from '../coast/computeCoastNavigability.js'
+import { isRimCell } from '../fields/applyClosedIslandRim.js'
 import { riverDisplayFlowCutoffForGrid } from '../types.js'
 import { downstreamIndex } from './computeFlowAccumulation.js'
 import { computeFlowAccumulation } from './computeFlowAccumulation.js'
@@ -76,9 +77,11 @@ export function buildIncisedChannelMask({
 
   for (let idx = 0; idx < cellCount; idx += 1) {
     if (!incisedCorridorMask[idx] || ocean[idx] || lakeMask?.[idx]) continue
+    const downstream = downstreamIndex(idx, width, flowDirection)
+    if (downstream >= 0 && ocean[downstream] && isRimCell(downstream, width, height)) continue
     incisedMask[idx] = 1
     traceIncisedUpstream(idx, incisedMask, flowAccumulation, upstream, minBranchFlow)
-    markDownstreamOnNetwork(idx, incisedMask, flowDirection, ocean, width)
+    markDownstreamOnNetwork(idx, incisedMask, flowDirection, ocean, width, height)
   }
 
   const flowMask = buildRiverNetworkMask({
@@ -259,7 +262,7 @@ function traceIncisedUpstream(startIdx, mask, flowAccumulation, upstream, minBra
  * @param {boolean[]} ocean
  * @param {number} width
  */
-function markDownstreamOnNetwork(startIdx, mask, flowDirection, ocean, width) {
+function markDownstreamOnNetwork(startIdx, mask, flowDirection, ocean, width, height) {
   let current = startIdx
   const cellCount = mask.length
   let guard = 0
@@ -268,6 +271,7 @@ function markDownstreamOnNetwork(startIdx, mask, flowDirection, ocean, width) {
     const downstream = downstreamIndex(current, width, flowDirection)
     if (downstream < 0) break
     if (ocean[downstream]) break
+    if (isRimCell(downstream, width, height)) break
     mask[downstream] = 1
     current = downstream
   }
