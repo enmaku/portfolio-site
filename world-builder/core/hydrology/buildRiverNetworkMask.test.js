@@ -209,3 +209,55 @@ test('buildRiverNetworkMask traces merged tributaries from a junction', () => {
   assert.ok(markedUpper > 0, 'expected upper tributary corridor')
   assert.ok(markedLower > 0, 'expected lower tributary corridor')
 })
+
+test('buildRiverNetworkMask merges lake inflow outlets per lake', () => {
+  const width = 32
+  const height = 32
+  const elevation = new Float32Array(width * height).fill(0.7)
+  const lakeMask = new Uint8Array(width * height)
+
+  for (let y = 10; y <= 14; y += 1) {
+    for (let x = 14; x <= 18; x += 1) {
+      elevation[y * width + x] = 0.45
+      lakeMask[y * width + x] = 1
+    }
+  }
+
+  for (let y = 10; y <= 14; y += 1) {
+    for (let x = 8; x <= 13; x += 1) {
+      elevation[y * width + x] = 0.55 + (13 - x) * 0.01
+    }
+  }
+
+  const ocean = isOceanCell(elevation, width, height)
+  const { flowDirection, flowAccumulation } = computeFlowAccumulation({
+    elevation,
+    width,
+    height,
+    rainfall: new Float32Array(width * height).fill(2),
+  })
+
+  const mask = buildRiverNetworkMask({
+    flowAccumulation,
+    flowDirection,
+    ocean,
+    width,
+    height,
+    lakeMask,
+    navigableFlowCutoffScale: 0.25,
+  })
+
+  let lakeShoreMouths = 0
+  for (let idx = 0; idx < mask.length; idx += 1) {
+    if (!mask[idx] || ocean[idx] || lakeMask[idx]) continue
+    const downstream = downstreamIndex(idx, width, flowDirection)
+    if (downstream >= 0 && lakeMask[downstream]) {
+      lakeShoreMouths += 1
+    }
+  }
+
+  assert.ok(
+    lakeShoreMouths < 8,
+    `expected merged lake inflow outlets, got ${lakeShoreMouths}`,
+  )
+})

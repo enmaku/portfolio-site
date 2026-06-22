@@ -5,6 +5,7 @@ import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
 import {
   buildFlowWeightedRiverCorridorMask,
   buildRiverCorridorRenderState,
+  capRiverCorridorRadiusAtWaterEdge,
   computeRiverNetworkMaxChannelWidth,
   resolveRiverCorridorNormalizedFlow,
   resolveRiverCorridorRenderRadius,
@@ -49,6 +50,47 @@ test('buildFlowWeightedRiverCorridorMask widens high-flow reaches more than head
   }
 
   assert.ok(mouthWidth > headwaterWidth)
+})
+
+test('buildFlowWeightedRiverCorridorMask keeps centerline width at ocean and lake shores', () => {
+  const width = 7
+  const height = 3
+  const riverNetworkMask = new Uint8Array(width * height)
+  const drainage = new Float32Array(width * height).fill(0.9)
+  const ocean = new Array(width * height).fill(false)
+  const lakeMask = new Uint8Array(width * height)
+
+  riverNetworkMask[1 * width + 1] = 1
+  ocean[1 * width + 2] = true
+  riverNetworkMask[1 * width + 4] = 1
+  lakeMask[1 * width + 5] = 1
+
+  const mask = buildFlowWeightedRiverCorridorMask(
+    riverNetworkMask,
+    drainage,
+    width,
+    height,
+    { ocean, lakeMask },
+  )
+
+  assert.strictEqual(mask[1 * width + 1], 1)
+  assert.strictEqual(mask[1 * width + 0], 0)
+  assert.strictEqual(mask[1 * width + 4], 1)
+  assert.strictEqual(mask[1 * width + 3], 0)
+})
+
+test('capRiverCorridorRadiusAtWaterEdge zeroes radius beside water', () => {
+  const width = 3
+  const height = 3
+  const ocean = [false, false, false, false, true, false, false, false, false]
+  assert.strictEqual(
+    capRiverCorridorRadiusAtWaterEdge(3, 0, 0, width, height, ocean, undefined),
+    3,
+  )
+  assert.strictEqual(
+    capRiverCorridorRadiusAtWaterEdge(3, 1, 0, width, height, ocean, undefined),
+    0,
+  )
 })
 
 test('riverCorridorRadiusForChannelWidth grows monotonically and caps at max radius', () => {

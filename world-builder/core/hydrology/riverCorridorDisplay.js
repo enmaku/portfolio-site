@@ -108,6 +108,57 @@ export function buildRiverCorridorRenderState(worldDocument) {
 }
 
 /**
+ * @param {number} x
+ * @param {number} y
+ * @param {number} width
+ * @param {number} height
+ * @param {boolean[] | undefined} ocean
+ * @param {Uint8Array | undefined} lakeMask
+ * @returns {boolean}
+ */
+export function isRiverCorridorAdjacentToWater(x, y, width, height, ocean, lakeMask) {
+  const neighbors = [
+    [x - 1, y],
+    [x + 1, y],
+    [x, y - 1],
+    [x, y + 1],
+  ]
+  for (const [nx, ny] of neighbors) {
+    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+    const nIdx = ny * width + nx
+    if (ocean?.[nIdx]) return true
+    if (lakeMask?.[nIdx]) return true
+  }
+  return false
+}
+
+/**
+ * @param {number} radius
+ * @param {number} x
+ * @param {number} y
+ * @param {number} width
+ * @param {number} height
+ * @param {boolean[] | undefined} ocean
+ * @param {Uint8Array | undefined} lakeMask
+ * @returns {number}
+ */
+export function capRiverCorridorRadiusAtWaterEdge(
+  radius,
+  x,
+  y,
+  width,
+  height,
+  ocean,
+  lakeMask,
+) {
+  if (radius <= 0 || (!ocean && !lakeMask)) return radius
+  if (isRiverCorridorAdjacentToWater(x, y, width, height, ocean, lakeMask)) {
+    return 0
+  }
+  return radius
+}
+
+/**
  * @param {Uint8Array} out
  * @param {number} width
  * @param {number} height
@@ -136,6 +187,8 @@ function stampDisk(out, width, height, x, y, radius) {
  * @param {Object} [options]
  * @param {Float32Array} [options.channelWidth]
  * @param {number} [options.maxChannelWidth]
+ * @param {boolean[]} [options.ocean]
+ * @param {Uint8Array} [options.lakeMask]
  * @returns {Uint8Array}
  */
 export function buildFlowWeightedRiverCorridorMask(
@@ -150,17 +203,31 @@ export function buildFlowWeightedRiverCorridorMask(
     ?? (options.channelWidth
       ? computeRiverNetworkMaxChannelWidth(options.channelWidth, riverNetworkMask)
       : 0)
+  const { ocean, lakeMask } = options
   const out = new Uint8Array(riverNetworkMask.length)
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const idx = y * width + x
       if (!riverNetworkMask[idx]) continue
-      const radius = resolveRiverCorridorRenderRadius({
+      const baseRadius = resolveRiverCorridorRenderRadius({
         drainage: drainage[idx],
         channelWidth: options.channelWidth?.[idx] ?? 0,
         maxChannelWidth,
         maxRadius,
       })
+      const radius = capRiverCorridorRadiusAtWaterEdge(
+        baseRadius,
+        x,
+        y,
+        width,
+        height,
+        ocean,
+        lakeMask,
+      )
+      if (radius <= 0) {
+        out[idx] = 1
+        continue
+      }
       stampDisk(out, width, height, x, y, radius)
     }
   }

@@ -216,5 +216,9 @@ test('buildRiverNetworkMask includes streams that terminate in inland lakes', ()
     height,
   })
 
-  assert.ok(mask[2 * width + 2] === 1 || mask[8 * width + 8] === 1)
+  let markedInflow = false
+  for (let x = 2; x < 8; x += 1) {
+    if (mask[8 * width + x]) markedInflow = true
+  }
+  assert.ok(markedInflow, 'expected traced corridor into inland lake')
 })

@@ -2,6 +2,8 @@ import { isRimCell } from '../fields/applyClosedIslandRim.js'
 import {
   coastalMouthMergeRadiusForGrid,
   deltaFlowCutoffForGrid,
+  navigableFlowCutoffForGrid,
+  REFERENCE_GRID_SIZE,
   riverDisplayFlowCutoffForGrid,
   scaleForGridSize,
 } from '../types.js'
@@ -42,7 +44,15 @@ export function buildRiverNetworkMask({
     Math.round(deltaFlowCutoffForGrid(width) * navigableFlowCutoffScale),
   )
   const mergeRadius = coastalMouthMergeRadiusForGrid(width)
-  const lakeOutletCutoff = Math.max(2, Math.round(tributaryCutoff * 0.5))
+  const lakeOutletCutoff = tributaryCutoff
+  const lakeMergeRadius = Math.max(
+    8,
+    Math.round(12 * Math.sqrt(width / REFERENCE_GRID_SIZE)),
+  )
+  const deltaMinFlow = Math.max(
+    deltaCutoff,
+    Math.round(navigableFlowCutoffForGrid(width) * navigableFlowCutoffScale),
+  )
 
   const upstream = buildUpstreamAdjacency(cellCount, width, flowDirection, ocean)
   const mask = new Uint8Array(cellCount)
@@ -79,7 +89,7 @@ export function buildRiverNetworkMask({
 
   for (const outletIdx of majorMouths) {
     traceRiverUpstream(outletIdx, mask, flowAccumulation, upstream, tributaryCutoff)
-    if (flowAccumulation[outletIdx] >= deltaCutoff) {
+    if (flowAccumulation[outletIdx] >= deltaMinFlow) {
       addDeltaDistributaries(
         outletIdx,
         mask,
@@ -93,13 +103,19 @@ export function buildRiverNetworkMask({
     }
   }
 
-  for (const outletIdx of lakeOutlets) {
+  const mergedLakeOutlets = selectLakeInflowOutlets(
+    lakeOutlets,
+    flowAccumulation,
+    flowDirection,
+    lakeMask,
+    width,
+    height,
+    lakeMergeRadius,
+    lakeOutletCutoff,
+  )
+  for (const outletIdx of mergedLakeOutlets) {
     traceRiverUpstream(outletIdx, mask, flowAccumulation, upstream, tributaryCutoff)
     mask[outletIdx] = 1
-    const downstream = downstreamIndex(outletIdx, width, flowDirection)
-    if (downstream >= 0 && lakeMask?.[downstream]) {
-      mask[downstream] = 1
-    }
   }
 
   if (meltContribution) {
@@ -137,6 +153,90 @@ function buildUpstreamAdjacency(cellCount, width, flowDirection, ocean) {
     upstream[downstream].push(idx)
   }
   return upstream
+}
+
+/**
+ * @param {Uint8Array | undefined} lakeMask
+ * @param {number} width
+ * @param {number} height
+ * @returns {Int32Array}
+ */
+function labelLakeComponents(lakeMask, width, height) {
+  const labels = new Int32Array(width * height).fill(-1)
+  if (!lakeMask) return labels
+
+  let nextLabel = 0
+  for (let idx = 0; idx < lakeMask.length; idx += 1) {
+    if (!lakeMask[idx] || labels[idx] >= 0) continue
+    const queue = [idx]
+    labels[idx] = nextLabel
+    let head = 0
+    while (head < queue.length) {
+      const current = queue[head]
+      head += 1
+      const x = current % width
+      const y = Math.floor(current / width)
+      const neighbors = [
+        [x - 1, y],
+        [x + 1, y],
+        [x, y - 1],
+        [x, y + 1],
+      ]
+      for (const [nx, ny] of neighbors) {
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+        const nIdx = ny * width + nx
+        if (!lakeMask[nIdx] || labels[nIdx] >= 0) continue
+        labels[nIdx] = nextLabel
+        queue.push(nIdx)
+      }
+    }
+    nextLabel += 1
+  }
+  return labels
+}
+
+/**
+ * @param {number[]} lakeOutlets
+ * @param {Float32Array} flowAccumulation
+ * @param {Int16Array} flowDirection
+ * @param {Uint8Array | undefined} lakeMask
+ * @param {number} width
+ * @param {number} height
+ * @param {number} mergeRadius
+ * @param {number} outletCutoff
+ * @returns {number[]}
+ */
+function selectLakeInflowOutlets(
+  lakeOutlets,
+  flowAccumulation,
+  flowDirection,
+  lakeMask,
+  width,
+  height,
+  mergeRadius,
+  outletCutoff,
+) {
+  const lakeLabels = labelLakeComponents(lakeMask, width, height)
+  /** @type {Map<number, number[]>} */
+  const byLake = new Map()
+  for (const idx of lakeOutlets) {
+    const downstream = downstreamIndex(idx, width, flowDirection)
+    if (downstream < 0 || !lakeMask?.[downstream]) continue
+    const label = lakeLabels[downstream]
+    if (label < 0) continue
+    const list = byLake.get(label) ?? []
+    list.push(idx)
+    byLake.set(label, list)
+  }
+
+  /** @type {number[]} */
+  const selected = []
+  for (const candidates of byLake.values()) {
+    selected.push(
+      ...selectCoastalMouths(candidates, flowAccumulation, width, mergeRadius, outletCutoff),
+    )
+  }
+  return selected
 }
 
 /**
@@ -234,8 +334,8 @@ function addDeltaDistributaries(
 
   const mouthFlow = flowAccumulation[mouthIdx]
   const fanReach = Math.min(
-    Math.round(scaleForGridSize(20, width)),
-    Math.max(4, Math.round(Math.sqrt(mouthFlow) * 0.08)),
+    Math.round(scaleForGridSize(8, width)),
+    Math.max(2, Math.round(Math.sqrt(mouthFlow) * 0.04)),
   )
 
   const tangents = [
