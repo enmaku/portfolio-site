@@ -84,7 +84,10 @@ export function runDerivedGeographyInWorker(params, callbacks) {
   return {
     worker,
     cancel() {
+      worker.onmessage = null
+      worker.onerror = null
       worker.postMessage({ type: 'cancel' })
+      worker.terminate()
     },
   }
 }

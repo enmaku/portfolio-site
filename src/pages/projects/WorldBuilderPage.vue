@@ -93,11 +93,20 @@
             type="number"
             dense
             outlined
-            label="Geography seed"
             class="q-mb-md"
             min="0"
-            @update:model-value="onSeedInputChange"
+            @change="onSeedCommit"
+            @keyup.enter="onSeedCommit"
           >
+            <template #label>
+              <span class="row items-center no-wrap q-gutter-xs">
+                Geography seed
+                <WorldBuilderSettingHelp
+                  :text="GEOGRAPHY_SEED_TOOLTIP"
+                  label="Geography seed"
+                />
+              </span>
+            </template>
             <template #append>
               <q-btn
                 round
@@ -134,28 +143,45 @@
               :key="control.key"
               class="q-mb-md"
             >
-              <div class="text-caption q-mb-xs">
-                {{ control.label }}:
-                {{ formatControlValue(control.key, controlValue(control.key)) }}
+              <div class="row items-center no-wrap q-gutter-xs q-mb-xs">
+                <span class="text-caption">
+                  {{ control.label }}:
+                  {{ formatControlValue(control.key, controlValue(control.key)) }}
+                </span>
+                <WorldBuilderSettingHelp
+                  :text="control.tooltip"
+                  :label="control.label"
+                />
               </div>
               <q-toggle
                 v-if="control.kind === 'toggle'"
                 :model-value="Boolean(controlValue(control.key))"
                 :data-testid="control.testId"
                 color="primary"
-                @update:model-value="onControlChange(control.key, $event)"
+                @update:model-value="onToggleChange(control.key, $event)"
               />
-              <q-slider
+              <div
                 v-else
-                :model-value="controlValue(control.key)"
-                :data-testid="control.testId"
-                :min="control.min"
-                :max="control.max"
-                :step="control.step"
-                label
-                color="primary"
-                @update:model-value="onControlChange(control.key, $event)"
-              />
+                class="row items-center no-wrap q-gutter-xs"
+              >
+                <q-slider
+                  class="col"
+                  :model-value="controlValue(control.key)"
+                  :data-testid="control.testId"
+                  :min="control.min"
+                  :max="control.max"
+                  :step="control.step"
+                  label
+                  color="primary"
+                  @update:model-value="onSliderInput(control.key, $event)"
+                  @change="onSliderCommit(control.key, $event)"
+                />
+                <PrevailingWindArrow
+                  v-if="control.key === 'prevailingWindDegrees'"
+                  data-testid="world-builder-wind-arrow"
+                  :degrees="controlValue(control.key)"
+                />
+              </div>
             </div>
           </q-expansion-item>
         </div>
@@ -268,6 +294,7 @@ import {
 } from '@world-builder/runDerivedGeographyInWorker.js'
 import {
   WORLD_BUILDER_GENERATION_CONTROL_SECTIONS,
+  GEOGRAPHY_SEED_TOOLTIP,
   formatGenerationControlValue,
 } from '@world-builder/worldBuilderGenerationControls.js'
 import {
@@ -288,6 +315,8 @@ import {
   validationStatusIcon,
 } from '@world-builder/worldBuilderPageModel.js'
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
+import PrevailingWindArrow from '../../components/world-builder/PrevailingWindArrow.vue'
+import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
 
 const settingsStore = useWorldBuilderSettingsStore()
 const { prevailingWindDegrees, generationOptions } = storeToRefs(settingsStore)
@@ -321,6 +350,9 @@ let createWorldBuilderMapViewport = null
 
 /** @type {{ cancel: () => void } | null} */
 let activeGenerationJob = null
+
+/** @type {number} */
+let generationRunId = 0
 
 const validationRows = computed(() =>
   createValidationRowsForDisplay(worldDocument.value?.generationReport),
@@ -387,7 +419,24 @@ function controlValue(key) {
  * @param {string} key
  * @param {number | boolean} value
  */
-function onControlChange(key, value) {
+function onToggleChange(key, value) {
+  settingsStore.setControl(key, value)
+  regenerate()
+}
+
+/**
+ * @param {string} key
+ * @param {number | boolean} value
+ */
+function onSliderInput(key, value) {
+  settingsStore.setControl(key, value)
+}
+
+/**
+ * @param {string} key
+ * @param {number | boolean} value
+ */
+function onSliderCommit(key, value) {
   settingsStore.setControl(key, value)
   regenerate()
 }
@@ -422,6 +471,10 @@ function regenerate() {
     return
   }
 
+  generationRunId += 1
+  const runId = generationRunId
+  const isStaleRun = () => runId !== generationRunId
+
   activeGenerationJob?.cancel()
   activeGenerationJob = null
   isGenerating.value = true
@@ -431,6 +484,7 @@ function regenerate() {
     buildDerivedGeographyParams(parsedSeed, prevailingWindDegrees.value, generationOptions.value),
     {
       onStepStart({ stepIndex, stepCount, label, stepId }) {
+        if (isStaleRun()) return
         generationProgress.value = {
           percent: generationProgressValue(stepIndex, stepCount),
           activeStepIndex: stepIndex,
@@ -446,12 +500,14 @@ function regenerate() {
         }
       },
       onSubstepStart({ substepIndex }) {
+        if (isStaleRun()) return
         generationProgress.value = {
           ...generationProgress.value,
           activeHydrologySubstepIndex: substepIndex,
         }
       },
       onSubstepComplete({ substepIndex, substepId, skipped }) {
+        if (isStaleRun()) return
         generationProgress.value = {
           ...generationProgress.value,
           activeHydrologySubstepIndex: substepIndex,
@@ -462,6 +518,7 @@ function regenerate() {
         }
       },
       onStepComplete({ stepIndex, stepCount, label, stepId, worldDocument: doc }) {
+        if (isStaleRun()) return
         generationProgress.value = {
           percent: generationProgressValue(stepIndex, stepCount),
           activeStepIndex: stepIndex,
@@ -478,6 +535,7 @@ function regenerate() {
         applyWorldDocumentToMap(doc)
       },
       onComplete() {
+        if (isStaleRun()) return
         isGenerating.value = false
         activeGenerationJob = null
         generationProgress.value = {
@@ -487,10 +545,12 @@ function regenerate() {
         }
       },
       onCancelled() {
+        if (isStaleRun()) return
         isGenerating.value = false
         activeGenerationJob = null
       },
       onError() {
+        if (isStaleRun()) return
         isGenerating.value = false
         activeGenerationJob = null
       },
@@ -511,7 +571,7 @@ function onValidationRowClick(row) {
   mapViewport.focusOn(row.mapFocus)
 }
 
-function onSeedInputChange() {
+function onSeedCommit() {
   settingsStore.applySeed(seedInput.value)
   regenerate()
 }

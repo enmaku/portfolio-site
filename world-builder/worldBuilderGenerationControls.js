@@ -1,3 +1,9 @@
+import { formatPrevailingWindDisplay } from './formatPrevailingWind.js'
+
+/** @type {string} */
+export const GEOGRAPHY_SEED_TOOLTIP =
+  'Deterministic input to landmass generation. The same seed and settings always produce the same terrain; changing the seed picks a different world layout without altering the other controls.'
+
 /**
  * Sidebar control metadata for world generation parameters, ordered by typical impact.
  * @type {ReadonlyArray<{
@@ -5,6 +11,7 @@
  *   controls: ReadonlyArray<{
  *     key: string,
  *     label: string,
+ *     tooltip: string,
  *     kind: 'slider' | 'toggle' | 'number',
  *     min?: number,
  *     max?: number,
@@ -20,6 +27,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'seaLevel',
         label: 'Sea level',
+        tooltip:
+          'Height cutoff between ocean and land. Lower values expose more land; higher values flood coasts and shrink continents.',
         kind: 'slider',
         min: 0.22,
         max: 0.52,
@@ -29,6 +38,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'elevationScale',
         label: 'Elevation scale',
+        tooltip:
+          'Stretches height above and below sea level without moving the shoreline. Higher values create taller mountains and deeper basins.',
         kind: 'slider',
         min: 0.25,
         max: 2.5,
@@ -38,6 +49,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'elevationFrequencyScale',
         label: 'Terrain scale',
+        tooltip:
+          'Size of terrain features on the map. Lower values produce broad continents and smooth hills; higher values create smaller, bumpier landforms.',
         kind: 'slider',
         min: 0.4,
         max: 2.5,
@@ -47,6 +60,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'elevationOctaves',
         label: 'Terrain detail (octaves)',
+        tooltip:
+          'Layers of noise detail stacked on the base terrain. More octaves add fine texture; fewer produce simpler, smoother shapes.',
         kind: 'slider',
         min: 2,
         max: 8,
@@ -56,6 +71,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'elevationPersistence',
         label: 'Terrain roughness',
+        tooltip:
+          'How much each detail layer contributes to total roughness. Higher values yield jagged, varied terrain; lower values soften rolling land.',
         kind: 'slider',
         min: 0.3,
         max: 0.75,
@@ -70,6 +87,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'elevationDomainWarpStrength',
         label: 'Terrain domain warp',
+        tooltip:
+          'Bends the noise field so contours meander instead of running in straight bands. Helps drainage paths look natural and less grid-aligned.',
         kind: 'slider',
         min: 0,
         max: 28,
@@ -79,6 +98,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'elevationCoastBiasStrength',
         label: 'Coastal lowland bias',
+        tooltip:
+          'Pulls coastal land down and lifts inland plateaus. Creates low coastal plains with headroom for rivers to reach the sea.',
         kind: 'slider',
         min: 0,
         max: 0.2,
@@ -88,6 +109,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'elevationMidSmoothingStrength',
         label: 'Mid-elevation smoothing',
+        tooltip:
+          'Smooths mid-height terrain while keeping high peaks sharp. Reduces noisy plateaus that confuse river routing.',
         kind: 'slider',
         min: 0,
         max: 1,
@@ -97,6 +120,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'elevationSlopeRoughnessStrength',
         label: 'Steep-slope roughness',
+        tooltip:
+          'Adds high-frequency detail on steep slopes only. Makes cliffs and mountainsides look craggy without roughening flat lowlands.',
         kind: 'slider',
         min: 0,
         max: 0.15,
@@ -106,6 +131,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'elevationGentleSlopePersistenceScale',
         label: 'Lowland detail',
+        tooltip:
+          'Controls fine detail on gentle slopes. Lower values smooth fields and floodplains; higher values add textured rolling lowlands.',
         kind: 'slider',
         min: 0,
         max: 1,
@@ -120,6 +147,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'prevailingWindDegrees',
         label: 'Prevailing wind',
+        tooltip:
+          'Direction moisture crosses the landmass before rain-shadow drying. Rotating wind shifts which mountain ranges stay wet versus dry.',
         kind: 'slider',
         min: 0,
         max: 359,
@@ -129,6 +158,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'rainShadowStrength',
         label: 'Rain shadow strength',
+        tooltip:
+          'How strongly leeward terrain dries behind upwind mountains. Higher values sharpen wet and dry belts flanking major ranges.',
         kind: 'slider',
         min: 0,
         max: 2,
@@ -138,6 +169,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'temperatureLapseRate',
         label: 'Elevation cooling',
+        tooltip:
+          'How much temperature drops with elevation. Higher cooling puts snow caps and tundra on lower peaks and pushes biomes downhill.',
         kind: 'slider',
         min: 0.2,
         max: 0.9,
@@ -147,6 +180,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'rainfallFrequencyScale',
         label: 'Rainfall variation scale',
+        tooltip:
+          'Size of wet and dry patches in the base rainfall field. Lower values yield continent-scale climate bands; higher values add patchier local variation.',
         kind: 'slider',
         min: 0.4,
         max: 2.5,
@@ -161,6 +196,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'erosionStepCount',
         label: 'Erosion passes',
+        tooltip:
+          'Number of iterative erosion steps that carve channels toward the sea and wear peaks. More passes deepen valleys and sharpen drainage.',
         kind: 'slider',
         min: 0,
         max: 48,
@@ -170,6 +207,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'erosionChannelWear',
         label: 'River carving strength',
+        tooltip:
+          'How aggressively each erosion pass cuts river channels downhill. Higher values incise deeper valleys and steepen channel profiles.',
         kind: 'slider',
         min: 0.001,
         max: 0.012,
@@ -179,6 +218,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'erosionPeakWear',
         label: 'Peak smoothing',
+        tooltip:
+          'How much erosion rounds high summits each pass. Higher values lower and smooth mountain tops.',
         kind: 'slider',
         min: 0,
         max: 0.008,
@@ -188,6 +229,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'inciseIterations',
         label: 'Stream-power passes',
+        tooltip:
+          'Passes of stream-power incision after erosion. Carves elevation using discharge and slope; zero disables this stage.',
         kind: 'slider',
         min: 0,
         max: 12,
@@ -197,6 +240,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'streamPowerK',
         label: 'Stream-power rate (K)',
+        tooltip:
+          'Overall rate of stream-power erosion. Higher K incises channels faster and deepens river valleys.',
         kind: 'slider',
         min: 0,
         max: 0.008,
@@ -206,6 +251,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'streamPowerM',
         label: 'Drainage exponent (m)',
+        tooltip:
+          'How strongly upstream drainage area drives incision. Higher m widens the influence of large catchments on channel depth.',
         kind: 'slider',
         min: 0.2,
         max: 0.8,
@@ -215,6 +262,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'streamPowerN',
         label: 'Slope exponent (n)',
+        tooltip:
+          'How strongly local slope drives incision. Higher n steepens channels and favors cutting on gradients.',
         kind: 'slider',
         min: 0.5,
         max: 2,
@@ -224,6 +273,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'channelInitiationThreshold',
         label: 'Channel initiation',
+        tooltip:
+          'Minimum drainage accumulation before a cell becomes a channel. Lower values yield a denser river network; higher values keep only major rivers.',
         kind: 'slider',
         min: 0.005,
         max: 0.06,
@@ -233,6 +284,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'navigableFlowCutoffScale',
         label: 'River size threshold',
+        tooltip:
+          'Flow threshold for marking rivers as navigable. Lower values classify more segments as navigable; higher values restrict navigation to the largest rivers.',
         kind: 'slider',
         min: 0.3,
         max: 2.5,
@@ -242,21 +295,27 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'riverAttractionRadiusScale',
         label: 'River attraction radius',
+        tooltip:
+          'Legacy corridor-bridging radius. When enabled, nudges disconnected river paths toward each other; zero disables.',
         kind: 'slider',
         min: 0,
-        max: 24,
+        max: 15,
         step: 0.5,
         testId: 'world-builder-control-river-attraction',
       },
       {
         key: 'enableMeanderRefine',
         label: 'Meander refine',
+        tooltip:
+          'Runs an optional hydrology refine pass that smooths river geometry for display. Does not change underlying drainage physics.',
         kind: 'toggle',
         testId: 'world-builder-control-meander-refine',
       },
       {
         key: 'riverMeanderStrength',
         label: 'River meandering',
+        tooltip:
+          'How much the meander refine pass bends river corridors. Only applies when meander refine is enabled.',
         kind: 'slider',
         min: 0,
         max: 2,
@@ -266,6 +325,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'riverSettlementSteps',
         label: 'River valley settling',
+        tooltip:
+          'Valley-settling iterations during meander refine. Smooths channel-adjacent terrain for presentation; zero disables.',
         kind: 'slider',
         min: 0,
         max: 16,
@@ -275,6 +336,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'riverMergeStrength',
         label: 'River tributary merge',
+        tooltip:
+          'How strongly tributaries merge during meander refine. Higher values produce cleaner confluences on the map.',
         kind: 'slider',
         min: 0,
         max: 2,
@@ -284,6 +347,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'soilDrainageScale',
         label: 'Soil drainage',
+        tooltip:
+          'Scales soil permeability in the drainage field. Lower values yield wetter soils and swamps; higher values speed runoff and dry ground.',
         kind: 'slider',
         min: 0.2,
         max: 2,
@@ -293,6 +358,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'minLakeAreaScale',
         label: 'Minimum lake size',
+        tooltip:
+          'Minimum lake area relative to default. Lower values keep more small ponds; higher values filter out tiny lakes.',
         kind: 'slider',
         min: 0.25,
         max: 3,
@@ -307,6 +374,8 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
       {
         key: 'maxSaltNodes',
         label: 'Salt node cap',
+        tooltip:
+          'Maximum number of strategic salt resource sites placed on the map. Higher values add more candidates along coasts and endorheic basins.',
         kind: 'slider',
         min: 0,
         max: 32,
@@ -324,7 +393,7 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
  */
 export function formatGenerationControlValue(key, value) {
   if (key === 'prevailingWindDegrees') {
-    return `${Math.round(value)}°`
+    return formatPrevailingWindDisplay(value)
   }
   if (key === 'enableMeanderRefine') {
     return value ? 'On' : 'Off'
