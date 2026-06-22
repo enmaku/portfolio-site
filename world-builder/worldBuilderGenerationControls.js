@@ -145,6 +145,42 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         testId: 'world-builder-control-flow-cutoff',
       },
       {
+        key: 'riverAttractionRadiusScale',
+        label: 'River attraction radius',
+        kind: 'slider',
+        min: 0,
+        max: 24,
+        step: 0.5,
+        testId: 'world-builder-control-river-attraction',
+      },
+      {
+        key: 'riverMeanderStrength',
+        label: 'River meandering',
+        kind: 'slider',
+        min: 0,
+        max: 2,
+        step: 0.05,
+        testId: 'world-builder-control-river-meander',
+      },
+      {
+        key: 'riverSettlementSteps',
+        label: 'River valley settling',
+        kind: 'slider',
+        min: 0,
+        max: 16,
+        step: 1,
+        testId: 'world-builder-control-river-settlement',
+      },
+      {
+        key: 'riverMergeStrength',
+        label: 'River merge strength',
+        kind: 'slider',
+        min: 0,
+        max: 2,
+        step: 0.05,
+        testId: 'world-builder-control-river-merge',
+      },
+      {
         key: 'soilDrainageScale',
         label: 'Soil drainage',
         kind: 'slider',
@@ -189,7 +225,24 @@ export function formatGenerationControlValue(key, value) {
   if (key === 'prevailingWindDegrees') {
     return `${Math.round(value)}°`
   }
-  if (key === 'elevationOctaves' || key === 'erosionStepCount' || key === 'maxSaltNodes') {
+  if (key === 'riverAttractionRadiusScale' && value <= 0) {
+    return 'Off'
+  }
+  if (key === 'riverMeanderStrength' && value <= 0) {
+    return 'Off'
+  }
+  if (key === 'riverSettlementSteps' && value <= 0) {
+    return 'Off'
+  }
+  if (key === 'riverMergeStrength' && value <= 0) {
+    return 'Off'
+  }
+  if (
+    key === 'elevationOctaves' ||
+    key === 'erosionStepCount' ||
+    key === 'riverSettlementSteps' ||
+    key === 'maxSaltNodes'
+  ) {
     return String(Math.round(value))
   }
   if (

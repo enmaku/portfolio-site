@@ -131,6 +131,10 @@
  * @property {number} temperatureLapseRate
  * @property {number} rainfallFrequencyScale
  * @property {number} navigableFlowCutoffScale
+ * @property {number} riverAttractionRadiusScale
+ * @property {number} riverMeanderStrength
+ * @property {number} riverSettlementSteps
+ * @property {number} riverMergeStrength
  * @property {number} minLakeAreaScale
  * @property {number} soilDrainageScale
  * @property {number} maxSaltNodes

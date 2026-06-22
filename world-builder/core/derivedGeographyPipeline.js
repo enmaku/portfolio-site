@@ -13,6 +13,10 @@ import {
   buildRiverGraph,
 } from './hydrology/buildRiverGraph.js'
 import { buildRiverNetworkMask } from './hydrology/buildRiverNetworkMask.js'
+import {
+  connectNearbyRiverCorridors,
+  riverAttractionRadiusForGrid,
+} from './hydrology/connectNearbyRiverCorridors.js'
 import { computeFlowAccumulation } from './hydrology/computeFlowAccumulation.js'
 import { deriveDrainageFromFlow } from './hydrology/deriveDrainageFromFlow.js'
 import {
@@ -20,6 +24,10 @@ import {
   deriveSnowMeltContribution,
 } from './hydrology/deriveSnowCapMask.js'
 import { fillLakes } from './hydrology/fillLakes.js'
+import {
+  meanderAndSettleRivers,
+  riverSettlementStepsForGrid,
+} from './hydrology/meanderAndSettleRivers.js'
 import { generateTemperature } from './fields/generateTemperature.js'
 import { placeSaltNodes } from './resources/placeSaltNodes.js'
 import {
@@ -288,18 +296,7 @@ function runHydrologyStep(state) {
     soilDrainage,
     soilDrainageScale: state.options.soilDrainageScale,
   })
-  const drainage = deriveDrainageFromFlow(flowAccumulation)
-  const riverGraph = buildRiverGraph({
-    elevation: filledElevation,
-    flowAccumulation,
-    flowDirection,
-    ocean: lakeOcean,
-    lakeMask,
-    width,
-    height,
-    navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
-  })
-  const riverNetworkMask = buildRiverNetworkMask({
+  const baseRiverNetworkMask = buildRiverNetworkMask({
     flowAccumulation,
     flowDirection,
     ocean: lakeOcean,
@@ -309,22 +306,91 @@ function runHydrologyStep(state) {
     meltContribution,
     navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
   })
+  const riverNetworkMask = connectNearbyRiverCorridors({
+    riverNetworkMask: baseRiverNetworkMask,
+    elevation: filledElevation,
+    ocean: lakeOcean,
+    width,
+    height,
+    geographySeed: state.geographySeed,
+    flowDirection,
+    attractionRadius: riverAttractionRadiusForGrid(
+      width,
+      state.options.riverAttractionRadiusScale,
+    ),
+  })
+  const meandered = meanderAndSettleRivers({
+    riverNetworkMask,
+    elevation: filledElevation,
+    ocean: lakeOcean,
+    flowDirection,
+    flowAccumulation,
+    width,
+    height,
+    geographySeed: state.geographySeed,
+    meanderStrength: state.options.riverMeanderStrength,
+    settlementStepCount: riverSettlementStepsForGrid(
+      width,
+      state.options.riverSettlementSteps,
+    ),
+    mergeStrength: state.options.riverMergeStrength,
+    channelWear: state.options.erosionChannelWear * 0.85,
+    seaLevel: state.options.seaLevel,
+  })
+  const settledElevation = meandered.elevation
+  const settledRiverNetworkMask = connectNearbyRiverCorridors({
+    riverNetworkMask: meandered.riverNetworkMask,
+    elevation: settledElevation,
+    ocean: lakeOcean,
+    width,
+    height,
+    geographySeed: state.geographySeed,
+    flowDirection,
+    attractionRadius: riverAttractionRadiusForGrid(
+      width,
+      state.options.riverAttractionRadiusScale,
+    ),
+  })
+  const {
+    flowDirection: settledFlowDirection,
+    flowAccumulation: settledFlowAccumulation,
+    ocean: settledOcean,
+  } = computeFlowAccumulation({
+    elevation: settledElevation,
+    width,
+    height,
+    seaLevel: state.options.seaLevel,
+    meltContribution,
+    soilDrainage,
+    soilDrainageScale: state.options.soilDrainageScale,
+  })
+  const settledDrainage = deriveDrainageFromFlow(settledFlowAccumulation)
+  const settledRiverGraph = buildRiverGraph({
+    elevation: settledElevation,
+    flowAccumulation: settledFlowAccumulation,
+    flowDirection: settledFlowDirection,
+    ocean: settledOcean,
+    lakeMask,
+    width,
+    height,
+    navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
+  })
   const previewFields = {
     ...(state.fields ?? state.baselineDoc.fields),
-    elevation: filledElevation,
-    drainage,
+    elevation: settledElevation,
+    drainage: settledDrainage,
   }
   return {
     ...state,
     lakeMask,
     lakes,
-    workingElevation: filledElevation,
-    riverGraph,
-    riverNetworkMask,
+    workingElevation: settledElevation,
+    riverGraph: settledRiverGraph,
+    riverNetworkMask: settledRiverNetworkMask,
     fields: previewFields,
     biomes: classifyBiomesWithHydrology(previewFields, width, height, {
       lakeMask,
-      riverCorridorMask: riverNetworkMask,
+      riverCorridorMask: settledRiverNetworkMask,
     }, state.options.seaLevel),
     lastCompletedStep: 'hydrology',
   }

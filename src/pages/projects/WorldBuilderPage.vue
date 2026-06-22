@@ -15,7 +15,6 @@
         color="primary"
         label="Regenerate"
         :loading="isGenerating"
-        :disable="isGenerating"
         @click="regenerate"
       />
       <q-btn
@@ -23,7 +22,7 @@
         flat
         color="primary"
         label="Replay erosion"
-        :disable="!canReplay || isGenerating"
+        :disable="!canReplay"
         @click="replayErosion"
       />
       <q-btn
@@ -77,7 +76,6 @@
             label="Geography seed"
             class="q-mb-md"
             min="0"
-            :disable="isGenerating"
             @update:model-value="onSeedInputChange"
           >
             <template #append>
@@ -88,7 +86,6 @@
                 icon="casino"
                 data-testid="world-builder-seed-randomize"
                 aria-label="Random geography seed"
-                :disable="isGenerating"
                 @click="randomizeSeed"
               />
             </template>
@@ -100,7 +97,6 @@
             class="full-width q-mb-md"
             data-testid="world-builder-reset-defaults"
             aria-label="Reset generation settings to defaults"
-            :disable="isGenerating"
             @click="resetToDefaults"
           >
             Reset to defaults
@@ -130,7 +126,6 @@
                 :step="control.step"
                 label
                 color="primary"
-                :disable="isGenerating"
                 @update:model-value="onControlChange(control.key, $event)"
               />
             </div>
@@ -283,6 +278,7 @@ function controlValue(key) {
  */
 function onControlChange(key, value) {
   settingsStore.setControl(key, value)
+  regenerate()
 }
 
 /**
@@ -376,6 +372,7 @@ function onValidationRowClick(row) {
 
 function onSeedInputChange() {
   settingsStore.applySeed(seedInput.value)
+  regenerate()
 }
 
 function randomizeSeed() {
