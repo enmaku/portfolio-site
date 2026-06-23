@@ -319,7 +319,7 @@ test('runHydrologySubsteps keeps channelWidth aligned with settled flow accumula
 
 test('runHydrologySubsteps places settled mouth nodes at coast-navigable ocean cells', () => {
   let state = createInitialPipelineState({
-    geographySeed: 12345,
+    geographySeed: 5000,
     prevailingWindDegrees: 90,
     width: 256,
     height: 256,

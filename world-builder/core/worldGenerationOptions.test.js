@@ -25,11 +25,11 @@ test('resolveWorldGenerationOptions merges partial breachThreshold override', ()
 
 test('resolveWorldGenerationOptions preserves stream-power incision defaults', () => {
   const options = resolveWorldGenerationOptions()
-  assert.strictEqual(options.inciseIterations, 5)
-  assert.strictEqual(options.streamPowerK, 0.0025)
-  assert.strictEqual(options.streamPowerM, 0.45)
-  assert.strictEqual(options.streamPowerN, 1.1)
-  assert.strictEqual(options.channelInitiationThreshold, 0.018)
+  assert.strictEqual(options.inciseIterations, 8)
+  assert.strictEqual(options.streamPowerK, 0.0045)
+  assert.strictEqual(options.streamPowerM, 0.35)
+  assert.strictEqual(options.streamPowerN, 1.5)
+  assert.strictEqual(options.channelInitiationThreshold, 0.005)
 })
 
 test('resolveWorldGenerationOptions preserves hydrology validation defaults', () => {
@@ -47,23 +47,23 @@ test('resolveWorldGenerationOptions preserves maxValidationRetries default', () 
 
 test('resolveWorldGenerationOptions enables river bridging and meander refine by default', () => {
   const options = resolveWorldGenerationOptions()
-  assert.strictEqual(options.riverAttractionRadiusScale, 1)
+  assert.strictEqual(options.riverAttractionRadiusScale, 6)
   assert.strictEqual(options.enableMeanderRefine, true)
 })
 
 test('resolveWorldGenerationOptions merges enableMeanderRefine override', () => {
   const options = resolveWorldGenerationOptions({ enableMeanderRefine: false })
   assert.strictEqual(options.enableMeanderRefine, false)
-  assert.strictEqual(options.riverAttractionRadiusScale, 1)
+  assert.strictEqual(options.riverAttractionRadiusScale, 6)
 })
 
 test('resolveWorldGenerationOptions preserves rainfall amount default', () => {
   const options = resolveWorldGenerationOptions()
-  assert.strictEqual(options.rainfallAmountScale, 1)
+  assert.strictEqual(options.rainfallAmountScale, 1.4)
 })
 
 test('resolveWorldGenerationOptions merges rainfallAmountScale override', () => {
   const options = resolveWorldGenerationOptions({ rainfallAmountScale: 1.75 })
   assert.strictEqual(options.rainfallAmountScale, 1.75)
-  assert.strictEqual(options.rainfallFrequencyScale, 1)
+  assert.strictEqual(options.rainfallFrequencyScale, 1.35)
 })
