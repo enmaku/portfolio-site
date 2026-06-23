@@ -286,6 +286,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useQuasar } from 'quasar'
 import { storeToRefs } from 'pinia'
 import {
   DERIVED_GEOGRAPHY_STEPS,
@@ -318,6 +319,7 @@ import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.
 import PrevailingWindArrow from '../../components/world-builder/PrevailingWindArrow.vue'
 import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
 
+const $q = useQuasar()
 const settingsStore = useWorldBuilderSettingsStore()
 const { prevailingWindDegrees, generationOptions } = storeToRefs(settingsStore)
 
@@ -465,6 +467,21 @@ async function applyWorldDocumentToMap(doc) {
   }
 }
 
+/**
+ * @param {unknown} error
+ */
+function showGenerationFailure(error) {
+  isGenerating.value = false
+  activeGenerationJob = null
+  const message = error instanceof Error ? error.message : String(error)
+  $q.notify({
+    type: 'negative',
+    message: `World generation failed: ${message}`,
+    timeout: 0,
+    actions: [{ label: 'Dismiss', color: 'white' }],
+  })
+}
+
 function regenerate() {
   const parsedSeed = parseGeographySeedInput(seedInput.value)
   if (parsedSeed === null) {
@@ -532,7 +549,10 @@ function regenerate() {
             ? []
             : generationProgress.value.skippedHydrologySubstepIds,
         }
-        applyWorldDocumentToMap(doc)
+        void applyWorldDocumentToMap(doc).catch((error) => {
+          if (isStaleRun()) return
+          showGenerationFailure(error)
+        })
       },
       onComplete() {
         if (isStaleRun()) return
@@ -549,10 +569,9 @@ function regenerate() {
         isGenerating.value = false
         activeGenerationJob = null
       },
-      onError() {
+      onError(message) {
         if (isStaleRun()) return
-        isGenerating.value = false
-        activeGenerationJob = null
+        showGenerationFailure(message)
       },
     },
   )

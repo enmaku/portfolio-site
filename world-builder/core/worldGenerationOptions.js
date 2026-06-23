@@ -29,6 +29,7 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   streamPowerN: 1.1,
   channelInitiationThreshold: 0.018,
   rainShadowStrength: 1,
+  rainfallAmountScale: 1,
   temperatureLapseRate: 0.55,
   rainfallFrequencyScale: 1,
   navigableFlowCutoffScale: 1,

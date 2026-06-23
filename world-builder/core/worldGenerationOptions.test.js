@@ -56,3 +56,14 @@ test('resolveWorldGenerationOptions merges enableMeanderRefine override', () => 
   assert.strictEqual(options.enableMeanderRefine, false)
   assert.strictEqual(options.riverAttractionRadiusScale, 1)
 })
+
+test('resolveWorldGenerationOptions preserves rainfall amount default', () => {
+  const options = resolveWorldGenerationOptions()
+  assert.strictEqual(options.rainfallAmountScale, 1)
+})
+
+test('resolveWorldGenerationOptions merges rainfallAmountScale override', () => {
+  const options = resolveWorldGenerationOptions({ rainfallAmountScale: 1.75 })
+  assert.strictEqual(options.rainfallAmountScale, 1.75)
+  assert.strictEqual(options.rainfallFrequencyScale, 1)
+})

@@ -167,6 +167,17 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         testId: 'world-builder-control-rain-shadow',
       },
       {
+        key: 'rainfallAmountScale',
+        label: 'Rainfall amount',
+        tooltip:
+          'Overall moisture across the landmass. Lower values dry out biomes and shrink rivers; higher values increase rainfall everywhere without changing wet-dry patch size.',
+        kind: 'slider',
+        min: 0.25,
+        max: 2.5,
+        step: 0.05,
+        testId: 'world-builder-control-rainfall-amount',
+      },
+      {
         key: 'temperatureLapseRate',
         label: 'Elevation cooling',
         tooltip:

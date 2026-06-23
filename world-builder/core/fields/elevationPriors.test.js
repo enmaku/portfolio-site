@@ -15,6 +15,8 @@ import {
   DEFAULT_WORLD_GENERATION_OPTIONS,
   PRE_PRIORS_ELEVATION_OPTIONS,
 } from '../worldGenerationOptions.js'
+import { DEFAULT_GRID_SIZE } from '../types.js'
+import { parseGeographySeedInput } from '../../worldBuilderPageModel.js'
 
 const gridParams = { geographySeed: 4242, width: 64, height: 64 }
 
@@ -196,6 +198,34 @@ test('gentle-slope HF reduction lowers relief on low-slope cells', () => {
     reliefStdDev(elevation, gentleIndices) < reliefStdDev(before, gentleIndices) * 0.85,
     'gentle cells should lose high-frequency relief',
   )
+})
+
+test('computeLandCoastDistance completes on full grid without queue blow-up', () => {
+  const seed = parseGeographySeedInput('4154732154')
+  assert.ok(seed !== null)
+  const elevation = generateElevation({
+    geographySeed: seed,
+    width: DEFAULT_GRID_SIZE,
+    height: DEFAULT_GRID_SIZE,
+    options: {
+      ...DEFAULT_WORLD_GENERATION_OPTIONS,
+      seaLevel: 0.38,
+      elevationCoastBiasStrength: 0.14,
+    },
+  })
+  const coastDistance = computeLandCoastDistance(
+    elevation,
+    DEFAULT_GRID_SIZE,
+    DEFAULT_GRID_SIZE,
+    0.38,
+  )
+  let finiteLandDistances = 0
+  for (let i = 0; i < coastDistance.length; i += 1) {
+    if (Number.isFinite(coastDistance[i]) && coastDistance[i] > 0) {
+      finiteLandDistances += 1
+    }
+  }
+  assert.ok(finiteLandDistances > 0)
 })
 
 test('default elevation priors widen inland-coastal elevation gap vs pre-priors baseline', () => {

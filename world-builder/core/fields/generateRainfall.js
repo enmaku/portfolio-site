@@ -33,7 +33,7 @@ export function generateRainfall({
     persistence: 0.5,
   })
 
-  return applyRainShadow({
+  const shadowed = applyRainShadow({
     rainfall: base,
     elevation,
     width,
@@ -41,4 +41,14 @@ export function generateRainfall({
     prevailingWindDegrees,
     rainShadowStrength: resolved.rainShadowStrength,
   })
+
+  if (resolved.rainfallAmountScale === 1) {
+    return shadowed
+  }
+
+  const scaled = new Float32Array(shadowed.length)
+  for (let i = 0; i < shadowed.length; i += 1) {
+    scaled[i] = Math.min(1, Math.max(0, shadowed[i] * resolved.rainfallAmountScale))
+  }
+  return scaled
 }

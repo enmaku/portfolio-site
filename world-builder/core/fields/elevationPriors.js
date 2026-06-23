@@ -45,7 +45,11 @@ function clamp01(value, min = 0, max = 1) {
   return value
 }
 
+const COAST_DISTANCE_ORTH = 1
+const COAST_DISTANCE_DIAG = 1.41421356237
+
 /**
+ * Two-pass chamfer distance from each land cell to the nearest ocean cell.
  * @param {Float32Array} elevation
  * @param {number} width
  * @param {number} height
@@ -55,40 +59,52 @@ function clamp01(value, min = 0, max = 1) {
 export function computeLandCoastDistance(elevation, width, height, seaLevel) {
   const ocean = isOceanCell(elevation, width, height, seaLevel)
   const distances = new Float32Array(width * height)
-  const queue = []
 
   for (let i = 0; i < elevation.length; i += 1) {
-    if (ocean[i]) {
-      distances[i] = 0
-      queue.push(i)
-    } else {
-      distances[i] = Number.POSITIVE_INFINITY
+    distances[i] = ocean[i] ? 0 : Number.POSITIVE_INFINITY
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const idx = y * width + x
+      if (ocean[idx]) continue
+
+      let best = distances[idx]
+      if (x > 0) {
+        best = Math.min(best, distances[idx - 1] + COAST_DISTANCE_ORTH)
+      }
+      if (y > 0) {
+        best = Math.min(best, distances[idx - width] + COAST_DISTANCE_ORTH)
+      }
+      if (x > 0 && y > 0) {
+        best = Math.min(best, distances[idx - width - 1] + COAST_DISTANCE_DIAG)
+      }
+      if (x < width - 1 && y > 0) {
+        best = Math.min(best, distances[idx - width + 1] + COAST_DISTANCE_DIAG)
+      }
+      distances[idx] = best
     }
   }
 
-  let head = 0
-  while (head < queue.length) {
-    const idx = queue[head]
-    head += 1
-    const x = idx % width
-    const y = Math.floor(idx / width)
-    const baseDist = distances[idx]
+  for (let y = height - 1; y >= 0; y -= 1) {
+    for (let x = width - 1; x >= 0; x -= 1) {
+      const idx = y * width + x
+      if (ocean[idx]) continue
 
-    for (let dy = -1; dy <= 1; dy += 1) {
-      for (let dx = -1; dx <= 1; dx += 1) {
-        if (dx === 0 && dy === 0) continue
-        const nx = x + dx
-        const ny = y + dy
-        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-        const nIdx = ny * width + nx
-        if (ocean[nIdx]) continue
-        const step = dx === 0 || dy === 0 ? 1 : 1.41421356237
-        const nextDist = baseDist + step
-        if (nextDist < distances[nIdx]) {
-          distances[nIdx] = nextDist
-          queue.push(nIdx)
-        }
+      let best = distances[idx]
+      if (x < width - 1) {
+        best = Math.min(best, distances[idx + 1] + COAST_DISTANCE_ORTH)
       }
+      if (y < height - 1) {
+        best = Math.min(best, distances[idx + width] + COAST_DISTANCE_ORTH)
+      }
+      if (x < width - 1 && y < height - 1) {
+        best = Math.min(best, distances[idx + width + 1] + COAST_DISTANCE_DIAG)
+      }
+      if (x > 0 && y < height - 1) {
+        best = Math.min(best, distances[idx + width - 1] + COAST_DISTANCE_DIAG)
+      }
+      distances[idx] = best
     }
   }
 
