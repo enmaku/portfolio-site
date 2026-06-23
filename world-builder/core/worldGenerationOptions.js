@@ -52,6 +52,14 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
    * often; 0 forces fill-only endorheic basins.
    */
   breachThreshold: 0.3,
+  enableSeasonalHydrology: true,
+  seasonalYearCount: 5,
+  dryRainMult: 0.15,
+  wetRainMult: 1.8,
+  yearlyClimateNoiseScale: 0.3,
+  lakeEvaporationScale: 1,
+  snowAccumRate: 1,
+  meltReleaseScale: 1,
   enforceNavigableRiverQuota: false,
   enforceCoastMouth: false,
   enforceHacksLawExponent: false,

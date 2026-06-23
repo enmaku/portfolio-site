@@ -28,12 +28,13 @@ const params = {
   height: 64,
 }
 
-test('HYDROLOGY_SUBSTEPS lists seven substeps in canonical order', () => {
+test('HYDROLOGY_SUBSTEPS lists eight substeps in canonical order', () => {
   assert.deepStrictEqual(
     HYDROLOGY_SUBSTEPS.map((substep) => substep.id),
     [
       'hydrologyFill',
       'hydrologyClimate',
+      'hydrologySeasonal',
       'hydrologyRoute',
       'hydrologyIncise',
       'hydrologyExtract',
@@ -41,6 +42,28 @@ test('HYDROLOGY_SUBSTEPS lists seven substeps in canonical order', () => {
       'hydrologySettle',
     ],
   )
+})
+
+test('runHydrologySubsteps invokes seasonal between climate and route', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  const order = []
+  runHydrologySubsteps(state, {
+    onSubstepStart({ substepId }) {
+      order.push(substepId)
+    },
+  })
+
+  const climateIndex = order.indexOf('hydrologyClimate')
+  const seasonalIndex = order.indexOf('hydrologySeasonal')
+  const routeIndex = order.indexOf('hydrologyRoute')
+  assert.ok(climateIndex >= 0)
+  assert.ok(seasonalIndex >= 0)
+  assert.ok(routeIndex >= 0)
+  assert.ok(climateIndex < seasonalIndex)
+  assert.ok(seasonalIndex < routeIndex)
 })
 
 test('runHydrologySubsteps invokes climate before route', () => {
@@ -262,6 +285,7 @@ test('runHydrologySubsteps keeps channelWidth aligned with settled flow accumula
     prevailingWindDegrees: 90,
     width: 256,
     height: 256,
+    options: { enableSeasonalHydrology: false },
   })
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')
@@ -381,6 +405,7 @@ test('runHydrologySubsteps settle keeps lake surfaces aligned with lakeMeta', ()
     elevation: hydrologyState.fields.elevation,
     width: hydrologyState.width,
     height: hydrologyState.height,
+    lakeIdByCell: hydrologyState.lakeIdByCell ?? undefined,
   })
 })
 
@@ -493,7 +518,7 @@ test('enableMeanderRefine preserves mouths and drainage while allowing presentat
   const { state: withMeander } = runHydrologyForSeed(seed, {
     ...DEFAULT_WORLD_GENERATION_OPTIONS,
     enableMeanderRefine: true,
-    riverMeanderStrength: 1.2,
+    riverMeanderStrength: 2,
   })
 
   assert.deepStrictEqual(

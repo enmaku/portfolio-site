@@ -119,12 +119,17 @@ test('applyLiteStreamPower erodes initiating channel cells deterministically', (
 test('applyLiteStreamPower deposits on low-slope downstream corridor reaches', () => {
   const width = 20
   const height = 20
+  const centerX = Math.floor(width / 2)
   const elevation = new Float32Array(width * height).fill(0.5)
   const corridorMask = new Uint8Array(width * height)
   for (let y = 2; y < height - 4; y += 1) {
-    const idx = y * width + Math.floor(width / 2)
+    const idx = y * width + centerX
     elevation[idx] = y < 10 ? 0.78 - (y - 2) * 0.03 : 0.54 - (y - 10) * 0.004
     corridorMask[idx] = 1
+    for (let x = 0; x < width; x += 1) {
+      if (x === centerX) continue
+      elevation[y * width + x] = elevation[idx] + 0.03
+    }
   }
   const ocean = Array.from({ length: width * height }, (_, idx) => {
     const y = Math.floor(idx / width)
@@ -161,7 +166,7 @@ test('applyLiteStreamPower deposits on low-slope downstream corridor reaches', (
 
   let deposited = 0
   for (let y = 10; y < height - 5; y += 1) {
-    const idx = y * width + Math.floor(width / 2)
+    const idx = y * width + centerX
     if (result[idx] > before[idx] + 1e-6) {
       deposited += 1
     }

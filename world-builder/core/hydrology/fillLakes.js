@@ -23,12 +23,15 @@ const D4_OFFSETS = [
  * @param {number} [params.seaLevel]
  * @param {number} [params.minLakeAreaScale]
  * @param {number} [params.breachThreshold]
+ * @param {boolean} [params.useDryFloorInitialLevel]
  * @returns {{
  *   lakeMask: Uint8Array,
  *   lakes: import('../types.js').LakeRecord[],
  *   lakeMeta: import('../types.js').LakeMetaRecord[],
  *   filledElevation: Float32Array,
  *   spillOutlet: Int32Array,
+ *   lakeIdByCell: Int32Array,
+ *   basinCellsByLake: number[][],
  *   breachCount: number,
  *   endorheicCount: number,
  * }}
@@ -41,6 +44,7 @@ export function fillLakes({
   seaLevel = SEA_LEVEL,
   minLakeAreaScale = 1,
   breachThreshold = DEFAULT_BREACH_THRESHOLD,
+  useDryFloorInitialLevel = false,
 }) {
   const cellCount = width * height
   const { filledElevation, spillOutlet } = priorityFloodFill({
@@ -51,8 +55,11 @@ export function fillLakes({
     seaLevel,
   })
   const lakeMask = new Uint8Array(cellCount)
+  const lakeIdByCell = new Int32Array(cellCount).fill(-1)
   const lakes = []
   const lakeMeta = []
+  /** @type {number[][]} */
+  const basinCellsByLake = []
   const minArea = Math.max(1, Math.round(minLakeAreaForGrid(width) * minLakeAreaScale))
   const processed = new Uint8Array(cellCount)
   let breachCount = 0
@@ -88,16 +95,22 @@ export function fillLakes({
       width,
       height,
     )
-    const surfaceElev =
+    const spillElev =
       outletIdx >= 0 ? saddleElev : basin.cells.reduce(
         (max, cellIdx) => Math.max(max, filledElevation[cellIdx]),
         Number.NEGATIVE_INFINITY,
       )
-    const basinDepth = surfaceElev - floorElev
+    const basinDepth = spillElev - floorElev
     const spillRatio =
       basinDepth > FILL_EPSILON && outletIdx >= 0 ? spillDepth / basinDepth : 0
     const shouldBreach =
       outletIdx >= 0 && !spillsToOcean && spillRatio <= breachThreshold + FILL_EPSILON
+    const initialSurfaceElev =
+      useDryFloorInitialLevel && !shouldBreach && !spillsToOcean
+        ? floorElev
+        : shouldBreach
+          ? floorElev
+          : spillElev
 
     if (shouldBreach) {
       for (const cellIdx of basin.cells) {
@@ -108,6 +121,7 @@ export function fillLakes({
     } else if (!spillsToOcean) {
       for (const cellIdx of basin.cells) {
         lakeMask[cellIdx] = 1
+        filledElevation[cellIdx] = initialSurfaceElev
       }
       if (outletIdx >= 0) {
         endorheicCount += 1
@@ -115,8 +129,17 @@ export function fillLakes({
     } else {
       for (const cellIdx of basin.cells) {
         lakeMask[cellIdx] = 1
+        filledElevation[cellIdx] = useDryFloorInitialLevel ? initialSurfaceElev : spillElev
       }
     }
+
+    const lakeId = lakes.length
+    for (const cellIdx of basin.cells) {
+      if (lakeMask[cellIdx]) {
+        lakeIdByCell[cellIdx] = lakeId
+      }
+    }
+    basinCellsByLake.push([...basin.cells])
 
     const endorheic = !shouldBreach && !spillsToOcean && outletIdx >= 0
     const outletX = shouldBreach ? outletIdx % width : undefined
@@ -136,7 +159,10 @@ export function fillLakes({
     })
     lakeMeta.push({
       endorheic,
-      surfaceElevation: shouldBreach ? floorElev : surfaceElev,
+      surfaceElevation: initialSurfaceElev,
+      floorElevation: floorElev,
+      spillElevation: outletIdx >= 0 ? saddleElev : spillElev,
+      waterLevel: initialSurfaceElev,
       outletX: shouldBreach ? outletX : undefined,
       outletY: shouldBreach ? outletY : undefined,
     })
@@ -148,6 +174,8 @@ export function fillLakes({
     lakeMeta,
     filledElevation,
     spillOutlet,
+    lakeIdByCell,
+    basinCellsByLake,
     breachCount,
     endorheicCount,
   }

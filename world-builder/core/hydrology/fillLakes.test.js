@@ -109,6 +109,28 @@ test('fillLakes keeps high saddle basins endorheic', () => {
   assert.ok(filledElevation[idx(4, 4, width)] > elevation[idx(4, 4, width)])
 })
 
+test('fillLakes useDryFloorInitialLevel starts endorheic basins at floor elevation', () => {
+  const { width, height, elevation, ocean } = makeSaddleBasinGrid(0.5)
+  const floorElev = elevation[idx(4, 4, width)]
+  const { lakeMeta, filledElevation } = fillLakes({
+    elevation,
+    width,
+    height,
+    ocean,
+    minLakeAreaScale: 0.01,
+    breachThreshold: DEFAULT_BREACH_THRESHOLD,
+    useDryFloorInitialLevel: true,
+  })
+
+  assert.strictEqual(lakeMeta.length, 1)
+  assert.strictEqual(lakeMeta[0].endorheic, true)
+  assert.strictEqual(lakeMeta[0].floorElevation, floorElev)
+  assert.strictEqual(lakeMeta[0].waterLevel, floorElev)
+  assert.strictEqual(lakeMeta[0].surfaceElevation, floorElev)
+  assert.ok(lakeMeta[0].spillElevation > floorElev + 0.1)
+  assert.strictEqual(filledElevation[idx(4, 4, width)], floorElev)
+})
+
 test('fillLakes breach evaluation is deterministic on fixed grids', () => {
   const { width, height, elevation, ocean } = makeSaddleBasinGrid(0.88)
   const first = fillLakes({

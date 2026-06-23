@@ -46,6 +46,12 @@
  * @typedef {Object} LakeMetaRecord
  * @property {boolean} endorheic
  * @property {number} surfaceElevation
+ * @property {number=} floorElevation
+ * @property {number=} spillElevation
+ * @property {number=} waterLevel
+ * @property {number=} snowPack
+ * @property {boolean=} hasOverflowed
+ * @property {number=} overflowOutletIdx
  * @property {number=} outletX
  * @property {number=} outletY
  */
@@ -56,6 +62,9 @@
  * @property {number} endorheicCount
  * @property {number} endorheicFraction
  * @property {number} lakeCount
+ * @property {number=} overflowLakeCount
+ * @property {number=} seasonalYearCount
+ * @property {number=} meanLakeLevelDelta
  */
 
 /**
@@ -72,6 +81,9 @@
  * @property {number[]} slopeAreaConcavitySamples
  * @property {number} parallelStrandRatio
  * @property {number} coastConnectedNavigablePathLength
+ * @property {number=} overflowLakeCount
+ * @property {number=} seasonalYearCount
+ * @property {number=} meanLakeLevelDelta
  */
 
 /**
@@ -212,6 +224,14 @@
  * @property {number} maxParallelStrandRatio
  * @property {number} minCoastConnectedNavigablePathCells
  * @property {number} maxEndorheicFraction
+ * @property {boolean} enableSeasonalHydrology
+ * @property {number} seasonalYearCount
+ * @property {number} dryRainMult
+ * @property {number} wetRainMult
+ * @property {number} yearlyClimateNoiseScale
+ * @property {number} lakeEvaporationScale
+ * @property {number} snowAccumRate
+ * @property {number} meltReleaseScale
  */
 
 /**

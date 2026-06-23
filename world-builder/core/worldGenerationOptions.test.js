@@ -67,3 +67,18 @@ test('resolveWorldGenerationOptions merges rainfallAmountScale override', () => 
   assert.strictEqual(options.rainfallAmountScale, 1.75)
   assert.strictEqual(options.rainfallFrequencyScale, 1.35)
 })
+
+test('resolveWorldGenerationOptions preserves seasonal hydrology defaults', () => {
+  const options = resolveWorldGenerationOptions()
+  assert.strictEqual(options.enableSeasonalHydrology, true)
+  assert.strictEqual(options.seasonalYearCount, 5)
+  assert.strictEqual(options.dryRainMult, 0.15)
+  assert.strictEqual(options.wetRainMult, 1.8)
+  assert.strictEqual(options.meltReleaseScale, 1)
+})
+
+test('resolveWorldGenerationOptions merges enableSeasonalHydrology override', () => {
+  const options = resolveWorldGenerationOptions({ enableSeasonalHydrology: false })
+  assert.strictEqual(options.enableSeasonalHydrology, false)
+  assert.strictEqual(options.seasonalYearCount, DEFAULT_WORLD_GENERATION_OPTIONS.seasonalYearCount)
+})

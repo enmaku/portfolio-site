@@ -8,6 +8,7 @@ import { computeCoastNavigability } from './coast/computeCoastNavigability.js'
 import { deriveCoastalNodes } from './coast/deriveCoastalNodes.js'
 import { applyErosion } from './erosion/applyErosion.js'
 import { refreshFieldsAfterErosion } from './fields/refreshFieldsAfterErosion.js'
+import { deriveAnnualMeanClimate } from './hydrology/seasonalClimatology.js'
 import { generatePhysicalTerrainBaseline } from './generatePhysicalTerrainBaseline.js'
 import { runHydrologySubsteps } from './hydrology/hydrologySubsteps.js'
 import { placeSaltNodes } from './resources/placeSaltNodes.js'
@@ -44,6 +45,7 @@ export const DERIVED_GEOGRAPHY_STEPS = [
  * @property {Uint8Array | null} lakeMask
  * @property {import('./types.js').LakeRecord[] | null} lakes
  * @property {import('./types.js').LakeMetaRecord[] | null} lakeMeta
+ * @property {Int32Array | null} lakeIdByCell
  * @property {import('./types.js').HydrologyPipelineStats | null} hydrologyStats
  * @property {Float32Array | null} workingElevation
  * @property {import('./types.js').RiverGraph | null} riverGraph
@@ -91,6 +93,7 @@ export function createInitialPipelineState(params) {
     lakeMask: null,
     lakes: null,
     lakeMeta: null,
+    lakeIdByCell: null,
     hydrologyStats: null,
     workingElevation: null,
     riverGraph: null,
@@ -297,7 +300,7 @@ function runFieldRefreshStep(state) {
   const drainage = state.fields?.drainage
   if (!drainage) throw new Error('Flow drainage required before field refresh')
 
-  const fields = refreshFieldsAfterErosion({
+  const refreshed = refreshFieldsAfterErosion({
     geographySeed: state.geographySeed,
     prevailingWindDegrees: state.prevailingWindDegrees,
     elevation: state.workingElevation,
@@ -306,6 +309,19 @@ function runFieldRefreshStep(state) {
     height,
     options: state.options,
   })
+  let fields = refreshed
+  if (state.options.enableSeasonalHydrology) {
+    const annualClimate = deriveAnnualMeanClimate({
+      baseRainfall: refreshed.rainfall,
+      baseTemperature: refreshed.temperature,
+      options: state.options,
+    })
+    fields = {
+      ...refreshed,
+      rainfall: annualClimate.rainfall,
+      temperature: annualClimate.temperature,
+    }
+  }
   const biomes = classifyBiomesWithHydrology(fields, width, height, {
     lakeMask: state.lakeMask,
     riverCorridorMask: state.riverNetworkMask,

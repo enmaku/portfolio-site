@@ -15,6 +15,7 @@ import {
  * @param {number} [params.seaLevel]
  * @param {Float32Array} params.rainfall
  * @param {Float32Array} [params.meltContribution]
+ * @param {Float32Array} [params.cellRunoff]
  * @param {Float32Array} [params.soilDrainage]
  * @param {number} [params.soilDrainageScale]
  * @returns {{ flowDirection: Int16Array, flowAccumulation: Float32Array, ocean: boolean[] }}
@@ -28,14 +29,15 @@ export function computeFlowAccumulation({
   meltContribution,
   soilDrainage,
   soilDrainageScale = 1,
+  cellRunoff: cellRunoffOverride,
 }) {
-  if (!rainfall) {
+  if (!rainfall && !cellRunoffOverride) {
     throw new Error('rainfall is required for precipitation-weighted flow accumulation')
   }
 
   const cellCount = width * height
   const ocean = isOceanCell(elevation, width, height, seaLevel)
-  const cellRunoff = computeCellRunoff({
+  const cellRunoff = cellRunoffOverride ?? computeCellRunoff({
     rainfall,
     meltContribution,
     soilDrainage,

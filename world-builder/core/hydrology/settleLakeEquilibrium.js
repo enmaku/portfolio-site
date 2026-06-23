@@ -58,7 +58,9 @@ export function settleLakeEquilibrium({
     const lakeId = componentLakeIds[i]
     if (lakeId === undefined) continue
     const meta = updatedMeta[lakeId]
-    applyFlatSurface(settledElevation, cells, meta.surfaceElevation)
+    const surface = meta.waterLevel ?? meta.surfaceElevation
+    applyFlatSurface(settledElevation, cells, surface)
+    meta.surfaceElevation = surface
   }
 
   const { filledElevation, spillOutlet: refreshedSpill } = priorityFloodFill({
@@ -89,7 +91,7 @@ export function settleLakeEquilibrium({
       continue
     }
 
-    const surfaceElev = filledElevation[cells[0]]
+    const surfaceElev = meta.waterLevel ?? filledElevation[cells[0]]
     applyFlatSurface(settledElevation, cells, surfaceElev)
     meta.surfaceElevation = surfaceElev
     lake.spillX = spillIdx % width
@@ -162,6 +164,17 @@ function matchComponentsToLakeIds(components, lakes, lakeMeta, elevation, width)
         if (delta < bestDelta || (delta === bestDelta && lakeId < (matchedLakeId ?? Number.MAX_SAFE_INTEGER))) {
           bestDelta = delta
           matchedLakeId = lakeId
+        }
+      }
+      if (matchedLakeId === undefined) {
+        bestDelta = Number.POSITIVE_INFINITY
+        for (let lakeId = 0; lakeId < lakes.length; lakeId += 1) {
+          if (usedLakeIds.has(lakeId)) continue
+          const delta = Math.abs(lakeMeta[lakeId].surfaceElevation - meanElev)
+          if (delta < bestDelta || (delta === bestDelta && lakeId < (matchedLakeId ?? Number.MAX_SAFE_INTEGER))) {
+            bestDelta = delta
+            matchedLakeId = lakeId
+          }
         }
       }
     }

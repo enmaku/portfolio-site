@@ -18,19 +18,24 @@ import {
   deriveIncisedCorridorMask,
   unionCorridorMasks,
 } from './extractRiverNetworkFromIncisedChannels.js'
+import { deriveBasinCatchments } from './deriveBasinCatchments.js'
+import { computeCellRunoff } from './computeCellRunoff.js'
 import { fillLakes } from './fillLakes.js'
+import { applyLakeSurfacesFromMeta } from './lakeDisplayCoherence.js'
 import {
   refineRiverNetworkFromSketch,
 } from './refineRiverNetwork.js'
 import { carveTemporaryRivers } from './seededTemporaryRiverCarve.js'
 import { settleLakeEquilibrium } from './settleLakeEquilibrium.js'
+import { simulateSeasonalHydrology } from './simulateSeasonalHydrology.js'
 
-/** @typedef {'hydrologyFill' | 'hydrologyClimate' | 'hydrologyRoute' | 'hydrologyIncise' | 'hydrologyExtract' | 'hydrologyRefine' | 'hydrologySettle'} HydrologySubstepId */
+/** @typedef {'hydrologyFill' | 'hydrologyClimate' | 'hydrologySeasonal' | 'hydrologyRoute' | 'hydrologyIncise' | 'hydrologyExtract' | 'hydrologyRefine' | 'hydrologySettle'} HydrologySubstepId */
 
 /** @type {ReadonlyArray<{ id: HydrologySubstepId, label: string }>} */
 export const HYDROLOGY_SUBSTEPS = [
   { id: 'hydrologyFill', label: 'Fill lakes' },
   { id: 'hydrologyClimate', label: 'Climate refresh' },
+  { id: 'hydrologySeasonal', label: 'Seasonal hydrology' },
   { id: 'hydrologyRoute', label: 'Route runoff' },
   { id: 'hydrologyIncise', label: 'Incise channels' },
   { id: 'hydrologyExtract', label: 'Extract river graph' },
@@ -70,6 +75,10 @@ export const HYDROLOGY_SUBSTEPS = [
  * @property {Float32Array | null} rainfall
  * @property {Uint8Array | null} snowCapMask
  * @property {Float32Array | null} meltContribution
+ * @property {Float32Array | null} effectiveRunoff
+ * @property {Int32Array | null} lakeIdByCell
+ * @property {number[][] | null} catchmentCellsByLake
+ * @property {Set<number> | null} overflowLakeIds
  * @property {Int16Array | null} flowDirection
  * @property {Float32Array | null} flowAccumulation
  * @property {boolean[] | null} lakeOcean
@@ -114,6 +123,10 @@ function createHydrologyContext(state, hooks = {}) {
     rainfall: null,
     snowCapMask: null,
     meltContribution: null,
+    effectiveRunoff: null,
+    lakeIdByCell: null,
+    catchmentCellsByLake: null,
+    overflowLakeIds: null,
     flowDirection: null,
     flowAccumulation: null,
     lakeOcean: null,
@@ -145,12 +158,15 @@ function runHydrologyFillSubstep(ctx) {
     seaLevel: state.options.seaLevel,
     rainfall: state.baselineDoc?.fields.rainfall ?? state.fields?.rainfall,
   })
+  const useSeasonal = state.options.enableSeasonalHydrology
   const {
     lakeMask,
     lakes,
     lakeMeta,
     filledElevation,
     spillOutlet,
+    lakeIdByCell,
+    basinCellsByLake,
     breachCount,
     endorheicCount,
   } = fillLakes({
@@ -161,6 +177,7 @@ function runHydrologyFillSubstep(ctx) {
     seaLevel: state.options.seaLevel,
     minLakeAreaScale: state.options.minLakeAreaScale,
     breachThreshold: state.options.breachThreshold,
+    useDryFloorInitialLevel: useSeasonal,
   })
   ctx.ocean = ocean
   ctx.lakeMask = lakeMask
@@ -174,6 +191,8 @@ function runHydrologyFillSubstep(ctx) {
   }
   ctx.filledElevation = filledElevation
   ctx.spillOutlet = spillOutlet
+  ctx.lakeIdByCell = lakeIdByCell
+  ctx.catchmentCellsByLake = basinCellsByLake
 }
 
 /**
@@ -204,18 +223,102 @@ function runHydrologyClimateSubstep(ctx) {
     height,
     seaLevel: state.options.seaLevel,
   })
-  const meltContribution = deriveSnowMeltContribution({
-    elevation: state.erodedElevation,
-    temperature,
-    snowCapMask,
-    width,
-    height,
-    prevailingWindDegrees: state.prevailingWindDegrees,
-  })
+  const meltContribution = state.options.enableSeasonalHydrology
+    ? new Float32Array(width * height)
+    : deriveSnowMeltContribution({
+        elevation: state.erodedElevation,
+        temperature,
+        snowCapMask,
+        width,
+        height,
+        prevailingWindDegrees: state.prevailingWindDegrees,
+      })
   ctx.temperature = temperature
   ctx.rainfall = rainfall
   ctx.snowCapMask = snowCapMask
   ctx.meltContribution = meltContribution
+}
+
+/**
+ * @param {HydrologySubstepContext} ctx
+ */
+function runHydrologySeasonalSubstep(ctx) {
+  const { state, width, height } = ctx
+  if (
+    !ctx.filledElevation ||
+    !ctx.lakeMask ||
+    !ctx.lakes ||
+    !ctx.lakeMeta ||
+    !ctx.lakeIdByCell ||
+    !ctx.catchmentCellsByLake ||
+    !ctx.temperature ||
+    !ctx.rainfall ||
+    !ctx.snowCapMask ||
+    !ctx.ocean
+  ) {
+    throw new Error('Fill and climate substeps required before seasonal hydrology')
+  }
+
+  const soilDrainage = state.baselineDoc?.fields.drainage ?? state.fields?.drainage
+
+  if (!state.options.enableSeasonalHydrology) {
+    ctx.effectiveRunoff = computeCellRunoff({
+      rainfall: ctx.rainfall,
+      meltContribution: ctx.meltContribution,
+      soilDrainage,
+      soilDrainageScale: state.options.soilDrainageScale,
+      ocean: ctx.ocean,
+    })
+    ctx.overflowLakeIds = new Set()
+    return
+  }
+
+  const { catchmentCellsByLake } = deriveBasinCatchments({
+    elevation: state.erodedElevation,
+    lakeIdByCell: ctx.lakeIdByCell,
+    width,
+    height,
+    seaLevel: state.options.seaLevel,
+  })
+
+  const seasonal = simulateSeasonalHydrology({
+    elevation: state.erodedElevation,
+    filledElevation: ctx.filledElevation,
+    rainfall: ctx.rainfall,
+    temperature: ctx.temperature,
+    snowCapMask: ctx.snowCapMask,
+    lakeMask: ctx.lakeMask,
+    lakes: ctx.lakes,
+    lakeMeta: ctx.lakeMeta,
+    catchmentCellsByLake,
+    lakeIdByCell: ctx.lakeIdByCell,
+    soilDrainage,
+    ocean: ctx.ocean,
+    width,
+    height,
+    geographySeed: state.geographySeed,
+    options: state.options,
+  })
+
+  ctx.filledElevation = seasonal.filledElevation
+  ctx.lakeMeta = seasonal.lakeMeta
+  ctx.lakes = seasonal.lakes
+  ctx.effectiveRunoff = seasonal.effectiveRunoff
+  ctx.overflowLakeIds = seasonal.overflowLakeIds
+  ctx.catchmentCellsByLake = catchmentCellsByLake
+  if (ctx.hydrologyStats) {
+    ctx.hydrologyStats = {
+      ...ctx.hydrologyStats,
+      overflowLakeCount: seasonal.seasonalStats.overflowLakeCount,
+      seasonalYearCount: seasonal.seasonalStats.seasonalYearCount,
+      meanLakeLevelDelta: seasonal.seasonalStats.meanLakeLevelDelta,
+      endorheicCount: seasonal.lakes.filter((lake) => lake.endorheic).length,
+      endorheicFraction:
+        seasonal.lakes.length > 0
+          ? seasonal.lakes.filter((lake) => lake.endorheic).length / seasonal.lakes.length
+          : 0,
+    }
+  }
 }
 
 /**
@@ -229,9 +332,9 @@ function runHydrologyRouteSubstep(ctx) {
     !ctx.spillOutlet ||
     !ctx.temperature ||
     !ctx.rainfall ||
-    !ctx.meltContribution
+    !ctx.effectiveRunoff
   ) {
-    throw new Error('Fill and climate substeps required before hydrology routing')
+    throw new Error('Fill, climate, and seasonal substeps required before hydrology routing')
   }
 
   const soilDrainage = state.baselineDoc?.fields.drainage ?? state.fields?.drainage
@@ -241,7 +344,7 @@ function runHydrologyRouteSubstep(ctx) {
     height,
     seaLevel: state.options.seaLevel,
     rainfall: ctx.rainfall,
-    meltContribution: ctx.meltContribution,
+    cellRunoff: ctx.effectiveRunoff,
     soilDrainage,
     soilDrainageScale: state.options.soilDrainageScale,
   })
@@ -254,6 +357,8 @@ function runHydrologyRouteSubstep(ctx) {
     height,
     meltContribution: ctx.meltContribution,
     navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
+    overflowLakeIds: ctx.overflowLakeIds ?? undefined,
+    lakeIdByCell: ctx.lakeIdByCell ?? undefined,
   })
   const attractionRadius = riverAttractionRadiusForGrid(
     width,
@@ -289,7 +394,7 @@ function runHydrologyInciseSubstep(ctx) {
     !ctx.flowDirection ||
     !ctx.flowAccumulation ||
     !ctx.riverNetworkMask ||
-    !ctx.meltContribution
+    !ctx.effectiveRunoff
   ) {
     throw new Error('Routing substep required before hydrology incising')
   }
@@ -346,7 +451,7 @@ function runHydrologyExtractSubstep(ctx) {
     !ctx.lakeOcean ||
     !ctx.incisedCorridorMask ||
     !ctx.rainfall ||
-    !ctx.meltContribution
+    !ctx.effectiveRunoff
   ) {
     throw new Error('Incising substep required before hydrology corridor extraction')
   }
@@ -357,6 +462,7 @@ function runHydrologyExtractSubstep(ctx) {
     incisedCorridorMask: ctx.incisedCorridorMask,
     rainfall: ctx.rainfall,
     meltContribution: ctx.meltContribution,
+    cellRunoff: ctx.effectiveRunoff,
     soilDrainage,
     soilDrainageScale: state.options.soilDrainageScale,
     seaLevel: state.options.seaLevel,
@@ -382,7 +488,7 @@ function runHydrologyRefineSubstep(ctx) {
   const { state, width, height } = ctx
   if (
     !ctx.settledElevation ||
-    !ctx.meltContribution ||
+    !ctx.effectiveRunoff ||
     !ctx.settledRiverNetworkMask ||
     !ctx.settledFlowDirection ||
     !ctx.settledFlowAccumulation ||
@@ -459,7 +565,7 @@ function runHydrologySettleSubstep(ctx) {
     height,
     seaLevel: state.options.seaLevel,
     rainfall: ctx.rainfall,
-    meltContribution: ctx.meltContribution,
+    cellRunoff: ctx.effectiveRunoff,
     soilDrainage,
     soilDrainageScale: state.options.soilDrainageScale,
   })
@@ -489,12 +595,24 @@ function runHydrologySettleSubstep(ctx) {
     coastNavigability: ctx.coastNavigability ?? undefined,
     seaLevel: state.options.seaLevel,
   })
+
+  if (ctx.lakeIdByCell && ctx.lakeMeta && ctx.lakeMask) {
+    applyLakeSurfacesFromMeta(
+      ctx.settledElevation,
+      ctx.lakeIdByCell,
+      ctx.lakeMeta,
+      ctx.lakeMask,
+      width,
+      height,
+    )
+  }
 }
 
 /** @type {Record<HydrologySubstepId, (ctx: HydrologySubstepContext) => void>} */
 const HYDROLOGY_SUBSTEP_RUNNERS = {
   hydrologyFill: runHydrologyFillSubstep,
   hydrologyClimate: runHydrologyClimateSubstep,
+  hydrologySeasonal: runHydrologySeasonalSubstep,
   hydrologyRoute: runHydrologyRouteSubstep,
   hydrologyIncise: runHydrologyInciseSubstep,
   hydrologyExtract: runHydrologyExtractSubstep,
@@ -527,11 +645,23 @@ function buildPipelineStateFromHydrologyContext(ctx) {
     drainage: ctx.settledDrainage,
   }
 
+  if (ctx.lakeIdByCell && ctx.lakeMeta && ctx.lakeMask) {
+    applyLakeSurfacesFromMeta(
+      previewFields.elevation,
+      ctx.lakeIdByCell,
+      ctx.lakeMeta,
+      ctx.lakeMask,
+      width,
+      height,
+    )
+  }
+
   return {
     ...state,
     lakeMask: ctx.lakeMask,
     lakes: ctx.lakes,
     lakeMeta: ctx.lakeMeta,
+    lakeIdByCell: ctx.lakeIdByCell,
     hydrologyStats: ctx.hydrologyStats,
     workingElevation: ctx.settledElevation,
     riverGraph: ctx.settledRiverGraph,

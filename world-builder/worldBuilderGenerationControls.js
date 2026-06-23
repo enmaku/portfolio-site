@@ -202,6 +202,96 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
     ],
   },
   {
+    section: 'Seasonal hydrology',
+    controls: [
+      {
+        key: 'enableSeasonalHydrology',
+        label: 'Seasonal hydrology',
+        tooltip:
+          'Run dry/wet/cold/melt cycles over multiple years so lakes fill, dry, and occasionally overtop into outlet rivers. Off uses the legacy steady rainfall snapshot.',
+        kind: 'toggle',
+        testId: 'world-builder-control-seasonal-hydrology',
+      },
+      {
+        key: 'seasonalYearCount',
+        label: 'Simulation years',
+        tooltip:
+          'How many annual cycles to run before routing rivers. More years increase overflow chances and cost slightly more compute.',
+        kind: 'slider',
+        min: 1,
+        max: 30,
+        step: 1,
+        testId: 'world-builder-control-seasonal-years',
+      },
+      {
+        key: 'dryRainMult',
+        label: 'Dry-season rain',
+        tooltip:
+          'Rainfall fraction during the dry season. Lower values dry lakes faster and shrink ephemeral streams.',
+        kind: 'slider',
+        min: 0,
+        max: 0.5,
+        step: 0.01,
+        testId: 'world-builder-control-dry-rain',
+      },
+      {
+        key: 'wetRainMult',
+        label: 'Wet-season rain',
+        tooltip:
+          'Rainfall fraction during the wet season. Higher values fill basins and push more lakes over their spill saddles.',
+        kind: 'slider',
+        min: 0.5,
+        max: 3,
+        step: 0.05,
+        testId: 'world-builder-control-wet-rain',
+      },
+      {
+        key: 'yearlyClimateNoiseScale',
+        label: 'Year-to-year variability',
+        tooltip:
+          'How much wet and melt seasons differ between years. Zero gives identical years; higher values create occasional flood years.',
+        kind: 'slider',
+        min: 0,
+        max: 0.6,
+        step: 0.02,
+        testId: 'world-builder-control-yearly-noise',
+      },
+      {
+        key: 'lakeEvaporationScale',
+        label: 'Lake evaporation',
+        tooltip:
+          'How aggressively lakes lose water during dry seasons. Higher values shrink lakes and favor endorheic basins.',
+        kind: 'slider',
+        min: 0,
+        max: 2.5,
+        step: 0.05,
+        testId: 'world-builder-control-lake-evaporation',
+      },
+      {
+        key: 'snowAccumRate',
+        label: 'Snow accumulation',
+        tooltip:
+          'How fast snow pack builds on high cold terrain during the cold season.',
+        kind: 'slider',
+        min: 0,
+        max: 2.5,
+        step: 0.05,
+        testId: 'world-builder-control-snow-accum',
+      },
+      {
+        key: 'meltReleaseScale',
+        label: 'Snow melt release',
+        tooltip:
+          'How much stored snow becomes runoff during the melt season. Drives spring pulse rivers from mountain catchments.',
+        kind: 'slider',
+        min: 0,
+        max: 2.5,
+        step: 0.05,
+        testId: 'world-builder-control-melt-release',
+      },
+    ],
+  },
+  {
     section: 'Erosion & hydrology',
     controls: [
       {
@@ -362,7 +452,7 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
           'Scales soil permeability in the drainage field. Lower values yield wetter soils and swamps; higher values speed runoff and dry ground.',
         kind: 'slider',
         min: 0.2,
-        max: 2,
+        max: 4,
         step: 0.05,
         testId: 'world-builder-control-soil-drainage',
       },
@@ -409,6 +499,9 @@ export function formatGenerationControlValue(key, value) {
   if (key === 'enableMeanderRefine') {
     return value ? 'On' : 'Off'
   }
+  if (key === 'enableSeasonalHydrology') {
+    return value ? 'On' : 'Off'
+  }
   if (key === 'riverAttractionRadiusScale' && value <= 0) {
     return 'Off'
   }
@@ -443,6 +536,7 @@ export function formatGenerationControlValue(key, value) {
     key === 'elevationOctaves' ||
     key === 'erosionStepCount' ||
     key === 'inciseIterations' ||
+    key === 'seasonalYearCount' ||
     key === 'riverSettlementSteps' ||
     key === 'maxSaltNodes' ||
     key === 'elevationDomainWarpStrength'

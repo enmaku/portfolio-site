@@ -121,6 +121,7 @@ export function buildChannelWidthField({ flowAccumulation, channelMask, width, h
  * @param {Uint8Array} params.incisedCorridorMask
  * @param {Float32Array} params.rainfall
  * @param {Float32Array} [params.meltContribution]
+ * @param {Float32Array} [params.cellRunoff]
  * @param {Float32Array} [params.soilDrainage]
  * @param {number} [params.soilDrainageScale]
  * @param {number} [params.seaLevel]
@@ -143,6 +144,7 @@ export function extractRiverNetworkFromIncisedChannels({
   incisedCorridorMask,
   rainfall,
   meltContribution,
+  cellRunoff,
   soilDrainage,
   soilDrainageScale,
   seaLevel,
@@ -158,6 +160,7 @@ export function extractRiverNetworkFromIncisedChannels({
     seaLevel,
     rainfall,
     meltContribution,
+    cellRunoff,
     soilDrainage,
     soilDrainageScale,
   })

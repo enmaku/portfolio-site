@@ -21,6 +21,8 @@ import { downstreamIndex } from './computeFlowAccumulation.js'
  * @param {number} params.height
  * @param {Uint8Array} [params.lakeMask]
  * @param {Float32Array} [params.meltContribution]
+ * @param {Set<number>} [params.overflowLakeIds]
+ * @param {Int32Array} [params.lakeIdByCell]
  * @param {number} [params.navigableFlowCutoffScale]
  * @returns {Uint8Array}
  */
@@ -33,6 +35,8 @@ export function buildRiverNetworkMask({
   lakeMask,
   meltContribution,
   navigableFlowCutoffScale = 1,
+  overflowLakeIds,
+  lakeIdByCell,
 }) {
   const cellCount = width * height
   const tributaryCutoff = Math.max(
@@ -118,6 +122,21 @@ export function buildRiverNetworkMask({
     mask[outletIdx] = 1
   }
 
+  if (overflowLakeIds && lakeIdByCell) {
+    traceOverflowLakeOutflows({
+      overflowLakeIds,
+      lakeIdByCell,
+      lakeMask,
+      mask,
+      flowAccumulation,
+      upstream,
+      flowDirection,
+      width,
+      height,
+      tributaryCutoff,
+    })
+  }
+
   if (meltContribution) {
     const meltHeadwaterCutoff = Math.max(2, Math.round(tributaryCutoff * 0.5))
     traceMeltSourcedCorridors({
@@ -134,6 +153,79 @@ export function buildRiverNetworkMask({
   }
 
   return mask
+}
+
+/**
+ * @param {Object} params
+ * @param {Set<number>} params.overflowLakeIds
+ * @param {Int32Array} params.lakeIdByCell
+ * @param {Uint8Array | undefined} params.lakeMask
+ * @param {Uint8Array} params.mask
+ * @param {Float32Array} params.flowAccumulation
+ * @param {number[][]} params.upstream
+ * @param {Int16Array} params.flowDirection
+ * @param {number} params.width
+ * @param {number} params.height
+ * @param {number} params.tributaryCutoff
+ */
+function traceOverflowLakeOutflows({
+  overflowLakeIds,
+  lakeIdByCell,
+  lakeMask,
+  mask,
+  flowAccumulation,
+  upstream,
+  flowDirection,
+  width,
+  height,
+  tributaryCutoff,
+}) {
+  for (const lakeId of overflowLakeIds) {
+    let outletIdx = -1
+    for (let idx = 0; idx < lakeIdByCell.length; idx += 1) {
+      if (lakeIdByCell[idx] !== lakeId) continue
+      const x = idx % width
+      const y = Math.floor(idx / width)
+      const neighbors = [
+        [x - 1, y],
+        [x + 1, y],
+        [x, y - 1],
+        [x, y + 1],
+      ]
+      for (const [nx, ny] of neighbors) {
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+        const nIdx = ny * width + nx
+        if (lakeMask?.[nIdx] || lakeIdByCell[nIdx] === lakeId) continue
+        if (outletIdx < 0 || flowAccumulation[nIdx] > flowAccumulation[outletIdx]) {
+          outletIdx = nIdx
+        }
+      }
+    }
+
+    if (outletIdx < 0 || flowAccumulation[outletIdx] < tributaryCutoff) continue
+    mask[outletIdx] = 1
+    traceRiverUpstream(outletIdx, mask, flowAccumulation, upstream, tributaryCutoff)
+    markDownstreamFromOutlet(outletIdx, mask, flowDirection, lakeMask, width, height, 24)
+  }
+}
+
+/**
+ * @param {number} startIdx
+ * @param {Uint8Array} mask
+ * @param {Int16Array} flowDirection
+ * @param {Uint8Array | undefined} lakeMask
+ * @param {number} width
+ * @param {number} height
+ * @param {number} maxSteps
+ */
+function markDownstreamFromOutlet(startIdx, mask, flowDirection, lakeMask, width, height, maxSteps) {
+  let current = startIdx
+  for (let step = 0; step < maxSteps; step += 1) {
+    mask[current] = 1
+    const downstream = downstreamIndex(current, width, flowDirection)
+    if (downstream < 0 || (lakeMask && lakeMask[downstream])) break
+    current = downstream
+  }
 }
 
 /**
