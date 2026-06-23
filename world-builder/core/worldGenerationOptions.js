@@ -21,7 +21,7 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   /** Scales fine FBM octaves on gentle terrain; lower = smoother lowlands. */
   elevationGentleSlopePersistenceScale: 0.38,
   erosionStepCount: EROSION_STEP_COUNT,
-  erosionChannelWear: 0.007,
+  erosionChannelWear: 0.01,
   erosionPeakWear: 0.001,
   inciseIterations: 8,
   streamPowerK: 0.0045,

@@ -50,6 +50,7 @@ export const DERIVED_GEOGRAPHY_STEPS = [
  * @property {Float32Array | null} workingElevation
  * @property {import('./types.js').RiverGraph | null} riverGraph
  * @property {Uint8Array | null} riverNetworkMask
+ * @property {Uint8Array | null} riverCorridorMask
  * @property {Float32Array | null} channelWidth
  * @property {Int16Array | null} flowDirection
  * @property {import('./types.js').ScalarFields | null} fields
@@ -99,6 +100,7 @@ export function createInitialPipelineState(params) {
     workingElevation: null,
     riverGraph: null,
     riverNetworkMask: null,
+    riverCorridorMask: null,
     channelWidth: null,
     flowDirection: null,
     fields: null,
@@ -327,7 +329,7 @@ function runFieldRefreshStep(state) {
   }
   const biomes = classifyBiomesWithHydrology(fields, width, height, {
     lakeMask: state.lakeMask,
-    riverCorridorMask: state.riverNetworkMask,
+    riverCorridorMask: state.riverCorridorMask ?? state.riverNetworkMask,
     flowDirection: state.flowDirection,
   }, state.options.seaLevel)
   return {

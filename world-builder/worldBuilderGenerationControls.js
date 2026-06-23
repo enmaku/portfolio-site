@@ -323,7 +323,7 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
           'How aggressively each erosion pass cuts river channels downhill. Higher values incise deeper valleys and steepen channel profiles.',
         kind: 'slider',
         min: 0.001,
-        max: 0.012,
+        max: 0.024,
         step: 0.0005,
         testId: 'world-builder-control-erosion-channel-wear',
       },

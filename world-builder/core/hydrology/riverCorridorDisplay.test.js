@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { BIOMES } from '../biomeIds.js'
 import { generateDerivedGeography } from '../generateDerivedGeography.js'
 import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
 import {
@@ -14,6 +15,7 @@ import {
   resolveRiverCorridorRenderRadius,
   riverCorridorRadiusForChannelWidth,
   riverCorridorRadiusForDrainage,
+  smoothRiverCorridorMaskForDisplay,
 } from './riverCorridorDisplay.js'
 
 test('riverCorridorRadiusForDrainage grows with drainage and caps at max radius', () => {
@@ -67,6 +69,21 @@ test('measurePhysicalRiverHalfWidth measures incised trench half-width', () => {
   assert.ok(halfWidth >= 1)
 })
 
+test('smoothRiverCorridorMaskForDisplay removes isolated single-cell spikes', () => {
+  const width = 5
+  const height = 5
+  const mask = new Uint8Array(width * height)
+  mask[2 * width + 2] = 1
+  mask[2 * width + 3] = 1
+  mask[1 * width + 3] = 1
+
+  const smoothed = smoothRiverCorridorMaskForDisplay(mask, width, height, 1)
+
+  assert.strictEqual(smoothed[2 * width + 2], 1)
+  assert.strictEqual(smoothed[2 * width + 3], 1)
+  assert.strictEqual(smoothed[1 * width + 3], 0)
+})
+
 test('buildPhysicalRiverCorridorMask paints only centerline for headwaters on flat terrain', () => {
   const width = 7
   const height = 3
@@ -87,28 +104,30 @@ test('buildPhysicalRiverCorridorMask paints only centerline for headwaters on fl
   assert.strictEqual(mask[1 * width + 4], 0)
 })
 
-test('buildPhysicalRiverCorridorMask marks centerline cells only', () => {
+test('buildPhysicalRiverCorridorMask fills incised trunk cross-section', () => {
   const width = 15
   const height = 3
   const riverNetworkMask = new Uint8Array(width * height)
   const elevation = new Float32Array(width * height).fill(0.62)
   const flowDirection = new Int16Array(width * height).fill(-1)
 
-  const headIdx = 1 * width + 3
   const trunkIdx = 1 * width + 11
-  riverNetworkMask[headIdx] = 1
   riverNetworkMask[trunkIdx] = 1
-  flowDirection[headIdx] = 4
   flowDirection[trunkIdx] = 6
+
+  elevation[trunkIdx] = 0.54
+  elevation[1 * width + 10] = 0.54
+  elevation[2 * width + 11] = 0.54
+  elevation[0 * width + 11] = 0.62
+  elevation[2 * width + 10] = 0.62
 
   const mask = buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, {
     elevation,
     flowDirection,
   })
 
-  assert.strictEqual(mask[headIdx], 1)
   assert.strictEqual(mask[trunkIdx], 1)
-  assert.strictEqual(mask[headIdx + 1], 0)
+  assert.ok(mask[1 * width + 10] === 1 || mask[2 * width + 11] === 1)
 })
 
 test('buildPhysicalRiverCorridorMask keeps centerline width at ocean and lake shores', () => {
@@ -251,7 +270,7 @@ test('resolveRiverCorridorRenderRadius prefers channelWidth over drainage', () =
   )
 })
 
-test('default seed generation yields narrower painted rivers than centerline mask alone', () => {
+test('default seed generation paints wider rivers than centerline mask alone', () => {
   const doc = generateDerivedGeography({
     geographySeed: DEFAULT_GEOGRAPHY_SEED,
     prevailingWindDegrees: 90,
@@ -263,20 +282,10 @@ test('default seed generation yields narrower painted rivers than centerline mas
   assert.ok(doc.flowDirection)
 
   const centerlineCount = doc.riverNetworkMask.reduce((sum, value) => sum + value, 0)
-  const painted = buildPhysicalRiverCorridorMask(
-    doc.riverNetworkMask,
-    doc.gridWidth,
-    doc.gridHeight,
-    {
-      elevation: doc.fields.elevation,
-      flowDirection: doc.flowDirection,
-      lakeMask: doc.lakeMask,
-    },
-  )
-  const paintedCount = painted.reduce((sum, value) => sum + value, 0)
+  const riverCellCount = doc.biomes.filter((biome) => biome === BIOMES.RIVER_CORRIDOR).length
 
   assert.ok(centerlineCount > 0)
-  assert.strictEqual(paintedCount, centerlineCount)
+  assert.ok(riverCellCount >= centerlineCount)
 })
 
 test('buildFlowWeightedRiverCorridorMask delegates to physical paint when flowDirection provided', () => {

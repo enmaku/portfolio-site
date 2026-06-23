@@ -464,26 +464,227 @@ export function traceRiverCenterlinePaths(riverNetworkMask, flowDirection, width
 }
 
 /**
- * Paint river corridors as centerline cells only (display uses spline strokes).
+ * @param {Object} params
+ * @param {number} params.x
+ * @param {number} params.y
+ * @param {number} params.cx
+ * @param {number} params.cy
+ * @param {number} params.stepX
+ * @param {number} params.stepY
+ * @param {number} params.halfWidth
+ * @param {number} params.flowStepX
+ * @param {number} params.flowStepY
+ * @returns {boolean}
+ */
+export function isPixelInRiverCorridorCrossSection({
+  x,
+  y,
+  cx,
+  cy,
+  stepX,
+  stepY,
+  halfWidth,
+  flowStepX,
+  flowStepY,
+}) {
+  const dx = x - cx
+  const dy = y - cy
+  if (dx === 0 && dy === 0) return true
+  if (halfWidth <= 0) return false
+
+  const perpDist = Math.abs(dx * stepX + dy * stepY)
+  if (perpDist > halfWidth) return false
+
+  const alongDist = Math.abs(dx * flowStepX + dy * flowStepY)
+  return alongDist <= 1
+}
+
+/**
+ * @param {Uint8Array} riverNetworkMask
+ * @param {Int16Array} halfWidths
+ * @param {Int16Array} flowDirection
+ * @param {number} x
+ * @param {number} y
+ * @param {number} width
+ * @param {number} height
+ * @param {number} maxHalfWidth
+ * @returns {boolean}
+ */
+export function isPixelInRiverCorridor(
+  riverNetworkMask,
+  halfWidths,
+  flowDirection,
+  x,
+  y,
+  width,
+  height,
+  maxHalfWidth,
+) {
+  const y0 = Math.max(0, y - maxHalfWidth)
+  const y1 = Math.min(height - 1, y + maxHalfWidth)
+  const x0 = Math.max(0, x - maxHalfWidth)
+  const x1 = Math.min(width - 1, x + maxHalfWidth)
+
+  for (let cy = y0; cy <= y1; cy += 1) {
+    for (let cx = x0; cx <= x1; cx += 1) {
+      const cIdx = cy * width + cx
+      if (!riverNetworkMask[cIdx]) continue
+
+      const halfWidth = halfWidths[cIdx]
+      const dir = flowDirection[cIdx]
+      if (dir < 0) {
+        if (cx === x && cy === y) return true
+        continue
+      }
+
+      const [stepX, stepY] = flowPerpendicularStep(dir)
+      const [flowStepX, flowStepY] = D8_OFFSETS[dir]
+      if (
+        isPixelInRiverCorridorCrossSection({
+          x,
+          y,
+          cx,
+          cy,
+          stepX,
+          stepY,
+          halfWidth,
+          flowStepX,
+          flowStepY,
+        })
+      ) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+/**
  * @param {Uint8Array} riverNetworkMask
  * @param {number} width
  * @param {number} height
  * @param {Object} options
  * @param {Float32Array} options.elevation
  * @param {Int16Array} options.flowDirection
+ * @param {Float32Array} [options.channelWidth]
  * @param {boolean[]} [options.ocean]
  * @param {Uint8Array} [options.lakeMask]
+ * @param {(progress: number) => void} [options.onProgress]
  * @returns {Uint8Array}
  */
 export function buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, options) {
-  void width
-  void height
-  void options
-  const out = new Uint8Array(riverNetworkMask.length)
+  const {
+    elevation,
+    flowDirection,
+    channelWidth,
+    ocean,
+    lakeMask,
+    onProgress,
+  } = options
+  const mask = new Uint8Array(riverNetworkMask.length)
+  const maxHalfWidth = physicalRiverMaxHalfWidthForGrid(width)
+  const maxChannelWidth = channelWidth
+    ? computeRiverNetworkMaxChannelWidth(channelWidth, riverNetworkMask)
+    : 0
+  const halfWidths = new Int16Array(riverNetworkMask.length)
+
   for (let idx = 0; idx < riverNetworkMask.length; idx += 1) {
-    if (riverNetworkMask[idx]) out[idx] = 1
+    if (!riverNetworkMask[idx]) continue
+
+    const x = idx % width
+    const y = Math.floor(idx / width)
+    let halfWidth = measurePhysicalRiverHalfWidth({
+      elevation,
+      flowDirection,
+      idx,
+      width,
+      height,
+      maxHalfWidth,
+    })
+
+    if (halfWidth <= 0 && channelWidth && maxChannelWidth > 0 && channelWidth[idx] > 0) {
+      halfWidth = riverCorridorRadiusForChannelWidth(
+        channelWidth[idx],
+        maxChannelWidth,
+        maxHalfWidth,
+      )
+    }
+
+    halfWidths[idx] = capRiverCorridorRadiusAtWaterEdge(
+      halfWidth,
+      x,
+      y,
+      width,
+      height,
+      ocean,
+      lakeMask,
+      flowDirection,
+      idx,
+    )
   }
-  return out
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const idx = y * width + x
+      if (ocean?.[idx] || lakeMask?.[idx]) continue
+      if (
+        isPixelInRiverCorridor(
+          riverNetworkMask,
+          halfWidths,
+          flowDirection,
+          x,
+          y,
+          width,
+          height,
+          maxHalfWidth,
+        )
+      ) {
+        mask[idx] = 1
+      }
+    }
+    onProgress?.((y + 1) / height)
+  }
+
+  return mask
+}
+
+/** Minimum occupied cells in a 3×3 window to keep a corridor cell after one smooth pass. */
+export const RIVER_CORRIDOR_MASK_SMOOTH_MAJORITY = 5
+
+/**
+ * Round jagged single-cell protrusions and indentations on a river corridor mask.
+ * @param {Uint8Array} mask
+ * @param {number} width
+ * @param {number} height
+ * @param {number} [passes]
+ * @returns {Uint8Array}
+ */
+export function smoothRiverCorridorMaskForDisplay(mask, width, height, passes = 1) {
+  let current = mask
+  let scratch = new Uint8Array(mask.length)
+
+  for (let pass = 0; pass < passes; pass += 1) {
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        let occupied = 0
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (let dx = -1; dx <= 1; dx += 1) {
+            const nx = x + dx
+            const ny = y + dy
+            if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+            if (current[ny * width + nx]) occupied += 1
+          }
+        }
+        scratch[y * width + x] = occupied >= RIVER_CORRIDOR_MASK_SMOOTH_MAJORITY ? 1 : 0
+      }
+    }
+    const next = scratch
+    scratch = current
+    current = next
+  }
+
+  return current
 }
 
 /**

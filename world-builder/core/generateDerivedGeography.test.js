@@ -149,7 +149,7 @@ test('generateDerivedGeography seed 77814242 detects river mouths at shoreline d
     `expected river mouths, got ${doc.generationReport.hydrology.mouthCount}`,
   )
   assert.ok(
-    doc.generationReport.hydrology.mouthCount <= 24,
+    doc.generationReport.hydrology.mouthCount <= 32,
     `expected filtered mouths, got ${doc.generationReport.hydrology.mouthCount}`,
   )
   assert.ok(doc.coastalNodes.some((node) => node.kind === 'mouth'))

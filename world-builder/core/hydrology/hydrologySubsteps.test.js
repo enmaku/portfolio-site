@@ -27,7 +27,7 @@ const params = {
   height: 64,
 }
 
-test('HYDROLOGY_SUBSTEPS lists eight substeps in canonical order', () => {
+test('HYDROLOGY_SUBSTEPS lists nine substeps in canonical order', () => {
   assert.deepStrictEqual(
     HYDROLOGY_SUBSTEPS.map((substep) => substep.id),
     [
@@ -39,6 +39,7 @@ test('HYDROLOGY_SUBSTEPS lists eight substeps in canonical order', () => {
       'hydrologyExtract',
       'hydrologyRefine',
       'hydrologySettle',
+      'hydrologyPaint',
     ],
   )
 })
@@ -243,6 +244,28 @@ test('runHydrologySubsteps emits inner progress during hydrologyIncise carve', (
   assert.ok(inciseProgress.length >= 2)
   assert.ok(inciseProgress.some((value) => value > 0 && value < 1))
   assert.strictEqual(inciseProgress[inciseProgress.length - 1], 1)
+})
+
+test('runHydrologySubsteps emits inner progress during hydrologyPaint', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  /** @type {number[]} */
+  const paintProgress = []
+  const { state: hydrologyState } = runHydrologySubsteps(state, {
+    onSubstepProgress({ substepId, progress }) {
+      if (substepId === 'hydrologyPaint') {
+        paintProgress.push(progress)
+      }
+    },
+  })
+
+  assert.ok(paintProgress.length >= 2)
+  assert.ok(paintProgress.some((value) => value > 0 && value < 1))
+  assert.strictEqual(paintProgress[paintProgress.length - 1], 1)
+  assert.ok(hydrologyState.riverCorridorMask)
+  assert.ok(hydrologyState.riverCorridorMask.some((value) => value === 1))
 })
 
 test('runHydrologySubsteps passes post-carve elevation downstream', () => {

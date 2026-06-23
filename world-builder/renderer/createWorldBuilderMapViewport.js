@@ -1,7 +1,7 @@
 import { biomeIndicesToRgba } from './biomeIndicesToRgba.js'
 import { BIOMES } from '../core/biomeIds.js'
 import { buildTopographyContourCanvas } from './buildTopographyContourCanvas.js'
-import { drawRiverSplinesOnCanvas } from './drawRiverSplinesOnCanvas.js'
+import { smoothRiverBiomeEdgesInRgba } from './smoothRiverBiomeEdgesInRgba.js'
 
 /**
  * @param {HTMLElement} hostEl
@@ -197,10 +197,13 @@ function syncViewportToHost(viewport, hostEl, worldWidth, worldHeight) {
  * @param {{ elevationTint?: boolean }=} options
  */
 function buildTerrainCanvas(worldDocument, options = {}) {
-  const { gridWidth, gridHeight } = worldDocument
+  const { gridWidth, gridHeight, biomes } = worldDocument
   const rgba = options.elevationTint
     ? elevationToGrayscaleRgba(worldDocument.fields.elevation)
     : biomeIndicesToRgba(worldDocument)
+  if (!options.elevationTint) {
+    smoothRiverBiomeEdgesInRgba(rgba, biomes, gridWidth, gridHeight)
+  }
   const canvas = document.createElement('canvas')
   canvas.width = gridWidth
   canvas.height = gridHeight
@@ -209,9 +212,6 @@ function buildTerrainCanvas(worldDocument, options = {}) {
     throw new Error('Could not acquire 2D canvas context for terrain texture')
   }
   ctx.putImageData(new ImageData(rgba, gridWidth, gridHeight), 0, 0)
-  if (!options.elevationTint) {
-    drawRiverSplinesOnCanvas(ctx, worldDocument)
-  }
   return canvas
 }
 

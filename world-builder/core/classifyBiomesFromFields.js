@@ -125,11 +125,13 @@ export function classifyBiomesFromFields(fields, width, height, seaLevel = SEA_L
  */
 export function classifyBiomesWithHydrology(fields, width, height, hydrology, seaLevel = SEA_LEVEL) {
   const biomes = classifyBiomesFromFields(fields, width, height, seaLevel)
-  const { lakeMask } = hydrology
+  const { lakeMask, riverCorridorMask } = hydrology
 
   for (let i = 0; i < biomes.length; i += 1) {
     if (lakeMask[i]) {
       biomes[i] = BIOMES.FRESHWATER_LAKE
+    } else if (riverCorridorMask[i]) {
+      biomes[i] = BIOMES.RIVER_CORRIDOR
     }
   }
 
