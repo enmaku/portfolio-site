@@ -24,6 +24,7 @@ import { fillLakes } from './fillLakes.js'
 import { applyLakeSurfacesFromMeta } from './lakeDisplayCoherence.js'
 import {
   refineRiverNetworkFromSketch,
+  riverSettlementStepsForGrid,
 } from './refineRiverNetwork.js'
 import { carveTemporaryRivers } from './seededTemporaryRiverCarve.js'
 import { settleLakeEquilibrium } from './settleLakeEquilibrium.js'
@@ -424,6 +425,7 @@ function runHydrologyInciseSubstep(ctx) {
     height,
     geographySeed: state.geographySeed,
     seaLevel: state.options.seaLevel,
+    channelSeedMask: ctx.riverNetworkMask,
     incisionDepth: state.options.erosionChannelWear * 1.5,
     inciseIterations: state.options.inciseIterations,
     streamPowerK: state.options.streamPowerK,
@@ -510,12 +512,13 @@ function runHydrologyRefineSubstep(ctx) {
     height,
     geographySeed: state.geographySeed,
     meanderStrength: state.options.riverMeanderStrength,
-    settlementStepCount: 0,
+    settlementStepCount: riverSettlementStepsForGrid(width, state.options.riverSettlementSteps),
     mergeStrength: state.options.riverMergeStrength,
-    channelWear: 0,
+    channelWear: state.options.erosionChannelWear,
     seaLevel: state.options.seaLevel,
     navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
   })
+  ctx.settledElevation = refined.elevation
   ctx.presentationRiverNetworkMask = unionCorridorMasks(
     ctx.settledRiverNetworkMask,
     refined.riverNetworkMask,
@@ -635,7 +638,8 @@ function buildPipelineStateFromHydrologyContext(ctx) {
     !ctx.settledElevation ||
     !ctx.settledRiverGraph ||
     !ctx.settledRiverNetworkMask ||
-    !ctx.settledDrainage
+    !ctx.settledDrainage ||
+    !ctx.settledFlowDirection
   ) {
     throw new Error('Incomplete hydrology context')
   }
@@ -668,11 +672,12 @@ function buildPipelineStateFromHydrologyContext(ctx) {
     riverGraph: ctx.settledRiverGraph,
     riverNetworkMask: ctx.presentationRiverNetworkMask ?? ctx.settledRiverNetworkMask,
     channelWidth: ctx.channelWidth,
+    flowDirection: ctx.settledFlowDirection,
     fields: previewFields,
     biomes: classifyBiomesWithHydrology(previewFields, width, height, {
       lakeMask: ctx.lakeMask,
       riverCorridorMask: ctx.presentationRiverNetworkMask ?? ctx.settledRiverNetworkMask,
-      channelWidth: ctx.channelWidth ?? undefined,
+      flowDirection: ctx.settledFlowDirection,
     }, state.options.seaLevel),
     lastCompletedStep: 'hydrology',
   }

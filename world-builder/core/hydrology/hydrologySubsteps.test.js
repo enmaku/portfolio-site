@@ -11,8 +11,7 @@ import {
 import { refreshFieldsAfterErosion } from '../fields/refreshFieldsAfterErosion.js'
 import { fillLakes } from './fillLakes.js'
 import { computeFlowAccumulation, downstreamIndex } from './computeFlowAccumulation.js'
-import { buildChannelWidthField } from './extractRiverNetworkFromIncisedChannels.js'
-import { deriveSnowCapMask, deriveSnowMeltContribution } from './deriveSnowCapMask.js'
+import { computeRiverNetworkMaxChannelWidth } from './riverCorridorDisplay.js'
 import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
 import { generateDerivedGeography } from '../generateDerivedGeography.js'
@@ -279,63 +278,35 @@ test('runHydrologySubsteps passes post-carve elevation downstream', () => {
   assert.ok(carvedSomewhere, 'expected post-carve elevation below filled DEM somewhere')
 })
 
-test('runHydrologySubsteps keeps channelWidth aligned with settled flow accumulation', () => {
+test('runHydrologySubsteps keeps channelWidth aligned with settled drainage', () => {
   let state = createInitialPipelineState({
     geographySeed: 12345,
     prevailingWindDegrees: 90,
     width: 256,
     height: 256,
-    options: { enableSeasonalHydrology: false },
+    options: { enableSeasonalHydrology: false, enableMeanderRefine: false },
   })
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')
 
   const { state: hydrologyState } = runHydrologySubsteps(state)
-  const refreshed = refreshFieldsAfterErosion({
-    geographySeed: state.geographySeed,
-    prevailingWindDegrees: state.prevailingWindDegrees,
-    elevation: state.erodedElevation,
-    drainage: state.baselineDoc.fields.drainage,
-    width: hydrologyState.width,
-    height: hydrologyState.height,
-    options: state.options,
-  })
-  const { flowAccumulation } = computeFlowAccumulation({
-    elevation: hydrologyState.fields.elevation,
-    width: hydrologyState.width,
-    height: hydrologyState.height,
-    seaLevel: hydrologyState.options.seaLevel,
-    rainfall: refreshed.rainfall,
-    meltContribution: deriveSnowMeltContribution({
-      elevation: hydrologyState.fields.elevation,
-      temperature: refreshed.temperature,
-      snowCapMask: deriveSnowCapMask({
-        elevation: hydrologyState.fields.elevation,
-        temperature: refreshed.temperature,
-        width: hydrologyState.width,
-        height: hydrologyState.height,
-        seaLevel: hydrologyState.options.seaLevel,
-      }),
-      width: hydrologyState.width,
-      height: hydrologyState.height,
-      prevailingWindDegrees: state.prevailingWindDegrees,
-    }),
-    soilDrainage: state.baselineDoc.fields.drainage,
-    soilDrainageScale: hydrologyState.options.soilDrainageScale,
-  })
-  const expectedWidth = buildChannelWidthField({
-    flowAccumulation,
-    channelMask: hydrologyState.riverNetworkMask,
-    width: hydrologyState.width,
-    height: hydrologyState.height,
-  })
+  const maxChannelWidth = computeRiverNetworkMaxChannelWidth(
+    hydrologyState.channelWidth,
+    hydrologyState.riverNetworkMask,
+  )
+  assert.ok(maxChannelWidth > 0)
 
   for (let idx = 0; idx < hydrologyState.channelWidth.length; idx += 1) {
     if (!hydrologyState.riverNetworkMask[idx]) {
       assert.strictEqual(hydrologyState.channelWidth[idx], 0)
       continue
     }
-    assert.ok(Math.abs(hydrologyState.channelWidth[idx] - expectedWidth[idx]) < 1e-4)
+    const expected =
+      Math.sqrt(Math.max(0, hydrologyState.fields.drainage[idx])) * maxChannelWidth
+    assert.ok(
+      Math.abs(hydrologyState.channelWidth[idx] - expected) < 1e-3,
+      `channelWidth mismatch at ${idx}: ${hydrologyState.channelWidth[idx]} vs ${expected}`,
+    )
   }
 })
 
@@ -447,13 +418,6 @@ function runHydrologyForSeed(geographySeed, options = DEFAULT_WORLD_GENERATION_O
   return runHydrologySubsteps(state)
 }
 
-function mouthSignature(riverGraph) {
-  return riverGraph.nodes
-    .filter((node) => node.kind === 'mouth')
-    .map((node) => `${node.x},${node.y}`)
-    .sort()
-}
-
 test('runHydrologySubsteps skips hydrologyRefine when enableMeanderRefine is false', () => {
   let state = createInitialPipelineState({
     ...params,
@@ -512,7 +476,7 @@ test('runHydrologySubsteps runs hydrologyRefine when enableMeanderRefine is true
   assert.strictEqual(refineTiming.skipped, false)
 })
 
-test('enableMeanderRefine preserves mouths and drainage while allowing presentation mask changes', () => {
+test('enableMeanderRefine allows presentation mask changes and valley carving', () => {
   const seed = 12345
   const { state: withoutMeander } = runHydrologyForSeed(seed)
   const { state: withMeander } = runHydrologyForSeed(seed, {
@@ -521,11 +485,25 @@ test('enableMeanderRefine preserves mouths and drainage while allowing presentat
     riverMeanderStrength: 2,
   })
 
-  assert.deepStrictEqual(
-    mouthSignature(withoutMeander.riverGraph),
-    mouthSignature(withMeander.riverGraph),
+  assert.ok(
+    withoutMeander.riverGraph.nodes.some((node) => node.kind === 'mouth'),
+    'expected mouths without meander refine',
   )
-  assert.deepStrictEqual(withoutMeander.fields.drainage, withMeander.fields.drainage)
+  assert.ok(
+    withMeander.riverGraph.nodes.some((node) => node.kind === 'mouth'),
+    'expected mouths with meander refine',
+  )
+
+  let elevationDiffers = false
+  for (let idx = 0; idx < withoutMeander.fields.elevation.length; idx += 1) {
+    if (
+      Math.abs(withoutMeander.fields.elevation[idx] - withMeander.fields.elevation[idx]) > 1e-6
+    ) {
+      elevationDiffers = true
+      break
+    }
+  }
+  assert.ok(elevationDiffers, 'expected valley settling to carve refined channel elevation')
 
   let maskDiffers = false
   for (let idx = 0; idx < withoutMeander.riverNetworkMask.length; idx += 1) {

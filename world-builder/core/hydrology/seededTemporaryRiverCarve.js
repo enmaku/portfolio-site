@@ -237,6 +237,7 @@ export function routeDownslopePath({
  * @param {number} [params.streamPowerK]
  * @param {number} [params.streamPowerM]
  * @param {number} [params.streamPowerN]
+ * @param {Uint8Array} [params.channelSeedMask]
  * @param {number} [params.channelInitiationThreshold]
  * @param {(progress: number) => void} [params.onProgress]
  * @returns {{ elevation: Float32Array, corridorMask: Uint8Array, paths: number[][] }}
@@ -257,34 +258,52 @@ export function carveTemporaryRivers({
   streamPowerM,
   streamPowerN,
   channelInitiationThreshold,
+  channelSeedMask,
   onProgress,
 }) {
-  const sources = selectTemporaryRiverSources({
-    elevation,
-    ocean,
-    flowAccumulation,
-    flowDirection,
-    lakeMask,
-    width,
-    height,
-    geographySeed,
-    seaLevel,
-  })
-
   /** @type {number[][]} */
   const paths = []
-  for (const sourceIdx of sources) {
-    paths.push(
-      routeDownslopePath({
-        sourceIdx,
-        elevation,
-        ocean,
-        flowDirection,
-        lakeMask,
-        width,
-        height,
-      }),
-    )
+  const corridorMask = new Uint8Array(width * height)
+  const cellCount = width * height
+
+  if (channelSeedMask) {
+    for (let idx = 0; idx < cellCount; idx += 1) {
+      if (!channelSeedMask[idx] || ocean[idx] || (lakeMask && lakeMask[idx])) continue
+      corridorMask[idx] = 1
+    }
+  } else {
+    const sources = selectTemporaryRiverSources({
+      elevation,
+      ocean,
+      flowAccumulation,
+      flowDirection,
+      lakeMask,
+      width,
+      height,
+      geographySeed,
+      seaLevel,
+    })
+
+    for (const sourceIdx of sources) {
+      paths.push(
+        routeDownslopePath({
+          sourceIdx,
+          elevation,
+          ocean,
+          flowDirection,
+          lakeMask,
+          width,
+          height,
+        }),
+      )
+    }
+
+    for (const path of paths) {
+      for (const idx of path) {
+        if (ocean[idx]) continue
+        corridorMask[idx] = 1
+      }
+    }
   }
 
   const streamPower = clampStreamPowerOptions({
@@ -299,23 +318,23 @@ export function carveTemporaryRivers({
   onProgress?.(0)
 
   const out = new Float32Array(elevation)
-  const corridorMask = new Uint8Array(width * height)
   const random = createSeededRandom(deriveFieldSeed(geographySeed, 'temporary-river-carve'))
   const slopes = computeSlopeField(elevation, width, height)
-  const totalCells = Math.max(1, paths.reduce((sum, path) => sum + path.length, 0))
+  let totalCells = 0
+  for (let idx = 0; idx < cellCount; idx += 1) {
+    if (corridorMask[idx]) totalCells += 1
+  }
+  totalCells = Math.max(1, totalCells)
   let carvedCells = 0
 
-  for (const path of paths) {
-    for (const idx of path) {
-      if (ocean[idx]) continue
-      corridorMask[idx] = 1
-      const slopeFactor = 1 + slopes[idx] * 6
-      const depth = incisionDepth * slopeFactor * (0.85 + random() * 0.3)
-      out[idx] = Math.max(seaLevel, out[idx] - depth)
-      carvedCells += 1
-      if (onProgress && carvedCells % 8 === 0) {
-        onProgress(Math.min(carveProgressWeight, (carvedCells / totalCells) * carveProgressWeight))
-      }
+  for (let idx = 0; idx < cellCount; idx += 1) {
+    if (!corridorMask[idx] || ocean[idx]) continue
+    const slopeFactor = 1 + slopes[idx] * 6
+    const depth = incisionDepth * slopeFactor * (0.85 + random() * 0.3)
+    out[idx] = Math.max(seaLevel, out[idx] - depth)
+    carvedCells += 1
+    if (onProgress && carvedCells % 8 === 0) {
+      onProgress(Math.min(carveProgressWeight, (carvedCells / totalCells) * carveProgressWeight))
     }
   }
 

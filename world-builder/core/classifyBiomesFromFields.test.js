@@ -55,16 +55,18 @@ test('classifyBiomesWithHydrology applies lake mask over land biomes', () => {
   const lakeMask = new Uint8Array(16)
   lakeMask[5] = 1
   const riverCorridorMask = new Uint8Array(16)
+  const flowDirection = new Int16Array(16).fill(-1)
 
   const biomes = classifyBiomesWithHydrology(fields, width, height, {
     lakeMask,
     riverCorridorMask,
+    flowDirection,
   })
 
   assert.strictEqual(biomes[5], BIOMES.FRESHWATER_LAKE)
 })
 
-test('classifyBiomesWithHydrology applies flow-weighted river corridor width', () => {
+test('classifyBiomesWithHydrology paints centerline rivers without measurable banks', () => {
   const width = 5
   const height = 5
   const fields = {
@@ -77,12 +79,15 @@ test('classifyBiomesWithHydrology applies flow-weighted river corridor width', (
   const lakeMask = new Uint8Array(25)
   const riverCorridorMask = new Uint8Array(25)
   riverCorridorMask[12] = 1
+  const flowDirection = new Int16Array(25).fill(-1)
+  flowDirection[12] = 4
 
   const biomes = classifyBiomesWithHydrology(fields, width, height, {
     lakeMask,
     riverCorridorMask,
+    flowDirection,
   })
 
   assert.strictEqual(biomes[12], BIOMES.RIVER_CORRIDOR)
-  assert.strictEqual(biomes[11], BIOMES.RIVER_CORRIDOR)
+  assert.notStrictEqual(biomes[11], BIOMES.RIVER_CORRIDOR)
 })

@@ -51,6 +51,7 @@ export const DERIVED_GEOGRAPHY_STEPS = [
  * @property {import('./types.js').RiverGraph | null} riverGraph
  * @property {Uint8Array | null} riverNetworkMask
  * @property {Float32Array | null} channelWidth
+ * @property {Int16Array | null} flowDirection
  * @property {import('./types.js').ScalarFields | null} fields
  * @property {Uint8Array | null} biomes
  * @property {Float32Array | null} coastNavigability
@@ -99,6 +100,7 @@ export function createInitialPipelineState(params) {
     riverGraph: null,
     riverNetworkMask: null,
     channelWidth: null,
+    flowDirection: null,
     fields: null,
     biomes: null,
     coastNavigability: null,
@@ -179,6 +181,7 @@ export function buildWorldDocumentFromPipelineState(state) {
     lakeMask: state.lakeMask ?? undefined,
     riverNetworkMask: state.riverNetworkMask ?? undefined,
     channelWidth: state.channelWidth ?? undefined,
+    flowDirection: state.flowDirection ?? undefined,
     coastNavigability: state.coastNavigability ?? undefined,
     coastalNodes: state.coastalNodes ?? undefined,
     saltNodes: state.saltNodes ?? undefined,
@@ -325,7 +328,7 @@ function runFieldRefreshStep(state) {
   const biomes = classifyBiomesWithHydrology(fields, width, height, {
     lakeMask: state.lakeMask,
     riverCorridorMask: state.riverNetworkMask,
-    channelWidth: state.channelWidth ?? undefined,
+    flowDirection: state.flowDirection,
   }, state.options.seaLevel)
   return {
     ...state,
@@ -437,6 +440,7 @@ export function cloneWorldDocument(doc) {
     lakeMask: doc.lakeMask ? new Uint8Array(doc.lakeMask) : undefined,
     riverNetworkMask: doc.riverNetworkMask ? new Uint8Array(doc.riverNetworkMask) : undefined,
     channelWidth: doc.channelWidth ? new Float32Array(doc.channelWidth) : undefined,
+    flowDirection: doc.flowDirection ? new Int16Array(doc.flowDirection) : undefined,
     coastNavigability: doc.coastNavigability
       ? new Float32Array(doc.coastNavigability)
       : undefined,

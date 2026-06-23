@@ -4,7 +4,6 @@ import { riverDisplayFlowCutoffForGrid } from '../types.js'
 import { downstreamIndex } from './computeFlowAccumulation.js'
 import { computeFlowAccumulation } from './computeFlowAccumulation.js'
 import { buildRiverGraph } from './buildRiverGraph.js'
-import { buildRiverNetworkMask } from './buildRiverNetworkMask.js'
 
 /**
  * Cells where incision lowered elevation relative to the filled DEM.
@@ -67,35 +66,101 @@ export function buildIncisedChannelMask({
   meltContribution,
 }) {
   const cellCount = width * height
-  const minBranchFlow = Math.max(
+  const tributaryCutoff = Math.max(
     2,
-    Math.round(riverDisplayFlowCutoffForGrid(width) * navigableFlowCutoffScale * 0.35),
+    Math.round(riverDisplayFlowCutoffForGrid(width) * navigableFlowCutoffScale),
   )
 
   const upstream = buildUpstreamAdjacency(cellCount, width, flowDirection, ocean)
   const incisedMask = new Uint8Array(cellCount)
-
-  for (let idx = 0; idx < cellCount; idx += 1) {
-    if (!incisedCorridorMask[idx] || ocean[idx] || lakeMask?.[idx]) continue
-    const downstream = downstreamIndex(idx, width, flowDirection)
-    if (downstream >= 0 && ocean[downstream] && isRimCell(downstream, width, height)) continue
-    incisedMask[idx] = 1
-    traceIncisedUpstream(idx, incisedMask, flowAccumulation, upstream, minBranchFlow)
-    markDownstreamOnNetwork(idx, incisedMask, flowDirection, ocean, width, height)
-  }
-
-  const flowMask = buildRiverNetworkMask({
-    flowAccumulation,
+  const seeds = selectIncisedChannelSeeds({
+    incisedCorridorMask,
     flowDirection,
     ocean,
+    lakeMask,
     width,
     height,
-    lakeMask,
-    meltContribution,
-    navigableFlowCutoffScale,
   })
 
-  return unionCorridorMasks(incisedMask, flowMask)
+  for (const seedIdx of seeds) {
+    incisedMask[seedIdx] = 1
+    traceIncisedUpstream(seedIdx, incisedMask, flowAccumulation, upstream, tributaryCutoff)
+    markDownstreamOnNetwork(seedIdx, incisedMask, flowDirection, ocean, width, height)
+  }
+
+  for (let idx = 0; idx < cellCount; idx += 1) {
+    if (incisedCorridorMask[idx]) incisedMask[idx] = 1
+  }
+
+  traceMeltHeadwaterSupplement({
+    mask: incisedMask,
+    meltContribution,
+    flowAccumulation,
+    upstream,
+    ocean,
+    tributaryCutoff,
+  })
+
+  return incisedMask
+}
+
+/**
+ * @param {Object} params
+ * @param {Uint8Array} params.incisedCorridorMask
+ * @param {Int16Array} params.flowDirection
+ * @param {boolean[]} params.ocean
+ * @param {Uint8Array} [params.lakeMask]
+ * @param {number} params.width
+ * @param {number} params.height
+ * @returns {number[]}
+ */
+export function selectIncisedChannelSeeds({
+  incisedCorridorMask,
+  flowDirection,
+  ocean,
+  lakeMask,
+  width,
+  height,
+}) {
+  /** @type {number[]} */
+  const seeds = []
+  for (let idx = 0; idx < incisedCorridorMask.length; idx += 1) {
+    if (!incisedCorridorMask[idx] || ocean[idx] || lakeMask?.[idx]) continue
+    const downstream = downstreamIndex(idx, width, flowDirection)
+    if (downstream < 0) continue
+    if (ocean[downstream]) {
+      if (!isRimCell(downstream, width, height)) seeds.push(idx)
+      continue
+    }
+    if (lakeMask?.[downstream]) seeds.push(idx)
+  }
+  return seeds
+}
+
+/**
+ * @param {Object} params
+ * @param {Uint8Array} params.mask
+ * @param {Float32Array | undefined} params.meltContribution
+ * @param {Float32Array} params.flowAccumulation
+ * @param {number[][]} params.upstream
+ * @param {boolean[]} params.ocean
+ * @param {number} params.tributaryCutoff
+ */
+function traceMeltHeadwaterSupplement({
+  mask,
+  meltContribution,
+  flowAccumulation,
+  upstream,
+  ocean,
+  tributaryCutoff,
+}) {
+  if (!meltContribution) return
+
+  for (let idx = 0; idx < meltContribution.length; idx += 1) {
+    if (meltContribution[idx] <= 0 || ocean[idx] || mask[idx]) continue
+    mask[idx] = 1
+    traceIncisedUpstream(idx, mask, flowAccumulation, upstream, tributaryCutoff)
+  }
 }
 
 /**

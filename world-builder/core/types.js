@@ -171,6 +171,7 @@
  * @property {Uint8Array=} lakeMask
  * @property {Uint8Array=} riverNetworkMask
  * @property {Float32Array=} channelWidth
+ * @property {Int16Array=} flowDirection
  * @property {Float32Array=} coastNavigability
  * @property {CoastalNode[]=} coastalNodes
  * @property {SaltNode[]=} saltNodes

@@ -250,3 +250,51 @@ test('carveTemporaryRivers applies stream-power after corridor carve', () => {
   }
   assert.ok(differs, 'expected stream-power iterations to change carved elevation')
 })
+
+test('carveTemporaryRivers uses channelSeedMask when provided', () => {
+  const width = 12
+  const height = 12
+  const elevation = new Float32Array(width * height).fill(0.6)
+  const rainfall = new Float32Array(width * height).fill(0.5)
+  const { flowDirection, flowAccumulation, ocean } = computeFlowAccumulation({
+    elevation,
+    width,
+    height,
+    seaLevel: SEA_LEVEL,
+    rainfall,
+  })
+
+  const channelSeedMask = new Uint8Array(width * height)
+  for (let y = 2; y < 10; y += 1) {
+    channelSeedMask[y * width + 5] = 1
+  }
+
+  const { corridorMask, elevation: carved } = carveTemporaryRivers({
+    elevation,
+    ocean,
+    flowDirection,
+    flowAccumulation,
+    width,
+    height,
+    geographySeed: 1,
+    seaLevel: SEA_LEVEL,
+    channelSeedMask,
+    incisionDepth: 0.01,
+    inciseIterations: 0,
+  })
+
+  let maskMatches = true
+  for (let idx = 0; idx < corridorMask.length; idx += 1) {
+    if (channelSeedMask[idx] && !corridorMask[idx]) maskMatches = false
+    if (!channelSeedMask[idx] && corridorMask[idx]) maskMatches = false
+  }
+  assert.ok(maskMatches)
+
+  let carvedOnlySeed = true
+  for (let idx = 0; idx < carved.length; idx += 1) {
+    if (!channelSeedMask[idx] && carved[idx] < elevation[idx] - 1e-6) {
+      carvedOnlySeed = false
+    }
+  }
+  assert.ok(carvedOnlySeed)
+})

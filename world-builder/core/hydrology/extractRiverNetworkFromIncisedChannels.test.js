@@ -8,10 +8,12 @@ import {
 import { runHydrologySubsteps } from './hydrologySubsteps.js'
 import { computeFlowAccumulation, downstreamIndex } from './computeFlowAccumulation.js'
 import { carveTemporaryRivers } from './seededTemporaryRiverCarve.js'
+import { buildRiverNetworkMask } from './buildRiverNetworkMask.js'
 import {
   buildIncisedChannelMask,
   buildChannelWidthField,
   extractRiverNetworkFromIncisedChannels,
+  selectIncisedChannelSeeds,
 } from './extractRiverNetworkFromIncisedChannels.js'
 import { computeCoastNavigability } from '../coast/computeCoastNavigability.js'
 
@@ -82,6 +84,78 @@ test('buildIncisedChannelMask traces only from incised mouths meeting flow cutof
   }
 
   assert.ok(incisedCellInMask)
+})
+
+test('buildIncisedChannelMask does not flood entire watershed from incised cells', () => {
+  const width = 32
+  const height = 32
+  const elevation = new Float32Array(width * height)
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      elevation[y * width + x] = SEA_LEVEL + 0.1 + (0.35 * x) / width
+    }
+  }
+  const rainfall = new Float32Array(width * height).fill(1)
+  const { flowDirection, flowAccumulation, ocean } = computeFlowAccumulation({
+    elevation,
+    width,
+    height,
+    rainfall,
+  })
+  const carved = carveTemporaryRivers({
+    elevation,
+    ocean,
+    flowDirection,
+    flowAccumulation,
+    width,
+    height,
+    geographySeed: 42,
+    inciseIterations: 2,
+    streamPowerK: 0.004,
+  })
+
+  const incisedCount = carved.corridorMask.reduce((sum, value) => sum + value, 0)
+  const channelMask = buildIncisedChannelMask({
+    incisedCorridorMask: carved.corridorMask,
+    flowAccumulation,
+    flowDirection,
+    ocean,
+    width,
+    height,
+  })
+  const channelCount = channelMask.reduce((sum, value) => sum + value, 0)
+
+  assert.ok(channelCount <= incisedCount * 8, `expected narrow mask, got ${channelCount} from ${incisedCount} incised`)
+})
+
+test('selectIncisedChannelSeeds returns only coastal and lake mouths on incised corridor', () => {
+  const width = 8
+  const height = 8
+  const flowDirection = new Int16Array(width * height).fill(-1)
+  const ocean = new Array(width * height).fill(false)
+  const incisedCorridorMask = new Uint8Array(width * height)
+  const lakeMask = new Uint8Array(width * height)
+
+  incisedCorridorMask[2 * width + 3] = 1
+  flowDirection[2 * width + 3] = 4
+  ocean[3 * width + 3] = true
+
+  incisedCorridorMask[5 * width + 3] = 1
+  flowDirection[5 * width + 3] = 6
+  lakeMask[5 * width + 4] = 1
+
+  const seeds = selectIncisedChannelSeeds({
+    incisedCorridorMask,
+    flowDirection,
+    ocean,
+    lakeMask,
+    width,
+    height,
+  })
+
+  assert.ok(seeds.includes(2 * width + 3))
+  assert.ok(seeds.includes(5 * width + 3))
+  assert.strictEqual(seeds.length, 2)
 })
 
 test('extractRiverNetworkFromIncisedChannels merges tributary discharge monotonically downstream', () => {
@@ -163,29 +237,39 @@ test('extractRiverNetworkFromIncisedChannels merges tributary discharge monotoni
 })
 
 test('extractRiverNetworkFromIncisedChannels places mouth nodes at coastal drainage cells', () => {
-  const width = 32
-  const height = 32
-  const elevation = new Float32Array(width * height)
-  for (let y = 1; y < height - 1; y += 1) {
-    for (let x = 1; x < width - 1; x += 1) {
-      elevation[y * width + x] = SEA_LEVEL + 0.08 + (0.35 * x) / width
-    }
-  }
+  let state = createInitialPipelineState({
+    geographySeed: 12345,
+    prevailingWindDegrees: 90,
+    width: 64,
+    height: 64,
+  })
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  const { width, height } = state
   const rainfall = new Float32Array(width * height).fill(1)
   const { flowDirection, flowAccumulation, ocean } = computeFlowAccumulation({
-    elevation,
+    elevation: state.erodedElevation,
     width,
     height,
     rainfall,
   })
+  const routeMask = buildRiverNetworkMask({
+    flowAccumulation,
+    flowDirection,
+    ocean,
+    width,
+    height,
+  })
   const carved = carveTemporaryRivers({
-    elevation,
+    elevation: state.erodedElevation,
     ocean,
     flowDirection,
     flowAccumulation,
     width,
     height,
-    geographySeed: 11,
+    geographySeed: state.geographySeed,
+    channelSeedMask: routeMask,
     inciseIterations: 2,
     streamPowerK: 0.004,
   })

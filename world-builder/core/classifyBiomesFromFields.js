@@ -1,6 +1,6 @@
 import { BIOMES, SEA_LEVEL, SNOW_CAP_ELEVATION_MIN, SNOW_CAP_TEMPERATURE_MAX } from './biomeIds.js'
 import { isOceanCell } from './fields/applyClosedIslandRim.js'
-import { buildFlowWeightedRiverCorridorMask } from './hydrology/riverCorridorDisplay.js'
+import { buildPhysicalRiverCorridorMask } from './hydrology/riverCorridorDisplay.js'
 
 /**
  * @typedef {Object} FieldSample
@@ -121,19 +121,24 @@ export function classifyBiomesFromFields(fields, width, height, seaLevel = SEA_L
  * @param {Uint8Array} hydrology.lakeMask
  * @param {Uint8Array} hydrology.riverCorridorMask
  * @param {Float32Array} [hydrology.channelWidth]
+ * @param {Int16Array} hydrology.flowDirection
  * @param {number} [seaLevel]
  * @returns {Uint8Array}
  */
 export function classifyBiomesWithHydrology(fields, width, height, hydrology, seaLevel = SEA_LEVEL) {
   const biomes = classifyBiomesFromFields(fields, width, height, seaLevel)
-  const { lakeMask, riverCorridorMask, channelWidth } = hydrology
+  const { lakeMask, riverCorridorMask, flowDirection } = hydrology
   const ocean = isOceanCell(fields.elevation, width, height, seaLevel)
-  const corridorMask = buildFlowWeightedRiverCorridorMask(
+  const corridorMask = buildPhysicalRiverCorridorMask(
     riverCorridorMask,
-    fields.drainage,
     width,
     height,
-    { channelWidth, lakeMask, ocean },
+    {
+      elevation: fields.elevation,
+      flowDirection,
+      lakeMask,
+      ocean,
+    },
   )
 
   for (let i = 0; i < biomes.length; i += 1) {

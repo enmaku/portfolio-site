@@ -386,7 +386,7 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         key: 'channelInitiationThreshold',
         label: 'Channel initiation',
         tooltip:
-          'Minimum drainage accumulation before a cell becomes a channel. Lower values yield a denser river network; higher values keep only major rivers.',
+          'Minimum slope×drainage product before stream-power erosion incises a carved corridor cell. Does not control painted river width.',
         kind: 'slider',
         min: 0.005,
         max: 0.06,
@@ -438,7 +438,7 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         key: 'riverSettlementSteps',
         label: 'River valley settling',
         tooltip:
-          'Valley-settling iterations during meander refine. Smooths channel-adjacent terrain for presentation; zero disables.',
+          'Channel-carving iterations during meander refine. Lowers elevation along the refined river mask when meander refine is enabled; zero disables.',
         kind: 'slider',
         min: 0,
         max: 16,
