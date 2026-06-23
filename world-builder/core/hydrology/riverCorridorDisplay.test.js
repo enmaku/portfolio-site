@@ -10,7 +10,6 @@ import {
   computeRiverNetworkMaxChannelWidth,
   flowPerpendicularStep,
   measurePhysicalRiverHalfWidth,
-  physicalRiverMaxHalfWidthForGrid,
   resolveRiverCorridorNormalizedFlow,
   resolveRiverCorridorRenderRadius,
   riverCorridorRadiusForChannelWidth,
@@ -88,7 +87,7 @@ test('buildPhysicalRiverCorridorMask paints only centerline for headwaters on fl
   assert.strictEqual(mask[1 * width + 4], 0)
 })
 
-test('buildPhysicalRiverCorridorMask fills trunk cross-section without axis-aligned gaps', () => {
+test('buildPhysicalRiverCorridorMask marks centerline cells only', () => {
   const width = 15
   const height = 3
   const riverNetworkMask = new Uint8Array(width * height)
@@ -101,26 +100,15 @@ test('buildPhysicalRiverCorridorMask fills trunk cross-section without axis-alig
   riverNetworkMask[trunkIdx] = 1
   flowDirection[headIdx] = 4
   flowDirection[trunkIdx] = 6
-  elevation[headIdx] = 0.58
-  elevation[trunkIdx] = 0.54
-  elevation[1 * width + 10] = 0.54
-  elevation[1 * width + 12] = 0.54
-  elevation[1 * width + 9] = 0.62
-  elevation[1 * width + 13] = 0.62
 
   const mask = buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, {
     elevation,
     flowDirection,
   })
 
-  let headwaterWidth = 0
-  let trunkWidth = 0
-  for (let dx = -3; dx <= 3; dx += 1) {
-    if (mask[1 * width + 3 + dx]) headwaterWidth += 1
-    if (mask[1 * width + 11 + dx]) trunkWidth += 1
-  }
-
-  assert.ok(trunkWidth > headwaterWidth)
+  assert.strictEqual(mask[headIdx], 1)
+  assert.strictEqual(mask[trunkIdx], 1)
+  assert.strictEqual(mask[headIdx + 1], 0)
 })
 
 test('buildPhysicalRiverCorridorMask keeps centerline width at ocean and lake shores', () => {
@@ -138,9 +126,6 @@ test('buildPhysicalRiverCorridorMask keeps centerline width at ocean and lake sh
   riverNetworkMask[1 * width + 4] = 1
   flowDirection[1 * width + 4] = 4
   lakeMask[1 * width + 5] = 1
-  elevation[1 * width + 4] = 0.54
-  elevation[1 * width + 3] = 0.58
-  elevation[1 * width + 5] = 0.58
 
   const mask = buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, {
     elevation,
@@ -150,9 +135,7 @@ test('buildPhysicalRiverCorridorMask keeps centerline width at ocean and lake sh
   })
 
   assert.strictEqual(mask[1 * width + 1], 1)
-  assert.strictEqual(mask[1 * width + 0], 0)
   assert.strictEqual(mask[1 * width + 4], 1)
-  assert.strictEqual(mask[1 * width + 3], 0)
 })
 
 test('capRiverCorridorRadiusAtWaterEdge zeroes radius beside water', () => {
@@ -165,6 +148,30 @@ test('capRiverCorridorRadiusAtWaterEdge zeroes radius beside water', () => {
   )
   assert.strictEqual(
     capRiverCorridorRadiusAtWaterEdge(3, 1, 0, width, height, ocean, undefined),
+    0,
+  )
+})
+
+test('capRiverCorridorRadiusAtWaterEdge zeroes radius when downstream is ocean', () => {
+  const width = 5
+  const height = 3
+  const ocean = new Array(width * height).fill(false)
+  const flowDirection = new Int16Array(width * height).fill(-1)
+  ocean[1 * width + 3] = true
+  flowDirection[1 * width + 2] = 4
+
+  assert.strictEqual(
+    capRiverCorridorRadiusAtWaterEdge(
+      3,
+      2,
+      1,
+      width,
+      height,
+      ocean,
+      undefined,
+      flowDirection,
+      1 * width + 2,
+    ),
     0,
   )
 })
@@ -269,8 +276,7 @@ test('default seed generation yields narrower painted rivers than centerline mas
   const paintedCount = painted.reduce((sum, value) => sum + value, 0)
 
   assert.ok(centerlineCount > 0)
-  assert.ok(paintedCount >= centerlineCount)
-  assert.ok(paintedCount <= centerlineCount * physicalRiverMaxHalfWidthForGrid(doc.gridWidth) * 4)
+  assert.strictEqual(paintedCount, centerlineCount)
 })
 
 test('buildFlowWeightedRiverCorridorMask delegates to physical paint when flowDirection provided', () => {

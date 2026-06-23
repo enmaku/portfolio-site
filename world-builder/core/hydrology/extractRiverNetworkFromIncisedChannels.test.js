@@ -136,13 +136,13 @@ test('selectIncisedChannelSeeds returns only coastal and lake mouths on incised 
   const incisedCorridorMask = new Uint8Array(width * height)
   const lakeMask = new Uint8Array(width * height)
 
-  incisedCorridorMask[2 * width + 3] = 1
-  flowDirection[2 * width + 3] = 4
+  incisedCorridorMask[3 * width + 2] = 1
+  flowDirection[3 * width + 2] = 4
   ocean[3 * width + 3] = true
 
-  incisedCorridorMask[5 * width + 3] = 1
-  flowDirection[5 * width + 3] = 6
-  lakeMask[5 * width + 4] = 1
+  incisedCorridorMask[3 * width + 5] = 1
+  flowDirection[3 * width + 5] = 6
+  lakeMask[4 * width + 5] = 1
 
   const seeds = selectIncisedChannelSeeds({
     incisedCorridorMask,
@@ -153,8 +153,8 @@ test('selectIncisedChannelSeeds returns only coastal and lake mouths on incised 
     height,
   })
 
-  assert.ok(seeds.includes(2 * width + 3))
-  assert.ok(seeds.includes(5 * width + 3))
+  assert.ok(seeds.includes(3 * width + 2))
+  assert.ok(seeds.includes(3 * width + 5))
   assert.strictEqual(seeds.length, 2)
 })
 

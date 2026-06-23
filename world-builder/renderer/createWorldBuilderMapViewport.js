@@ -1,6 +1,7 @@
 import { biomeIndicesToRgba } from './biomeIndicesToRgba.js'
 import { BIOMES } from '../core/biomeIds.js'
 import { buildTopographyContourCanvas } from './buildTopographyContourCanvas.js'
+import { drawRiverSplinesOnCanvas } from './drawRiverSplinesOnCanvas.js'
 
 /**
  * @param {HTMLElement} hostEl
@@ -14,7 +15,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   await app.init({
     background: '#0d1117',
     resizeTo: hostEl,
-    antialias: false,
+    antialias: true,
   })
   hostEl.replaceChildren(app.canvas)
 
@@ -208,6 +209,9 @@ function buildTerrainCanvas(worldDocument, options = {}) {
     throw new Error('Could not acquire 2D canvas context for terrain texture')
   }
   ctx.putImageData(new ImageData(rgba, gridWidth, gridHeight), 0, 0)
+  if (!options.elevationTint) {
+    drawRiverSplinesOnCanvas(ctx, worldDocument)
+  }
   return canvas
 }
 

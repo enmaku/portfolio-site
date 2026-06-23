@@ -1,4 +1,4 @@
-import { D8_OFFSETS } from './computeFlowAccumulation.js'
+import { D8_OFFSETS, downstreamIndex } from './computeFlowAccumulation.js'
 
 /** Max half-width in cells for the largest rivers at REFERENCE_GRID_SIZE. */
 export const PHYSICAL_RIVER_MAX_HALF_WIDTH = 4
@@ -320,6 +320,8 @@ export function isRiverCorridorAdjacentToWater(x, y, width, height, ocean, lakeM
  * @param {number} height
  * @param {boolean[] | undefined} ocean
  * @param {Uint8Array | undefined} lakeMask
+ * @param {Int16Array} [flowDirection]
+ * @param {number} [idx]
  * @returns {number}
  */
 export function capRiverCorridorRadiusAtWaterEdge(
@@ -330,54 +332,139 @@ export function capRiverCorridorRadiusAtWaterEdge(
   height,
   ocean,
   lakeMask,
+  flowDirection,
+  idx,
 ) {
   if (radius <= 0 || (!ocean && !lakeMask)) return radius
   if (isRiverCorridorAdjacentToWater(x, y, width, height, ocean, lakeMask)) {
     return 0
   }
+  if (flowDirection && idx !== undefined) {
+    const downstream = downstreamIndex(idx, width, flowDirection)
+    if (downstream >= 0 && (ocean?.[downstream] || lakeMask?.[downstream])) {
+      return 0
+    }
+  }
   return radius
 }
 
 /**
- * @param {Uint8Array} out
+ * @typedef {{ x: number, y: number }} RiverPoint
+ */
+
+/**
+ * @param {number} idx
+ * @param {Uint8Array} riverNetworkMask
+ * @param {Int16Array} flowDirection
  * @param {number} width
  * @param {number} height
- * @param {number} x
- * @param {number} y
- * @param {number} radius
+ * @returns {number}
  */
-function stampDisk(out, width, height, x, y, radius) {
-  for (let dy = -radius; dy <= radius; dy += 1) {
-    for (let dx = -radius; dx <= radius; dx += 1) {
-      if (dx * dx + dy * dy > radius * radius) continue
+function countUpstreamOnNetwork(idx, riverNetworkMask, flowDirection, width, height) {
+  let count = 0
+  const x = idx % width
+  const y = Math.floor(idx / width)
+
+  for (let dy = -1; dy <= 1; dy += 1) {
+    for (let dx = -1; dx <= 1; dx += 1) {
+      if (dx === 0 && dy === 0) continue
       const nx = x + dx
       const ny = y + dy
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-      out[ny * width + nx] = 1
+      const neighborIdx = ny * width + nx
+      if (!riverNetworkMask[neighborIdx]) continue
+      if (downstreamIndex(neighborIdx, width, flowDirection) === idx) count += 1
     }
   }
+
+  return count
 }
 
 /**
- * Paint a solid river cross-section: centerline plus a disk sized to physical half-width.
- * Disks overlap downstream to avoid axis-aligned gaps between centerline cells.
- * @param {Uint8Array} out
+ * @param {number} idx
+ * @param {Uint8Array} riverNetworkMask
+ * @param {Int16Array} flowDirection
  * @param {number} width
  * @param {number} height
- * @param {number} x
- * @param {number} y
- * @param {number} halfWidth
+ * @returns {boolean}
  */
-function stampPhysicalCrossSection(out, width, height, x, y, halfWidth) {
-  if (halfWidth <= 0) {
-    out[y * width + x] = 1
-    return
-  }
-  stampDisk(out, width, height, x, y, halfWidth)
+function isRiverHeadwater(idx, riverNetworkMask, flowDirection, width, height) {
+  return countUpstreamOnNetwork(idx, riverNetworkMask, flowDirection, width, height) === 0
 }
 
 /**
- * Paint river corridors at physical cross-section width from incised topography.
+ * @param {number} idx
+ * @param {Uint8Array} riverNetworkMask
+ * @param {Int16Array} flowDirection
+ * @param {number} width
+ * @param {number} height
+ * @returns {boolean}
+ */
+function isRiverJunction(idx, riverNetworkMask, flowDirection, width, height) {
+  return countUpstreamOnNetwork(idx, riverNetworkMask, flowDirection, width, height) >= 2
+}
+
+/**
+ * Walk downstream until the next junction or network terminus.
+ * @param {number} startIdx
+ * @param {Uint8Array} riverNetworkMask
+ * @param {Int16Array} flowDirection
+ * @param {number} width
+ * @param {number} height
+ * @returns {number[]}
+ */
+function traceDownstreamChain(startIdx, riverNetworkMask, flowDirection, width, height) {
+  /** @type {number[]} */
+  const path = []
+  let current = startIdx
+
+  while (current >= 0 && riverNetworkMask[current]) {
+    path.push(current)
+    const downstream = downstreamIndex(current, width, flowDirection)
+    if (downstream < 0 || !riverNetworkMask[downstream]) break
+    if (isRiverJunction(downstream, riverNetworkMask, flowDirection, width, height)) break
+    current = downstream
+  }
+
+  return path
+}
+
+/**
+ * Each segment is painted once: headwater→junction and junction→mouth chains.
+ * @param {Uint8Array} riverNetworkMask
+ * @param {Int16Array} flowDirection
+ * @param {number} width
+ * @param {number} height
+ * @returns {number[][]}
+ */
+export function traceRiverChainSegments(riverNetworkMask, flowDirection, width, height) {
+  /** @type {number[][]} */
+  const segments = []
+
+  for (let idx = 0; idx < riverNetworkMask.length; idx += 1) {
+    if (!riverNetworkMask[idx]) continue
+    if (!isRiverHeadwater(idx, riverNetworkMask, flowDirection, width, height)) continue
+    const path = traceDownstreamChain(idx, riverNetworkMask, flowDirection, width, height)
+    if (path.length > 0) segments.push(path)
+  }
+
+  for (let idx = 0; idx < riverNetworkMask.length; idx += 1) {
+    if (!riverNetworkMask[idx]) continue
+    if (!isRiverJunction(idx, riverNetworkMask, flowDirection, width, height)) continue
+    const path = traceDownstreamChain(idx, riverNetworkMask, flowDirection, width, height)
+    if (path.length > 0) segments.push(path)
+  }
+
+  return segments
+}
+
+/** @deprecated Use traceRiverChainSegments */
+export function traceRiverCenterlinePaths(riverNetworkMask, flowDirection, width, height) {
+  return traceRiverChainSegments(riverNetworkMask, flowDirection, width, height)
+}
+
+/**
+ * Paint river corridors as centerline cells only (display uses spline strokes).
  * @param {Uint8Array} riverNetworkMask
  * @param {number} width
  * @param {number} height
@@ -389,43 +476,13 @@ function stampPhysicalCrossSection(out, width, height, x, y, halfWidth) {
  * @returns {Uint8Array}
  */
 export function buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, options) {
-  const { elevation, flowDirection, ocean, lakeMask } = options
-  const maxHalfWidth = physicalRiverMaxHalfWidthForGrid(width)
+  void width
+  void height
+  void options
   const out = new Uint8Array(riverNetworkMask.length)
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const idx = y * width + x
-      if (!riverNetworkMask[idx]) continue
-
-      let halfWidth = measurePhysicalRiverHalfWidth({
-        elevation,
-        flowDirection,
-        idx,
-        width,
-        height,
-        maxHalfWidth,
-      })
-      halfWidth = capRiverCorridorRadiusAtWaterEdge(
-        halfWidth,
-        x,
-        y,
-        width,
-        height,
-        ocean,
-        lakeMask,
-      )
-
-      const dir = flowDirection[idx]
-      if (dir < 0) {
-        out[idx] = 1
-        continue
-      }
-
-      stampPhysicalCrossSection(out, width, height, x, y, halfWidth)
-    }
+  for (let idx = 0; idx < riverNetworkMask.length; idx += 1) {
+    if (riverNetworkMask[idx]) out[idx] = 1
   }
-
   return out
 }
 
@@ -439,47 +496,6 @@ export function buildFlowWeightedRiverCorridorMask(
   height,
   options = {},
 ) {
-  if (options.elevation && options.flowDirection) {
-    return buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, {
-      elevation: options.elevation,
-      flowDirection: options.flowDirection,
-      ocean: options.ocean,
-      lakeMask: options.lakeMask,
-    })
-  }
-
-  const maxRadius = physicalRiverMaxHalfWidthForGrid(width)
-  const maxChannelWidth = options.maxChannelWidth
-    ?? (options.channelWidth
-      ? computeRiverNetworkMaxChannelWidth(options.channelWidth, riverNetworkMask)
-      : 0)
-  const { ocean, lakeMask } = options
-  const out = new Uint8Array(riverNetworkMask.length)
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const idx = y * width + x
-      if (!riverNetworkMask[idx]) continue
-      const baseRadius = resolveRiverCorridorRenderRadius({
-        drainage: drainage[idx],
-        channelWidth: options.channelWidth?.[idx] ?? 0,
-        maxChannelWidth,
-        maxRadius,
-      })
-      const radius = capRiverCorridorRadiusAtWaterEdge(
-        baseRadius,
-        x,
-        y,
-        width,
-        height,
-        ocean,
-        lakeMask,
-      )
-      if (radius <= 0) {
-        out[idx] = 1
-        continue
-      }
-      stampPhysicalCrossSection(out, width, height, x, y, radius)
-    }
-  }
-  return out
+  void drainage
+  return buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, options)
 }

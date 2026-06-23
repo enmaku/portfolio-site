@@ -66,7 +66,7 @@ test('classifyBiomesWithHydrology applies lake mask over land biomes', () => {
   assert.strictEqual(biomes[5], BIOMES.FRESHWATER_LAKE)
 })
 
-test('classifyBiomesWithHydrology paints centerline rivers without measurable banks', () => {
+test('classifyBiomesWithHydrology leaves river corridors to renderer spline strokes', () => {
   const width = 5
   const height = 5
   const fields = {
@@ -88,6 +88,5 @@ test('classifyBiomesWithHydrology paints centerline rivers without measurable ba
     flowDirection,
   })
 
-  assert.strictEqual(biomes[12], BIOMES.RIVER_CORRIDOR)
-  assert.notStrictEqual(biomes[11], BIOMES.RIVER_CORRIDOR)
+  assert.notStrictEqual(biomes[12], BIOMES.RIVER_CORRIDOR)
 })
