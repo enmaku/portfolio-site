@@ -73,9 +73,10 @@ test('resolveWorldGenerationOptions preserves seasonal hydrology defaults', () =
   assert.strictEqual(options.enableSeasonalHydrology, true)
   assert.strictEqual(options.seasonalYearCount, 5)
   assert.strictEqual(options.dryRainMult, 0.15)
-  assert.strictEqual(options.wetRainMult, 1.8)
+  assert.strictEqual(options.wetRainMult, 1)
+  assert.strictEqual(options.yearlyClimateNoiseScale, 0.15)
   assert.strictEqual(options.meltReleaseScale, 1)
-  assert.strictEqual(options.lakeBankCrumblePerYear, 1)
+  assert.strictEqual(options.lakeBankCrumblePerYear, 0)
 })
 
 test('resolveWorldGenerationOptions merges enableSeasonalHydrology override', () => {

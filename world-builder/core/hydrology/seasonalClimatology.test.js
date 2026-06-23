@@ -46,16 +46,17 @@ test('computeSeasonalRunoff wet exceeds dry on the same cell', () => {
   assert.ok(wet[0] > dry[0])
 })
 
-test('deriveAnnualMeanClimate returns weighted rainfall and temperature', () => {
-  const baseRainfall = new Float32Array([1])
+test('deriveAnnualMeanClimate returns copies of base rainfall and temperature', () => {
+  const baseRainfall = new Float32Array([0.6])
   const baseTemperature = new Float32Array([0.5])
   const { rainfall, temperature } = deriveAnnualMeanClimate({
     baseRainfall,
     baseTemperature,
-    options: DEFAULT_WORLD_GENERATION_OPTIONS,
   })
-  assert.ok(rainfall[0] > 0 && rainfall[0] < 1.5)
-  assert.ok(temperature[0] > 0 && temperature[0] <= 1)
+  assert.notStrictEqual(rainfall, baseRainfall)
+  assert.notStrictEqual(temperature, baseTemperature)
+  assert.equal(rainfall[0], baseRainfall[0])
+  assert.equal(temperature[0], baseTemperature[0])
 })
 
 test('accumulateEffectiveRunoff tracks peak wet and melt runoff', () => {

@@ -10,12 +10,6 @@ import {
 export const SEASON_ORDER = ['dry', 'wet', 'cold', 'melt']
 
 const COLD_RAIN_MULT = 0.02
-const SEASON_RAIN_WEIGHT = {
-  dry: 0.25,
-  wet: 0.25,
-  cold: 0.25,
-  melt: 0.25,
-}
 
 /**
  * @param {number} geographySeed
@@ -127,32 +121,19 @@ export function computeSeasonalSnowAccum({
 
 /**
  * Annual-mean rainfall and temperature for biome classification.
+ * Season rainfall multipliers drive the hydrology simulation only; biome labels
+ * stay tied to the refreshed scalar fields so seasonal extremes do not dry or
+ * wet the map relative to the physical terrain baseline.
  * @param {Object} params
  * @param {Float32Array} params.baseRainfall
  * @param {Float32Array} params.baseTemperature
- * @param {import('../types.js').WorldGenerationOptions} params.options
  * @returns {{ rainfall: Float32Array, temperature: Float32Array }}
  */
-export function deriveAnnualMeanClimate({ baseRainfall, baseTemperature, options }) {
-  const rainfall = new Float32Array(baseRainfall.length)
-  const temperature = new Float32Array(baseTemperature.length)
-
-  for (const season of SEASON_ORDER) {
-    const rainMult = seasonRainfallMultiplier(season, options, 1)
-    const weight = SEASON_RAIN_WEIGHT[season]
-    for (let i = 0; i < rainfall.length; i += 1) {
-      rainfall[i] += Math.min(1, Math.max(0, baseRainfall[i] * rainMult)) * weight
-      if (season === 'cold') {
-        temperature[i] += baseTemperature[i] * weight * 0.85
-      } else if (season === 'melt') {
-        temperature[i] += baseTemperature[i] * weight * 1.05
-      } else {
-        temperature[i] += baseTemperature[i] * weight
-      }
-    }
+export function deriveAnnualMeanClimate({ baseRainfall, baseTemperature }) {
+  return {
+    rainfall: new Float32Array(baseRainfall),
+    temperature: new Float32Array(baseTemperature),
   }
-
-  return { rainfall, temperature }
 }
 
 /**

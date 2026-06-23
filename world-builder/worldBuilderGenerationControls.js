@@ -230,7 +230,7 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
           'Rainfall fraction during the dry season. Lower values dry lakes faster and shrink ephemeral streams.',
         kind: 'slider',
         min: 0,
-        max: 0.5,
+        max: 1,
         step: 0.01,
         testId: 'world-builder-control-dry-rain',
       },
@@ -558,8 +558,10 @@ export function formatGenerationControlValue(key, value) {
   ) {
     return String(Math.round(value))
   }
+  if (key === 'erosionChannelWear') {
+    return value.toFixed(3)
+  }
   if (
-    key === 'erosionChannelWear' ||
     key === 'erosionPeakWear' ||
     key === 'streamPowerK' ||
     key === 'channelInitiationThreshold' ||
