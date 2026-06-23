@@ -158,7 +158,7 @@ test('createHydrologyStatsForDisplay surfaces hydrology metrics and rejection st
     coastalNodeCount: 3,
     validationRows: [],
     shouldReject: true,
-    rejectionReasons: ['coastMouth: No navigable river mouths detected'],
+    rejectionReasons: ['coastMouth: No river mouths detected'],
     hydrologySubstepTimings: [],
     hydrology: {
       breachCount: 1,
@@ -189,7 +189,7 @@ test('createHydrologyStatsForDisplay surfaces hydrology metrics and rejection st
   assert.strictEqual(stats.endorheicFraction, 0.5)
   assert.strictEqual(stats.coastConnectedNavigablePathLength, 6)
   assert.strictEqual(stats.shouldReject, true)
-  assert.deepStrictEqual(stats.rejectionReasons, ['coastMouth: No navigable river mouths detected'])
+  assert.deepStrictEqual(stats.rejectionReasons, ['coastMouth: No river mouths detected'])
 })
 
 test('createHydrologyStatsForDisplay defaults when hydrology section missing', () => {

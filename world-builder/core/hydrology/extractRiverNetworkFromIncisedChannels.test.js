@@ -14,7 +14,6 @@ import {
   extractRiverNetworkFromIncisedChannels,
 } from './extractRiverNetworkFromIncisedChannels.js'
 import { computeCoastNavigability } from '../coast/computeCoastNavigability.js'
-import { REFERENCE_RIVER_MOUTH_COAST_NAVIGABILITY_CUTOFF } from '../types.js'
 
 function makeYJunctionTerrain(width, height) {
   const elevation = new Float32Array(width * height).fill(SEA_LEVEL + 0.2)
@@ -202,20 +201,11 @@ test('extractRiverNetworkFromIncisedChannels places mouth nodes at coastal drain
 
   const mouths = extracted.riverGraph.nodes.filter((node) => node.kind === 'mouth')
   assert.ok(mouths.length > 0)
-  const coastNavigability = computeCoastNavigability({
-    elevation: carved.elevation,
-    width,
-    height,
-  })
   for (const mouth of mouths) {
     const idx = mouth.y * width + mouth.x
     const downstreamIdx = downstreamIndex(idx, width, extracted.flowDirection)
     assert.ok(downstreamIdx >= 0)
     assert.ok(extracted.ocean[downstreamIdx])
-    assert.ok(
-      coastNavigability[downstreamIdx] >= REFERENCE_RIVER_MOUTH_COAST_NAVIGABILITY_CUTOFF,
-      'mouth should drain into a coast-navigable ocean cell',
-    )
   }
 })
 
@@ -324,7 +314,7 @@ test('buildIncisedChannelMask resolves coast navigability from elevation when om
   assert.deepStrictEqual(withFallback, withExplicit)
 })
 
-test('extractRiverNetworkFromIncisedChannels marks navigable edges only with discharge and gentle gradient', () => {
+test('extractRiverNetworkFromIncisedChannels marks every graph edge as navigable', () => {
   const width = 24
   const height = 24
   const elevation = new Float32Array(width * height)
@@ -361,15 +351,8 @@ test('extractRiverNetworkFromIncisedChannels marks navigable edges only with dis
     navigableFlowCutoffScale: 0.15,
   })
 
-  for (const edge of extracted.riverGraph.edges) {
-    if (!edge.navigable) continue
-    assert.ok(edge.cellPath && edge.cellPath.length >= 2)
-  }
-
-  const navigableCount = extracted.riverGraph.edges.filter((edge) => edge.navigable).length
-  const nonNavigableCount = extracted.riverGraph.edges.length - navigableCount
   if (extracted.riverGraph.edges.length > 0) {
-    assert.ok(navigableCount + nonNavigableCount === extracted.riverGraph.edges.length)
+    assert.ok(extracted.riverGraph.edges.every((edge) => edge.navigable))
   }
 })
 

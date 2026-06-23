@@ -23,12 +23,12 @@ test('shouldRejectGeographyCandidate is true when a hard fail row exists', () =>
 
 test('collectRejectionReasons returns actionable check summaries', () => {
   const rows = [
-    { checkId: 'coastMouth', status: 'fail', summary: 'No navigable river mouths detected' },
+    { checkId: 'coastMouth', status: 'fail', summary: 'No river mouths detected' },
     { checkId: 'parallelStrandRatio', status: 'fail', summary: 'Parallel strands 0.62 above cap 0.35' },
     { checkId: 'highlandPresence', status: 'warn', summary: 'Thin highlands' },
   ]
   assert.deepStrictEqual(collectRejectionReasons(rows), [
-    'coastMouth: No navigable river mouths detected',
+    'coastMouth: No river mouths detected',
     'parallelStrandRatio: Parallel strands 0.62 above cap 0.35',
   ])
 })

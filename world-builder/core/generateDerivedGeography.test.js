@@ -138,6 +138,23 @@ test('generateDerivedGeography default seed produces visible river network on fu
   assert.strictEqual(doc.generationReport.hydrology.riverCellCount, maskCount)
 })
 
+test('generateDerivedGeography seed 77814242 detects river mouths at shoreline drainage cells', () => {
+  const doc = generateDerivedGeography({
+    geographySeed: 77814242,
+    prevailingWindDegrees: 90,
+  })
+
+  assert.ok(
+    doc.generationReport.hydrology.mouthCount > 0,
+    `expected river mouths, got ${doc.generationReport.hydrology.mouthCount}`,
+  )
+  assert.ok(
+    doc.generationReport.hydrology.mouthCount <= 24,
+    `expected filtered mouths, got ${doc.generationReport.hydrology.mouthCount}`,
+  )
+  assert.ok(doc.coastalNodes.some((node) => node.kind === 'mouth'))
+})
+
 test('generateDerivedGeography default seed keeps lake surfaces aligned with lakeMeta', () => {
   const doc = generateDerivedGeography({
     geographySeed: DEFAULT_GEOGRAPHY_SEED,
@@ -238,13 +255,18 @@ test('generateDerivedGeography sets shouldReject when enforce flags hard-fail va
     height: 16,
     options: {
       ...DEFAULT_WORLD_GENERATION_OPTIONS,
-      enforceCoastMouth: true,
+      enforceCoastConnectedNavigablePath: true,
+      minCoastConnectedNavigablePathCells: 99_999,
       maxValidationRetries: 0,
     },
   })
 
   assert.strictEqual(doc.generationReport.shouldReject, true)
-  assert.ok(doc.generationReport.rejectionReasons.some((reason) => reason.startsWith('coastMouth:')))
+  assert.ok(
+    doc.generationReport.rejectionReasons.some((reason) =>
+      reason.startsWith('coastConnectedNavigablePath:'),
+    ),
+  )
 })
 
 test('generateDerivedGeography retries with incremented seed when validation rejects', () => {

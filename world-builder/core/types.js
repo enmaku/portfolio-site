@@ -247,11 +247,14 @@ export const REFERENCE_NAVIGABLE_FLOW_CUTOFF = 48
 /** Maximum segment gradient for navigable rivers (elevation delta per cell). */
 export const REFERENCE_NAVIGABLE_GRADIENT_CUTOFF = 0.012
 
-/** Minimum coast-navigability score on the downstream ocean cell for a river mouth. */
-export const REFERENCE_RIVER_MOUTH_COAST_NAVIGABILITY_CUTOFF = 0.35
-
 /** Minimum lake area in cells (reference grid). */
 export const REFERENCE_MIN_LAKE_AREA = 16
+
+/**
+ * Minimum channel-mask cells upstream of a mouth node (reference grid).
+ * Filters one-pixel dribbles that are not visible on the map.
+ */
+export const REFERENCE_MIN_RIVER_MOUTH_CHANNEL_CELLS = 12
 
 /** Minimum navigable river edge count for validation pass (reference grid). */
 export const REFERENCE_MIN_NAVIGABLE_RIVER_EDGES = 3
@@ -303,6 +306,15 @@ export function sourceFlowCutoffForGrid(gridSize) {
 export function riverDisplayFlowCutoffForGrid(gridSize) {
   const scale = Math.sqrt(gridSize / REFERENCE_GRID_SIZE)
   return Math.max(4, Math.round(4 * scale))
+}
+
+/**
+ * Minimum painted channel cells draining into a mouth before it counts as a river mouth.
+ * @param {number} gridSize
+ */
+export function minRiverMouthChannelCellsForGrid(gridSize) {
+  const scale = Math.sqrt(gridSize / REFERENCE_GRID_SIZE)
+  return Math.max(6, Math.round(REFERENCE_MIN_RIVER_MOUTH_CHANNEL_CELLS * scale))
 }
 
 /**

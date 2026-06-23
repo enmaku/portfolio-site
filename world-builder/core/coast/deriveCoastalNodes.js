@@ -22,21 +22,18 @@ export function deriveCoastalNodes({
   /** @type {import('../types.js').CoastalNode[]} */
   const nodes = []
   const ocean = isOceanCell(elevation, width, height, seaLevel)
-  const nodeById = new Map(riverGraph.nodes.map((node) => [node.id, node]))
   const mouthKeys = new Set()
   let counter = 0
 
-  for (const edge of riverGraph.edges) {
-    if (!edge.navigable) continue
-    const toNode = nodeById.get(edge.toNodeId)
-    if (!toNode || toNode.kind !== 'mouth') continue
-    const key = `${toNode.x},${toNode.y}`
+  for (const node of riverGraph.nodes) {
+    if (node.kind !== 'mouth') continue
+    const key = `${node.x},${node.y}`
     if (mouthKeys.has(key)) continue
     mouthKeys.add(key)
     nodes.push({
       id: `coast-${counter}`,
-      x: toNode.x,
-      y: toNode.y,
+      x: node.x,
+      y: node.y,
       kind: 'mouth',
     })
     counter += 1

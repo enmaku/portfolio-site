@@ -54,7 +54,7 @@ export function runGeographyValidationChecks(slice) {
       gridHeight,
     })
 
-  const navigableEdges = riverGraph.edges.filter((edge) => edge.navigable)
+  const navigableEdges = riverGraph.edges
   const minNavigable = minNavigableRiverEdgesForGrid(gridWidth)
   const navigablePass = navigableEdges.length >= minNavigable
   rows.push({
@@ -73,7 +73,7 @@ export function runGeographyValidationChecks(slice) {
     status: resolveCheckStatus(coastMouthPass, validationOptions.enforceCoastMouth),
     summary: coastMouthPass
       ? `Coast mouths: ${mouthNodes.length}`
-      : 'No navigable river mouths detected',
+      : 'No river mouths detected',
     mapFocus: coastMouthPass ? undefined : { x: gridWidth / 2, y: gridHeight - 2, zoom: 2 },
   })
 

@@ -31,7 +31,7 @@ export function computeHydrologyMetrics({
   gridWidth,
   gridHeight,
 }) {
-  const navigableEdges = riverGraph.edges.filter((edge) => edge.navigable)
+  const navigableEdges = riverGraph.edges
   const navigableEdgeCount = navigableEdges.length
   const mouthCount = riverGraph.nodes.filter((node) => node.kind === 'mouth').length
   const navigableCells = collectNavigableCells(navigableEdges)

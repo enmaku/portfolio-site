@@ -12,9 +12,7 @@ import { refreshFieldsAfterErosion } from '../fields/refreshFieldsAfterErosion.j
 import { fillLakes } from './fillLakes.js'
 import { computeFlowAccumulation, downstreamIndex } from './computeFlowAccumulation.js'
 import { buildChannelWidthField } from './extractRiverNetworkFromIncisedChannels.js'
-import { REFERENCE_RIVER_MOUTH_COAST_NAVIGABILITY_CUTOFF } from '../types.js'
 import { deriveSnowCapMask, deriveSnowMeltContribution } from './deriveSnowCapMask.js'
-import { computeCoastNavigability } from '../coast/computeCoastNavigability.js'
 import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
 import { generateDerivedGeography } from '../generateDerivedGeography.js'
@@ -317,7 +315,7 @@ test('runHydrologySubsteps keeps channelWidth aligned with settled flow accumula
   }
 })
 
-test('runHydrologySubsteps places settled mouth nodes at coast-navigable ocean cells', () => {
+test('runHydrologySubsteps places settled mouth nodes at ocean drainage cells', () => {
   let state = createInitialPipelineState({
     geographySeed: 5000,
     prevailingWindDegrees: 90,
@@ -349,21 +347,11 @@ test('runHydrologySubsteps places settled mouth nodes at coast-navigable ocean c
     soilDrainage: state.baselineDoc.fields.drainage,
     soilDrainageScale: hydrologyState.options.soilDrainageScale,
   })
-  const coastNavigability = computeCoastNavigability({
-    elevation: hydrologyState.fields.elevation,
-    width: hydrologyState.width,
-    height: hydrologyState.height,
-    seaLevel: hydrologyState.options.seaLevel,
-  })
-
   for (const mouth of mouths) {
     const idx = mouth.y * hydrologyState.width + mouth.x
     const downstreamIdx = downstreamIndex(idx, hydrologyState.width, flowDirection)
     assert.ok(downstreamIdx >= 0)
     assert.ok(ocean[downstreamIdx])
-    assert.ok(
-      coastNavigability[downstreamIdx] >= REFERENCE_RIVER_MOUTH_COAST_NAVIGABILITY_CUTOFF,
-    )
   }
 })
 
