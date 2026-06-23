@@ -77,6 +77,7 @@ test('simulateSeasonalHydrology can overtop a closed basin under heavy wet years
   const scenario = makeClosedBasinScenario()
   const options = resolveWorldGenerationOptions({
     seasonalYearCount: 8,
+    lakeBankCrumblePerYear: 0,
     wetRainMult: 3,
     yearlyClimateNoiseScale: 0.5,
     lakeEvaporationScale: 0.2,
@@ -97,6 +98,7 @@ test('simulateSeasonalHydrology never raises lake surface above spill elevation'
   const scenario = makeClosedBasinScenario()
   const options = resolveWorldGenerationOptions({
     seasonalYearCount: 8,
+    lakeBankCrumblePerYear: 0,
     wetRainMult: 3,
     yearlyClimateNoiseScale: 0.5,
     lakeEvaporationScale: 0.2,
@@ -126,6 +128,7 @@ test('simulateSeasonalHydrology dry evaporation can keep endorheic lakes below s
   const scenario = makeClosedBasinScenario(false)
   const options = resolveWorldGenerationOptions({
     seasonalYearCount: 2,
+    lakeBankCrumblePerYear: 0,
     wetRainMult: 0.6,
     dryRainMult: 0.05,
     lakeEvaporationScale: 2.5,

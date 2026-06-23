@@ -312,6 +312,7 @@ function runHydrologySeasonalSubstep(ctx) {
       overflowLakeCount: seasonal.seasonalStats.overflowLakeCount,
       seasonalYearCount: seasonal.seasonalStats.seasonalYearCount,
       meanLakeLevelDelta: seasonal.seasonalStats.meanLakeLevelDelta,
+      bankCrumbleCount: seasonal.seasonalStats.bankCrumbleCount,
       endorheicCount: seasonal.lakes.filter((lake) => lake.endorheic).length,
       endorheicFraction:
         seasonal.lakes.length > 0

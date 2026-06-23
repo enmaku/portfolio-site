@@ -289,6 +289,17 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         step: 0.05,
         testId: 'world-builder-control-melt-release',
       },
+      {
+        key: 'lakeBankCrumblePerYear',
+        label: 'Lake bank collapses / year',
+        tooltip:
+          'Each simulation year, this many of the largest still-closed lakes lose their lowest bank segment and gain a new downhill outlet. Zero disables bank collapse.',
+        kind: 'slider',
+        min: 0,
+        max: 5,
+        step: 1,
+        testId: 'world-builder-control-lake-bank-crumble',
+      },
     ],
   },
   {
@@ -517,6 +528,9 @@ export function formatGenerationControlValue(key, value) {
   if (key === 'inciseIterations' && value <= 0) {
     return 'Off'
   }
+  if (key === 'lakeBankCrumblePerYear' && value <= 0) {
+    return 'Off'
+  }
   if (key === 'streamPowerK' && value <= 0) {
     return 'Off'
   }
@@ -537,6 +551,7 @@ export function formatGenerationControlValue(key, value) {
     key === 'erosionStepCount' ||
     key === 'inciseIterations' ||
     key === 'seasonalYearCount' ||
+    key === 'lakeBankCrumblePerYear' ||
     key === 'riverSettlementSteps' ||
     key === 'maxSaltNodes' ||
     key === 'elevationDomainWarpStrength'

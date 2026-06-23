@@ -73,6 +73,7 @@ export function buildGenerationReport({
       overflowLakeCount: hydrologyStats.overflowLakeCount ?? 0,
       seasonalYearCount: hydrologyStats.seasonalYearCount ?? 0,
       meanLakeLevelDelta: hydrologyStats.meanLakeLevelDelta ?? 0,
+      bankCrumbleCount: hydrologyStats.bankCrumbleCount ?? 0,
       riverCellCount: metrics.riverCellCount,
       navigableEdgeCount: metrics.navigableEdgeCount,
       navigableKmEstimate: metrics.navigableKmEstimate,

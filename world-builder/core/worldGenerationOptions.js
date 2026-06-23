@@ -60,6 +60,8 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   lakeEvaporationScale: 1,
   snowAccumRate: 1,
   meltReleaseScale: 1,
+  /** Largest lakes that lose a bank segment each simulation year (0 disables). */
+  lakeBankCrumblePerYear: 1,
   enforceNavigableRiverQuota: false,
   enforceCoastMouth: false,
   enforceHacksLawExponent: false,

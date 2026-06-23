@@ -52,6 +52,7 @@
  * @property {number=} snowPack
  * @property {boolean=} hasOverflowed
  * @property {number=} overflowOutletIdx
+ * @property {number[]=} bankCrumbleOutletIdxs
  * @property {number=} outletX
  * @property {number=} outletY
  */
@@ -65,6 +66,7 @@
  * @property {number=} overflowLakeCount
  * @property {number=} seasonalYearCount
  * @property {number=} meanLakeLevelDelta
+ * @property {number=} bankCrumbleCount
  */
 
 /**
@@ -84,6 +86,7 @@
  * @property {number=} overflowLakeCount
  * @property {number=} seasonalYearCount
  * @property {number=} meanLakeLevelDelta
+ * @property {number=} bankCrumbleCount
  */
 
 /**
@@ -232,6 +235,7 @@
  * @property {number} lakeEvaporationScale
  * @property {number} snowAccumRate
  * @property {number} meltReleaseScale
+ * @property {number} lakeBankCrumblePerYear
  */
 
 /**

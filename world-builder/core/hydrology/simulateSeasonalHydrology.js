@@ -5,10 +5,13 @@ import {
   computeSeasonalSnowAccum,
   deriveYearlyClimateNoise,
 } from './seasonalClimatology.js'
-import { deriveFieldSeed, createSeededRandom } from '../noise/seededRandom.js'
+import {
+  applyAnnualLargestLakeBankCrumble,
+  getBankCrumbleOutletIdxs,
+  pickLowestBankCrumbleOutletIdx,
+} from './lakeBankCrumble.js'
 
 const FILL_EPSILON = 1e-5
-const BREACH_EPSILON = 1e-4
 /** Converts accumulated runoff flow units into normalized elevation depth. */
 const RUNOFF_TO_DEPTH = 0.0004
 
@@ -17,6 +20,7 @@ const RUNOFF_TO_DEPTH = 0.0004
  * @property {number} overflowLakeCount
  * @property {number} seasonalYearCount
  * @property {number} meanLakeLevelDelta
+ * @property {number} bankCrumbleCount
  */
 
 /**
@@ -88,6 +92,7 @@ export function simulateSeasonalHydrology({
 
   let totalLevelDelta = 0
   let lakesWithMeta = 0
+  let bankCrumbleCount = 0
 
   for (let year = 0; year < options.seasonalYearCount; year += 1) {
     const yearMult = deriveYearlyClimateNoise(
@@ -95,6 +100,22 @@ export function simulateSeasonalHydrology({
       year,
       options.yearlyClimateNoiseScale,
     )
+
+    bankCrumbleCount += applyAnnualLargestLakeBankCrumble({
+      lakes: updatedLakes,
+      lakeMeta: updatedMeta,
+      lakeIdByCell,
+      lakeMask,
+      elevation,
+      workingElevation,
+      effectiveRunoff,
+      waterLevelByLake,
+      overflowLakeIds,
+      width,
+      height,
+      runoffToDepth: RUNOFF_TO_DEPTH,
+      crumbleCount: options.lakeBankCrumblePerYear,
+    })
 
     for (const season of SEASON_ORDER) {
       const seasonalRunoff = computeSeasonalRunoff({
@@ -175,11 +196,15 @@ export function simulateSeasonalHydrology({
           updatedLakes[lakeId].endorheic = false
           meta.endorheic = false
 
-          const outletIdx = findSpillOutletCell(cells, lakeMask, elevation, width, height, spillElev)
+          const outletIdx =
+            pickLowestBankCrumbleOutletIdx(meta, elevation) ??
+            findSpillOutletCell(cells, lakeMask, elevation, width, height, spillElev)
           if (outletIdx >= 0) {
-            meta.overflowOutletIdx = outletIdx
-            updatedLakes[lakeId].spillX = outletIdx % width
-            updatedLakes[lakeId].spillY = Math.floor(outletIdx / width)
+            if (getBankCrumbleOutletIdxs(meta).length === 0) {
+              meta.overflowOutletIdx = outletIdx
+              updatedLakes[lakeId].spillX = outletIdx % width
+              updatedLakes[lakeId].spillY = Math.floor(outletIdx / width)
+            }
             effectiveRunoff[outletIdx] = Math.max(
               effectiveRunoff[outletIdx],
               seasonalRunoff[outletIdx] + outflowDepth / RUNOFF_TO_DEPTH,
@@ -210,6 +235,7 @@ export function simulateSeasonalHydrology({
       overflowLakeCount: overflowLakeIds.size,
       seasonalYearCount: options.seasonalYearCount,
       meanLakeLevelDelta: lakesWithMeta > 0 ? totalLevelDelta / lakesWithMeta : 0,
+      bankCrumbleCount,
     },
   }
 }
