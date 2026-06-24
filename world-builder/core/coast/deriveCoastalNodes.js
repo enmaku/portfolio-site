@@ -1,5 +1,6 @@
 import { SEA_LEVEL } from '../biomeIds.js'
 import { isOceanCell } from '../fields/applyClosedIslandRim.js'
+import { isNodePlacementCellAllowed } from '../nodePlacementBounds.js'
 
 /**
  * @param {Object} params
@@ -27,6 +28,7 @@ export function deriveCoastalNodes({
 
   for (const node of riverGraph.nodes) {
     if (node.kind !== 'mouth') continue
+    if (!isNodePlacementCellAllowed(node.x, node.y, width, height)) continue
     const key = `${node.x},${node.y}`
     if (mouthKeys.has(key)) continue
     mouthKeys.add(key)
@@ -42,8 +44,9 @@ export function deriveCoastalNodes({
   /** @type {Array<{ x: number, y: number, kind: import('../types.js').CoastalNodeKind, score: number }>} */
   const candidates = []
 
-  for (let y = 1; y < height - 1; y += 1) {
-    for (let x = 1; x < width - 1; x += 1) {
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isNodePlacementCellAllowed(x, y, width, height)) continue
       const idx = y * width + x
       if (!ocean[idx] || !isCoastOceanCell(ocean, width, height, x, y)) continue
       if (coastNavigability[idx] < 0.55) continue

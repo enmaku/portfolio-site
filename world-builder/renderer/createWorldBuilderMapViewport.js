@@ -2,6 +2,25 @@ import { BIOMES } from '../core/biomeIds.js'
 import { buildLandTerrainRgba } from './buildLandTerrainRgba.js'
 import { buildRiverOverlayCanvas } from './buildRiverOverlayCanvas.js'
 import { buildTopographyContourCanvas } from './buildTopographyContourCanvas.js'
+import {
+  applyResourceOverlayVisibility,
+  createDefaultResourceOverlayVisibility,
+  shouldDrawResourceNodeOverlay,
+  shouldDrawResourceRasterOverlay,
+} from './resourceOverlayVisibility.js'
+import { buildArableOverlayCanvas } from './buildArableOverlayCanvas.js'
+import { buildMetalsOverlayCanvas } from './buildMetalsOverlayCanvas.js'
+import { buildTimberOverlayCanvas } from './buildTimberOverlayCanvas.js'
+import { createResourceOverlayIds } from '../worldBuilderPageModel.js'
+
+/** Black for discrete metal mine markers (matches metals raster hue). */
+export const METAL_NODE_OVERLAY_COLOR = 0x000000
+
+/** Pure white for salt strategic-resource markers. */
+export const SALT_NODE_OVERLAY_COLOR = 0xffffff
+
+/** Grid-cell radius for metal/salt strategic-resource node markers. */
+export const STRATEGIC_RESOURCE_NODE_MARKER_RADIUS = 7
 
 /**
  * @param {HTMLElement} hostEl
@@ -26,10 +45,22 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const contours = new Sprite(Texture.EMPTY)
   contours.visible = false
   let contourTexture = null
+  const arable = new Sprite(Texture.EMPTY)
+  arable.visible = false
+  let arableTexture = null
+  const timber = new Sprite(Texture.EMPTY)
+  timber.visible = false
+  let timberTexture = null
+  const metals = new Sprite(Texture.EMPTY)
+  metals.visible = false
+  let metalsTexture = null
   const rivers = new Sprite(Texture.EMPTY)
   rivers.visible = false
   let riverTexture = null
   const overlay = new Graphics()
+  let resourceOverlayVisibility = createDefaultResourceOverlayVisibility(createResourceOverlayIds())
+  /** @type {import('../core/types.js').WorldDocument} */
+  let currentWorldDocument = worldDocument
 
   const viewport = new Viewport({
     screenWidth: hostEl.clientWidth || gridWidth,
@@ -42,6 +73,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   app.stage.addChild(viewport)
   viewport.addChild(terrain)
   viewport.addChild(contours)
+  viewport.addChild(arable)
+  viewport.addChild(timber)
+  viewport.addChild(metals)
   viewport.addChild(rivers)
   viewport.addChild(overlay)
   viewport
@@ -60,8 +94,11 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   })
   resizeObserver.observe(hostEl)
   refreshContours(worldDocument)
+  refreshArableOverlay(worldDocument, resourceOverlayVisibility)
+  refreshTimberOverlay(worldDocument, resourceOverlayVisibility)
+  refreshMetalsOverlay(worldDocument, resourceOverlayVisibility)
   refreshRiverOverlay(worldDocument)
-  drawOverlays(overlay, worldDocument)
+  drawOverlays(overlay, worldDocument, resourceOverlayVisibility)
 
   /** @type {ReturnType<typeof setInterval> | null} */
   let replayTimer = null
@@ -87,6 +124,61 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
 
   /**
    * @param {import('../core/types.js').WorldDocument} doc
+   * @param {Record<string, boolean>} visibility
+   */
+  function refreshArableOverlay(doc, visibility) {
+    const nextCanvas = buildArableOverlayCanvas(doc)
+    arableTexture?.destroy(true)
+    arableTexture = null
+
+    const visible = shouldDrawResourceRasterOverlay(visibility, 'arable', doc.arableRaster)
+    if (!nextCanvas || !visible) {
+      arable.visible = false
+      arable.texture = Texture.EMPTY
+      return
+    }
+
+    arableTexture = Texture.from(nextCanvas)
+    arable.texture = arableTexture
+    arable.visible = true
+  }
+
+  function refreshTimberOverlay(doc, visibility) {
+    const nextCanvas = buildTimberOverlayCanvas(doc)
+    timberTexture?.destroy(true)
+    timberTexture = null
+
+    const visible = shouldDrawResourceRasterOverlay(visibility, 'timber', doc.timberRaster)
+    if (!nextCanvas || !visible) {
+      timber.visible = false
+      timber.texture = Texture.EMPTY
+      return
+    }
+
+    timberTexture = Texture.from(nextCanvas)
+    timber.texture = timberTexture
+    timber.visible = true
+  }
+
+  function refreshMetalsOverlay(doc, visibility) {
+    const nextCanvas = buildMetalsOverlayCanvas(doc)
+    metalsTexture?.destroy(true)
+    metalsTexture = null
+
+    const visible = shouldDrawResourceRasterOverlay(visibility, 'metals', doc.metalsRaster)
+    if (!nextCanvas || !visible) {
+      metals.visible = false
+      metals.texture = Texture.EMPTY
+      return
+    }
+
+    metalsTexture = Texture.from(nextCanvas)
+    metals.texture = metalsTexture
+    metals.visible = true
+  }
+
+  /**
+   * @param {import('../core/types.js').WorldDocument} doc
    */
   function refreshRiverOverlay(doc) {
     const nextCanvas = buildRiverOverlayCanvas(doc)
@@ -108,13 +200,17 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     /** @param {import('../core/types.js').WorldDocument} nextDocument */
     updateWorldDocument(nextDocument) {
       stopReplay()
+      currentWorldDocument = nextDocument
       terrainTexture.destroy(true)
       terrainCanvas = buildTerrainCanvas(nextDocument)
       terrainTexture = Texture.from(terrainCanvas)
       terrain.texture = terrainTexture
       refreshContours(nextDocument)
+      refreshArableOverlay(nextDocument, resourceOverlayVisibility)
+      refreshTimberOverlay(nextDocument, resourceOverlayVisibility)
+      refreshMetalsOverlay(nextDocument, resourceOverlayVisibility)
       refreshRiverOverlay(nextDocument)
-      drawOverlays(overlay, nextDocument)
+      drawOverlays(overlay, nextDocument, resourceOverlayVisibility)
       syncViewportToHost(viewport, hostEl, nextDocument.gridWidth, nextDocument.gridHeight)
       fitMapToView(viewport, nextDocument.gridWidth, nextDocument.gridHeight)
     },
@@ -164,6 +260,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         terrain.texture = terrainTexture
         refreshContours(replayDoc)
         rivers.visible = false
+        arable.visible = false
+        timber.visible = false
+        metals.visible = false
         overlay.clear()
         onFrame?.(frame)
         frame += 1
@@ -174,10 +273,35 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
           terrainTexture = Texture.from(terrainCanvas)
           terrain.texture = terrainTexture
           refreshContours(baseDocument)
+          refreshArableOverlay(baseDocument, resourceOverlayVisibility)
+          refreshTimberOverlay(baseDocument, resourceOverlayVisibility)
+          refreshMetalsOverlay(baseDocument, resourceOverlayVisibility)
           refreshRiverOverlay(baseDocument)
-          drawOverlays(overlay, baseDocument)
+          drawOverlays(overlay, baseDocument, resourceOverlayVisibility)
         }
       }, 120)
+    },
+
+    /**
+     * @param {string} resourceId
+     * @param {boolean} visible
+     */
+    setResourceOverlayVisibility(resourceId, visible) {
+      resourceOverlayVisibility = applyResourceOverlayVisibility(
+        resourceOverlayVisibility,
+        resourceId,
+        visible,
+      )
+      if (resourceId === 'arable') {
+        refreshArableOverlay(currentWorldDocument, resourceOverlayVisibility)
+      }
+      if (resourceId === 'timber') {
+        refreshTimberOverlay(currentWorldDocument, resourceOverlayVisibility)
+      }
+      if (resourceId === 'metals') {
+        refreshMetalsOverlay(currentWorldDocument, resourceOverlayVisibility)
+      }
+      drawOverlays(overlay, currentWorldDocument, resourceOverlayVisibility)
     },
 
     destroy() {
@@ -186,6 +310,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       terrainTexture.destroy(true)
       contourTexture?.destroy(true)
       riverTexture?.destroy(true)
+      arableTexture?.destroy(true)
+      timberTexture?.destroy(true)
+      metalsTexture?.destroy(true)
       viewport.destroy({ children: true })
       app.destroy(true, { children: true, texture: true })
     },
@@ -259,8 +386,9 @@ function elevationToGrayscaleRgba(elevation) {
 /**
  * @param {import('pixi.js').Graphics} overlay
  * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @param {Record<string, boolean>} resourceOverlayVisibility
  */
-function drawOverlays(overlay, worldDocument) {
+function drawOverlays(overlay, worldDocument, resourceOverlayVisibility) {
   overlay.clear()
 
   if (worldDocument.coastalNodes?.length) {
@@ -271,10 +399,21 @@ function drawOverlays(overlay, worldDocument) {
     }
   }
 
-  if (worldDocument.saltNodes?.length) {
+  if (
+    shouldDrawResourceNodeOverlay(resourceOverlayVisibility, 'metals', worldDocument.metalNodes)
+  ) {
+    for (const node of worldDocument.metalNodes) {
+      overlay.circle(node.x + 0.5, node.y + 0.5, STRATEGIC_RESOURCE_NODE_MARKER_RADIUS)
+      overlay.fill({ color: METAL_NODE_OVERLAY_COLOR, alpha: 0.9 })
+    }
+  }
+
+  if (
+    shouldDrawResourceNodeOverlay(resourceOverlayVisibility, 'salt', worldDocument.saltNodes)
+  ) {
     for (const node of worldDocument.saltNodes) {
-      overlay.rect(node.x, node.y, 1, 1)
-      overlay.fill({ color: 0xf0e68c, alpha: 0.9 })
+      overlay.circle(node.x + 0.5, node.y + 0.5, STRATEGIC_RESOURCE_NODE_MARKER_RADIUS)
+      overlay.fill({ color: SALT_NODE_OVERLAY_COLOR, alpha: 0.9 })
     }
   }
 

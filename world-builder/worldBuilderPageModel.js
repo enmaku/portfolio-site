@@ -248,6 +248,51 @@ export function generationProgressValue(stepIndex, stepCount) {
 }
 
 /**
+ * @returns {Array<{ id: string, kind: 'nodes' | 'raster' | 'rasterAndNodes', label: string }>}
+ */
+export function createResourceOverlayDefinitions() {
+  return [
+    { id: 'arable', kind: 'raster', label: 'Arable' },
+    { id: 'timber', kind: 'raster', label: 'Timber' },
+    { id: 'metals', kind: 'rasterAndNodes', label: 'Metals' },
+    { id: 'salt', kind: 'nodes', label: 'Salt' },
+  ]
+}
+
+/**
+ * @returns {string[]}
+ */
+export function createResourceOverlayIds() {
+  return createResourceOverlayDefinitions().map((definition) => definition.id)
+}
+
+/**
+ * @returns {Record<string, boolean>}
+ */
+export function createDefaultResourceOverlayVisibility() {
+  return Object.fromEntries(
+    createResourceOverlayDefinitions().map((definition) => [definition.id, false]),
+  )
+}
+
+/**
+ * @param {boolean} isGenerating
+ * @returns {boolean}
+ */
+export function shouldShowGenerationProgress(isGenerating) {
+  return isGenerating
+}
+
+/**
+ * @param {boolean} isGenerating
+ * @param {boolean} pipelineSucceeded
+ * @returns {boolean}
+ */
+export function shouldShowResourceOverlayBar(isGenerating, pipelineSucceeded) {
+  return !isGenerating && pipelineSucceeded
+}
+
+/**
  * @param {ReadonlyArray<{ id: string, label: string }>} steps
  * @param {number} activeStepIndex
  * @param {number} completedStepIndex

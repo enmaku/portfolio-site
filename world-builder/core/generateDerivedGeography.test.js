@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { BIOMES_COUNT } from './biomeIds.js'
+import { BIOMES, BIOMES_COUNT } from './biomeIds.js'
 import { generateDerivedGeography } from './generateDerivedGeography.js'
 import { generatePhysicalTerrainBaseline } from './generatePhysicalTerrainBaseline.js'
 import { assertLakeMaskSurfacesMatchMeta } from './hydrology/lakeDisplayCoherence.js'
@@ -45,6 +45,22 @@ test('generateDerivedGeography returns extended world document shape', () => {
   assert.ok(doc.coastNavigability)
   assert.ok(Array.isArray(doc.coastalNodes))
   assert.ok(Array.isArray(doc.saltNodes))
+  assert.ok(doc.arableRaster)
+  assert.strictEqual(doc.arableRaster.length, cellCount)
+  for (let i = 0; i < doc.arableRaster.length; i += 1) {
+    assert.ok(doc.arableRaster[i] >= 0 && doc.arableRaster[i] <= 1)
+  }
+  assert.ok(doc.timberRaster)
+  assert.strictEqual(doc.timberRaster.length, cellCount)
+  for (let i = 0; i < doc.timberRaster.length; i += 1) {
+    assert.ok(doc.timberRaster[i] >= 0 && doc.timberRaster[i] <= 1)
+  }
+  assert.ok(doc.metalsRaster)
+  assert.strictEqual(doc.metalsRaster.length, cellCount)
+  assert.ok(Array.isArray(doc.metalNodes))
+  for (let i = 0; i < doc.metalsRaster.length; i += 1) {
+    assert.ok(doc.metalsRaster[i] >= 0 && doc.metalsRaster[i] <= 1)
+  }
   assert.ok(doc.generationReport)
   assert.strictEqual(typeof doc.generationReport.erosionStepCount, 'number')
   assert.ok(Array.isArray(doc.generationReport.validationRows))
@@ -80,6 +96,46 @@ test('generateDerivedGeography returns extended world document shape', () => {
   assert.ok(doc.erosionSnapshots.length > 0)
 })
 
+test('generateDerivedGeography arable favors river corridor temperate cells over mountain desert', () => {
+  const doc = generateDerivedGeography({
+    geographySeed: DEFAULT_GEOGRAPHY_SEED,
+    prevailingWindDegrees: 90,
+    width: 256,
+    height: 256,
+  })
+  const corridorMask = doc.riverCorridorMask ?? doc.riverNetworkMask
+  assert.ok(corridorMask)
+
+  const favorableBiomes = new Set([
+    BIOMES.GRASSLAND,
+    BIOMES.TEMPERATE_FOREST,
+    BIOMES.RIVER_CORRIDOR,
+  ])
+  const unfavorableBiomes = new Set([BIOMES.MOUNTAIN, BIOMES.DESERT])
+
+  let favorableSum = 0
+  let favorableCount = 0
+  let unfavorableSum = 0
+  let unfavorableCount = 0
+
+  for (let i = 0; i < doc.biomes.length; i += 1) {
+    if (corridorMask[i] && favorableBiomes.has(doc.biomes[i])) {
+      favorableSum += doc.arableRaster[i]
+      favorableCount += 1
+    } else if (unfavorableBiomes.has(doc.biomes[i])) {
+      unfavorableSum += doc.arableRaster[i]
+      unfavorableCount += 1
+    }
+  }
+
+  assert.ok(favorableCount > 0)
+  assert.ok(unfavorableCount > 0)
+  assert.ok(
+    favorableSum / favorableCount > unfavorableSum / unfavorableCount + 0.05,
+    `favorable mean ${favorableSum / favorableCount} should exceed unfavorable mean ${unfavorableSum / unfavorableCount}`,
+  )
+})
+
 test('generateDerivedGeography is deterministic for same seed and wind', () => {
   const first = generateDerivedGeography(params)
   const second = generateDerivedGeography(params)
@@ -87,6 +143,10 @@ test('generateDerivedGeography is deterministic for same seed and wind', () => {
   assert.deepStrictEqual(first.biomes, second.biomes)
   assert.deepStrictEqual(first.fields.elevation, second.fields.elevation)
   assert.deepStrictEqual(first.fields.drainage, second.fields.drainage)
+  assert.deepStrictEqual(first.arableRaster, second.arableRaster)
+  assert.deepStrictEqual(first.timberRaster, second.timberRaster)
+  assert.deepStrictEqual(first.metalsRaster, second.metalsRaster)
+  assert.deepStrictEqual(first.metalNodes, second.metalNodes)
   assert.strictEqual(first.generationReport.navigableRiverEdgeCount,
     second.generationReport.navigableRiverEdgeCount)
 })

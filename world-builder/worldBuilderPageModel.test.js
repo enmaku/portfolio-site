@@ -6,6 +6,8 @@ import {
   createControlsStateForSeed,
   createDefaultControlsState,
   createDefaultGenerationSettings,
+  createDefaultResourceOverlayVisibility,
+  createResourceOverlayDefinitions,
   createValidationRowsForDisplay,
   createGenerationStepStatuses,
   createHydrologyStatsForDisplay,
@@ -17,6 +19,8 @@ import {
   formatSlopeAreaConcavityForDisplay,
   generationProgressValue,
   normalizeGeographySeed,
+  shouldShowGenerationProgress,
+  shouldShowResourceOverlayBar,
   validationStatusColor,
   validationStatusIcon,
 } from './worldBuilderPageModel.js'
@@ -53,6 +57,14 @@ test('buildDerivedGeographyParams forwards enableMeanderRefine to worker payload
     enableMeanderRefine: true,
   })
   assert.strictEqual(params.options.enableMeanderRefine, true)
+})
+
+test('buildDerivedGeographyParams forwards maxMetalNodes to worker payload', () => {
+  const params = buildDerivedGeographyParams(123, 270, {
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    maxMetalNodes: 4,
+  })
+  assert.strictEqual(params.options.maxMetalNodes, 4)
 })
 
 test('createDefaultGenerationSettings resets sliders and seed-derived wind without changing seed', () => {
@@ -228,4 +240,70 @@ test('formatSlopeAreaConcavityForDisplay renders median and sample count', () =>
 test('formatHydrologyMetricValue renders null as n/a', () => {
   assert.strictEqual(formatHydrologyMetricValue(null), 'n/a')
   assert.strictEqual(formatHydrologyMetricValue(0.4567, 2), '0.46')
+})
+
+test('createResourceOverlayDefinitions lists all four canonical resource overlays', () => {
+  const definitions = createResourceOverlayDefinitions()
+  assert.strictEqual(definitions.length, 4)
+  assert.deepStrictEqual(definitions, [
+    { id: 'arable', kind: 'raster', label: 'Arable' },
+    { id: 'timber', kind: 'raster', label: 'Timber' },
+    { id: 'metals', kind: 'rasterAndNodes', label: 'Metals' },
+    { id: 'salt', kind: 'nodes', label: 'Salt' },
+  ])
+})
+
+test('createDefaultResourceOverlayVisibility defaults every overlay off', () => {
+  assert.deepStrictEqual(createDefaultResourceOverlayVisibility(), {
+    arable: false,
+    timber: false,
+    metals: false,
+    salt: false,
+  })
+})
+
+test('shouldShowGenerationProgress is true only while generating', () => {
+  assert.strictEqual(shouldShowGenerationProgress(true), true)
+  assert.strictEqual(shouldShowGenerationProgress(false), false)
+})
+
+test('shouldShowResourceOverlayBar is true only when idle after successful pipeline completion', () => {
+  assert.strictEqual(shouldShowResourceOverlayBar(true, true), false)
+  assert.strictEqual(shouldShowResourceOverlayBar(true, false), false)
+  assert.strictEqual(shouldShowResourceOverlayBar(false, false), false)
+  assert.strictEqual(shouldShowResourceOverlayBar(false, true), true)
+})
+
+test('shouldShowResourceOverlayBar stays hidden after failed mid-pipeline runs', () => {
+  assert.strictEqual(shouldShowResourceOverlayBar(false, false), false)
+})
+
+test('status bar helpers never show progress and overlay bar together', () => {
+  for (const isGenerating of [true, false]) {
+    for (const pipelineSucceeded of [true, false]) {
+      const showProgress = shouldShowGenerationProgress(isGenerating)
+      const showOverlayBar = shouldShowResourceOverlayBar(isGenerating, pipelineSucceeded)
+      assert.strictEqual(showProgress && showOverlayBar, false)
+    }
+  }
+})
+
+test('resource overlay toggle test id resolves overlay checkbox wiring', () => {
+  const definitions = createResourceOverlayDefinitions()
+  assert.strictEqual(
+    `world-builder-overlay-toggle-${definitions.find((d) => d.id === 'arable')?.id}`,
+    'world-builder-overlay-toggle-arable',
+  )
+  assert.strictEqual(
+    `world-builder-overlay-toggle-${definitions.find((d) => d.id === 'timber')?.id}`,
+    'world-builder-overlay-toggle-timber',
+  )
+  assert.strictEqual(
+    `world-builder-overlay-toggle-${definitions.find((d) => d.id === 'metals')?.id}`,
+    'world-builder-overlay-toggle-metals',
+  )
+  assert.strictEqual(
+    `world-builder-overlay-toggle-${definitions.find((d) => d.id === 'salt')?.id}`,
+    'world-builder-overlay-toggle-salt',
+  )
 })

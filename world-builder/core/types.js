@@ -110,6 +110,14 @@
  */
 
 /**
+ * @typedef {Object} MetalNode
+ * @property {string} id
+ * @property {number} x
+ * @property {number} y
+ * @property {number} score
+ */
+
+/**
  * @typedef {Object} MapFocusPoint
  * @property {number} x
  * @property {number} y
@@ -175,6 +183,10 @@
  * @property {Float32Array=} coastNavigability
  * @property {CoastalNode[]=} coastalNodes
  * @property {SaltNode[]=} saltNodes
+ * @property {Float32Array=} arableRaster
+ * @property {Float32Array=} timberRaster
+ * @property {Float32Array=} metalsRaster
+ * @property {MetalNode[]=} metalNodes
  * @property {GenerationReport=} generationReport
  * @property {Float32Array[]=} erosionSnapshots
  */
@@ -214,6 +226,7 @@
  * @property {number} minLakeAreaScale
  * @property {number} soilDrainageScale
  * @property {number} maxSaltNodes
+ * @property {number} maxMetalNodes
  * @property {number} breachThreshold
  * @property {boolean} enforceNavigableRiverQuota
  * @property {boolean} enforceCoastMouth

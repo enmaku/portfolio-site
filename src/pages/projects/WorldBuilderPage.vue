@@ -27,48 +27,68 @@
       />
     </div>
     <div
-      v-if="isGenerating || generationProgress.completedStepIndex >= 0"
-      data-testid="world-builder-generation-progress"
+      v-if="showGenerationProgress || showResourceOverlayBar"
+      data-testid="world-builder-status-bar"
       class="q-px-sm q-pb-sm generation-progress"
     >
-      <q-linear-progress
-        :value="generationProgress.percent / 100"
-        color="primary"
-        track-color="grey-9"
-        rounded
-      />
-      <div class="row q-gutter-xs q-mt-xs generation-step-row">
-        <template
-          v-for="step in generationStepStatuses"
-          :key="step.id"
-        >
-          <q-chip
-            dense
-            :data-testid="`world-builder-generation-step-${step.id}`"
-            :color="stepStatusColor(step.status)"
-            text-color="white"
-            :outline="step.status === 'pending'"
-          >
-            {{ step.label }}
-          </q-chip>
-          <div
-            v-if="step.id === 'hydrology' && step.status === 'active'"
-            class="row q-gutter-xs items-center hydrology-substep-row"
+      <div
+        v-if="showGenerationProgress"
+        data-testid="world-builder-generation-progress"
+      >
+        <q-linear-progress
+          :value="generationProgress.percent / 100"
+          color="primary"
+          track-color="grey-9"
+          rounded
+        />
+        <div class="row q-gutter-xs q-mt-xs generation-step-row">
+          <template
+            v-for="step in generationStepStatuses"
+            :key="step.id"
           >
             <q-chip
-              v-for="substep in hydrologySubstepStatuses"
-              :key="substep.id"
               dense
-              :data-testid="`world-builder-hydrology-substep-${substep.id}`"
-              :color="stepStatusColor(substep.status)"
+              :data-testid="`world-builder-generation-step-${step.id}`"
+              :color="stepStatusColor(step.status)"
               text-color="white"
-              :outline="substep.status === 'pending'"
-              size="sm"
+              :outline="step.status === 'pending'"
             >
-              {{ substep.label }}
+              {{ step.label }}
             </q-chip>
-          </div>
-        </template>
+            <div
+              v-if="step.id === 'hydrology' && step.status === 'active'"
+              class="row q-gutter-xs items-center hydrology-substep-row"
+            >
+              <q-chip
+                v-for="substep in hydrologySubstepStatuses"
+                :key="substep.id"
+                dense
+                :data-testid="`world-builder-hydrology-substep-${substep.id}`"
+                :color="stepStatusColor(substep.status)"
+                text-color="white"
+                :outline="substep.status === 'pending'"
+                size="sm"
+              >
+                {{ substep.label }}
+              </q-chip>
+            </div>
+          </template>
+        </div>
+      </div>
+      <div
+        v-else-if="showResourceOverlayBar"
+        data-testid="world-builder-resource-overlay-bar"
+        class="row q-gutter-sm items-center resource-overlay-row"
+      >
+        <q-checkbox
+          v-for="overlay in resourceOverlayDefinitions"
+          :key="overlay.id"
+          dense
+          :model-value="resourceOverlayVisibility[overlay.id]"
+          :data-testid="`world-builder-overlay-toggle-${overlay.id}`"
+          :label="overlay.label"
+          @update:model-value="(value) => onResourceOverlayToggle(overlay.id, value)"
+        />
       </div>
     </div>
     <div class="row col map-row">
@@ -314,10 +334,12 @@ import {
 } from '@world-builder/worldBuilderGenerationControls.js'
 import {
   buildDerivedGeographyParams,
+  createDefaultResourceOverlayVisibility,
   createGenerationStepStatuses,
   createHydrologyStatsForDisplay,
   createHydrologySubstepStatuses,
   createHydrologySubstepTimingsForDisplay,
+  createResourceOverlayDefinitions,
   formatHydrologySubstepTimingForDisplay,
   createRandomGeographySeed,
   createStageSummaryForDisplay,
@@ -326,6 +348,8 @@ import {
   formatSlopeAreaConcavityForDisplay,
   generationProgressValue,
   parseGeographySeedInput,
+  shouldShowGenerationProgress,
+  shouldShowResourceOverlayBar,
   validationStatusColor,
   validationStatusIcon,
 } from '@world-builder/worldBuilderPageModel.js'
@@ -342,7 +366,12 @@ const seedInput = ref('0')
 const controlsDrawerOpen = ref(true)
 const reportDrawerOpen = ref(true)
 const isGenerating = ref(false)
+const pipelineSucceeded = ref(false)
 const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
+const resourceOverlayDefinitions = createResourceOverlayDefinitions()
+
+/** @type {import('vue').Ref<Record<string, boolean>>} */
+const resourceOverlayVisibility = ref(createDefaultResourceOverlayVisibility())
 
 /** @type {import('vue').Ref<import('@world-builder/core/types.js').WorldDocument | null>} */
 const worldDocument = ref(null)
@@ -358,7 +387,7 @@ const generationProgress = ref({
   skippedHydrologySubstepIds: [],
 })
 
-/** @type {{ updateWorldDocument: Function, focusOn: Function, playErosionSnapshots: Function, destroy: Function } | null} */
+/** @type {{ updateWorldDocument: Function, focusOn: Function, playErosionSnapshots: Function, setResourceOverlayVisibility: Function, destroy: Function } | null} */
 let mapViewport = null
 
 /** @type {typeof import('@world-builder/renderer/createWorldBuilderMapViewport.js').createWorldBuilderMapViewport | null} */
@@ -397,6 +426,10 @@ const hydrologySubstepStatuses = computed(() =>
 const hydrologySubstepTimings = computed(() =>
   createHydrologySubstepTimingsForDisplay(worldDocument.value?.generationReport),
 )
+const showGenerationProgress = computed(() => shouldShowGenerationProgress(isGenerating.value))
+const showResourceOverlayBar = computed(() =>
+  shouldShowResourceOverlayBar(isGenerating.value, pipelineSucceeded.value),
+)
 
 /**
  * @param {'pending' | 'active' | 'complete' | 'skipped'} status
@@ -418,6 +451,32 @@ function resetGenerationProgress() {
     completedHydrologySubstepIndex: -1,
     skippedHydrologySubstepIds: [],
   }
+}
+
+function resetResourceOverlayVisibility() {
+  resourceOverlayVisibility.value = createDefaultResourceOverlayVisibility()
+  syncResourceOverlayVisibilityToMapViewport()
+}
+
+function syncResourceOverlayVisibilityToMapViewport() {
+  for (const overlay of resourceOverlayDefinitions) {
+    mapViewport?.setResourceOverlayVisibility(
+      overlay.id,
+      resourceOverlayVisibility.value[overlay.id] === true,
+    )
+  }
+}
+
+/**
+ * @param {string} resourceId
+ * @param {boolean} visible
+ */
+function onResourceOverlayToggle(resourceId, visible) {
+  resourceOverlayVisibility.value = {
+    ...resourceOverlayVisibility.value,
+    [resourceId]: visible,
+  }
+  mapViewport?.setResourceOverlayVisibility(resourceId, visible)
 }
 
 /**
@@ -477,6 +536,7 @@ async function applyWorldDocumentToMap(doc) {
 
   if (mapHostRef.value && createWorldBuilderMapViewport) {
     mapViewport = await createWorldBuilderMapViewport(mapHostRef.value, doc)
+    syncResourceOverlayVisibilityToMapViewport()
   }
 }
 
@@ -484,7 +544,9 @@ async function applyWorldDocumentToMap(doc) {
  * @param {unknown} error
  */
 function showGenerationFailure(error) {
+  generationRunId += 1
   isGenerating.value = false
+  pipelineSucceeded.value = false
   activeGenerationJob = null
   const message = error instanceof Error ? error.message : String(error)
   $q.notify({
@@ -508,7 +570,9 @@ function regenerate() {
   activeGenerationJob?.cancel()
   activeGenerationJob = null
   isGenerating.value = true
+  pipelineSucceeded.value = false
   resetGenerationProgress()
+  resetResourceOverlayVisibility()
 
   activeGenerationJob = runDerivedGeographyInWorker(
     buildDerivedGeographyParams(parsedSeed, prevailingWindDegrees.value, generationOptions.value),
@@ -570,17 +634,21 @@ function regenerate() {
       onComplete() {
         if (isStaleRun()) return
         isGenerating.value = false
+        pipelineSucceeded.value = true
         activeGenerationJob = null
         generationProgress.value = {
           ...generationProgress.value,
           percent: 100,
           activeStepIndex: -1,
         }
+        resetResourceOverlayVisibility()
       },
       onCancelled() {
         if (isStaleRun()) return
         isGenerating.value = false
+        pipelineSucceeded.value = false
         activeGenerationJob = null
+        resetGenerationProgress()
       },
       onError(message) {
         if (isStaleRun()) return

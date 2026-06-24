@@ -532,6 +532,17 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         step: 1,
         testId: 'world-builder-control-max-salt-nodes',
       },
+      {
+        key: 'maxMetalNodes',
+        label: 'Metal mine cap',
+        tooltip:
+          'Maximum number of strategic metal mine sites placed on hills, mountains, and river headwaters. Higher values add more spaced candidates.',
+        kind: 'slider',
+        min: 0,
+        max: 32,
+        step: 1,
+        testId: 'world-builder-control-max-metal-nodes',
+      },
     ],
   },
 ]
@@ -598,6 +609,7 @@ export function formatGenerationControlValue(key, value) {
     key === 'lakeBankCrumblePerYear' ||
     key === 'riverSettlementSteps' ||
     key === 'maxSaltNodes' ||
+    key === 'maxMetalNodes' ||
     key === 'elevationDomainWarpStrength'
   ) {
     return String(Math.round(value))

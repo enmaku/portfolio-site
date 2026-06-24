@@ -131,6 +131,61 @@ test('hydrology persists channelWidth on pipeline state and world document', () 
   assert.ok(hasPositiveWidth)
 })
 
+test('cloneWorldDocument copies arableRaster independently', () => {
+  const doc = runFullDerivedGeographyPipeline(params)
+  const cloned = cloneWorldDocument(doc)
+  assert.ok(doc.arableRaster)
+  assert.ok(cloned.arableRaster)
+  assert.notStrictEqual(cloned.arableRaster, doc.arableRaster)
+  assert.deepStrictEqual(cloned.arableRaster, doc.arableRaster)
+  cloned.arableRaster[0] = -1
+  assert.notStrictEqual(cloned.arableRaster[0], doc.arableRaster[0])
+})
+
+test('cloneWorldDocument copies metalsRaster and metalNodes independently', () => {
+  const doc = runFullDerivedGeographyPipeline({
+    geographySeed: 42,
+    prevailingWindDegrees: 90,
+    width: 256,
+    height: 256,
+  })
+  const cloned = cloneWorldDocument(doc)
+
+  assert.ok(doc.metalsRaster)
+  assert.ok(cloned.metalsRaster)
+  assert.notStrictEqual(cloned.metalsRaster, doc.metalsRaster)
+  assert.deepStrictEqual(cloned.metalsRaster, doc.metalsRaster)
+  cloned.metalsRaster[0] = -1
+  assert.notStrictEqual(cloned.metalsRaster[0], doc.metalsRaster[0])
+
+  assert.ok(doc.metalNodes?.length)
+  assert.ok(cloned.metalNodes?.length)
+  assert.notStrictEqual(cloned.metalNodes, doc.metalNodes)
+  assert.deepStrictEqual(cloned.metalNodes, doc.metalNodes)
+  if (cloned.metalNodes && doc.metalNodes) {
+    cloned.metalNodes[0].x += 1
+    assert.notStrictEqual(cloned.metalNodes[0].x, doc.metalNodes[0].x)
+  }
+})
+
+test('worker step-complete clone round trip preserves metals raster and nodes', () => {
+  let state = createInitialPipelineState(params)
+  for (const stepId of [
+    'physicalTerrainBaseline',
+    'erosion',
+    'hydrology',
+    'fieldRefresh',
+    'coastAndResources',
+  ]) {
+    state = runPipelineStep(state, stepId)
+  }
+
+  const preview = cloneWorldDocument(buildWorldDocumentFromPipelineState(state))
+  assert.ok(preview.metalsRaster)
+  assert.strictEqual(preview.metalsRaster.length, params.width * params.height)
+  assert.ok(Array.isArray(preview.metalNodes))
+})
+
 test('cloneWorldDocument copies lakeMeta independently', () => {
   const doc = runFullDerivedGeographyPipeline(params)
   const cloned = cloneWorldDocument(doc)

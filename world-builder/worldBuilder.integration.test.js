@@ -3,6 +3,7 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import routes from '../src/router/routes.js'
 import { getShareEntryForPath, PASTE_UNFURL_ROUTES } from '../src/share-metadata.js'
+import { createResourceOverlayDefinitions } from './worldBuilderPageModel.js'
 
 const WORLD_BUILDER_PATH = '/projects/world-builder'
 
@@ -53,7 +54,8 @@ test('world builder generation controls include wind slider test id', () => {
   assert.strictEqual(controls.includes('world-builder-control-stream-power-m'), true)
   assert.strictEqual(controls.includes('world-builder-control-stream-power-n'), true)
   assert.strictEqual(controls.includes('world-builder-control-channel-initiation'), true)
-  assert.strictEqual(controls.includes('world-builder-control-meander-refine'), true)
+  assert.strictEqual(controls.includes('world-builder-control-max-salt-nodes'), true)
+  assert.strictEqual(controls.includes('world-builder-control-max-metal-nodes'), true)
 })
 
 test('world builder page wires derived pipeline, lazy renderer, and control test ids', () => {
@@ -77,7 +79,33 @@ test('world builder page wires derived pipeline, lazy renderer, and control test
   assert.strictEqual(page.includes('onSeedCommit'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-regenerate"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-generation-report"'), true)
+  assert.strictEqual(page.includes('data-testid="world-builder-status-bar"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-generation-progress"'), true)
+  assert.match(page, /world-builder-overlay-toggle-\$\{overlay\.id\}/)
+  assert.strictEqual(page.includes('data-testid="world-builder-resource-overlay-bar"'), true)
+  assert.strictEqual(
+    `world-builder-overlay-toggle-${createResourceOverlayDefinitions().find((d) => d.id === 'timber')?.id}`,
+    'world-builder-overlay-toggle-timber',
+  )
+  assert.strictEqual(
+    `world-builder-overlay-toggle-${createResourceOverlayDefinitions().find((d) => d.id === 'metals')?.id}`,
+    'world-builder-overlay-toggle-metals',
+  )
+  assert.strictEqual(
+    `world-builder-overlay-toggle-${createResourceOverlayDefinitions().find((d) => d.id === 'arable')?.id}`,
+    'world-builder-overlay-toggle-arable',
+  )
+  assert.strictEqual(page.includes('shouldShowGenerationProgress'), true)
+  assert.strictEqual(page.includes('shouldShowResourceOverlayBar'), true)
+  assert.strictEqual(page.includes('pipelineSucceeded'), true)
+  assert.strictEqual(page.includes('createResourceOverlayDefinitions'), true)
+  assert.strictEqual(page.includes('resetResourceOverlayVisibility'), true)
+  assert.strictEqual(page.includes('syncResourceOverlayVisibilityToMapViewport'), true)
+  assert.strictEqual(page.includes('setResourceOverlayVisibility'), true)
+  assert.match(
+    page.match(/function showGenerationFailure[\s\S]*?^}/m)?.[0] ?? '',
+    /generationRunId\s*\+=\s*1/,
+  )
   assert.match(page, /world-builder-generation-step-\$\{step\.id\}/)
   assert.match(page, /world-builder-hydrology-substep-\$\{substep\.id\}/)
   assert.strictEqual(page.includes('world-builder-hydrology-substep-timings'), true)

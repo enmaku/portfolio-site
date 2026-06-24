@@ -1,5 +1,89 @@
 import { deriveFieldSeed, createSeededRandom } from '../noise/seededRandom.js'
-import { SEA_LEVEL } from '../biomeIds.js'
+import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
+import { isNodePlacementCellAllowed } from '../nodePlacementBounds.js'
+
+/** Salt nodes must be within this many cells of a proper land biome. */
+export const SALT_NODE_LAND_PROXIMITY_RADIUS = 10
+
+/** Salt nodes must have at least this much land biome cover within the proximity disk. */
+export const SALT_NODE_MIN_LAND_FRACTION = 0.15
+
+const NON_LAND_BIOMES = new Set([
+  BIOMES.OCEAN,
+  BIOMES.RIVER_CORRIDOR,
+  BIOMES.FRESHWATER_LAKE,
+])
+
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {Uint8Array} biomes
+ * @param {number} width
+ * @param {number} height
+ * @param {number} [radius]
+ * @returns {{ landFraction: number, sampleCount: number }}
+ */
+export function measureLandBiomeFractionWithinRadius(
+  x,
+  y,
+  biomes,
+  width,
+  height,
+  radius = SALT_NODE_LAND_PROXIMITY_RADIUS,
+) {
+  let landCount = 0
+  let sampleCount = 0
+
+  for (let dy = -radius; dy <= radius; dy += 1) {
+    for (let dx = -radius; dx <= radius; dx += 1) {
+      if (Math.hypot(dx, dy) > radius) continue
+      const nx = x + dx
+      const ny = y + dy
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+      sampleCount += 1
+      if (!NON_LAND_BIOMES.has(biomes[ny * width + nx])) {
+        landCount += 1
+      }
+    }
+  }
+
+  return {
+    landFraction: sampleCount === 0 ? 0 : landCount / sampleCount,
+    sampleCount,
+  }
+}
+
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {Uint8Array} biomes
+ * @param {number} width
+ * @param {number} height
+ * @param {number} [radius]
+ * @param {number} [minLandFraction]
+ */
+export function saltNodeHasSubstantialLandProximity(
+  x,
+  y,
+  biomes,
+  width,
+  height,
+  radius = SALT_NODE_LAND_PROXIMITY_RADIUS,
+  minLandFraction = SALT_NODE_MIN_LAND_FRACTION,
+) {
+  const { landFraction, sampleCount } = measureLandBiomeFractionWithinRadius(
+    x,
+    y,
+    biomes,
+    width,
+    height,
+    radius,
+  )
+  if (sampleCount === 0) {
+    return false
+  }
+  return landFraction >= minLandFraction
+}
 
 /**
  * Place discrete salt node candidates from geographic signals.
@@ -7,6 +91,7 @@ import { SEA_LEVEL } from '../biomeIds.js'
  * @param {Float32Array} params.elevation
  * @param {Float32Array} params.salidity
  * @param {Float32Array} params.coastNavigability
+ * @param {Uint8Array} params.biomes
  * @param {import('../types.js').LakeRecord[]} params.lakes
  * @param {number} params.width
  * @param {number} params.height
@@ -19,6 +104,7 @@ export function placeSaltNodes({
   elevation,
   salidity,
   coastNavigability,
+  biomes,
   lakes,
   width,
   height,
@@ -30,8 +116,9 @@ export function placeSaltNodes({
   const endorheicLakeIds = new Set(lakes.filter((lake) => lake.endorheic).map((lake) => lake.id))
   const candidates = []
 
-  for (let y = 1; y < height - 1; y += 1) {
-    for (let x = 1; x < width - 1; x += 1) {
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (!isNodePlacementCellAllowed(x, y, width, height)) continue
       const idx = y * width + x
       if (elevation[idx] < seaLevel) continue
 
@@ -51,6 +138,9 @@ export function placeSaltNodes({
   candidates.sort((a, b) => b.score - a.score)
   const selected = []
   for (const candidate of candidates) {
+    if (!saltNodeHasSubstantialLandProximity(candidate.x, candidate.y, biomes, width, height)) {
+      continue
+    }
     const tooClose = selected.some(
       (node) => Math.hypot(node.x - candidate.x, node.y - candidate.y) < 16,
     )

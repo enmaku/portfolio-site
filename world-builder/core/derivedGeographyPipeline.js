@@ -11,6 +11,10 @@ import { refreshFieldsAfterErosion } from './fields/refreshFieldsAfterErosion.js
 import { deriveAnnualMeanClimate } from './hydrology/seasonalClimatology.js'
 import { generatePhysicalTerrainBaseline } from './generatePhysicalTerrainBaseline.js'
 import { runHydrologySubsteps } from './hydrology/hydrologySubsteps.js'
+import { generateArableRaster } from './resources/generateArableRaster.js'
+import { generateTimberProductivity } from './resources/generateTimberProductivity.js'
+import { computeMetalsRaster } from './resources/computeMetalsRaster.js'
+import { placeMetalNodes } from './resources/placeMetalNodes.js'
 import { placeSaltNodes } from './resources/placeSaltNodes.js'
 import {
   DEFAULT_GRID_SIZE,
@@ -27,7 +31,7 @@ export const DERIVED_GEOGRAPHY_STEPS = [
   { id: 'erosion', label: 'Erosion' },
   { id: 'hydrology', label: 'Hydrology' },
   { id: 'fieldRefresh', label: 'Climate field refresh' },
-  { id: 'coastAndResources', label: 'Coast and salt nodes' },
+  { id: 'coastAndResources', label: 'Coast and resources' },
   { id: 'validation', label: 'Geography validation' },
 ]
 
@@ -58,6 +62,10 @@ export const DERIVED_GEOGRAPHY_STEPS = [
  * @property {Float32Array | null} coastNavigability
  * @property {import('./types.js').CoastalNode[] | null} coastalNodes
  * @property {import('./types.js').SaltNode[] | null} saltNodes
+ * @property {Float32Array | null} metalsRaster
+ * @property {import('./types.js').MetalNode[] | null} metalNodes
+ * @property {Float32Array | null} arableRaster
+ * @property {Float32Array | null} timberRaster
  * @property {import('./types.js').GenerationReport | null} generationReport
  * @property {import('./hydrology/hydrologySubsteps.js').HydrologySubstepTiming[] | null} hydrologySubstepTimings
  * @property {DerivedGeographyStepId | null} lastCompletedStep
@@ -108,6 +116,10 @@ export function createInitialPipelineState(params) {
     coastNavigability: null,
     coastalNodes: null,
     saltNodes: null,
+    metalsRaster: null,
+    metalNodes: null,
+    arableRaster: null,
+    timberRaster: null,
     generationReport: null,
     hydrologySubstepTimings: null,
     lastCompletedStep: null,
@@ -189,6 +201,10 @@ export function buildWorldDocumentFromPipelineState(state) {
     coastNavigability: state.coastNavigability ?? undefined,
     coastalNodes: state.coastalNodes ?? undefined,
     saltNodes: state.saltNodes ?? undefined,
+    metalsRaster: state.metalsRaster ?? undefined,
+    metalNodes: state.metalNodes ?? undefined,
+    arableRaster: state.arableRaster ?? undefined,
+    timberRaster: state.timberRaster ?? undefined,
     generationReport: state.generationReport ?? undefined,
     erosionSnapshots: state.erosionSnapshots ?? undefined,
   }
@@ -375,6 +391,7 @@ function runCoastAndResourcesStep(state) {
     elevation: state.workingElevation,
     salidity: state.fields.salidity,
     coastNavigability,
+    biomes: state.biomes,
     lakes: state.lakes ?? [],
     width,
     height,
@@ -382,11 +399,54 @@ function runCoastAndResourcesStep(state) {
     maxNodes: state.options.maxSaltNodes,
     seaLevel: state.options.seaLevel,
   })
+  const arableRaster = generateArableRaster({
+    elevation: state.workingElevation,
+    temperature: state.fields.temperature,
+    rainfall: state.fields.rainfall,
+    drainage: state.fields.drainage,
+    biomes: state.biomes,
+    riverCorridorMask: state.riverCorridorMask ?? state.riverNetworkMask,
+    riverNetworkMask: state.riverNetworkMask ?? undefined,
+    channelWidth: state.channelWidth ?? undefined,
+    width,
+    height,
+    geographySeed: state.geographySeed,
+    seaLevel: state.options.seaLevel,
+  })
+  const metalsRaster = computeMetalsRaster({
+    elevation: state.workingElevation,
+    biomes: state.biomes,
+    drainage: state.fields.drainage,
+    riverNetworkMask: state.riverNetworkMask ?? undefined,
+    width,
+    height,
+    seaLevel: state.options.seaLevel,
+  })
+  const metalNodes = placeMetalNodes({
+    metalsRaster,
+    elevation: state.workingElevation,
+    width,
+    height,
+    geographySeed: state.geographySeed,
+    maxNodes: state.options.maxMetalNodes,
+    seaLevel: state.options.seaLevel,
+  })
+  const timberRaster = generateTimberProductivity({
+    fields: state.fields,
+    biomes: state.biomes,
+    width,
+    height,
+    geographySeed: state.geographySeed,
+  })
   return {
     ...state,
     coastNavigability,
     coastalNodes,
     saltNodes,
+    arableRaster,
+    metalsRaster,
+    metalNodes,
+    timberRaster,
     lastCompletedStep: 'coastAndResources',
   }
 }
@@ -470,6 +530,10 @@ export function cloneWorldDocument(doc) {
     lakeMeta: doc.lakeMeta?.map((meta) => ({ ...meta })),
     coastalNodes: doc.coastalNodes?.map((node) => ({ ...node })),
     saltNodes: doc.saltNodes?.map((node) => ({ ...node })),
+    metalsRaster: doc.metalsRaster ? new Float32Array(doc.metalsRaster) : undefined,
+    metalNodes: doc.metalNodes?.map((node) => ({ ...node })),
+    arableRaster: doc.arableRaster ? new Float32Array(doc.arableRaster) : undefined,
+    timberRaster: doc.timberRaster ? new Float32Array(doc.timberRaster) : undefined,
     generationReport: doc.generationReport
       ? {
           ...doc.generationReport,
