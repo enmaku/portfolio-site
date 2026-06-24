@@ -139,11 +139,14 @@ export function computeSeasonalRunoff({
 }
 
 /**
- * Snow pack increment on snow-cap cells during the cold season.
+ * Snow pack increment on snow-cap cells during the cold season. When a per-cell
+ * wind accumulation factor is supplied, leeward cap cells gather more snow than
+ * scoured windward edges at the same base rainfall.
  * @param {Object} params
  * @param {Float32Array} params.baseRainfall
  * @param {Uint8Array} params.snowCapMask
  * @param {boolean[]} [params.ocean]
+ * @param {Float32Array} [params.windAccumFactor]
  * @param {import('../types.js').WorldGenerationOptions} params.options
  * @param {number} params.yearMult
  * @returns {Float32Array}
@@ -152,6 +155,7 @@ export function computeSeasonalSnowAccum({
   baseRainfall,
   snowCapMask,
   ocean,
+  windAccumFactor,
   options,
   yearMult,
 }) {
@@ -159,7 +163,8 @@ export function computeSeasonalSnowAccum({
   const rate = options.snowAccumRate * yearMult * RUNOFF_TO_FLOW_UNITS * 0.08
   for (let i = 0; i < accum.length; i += 1) {
     if (ocean?.[i] || !snowCapMask[i]) continue
-    accum[i] = baseRainfall[i] * rate
+    const windFactor = windAccumFactor ? windAccumFactor[i] : 1
+    accum[i] = baseRainfall[i] * rate * windFactor
   }
   return accum
 }

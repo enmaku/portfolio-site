@@ -18,6 +18,7 @@ import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
  * @param {import('./types.js').HydrologySubstepTiming[]} params.hydrologySubstepTimings
  * @param {import('./types.js').HydrologyPipelineStats} params.hydrologyStats
  * @param {Uint8Array} [params.riverNetworkMask]
+ * @param {number} [params.prevailingWindDegrees]
  * @param {import('./types.js').WorldGenerationOptions} [params.validationOptions]
  * @returns {import('./types.js').GenerationReport}
  */
@@ -32,6 +33,7 @@ export function buildGenerationReport({
   hydrologySubstepTimings,
   hydrologyStats,
   riverNetworkMask,
+  prevailingWindDegrees = 0,
   validationOptions = DEFAULT_WORLD_GENERATION_OPTIONS,
 }) {
   const metrics = computeHydrologyMetrics({
@@ -52,6 +54,7 @@ export function buildGenerationReport({
     gridHeight,
     hydrologyStats,
     hydrologyMetrics: metrics,
+    prevailingWindDegrees,
     validationOptions,
   })
   const lakeCount = hydrologyStats.lakeCount

@@ -302,6 +302,7 @@ function runHydrologySeasonalSubstep(ctx) {
     width,
     height,
     geographySeed: state.geographySeed,
+    prevailingWindDegrees: state.prevailingWindDegrees,
     options: state.options,
   })
 

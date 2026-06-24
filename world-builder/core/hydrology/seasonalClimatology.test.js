@@ -5,6 +5,7 @@ import {
   SEASON_ORDER,
   accumulateEffectiveRunoff,
   computeSeasonalRunoff,
+  computeSeasonalSnowAccum,
   deriveAnnualMeanClimate,
   deriveYearlyClimateNoise,
   seasonRainfallMultiplier,
@@ -70,6 +71,23 @@ test('deriveAnnualMeanClimate applies season weights at full influence scale', (
   })
   assert.ok(rainfall[0] < baseRainfall[0])
   assert.ok(temperature[0] > 0 && temperature[0] <= 1)
+})
+
+test('computeSeasonalSnowAccum scales cap accumulation by the wind factor', () => {
+  const baseRainfall = new Float32Array([0.5, 0.5])
+  const snowCapMask = new Uint8Array([1, 1])
+  const windAccumFactor = new Float32Array([1.4, 0.6])
+  const options = { ...DEFAULT_WORLD_GENERATION_OPTIONS }
+
+  const accum = computeSeasonalSnowAccum({
+    baseRainfall,
+    snowCapMask,
+    windAccumFactor,
+    options,
+    yearMult: 1,
+  })
+
+  assert.ok(accum[0] > accum[1])
 })
 
 test('accumulateEffectiveRunoff tracks peak wet and melt runoff', () => {

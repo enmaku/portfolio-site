@@ -56,6 +56,7 @@ test('runGeographyValidationChecks returns all check ids', () => {
     'endorheicFractionCap',
     'highlandPresence',
     'biomeDiversity',
+    'windRainfallAsymmetry',
     'resourceMismatch',
   ])
 })

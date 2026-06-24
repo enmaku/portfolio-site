@@ -200,6 +200,7 @@
  * @property {number} streamPowerN
  * @property {number} channelInitiationThreshold
  * @property {number} rainShadowStrength
+ * @property {number} moistureAdvectionStrength
  * @property {number} rainfallAmountScale
  * @property {number} temperatureLapseRate
  * @property {number} rainfallFrequencyScale

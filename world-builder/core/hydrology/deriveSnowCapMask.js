@@ -2,7 +2,9 @@ import {
   SNOW_CAP_ELEVATION_MIN,
   SNOW_CAP_TEMPERATURE_MAX,
 } from '../biomeIds.js'
+import { prevailingWindUpwindVector } from '../fields/prevailingWindField.js'
 import { scaleForGridSize } from '../types.js'
+import { scoreUpwindSnowDeposition } from './snowWindEffects.js'
 
 /** Base melt flow added on top of the default rainfall catchment unit. */
 export const SNOW_MELT_BASE_FLOW = 10
@@ -80,33 +82,6 @@ function scoreExitDrop(elevation, snowCapMask, width, height, x, y) {
 }
 
 /**
- * Upwind snow-cap mass proxy: leeward cap edges accumulate deeper seasonal snow.
- * @param {Uint8Array} snowCapMask
- * @param {number} width
- * @param {number} height
- * @param {number} x
- * @param {number} y
- * @param {number} upwindX
- * @param {number} upwindY
- * @returns {number}
- */
-function scoreWindSnowDeposition(snowCapMask, width, height, x, y, upwindX, upwindY) {
-  const sampleSteps = Math.max(2, Math.round(width / 64))
-  const stepSize = Math.max(1, Math.round(width / 256))
-  let deposition = 0
-
-  for (let step = 1; step <= sampleSteps; step += 1) {
-    const sampleX = Math.round(x + upwindX * step * stepSize)
-    const sampleY = Math.round(y + upwindY * step * stepSize)
-    if (sampleX < 0 || sampleY < 0 || sampleX >= width || sampleY >= height) continue
-    if (!snowCapMask[sampleY * width + sampleX]) continue
-    deposition += 1 + step * 0.2
-  }
-
-  return deposition
-}
-
-/**
  * @param {Uint8Array} snowCapMask
  * @param {number} width
  * @param {number} height
@@ -175,9 +150,7 @@ export function deriveSnowMeltContribution({
   prevailingWindDegrees = 0,
 }) {
   const melt = new Float32Array(elevation.length)
-  const radians = (prevailingWindDegrees * Math.PI) / 180
-  const upwindX = Math.sin(radians)
-  const upwindY = -Math.cos(radians)
+  const { upwindX, upwindY } = prevailingWindUpwindVector(prevailingWindDegrees)
   const outletSpacing = meltOutletSpacingForGrid(width)
 
   /** @type {{ idx: number, score: number, x: number, y: number, elevExcess: number, coldness: number }[]} */
@@ -194,7 +167,7 @@ export function deriveSnowMeltContribution({
 
       const elevExcess = Math.max(0, elevation[idx] - SNOW_CAP_ELEVATION_MIN)
       const coldness = Math.max(0, SNOW_CAP_TEMPERATURE_MAX - temperature[idx])
-      const windDeposition = scoreWindSnowDeposition(
+      const windDeposition = scoreUpwindSnowDeposition(
         snowCapMask,
         width,
         height,

@@ -124,6 +124,79 @@ test('simulateSeasonalHydrology never raises lake surface above spill elevation'
   }
 })
 
+function makeSnowCapScenario() {
+  const width = 11
+  const height = 7
+  const centerX = 5
+  const centerY = 3
+  const elevation = new Float32Array(width * height)
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const dist = Math.max(Math.abs(x - centerX), Math.abs(y - centerY))
+      elevation[y * width + x] = 0.9 - dist * 0.08
+    }
+  }
+
+  const snowCapMask = new Uint8Array(width * height)
+  for (let y = 2; y <= 4; y += 1) {
+    for (let x = 4; x <= 6; x += 1) {
+      snowCapMask[y * width + x] = 1
+    }
+  }
+
+  return {
+    width,
+    height,
+    elevation,
+    filledElevation: new Float32Array(elevation),
+    rainfall: new Float32Array(width * height).fill(0.6),
+    temperature: new Float32Array(width * height).fill(0.4),
+    snowCapMask,
+    lakeMask: new Uint8Array(width * height),
+    lakes: [],
+    lakeMeta: [],
+    catchmentCellsByLake: [],
+    lakeIdByCell: new Int32Array(width * height).fill(-1),
+    ocean: Array.from({ length: width * height }, () => false),
+  }
+}
+
+function columnRunoffSum(runoff, width, height, column) {
+  let sum = 0
+  for (let y = 0; y < height; y += 1) {
+    sum += runoff[y * width + column]
+  }
+  return sum
+}
+
+test('simulateSeasonalHydrology routes wind-biased snow melt to leeward cap outlets', () => {
+  const scenario = makeSnowCapScenario()
+  const options = resolveWorldGenerationOptions({
+    seasonalYearCount: 1,
+    lakeBankCrumblePerYear: 0,
+    snowAccumRate: 100,
+  })
+  const shared = {
+    ...scenario,
+    soilDrainage: new Float32Array(scenario.width * scenario.height).fill(0.1),
+    geographySeed: 55,
+    options,
+  }
+
+  const westWind = simulateSeasonalHydrology({ ...shared, prevailingWindDegrees: 270 })
+  const eastWind = simulateSeasonalHydrology({ ...shared, prevailingWindDegrees: 90 })
+
+  assert.ok(westWind.effectiveRunoff.some((value) => value > 0))
+
+  const westWindEast = columnRunoffSum(westWind.effectiveRunoff, scenario.width, scenario.height, 7)
+  const westWindWest = columnRunoffSum(westWind.effectiveRunoff, scenario.width, scenario.height, 3)
+  const eastWindEast = columnRunoffSum(eastWind.effectiveRunoff, scenario.width, scenario.height, 7)
+  const eastWindWest = columnRunoffSum(eastWind.effectiveRunoff, scenario.width, scenario.height, 3)
+
+  assert.ok(westWindEast > westWindWest)
+  assert.ok(eastWindWest > eastWindEast)
+})
+
 test('simulateSeasonalHydrology dry evaporation can keep endorheic lakes below spill', () => {
   const scenario = makeClosedBasinScenario(false)
   const options = resolveWorldGenerationOptions({

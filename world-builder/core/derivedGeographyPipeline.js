@@ -405,6 +405,7 @@ function runValidationStep(state) {
       lakeCount: 0,
     },
     riverNetworkMask: state.riverNetworkMask ?? undefined,
+    prevailingWindDegrees: state.prevailingWindDegrees,
     validationOptions: state.options,
   })
   return {

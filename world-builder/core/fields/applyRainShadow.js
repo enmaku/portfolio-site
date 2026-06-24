@@ -1,5 +1,9 @@
+import { applyOrographicMoisture } from './applyOrographicMoisture.js'
+
 /**
- * Reduce rainfall leeward of upwind high terrain (simple rain shadow).
+ * Reduce rainfall leeward of upwind high terrain (legacy leeward-only rain shadow).
+ * Retained as a thin wrapper over {@link applyOrographicMoisture} with windward lift
+ * disabled, for callers that want the historical drying-only behavior.
  * @param {Object} params
  * @param {Float32Array} params.rainfall
  * @param {Float32Array} params.elevation
@@ -17,38 +21,13 @@ export function applyRainShadow({
   prevailingWindDegrees,
   rainShadowStrength = 1,
 }) {
-  const out = new Float32Array(rainfall)
-  const radians = (prevailingWindDegrees * Math.PI) / 180
-  const upwindX = Math.sin(radians)
-  const upwindY = -Math.cos(radians)
-  const sampleSteps = 6
-  const stepSize = Math.max(1, Math.round(width / 256))
-
-  for (let y = 1; y < height - 1; y += 1) {
-    for (let x = 1; x < width - 1; x += 1) {
-      const idx = y * width + x
-      const cellElevation = elevation[idx]
-      let maxUpwindElevation = cellElevation
-
-      for (let step = 1; step <= sampleSteps; step += 1) {
-        const sampleX = Math.round(x + upwindX * step * stepSize)
-        const sampleY = Math.round(y + upwindY * step * stepSize)
-        if (sampleX < 0 || sampleY < 0 || sampleX >= width || sampleY >= height) {
-          continue
-        }
-        const sampleIdx = sampleY * width + sampleX
-        if (elevation[sampleIdx] > maxUpwindElevation) {
-          maxUpwindElevation = elevation[sampleIdx]
-        }
-      }
-
-      const uplift = maxUpwindElevation - cellElevation
-      if (uplift > 0.08) {
-        const shadowStrength = Math.min(1, uplift * 2.2)
-        out[idx] = rainfall[idx] * (1 - shadowStrength * 0.75 * rainShadowStrength)
-      }
-    }
-  }
-
-  return out
+  return applyOrographicMoisture({
+    rainfall,
+    elevation,
+    width,
+    height,
+    prevailingWindDegrees,
+    rainShadowStrength,
+    liftStrength: 0,
+  })
 }

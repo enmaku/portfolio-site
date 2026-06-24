@@ -7,6 +7,10 @@ import {
 } from '../types.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
 import { computeHydrologyMetrics } from './computeHydrologyMetrics.js'
+import { computeWindRainfallAsymmetry } from './computeWindRainfallAsymmetry.js'
+
+/** Minimum normalized windward/leeward rainfall gap before wind coupling reads as active. */
+const MIN_WIND_RAINFALL_ASYMMETRY = 0.03
 
 /**
  * @typedef {import('../types.js').WorldGenerationOptions} GeographyValidationOptions
@@ -22,6 +26,7 @@ import { computeHydrologyMetrics } from './computeHydrologyMetrics.js'
  * @param {number} slice.gridHeight
  * @param {import('../types.js').HydrologyPipelineStats} [slice.hydrologyStats]
  * @param {import('./computeHydrologyMetrics.js').HydrologyMetrics} [slice.hydrologyMetrics]
+ * @param {number} [slice.prevailingWindDegrees]
  * @param {GeographyValidationOptions} [slice.validationOptions]
  * @returns {import('../types.js').ValidationRow[]}
  */
@@ -41,6 +46,7 @@ export function runGeographyValidationChecks(slice) {
       lakeCount: 0,
     },
     hydrologyMetrics,
+    prevailingWindDegrees = 0,
     validationOptions = DEFAULT_WORLD_GENERATION_OPTIONS,
   } = slice
   const cellCount = gridWidth * gridHeight
@@ -163,6 +169,27 @@ export function runGeographyValidationChecks(slice) {
       biomeSet.size >= MIN_BIOME_DIVERSITY
         ? undefined
         : { x: gridWidth / 2, y: gridHeight / 2, zoom: 1 },
+  })
+
+  const windAsymmetry = computeWindRainfallAsymmetry({
+    rainfall: fields.rainfall,
+    elevation: fields.elevation,
+    width: gridWidth,
+    height: gridHeight,
+    prevailingWindDegrees,
+  })
+  const windAsymmetryActive =
+    windAsymmetry.highlandCellCount > 0 &&
+    windAsymmetry.asymmetry >= MIN_WIND_RAINFALL_ASYMMETRY
+  rows.push({
+    checkId: 'windRainfallAsymmetry',
+    status: windAsymmetryActive ? 'pass' : 'warn',
+    summary:
+      windAsymmetry.highlandCellCount === 0
+        ? 'Wind rainfall asymmetry unavailable (no highland cells)'
+        : windAsymmetryActive
+          ? `Wind rainfall asymmetry: ${(windAsymmetry.asymmetry * 100).toFixed(1)}% windward-leeward gap`
+          : `Flat wind rainfall response: ${(windAsymmetry.asymmetry * 100).toFixed(1)}% gap`,
   })
 
   const mismatch = findResourceMismatchZone(biomes, fields, gridWidth, gridHeight)

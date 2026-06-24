@@ -167,6 +167,17 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         testId: 'world-builder-control-rain-shadow',
       },
       {
+        key: 'moistureAdvectionStrength',
+        label: 'Ocean moisture transport',
+        tooltip:
+          'How strongly prevailing wind carries ocean moisture inland. Higher values soak windward coasts and dry deep interiors; zero leaves rainfall driven only by the base climate field.',
+        kind: 'slider',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        testId: 'world-builder-control-moisture-advection',
+      },
+      {
         key: 'rainfallAmountScale',
         label: 'Rainfall amount',
         tooltip:
@@ -549,6 +560,9 @@ export function formatGenerationControlValue(key, value) {
     return 'Off'
   }
   if (key === 'elevationDomainWarpStrength' && value <= 0) {
+    return 'Off'
+  }
+  if (key === 'moistureAdvectionStrength' && value <= 0) {
     return 'Off'
   }
   if (key === 'elevationCoastBiasStrength' && value <= 0) {

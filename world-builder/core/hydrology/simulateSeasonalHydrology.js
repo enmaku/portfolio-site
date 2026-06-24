@@ -10,6 +10,10 @@ import {
   getBankCrumbleOutletIdxs,
   pickLowestBankCrumbleOutletIdx,
 } from './lakeBankCrumble.js'
+import {
+  computeSnowWindAccumFactor,
+  snowMeltOutletCell,
+} from './snowWindEffects.js'
 
 const FILL_EPSILON = 1e-5
 /** Converts accumulated runoff flow units into normalized elevation depth. */
@@ -40,6 +44,7 @@ const RUNOFF_TO_DEPTH = 0.0004
  * @param {number} params.width
  * @param {number} params.height
  * @param {number} params.geographySeed
+ * @param {number} [params.prevailingWindDegrees]
  * @param {import('../types.js').WorldGenerationOptions} params.options
  * @returns {{
  *   filledElevation: Float32Array,
@@ -66,6 +71,7 @@ export function simulateSeasonalHydrology({
   width,
   height,
   geographySeed,
+  prevailingWindDegrees = 0,
   options,
 }) {
   const cellCount = width * height
@@ -75,6 +81,13 @@ export function simulateSeasonalHydrology({
   const effectiveRunoff = new Float32Array(cellCount)
   const overflowLakeIds = new Set()
   const snowPackByLake = new Float64Array(lakes.length)
+  const snowPackByCell = new Float32Array(cellCount)
+  const windAccumFactor = computeSnowWindAccumFactor({
+    snowCapMask,
+    width,
+    height,
+    prevailingWindDegrees,
+  })
   const waterLevelByLake = new Float64Array(lakes.length)
 
   for (let lakeId = 0; lakeId < lakes.length; lakeId += 1) {
@@ -134,9 +147,13 @@ export function simulateSeasonalHydrology({
           baseRainfall: rainfall,
           snowCapMask,
           ocean,
+          windAccumFactor,
           options,
           yearMult,
         })
+        for (let i = 0; i < cellCount; i += 1) {
+          if (snowAccum[i] > 0) snowPackByCell[i] += snowAccum[i]
+        }
         for (let lakeId = 0; lakeId < lakes.length; lakeId += 1) {
           const cells = catchmentCellsByLake[lakeId] ?? []
           let pack = 0
@@ -147,6 +164,20 @@ export function simulateSeasonalHydrology({
           updatedMeta[lakeId].snowPack = snowPackByLake[lakeId]
         }
         continue
+      }
+
+      if (season === 'melt') {
+        releaseLandSnowMelt({
+          snowPackByCell,
+          effectiveRunoff,
+          seasonalRunoff,
+          elevation,
+          snowCapMask,
+          width,
+          height,
+          meltReleaseScale: options.meltReleaseScale,
+          yearMult,
+        })
       }
 
       for (let lakeId = 0; lakeId < lakes.length; lakeId += 1) {
@@ -237,6 +268,48 @@ export function simulateSeasonalHydrology({
       meanLakeLevelDelta: lakesWithMeta > 0 ? totalLevelDelta / lakesWithMeta : 0,
       bankCrumbleCount,
     },
+  }
+}
+
+/**
+ * Release per-cell snow pack into the peak runoff field at each cap cell's
+ * steepest downhill exit. Wind bias enters through how the pack accumulated, so
+ * flipping the wind shifts which cap edges feed the strongest melt outlets.
+ * @param {Object} params
+ * @param {Float32Array} params.snowPackByCell
+ * @param {Float32Array} params.effectiveRunoff
+ * @param {Float32Array} params.seasonalRunoff
+ * @param {Float32Array} params.elevation
+ * @param {Uint8Array} params.snowCapMask
+ * @param {number} params.width
+ * @param {number} params.height
+ * @param {number} params.meltReleaseScale
+ * @param {number} params.yearMult
+ */
+function releaseLandSnowMelt({
+  snowPackByCell,
+  effectiveRunoff,
+  seasonalRunoff,
+  elevation,
+  snowCapMask,
+  width,
+  height,
+  meltReleaseScale,
+  yearMult,
+}) {
+  for (let i = 0; i < snowPackByCell.length; i += 1) {
+    const pack = snowPackByCell[i]
+    if (pack <= 0) continue
+
+    const meltFlow = pack * meltReleaseScale * yearMult
+    const x = i % width
+    const y = Math.floor(i / width)
+    const outletIdx = snowMeltOutletCell(elevation, snowCapMask, width, height, x, y)
+    const target = seasonalRunoff[outletIdx] + meltFlow
+    if (target > effectiveRunoff[outletIdx]) {
+      effectiveRunoff[outletIdx] = target
+    }
+    snowPackByCell[i] = Math.max(0, pack - meltFlow)
   }
 }
 

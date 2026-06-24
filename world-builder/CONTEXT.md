@@ -50,15 +50,15 @@ _Avoid_: “Biome map” as the first artifact; discrete biome picker without su
 
 ### Rain shadow
 
-Leeward drying behind high terrain: prevailing moisture loses rainfall across uplift, producing dry belts on the far side of ranges. Part of rainfall **scalar field** generation—not a separate **biome** label painted by hand.
+The two-sided way terrain reshapes rainfall along the **prevailing wind**: windward flanks facing the wind gain rainfall as air is forced to rise, while leeward slopes behind high terrain dry into belts on the far side of ranges. Part of rainfall **scalar field** generation—not a separate **biome** label painted by hand.
 
-_Avoid_: “Desert biome slider”; rain shadow as a post-hoc biome override without elevation input.
+_Avoid_: “Desert biome slider”; rain shadow as leeward-only drying with no windward enhancement; rain shadow as a post-hoc biome override without elevation input.
 
 ### Prevailing wind
 
-Direction moisture crosses the **landmass** before **rain shadow** drying; one bearing per generation (often derived from **geography seed**, overridable in UI). Drives leeward dry belts—not a permanent **climate** simulation.
+Direction moisture crosses the **landmass**; one bearing per generation (often derived from **geography seed**, overridable in UI). Carries ocean moisture inland—soaking windward coasts and drying deep interiors—then drives the bidirectional **rain shadow** (wet windward flanks, dry leeward belts) and biases where wind-blown snow accumulates and melts on highland caps. A stylized transport pass, not a permanent **climate** simulation.
 
-_Avoid_: “Wind biome”; conflating with storm **natural threat** events.
+_Avoid_: “Wind biome”; treating wind as a cosmetic bearing with no effect on rainfall or snow; conflating with storm **natural threat** events.
 
 ### Salinity
 
