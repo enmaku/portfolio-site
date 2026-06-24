@@ -1,71 +1,58 @@
 <template>
   <q-page class="world-builder-page column fit no-wrap">
-    <div class="row items-center q-gutter-md q-pa-sm controls-row">
-      <div class="text-h6 controls-row__title">World Builder</div>
-      <q-space />
-      <q-btn
-        data-testid="world-builder-regenerate"
-        color="primary"
-        label="Regenerate"
-        :loading="isGenerating"
-        @click="regenerate"
-      />
-    </div>
     <div
       v-if="showGenerationProgress || showResourceOverlayBar"
       data-testid="world-builder-status-bar"
       class="generation-progress"
     >
       <q-separator />
-      <div class="q-px-sm q-pb-sm">
+      <div class="q-px-sm status-bar-content">
         <div
           v-if="showGenerationProgress"
           data-testid="world-builder-generation-progress"
+          class="status-bar-panel status-bar-panel--generation"
         >
-        <q-linear-progress
-          :value="generationProgress.percent / 100"
-          color="primary"
-          track-color="grey-9"
-          rounded
-        />
-        <div class="row q-gutter-xs q-mt-xs generation-step-row">
-          <template
-            v-for="step in generationStepStatuses"
-            :key="step.id"
-          >
-            <q-chip
-              dense
-              :data-testid="`world-builder-generation-step-${step.id}`"
-              :color="stepStatusColor(step.status)"
-              text-color="white"
-              :outline="step.status === 'pending'"
-            >
-              {{ step.label }}
-            </q-chip>
-            <div
-              v-if="step.id === 'hydrology' && step.status === 'active'"
-              class="row q-gutter-xs items-center hydrology-substep-row"
+          <q-linear-progress
+            :value="generationProgress.percent / 100"
+            color="primary"
+            track-color="grey-9"
+            rounded
+          />
+          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
+            <template
+              v-for="step in generationStepStatuses"
+              :key="step.id"
             >
               <q-chip
-                v-for="substep in hydrologySubstepStatuses"
-                :key="substep.id"
                 dense
-                :data-testid="`world-builder-hydrology-substep-${substep.id}`"
-                :color="stepStatusColor(substep.status)"
+                :data-testid="`world-builder-generation-step-${step.id}`"
+                :color="stepStatusColor(step.status)"
                 text-color="white"
-                :outline="substep.status === 'pending'"
-                size="sm"
+                :outline="step.status === 'pending'"
               >
-                {{ substep.label }}
+                {{ step.label }}
               </q-chip>
-            </div>
-          </template>
-        </div>
+              <template v-if="step.id === 'hydrology' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in hydrologySubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-hydrology-substep-${substep.id}`"
+                  :color="stepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
+            </template>
+          </div>
         </div>
         <div
           v-else-if="showResourceOverlayBar"
           data-testid="world-builder-resource-overlay-bar"
-          class="row q-gutter-sm items-center justify-center resource-overlay-row"
+          class="status-bar-panel status-bar-panel--overlays resource-overlay-row"
         >
           <q-checkbox
             v-for="overlay in resourceOverlayDefinitions"
@@ -78,7 +65,7 @@
           />
         </div>
       </div>
-      <q-separator v-if="showResourceOverlayBar" />
+      <q-separator />
     </div>
     <div class="row col map-row">
       <aside
@@ -202,6 +189,18 @@
               </div>
             </q-expansion-item>
           </q-list>
+        </div>
+        <div class="generation-controls-footer">
+          <q-btn
+            data-testid="world-builder-regenerate"
+            class="generation-controls-footer__btn"
+            color="primary"
+            label="Regenerate"
+            unelevated
+            square
+            :loading="isGenerating"
+            @click="regenerate"
+          />
         </div>
       </aside>
       <div
@@ -691,29 +690,43 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.controls-row {
-  flex: 0 0 auto;
-  position: relative;
-}
-
-.controls-row__title {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
 .generation-progress {
   flex: 0 0 auto;
 }
 
-.generation-step-row {
-  overflow-x: auto;
+.status-bar-content {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  flex: 0 0 40px;
+  overflow: hidden;
 }
 
-.hydrology-substep-row {
-  flex: 0 0 100%;
-  padding-left: 0.5rem;
+.status-bar-panel {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.status-bar-panel--generation {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.status-bar-panel--overlays {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow-x: hidden;
+}
+
+.generation-step-row {
+  overflow-x: hidden;
+  height: 28px;
+  flex: 0 0 28px;
 }
 
 .map-row {
@@ -748,6 +761,20 @@ onUnmounted(() => {
 .generation-controls-panel {
   width: 300px;
   border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.generation-controls-footer {
+  flex: 0 0 48px;
+  height: 48px;
+  padding: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.generation-controls-footer__btn {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 0;
 }
 
 .generation-report-panel {
