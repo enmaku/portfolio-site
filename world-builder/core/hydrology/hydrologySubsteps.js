@@ -726,7 +726,7 @@ function buildPipelineStateFromHydrologyContext(ctx) {
       lakeMask: ctx.lakeMask,
       riverCorridorMask: ctx.riverCorridorMask,
       flowDirection: ctx.settledFlowDirection,
-    }, state.options.seaLevel),
+    }, state.options.seaLevel, state.geographySeed, state.options.biomeEdgeNoiseStrength),
     lastCompletedStep: 'hydrology',
   }
 }

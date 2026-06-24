@@ -18,14 +18,6 @@
         @click="regenerate"
       />
       <q-btn
-        data-testid="world-builder-generation-replay"
-        flat
-        color="primary"
-        label="Replay erosion"
-        :disable="!canReplay"
-        @click="replayErosion"
-      />
-      <q-btn
         flat
         round
         dense
@@ -130,41 +122,43 @@
           >
             Reset to defaults
           </q-btn>
-          <q-expansion-item
-            v-for="section in controlSections"
-            :key="section.section"
-            :label="section.section"
+          <q-list
             dense
-            header-class="text-caption text-weight-medium"
+            class="generation-controls-sections"
           >
-            <div
-              v-for="control in section.controls"
-              :key="control.key"
-              class="q-mb-md"
+            <q-expansion-item
+              v-for="section in controlSections"
+              :key="section.section"
+              :label="section.section"
+              dense
+              header-class="text-caption text-weight-medium"
             >
-              <div class="row items-center no-wrap q-gutter-xs q-mb-xs">
-                <span class="text-caption">
-                  {{ control.label }}:
-                  {{ formatControlValue(control.key, controlValue(control.key)) }}
-                </span>
-                <WorldBuilderSettingHelp
-                  :text="control.tooltip"
-                  :label="control.label"
-                />
-              </div>
-              <q-toggle
-                v-if="control.kind === 'toggle'"
-                :model-value="Boolean(controlValue(control.key))"
-                :data-testid="control.testId"
-                color="primary"
-                @update:model-value="onToggleChange(control.key, $event)"
-              />
               <div
-                v-else
-                class="row items-center no-wrap q-gutter-xs"
+                v-for="control in section.controls"
+                :key="control.key"
+                class="generation-control q-mb-md"
               >
+                <div class="row items-center no-wrap q-gutter-xs q-mb-xs">
+                  <span class="text-caption">
+                    {{ control.label }}:
+                    {{ formatControlValue(control.key, controlValue(control.key)) }}
+                  </span>
+                  <WorldBuilderSettingHelp
+                    :text="control.tooltip"
+                    :label="control.label"
+                  />
+                </div>
+                <q-toggle
+                  v-if="control.kind === 'toggle'"
+                  :model-value="Boolean(controlValue(control.key))"
+                  :data-testid="control.testId"
+                  color="primary"
+                  @update:model-value="onToggleChange(control.key, $event)"
+                />
                 <q-slider
-                  class="col"
+                  v-else-if="control.key !== 'prevailingWindDegrees'"
+                  class="generation-control__slider full-width"
+                  dense
                   :model-value="controlValue(control.key)"
                   :data-testid="control.testId"
                   :min="control.min"
@@ -175,14 +169,31 @@
                   @update:model-value="onSliderInput(control.key, $event)"
                   @change="onSliderCommit(control.key, $event)"
                 />
-                <PrevailingWindArrow
-                  v-if="control.key === 'prevailingWindDegrees'"
-                  data-testid="world-builder-wind-arrow"
-                  :degrees="controlValue(control.key)"
-                />
+                <div
+                  v-else
+                  class="row items-center no-wrap q-gutter-xs"
+                >
+                  <q-slider
+                    class="col generation-control__slider"
+                    dense
+                    :model-value="controlValue(control.key)"
+                    :data-testid="control.testId"
+                    :min="control.min"
+                    :max="control.max"
+                    :step="control.step"
+                    label
+                    color="primary"
+                    @update:model-value="onSliderInput(control.key, $event)"
+                    @change="onSliderCommit(control.key, $event)"
+                  />
+                  <PrevailingWindArrow
+                    data-testid="world-builder-wind-arrow"
+                    :degrees="controlValue(control.key)"
+                  />
+                </div>
               </div>
-            </div>
-          </q-expansion-item>
+            </q-expansion-item>
+          </q-list>
         </div>
       </aside>
       <div
@@ -368,7 +379,6 @@ const stageSummary = computed(() =>
 const hydrologyStats = computed(() =>
   createHydrologyStatsForDisplay(worldDocument.value?.generationReport),
 )
-const canReplay = computed(() => (worldDocument.value?.erosionSnapshots?.length ?? 0) > 0)
 const generationStepStatuses = computed(() =>
   createGenerationStepStatuses(
     DERIVED_GEOGRAPHY_STEPS,
@@ -580,11 +590,6 @@ function regenerate() {
   )
 }
 
-function replayErosion() {
-  if (!mapViewport || !worldDocument.value?.erosionSnapshots?.length) return
-  mapViewport.playErosionSnapshots(worldDocument.value.erosionSnapshots, worldDocument.value)
-}
-
 /**
  * @param {{ mapFocus?: import('@world-builder/core/types.js').MapFocus }} row
  */
@@ -693,5 +698,17 @@ onUnmounted(() => {
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
+}
+
+.generation-controls-sections :deep(.q-expansion-item__content) {
+  padding: 0 16px 4px;
+}
+
+.generation-control {
+  padding-left: 8px;
+}
+
+.generation-control__slider {
+  padding: 0 4px;
 }
 </style>

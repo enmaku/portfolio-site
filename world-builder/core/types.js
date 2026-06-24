@@ -202,6 +202,7 @@
  * @property {number} rainShadowStrength
  * @property {number} moistureAdvectionStrength
  * @property {number} rainfallAmountScale
+ * @property {number} biomeEdgeNoiseStrength
  * @property {number} temperatureLapseRate
  * @property {number} rainfallFrequencyScale
  * @property {number} navigableFlowCutoffScale

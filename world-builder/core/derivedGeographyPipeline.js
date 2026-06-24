@@ -161,6 +161,8 @@ export function buildWorldDocumentFromPipelineState(state) {
       width,
       height,
       state.options.seaLevel,
+      geographySeed,
+      state.options.biomeEdgeNoiseStrength,
     )
 
   const isComplete = state.lastCompletedStep === 'validation'
@@ -272,7 +274,14 @@ function runErosionStep(state) {
     erosionStepCount: stepCount,
     workingElevation: erodedElevation,
     fields: previewFields,
-    biomes: classifyBiomesFromFields(previewFields, state.width, state.height, state.options.seaLevel),
+    biomes: classifyBiomesFromFields(
+      previewFields,
+      state.width,
+      state.height,
+      state.options.seaLevel,
+      state.geographySeed,
+      state.options.biomeEdgeNoiseStrength,
+    ),
     lastCompletedStep: 'erosion',
   }
 }
@@ -331,7 +340,7 @@ function runFieldRefreshStep(state) {
     lakeMask: state.lakeMask,
     riverCorridorMask: state.riverCorridorMask ?? state.riverNetworkMask,
     flowDirection: state.flowDirection,
-  }, state.options.seaLevel)
+  }, state.options.seaLevel, state.geographySeed, state.options.biomeEdgeNoiseStrength)
   return {
     ...state,
     fields,

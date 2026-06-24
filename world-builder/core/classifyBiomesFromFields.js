@@ -1,3 +1,4 @@
+import { generateBiomeEdgeNoiseOffsets } from './biomeEdgeNoise.js'
 import { BIOMES, SEA_LEVEL, SNOW_CAP_ELEVATION_MIN, SNOW_CAP_TEMPERATURE_MAX } from './biomeIds.js'
 
 /**
@@ -83,20 +84,46 @@ export function classifyBiomeFromSample(sample, seaLevel = SEA_LEVEL) {
  * @param {number} width
  * @param {number} height
  * @param {number} [seaLevel]
+ * @param {number} [geographySeed] when set, applies seeded fractal noise to roughen inland biome edges
+ * @param {number} [biomeEdgeNoiseStrength] scales inland edge noise; 0 disables
  * @returns {Uint8Array}
  */
-export function classifyBiomesFromFields(fields, width, height, seaLevel = SEA_LEVEL) {
+export function classifyBiomesFromFields(
+  fields,
+  width,
+  height,
+  seaLevel = SEA_LEVEL,
+  geographySeed,
+  biomeEdgeNoiseStrength = 1,
+) {
   const { elevation, temperature, rainfall, drainage, salidity } = fields
   const biomes = new Uint8Array(width * height)
+  const edgeNoise =
+    geographySeed == null
+      ? null
+      : generateBiomeEdgeNoiseOffsets(geographySeed, width, height, biomeEdgeNoiseStrength)
 
   for (let i = 0; i < biomes.length; i += 1) {
+    const sample = {
+      elevation: elevation[i],
+      temperature: temperature[i],
+      rainfall: rainfall[i],
+      drainage: drainage[i],
+      salidity: salidity[i],
+    }
+    const baseBiome = classifyBiomeFromSample(sample, seaLevel)
+
+    if (!edgeNoise || baseBiome === BIOMES.OCEAN || baseBiome === BIOMES.COAST) {
+      biomes[i] = baseBiome
+      continue
+    }
+
     biomes[i] = classifyBiomeFromSample(
       {
-        elevation: elevation[i],
-        temperature: temperature[i],
-        rainfall: rainfall[i],
-        drainage: drainage[i],
-        salidity: salidity[i],
+        ...sample,
+        temperature: temperature[i] + edgeNoise.temperature[i],
+        rainfall: rainfall[i] + edgeNoise.rainfall[i],
+        drainage: drainage[i] + edgeNoise.drainage[i],
       },
       seaLevel,
     )
@@ -121,10 +148,27 @@ export function classifyBiomesFromFields(fields, width, height, seaLevel = SEA_L
  * @param {Float32Array} [hydrology.channelWidth]
  * @param {Int16Array} hydrology.flowDirection
  * @param {number} [seaLevel]
+ * @param {number} [geographySeed]
+ * @param {number} [biomeEdgeNoiseStrength]
  * @returns {Uint8Array}
  */
-export function classifyBiomesWithHydrology(fields, width, height, hydrology, seaLevel = SEA_LEVEL) {
-  const biomes = classifyBiomesFromFields(fields, width, height, seaLevel)
+export function classifyBiomesWithHydrology(
+  fields,
+  width,
+  height,
+  hydrology,
+  seaLevel = SEA_LEVEL,
+  geographySeed,
+  biomeEdgeNoiseStrength = 1,
+) {
+  const biomes = classifyBiomesFromFields(
+    fields,
+    width,
+    height,
+    seaLevel,
+    geographySeed,
+    biomeEdgeNoiseStrength,
+  )
   const { lakeMask, riverCorridorMask } = hydrology
 
   for (let i = 0; i < biomes.length; i += 1) {

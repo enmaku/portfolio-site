@@ -60,6 +60,12 @@ test('resolveWorldGenerationOptions merges enableMeanderRefine override', () => 
 test('resolveWorldGenerationOptions preserves rainfall amount default', () => {
   const options = resolveWorldGenerationOptions()
   assert.strictEqual(options.rainfallAmountScale, 1.4)
+  assert.strictEqual(options.biomeEdgeNoiseStrength, 1)
+})
+
+test('resolveWorldGenerationOptions merges biomeEdgeNoiseStrength override', () => {
+  const options = resolveWorldGenerationOptions({ biomeEdgeNoiseStrength: 0.25 })
+  assert.strictEqual(options.biomeEdgeNoiseStrength, 0.25)
 })
 
 test('resolveWorldGenerationOptions merges rainfallAmountScale override', () => {

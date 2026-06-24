@@ -36,7 +36,14 @@ export function generatePhysicalTerrainBaseline(params) {
   const salidity = deriveSalidityFromOcean({ elevation, width, height })
 
   const fields = { elevation, temperature, rainfall, drainage, salidity }
-  const biomes = classifyBiomesFromFields(fields, width, height, options.seaLevel)
+  const biomes = classifyBiomesFromFields(
+    fields,
+    width,
+    height,
+    options.seaLevel,
+    geographySeed,
+    options.biomeEdgeNoiseStrength,
+  )
 
   return {
     geographySeed: geographySeed >= 0 ? geographySeed : geographySeed + 4294967296,

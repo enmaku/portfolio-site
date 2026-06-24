@@ -77,7 +77,6 @@ test('world builder page wires derived pipeline, lazy renderer, and control test
   assert.strictEqual(page.includes('onSeedCommit'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-regenerate"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-generation-report"'), true)
-  assert.strictEqual(page.includes('data-testid="world-builder-generation-replay"'), true)
   assert.strictEqual(page.includes('data-testid="world-builder-generation-progress"'), true)
   assert.match(page, /world-builder-generation-step-\$\{step\.id\}/)
   assert.match(page, /world-builder-hydrology-substep-\$\{substep\.id\}/)

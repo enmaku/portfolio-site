@@ -213,6 +213,22 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
     ],
   },
   {
+    section: 'Biomes',
+    controls: [
+      {
+        key: 'biomeEdgeNoiseStrength',
+        label: 'Biome edge roughness',
+        tooltip:
+          'Fractal variation along inland biome boundaries so forests, deserts, and grasslands do not meet in perfectly smooth lines. Zero keeps crisp climate thresholds; higher values add more jagged transitions. Ocean and coast are unaffected.',
+        kind: 'slider',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        testId: 'world-builder-control-biome-edge-noise',
+      },
+    ],
+  },
+  {
     section: 'Seasonal hydrology',
     controls: [
       {

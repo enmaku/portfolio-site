@@ -31,6 +31,8 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   rainShadowStrength: 1,
   moistureAdvectionStrength: 0.65,
   rainfallAmountScale: 1.4,
+  /** 0–1 strength of seeded fractal noise on inland biome boundaries. */
+  biomeEdgeNoiseStrength: 1,
   temperatureLapseRate: 0.5,
   rainfallFrequencyScale: 1.35,
   navigableFlowCutoffScale: 0.6,
