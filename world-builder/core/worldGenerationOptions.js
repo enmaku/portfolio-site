@@ -50,6 +50,8 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   soilDrainageScale: 1.6,
   maxSaltNodes: 12,
   maxMetalNodes: 12,
+  /** Cells below this arable score are treated as non-arable (0). */
+  arableMinimumProductivity: 0.25,
   /**
    * Breach a closed basin when spill depth divided by basin depth is at or below
    * this ratio (Lindsay-style hybrid breach-and-fill). Higher values breach more

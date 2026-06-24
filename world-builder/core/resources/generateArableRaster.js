@@ -16,6 +16,7 @@ import { deriveFieldSeed, createSeededRandom } from '../noise/seededRandom.js'
  * @param {number} params.height
  * @param {number} params.geographySeed
  * @param {number} params.seaLevel
+ * @param {number} [params.minimumProductivity]
  * @returns {Float32Array}
  */
 export function generateArableRaster({
@@ -31,6 +32,7 @@ export function generateArableRaster({
   height,
   geographySeed,
   seaLevel,
+  minimumProductivity = 0,
 }) {
   const random = createSeededRandom(deriveFieldSeed(geographySeed, 'arable-raster'))
   const raster = new Float32Array(width * height)

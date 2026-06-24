@@ -12,6 +12,7 @@ import { buildArableOverlayCanvas } from './buildArableOverlayCanvas.js'
 import { buildMetalsOverlayCanvas } from './buildMetalsOverlayCanvas.js'
 import { buildTimberOverlayCanvas } from './buildTimberOverlayCanvas.js'
 import { createResourceOverlayIds } from '../worldBuilderPageModel.js'
+import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../worldBuilderOverlayControls.js'
 
 /** Black for discrete metal mine markers (matches metals raster hue). */
 export const METAL_NODE_OVERLAY_COLOR = 0x000000
@@ -59,6 +60,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   let riverTexture = null
   const overlay = new Graphics()
   let resourceOverlayVisibility = createDefaultResourceOverlayVisibility(createResourceOverlayIds())
+  let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
   /** @type {import('../core/types.js').WorldDocument} */
   let currentWorldDocument = worldDocument
 
@@ -127,7 +129,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
    * @param {Record<string, boolean>} visibility
    */
   function refreshArableOverlay(doc, visibility) {
-    const nextCanvas = buildArableOverlayCanvas(doc)
+    const nextCanvas = buildArableOverlayCanvas(doc, {
+      minimumProductivity: arableMinimumProductivity,
+    })
     arableTexture?.destroy(true)
     arableTexture = null
 
@@ -302,6 +306,12 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         refreshMetalsOverlay(currentWorldDocument, resourceOverlayVisibility)
       }
       drawOverlays(overlay, currentWorldDocument, resourceOverlayVisibility)
+    },
+
+    /** @param {number} minimumProductivity */
+    setArableOverlayMinimumProductivity(minimumProductivity) {
+      arableMinimumProductivity = Math.max(0, Math.min(1, minimumProductivity))
+      refreshArableOverlay(currentWorldDocument, resourceOverlayVisibility)
     },
 
     destroy() {

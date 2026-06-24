@@ -227,6 +227,7 @@
  * @property {number} soilDrainageScale
  * @property {number} maxSaltNodes
  * @property {number} maxMetalNodes
+ * @property {number} arableMinimumProductivity
  * @property {number} breachThreshold
  * @property {boolean} enforceNavigableRiverQuota
  * @property {boolean} enforceCoastMouth

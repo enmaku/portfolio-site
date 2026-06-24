@@ -9,6 +9,7 @@ import {
   normalizeWindDegrees,
   parseGeographySeedInput,
 } from '@world-builder/worldBuilderPageModel.js'
+import { createDefaultOverlayDisplaySettings } from '@world-builder/worldBuilderOverlayControls.js'
 
 /**
  * @param {unknown} value
@@ -39,15 +40,20 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
     geographySeed: null,
     prevailingWindDegrees: 0,
     generationOptions: createDefaultGenerationOptions(),
+    overlayDisplaySettings: createDefaultOverlayDisplaySettings(),
   }),
 
   persist: {
     key: 'portfolio-world-builder-settings',
-    pick: ['geographySeed', 'prevailingWindDegrees', 'generationOptions'],
+    pick: ['geographySeed', 'prevailingWindDegrees', 'generationOptions', 'overlayDisplaySettings'],
     afterHydrate: ({ store }) => {
       store.geographySeed = parseStoredGeographySeed(store.geographySeed)
       store.prevailingWindDegrees = normalizeWindDegrees(store.prevailingWindDegrees)
       store.generationOptions = resolveWorldGenerationOptions(store.generationOptions)
+      store.overlayDisplaySettings = {
+        ...createDefaultOverlayDisplaySettings(),
+        ...store.overlayDisplaySettings,
+      }
       ensureGeographySeedInitialized(store)
     },
   },
@@ -78,11 +84,19 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
       }
     },
 
+    setOverlayDisplaySetting(key, value) {
+      this.overlayDisplaySettings = {
+        ...this.overlayDisplaySettings,
+        [key]: value,
+      }
+    },
+
     resetToDefaults() {
       ensureGeographySeedInitialized(this)
       const defaults = createDefaultGenerationSettings(this.geographySeed)
       this.prevailingWindDegrees = defaults.prevailingWindDegrees
       this.generationOptions = defaults.generationOptions
+      this.overlayDisplaySettings = createDefaultOverlayDisplaySettings()
     },
   },
 })

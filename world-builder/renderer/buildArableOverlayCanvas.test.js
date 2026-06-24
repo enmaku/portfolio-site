@@ -49,6 +49,20 @@ test('buildArableOverlayRgba encodes arable strength as alpha via shared raster 
   )
 })
 
+test('buildArableOverlayRgba omits cells below minimumProductivity', () => {
+  const rgba = buildArableOverlayRgba(createArableFixture(), { minimumProductivity: 0.25 })
+  assert.ok(rgba)
+  assert.strictEqual(rgba[5 * 4 + 3] > 0, true)
+  assert.strictEqual(rgba[6 * 4 + 3], 0)
+})
+
+test('buildArableOverlayRgba returns null when minimumProductivity filters all signal', () => {
+  assert.strictEqual(
+    buildArableOverlayRgba(createArableFixture(), { minimumProductivity: 0.9 }),
+    null,
+  )
+})
+
 test('buildArableOverlayCanvas returns sized canvas when raster has signal', () => {
   globalThis.ImageData = class {
     /**

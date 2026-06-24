@@ -38,9 +38,16 @@ export function resourceRasterHatchFactor(
  * @param {number} params.width
  * @param {number} params.height
  * @param {import('./resourceRasterOverlayStyles.js').ResourceRasterOverlayStyle} params.style
+ * @param {number} [params.minimumProductivity] cells below this productivity are omitted
  * @returns {Uint8ClampedArray | null}
  */
-export function buildResourceRasterOverlayRgba({ raster, width, height, style }) {
+export function buildResourceRasterOverlayRgba({
+  raster,
+  width,
+  height,
+  style,
+  minimumProductivity = 0,
+}) {
   const rgba = new Uint8ClampedArray(width * height * 4)
   const [red, green, blue] = style.rgb
   let hasPositive = false
@@ -49,7 +56,7 @@ export function buildResourceRasterOverlayRgba({ raster, width, height, style })
     for (let x = 0; x < width; x += 1) {
       const index = y * width + x
       const productivity = raster[index]
-      if (productivity <= 0) continue
+      if (productivity <= 0 || productivity < minimumProductivity) continue
 
       const hatchFactor = style.hatch ? resourceRasterHatchFactor(x, y) : 1
       const alpha = productivity * style.maxAlpha * hatchFactor
@@ -73,10 +80,23 @@ export function buildResourceRasterOverlayRgba({ raster, width, height, style })
  * @param {number} params.width
  * @param {number} params.height
  * @param {import('./resourceRasterOverlayStyles.js').ResourceRasterOverlayStyle} params.style
+ * @param {number} [params.minimumProductivity]
  * @returns {HTMLCanvasElement | null}
  */
-export function buildResourceRasterOverlayCanvas({ raster, width, height, style }) {
-  const rgba = buildResourceRasterOverlayRgba({ raster, width, height, style })
+export function buildResourceRasterOverlayCanvas({
+  raster,
+  width,
+  height,
+  style,
+  minimumProductivity = 0,
+}) {
+  const rgba = buildResourceRasterOverlayRgba({
+    raster,
+    width,
+    height,
+    style,
+    minimumProductivity,
+  })
   if (!rgba) {
     return null
   }

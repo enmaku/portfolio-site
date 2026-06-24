@@ -188,6 +188,40 @@
                 </div>
               </div>
             </q-expansion-item>
+            <q-expansion-item
+              label="Map overlays"
+              dense
+              header-class="text-caption text-weight-medium"
+            >
+              <div
+                v-for="control in overlayControlDefinitions"
+                :key="control.key"
+                class="generation-control q-mb-md"
+              >
+                <div class="row items-center no-wrap q-gutter-xs q-mb-xs">
+                  <span class="text-caption">
+                    {{ control.label }}:
+                    {{ formatOverlayControlValue(control.key, overlayDisplaySetting(control.key)) }}
+                  </span>
+                  <WorldBuilderSettingHelp
+                    :text="control.tooltip"
+                    :label="control.label"
+                  />
+                </div>
+                <q-slider
+                  class="generation-control__slider full-width"
+                  dense
+                  :model-value="overlayDisplaySetting(control.key)"
+                  :data-testid="control.testId"
+                  :min="control.min"
+                  :max="control.max"
+                  :step="control.step"
+                  label
+                  color="primary"
+                  @update:model-value="onOverlaySliderChange(control.key, $event)"
+                />
+              </div>
+            </q-expansion-item>
           </q-list>
         </div>
         <div class="generation-controls-footer">
@@ -319,6 +353,10 @@ import {
   formatGenerationControlValue,
 } from '@world-builder/worldBuilderGenerationControls.js'
 import {
+  WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS,
+  formatOverlayControlValue,
+} from '@world-builder/worldBuilderOverlayControls.js'
+import {
   buildDerivedGeographyParams,
   createDefaultResourceOverlayVisibility,
   createGenerationStepStatuses,
@@ -345,13 +383,14 @@ import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilder
 
 const $q = useQuasar()
 const settingsStore = useWorldBuilderSettingsStore()
-const { prevailingWindDegrees, generationOptions } = storeToRefs(settingsStore)
+const { prevailingWindDegrees, generationOptions, overlayDisplaySettings } = storeToRefs(settingsStore)
 
 const mapHostRef = ref(null)
 const seedInput = ref('0')
 const isGenerating = ref(false)
 const pipelineSucceeded = ref(false)
 const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
+const overlayControlDefinitions = WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS
 const resourceOverlayDefinitions = createResourceOverlayDefinitions()
 
 /** @type {import('vue').Ref<Record<string, boolean>>} */
@@ -443,12 +482,19 @@ function resetResourceOverlayVisibility() {
 }
 
 function syncResourceOverlayVisibilityToMapViewport() {
+  syncArableOverlayDisplaySettingsToMapViewport()
   for (const overlay of resourceOverlayDefinitions) {
     mapViewport?.setResourceOverlayVisibility(
       overlay.id,
       resourceOverlayVisibility.value[overlay.id] === true,
     )
   }
+}
+
+function syncArableOverlayDisplaySettingsToMapViewport() {
+  mapViewport?.setArableOverlayMinimumProductivity(
+    overlayDisplaySettings.value.arableMinimumProductivity,
+  )
 }
 
 /**
@@ -461,6 +507,22 @@ function onResourceOverlayToggle(resourceId, visible) {
     [resourceId]: visible,
   }
   mapViewport?.setResourceOverlayVisibility(resourceId, visible)
+}
+
+/**
+ * @param {'arableMinimumProductivity'} key
+ */
+function overlayDisplaySetting(key) {
+  return overlayDisplaySettings.value[key]
+}
+
+/**
+ * @param {'arableMinimumProductivity'} key
+ * @param {number} value
+ */
+function onOverlaySliderChange(key, value) {
+  settingsStore.setOverlayDisplaySetting(key, value)
+  syncArableOverlayDisplaySettingsToMapViewport()
 }
 
 /**
@@ -663,6 +725,7 @@ function randomizeSeed() {
 
 function resetToDefaults() {
   settingsStore.resetToDefaults()
+  syncArableOverlayDisplaySettingsToMapViewport()
   regenerate()
 }
 

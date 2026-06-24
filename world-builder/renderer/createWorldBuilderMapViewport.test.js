@@ -323,6 +323,30 @@ test(
 )
 
 test(
+  'setArableOverlayMinimumProductivity redraws arable overlay without toggling visibility',
+  viewportTests,
+  async () => {
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+
+    const viewport = await createWorldBuilderMapViewport(hostEl, createArableRasterFixture())
+    viewport.setResourceOverlayVisibility('arable', true)
+    assert.strictEqual(arableSpriteLayer().visible, true)
+
+    viewport.setArableOverlayMinimumProductivity(0.9)
+    assert.strictEqual(arableSpriteLayer().visible, false)
+
+    viewport.setArableOverlayMinimumProductivity(0)
+    assert.strictEqual(arableSpriteLayer().visible, true)
+
+    viewport.destroy()
+  },
+)
+
+test(
   'setResourceOverlayVisibility hides timber raster by default and shows it when enabled',
   viewportTests,
   async () => {

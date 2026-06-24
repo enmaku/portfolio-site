@@ -102,6 +102,14 @@ test('world builder page wires derived pipeline, lazy renderer, and control test
   assert.strictEqual(page.includes('resetResourceOverlayVisibility'), true)
   assert.strictEqual(page.includes('syncResourceOverlayVisibilityToMapViewport'), true)
   assert.strictEqual(page.includes('setResourceOverlayVisibility'), true)
+  assert.strictEqual(page.includes('onOverlaySliderChange'), true)
+  assert.strictEqual(page.includes('setArableOverlayMinimumProductivity'), true)
+  assert.strictEqual(page.includes('worldBuilderOverlayControls'), true)
+  const overlayControls = readFileSync(
+    new URL('./worldBuilderOverlayControls.js', import.meta.url),
+    'utf8',
+  )
+  assert.strictEqual(overlayControls.includes('world-builder-overlay-arable-minimum'), true)
   assert.match(
     page.match(/function showGenerationFailure[\s\S]*?^}/m)?.[0] ?? '',
     /generationRunId\s*\+=\s*1/,
