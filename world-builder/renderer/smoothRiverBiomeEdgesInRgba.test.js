@@ -3,6 +3,8 @@ import test from 'node:test'
 import { BIOMES } from '../core/biomeIds.js'
 import { biomeColorForId } from './biomePalette.js'
 import {
+  computeRiverOutlineMask,
+  computeRiverOverlayAlpha,
   crispRiverEdgeStrength,
   smoothRiverBiomeEdgesInRgba,
 } from './smoothRiverBiomeEdgesInRgba.js'
@@ -21,6 +23,25 @@ test('crispRiverEdgeStrength returns 0 below the smoothstep floor', () => {
 
 test('crispRiverEdgeStrength returns 1 above the smoothstep ceiling', () => {
   assert.strictEqual(crispRiverEdgeStrength(0.9, 0.88), 1)
+})
+
+test('computeRiverOutlineMask marks land outside and water inside the feathered edge', () => {
+  const width = 5
+  const height = 5
+  const biomes = new Uint8Array(width * height).fill(BIOMES.GRASSLAND)
+  for (let y = 1; y <= 3; y += 1) {
+    for (let x = 1; x <= 3; x += 1) {
+      biomes[y * width + x] = BIOMES.RIVER_CORRIDOR
+    }
+  }
+
+  const alpha = computeRiverOverlayAlpha(biomes, width, height)
+  const outline = computeRiverOutlineMask(alpha, width, height, { biomes })
+
+  assert.strictEqual(outline[2 * width + 2], 0)
+  assert.strictEqual(outline[2 * width + 1], 1)
+  assert.strictEqual(outline[1 * width + 2], 1)
+  assert.strictEqual(outline[0], 1)
 })
 
 test('smoothRiverBiomeEdgesInRgba feathers land beside river without dulling river cells', () => {

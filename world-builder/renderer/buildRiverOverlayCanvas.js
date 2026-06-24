@@ -1,6 +1,10 @@
 import { BIOMES } from '../core/biomeIds.js'
 import { biomeColorForId } from './biomePalette.js'
-import { computeRiverOverlayAlpha } from './smoothRiverBiomeEdgesInRgba.js'
+import {
+  computeRiverOutlineMask,
+  computeRiverOverlayAlpha,
+  WATER_BODY_OUTLINE_RGBA,
+} from './smoothRiverBiomeEdgesInRgba.js'
 
 /**
  * @param {import('../core/types.js').WorldDocument} worldDocument
@@ -9,17 +13,27 @@ import { computeRiverOverlayAlpha } from './smoothRiverBiomeEdgesInRgba.js'
 export function buildRiverOverlayRgba(worldDocument) {
   const { gridWidth, gridHeight, biomes } = worldDocument
   const alpha = computeRiverOverlayAlpha(biomes, gridWidth, gridHeight)
-  if (!alpha.some((value) => value > 0)) {
+  const outline = computeRiverOutlineMask(alpha, gridWidth, gridHeight, { biomes })
+  if (!alpha.some((value) => value > 0) && !outline.some((value) => value > 0)) {
     return null
   }
 
   const rgba = new Uint8ClampedArray(gridWidth * gridHeight * 4)
   const [riverR, riverG, riverB] = biomeColorForId(BIOMES.RIVER_CORRIDOR)
+  const [outlineR, outlineG, outlineB, outlineA] = WATER_BODY_OUTLINE_RGBA
 
   for (let i = 0; i < alpha.length; i += 1) {
+    const offset = i * 4
+    if (outline[i]) {
+      rgba[offset] = outlineR
+      rgba[offset + 1] = outlineG
+      rgba[offset + 2] = outlineB
+      rgba[offset + 3] = outlineA
+      continue
+    }
+
     const a = alpha[i]
     if (a <= 0) continue
-    const offset = i * 4
     rgba[offset] = riverR
     rgba[offset + 1] = riverG
     rgba[offset + 2] = riverB
