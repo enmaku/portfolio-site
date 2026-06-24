@@ -229,6 +229,7 @@
  * @property {number} minCoastConnectedNavigablePathCells
  * @property {number} maxEndorheicFraction
  * @property {boolean} enableSeasonalHydrology
+ * @property {number} seasonalBiomeInfluenceScale
  * @property {number} seasonalYearCount
  * @property {number} dryRainMult
  * @property {number} wetRainMult

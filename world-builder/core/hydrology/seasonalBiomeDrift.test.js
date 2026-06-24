@@ -86,6 +86,7 @@ function meanAnnualClimateBiomeDrift(optionOverrides) {
     const annualClimate = deriveAnnualMeanClimate({
       baseRainfall: refreshed.rainfall,
       baseTemperature: refreshed.temperature,
+      options,
     })
     const withAnnual = classifyBiomesWithHydrology(
       { ...refreshed, ...annualClimate },
@@ -104,6 +105,7 @@ function meanAnnualClimateBiomeDrift(optionOverrides) {
 test('deriveAnnualMeanClimate causes no biome drift at 25 simulation years with extreme season multipliers', () => {
   const drift = meanAnnualClimateBiomeDrift({
     seasonalYearCount: STRESS_YEARS,
+    seasonalBiomeInfluenceScale: 0,
     dryRainMult: 0,
     wetRainMult: 3,
     yearlyClimateNoiseScale: 0.6,
@@ -120,6 +122,7 @@ test('deriveAnnualMeanClimate causes no biome drift at default options regardles
     const drift = meanAnnualClimateBiomeDrift({
       ...DEFAULT_WORLD_GENERATION_OPTIONS,
       seasonalYearCount,
+      seasonalBiomeInfluenceScale: 0,
     })
     assert.equal(
       drift,
@@ -127,4 +130,30 @@ test('deriveAnnualMeanClimate causes no biome drift at default options regardles
       `annual-mean climate drift should be 0 at ${seasonalYearCount} years, got ${(drift * 100).toFixed(2)}%`,
     )
   }
+})
+
+test('seasonal biome influence scale blends toward season-weighted climate', () => {
+  const baseRainfall = new Float32Array([0.35])
+  const baseTemperature = new Float32Array([0.5])
+  const options = resolveWorldGenerationOptions({
+    seasonalBiomeInfluenceScale: 0.5,
+    dryRainMult: 0.15,
+    wetRainMult: 1.8,
+  })
+  const atZero = deriveAnnualMeanClimate({
+    baseRainfall,
+    baseTemperature,
+    options: { ...options, seasonalBiomeInfluenceScale: 0 },
+  })
+  const atHalf = deriveAnnualMeanClimate({ baseRainfall, baseTemperature, options })
+  const atOne = deriveAnnualMeanClimate({
+    baseRainfall,
+    baseTemperature,
+    options: { ...options, seasonalBiomeInfluenceScale: 1 },
+  })
+
+  assert.equal(atZero.rainfall[0], baseRainfall[0])
+  assert.ok(atHalf.rainfall[0] < baseRainfall[0])
+  assert.ok(atHalf.rainfall[0] > atOne.rainfall[0])
+  assert.ok(atOne.rainfall[0] < baseRainfall[0])
 })

@@ -213,6 +213,17 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         testId: 'world-builder-control-seasonal-hydrology',
       },
       {
+        key: 'seasonalBiomeInfluenceScale',
+        label: 'Land biome influence',
+        tooltip:
+          'How much seasonal rainfall and temperature patterns shift land biome labels away from the refreshed physical terrain fields. Zero keeps continental biomes unchanged by season weights; one applies the full season-weighted annual mean.',
+        kind: 'slider',
+        min: 0,
+        max: 1,
+        step: 0.05,
+        testId: 'world-builder-control-seasonal-biome-influence',
+      },
+      {
         key: 'seasonalYearCount',
         label: 'Simulation years',
         tooltip:
@@ -529,6 +540,9 @@ export function formatGenerationControlValue(key, value) {
     return 'Off'
   }
   if (key === 'lakeBankCrumblePerYear' && value <= 0) {
+    return 'Off'
+  }
+  if (key === 'seasonalBiomeInfluenceScale' && value <= 0) {
     return 'Off'
   }
   if (key === 'streamPowerK' && value <= 0) {

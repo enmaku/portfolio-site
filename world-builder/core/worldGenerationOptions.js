@@ -53,6 +53,8 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
    */
   breachThreshold: 0.3,
   enableSeasonalHydrology: true,
+  /** 0–1 blend of season-weighted climate onto land biome classification. */
+  seasonalBiomeInfluenceScale: 0.2,
   seasonalYearCount: 5,
   dryRainMult: 0.15,
   wetRainMult: 1,

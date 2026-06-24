@@ -71,6 +71,7 @@ test('resolveWorldGenerationOptions merges rainfallAmountScale override', () => 
 test('resolveWorldGenerationOptions preserves seasonal hydrology defaults', () => {
   const options = resolveWorldGenerationOptions()
   assert.strictEqual(options.enableSeasonalHydrology, true)
+  assert.strictEqual(options.seasonalBiomeInfluenceScale, 0.2)
   assert.strictEqual(options.seasonalYearCount, 5)
   assert.strictEqual(options.dryRainMult, 0.15)
   assert.strictEqual(options.wetRainMult, 1)
