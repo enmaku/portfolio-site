@@ -1,7 +1,7 @@
-import { biomeIndicesToRgba } from './biomeIndicesToRgba.js'
 import { BIOMES } from '../core/biomeIds.js'
+import { buildLandTerrainRgba } from './buildLandTerrainRgba.js'
+import { buildRiverOverlayCanvas } from './buildRiverOverlayCanvas.js'
 import { buildTopographyContourCanvas } from './buildTopographyContourCanvas.js'
-import { smoothRiverBiomeEdgesInRgba } from './smoothRiverBiomeEdgesInRgba.js'
 
 /**
  * @param {HTMLElement} hostEl
@@ -26,6 +26,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const contours = new Sprite(Texture.EMPTY)
   contours.visible = false
   let contourTexture = null
+  const rivers = new Sprite(Texture.EMPTY)
+  rivers.visible = false
+  let riverTexture = null
   const overlay = new Graphics()
 
   const viewport = new Viewport({
@@ -39,6 +42,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   app.stage.addChild(viewport)
   viewport.addChild(terrain)
   viewport.addChild(contours)
+  viewport.addChild(rivers)
   viewport.addChild(overlay)
   viewport
     .drag()
@@ -56,6 +60,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   })
   resizeObserver.observe(hostEl)
   refreshContours(worldDocument)
+  refreshRiverOverlay(worldDocument)
   drawOverlays(overlay, worldDocument)
 
   /** @type {ReturnType<typeof setInterval> | null} */
@@ -80,6 +85,25 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     contours.visible = true
   }
 
+  /**
+   * @param {import('../core/types.js').WorldDocument} doc
+   */
+  function refreshRiverOverlay(doc) {
+    const nextCanvas = buildRiverOverlayCanvas(doc)
+    riverTexture?.destroy(true)
+    riverTexture = null
+
+    if (!nextCanvas) {
+      rivers.visible = false
+      rivers.texture = Texture.EMPTY
+      return
+    }
+
+    riverTexture = Texture.from(nextCanvas)
+    rivers.texture = riverTexture
+    rivers.visible = true
+  }
+
   return {
     /** @param {import('../core/types.js').WorldDocument} nextDocument */
     updateWorldDocument(nextDocument) {
@@ -89,6 +113,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       terrainTexture = Texture.from(terrainCanvas)
       terrain.texture = terrainTexture
       refreshContours(nextDocument)
+      refreshRiverOverlay(nextDocument)
       drawOverlays(overlay, nextDocument)
       syncViewportToHost(viewport, hostEl, nextDocument.gridWidth, nextDocument.gridHeight)
       fitMapToView(viewport, nextDocument.gridWidth, nextDocument.gridHeight)
@@ -138,6 +163,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         terrainTexture = Texture.from(terrainCanvas)
         terrain.texture = terrainTexture
         refreshContours(replayDoc)
+        rivers.visible = false
         overlay.clear()
         onFrame?.(frame)
         frame += 1
@@ -148,6 +174,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
           terrainTexture = Texture.from(terrainCanvas)
           terrain.texture = terrainTexture
           refreshContours(baseDocument)
+          refreshRiverOverlay(baseDocument)
           drawOverlays(overlay, baseDocument)
         }
       }, 120)
@@ -158,6 +185,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       resizeObserver.disconnect()
       terrainTexture.destroy(true)
       contourTexture?.destroy(true)
+      riverTexture?.destroy(true)
       viewport.destroy({ children: true })
       app.destroy(true, { children: true, texture: true })
     },
@@ -197,13 +225,10 @@ function syncViewportToHost(viewport, hostEl, worldWidth, worldHeight) {
  * @param {{ elevationTint?: boolean }=} options
  */
 function buildTerrainCanvas(worldDocument, options = {}) {
-  const { gridWidth, gridHeight, biomes } = worldDocument
+  const { gridWidth, gridHeight } = worldDocument
   const rgba = options.elevationTint
     ? elevationToGrayscaleRgba(worldDocument.fields.elevation)
-    : biomeIndicesToRgba(worldDocument)
-  if (!options.elevationTint) {
-    smoothRiverBiomeEdgesInRgba(rgba, biomes, gridWidth, gridHeight)
-  }
+    : buildLandTerrainRgba(worldDocument)
   const canvas = document.createElement('canvas')
   canvas.width = gridWidth
   canvas.height = gridHeight

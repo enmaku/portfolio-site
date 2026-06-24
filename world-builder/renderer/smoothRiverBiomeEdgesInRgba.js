@@ -79,14 +79,13 @@ function blurRiverStrength(strength, width, height, out) {
 }
 
 /**
- * Feather hard river biome edges in an RGBA terrain buffer.
- * Smoothing bleeds only onto land; river cells stay full strength, then alpha is crisped.
- * @param {Uint8ClampedArray} rgba
+ * Per-cell river overlay alpha in [0, 1] with crisp feathered banks.
  * @param {Uint8Array} biomes
  * @param {number} width
  * @param {number} height
+ * @returns {Float32Array}
  */
-export function smoothRiverBiomeEdgesInRgba(rgba, biomes, width, height) {
+export function computeRiverOverlayAlpha(biomes, width, height) {
   const cellCount = width * height
   const strength = new Float32Array(cellCount)
   for (let i = 0; i < cellCount; i += 1) {
@@ -98,19 +97,44 @@ export function smoothRiverBiomeEdgesInRgba(rgba, biomes, width, height) {
   blurRiverStrength(strength, width, height, blurred)
   blurRiverStrength(blurred, width, height, wideBlurred)
 
+  const alpha = new Float32Array(cellCount)
+  for (let i = 0; i < cellCount; i += 1) {
+    if (biomes[i] === RIVER) {
+      alpha[i] = 1
+    } else if (biomes[i] === LAKE) {
+      alpha[i] = 0
+    } else {
+      alpha[i] = crispRiverEdgeStrength(blurred[i], wideBlurred[i])
+    }
+  }
+
+  return alpha
+}
+
+/**
+ * Feather hard river biome edges in an RGBA terrain buffer.
+ * Smoothing bleeds only onto land; river cells stay full strength, then alpha is crisped.
+ * @param {Uint8ClampedArray} rgba
+ * @param {Uint8Array} biomes
+ * @param {number} width
+ * @param {number} height
+ */
+export function smoothRiverBiomeEdgesInRgba(rgba, biomes, width, height) {
+  const cellCount = width * height
+  const alpha = computeRiverOverlayAlpha(biomes, width, height)
   const baseRgba = new Uint8ClampedArray(rgba)
   const [riverR, riverG, riverB] = biomeColorForId(RIVER)
 
   for (let i = 0; i < cellCount; i += 1) {
     if (biomes[i] === RIVER || biomes[i] === LAKE) continue
 
-    const alpha = crispRiverEdgeStrength(blurred[i], wideBlurred[i])
-    if (alpha <= 0) continue
+    const riverAlpha = alpha[i]
+    if (riverAlpha <= 0) continue
 
     const offset = i * 4
-    rgba[offset] = Math.round(baseRgba[offset] + (riverR - baseRgba[offset]) * alpha)
-    rgba[offset + 1] = Math.round(baseRgba[offset + 1] + (riverG - baseRgba[offset + 1]) * alpha)
-    rgba[offset + 2] = Math.round(baseRgba[offset + 2] + (riverB - baseRgba[offset + 2]) * alpha)
+    rgba[offset] = Math.round(baseRgba[offset] + (riverR - baseRgba[offset]) * riverAlpha)
+    rgba[offset + 1] = Math.round(baseRgba[offset + 1] + (riverG - baseRgba[offset + 1]) * riverAlpha)
+    rgba[offset + 2] = Math.round(baseRgba[offset + 2] + (riverB - baseRgba[offset + 2]) * riverAlpha)
     rgba[offset + 3] = 255
   }
 }

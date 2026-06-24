@@ -134,7 +134,6 @@
             v-for="section in controlSections"
             :key="section.section"
             :label="section.section"
-            default-opened
             dense
             header-class="text-caption text-weight-medium"
           >
