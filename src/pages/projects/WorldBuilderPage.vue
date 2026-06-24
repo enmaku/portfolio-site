@@ -1,14 +1,7 @@
 <template>
   <q-page class="world-builder-page column fit no-wrap">
     <div class="row items-center q-gutter-md q-pa-sm controls-row">
-      <q-btn
-        flat
-        round
-        dense
-        icon="tune"
-        aria-label="Toggle generation controls"
-        @click="controlsDrawerOpen = !controlsDrawerOpen"
-      />
+      <div class="text-h6 controls-row__title">World Builder</div>
       <q-space />
       <q-btn
         data-testid="world-builder-regenerate"
@@ -17,24 +10,18 @@
         :loading="isGenerating"
         @click="regenerate"
       />
-      <q-btn
-        flat
-        round
-        dense
-        icon="assessment"
-        aria-label="Toggle generation report"
-        @click="reportDrawerOpen = !reportDrawerOpen"
-      />
     </div>
     <div
       v-if="showGenerationProgress || showResourceOverlayBar"
       data-testid="world-builder-status-bar"
-      class="q-px-sm q-pb-sm generation-progress"
+      class="generation-progress"
     >
-      <div
-        v-if="showGenerationProgress"
-        data-testid="world-builder-generation-progress"
-      >
+      <q-separator />
+      <div class="q-px-sm q-pb-sm">
+        <div
+          v-if="showGenerationProgress"
+          data-testid="world-builder-generation-progress"
+        >
         <q-linear-progress
           :value="generationProgress.percent / 100"
           color="primary"
@@ -74,26 +61,27 @@
             </div>
           </template>
         </div>
+        </div>
+        <div
+          v-else-if="showResourceOverlayBar"
+          data-testid="world-builder-resource-overlay-bar"
+          class="row q-gutter-sm items-center justify-center resource-overlay-row"
+        >
+          <q-checkbox
+            v-for="overlay in resourceOverlayDefinitions"
+            :key="overlay.id"
+            dense
+            :model-value="resourceOverlayVisibility[overlay.id]"
+            :data-testid="`world-builder-overlay-toggle-${overlay.id}`"
+            :label="overlay.label"
+            @update:model-value="(value) => onResourceOverlayToggle(overlay.id, value)"
+          />
+        </div>
       </div>
-      <div
-        v-else-if="showResourceOverlayBar"
-        data-testid="world-builder-resource-overlay-bar"
-        class="row q-gutter-sm items-center resource-overlay-row"
-      >
-        <q-checkbox
-          v-for="overlay in resourceOverlayDefinitions"
-          :key="overlay.id"
-          dense
-          :model-value="resourceOverlayVisibility[overlay.id]"
-          :data-testid="`world-builder-overlay-toggle-${overlay.id}`"
-          :label="overlay.label"
-          @update:model-value="(value) => onResourceOverlayToggle(overlay.id, value)"
-        />
-      </div>
+      <q-separator v-if="showResourceOverlayBar" />
     </div>
     <div class="row col map-row">
       <aside
-        v-show="controlsDrawerOpen"
         data-testid="world-builder-generation-controls"
         class="generation-controls-panel bg-grey-10"
       >
@@ -222,7 +210,6 @@
         class="map-host col"
       />
       <aside
-        v-show="reportDrawerOpen"
         data-testid="world-builder-generation-report"
         class="generation-report-panel bg-grey-10"
       >
@@ -363,8 +350,6 @@ const { prevailingWindDegrees, generationOptions } = storeToRefs(settingsStore)
 
 const mapHostRef = ref(null)
 const seedInput = ref('0')
-const controlsDrawerOpen = ref(true)
-const reportDrawerOpen = ref(true)
 const isGenerating = ref(false)
 const pipelineSucceeded = ref(false)
 const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
@@ -708,6 +693,14 @@ onUnmounted(() => {
 
 .controls-row {
   flex: 0 0 auto;
+  position: relative;
+}
+
+.controls-row__title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .generation-progress {
