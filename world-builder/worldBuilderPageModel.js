@@ -4,6 +4,13 @@ import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.
 /** Default geography seed for generation controls and reset. */
 export const DEFAULT_GEOGRAPHY_SEED = 0
 
+/** Validation checks omitted from the generation-report sidebar list. */
+const HIDDEN_SIDEBAR_VALIDATION_CHECK_IDS = new Set([
+  'hacksLawExponent',
+  'slopeAreaConcavity',
+  'parallelStrandRatio',
+])
+
 /**
  * @returns {import('./core/types.js').WorldGenerationOptions}
  */
@@ -132,7 +139,9 @@ export function validationStatusIcon(status) {
  */
 export function createValidationRowsForDisplay(report) {
   if (!report) return []
-  return report.validationRows
+  return report.validationRows.filter(
+    (row) => !HIDDEN_SIDEBAR_VALIDATION_CHECK_IDS.has(row.checkId),
+  )
 }
 
 /**

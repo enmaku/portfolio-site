@@ -6,6 +6,7 @@ import {
   createControlsStateForSeed,
   createDefaultControlsState,
   createDefaultGenerationSettings,
+  createValidationRowsForDisplay,
   createGenerationStepStatuses,
   createHydrologyStatsForDisplay,
   createHydrologySubstepStatuses,
@@ -149,6 +150,25 @@ test('createGenerationStepStatuses marks active and completed steps', () => {
 test('validationStatusColor and validationStatusIcon cover hard failures', () => {
   assert.strictEqual(validationStatusColor('fail'), 'negative')
   assert.strictEqual(validationStatusIcon('fail'), 'cancel')
+})
+
+test('createValidationRowsForDisplay omits hydrology shape checks from sidebar', () => {
+  const rows = createValidationRowsForDisplay({
+    erosionStepCount: 1,
+    navigableRiverEdgeCount: 2,
+    coastalNodeCount: 3,
+    validationRows: [
+      { checkId: 'navigableRiverQuota', status: 'pass', summary: 'ok' },
+      { checkId: 'hacksLawExponent', status: 'warn', summary: 'Hack’s law exponent 0.04 outside 0.40–0.75' },
+      { checkId: 'slopeAreaConcavity', status: 'warn', summary: 'Slope–area concavity median -1.49 outside 0.05–0.45' },
+      { checkId: 'parallelStrandRatio', status: 'warn', summary: 'Parallel strands 0.61 above cap 0.35' },
+      { checkId: 'coastMouth', status: 'pass', summary: 'ok' },
+    ],
+  })
+  assert.deepStrictEqual(
+    rows.map((row) => row.checkId),
+    ['navigableRiverQuota', 'coastMouth'],
+  )
 })
 
 test('createHydrologyStatsForDisplay surfaces hydrology metrics and rejection state', () => {

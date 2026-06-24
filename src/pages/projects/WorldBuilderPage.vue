@@ -196,6 +196,30 @@
         class="generation-report-panel bg-grey-10"
       >
         <div class="panel-scroll q-pa-md">
+          <q-list
+            bordered
+            separator
+            class="q-mb-md"
+          >
+            <q-item
+              v-for="row in validationRows"
+              :key="row.checkId"
+              :data-testid="`world-builder-validation-row-${row.checkId}`"
+              clickable
+              @click="onValidationRowClick(row)"
+            >
+              <q-item-section avatar>
+                <q-icon
+                  :name="validationStatusIcon(row.status)"
+                  :color="validationStatusColor(row.status)"
+                />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ row.checkId }}</q-item-label>
+                <q-item-label caption>{{ row.summary }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
           <div class="text-subtitle2 q-mb-sm">Generation report</div>
           <div class="text-caption q-mb-md">
             Erosion steps: {{ stageSummary.erosionStepCount }} · Navigable rivers:
@@ -257,26 +281,6 @@
               {{ row.label }}: {{ formatHydrologySubstepTimingForDisplay(row) }}
             </div>
           </div>
-          <q-list bordered separator>
-            <q-item
-              v-for="row in validationRows"
-              :key="row.checkId"
-              :data-testid="`world-builder-validation-row-${row.checkId}`"
-              clickable
-              @click="onValidationRowClick(row)"
-            >
-              <q-item-section avatar>
-                <q-icon
-                  :name="validationStatusIcon(row.status)"
-                  :color="validationStatusColor(row.status)"
-                />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>{{ row.checkId }}</q-item-label>
-                <q-item-label caption>{{ row.summary }}</q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-list>
         </div>
       </aside>
     </div>
