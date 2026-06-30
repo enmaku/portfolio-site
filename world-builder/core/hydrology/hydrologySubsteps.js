@@ -2,10 +2,6 @@ import { classifyBiomesWithHydrology } from '../classifyBiomesFromFields.js'
 import { refreshFieldsAfterErosion } from '../fields/refreshFieldsAfterErosion.js'
 import { buildRiverGraph } from './buildRiverGraph.js'
 import { buildRiverNetworkMask } from './buildRiverNetworkMask.js'
-import {
-  connectNearbyRiverCorridors,
-  riverAttractionRadiusForGrid,
-} from './connectNearbyRiverCorridors.js'
 import { computeFlowAccumulation } from './computeFlowAccumulation.js'
 import { deriveDrainageFromFlow } from './deriveDrainageFromFlow.js'
 import {
@@ -23,28 +19,29 @@ import { computeCellRunoff } from './computeCellRunoff.js'
 import { fillLakes } from './fillLakes.js'
 import { applyLakeSurfacesFromMeta } from './lakeDisplayCoherence.js'
 import {
-  refineRiverNetworkFromSketch,
-  riverSettlementStepsForGrid,
-} from './refineRiverNetwork.js'
+  applyRefineStageMeanderPresentation,
+  applyRouteStageCorridorAttraction,
+} from './riverNetworkLegacyMeanders.js'
 import { carveTemporaryRivers } from './seededTemporaryRiverCarve.js'
 import { buildPhysicalRiverCorridorMask, smoothRiverCorridorMaskForDisplay } from './riverCorridorDisplay.js'
+import {
+  assertHydrologySubstepOutputs,
+  HYDROLOGY_SUBSTEP_CONTRACTS,
+  pickHydrologySubstepInput,
+} from './hydrologySubstepContracts.js'
+import { assembleRiverNetwork } from './riverNetwork.js'
 import { settleLakeEquilibrium } from './settleLakeEquilibrium.js'
 import { simulateSeasonalHydrology } from './simulateSeasonalHydrology.js'
 
 /** @typedef {'hydrologyFill' | 'hydrologyClimate' | 'hydrologySeasonal' | 'hydrologyRoute' | 'hydrologyIncise' | 'hydrologyExtract' | 'hydrologyRefine' | 'hydrologySettle' | 'hydrologyPaint'} HydrologySubstepId */
 
 /** @type {ReadonlyArray<{ id: HydrologySubstepId, label: string }>} */
-export const HYDROLOGY_SUBSTEPS = [
-  { id: 'hydrologyFill', label: 'Fill lakes' },
-  { id: 'hydrologyClimate', label: 'Climate refresh' },
-  { id: 'hydrologySeasonal', label: 'Seasonal hydrology' },
-  { id: 'hydrologyRoute', label: 'Route runoff' },
-  { id: 'hydrologyIncise', label: 'Incise channels' },
-  { id: 'hydrologyExtract', label: 'Extract river graph' },
-  { id: 'hydrologyRefine', label: 'Meander refine' },
-  { id: 'hydrologySettle', label: 'Settle drainage' },
-  { id: 'hydrologyPaint', label: 'Paint river corridors' },
-]
+export const HYDROLOGY_SUBSTEPS = Object.entries(HYDROLOGY_SUBSTEP_CONTRACTS).map(
+  ([id, contract]) => ({
+    id: /** @type {HydrologySubstepId} */ (id),
+    label: contract.label,
+  }),
+)
 
 /**
  * @typedef {Object} HydrologySubstepTiming
@@ -59,6 +56,7 @@ export const HYDROLOGY_SUBSTEPS = [
  * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string }) => void} [onSubstepStart]
  * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string, progress: number }) => void} [onSubstepProgress]
  * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string, progress: number, skipped?: boolean }) => void} [onSubstepComplete]
+ * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string, input: Record<string, unknown> }) => void} [onSubstepPrepare]
  * @property {() => boolean} [shouldCancel]
  */
 
@@ -99,6 +97,8 @@ export const HYDROLOGY_SUBSTEPS = [
  * @property {Float32Array | null} settledDrainage
  * @property {import('../types.js').RiverGraph | null} settledRiverGraph
  * @property {Uint8Array | null} riverCorridorMask
+ * @property {import('../types.js').RiverNetwork | null} riverNetwork
+ * @property {HydrologySubstepId | null} lastCompletedSubstep
  * @property {HydrologySubstepHooks} hooks
  */
 
@@ -148,6 +148,8 @@ function createHydrologyContext(state, hooks = {}) {
     settledDrainage: null,
     settledRiverGraph: null,
     riverCorridorMask: null,
+    riverNetwork: null,
+    lastCompletedSubstep: null,
   }
 }
 
@@ -367,22 +369,16 @@ function runHydrologyRouteSubstep(ctx) {
     overflowLakeIds: ctx.overflowLakeIds ?? undefined,
     lakeIdByCell: ctx.lakeIdByCell ?? undefined,
   })
-  const attractionRadius = riverAttractionRadiusForGrid(
+  const riverNetworkMask = applyRouteStageCorridorAttraction({
+    baseRiverNetworkMask: baseRiverNetworkMask,
+    elevation: ctx.filledElevation,
+    ocean: lakeOcean,
     width,
-    state.options.riverAttractionRadiusScale,
-  )
-  const riverNetworkMask = attractionRadius > 0
-    ? connectNearbyRiverCorridors({
-        riverNetworkMask: baseRiverNetworkMask,
-        elevation: ctx.filledElevation,
-        ocean: lakeOcean,
-        width,
-        height,
-        geographySeed: state.geographySeed,
-        flowDirection,
-        attractionRadius,
-      })
-    : baseRiverNetworkMask
+    height,
+    geographySeed: state.geographySeed,
+    flowDirection,
+    riverAttractionRadiusScale: state.options.riverAttractionRadiusScale,
+  })
   ctx.flowDirection = flowDirection
   ctx.flowAccumulation = flowAccumulation
   ctx.lakeOcean = lakeOcean
@@ -506,7 +502,7 @@ function runHydrologyRefineSubstep(ctx) {
     throw new Error('Corridor extraction required before hydrology meander refinement')
   }
 
-  const refined = refineRiverNetworkFromSketch({
+  const refined = applyRefineStageMeanderPresentation({
     sketchMask: ctx.settledRiverNetworkMask,
     elevation: ctx.settledElevation,
     ocean: ctx.settledOcean,
@@ -516,12 +512,7 @@ function runHydrologyRefineSubstep(ctx) {
     width,
     height,
     geographySeed: state.geographySeed,
-    meanderStrength: state.options.riverMeanderStrength,
-    settlementStepCount: riverSettlementStepsForGrid(width, state.options.riverSettlementSteps),
-    mergeStrength: state.options.riverMergeStrength,
-    channelWear: state.options.erosionChannelWear,
-    seaLevel: state.options.seaLevel,
-    navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
+    options: state.options,
   })
   ctx.settledElevation = refined.elevation
   ctx.presentationRiverNetworkMask = unionCorridorMasks(
@@ -626,7 +617,8 @@ function runHydrologyPaintSubstep(ctx) {
     !ctx.settledElevation ||
     !ctx.settledFlowDirection ||
     !ctx.settledRiverNetworkMask ||
-    !ctx.channelWidth
+    !ctx.channelWidth ||
+    !ctx.settledRiverGraph
   ) {
     throw new Error('Settlement substep required before hydrology river painting')
   }
@@ -655,6 +647,16 @@ function runHydrologyPaintSubstep(ctx) {
     onProgress: (progress) => reportPaintProgress(progress * 0.92),
   })
   ctx.riverCorridorMask = smoothRiverCorridorMaskForDisplay(rawMask, width, height, 1)
+  ctx.riverNetwork = assembleRiverNetwork({
+    centerline: riverNetworkMask,
+    corridor: ctx.riverCorridorMask,
+    flowDirection: ctx.settledFlowDirection,
+    flowAccumulation: ctx.settledFlowAccumulation,
+    channelWidth: ctx.channelWidth,
+    graph: ctx.settledRiverGraph,
+    width,
+    height,
+  })
   reportPaintProgress(1)
 }
 
@@ -686,7 +688,8 @@ function buildPipelineStateFromHydrologyContext(ctx) {
     !ctx.settledRiverGraph ||
     !ctx.settledRiverNetworkMask ||
     !ctx.settledDrainage ||
-    !ctx.settledFlowDirection
+    !ctx.settledFlowDirection ||
+    !ctx.riverNetwork
   ) {
     throw new Error('Incomplete hydrology context')
   }
@@ -716,9 +719,9 @@ function buildPipelineStateFromHydrologyContext(ctx) {
     lakeIdByCell: ctx.lakeIdByCell,
     hydrologyStats: ctx.hydrologyStats,
     workingElevation: ctx.settledElevation,
-    riverGraph: ctx.settledRiverGraph,
-    riverNetworkMask: ctx.presentationRiverNetworkMask ?? ctx.settledRiverNetworkMask,
-    riverCorridorMask: ctx.riverCorridorMask,
+    riverGraph: ctx.riverNetwork.graph,
+    riverNetworkMask: ctx.riverNetwork.centerline,
+    riverCorridorMask: ctx.riverNetwork.corridor,
     channelWidth: ctx.channelWidth,
     flowDirection: ctx.settledFlowDirection,
     fields: previewFields,
@@ -771,12 +774,26 @@ export function runHydrologySubsteps(state, hooks = {}) {
       progress: 0,
     })
 
+    const input = pickHydrologySubstepInput(substep.id, ctx)
+    hooks.onSubstepPrepare?.({
+      substepId: substep.id,
+      substepIndex,
+      substepCount,
+      label: substep.label,
+      input,
+    })
+
     let durationMs = 0
     if (!skipped) {
       const startedAt = performance.now()
       HYDROLOGY_SUBSTEP_RUNNERS[substep.id](ctx)
+      assertHydrologySubstepOutputs(substep.id, ctx)
       durationMs = performance.now() - startedAt
+    } else if (substep.id === 'hydrologyRefine') {
+      ctx.presentationRiverNetworkMask = ctx.settledRiverNetworkMask
     }
+
+    ctx.lastCompletedSubstep = substep.id
 
     hooks.onSubstepProgress?.({
       substepId: substep.id,

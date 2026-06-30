@@ -4,26 +4,13 @@ import { BIOMES } from '../biomeIds.js'
 import { generateDerivedGeography } from '../generateDerivedGeography.js'
 import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
 import {
-  buildFlowWeightedRiverCorridorMask,
   buildPhysicalRiverCorridorMask,
-  buildRiverCorridorRenderState,
   capRiverCorridorRadiusAtWaterEdge,
   computeRiverNetworkMaxChannelWidth,
   flowPerpendicularStep,
   measurePhysicalRiverHalfWidth,
-  resolveRiverCorridorNormalizedFlow,
-  resolveRiverCorridorRenderRadius,
-  riverCorridorRadiusForChannelWidth,
-  riverCorridorRadiusForDrainage,
   smoothRiverCorridorMaskForDisplay,
 } from './riverCorridorDisplay.js'
-
-test('riverCorridorRadiusForDrainage grows with drainage and caps at max radius', () => {
-  assert.strictEqual(riverCorridorRadiusForDrainage(0), 0)
-  assert.strictEqual(riverCorridorRadiusForDrainage(0.02), 1)
-  assert.ok(riverCorridorRadiusForDrainage(0.2) >= 1)
-  assert.strictEqual(riverCorridorRadiusForDrainage(1), 4)
-})
 
 test('measurePhysicalRiverHalfWidth returns zero without measurable banks', () => {
   const width = 5
@@ -69,19 +56,21 @@ test('measurePhysicalRiverHalfWidth measures incised trench half-width', () => {
   assert.ok(halfWidth >= 1)
 })
 
-test('smoothRiverCorridorMaskForDisplay removes isolated single-cell spikes', () => {
-  const width = 5
-  const height = 5
+test('smoothRiverCorridorMaskForDisplay keeps dense blocks and prunes sparse cells', () => {
+  const width = 7
+  const height = 7
   const mask = new Uint8Array(width * height)
-  mask[2 * width + 2] = 1
-  mask[2 * width + 3] = 1
-  mask[1 * width + 3] = 1
+  for (let y = 2; y <= 4; y += 1) {
+    for (let x = 2; x <= 4; x += 1) {
+      mask[y * width + x] = 1
+    }
+  }
+  mask[1 * width + 4] = 1
 
   const smoothed = smoothRiverCorridorMaskForDisplay(mask, width, height, 1)
 
-  assert.strictEqual(smoothed[2 * width + 2], 1)
-  assert.strictEqual(smoothed[2 * width + 3], 1)
-  assert.strictEqual(smoothed[1 * width + 3], 0)
+  assert.strictEqual(smoothed[3 * width + 3], 1)
+  assert.strictEqual(smoothed[1 * width + 4], 0)
 })
 
 test('buildPhysicalRiverCorridorMask paints only centerline for headwaters on flat terrain', () => {
@@ -201,75 +190,6 @@ test('flowPerpendicularStep returns integer perpendicular for diagonal flow', ()
   assert.strictEqual(stepY, 1)
 })
 
-test('riverCorridorRadiusForChannelWidth grows monotonically and caps at max radius', () => {
-  const maxChannelWidth = 10
-  assert.strictEqual(riverCorridorRadiusForChannelWidth(0, maxChannelWidth), 0)
-  const tributary = riverCorridorRadiusForChannelWidth(2, maxChannelWidth)
-  const trunk = riverCorridorRadiusForChannelWidth(9, maxChannelWidth)
-  assert.ok(tributary >= 1)
-  assert.ok(trunk > tributary)
-  assert.strictEqual(riverCorridorRadiusForChannelWidth(maxChannelWidth, maxChannelWidth), 4)
-})
-
-test('resolveRiverCorridorNormalizedFlow prefers channelWidth and falls back to drainage', () => {
-  assert.strictEqual(
-    resolveRiverCorridorNormalizedFlow({
-      drainage: 0.05,
-      channelWidth: 8,
-      maxChannelWidth: 10,
-    }),
-    0.8,
-  )
-  assert.strictEqual(
-    resolveRiverCorridorNormalizedFlow({
-      drainage: 0.9,
-      channelWidth: 0,
-      maxChannelWidth: 10,
-    }),
-    0.9,
-  )
-})
-
-test('buildRiverCorridorRenderState returns null without mask or flow fields', () => {
-  assert.strictEqual(buildRiverCorridorRenderState({}), null)
-  assert.strictEqual(
-    buildRiverCorridorRenderState({ riverNetworkMask: new Uint8Array(4) }),
-    null,
-  )
-
-  const drainage = new Float32Array(4)
-  drainage[1] = 0.5
-  const flowDirection = new Int16Array(4).fill(-1)
-  const state = buildRiverCorridorRenderState({
-    riverNetworkMask: new Uint8Array([0, 1, 0, 0]),
-    fields: { drainage },
-    flowDirection,
-  })
-  assert.ok(state)
-  assert.strictEqual(state.maxChannelWidth, 0)
-  assert.strictEqual(state.drainage, drainage)
-  assert.strictEqual(state.flowDirection, flowDirection)
-})
-
-test('resolveRiverCorridorRenderRadius prefers channelWidth over drainage', () => {
-  assert.strictEqual(
-    resolveRiverCorridorRenderRadius({
-      drainage: 0.05,
-      channelWidth: 8,
-      maxChannelWidth: 10,
-    }),
-    riverCorridorRadiusForChannelWidth(8, 10),
-  )
-  assert.strictEqual(
-    resolveRiverCorridorRenderRadius({
-      drainage: 0.9,
-      channelWidth: 0,
-      maxChannelWidth: 10,
-    }),
-    riverCorridorRadiusForDrainage(0.9),
-  )
-})
-
 test('default seed generation paints wider rivers than centerline mask alone', () => {
   const doc = generateDerivedGeography({
     geographySeed: DEFAULT_GEOGRAPHY_SEED,
@@ -288,30 +208,22 @@ test('default seed generation paints wider rivers than centerline mask alone', (
   assert.ok(riverCellCount >= centerlineCount)
 })
 
-test('buildFlowWeightedRiverCorridorMask delegates to physical paint when flowDirection provided', () => {
+test('buildPhysicalRiverCorridorMask paints corridor from centerline and flow direction', () => {
   const width = 5
   const height = 5
   const riverNetworkMask = new Uint8Array(width * height)
   const elevation = new Float32Array(width * height).fill(0.55)
   const flowDirection = new Int16Array(width * height).fill(-1)
-  const drainage = new Float32Array(width * height).fill(0.5)
 
   riverNetworkMask[12] = 1
   flowDirection[12] = 4
 
-  const physical = buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, {
+  const corridor = buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, {
     elevation,
     flowDirection,
   })
-  const legacy = buildFlowWeightedRiverCorridorMask(
-    riverNetworkMask,
-    drainage,
-    width,
-    height,
-    { elevation, flowDirection },
-  )
 
-  assert.deepStrictEqual(legacy, physical)
+  assert.ok(corridor[12])
 })
 
 test('default seed generation exposes channel width for navigable graph metrics', () => {

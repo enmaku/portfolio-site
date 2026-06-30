@@ -1,8 +1,9 @@
 import { BIOMES } from '../core/biomeIds.js'
+import { readRiverNetworkFromWorldDocument } from '../core/hydrology/riverNetwork.js'
 import { biomeColorForId } from './biomePalette.js'
 import {
   computeRiverOutlineMask,
-  computeRiverOverlayAlpha,
+  computeRiverOverlayAlphaFromCorridor,
   WATER_BODY_OUTLINE_RGBA,
 } from './smoothRiverBiomeEdgesInRgba.js'
 
@@ -11,9 +12,12 @@ import {
  * @returns {Uint8ClampedArray | null}
  */
 export function buildRiverOverlayRgba(worldDocument) {
-  const { gridWidth, gridHeight, biomes } = worldDocument
-  const alpha = computeRiverOverlayAlpha(biomes, gridWidth, gridHeight)
-  const outline = computeRiverOutlineMask(alpha, gridWidth, gridHeight, { biomes })
+  const { gridWidth, gridHeight } = worldDocument
+  const network = readRiverNetworkFromWorldDocument(worldDocument)
+  if (!network) return null
+
+  const alpha = computeRiverOverlayAlphaFromCorridor(network.corridor, gridWidth, gridHeight)
+  const outline = computeRiverOutlineMask(alpha, gridWidth, gridHeight)
   if (!alpha.some((value) => value > 0) && !outline.some((value) => value > 0)) {
     return null
   }

@@ -4,6 +4,7 @@ import { riverDisplayFlowCutoffForGrid } from '../types.js'
 import { downstreamIndex } from './computeFlowAccumulation.js'
 import { computeFlowAccumulation } from './computeFlowAccumulation.js'
 import { buildRiverGraph } from './buildRiverGraph.js'
+import { buildUpstreamAdjacency, traceRiverUpstream } from './riverNetwork.js'
 
 /**
  * Cells where incision lowered elevation relative to the filled DEM.
@@ -71,7 +72,12 @@ export function buildIncisedChannelMask({
     Math.round(riverDisplayFlowCutoffForGrid(width) * navigableFlowCutoffScale),
   )
 
-  const upstream = buildUpstreamAdjacency(cellCount, width, flowDirection, ocean)
+  const upstream = buildUpstreamAdjacency({
+    cellCount,
+    width,
+    flowDirection,
+    ocean,
+  })
   const incisedMask = new Uint8Array(cellCount)
   const seeds = selectIncisedChannelSeeds({
     incisedCorridorMask,
@@ -84,7 +90,7 @@ export function buildIncisedChannelMask({
 
   for (const seedIdx of seeds) {
     incisedMask[seedIdx] = 1
-    traceIncisedUpstream(seedIdx, incisedMask, flowAccumulation, upstream, tributaryCutoff)
+    traceRiverUpstream(seedIdx, incisedMask, flowAccumulation, upstream, tributaryCutoff)
     markDownstreamOnNetwork(seedIdx, incisedMask, flowDirection, ocean, width, height)
   }
 
@@ -159,7 +165,7 @@ function traceMeltHeadwaterSupplement({
   for (let idx = 0; idx < meltContribution.length; idx += 1) {
     if (meltContribution[idx] <= 0 || ocean[idx] || mask[idx]) continue
     mask[idx] = 1
-    traceIncisedUpstream(idx, mask, flowAccumulation, upstream, tributaryCutoff)
+    traceRiverUpstream(idx, mask, flowAccumulation, upstream, tributaryCutoff)
   }
 }
 
@@ -278,48 +284,6 @@ export function extractRiverNetworkFromIncisedChannels({
     channelWidth,
     coastNavigability,
     riverGraph,
-  }
-}
-
-/**
- * @param {number} cellCount
- * @param {number} width
- * @param {Int16Array} flowDirection
- * @param {boolean[]} ocean
- * @returns {number[][]}
- */
-function buildUpstreamAdjacency(cellCount, width, flowDirection, ocean) {
-  /** @type {number[][]} */
-  const upstream = Array.from({ length: cellCount }, () => [])
-  for (let idx = 0; idx < cellCount; idx += 1) {
-    if (ocean[idx]) continue
-    const downstream = downstreamIndex(idx, width, flowDirection)
-    if (downstream < 0 || ocean[downstream]) continue
-    upstream[downstream].push(idx)
-  }
-  return upstream
-}
-
-/**
- * @param {number} startIdx
- * @param {Uint8Array} mask
- * @param {Float32Array} flowAccumulation
- * @param {number[][]} upstream
- * @param {number} minBranchFlow
- */
-function traceIncisedUpstream(startIdx, mask, flowAccumulation, upstream, minBranchFlow) {
-  /** @type {number[]} */
-  const stack = [startIdx]
-  mask[startIdx] = 1
-
-  while (stack.length > 0) {
-    const idx = stack.pop()
-    for (const upIdx of upstream[idx]) {
-      if (mask[upIdx]) continue
-      if (flowAccumulation[upIdx] < minBranchFlow) continue
-      mask[upIdx] = 1
-      stack.push(upIdx)
-    }
   }
 }
 

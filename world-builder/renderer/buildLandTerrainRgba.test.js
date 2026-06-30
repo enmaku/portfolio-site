@@ -14,14 +14,14 @@ test('buildLandTerrainRgba paints river cells as underlying land biome', () => {
     temperature: 0.5,
     rainfall: 0.5,
     drainage: 0.1,
-    salidity: 0.1,
+    salinity: 0.1,
   }
   const fields = {
     elevation: new Float32Array([sample.elevation, sample.elevation, sample.elevation]),
     temperature: new Float32Array([sample.temperature, sample.temperature, sample.temperature]),
     rainfall: new Float32Array([sample.rainfall, sample.rainfall, sample.rainfall]),
     drainage: new Float32Array([sample.drainage, sample.drainage, sample.drainage]),
-    salidity: new Float32Array([sample.salidity, sample.salidity, sample.salidity]),
+    salinity: new Float32Array([sample.salinity, sample.salinity, sample.salinity]),
   }
 
   const rgba = buildLandTerrainRgba({

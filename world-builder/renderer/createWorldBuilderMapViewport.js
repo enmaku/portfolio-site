@@ -1,18 +1,22 @@
-import { BIOMES } from '../core/biomeIds.js'
 import { buildLandTerrainRgba } from './buildLandTerrainRgba.js'
 import { buildRiverOverlayCanvas } from './buildRiverOverlayCanvas.js'
 import { buildTopographyContourCanvas } from './buildTopographyContourCanvas.js'
-import {
-  applyResourceOverlayVisibility,
-  createDefaultResourceOverlayVisibility,
-  shouldDrawResourceNodeOverlay,
-  shouldDrawResourceRasterOverlay,
-} from './resourceOverlayVisibility.js'
 import { buildArableOverlayCanvas } from './buildArableOverlayCanvas.js'
 import { buildMetalsOverlayCanvas } from './buildMetalsOverlayCanvas.js'
 import { buildTimberOverlayCanvas } from './buildTimberOverlayCanvas.js'
-import { createResourceOverlayIds } from '../worldBuilderPageModel.js'
-import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../worldBuilderOverlayControls.js'
+import {
+  applyResourceOverlayVisibility,
+  createDefaultResourceOverlayVisibility,
+  DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+} from '../resourceOverlays.js'
+import {
+  collectLakeOverlayRects,
+  computeRegionFocusScale,
+  resolveArableRasterLayerVisible,
+  resolveMetalsOverlayDrawn,
+  resolveResourceRasterLayerVisible,
+  resolveSaltNodeOverlayDrawn,
+} from './worldBuilderMapViewportModel.js'
 
 /** Black for discrete metal mine markers (matches metals raster hue). */
 export const METAL_NODE_OVERLAY_COLOR = 0x000000
@@ -59,7 +63,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   rivers.visible = false
   let riverTexture = null
   const overlay = new Graphics()
-  let resourceOverlayVisibility = createDefaultResourceOverlayVisibility(createResourceOverlayIds())
+  let resourceOverlayVisibility = createDefaultResourceOverlayVisibility()
   let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
   /** @type {import('../core/types.js').WorldDocument} */
   let currentWorldDocument = worldDocument
@@ -135,7 +139,11 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     arableTexture?.destroy(true)
     arableTexture = null
 
-    const visible = shouldDrawResourceRasterOverlay(visibility, 'arable', doc.arableRaster)
+    const visible = resolveArableRasterLayerVisible(
+      visibility,
+      doc,
+      arableMinimumProductivity,
+    )
     if (!nextCanvas || !visible) {
       arable.visible = false
       arable.texture = Texture.EMPTY
@@ -152,7 +160,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     timberTexture?.destroy(true)
     timberTexture = null
 
-    const visible = shouldDrawResourceRasterOverlay(visibility, 'timber', doc.timberRaster)
+    const visible = resolveResourceRasterLayerVisible(visibility, 'timber', doc)
     if (!nextCanvas || !visible) {
       timber.visible = false
       timber.texture = Texture.EMPTY
@@ -169,7 +177,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     metalsTexture?.destroy(true)
     metalsTexture = null
 
-    const visible = shouldDrawResourceRasterOverlay(visibility, 'metals', doc.metalsRaster)
+    const visible = resolveResourceRasterLayerVisible(visibility, 'metals', doc)
     if (!nextCanvas || !visible) {
       metals.visible = false
       metals.texture = Texture.EMPTY
@@ -221,11 +229,11 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
 
     /** @param {import('../core/types.js').MapFocus} mapFocus */
     focusOn(mapFocus) {
+      const { gridWidth: worldWidth } = currentWorldDocument
       if ('minX' in mapFocus) {
         const cx = (mapFocus.minX + mapFocus.maxX) / 2
         const cy = (mapFocus.minY + mapFocus.maxY) / 2
-        const span = Math.max(mapFocus.maxX - mapFocus.minX, mapFocus.maxY - mapFocus.minY, 1)
-        const scale = Math.min(24, Math.max(1, gridWidth / span / 4))
+        const scale = computeRegionFocusScale(worldWidth, mapFocus)
         viewport.animate({
           time: 400,
           position: { x: cx, y: cy },
@@ -409,18 +417,14 @@ function drawOverlays(overlay, worldDocument, resourceOverlayVisibility) {
     }
   }
 
-  if (
-    shouldDrawResourceNodeOverlay(resourceOverlayVisibility, 'metals', worldDocument.metalNodes)
-  ) {
+  if (resolveMetalsOverlayDrawn(resourceOverlayVisibility, worldDocument).nodesVisible) {
     for (const node of worldDocument.metalNodes) {
       overlay.circle(node.x + 0.5, node.y + 0.5, STRATEGIC_RESOURCE_NODE_MARKER_RADIUS)
       overlay.fill({ color: METAL_NODE_OVERLAY_COLOR, alpha: 0.9 })
     }
   }
 
-  if (
-    shouldDrawResourceNodeOverlay(resourceOverlayVisibility, 'salt', worldDocument.saltNodes)
-  ) {
+  if (resolveSaltNodeOverlayDrawn(resourceOverlayVisibility, worldDocument)) {
     for (const node of worldDocument.saltNodes) {
       overlay.circle(node.x + 0.5, node.y + 0.5, STRATEGIC_RESOURCE_NODE_MARKER_RADIUS)
       overlay.fill({ color: SALT_NODE_OVERLAY_COLOR, alpha: 0.9 })
@@ -428,14 +432,12 @@ function drawOverlays(overlay, worldDocument, resourceOverlayVisibility) {
   }
 
   if (worldDocument.lakeMask) {
-    const { gridWidth, biomes } = worldDocument
-    for (let i = 0; i < worldDocument.lakeMask.length; i += 1) {
-      if (biomes[i] === BIOMES.FRESHWATER_LAKE) {
-        const x = i % gridWidth
-        const y = Math.floor(i / gridWidth)
-        overlay.rect(x, y, 1, 1)
-        overlay.fill({ color: 0x3a8fd9, alpha: 0.25 })
-      }
+    for (const { x, y, w, h } of collectLakeOverlayRects(
+      worldDocument.lakeMask,
+      worldDocument.gridWidth,
+    )) {
+      overlay.rect(x, y, w, h)
+      overlay.fill({ color: 0x3a8fd9, alpha: 0.25 })
     }
   }
 

@@ -4,7 +4,7 @@ import { generateDrainage } from './fields/generateDrainage.js'
 import { generateElevation } from './fields/generateElevation.js'
 import { generateRainfall } from './fields/generateRainfall.js'
 import { generateTemperature } from './fields/generateTemperature.js'
-import { deriveSalidityFromOcean } from './fields/deriveSalidityFromOcean.js'
+import { deriveSalinityFromOcean } from './fields/deriveSalinityFromOcean.js'
 import {
   DEFAULT_GRID_SIZE,
   PIPELINE_STAGE_PHYSICAL_TERRAIN_BASELINE,
@@ -33,9 +33,14 @@ export function generatePhysicalTerrainBaseline(params) {
     options,
   })
   const drainage = generateDrainage({ geographySeed, width, height, options })
-  const salidity = deriveSalidityFromOcean({ elevation, width, height })
+  const salinity = deriveSalinityFromOcean({
+    elevation,
+    width,
+    height,
+    seaLevel: options.seaLevel,
+  })
 
-  const fields = { elevation, temperature, rainfall, drainage, salidity }
+  const fields = { elevation, temperature, rainfall, drainage, salinity }
   const biomes = classifyBiomesFromFields(
     fields,
     width,

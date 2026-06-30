@@ -1,4 +1,5 @@
-import { BIOMES } from '../biomeIds.js'
+import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
+import { assembleRiverNetworkFromValidationSlice } from '../hydrology/riverNetwork.js'
 import {
   MIN_BIOME_DIVERSITY,
   MIN_HIGHLAND_ELEVATION,
@@ -6,11 +7,18 @@ import {
   minNavigableRiverEdgesForGrid,
 } from '../types.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
-import { computeHydrologyMetrics } from './computeHydrologyMetrics.js'
+import { computeHydrologyMetrics, selectNavigableRiverEdges } from './computeHydrologyMetrics.js'
 import { computeWindRainfallAsymmetry } from './computeWindRainfallAsymmetry.js'
+import {
+  createValidationRow,
+  resolveValidationCheckStatus,
+} from './landmassValidationContracts.js'
 
 /** Minimum normalized windward/leeward rainfall gap before wind coupling reads as active. */
 const MIN_WIND_RAINFALL_ASYMMETRY = 0.03
+
+/** Ocean salinity cells must stay near full strength for the scalar-field contract. */
+const MIN_OCEAN_SALINITY_MEAN = 0.9
 
 /**
  * @typedef {import('../types.js').WorldGenerationOptions} GeographyValidationOptions
@@ -21,6 +29,7 @@ const MIN_WIND_RAINFALL_ASYMMETRY = 0.03
  * @param {import('../types.js').ScalarFields} slice.fields
  * @param {Uint8Array} slice.biomes
  * @param {import('../types.js').RiverGraph} slice.riverGraph
+ * @param {import('../types.js').RiverNetwork} [slice.riverNetwork]
  * @param {import('../types.js').CoastalNode[]} slice.coastalNodes
  * @param {number} slice.gridWidth
  * @param {number} slice.gridHeight
@@ -36,6 +45,7 @@ export function runGeographyValidationChecks(slice) {
     fields,
     biomes,
     riverGraph,
+    riverNetwork,
     coastalNodes,
     gridWidth,
     gridHeight,
@@ -50,79 +60,98 @@ export function runGeographyValidationChecks(slice) {
     validationOptions = DEFAULT_WORLD_GENERATION_OPTIONS,
   } = slice
   const cellCount = gridWidth * gridHeight
+  const graph = riverNetwork?.graph ?? riverGraph
+  const resolvedRiverNetwork = riverNetwork ?? assembleRiverNetworkFromValidationSlice(slice)
   const metrics =
     hydrologyMetrics ??
     computeHydrologyMetrics({
       elevation: fields.elevation,
       drainage: fields.drainage,
-      riverGraph,
+      riverGraph: graph,
+      riverNetwork: resolvedRiverNetwork ?? undefined,
       gridWidth,
       gridHeight,
     })
 
-  const navigableEdges = riverGraph.edges
+  const navigableEdges = selectNavigableRiverEdges(graph.edges)
   const minNavigable = minNavigableRiverEdgesForGrid(gridWidth)
   const navigablePass = navigableEdges.length >= minNavigable
-  rows.push({
-    checkId: 'navigableRiverQuota',
-    status: resolveCheckStatus(navigablePass, validationOptions.enforceNavigableRiverQuota),
-    summary: navigablePass
-      ? `Navigable river segments: ${navigableEdges.length}`
-      : `Low navigable river count: ${navigableEdges.length} (min ${minNavigable})`,
-    mapFocus: navigablePass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
-  })
+  rows.push(
+    createValidationRow(
+      'navigableRiverQuota',
+      resolveValidationCheckStatus(navigablePass, 'navigableRiverQuota', validationOptions),
+      navigablePass
+        ? `Navigable river segments: ${navigableEdges.length}`
+        : `Low navigable river count: ${navigableEdges.length} (min ${minNavigable})`,
+      navigablePass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
+    ),
+  )
 
   const mouthNodes = coastalNodes.filter((node) => node.kind === 'mouth')
   const coastMouthPass = mouthNodes.length >= 1
-  rows.push({
-    checkId: 'coastMouth',
-    status: resolveCheckStatus(coastMouthPass, validationOptions.enforceCoastMouth),
-    summary: coastMouthPass
-      ? `Coast mouths: ${mouthNodes.length}`
-      : 'No river mouths detected',
-    mapFocus: coastMouthPass ? undefined : { x: gridWidth / 2, y: gridHeight - 2, zoom: 2 },
-  })
+  rows.push(
+    createValidationRow(
+      'coastMouth',
+      resolveValidationCheckStatus(coastMouthPass, 'coastMouth', validationOptions),
+      coastMouthPass
+        ? `Coast mouths: ${mouthNodes.length}`
+        : 'No river mouths detected',
+      coastMouthPass ? undefined : { x: gridWidth / 2, y: gridHeight - 2, zoom: 2 },
+    ),
+  )
 
   const hacksLawPass = isHacksLawWithinBounds(metrics.hacksLawExponent, validationOptions)
-  rows.push({
-    checkId: 'hacksLawExponent',
-    status: resolveCheckStatus(hacksLawPass, validationOptions.enforceHacksLawExponent),
-    summary: formatHacksLawSummary(metrics.hacksLawExponent, validationOptions),
-    mapFocus: hacksLawPass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
-  })
+  rows.push(
+    createValidationRow(
+      'hacksLawExponent',
+      resolveValidationCheckStatus(hacksLawPass, 'hacksLawExponent', validationOptions),
+      formatHacksLawSummary(metrics.hacksLawExponent, validationOptions),
+      hacksLawPass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
+    ),
+  )
 
   const slopeAreaPass = isSlopeAreaConcavityWithinBounds(
     metrics.slopeAreaConcavitySamples,
     validationOptions,
   )
-  rows.push({
-    checkId: 'slopeAreaConcavity',
-    status: resolveCheckStatus(slopeAreaPass, validationOptions.enforceSlopeAreaConcavity),
-    summary: formatSlopeAreaSummary(metrics.slopeAreaConcavitySamples, validationOptions),
-    mapFocus: slopeAreaPass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
-  })
+  rows.push(
+    createValidationRow(
+      'slopeAreaConcavity',
+      resolveValidationCheckStatus(slopeAreaPass, 'slopeAreaConcavity', validationOptions),
+      formatSlopeAreaSummary(metrics.slopeAreaConcavitySamples, validationOptions),
+      slopeAreaPass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
+    ),
+  )
 
   const parallelPass = metrics.parallelStrandRatio <= validationOptions.maxParallelStrandRatio
-  rows.push({
-    checkId: 'parallelStrandRatio',
-    status: resolveCheckStatus(parallelPass, validationOptions.enforceParallelStrandRatio),
-    summary: parallelPass
-      ? `Parallel strand ratio: ${metrics.parallelStrandRatio.toFixed(2)}`
-      : `Parallel strands ${metrics.parallelStrandRatio.toFixed(2)} above cap ${validationOptions.maxParallelStrandRatio.toFixed(2)}`,
-    mapFocus: parallelPass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
-  })
+  rows.push(
+    createValidationRow(
+      'parallelStrandRatio',
+      resolveValidationCheckStatus(parallelPass, 'parallelStrandRatio', validationOptions),
+      parallelPass
+        ? `Parallel strand ratio: ${metrics.parallelStrandRatio.toFixed(2)}`
+        : `Parallel strands ${metrics.parallelStrandRatio.toFixed(2)} above cap ${validationOptions.maxParallelStrandRatio.toFixed(2)}`,
+      parallelPass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
+    ),
+  )
 
   const coastPathPass =
     metrics.coastConnectedNavigablePathLength >=
     validationOptions.minCoastConnectedNavigablePathCells
-  rows.push({
-    checkId: 'coastConnectedNavigablePath',
-    status: resolveCheckStatus(coastPathPass, validationOptions.enforceCoastConnectedNavigablePath),
-    summary: coastPathPass
-      ? `Coast-connected navigable path: ${metrics.coastConnectedNavigablePathLength} cells`
-      : `Coast-connected navigable path ${metrics.coastConnectedNavigablePathLength} below min ${validationOptions.minCoastConnectedNavigablePathCells}`,
-    mapFocus: coastPathPass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
-  })
+  rows.push(
+    createValidationRow(
+      'coastConnectedNavigablePath',
+      resolveValidationCheckStatus(
+        coastPathPass,
+        'coastConnectedNavigablePath',
+        validationOptions,
+      ),
+      coastPathPass
+        ? `Coast-connected navigable path: ${metrics.coastConnectedNavigablePathLength} cells`
+        : `Coast-connected navigable path ${metrics.coastConnectedNavigablePathLength} below min ${validationOptions.minCoastConnectedNavigablePathCells}`,
+      coastPathPass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
+    ),
+  )
 
   const endorheicCap = maxEndorheicFractionForOptions(validationOptions)
   const endorheicFraction =
@@ -130,46 +159,69 @@ export function runGeographyValidationChecks(slice) {
       ? hydrologyStats.endorheicCount / hydrologyStats.lakeCount
       : hydrologyStats.endorheicFraction
   const endorheicPass = endorheicFraction <= endorheicCap
-  rows.push({
-    checkId: 'endorheicFractionCap',
-    status: resolveCheckStatus(endorheicPass, validationOptions.enforceEndorheicFractionCap),
-    summary: endorheicPass
-      ? `Endorheic fraction ${endorheicFraction.toFixed(2)} within cap ${endorheicCap.toFixed(2)}`
-      : `Endorheic fraction ${endorheicFraction.toFixed(2)} above cap ${endorheicCap.toFixed(2)}`,
-    mapFocus: endorheicPass ? undefined : { x: gridWidth / 2, y: gridHeight / 2, zoom: 1 },
-  })
+  rows.push(
+    createValidationRow(
+      'endorheicFractionCap',
+      resolveValidationCheckStatus(endorheicPass, 'endorheicFractionCap', validationOptions),
+      endorheicPass
+        ? `Endorheic fraction ${endorheicFraction.toFixed(2)} within cap ${endorheicCap.toFixed(2)}`
+        : `Endorheic fraction ${endorheicFraction.toFixed(2)} above cap ${endorheicCap.toFixed(2)}`,
+      endorheicPass ? undefined : { x: gridWidth / 2, y: gridHeight / 2, zoom: 1 },
+    ),
+  )
+
+  const salinityMetrics = computeSalinityGradientMetrics(
+    fields.salinity,
+    fields.elevation,
+    validationOptions.seaLevel,
+  )
+  const salinityPass =
+    salinityMetrics.oceanCellCount > 0 &&
+    salinityMetrics.oceanSalinityMean >= MIN_OCEAN_SALINITY_MEAN &&
+    salinityMetrics.inlandCellCount > 0 &&
+    salinityMetrics.meanInlandSalinity < salinityMetrics.oceanSalinityMean
+  rows.push(
+    createValidationRow(
+      'salinityOceanGradient',
+      resolveValidationCheckStatus(salinityPass, 'salinityOceanGradient', validationOptions),
+      salinityPass
+        ? `Salinity gradient: ocean ${salinityMetrics.oceanSalinityMean.toFixed(2)}, inland ${salinityMetrics.meanInlandSalinity.toFixed(2)}`
+        : 'Salinity field missing ocean-to-inland gradient',
+      salinityPass ? undefined : { x: gridWidth / 2, y: gridHeight / 2, zoom: 1 },
+    ),
+  )
 
   let highlandCells = 0
   for (let i = 0; i < cellCount; i += 1) {
     if (fields.elevation[i] >= MIN_HIGHLAND_ELEVATION) highlandCells += 1
   }
   const highlandFraction = highlandCells / cellCount
-  rows.push({
-    checkId: 'highlandPresence',
-    status: highlandFraction >= MIN_HIGHLAND_FRACTION ? 'pass' : 'warn',
-    summary:
-      highlandFraction >= MIN_HIGHLAND_FRACTION
+  const highlandPass = highlandFraction >= MIN_HIGHLAND_FRACTION
+  rows.push(
+    createValidationRow(
+      'highlandPresence',
+      resolveValidationCheckStatus(highlandPass, 'highlandPresence', validationOptions),
+      highlandPass
         ? `Highland coverage: ${(highlandFraction * 100).toFixed(1)}%`
         : `Thin highlands: ${(highlandFraction * 100).toFixed(1)}%`,
-    mapFocus:
-      highlandFraction >= MIN_HIGHLAND_FRACTION
-        ? undefined
-        : findHighlandFocus(fields.elevation, gridWidth),
-  })
+      highlandPass ? undefined : findHighlandFocus(fields.elevation, gridWidth),
+    ),
+  )
 
   const biomeSet = new Set(biomes)
-  rows.push({
-    checkId: 'biomeDiversity',
-    status: biomeSet.size >= MIN_BIOME_DIVERSITY ? 'pass' : 'warn',
-    summary:
-      biomeSet.size >= MIN_BIOME_DIVERSITY
+  const biomeDiversityPass = biomeSet.size >= MIN_BIOME_DIVERSITY
+  rows.push(
+    createValidationRow(
+      'biomeDiversity',
+      resolveValidationCheckStatus(biomeDiversityPass, 'biomeDiversity', validationOptions),
+      biomeDiversityPass
         ? `Biome diversity: ${biomeSet.size} types`
         : `Low biome diversity: ${biomeSet.size} types`,
-    mapFocus:
-      biomeSet.size >= MIN_BIOME_DIVERSITY
+      biomeDiversityPass
         ? undefined
         : { x: gridWidth / 2, y: gridHeight / 2, zoom: 1 },
-  })
+    ),
+  )
 
   const windAsymmetry = computeWindRainfallAsymmetry({
     rainfall: fields.rainfall,
@@ -181,38 +233,64 @@ export function runGeographyValidationChecks(slice) {
   const windAsymmetryActive =
     windAsymmetry.highlandCellCount > 0 &&
     windAsymmetry.asymmetry >= MIN_WIND_RAINFALL_ASYMMETRY
-  rows.push({
-    checkId: 'windRainfallAsymmetry',
-    status: windAsymmetryActive ? 'pass' : 'warn',
-    summary:
+  rows.push(
+    createValidationRow(
+      'windRainfallAsymmetry',
+      resolveValidationCheckStatus(
+        windAsymmetryActive,
+        'windRainfallAsymmetry',
+        validationOptions,
+      ),
       windAsymmetry.highlandCellCount === 0
         ? 'Wind rainfall asymmetry unavailable (no highland cells)'
         : windAsymmetryActive
           ? `Wind rainfall asymmetry: ${(windAsymmetry.asymmetry * 100).toFixed(1)}% windward-leeward gap`
           : `Flat wind rainfall response: ${(windAsymmetry.asymmetry * 100).toFixed(1)}% gap`,
-  })
+    ),
+  )
 
   const mismatch = findResourceMismatchZone(biomes, fields, gridWidth, gridHeight)
-  rows.push({
-    checkId: 'resourceMismatch',
-    status: mismatch ? 'warn' : 'pass',
-    summary: mismatch
-      ? 'Resource-mismatch friction zone detected'
-      : 'No major resource-mismatch friction zones',
-    mapFocus: mismatch ?? undefined,
-  })
+  rows.push(
+    createValidationRow(
+      'resourceMismatch',
+      resolveValidationCheckStatus(!mismatch, 'resourceMismatch', validationOptions),
+      mismatch
+        ? 'Resource-mismatch friction zone detected'
+        : 'No major resource-mismatch friction zones',
+      mismatch ?? undefined,
+    ),
+  )
 
   return rows
 }
 
 /**
- * @param {boolean} passed
- * @param {boolean} enforce
- * @returns {'pass' | 'warn' | 'fail'}
+ * @param {Float32Array} salinity
+ * @param {Float32Array} elevation
+ * @param {number} [seaLevel]
  */
-function resolveCheckStatus(passed, enforce) {
-  if (passed) return 'pass'
-  return enforce ? 'fail' : 'warn'
+export function computeSalinityGradientMetrics(salinity, elevation, seaLevel = SEA_LEVEL) {
+  let oceanSalinitySum = 0
+  let oceanCellCount = 0
+  let inlandSalinitySum = 0
+  let inlandCellCount = 0
+
+  for (let i = 0; i < salinity.length; i += 1) {
+    if (elevation[i] < seaLevel) {
+      oceanSalinitySum += salinity[i]
+      oceanCellCount += 1
+    } else {
+      inlandSalinitySum += salinity[i]
+      inlandCellCount += 1
+    }
+  }
+
+  return {
+    oceanCellCount,
+    inlandCellCount,
+    oceanSalinityMean: oceanCellCount > 0 ? oceanSalinitySum / oceanCellCount : 0,
+    meanInlandSalinity: inlandCellCount > 0 ? inlandSalinitySum / inlandCellCount : 0,
+  }
 }
 
 /**

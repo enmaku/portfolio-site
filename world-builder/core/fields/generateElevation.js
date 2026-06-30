@@ -1,3 +1,4 @@
+import { computeLandCoastDistance } from '../grid/gridTopology.js'
 import { deriveFieldSeed } from '../noise/seededRandom.js'
 import { scaleForGridSize } from '../types.js'
 import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
@@ -5,7 +6,6 @@ import { applyClosedIslandRim } from './applyClosedIslandRim.js'
 import {
   applyCoastDistanceBias,
   applySlopeDependentRoughness,
-  computeLandCoastDistance,
   generateWarpedFbm2d,
   reduceGentleSlopeHighFrequency,
   smoothMidLevelElevation,

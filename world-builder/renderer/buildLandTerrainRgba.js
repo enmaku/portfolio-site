@@ -10,7 +10,7 @@ import { biomeColorForId } from './biomePalette.js'
  */
 export function buildLandTerrainRgba(worldDocument, seaLevel = SEA_LEVEL) {
   const { gridWidth, gridHeight, biomes, fields } = worldDocument
-  const { elevation, temperature, rainfall, drainage, salidity } = fields
+  const { elevation, temperature, rainfall, drainage, salinity } = fields
   const rgba = new Uint8ClampedArray(gridWidth * gridHeight * 4)
 
   for (let i = 0; i < biomes.length; i += 1) {
@@ -22,7 +22,7 @@ export function buildLandTerrainRgba(worldDocument, seaLevel = SEA_LEVEL) {
           temperature: temperature[i],
           rainfall: rainfall[i],
           drainage: drainage[i],
-          salidity: salidity[i],
+          salinity: salinity[i],
         },
         seaLevel,
       )

@@ -5,11 +5,11 @@ import { isOceanCell } from '../fields/applyClosedIslandRim.js'
 import { computeFlowAccumulation } from './computeFlowAccumulation.js'
 import {
   buildRiverGraph,
-  buildNavigableRiverMask,
   countMaskedUpstreamChannelCells,
   isRiverMouthDrainageCell,
   qualifiesAsRiverMouth,
 } from './buildRiverGraph.js'
+import { buildNavigableRiverMask } from './riverNetwork.js'
 import { minRiverMouthChannelCellsForGrid } from '../types.js'
 
 function makeGentleRamp(width, height) {

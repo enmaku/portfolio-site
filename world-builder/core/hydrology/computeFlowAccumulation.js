@@ -57,11 +57,11 @@ export function computeFlowAccumulation({
   for (let idx = 0; idx < cellCount; idx += 1) {
     if (ocean[idx]) continue
     const partition = partitions[idx]
-    if (partition.primaryIdx >= 0 && !ocean[partition.primaryIdx]) {
+    if (isInGridCell(partition.primaryIdx, cellCount) && !ocean[partition.primaryIdx]) {
       inDegree[partition.primaryIdx] += 1
     }
     if (
-      partition.secondaryIdx >= 0 &&
+      isInGridCell(partition.secondaryIdx, cellCount) &&
       partition.secondaryIdx !== partition.primaryIdx &&
       partition.secondaryFraction > 0 &&
       !ocean[partition.secondaryIdx]
@@ -88,20 +88,22 @@ export function computeFlowAccumulation({
     const total = flowAccumulation[idx]
     const partition = partitions[idx]
 
-    if (partition.primaryIdx >= 0 && partition.primaryFraction > 0) {
+    if (isInGridCell(partition.primaryIdx, cellCount) && partition.primaryFraction > 0) {
       sendFlow(
         total * partition.primaryFraction,
         partition.primaryIdx,
+        cellCount,
         ocean,
         inDegree,
         flowAccumulation,
         queue,
       )
     }
-    if (partition.secondaryIdx >= 0 && partition.secondaryFraction > 0) {
+    if (isInGridCell(partition.secondaryIdx, cellCount) && partition.secondaryFraction > 0) {
       sendFlow(
         total * partition.secondaryFraction,
         partition.secondaryIdx,
+        cellCount,
         ocean,
         inDegree,
         flowAccumulation,
@@ -114,15 +116,24 @@ export function computeFlowAccumulation({
 }
 
 /**
+ * @param {number} idx
+ * @param {number} cellCount
+ */
+function isInGridCell(idx, cellCount) {
+  return idx >= 0 && idx < cellCount
+}
+
+/**
  * @param {number} amount
  * @param {number} downstream
+ * @param {number} cellCount
  * @param {boolean[]} ocean
  * @param {Int16Array} inDegree
  * @param {Float32Array} flowAccumulation
  * @param {number[]} queue
  */
-function sendFlow(amount, downstream, ocean, inDegree, flowAccumulation, queue) {
-  if (downstream < 0 || ocean[downstream]) return
+function sendFlow(amount, downstream, cellCount, ocean, inDegree, flowAccumulation, queue) {
+  if (!isInGridCell(downstream, cellCount) || ocean[downstream]) return
   flowAccumulation[downstream] += amount
   inDegree[downstream] -= 1
   if (inDegree[downstream] === 0) {
@@ -139,10 +150,12 @@ function sendFlow(amount, downstream, ocean, inDegree, flowAccumulation, queue) 
 export function downstreamIndex(idx, width, flowDirection) {
   const dir = flowDirection[idx]
   if (dir < 0) return -1
+  const height = flowDirection.length / width
   const x = idx % width
   const y = Math.floor(idx / width)
   const nx = x + D8_OFFSETS[dir][0]
   const ny = y + D8_OFFSETS[dir][1]
+  if (nx < 0 || ny < 0 || nx >= width || ny >= height) return -1
   return ny * width + nx
 }
 

@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  ADVISORY_VALIDATION_CHECK_IDS,
+  REJECTABLE_VALIDATION_CHECK_IDS,
+  readEnforceFlag,
+} from './validation/landmassValidationContracts.js'
+import {
   DEFAULT_BREACH_THRESHOLD,
   DEFAULT_WORLD_GENERATION_OPTIONS,
   resolveWorldGenerationOptions,
@@ -38,6 +43,12 @@ test('resolveWorldGenerationOptions preserves hydrology validation defaults', ()
   assert.strictEqual(options.enforceCoastMouth, false)
   assert.strictEqual(options.maxParallelStrandRatio, 0.35)
   assert.strictEqual(options.minCoastConnectedNavigablePathCells, 8)
+  for (const checkId of REJECTABLE_VALIDATION_CHECK_IDS) {
+    assert.strictEqual(readEnforceFlag(checkId, options), false)
+  }
+  for (const checkId of ADVISORY_VALIDATION_CHECK_IDS) {
+    assert.strictEqual(readEnforceFlag(checkId, options), false)
+  }
 })
 
 test('resolveWorldGenerationOptions preserves maxValidationRetries default', () => {

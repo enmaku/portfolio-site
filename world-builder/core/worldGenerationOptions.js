@@ -82,6 +82,8 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
    * Each retry regenerates with geographySeed + attempt offset.
    */
   maxValidationRetries: 3,
+  /** When true, worker step-complete messages include cloned world documents for every stage. */
+  enableIntermediateStepPreviews: false,
   minHacksLawExponent: 0.4,
   maxHacksLawExponent: 0.75,
   minSlopeAreaConcavity: 0.05,

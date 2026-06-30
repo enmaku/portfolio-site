@@ -7,7 +7,7 @@ import { BIOMES, SEA_LEVEL, SNOW_CAP_ELEVATION_MIN, SNOW_CAP_TEMPERATURE_MAX } f
  * @property {number} temperature
  * @property {number} rainfall
  * @property {number} drainage
- * @property {number} salidity
+ * @property {number} salinity
  */
 
 /**
@@ -17,13 +17,13 @@ import { BIOMES, SEA_LEVEL, SNOW_CAP_ELEVATION_MIN, SNOW_CAP_TEMPERATURE_MAX } f
  * @returns {number} biome index
  */
 export function classifyBiomeFromSample(sample, seaLevel = SEA_LEVEL) {
-  const { elevation, temperature, rainfall, drainage, salidity } = sample
+  const { elevation, temperature, rainfall, drainage, salinity } = sample
 
   if (elevation < seaLevel) {
     return BIOMES.OCEAN
   }
 
-  if (salidity >= 0.45) {
+  if (salinity >= 0.45) {
     return BIOMES.COAST
   }
 
@@ -80,7 +80,7 @@ export function classifyBiomeFromSample(sample, seaLevel = SEA_LEVEL) {
  * @param {Float32Array} fields.temperature
  * @param {Float32Array} fields.rainfall
  * @param {Float32Array} fields.drainage
- * @param {Float32Array} fields.salidity
+ * @param {Float32Array} fields.salinity
  * @param {number} width
  * @param {number} height
  * @param {number} [seaLevel]
@@ -96,7 +96,7 @@ export function classifyBiomesFromFields(
   geographySeed,
   biomeEdgeNoiseStrength = 1,
 ) {
-  const { elevation, temperature, rainfall, drainage, salidity } = fields
+  const { elevation, temperature, rainfall, drainage, salinity } = fields
   const biomes = new Uint8Array(width * height)
   const edgeNoise =
     geographySeed == null
@@ -109,7 +109,7 @@ export function classifyBiomesFromFields(
       temperature: temperature[i],
       rainfall: rainfall[i],
       drainage: drainage[i],
-      salidity: salidity[i],
+      salinity: salinity[i],
     }
     const baseBiome = classifyBiomeFromSample(sample, seaLevel)
 
@@ -139,7 +139,7 @@ export function classifyBiomesFromFields(
  * @param {Float32Array} fields.temperature
  * @param {Float32Array} fields.rainfall
  * @param {Float32Array} fields.drainage
- * @param {Float32Array} fields.salidity
+ * @param {Float32Array} fields.salinity
  * @param {number} width
  * @param {number} height
  * @param {Object} hydrology

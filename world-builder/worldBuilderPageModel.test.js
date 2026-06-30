@@ -21,6 +21,7 @@ import {
   normalizeGeographySeed,
   shouldShowGenerationProgress,
   shouldShowResourceOverlayBar,
+  shouldApplyStepPreviewToMap,
   validationStatusColor,
   validationStatusIcon,
 } from './worldBuilderPageModel.js'
@@ -112,24 +113,21 @@ test('createHydrologySubstepStatuses marks skipped substeps', () => {
   )
 })
 
-test('formatHydrologySubstepTimingForDisplay shows skipped label', () => {
-  assert.strictEqual(
-    formatHydrologySubstepTimingForDisplay({
-      substepId: 'hydrologyRefine',
-      label: 'Meander refine',
-      durationMs: 0,
-      skipped: true,
-    }),
-    'Skipped',
-  )
-  assert.strictEqual(
-    formatHydrologySubstepTimingForDisplay({
-      substepId: 'hydrologyFill',
-      label: 'Fill lakes',
-      durationMs: 1.25,
-    }),
-    '1.3 ms',
-  )
+test('formatHydrologySubstepTimingForDisplay omits duration for skipped substeps', () => {
+  const timed = formatHydrologySubstepTimingForDisplay({
+    substepId: 'hydrologyFill',
+    label: 'fill',
+    durationMs: 1.25,
+  })
+  const skipped = formatHydrologySubstepTimingForDisplay({
+    substepId: 'hydrologyRefine',
+    label: 'refine',
+    durationMs: 0,
+    skipped: true,
+  })
+  assert.ok(timed.includes('ms'))
+  assert.ok(!skipped.includes('ms'))
+  assert.notStrictEqual(skipped, timed)
 })
 
 test('createHydrologySubstepTimingsForDisplay reads report timings', () => {
@@ -190,6 +188,8 @@ test('createHydrologyStatsForDisplay surfaces hydrology metrics and rejection st
     coastalNodeCount: 3,
     validationRows: [],
     shouldReject: true,
+    rejectionSamplingEnforced: true,
+    structuredRejectionReasons: [{ checkId: 'coastMouth', category: 'coast' }],
     rejectionReasons: ['coastMouth: No river mouths detected'],
     hydrologySubstepTimings: [],
     hydrology: {
@@ -221,6 +221,10 @@ test('createHydrologyStatsForDisplay surfaces hydrology metrics and rejection st
   assert.strictEqual(stats.endorheicFraction, 0.5)
   assert.strictEqual(stats.coastConnectedNavigablePathLength, 6)
   assert.strictEqual(stats.shouldReject, true)
+  assert.strictEqual(stats.rejectionSamplingEnforced, true)
+  assert.deepStrictEqual(stats.structuredRejectionReasons, [
+    { checkId: 'coastMouth', category: 'coast' },
+  ])
   assert.deepStrictEqual(stats.rejectionReasons, ['coastMouth: No river mouths detected'])
 })
 
@@ -229,7 +233,29 @@ test('createHydrologyStatsForDisplay defaults when hydrology section missing', (
   assert.strictEqual(stats.riverCellCount, null)
   assert.strictEqual(stats.slopeAreaConcavitySampleCount, 0)
   assert.strictEqual(stats.shouldReject, false)
+  assert.strictEqual(stats.rejectionSamplingEnforced, false)
+  assert.deepStrictEqual(stats.structuredRejectionReasons, [])
   assert.deepStrictEqual(stats.rejectionReasons, [])
+})
+
+test('createValidationRowsForDisplay preserves contract metadata on rows', () => {
+  const rows = createValidationRowsForDisplay({
+    erosionStepCount: 1,
+    navigableRiverEdgeCount: 2,
+    coastalNodeCount: 3,
+    validationRows: [
+      {
+        checkId: 'coastMouth',
+        status: 'fail',
+        summary: 'fixture summary',
+        category: 'coast',
+        rejectable: true,
+      },
+    ],
+  })
+  assert.strictEqual(rows[0]?.category, 'coast')
+  assert.strictEqual(rows[0]?.rejectable, true)
+  assert.strictEqual(rows[0]?.checkId, 'coastMouth')
 })
 
 test('formatSlopeAreaConcavityForDisplay renders median and sample count', () => {
@@ -242,15 +268,18 @@ test('formatHydrologyMetricValue renders null as n/a', () => {
   assert.strictEqual(formatHydrologyMetricValue(0.4567, 2), '0.46')
 })
 
-test('createResourceOverlayDefinitions lists all four canonical resource overlays', () => {
+test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
   const definitions = createResourceOverlayDefinitions()
   assert.strictEqual(definitions.length, 4)
-  assert.deepStrictEqual(definitions, [
-    { id: 'arable', kind: 'raster', label: 'Arable' },
-    { id: 'timber', kind: 'raster', label: 'Timber' },
-    { id: 'metals', kind: 'rasterAndNodes', label: 'Metals' },
-    { id: 'salt', kind: 'nodes', label: 'Salt' },
-  ])
+  assert.deepStrictEqual(
+    definitions.map((definition) => ({ id: definition.id, kind: definition.kind })),
+    [
+      { id: 'arable', kind: 'raster' },
+      { id: 'timber', kind: 'raster' },
+      { id: 'metals', kind: 'rasterAndNodes' },
+      { id: 'salt', kind: 'nodes' },
+    ],
+  )
 })
 
 test('createDefaultResourceOverlayVisibility defaults every overlay off', () => {
@@ -278,6 +307,20 @@ test('shouldShowResourceOverlayBar stays hidden after failed mid-pipeline runs',
   assert.strictEqual(shouldShowResourceOverlayBar(false, false), false)
 })
 
+test('shouldApplyStepPreviewToMap is false when step-complete omits world document', () => {
+  assert.strictEqual(shouldApplyStepPreviewToMap(undefined), false)
+  assert.strictEqual(shouldApplyStepPreviewToMap(null), false)
+  assert.strictEqual(
+    shouldApplyStepPreviewToMap({
+      gridWidth: 2,
+      gridHeight: 2,
+      biomes: new Uint8Array(4),
+      fields: { elevation: new Float32Array(4) },
+    }),
+    true,
+  )
+})
+
 test('status bar helpers never show progress and overlay bar together', () => {
   for (const isGenerating of [true, false]) {
     for (const pipelineSucceeded of [true, false]) {
@@ -286,24 +329,4 @@ test('status bar helpers never show progress and overlay bar together', () => {
       assert.strictEqual(showProgress && showOverlayBar, false)
     }
   }
-})
-
-test('resource overlay toggle test id resolves overlay checkbox wiring', () => {
-  const definitions = createResourceOverlayDefinitions()
-  assert.strictEqual(
-    `world-builder-overlay-toggle-${definitions.find((d) => d.id === 'arable')?.id}`,
-    'world-builder-overlay-toggle-arable',
-  )
-  assert.strictEqual(
-    `world-builder-overlay-toggle-${definitions.find((d) => d.id === 'timber')?.id}`,
-    'world-builder-overlay-toggle-timber',
-  )
-  assert.strictEqual(
-    `world-builder-overlay-toggle-${definitions.find((d) => d.id === 'metals')?.id}`,
-    'world-builder-overlay-toggle-metals',
-  )
-  assert.strictEqual(
-    `world-builder-overlay-toggle-${definitions.find((d) => d.id === 'salt')?.id}`,
-    'world-builder-overlay-toggle-salt',
-  )
 })

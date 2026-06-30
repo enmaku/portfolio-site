@@ -1,3 +1,4 @@
+import { clamp01 } from '../grid/gridTopology.js'
 import { deriveFieldSeed } from '../noise/seededRandom.js'
 import { generateFbm2d } from '../noise/fbm2d.js'
 import { scaleForGridSize } from '../types.js'
@@ -25,10 +26,11 @@ export function generateTemperature({ geographySeed, width, height, elevation, o
     persistence: 0.45,
   })
   const out = new Float32Array(width * height)
-  const equatorRow = (height - 1) / 2
+  const equatorRow = height > 1 ? (height - 1) / 2 : 0
 
   for (let y = 0; y < height; y += 1) {
-    const latitudeFactor = 1 - Math.abs(y - equatorRow) / equatorRow
+    const latitudeFactor =
+      height <= 1 ? 1 : 1 - Math.abs(y - equatorRow) / equatorRow
     for (let x = 0; x < width; x += 1) {
       const idx = y * width + x
       const lapse = elevation[idx] * resolved.temperatureLapseRate
@@ -38,13 +40,4 @@ export function generateTemperature({ geographySeed, width, height, elevation, o
   }
 
   return out
-}
-
-/**
- * @param {number} value
- */
-function clamp01(value) {
-  if (value < 0) return 0
-  if (value > 1) return 1
-  return value
 }

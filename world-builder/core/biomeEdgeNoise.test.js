@@ -52,7 +52,7 @@ test('classifyBiomesFromFields roughens inland biome edges when geography seed i
     temperature: new Float32Array(cellCount).fill(0.55),
     rainfall: new Float32Array(cellCount).fill(0.175),
     drainage: new Float32Array(cellCount).fill(0.5),
-    salidity: new Float32Array(cellCount).fill(0.05),
+    salinity: new Float32Array(cellCount).fill(0.05),
   }
 
   const smooth = classifyBiomesFromFields(fields, width, height)
@@ -82,14 +82,14 @@ test('classifyBiomesFromFields leaves ocean and coast unchanged by edge noise', 
     temperature: new Float32Array(cellCount).fill(0.5),
     rainfall: new Float32Array(cellCount).fill(0.5),
     drainage: new Float32Array(cellCount).fill(0.5),
-    salidity: new Float32Array(cellCount),
+    salinity: new Float32Array(cellCount),
   }
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const i = y * width + x
       fields.elevation[i] = x < width / 2 ? 0.2 : 0.55
-      fields.salidity[i] = x < width / 2 ? 1 : 0.05
+      fields.salinity[i] = x < width / 2 ? 1 : 0.05
     }
   }
 
@@ -112,7 +112,7 @@ test('zero biome edge noise strength matches unseeded classification', () => {
     temperature: new Float32Array(cellCount).fill(0.5),
     rainfall: new Float32Array(cellCount).fill(0.5),
     drainage: new Float32Array(cellCount).fill(0.5),
-    salidity: new Float32Array(cellCount).fill(0.05),
+    salinity: new Float32Array(cellCount).fill(0.05),
   }
 
   const baseline = classifyBiomesFromFields(fields, width, height)

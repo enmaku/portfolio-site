@@ -8,6 +8,11 @@ import {
   scaleForGridSize,
 } from '../types.js'
 import { downstreamIndex } from './computeFlowAccumulation.js'
+import {
+  buildUpstreamAdjacency,
+  selectCoastalMouths,
+  traceRiverUpstream,
+} from './riverNetwork.js'
 
 /**
  * River corridor mask traced from major outlets upstream, with tributaries merging at
@@ -58,7 +63,12 @@ export function buildRiverNetworkMask({
     Math.round(navigableFlowCutoffForGrid(width) * navigableFlowCutoffScale),
   )
 
-  const upstream = buildUpstreamAdjacency(cellCount, width, flowDirection, ocean)
+  const upstream = buildUpstreamAdjacency({
+    cellCount,
+    width,
+    flowDirection,
+    ocean,
+  })
   const mask = new Uint8Array(cellCount)
 
   /** @type {number[]} */
@@ -229,25 +239,6 @@ function markDownstreamFromOutlet(startIdx, mask, flowDirection, lakeMask, width
 }
 
 /**
- * @param {number} cellCount
- * @param {number} width
- * @param {Int16Array} flowDirection
- * @param {boolean[]} ocean
- * @returns {number[][]}
- */
-function buildUpstreamAdjacency(cellCount, width, flowDirection, ocean) {
-  /** @type {number[][]} */
-  const upstream = Array.from({ length: cellCount }, () => [])
-  for (let idx = 0; idx < cellCount; idx += 1) {
-    if (ocean[idx]) continue
-    const downstream = downstreamIndex(idx, width, flowDirection)
-    if (downstream < 0 || ocean[downstream]) continue
-    upstream[downstream].push(idx)
-  }
-  return upstream
-}
-
-/**
  * @param {Uint8Array | undefined} lakeMask
  * @param {number} width
  * @param {number} height
@@ -329,59 +320,6 @@ function selectLakeInflowOutlets(
     )
   }
   return selected
-}
-
-/**
- * @param {number[]} candidates
- * @param {Float32Array} flowAccumulation
- * @param {number} width
- * @param {number} mergeRadius
- * @param {number} mouthCutoff
- * @returns {number[]}
- */
-function selectCoastalMouths(candidates, flowAccumulation, width, mergeRadius, mouthCutoff) {
-  const qualifying = candidates.filter((idx) => flowAccumulation[idx] >= mouthCutoff)
-  qualifying.sort((a, b) => flowAccumulation[b] - flowAccumulation[a])
-
-  /** @type {number[]} */
-  const selected = []
-  for (const idx of qualifying) {
-    const x = idx % width
-    const y = Math.floor(idx / width)
-    const tooClose = selected.some((otherIdx) => {
-      const ox = otherIdx % width
-      const oy = Math.floor(otherIdx / width)
-      return Math.hypot(x - ox, y - oy) < mergeRadius
-    })
-    if (!tooClose) {
-      selected.push(idx)
-    }
-  }
-  return selected
-}
-
-/**
- * @param {number} startIdx
- * @param {Uint8Array} mask
- * @param {Float32Array} flowAccumulation
- * @param {number[][]} upstream
- * @param {number} minBranchFlow
- */
-function traceRiverUpstream(startIdx, mask, flowAccumulation, upstream, minBranchFlow) {
-  /** @type {number[]} */
-  const stack = [startIdx]
-  mask[startIdx] = 1
-
-  while (stack.length > 0) {
-    const idx = stack.pop()
-    for (const upIdx of upstream[idx]) {
-      if (mask[upIdx]) continue
-      if (flowAccumulation[upIdx] >= minBranchFlow) {
-        mask[upIdx] = 1
-        stack.push(upIdx)
-      }
-    }
-  }
 }
 
 /**

@@ -238,10 +238,10 @@ test('extractRiverNetworkFromIncisedChannels merges tributary discharge monotoni
 
 test('extractRiverNetworkFromIncisedChannels places mouth nodes at coastal drainage cells', () => {
   let state = createInitialPipelineState({
-    geographySeed: 12345,
+    geographySeed: 5000,
     prevailingWindDegrees: 90,
-    width: 64,
-    height: 64,
+    width: 256,
+    height: 256,
   })
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')

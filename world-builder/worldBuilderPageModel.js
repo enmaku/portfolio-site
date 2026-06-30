@@ -175,6 +175,8 @@ export function createHydrologyStatsForDisplay(report) {
       endorheicFraction: null,
       coastConnectedNavigablePathLength: null,
       shouldReject: false,
+      rejectionSamplingEnforced: false,
+      structuredRejectionReasons: [],
       rejectionReasons: [],
     }
   }
@@ -195,6 +197,10 @@ export function createHydrologyStatsForDisplay(report) {
     endorheicFraction: report.hydrology.endorheicFraction,
     coastConnectedNavigablePathLength: report.hydrology.coastConnectedNavigablePathLength,
     shouldReject: report.shouldReject,
+    rejectionSamplingEnforced: report.rejectionSamplingEnforced,
+    structuredRejectionReasons: report.structuredRejectionReasons.map((reason) => ({
+      ...reason,
+    })),
     rejectionReasons: [...report.rejectionReasons],
   }
 }
@@ -247,33 +253,11 @@ export function generationProgressValue(stepIndex, stepCount) {
   return Math.round(((stepIndex + 1) / stepCount) * 100)
 }
 
-/**
- * @returns {Array<{ id: string, kind: 'nodes' | 'raster' | 'rasterAndNodes', label: string }>}
- */
-export function createResourceOverlayDefinitions() {
-  return [
-    { id: 'arable', kind: 'raster', label: 'Arable' },
-    { id: 'timber', kind: 'raster', label: 'Timber' },
-    { id: 'metals', kind: 'rasterAndNodes', label: 'Metals' },
-    { id: 'salt', kind: 'nodes', label: 'Salt' },
-  ]
-}
-
-/**
- * @returns {string[]}
- */
-export function createResourceOverlayIds() {
-  return createResourceOverlayDefinitions().map((definition) => definition.id)
-}
-
-/**
- * @returns {Record<string, boolean>}
- */
-export function createDefaultResourceOverlayVisibility() {
-  return Object.fromEntries(
-    createResourceOverlayDefinitions().map((definition) => [definition.id, false]),
-  )
-}
+export {
+  createDefaultResourceOverlayVisibility,
+  createResourceOverlayDefinitions,
+  createResourceOverlayIds,
+} from './resourceOverlays.js'
 
 /**
  * @param {boolean} isGenerating
@@ -290,6 +274,14 @@ export function shouldShowGenerationProgress(isGenerating) {
  */
 export function shouldShowResourceOverlayBar(isGenerating, pipelineSucceeded) {
   return !isGenerating && pipelineSucceeded
+}
+
+/**
+ * @param {import('./core/types.js').WorldDocument | null | undefined} worldDocument
+ * @returns {boolean}
+ */
+export function shouldApplyStepPreviewToMap(worldDocument) {
+  return worldDocument != null
 }
 
 /**

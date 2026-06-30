@@ -89,7 +89,7 @@ export function saltNodeHasSubstantialLandProximity(
  * Place discrete salt node candidates from geographic signals.
  * @param {Object} params
  * @param {Float32Array} params.elevation
- * @param {Float32Array} params.salidity
+ * @param {Float32Array} params.salinity
  * @param {Float32Array} params.coastNavigability
  * @param {Uint8Array} params.biomes
  * @param {import('../types.js').LakeRecord[]} params.lakes
@@ -102,7 +102,7 @@ export function saltNodeHasSubstantialLandProximity(
  */
 export function placeSaltNodes({
   elevation,
-  salidity,
+  salinity,
   coastNavigability,
   biomes,
   lakes,
@@ -122,10 +122,10 @@ export function placeSaltNodes({
       const idx = y * width + x
       if (elevation[idx] < seaLevel) continue
 
-      let score = salidity[idx] * 0.5 + coastNavigability[idx] * 0.2
+      let score = salinity[idx] * 0.5 + coastNavigability[idx] * 0.2
       if (elevation[idx] < seaLevel + 0.06) score += 0.15
       if (endorheicLakeIds.size > 0 && isNearEndorheicLake(x, y, lakes, width)) score += 0.2
-      if (elevation[idx] >= 0.5 && elevation[idx] <= 0.62 && salidity[idx] > 0.15) {
+      if (elevation[idx] >= 0.5 && elevation[idx] <= 0.62 && salinity[idx] > 0.15) {
         score += 0.1
       }
 

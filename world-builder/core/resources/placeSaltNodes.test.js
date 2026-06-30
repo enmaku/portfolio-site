@@ -19,14 +19,14 @@ const height = 48
  */
 function makeSaltFixture(hotspots, biomes) {
   const cellCount = width * height
-  const salidity = new Float32Array(cellCount)
+  const salinity = new Float32Array(cellCount)
   const coastNavigability = new Float32Array(cellCount)
   const elevation = new Float32Array(cellCount).fill(SEA_LEVEL + 0.2)
   const biomeGrid = biomes ?? new Uint8Array(cellCount).fill(BIOMES.GRASSLAND)
 
   for (const { x, y, value, biome } of hotspots) {
     const idx = y * width + x
-    salidity[idx] = value
+    salinity[idx] = value
     coastNavigability[idx] = value
     if (biome !== undefined) {
       biomeGrid[idx] = biome
@@ -35,7 +35,7 @@ function makeSaltFixture(hotspots, biomes) {
 
   return {
     elevation,
-    salidity,
+    salinity,
     coastNavigability,
     biomes: biomeGrid,
     lakes: [],

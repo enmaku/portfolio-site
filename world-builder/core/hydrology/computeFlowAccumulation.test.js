@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { SEA_LEVEL, SNOW_CAP_ELEVATION_MIN } from '../biomeIds.js'
-import { applyClosedIslandRim } from '../fields/applyClosedIslandRim.js'
+import { applyClosedIslandRim, isOceanCell } from '../fields/applyClosedIslandRim.js'
 import { applyRainShadow } from '../fields/applyRainShadow.js'
 import { computeFlowAccumulation, downstreamIndex } from './computeFlowAccumulation.js'
 import { computeFlowPartitions } from './dInfinityFlow.js'
@@ -267,4 +267,86 @@ test('computeFlowAccumulation requires rainfall', () => {
     () => computeFlowAccumulation({ elevation, width: 2, height: 2 }),
     /rainfall is required/,
   )
+})
+
+test('downstreamIndex returns -1 when flow direction points outside the grid', () => {
+  const width = 4
+  const height = 4
+  const flowDirection = new Int16Array(width * height).fill(-1)
+  flowDirection[0] = 0
+  flowDirection[width - 1] = 2
+  flowDirection[(height - 1) * width] = 6
+  flowDirection[width * height - 1] = 4
+
+  assert.strictEqual(downstreamIndex(0, width, flowDirection), -1)
+  assert.strictEqual(downstreamIndex(width - 1, width, flowDirection), -1)
+  assert.strictEqual(downstreamIndex((height - 1) * width, width, flowDirection), -1)
+  assert.strictEqual(downstreamIndex(width * height - 1, width, flowDirection), -1)
+})
+
+test('computeFlowPartitions keep downstream indices inside the grid on rim terrain', () => {
+  const width = 8
+  const height = 8
+  const cellCount = width * height
+  const elevation = new Float32Array(cellCount).fill(SEA_LEVEL + 0.4)
+  applyClosedIslandRim(elevation, width, height)
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      elevation[y * width + x] = SEA_LEVEL + 0.2 + (width - x) * 0.01
+    }
+  }
+
+  const { flowDirection } = computeFlowAccumulation({
+    elevation,
+    width,
+    height,
+    seaLevel: SEA_LEVEL,
+    rainfall: uniformRainfall(width, height),
+  })
+  const ocean = isOceanCell(elevation, width, height, SEA_LEVEL)
+  const partitions = computeFlowPartitions({
+    elevation,
+    width,
+    height,
+    ocean,
+    seaLevel: SEA_LEVEL,
+  })
+
+  for (let idx = 0; idx < cellCount; idx += 1) {
+    const partition = partitions[idx]
+    for (const downstreamIdx of [partition.primaryIdx, partition.secondaryIdx]) {
+      if (downstreamIdx < 0) continue
+      assert.ok(downstreamIdx < cellCount, `partition downstream ${downstreamIdx} out of bounds`)
+    }
+    const downstream = downstreamIndex(idx, width, flowDirection)
+    if (downstream >= 0) {
+      assert.ok(downstream < cellCount)
+    }
+  }
+})
+
+test('computeFlowAccumulation never writes flow accumulation outside the grid', () => {
+  const width = 3
+  const height = 3
+  const cellCount = width * height
+  const elevation = new Float32Array(cellCount).fill(0.9)
+  elevation[0] = 1
+  elevation[1] = 0.8
+  elevation[width] = 0.7
+
+  const { flowAccumulation, flowDirection } = computeFlowAccumulation({
+    elevation,
+    width,
+    height,
+    rainfall: uniformRainfall(width, height),
+  })
+
+  assert.strictEqual(flowAccumulation.length, cellCount)
+  for (let idx = 0; idx < cellCount; idx += 1) {
+    const downstream = downstreamIndex(idx, width, flowDirection)
+    if (downstream >= 0) {
+      assert.ok(downstream < cellCount)
+    }
+  }
 })

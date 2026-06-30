@@ -1,19 +1,21 @@
+import { SEA_LEVEL } from '../biomeIds.js'
 import { isOceanCell } from './applyClosedIslandRim.js'
 import { scaleForGridSize } from '../types.js'
 
 const REFERENCE_MAX_INLAND_DISTANCE = 24
 
 /**
- * Salidity from distance to ocean / closed island rim (1 at sea, taper inland).
+ * Salinity from distance to ocean / closed island rim (1 at sea, taper inland).
  * @param {Object} params
  * @param {Float32Array} params.elevation
  * @param {number} params.width
  * @param {number} params.height
+ * @param {number} [params.seaLevel]
  * @returns {Float32Array}
  */
-export function deriveSalidityFromOcean({ elevation, width, height } ) {
+export function deriveSalinityFromOcean({ elevation, width, height, seaLevel = SEA_LEVEL }) {
   const maxInlandDistance = scaleForGridSize(REFERENCE_MAX_INLAND_DISTANCE, width)
-  const ocean = isOceanCell(elevation, width, height)
+  const ocean = isOceanCell(elevation, width, height, seaLevel)
   const distance = new Float32Array(width * height)
   const queue = []
 

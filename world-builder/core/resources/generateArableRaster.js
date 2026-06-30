@@ -1,5 +1,6 @@
 import { BIOMES } from '../biomeIds.js'
 import { computeRiverNetworkMaxChannelWidth } from '../hydrology/riverCorridorDisplay.js'
+import { clamp01, forEachCell, localSlopeMaxAbsDelta } from '../grid/gridTopology.js'
 import { deriveFieldSeed, createSeededRandom } from '../noise/seededRandom.js'
 
 /**
@@ -41,39 +42,36 @@ export function generateArableRaster({
       ? computeRiverNetworkMaxChannelWidth(channelWidth, riverNetworkMask)
       : 0
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const idx = y * width + x
-      if (elevation[idx] < seaLevel) {
-        raster[idx] = 0
-        continue
-      }
-
-      let score = biomeArableWeight(biomes[idx])
-      const moisture = rainfall[idx] * 0.65 + (1 - drainage[idx]) * 0.35
-      score += moisture * 0.25
-      score += temperateBand(temperature[idx]) * 0.15
-
-      const slope = localSlope(elevation, x, y, width, height)
-      const gentle = Math.max(0, 1 - slope * 10)
-      score *= 0.35 + gentle * 0.65
-
-      score += riverAdjacencyBonus({
-        idx,
-        x,
-        y,
-        width,
-        height,
-        drainage: drainage[idx],
-        riverCorridorMask,
-        channelWidth,
-        maxChannelWidth,
-      })
-
-      score += (random() - 0.5) * 0.02
-      raster[idx] = clamp01(score)
+  forEachCell(width, height, (x, y, idx) => {
+    if (elevation[idx] < seaLevel) {
+      raster[idx] = 0
+      return
     }
-  }
+
+    let score = biomeArableWeight(biomes[idx])
+    const moisture = rainfall[idx] * 0.65 + (1 - drainage[idx]) * 0.35
+    score += moisture * 0.25
+    score += temperateBand(temperature[idx]) * 0.15
+
+    const slope = localSlopeMaxAbsDelta(elevation, x, y, width, height)
+    const gentle = Math.max(0, 1 - slope * 10)
+    score *= 0.35 + gentle * 0.65
+
+    score += riverAdjacencyBonus({
+      idx,
+      x,
+      y,
+      width,
+      height,
+      drainage: drainage[idx],
+      riverCorridorMask,
+      channelWidth,
+      maxChannelWidth,
+    })
+
+    score += (random() - 0.5) * 0.02
+    raster[idx] = score <= minimumProductivity ? 0 : clamp01(score)
+  })
 
   return raster
 }
@@ -110,30 +108,6 @@ function biomeArableWeight(biomeId) {
  */
 function temperateBand(temperature) {
   return Math.max(0, 1 - Math.abs(temperature - 0.5) * 2.2)
-}
-
-/**
- * @param {Float32Array} elevation
- * @param {number} x
- * @param {number} y
- * @param {number} width
- * @param {number} height
- */
-function localSlope(elevation, x, y, width, height) {
-  const idx = y * width + x
-  const center = elevation[idx]
-  let maxDelta = 0
-  for (let dy = -1; dy <= 1; dy += 1) {
-    for (let dx = -1; dx <= 1; dx += 1) {
-      if (dx === 0 && dy === 0) continue
-      const nx = x + dx
-      const ny = y + dy
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-      const delta = Math.abs(elevation[ny * width + nx] - center)
-      if (delta > maxDelta) maxDelta = delta
-    }
-  }
-  return maxDelta
 }
 
 /**
@@ -201,13 +175,4 @@ function riverProximity(riverCorridorMask, x, y, width, height, radius) {
   }
   if (nearest > radius) return 0
   return 1 - nearest / (radius + 1)
-}
-
-/**
- * @param {number} value
- */
-function clamp01(value) {
-  if (value <= 0) return 0
-  if (value >= 1) return 1
-  return value
 }

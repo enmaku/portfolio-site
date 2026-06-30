@@ -30,7 +30,7 @@ function buildFixture(width, height, fill) {
     temperature: new Float32Array(cellCount),
     rainfall: new Float32Array(cellCount).fill(0.5),
     drainage: new Float32Array(cellCount).fill(0.5),
-    salidity: new Float32Array(cellCount).fill(0),
+    salinity: new Float32Array(cellCount).fill(0),
   }
   const biomes = new Uint8Array(cellCount)
 

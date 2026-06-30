@@ -1,5 +1,22 @@
+import {
+  cellDistance,
+  cellX,
+  cellY,
+  forEachNeighbor4,
+  localSlopeMaxDropPerDistance,
+} from '../grid/gridTopology.js'
+import { countMarkedCells } from '../hydrology/riverNetwork.js'
+
 /** Continental width in km at REFERENCE_GRID_SIZE; scales inversely with grid width. */
 const CONTINENT_WIDTH_KM = 2048
+
+/**
+ * @param {import('../types.js').RiverGraphEdge[]} edges
+ * @returns {import('../types.js').RiverGraphEdge[]}
+ */
+export function selectNavigableRiverEdges(edges) {
+  return edges.filter((edge) => edge.navigable !== false)
+}
 
 /**
  * @typedef {Object} HydrologyMetrics
@@ -17,8 +34,8 @@ const CONTINENT_WIDTH_KM = 2048
  * @param {Object} params
  * @param {Float32Array} params.elevation
  * @param {Float32Array} params.drainage
- * @param {import('../types.js').RiverGraph} params.riverGraph
- * @param {Uint8Array} [params.riverNetworkMask]
+ * @param {import('../types.js').RiverGraph} [params.riverGraph]
+ * @param {import('../types.js').RiverNetwork} [params.riverNetwork]
  * @param {number} params.gridWidth
  * @param {number} params.gridHeight
  * @returns {HydrologyMetrics}
@@ -27,15 +44,24 @@ export function computeHydrologyMetrics({
   elevation,
   drainage,
   riverGraph,
-  riverNetworkMask,
+  riverNetwork,
   gridWidth,
   gridHeight,
 }) {
-  const navigableEdges = riverGraph.edges
+  const graph = riverNetwork?.graph ?? riverGraph
+  if (!graph) {
+    throw new Error('riverGraph or riverNetwork required for hydrology metrics')
+  }
+  if (!riverNetwork?.centerline) {
+    throw new Error('riverNetwork.centerline required for hydrology metrics')
+  }
+  const centerline = riverNetwork.centerline
+
+  const navigableEdges = selectNavigableRiverEdges(graph.edges)
   const navigableEdgeCount = navigableEdges.length
-  const mouthCount = riverGraph.nodes.filter((node) => node.kind === 'mouth').length
+  const mouthCount = graph.nodes.filter((node) => node.kind === 'mouth').length
   const navigableCells = collectNavigableCells(navigableEdges)
-  const riverCellCount = countMarkedCells(riverNetworkMask)
+  const riverCellCount = countMarkedCells(centerline)
   const navigableRiverCellCount = navigableCells.size
   const kmPerCell = CONTINENT_WIDTH_KM / gridWidth
   const navigableKmEstimate = navigableRiverCellCount * kmPerCell
@@ -43,9 +69,10 @@ export function computeHydrologyMetrics({
     navigableEdges,
     navigableCells,
     gridWidth,
+    gridHeight,
   )
   const coastConnectedNavigablePathLength = computeLongestCoastConnectedPath(
-    riverGraph,
+    graph,
     navigableEdges,
   )
   const trunkSamples = collectTrunkSamples(navigableEdges, drainage, elevation, gridWidth)
@@ -70,18 +97,6 @@ export function computeHydrologyMetrics({
 }
 
 /**
- * @param {Uint8Array | undefined} mask
- */
-function countMarkedCells(mask) {
-  if (!mask) return 0
-  let count = 0
-  for (let idx = 0; idx < mask.length; idx += 1) {
-    if (mask[idx]) count += 1
-  }
-  return count
-}
-
-/**
  * @param {import('../types.js').RiverGraphEdge[]} navigableEdges
  */
 function collectNavigableCells(navigableEdges) {
@@ -99,8 +114,9 @@ function collectNavigableCells(navigableEdges) {
  * @param {import('../types.js').RiverGraphEdge[]} navigableEdges
  * @param {Set<number>} navigableCells
  * @param {number} gridWidth
+ * @param {number} gridHeight
  */
-function computeParallelStrandRatio(navigableEdges, navigableCells, gridWidth) {
+function computeParallelStrandRatio(navigableEdges, navigableCells, gridWidth, gridHeight) {
   if (navigableCells.size === 0) return 0
 
   const cellOwners = new Map()
@@ -115,7 +131,7 @@ function computeParallelStrandRatio(navigableEdges, navigableCells, gridWidth) {
 
   let parallelCells = 0
   for (const cellIdx of navigableCells) {
-    if (hasAdjacentParallelStrand(cellIdx, navigableCells, cellOwners, gridWidth)) {
+    if (hasAdjacentParallelStrand(cellIdx, navigableCells, cellOwners, gridWidth, gridHeight)) {
       parallelCells += 1
     }
   }
@@ -128,29 +144,28 @@ function computeParallelStrandRatio(navigableEdges, navigableCells, gridWidth) {
  * @param {Set<number>} navigableCells
  * @param {Map<number, Set<number>>} cellOwners
  * @param {number} gridWidth
+ * @param {number} gridHeight
  */
-function hasAdjacentParallelStrand(cellIdx, navigableCells, cellOwners, gridWidth) {
+function hasAdjacentParallelStrand(cellIdx, navigableCells, cellOwners, gridWidth, gridHeight) {
   const owners = cellOwners.get(cellIdx)
   if (!owners) return false
 
-  const x = cellIdx % gridWidth
-  const y = Math.floor(cellIdx / gridWidth)
-  const candidates = [
-    y * gridWidth + (x - 1),
-    y * gridWidth + (x + 1),
-    (y - 1) * gridWidth + x,
-    (y + 1) * gridWidth + x,
-  ]
+  const x = cellX(cellIdx, gridWidth)
+  const y = cellY(cellIdx, gridWidth)
+  let found = false
 
-  for (const neighborIdx of candidates) {
-    if (!navigableCells.has(neighborIdx)) continue
+  forEachNeighbor4(x, y, gridWidth, gridHeight, (nx, ny, neighborIdx) => {
+    if (found || !navigableCells.has(neighborIdx)) return
     const neighborOwners = cellOwners.get(neighborIdx)
-    if (!neighborOwners) continue
+    if (!neighborOwners) return
     for (const owner of owners) {
-      if (!neighborOwners.has(owner)) return true
+      if (!neighborOwners.has(owner)) {
+        found = true
+      }
     }
-  }
-  return false
+  })
+
+  return found
 }
 
 /**
@@ -265,54 +280,13 @@ function estimateSlopeAreaConcavitySamples(samples, elevation, gridWidth, gridHe
 
   for (let i = 0; i < samples.length; i += stride) {
     const sample = samples[i]
-    const slope = localSlope(sample.cellIdx, elevation, gridWidth, gridHeight)
+    const slope = localSlopeMaxDropPerDistance(elevation, sample.cellIdx, gridWidth, gridHeight)
     if (slope <= 1e-6 || sample.drainageArea <= 1e-4) continue
     const theta = -Math.log(slope) / Math.log(sample.drainageArea)
     if (Number.isFinite(theta)) concavity.push(theta)
   }
 
   return concavity
-}
-
-/**
- * @param {number} idx
- * @param {Float32Array} elevation
- * @param {number} width
- * @param {number} height
- */
-function localSlope(idx, elevation, width, height) {
-  const x = idx % width
-  const y = Math.floor(idx / width)
-  const center = elevation[idx]
-  let maxDrop = 0
-
-  for (let dy = -1; dy <= 1; dy += 1) {
-    for (let dx = -1; dx <= 1; dx += 1) {
-      if (dx === 0 && dy === 0) continue
-      const nx = x + dx
-      const ny = y + dy
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-      const neighbor = elevation[ny * width + nx]
-      const drop = center - neighbor
-      const distance = Math.hypot(dx, dy)
-      maxDrop = Math.max(maxDrop, drop / distance)
-    }
-  }
-
-  return Math.max(maxDrop, 0)
-}
-
-/**
- * @param {number} fromIdx
- * @param {number} toIdx
- * @param {number} width
- */
-function cellDistance(fromIdx, toIdx, width) {
-  const fx = fromIdx % width
-  const fy = Math.floor(fromIdx / width)
-  const tx = toIdx % width
-  const ty = Math.floor(toIdx / width)
-  return Math.hypot(tx - fx, ty - fy)
 }
 
 /**

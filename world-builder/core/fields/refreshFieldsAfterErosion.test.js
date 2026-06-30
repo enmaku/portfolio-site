@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { deriveSalinityFromOcean } from './deriveSalinityFromOcean.js'
 import { generateTemperature } from './generateTemperature.js'
 import { generateRainfall } from './generateRainfall.js'
 import { refreshFieldsAfterErosion } from './refreshFieldsAfterErosion.js'
@@ -23,7 +24,7 @@ test('refreshFieldsAfterErosion recomputes all fields from eroded elevation', ()
   assert.strictEqual(fields.drainage, drainage)
   assert.strictEqual(fields.temperature.length, width * height)
   assert.strictEqual(fields.rainfall.length, width * height)
-  assert.strictEqual(fields.salidity.length, width * height)
+  assert.strictEqual(fields.salinity.length, width * height)
 })
 
 test('refreshFieldsAfterErosion uses prevailing wind for rainfall', () => {
@@ -105,4 +106,28 @@ test('refreshFieldsAfterErosion temperature tracks elevation', () => {
   const directLow = generateTemperature({ geographySeed: 1, width, height, elevation: low })
   assert.deepStrictEqual(lowFields.temperature, directLow)
   assert.ok(highFields.temperature[0] <= lowFields.temperature[0])
+})
+
+test('refreshFieldsAfterErosion salinity respects active sea level option', () => {
+  const width = 11
+  const height = 11
+  const seaLevel = 0.5
+  const elevation = new Float32Array(width * height).fill(0.55)
+  elevation[5 * width + 5] = 0.45
+  const drainage = new Float32Array(width * height)
+
+  const fields = refreshFieldsAfterErosion({
+    geographySeed: 3,
+    prevailingWindDegrees: 90,
+    elevation,
+    drainage,
+    width,
+    height,
+    options: { seaLevel },
+  })
+
+  const directSalinity = deriveSalinityFromOcean({ elevation, width, height, seaLevel })
+  assert.deepStrictEqual(fields.salinity, directSalinity)
+  assert.ok(fields.salinity[5 * width + 5] >= 0.99)
+  assert.ok(fields.salinity[5 * width + 6] < fields.salinity[5 * width + 5])
 })

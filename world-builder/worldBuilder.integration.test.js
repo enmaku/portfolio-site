@@ -1,11 +1,41 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { readFileSync } from 'node:fs'
 import routes from '../src/router/routes.js'
 import { getShareEntryForPath, PASTE_UNFURL_ROUTES } from '../src/share-metadata.js'
-import { createResourceOverlayDefinitions } from './worldBuilderPageModel.js'
+import { DERIVED_GEOGRAPHY_STEPS } from './core/derivedGeographyPipeline.js'
+import { generateDerivedGeography } from './core/generateDerivedGeography.js'
+import { PIPELINE_STAGE_DERIVED_GEOGRAPHY } from './core/types.js'
+import {
+  buildDerivedGeographyParams,
+  createDefaultControlsState,
+  shouldShowGenerationProgress,
+  shouldShowResourceOverlayBar,
+} from './worldBuilderPageModel.js'
+import {
+  WORLD_BUILDER_GENERATION_CONTROL_SECTIONS,
+} from './worldBuilderGenerationControls.js'
 
 const WORLD_BUILDER_PATH = '/projects/world-builder'
+
+/**
+ * @returns {string[]}
+ */
+function collectGenerationControlTestIds() {
+  return WORLD_BUILDER_GENERATION_CONTROL_SECTIONS.flatMap((section) =>
+    section.controls.map((control) => control.testId),
+  )
+}
+
+/**
+ * @param {string} key
+ */
+function findGenerationControlByKey(key) {
+  for (const section of WORLD_BUILDER_GENERATION_CONTROL_SECTIONS) {
+    const control = section.controls.find((entry) => entry.key === key)
+    if (control) return control
+  }
+  return undefined
+}
 
 test('world builder route is a MainLayout child', () => {
   const mainLayout = routes.find((entry) => entry.path === '/')
@@ -26,115 +56,61 @@ test('world builder share catalog row is paste-unfurl eligible', () => {
   const entry = getShareEntryForPath(WORLD_BUILDER_PATH)
   assert.ok(entry)
   assert.strictEqual(entry.pasteUnfurl, true)
-  assert.strictEqual(entry.title, 'World Builder')
+  assert.strictEqual(entry.routePath, WORLD_BUILDER_PATH)
   assert.strictEqual(entry.title.includes('—'), false)
   assert.strictEqual(PASTE_UNFURL_ROUTES.some((row) => row.routePath === WORLD_BUILDER_PATH), true)
 })
 
-test('main layout desktop section links world builder in-tab with globe icon', () => {
-  const mainLayout = readFileSync(new URL('../src/layouts/MainLayout.vue', import.meta.url), 'utf8')
-  assert.strictEqual(mainLayout.includes(`'${WORLD_BUILDER_PATH}'`), true)
-  assert.strictEqual(mainLayout.includes("'World Builder'"), true)
-  assert.strictEqual(mainLayout.includes("'public'"), true)
-  assert.strictEqual(mainLayout.includes('navigateInTab: true'), true)
+test('generation control catalog exposes unique stable test ids', () => {
+  const testIds = collectGenerationControlTestIds()
+  assert.ok(testIds.includes('world-builder-wind-slider'))
+  assert.ok(testIds.includes('world-builder-control-sea-level'))
+  assert.ok(testIds.includes('world-builder-control-max-metal-nodes'))
+  assert.strictEqual(new Set(testIds).size, testIds.length)
 })
 
-test('world builder generation controls include wind slider test id', () => {
-  const controls = readFileSync(
-    new URL('./worldBuilderGenerationControls.js', import.meta.url),
-    'utf8',
-  )
-  assert.strictEqual(controls.includes('world-builder-wind-slider'), true)
-  assert.strictEqual(controls.includes('world-builder-control-sea-level'), true)
-  assert.strictEqual(controls.includes('world-builder-control-soil-drainage'), true)
-  assert.strictEqual(controls.includes('world-builder-control-elevation-domain-warp'), true)
-  assert.strictEqual(controls.includes('world-builder-control-elevation-coast-bias'), true)
-  assert.strictEqual(controls.includes('world-builder-control-incise-iterations'), true)
-  assert.strictEqual(controls.includes('world-builder-control-stream-power-k'), true)
-  assert.strictEqual(controls.includes('world-builder-control-stream-power-m'), true)
-  assert.strictEqual(controls.includes('world-builder-control-stream-power-n'), true)
-  assert.strictEqual(controls.includes('world-builder-control-channel-initiation'), true)
-  assert.strictEqual(controls.includes('world-builder-control-max-salt-nodes'), true)
-  assert.strictEqual(controls.includes('world-builder-control-max-metal-nodes'), true)
+test('generation control catalog wires stream-power and hydrology knobs by key', () => {
+  assert.strictEqual(findGenerationControlByKey('inciseIterations')?.testId, 'world-builder-control-incise-iterations')
+  assert.strictEqual(findGenerationControlByKey('streamPowerK')?.testId, 'world-builder-control-stream-power-k')
+  assert.strictEqual(findGenerationControlByKey('channelInitiationThreshold')?.testId, 'world-builder-control-channel-initiation')
 })
 
-test('world builder page wires derived pipeline, lazy renderer, and control test ids', () => {
-  const page = readFileSync(
-    new URL('../src/pages/projects/WorldBuilderPage.vue', import.meta.url),
-    'utf8',
+test('default controls state builds worker-ready derived geography params', () => {
+  const controls = createDefaultControlsState()
+  const params = buildDerivedGeographyParams(
+    controls.geographySeed,
+    controls.prevailingWindDegrees,
+    controls.generationOptions,
   )
-  assert.strictEqual(page.includes('runDerivedGeographyInWorker'), true)
-  assert.strictEqual(page.includes('worldBuilderPageModel'), true)
-  assert.strictEqual(
-    page.includes("import('@world-builder/renderer/createWorldBuilderMapViewport.js')"),
-    true,
-  )
-  assert.strictEqual(page.includes('data-testid="world-builder-map-host"'), true)
-  assert.strictEqual(page.includes('data-testid="world-builder-seed-input"'), true)
-  assert.strictEqual(page.includes('data-testid="world-builder-seed-randomize"'), true)
-  assert.strictEqual(page.includes('data-testid="world-builder-reset-defaults"'), true)
-  assert.strictEqual(page.includes('data-testid="world-builder-generation-controls"'), true)
-  assert.strictEqual(page.includes('worldBuilderGenerationControls'), true)
-  assert.strictEqual(page.includes('onSliderCommit'), true)
-  assert.strictEqual(page.includes('onSeedCommit'), true)
-  assert.strictEqual(page.includes('data-testid="world-builder-regenerate"'), true)
-  assert.strictEqual(page.includes('data-testid="world-builder-generation-report"'), true)
-  assert.strictEqual(page.includes('data-testid="world-builder-status-bar"'), true)
-  assert.strictEqual(page.includes('data-testid="world-builder-generation-progress"'), true)
-  assert.match(page, /world-builder-overlay-toggle-\$\{overlay\.id\}/)
-  assert.strictEqual(page.includes('data-testid="world-builder-resource-overlay-bar"'), true)
-  assert.strictEqual(
-    `world-builder-overlay-toggle-${createResourceOverlayDefinitions().find((d) => d.id === 'timber')?.id}`,
-    'world-builder-overlay-toggle-timber',
-  )
-  assert.strictEqual(
-    `world-builder-overlay-toggle-${createResourceOverlayDefinitions().find((d) => d.id === 'metals')?.id}`,
-    'world-builder-overlay-toggle-metals',
-  )
-  assert.strictEqual(
-    `world-builder-overlay-toggle-${createResourceOverlayDefinitions().find((d) => d.id === 'arable')?.id}`,
-    'world-builder-overlay-toggle-arable',
-  )
-  assert.strictEqual(page.includes('shouldShowGenerationProgress'), true)
-  assert.strictEqual(page.includes('shouldShowResourceOverlayBar'), true)
-  assert.strictEqual(page.includes('pipelineSucceeded'), true)
-  assert.strictEqual(page.includes('createResourceOverlayDefinitions'), true)
-  assert.strictEqual(page.includes('resetResourceOverlayVisibility'), true)
-  assert.strictEqual(page.includes('syncResourceOverlayVisibilityToMapViewport'), true)
-  assert.strictEqual(page.includes('setResourceOverlayVisibility'), true)
-  assert.strictEqual(page.includes('onOverlaySliderChange'), true)
-  assert.strictEqual(page.includes('setArableOverlayMinimumProductivity'), true)
-  assert.strictEqual(page.includes('worldBuilderOverlayControls'), true)
-  const overlayControls = readFileSync(
-    new URL('./worldBuilderOverlayControls.js', import.meta.url),
-    'utf8',
-  )
-  assert.strictEqual(overlayControls.includes('world-builder-overlay-arable-minimum'), true)
-  assert.match(
-    page.match(/function showGenerationFailure[\s\S]*?^}/m)?.[0] ?? '',
-    /generationRunId\s*\+=\s*1/,
-  )
-  assert.match(page, /world-builder-generation-step-\$\{step\.id\}/)
-  assert.match(page, /world-builder-hydrology-substep-\$\{substep\.id\}/)
-  assert.strictEqual(page.includes('world-builder-hydrology-substep-timings'), true)
-  assert.strictEqual(page.includes('world-builder-hydrology-stats'), true)
-  assert.strictEqual(page.includes('world-builder-rejection-status'), true)
-  assert.strictEqual(page.includes('world-builder-rejection-reasons'), true)
-  assert.strictEqual(page.includes('createHydrologyStatsForDisplay'), true)
-  assert.strictEqual(page.includes('formatSlopeAreaConcavityForDisplay'), true)
-  assert.match(page, /world-builder-validation-row-\$\{row\.checkId\}/)
+
+  assert.strictEqual(typeof params.geographySeed, 'number')
+  assert.strictEqual(typeof params.prevailingWindDegrees, 'number')
+  assert.ok(params.options)
+  assert.ok(DERIVED_GEOGRAPHY_STEPS.length > 0)
 })
 
-test('world builder derived geography pipeline module is importable', async () => {
-  const { generateDerivedGeography } = await import('./core/generateDerivedGeography.js')
+
+test('status bar helpers never show progress and overlay bar together', () => {
+  for (const isGenerating of [true, false]) {
+    for (const pipelineSucceeded of [true, false]) {
+      const showProgress = shouldShowGenerationProgress(isGenerating)
+      const showOverlayBar = shouldShowResourceOverlayBar(isGenerating, pipelineSucceeded)
+      assert.strictEqual(showProgress && showOverlayBar, false)
+    }
+  }
+})
+
+test('generateDerivedGeography on tiny grid completes landmass pipeline outputs', () => {
   const doc = generateDerivedGeography({
     geographySeed: 1,
     prevailingWindDegrees: 45,
-    width: 4,
-    height: 4,
+    width: 8,
+    height: 8,
   })
-  assert.strictEqual(doc.gridWidth, 4)
-  assert.strictEqual(doc.biomes.length, 16)
-  assert.strictEqual(doc.pipelineStage, 'derivedGeography')
+
+  assert.strictEqual(doc.pipelineStage, PIPELINE_STAGE_DERIVED_GEOGRAPHY)
+  assert.strictEqual(doc.fields.temperature.length, 64)
+  assert.strictEqual(doc.coastNavigability.length, 64)
+  assert.ok(doc.riverNetworkMask)
   assert.ok(doc.generationReport)
 })

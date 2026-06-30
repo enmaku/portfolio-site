@@ -1,6 +1,10 @@
 import { SEA_LEVEL } from '../biomeIds.js'
 import { isOceanCell } from '../fields/applyClosedIslandRim.js'
 import {
+  collectConnectedComponents,
+  manhattanAdjacent,
+} from '../grid/gridTopology.js'
+import {
   computeFlowPartitions,
   partitionsToFlowDirection,
 } from './dInfinityFlow.js'
@@ -18,71 +22,31 @@ const OCEAN_SINK = -1
  */
 export function buildLakeIdByCell(lakeMask, lakes, width, height) {
   const lakeIdByCell = new Int32Array(lakeMask.length).fill(-1)
-  const visited = new Uint8Array(lakeMask.length)
-  const components = []
-
-  for (let idx = 0; idx < lakeMask.length; idx += 1) {
-    if (!lakeMask[idx] || visited[idx]) continue
-    /** @type {number[]} */
-    const cells = []
-    const stack = [idx]
-    while (stack.length > 0) {
-      const current = stack.pop()
-      if (current === undefined || visited[current] || !lakeMask[current]) continue
-      visited[current] = 1
-      cells.push(current)
-      const x = current % width
-      const y = Math.floor(current / width)
-      const neighbors = [
-        [x - 1, y],
-        [x + 1, y],
-        [x, y - 1],
-        [x, y + 1],
-      ]
-      for (const [nx, ny] of neighbors) {
-        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-        stack.push(ny * width + nx)
-      }
-    }
-    components.push(cells)
-  }
+  const components = collectConnectedComponents(lakeMask, width, height, 4)
 
   for (let lakeId = 0; lakeId < lakes.length; lakeId += 1) {
     const lake = lakes[lakeId]
     let matched = components.find((cells) => {
       if (lake.spillX !== undefined && lake.spillY !== undefined) {
         const spillIdx = lake.spillY * width + lake.spillX
-        return cells.some((cellIdx) => isAdjacent(cellIdx, spillIdx, width))
+        return cells.some((cellIdx) => manhattanAdjacent(cellIdx, spillIdx, width))
       }
       if (lake.endorheic) {
         return cells.length === lake.area
       }
       return false
     })
-    if (!matched && components.length > 0) {
-      matched = components[lakeId] ?? components[0]
+    if (!matched) {
+      throw new Error(
+        `Could not match lake record ${lakeId} to a lake-mask component (area=${lake.area}, endorheic=${lake.endorheic})`,
+      )
     }
-    if (matched) {
-      for (const cellIdx of matched) {
-        lakeIdByCell[cellIdx] = lakeId
-      }
+    for (const cellIdx of matched) {
+      lakeIdByCell[cellIdx] = lakeId
     }
   }
 
   return lakeIdByCell
-}
-
-/**
- * @param {number} cellIdx
- * @param {number} otherIdx
- * @param {number} width
- */
-function isAdjacent(cellIdx, otherIdx, width) {
-  const x = cellIdx % width
-  const y = Math.floor(cellIdx / width)
-  const ox = otherIdx % width
-  const oy = Math.floor(otherIdx / width)
-  return Math.abs(x - ox) + Math.abs(y - oy) === 1
 }
 
 /**

@@ -462,7 +462,8 @@ function legacyNeighborIndex(x, y, width, height, legacyDir) {
 export function partitionsToFlowDirection(partitions) {
   const flowDirection = new Int16Array(partitions.length).fill(-1)
   for (let i = 0; i < partitions.length; i += 1) {
-    flowDirection[i] = partitions[i].primaryDir
+    const partition = partitions[i]
+    flowDirection[i] = partition.primaryIdx >= 0 ? partition.primaryDir : -1
   }
   return flowDirection
 }

@@ -9,6 +9,7 @@ import {
   runFullDerivedGeographyPipeline,
   runPipelineStep,
 } from './derivedGeographyPipeline.js'
+import { LANDMASS_PIPELINE_STEP_IDS } from './landmassPipelineStageContracts.js'
 
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
 
@@ -26,6 +27,7 @@ test('runFullDerivedGeographyPipeline matches generateDerivedGeography', () => {
   assert.deepStrictEqual(fromPipeline.biomes, direct.biomes)
   assert.deepStrictEqual(fromPipeline.fields.elevation, direct.fields.elevation)
   assert.deepStrictEqual(fromPipeline.fields.drainage, direct.fields.drainage)
+  assert.deepStrictEqual(fromPipeline.fields.salinity, direct.fields.salinity)
   assert.strictEqual(
     fromPipeline.generationReport?.navigableRiverEdgeCount,
     direct.generationReport?.navigableRiverEdgeCount,
@@ -131,6 +133,18 @@ test('hydrology persists channelWidth on pipeline state and world document', () 
   assert.ok(hasPositiveWidth)
 })
 
+test('cloneWorldDocument copies salinity field independently', () => {
+  const doc = runFullDerivedGeographyPipeline(params)
+  const cloned = cloneWorldDocument(doc)
+
+  assert.ok(doc.fields.salinity)
+  assert.ok(cloned.fields.salinity)
+  assert.notStrictEqual(cloned.fields.salinity, doc.fields.salinity)
+  assert.deepStrictEqual(cloned.fields.salinity, doc.fields.salinity)
+  cloned.fields.salinity[0] = -1
+  assert.notStrictEqual(cloned.fields.salinity[0], doc.fields.salinity[0])
+})
+
 test('cloneWorldDocument copies arableRaster independently', () => {
   const doc = runFullDerivedGeographyPipeline(params)
   const cloned = cloneWorldDocument(doc)
@@ -216,6 +230,26 @@ test('runFullDerivedGeographyPipeline exhausts validation retries with increment
   } else {
     assert.ok(doc.geographySeed >= baseSeed && doc.geographySeed <= baseSeed + 2)
   }
+})
+
+test('runPipelineStep validation emits contract-backed generation report', () => {
+  let state = createInitialPipelineState(params)
+  for (const stepId of LANDMASS_PIPELINE_STEP_IDS) {
+    state = runPipelineStep(state, stepId)
+  }
+
+  const report = state.generationReport
+  assert.ok(report)
+  assert.strictEqual(typeof report.shouldReject, 'boolean')
+  assert.strictEqual(typeof report.rejectionSamplingEnforced, 'boolean')
+  assert.ok(Array.isArray(report.structuredRejectionReasons))
+  assert.strictEqual(typeof report.validationSignals.movement.navigableRiverEdgeCount, 'number')
+  assert.strictEqual(
+    typeof report.validationSignals.movement.coastConnectedNavigablePathLength,
+    'number',
+  )
+  assert.ok(report.validationRows.every((row) => typeof row.rejectable === 'boolean'))
+  assert.ok(report.validationRows.every((row) => typeof row.category === 'string'))
 })
 
 test('DERIVED_GEOGRAPHY_STEPS has stable step ids', () => {

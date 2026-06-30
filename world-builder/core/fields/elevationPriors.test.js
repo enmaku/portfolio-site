@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { SEA_LEVEL } from '../biomeIds.js'
+import { computeLandCoastDistance } from '../grid/gridTopology.js'
 import { isOceanCell } from './applyClosedIslandRim.js'
 import {
   applyCoastDistanceBias,
   applySlopeDependentRoughness,
-  computeLandCoastDistance,
   computeSlopeField,
   reduceGentleSlopeHighFrequency,
   smoothMidLevelElevation,

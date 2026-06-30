@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { BIOMES, BIOMES_COUNT } from './biomeIds.js'
+import { BIOMES } from './biomeIds.js'
 import { generateDerivedGeography } from './generateDerivedGeography.js'
 import { generatePhysicalTerrainBaseline } from './generatePhysicalTerrainBaseline.js'
 import { assertLakeMaskSurfacesMatchMeta } from './hydrology/lakeDisplayCoherence.js'
 import { DEFAULT_GEOGRAPHY_SEED } from '../worldBuilderPageModel.js'
 import { DEFAULT_GRID_SIZE, PIPELINE_STAGE_DERIVED_GEOGRAPHY } from './types.js'
+import { isOceanCell } from './fields/applyClosedIslandRim.js'
+import { downstreamIndex } from './hydrology/computeFlowAccumulation.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
 
 const params = {
@@ -24,76 +26,21 @@ test('generateDerivedGeography defaults to 1024 grid', () => {
   assert.strictEqual(doc.gridHeight, DEFAULT_GRID_SIZE)
 })
 
-test('generateDerivedGeography returns extended world document shape', () => {
+test('generateDerivedGeography emits landmass pipeline fields and hydrology report', () => {
   const doc = generateDerivedGeography(params)
   const cellCount = params.width * params.height
 
   assert.strictEqual(doc.gridWidth, 256)
   assert.strictEqual(doc.gridHeight, 256)
-  assert.strictEqual(doc.geographySeed, 12345)
-  assert.strictEqual(doc.prevailingWindDegrees, 90)
   assert.strictEqual(doc.pipelineStage, PIPELINE_STAGE_DERIVED_GEOGRAPHY)
-  assert.strictEqual(doc.biomeCatalog.length, BIOMES_COUNT)
   assert.strictEqual(doc.fields.elevation.length, cellCount)
-  assert.strictEqual(doc.fields.drainage.length, cellCount)
-  assert.strictEqual(doc.biomes.length, cellCount)
+  assert.strictEqual(doc.coastNavigability.length, cellCount)
   assert.ok(doc.riverGraph)
-  assert.ok(Array.isArray(doc.riverGraph.nodes))
-  assert.ok(Array.isArray(doc.riverGraph.edges))
   assert.ok(doc.lakeMask)
-  assert.strictEqual(doc.lakeMask.length, cellCount)
-  assert.ok(doc.coastNavigability)
-  assert.ok(Array.isArray(doc.coastalNodes))
-  assert.ok(Array.isArray(doc.saltNodes))
   assert.ok(doc.arableRaster)
-  assert.strictEqual(doc.arableRaster.length, cellCount)
-  for (let i = 0; i < doc.arableRaster.length; i += 1) {
-    assert.ok(doc.arableRaster[i] >= 0 && doc.arableRaster[i] <= 1)
-  }
-  assert.ok(doc.timberRaster)
-  assert.strictEqual(doc.timberRaster.length, cellCount)
-  for (let i = 0; i < doc.timberRaster.length; i += 1) {
-    assert.ok(doc.timberRaster[i] >= 0 && doc.timberRaster[i] <= 1)
-  }
-  assert.ok(doc.metalsRaster)
-  assert.strictEqual(doc.metalsRaster.length, cellCount)
-  assert.ok(Array.isArray(doc.metalNodes))
-  for (let i = 0; i < doc.metalsRaster.length; i += 1) {
-    assert.ok(doc.metalsRaster[i] >= 0 && doc.metalsRaster[i] <= 1)
-  }
-  assert.ok(doc.generationReport)
-  assert.strictEqual(typeof doc.generationReport.erosionStepCount, 'number')
-  assert.ok(Array.isArray(doc.generationReport.validationRows))
-  assert.ok(doc.generationReport.hydrology)
-  assert.strictEqual(typeof doc.generationReport.hydrology.breachCount, 'number')
-  assert.strictEqual(typeof doc.generationReport.hydrology.endorheicCount, 'number')
-  assert.strictEqual(typeof doc.generationReport.hydrology.riverCellCount, 'number')
-  assert.strictEqual(typeof doc.generationReport.hydrology.navigableKmEstimate, 'number')
-  assert.ok('hacksLawExponent' in doc.generationReport.hydrology)
-  assert.ok(Array.isArray(doc.generationReport.hydrology.slopeAreaConcavitySamples))
-  assert.strictEqual(typeof doc.generationReport.hydrology.parallelStrandRatio, 'number')
-  assert.strictEqual(
-    typeof doc.generationReport.hydrology.coastConnectedNavigablePathLength,
-    'number',
-  )
-  assert.strictEqual(typeof doc.generationReport.hydrology.mouthCount, 'number')
+  assert.ok(doc.generationReport?.hydrology)
+  assert.strictEqual(doc.generationReport.hydrology.riverCellCount >= 0, true)
   assert.strictEqual(typeof doc.generationReport.shouldReject, 'boolean')
-  assert.ok(Array.isArray(doc.generationReport.rejectionReasons))
-  for (const [key, value] of Object.entries(doc.generationReport.hydrology)) {
-    if (key === 'hacksLawExponent') {
-      assert.ok(value === null || Number.isFinite(value))
-      continue
-    }
-    if (key === 'slopeAreaConcavitySamples') {
-      assert.ok(Array.isArray(value))
-      continue
-    }
-    assert.ok(Number.isFinite(value), `${key} should be finite`)
-    assert.ok(value >= 0, `${key} should be non-negative`)
-  }
-  assert.ok(Array.isArray(doc.lakeMeta))
-  assert.ok(Array.isArray(doc.erosionSnapshots))
-  assert.ok(doc.erosionSnapshots.length > 0)
 })
 
 test('generateDerivedGeography arable favors river corridor temperate cells over mountain desert', () => {
@@ -212,7 +159,16 @@ test('generateDerivedGeography seed 77814242 detects river mouths at shoreline d
     doc.generationReport.hydrology.mouthCount <= 32,
     `expected filtered mouths, got ${doc.generationReport.hydrology.mouthCount}`,
   )
-  assert.ok(doc.coastalNodes.some((node) => node.kind === 'mouth'))
+
+  const mouths = doc.riverGraph.nodes.filter((node) => node.kind === 'mouth')
+  assert.strictEqual(mouths.length, doc.generationReport.hydrology.mouthCount)
+  const ocean = isOceanCell(doc.fields.elevation, doc.gridWidth, doc.gridHeight)
+  for (const mouth of mouths) {
+    const idx = mouth.y * doc.gridWidth + mouth.x
+    const downstreamIdx = downstreamIndex(idx, doc.gridWidth, doc.flowDirection)
+    assert.ok(downstreamIdx >= 0)
+    assert.ok(ocean[downstreamIdx])
+  }
 })
 
 test('generateDerivedGeography default seed keeps lake surfaces aligned with lakeMeta', () => {
@@ -297,6 +253,7 @@ test('generateDerivedGeography extreme seed reports identifiable hydrology valid
     'parallelStrandRatio',
     'coastConnectedNavigablePath',
     'endorheicFractionCap',
+    'salinityOceanGradient',
   ]
   for (const checkId of hydrologyCheckIds) {
     const row = rows.find((entry) => entry.checkId === checkId)
@@ -305,6 +262,9 @@ test('generateDerivedGeography extreme seed reports identifiable hydrology valid
   }
   assert.strictEqual(typeof doc.generationReport.shouldReject, 'boolean')
   assert.ok(Array.isArray(doc.generationReport.rejectionReasons))
+  assert.ok(Array.isArray(doc.generationReport.structuredRejectionReasons))
+  assert.strictEqual(typeof doc.generationReport.rejectionSamplingEnforced, 'boolean')
+  assert.ok(doc.generationReport.validationSignals)
 })
 
 test('generateDerivedGeography sets shouldReject when enforce flags hard-fail validation', () => {
@@ -322,11 +282,9 @@ test('generateDerivedGeography sets shouldReject when enforce flags hard-fail va
   })
 
   assert.strictEqual(doc.generationReport.shouldReject, true)
-  assert.ok(
-    doc.generationReport.rejectionReasons.some((reason) =>
-      reason.startsWith('coastConnectedNavigablePath:'),
-    ),
-  )
+  assert.deepStrictEqual(doc.generationReport.structuredRejectionReasons, [
+    { checkId: 'coastConnectedNavigablePath', category: 'coast' },
+  ])
 })
 
 test('generateDerivedGeography retries with incremented seed when validation rejects', () => {

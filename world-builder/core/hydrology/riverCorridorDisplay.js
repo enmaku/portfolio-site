@@ -6,9 +6,6 @@ export const PHYSICAL_RIVER_MAX_HALF_WIDTH = 4
 /** Elevation above channel bottom treated as bank lip when measuring cross-section. */
 export const RIVER_BANK_LIP_THRESHOLD = 0.012
 
-/** @deprecated Use PHYSICAL_RIVER_MAX_HALF_WIDTH */
-export const RIVER_CORRIDOR_MAX_RADIUS = PHYSICAL_RIVER_MAX_HALF_WIDTH
-
 /**
  * @param {number} gridSize
  * @returns {number}
@@ -19,11 +16,6 @@ export function physicalRiverMaxHalfWidthForGrid(gridSize) {
     8,
     Math.max(PHYSICAL_RIVER_MAX_HALF_WIDTH, Math.round(PHYSICAL_RIVER_MAX_HALF_WIDTH * scale)),
   )
-}
-
-/** @deprecated Use physicalRiverMaxHalfWidthForGrid */
-export function riverCorridorMaxRadiusForGrid(gridSize) {
-  return physicalRiverMaxHalfWidthForGrid(gridSize)
 }
 
 /**
@@ -202,9 +194,8 @@ function measureBankDistance({
  * @param {number} drainage
  * @param {number} [maxRadius]
  * @returns {number}
- * @deprecated Infographic radius; prefer measurePhysicalRiverHalfWidth.
  */
-export function riverCorridorRadiusForDrainage(drainage, maxRadius = PHYSICAL_RIVER_MAX_HALF_WIDTH) {
+function infographicCorridorRadiusForDrainage(drainage, maxRadius = PHYSICAL_RIVER_MAX_HALF_WIDTH) {
   if (drainage <= 0) return 0
   const scaled = Math.sqrt(drainage) * (maxRadius + 0.5)
   return Math.min(maxRadius, Math.max(1, Math.floor(scaled)))
@@ -215,76 +206,14 @@ export function riverCorridorRadiusForDrainage(drainage, maxRadius = PHYSICAL_RI
  * @param {number} maxChannelWidth
  * @param {number} [maxRadius]
  * @returns {number}
- * @deprecated Infographic radius; prefer measurePhysicalRiverHalfWidth.
  */
-export function riverCorridorRadiusForChannelWidth(
+function infographicCorridorRadiusForChannelWidth(
   channelWidth,
   maxChannelWidth,
   maxRadius = PHYSICAL_RIVER_MAX_HALF_WIDTH,
 ) {
   if (channelWidth <= 0 || maxChannelWidth <= 0) return 0
-  return riverCorridorRadiusForDrainage(channelWidth / maxChannelWidth, maxRadius)
-}
-
-/**
- * @param {Object} params
- * @param {number} [params.drainage]
- * @param {number} [params.channelWidth]
- * @param {number} [params.maxChannelWidth]
- * @param {number} [params.maxRadius]
- * @returns {number}
- * @deprecated Infographic radius; prefer measurePhysicalRiverHalfWidth.
- */
-export function resolveRiverCorridorRenderRadius({
-  drainage = 0,
-  channelWidth = 0,
-  maxChannelWidth = 0,
-  maxRadius = PHYSICAL_RIVER_MAX_HALF_WIDTH,
-}) {
-  if (channelWidth > 0 && maxChannelWidth > 0) {
-    return riverCorridorRadiusForChannelWidth(channelWidth, maxChannelWidth, maxRadius)
-  }
-  return riverCorridorRadiusForDrainage(drainage, maxRadius)
-}
-
-/**
- * @param {Object} params
- * @param {number} [params.drainage]
- * @param {number} [params.channelWidth]
- * @param {number} [params.maxChannelWidth]
- * @returns {number}
- */
-export function resolveRiverCorridorNormalizedFlow({
-  drainage = 0,
-  channelWidth = 0,
-  maxChannelWidth = 0,
-}) {
-  if (channelWidth > 0 && maxChannelWidth > 0) {
-    return channelWidth / maxChannelWidth
-  }
-  return drainage
-}
-
-/**
- * @param {import('../types.js').WorldDocument} worldDocument
- * @returns {{ maxChannelWidth: number, maxHalfWidth: number, drainage: Float32Array | undefined, flowDirection: Int16Array | undefined } | null}
- */
-export function buildRiverCorridorRenderState(worldDocument) {
-  const { riverNetworkMask, channelWidth, fields, gridWidth, flowDirection } = worldDocument
-  if (!riverNetworkMask) return null
-  const maxChannelWidth = channelWidth
-    ? computeRiverNetworkMaxChannelWidth(channelWidth, riverNetworkMask)
-    : 0
-  const drainage = fields?.drainage
-  if (maxChannelWidth <= 0 && !drainage && !flowDirection) return null
-  return {
-    maxChannelWidth,
-    maxHalfWidth: physicalRiverMaxHalfWidthForGrid(
-      gridWidth ?? Math.round(Math.sqrt(riverNetworkMask.length)),
-    ),
-    drainage,
-    flowDirection,
-  }
+  return infographicCorridorRadiusForDrainage(channelWidth / maxChannelWidth, maxRadius)
 }
 
 /**
@@ -351,117 +280,6 @@ export function capRiverCorridorRadiusAtWaterEdge(
 /**
  * @typedef {{ x: number, y: number }} RiverPoint
  */
-
-/**
- * @param {number} idx
- * @param {Uint8Array} riverNetworkMask
- * @param {Int16Array} flowDirection
- * @param {number} width
- * @param {number} height
- * @returns {number}
- */
-function countUpstreamOnNetwork(idx, riverNetworkMask, flowDirection, width, height) {
-  let count = 0
-  const x = idx % width
-  const y = Math.floor(idx / width)
-
-  for (let dy = -1; dy <= 1; dy += 1) {
-    for (let dx = -1; dx <= 1; dx += 1) {
-      if (dx === 0 && dy === 0) continue
-      const nx = x + dx
-      const ny = y + dy
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-      const neighborIdx = ny * width + nx
-      if (!riverNetworkMask[neighborIdx]) continue
-      if (downstreamIndex(neighborIdx, width, flowDirection) === idx) count += 1
-    }
-  }
-
-  return count
-}
-
-/**
- * @param {number} idx
- * @param {Uint8Array} riverNetworkMask
- * @param {Int16Array} flowDirection
- * @param {number} width
- * @param {number} height
- * @returns {boolean}
- */
-function isRiverHeadwater(idx, riverNetworkMask, flowDirection, width, height) {
-  return countUpstreamOnNetwork(idx, riverNetworkMask, flowDirection, width, height) === 0
-}
-
-/**
- * @param {number} idx
- * @param {Uint8Array} riverNetworkMask
- * @param {Int16Array} flowDirection
- * @param {number} width
- * @param {number} height
- * @returns {boolean}
- */
-function isRiverJunction(idx, riverNetworkMask, flowDirection, width, height) {
-  return countUpstreamOnNetwork(idx, riverNetworkMask, flowDirection, width, height) >= 2
-}
-
-/**
- * Walk downstream until the next junction or network terminus.
- * @param {number} startIdx
- * @param {Uint8Array} riverNetworkMask
- * @param {Int16Array} flowDirection
- * @param {number} width
- * @param {number} height
- * @returns {number[]}
- */
-function traceDownstreamChain(startIdx, riverNetworkMask, flowDirection, width, height) {
-  /** @type {number[]} */
-  const path = []
-  let current = startIdx
-
-  while (current >= 0 && riverNetworkMask[current]) {
-    path.push(current)
-    const downstream = downstreamIndex(current, width, flowDirection)
-    if (downstream < 0 || !riverNetworkMask[downstream]) break
-    if (isRiverJunction(downstream, riverNetworkMask, flowDirection, width, height)) break
-    current = downstream
-  }
-
-  return path
-}
-
-/**
- * Each segment is painted once: headwater→junction and junction→mouth chains.
- * @param {Uint8Array} riverNetworkMask
- * @param {Int16Array} flowDirection
- * @param {number} width
- * @param {number} height
- * @returns {number[][]}
- */
-export function traceRiverChainSegments(riverNetworkMask, flowDirection, width, height) {
-  /** @type {number[][]} */
-  const segments = []
-
-  for (let idx = 0; idx < riverNetworkMask.length; idx += 1) {
-    if (!riverNetworkMask[idx]) continue
-    if (!isRiverHeadwater(idx, riverNetworkMask, flowDirection, width, height)) continue
-    const path = traceDownstreamChain(idx, riverNetworkMask, flowDirection, width, height)
-    if (path.length > 0) segments.push(path)
-  }
-
-  for (let idx = 0; idx < riverNetworkMask.length; idx += 1) {
-    if (!riverNetworkMask[idx]) continue
-    if (!isRiverJunction(idx, riverNetworkMask, flowDirection, width, height)) continue
-    const path = traceDownstreamChain(idx, riverNetworkMask, flowDirection, width, height)
-    if (path.length > 0) segments.push(path)
-  }
-
-  return segments
-}
-
-/** @deprecated Use traceRiverChainSegments */
-export function traceRiverCenterlinePaths(riverNetworkMask, flowDirection, width, height) {
-  return traceRiverChainSegments(riverNetworkMask, flowDirection, width, height)
-}
 
 /**
  * @param {Object} params
@@ -604,7 +422,7 @@ export function buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, 
     })
 
     if (halfWidth <= 0 && channelWidth && maxChannelWidth > 0 && channelWidth[idx] > 0) {
-      halfWidth = riverCorridorRadiusForChannelWidth(
+      halfWidth = infographicCorridorRadiusForChannelWidth(
         channelWidth[idx],
         maxChannelWidth,
         maxHalfWidth,
@@ -687,16 +505,3 @@ export function smoothRiverCorridorMaskForDisplay(mask, width, height, passes = 
   return current
 }
 
-/**
- * @deprecated Use buildPhysicalRiverCorridorMask.
- */
-export function buildFlowWeightedRiverCorridorMask(
-  riverNetworkMask,
-  drainage,
-  width,
-  height,
-  options = {},
-) {
-  void drainage
-  return buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, options)
-}

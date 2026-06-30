@@ -1,12 +1,6 @@
 import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
 import { computeSlopeField } from '../fields/elevationPriors.js'
-
-/**
- * @param {number} value
- */
-function clamp01(value) {
-  return Math.max(0, Math.min(1, value))
-}
+import { clamp01 } from '../grid/gridTopology.js'
 
 /**
  * Macro metals potential raster from terrain, biomes, slope, and headwater proxies.

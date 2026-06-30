@@ -4,6 +4,15 @@ import { after, before, mock, test } from 'node:test'
 /** @type {Array<{ x: number, y: number, color: number }>} */
 let drawnCircles = []
 
+/** @type {Array<{ x: number, y: number, w: number, h: number }>} */
+let drawnRects = []
+
+/** @type {Array<{ position: { x: number, y: number }, scale: number }>} */
+let viewportAnimations = []
+
+/** @type {{ worldWidth: number, worldHeight: number } | null} */
+let lastViewportResize = null
+
 /** @type {Array<{ visible: boolean, texture: unknown }>} */
 let spriteLayers = []
 
@@ -16,6 +25,9 @@ before(async () => {
   if (!mock.module) return
 
   drawnCircles = []
+  drawnRects = []
+  viewportAnimations = []
+  lastViewportResize = null
   spriteLayers = []
 
   globalThis.ImageData = class {
@@ -72,6 +84,7 @@ before(async () => {
       Graphics: class {
         clear() {
           drawnCircles = []
+          drawnRects = []
         }
         circle(x, y) {
           drawnCircles.push({ x, y, color: null })
@@ -80,7 +93,9 @@ before(async () => {
           const last = drawnCircles.at(-1)
           if (last) last.color = color
         }
-        rect() {}
+        rect(x, y, w, h) {
+          drawnRects.push({ x, y, w, h })
+        }
       },
     },
   })
@@ -113,9 +128,13 @@ before(async () => {
         resize(_width, _height, worldWidth, worldHeight) {
           this.worldWidth = worldWidth
           this.worldHeight = worldHeight
+          lastViewportResize = { worldWidth, worldHeight }
         }
         fitWorld() {}
         moveCenter() {}
+        animate(options) {
+          viewportAnimations.push(options)
+        }
         destroy() {}
       },
     },
@@ -250,24 +269,28 @@ test(
       replaceChildren() {},
     }
 
+    const { resolveSaltNodeOverlayDrawn } = await import('./worldBuilderMapViewportModel.js')
     const { SALT_NODE_OVERLAY_COLOR } = await import('./createWorldBuilderMapViewport.js')
-    const viewport = await createWorldBuilderMapViewport(hostEl, createSaltNodeFixture())
+    const fixture = createSaltNodeFixture()
+    const viewport = await createWorldBuilderMapViewport(hostEl, fixture)
+    const hiddenVisibility = { arable: false, timber: false, metals: false, salt: false }
 
     assert.strictEqual(
       drawnCircles.some((circle) => circle.color === SALT_NODE_OVERLAY_COLOR),
-      false,
+      resolveSaltNodeOverlayDrawn(hiddenVisibility, fixture),
     )
 
     viewport.setResourceOverlayVisibility('salt', true)
+    const visibleVisibility = { ...hiddenVisibility, salt: true }
     assert.strictEqual(
       drawnCircles.some((circle) => circle.color === SALT_NODE_OVERLAY_COLOR),
-      true,
+      resolveSaltNodeOverlayDrawn(visibleVisibility, fixture),
     )
 
     viewport.setResourceOverlayVisibility('salt', false)
     assert.strictEqual(
       drawnCircles.some((circle) => circle.color === SALT_NODE_OVERLAY_COLOR),
-      false,
+      resolveSaltNodeOverlayDrawn(hiddenVisibility, fixture),
     )
 
     viewport.destroy()
@@ -308,15 +331,41 @@ test(
       replaceChildren() {},
     }
 
-    const viewport = await createWorldBuilderMapViewport(hostEl, createArableRasterFixture())
+    const { resolveArableRasterLayerVisible } = await import('./worldBuilderMapViewportModel.js')
+    const { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } = await import('../resourceOverlays.js')
+    const fixture = createArableRasterFixture()
+    const viewport = await createWorldBuilderMapViewport(hostEl, fixture)
+    const hiddenVisibility = { arable: false, timber: false, metals: false, salt: false }
 
-    assert.strictEqual(arableSpriteLayer().visible, false)
+    assert.strictEqual(
+      arableSpriteLayer().visible,
+      resolveArableRasterLayerVisible(
+        hiddenVisibility,
+        fixture,
+        DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+      ),
+    )
 
     viewport.setResourceOverlayVisibility('arable', true)
-    assert.strictEqual(arableSpriteLayer().visible, true)
+    const visibleVisibility = { ...hiddenVisibility, arable: true }
+    assert.strictEqual(
+      arableSpriteLayer().visible,
+      resolveArableRasterLayerVisible(
+        visibleVisibility,
+        fixture,
+        DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+      ),
+    )
 
     viewport.setResourceOverlayVisibility('arable', false)
-    assert.strictEqual(arableSpriteLayer().visible, false)
+    assert.strictEqual(
+      arableSpriteLayer().visible,
+      resolveArableRasterLayerVisible(
+        hiddenVisibility,
+        fixture,
+        DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+      ),
+    )
 
     viewport.destroy()
   },
@@ -332,15 +381,28 @@ test(
       replaceChildren() {},
     }
 
-    const viewport = await createWorldBuilderMapViewport(hostEl, createArableRasterFixture())
+    const { resolveArableRasterLayerVisible } = await import('./worldBuilderMapViewportModel.js')
+    const fixture = createArableRasterFixture()
+    const viewport = await createWorldBuilderMapViewport(hostEl, fixture)
+    const visibleVisibility = { arable: true, timber: false, metals: false, salt: false }
+
     viewport.setResourceOverlayVisibility('arable', true)
-    assert.strictEqual(arableSpriteLayer().visible, true)
+    assert.strictEqual(
+      arableSpriteLayer().visible,
+      resolveArableRasterLayerVisible(visibleVisibility, fixture, 0.4),
+    )
 
     viewport.setArableOverlayMinimumProductivity(0.9)
-    assert.strictEqual(arableSpriteLayer().visible, false)
+    assert.strictEqual(
+      arableSpriteLayer().visible,
+      resolveArableRasterLayerVisible(visibleVisibility, fixture, 0.9),
+    )
 
     viewport.setArableOverlayMinimumProductivity(0)
-    assert.strictEqual(arableSpriteLayer().visible, true)
+    assert.strictEqual(
+      arableSpriteLayer().visible,
+      resolveArableRasterLayerVisible(visibleVisibility, fixture, 0),
+    )
 
     viewport.destroy()
   },
@@ -356,15 +418,28 @@ test(
       replaceChildren() {},
     }
 
-    const viewport = await createWorldBuilderMapViewport(hostEl, createTimberRasterFixture())
+    const { resolveResourceRasterLayerVisible } = await import('./worldBuilderMapViewportModel.js')
+    const fixture = createTimberRasterFixture()
+    const viewport = await createWorldBuilderMapViewport(hostEl, fixture)
+    const hiddenVisibility = { arable: false, timber: false, metals: false, salt: false }
 
-    assert.strictEqual(timberSpriteLayer().visible, false)
+    assert.strictEqual(
+      timberSpriteLayer().visible,
+      resolveResourceRasterLayerVisible(hiddenVisibility, 'timber', fixture),
+    )
 
     viewport.setResourceOverlayVisibility('timber', true)
-    assert.strictEqual(timberSpriteLayer().visible, true)
+    const visibleVisibility = { ...hiddenVisibility, timber: true }
+    assert.strictEqual(
+      timberSpriteLayer().visible,
+      resolveResourceRasterLayerVisible(visibleVisibility, 'timber', fixture),
+    )
 
     viewport.setResourceOverlayVisibility('timber', false)
-    assert.strictEqual(timberSpriteLayer().visible, false)
+    assert.strictEqual(
+      timberSpriteLayer().visible,
+      resolveResourceRasterLayerVisible(hiddenVisibility, 'timber', fixture),
+    )
 
     viewport.destroy()
   },
@@ -444,28 +519,121 @@ test(
       replaceChildren() {},
     }
 
+    const { resolveMetalsOverlayDrawn } = await import('./worldBuilderMapViewportModel.js')
     const { METAL_NODE_OVERLAY_COLOR } = await import('./createWorldBuilderMapViewport.js')
-    const viewport = await createWorldBuilderMapViewport(hostEl, createMetalsFixture())
+    const fixture = createMetalsFixture()
+    const viewport = await createWorldBuilderMapViewport(hostEl, fixture)
+    const hiddenVisibility = { arable: false, timber: false, metals: false, salt: false }
 
-    assert.strictEqual(metalsSpriteLayer().visible, false)
+    assert.strictEqual(
+      metalsSpriteLayer().visible,
+      resolveMetalsOverlayDrawn(hiddenVisibility, fixture).rasterVisible,
+    )
     assert.strictEqual(
       drawnCircles.some((circle) => circle.color === METAL_NODE_OVERLAY_COLOR),
-      false,
+      resolveMetalsOverlayDrawn(hiddenVisibility, fixture).nodesVisible,
     )
 
     viewport.setResourceOverlayVisibility('metals', true)
-    assert.strictEqual(metalsSpriteLayer().visible, true)
+    const visibleVisibility = { ...hiddenVisibility, metals: true }
+    const visibleDrawn = resolveMetalsOverlayDrawn(visibleVisibility, fixture)
+    assert.strictEqual(metalsSpriteLayer().visible, visibleDrawn.rasterVisible)
     assert.strictEqual(
       drawnCircles.some((circle) => circle.color === METAL_NODE_OVERLAY_COLOR),
-      true,
+      visibleDrawn.nodesVisible,
     )
 
     viewport.setResourceOverlayVisibility('metals', false)
-    assert.strictEqual(metalsSpriteLayer().visible, false)
+    assert.strictEqual(
+      metalsSpriteLayer().visible,
+      resolveMetalsOverlayDrawn(hiddenVisibility, fixture).rasterVisible,
+    )
     assert.strictEqual(
       drawnCircles.some((circle) => circle.color === METAL_NODE_OVERLAY_COLOR),
-      false,
+      resolveMetalsOverlayDrawn(hiddenVisibility, fixture).nodesVisible,
     )
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'updateWorldDocument resizes viewport to the new world document dimensions',
+  viewportTests,
+  async () => {
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+
+    const viewport = await createWorldBuilderMapViewport(hostEl, createSaltNodeFixture())
+    viewport.updateWorldDocument({
+      ...createSaltNodeFixture(),
+      gridWidth: 64,
+      gridHeight: 48,
+      biomes: new Uint8Array(64 * 48),
+      fields: { elevation: new Float32Array(64 * 48) },
+    })
+
+    assert.deepStrictEqual(lastViewportResize, { worldWidth: 64, worldHeight: 48 })
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'focusOn uses current world document width after regeneration',
+  viewportTests,
+  async () => {
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+
+    const viewport = await createWorldBuilderMapViewport(hostEl, createSaltNodeFixture())
+    viewport.updateWorldDocument({
+      ...createSaltNodeFixture(),
+      gridWidth: 80,
+      gridHeight: 80,
+      biomes: new Uint8Array(80 * 80),
+      fields: { elevation: new Float32Array(80 * 80) },
+    })
+
+    viewport.focusOn({ minX: 0, minY: 0, maxX: 20, maxY: 20 })
+    const animation = viewportAnimations.at(-1)
+    assert.ok(animation)
+    assert.strictEqual(animation.scale, 1)
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'lake overlay draws from lakeMask rather than biome labels',
+  viewportTests,
+  async () => {
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+
+    const { BIOMES } = await import('../core/biomeIds.js')
+    const lakeMask = new Uint8Array(16)
+    lakeMask[6] = 1
+    const biomes = new Uint8Array(16).fill(BIOMES.GRASSLAND)
+
+    const viewport = await createWorldBuilderMapViewport(hostEl, {
+      gridWidth: 4,
+      gridHeight: 4,
+      biomes,
+      lakeMask,
+      fields: { elevation: new Float32Array(16).fill(0.55) },
+    })
+
+    assert.deepStrictEqual(drawnRects, [{ x: 2, y: 1, w: 1, h: 1 }])
 
     viewport.destroy()
   },

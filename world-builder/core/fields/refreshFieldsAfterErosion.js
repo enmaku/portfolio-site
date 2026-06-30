@@ -1,6 +1,7 @@
 import { generateTemperature } from './generateTemperature.js'
 import { generateRainfall } from './generateRainfall.js'
-import { deriveSalidityFromOcean } from './deriveSalidityFromOcean.js'
+import { deriveSalinityFromOcean } from './deriveSalinityFromOcean.js'
+import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
 
 /**
  * Recompute climate scalar fields after erosion; prevailing wind unchanged.
@@ -32,7 +33,13 @@ export function refreshFieldsAfterErosion({
     prevailingWindDegrees,
     options,
   })
-  const salidity = deriveSalidityFromOcean({ elevation, width, height })
+  const resolved = resolveWorldGenerationOptions(options)
+  const salinity = deriveSalinityFromOcean({
+    elevation,
+    width,
+    height,
+    seaLevel: resolved.seaLevel,
+  })
 
-  return { elevation, temperature, rainfall, drainage, salidity }
+  return { elevation, temperature, rainfall, drainage, salinity }
 }

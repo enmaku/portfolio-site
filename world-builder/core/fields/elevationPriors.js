@@ -1,115 +1,5 @@
-import { isOceanCell } from './applyClosedIslandRim.js'
-
-/**
- * @param {number} x
- * @param {number} y
- * @param {number} seed
- */
-function hashNoise(x, y, seed) {
-  const ix = Math.floor(x)
-  const iy = Math.floor(y)
-  const fx = x - ix
-  const fy = y - iy
-  const sx = fx * fx * (3 - 2 * fx)
-  const sy = fy * fy * (3 - 2 * fy)
-
-  const v00 = latticeValue(ix, iy, seed)
-  const v10 = latticeValue(ix + 1, iy, seed)
-  const v01 = latticeValue(ix, iy + 1, seed)
-  const v11 = latticeValue(ix + 1, iy + 1, seed)
-
-  const ix0 = v00 + (v10 - v00) * sx
-  const ix1 = v01 + (v11 - v01) * sx
-  return ix0 + (ix1 - ix0) * sy
-}
-
-/**
- * @param {number} x
- * @param {number} y
- * @param {number} seed
- */
-function latticeValue(x, y, seed) {
-  let n = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ seed
-  n = Math.imul(n ^ (n >> 13), 1274126177)
-  return ((n ^ (n >> 16)) & 0xffff) / 65535
-}
-
-/**
- * @param {number} value
- * @param {number} min
- * @param {number} max
- */
-function clamp01(value, min = 0, max = 1) {
-  if (value < min) return min
-  if (value > max) return max
-  return value
-}
-
-const COAST_DISTANCE_ORTH = 1
-const COAST_DISTANCE_DIAG = 1.41421356237
-
-/**
- * Two-pass chamfer distance from each land cell to the nearest ocean cell.
- * @param {Float32Array} elevation
- * @param {number} width
- * @param {number} height
- * @param {number} seaLevel
- * @returns {Float32Array}
- */
-export function computeLandCoastDistance(elevation, width, height, seaLevel) {
-  const ocean = isOceanCell(elevation, width, height, seaLevel)
-  const distances = new Float32Array(width * height)
-
-  for (let i = 0; i < elevation.length; i += 1) {
-    distances[i] = ocean[i] ? 0 : Number.POSITIVE_INFINITY
-  }
-
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const idx = y * width + x
-      if (ocean[idx]) continue
-
-      let best = distances[idx]
-      if (x > 0) {
-        best = Math.min(best, distances[idx - 1] + COAST_DISTANCE_ORTH)
-      }
-      if (y > 0) {
-        best = Math.min(best, distances[idx - width] + COAST_DISTANCE_ORTH)
-      }
-      if (x > 0 && y > 0) {
-        best = Math.min(best, distances[idx - width - 1] + COAST_DISTANCE_DIAG)
-      }
-      if (x < width - 1 && y > 0) {
-        best = Math.min(best, distances[idx - width + 1] + COAST_DISTANCE_DIAG)
-      }
-      distances[idx] = best
-    }
-  }
-
-  for (let y = height - 1; y >= 0; y -= 1) {
-    for (let x = width - 1; x >= 0; x -= 1) {
-      const idx = y * width + x
-      if (ocean[idx]) continue
-
-      let best = distances[idx]
-      if (x < width - 1) {
-        best = Math.min(best, distances[idx + 1] + COAST_DISTANCE_ORTH)
-      }
-      if (y < height - 1) {
-        best = Math.min(best, distances[idx + width] + COAST_DISTANCE_ORTH)
-      }
-      if (x < width - 1 && y < height - 1) {
-        best = Math.min(best, distances[idx + width + 1] + COAST_DISTANCE_DIAG)
-      }
-      if (x > 0 && y < height - 1) {
-        best = Math.min(best, distances[idx + width - 1] + COAST_DISTANCE_DIAG)
-      }
-      distances[idx] = best
-    }
-  }
-
-  return distances
-}
+import { clamp01 } from '../grid/gridTopology.js'
+import { sampleValueNoise2d } from '../noise/valueNoise2d.js'
 
 /**
  * @param {Float32Array} elevation
@@ -234,7 +124,7 @@ export function applySlopeDependentRoughness(
       const idx = y * width + x
       const slopeFactor = clamp01((slopes[idx] - minSlope) / (maxSlope - minSlope))
       if (slopeFactor <= 0) continue
-      const detail = hashNoise(x * frequency, y * frequency, seed + 8803) - 0.5
+      const detail = sampleValueNoise2d(x * frequency, y * frequency, seed + 8803) - 0.5
       elevation[idx] = clamp01(elevation[idx] + detail * strength * slopeFactor * 2)
     }
   }
@@ -315,11 +205,11 @@ export function generateWarpedFbm2d({
     for (let x = 0; x < width; x += 1) {
       const warpX =
         warpStrength > 0
-          ? (hashNoise(x * warpFrequency, y * warpFrequency, seed + 7101) * 2 - 1) * warpStrength
+          ? (sampleValueNoise2d(x * warpFrequency, y * warpFrequency, seed + 7101) * 2 - 1) * warpStrength
           : 0
       const warpY =
         warpStrength > 0
-          ? (hashNoise(x * warpFrequency, y * warpFrequency, seed + 7102) * 2 - 1) * warpStrength
+          ? (sampleValueNoise2d(x * warpFrequency, y * warpFrequency, seed + 7102) * 2 - 1) * warpStrength
           : 0
       const sampleX = x + warpX
       const sampleY = y + warpY
@@ -328,7 +218,7 @@ export function generateWarpedFbm2d({
       amplitude = 1
       let freq = frequency
       for (let o = 0; o < coarseOctaves; o += 1) {
-        value += hashNoise(sampleX * freq, sampleY * freq, seed + o * 1013) * amplitude
+        value += sampleValueNoise2d(sampleX * freq, sampleY * freq, seed + o * 1013) * amplitude
         freq *= 2
         amplitude *= persistence
       }
@@ -338,14 +228,14 @@ export function generateWarpedFbm2d({
       let detailFreq = freq
       for (let o = 0; o < detailOctaves; o += 1) {
         detailValue +=
-          hashNoise(sampleX * detailFreq, sampleY * detailFreq, seed + (coarseOctaves + o) * 1013) *
+          sampleValueNoise2d(sampleX * detailFreq, sampleY * detailFreq, seed + (coarseOctaves + o) * 1013) *
           detailAmplitude
         detailFreq *= 2
         detailAmplitude *= persistence
       }
 
       const slopeProxy = Math.abs(
-        hashNoise(sampleX * frequency * 0.5, sampleY * frequency * 0.5, seed + 7201) - 0.5,
+        sampleValueNoise2d(sampleX * frequency * 0.5, sampleY * frequency * 0.5, seed + 7201) - 0.5,
       )
       const slopeFactor = clamp01(slopeProxy / 0.25)
       const detailScale =

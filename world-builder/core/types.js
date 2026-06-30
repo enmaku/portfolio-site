@@ -4,7 +4,7 @@
  * @property {Float32Array} temperature
  * @property {Float32Array} rainfall
  * @property {Float32Array} drainage
- * @property {Float32Array} salidity
+ * @property {Float32Array} salinity
  */
 
 /**
@@ -31,6 +31,15 @@
  * @typedef {Object} RiverGraph
  * @property {RiverGraphNode[]} nodes
  * @property {RiverGraphEdge[]} edges
+ */
+
+/**
+ * @typedef {import('./hydrology/riverNetwork.js').RiverNetworkFlow} RiverNetworkFlow
+ */
+
+/**
+ * Explicit hydrology river-network contract (centerline, corridor, flow, graph).
+ * @typedef {import('./hydrology/riverNetwork.js').RiverNetwork} RiverNetwork
  */
 
 /**
@@ -135,11 +144,59 @@
 /** @typedef {MapFocusPoint | MapFocusBounds} MapFocus */
 
 /**
+ * @typedef {'hydrology' | 'coast' | 'climate' | 'resources' | 'landmassPlausibility'} ValidationSignalCategory
+ */
+
+/**
  * @typedef {Object} ValidationRow
  * @property {string} checkId
  * @property {'pass' | 'warn' | 'fail'} status
  * @property {string} summary
+ * @property {ValidationSignalCategory} category
+ * @property {boolean} rejectable
  * @property {MapFocus=} mapFocus
+ */
+
+/**
+ * @typedef {Object} StructuredRejectionReason
+ * @property {string} checkId
+ * @property {ValidationSignalCategory} category
+ */
+
+/**
+ * @typedef {Object} ValidationSignals
+ * @property {Object} hydrology
+ * @property {number} hydrology.navigableRiverEdgeCount
+ * @property {number} hydrology.riverCellCount
+ * @property {number} hydrology.mouthCount
+ * @property {number | null} hydrology.hacksLawExponent
+ * @property {number} hydrology.parallelStrandRatio
+ * @property {number} hydrology.coastConnectedNavigablePathLength
+ * @property {'pass' | 'warn' | 'fail'} hydrology.endorheicCheckStatus
+ * @property {Object} coast
+ * @property {number} coast.coastalNodeCount
+ * @property {number} coast.mouthCount
+ * @property {'pass' | 'warn' | 'fail'} coast.coastMouthCheckStatus
+ * @property {number} coast.coastConnectedNavigablePathLength
+ * @property {Object} climate
+ * @property {boolean} climate.windRainfallAsymmetryActive
+ * @property {'pass' | 'warn' | 'fail'} climate.windRainfallCheckStatus
+ * @property {Object} resources
+ * @property {boolean} resources.resourceMismatchDetected
+ * @property {'pass' | 'warn' | 'fail'} resources.resourceMismatchCheckStatus
+ * @property {number} resources.meanInlandSalinity
+ * @property {number} resources.oceanSalinityMean
+ * @property {'pass' | 'warn' | 'fail'} resources.salinityGradientCheckStatus
+ * @property {Object} landmassPlausibility
+ * @property {number} landmassPlausibility.highlandFraction
+ * @property {number} landmassPlausibility.biomeDiversityCount
+ * @property {'pass' | 'warn' | 'fail'} landmassPlausibility.highlandCheckStatus
+ * @property {'pass' | 'warn' | 'fail'} landmassPlausibility.biomeDiversityCheckStatus
+ * @property {Object} movement
+ * @property {number} movement.navigableRiverEdgeCount
+ * @property {number} movement.coastConnectedNavigablePathLength
+ * @property {'pass' | 'warn' | 'fail'} movement.navigableRiverCheckStatus
+ * @property {'pass' | 'warn' | 'fail'} movement.coastConnectedNavigablePathCheckStatus
  */
 
 /**
@@ -158,6 +215,9 @@
  * @property {ValidationRow[]} validationRows
  * @property {boolean} shouldReject
  * @property {string[]} rejectionReasons
+ * @property {StructuredRejectionReason[]} structuredRejectionReasons
+ * @property {boolean} rejectionSamplingEnforced
+ * @property {ValidationSignals} validationSignals
  * @property {HydrologySubstepTiming[]} hydrologySubstepTimings
  * @property {HydrologyReportStats} hydrology
  */
@@ -178,6 +238,7 @@
  * @property {LakeMetaRecord[]=} lakeMeta
  * @property {Uint8Array=} lakeMask
  * @property {Uint8Array=} riverNetworkMask
+ * @property {Uint8Array=} riverCorridorMask
  * @property {Float32Array=} channelWidth
  * @property {Int16Array=} flowDirection
  * @property {Float32Array=} coastNavigability
@@ -237,6 +298,7 @@
  * @property {boolean} enforceCoastConnectedNavigablePath
  * @property {boolean} enforceEndorheicFractionCap
  * @property {number} maxValidationRetries
+ * @property {boolean} enableIntermediateStepPreviews
  * @property {number} minHacksLawExponent
  * @property {number} maxHacksLawExponent
  * @property {number} minSlopeAreaConcavity

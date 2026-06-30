@@ -7,6 +7,10 @@ import {
 } from '../types.js'
 import { downstreamIndex } from './computeFlowAccumulation.js'
 import {
+  buildUpstreamAdjacency,
+  selectCoastalMouths,
+} from './riverNetwork.js'
+import {
   buildFractalWaypoints,
   findLeastResistancePath,
   snapToValleyCell,
@@ -180,7 +184,13 @@ function markStructuralNodes({
   mergeRadius,
 }) {
   const cellCount = width * height
-  const upstream = buildUpstreamAdjacency(cellCount, width, flowDirection, ocean, sketchMask)
+  const upstream = buildUpstreamAdjacency({
+    cellCount,
+    width,
+    flowDirection,
+    ocean,
+    channelMask: sketchMask,
+  })
   const isNode = new Uint8Array(cellCount)
 
   /** @type {number[]} */
@@ -397,7 +407,13 @@ function buildRiverEdges({
   branchKeepRatio,
 }) {
   const cellCount = width * height
-  const upstream = buildUpstreamAdjacency(cellCount, width, flowDirection, ocean, sketchMask)
+  const upstream = buildUpstreamAdjacency({
+    cellCount,
+    width,
+    flowDirection,
+    ocean,
+    channelMask: sketchMask,
+  })
   /** @type {Array<{ from: number, to: number }>} */
   const edges = []
   const edgeKeys = new Set()
@@ -796,59 +812,6 @@ function isSketchTerminal(idx, sketchMask, flowDirection, ocean, width) {
   return !sketchMask[downstream]
 }
 
-/**
- * @param {number} cellCount
- * @param {number} width
- * @param {Int16Array} flowDirection
- * @param {boolean[]} ocean
- * @param {Uint8Array} sketchMask
- */
-function buildUpstreamAdjacency(cellCount, width, flowDirection, ocean, sketchMask) {
-  /** @type {number[][]} */
-  const upstream = Array.from({ length: cellCount }, () => [])
-  for (let idx = 0; idx < cellCount; idx += 1) {
-    if (ocean[idx] || !sketchMask[idx]) continue
-    const downstream = downstreamIndex(idx, width, flowDirection)
-    if (downstream < 0 || ocean[downstream] || !sketchMask[downstream]) continue
-    upstream[downstream].push(idx)
-  }
-  return upstream
-}
-
-/**
- * @param {number[]} candidates
- * @param {Float32Array} flowAccumulation
- * @param {number} width
- * @param {number} mergeRadius
- * @param {number} mouthCutoff
- */
-function selectCoastalMouths(candidates, flowAccumulation, width, mergeRadius, mouthCutoff) {
-  const qualifying = candidates.filter((idx) => flowAccumulation[idx] >= mouthCutoff)
-  qualifying.sort((left, right) => flowAccumulation[right] - flowAccumulation[left])
-
-  /** @type {number[]} */
-  const selected = []
-  for (const idx of qualifying) {
-    const x = idx % width
-    const y = Math.floor(idx / width)
-    const tooClose = selected.some((otherIdx) => {
-      const ox = otherIdx % width
-      const oy = Math.floor(otherIdx / width)
-      return Math.hypot(x - ox, y - oy) < mergeRadius
-    })
-    if (!tooClose) {
-      selected.push(idx)
-    }
-  }
-  return selected
-}
-
-/**
- * @param {number} idx
- * @param {boolean[]} ocean
- * @param {number} width
- * @param {number} height
- */
 function cellTouchesOcean(idx, ocean, width, height) {
   const x = idx % width
   const y = Math.floor(idx / width)

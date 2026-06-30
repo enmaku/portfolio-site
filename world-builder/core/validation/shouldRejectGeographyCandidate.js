@@ -1,3 +1,8 @@
+import {
+  collectStructuredRejectionReasons,
+  isRejectionSamplingEnforced,
+} from './landmassValidationContracts.js'
+
 /**
  * @param {import('../types.js').ValidationRow[]} validationRows
  */
@@ -14,3 +19,5 @@ export function collectRejectionReasons(validationRows) {
     .filter((row) => row.status === 'fail')
     .map((row) => `${row.checkId}: ${row.summary}`)
 }
+
+export { collectStructuredRejectionReasons, isRejectionSamplingEnforced }

@@ -5,6 +5,20 @@ import {
   sourceFlowCutoffForGrid,
 } from '../types.js'
 import { downstreamIndex } from './computeFlowAccumulation.js'
+import {
+  buildUpstreamAdjacency,
+  isRiverHeadwaterOnDrainageField,
+  isRiverJunctionOnDrainageField,
+  isRiverMouthDrainageCell,
+  qualifiesAsRiverMouth,
+} from './riverNetwork.js'
+
+export {
+  buildNavigableRiverMask,
+  countMaskedUpstreamChannelCells,
+  isRiverMouthDrainageCell,
+  qualifiesAsRiverMouth,
+} from './riverNetwork.js'
 
 /**
  * @param {Object} params
@@ -48,7 +62,13 @@ export function buildRiverGraph({
   const minMouthChannelCells = channelMask ? minRiverMouthChannelCellsForGrid(width) : 0
   const maskedUpstream =
     channelMask && minMouthChannelCells > 0
-      ? buildMaskedUpstreamAdjacency(cellCount, width, flowDirection, ocean, channelMask)
+      ? buildUpstreamAdjacency({
+          cellCount,
+          width,
+          flowDirection,
+          ocean,
+          channelMask,
+        })
       : null
   const nodeByCell = new Map()
   /** @type {import('../types.js').RiverGraphNode[]} */
@@ -78,8 +98,8 @@ export function buildRiverGraph({
       isMouthCandidate &&
       flow >= mouthFlowCutoff &&
       qualifiesAsRiverMouth(idx, channelMask, maskedUpstream, minMouthChannelCells)
-    const isSource = isHeadwater(idx, width, height, flowDirection, ocean)
-    const isJunction = countUpstream(idx, width, height, flowDirection, ocean) >= 2
+    const isSource = isRiverHeadwaterOnDrainageField(idx, width, height, flowDirection, ocean)
+    const isJunction = isRiverJunctionOnDrainageField(idx, width, height, flowDirection, ocean)
     const isLakeNode = lakeMask[idx] > 0
 
     let kind = 'junction'
@@ -129,133 +149,3 @@ export function buildRiverGraph({
 
   return { nodes, edges }
 }
-
-/**
- * @param {number} downstreamIdx
- * @param {boolean[]} ocean
- */
-export function isRiverMouthDrainageCell(downstreamIdx, ocean) {
-  return downstreamIdx >= 0 && ocean[downstreamIdx]
-}
-
-/**
- * @param {number} mouthIdx
- * @param {Uint8Array | undefined} channelMask
- * @param {number[][] | null} maskedUpstream
- * @param {number} minChannelCells
- */
-export function qualifiesAsRiverMouth(mouthIdx, channelMask, maskedUpstream, minChannelCells) {
-  if (!channelMask || minChannelCells <= 0) return true
-  if (!channelMask[mouthIdx] || !maskedUpstream) return false
-  return countMaskedUpstreamChannelCells(mouthIdx, channelMask, maskedUpstream) >= minChannelCells
-}
-
-/**
- * @param {number} startIdx
- * @param {Uint8Array} channelMask
- * @param {number[][]} upstream
- */
-export function countMaskedUpstreamChannelCells(startIdx, channelMask, upstream) {
-  let count = 0
-  /** @type {number[]} */
-  const stack = [startIdx]
-  const visited = new Uint8Array(channelMask.length)
-
-  while (stack.length > 0) {
-    const idx = stack.pop()
-    if (idx === undefined || visited[idx]) continue
-    visited[idx] = 1
-    count += 1
-    for (const upIdx of upstream[idx]) {
-      if (channelMask[upIdx]) stack.push(upIdx)
-    }
-  }
-
-  return count
-}
-
-/**
- * @param {number} cellCount
- * @param {number} width
- * @param {Int16Array} flowDirection
- * @param {boolean[]} ocean
- * @param {Uint8Array} channelMask
- */
-function buildMaskedUpstreamAdjacency(cellCount, width, flowDirection, ocean, channelMask) {
-  /** @type {number[][]} */
-  const upstream = Array.from({ length: cellCount }, () => [])
-  for (let idx = 0; idx < cellCount; idx += 1) {
-    if (!channelMask[idx] || ocean[idx]) continue
-    const downstream = downstreamIndex(idx, width, flowDirection)
-    if (downstream < 0 || ocean[downstream] || !channelMask[downstream]) continue
-    upstream[downstream].push(idx)
-  }
-  return upstream
-}
-
-/**
- * @param {import('../types.js').RiverGraph} riverGraph
- * @param {number} width
- * @param {number} height
- * @returns {Uint8Array}
- */
-export function buildNavigableRiverMask(riverGraph, width, height) {
-  const mask = new Uint8Array(width * height)
-  for (const edge of riverGraph.edges) {
-    if (!edge.cellPath) continue
-    for (const cellIdx of edge.cellPath) {
-      mask[cellIdx] = 1
-    }
-  }
-  return mask
-}
-
-/**
- * @param {number} idx
- * @param {number} width
- * @param {number} height
- * @param {Int16Array} flowDirection
- * @param {boolean[]} ocean
- */
-function isHeadwater(idx, width, height, flowDirection, ocean) {
-  const x = idx % width
-  const y = Math.floor(idx / width)
-  for (let dy = -1; dy <= 1; dy += 1) {
-    for (let dx = -1; dx <= 1; dx += 1) {
-      if (dx === 0 && dy === 0) continue
-      const nx = x + dx
-      const ny = y + dy
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-      const nIdx = ny * width + nx
-      if (ocean[nIdx]) continue
-      if (downstreamIndex(nIdx, width, flowDirection) === idx) return false
-    }
-  }
-  return !ocean[idx]
-}
-
-/**
- * @param {number} idx
- * @param {number} width
- * @param {number} height
- * @param {Int16Array} flowDirection
- * @param {boolean[]} ocean
- */
-function countUpstream(idx, width, height, flowDirection, ocean) {
-  let count = 0
-  const x = idx % width
-  const y = Math.floor(idx / width)
-  for (let dy = -1; dy <= 1; dy += 1) {
-    for (let dx = -1; dx <= 1; dx += 1) {
-      if (dx === 0 && dy === 0) continue
-      const nx = x + dx
-      const ny = y + dy
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-      const nIdx = ny * width + nx
-      if (ocean[nIdx]) continue
-      if (downstreamIndex(nIdx, width, flowDirection) === idx) count += 1
-    }
-  }
-  return count
-}
-

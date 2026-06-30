@@ -12,6 +12,7 @@ import { refreshFieldsAfterErosion } from '../fields/refreshFieldsAfterErosion.j
 import { fillLakes } from './fillLakes.js'
 import { computeFlowAccumulation, downstreamIndex } from './computeFlowAccumulation.js'
 import { computeRiverNetworkMaxChannelWidth } from './riverCorridorDisplay.js'
+import { readRiverNetworkFromWorldDocument } from './riverNetwork.js'
 import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
 import { generateDerivedGeography } from '../generateDerivedGeography.js'
@@ -106,6 +107,32 @@ test('runHydrologySubsteps matches runPipelineStep hydrology output', () => {
   assert.deepStrictEqual(fromSubsteps.fields.elevation, fromPipelineStep.fields.elevation)
   assert.deepStrictEqual(fromSubsteps.fields.drainage, fromPipelineStep.fields.drainage)
   assert.deepStrictEqual(fromSubsteps.biomes, fromPipelineStep.biomes)
+})
+
+test('runHydrologySubsteps flattens hydrologyPaint riverNetwork contract onto state', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  const { state: hydrologyState } = runHydrologySubsteps(state)
+  const network = readRiverNetworkFromWorldDocument({
+    gridWidth: hydrologyState.width,
+    gridHeight: hydrologyState.height,
+    fields: hydrologyState.fields,
+    riverNetworkMask: hydrologyState.riverNetworkMask,
+    riverCorridorMask: hydrologyState.riverCorridorMask,
+    flowDirection: hydrologyState.flowDirection,
+    channelWidth: hydrologyState.channelWidth,
+    riverGraph: hydrologyState.riverGraph,
+  })
+
+  assert.ok(network)
+  assert.equal(network.centerline, hydrologyState.riverNetworkMask)
+  assert.equal(network.corridor, hydrologyState.riverCorridorMask)
+  assert.equal(network.graph, hydrologyState.riverGraph)
+  assert.equal(network.flow.direction, hydrologyState.flowDirection)
+  assert.equal(network.flow.accumulation, hydrologyState.fields.drainage)
+  assert.equal(network.flow.channelWidth, hydrologyState.channelWidth)
 })
 
 test('runHydrologySubsteps exposes lakeMeta and hydrology stats on state', () => {
@@ -500,7 +527,7 @@ test('runHydrologySubsteps runs hydrologyRefine when enableMeanderRefine is true
 })
 
 test('enableMeanderRefine allows presentation mask changes and valley carving', () => {
-  const seed = 12345
+  const seed = 5000
   const { state: withoutMeander } = runHydrologyForSeed(seed)
   const { state: withMeander } = runHydrologyForSeed(seed, {
     ...DEFAULT_WORLD_GENERATION_OPTIONS,

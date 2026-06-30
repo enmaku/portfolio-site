@@ -1,7 +1,26 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
+import { generatePhysicalTerrainBaseline } from '../generatePhysicalTerrainBaseline.js'
+import { generateTemperature } from '../fields/generateTemperature.js'
+import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
 import { generateArableRaster } from './generateArableRaster.js'
+
+const REPRESENTATIVE_GEOGRAPHY_SEEDS = [12345, 31842, DEFAULT_GEOGRAPHY_SEED]
+
+function rasterChecksum(arr, stride = 97) {
+  let checksum = 0
+  for (let i = 0; i < arr.length; i += stride) {
+    checksum = (checksum + Math.round(arr[i] * 1e6) * (i + 1)) % 2147483647
+  }
+  return checksum
+}
+
+const ARABLE_GOLDEN_CHECKSUMS = new Map([
+  [12345, 1973926258],
+  [31842, 2055437175],
+  [DEFAULT_GEOGRAPHY_SEED, 330469910],
+])
 
 /**
  * @param {number} width
@@ -170,4 +189,42 @@ test('generateArableRaster boosts trunk channel cells over tributary-only neighb
     raster[trunkIdx] > raster[tributaryIdx],
     `trunk ${raster[trunkIdx]} should exceed tributary ${raster[tributaryIdx]}`,
   )
+})
+
+test('generateArableRaster preserves golden checksums for representative seeds', () => {
+  for (const geographySeed of REPRESENTATIVE_GEOGRAPHY_SEEDS) {
+    const width = 64
+    const height = 64
+    const doc = generatePhysicalTerrainBaseline({
+      geographySeed,
+      prevailingWindDegrees: 90,
+      width,
+      height,
+    })
+    const temperature = generateTemperature({
+      geographySeed,
+      width,
+      height,
+      elevation: doc.fields.elevation,
+    })
+    const raster = generateArableRaster({
+      elevation: doc.fields.elevation,
+      temperature,
+      rainfall: doc.fields.rainfall,
+      drainage: doc.fields.drainage,
+      biomes: doc.biomes,
+      riverCorridorMask: null,
+      riverNetworkMask: null,
+      channelWidth: null,
+      width,
+      height,
+      geographySeed,
+      seaLevel: SEA_LEVEL,
+    })
+    assert.strictEqual(
+      rasterChecksum(raster),
+      ARABLE_GOLDEN_CHECKSUMS.get(geographySeed),
+      `arable checksum drift for seed ${geographySeed}`,
+    )
+  }
 })

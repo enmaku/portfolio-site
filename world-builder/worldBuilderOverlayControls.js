@@ -1,19 +1,11 @@
-/** Minimum arable productivity (0–1) required before the overlay draws a cell. */
-export const DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY = 0.4
+import {
+  createDefaultOverlayDisplaySettings,
+  DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+} from './resourceOverlays.js'
 
-/**
- * @typedef {Object} OverlayDisplaySettings
- * @property {number} arableMinimumProductivity
- */
+/** @typedef {import('./resourceOverlays.js').OverlayDisplaySettings} OverlayDisplaySettings */
 
-/**
- * @returns {OverlayDisplaySettings}
- */
-export function createDefaultOverlayDisplaySettings() {
-  return {
-    arableMinimumProductivity: DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
-  }
-}
+export { createDefaultOverlayDisplaySettings, DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY }
 
 /**
  * Sidebar overlay display controls (do not trigger world regeneration).

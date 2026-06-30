@@ -357,20 +357,32 @@ import {
   formatOverlayControlValue,
 } from '@world-builder/worldBuilderOverlayControls.js'
 import {
+  createResourceOverlayDefinitions,
+} from '@world-builder/resourceOverlays.js'
+import {
+  createResourceOverlayPageState,
+  resetResourceOverlayVisibilityState,
+  syncResourceOverlayStateToViewport,
+  toggleResourceOverlayVisibility,
+  updateOverlayDisplaySetting,
+} from '@world-builder/resourceOverlayState.js'
+import {
+  createGenerationRunController,
+  createInitialGenerationProgress,
+  startDerivedGeographyGeneration,
+} from '@world-builder/worldBuilderGenerationOrchestrator.js'
+import {
   buildDerivedGeographyParams,
-  createDefaultResourceOverlayVisibility,
   createGenerationStepStatuses,
   createHydrologyStatsForDisplay,
   createHydrologySubstepStatuses,
   createHydrologySubstepTimingsForDisplay,
-  createResourceOverlayDefinitions,
   formatHydrologySubstepTimingForDisplay,
   createRandomGeographySeed,
   createStageSummaryForDisplay,
   createValidationRowsForDisplay,
   formatHydrologyMetricValue,
   formatSlopeAreaConcavityForDisplay,
-  generationProgressValue,
   parseGeographySeedInput,
   shouldShowGenerationProgress,
   shouldShowResourceOverlayBar,
@@ -393,8 +405,10 @@ const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
 const overlayControlDefinitions = WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS
 const resourceOverlayDefinitions = createResourceOverlayDefinitions()
 
-/** @type {import('vue').Ref<Record<string, boolean>>} */
-const resourceOverlayVisibility = ref(createDefaultResourceOverlayVisibility())
+/** @type {import('vue').Ref<import('@world-builder/resourceOverlayState.js').ResourceOverlayPageState>} */
+const resourceOverlayState = ref(createResourceOverlayPageState(overlayDisplaySettings.value))
+
+const resourceOverlayVisibility = computed(() => resourceOverlayState.value.visibility)
 
 /** @type {import('vue').Ref<import('@world-builder/core/types.js').WorldDocument | null>} */
 const worldDocument = ref(null)
@@ -416,11 +430,8 @@ let mapViewport = null
 /** @type {typeof import('@world-builder/renderer/createWorldBuilderMapViewport.js').createWorldBuilderMapViewport | null} */
 let createWorldBuilderMapViewport = null
 
-/** @type {{ cancel: () => void } | null} */
-let activeGenerationJob = null
-
-/** @type {number} */
-let generationRunId = 0
+/** @type {ReturnType<typeof createGenerationRunController> | null} */
+let generationRunController = null
 
 const validationRows = computed(() =>
   createValidationRowsForDisplay(worldDocument.value?.generationReport),
@@ -465,36 +476,17 @@ function stepStatusColor(status) {
 }
 
 function resetGenerationProgress() {
-  generationProgress.value = {
-    percent: 0,
-    activeStepIndex: -1,
-    completedStepIndex: -1,
-    label: '',
-    activeHydrologySubstepIndex: -1,
-    completedHydrologySubstepIndex: -1,
-    skippedHydrologySubstepIds: [],
-  }
+  generationProgress.value = createInitialGenerationProgress()
 }
 
 function resetResourceOverlayVisibility() {
-  resourceOverlayVisibility.value = createDefaultResourceOverlayVisibility()
+  resourceOverlayState.value = resetResourceOverlayVisibilityState(resourceOverlayState.value)
   syncResourceOverlayVisibilityToMapViewport()
 }
 
 function syncResourceOverlayVisibilityToMapViewport() {
-  syncArableOverlayDisplaySettingsToMapViewport()
-  for (const overlay of resourceOverlayDefinitions) {
-    mapViewport?.setResourceOverlayVisibility(
-      overlay.id,
-      resourceOverlayVisibility.value[overlay.id] === true,
-    )
-  }
-}
-
-function syncArableOverlayDisplaySettingsToMapViewport() {
-  mapViewport?.setArableOverlayMinimumProductivity(
-    overlayDisplaySettings.value.arableMinimumProductivity,
-  )
+  if (!mapViewport) return
+  syncResourceOverlayStateToViewport(mapViewport, resourceOverlayState.value)
 }
 
 /**
@@ -502,10 +494,11 @@ function syncArableOverlayDisplaySettingsToMapViewport() {
  * @param {boolean} visible
  */
 function onResourceOverlayToggle(resourceId, visible) {
-  resourceOverlayVisibility.value = {
-    ...resourceOverlayVisibility.value,
-    [resourceId]: visible,
-  }
+  resourceOverlayState.value = toggleResourceOverlayVisibility(
+    resourceOverlayState.value,
+    resourceId,
+    visible,
+  )
   mapViewport?.setResourceOverlayVisibility(resourceId, visible)
 }
 
@@ -522,7 +515,8 @@ function overlayDisplaySetting(key) {
  */
 function onOverlaySliderChange(key, value) {
   settingsStore.setOverlayDisplaySetting(key, value)
-  syncArableOverlayDisplaySettingsToMapViewport()
+  resourceOverlayState.value = updateOverlayDisplaySetting(resourceOverlayState.value, key, value)
+  syncResourceOverlayVisibilityToMapViewport()
 }
 
 /**
@@ -590,10 +584,9 @@ async function applyWorldDocumentToMap(doc) {
  * @param {unknown} error
  */
 function showGenerationFailure(error) {
-  generationRunId += 1
+  generationRunController?.invalidateRuns()
   isGenerating.value = false
   pipelineSucceeded.value = false
-  activeGenerationJob = null
   const message = error instanceof Error ? error.message : String(error)
   $q.notify({
     type: 'negative',
@@ -609,99 +602,50 @@ function regenerate() {
     return
   }
 
-  generationRunId += 1
-  const runId = generationRunId
-  const isStaleRun = () => runId !== generationRunId
+  if (!generationRunController) {
+    generationRunController = createGenerationRunController()
+  }
 
-  activeGenerationJob?.cancel()
-  activeGenerationJob = null
   isGenerating.value = true
   pipelineSucceeded.value = false
   resetGenerationProgress()
   resetResourceOverlayVisibility()
 
-  activeGenerationJob = runDerivedGeographyInWorker(
-    buildDerivedGeographyParams(parsedSeed, prevailingWindDegrees.value, generationOptions.value),
-    {
-      onStepStart({ stepIndex, stepCount, label, stepId }) {
-        if (isStaleRun()) return
-        generationProgress.value = {
-          percent: generationProgressValue(stepIndex, stepCount),
-          activeStepIndex: stepIndex,
-          completedStepIndex: generationProgress.value.completedStepIndex,
-          label,
-          activeHydrologySubstepIndex: -1,
-          completedHydrologySubstepIndex: stepId === 'hydrology'
-            ? -1
-            : generationProgress.value.completedHydrologySubstepIndex,
-          skippedHydrologySubstepIds: stepId === 'hydrology'
-            ? []
-            : generationProgress.value.skippedHydrologySubstepIds,
-        }
+  startDerivedGeographyGeneration({
+    controller: generationRunController,
+    params: buildDerivedGeographyParams(
+      parsedSeed,
+      prevailingWindDegrees.value,
+      generationOptions.value,
+    ),
+    runDerivedGeographyInWorker,
+    handlers: {
+      onRunStarted({ progress }) {
+        generationProgress.value = progress
       },
-      onSubstepStart({ substepIndex }) {
-        if (isStaleRun()) return
-        generationProgress.value = {
-          ...generationProgress.value,
-          activeHydrologySubstepIndex: substepIndex,
-        }
+      onProgress(progress) {
+        generationProgress.value = progress
       },
-      onSubstepComplete({ substepIndex, substepId, skipped }) {
-        if (isStaleRun()) return
-        generationProgress.value = {
-          ...generationProgress.value,
-          activeHydrologySubstepIndex: substepIndex,
-          completedHydrologySubstepIndex: substepIndex,
-          skippedHydrologySubstepIds: skipped
-            ? [...generationProgress.value.skippedHydrologySubstepIds, substepId]
-            : generationProgress.value.skippedHydrologySubstepIds,
-        }
-      },
-      onStepComplete({ stepIndex, stepCount, label, stepId, worldDocument: doc }) {
-        if (isStaleRun()) return
-        generationProgress.value = {
-          percent: generationProgressValue(stepIndex, stepCount),
-          activeStepIndex: stepIndex,
-          completedStepIndex: stepIndex,
-          label,
-          activeHydrologySubstepIndex: -1,
-          completedHydrologySubstepIndex: stepId === 'hydrology'
-            ? -1
-            : generationProgress.value.completedHydrologySubstepIndex,
-          skippedHydrologySubstepIds: stepId === 'hydrology'
-            ? []
-            : generationProgress.value.skippedHydrologySubstepIds,
-        }
+      onWorldDocument(doc) {
         void applyWorldDocumentToMap(doc).catch((error) => {
-          if (isStaleRun()) return
           showGenerationFailure(error)
         })
       },
       onComplete() {
-        if (isStaleRun()) return
         isGenerating.value = false
         pipelineSucceeded.value = true
-        activeGenerationJob = null
-        generationProgress.value = {
-          ...generationProgress.value,
-          percent: 100,
-          activeStepIndex: -1,
-        }
         resetResourceOverlayVisibility()
       },
       onCancelled() {
-        if (isStaleRun()) return
         isGenerating.value = false
         pipelineSucceeded.value = false
-        activeGenerationJob = null
         resetGenerationProgress()
       },
       onError(message) {
-        if (isStaleRun()) return
         showGenerationFailure(message)
       },
     },
-  )
+  })
 }
 
 /**
@@ -725,22 +669,25 @@ function randomizeSeed() {
 
 function resetToDefaults() {
   settingsStore.resetToDefaults()
-  syncArableOverlayDisplaySettingsToMapViewport()
+  resourceOverlayState.value = createResourceOverlayPageState(overlayDisplaySettings.value)
+  syncResourceOverlayVisibilityToMapViewport()
   regenerate()
 }
 
 onMounted(async () => {
   settingsStore.ensureInitialized()
   seedInput.value = String(settingsStore.geographySeed)
+  resourceOverlayState.value = createResourceOverlayPageState(overlayDisplaySettings.value)
 
   const rendererModule = await import('@world-builder/renderer/createWorldBuilderMapViewport.js')
   createWorldBuilderMapViewport = rendererModule.createWorldBuilderMapViewport
+  generationRunController = createGenerationRunController()
   regenerate()
 })
 
 onUnmounted(() => {
-  activeGenerationJob?.cancel()
-  activeGenerationJob = null
+  generationRunController?.cancelActive()
+  generationRunController = null
   mapViewport?.destroy()
   mapViewport = null
 })

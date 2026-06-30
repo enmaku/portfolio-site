@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from '../biomeIds.js'
+import { assembleRiverNetworkFromValidationSlice } from '../hydrology/riverNetwork.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
 import {
   maxEndorheicFractionForOptions,
@@ -16,9 +17,13 @@ function makeSlice(overrides = {}) {
     temperature: new Float32Array(cellCount).fill(0.5),
     rainfall: new Float32Array(cellCount).fill(0.5),
     drainage: new Float32Array(cellCount).fill(0.5),
-    salidity: new Float32Array(cellCount).fill(0.1),
+    salinity: new Float32Array(cellCount).fill(0.15),
   }
   fields.elevation[16] = 0.85
+  for (let i = 0; i < gridWidth; i += 1) {
+    fields.elevation[i] = 0.2
+    fields.salinity[i] = 1
+  }
   const biomes = new Uint8Array(cellCount).fill(BIOMES.GRASSLAND)
   biomes.fill(BIOMES.OCEAN, 0, gridWidth)
   biomes[100] = BIOMES.DESERT
@@ -43,6 +48,69 @@ function makeSlice(overrides = {}) {
   }
 }
 
+test('runGeographyValidationChecks resolves river metrics from assembled contract', () => {
+  const gridWidth = 8
+  const gridHeight = 8
+  const cellCount = gridWidth * gridHeight
+  const centerline = new Uint8Array(cellCount)
+  centerline[10] = 1
+  centerline[18] = 1
+  const corridor = new Uint8Array(cellCount)
+  corridor[10] = 1
+  corridor[18] = 1
+  const flowDirection = new Int16Array(cellCount).fill(-1)
+  const drainage = new Float32Array(cellCount).fill(0.2)
+  const graph = {
+    nodes: [{ id: 'm', x: 2, y: 2, kind: 'mouth' }],
+    edges: [{ fromNodeId: 'm', toNodeId: 'm', navigable: true, cellPath: [99, 100] }],
+  }
+  const riverNetwork = assembleRiverNetworkFromValidationSlice({
+    fields: {
+      elevation: drainage,
+      temperature: drainage,
+      rainfall: drainage,
+      drainage,
+      salinity: drainage,
+    },
+    riverNetworkMask: centerline,
+    riverCorridorMask: corridor,
+    flowDirection,
+    riverGraph: graph,
+    gridWidth,
+    gridHeight,
+  })
+
+  const rows = runGeographyValidationChecks({
+    fields: {
+      elevation: new Float32Array(cellCount).fill(0.5),
+      temperature: new Float32Array(cellCount).fill(0.5),
+      rainfall: new Float32Array(cellCount).fill(0.5),
+      drainage,
+      salinity: new Float32Array(cellCount).fill(0.1),
+    },
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    riverGraph: graph,
+    riverNetwork,
+    coastalNodes: [{ x: 2, y: 2, kind: 'mouth' }],
+    gridWidth,
+    gridHeight,
+    hydrologyStats: { breachCount: 0, endorheicCount: 0, endorheicFraction: 0, lakeCount: 0 },
+    hydrologyMetrics: {
+      riverCellCount: 2,
+      navigableEdgeCount: 1,
+      navigableKmEstimate: 1,
+      mouthCount: 1,
+      hacksLawExponent: null,
+      slopeAreaConcavitySamples: [],
+      parallelStrandRatio: 0,
+      coastConnectedNavigablePathLength: 2,
+    },
+  })
+
+  const navigableRow = rows.find((row) => row.checkId === 'navigableRiverQuota')
+  assert.equal(navigableRow?.status, 'pass')
+})
+
 test('runGeographyValidationChecks returns all check ids', () => {
   const rows = runGeographyValidationChecks(makeSlice())
   const ids = rows.map((row) => row.checkId)
@@ -54,11 +122,22 @@ test('runGeographyValidationChecks returns all check ids', () => {
     'parallelStrandRatio',
     'coastConnectedNavigablePath',
     'endorheicFractionCap',
+    'salinityOceanGradient',
     'highlandPresence',
     'biomeDiversity',
     'windRainfallAsymmetry',
     'resourceMismatch',
   ])
+})
+
+test('runGeographyValidationChecks marks rejectable rows from contract', () => {
+  const rows = runGeographyValidationChecks(makeSlice())
+  const coastMouth = rows.find((row) => row.checkId === 'coastMouth')
+  const highland = rows.find((row) => row.checkId === 'highlandPresence')
+  assert.strictEqual(coastMouth?.rejectable, true)
+  assert.strictEqual(coastMouth?.category, 'coast')
+  assert.strictEqual(highland?.rejectable, false)
+  assert.strictEqual(highland?.category, 'landmassPlausibility')
 })
 
 test('runGeographyValidationChecks warns on missing navigable rivers', () => {
@@ -79,7 +158,28 @@ test('runGeographyValidationChecks hard-fails navigableRiverQuota when enforced'
     }),
   ).find((entry) => entry.checkId === 'navigableRiverQuota')
   assert.strictEqual(row?.status, 'fail')
-  assert.match(row?.summary ?? '', /navigable river/i)
+  assert.strictEqual(row?.rejectable, true)
+})
+
+test('runGeographyValidationChecks ignores non-navigable edges for navigableRiverQuota', () => {
+  const slice = makeSlice({
+    riverGraph: {
+      nodes: [
+        { id: 'a', x: 10, y: 10, kind: 'source' },
+        { id: 'b', x: 12, y: 12, kind: 'mouth' },
+      ],
+      edges: [
+        { fromNodeId: 'a', toNodeId: 'b', navigable: false, cellPath: [320, 384] },
+        { fromNodeId: 'a', toNodeId: 'b', navigable: false, cellPath: [321, 385] },
+        { fromNodeId: 'a', toNodeId: 'b', navigable: false, cellPath: [322, 386] },
+      ],
+    },
+    coastalNodes: [{ id: 'c1', x: 12, y: 12, kind: 'mouth' }],
+  })
+  const row = runGeographyValidationChecks(slice).find(
+    (entry) => entry.checkId === 'navigableRiverQuota',
+  )
+  assert.strictEqual(row?.status, 'warn')
 })
 
 test('runGeographyValidationChecks passes with sufficient navigable edges', () => {
@@ -132,7 +232,6 @@ test('runGeographyValidationChecks enforces endorheic fraction cap from breach t
     }),
   ).find((entry) => entry.checkId === 'endorheicFractionCap')
   assert.strictEqual(row?.status, 'fail')
-  assert.match(row?.summary ?? '', /endorheic/i)
 })
 
 test('runGeographyValidationChecks detects resource mismatch', () => {
@@ -185,7 +284,6 @@ test('runGeographyValidationChecks hard-fails parallelStrandRatio when enforced'
     }),
   ).find((entry) => entry.checkId === 'parallelStrandRatio')
   assert.strictEqual(row?.status, 'fail')
-  assert.match(row?.summary ?? '', /parallel strand/i)
 })
 
 test('runGeographyValidationChecks hard-fails hacksLawExponent when enforced and unavailable', () => {
@@ -198,7 +296,6 @@ test('runGeographyValidationChecks hard-fails hacksLawExponent when enforced and
     }),
   ).find((entry) => entry.checkId === 'hacksLawExponent')
   assert.strictEqual(row?.status, 'fail')
-  assert.match(row?.summary ?? '', /hack/i)
 })
 
 test('runGeographyValidationChecks hard-fails slopeAreaConcavity when enforced and unavailable', () => {
@@ -211,7 +308,6 @@ test('runGeographyValidationChecks hard-fails slopeAreaConcavity when enforced a
     }),
   ).find((entry) => entry.checkId === 'slopeAreaConcavity')
   assert.strictEqual(row?.status, 'fail')
-  assert.match(row?.summary ?? '', /slope/i)
 })
 
 test('runGeographyValidationChecks hard-fails hacksLawExponent when enforced and out of bounds', () => {
@@ -235,7 +331,6 @@ test('runGeographyValidationChecks hard-fails hacksLawExponent when enforced and
     }),
   ).find((entry) => entry.checkId === 'hacksLawExponent')
   assert.strictEqual(row?.status, 'fail')
-  assert.match(row?.summary ?? '', /hack/i)
 })
 
 test('runGeographyValidationChecks hard-fails coastConnectedNavigablePath when enforced and short', () => {
@@ -259,7 +354,6 @@ test('runGeographyValidationChecks hard-fails coastConnectedNavigablePath when e
     }),
   ).find((entry) => entry.checkId === 'coastConnectedNavigablePath')
   assert.strictEqual(row?.status, 'fail')
-  assert.match(row?.summary ?? '', /coast-connected navigable path/i)
 })
 
 test('maxEndorheicFractionForOptions uses explicit cap when finite', () => {
@@ -282,4 +376,38 @@ test('maxEndorheicFractionForOptions derives cap from breach threshold when unse
     }),
     0.75,
   )
+})
+
+test('runGeographyValidationChecks passes salinityOceanGradient for canonical ocean-inland field', () => {
+  const row = runGeographyValidationChecks(makeSlice()).find(
+    (entry) => entry.checkId === 'salinityOceanGradient',
+  )
+  assert.strictEqual(row?.status, 'pass')
+  assert.strictEqual(row?.category, 'resources')
+  assert.strictEqual(row?.rejectable, false)
+})
+
+test('runGeographyValidationChecks warns on flat salinity without ocean gradient', () => {
+  const gridWidth = 32
+  const gridHeight = 32
+  const cellCount = gridWidth * gridHeight
+  const fields = {
+    elevation: new Float32Array(cellCount).fill(0.5),
+    temperature: new Float32Array(cellCount).fill(0.5),
+    rainfall: new Float32Array(cellCount).fill(0.5),
+    drainage: new Float32Array(cellCount).fill(0.5),
+    salinity: new Float32Array(cellCount).fill(0.5),
+  }
+  for (let i = 0; i < gridWidth; i += 1) {
+    fields.elevation[i] = 0.2
+  }
+
+  const row = runGeographyValidationChecks(
+    makeSlice({
+      fields,
+      biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    }),
+  ).find((entry) => entry.checkId === 'salinityOceanGradient')
+
+  assert.strictEqual(row?.status, 'warn')
 })

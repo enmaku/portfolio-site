@@ -124,6 +124,37 @@ export function computeRiverOverlayAlpha(biomes, width, height) {
 }
 
 /**
+ * Feathered river overlay strength from the painted corridor mask in the river-network contract.
+ * @param {Uint8Array} corridor
+ * @param {number} width
+ * @param {number} height
+ * @returns {Float32Array}
+ */
+export function computeRiverOverlayAlphaFromCorridor(corridor, width, height) {
+  const cellCount = width * height
+  const strength = new Float32Array(cellCount)
+  for (let i = 0; i < cellCount; i += 1) {
+    strength[i] = corridor[i] ? 1 : 0
+  }
+
+  const blurred = new Float32Array(cellCount)
+  const wideBlurred = new Float32Array(cellCount)
+  blurRiverStrength(strength, width, height, blurred)
+  blurRiverStrength(blurred, width, height, wideBlurred)
+
+  const alpha = new Float32Array(cellCount)
+  for (let i = 0; i < cellCount; i += 1) {
+    if (corridor[i]) {
+      alpha[i] = 1
+    } else {
+      alpha[i] = crispRiverEdgeStrength(blurred[i], wideBlurred[i])
+    }
+  }
+
+  return alpha
+}
+
+/**
  * @param {Float32Array} riverAlpha
  * @param {number} idx
  * @param {number} width
