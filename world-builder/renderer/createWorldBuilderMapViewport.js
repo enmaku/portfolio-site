@@ -3,16 +3,15 @@ import { buildLakeOverlayCanvas } from './buildLakeOverlayCanvas.js'
 import { buildRiverOverlayCanvas } from './buildRiverOverlayCanvas.js'
 import { buildTopographyContourCanvas } from './buildTopographyContourCanvas.js'
 import {
-  applyResourceOverlayVisibility,
   createDefaultResourceOverlayVisibility,
   DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
 } from '../resourceOverlays.js'
 import {
-  isResourceRasterOverlayLayerId,
   refreshResourceRasterOverlayCanvas,
   RESOURCE_RASTER_OVERLAY_LAYER_IDS,
 } from './resourceRasterOverlayRefresh.js'
 import { createMapLayerRefreshRunner } from './mapLayerRefresh.js'
+import { diffResourceOverlayMapLayers } from './diffResourceOverlayMapLayers.js'
 import {
   computeRegionFocusScale,
   resolveMetalsOverlayDrawn,
@@ -71,6 +70,16 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const overlay = new Graphics()
   let resourceOverlayVisibility = createDefaultResourceOverlayVisibility()
   let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
+  /**
+   * Last overlay state projected into the render cache; diffed against incoming
+   * commits so only layers whose visible output changed are refreshed.
+   *
+   * @type {import('../resourceOverlayState.js').ResourceOverlayPageState}
+   */
+  let renderedOverlayState = {
+    visibility: resourceOverlayVisibility,
+    displaySettings: { arableMinimumProductivity },
+  }
   /** @type {import('../core/types.js').WorldDocument} */
   let currentWorldDocument = worldDocument
   /** @type {{ elevationTint?: boolean }} */
@@ -349,46 +358,32 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     },
 
     /**
-     * Bulk projection from overlay owner state into viewport render cache.
+     * Single owner seam: project overlay owner state into the viewport render cache,
+     * refreshing only the layers whose visible output actually changed since the last
+     * commit. The owner composable is the sole page-facing mutator for overlay display.
      *
      * @param {import('../resourceOverlayState.js').ResourceOverlayPageState} overlayState
      */
     syncOverlayRenderCache(overlayState) {
-      resourceOverlayVisibility = {
-        ...createDefaultResourceOverlayVisibility(),
-        ...overlayState.visibility,
+      /** @type {import('../resourceOverlayState.js').ResourceOverlayPageState} */
+      const nextOverlayState = {
+        visibility: {
+          ...createDefaultResourceOverlayVisibility(),
+          ...overlayState.visibility,
+        },
+        displaySettings: {
+          arableMinimumProductivity: Math.max(
+            0,
+            Math.min(1, overlayState.displaySettings.arableMinimumProductivity),
+          ),
+        },
       }
-      arableMinimumProductivity = Math.max(
-        0,
-        Math.min(1, overlayState.displaySettings.arableMinimumProductivity),
-      )
-      refreshMapLayers(['arable', 'timber', 'metals', 'vectorOverlays'])
-    },
 
-    /**
-     * @param {string} resourceId
-     * @param {boolean} visible
-     */
-    setResourceOverlayVisibility(resourceId, visible) {
-      resourceOverlayVisibility = applyResourceOverlayVisibility(
-        resourceOverlayVisibility,
-        resourceId,
-        visible,
-      )
-      /** @type {import('./mapLayerRefresh.js').MapLayerId[]} */
-      const changedLayers = ['vectorOverlays']
-      if (isResourceRasterOverlayLayerId(resourceId)) {
-        changedLayers.unshift(
-          /** @type {import('./mapLayerRefresh.js').MapLayerId} */ (resourceId),
-        )
-      }
+      const changedLayers = diffResourceOverlayMapLayers(renderedOverlayState, nextOverlayState)
+      renderedOverlayState = nextOverlayState
+      resourceOverlayVisibility = nextOverlayState.visibility
+      arableMinimumProductivity = nextOverlayState.displaySettings.arableMinimumProductivity
       refreshMapLayers(changedLayers)
-    },
-
-    /** @param {number} minimumProductivity */
-    setArableOverlayMinimumProductivity(minimumProductivity) {
-      arableMinimumProductivity = Math.max(0, Math.min(1, minimumProductivity))
-      refreshMapLayers(['arable'])
     },
 
     destroy() {

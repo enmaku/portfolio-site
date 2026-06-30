@@ -1,62 +1,173 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
 import { generateDerivedGeography } from '../generateDerivedGeography.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
 import { DEFAULT_GEOGRAPHY_SEED } from '../../core/worldGenerationOptions.js'
+import {
+  createInitialPipelineState,
+  runPipelineStep,
+} from '../derivedGeographyPipeline.js'
+import { runHydrologySubsteps } from './hydrologySubsteps.js'
+import { HYDROLOGY_SUBSTEP_CONTRACTS } from './hydrologySubstepContracts.js'
+import {
+  fallbackCorridorLine,
+  fractalCorridorDepthForSpan,
+  routeFractalCorridorPath,
+} from './riverPathfinding.js'
 import {
   RIVER_MASK_SKIP_REFINE_TRANSITION,
   riverMaskContractKey,
 } from './riverMaskLifecycle.js'
 
-const hydrologyDir = fileURLToPath(new URL('.', import.meta.url))
+/**
+ * @param {number} seed
+ * @returns {() => number}
+ */
+function seededRandom(seed) {
+  let state = seed >>> 0
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0
+    return state / 0x100000000
+  }
+}
 
-const pathfindingPath = join(hydrologyDir, 'riverPathfinding.js')
-const attractionPath = join(hydrologyDir, 'connectNearbyRiverCorridors.js')
-const refinePath = join(hydrologyDir, 'refineRiverNetwork.js')
-const substepsPath = join(hydrologyDir, 'hydrologySubsteps.js')
-const contractsPath = join(hydrologyDir, 'hydrologySubstepContracts.js')
+/**
+ * @param {number} width
+ * @param {number} height
+ */
+function flatRouterTerrain(width, height) {
+  return {
+    elevation: new Float32Array(width * height).fill(0.5),
+    ocean: new Array(width * height).fill(false),
+  }
+}
 
-test('legacy corridor routers delegate fractal routing to riverPathfinding only', () => {
-  const attractionSource = readFileSync(attractionPath, 'utf8')
-  const refineSource = readFileSync(refinePath, 'utf8')
+test('routeFractalCorridorPath connects endpoints for the legacy attraction profile', () => {
+  const width = 24
+  const height = 24
+  const { elevation, ocean } = flatRouterTerrain(width, height)
+  const toIdx = (height - 1) * width + (width - 1)
 
-  assert.match(attractionSource, /routeFractalCorridorPath/)
-  assert.match(refineSource, /routeFractalCorridorPath/)
-  assert.doesNotMatch(attractionSource, /function buildFractalWaypoints/)
-  assert.doesNotMatch(refineSource, /function buildFractalWaypoints/)
-  assert.doesNotMatch(attractionSource, /function fallbackLine/)
-  assert.doesNotMatch(refineSource, /function fallbackLine/)
+  const path = routeFractalCorridorPath({
+    fromIdx: 0,
+    toIdx,
+    elevation,
+    ocean,
+    width,
+    height,
+    random: seededRandom(7),
+    profile: 'legacyAttraction',
+  })
+
+  assert.ok(Array.isArray(path) && path.length > 2)
+  assert.strictEqual(path[0], 0)
+  assert.strictEqual(path.at(-1), toIdx)
 })
 
-test('riverPathfinding exports shared fractal corridor routing entry point', () => {
-  const source = readFileSync(pathfindingPath, 'utf8')
+test('routeFractalCorridorPath connects endpoints for the meander refine profile', () => {
+  const width = 24
+  const height = 24
+  const { elevation, ocean } = flatRouterTerrain(width, height)
+  const toIdx = (height - 1) * width + (width - 1)
 
-  assert.match(source, /export function routeFractalCorridorPath/)
-  assert.match(source, /legacyAttraction/)
-  assert.match(source, /meanderRefine/)
+  const path = routeFractalCorridorPath({
+    fromIdx: 0,
+    toIdx,
+    elevation,
+    ocean,
+    width,
+    height,
+    random: seededRandom(7),
+    profile: 'meanderRefine',
+  })
+
+  assert.ok(Array.isArray(path) && path.length > 2)
+  assert.strictEqual(path[0], 0)
+  assert.strictEqual(path.at(-1), toIdx)
 })
 
-test('hydrologySubsteps uses named mask lifecycle helpers instead of inline fallbacks', () => {
-  const source = readFileSync(substepsPath, 'utf8')
+test('routeFractalCorridorPath is deterministic for a fixed random stream', () => {
+  const width = 20
+  const height = 20
+  const { elevation, ocean } = flatRouterTerrain(width, height)
+  const toIdx = (height - 1) * width + (width - 1)
 
-  assert.match(source, /applySkipRefineTransition/)
-  assert.match(source, /resolveDisplayRiverNetworkMaskFromPipeline/)
-  assert.match(source, /snapshotRiverMaskLifecycle/)
-  assert.match(source, /getRiverMaskStageFromContext|requireRiverMaskStageFromContext/)
-  assert.match(source, /RIVER_MASK_SKIP_REFINE_TRANSITION/)
-  assert.doesNotMatch(source, /presentationRiverNetworkMask \?\? ctx\.settledRiverNetworkMask/)
-  assert.doesNotMatch(source, /riverMaskPipeline\.(sketch|incised|settled|presentation|painted)/)
+  const args = (random) => ({
+    fromIdx: 0,
+    toIdx,
+    elevation,
+    ocean,
+    width,
+    height,
+    random,
+    profile: /** @type {'legacyAttraction'} */ ('legacyAttraction'),
+  })
+
+  assert.deepStrictEqual(
+    routeFractalCorridorPath(args(seededRandom(42))),
+    routeFractalCorridorPath(args(seededRandom(42))),
+  )
 })
 
-test('hydrology substep contracts reference explicit river mask lifecycle fields', () => {
-  const contractsSource = readFileSync(contractsPath, 'utf8')
+test('fractal corridor depth profiles diverge between attraction and meander routing', () => {
+  assert.notStrictEqual(
+    fractalCorridorDepthForSpan(40, 'legacyAttraction'),
+    fractalCorridorDepthForSpan(40, 'meanderRefine'),
+  )
+})
 
-  assert.match(contractsSource, /riverMaskLifecycle/)
-  assert.match(contractsSource, /riverMaskContractKey\('sketch'\)/)
-  assert.match(contractsSource, /riverMaskContractKey\('incised'\)/)
+test('fallbackCorridorLine produces a contiguous straight corridor between endpoints', () => {
+  const width = 10
+  const line = fallbackCorridorLine(0, 4 * width + 4, width)
+
+  assert.strictEqual(line[0], 0)
+  assert.strictEqual(line.at(-1), 4 * width + 4)
+  for (let i = 1; i < line.length; i += 1) {
+    const prev = { x: line[i - 1] % width, y: Math.floor(line[i - 1] / width) }
+    const next = { x: line[i] % width, y: Math.floor(line[i] / width) }
+    assert.ok(Math.abs(next.x - prev.x) <= 1 && Math.abs(next.y - prev.y) <= 1)
+  }
+})
+
+test('hydrology substeps drive the river mask lifecycle through the shared pipeline', () => {
+  let state = createInitialPipelineState({
+    geographySeed: DEFAULT_GEOGRAPHY_SEED,
+    prevailingWindDegrees: 90,
+    width: 64,
+    height: 64,
+    options: { ...DEFAULT_WORLD_GENERATION_OPTIONS, enableMeanderRefine: false },
+  })
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  /** @type {Map<string, Partial<Record<string, Uint8Array | null>>>} */
+  const snapshots = new Map()
+  /** @type {string[]} */
+  const transitions = []
+  runHydrologySubsteps(state, {
+    onSubstepComplete({ substepId, maskLifecycle, transition }) {
+      if (maskLifecycle) snapshots.set(substepId, maskLifecycle)
+      if (transition) transitions.push(transition)
+    },
+  })
+
+  assert.ok(snapshots.get('hydrologyRoute')?.sketch?.some((value) => value === 1))
+  assert.ok(snapshots.get('hydrologyExtract')?.settled?.some((value) => value === 1))
+
+  const refine = snapshots.get('hydrologyRefine')
+  assert.equal(refine?.presentation, refine?.settled)
+
+  assert.ok(snapshots.get('hydrologyPaint')?.painted?.some((value) => value === 1))
+  assert.deepStrictEqual(transitions, [RIVER_MASK_SKIP_REFINE_TRANSITION])
+})
+
+test('hydrology substep contracts expose explicit river mask lifecycle stages', () => {
+  assert.ok(
+    HYDROLOGY_SUBSTEP_CONTRACTS.hydrologyRoute.outputKeys.includes(riverMaskContractKey('sketch')),
+  )
+  assert.ok(
+    HYDROLOGY_SUBSTEP_CONTRACTS.hydrologyIncise.outputKeys.includes(riverMaskContractKey('incised')),
+  )
   assert.strictEqual(riverMaskContractKey('sketch'), 'riverMask.sketch')
   assert.strictEqual(riverMaskContractKey('incised'), 'riverMask.incised')
   assert.strictEqual(RIVER_MASK_SKIP_REFINE_TRANSITION, 'skipRefine')
@@ -65,12 +176,6 @@ test('hydrology substep contracts reference explicit river mask lifecycle fields
 test('issue #345 Option A defaults keep legacy presentation heuristics off', () => {
   assert.strictEqual(DEFAULT_WORLD_GENERATION_OPTIONS.riverAttractionRadiusScale, 0)
   assert.strictEqual(DEFAULT_WORLD_GENERATION_OPTIONS.enableMeanderRefine, false)
-
-  const optionsSource = readFileSync(
-    join(fileURLToPath(new URL('..', import.meta.url)), 'worldGenerationOptions.js'),
-    'utf8',
-  )
-  assert.match(optionsSource, /Option A/)
 })
 
 test('default generation exports simulation centerline and presentation corridor mask', () => {

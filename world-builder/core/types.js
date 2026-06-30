@@ -244,8 +244,9 @@
  * @property {LakeRecord[]=} lakes
  * @property {LakeMetaRecord[]=} lakeMeta
  * @property {Uint8Array=} lakeMask
- * @property {Uint8Array=} riverNetworkMask Simulation centerline (settled mask; presentation refine when opted in).
- * @property {Uint8Array=} riverCorridorMask Presentation painted corridor from hydrologyPaint; map display only.
+ * @property {Uint8Array=} simulationRiverMask Stable SIMULATION hydrology centerline (settled RiverMaskPipeline stage). Logistics-facing; never widened by presentation-only refinements (legacy meander/pathfinding). Validation and future movement-cost work consume this.
+ * @property {Uint8Array=} riverNetworkMask PRESENTATION display centerline (settled when refine is off; presentation meander geometry when opted in). Map display only; not logistics-facing.
+ * @property {Uint8Array=} riverCorridorMask PRESENTATION painted corridor from hydrologyPaint; map display only.
  * @property {Float32Array=} channelWidth
  * @property {Int16Array=} flowDirection
  * @property {Float32Array=} coastNavigability

@@ -3,14 +3,14 @@ import test from 'node:test'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
 import {
   RIVER_LEGACY_MEANDER_STAGES,
+  applyPresentationStageCorridorAttraction,
   applyRefineStageMeanderPresentation,
-  applyRouteStageCorridorAttraction,
   isCorridorAttractionEnabled,
   isMeanderRefineEnabled,
 } from './riverNetworkLegacyMeanders.js'
 
 test('RIVER_LEGACY_MEANDER_STAGES maps heuristics to hydrology substeps', () => {
-  assert.strictEqual(RIVER_LEGACY_MEANDER_STAGES.corridorAttraction.substepId, 'hydrologyRoute')
+  assert.strictEqual(RIVER_LEGACY_MEANDER_STAGES.corridorAttraction.substepId, 'hydrologyRefine')
   assert.strictEqual(RIVER_LEGACY_MEANDER_STAGES.meanderRefine.substepId, 'hydrologyRefine')
 })
 
@@ -38,7 +38,7 @@ test('DEFAULT_WORLD_GENERATION_OPTIONS disables corridor attraction (Option A)',
   )
 })
 
-test('applyRouteStageCorridorAttraction is a no-op when radius scale is zero', () => {
+test('applyPresentationStageCorridorAttraction is a no-op when radius scale is zero', () => {
   const width = 6
   const height = 6
   const mask = new Uint8Array(width * height)
@@ -47,7 +47,7 @@ test('applyRouteStageCorridorAttraction is a no-op when radius scale is zero', (
   const ocean = new Array(width * height).fill(false)
   const flowDirection = new Int16Array(width * height).fill(-1)
 
-  const result = applyRouteStageCorridorAttraction({
+  const result = applyPresentationStageCorridorAttraction({
     baseRiverNetworkMask: mask,
     elevation,
     ocean,

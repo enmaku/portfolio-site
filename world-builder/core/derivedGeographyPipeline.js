@@ -101,6 +101,7 @@ export function createInitialPipelineState(params) {
     hydrologyStats: null,
     workingElevation: null,
     riverGraph: null,
+    simulationRiverMask: null,
     riverNetworkMask: null,
     riverCorridorMask: null,
     channelWidth: null,
@@ -223,6 +224,7 @@ export function buildWorldDocumentFromPipelineState(state) {
     lakes: state.lakes ?? undefined,
     lakeMeta: state.lakeMeta ?? undefined,
     lakeMask: state.lakeMask ?? undefined,
+    simulationRiverMask: state.simulationRiverMask ?? undefined,
     riverNetworkMask: state.riverNetworkMask ?? undefined,
     riverCorridorMask: state.riverCorridorMask ?? undefined,
     channelWidth: state.channelWidth ?? undefined,
@@ -625,6 +627,7 @@ function runHydrologyStep(input, options = {}) {
     hydrologyStats: nextState.hydrologyStats,
     workingElevation: nextState.workingElevation,
     riverGraph: nextState.riverGraph,
+    simulationRiverMask: nextState.simulationRiverMask,
     riverNetworkMask: nextState.riverNetworkMask,
     riverCorridorMask: nextState.riverCorridorMask,
     channelWidth: nextState.channelWidth,
@@ -760,7 +763,7 @@ function runCoastAndResourcesStep(input) {
  */
 function runValidationStep(input) {
   const riverNetwork = assembleRiverNetworkFromFields({
-    riverNetworkMask: input.riverNetworkMask,
+    riverNetworkMask: input.simulationRiverMask ?? input.riverNetworkMask,
     riverCorridorMask: input.riverCorridorMask,
     flowDirection: input.flowDirection,
     flowAccumulation: input.fields.drainage,
@@ -824,6 +827,9 @@ export function cloneWorldDocument(doc) {
     biomes: new Uint8Array(doc.biomes),
     displayBiomes: new Uint8Array(doc.displayBiomes),
     lakeMask: doc.lakeMask ? new Uint8Array(doc.lakeMask) : undefined,
+    simulationRiverMask: doc.simulationRiverMask
+      ? new Uint8Array(doc.simulationRiverMask)
+      : undefined,
     riverNetworkMask: doc.riverNetworkMask ? new Uint8Array(doc.riverNetworkMask) : undefined,
     riverCorridorMask: doc.riverCorridorMask ? new Uint8Array(doc.riverCorridorMask) : undefined,
     channelWidth: doc.channelWidth ? new Float32Array(doc.channelWidth) : undefined,

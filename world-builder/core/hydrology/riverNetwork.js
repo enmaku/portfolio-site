@@ -8,10 +8,17 @@ import { downstreamIndex } from './computeFlowAccumulation.js'
  */
 
 /**
- * Explicit river-network contract: centerline cells, painted corridor, flow fields, and graph.
+ * Explicit river-network contract.
+ *
+ * `simulationCenterline` is the stable simulation hydrology centerline (settled
+ * RiverMaskPipeline stage); logistics-facing consumers read it and it is never
+ * widened by presentation-only refinements. `centerline` and `corridor` are the
+ * presentation/display masks the renderer draws (`centerline` resolves to the
+ * presentation stage when legacy meander refine is opted in).
  * @typedef {Object} RiverNetwork
  * @property {number} width
  * @property {number} height
+ * @property {Uint8Array} simulationCenterline
  * @property {Uint8Array} centerline
  * @property {Uint8Array} corridor
  * @property {RiverNetworkFlow} flow
@@ -22,6 +29,7 @@ import { downstreamIndex } from './computeFlowAccumulation.js'
  * @param {Object} params
  * @param {Uint8Array} params.centerline
  * @param {Uint8Array} params.corridor
+ * @param {Uint8Array} [params.simulationCenterline] Settled simulation centerline; defaults to `centerline`.
  * @param {Int16Array} params.flowDirection
  * @param {Float32Array} params.flowAccumulation
  * @param {Float32Array} [params.channelWidth]
@@ -33,6 +41,7 @@ import { downstreamIndex } from './computeFlowAccumulation.js'
 export function assembleRiverNetwork({
   centerline,
   corridor,
+  simulationCenterline,
   flowDirection,
   flowAccumulation,
   channelWidth,
@@ -43,6 +52,7 @@ export function assembleRiverNetwork({
   return {
     width,
     height,
+    simulationCenterline: simulationCenterline ?? centerline,
     centerline,
     corridor,
     flow: {
@@ -58,6 +68,7 @@ export function assembleRiverNetwork({
  * @param {Object} params
  * @param {Uint8Array} [params.riverNetworkMask]
  * @param {Uint8Array} [params.riverCorridorMask]
+ * @param {Uint8Array} [params.simulationRiverMask] Settled simulation centerline; defaults to the display centerline.
  * @param {Int16Array} params.flowDirection
  * @param {Float32Array} params.flowAccumulation
  * @param {Float32Array} [params.channelWidth]
@@ -69,6 +80,7 @@ export function assembleRiverNetwork({
 export function assembleRiverNetworkFromFields({
   riverNetworkMask,
   riverCorridorMask,
+  simulationRiverMask,
   flowDirection,
   flowAccumulation,
   channelWidth,
@@ -84,6 +96,7 @@ export function assembleRiverNetworkFromFields({
   return assembleRiverNetwork({
     centerline,
     corridor: riverCorridorMask ?? centerline,
+    simulationCenterline: simulationRiverMask ?? centerline,
     flowDirection,
     flowAccumulation,
     channelWidth,
@@ -131,6 +144,7 @@ export function assembleRiverNetworkFromValidationSlice(slice) {
  */
 export function readRiverNetworkFromWorldDocument(worldDocument) {
   const {
+    simulationRiverMask,
     riverNetworkMask,
     riverCorridorMask,
     channelWidth,
@@ -150,6 +164,7 @@ export function readRiverNetworkFromWorldDocument(worldDocument) {
   return assembleRiverNetworkFromFields({
     riverNetworkMask,
     riverCorridorMask,
+    simulationRiverMask,
     flowDirection,
     flowAccumulation: accumulation,
     channelWidth: channelWidth ?? undefined,

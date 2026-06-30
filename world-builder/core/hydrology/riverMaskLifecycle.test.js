@@ -11,9 +11,11 @@ import {
   applySkipRefineToPipeline,
   createRiverMaskPipeline,
   getRiverMaskStageFromContext,
+  requireRiverMaskStage,
   requireRiverMaskStageFromContext,
   resolveDisplayRiverNetworkMask,
   resolveDisplayRiverNetworkMaskFromPipeline,
+  resolveSimulationRiverNetworkMaskFromPipeline,
   RIVER_MASK_LIFECYCLE_ORDER,
   RIVER_MASK_SKIP_REFINE_TRANSITION,
   riverMaskContractKey,
@@ -194,6 +196,20 @@ test('resolveDisplayRiverNetworkMaskFromPipeline prefers presentation over settl
   assert.equal(resolveDisplayRiverNetworkMaskFromPipeline(pipeline), presentation)
 })
 
+test('resolveSimulationRiverNetworkMaskFromPipeline returns settled regardless of presentation', () => {
+  const settled = new Uint8Array([1, 0, 1])
+  const presentation = new Uint8Array([1, 1, 1])
+  const pipeline = createRiverMaskPipeline({ settled, presentation })
+  assert.equal(resolveSimulationRiverNetworkMaskFromPipeline(pipeline), settled)
+})
+
+test('resolveSimulationRiverNetworkMaskFromPipeline throws when settled stage is missing', () => {
+  assert.throws(
+    () => resolveSimulationRiverNetworkMaskFromPipeline(createRiverMaskPipeline()),
+    /river mask stage settled required/,
+  )
+})
+
 test('snapshotRiverMaskPipeline captures mask fields by stage', () => {
   const sketch = new Uint8Array([1])
   const settled = new Uint8Array([0])
@@ -228,6 +244,19 @@ test('requireRiverMaskStageFromContext throws when stage is missing', () => {
   assert.throws(
     () => requireRiverMaskStageFromContext(ctx, 'sketch'),
     /river mask stage sketch required/,
+  )
+})
+
+test('requireRiverMaskStage returns a present stage from the pipeline', () => {
+  const sketch = new Uint8Array([1, 0])
+  const pipeline = createRiverMaskPipeline({ sketch })
+  assert.equal(requireRiverMaskStage(pipeline, 'sketch'), sketch)
+})
+
+test('requireRiverMaskStage throws when stage is missing', () => {
+  assert.throws(
+    () => requireRiverMaskStage(createRiverMaskPipeline(), 'incised'),
+    /river mask stage incised required/,
   )
 })
 

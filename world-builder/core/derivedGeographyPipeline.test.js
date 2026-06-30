@@ -12,6 +12,7 @@ import {
 } from './derivedGeographyPipeline.js'
 import { LANDMASS_PIPELINE_STEP_IDS } from './landmassPipelineStageContracts.js'
 import { LandmassPipelineCancelledError } from './landmassPipelineTypes.js'
+import { countMarkedCells } from './hydrology/riverNetwork.js'
 
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
 
@@ -52,6 +53,90 @@ test('runPipelineStep produces preview documents at each stage', () => {
 
   assert.strictEqual(state.lastCompletedStep, 'validation')
   assert.ok(state.generationReport)
+})
+
+test('world document exposes a populated simulation river mask after hydrology', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+  state = runPipelineStep(state, 'hydrology')
+
+  const doc = buildWorldDocumentFromPipelineState(state)
+  assert.ok(doc.simulationRiverMask)
+  assert.strictEqual(doc.simulationRiverMask.length, params.width * params.height)
+  assert.ok(doc.simulationRiverMask.some((value) => value === 1))
+})
+
+test('default generation simulation river mask equals the settled display centerline', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+  state = runPipelineStep(state, 'hydrology')
+
+  const doc = buildWorldDocumentFromPipelineState(state)
+  assert.deepStrictEqual(doc.simulationRiverMask, doc.riverNetworkMask)
+})
+
+test('world document simulation river mask is invariant to corridor attraction', () => {
+  const baseParams = {
+    geographySeed: 5000,
+    prevailingWindDegrees: 90,
+    width: 256,
+    height: 256,
+  }
+  const buildDoc = (options) => {
+    let state = createInitialPipelineState({ ...baseParams, options })
+    state = runPipelineStep(state, 'physicalTerrainBaseline')
+    state = runPipelineStep(state, 'erosion')
+    state = runPipelineStep(state, 'hydrology')
+    return buildWorldDocumentFromPipelineState(state)
+  }
+
+  const withoutAttraction = buildDoc(DEFAULT_WORLD_GENERATION_OPTIONS)
+  const withAttraction = buildDoc({
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    riverAttractionRadiusScale: 6,
+  })
+
+  assert.ok(countMarkedCells(withoutAttraction.simulationRiverMask) > 0)
+  assert.deepStrictEqual(
+    withAttraction.simulationRiverMask,
+    withoutAttraction.simulationRiverMask,
+  )
+  assert.notDeepStrictEqual(
+    withAttraction.riverNetworkMask,
+    withoutAttraction.riverNetworkMask,
+  )
+})
+
+test('validation hydrology metrics read the simulation centerline, not presentation refinements', () => {
+  const refineParams = {
+    geographySeed: 5000,
+    prevailingWindDegrees: 90,
+    width: 256,
+    height: 256,
+    options: {
+      ...DEFAULT_WORLD_GENERATION_OPTIONS,
+      enableMeanderRefine: true,
+      riverMeanderStrength: 2,
+    },
+  }
+  let state = createInitialPipelineState(refineParams)
+  for (const step of DERIVED_GEOGRAPHY_STEPS) {
+    state = runPipelineStep(state, step.id)
+  }
+  const doc = buildWorldDocumentFromPipelineState(state)
+
+  const simulationCellCount = countMarkedCells(doc.simulationRiverMask)
+  const presentationCellCount = countMarkedCells(doc.riverNetworkMask)
+
+  assert.ok(simulationCellCount > 0)
+  assert.notStrictEqual(
+    presentationCellCount,
+    simulationCellCount,
+    'meander refine should change the presentation centerline cell count',
+  )
+  assert.strictEqual(doc.generationReport?.hydrology.riverCellCount, simulationCellCount)
 })
 
 test('runPipelineStep hydrology records substep timings on state', () => {
@@ -223,6 +308,46 @@ test('cloneWorldDocument copies lakeMeta independently', () => {
     cloned.lakeMeta[0].surfaceElevation += 1
     assert.notStrictEqual(cloned.lakeMeta[0].surfaceElevation, doc.lakeMeta[0].surfaceElevation)
   }
+})
+
+test('cloneWorldDocument copies the simulation river mask independently', () => {
+  const doc = runFullDerivedGeographyPipeline(params)
+  const cloned = cloneWorldDocument(doc)
+
+  assert.ok(doc.simulationRiverMask)
+  assert.ok(cloned.simulationRiverMask)
+  assert.notStrictEqual(cloned.simulationRiverMask, doc.simulationRiverMask)
+  assert.deepStrictEqual(cloned.simulationRiverMask, doc.simulationRiverMask)
+  cloned.simulationRiverMask[0] = doc.simulationRiverMask[0] === 0 ? 1 : 0
+  assert.notStrictEqual(cloned.simulationRiverMask[0], doc.simulationRiverMask[0])
+})
+
+test('worker step-complete clone round trip preserves the simulation river mask', () => {
+  const refineParams = {
+    geographySeed: 5000,
+    prevailingWindDegrees: 90,
+    width: 256,
+    height: 256,
+    options: {
+      ...DEFAULT_WORLD_GENERATION_OPTIONS,
+      enableMeanderRefine: true,
+      riverMeanderStrength: 2,
+    },
+  }
+  let state = createInitialPipelineState(refineParams)
+  for (const step of DERIVED_GEOGRAPHY_STEPS) {
+    state = runPipelineStep(state, step.id)
+  }
+
+  const preview = cloneWorldDocument(buildWorldDocumentFromPipelineState(state))
+  assert.ok(preview.simulationRiverMask)
+  assert.ok(preview.riverNetworkMask)
+  assert.strictEqual(countMarkedCells(preview.simulationRiverMask) > 0, true)
+  assert.strictEqual(
+    countMarkedCells(preview.simulationRiverMask) === countMarkedCells(preview.riverNetworkMask),
+    false,
+    'serialized simulation mask must stay distinct from the presentation centerline',
+  )
 })
 
 test('runFullDerivedGeographyPipeline throws when validation retries are exhausted', () => {

@@ -29,6 +29,7 @@ export const LANDMASS_PIPELINE_STEP_IDS = [
  * @property {import('./types.js').HydrologyPipelineStats | null} hydrologyStats
  * @property {Float32Array | null} workingElevation
  * @property {import('./types.js').RiverGraph | null} riverGraph
+ * @property {Uint8Array | null} simulationRiverMask
  * @property {Uint8Array | null} riverNetworkMask
  * @property {Uint8Array | null} riverCorridorMask
  * @property {Float32Array | null} channelWidth

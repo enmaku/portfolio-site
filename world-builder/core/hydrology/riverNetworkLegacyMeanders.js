@@ -13,7 +13,7 @@ import {
  */
 export const RIVER_LEGACY_MEANDER_STAGES = {
   corridorAttraction: {
-    substepId: 'hydrologyRoute',
+    substepId: 'hydrologyRefine',
     optionKey: 'riverAttractionRadiusScale',
   },
   meanderRefine: {
@@ -38,7 +38,9 @@ export function isMeanderRefineEnabled(options) {
 }
 
 /**
- * hydrologyRoute: optional corridor bridging between nearby sketch components.
+ * hydrologyRefine: presentation-only corridor bridging between nearby settled-centerline
+ * components. Runs on the settled simulation mask so it cannot mutate the simulation
+ * lifecycle (sketch/incised/settled); only the presentation masks the renderer reads.
  * @param {Object} params
  * @param {Uint8Array} params.baseRiverNetworkMask
  * @param {Float32Array} params.elevation
@@ -50,7 +52,7 @@ export function isMeanderRefineEnabled(options) {
  * @param {number} params.riverAttractionRadiusScale
  * @returns {Uint8Array}
  */
-export function applyRouteStageCorridorAttraction({
+export function applyPresentationStageCorridorAttraction({
   baseRiverNetworkMask,
   elevation,
   ocean,

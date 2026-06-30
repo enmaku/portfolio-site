@@ -93,6 +93,7 @@ export { LANDMASS_PIPELINE_STEP_IDS }
  * @property {import('./types.js').CoastalNode[]} coastalNodes
  * @property {import('./types.js').HydrologyPipelineStats | null} hydrologyStats
  * @property {import('./hydrology/hydrologySubsteps.js').HydrologySubstepTiming[] | null} hydrologySubstepTimings
+ * @property {Uint8Array | null} simulationRiverMask
  * @property {Uint8Array | null} riverNetworkMask
  * @property {Uint8Array | null} riverCorridorMask
  * @property {Int16Array | null} flowDirection
@@ -153,6 +154,7 @@ export const LANDMASS_PIPELINE_STAGE_CONTRACTS = {
       'hydrologyStats',
       'workingElevation',
       'riverGraph',
+      'simulationRiverMask',
       'riverNetworkMask',
       'riverCorridorMask',
       'channelWidth',
@@ -223,6 +225,7 @@ export const LANDMASS_PIPELINE_STAGE_CONTRACTS = {
       'coastalNodes',
       'hydrologyStats',
       'hydrologySubstepTimings',
+      'simulationRiverMask',
       'riverNetworkMask',
       'riverCorridorMask',
       'flowDirection',
@@ -409,6 +412,7 @@ function pickValidationStageInput(state) {
     coastalNodes: state.coastalNodes,
     hydrologyStats: state.hydrologyStats,
     hydrologySubstepTimings: state.hydrologySubstepTimings,
+    simulationRiverMask: state.simulationRiverMask,
     riverNetworkMask: state.riverNetworkMask,
     riverCorridorMask: state.riverCorridorMask,
     flowDirection: state.flowDirection,
@@ -455,6 +459,7 @@ export function buildPipelineStateForHydrologySubsteps(input) {
     hydrologyStats: null,
     workingElevation: null,
     riverGraph: null,
+    simulationRiverMask: null,
     riverNetworkMask: null,
     riverCorridorMask: null,
     channelWidth: null,

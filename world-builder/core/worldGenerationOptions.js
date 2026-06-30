@@ -43,7 +43,7 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
    * Issue #345 Option A — simulation vs presentation seam: legacy pathfinding/meander
    * heuristics default off so the lean simulation path runs by default. Set
    * riverAttractionRadiusScale > 0 and/or enableMeanderRefine to opt into presentation
-   * corridor bridging and meander refine on hydrologyRoute / hydrologyRefine.
+   * corridor bridging and meander refine on the presentation hydrologyRefine substep.
    */
   /** Legacy presentation: corridor bridging via A* paths; 0 disables connectNearbyRiverCorridors. */
   riverAttractionRadiusScale: 0,

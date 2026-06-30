@@ -96,6 +96,19 @@ export function setRiverMaskStage(pipeline, stage, mask) {
 
 /**
  * @param {RiverMaskPipeline} pipeline
+ * @param {RiverMaskLifecycleStage} stage
+ * @returns {Uint8Array}
+ */
+export function requireRiverMaskStage(pipeline, stage) {
+  const mask = getRiverMaskStage(pipeline, stage)
+  if (!mask) {
+    throw new Error(`river mask stage ${stage} required`)
+  }
+  return mask
+}
+
+/**
+ * @param {RiverMaskPipeline} pipeline
  */
 export function applySkipRefineToPipeline(pipeline) {
   const settled = getRiverMaskStage(pipeline, 'settled')
@@ -127,6 +140,17 @@ export function resolveDisplayRiverNetworkMaskFromPipeline(pipeline) {
     getRiverMaskStage(pipeline, 'presentation'),
     getRiverMaskStage(pipeline, 'settled'),
   )
+}
+
+/**
+ * Stable SIMULATION centerline (settled stage) — never the presentation/painted
+ * stages. Logistics-facing consumers read this so presentation-only refinements
+ * cannot masquerade as physics.
+ * @param {RiverMaskPipeline} pipeline
+ * @returns {Uint8Array}
+ */
+export function resolveSimulationRiverNetworkMaskFromPipeline(pipeline) {
+  return requireRiverMaskStage(pipeline, 'settled')
 }
 
 /**

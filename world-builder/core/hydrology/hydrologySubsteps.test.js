@@ -1,6 +1,4 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import {
   HYDROLOGY_SUBSTEPS,
@@ -84,15 +82,18 @@ test('runHydrologySubsteps performs three full flow solves per world', () => {
   )
 })
 
-test('hydrologySubsteps runner routes full flow through flowField session API', () => {
-  const source = readFileSync(
-    fileURLToPath(new URL('./hydrologySubsteps.js', import.meta.url)),
-    'utf8',
-  )
+test('runHydrologySubsteps routes every full flow solve through the flowField session', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
 
-  assert.match(source, /flowFieldSession\.deriveOceanMask/)
-  assert.match(source, /flowFieldSession\.recomputeFullFlow/)
-  assert.doesNotMatch(source, /from '\.\/computeFlowAccumulation\.js'/)
+  const { flowField } = runHydrologySubsteps(state)
+
+  assert.strictEqual(
+    flowField.fullFlowSolveCount,
+    flowField.solveLog.filter((entry) => !entry.cached).length,
+  )
+  assert.ok(flowField.solveLog.length > 0)
 })
 
 test('runHydrologySubsteps invokes seasonal between climate and route', () => {
@@ -183,6 +184,43 @@ test('runHydrologySubsteps flattens hydrologyPaint riverNetwork contract onto st
   assert.equal(network.flow.direction, hydrologyState.flowDirection)
   assert.equal(network.flow.accumulation, hydrologyState.fields.drainage)
   assert.equal(network.flow.channelWidth, hydrologyState.channelWidth)
+})
+
+test('readRiverNetworkFromWorldDocument exposes the simulation centerline distinct from presentation', () => {
+  let state = createInitialPipelineState({
+    geographySeed: 5000,
+    prevailingWindDegrees: 90,
+    width: 256,
+    height: 256,
+    options: {
+      ...DEFAULT_WORLD_GENERATION_OPTIONS,
+      enableMeanderRefine: true,
+      riverMeanderStrength: 2,
+    },
+  })
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  const { state: hydrologyState } = runHydrologySubsteps(state)
+  const network = readRiverNetworkFromWorldDocument({
+    gridWidth: hydrologyState.width,
+    gridHeight: hydrologyState.height,
+    fields: hydrologyState.fields,
+    simulationRiverMask: hydrologyState.simulationRiverMask,
+    riverNetworkMask: hydrologyState.riverNetworkMask,
+    riverCorridorMask: hydrologyState.riverCorridorMask,
+    flowDirection: hydrologyState.flowDirection,
+    channelWidth: hydrologyState.channelWidth,
+    riverGraph: hydrologyState.riverGraph,
+  })
+
+  assert.ok(network)
+  assert.equal(network.simulationCenterline, hydrologyState.simulationRiverMask)
+  assert.equal(network.centerline, hydrologyState.riverNetworkMask)
+  assert.ok(
+    !riverMasksEqual(network.simulationCenterline, network.centerline),
+    'meander refine should separate the simulation interface from the presentation centerline',
+  )
 })
 
 test('runHydrologySubsteps does not populate coast navigability on pipeline state', () => {
@@ -626,18 +664,49 @@ test('enableMeanderRefine allows presentation mask changes and valley carving', 
   assert.ok(maskDiffers, 'expected presentation meander refine to change river network mask')
 })
 
-test('legacy corridor routers delegate fractal routing to riverPathfinding', () => {
-  const attractionSource = readFileSync(
-    fileURLToPath(new URL('./connectNearbyRiverCorridors.js', import.meta.url)),
-    'utf8',
-  )
-  const refineSource = readFileSync(
-    fileURLToPath(new URL('./refineRiverNetwork.js', import.meta.url)),
-    'utf8',
-  )
+test('legacy meander refine leaves the simulation river mask unchanged', () => {
+  const seed = 5000
+  const { state: withoutMeander } = runHydrologyForSeed(seed)
+  const { state: withMeander } = runHydrologyForSeed(seed, {
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    enableMeanderRefine: true,
+    riverMeanderStrength: 2,
+  })
 
-  assert.match(attractionSource, /routeFractalCorridorPath/)
-  assert.match(refineSource, /routeFractalCorridorPath/)
+  assert.ok(
+    withoutMeander.simulationRiverMask.some((value) => value === 1),
+    'default simulation centerline should be populated',
+  )
+  assert.ok(
+    riverMasksEqual(withoutMeander.simulationRiverMask, withMeander.simulationRiverMask),
+    'simulation centerline must be invariant to presentation meander refine',
+  )
+  assert.ok(
+    !riverMasksEqual(withoutMeander.riverNetworkMask, withMeander.riverNetworkMask),
+    'presentation display centerline should change with meander refine',
+  )
+})
+
+test('legacy corridor attraction leaves the simulation river mask unchanged', () => {
+  const seed = 5000
+  const { state: withoutAttraction } = runHydrologyForSeed(seed)
+  const { state: withAttraction } = runHydrologyForSeed(seed, {
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    riverAttractionRadiusScale: 6,
+  })
+
+  assert.ok(
+    withoutAttraction.simulationRiverMask.some((value) => value === 1),
+    'default simulation centerline should be populated',
+  )
+  assert.ok(
+    riverMasksEqual(withoutAttraction.simulationRiverMask, withAttraction.simulationRiverMask),
+    'simulation centerline must be invariant to presentation corridor attraction',
+  )
+  assert.ok(
+    !riverMasksEqual(withoutAttraction.riverNetworkMask, withAttraction.riverNetworkMask),
+    'presentation display centerline should reflect corridor attraction',
+  )
 })
 
 test('runHydrologySubsteps reports mask lifecycle transitions at substep seams', () => {
@@ -680,19 +749,6 @@ test('runHydrologySubsteps reports mask lifecycle transitions at substep seams',
 
   assert.ok(snapshotsBySubstep.get('hydrologyPaint')?.painted?.some((value) => value === 1))
   assert.deepStrictEqual(transitions, [RIVER_MASK_SKIP_REFINE_TRANSITION])
-})
-
-test('hydrologySubsteps wires river mask lifecycle helpers at settle and paint seams', () => {
-  const source = readFileSync(
-    fileURLToPath(new URL('./hydrologySubsteps.js', import.meta.url)),
-    'utf8',
-  )
-
-  assert.match(source, /applySkipRefineTransition/)
-  assert.match(source, /resolveDisplayRiverNetworkMaskFromPipeline/)
-  assert.match(source, /getRiverMaskStageFromContext|requireRiverMaskStageFromContext/)
-  assert.doesNotMatch(source, /presentationRiverNetworkMask \?\? ctx\.settledRiverNetworkMask/)
-  assert.doesNotMatch(source, /riverMaskPipeline\.(sketch|incised|settled|presentation|painted)/)
 })
 
 test('runHydrologySubsteps produces painted corridor and centerline masks', () => {
