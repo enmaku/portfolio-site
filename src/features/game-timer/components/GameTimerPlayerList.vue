@@ -6,7 +6,7 @@
         item-key="id"
         tag="div"
         class="gt-draggable"
-        handle=".gt-player-row__turn"
+        filter=".gt-player-row__hard-pass"
         :disabled="isGuest"
         @contextmenu.prevent
         :animation="200"
@@ -335,7 +335,6 @@ function progressRoundFillStyle(player) {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-  touch-action: pan-x pinch-zoom;
 }
 
 .gt-sortable-ghost {
@@ -463,12 +462,6 @@ function progressRoundFillStyle(player) {
   width: 30px;
   flex-shrink: 0;
   align-self: stretch;
-  cursor: grab;
-  touch-action: none;
-}
-
-.gt-player-row__turn:active {
-  cursor: grabbing;
 }
 
 .gt-player-row__turn-icon {
