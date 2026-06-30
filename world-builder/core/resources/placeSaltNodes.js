@@ -1,9 +1,16 @@
 import { deriveFieldSeed, createSeededRandom } from '../noise/seededRandom.js'
 import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
+import { computeCoastalProximityOnLand } from '../coast/computeCoastalProximity.js'
 import { isNodePlacementCellAllowed } from '../nodePlacementBounds.js'
+import {
+  REFERENCE_SALT_LAND_PROXIMITY_RADIUS,
+  saltLandProximityRadiusForGrid,
+  coastalProximityMaxDistanceForGrid,
+  strategicResourceNodeSpacingForGrid,
+} from '../resourcePlacementScaling.js'
 
-/** Salt nodes must be within this many cells of a proper land biome. */
-export const SALT_NODE_LAND_PROXIMITY_RADIUS = 10
+/** Salt nodes must be within this many cells of a proper land biome at REFERENCE_GRID_SIZE. */
+export const SALT_NODE_LAND_PROXIMITY_RADIUS = REFERENCE_SALT_LAND_PROXIMITY_RADIUS
 
 /** Salt nodes must have at least this much land biome cover within the proximity disk. */
 export const SALT_NODE_MIN_LAND_FRACTION = 0.15
@@ -90,7 +97,6 @@ export function saltNodeHasSubstantialLandProximity(
  * @param {Object} params
  * @param {Float32Array} params.elevation
  * @param {Float32Array} params.salinity
- * @param {Float32Array} params.coastNavigability
  * @param {Uint8Array} params.biomes
  * @param {import('../types.js').LakeRecord[]} params.lakes
  * @param {number} params.width
@@ -103,7 +109,6 @@ export function saltNodeHasSubstantialLandProximity(
 export function placeSaltNodes({
   elevation,
   salinity,
-  coastNavigability,
   biomes,
   lakes,
   width,
@@ -113,6 +118,15 @@ export function placeSaltNodes({
   seaLevel = SEA_LEVEL,
 }) {
   const random = createSeededRandom(deriveFieldSeed(geographySeed, 'salt-nodes'))
+  const landProximityRadius = saltLandProximityRadiusForGrid(width)
+  const minNodeSpacing = strategicResourceNodeSpacingForGrid(width)
+  const coastalProximity = computeCoastalProximityOnLand({
+    elevation,
+    width,
+    height,
+    seaLevel,
+    maxDistance: coastalProximityMaxDistanceForGrid(width),
+  })
   const endorheicLakeIds = new Set(lakes.filter((lake) => lake.endorheic).map((lake) => lake.id))
   const candidates = []
 
@@ -122,7 +136,7 @@ export function placeSaltNodes({
       const idx = y * width + x
       if (elevation[idx] < seaLevel) continue
 
-      let score = salinity[idx] * 0.5 + coastNavigability[idx] * 0.2
+      let score = salinity[idx] * 0.5 + coastalProximity[idx] * 0.2
       if (elevation[idx] < seaLevel + 0.06) score += 0.15
       if (endorheicLakeIds.size > 0 && isNearEndorheicLake(x, y, lakes, width)) score += 0.2
       if (elevation[idx] >= 0.5 && elevation[idx] <= 0.62 && salinity[idx] > 0.15) {
@@ -138,11 +152,20 @@ export function placeSaltNodes({
   candidates.sort((a, b) => b.score - a.score)
   const selected = []
   for (const candidate of candidates) {
-    if (!saltNodeHasSubstantialLandProximity(candidate.x, candidate.y, biomes, width, height)) {
+    if (
+      !saltNodeHasSubstantialLandProximity(
+        candidate.x,
+        candidate.y,
+        biomes,
+        width,
+        height,
+        landProximityRadius,
+      )
+    ) {
       continue
     }
     const tooClose = selected.some(
-      (node) => Math.hypot(node.x - candidate.x, node.y - candidate.y) < 16,
+      (node) => Math.hypot(node.x - candidate.x, node.y - candidate.y) < minNodeSpacing,
     )
     if (tooClose) continue
     selected.push({

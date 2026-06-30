@@ -4,6 +4,10 @@ import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.
 /** Default geography seed for generation controls and reset. */
 export const DEFAULT_GEOGRAPHY_SEED = 0
 
+/** Stable test id for the validation-retry exhaustion banner on World Builder. */
+export const WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID =
+  'world-builder-validation-exhausted-indicator'
+
 /** Validation checks omitted from the generation-report sidebar list. */
 const HIDDEN_SIDEBAR_VALIDATION_CHECK_IDS = new Set([
   'hacksLawExponent',
@@ -243,16 +247,6 @@ function medianHydrologySamples(samples) {
   return sorted[mid]
 }
 
-/**
- * @param {number} stepIndex
- * @param {number} stepCount
- * @returns {number}
- */
-export function generationProgressValue(stepIndex, stepCount) {
-  if (stepCount <= 0) return 0
-  return Math.round(((stepIndex + 1) / stepCount) * 100)
-}
-
 export {
   createDefaultResourceOverlayVisibility,
   createResourceOverlayDefinitions,
@@ -268,20 +262,32 @@ export function shouldShowGenerationProgress(isGenerating) {
 }
 
 /**
+ * @typedef {'idle' | 'running' | 'success' | 'exhausted' | 'cancelled' | 'error'} PipelineRunStatus
+ */
+
+/**
  * @param {boolean} isGenerating
- * @param {boolean} pipelineSucceeded
+ * @param {PipelineRunStatus} pipelineRunStatus
  * @returns {boolean}
  */
-export function shouldShowResourceOverlayBar(isGenerating, pipelineSucceeded) {
-  return !isGenerating && pipelineSucceeded
+export function shouldShowResourceOverlayBar(isGenerating, pipelineRunStatus) {
+  return !isGenerating && pipelineRunStatus === 'success'
 }
 
 /**
- * @param {import('./core/types.js').WorldDocument | null | undefined} worldDocument
+ * @param {PipelineRunStatus} pipelineRunStatus
  * @returns {boolean}
  */
-export function shouldApplyStepPreviewToMap(worldDocument) {
-  return worldDocument != null
+export function shouldShowValidationFailureIndicator(pipelineRunStatus) {
+  return pipelineRunStatus === 'exhausted'
+}
+
+/**
+ * @param {PipelineRunStatus} pipelineRunStatus
+ * @returns {boolean}
+ */
+export function isPipelineCleanSuccess(pipelineRunStatus) {
+  return pipelineRunStatus === 'success'
 }
 
 /**

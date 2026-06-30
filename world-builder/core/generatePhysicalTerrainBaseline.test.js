@@ -85,6 +85,13 @@ test('generatePhysicalTerrainBaseline scalar fields include salinity contract ke
   ])
 })
 
+test('generatePhysicalTerrainBaseline includes palette-ready displayBiomes', () => {
+  const doc = generatePhysicalTerrainBaseline({ ...params, width: 32, height: 32 })
+  assert.ok(doc.displayBiomes)
+  assert.strictEqual(doc.displayBiomes.length, doc.biomes.length)
+  assert.deepStrictEqual(doc.displayBiomes, doc.biomes)
+})
+
 test('generatePhysicalTerrainBaseline salinity shifts with custom sea level', () => {
   const small = { ...params, width: 32, height: 32 }
   const defaultDoc = generatePhysicalTerrainBaseline(small)

@@ -1,3 +1,4 @@
+import { buildDisplayBiomes } from './buildDisplayBiomes.js'
 import { BIOMES_CATALOG } from './biomeCatalog.js'
 import {
   classifyBiomesFromFields,
@@ -7,6 +8,7 @@ import { buildGenerationReport } from './buildGenerationReport.js'
 import { computeCoastNavigability } from './coast/computeCoastNavigability.js'
 import { deriveCoastalNodes } from './coast/deriveCoastalNodes.js'
 import { applyErosion } from './erosion/applyErosion.js'
+import { refreshClimateScalarsAfterElevationMutation } from './fields/refreshClimateScalarsAfterElevationMutation.js'
 import { refreshFieldsAfterErosion } from './fields/refreshFieldsAfterErosion.js'
 import { deriveAnnualMeanClimate } from './hydrology/seasonalClimatology.js'
 import { generatePhysicalTerrainBaseline } from './generatePhysicalTerrainBaseline.js'
@@ -25,8 +27,14 @@ import {
 import {
   LANDMASS_PIPELINE_STAGE_CONTRACTS,
   LANDMASS_PIPELINE_STEP_IDS,
+  assertLandmassStageOutputs,
+  buildPipelineStateForHydrologySubsteps,
   pickLandmassStageInput,
 } from './landmassPipelineStageContracts.js'
+import {
+  LandmassPipelineCancelledError,
+  isLandmassPipelineCancelledError,
+} from './landmassPipelineTypes.js'
 
 export {
   LANDMASS_PIPELINE_STAGE_CONTRACTS,
@@ -35,62 +43,16 @@ export {
 }
 import { resolveWorldGenerationOptions } from './worldGenerationOptions.js'
 
-/** @typedef {typeof LANDMASS_PIPELINE_STEP_IDS[number]} DerivedGeographyStepId */
+/** @typedef {import('./landmassPipelineTypes.js').DerivedGeographyStepId} DerivedGeographyStepId */
+/** @typedef {import('./landmassPipelineTypes.js').DerivedGeographyPipelineState} DerivedGeographyPipelineState */
+/** @typedef {import('./landmassPipelineTypes.js').LandmassPipelineRunStatus} LandmassPipelineRunStatus */
+/** @typedef {import('./landmassPipelineTypes.js').PipelineStepOptions} PipelineStepOptions */
 
 /** @type {ReadonlyArray<{ id: DerivedGeographyStepId, label: string }>} */
 export const DERIVED_GEOGRAPHY_STEPS = LANDMASS_PIPELINE_STEP_IDS.map((id) => ({
   id,
   label: LANDMASS_PIPELINE_STAGE_CONTRACTS[id].label,
 }))
-
-/**
- * @typedef {Object} DerivedGeographyPipelineState
- * @property {number} geographySeed
- * @property {number} prevailingWindDegrees
- * @property {import('./types.js').WorldGenerationOptions} options
- * @property {number} width
- * @property {number} height
- * @property {import('./types.js').WorldDocument | null} baselineDoc
- * @property {Float32Array | null} erodedElevation
- * @property {Float32Array[] | null} erosionSnapshots
- * @property {number} erosionStepCount
- * @property {Uint8Array | null} lakeMask
- * @property {import('./types.js').LakeRecord[] | null} lakes
- * @property {import('./types.js').LakeMetaRecord[] | null} lakeMeta
- * @property {Int32Array | null} lakeIdByCell
- * @property {import('./types.js').HydrologyPipelineStats | null} hydrologyStats
- * @property {Float32Array | null} workingElevation
- * @property {import('./types.js').RiverGraph | null} riverGraph
- * @property {Uint8Array | null} riverNetworkMask
- * @property {Uint8Array | null} riverCorridorMask
- * @property {Float32Array | null} channelWidth
- * @property {Int16Array | null} flowDirection
- * @property {import('./types.js').ScalarFields | null} fields
- * @property {Uint8Array | null} biomes
- * @property {Float32Array | null} coastNavigability
- * @property {import('./types.js').CoastalNode[] | null} coastalNodes
- * @property {import('./types.js').SaltNode[] | null} saltNodes
- * @property {Float32Array | null} metalsRaster
- * @property {import('./types.js').MetalNode[] | null} metalNodes
- * @property {Float32Array | null} arableRaster
- * @property {Float32Array | null} timberRaster
- * @property {import('./types.js').GenerationReport | null} generationReport
- * @property {import('./hydrology/hydrologySubsteps.js').HydrologySubstepTiming[] | null} hydrologySubstepTimings
- * @property {DerivedGeographyStepId | null} lastCompletedStep
- */
-
-/**
- * @typedef {Object} PipelineStepOptions
- * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string }) => void} [onSubstepStart]
- * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, progress: number }) => void} [onSubstepProgress]
- * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, progress: number }) => void} [onSubstepComplete]
- * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, input: Record<string, unknown> }) => void} [onSubstepPrepare]
- * @property {() => boolean} [shouldCancel]
- */
-
-/**
- * @typedef {'success' | 'cancelled' | 'error'} LandmassPipelineRunStatus
- */
 
 /**
  * @typedef {Object} LandmassPipelineRunResult
@@ -167,7 +129,8 @@ export function createInitialPipelineState(params) {
  */
 export function runPipelineStep(state, stepId, options = {}) {
   const input = pickLandmassStageInput(stepId, state)
-  const output = executeLandmassPipelineStage(stepId, input, state, options)
+  const output = executeLandmassPipelineStage(stepId, input, options)
+  assertLandmassStageOutputs(stepId, output)
   return {
     ...state,
     ...output,
@@ -177,10 +140,9 @@ export function runPipelineStep(state, stepId, options = {}) {
 /**
  * @param {DerivedGeographyStepId} stepId
  * @param {Record<string, unknown>} input
- * @param {DerivedGeographyPipelineState} state
- * @param {PipelineStepOptions} options
+ * @param {PipelineStepOptions} [options]
  */
-function executeLandmassPipelineStage(stepId, input, state, options) {
+function executeLandmassPipelineStage(stepId, input, options = {}) {
   switch (stepId) {
     case 'physicalTerrainBaseline':
       return runPhysicalTerrainBaselineStep(
@@ -195,7 +157,6 @@ function executeLandmassPipelineStage(stepId, input, state, options) {
     case 'hydrology':
       return runHydrologyStep(
         /** @type {import('./landmassPipelineStageContracts.js').HydrologyStageInput} */ (input),
-        state,
         options,
       )
     case 'fieldRefresh':
@@ -244,6 +205,7 @@ export function buildWorldDocumentFromPipelineState(state) {
     )
 
   const isComplete = state.lastCompletedStep === 'validation'
+  const displayBiomes = buildDisplayBiomes(biomes, fields, state.options.seaLevel)
 
   return {
     geographySeed,
@@ -252,6 +214,7 @@ export function buildWorldDocumentFromPipelineState(state) {
     gridHeight: height,
     fields,
     biomes,
+    displayBiomes,
     biomeCatalog: BIOMES_CATALOG,
     generatedAt: baseline.generatedAt,
     pipelineStage: isComplete
@@ -295,17 +258,6 @@ export function shouldAttachLandmassStepPreview(stepId, options) {
     return true
   }
   return stepId === 'validation'
-}
-
-class LandmassPipelineCancelledError extends Error {
-  /**
-   * @param {DerivedGeographyPipelineState | null} state
-   */
-  constructor(state) {
-    super('Landmass pipeline cancelled')
-    this.name = 'LandmassPipelineCancelledError'
-    this.state = state
-  }
 }
 
 /**
@@ -460,7 +412,7 @@ function runLandmassPipelineStepsShared(state, callbacks, options, hooks) {
  * @returns {LandmassPipelineRunResult | Promise<LandmassPipelineRunResult>}
  */
 function finalizeLandmassPipelineRun(state, error, hooks) {
-  if (error instanceof LandmassPipelineCancelledError) {
+  if (isLandmassPipelineCancelledError(error)) {
     return {
       status: 'cancelled',
       state: error.state,
@@ -503,8 +455,9 @@ function runLandmassPipelineWithRetryShared(params, callbacks, hooks) {
   const runAttempt = (attempt) => {
     if (attempt > maxValidationRetries) {
       const worldDocument = cloneWorldDocument(buildWorldDocumentFromPipelineState(state))
+      const exhausted = Boolean(state?.generationReport?.shouldReject)
       return {
-        status: 'success',
+        status: exhausted ? 'exhausted' : 'success',
         state,
         worldDocument,
         errorMessage: null,
@@ -586,6 +539,9 @@ export async function runLandmassPipeline(params, callbacks = {}) {
  */
 export function runFullDerivedGeographyPipeline(params) {
   const result = runLandmassPipelineRun(params)
+  if (result.status === 'exhausted') {
+    throw new Error('Landmass pipeline validation retries exhausted')
+  }
   if (result.status !== 'success' || !result.worldDocument) {
     throw new Error(result.errorMessage ?? 'Landmass pipeline failed')
   }
@@ -622,10 +578,15 @@ function runErosionStep(input) {
     geographySeed: input.geographySeed,
     options: input.options,
   })
-  const previewFields = {
-    ...input.baselineDoc.fields,
+  const previewFields = refreshClimateScalarsAfterElevationMutation({
+    geographySeed: input.geographySeed,
+    prevailingWindDegrees: input.prevailingWindDegrees,
     elevation: erodedElevation,
-  }
+    drainage: input.baselineDoc.fields.drainage,
+    width: input.width,
+    height: input.height,
+    options: input.options,
+  })
   return {
     erodedElevation,
     erosionSnapshots: snapshots,
@@ -646,16 +607,10 @@ function runErosionStep(input) {
 
 /**
  * @param {import('./landmassPipelineStageContracts.js').HydrologyStageInput} input
- * @param {DerivedGeographyPipelineState} state
  * @param {PipelineStepOptions} [options]
  */
-function runHydrologyStep(input, state, options = {}) {
-  const hydrologyState = {
-    ...state,
-    baselineDoc: input.baselineDoc,
-    erodedElevation: input.erodedElevation,
-    fields: input.fields,
-  }
+function runHydrologyStep(input, options = {}) {
+  const hydrologyState = buildPipelineStateForHydrologySubsteps(input)
   const { state: nextState, timings } = runHydrologySubsteps(hydrologyState, {
     onSubstepStart: options.onSubstepStart,
     onSubstepProgress: options.onSubstepProgress,
@@ -743,7 +698,6 @@ function runCoastAndResourcesStep(input) {
   const saltNodes = placeSaltNodes({
     elevation: input.workingElevation,
     salinity: input.fields.salinity,
-    coastNavigability,
     biomes: input.biomes,
     lakes: input.lakes,
     width,
@@ -765,6 +719,7 @@ function runCoastAndResourcesStep(input) {
     height,
     geographySeed: input.geographySeed,
     seaLevel: input.options.seaLevel,
+    minimumProductivity: input.options.arableMinimumProductivity,
   })
   const metalsRaster = computeMetalsRaster({
     elevation: input.workingElevation,
@@ -835,6 +790,9 @@ function runValidationStep(input) {
     },
     prevailingWindDegrees: input.prevailingWindDegrees,
     validationOptions: input.options,
+    arableRaster: input.arableRaster ?? undefined,
+    saltNodes: input.saltNodes ?? undefined,
+    metalNodes: input.metalNodes ?? undefined,
   })
   return {
     generationReport,
@@ -867,6 +825,7 @@ export function cloneWorldDocument(doc) {
     ...doc,
     fields,
     biomes: new Uint8Array(doc.biomes),
+    displayBiomes: new Uint8Array(doc.displayBiomes),
     lakeMask: doc.lakeMask ? new Uint8Array(doc.lakeMask) : undefined,
     riverNetworkMask: doc.riverNetworkMask ? new Uint8Array(doc.riverNetworkMask) : undefined,
     riverCorridorMask: doc.riverCorridorMask ? new Uint8Array(doc.riverCorridorMask) : undefined,

@@ -152,18 +152,29 @@ after(() => {
 })
 
 /**
+ * @param {Partial<import('../core/types.js').WorldDocument> & Pick<import('../core/types.js').WorldDocument, 'gridWidth' | 'gridHeight'>} partial
+ * @returns {import('../core/types.js').WorldDocument}
+ */
+function worldDocFixture(partial) {
+  const cellCount = partial.gridWidth * partial.gridHeight
+  const biomes = partial.biomes ?? new Uint8Array(cellCount)
+  return {
+    ...partial,
+    biomes,
+    displayBiomes: partial.displayBiomes ?? new Uint8Array(biomes),
+    fields: partial.fields ?? { elevation: new Float32Array(cellCount) },
+  }
+}
+
+/**
  * @returns {import('../core/types.js').WorldDocument}
  */
 function createSaltNodeFixture() {
-  return {
+  return worldDocFixture({
     gridWidth: 4,
     gridHeight: 4,
-    biomes: new Uint8Array(16),
-    fields: {
-      elevation: new Float32Array(16),
-    },
     saltNodes: [{ x: 1, y: 2 }],
-  }
+  })
 }
 /**
  * Sprites from the most recently created viewport (six raster layers).
@@ -213,15 +224,11 @@ function riversSpriteLayer() {
 function createTimberRasterFixture() {
   const timberRaster = new Float32Array(16)
   timberRaster[5] = 0.8
-  return {
+  return worldDocFixture({
     gridWidth: 4,
     gridHeight: 4,
-    biomes: new Uint8Array(16),
-    fields: {
-      elevation: new Float32Array(16),
-    },
     timberRaster,
-  }
+  })
 }
 
 /**
@@ -230,15 +237,14 @@ function createTimberRasterFixture() {
 function createArableRasterFixture() {
   const arableRaster = new Float32Array(16)
   arableRaster[5] = 0.75
-  return {
+  return worldDocFixture({
     gridWidth: 4,
     gridHeight: 4,
-    biomes: new Uint8Array(16),
     fields: {
       elevation: new Float32Array(16).fill(0.55),
     },
     arableRaster,
-  }
+  })
 }
 
 /**
@@ -247,16 +253,15 @@ function createArableRasterFixture() {
 function createMetalsFixture() {
   const metalsRaster = new Float32Array(16)
   metalsRaster[6] = 0.85
-  return {
+  return worldDocFixture({
     gridWidth: 4,
     gridHeight: 4,
-    biomes: new Uint8Array(16),
     fields: {
       elevation: new Float32Array(16).fill(0.7),
     },
     metalsRaster,
     metalNodes: [{ id: 'metal-0', x: 2, y: 1, score: 0.9 }],
-  }
+  })
 }
 
 test(
@@ -568,13 +573,13 @@ test(
     }
 
     const viewport = await createWorldBuilderMapViewport(hostEl, createSaltNodeFixture())
-    viewport.updateWorldDocument({
-      ...createSaltNodeFixture(),
-      gridWidth: 64,
-      gridHeight: 48,
-      biomes: new Uint8Array(64 * 48),
-      fields: { elevation: new Float32Array(64 * 48) },
-    })
+    viewport.updateWorldDocument(
+      worldDocFixture({
+        gridWidth: 64,
+        gridHeight: 48,
+        saltNodes: [{ x: 1, y: 2 }],
+      }),
+    )
 
     assert.deepStrictEqual(lastViewportResize, { worldWidth: 64, worldHeight: 48 })
 
@@ -593,13 +598,13 @@ test(
     }
 
     const viewport = await createWorldBuilderMapViewport(hostEl, createSaltNodeFixture())
-    viewport.updateWorldDocument({
-      ...createSaltNodeFixture(),
-      gridWidth: 80,
-      gridHeight: 80,
-      biomes: new Uint8Array(80 * 80),
-      fields: { elevation: new Float32Array(80 * 80) },
-    })
+    viewport.updateWorldDocument(
+      worldDocFixture({
+        gridWidth: 80,
+        gridHeight: 80,
+        saltNodes: [{ x: 1, y: 2 }],
+      }),
+    )
 
     viewport.focusOn({ minX: 0, minY: 0, maxX: 20, maxY: 20 })
     const animation = viewportAnimations.at(-1)
@@ -625,15 +630,111 @@ test(
     lakeMask[6] = 1
     const biomes = new Uint8Array(16).fill(BIOMES.GRASSLAND)
 
-    const viewport = await createWorldBuilderMapViewport(hostEl, {
-      gridWidth: 4,
-      gridHeight: 4,
-      biomes,
-      lakeMask,
-      fields: { elevation: new Float32Array(16).fill(0.55) },
-    })
+    const viewport = await createWorldBuilderMapViewport(
+      hostEl,
+      worldDocFixture({
+        gridWidth: 4,
+        gridHeight: 4,
+        biomes,
+        lakeMask,
+        fields: { elevation: new Float32Array(16).fill(0.55) },
+      }),
+    )
 
     assert.deepStrictEqual(drawnRects, [{ x: 2, y: 1, w: 1, h: 1 }])
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'viewport init skips resource rasterization while overlays are hidden',
+  viewportTests,
+  async () => {
+    const {
+      getResourceRasterOverlayRgbaBuildCount,
+      resetResourceRasterOverlayRgbaBuildCount,
+    } = await import('./buildResourceRasterOverlayRgba.js')
+
+    resetResourceRasterOverlayRgbaBuildCount()
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+    const fixture = {
+      ...createArableRasterFixture(),
+      timberRaster: createTimberRasterFixture().timberRaster,
+      metalsRaster: createMetalsFixture().metalsRaster,
+    }
+    const viewport = await createWorldBuilderMapViewport(hostEl, fixture)
+
+    assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 0)
+    viewport.destroy()
+  },
+)
+
+test(
+  'setResourceOverlayVisibility rasterizes a resource layer at most once per toggle',
+  viewportTests,
+  async () => {
+    const {
+      getResourceRasterOverlayRgbaBuildCount,
+      resetResourceRasterOverlayRgbaBuildCount,
+    } = await import('./buildResourceRasterOverlayRgba.js')
+
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+    const viewport = await createWorldBuilderMapViewport(hostEl, createTimberRasterFixture())
+
+    resetResourceRasterOverlayRgbaBuildCount()
+    viewport.setResourceOverlayVisibility('timber', true)
+    assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 1)
+
+    resetResourceRasterOverlayRgbaBuildCount()
+    viewport.setResourceOverlayVisibility('timber', false)
+    assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 0)
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'updateWorldDocument rasterizes each visible resource layer at most once',
+  viewportTests,
+  async () => {
+    const {
+      getResourceRasterOverlayRgbaBuildCount,
+      resetResourceRasterOverlayRgbaBuildCount,
+    } = await import('./buildResourceRasterOverlayRgba.js')
+
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+    const fixture = {
+      ...createArableRasterFixture(),
+      timberRaster: createTimberRasterFixture().timberRaster,
+      metalsRaster: createMetalsFixture().metalsRaster,
+    }
+    const viewport = await createWorldBuilderMapViewport(hostEl, fixture)
+
+    viewport.setResourceOverlayVisibility('arable', true)
+    viewport.setResourceOverlayVisibility('timber', true)
+    viewport.setResourceOverlayVisibility('metals', true)
+
+    resetResourceRasterOverlayRgbaBuildCount()
+    viewport.updateWorldDocument({
+      ...fixture,
+      arableRaster: Float32Array.from(fixture.arableRaster),
+      timberRaster: Float32Array.from(fixture.timberRaster),
+      metalsRaster: Float32Array.from(fixture.metalsRaster),
+    })
+    assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 3)
 
     viewport.destroy()
   },

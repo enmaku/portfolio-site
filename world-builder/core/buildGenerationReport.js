@@ -7,6 +7,11 @@ import {
   runGeographyValidationChecks,
 } from './validation/runGeographyValidationChecks.js'
 import {
+  computeArableEnvelopeMetrics,
+  findSaltNodeLandProximityViolations,
+  findStrategicResourceSpacingViolations,
+} from './validation/computeResourceValidationMetrics.js'
+import {
   collectRejectionReasons,
   collectStructuredRejectionReasons,
   isRejectionSamplingEnforced,
@@ -29,6 +34,9 @@ import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
  * @param {import('./types.js').WorldDocument} [params.worldDocument]
  * @param {number} [params.prevailingWindDegrees]
  * @param {import('./types.js').WorldGenerationOptions} [params.validationOptions]
+ * @param {Float32Array | null | undefined} [params.arableRaster]
+ * @param {import('./types.js').SaltNode[] | null | undefined} [params.saltNodes]
+ * @param {import('./types.js').MetalNode[] | null | undefined} [params.metalNodes]
  * @returns {import('./types.js').GenerationReport}
  */
 export function buildGenerationReport({
@@ -45,7 +53,13 @@ export function buildGenerationReport({
   worldDocument,
   prevailingWindDegrees = 0,
   validationOptions = DEFAULT_WORLD_GENERATION_OPTIONS,
+  arableRaster: arableRasterParam,
+  saltNodes: saltNodesParam,
+  metalNodes: metalNodesParam,
 }) {
+  const arableRaster = arableRasterParam ?? worldDocument?.arableRaster
+  const saltNodes = saltNodesParam ?? worldDocument?.saltNodes
+  const metalNodes = metalNodesParam ?? worldDocument?.metalNodes
   const resolvedNetwork =
     riverNetwork ??
     (worldDocument ? readRiverNetworkFromWorldDocument(worldDocument) : null)
@@ -73,6 +87,9 @@ export function buildGenerationReport({
     hydrologyMetrics: metrics,
     prevailingWindDegrees,
     validationOptions,
+    arableRaster,
+    saltNodes,
+    metalNodes,
   })
   const lakeCount = hydrologyStats.lakeCount
   const endorheicFraction = lakeCount > 0 ? hydrologyStats.endorheicCount / lakeCount : 0
@@ -88,6 +105,22 @@ export function buildGenerationReport({
   )
   const resourceMismatchRow = validationRows.find((row) => row.checkId === 'resourceMismatch')
   const windRow = validationRows.find((row) => row.checkId === 'windRainfallAsymmetry')
+  const arableMetrics = computeArableEnvelopeMetrics(
+    arableRaster,
+    fields.elevation,
+    validationOptions.seaLevel,
+  )
+  const saltProximityViolations = findSaltNodeLandProximityViolations(
+    saltNodes,
+    biomes,
+    gridWidth,
+    gridHeight,
+  )
+  const spacingViolations = findStrategicResourceSpacingViolations(
+    saltNodes,
+    metalNodes,
+    gridWidth,
+  )
 
   return {
     erosionStepCount,
@@ -106,6 +139,9 @@ export function buildGenerationReport({
       resourceMismatchDetected: resourceMismatchRow?.status === 'warn',
       meanInlandSalinity: salinityMetrics.meanInlandSalinity,
       oceanSalinityMean: salinityMetrics.oceanSalinityMean,
+      arableLandFraction: arableMetrics.arableLandFraction,
+      saltNodeProximityViolationCount: saltProximityViolations.length,
+      strategicResourceSpacingViolationCount: spacingViolations.length,
     }),
     hydrologySubstepTimings,
     hydrology: {

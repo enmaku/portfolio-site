@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildArableOverlayCanvas, buildArableOverlayRgba } from './buildArableOverlayCanvas.js'
-import { resourceRasterHatchFactor } from './buildResourceRasterOverlayRgba.js'
+import {
+  getResourceRasterOverlayRgbaBuildCount,
+  resetResourceRasterOverlayRgbaBuildCount,
+  resourceRasterHatchFactor,
+} from './buildResourceRasterOverlayRgba.js'
 import { RESOURCE_RASTER_OVERLAY_STYLES } from './resourceRasterOverlayStyles.js'
 
 /**
@@ -90,6 +94,31 @@ test('buildArableOverlayCanvas returns sized canvas when raster has signal', () 
   assert.ok(canvas)
   assert.strictEqual(canvas.width, 4)
   assert.strictEqual(canvas.height, 4)
+
+  delete globalThis.document
+  delete globalThis.ImageData
+})
+
+test('buildArableOverlayCanvas rasterizes RGBA only once', () => {
+  globalThis.ImageData = class {
+    constructor() {}
+  }
+  globalThis.document = {
+    createElement() {
+      return {
+        width: 0,
+        height: 0,
+        getContext() {
+          return { putImageData() {} }
+        },
+      }
+    },
+  }
+
+  resetResourceRasterOverlayRgbaBuildCount()
+  const canvas = buildArableOverlayCanvas(createArableFixture())
+  assert.ok(canvas)
+  assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 1)
 
   delete globalThis.document
   delete globalThis.ImageData

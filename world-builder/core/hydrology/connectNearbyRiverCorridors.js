@@ -3,8 +3,7 @@ import { createSeededRandom, deriveFieldSeed } from '../noise/seededRandom.js'
 import { downstreamIndex } from './computeFlowAccumulation.js'
 import {
   angleDegrees,
-  buildFractalWaypoints,
-  findLeastResistancePath,
+  routeFractalCorridorPath,
   snapToValleyCell,
   unitVector,
 } from './riverPathfinding.js'
@@ -589,75 +588,16 @@ function findMeanderingRiverPath({
     `river-attraction:${pathStart}:${pathGoal}`,
   )
   const random = createSeededRandom(seed)
-  const routedSpan = Math.hypot(
-    (pathGoal % width) - (pathStart % width),
-    Math.floor(pathGoal / width) - Math.floor(pathStart / width),
-  )
-  const depth = routedSpan < 16 ? 2 : routedSpan < 48 ? 3 : routedSpan < 128 ? 4 : 5
 
-  const waypoints = buildFractalWaypoints({
+  return routeFractalCorridorPath({
     fromIdx: pathStart,
     toIdx: pathGoal,
+    elevation,
+    ocean,
     width,
     height,
     random,
-    depth,
-  }).map((idx) =>
-    snapToValleyCell(
-      idx,
-      elevation,
-      ocean,
-      width,
-      height,
-      Math.max(2, Math.round(routedSpan * 0.08)),
-    ),
-  )
-
-  /** @type {number[]} */
-  const path = []
-  const seen = new Set()
-  for (let i = 0; i < waypoints.length - 1; i += 1) {
-    const segment = findLeastResistancePath({
-      fromIdx: waypoints[i],
-      toIdx: waypoints[i + 1],
-      elevation,
-      ocean,
-      width,
-      height,
-      heuristicWeight: 0.15,
-      preferDownhill: true,
-    })
-    if (!segment) return null
-    for (const idx of segment) {
-      if (seen.has(idx)) continue
-      seen.add(idx)
-      path.push(idx)
-    }
-  }
-
-  if (!pathDescends(path, elevation)) {
-    return null
-  }
-
-  return path.length > 0 ? path : null
-}
-
-/**
- * @param {number[]} path
- * @param {Float32Array} elevation
- */
-function pathDescends(path, elevation) {
-  if (path.length < 2) return true
-
-  const startElev = elevation[path[0]]
-  const endElev = elevation[path[path.length - 1]]
-  if (startElev + 0.0015 < endElev) return false
-
-  let peakElev = startElev
-  for (const idx of path) {
-    if (elevation[idx] > peakElev) peakElev = elevation[idx]
-  }
-
-  const netDrop = startElev - endElev
-  return peakElev <= startElev + Math.max(0.02, netDrop * 0.75 + 0.01)
+    profile: 'legacyAttraction',
+    requireDescent: true,
+  })
 }

@@ -1,6 +1,6 @@
 import {
-  buildResourceRasterOverlayCanvas,
   buildResourceRasterOverlayRgba,
+  resourceRasterOverlayCanvasFromRgba,
 } from './buildResourceRasterOverlayRgba.js'
 import { RESOURCE_RASTER_OVERLAY_STYLES } from './resourceRasterOverlayStyles.js'
 
@@ -33,10 +33,5 @@ export function buildMetalsOverlayCanvas(worldDocument) {
   }
 
   const { gridWidth, gridHeight } = worldDocument
-  return buildResourceRasterOverlayCanvas({
-    raster: worldDocument.metalsRaster,
-    width: gridWidth,
-    height: gridHeight,
-    style: RESOURCE_RASTER_OVERLAY_STYLES.metals,
-  })
+  return resourceRasterOverlayCanvasFromRgba(rgba, gridWidth, gridHeight)
 }

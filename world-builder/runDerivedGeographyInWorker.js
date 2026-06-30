@@ -2,6 +2,11 @@ import { DERIVED_GEOGRAPHY_STEPS } from './core/derivedGeographyPipeline.js'
 export { HYDROLOGY_SUBSTEPS } from './core/hydrology/hydrologySubsteps.js'
 
 /**
+ * @typedef {import('./worker/derivedGeographyWorkerProtocol.js').DerivedGeographyWorkerSubstepPrepareMessage} DerivedGeographyWorkerSubstepPrepareMessage
+ * @typedef {import('./worker/derivedGeographyWorkerProtocol.js').DerivedGeographyWorkerStepCompleteMessage} DerivedGeographyWorkerStepCompleteMessage
+ */
+
+/**
  * @typedef {Object} HydrologySubstepEventPayload
  * @property {string} stepId
  * @property {string} substepId
@@ -15,16 +20,24 @@ export { HYDROLOGY_SUBSTEPS } from './core/hydrology/hydrologySubsteps.js'
 /**
  * @typedef {Object} DerivedGeographyWorkerCallbacks
  * @property {(payload: { stepId: string, stepIndex: number, stepCount: number, label: string }) => void} [onStepStart]
- * @property {(payload: { stepId: string, stepIndex: number, stepCount: number, label: string, worldDocument: import('./core/types.js').WorldDocument }) => void} [onStepComplete]
+ * @property {(payload: DerivedGeographyWorkerStepCompleteMessage) => void} [onStepComplete]
  * @property {(payload: HydrologySubstepEventPayload) => void} [onSubstepStart]
  * @property {(payload: HydrologySubstepEventPayload) => void} [onSubstepProgress]
  * @property {(payload: HydrologySubstepEventPayload) => void} [onSubstepComplete]
+ * @property {(payload: Omit<DerivedGeographyWorkerSubstepPrepareMessage, 'type'>) => void} [onSubstepPrepare]
  * @property {() => void} [onComplete]
+ * @property {(worldDocument: import('./core/types.js').WorldDocument) => void} [onExhausted]
  * @property {(message: string) => void} [onError]
  * @property {() => void} [onCancelled]
  */
 
 /**
+ * Bridges the derived-geography worker protocol to main-thread callbacks.
+ *
+ * World-document delivery matches {@link import('./worker/derivedGeographyWorkerProtocol.js')}:
+ * success previews/final doc on validation `step-complete`, exhausted doc on `exhausted`,
+ * and metadata-only `complete` / `cancelled` / `error` terminals.
+ *
  * @param {import('./core/types.js').DerivedGeographyParams} params
  * @param {DerivedGeographyWorkerCallbacks} callbacks
  * @returns {{ cancel: () => void, worker: Worker | null }}
@@ -57,8 +70,17 @@ export function runDerivedGeographyInWorker(params, callbacks) {
       case 'substep-complete':
         callbacks.onSubstepComplete?.(message)
         break
+      case 'substep-prepare':
+        callbacks.onSubstepPrepare?.(message)
+        break
       case 'complete':
         callbacks.onComplete?.()
+        worker.terminate()
+        break
+      case 'exhausted':
+        if (message.worldDocument) {
+          callbacks.onExhausted?.(message.worldDocument)
+        }
         worker.terminate()
         break
       case 'cancelled':

@@ -15,7 +15,6 @@ import {
   extractRiverNetworkFromIncisedChannels,
   selectIncisedChannelSeeds,
 } from './extractRiverNetworkFromIncisedChannels.js'
-import { computeCoastNavigability } from '../coast/computeCoastNavigability.js'
 
 function makeYJunctionTerrain(width, height) {
   const elevation = new Float32Array(width * height).fill(SEA_LEVEL + 0.2)
@@ -74,7 +73,6 @@ test('buildIncisedChannelMask traces only from incised mouths meeting flow cutof
     ocean,
     width,
     height,
-    coastNavigability: computeCoastNavigability({ elevation, width, height }),
   })
 
   let incisedCellInMask = false
@@ -328,7 +326,6 @@ test('buildChannelWidthField is zero outside channel mask and positive inside ma
     width,
     height,
     navigableFlowCutoffScale: 0.2,
-    coastNavigability: computeCoastNavigability({ elevation, width, height }),
   })
   const widthField = buildChannelWidthField({
     flowAccumulation,
@@ -348,15 +345,10 @@ test('buildChannelWidthField is zero outside channel mask and positive inside ma
   assert.ok(hasPositiveWidth)
 })
 
-test('buildIncisedChannelMask resolves coast navigability from elevation when omitted', () => {
-  const width = 24
-  const height = 24
-  const elevation = new Float32Array(width * height)
-  for (let y = 1; y < height - 1; y += 1) {
-    for (let x = 1; x < width - 1; x += 1) {
-      elevation[y * width + x] = SEA_LEVEL + 0.1 + (0.3 * x) / width
-    }
-  }
+test('extractRiverNetworkFromIncisedChannels omits coast navigability from its return value', () => {
+  const width = 16
+  const height = 16
+  const elevation = new Float32Array(width * height).fill(SEA_LEVEL + 0.2)
   const rainfall = new Float32Array(width * height).fill(1)
   const { flowDirection, flowAccumulation, ocean } = computeFlowAccumulation({
     elevation,
@@ -371,31 +363,28 @@ test('buildIncisedChannelMask resolves coast navigability from elevation when om
     flowAccumulation,
     width,
     height,
-    geographySeed: 5,
+    geographySeed: 7,
     inciseIterations: 1,
     streamPowerK: 0.003,
   })
 
-  const withExplicit = buildIncisedChannelMask({
+  const extracted = extractRiverNetworkFromIncisedChannels({
+    elevation: carved.elevation,
     incisedCorridorMask: carved.corridorMask,
-    flowAccumulation,
-    flowDirection,
-    ocean,
+    rainfall,
     width,
     height,
-    coastNavigability: computeCoastNavigability({ elevation, width, height }),
-  })
-  const withFallback = buildIncisedChannelMask({
-    incisedCorridorMask: carved.corridorMask,
-    flowAccumulation,
-    flowDirection,
-    ocean,
-    width,
-    height,
-    elevation,
   })
 
-  assert.deepStrictEqual(withFallback, withExplicit)
+  assert.ok(!Object.hasOwn(extracted, 'coastNavigability'))
+  assert.deepStrictEqual(Object.keys(extracted).sort(), [
+    'channelMask',
+    'channelWidth',
+    'flowAccumulation',
+    'flowDirection',
+    'ocean',
+    'riverGraph',
+  ])
 })
 
 test('extractRiverNetworkFromIncisedChannels marks every graph edge as navigable', () => {

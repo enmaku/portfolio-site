@@ -79,3 +79,17 @@ export function syncResourceOverlayStateToViewport(viewport, state) {
     viewport.setResourceOverlayVisibility(resourceId, state.visibility[resourceId] === true)
   }
 }
+
+/**
+ * Commit overlay state and project it to the viewport when one is available.
+ *
+ * @param {Parameters<typeof syncResourceOverlayStateToViewport>[0] | null | undefined} viewport
+ * @param {ResourceOverlayPageState} nextState
+ * @returns {ResourceOverlayPageState}
+ */
+export function commitResourceOverlayState(viewport, nextState) {
+  if (viewport) {
+    syncResourceOverlayStateToViewport(viewport, nextState)
+  }
+  return nextState
+}

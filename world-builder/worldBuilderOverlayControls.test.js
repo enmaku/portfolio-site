@@ -13,5 +13,5 @@ test('createDefaultOverlayDisplaySettings includes arableMinimumProductivity def
 })
 
 test('formatOverlayControlValue formats arableMinimumProductivity to two decimals', () => {
-  assert.strictEqual(formatOverlayControlValue('arableMinimumProductivity', 0.4), '0.40')
+  assert.strictEqual(formatOverlayControlValue('arableMinimumProductivity', 0.25), '0.25')
 })

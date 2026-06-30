@@ -293,3 +293,168 @@ function reconstructPath(cameFrom, goalIdx) {
   path.reverse()
   return path
 }
+
+/** @typedef {'legacyAttraction' | 'meanderRefine'} FractalCorridorRoutingProfile */
+
+/**
+ * @param {number} routedSpan
+ * @param {FractalCorridorRoutingProfile} profile
+ */
+export function fractalCorridorDepthForSpan(routedSpan, profile) {
+  if (profile === 'meanderRefine') {
+    if (routedSpan < 12) return 2
+    if (routedSpan < 32) return 3
+    if (routedSpan < 96) return 4
+    return 5
+  }
+  if (routedSpan < 16) return 2
+  if (routedSpan < 48) return 3
+  if (routedSpan < 128) return 4
+  return 5
+}
+
+/**
+ * @param {number} routedSpan
+ * @param {number} wiggleScale
+ * @param {FractalCorridorRoutingProfile} profile
+ */
+export function fractalCorridorValleyRadius(routedSpan, wiggleScale, profile) {
+  const factor = profile === 'meanderRefine' ? 0.1 : 0.08
+  return Math.max(2, Math.round(routedSpan * factor * wiggleScale))
+}
+
+/**
+ * @param {number} fromIdx
+ * @param {number} toIdx
+ * @param {number} width
+ */
+export function fallbackCorridorLine(fromIdx, toIdx, width) {
+  const fx = fromIdx % width
+  const fy = Math.floor(fromIdx / width)
+  const tx = toIdx % width
+  const ty = Math.floor(toIdx / width)
+  const steps = Math.max(Math.abs(tx - fx), Math.abs(ty - fy), 1)
+  /** @type {number[]} */
+  const path = []
+  for (let step = 0; step <= steps; step += 1) {
+    const t = step / steps
+    const x = Math.round(fx + (tx - fx) * t)
+    const y = Math.round(fy + (ty - fy) * t)
+    path.push(y * width + x)
+  }
+  return path
+}
+
+/**
+ * @param {number[]} path
+ * @param {Float32Array} elevation
+ */
+export function corridorPathDescends(path, elevation) {
+  if (path.length < 2) return true
+
+  const startElev = elevation[path[0]]
+  const endElev = elevation[path[path.length - 1]]
+  if (startElev + 0.0015 < endElev) return false
+
+  let peakElev = startElev
+  for (const idx of path) {
+    if (elevation[idx] > peakElev) peakElev = elevation[idx]
+  }
+
+  const netDrop = startElev - endElev
+  return peakElev <= startElev + Math.max(0.02, netDrop * 0.75 + 0.01)
+}
+
+/**
+ * Shared fractal-corridor routing for legacy attraction bridging and meander refine.
+ * @param {Object} params
+ * @param {number} params.fromIdx
+ * @param {number} params.toIdx
+ * @param {Float32Array} params.elevation
+ * @param {boolean[]} params.ocean
+ * @param {number} params.width
+ * @param {number} params.height
+ * @param {() => number} params.random
+ * @param {FractalCorridorRoutingProfile} params.profile
+ * @param {number} [params.wiggleScale]
+ * @param {Uint8Array | null} [params.sketchMask]
+ * @param {boolean} [params.allowSegmentGaps]
+ * @param {boolean} [params.useFallbackLine]
+ * @param {boolean} [params.requireDescent]
+ * @returns {number[] | null}
+ */
+export function routeFractalCorridorPath({
+  fromIdx,
+  toIdx,
+  elevation,
+  ocean,
+  width,
+  height,
+  random,
+  profile,
+  wiggleScale = 1,
+  sketchMask = null,
+  allowSegmentGaps = false,
+  useFallbackLine = false,
+  requireDescent = false,
+}) {
+  const routedSpan = Math.hypot(
+    (toIdx % width) - (fromIdx % width),
+    Math.floor(toIdx / width) - Math.floor(fromIdx / width),
+  )
+  if (routedSpan < 2) {
+    return [fromIdx, toIdx]
+  }
+
+  const depth = fractalCorridorDepthForSpan(routedSpan, profile)
+  const valleyRadius = fractalCorridorValleyRadius(routedSpan, wiggleScale, profile)
+  const heuristicWeight = profile === 'meanderRefine' ? 0.12 : 0.15
+
+  const waypoints = buildFractalWaypoints({
+    fromIdx,
+    toIdx,
+    width,
+    height,
+    random,
+    depth,
+    wiggleScale,
+  }).map((idx) => snapToValleyCell(idx, elevation, ocean, width, height, valleyRadius))
+
+  /** @type {number[]} */
+  const path = []
+  const seen = new Set()
+  for (let i = 0; i < waypoints.length - 1; i += 1) {
+    const segment = findLeastResistancePath({
+      fromIdx: waypoints[i],
+      toIdx: waypoints[i + 1],
+      elevation,
+      ocean,
+      width,
+      height,
+      heuristicWeight,
+      preferDownhill: true,
+      sketchMask,
+    })
+    if (!segment) {
+      if (!allowSegmentGaps) return null
+      path.push(waypoints[i])
+      if (i === waypoints.length - 2) {
+        path.push(waypoints[i + 1])
+      }
+      continue
+    }
+    for (const idx of segment) {
+      if (seen.has(idx)) continue
+      seen.add(idx)
+      path.push(idx)
+    }
+  }
+
+  if (path.length === 0) {
+    return useFallbackLine ? fallbackCorridorLine(fromIdx, toIdx, width) : null
+  }
+  if (requireDescent && !corridorPathDescends(path, elevation)) {
+    return null
+  }
+  return path
+}

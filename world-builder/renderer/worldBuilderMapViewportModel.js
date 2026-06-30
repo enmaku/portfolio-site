@@ -1,6 +1,5 @@
-import { buildArableOverlayRgba } from './buildArableOverlayCanvas.js'
-import { buildMetalsOverlayRgba } from './buildMetalsOverlayCanvas.js'
-import { buildTimberOverlayRgba } from './buildTimberOverlayCanvas.js'
+import { hasDrawableResourceRasterOverlayPixels } from './buildResourceRasterOverlayRgba.js'
+import { RESOURCE_RASTER_OVERLAY_STYLES } from './resourceRasterOverlayStyles.js'
 import {
   shouldDrawResourceNodeOverlay,
   shouldDrawResourceRasterOverlay,
@@ -44,13 +43,16 @@ export function collectLakeOverlayRects(lakeMask, gridWidth) {
  */
 export function resolveResourceRasterLayerVisible(visibility, resourceId, worldDocument) {
   const raster = resourceId === 'timber' ? worldDocument.timberRaster : worldDocument.metalsRaster
-  if (!shouldDrawResourceRasterOverlay(visibility, resourceId, raster)) {
+  if (!shouldDrawResourceRasterOverlay(visibility, resourceId, raster) || !raster) {
     return false
   }
-  if (resourceId === 'timber') {
-    return buildTimberOverlayRgba(worldDocument) !== null
-  }
-  return buildMetalsOverlayRgba(worldDocument) !== null
+
+  return hasDrawableResourceRasterOverlayPixels({
+    raster,
+    width: worldDocument.gridWidth,
+    height: worldDocument.gridHeight,
+    style: RESOURCE_RASTER_OVERLAY_STYLES[resourceId],
+  })
 }
 
 /**
@@ -60,12 +62,18 @@ export function resolveResourceRasterLayerVisible(visibility, resourceId, worldD
  * @returns {boolean}
  */
 export function resolveArableRasterLayerVisible(visibility, worldDocument, minimumProductivity) {
-  if (!shouldDrawResourceRasterOverlay(visibility, 'arable', worldDocument.arableRaster)) {
+  const { arableRaster, gridWidth, gridHeight } = worldDocument
+  if (!shouldDrawResourceRasterOverlay(visibility, 'arable', arableRaster) || !arableRaster) {
     return false
   }
-  return (
-    buildArableOverlayRgba(worldDocument, { minimumProductivity }) !== null
-  )
+
+  return hasDrawableResourceRasterOverlayPixels({
+    raster: arableRaster,
+    width: gridWidth,
+    height: gridHeight,
+    style: RESOURCE_RASTER_OVERLAY_STYLES.arable,
+    minimumProductivity,
+  })
 }
 
 /**

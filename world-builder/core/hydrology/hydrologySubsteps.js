@@ -1,8 +1,14 @@
 import { classifyBiomesWithHydrology } from '../classifyBiomesFromFields.js'
+import { refreshClimateScalarsAfterElevationMutation } from '../fields/refreshClimateScalarsAfterElevationMutation.js'
 import { refreshFieldsAfterErosion } from '../fields/refreshFieldsAfterErosion.js'
+import { LandmassPipelineCancelledError } from '../landmassPipelineTypes.js'
 import { buildRiverGraph } from './buildRiverGraph.js'
 import { buildRiverNetworkMask } from './buildRiverNetworkMask.js'
-import { computeFlowAccumulation } from './computeFlowAccumulation.js'
+import {
+  createFlowFieldSession,
+  FLOW_RECOMPUTE_REASONS,
+  FLOW_RECOMPUTE_STAGES,
+} from './flowField.js'
 import { deriveDrainageFromFlow } from './deriveDrainageFromFlow.js'
 import {
   deriveSnowCapMask,
@@ -30,6 +36,12 @@ import {
   pickHydrologySubstepInput,
 } from './hydrologySubstepContracts.js'
 import { assembleRiverNetwork } from './riverNetwork.js'
+import {
+  applySkipRefineTransition,
+  resolveDisplayRiverNetworkMask,
+  RIVER_MASK_SKIP_REFINE_TRANSITION,
+  snapshotRiverMaskLifecycle,
+} from './riverMaskLifecycle.js'
 import { settleLakeEquilibrium } from './settleLakeEquilibrium.js'
 import { simulateSeasonalHydrology } from './simulateSeasonalHydrology.js'
 
@@ -55,14 +67,14 @@ export const HYDROLOGY_SUBSTEPS = Object.entries(HYDROLOGY_SUBSTEP_CONTRACTS).ma
  * @typedef {Object} HydrologySubstepHooks
  * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string }) => void} [onSubstepStart]
  * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string, progress: number }) => void} [onSubstepProgress]
- * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string, progress: number, skipped?: boolean }) => void} [onSubstepComplete]
+ * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string, progress: number, skipped?: boolean, transition?: string, maskLifecycle?: ReturnType<typeof snapshotRiverMaskLifecycle> }) => void} [onSubstepComplete]
  * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string, input: Record<string, unknown> }) => void} [onSubstepPrepare]
  * @property {() => boolean} [shouldCancel]
  */
 
 /**
  * @typedef {Object} HydrologySubstepContext
- * @property {import('../derivedGeographyPipeline.js').DerivedGeographyPipelineState} state
+ * @property {import('../landmassPipelineTypes.js').DerivedGeographyPipelineState} state
  * @property {number} width
  * @property {number} height
  * @property {boolean[] | null} ocean
@@ -84,10 +96,8 @@ export const HYDROLOGY_SUBSTEPS = Object.entries(HYDROLOGY_SUBSTEP_CONTRACTS).ma
  * @property {Float32Array | null} flowAccumulation
  * @property {boolean[] | null} lakeOcean
  * @property {Uint8Array | null} riverNetworkMask
- * @property {Uint8Array | null} incisedRiverNetworkMask
  * @property {Uint8Array | null} incisedCorridorMask
  * @property {Float32Array | null} channelWidth
- * @property {Float32Array | null} coastNavigability
  * @property {Float32Array | null} settledElevation
  * @property {Uint8Array | null} settledRiverNetworkMask
  * @property {Uint8Array | null} presentationRiverNetworkMask
@@ -99,21 +109,19 @@ export const HYDROLOGY_SUBSTEPS = Object.entries(HYDROLOGY_SUBSTEP_CONTRACTS).ma
  * @property {Uint8Array | null} riverCorridorMask
  * @property {import('../types.js').RiverNetwork | null} riverNetwork
  * @property {HydrologySubstepId | null} lastCompletedSubstep
+ * @property {import('./flowField.js').FlowFieldSession} flowFieldSession
  * @property {HydrologySubstepHooks} hooks
  */
 
 /**
- * @param {import('../derivedGeographyPipeline.js').DerivedGeographyPipelineState} state
+ * @param {import('../landmassPipelineTypes.js').DerivedGeographyPipelineState} state
  * @returns {HydrologySubstepContext}
  */
 function createHydrologyContext(state, hooks = {}) {
-  if (!state.erodedElevation) {
-    throw new Error('Erosion required before hydrology')
-  }
-
   return {
     state,
     hooks,
+    flowFieldSession: createFlowFieldSession(),
     width: state.width,
     height: state.height,
     ocean: null,
@@ -135,10 +143,8 @@ function createHydrologyContext(state, hooks = {}) {
     flowAccumulation: null,
     lakeOcean: null,
     riverNetworkMask: null,
-    incisedRiverNetworkMask: null,
     incisedCorridorMask: null,
     channelWidth: null,
-    coastNavigability: null,
     settledElevation: null,
     settledRiverNetworkMask: null,
     presentationRiverNetworkMask: null,
@@ -157,13 +163,12 @@ function createHydrologyContext(state, hooks = {}) {
  * @param {HydrologySubstepContext} ctx
  */
 function runHydrologyFillSubstep(ctx) {
-  const { state, width, height } = ctx
-  const { ocean } = computeFlowAccumulation({
+  const { state, width, height, flowFieldSession } = ctx
+  const ocean = flowFieldSession.deriveOceanMask({
     elevation: state.erodedElevation,
     width,
     height,
     seaLevel: state.options.seaLevel,
-    rainfall: state.baselineDoc?.fields.rainfall ?? state.fields?.rainfall,
   })
   const useSeasonal = state.options.enableSeasonalHydrology
   const {
@@ -208,9 +213,6 @@ function runHydrologyFillSubstep(ctx) {
 function runHydrologyClimateSubstep(ctx) {
   const { state, width, height } = ctx
   const baselineDrainage = state.baselineDoc?.fields.drainage ?? state.fields?.drainage
-  if (!baselineDrainage) {
-    throw new Error('Baseline drainage required before hydrology climate refresh')
-  }
 
   const climateFields = refreshFieldsAfterErosion({
     geographySeed: state.geographySeed,
@@ -251,21 +253,6 @@ function runHydrologyClimateSubstep(ctx) {
  */
 function runHydrologySeasonalSubstep(ctx) {
   const { state, width, height } = ctx
-  if (
-    !ctx.filledElevation ||
-    !ctx.lakeMask ||
-    !ctx.lakes ||
-    !ctx.lakeMeta ||
-    !ctx.lakeIdByCell ||
-    !ctx.catchmentCellsByLake ||
-    !ctx.temperature ||
-    !ctx.rainfall ||
-    !ctx.snowCapMask ||
-    !ctx.ocean
-  ) {
-    throw new Error('Fill and climate substeps required before seasonal hydrology')
-  }
-
   const soilDrainage = state.baselineDoc?.fields.drainage ?? state.fields?.drainage
 
   if (!state.options.enableSeasonalHydrology) {
@@ -335,19 +322,14 @@ function runHydrologySeasonalSubstep(ctx) {
  */
 function runHydrologyRouteSubstep(ctx) {
   const { state, width, height } = ctx
-  if (
-    !ctx.filledElevation ||
-    !ctx.lakeMask ||
-    !ctx.spillOutlet ||
-    !ctx.temperature ||
-    !ctx.rainfall ||
-    !ctx.effectiveRunoff
-  ) {
-    throw new Error('Fill, climate, and seasonal substeps required before hydrology routing')
-  }
-
   const soilDrainage = state.baselineDoc?.fields.drainage ?? state.fields?.drainage
-  const { flowDirection, flowAccumulation, ocean: lakeOcean } = computeFlowAccumulation({
+  const {
+    flowDirection,
+    flowAccumulation,
+    ocean: lakeOcean,
+  } = ctx.flowFieldSession.recomputeFullFlow({
+    reason: FLOW_RECOMPUTE_REASONS.hydrologyRoute,
+    stage: FLOW_RECOMPUTE_STAGES.hydrologyRoute,
     elevation: ctx.filledElevation,
     width,
     height,
@@ -390,18 +372,6 @@ function runHydrologyRouteSubstep(ctx) {
  */
 function runHydrologyInciseSubstep(ctx) {
   const { state, width, height, hooks } = ctx
-  if (
-    !ctx.filledElevation ||
-    !ctx.lakeMask ||
-    !ctx.lakeOcean ||
-    !ctx.flowDirection ||
-    !ctx.flowAccumulation ||
-    !ctx.riverNetworkMask ||
-    !ctx.effectiveRunoff
-  ) {
-    throw new Error('Routing substep required before hydrology incising')
-  }
-
   const inciseSubstep = HYDROLOGY_SUBSTEPS.find((substep) => substep.id === 'hydrologyIncise')
   const inciseSubstepIndex = HYDROLOGY_SUBSTEPS.findIndex((substep) => substep.id === 'hydrologyIncise')
   const substepCount = HYDROLOGY_SUBSTEPS.length
@@ -437,7 +407,6 @@ function runHydrologyInciseSubstep(ctx) {
   })
 
   ctx.settledElevation = carved.elevation
-  ctx.incisedRiverNetworkMask = ctx.riverNetworkMask
   ctx.incisedCorridorMask = unionCorridorMasks(
     carved.corridorMask,
     deriveIncisedCorridorMask(ctx.filledElevation, carved.elevation, ctx.lakeOcean),
@@ -449,17 +418,6 @@ function runHydrologyInciseSubstep(ctx) {
  */
 function runHydrologyExtractSubstep(ctx) {
   const { state, width, height } = ctx
-  if (
-    !ctx.settledElevation ||
-    !ctx.lakeMask ||
-    !ctx.lakeOcean ||
-    !ctx.incisedCorridorMask ||
-    !ctx.rainfall ||
-    !ctx.effectiveRunoff
-  ) {
-    throw new Error('Incising substep required before hydrology corridor extraction')
-  }
-
   const soilDrainage = state.baselineDoc?.fields.drainage ?? state.fields?.drainage
   const extracted = extractRiverNetworkFromIncisedChannels({
     elevation: ctx.settledElevation,
@@ -474,6 +432,7 @@ function runHydrologyExtractSubstep(ctx) {
     height,
     navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
     lakeMask: ctx.lakeMask,
+    flowFieldSession: ctx.flowFieldSession,
   })
 
   ctx.settledFlowDirection = extracted.flowDirection
@@ -481,7 +440,6 @@ function runHydrologyExtractSubstep(ctx) {
   ctx.settledOcean = extracted.ocean
   ctx.settledRiverNetworkMask = extracted.channelMask
   ctx.channelWidth = extracted.channelWidth
-  ctx.coastNavigability = extracted.coastNavigability
   ctx.settledRiverGraph = extracted.riverGraph
 }
 
@@ -490,18 +448,6 @@ function runHydrologyExtractSubstep(ctx) {
  */
 function runHydrologyRefineSubstep(ctx) {
   const { state, width, height } = ctx
-  if (
-    !ctx.settledElevation ||
-    !ctx.effectiveRunoff ||
-    !ctx.settledRiverNetworkMask ||
-    !ctx.settledFlowDirection ||
-    !ctx.settledFlowAccumulation ||
-    !ctx.settledOcean ||
-    !ctx.lakeMask
-  ) {
-    throw new Error('Corridor extraction required before hydrology meander refinement')
-  }
-
   const refined = applyRefineStageMeanderPresentation({
     sketchMask: ctx.settledRiverNetworkMask,
     elevation: ctx.settledElevation,
@@ -526,19 +472,6 @@ function runHydrologyRefineSubstep(ctx) {
  */
 function runHydrologySettleSubstep(ctx) {
   const { state, width, height } = ctx
-  if (
-    !ctx.settledElevation ||
-    !ctx.lakeMask ||
-    !ctx.lakes ||
-    !ctx.lakeMeta ||
-    !ctx.settledFlowAccumulation ||
-    !ctx.settledFlowDirection ||
-    !ctx.settledOcean ||
-    !ctx.settledRiverNetworkMask
-  ) {
-    throw new Error('Corridor extraction required before hydrology settlement')
-  }
-
   const lakeSettled = settleLakeEquilibrium({
     elevation: ctx.settledElevation,
     lakeMask: ctx.lakeMask,
@@ -559,7 +492,9 @@ function runHydrologySettleSubstep(ctx) {
     flowDirection: settledFlowDirection,
     flowAccumulation: settledFlowAccumulation,
     ocean: settledOcean,
-  } = computeFlowAccumulation({
+  } = ctx.flowFieldSession.recomputeFullFlow({
+    reason: FLOW_RECOMPUTE_REASONS.hydrologySettle,
+    stage: FLOW_RECOMPUTE_STAGES.hydrologySettle,
     elevation: ctx.settledElevation,
     width,
     height,
@@ -574,8 +509,10 @@ function runHydrologySettleSubstep(ctx) {
   ctx.settledOcean = settledOcean
 
   ctx.settledDrainage = deriveDrainageFromFlow(ctx.settledFlowAccumulation)
-  const displayRiverNetworkMask =
-    ctx.presentationRiverNetworkMask ?? ctx.settledRiverNetworkMask
+  const displayRiverNetworkMask = resolveDisplayRiverNetworkMask(
+    ctx.presentationRiverNetworkMask,
+    ctx.settledRiverNetworkMask,
+  )
   ctx.channelWidth = buildChannelWidthField({
     flowAccumulation: ctx.settledFlowAccumulation,
     channelMask: displayRiverNetworkMask,
@@ -583,7 +520,6 @@ function runHydrologySettleSubstep(ctx) {
     height,
   })
   ctx.settledRiverGraph = buildRiverGraph({
-    elevation: ctx.settledElevation,
     flowAccumulation: ctx.settledFlowAccumulation,
     flowDirection: ctx.settledFlowDirection,
     ocean: ctx.settledOcean,
@@ -592,8 +528,6 @@ function runHydrologySettleSubstep(ctx) {
     height,
     navigableFlowCutoffScale: state.options.navigableFlowCutoffScale,
     channelMask: displayRiverNetworkMask,
-    coastNavigability: ctx.coastNavigability ?? undefined,
-    seaLevel: state.options.seaLevel,
   })
 
   if (ctx.lakeIdByCell && ctx.lakeMeta && ctx.lakeMask) {
@@ -613,16 +547,6 @@ function runHydrologySettleSubstep(ctx) {
  */
 function runHydrologyPaintSubstep(ctx) {
   const { width, height, hooks } = ctx
-  if (
-    !ctx.settledElevation ||
-    !ctx.settledFlowDirection ||
-    !ctx.settledRiverNetworkMask ||
-    !ctx.channelWidth ||
-    !ctx.settledRiverGraph
-  ) {
-    throw new Error('Settlement substep required before hydrology river painting')
-  }
-
   const paintSubstep = HYDROLOGY_SUBSTEPS.find((substep) => substep.id === 'hydrologyPaint')
   const paintSubstepIndex = HYDROLOGY_SUBSTEPS.findIndex((substep) => substep.id === 'hydrologyPaint')
   const substepCount = HYDROLOGY_SUBSTEPS.length
@@ -637,7 +561,10 @@ function runHydrologyPaintSubstep(ctx) {
     })
   }
 
-  const riverNetworkMask = ctx.presentationRiverNetworkMask ?? ctx.settledRiverNetworkMask
+  const riverNetworkMask = resolveDisplayRiverNetworkMask(
+    ctx.presentationRiverNetworkMask,
+    ctx.settledRiverNetworkMask,
+  )
   const rawMask = buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, {
     elevation: ctx.settledElevation,
     flowDirection: ctx.settledFlowDirection,
@@ -675,34 +602,14 @@ const HYDROLOGY_SUBSTEP_RUNNERS = {
 
 /**
  * @param {HydrologySubstepContext} ctx
- * @returns {import('../derivedGeographyPipeline.js').DerivedGeographyPipelineState}
+ * @returns {import('../landmassPipelineTypes.js').DerivedGeographyPipelineState}
  */
 function buildPipelineStateFromHydrologyContext(ctx) {
   const { state, width, height } = ctx
-  if (
-    !ctx.lakeMask ||
-    !ctx.lakes ||
-    !ctx.lakeMeta ||
-    !ctx.hydrologyStats ||
-    !ctx.settledElevation ||
-    !ctx.settledRiverGraph ||
-    !ctx.settledRiverNetworkMask ||
-    !ctx.settledDrainage ||
-    !ctx.settledFlowDirection ||
-    !ctx.riverNetwork
-  ) {
-    throw new Error('Incomplete hydrology context')
-  }
-
-  const previewFields = {
-    ...(state.fields ?? state.baselineDoc.fields),
-    elevation: ctx.settledElevation,
-    drainage: ctx.settledDrainage,
-  }
-
+  const settledElevation = ctx.settledElevation
   if (ctx.lakeIdByCell && ctx.lakeMeta && ctx.lakeMask) {
     applyLakeSurfacesFromMeta(
-      previewFields.elevation,
+      settledElevation,
       ctx.lakeIdByCell,
       ctx.lakeMeta,
       ctx.lakeMask,
@@ -710,6 +617,16 @@ function buildPipelineStateFromHydrologyContext(ctx) {
       height,
     )
   }
+
+  const previewFields = refreshClimateScalarsAfterElevationMutation({
+    geographySeed: state.geographySeed,
+    prevailingWindDegrees: state.prevailingWindDegrees,
+    elevation: settledElevation,
+    drainage: ctx.settledDrainage,
+    width,
+    height,
+    options: state.options,
+  })
 
   return {
     ...state,
@@ -743,9 +660,13 @@ function shouldSkipHydrologySubstep(substepId, options) {
 }
 
 /**
- * @param {import('../derivedGeographyPipeline.js').DerivedGeographyPipelineState} state
+ * @param {import('../landmassPipelineTypes.js').DerivedGeographyPipelineState} state
  * @param {HydrologySubstepHooks} [hooks]
- * @returns {{ state: import('../derivedGeographyPipeline.js').DerivedGeographyPipelineState, timings: HydrologySubstepTiming[] }}
+ * @returns {{
+ *   state: import('../landmassPipelineTypes.js').DerivedGeographyPipelineState,
+ *   timings: HydrologySubstepTiming[],
+ *   flowField: { fullFlowSolveCount: number, solveLog: import('./flowField.js').FlowRecomputeLogEntry[] },
+ * }}
  */
 export function runHydrologySubsteps(state, hooks = {}) {
   const ctx = createHydrologyContext(state, hooks)
@@ -755,7 +676,7 @@ export function runHydrologySubsteps(state, hooks = {}) {
 
   for (let substepIndex = 0; substepIndex < substepCount; substepIndex += 1) {
     if (hooks.shouldCancel?.()) {
-      throw new Error('Hydrology cancelled')
+      throw new LandmassPipelineCancelledError(ctx.state)
     }
 
     const substep = HYDROLOGY_SUBSTEPS[substepIndex]
@@ -790,7 +711,8 @@ export function runHydrologySubsteps(state, hooks = {}) {
       assertHydrologySubstepOutputs(substep.id, ctx)
       durationMs = performance.now() - startedAt
     } else if (substep.id === 'hydrologyRefine') {
-      ctx.presentationRiverNetworkMask = ctx.settledRiverNetworkMask
+      applySkipRefineTransition(ctx)
+      assertHydrologySubstepOutputs(substep.id, ctx)
     }
 
     ctx.lastCompletedSubstep = substep.id
@@ -809,6 +731,11 @@ export function runHydrologySubsteps(state, hooks = {}) {
       label: substep.label,
       progress: 1,
       skipped,
+      transition:
+        skipped && substep.id === 'hydrologyRefine'
+          ? RIVER_MASK_SKIP_REFINE_TRANSITION
+          : undefined,
+      maskLifecycle: snapshotRiverMaskLifecycle(ctx),
     })
     timings.push({
       substepId: substep.id,
@@ -821,5 +748,9 @@ export function runHydrologySubsteps(state, hooks = {}) {
   return {
     state: buildPipelineStateFromHydrologyContext(ctx),
     timings,
+    flowField: {
+      fullFlowSolveCount: ctx.flowFieldSession.fullFlowSolveCount,
+      solveLog: ctx.flowFieldSession.solveLog,
+    },
   }
 }

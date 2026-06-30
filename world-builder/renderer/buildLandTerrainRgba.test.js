@@ -1,11 +1,25 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from '../core/biomeIds.js'
-import { classifyBiomeFromSample } from '../core/classifyBiomesFromFields.js'
+import { buildDisplayBiomes } from '../core/buildDisplayBiomes.js'
+import { generateDerivedGeography } from '../core/generateDerivedGeography.js'
+import { DEFAULT_GEOGRAPHY_SEED } from '../worldBuilderPageModel.js'
 import { biomeColorForId } from './biomePalette.js'
 import { buildLandTerrainRgba } from './buildLandTerrainRgba.js'
 
-test('buildLandTerrainRgba paints river cells as underlying land biome', () => {
+/**
+ * @param {Uint8ClampedArray} rgba
+ * @returns {string}
+ */
+function fnv1aRgbaHash(rgba) {
+  let hash = 2166136261
+  for (let i = 0; i < rgba.length; i += 1) {
+    hash = Math.imul(hash ^ rgba[i], 16777619)
+  }
+  return (hash >>> 0).toString(16)
+}
+
+test('buildLandTerrainRgba uses display biomes without reclassifying river cells', () => {
   const width = 3
   const height = 1
   const biomes = new Uint8Array([BIOMES.GRASSLAND, BIOMES.RIVER_CORRIDOR, BIOMES.GRASSLAND])
@@ -23,16 +37,18 @@ test('buildLandTerrainRgba paints river cells as underlying land biome', () => {
     drainage: new Float32Array([sample.drainage, sample.drainage, sample.drainage]),
     salinity: new Float32Array([sample.salinity, sample.salinity, sample.salinity]),
   }
+  const displayBiomes = buildDisplayBiomes(biomes, fields)
 
   const rgba = buildLandTerrainRgba({
     gridWidth: width,
     gridHeight: height,
     biomes,
+    displayBiomes,
     fields,
   })
 
   const riverColor = biomeColorForId(BIOMES.RIVER_CORRIDOR)
-  const landColor = biomeColorForId(classifyBiomeFromSample(sample))
+  const landColor = biomeColorForId(displayBiomes[1])
   const riverOffset = 1 * 4
 
   assert.notDeepStrictEqual(
@@ -43,4 +59,16 @@ test('buildLandTerrainRgba paints river cells as underlying land biome', () => {
     [rgba[riverOffset], rgba[riverOffset + 1], rgba[riverOffset + 2]],
     [landColor[0], landColor[1], landColor[2]],
   )
+})
+
+test('buildLandTerrainRgba matches prior river-corridor land tint for default seed', () => {
+  const doc = generateDerivedGeography({
+    geographySeed: DEFAULT_GEOGRAPHY_SEED,
+    prevailingWindDegrees: 90,
+    width: 64,
+    height: 64,
+  })
+
+  const rgba = buildLandTerrainRgba(doc)
+  assert.strictEqual(fnv1aRgbaHash(rgba), '8fe5a7dd')
 })

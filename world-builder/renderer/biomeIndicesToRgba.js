@@ -5,11 +5,11 @@ import { biomeColorForId } from './biomePalette.js'
  * @returns {Uint8ClampedArray}
  */
 export function biomeIndicesToRgba(worldDocument) {
-  const { gridWidth, gridHeight, biomes } = worldDocument
+  const { gridWidth, gridHeight, displayBiomes } = worldDocument
   const rgba = new Uint8ClampedArray(gridWidth * gridHeight * 4)
 
-  for (let i = 0; i < biomes.length; i += 1) {
-    const [r, g, b, a] = biomeColorForId(biomes[i])
+  for (let i = 0; i < displayBiomes.length; i += 1) {
+    const [r, g, b, a] = biomeColorForId(displayBiomes[i])
     const offset = i * 4
     rgba[offset] = r
     rgba[offset + 1] = g

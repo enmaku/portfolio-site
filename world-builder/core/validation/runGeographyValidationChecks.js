@@ -13,6 +13,7 @@ import {
   createValidationRow,
   resolveValidationCheckStatus,
 } from './landmassValidationContracts.js'
+import { runResourceValidationChecks } from './runResourceValidationChecks.js'
 
 /** Minimum normalized windward/leeward rainfall gap before wind coupling reads as active. */
 const MIN_WIND_RAINFALL_ASYMMETRY = 0.03
@@ -37,6 +38,9 @@ const MIN_OCEAN_SALINITY_MEAN = 0.9
  * @param {import('./computeHydrologyMetrics.js').HydrologyMetrics} [slice.hydrologyMetrics]
  * @param {number} [slice.prevailingWindDegrees]
  * @param {GeographyValidationOptions} [slice.validationOptions]
+ * @param {Float32Array | null | undefined} [slice.arableRaster]
+ * @param {import('../types.js').SaltNode[] | null | undefined} [slice.saltNodes]
+ * @param {import('../types.js').MetalNode[] | null | undefined} [slice.metalNodes]
  * @returns {import('../types.js').ValidationRow[]}
  */
 export function runGeographyValidationChecks(slice) {
@@ -58,6 +62,9 @@ export function runGeographyValidationChecks(slice) {
     hydrologyMetrics,
     prevailingWindDegrees = 0,
     validationOptions = DEFAULT_WORLD_GENERATION_OPTIONS,
+    arableRaster,
+    saltNodes,
+    metalNodes,
   } = slice
   const cellCount = gridWidth * gridHeight
   const graph = riverNetwork?.graph ?? riverGraph
@@ -259,6 +266,19 @@ export function runGeographyValidationChecks(slice) {
         : 'No major resource-mismatch friction zones',
       mismatch ?? undefined,
     ),
+  )
+
+  rows.push(
+    ...runResourceValidationChecks({
+      fields,
+      biomes,
+      gridWidth,
+      gridHeight,
+      arableRaster,
+      saltNodes,
+      metalNodes,
+      validationOptions,
+    }),
   )
 
   return rows

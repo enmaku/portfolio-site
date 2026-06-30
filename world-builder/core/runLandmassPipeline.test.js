@@ -5,6 +5,7 @@ import {
   runLandmassPipeline,
   runLandmassPipelineRun,
   shouldAttachLandmassStepPreview,
+  cloneWorldDocument,
 } from './derivedGeographyPipeline.js'
 import { HYDROLOGY_SUBSTEP_CONTRACTS } from './hydrology/hydrologySubstepContracts.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
@@ -14,6 +15,19 @@ const params = {
   prevailingWindDegrees: 90,
   width: 32,
   height: 32,
+}
+
+const forceValidationRejectionParams = {
+  geographySeed: 999999,
+  prevailingWindDegrees: 270,
+  width: 16,
+  height: 16,
+  options: {
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    enforceCoastConnectedNavigablePath: true,
+    minCoastConnectedNavigablePathCells: 99_999,
+    maxValidationRetries: 0,
+  },
 }
 
 test('shouldAttachLandmassStepPreview is false for intermediate steps by default', () => {
@@ -129,6 +143,74 @@ test('runLandmassPipeline returns error status when a callback throws', async ()
   assert.match(result.errorMessage ?? '', /pipeline callback failed/)
 })
 
+test('runLandmassPipeline distinguishes success, exhausted, cancelled, and error terminal statuses', async () => {
+  const [success, exhausted, cancelled, error] = await Promise.all([
+    runLandmassPipeline(params),
+    runLandmassPipeline(forceValidationRejectionParams),
+    runLandmassPipeline(params, {
+      shouldCancel: () => true,
+      onStepStart() {},
+    }),
+    runLandmassPipeline(params, {
+      onStepStart() {
+        throw new Error('pipeline callback failed')
+      },
+    }),
+  ])
+
+  assert.strictEqual(success.status, 'success')
+  assert.strictEqual(exhausted.status, 'exhausted')
+  assert.strictEqual(exhausted.worldDocument?.generationReport?.shouldReject, true)
+  assert.strictEqual(cancelled.status, 'cancelled')
+  assert.strictEqual(error.status, 'error')
+  assert.strictEqual(new Set([success.status, exhausted.status, cancelled.status, error.status]).size, 4)
+})
+
+test('runLandmassPipelineRun distinguishes success, exhausted, cancelled, and error terminal statuses', () => {
+  let cancelAfterStart = false
+  const success = runLandmassPipelineRun(params)
+  const exhausted = runLandmassPipelineRun(forceValidationRejectionParams)
+  const cancelled = runLandmassPipelineRun(params, {
+    onStepStart() {
+      cancelAfterStart = true
+    },
+    shouldCancel: () => cancelAfterStart,
+  })
+  const error = runLandmassPipelineRun(params, {
+    onStepStart() {
+      throw new Error('sync pipeline callback failed')
+    },
+  })
+
+  assert.strictEqual(success.status, 'success')
+  assert.strictEqual(exhausted.status, 'exhausted')
+  assert.strictEqual(exhausted.worldDocument?.generationReport?.shouldReject, true)
+  assert.strictEqual(cancelled.status, 'cancelled')
+  assert.strictEqual(error.status, 'error')
+  assert.strictEqual(new Set([success.status, exhausted.status, cancelled.status, error.status]).size, 4)
+})
+
+test('runLandmassPipeline returns exhausted when validation retries are exhausted', async () => {
+  const result = await runLandmassPipeline(forceValidationRejectionParams)
+
+  assert.strictEqual(result.status, 'exhausted')
+  assert.ok(result.worldDocument)
+  assert.strictEqual(result.worldDocument.generationReport?.shouldReject, true)
+  assert.notStrictEqual(result.worldDocument.fields.elevation, null)
+})
+
+test('runLandmassPipeline exhausted world document is cloneable for map display', async () => {
+  const result = await runLandmassPipeline(forceValidationRejectionParams)
+  assert.strictEqual(result.status, 'exhausted')
+  assert.ok(result.worldDocument)
+
+  const cloned = cloneWorldDocument(result.worldDocument)
+  cloned.fields.elevation[0] = -999
+  assert.notStrictEqual(result.worldDocument.fields.elevation[0], -999)
+  assert.ok(result.worldDocument.fields.elevation.length > 0)
+  assert.ok(result.worldDocument.biomes.length > 0)
+})
+
 test('runLandmassPipeline retries validation with incremented seed', async () => {
   const result = await runLandmassPipeline({
     geographySeed: 999999,
@@ -142,10 +224,12 @@ test('runLandmassPipeline retries validation with incremented seed', async () =>
     },
   })
 
-  assert.strictEqual(result.status, 'success')
   assert.ok(result.worldDocument)
   if (result.worldDocument.generationReport?.shouldReject) {
+    assert.strictEqual(result.status, 'exhausted')
     assert.strictEqual(result.worldDocument.geographySeed, 999999 + 2)
+  } else {
+    assert.strictEqual(result.status, 'success')
   }
 })
 
@@ -162,6 +246,8 @@ test('runLandmassPipeline returns cancelled when hydrology aborts due to shouldC
 
   assert.strictEqual(result.status, 'cancelled')
   assert.strictEqual(result.worldDocument, null)
+  assert.ok(result.state)
+  assert.strictEqual(result.state?.lastCompletedStep, 'erosion')
 })
 
 test('runLandmassPipelineRun matches runLandmassPipeline output through shared runner', async () => {
@@ -239,6 +325,14 @@ test('runLandmassPipelineRun returns cancelled when hydrology aborts due to shou
   assert.strictEqual(result.worldDocument, null)
 })
 
+test('runLandmassPipelineRun returns exhausted when validation retries are exhausted', () => {
+  const result = runLandmassPipelineRun(forceValidationRejectionParams)
+
+  assert.strictEqual(result.status, 'exhausted')
+  assert.ok(result.worldDocument)
+  assert.strictEqual(result.worldDocument.generationReport?.shouldReject, true)
+})
+
 test('runLandmassPipelineRun retries validation with incremented seed', () => {
   const result = runLandmassPipelineRun({
     geographySeed: 999999,
@@ -252,9 +346,11 @@ test('runLandmassPipelineRun retries validation with incremented seed', () => {
     },
   })
 
-  assert.strictEqual(result.status, 'success')
   assert.ok(result.worldDocument)
   if (result.worldDocument.generationReport?.shouldReject) {
+    assert.strictEqual(result.status, 'exhausted')
     assert.strictEqual(result.worldDocument.geographySeed, 999999 + 2)
+  } else {
+    assert.strictEqual(result.status, 'success')
   }
 })

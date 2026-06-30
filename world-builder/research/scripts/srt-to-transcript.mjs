@@ -158,7 +158,9 @@ async function main() {
   console.log('Human-readable transcripts are youtube-subtitles/*.en.txt');
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

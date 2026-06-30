@@ -90,6 +90,22 @@ test('generateArableRaster returns grid-sized values in [0, 1]', () => {
   }
 })
 
+test('generateArableRaster zeros cells at or below minimumProductivity', () => {
+  const fixture = buildFixture(8, 6, () => ({
+    elevation: 0.55,
+    temperature: 0.5,
+    rainfall: 0.6,
+    drainage: 0.4,
+    biome: BIOMES.GRASSLAND,
+  }))
+  const threshold = 0.35
+  const raster = generateArableRaster({ ...fixture, minimumProductivity: threshold })
+
+  for (let i = 0; i < raster.length; i += 1) {
+    assert.ok(raster[i] === 0 || raster[i] > threshold)
+  }
+})
+
 test('generateArableRaster is deterministic for same geography seed', () => {
   const fixture = buildFixture(12, 12, (x, y) => ({
     biome: y < 6 ? BIOMES.TEMPERATE_FOREST : BIOMES.DESERT,

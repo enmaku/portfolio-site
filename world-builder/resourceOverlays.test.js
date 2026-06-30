@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.js'
 import {
   applyResourceOverlayVisibility,
   createDefaultOverlayDisplaySettings,
@@ -43,9 +44,13 @@ test('createDefaultResourceOverlayVisibility accepts a subset of resource ids', 
   assert.deepStrictEqual(createDefaultResourceOverlayVisibility(['salt']), { salt: false })
 })
 
-test('createDefaultOverlayDisplaySettings uses canonical arable cutoff', () => {
+test('createDefaultOverlayDisplaySettings matches generation arable threshold', () => {
+  assert.strictEqual(
+    DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+    DEFAULT_WORLD_GENERATION_OPTIONS.arableMinimumProductivity,
+  )
   assert.deepStrictEqual(createDefaultOverlayDisplaySettings(), {
-    arableMinimumProductivity: DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+    arableMinimumProductivity: DEFAULT_WORLD_GENERATION_OPTIONS.arableMinimumProductivity,
   })
 })
 

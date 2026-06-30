@@ -24,8 +24,10 @@ Comparison reference for **landmass pipeline** design (fields-first geography, h
 Primary reference for the **culture engine** and logistics-first map thinking.
 
 - Playlist: [Worldbuilding Insights](https://www.youtube.com/watch?v=56OgvPJIi5s&list=PLph_A8rBjLxXCs3Gc4-qQVVgN7nEsDIzg)
-- Local transcripts: `youtube-subtitles/*.en.txt` (human-readable)
-- Raw YouTube rolling captions: `youtube-subtitles/raw/*.en.srt`
+- Local transcripts: `youtube-subtitles/*.en.txt` (human-readable, **gitignored** — not part of landmass runtime PRs)
+- Raw YouTube rolling captions: `youtube-subtitles/raw/*.en.srt` (gitignored)
+
+Transcripts are research-only reference material. Clone the repo, run the refresh commands below from this directory (`world-builder/research/`), and the files appear locally without committing bulk caption text.
 
 ### Refresh subtitles
 

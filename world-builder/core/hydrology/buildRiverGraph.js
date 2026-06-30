@@ -1,3 +1,4 @@
+import { assertKnownParams } from '../assertKnownParams.js'
 import {
   minRiverMouthChannelCellsForGrid,
   navigableFlowCutoffForGrid,
@@ -32,16 +33,29 @@ export {
  * @param {Uint8Array} [params.channelMask]
  * @returns {import('../types.js').RiverGraph}
  */
-export function buildRiverGraph({
-  flowAccumulation,
-  flowDirection,
-  ocean,
-  lakeMask,
-  width,
-  height,
-  navigableFlowCutoffScale = 1,
-  channelMask,
-}) {
+const BUILD_RIVER_GRAPH_PARAM_KEYS = [
+  'flowAccumulation',
+  'flowDirection',
+  'ocean',
+  'lakeMask',
+  'width',
+  'height',
+  'navigableFlowCutoffScale',
+  'channelMask',
+]
+
+export function buildRiverGraph(params) {
+  assertKnownParams('buildRiverGraph', params, BUILD_RIVER_GRAPH_PARAM_KEYS)
+  const {
+    flowAccumulation,
+    flowDirection,
+    ocean,
+    lakeMask,
+    width,
+    height,
+    navigableFlowCutoffScale = 1,
+    channelMask,
+  } = params
   const flowCutoff = Math.max(
     2,
     Math.round(navigableFlowCutoffForGrid(width) * navigableFlowCutoffScale),

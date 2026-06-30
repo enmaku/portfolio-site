@@ -9,6 +9,13 @@ import {
   reduceGenerationProgressOnSubstepStart,
   startDerivedGeographyGeneration,
 } from './worldBuilderGenerationOrchestrator.js'
+import { createGenerationMapLifecycle } from './worldBuilderGenerationMapLifecycle.js'
+import { shouldApplyStepPreviewToMap } from './worldBuilderGenerationPolicy.js'
+import {
+  isPipelineCleanSuccess,
+  shouldShowResourceOverlayBar,
+  shouldShowValidationFailureIndicator,
+} from './worldBuilderPageModel.js'
 
 test('createInitialGenerationProgress starts idle before any pipeline step', () => {
   assert.deepStrictEqual(createInitialGenerationProgress(), {
@@ -133,16 +140,17 @@ test('startDerivedGeographyGeneration forwards lifecycle callbacks for a success
     params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
     runDerivedGeographyInWorker(_params, callbacks) {
       callbacks.onStepStart?.({
-        stepId: 'baseline',
-        stepIndex: 0,
-        stepCount: 2,
-        label: 'Baseline',
+        stepId: 'validation',
+        stepIndex: 5,
+        stepCount: 6,
+        label: 'Validation',
       })
       callbacks.onStepComplete?.({
-        stepId: 'baseline',
-        stepIndex: 0,
-        stepCount: 2,
-        label: 'Baseline',
+        type: 'step-complete',
+        stepId: 'validation',
+        stepIndex: 5,
+        stepCount: 6,
+        label: 'Validation',
         worldDocument: fakeWorldDocument,
       })
       callbacks.onComplete?.()
@@ -164,7 +172,97 @@ test('startDerivedGeographyGeneration forwards lifecycle callbacks for a success
   assert.strictEqual(progressUpdates.length, 3)
   assert.strictEqual(progressUpdates.at(-1)?.percent, 100)
   assert.strictEqual(documents.length, 1)
+  assert.strictEqual(documents[0], fakeWorldDocument)
   assert.strictEqual(completed, true)
+})
+
+test('startDerivedGeographyGeneration updates progress from slim step-complete payloads', () => {
+  const controller = createGenerationRunController()
+  const progressUpdates = []
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      callbacks.onStepComplete?.({
+        type: 'step-complete',
+        stepId: 'erosion',
+        stepIndex: 1,
+        stepCount: 6,
+        label: 'Erosion',
+      })
+      callbacks.onComplete?.()
+      return { cancel() {} }
+    },
+    handlers: {
+      onProgress(progress) {
+        progressUpdates.push(progress)
+      },
+    },
+  })
+
+  assert.strictEqual(progressUpdates.length, 2)
+  assert.strictEqual(progressUpdates[0].completedStepIndex, 1)
+  assert.strictEqual(progressUpdates[0].percent, 33)
+})
+
+test('startDerivedGeographyGeneration forwards exhausted lifecycle without treating as clean success', () => {
+  const controller = createGenerationRunController()
+  /** @type {import('./core/types.js').WorldDocument[]} */
+  const documents = []
+  let completed = false
+  let exhausted = false
+
+  const fakeWorldDocument = {
+    gridWidth: 2,
+    gridHeight: 2,
+    biomes: new Uint8Array(4),
+    fields: { elevation: new Float32Array(4) },
+    generationReport: {
+      shouldReject: true,
+      erosionStepCount: 0,
+      navigableRiverEdgeCount: 0,
+      coastalNodeCount: 0,
+      validationRows: [],
+      rejectionReasons: ['coastMouth: fixture'],
+      structuredRejectionReasons: [],
+      rejectionSamplingEnforced: true,
+    },
+  }
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      callbacks.onStepComplete?.({
+        stepId: 'validation',
+        stepIndex: 5,
+        stepCount: 6,
+        label: 'Validation',
+        worldDocument: fakeWorldDocument,
+      })
+      callbacks.onExhausted?.(fakeWorldDocument)
+      return { cancel() {} }
+    },
+    handlers: {
+      onWorldDocument(doc) {
+        documents.push(doc)
+      },
+      onComplete() {
+        completed = true
+      },
+      onExhausted() {
+        exhausted = true
+      },
+    },
+  })
+
+  assert.strictEqual(exhausted, true)
+  assert.strictEqual(completed, false)
+  assert.strictEqual(documents.length, 2)
+  assert.strictEqual(isPipelineCleanSuccess('exhausted'), false)
+  assert.strictEqual(shouldShowValidationFailureIndicator('exhausted'), true)
+  assert.strictEqual(shouldShowResourceOverlayBar(false, 'exhausted'), false)
 })
 
 test('startDerivedGeographyGeneration ignores callbacks from stale runs', () => {
@@ -198,6 +296,46 @@ test('startDerivedGeographyGeneration ignores callbacks from stale runs', () => 
   assert.strictEqual(progressCount, 0)
 })
 
+test('startDerivedGeographyGeneration applies preview policy from generation policy module', () => {
+  const controller = createGenerationRunController()
+  /** @type {import('./core/types.js').WorldDocument[]} */
+  const documents = []
+
+  const previewEligible = {
+    gridWidth: 2,
+    gridHeight: 2,
+    biomes: new Uint8Array(4),
+    fields: { elevation: new Float32Array(4) },
+  }
+
+  assert.strictEqual(shouldApplyStepPreviewToMap(previewEligible), true)
+  assert.strictEqual(shouldApplyStepPreviewToMap(undefined), false)
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      callbacks.onStepComplete?.({
+        stepId: 'validation',
+        stepIndex: 5,
+        stepCount: 6,
+        label: 'Validation',
+        worldDocument: previewEligible,
+      })
+      callbacks.onComplete?.()
+      return { cancel() {} }
+    },
+    handlers: {
+      onWorldDocument(doc) {
+        documents.push(doc)
+      },
+    },
+  })
+
+  assert.strictEqual(documents.length, 1)
+  assert.strictEqual(documents[0], previewEligible)
+})
+
 test('startDerivedGeographyGeneration cancels the previous active worker job', () => {
   const controller = createGenerationRunController()
   let cancelCount = 0
@@ -225,4 +363,90 @@ test('startDerivedGeographyGeneration cancels the previous active worker job', (
   })
 
   assert.strictEqual(cancelCount, 1)
+})
+
+test('burst step-complete previews join single-flight map lifecycle without duplicate creates', async () => {
+  const controller = createGenerationRunController()
+  let createCount = 0
+  let updateCount = 0
+
+  const lifecycle = createGenerationMapLifecycle({
+    getMapHost: () => ({}),
+    getCreateViewport: () => async () => {
+      createCount += 1
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      return {
+        updateWorldDocument() {
+          updateCount += 1
+        },
+        destroy() {},
+      }
+    },
+  })
+
+  /** @type {Promise<void>[]} */
+  const mapUpdates = []
+
+  /** @type {import('./core/types.js').WorldDocument} */
+  const docOne = {
+    gridWidth: 2,
+    gridHeight: 2,
+    biomes: new Uint8Array(4),
+    fields: { elevation: new Float32Array(4) },
+  }
+  /** @type {import('./core/types.js').WorldDocument} */
+  const docTwo = {
+    gridWidth: 4,
+    gridHeight: 4,
+    biomes: new Uint8Array(16),
+    fields: { elevation: new Float32Array(16) },
+  }
+  /** @type {import('./core/types.js').WorldDocument} */
+  const docThree = {
+    gridWidth: 6,
+    gridHeight: 6,
+    biomes: new Uint8Array(36),
+    fields: { elevation: new Float32Array(36) },
+  }
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      callbacks.onStepComplete?.({
+        stepId: 'baseline',
+        stepIndex: 0,
+        stepCount: 3,
+        label: 'Baseline',
+        worldDocument: docOne,
+      })
+      callbacks.onStepComplete?.({
+        stepId: 'erosion',
+        stepIndex: 1,
+        stepCount: 3,
+        label: 'Erosion',
+        worldDocument: docTwo,
+      })
+      callbacks.onStepComplete?.({
+        stepId: 'validation',
+        stepIndex: 2,
+        stepCount: 3,
+        label: 'Validation',
+        worldDocument: docThree,
+      })
+      callbacks.onComplete?.()
+      return { cancel() {} }
+    },
+    handlers: {
+      onWorldDocument(doc) {
+        mapUpdates.push(lifecycle.applyWorldDocument(doc))
+      },
+    },
+  })
+
+  await Promise.all(mapUpdates)
+
+  assert.strictEqual(createCount, 1)
+  assert.strictEqual(updateCount, 2)
+  assert.strictEqual(lifecycle.getViewport() != null, true)
 })

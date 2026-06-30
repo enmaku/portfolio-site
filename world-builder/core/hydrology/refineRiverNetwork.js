@@ -11,9 +11,9 @@ import {
   selectCoastalMouths,
 } from './riverNetwork.js'
 import {
-  buildFractalWaypoints,
+  fallbackCorridorLine,
   findLeastResistancePath,
-  snapToValleyCell,
+  routeFractalCorridorPath,
 } from './riverPathfinding.js'
 
 const D8_OFFSETS = [
@@ -597,7 +597,7 @@ function routeRiverEdge({
       preferDownhill: true,
       sketchMask,
     })
-    return direct ?? fallbackLine(fromIdx, toIdx, width)
+    return direct ?? fallbackCorridorLine(fromIdx, toIdx, width)
   }
 
   const seed = deriveFieldSeed(
@@ -607,74 +607,23 @@ function routeRiverEdge({
   const random = createSeededRandom(seed)
   const flowBoost = Math.min(1.4, 0.85 + Math.log10(Math.max(2, flow)) * 0.08)
   const wiggleScale = meanderStrength * flowBoost
-  const depth =
-    routedSpan < 12 ? 2 : routedSpan < 32 ? 3 : routedSpan < 96 ? 4 : 5
-  const valleyRadius = Math.max(2, Math.round(routedSpan * 0.1 * wiggleScale))
 
-  const waypoints = buildFractalWaypoints({
+  const path = routeFractalCorridorPath({
     fromIdx,
     toIdx,
+    elevation,
+    ocean,
     width,
     height,
     random,
-    depth,
+    profile: 'meanderRefine',
     wiggleScale,
-  }).map((idx) =>
-    snapToValleyCell(idx, elevation, ocean, width, height, valleyRadius),
-  )
+    sketchMask,
+    allowSegmentGaps: true,
+    useFallbackLine: true,
+  })
 
-  /** @type {number[]} */
-  const path = []
-  const seen = new Set()
-  for (let i = 0; i < waypoints.length - 1; i += 1) {
-    const segment = findLeastResistancePath({
-      fromIdx: waypoints[i],
-      toIdx: waypoints[i + 1],
-      elevation,
-      ocean,
-      width,
-      height,
-      heuristicWeight: 0.12,
-      preferDownhill: true,
-      sketchMask,
-    })
-    if (!segment) {
-      path.push(waypoints[i])
-      if (i === waypoints.length - 2) {
-        path.push(waypoints[i + 1])
-      }
-      continue
-    }
-    for (const idx of segment) {
-      if (seen.has(idx)) continue
-      seen.add(idx)
-      path.push(idx)
-    }
-  }
-
-  return path.length > 0 ? path : fallbackLine(fromIdx, toIdx, width)
-}
-
-/**
- * @param {number} fromIdx
- * @param {number} toIdx
- * @param {number} width
- */
-function fallbackLine(fromIdx, toIdx, width) {
-  const fx = fromIdx % width
-  const fy = Math.floor(fromIdx / width)
-  const tx = toIdx % width
-  const ty = Math.floor(toIdx / width)
-  const steps = Math.max(Math.abs(tx - fx), Math.abs(ty - fy), 1)
-  /** @type {number[]} */
-  const path = []
-  for (let step = 0; step <= steps; step += 1) {
-    const t = step / steps
-    const x = Math.round(fx + (tx - fx) * t)
-    const y = Math.round(fy + (ty - fy) * t)
-    path.push(y * width + x)
-  }
-  return path
+  return path ?? fallbackCorridorLine(fromIdx, toIdx, width)
 }
 
 /**

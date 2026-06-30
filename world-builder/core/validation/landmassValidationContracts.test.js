@@ -11,6 +11,7 @@ import {
   isRejectionSamplingEnforced,
   readEnforceFlag,
   resolveValidationCheckStatus,
+  validationCheckContract,
 } from './landmassValidationContracts.js'
 
 test('VALIDATION_CHECK_IDS lists every contract in stable order', () => {
@@ -27,6 +28,9 @@ test('VALIDATION_CHECK_IDS lists every contract in stable order', () => {
     'biomeDiversity',
     'windRainfallAsymmetry',
     'resourceMismatch',
+    'arableEnvelopeCoverage',
+    'saltNodeLandProximity',
+    'strategicResourceSpacing',
   ])
 })
 
@@ -109,6 +113,28 @@ test('createValidationRow copies category and rejectable from contract', () => {
   assert.strictEqual(row.rejectable, true)
 })
 
+test('resource validation contracts document advisory vs rejectable behavior', () => {
+  const arable = validationCheckContract('arableEnvelopeCoverage')
+  const saltProximity = validationCheckContract('saltNodeLandProximity')
+  const spacing = validationCheckContract('strategicResourceSpacing')
+
+  assert.strictEqual(arable.category, 'resources')
+  assert.strictEqual(arable.rejectable, false)
+  assert.strictEqual(arable.enforceOptionKey, null)
+
+  assert.strictEqual(saltProximity.category, 'resources')
+  assert.strictEqual(saltProximity.rejectable, true)
+  assert.strictEqual(saltProximity.enforceOptionKey, 'enforceSaltNodeLandProximity')
+
+  assert.strictEqual(spacing.category, 'resources')
+  assert.strictEqual(spacing.rejectable, true)
+  assert.strictEqual(spacing.enforceOptionKey, 'enforceStrategicResourceSpacing')
+
+  assert.ok(REJECTABLE_VALIDATION_CHECK_IDS.includes('saltNodeLandProximity'))
+  assert.ok(REJECTABLE_VALIDATION_CHECK_IDS.includes('strategicResourceSpacing'))
+  assert.ok(ADVISORY_VALIDATION_CHECK_IDS.includes('arableEnvelopeCoverage'))
+})
+
 test('buildValidationSignals exposes logistics-facing movement metrics', () => {
   const signals = buildValidationSignals(
     [
@@ -137,6 +163,9 @@ test('buildValidationSignals exposes logistics-facing movement metrics', () => {
       resourceMismatchDetected: false,
       meanInlandSalinity: 0.1,
       oceanSalinityMean: 0.95,
+      arableLandFraction: 0.35,
+      saltNodeProximityViolationCount: 0,
+      strategicResourceSpacingViolationCount: 0,
     },
   )
 

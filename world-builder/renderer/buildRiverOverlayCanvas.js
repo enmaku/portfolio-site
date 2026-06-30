@@ -5,7 +5,7 @@ import {
   computeRiverOutlineMask,
   computeRiverOverlayAlphaFromCorridor,
   WATER_BODY_OUTLINE_RGBA,
-} from './smoothRiverBiomeEdgesInRgba.js'
+} from './riverCorridorOverlayRgba.js'
 
 /**
  * @param {import('../core/types.js').WorldDocument} worldDocument

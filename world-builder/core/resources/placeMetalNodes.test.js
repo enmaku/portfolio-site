@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { SEA_LEVEL } from '../biomeIds.js'
 import { NODE_MAP_EDGE_MARGIN } from '../nodePlacementBounds.js'
+import { strategicResourceNodeSpacingForGrid } from '../resourcePlacementScaling.js'
 import { placeMetalNodes } from './placeMetalNodes.js'
 
 const width = 64
@@ -76,10 +77,11 @@ test('placeMetalNodes enforces minimum spacing between selected nodes', () => {
     maxNodes: 8,
   })
 
+  const minSpacing = strategicResourceNodeSpacingForGrid(width)
   for (let i = 0; i < nodes.length; i += 1) {
     for (let j = i + 1; j < nodes.length; j += 1) {
       const distance = Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y)
-      assert.ok(distance >= 16, `nodes ${i} and ${j} are only ${distance} cells apart`)
+      assert.ok(distance >= minSpacing, `nodes ${i} and ${j} are only ${distance} cells apart`)
     }
   }
 })

@@ -84,7 +84,26 @@ test('runDerivedGeographyInWorker forwards step-start messages to onStepStart', 
   assert.strictEqual(steps[0].stepIndex, 0)
 })
 
-test('runDerivedGeographyInWorker forwards step-complete with world document', () => {
+test('runDerivedGeographyInWorker forwards step-complete without requiring world document', () => {
+  const completed = []
+  startWorker({
+    onStepComplete: (payload) => completed.push(payload),
+  })
+
+  deliverWorkerMessage({
+    type: 'step-complete',
+    stepId: 'erosion',
+    stepIndex: 1,
+    stepCount: 6,
+    label: 'erosion-label',
+  })
+
+  assert.strictEqual(completed.length, 1)
+  assert.strictEqual(completed[0].stepId, 'erosion')
+  assert.strictEqual('worldDocument' in completed[0], false)
+})
+
+test('runDerivedGeographyInWorker forwards validation step-complete with world document', () => {
   const completed = []
   startWorker({
     onStepComplete: (payload) => completed.push(payload),
@@ -102,6 +121,27 @@ test('runDerivedGeographyInWorker forwards step-complete with world document', (
 
   assert.strictEqual(completed.length, 1)
   assert.strictEqual(completed[0].worldDocument, worldDocument)
+})
+
+test('runDerivedGeographyInWorker forwards hydrology substep-prepare callbacks', () => {
+  const prepared = []
+  startWorker({
+    onSubstepPrepare: (payload) => prepared.push(payload),
+  })
+
+  deliverWorkerMessage({
+    type: 'substep-prepare',
+    stepId: 'hydrology',
+    substepId: 'hydrologyFill',
+    substepIndex: 0,
+    substepCount: 9,
+    label: 'fill',
+    input: { width: 8, height: 8 },
+  })
+
+  assert.strictEqual(prepared.length, 1)
+  assert.strictEqual(prepared[0].substepId, 'hydrologyFill')
+  assert.deepStrictEqual(prepared[0].input, { width: 8, height: 8 })
 })
 
 test('runDerivedGeographyInWorker forwards hydrology substep lifecycle callbacks', () => {
@@ -146,17 +186,40 @@ test('runDerivedGeographyInWorker forwards hydrology substep lifecycle callbacks
   assert.strictEqual(started[0].substepId, 'hydrologyFill')
 })
 
-test('runDerivedGeographyInWorker terminates worker and calls onComplete', () => {
+test('runDerivedGeographyInWorker forwards exhausted status with world document', () => {
+  const exhaustedDocs = []
+  startWorker({
+    onExhausted: (worldDocument) => exhaustedDocs.push(worldDocument),
+    onComplete: () => {
+      throw new Error('onComplete should not run for exhausted worker jobs')
+    },
+  })
+
+  const worldDocument = { gridWidth: 8, gridHeight: 8, pipelineStage: 'derivedGeography' }
+  deliverWorkerMessage({ type: 'exhausted', worldDocument })
+
+  assert.strictEqual(exhaustedDocs.length, 1)
+  assert.strictEqual(exhaustedDocs[0], worldDocument)
+  assert.strictEqual(lastWorker?.terminated, true)
+})
+
+test('runDerivedGeographyInWorker terminates worker and calls onComplete without world document', () => {
   let completed = false
+  /** @type {import('./core/types.js').WorldDocument[]} */
+  const documents = []
   startWorker({
     onComplete: () => {
       completed = true
+    },
+    onWorldDocument: (worldDocument) => {
+      documents.push(worldDocument)
     },
   })
 
   deliverWorkerMessage({ type: 'complete' })
 
   assert.strictEqual(completed, true)
+  assert.strictEqual(documents.length, 0)
   assert.strictEqual(lastWorker?.terminated, true)
 })
 

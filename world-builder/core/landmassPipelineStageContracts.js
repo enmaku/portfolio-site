@@ -1,7 +1,13 @@
-/** @typedef {import('./derivedGeographyPipeline.js').DerivedGeographyPipelineState} DerivedGeographyPipelineState */
-/** @typedef {import('./derivedGeographyPipeline.js').DerivedGeographyStepId} LandmassPipelineStepId */
+/** @typedef {import('./landmassPipelineTypes.js').DerivedGeographyPipelineState} DerivedGeographyPipelineState */
+/** @typedef {import('./landmassPipelineTypes.js').LandmassPipelineStepId} LandmassPipelineStepId */
 
 /** @typedef {import('./types.js').WorldGenerationOptions} WorldGenerationOptions */
+
+import {
+  LANDMASS_PIPELINE_STEP_IDS,
+} from './landmassPipelineTypes.js'
+
+export { LANDMASS_PIPELINE_STEP_IDS }
 
 /**
  * Shared generation parameters carried by every landmass pipeline stage.
@@ -25,6 +31,7 @@
 /**
  * @typedef {Object} ErosionStageInput
  * @property {number} geographySeed
+ * @property {number} prevailingWindDegrees
  * @property {WorldGenerationOptions} options
  * @property {number} width
  * @property {number} height
@@ -91,6 +98,9 @@
  * @property {Uint8Array | null} riverCorridorMask
  * @property {Int16Array | null} flowDirection
  * @property {Float32Array | null} channelWidth
+ * @property {Float32Array | null} [arableRaster]
+ * @property {import('./types.js').SaltNode[] | null} [saltNodes]
+ * @property {import('./types.js').MetalNode[] | null} [metalNodes]
  */
 
 /**
@@ -100,16 +110,6 @@
  * @property {readonly string[]} inputKeys
  * @property {readonly string[]} outputKeys
  */
-
-/** @type {readonly LandmassPipelineStepId[]} */
-export const LANDMASS_PIPELINE_STEP_IDS = [
-  'physicalTerrainBaseline',
-  'erosion',
-  'hydrology',
-  'fieldRefresh',
-  'coastAndResources',
-  'validation',
-]
 
 /** @type {Record<LandmassPipelineStepId, LandmassPipelineStageContract>} */
 export const LANDMASS_PIPELINE_STAGE_CONTRACTS = {
@@ -122,7 +122,7 @@ export const LANDMASS_PIPELINE_STAGE_CONTRACTS = {
   erosion: {
     id: 'erosion',
     label: 'Erosion',
-    inputKeys: ['geographySeed', 'options', 'width', 'height', 'baselineDoc'],
+    inputKeys: ['geographySeed', 'prevailingWindDegrees', 'options', 'width', 'height', 'baselineDoc'],
     outputKeys: [
       'erodedElevation',
       'erosionSnapshots',
@@ -229,6 +229,9 @@ export const LANDMASS_PIPELINE_STAGE_CONTRACTS = {
       'riverCorridorMask',
       'flowDirection',
       'channelWidth',
+      'arableRaster',
+      'saltNodes',
+      'metalNodes',
     ],
     outputKeys: ['generationReport', 'lastCompletedStep'],
   },
@@ -293,6 +296,7 @@ function pickErosionStageInput(state) {
   }
   return {
     geographySeed: state.geographySeed,
+    prevailingWindDegrees: state.prevailingWindDegrees,
     options: state.options,
     width: state.width,
     height: state.height,
@@ -410,5 +414,62 @@ function pickValidationStageInput(state) {
     riverCorridorMask: state.riverCorridorMask,
     flowDirection: state.flowDirection,
     channelWidth: state.channelWidth,
+    arableRaster: state.arableRaster,
+    saltNodes: state.saltNodes,
+    metalNodes: state.metalNodes,
+  }
+}
+
+/**
+ * @param {LandmassPipelineStepId} stepId
+ * @param {Record<string, unknown>} output
+ */
+export function assertLandmassStageOutputs(stepId, output) {
+  const contract = LANDMASS_PIPELINE_STAGE_CONTRACTS[stepId]
+  for (const key of contract.outputKeys) {
+    if (output[key] === null || output[key] === undefined) {
+      throw new Error(`${stepId} missing output ${key}`)
+    }
+  }
+}
+
+/**
+ * @param {HydrologyStageInput} input
+ * @returns {DerivedGeographyPipelineState}
+ */
+export function buildPipelineStateForHydrologySubsteps(input) {
+  return {
+    geographySeed: input.geographySeed,
+    prevailingWindDegrees: input.prevailingWindDegrees,
+    options: input.options,
+    width: input.width,
+    height: input.height,
+    baselineDoc: input.baselineDoc,
+    erodedElevation: input.erodedElevation,
+    fields: input.fields,
+    erosionSnapshots: null,
+    erosionStepCount: 0,
+    lakeMask: null,
+    lakes: null,
+    lakeMeta: null,
+    lakeIdByCell: null,
+    hydrologyStats: null,
+    workingElevation: null,
+    riverGraph: null,
+    riverNetworkMask: null,
+    riverCorridorMask: null,
+    channelWidth: null,
+    flowDirection: null,
+    biomes: null,
+    coastNavigability: null,
+    coastalNodes: null,
+    saltNodes: null,
+    metalsRaster: null,
+    metalNodes: null,
+    arableRaster: null,
+    timberRaster: null,
+    generationReport: null,
+    hydrologySubstepTimings: null,
+    lastCompletedStep: 'erosion',
   }
 }

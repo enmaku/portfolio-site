@@ -1,20 +1,20 @@
 import { buildLandTerrainRgba } from './buildLandTerrainRgba.js'
 import { buildRiverOverlayCanvas } from './buildRiverOverlayCanvas.js'
 import { buildTopographyContourCanvas } from './buildTopographyContourCanvas.js'
-import { buildArableOverlayCanvas } from './buildArableOverlayCanvas.js'
-import { buildMetalsOverlayCanvas } from './buildMetalsOverlayCanvas.js'
-import { buildTimberOverlayCanvas } from './buildTimberOverlayCanvas.js'
 import {
   applyResourceOverlayVisibility,
   createDefaultResourceOverlayVisibility,
   DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
 } from '../resourceOverlays.js'
 import {
+  isResourceRasterOverlayLayerId,
+  refreshResourceRasterOverlayCanvas,
+  RESOURCE_RASTER_OVERLAY_LAYER_IDS,
+} from './resourceRasterOverlayRefresh.js'
+import {
   collectLakeOverlayRects,
   computeRegionFocusScale,
-  resolveArableRasterLayerVisible,
   resolveMetalsOverlayDrawn,
-  resolveResourceRasterLayerVisible,
   resolveSaltNodeOverlayDrawn,
 } from './worldBuilderMapViewportModel.js'
 
@@ -52,13 +52,10 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   let contourTexture = null
   const arable = new Sprite(Texture.EMPTY)
   arable.visible = false
-  let arableTexture = null
   const timber = new Sprite(Texture.EMPTY)
   timber.visible = false
-  let timberTexture = null
   const metals = new Sprite(Texture.EMPTY)
   metals.visible = false
-  let metalsTexture = null
   const rivers = new Sprite(Texture.EMPTY)
   rivers.visible = false
   let riverTexture = null
@@ -67,6 +64,20 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
   /** @type {import('../core/types.js').WorldDocument} */
   let currentWorldDocument = worldDocument
+
+  /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Texture | null>} */
+  const resourceRasterTextures = {
+    arable: null,
+    timber: null,
+    metals: null,
+  }
+
+  /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Sprite>} */
+  const resourceRasterSprites = {
+    arable,
+    timber,
+    metals,
+  }
 
   const viewport = new Viewport({
     screenWidth: hostEl.clientWidth || gridWidth,
@@ -100,9 +111,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   })
   resizeObserver.observe(hostEl)
   refreshContours(worldDocument)
-  refreshArableOverlay(worldDocument, resourceOverlayVisibility)
-  refreshTimberOverlay(worldDocument, resourceOverlayVisibility)
-  refreshMetalsOverlay(worldDocument, resourceOverlayVisibility)
+  refreshAllResourceRasterOverlays(worldDocument)
   refreshRiverOverlay(worldDocument)
   drawOverlays(overlay, worldDocument, resourceOverlayVisibility)
 
@@ -130,63 +139,37 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
 
   /**
    * @param {import('../core/types.js').WorldDocument} doc
-   * @param {Record<string, boolean>} visibility
    */
-  function refreshArableOverlay(doc, visibility) {
-    const nextCanvas = buildArableOverlayCanvas(doc, {
-      minimumProductivity: arableMinimumProductivity,
-    })
-    arableTexture?.destroy(true)
-    arableTexture = null
+  function refreshAllResourceRasterOverlays(doc) {
+    for (const resourceId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {
+      refreshResourceRasterOverlay(resourceId, doc)
+    }
+  }
 
-    const visible = resolveArableRasterLayerVisible(
-      visibility,
-      doc,
+  /**
+   * @param {import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId} resourceId
+   * @param {import('../core/types.js').WorldDocument} doc
+   */
+  function refreshResourceRasterOverlay(resourceId, doc) {
+    const sprite = resourceRasterSprites[resourceId]
+    resourceRasterTextures[resourceId]?.destroy(true)
+    resourceRasterTextures[resourceId] = null
+
+    const nextCanvas = refreshResourceRasterOverlayCanvas(resourceId, {
+      worldDocument: doc,
+      visibility: resourceOverlayVisibility,
       arableMinimumProductivity,
-    )
-    if (!nextCanvas || !visible) {
-      arable.visible = false
-      arable.texture = Texture.EMPTY
+    })
+    if (!nextCanvas) {
+      sprite.visible = false
+      sprite.texture = Texture.EMPTY
       return
     }
 
-    arableTexture = Texture.from(nextCanvas)
-    arable.texture = arableTexture
-    arable.visible = true
-  }
-
-  function refreshTimberOverlay(doc, visibility) {
-    const nextCanvas = buildTimberOverlayCanvas(doc)
-    timberTexture?.destroy(true)
-    timberTexture = null
-
-    const visible = resolveResourceRasterLayerVisible(visibility, 'timber', doc)
-    if (!nextCanvas || !visible) {
-      timber.visible = false
-      timber.texture = Texture.EMPTY
-      return
-    }
-
-    timberTexture = Texture.from(nextCanvas)
-    timber.texture = timberTexture
-    timber.visible = true
-  }
-
-  function refreshMetalsOverlay(doc, visibility) {
-    const nextCanvas = buildMetalsOverlayCanvas(doc)
-    metalsTexture?.destroy(true)
-    metalsTexture = null
-
-    const visible = resolveResourceRasterLayerVisible(visibility, 'metals', doc)
-    if (!nextCanvas || !visible) {
-      metals.visible = false
-      metals.texture = Texture.EMPTY
-      return
-    }
-
-    metalsTexture = Texture.from(nextCanvas)
-    metals.texture = metalsTexture
-    metals.visible = true
+    const nextTexture = Texture.from(nextCanvas)
+    resourceRasterTextures[resourceId] = nextTexture
+    sprite.texture = nextTexture
+    sprite.visible = true
   }
 
   /**
@@ -218,9 +201,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       terrainTexture = Texture.from(terrainCanvas)
       terrain.texture = terrainTexture
       refreshContours(nextDocument)
-      refreshArableOverlay(nextDocument, resourceOverlayVisibility)
-      refreshTimberOverlay(nextDocument, resourceOverlayVisibility)
-      refreshMetalsOverlay(nextDocument, resourceOverlayVisibility)
+      refreshAllResourceRasterOverlays(nextDocument)
       refreshRiverOverlay(nextDocument)
       drawOverlays(overlay, nextDocument, resourceOverlayVisibility)
       syncViewportToHost(viewport, hostEl, nextDocument.gridWidth, nextDocument.gridHeight)
@@ -285,9 +266,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
           terrainTexture = Texture.from(terrainCanvas)
           terrain.texture = terrainTexture
           refreshContours(baseDocument)
-          refreshArableOverlay(baseDocument, resourceOverlayVisibility)
-          refreshTimberOverlay(baseDocument, resourceOverlayVisibility)
-          refreshMetalsOverlay(baseDocument, resourceOverlayVisibility)
+          refreshAllResourceRasterOverlays(baseDocument)
           refreshRiverOverlay(baseDocument)
           drawOverlays(overlay, baseDocument, resourceOverlayVisibility)
         }
@@ -304,14 +283,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         resourceId,
         visible,
       )
-      if (resourceId === 'arable') {
-        refreshArableOverlay(currentWorldDocument, resourceOverlayVisibility)
-      }
-      if (resourceId === 'timber') {
-        refreshTimberOverlay(currentWorldDocument, resourceOverlayVisibility)
-      }
-      if (resourceId === 'metals') {
-        refreshMetalsOverlay(currentWorldDocument, resourceOverlayVisibility)
+      if (isResourceRasterOverlayLayerId(resourceId)) {
+        refreshResourceRasterOverlay(resourceId, currentWorldDocument)
       }
       drawOverlays(overlay, currentWorldDocument, resourceOverlayVisibility)
     },
@@ -319,7 +292,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     /** @param {number} minimumProductivity */
     setArableOverlayMinimumProductivity(minimumProductivity) {
       arableMinimumProductivity = Math.max(0, Math.min(1, minimumProductivity))
-      refreshArableOverlay(currentWorldDocument, resourceOverlayVisibility)
+      refreshResourceRasterOverlay('arable', currentWorldDocument)
     },
 
     destroy() {
@@ -328,9 +301,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       terrainTexture.destroy(true)
       contourTexture?.destroy(true)
       riverTexture?.destroy(true)
-      arableTexture?.destroy(true)
-      timberTexture?.destroy(true)
-      metalsTexture?.destroy(true)
+      for (const resourceId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {
+        resourceRasterTextures[resourceId]?.destroy(true)
+      }
       viewport.destroy({ children: true })
       app.destroy(true, { children: true, texture: true })
     },

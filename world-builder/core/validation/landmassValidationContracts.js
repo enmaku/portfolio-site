@@ -32,6 +32,9 @@ export const VALIDATION_CHECK_IDS = [
   'biomeDiversity',
   'windRainfallAsymmetry',
   'resourceMismatch',
+  'arableEnvelopeCoverage',
+  'saltNodeLandProximity',
+  'strategicResourceSpacing',
 ]
 
 /** @type {Record<string, ValidationCheckContract>} */
@@ -107,6 +110,24 @@ export const VALIDATION_CHECK_CONTRACTS = {
     category: 'resources',
     rejectable: false,
     enforceOptionKey: null,
+  },
+  arableEnvelopeCoverage: {
+    checkId: 'arableEnvelopeCoverage',
+    category: 'resources',
+    rejectable: false,
+    enforceOptionKey: null,
+  },
+  saltNodeLandProximity: {
+    checkId: 'saltNodeLandProximity',
+    category: 'resources',
+    rejectable: true,
+    enforceOptionKey: 'enforceSaltNodeLandProximity',
+  },
+  strategicResourceSpacing: {
+    checkId: 'strategicResourceSpacing',
+    category: 'resources',
+    rejectable: true,
+    enforceOptionKey: 'enforceStrategicResourceSpacing',
   },
 }
 
@@ -185,6 +206,9 @@ export function collectStructuredRejectionReasons(validationRows) {
  * @param {boolean} context.resourceMismatchDetected
  * @param {number} context.meanInlandSalinity
  * @param {number} context.oceanSalinityMean
+ * @param {number} context.arableLandFraction
+ * @param {number} context.saltNodeProximityViolationCount
+ * @param {number} context.strategicResourceSpacingViolationCount
  * @returns {import('../types.js').ValidationSignals}
  */
 export function buildValidationSignals(validationRows, hydrologyMetrics, context) {
@@ -216,6 +240,13 @@ export function buildValidationSignals(validationRows, hydrologyMetrics, context
       meanInlandSalinity: context.meanInlandSalinity,
       oceanSalinityMean: context.oceanSalinityMean,
       salinityGradientCheckStatus: statusByCheckId.get('salinityOceanGradient') ?? 'pass',
+      arableLandFraction: context.arableLandFraction,
+      arableEnvelopeCheckStatus: statusByCheckId.get('arableEnvelopeCoverage') ?? 'pass',
+      saltNodeProximityViolationCount: context.saltNodeProximityViolationCount,
+      saltNodeLandProximityCheckStatus: statusByCheckId.get('saltNodeLandProximity') ?? 'pass',
+      strategicResourceSpacingViolationCount: context.strategicResourceSpacingViolationCount,
+      strategicResourceSpacingCheckStatus:
+        statusByCheckId.get('strategicResourceSpacing') ?? 'pass',
     },
     landmassPlausibility: {
       highlandFraction: context.highlandFraction,

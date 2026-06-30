@@ -127,6 +127,9 @@ test('runGeographyValidationChecks returns all check ids', () => {
     'biomeDiversity',
     'windRainfallAsymmetry',
     'resourceMismatch',
+    'arableEnvelopeCoverage',
+    'saltNodeLandProximity',
+    'strategicResourceSpacing',
   ])
 })
 
@@ -410,4 +413,25 @@ test('runGeographyValidationChecks warns on flat salinity without ocean gradient
   ).find((entry) => entry.checkId === 'salinityOceanGradient')
 
   assert.strictEqual(row?.status, 'warn')
+})
+
+test('runGeographyValidationChecks evaluates resource outputs from world document fixture', () => {
+  const width = 48
+  const height = 48
+  const biomes = new Uint8Array(width * height).fill(BIOMES.OCEAN)
+  biomes[24 * width + 24] = BIOMES.GRASSLAND
+  const cellCount = width * height
+  const arableRaster = new Float32Array(cellCount).fill(0.5)
+
+  const rows = runGeographyValidationChecks({
+    ...makeSlice({ gridWidth: width, gridHeight: height, biomes }),
+    arableRaster,
+    saltNodes: [{ id: 'salt-0', x: 24, y: 24, score: 0.9 }],
+    metalNodes: [{ id: 'metal-0', x: 10, y: 10, score: 0.9 }],
+  })
+
+  const saltRow = rows.find((entry) => entry.checkId === 'saltNodeLandProximity')
+  const arableRow = rows.find((entry) => entry.checkId === 'arableEnvelopeCoverage')
+  assert.strictEqual(saltRow?.status, 'warn')
+  assert.strictEqual(arableRow?.status, 'pass')
 })

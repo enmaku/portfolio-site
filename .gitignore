@@ -53,3 +53,8 @@ artifacts
 
 # model replay data
 data/replays/*
+
+# World Builder — YouTube playlist transcripts (refresh via world-builder/research/README.md)
+world-builder/research/youtube-subtitles/*.en.txt
+world-builder/research/youtube-subtitles/raw/*
+!world-builder/research/youtube-subtitles/raw/.gitkeep

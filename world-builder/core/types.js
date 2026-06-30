@@ -187,6 +187,12 @@
  * @property {number} resources.meanInlandSalinity
  * @property {number} resources.oceanSalinityMean
  * @property {'pass' | 'warn' | 'fail'} resources.salinityGradientCheckStatus
+ * @property {number} resources.arableLandFraction
+ * @property {'pass' | 'warn' | 'fail'} resources.arableEnvelopeCheckStatus
+ * @property {number} resources.saltNodeProximityViolationCount
+ * @property {'pass' | 'warn' | 'fail'} resources.saltNodeLandProximityCheckStatus
+ * @property {number} resources.strategicResourceSpacingViolationCount
+ * @property {'pass' | 'warn' | 'fail'} resources.strategicResourceSpacingCheckStatus
  * @property {Object} landmassPlausibility
  * @property {number} landmassPlausibility.highlandFraction
  * @property {number} landmassPlausibility.biomeDiversityCount
@@ -230,6 +236,7 @@
  * @property {number} gridHeight
  * @property {ScalarFields} fields
  * @property {Uint8Array} biomes
+ * @property {Uint8Array} displayBiomes palette-ready biome indices (river corridors resolved to land cover)
  * @property {ReadonlyArray<{ id: number, label: string }>} biomeCatalog
  * @property {string} generatedAt
  * @property {'physicalTerrainBaseline' | 'derivedGeography'} pipelineStage
@@ -297,6 +304,8 @@
  * @property {boolean} enforceParallelStrandRatio
  * @property {boolean} enforceCoastConnectedNavigablePath
  * @property {boolean} enforceEndorheicFractionCap
+ * @property {boolean} enforceSaltNodeLandProximity
+ * @property {boolean} enforceStrategicResourceSpacing
  * @property {number} maxValidationRetries
  * @property {boolean} enableIntermediateStepPreviews
  * @property {number} minHacksLawExponent

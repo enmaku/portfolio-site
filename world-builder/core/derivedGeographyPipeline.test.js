@@ -7,9 +7,11 @@ import {
   createInitialPipelineState,
   DERIVED_GEOGRAPHY_STEPS,
   runFullDerivedGeographyPipeline,
+  runLandmassPipelineRun,
   runPipelineStep,
 } from './derivedGeographyPipeline.js'
 import { LANDMASS_PIPELINE_STEP_IDS } from './landmassPipelineStageContracts.js'
+import { LandmassPipelineCancelledError } from './landmassPipelineTypes.js'
 
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
 
@@ -25,6 +27,7 @@ test('runFullDerivedGeographyPipeline matches generateDerivedGeography', () => {
   const direct = generateDerivedGeography(params)
 
   assert.deepStrictEqual(fromPipeline.biomes, direct.biomes)
+  assert.deepStrictEqual(fromPipeline.displayBiomes, direct.displayBiomes)
   assert.deepStrictEqual(fromPipeline.fields.elevation, direct.fields.elevation)
   assert.deepStrictEqual(fromPipeline.fields.drainage, direct.fields.drainage)
   assert.deepStrictEqual(fromPipeline.fields.salinity, direct.fields.salinity)
@@ -44,6 +47,7 @@ test('runPipelineStep produces preview documents at each stage', () => {
     assert.strictEqual(doc.gridHeight, params.height)
     assert.strictEqual(doc.fields.elevation.length, params.width * params.height)
     assert.strictEqual(doc.biomes.length, params.width * params.height)
+    assert.strictEqual(doc.displayBiomes.length, params.width * params.height)
   }
 
   assert.strictEqual(state.lastCompletedStep, 'validation')
@@ -133,6 +137,16 @@ test('hydrology persists channelWidth on pipeline state and world document', () 
   assert.ok(hasPositiveWidth)
 })
 
+test('cloneWorldDocument copies displayBiomes independently', () => {
+  const doc = generateDerivedGeography(params)
+  const cloned = cloneWorldDocument(doc)
+
+  assert.notStrictEqual(cloned.displayBiomes, doc.displayBiomes)
+  assert.deepStrictEqual(cloned.displayBiomes, doc.displayBiomes)
+  cloned.displayBiomes[0] = 255
+  assert.notStrictEqual(doc.displayBiomes[0], 255)
+})
+
 test('cloneWorldDocument copies salinity field independently', () => {
   const doc = runFullDerivedGeographyPipeline(params)
   const cloned = cloneWorldDocument(doc)
@@ -211,9 +225,28 @@ test('cloneWorldDocument copies lakeMeta independently', () => {
   }
 })
 
-test('runFullDerivedGeographyPipeline exhausts validation retries with incremented seed', () => {
+test('runFullDerivedGeographyPipeline throws when validation retries are exhausted', () => {
+  assert.throws(
+    () =>
+      runFullDerivedGeographyPipeline({
+        geographySeed: 999999,
+        prevailingWindDegrees: 270,
+        width: 16,
+        height: 16,
+        options: {
+          ...DEFAULT_WORLD_GENERATION_OPTIONS,
+          enforceCoastConnectedNavigablePath: true,
+          minCoastConnectedNavigablePathCells: 99_999,
+          maxValidationRetries: 0,
+        },
+      }),
+    /validation retries exhausted/,
+  )
+})
+
+test('runLandmassPipelineRun exhausts validation retries with incremented seed', () => {
   const baseSeed = 999999
-  const doc = runFullDerivedGeographyPipeline({
+  const result = runLandmassPipelineRun({
     geographySeed: baseSeed,
     prevailingWindDegrees: 270,
     width: 16,
@@ -225,10 +258,13 @@ test('runFullDerivedGeographyPipeline exhausts validation retries with increment
     },
   })
 
-  if (doc.generationReport?.shouldReject) {
-    assert.strictEqual(doc.geographySeed, baseSeed + 2)
+  assert.ok(result.worldDocument)
+  if (result.worldDocument.generationReport?.shouldReject) {
+    assert.strictEqual(result.status, 'exhausted')
+    assert.strictEqual(result.worldDocument.geographySeed, baseSeed + 2)
   } else {
-    assert.ok(doc.geographySeed >= baseSeed && doc.geographySeed <= baseSeed + 2)
+    assert.strictEqual(result.status, 'success')
+    assert.ok(result.worldDocument.geographySeed >= baseSeed && result.worldDocument.geographySeed <= baseSeed + 2)
   }
 })
 
@@ -289,7 +325,7 @@ test('runPipelineStep hydrology forwards substep hooks and cancel', () => {
         },
       })
     },
-    /Hydrology cancelled/,
+    (error) => error instanceof LandmassPipelineCancelledError,
   )
 
   assert.strictEqual(completedSubsteps, 2)

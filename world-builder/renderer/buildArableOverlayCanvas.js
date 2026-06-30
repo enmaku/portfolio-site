@@ -1,6 +1,6 @@
 import {
-  buildResourceRasterOverlayCanvas,
   buildResourceRasterOverlayRgba,
+  resourceRasterOverlayCanvasFromRgba,
 } from './buildResourceRasterOverlayRgba.js'
 import { RESOURCE_RASTER_OVERLAY_STYLES } from './resourceRasterOverlayStyles.js'
 
@@ -30,16 +30,11 @@ export function buildArableOverlayRgba(worldDocument, { minimumProductivity = 0 
  * @returns {HTMLCanvasElement | null}
  */
 export function buildArableOverlayCanvas(worldDocument, { minimumProductivity = 0 } = {}) {
-  const { gridWidth, gridHeight, arableRaster } = worldDocument
-  if (!arableRaster) {
+  const rgba = buildArableOverlayRgba(worldDocument, { minimumProductivity })
+  if (!rgba) {
     return null
   }
 
-  return buildResourceRasterOverlayCanvas({
-    raster: arableRaster,
-    width: gridWidth,
-    height: gridHeight,
-    style: RESOURCE_RASTER_OVERLAY_STYLES.arable,
-    minimumProductivity,
-  })
+  const { gridWidth, gridHeight } = worldDocument
+  return resourceRasterOverlayCanvasFromRgba(rgba, gridWidth, gridHeight)
 }

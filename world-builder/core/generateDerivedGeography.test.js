@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from './biomeIds.js'
 import { generateDerivedGeography } from './generateDerivedGeography.js'
+import { runLandmassPipelineRun } from './derivedGeographyPipeline.js'
 import { generatePhysicalTerrainBaseline } from './generatePhysicalTerrainBaseline.js'
 import { assertLakeMaskSurfacesMatchMeta } from './hydrology/lakeDisplayCoherence.js'
 import { DEFAULT_GEOGRAPHY_SEED } from '../worldBuilderPageModel.js'
@@ -232,17 +233,22 @@ test('generateDerivedGeography uses flow-derived drainage not noise', () => {
   assert.strictEqual(differs, true)
 })
 
-test('generateDerivedGeography extreme seed reports identifiable hydrology validation metrics', () => {
-  const doc = generateDerivedGeography({
+test('runLandmassPipelineRun extreme seed reports identifiable hydrology validation metrics', () => {
+  const result = runLandmassPipelineRun({
     geographySeed: 999999,
     prevailingWindDegrees: 270,
     width: 16,
     height: 16,
     options: {
+      ...DEFAULT_WORLD_GENERATION_OPTIONS,
       enforceCoastMouth: true,
       enforceCoastConnectedNavigablePath: true,
     },
   })
+
+  assert.ok(result.worldDocument)
+  assert.ok(result.status === 'success' || result.status === 'exhausted')
+  const doc = result.worldDocument
 
   const rows = doc.generationReport.validationRows
   const hydrologyCheckIds = [
@@ -267,29 +273,28 @@ test('generateDerivedGeography extreme seed reports identifiable hydrology valid
   assert.ok(doc.generationReport.validationSignals)
 })
 
-test('generateDerivedGeography sets shouldReject when enforce flags hard-fail validation', () => {
-  const doc = generateDerivedGeography({
-    geographySeed: 999999,
-    prevailingWindDegrees: 270,
-    width: 16,
-    height: 16,
-    options: {
-      ...DEFAULT_WORLD_GENERATION_OPTIONS,
-      enforceCoastConnectedNavigablePath: true,
-      minCoastConnectedNavigablePathCells: 99_999,
-      maxValidationRetries: 0,
-    },
-  })
-
-  assert.strictEqual(doc.generationReport.shouldReject, true)
-  assert.deepStrictEqual(doc.generationReport.structuredRejectionReasons, [
-    { checkId: 'coastConnectedNavigablePath', category: 'coast' },
-  ])
+test('generateDerivedGeography throws when validation retries are exhausted', () => {
+  assert.throws(
+    () =>
+      generateDerivedGeography({
+        geographySeed: 999999,
+        prevailingWindDegrees: 270,
+        width: 16,
+        height: 16,
+        options: {
+          ...DEFAULT_WORLD_GENERATION_OPTIONS,
+          enforceCoastConnectedNavigablePath: true,
+          minCoastConnectedNavigablePathCells: 99_999,
+          maxValidationRetries: 0,
+        },
+      }),
+    /validation retries exhausted/,
+  )
 })
 
-test('generateDerivedGeography retries with incremented seed when validation rejects', () => {
+test('runLandmassPipelineRun retries with incremented seed when validation rejects', () => {
   const baseSeed = 999999
-  const doc = generateDerivedGeography({
+  const result = runLandmassPipelineRun({
     geographySeed: baseSeed,
     prevailingWindDegrees: 270,
     width: 16,
@@ -301,9 +306,12 @@ test('generateDerivedGeography retries with incremented seed when validation rej
     },
   })
 
-  if (doc.generationReport.shouldReject) {
-    assert.strictEqual(doc.geographySeed, baseSeed + 2)
+  assert.ok(result.worldDocument)
+  if (result.worldDocument.generationReport.shouldReject) {
+    assert.strictEqual(result.status, 'exhausted')
+    assert.strictEqual(result.worldDocument.geographySeed, baseSeed + 2)
   } else {
-    assert.ok(doc.geographySeed >= baseSeed && doc.geographySeed <= baseSeed + 2)
+    assert.strictEqual(result.status, 'success')
+    assert.ok(result.worldDocument.geographySeed >= baseSeed && result.worldDocument.geographySeed <= baseSeed + 2)
   }
 })

@@ -1,16 +1,24 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import {
   HYDROLOGY_SUBSTEPS,
   runHydrologySubsteps,
 } from './hydrologySubsteps.js'
 import {
+  riverMasksEqual,
+  RIVER_MASK_SKIP_REFINE_TRANSITION,
+} from './riverMaskLifecycle.js'
+import {
   createInitialPipelineState,
   runPipelineStep,
 } from '../derivedGeographyPipeline.js'
+import { LandmassPipelineCancelledError } from '../landmassPipelineTypes.js'
 import { refreshFieldsAfterErosion } from '../fields/refreshFieldsAfterErosion.js'
 import { fillLakes } from './fillLakes.js'
 import { computeFlowAccumulation, downstreamIndex } from './computeFlowAccumulation.js'
+import { deriveOceanMask, FLOW_RECOMPUTE_REASONS, FLOW_RECOMPUTE_STAGES } from './flowField.js'
 import { computeRiverNetworkMaxChannelWidth } from './riverCorridorDisplay.js'
 import { readRiverNetworkFromWorldDocument } from './riverNetwork.js'
 import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
@@ -43,6 +51,48 @@ test('HYDROLOGY_SUBSTEPS lists nine substeps in canonical order', () => {
       'hydrologyPaint',
     ],
   )
+})
+
+test('runHydrologySubsteps performs three full flow solves per world', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  const { flowField } = runHydrologySubsteps(state)
+
+  assert.strictEqual(
+    flowField.fullFlowSolveCount,
+    3,
+    'expected route, extract, and settle full flow solves only',
+  )
+  const uncachedLog = flowField.solveLog.filter((entry) => !entry.cached)
+  assert.deepStrictEqual(
+    uncachedLog.map((entry) => entry.stage),
+    [
+      FLOW_RECOMPUTE_STAGES.hydrologyRoute,
+      FLOW_RECOMPUTE_STAGES.hydrologyExtract,
+      FLOW_RECOMPUTE_STAGES.hydrologySettle,
+    ],
+  )
+  assert.deepStrictEqual(
+    uncachedLog.map((entry) => entry.reason),
+    [
+      FLOW_RECOMPUTE_REASONS.hydrologyRoute,
+      FLOW_RECOMPUTE_REASONS.hydrologyExtract,
+      FLOW_RECOMPUTE_REASONS.hydrologySettle,
+    ],
+  )
+})
+
+test('hydrologySubsteps runner routes full flow through flowField session API', () => {
+  const source = readFileSync(
+    fileURLToPath(new URL('./hydrologySubsteps.js', import.meta.url)),
+    'utf8',
+  )
+
+  assert.match(source, /flowFieldSession\.deriveOceanMask/)
+  assert.match(source, /flowFieldSession\.recomputeFullFlow/)
+  assert.doesNotMatch(source, /from '\.\/computeFlowAccumulation\.js'/)
 })
 
 test('runHydrologySubsteps invokes seasonal between climate and route', () => {
@@ -135,6 +185,17 @@ test('runHydrologySubsteps flattens hydrologyPaint riverNetwork contract onto st
   assert.equal(network.flow.channelWidth, hydrologyState.channelWidth)
 })
 
+test('runHydrologySubsteps does not populate coast navigability on pipeline state', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  const { state: hydrologyState } = runHydrologySubsteps(state)
+
+  assert.strictEqual(hydrologyState.coastNavigability, null)
+  assert.ok(hydrologyState.riverGraph)
+})
+
 test('runHydrologySubsteps exposes lakeMeta and hydrology stats on state', () => {
   let state = createInitialPipelineState(params)
   state = runPipelineStep(state, 'physicalTerrainBaseline')
@@ -169,7 +230,7 @@ test('runHydrologySubsteps aborts when shouldCancel returns true', () => {
         },
       })
     },
-    /Hydrology cancelled/,
+    (error) => error instanceof LandmassPipelineCancelledError,
   )
   assert.strictEqual(completedSubsteps, 2)
 })
@@ -305,13 +366,12 @@ test('runHydrologySubsteps passes post-carve elevation downstream', () => {
     elevation: state.erodedElevation,
     width: state.width,
     height: state.height,
-    ocean: computeFlowAccumulation({
+    ocean: deriveOceanMask({
       elevation: state.erodedElevation,
       width: state.width,
       height: state.height,
       seaLevel: state.options.seaLevel,
-      rainfall: state.baselineDoc.fields.rainfall,
-    }).ocean,
+    }),
     seaLevel: state.options.seaLevel,
     minLakeAreaScale: state.options.minLakeAreaScale,
     breachThreshold: state.options.breachThreshold,
@@ -481,7 +541,7 @@ test('runHydrologySubsteps skips hydrologyRefine when enableMeanderRefine is fal
 
   /** @type {{ substepId: string, skipped: boolean }[]} */
   const completions = []
-  const { timings } = runHydrologySubsteps(state, {
+  const { state: hydrologyState, timings } = runHydrologySubsteps(state, {
     onSubstepComplete({ substepId, skipped }) {
       completions.push({ substepId, skipped: Boolean(skipped) })
     },
@@ -495,6 +555,7 @@ test('runHydrologySubsteps skips hydrologyRefine when enableMeanderRefine is fal
   assert.ok(refineTiming)
   assert.strictEqual(refineTiming.skipped, true)
   assert.strictEqual(refineTiming.durationMs, 0)
+  assert.ok(hydrologyState.riverNetworkMask.some((value) => value === 1))
 })
 
 test('runHydrologySubsteps runs hydrologyRefine when enableMeanderRefine is true', () => {
@@ -563,6 +624,99 @@ test('enableMeanderRefine allows presentation mask changes and valley carving', 
     }
   }
   assert.ok(maskDiffers, 'expected presentation meander refine to change river network mask')
+})
+
+test('legacy corridor routers delegate fractal routing to riverPathfinding', () => {
+  const attractionSource = readFileSync(
+    fileURLToPath(new URL('./connectNearbyRiverCorridors.js', import.meta.url)),
+    'utf8',
+  )
+  const refineSource = readFileSync(
+    fileURLToPath(new URL('./refineRiverNetwork.js', import.meta.url)),
+    'utf8',
+  )
+
+  assert.match(attractionSource, /routeFractalCorridorPath/)
+  assert.match(refineSource, /routeFractalCorridorPath/)
+})
+
+test('runHydrologySubsteps reports mask lifecycle transitions at substep seams', () => {
+  let state = createInitialPipelineState({
+    ...params,
+    options: {
+      ...DEFAULT_WORLD_GENERATION_OPTIONS,
+      enableMeanderRefine: false,
+    },
+  })
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  /** @type {Map<string, Partial<Record<string, Uint8Array | null>>>} */
+  const snapshotsBySubstep = new Map()
+  /** @type {string[]} */
+  const transitions = []
+
+  runHydrologySubsteps(state, {
+    onSubstepComplete({ substepId, maskLifecycle, transition, skipped }) {
+      if (maskLifecycle) {
+        snapshotsBySubstep.set(substepId, maskLifecycle)
+      }
+      if (transition) {
+        transitions.push(transition)
+      }
+      if (substepId === 'hydrologyRefine') {
+        assert.strictEqual(skipped, true)
+      }
+    },
+  })
+
+  assert.ok(snapshotsBySubstep.get('hydrologyRoute')?.sketch?.some((value) => value === 1))
+  assert.ok(snapshotsBySubstep.get('hydrologyIncise')?.incised?.some((value) => value === 1))
+  assert.ok(snapshotsBySubstep.get('hydrologyExtract')?.settled?.some((value) => value === 1))
+
+  const afterSkipRefine = snapshotsBySubstep.get('hydrologyRefine')
+  assert.ok(afterSkipRefine?.presentation?.some((value) => value === 1))
+  assert.equal(afterSkipRefine?.presentation, afterSkipRefine?.settled)
+
+  assert.ok(snapshotsBySubstep.get('hydrologyPaint')?.painted?.some((value) => value === 1))
+  assert.deepStrictEqual(transitions, [RIVER_MASK_SKIP_REFINE_TRANSITION])
+})
+
+test('hydrologySubsteps wires river mask lifecycle helpers at settle and paint seams', () => {
+  const source = readFileSync(
+    fileURLToPath(new URL('./hydrologySubsteps.js', import.meta.url)),
+    'utf8',
+  )
+
+  assert.match(source, /applySkipRefineTransition/)
+  assert.match(source, /resolveDisplayRiverNetworkMask/)
+  assert.doesNotMatch(source, /presentationRiverNetworkMask \?\? ctx\.settledRiverNetworkMask/)
+})
+
+test('runHydrologySubsteps produces painted corridor and centerline masks', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  const { state: hydrologyState } = runHydrologySubsteps(state)
+
+  assert.ok(hydrologyState.riverNetworkMask.some((value) => value === 1))
+  assert.ok(hydrologyState.riverCorridorMask?.some((value) => value === 1))
+})
+
+test('skip refine transition is deterministic for a fixed seed', () => {
+  const seed = 4242
+  const options = {
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    enableMeanderRefine: false,
+  }
+  const first = runHydrologyForSeed(seed, options)
+  const second = runHydrologyForSeed(seed, options)
+
+  assert.ok(
+    riverMasksEqual(first.state.riverNetworkMask, second.state.riverNetworkMask),
+    'skip refine hydrology output should be seed-deterministic',
+  )
 })
 
 test('default seed batch completes without rejection when legacy heuristics are off', () => {

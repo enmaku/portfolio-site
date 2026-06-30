@@ -1,34 +1,16 @@
-import { BIOMES, SEA_LEVEL } from '../core/biomeIds.js'
-import { classifyBiomeFromSample } from '../core/classifyBiomesFromFields.js'
 import { biomeColorForId } from './biomePalette.js'
 
 /**
- * Terrain colors with river corridors replaced by underlying land biomes.
+ * Terrain colors from palette-ready display biomes on the world document.
  * @param {import('../core/types.js').WorldDocument} worldDocument
- * @param {number} [seaLevel]
  * @returns {Uint8ClampedArray}
  */
-export function buildLandTerrainRgba(worldDocument, seaLevel = SEA_LEVEL) {
-  const { gridWidth, gridHeight, biomes, fields } = worldDocument
-  const { elevation, temperature, rainfall, drainage, salinity } = fields
+export function buildLandTerrainRgba(worldDocument) {
+  const { gridWidth, gridHeight, displayBiomes } = worldDocument
   const rgba = new Uint8ClampedArray(gridWidth * gridHeight * 4)
 
-  for (let i = 0; i < biomes.length; i += 1) {
-    let biomeId = biomes[i]
-    if (biomeId === BIOMES.RIVER_CORRIDOR) {
-      biomeId = classifyBiomeFromSample(
-        {
-          elevation: elevation[i],
-          temperature: temperature[i],
-          rainfall: rainfall[i],
-          drainage: drainage[i],
-          salinity: salinity[i],
-        },
-        seaLevel,
-      )
-    }
-
-    const [r, g, b, a] = biomeColorForId(biomeId)
+  for (let i = 0; i < displayBiomes.length; i += 1) {
+    const [r, g, b, a] = biomeColorForId(displayBiomes[i])
     const offset = i * 4
     rgba[offset] = r
     rgba[offset + 1] = g

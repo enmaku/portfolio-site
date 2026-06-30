@@ -1,4 +1,6 @@
 import { runLandmassPipeline } from '../core/derivedGeographyPipeline.js'
+import { createDerivedGeographyWorkerPipelineCallbacks } from './createDerivedGeographyWorkerPipelineCallbacks.js'
+import { toWorkerTerminalMessage } from './derivedGeographyWorkerProtocol.js'
 
 /** @type {boolean} */
 let cancelled = false
@@ -20,64 +22,13 @@ async function handleMessage(event) {
   cancelled = false
 
   const result = await runLandmassPipeline(message.params, {
-    shouldCancel: () => cancelled,
-    yield: () => new Promise((resolve) => {
-      setTimeout(resolve, 0)
+    ...createDerivedGeographyWorkerPipelineCallbacks({
+      postMessage,
+      isCancelled: () => cancelled,
     }),
-    onStepStart(payload) {
-      if (cancelled) return
-      postMessage({
-        type: 'step-start',
-        ...payload,
-      })
-    },
-    onStepComplete(payload) {
-      if (cancelled) return
-      postMessage({
-        type: 'step-complete',
-        ...payload,
-      })
-    },
-    onSubstepStart(payload) {
-      if (cancelled) return
-      postMessage({
-        type: 'substep-start',
-        stepId: 'hydrology',
-        ...payload,
-      })
-    },
-    onSubstepProgress(payload) {
-      if (cancelled) return
-      postMessage({
-        type: 'substep-progress',
-        stepId: 'hydrology',
-        ...payload,
-      })
-    },
-    onSubstepComplete(payload) {
-      if (cancelled) return
-      postMessage({
-        type: 'substep-complete',
-        stepId: 'hydrology',
-        ...payload,
-      })
-    },
   })
 
-  if (result.status === 'cancelled') {
-    postMessage({ type: 'cancelled' })
-    return
-  }
-
-  if (result.status === 'error') {
-    postMessage({
-      type: 'error',
-      message: result.errorMessage ?? 'Pipeline failed',
-    })
-    return
-  }
-
-  postMessage({ type: 'complete' })
+  postMessage(toWorkerTerminalMessage(result))
 }
 
 self.addEventListener('message', (event) => {

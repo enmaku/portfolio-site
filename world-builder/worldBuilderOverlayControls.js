@@ -24,7 +24,7 @@ export const WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS = [
     key: 'arableMinimumProductivity',
     label: 'Arable overlay cutoff',
     tooltip:
-      'Minimum arable productivity before the overlay draws a cell. Higher values hide marginal scrub, hills, and desert; lower values show the full continuous raster.',
+      'Display-only filter: minimum arable productivity before the overlay draws a cell. Defaults to the generation threshold; raising it hides marginal land without regenerating the world.',
     min: 0,
     max: 0.6,
     step: 0.01,

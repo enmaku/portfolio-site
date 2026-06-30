@@ -1,8 +1,11 @@
-import { computeCoastNavigability } from '../coast/computeCoastNavigability.js'
 import { isRimCell } from '../fields/applyClosedIslandRim.js'
 import { riverDisplayFlowCutoffForGrid } from '../types.js'
 import { downstreamIndex } from './computeFlowAccumulation.js'
-import { computeFlowAccumulation } from './computeFlowAccumulation.js'
+import {
+  FLOW_RECOMPUTE_REASONS,
+  FLOW_RECOMPUTE_STAGES,
+  recomputeFullFlow,
+} from './flowField.js'
 import { buildRiverGraph } from './buildRiverGraph.js'
 import { buildUpstreamAdjacency, traceRiverUpstream } from './riverNetwork.js'
 
@@ -49,9 +52,6 @@ export function unionCorridorMasks(left, right) {
  * @param {number} params.height
  * @param {number} [params.navigableFlowCutoffScale]
  * @param {Uint8Array} [params.lakeMask]
- * @param {Float32Array} [params.coastNavigability]
- * @param {Float32Array} [params.elevation]
- * @param {number} [params.seaLevel]
  * @param {Float32Array} [params.meltContribution]
  * @returns {Uint8Array}
  */
@@ -200,13 +200,13 @@ export function buildChannelWidthField({ flowAccumulation, channelMask, width, h
  * @param {number} params.height
  * @param {number} [params.navigableFlowCutoffScale]
  * @param {Uint8Array} [params.lakeMask]
+ * @param {import('./flowField.js').FlowFieldSession} [params.flowFieldSession]
  * @returns {{
  *   flowDirection: Int16Array,
  *   flowAccumulation: Float32Array,
  *   ocean: boolean[],
  *   channelMask: Uint8Array,
  *   channelWidth: Float32Array,
- *   coastNavigability: Float32Array,
  *   riverGraph: import('../types.js').RiverGraph,
  * }}
  */
@@ -223,8 +223,11 @@ export function extractRiverNetworkFromIncisedChannels({
   height,
   navigableFlowCutoffScale = 1,
   lakeMask,
+  flowFieldSession,
 }) {
-  const { flowDirection, flowAccumulation, ocean } = computeFlowAccumulation({
+  const flowParams = {
+    reason: FLOW_RECOMPUTE_REASONS.hydrologyExtract,
+    stage: FLOW_RECOMPUTE_STAGES.hydrologyExtract,
     elevation,
     width,
     height,
@@ -234,14 +237,10 @@ export function extractRiverNetworkFromIncisedChannels({
     cellRunoff,
     soilDrainage,
     soilDrainageScale,
-  })
-
-  const coastNavigability = computeCoastNavigability({
-    elevation,
-    width,
-    height,
-    seaLevel,
-  })
+  }
+  const { flowDirection, flowAccumulation, ocean } = flowFieldSession
+    ? flowFieldSession.recomputeFullFlow(flowParams)
+    : recomputeFullFlow(flowParams)
 
   const channelMask = buildIncisedChannelMask({
     incisedCorridorMask,
@@ -263,7 +262,6 @@ export function extractRiverNetworkFromIncisedChannels({
   })
 
   const riverGraph = buildRiverGraph({
-    elevation,
     flowAccumulation,
     flowDirection,
     ocean,
@@ -272,8 +270,6 @@ export function extractRiverNetworkFromIncisedChannels({
     height,
     navigableFlowCutoffScale,
     channelMask,
-    coastNavigability,
-    seaLevel,
   })
 
   return {
@@ -282,7 +278,6 @@ export function extractRiverNetworkFromIncisedChannels({
     ocean,
     channelMask,
     channelWidth,
-    coastNavigability,
     riverGraph,
   }
 }

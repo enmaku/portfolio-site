@@ -1,8 +1,7 @@
 import { deriveFieldSeed, createSeededRandom } from '../noise/seededRandom.js'
 import { SEA_LEVEL } from '../biomeIds.js'
 import { isNodePlacementCellAllowed } from '../nodePlacementBounds.js'
-
-const MIN_NODE_SPACING = 16
+import { strategicResourceNodeSpacingForGrid } from '../resourcePlacementScaling.js'
 const MIN_CANDIDATE_SCORE = 0.35
 
 /**
@@ -31,6 +30,7 @@ export function placeMetalNodes({
   }
 
   const random = createSeededRandom(deriveFieldSeed(geographySeed, 'metal-nodes'))
+  const minNodeSpacing = strategicResourceNodeSpacingForGrid(width)
   const candidates = []
 
   for (let y = 0; y < height; y += 1) {
@@ -51,7 +51,7 @@ export function placeMetalNodes({
   const selected = []
   for (const candidate of candidates) {
     const tooClose = selected.some(
-      (node) => Math.hypot(node.x - candidate.x, node.y - candidate.y) < MIN_NODE_SPACING,
+      (node) => Math.hypot(node.x - candidate.x, node.y - candidate.y) < minNodeSpacing,
     )
     if (tooClose) continue
     selected.push({

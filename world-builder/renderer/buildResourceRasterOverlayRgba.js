@@ -4,6 +4,17 @@ export const RESOURCE_RASTER_HATCH_SPACING = 6
 /** Width of each diagonal hatch line within {@link RESOURCE_RASTER_HATCH_SPACING}. */
 export const RESOURCE_RASTER_HATCH_LINE_WIDTH = 2
 
+let resourceRasterOverlayRgbaBuildCount = 0
+
+/** @returns {number} */
+export function getResourceRasterOverlayRgbaBuildCount() {
+  return resourceRasterOverlayRgbaBuildCount
+}
+
+export function resetResourceRasterOverlayRgbaBuildCount() {
+  resourceRasterOverlayRgbaBuildCount = 0
+}
+
 /**
  * @param {number} value
  * @param {number} spacing
@@ -38,6 +49,55 @@ export function resourceRasterHatchFactor(
  * @param {number} params.width
  * @param {number} params.height
  * @param {import('./resourceRasterOverlayStyles.js').ResourceRasterOverlayStyle} params.style
+ * @param {number} [params.minimumProductivity]
+ * @returns {boolean}
+ */
+export function hasDrawableResourceRasterOverlayPixels({
+  raster,
+  width,
+  height,
+  style,
+  minimumProductivity = 0,
+}) {
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const productivity = raster[y * width + x]
+      if (productivity <= 0 || productivity < minimumProductivity) continue
+
+      const hatchFactor = style.hatch ? resourceRasterHatchFactor(x, y) : 1
+      const alpha = productivity * style.maxAlpha * hatchFactor
+      if (alpha > 0) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/**
+ * @param {Uint8ClampedArray} rgba
+ * @param {number} width
+ * @param {number} height
+ * @returns {HTMLCanvasElement}
+ */
+export function resourceRasterOverlayCanvasFromRgba(rgba, width, height) {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    throw new Error('Could not acquire 2D canvas context for resource raster overlay')
+  }
+  ctx.putImageData(new ImageData(rgba, width, height), 0, 0)
+  return canvas
+}
+
+/**
+ * @param {Object} params
+ * @param {Float32Array} params.raster
+ * @param {number} params.width
+ * @param {number} params.height
+ * @param {import('./resourceRasterOverlayStyles.js').ResourceRasterOverlayStyle} params.style
  * @param {number} [params.minimumProductivity] cells below this productivity are omitted
  * @returns {Uint8ClampedArray | null}
  */
@@ -48,6 +108,7 @@ export function buildResourceRasterOverlayRgba({
   style,
   minimumProductivity = 0,
 }) {
+  resourceRasterOverlayRgbaBuildCount += 1
   const rgba = new Uint8ClampedArray(width * height * 4)
   const [red, green, blue] = style.rgb
   let hasPositive = false
@@ -101,13 +162,5 @@ export function buildResourceRasterOverlayCanvas({
     return null
   }
 
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
-    throw new Error('Could not acquire 2D canvas context for resource raster overlay')
-  }
-  ctx.putImageData(new ImageData(rgba, width, height), 0, 0)
-  return canvas
+  return resourceRasterOverlayCanvasFromRgba(rgba, width, height)
 }

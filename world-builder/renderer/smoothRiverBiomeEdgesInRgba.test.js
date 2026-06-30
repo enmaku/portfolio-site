@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from '../core/biomeIds.js'
 import { biomeColorForId } from './biomePalette.js'
+import { crispRiverEdgeStrength } from './riverCorridorOverlayRgba.js'
 import {
-  computeRiverOutlineMask,
+  computeRiverOutlineMaskFromBiomes,
   computeRiverOverlayAlpha,
-  crispRiverEdgeStrength,
   smoothRiverBiomeEdgesInRgba,
 } from './smoothRiverBiomeEdgesInRgba.js'
 
@@ -36,7 +36,7 @@ test('computeRiverOutlineMask marks land outside and water inside the feathered 
   }
 
   const alpha = computeRiverOverlayAlpha(biomes, width, height)
-  const outline = computeRiverOutlineMask(alpha, width, height, { biomes })
+  const outline = computeRiverOutlineMaskFromBiomes(alpha, biomes, width, height)
 
   assert.strictEqual(outline[2 * width + 2], 0)
   assert.strictEqual(outline[2 * width + 1], 1)

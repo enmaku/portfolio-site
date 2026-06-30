@@ -1,5 +1,15 @@
 import { BIOMES } from '../core/biomeIds.js'
 import { biomeColorForId } from './biomePalette.js'
+import {
+  crispRiverEdgeStrength,
+  RIVER_EDGE_SMOOTHSTEP_HIGH,
+  RIVER_EDGE_SMOOTHSTEP_LOW,
+  RIVER_EDGE_UNSHARP_AMOUNT,
+  RIVER_OUTLINE_ALPHA_THRESHOLD,
+  RIVER_OUTLINE_LAND_WIDTH,
+  RIVER_OUTLINE_WATER_WIDTH,
+  smoothstep,
+} from './riverCorridorOverlayRgba.js'
 
 const RIVER = BIOMES.RIVER_CORRIDOR
 const LAKE = BIOMES.FRESHWATER_LAKE
@@ -12,56 +22,12 @@ const KERNEL = [
 ]
 const KERNEL_SUM = 16
 
-/** High-pass boost applied after the soft edge blur. */
-export const RIVER_EDGE_UNSHARP_AMOUNT = 1.75
-
-/** Narrow smoothstep band on the sharpened alpha — keeps aa but drops mushy halos. */
-export const RIVER_EDGE_SMOOTHSTEP_LOW = 0.06
-export const RIVER_EDGE_SMOOTHSTEP_HIGH = 0.24
-
-/** Matches topography contour stroke — same dark fringe lakes pick up at shorelines. */
-export const WATER_BODY_OUTLINE_RGBA = [20, 16, 12, Math.round(0.42 * 255)]
-
-/** Visible river overlay alpha above this counts as water for outline placement. */
-export const RIVER_OUTLINE_ALPHA_THRESHOLD = 0
-
-/** Outline ring on land just outside the river silhouette. */
-export const RIVER_OUTLINE_LAND_WIDTH = 1
-
-/** Extra outline depth on the water side — eats into fill so rivers read slightly thinner. */
-export const RIVER_OUTLINE_WATER_WIDTH = 1
-
-/**
- * @param {number} edge0
- * @param {number} edge1
- * @param {number} value
- * @returns {number}
- */
-export function smoothstep(edge0, edge1, value) {
-  const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)))
-  return t * t * (3 - 2 * t)
-}
-
-/**
- * Sharpen a soft river mask with a high-pass (unsharp) term, then steepen the transition.
- * @param {number} blurred
- * @param {number} wideBlurred
- * @param {{ unsharpAmount?: number, smoothstepLow?: number, smoothstepHigh?: number }} [options]
- * @returns {number}
- */
-export function crispRiverEdgeStrength(
-  blurred,
-  wideBlurred,
-  options = {},
-) {
-  const {
-    unsharpAmount = RIVER_EDGE_UNSHARP_AMOUNT,
-    smoothstepLow = RIVER_EDGE_SMOOTHSTEP_LOW,
-    smoothstepHigh = RIVER_EDGE_SMOOTHSTEP_HIGH,
-  } = options
-  const unsharp = blurred + unsharpAmount * (blurred - wideBlurred)
-  const clamped = Math.max(0, Math.min(1, unsharp))
-  return smoothstep(smoothstepLow, smoothstepHigh, clamped)
+export {
+  RIVER_EDGE_SMOOTHSTEP_HIGH,
+  RIVER_EDGE_SMOOTHSTEP_LOW,
+  RIVER_EDGE_UNSHARP_AMOUNT,
+  crispRiverEdgeStrength,
+  smoothstep,
 }
 
 /**
@@ -91,7 +57,7 @@ function blurRiverStrength(strength, width, height, out) {
 }
 
 /**
- * Per-cell river overlay alpha in [0, 1] with crisp feathered banks.
+ * Biome-mask river alpha — test-only; production uses corridor overlay in riverCorridorOverlayRgba.
  * @param {Uint8Array} biomes
  * @param {number} width
  * @param {number} height
@@ -121,61 +87,6 @@ export function computeRiverOverlayAlpha(biomes, width, height) {
   }
 
   return alpha
-}
-
-/**
- * Feathered river overlay strength from the painted corridor mask in the river-network contract.
- * @param {Uint8Array} corridor
- * @param {number} width
- * @param {number} height
- * @returns {Float32Array}
- */
-export function computeRiverOverlayAlphaFromCorridor(corridor, width, height) {
-  const cellCount = width * height
-  const strength = new Float32Array(cellCount)
-  for (let i = 0; i < cellCount; i += 1) {
-    strength[i] = corridor[i] ? 1 : 0
-  }
-
-  const blurred = new Float32Array(cellCount)
-  const wideBlurred = new Float32Array(cellCount)
-  blurRiverStrength(strength, width, height, blurred)
-  blurRiverStrength(blurred, width, height, wideBlurred)
-
-  const alpha = new Float32Array(cellCount)
-  for (let i = 0; i < cellCount; i += 1) {
-    if (corridor[i]) {
-      alpha[i] = 1
-    } else {
-      alpha[i] = crispRiverEdgeStrength(blurred[i], wideBlurred[i])
-    }
-  }
-
-  return alpha
-}
-
-/**
- * @param {Float32Array} riverAlpha
- * @param {number} idx
- * @param {number} width
- * @param {number} height
- * @param {number} alphaThreshold
- * @returns {boolean}
- */
-function touchesLowerRiverAlpha(riverAlpha, idx, width, height, alphaThreshold) {
-  const x = idx % width
-  const y = Math.floor(idx / width)
-  const neighbors = [
-    [x - 1, y],
-    [x + 1, y],
-    [x, y - 1],
-    [x, y + 1],
-  ]
-  for (const [nx, ny] of neighbors) {
-    if (nx < 0 || ny < 0 || nx >= width || ny >= height) return true
-    if (riverAlpha[ny * width + nx] <= alphaThreshold) return true
-  }
-  return false
 }
 
 /**
@@ -215,26 +126,17 @@ function touchesNonRiverBiome(biomes, idx, width, height) {
 }
 
 /**
- * Land and water outline rings around the feathered river overlay silhouette.
- * Extra width is placed on the water side so fill narrows slightly.
+ * Biome-mask outline variant — test-only.
  * @param {Float32Array} riverAlpha
+ * @param {Uint8Array} biomes
  * @param {number} width
  * @param {number} height
- * @param {{ alphaThreshold?: number, landWidth?: number, waterWidth?: number, biomes?: Uint8Array }} [options]
  * @returns {Uint8Array}
  */
-export function computeRiverOutlineMask(
-  riverAlpha,
-  width,
-  height,
-  options = {},
-) {
-  const {
-    alphaThreshold = RIVER_OUTLINE_ALPHA_THRESHOLD,
-    landWidth = RIVER_OUTLINE_LAND_WIDTH,
-    waterWidth = RIVER_OUTLINE_WATER_WIDTH,
-    biomes,
-  } = options
+export function computeRiverOutlineMaskFromBiomes(riverAlpha, biomes, width, height) {
+  const alphaThreshold = RIVER_OUTLINE_ALPHA_THRESHOLD
+  const landWidth = RIVER_OUTLINE_LAND_WIDTH
+  const waterWidth = RIVER_OUTLINE_WATER_WIDTH
   const outline = new Uint8Array(riverAlpha.length)
   if (landWidth <= 0 && waterWidth <= 0) {
     return outline
@@ -303,13 +205,8 @@ export function computeRiverOutlineMask(
     /** @type {number[]} */
     const queue = []
     for (let idx = 0; idx < cellCount; idx += 1) {
-      if (biomes) {
-        if (biomes[idx] !== RIVER) continue
-        if (!touchesNonRiverBiome(biomes, idx, width, height)) continue
-      } else {
-        if (riverAlpha[idx] <= alphaThreshold) continue
-        if (!touchesLowerRiverAlpha(riverAlpha, idx, width, height, alphaThreshold)) continue
-      }
+      if (biomes[idx] !== RIVER) continue
+      if (!touchesNonRiverBiome(biomes, idx, width, height)) continue
       waterDistance[idx] = 0
       queue.push(idx)
     }
@@ -331,11 +228,7 @@ export function computeRiverOutlineMask(
         if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
         const neighborIdx = ny * width + nx
         if (waterDistance[neighborIdx] >= 0) continue
-        if (biomes) {
-          if (biomes[neighborIdx] !== RIVER) continue
-        } else if (riverAlpha[neighborIdx] <= alphaThreshold) {
-          continue
-        }
+        if (biomes[neighborIdx] !== RIVER) continue
         waterDistance[neighborIdx] = distance + 1
         queue.push(neighborIdx)
       }
@@ -352,8 +245,7 @@ export function computeRiverOutlineMask(
 }
 
 /**
- * Feather hard river biome edges in an RGBA terrain buffer.
- * Smoothing bleeds only onto land; river cells stay full strength, then alpha is crisped.
+ * Legacy biome-based terrain feathering. Test-only — rivers render via hydrology corridor overlay.
  * @param {Uint8ClampedArray} rgba
  * @param {Uint8Array} biomes
  * @param {number} width

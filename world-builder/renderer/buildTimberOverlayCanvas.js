@@ -1,6 +1,6 @@
 import {
-  buildResourceRasterOverlayCanvas,
   buildResourceRasterOverlayRgba,
+  resourceRasterOverlayCanvasFromRgba,
 } from './buildResourceRasterOverlayRgba.js'
 import { RESOURCE_RASTER_OVERLAY_STYLES } from './resourceRasterOverlayStyles.js'
 
@@ -27,15 +27,11 @@ export function buildTimberOverlayRgba(worldDocument) {
  * @returns {HTMLCanvasElement | null}
  */
 export function buildTimberOverlayCanvas(worldDocument) {
-  const { gridWidth, gridHeight, timberRaster } = worldDocument
-  if (!timberRaster) {
+  const rgba = buildTimberOverlayRgba(worldDocument)
+  if (!rgba) {
     return null
   }
 
-  return buildResourceRasterOverlayCanvas({
-    raster: timberRaster,
-    width: gridWidth,
-    height: gridHeight,
-    style: RESOURCE_RASTER_OVERLAY_STYLES.timber,
-  })
+  const { gridWidth, gridHeight } = worldDocument
+  return resourceRasterOverlayCanvasFromRgba(rgba, gridWidth, gridHeight)
 }

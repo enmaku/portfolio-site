@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  commitResourceOverlayState,
   createResourceOverlayPageState,
   resetResourceOverlayVisibilityState,
   syncResourceOverlayStateToViewport,
@@ -45,6 +46,119 @@ test('updateOverlayDisplaySetting updates persisted arable cutoff immutably', ()
   const next = updateOverlayDisplaySetting(state, 'arableMinimumProductivity', 0.15)
   assert.strictEqual(state.displaySettings.arableMinimumProductivity, DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY)
   assert.strictEqual(next.displaySettings.arableMinimumProductivity, 0.15)
+})
+
+test('commitResourceOverlayState returns next state and syncs viewport when provided', () => {
+  const calls = []
+  const viewport = {
+    setResourceOverlayVisibility(resourceId, visible) {
+      calls.push(['visibility', resourceId, visible])
+    },
+    setArableOverlayMinimumProductivity(value) {
+      calls.push(['arableMinimumProductivity', value])
+    },
+  }
+  const initial = createResourceOverlayPageState()
+  const next = commitResourceOverlayState(
+    viewport,
+    toggleResourceOverlayVisibility(initial, 'timber', true),
+  )
+
+  assert.notStrictEqual(next, initial)
+  assert.strictEqual(next.visibility.timber, true)
+  assert.deepStrictEqual(calls, [
+    ['arableMinimumProductivity', DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY],
+    ['visibility', 'arable', false],
+    ['visibility', 'timber', true],
+    ['visibility', 'metals', false],
+    ['visibility', 'salt', false],
+  ])
+})
+
+test('commitResourceOverlayState skips viewport sync when viewport is absent', () => {
+  const initial = createResourceOverlayPageState()
+  const next = commitResourceOverlayState(
+    null,
+    toggleResourceOverlayVisibility(initial, 'salt', true),
+  )
+  assert.strictEqual(next.visibility.salt, true)
+})
+
+test('commitResourceOverlayState syncs slider display setting changes to viewport', () => {
+  const calls = []
+  const viewport = {
+    setResourceOverlayVisibility(resourceId, visible) {
+      calls.push(['visibility', resourceId, visible])
+    },
+    setArableOverlayMinimumProductivity(value) {
+      calls.push(['arableMinimumProductivity', value])
+    },
+  }
+  const initial = createResourceOverlayPageState()
+  const next = commitResourceOverlayState(
+    viewport,
+    updateOverlayDisplaySetting(initial, 'arableMinimumProductivity', 0.18),
+  )
+
+  assert.strictEqual(next.displaySettings.arableMinimumProductivity, 0.18)
+  assert.deepStrictEqual(calls, [
+    ['arableMinimumProductivity', 0.18],
+    ['visibility', 'arable', false],
+    ['visibility', 'timber', false],
+    ['visibility', 'metals', false],
+    ['visibility', 'salt', false],
+  ])
+})
+
+test('commitResourceOverlayState syncs reset visibility to viewport', () => {
+  const calls = []
+  const viewport = {
+    setResourceOverlayVisibility(resourceId, visible) {
+      calls.push(['visibility', resourceId, visible])
+    },
+    setArableOverlayMinimumProductivity(value) {
+      calls.push(['arableMinimumProductivity', value])
+    },
+  }
+  const toggled = toggleResourceOverlayVisibility(
+    createResourceOverlayPageState({ arableMinimumProductivity: 0.4 }),
+    'metals',
+    true,
+  )
+  const next = commitResourceOverlayState(viewport, resetResourceOverlayVisibilityState(toggled))
+
+  assert.strictEqual(next.visibility.metals, false)
+  assert.strictEqual(next.displaySettings.arableMinimumProductivity, 0.4)
+  assert.deepStrictEqual(calls, [
+    ['arableMinimumProductivity', 0.4],
+    ['visibility', 'arable', false],
+    ['visibility', 'timber', false],
+    ['visibility', 'metals', false],
+    ['visibility', 'salt', false],
+  ])
+})
+
+test('commitResourceOverlayState can re-project unchanged owner state to viewport', () => {
+  const calls = []
+  const viewport = {
+    setResourceOverlayVisibility(resourceId, visible) {
+      calls.push(['visibility', resourceId, visible])
+    },
+    setArableOverlayMinimumProductivity(value) {
+      calls.push(['arableMinimumProductivity', value])
+    },
+  }
+  const state = toggleResourceOverlayVisibility(createResourceOverlayPageState(), 'timber', true)
+  const resynced = commitResourceOverlayState(viewport, state)
+
+  assert.strictEqual(resynced, state)
+  assert.deepStrictEqual(calls, [
+    ['arableMinimumProductivity', DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY],
+    ['visibility', 'arable', false],
+    ['visibility', 'timber', true],
+    ['visibility', 'metals', false],
+    ['visibility', 'salt', false],
+  ])
 })
 
 test('syncResourceOverlayStateToViewport pushes visibility and arable cutoff to viewport API', () => {

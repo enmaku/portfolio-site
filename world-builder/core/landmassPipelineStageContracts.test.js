@@ -3,12 +3,15 @@ import test from 'node:test'
 import {
   LANDMASS_PIPELINE_STAGE_CONTRACTS,
   LANDMASS_PIPELINE_STEP_IDS,
+  assertLandmassStageOutputs,
+  buildPipelineStateForHydrologySubsteps,
   pickLandmassStageInput,
 } from './landmassPipelineStageContracts.js'
 import {
   createInitialPipelineState,
   runPipelineStep,
 } from './derivedGeographyPipeline.js'
+import { LandmassPipelineCancelledError } from './landmassPipelineTypes.js'
 
 const params = {
   geographySeed: 12345,
@@ -105,4 +108,99 @@ test('pickLandmassStageInput returns only contract input keys for each stage', (
     assert.deepStrictEqual(Object.keys(input).sort(), [...contract.inputKeys].sort())
     state = runPipelineStep(state, stepId)
   }
+})
+
+test('assertLandmassStageOutputs rejects missing erosion output at seam', () => {
+  assert.throws(
+    () => assertLandmassStageOutputs('erosion', { lastCompletedStep: 'erosion' }),
+    /erosion missing output erodedElevation/,
+  )
+})
+
+test('assertLandmassStageOutputs rejects missing hydrology output at seam', () => {
+  assert.throws(
+    () => assertLandmassStageOutputs('hydrology', { lastCompletedStep: 'hydrology' }),
+    /hydrology missing output lakeMask/,
+  )
+})
+
+test('assertLandmassStageOutputs rejects missing validation output at seam', () => {
+  assert.throws(
+    () => assertLandmassStageOutputs('validation', { lastCompletedStep: 'validation' }),
+    /validation missing output generationReport/,
+  )
+})
+
+test('assertLandmassStageOutputs rejects missing physical terrain baseline output at seam', () => {
+  assert.throws(
+    () =>
+      assertLandmassStageOutputs('physicalTerrainBaseline', {
+        lastCompletedStep: 'physicalTerrainBaseline',
+      }),
+    /physicalTerrainBaseline missing output baselineDoc/,
+  )
+})
+
+test('assertLandmassStageOutputs rejects missing coast and resources output at seam', () => {
+  assert.throws(
+    () =>
+      assertLandmassStageOutputs('coastAndResources', { lastCompletedStep: 'coastAndResources' }),
+    /coastAndResources missing output coastNavigability/,
+  )
+})
+
+test('buildPipelineStateForHydrologySubsteps seeds minimal erosion-complete state', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+  state = {
+    ...state,
+    coastalNodes: [{ cellIndex: 0, navigability: 1 }],
+    metalsRaster: new Float32Array(4),
+  }
+
+  const input = pickLandmassStageInput('hydrology', state)
+  const hydrologyState = buildPipelineStateForHydrologySubsteps(input)
+
+  assert.strictEqual(hydrologyState.coastalNodes, null)
+  assert.strictEqual(hydrologyState.metalsRaster, null)
+  assert.strictEqual(hydrologyState.generationReport, null)
+  assert.strictEqual(hydrologyState.lastCompletedStep, 'erosion')
+  assert.ok(hydrologyState.erodedElevation)
+  assert.ok(hydrologyState.baselineDoc)
+})
+
+test('runPipelineStep asserts contracted outputs after erosion, hydrology, and validation', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+  assert.ok(state.erodedElevation)
+  state = runPipelineStep(state, 'hydrology')
+  assert.ok(state.lakeMask)
+  for (const stepId of ['fieldRefresh', 'coastAndResources']) {
+    state = runPipelineStep(state, stepId)
+  }
+  state = runPipelineStep(state, 'validation')
+  assert.ok(state.generationReport)
+})
+
+test('runPipelineStep hydrology cancellation throws LandmassPipelineCancelledError', () => {
+  let state = createInitialPipelineState(params)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  let completedSubsteps = 0
+  assert.throws(
+    () => {
+      runPipelineStep(state, 'hydrology', {
+        onSubstepComplete() {
+          completedSubsteps += 1
+        },
+        shouldCancel() {
+          return completedSubsteps >= 2
+        },
+      })
+    },
+    (error) => error instanceof LandmassPipelineCancelledError,
+  )
 })

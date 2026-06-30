@@ -77,6 +77,8 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   enforceParallelStrandRatio: false,
   enforceCoastConnectedNavigablePath: false,
   enforceEndorheicFractionCap: false,
+  enforceSaltNodeLandProximity: false,
+  enforceStrategicResourceSpacing: false,
   /**
    * Maximum validation retries when enforce* checks reject a candidate.
    * Each retry regenerates with geographySeed + attempt offset.

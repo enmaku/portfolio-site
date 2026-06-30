@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  getResourceRasterOverlayRgbaBuildCount,
+  resetResourceRasterOverlayRgbaBuildCount,
+} from './buildResourceRasterOverlayRgba.js'
+import {
   collectLakeOverlayRects,
   computeRegionFocusScale,
   resolveArableRasterLayerVisible,
@@ -92,6 +96,44 @@ test('resolveMetalsOverlayDrawn gates raster hatch and mine markers together', (
     rasterVisible: true,
     nodesVisible: true,
   })
+})
+
+test('resolveResourceRasterLayerVisible does not call buildResourceRasterOverlayRgba', () => {
+  resetResourceRasterOverlayRgbaBuildCount()
+  const visibility = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(),
+    'timber',
+    true,
+  )
+  const timberRaster = new Float32Array([0.8, 0, 0, 0])
+  assert.strictEqual(
+    resolveResourceRasterLayerVisible(visibility, 'timber', {
+      gridWidth: 2,
+      gridHeight: 2,
+      timberRaster,
+    }),
+    true,
+  )
+  assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 0)
+})
+
+test('resolveArableRasterLayerVisible does not call buildResourceRasterOverlayRgba', () => {
+  resetResourceRasterOverlayRgbaBuildCount()
+  const visibility = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(),
+    'arable',
+    true,
+  )
+  const arableRaster = new Float32Array(16)
+  arableRaster[5] = 0.75
+  const worldDocument = {
+    gridWidth: 4,
+    gridHeight: 4,
+    arableRaster,
+  }
+  assert.strictEqual(resolveArableRasterLayerVisible(visibility, worldDocument, 0), true)
+  assert.strictEqual(resolveArableRasterLayerVisible(visibility, worldDocument, 0.9), false)
+  assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 0)
 })
 
 test('resolveSaltNodeOverlayDrawn hides salt markers until overlay is enabled', () => {

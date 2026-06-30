@@ -3,7 +3,7 @@ import test from 'node:test'
 import { BIOMES } from '../core/biomeIds.js'
 import { assembleRiverNetwork } from '../core/hydrology/riverNetwork.js'
 import { buildRiverOverlayRgba } from './buildRiverOverlayCanvas.js'
-import { WATER_BODY_OUTLINE_RGBA } from './smoothRiverBiomeEdgesInRgba.js'
+import { WATER_BODY_OUTLINE_RGBA } from './riverCorridorOverlayRgba.js'
 
 test('buildRiverOverlayRgba reads painted corridor from river-network contract', () => {
   const width = 8

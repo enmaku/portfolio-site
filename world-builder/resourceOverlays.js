@@ -1,9 +1,15 @@
+import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.js'
+
 /** @typedef {Object} OverlayDisplaySettings
  * @property {number} arableMinimumProductivity
  */
 
-/** Minimum arable productivity (0–1) required before the overlay draws a cell. */
-export const DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY = 0.4
+/**
+ * Display-only arable cutoff; defaults to the generation threshold so the overlay
+ * matches the raster envelope unless the user adjusts it (no regeneration).
+ */
+export const DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY =
+  DEFAULT_WORLD_GENERATION_OPTIONS.arableMinimumProductivity
 
 /**
  * @returns {Array<{ id: string, kind: 'nodes' | 'raster' | 'rasterAndNodes', label: string }>}

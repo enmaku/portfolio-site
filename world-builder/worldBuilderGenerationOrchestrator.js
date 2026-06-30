@@ -1,4 +1,4 @@
-import { generationProgressValue, shouldApplyStepPreviewToMap } from './worldBuilderPageModel.js'
+import { generationProgressValue, shouldApplyStepPreviewToMap } from './worldBuilderGenerationPolicy.js'
 
 /**
  * @typedef {import('./runDerivedGeographyInWorker.js').DerivedGeographyWorkerCallbacks} DerivedGeographyWorkerCallbacks
@@ -154,10 +154,14 @@ export function reduceGenerationProgressOnStepComplete(progress, payload) {
  *   onProgress?: (progress: GenerationProgressState) => void,
  *   onWorldDocument?: (worldDocument: import('./core/types.js').WorldDocument) => void,
  *   onComplete?: () => void,
+ *   onExhausted?: () => void,
  *   onCancelled?: () => void,
  *   onError?: (message: string) => void,
  * }} [options.handlers]
  * @returns {{ runId: number, cancel: () => void }}
+ *
+ * World-document delivery follows {@link import('./worker/derivedGeographyWorkerProtocol.js')}:
+ * map previews update from validation `step-complete` and exhausted terminals only.
  */
 export function startDerivedGeographyGeneration({
   controller,
@@ -203,6 +207,20 @@ export function startDerivedGeographyGeneration({
       }
       handlers.onProgress?.(progress)
       handlers.onComplete?.()
+    },
+    onExhausted(worldDocument) {
+      if (isStale()) return
+      controller.clearActive()
+      progress = {
+        ...progress,
+        percent: 100,
+        activeStepIndex: -1,
+      }
+      handlers.onProgress?.(progress)
+      if (shouldApplyStepPreviewToMap(worldDocument)) {
+        handlers.onWorldDocument?.(worldDocument)
+      }
+      handlers.onExhausted?.()
     },
     onCancelled() {
       if (isStale()) return

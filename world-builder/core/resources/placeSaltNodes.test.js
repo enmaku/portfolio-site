@@ -9,6 +9,7 @@ import {
   SALT_NODE_MIN_LAND_FRACTION,
   saltNodeHasSubstantialLandProximity,
 } from './placeSaltNodes.js'
+import { saltLandProximityRadiusForGrid } from '../resourcePlacementScaling.js'
 
 const width = 48
 const height = 48
@@ -20,14 +21,12 @@ const height = 48
 function makeSaltFixture(hotspots, biomes) {
   const cellCount = width * height
   const salinity = new Float32Array(cellCount)
-  const coastNavigability = new Float32Array(cellCount)
   const elevation = new Float32Array(cellCount).fill(SEA_LEVEL + 0.2)
   const biomeGrid = biomes ?? new Uint8Array(cellCount).fill(BIOMES.GRASSLAND)
 
   for (const { x, y, value, biome } of hotspots) {
     const idx = y * width + x
     salinity[idx] = value
-    coastNavigability[idx] = value
     if (biome !== undefined) {
       biomeGrid[idx] = biome
     }
@@ -36,7 +35,6 @@ function makeSaltFixture(hotspots, biomes) {
   return {
     elevation,
     salinity,
-    coastNavigability,
     biomes: biomeGrid,
     lakes: [],
     width,
@@ -85,6 +83,28 @@ test('measureLandBiomeFractionWithinRadius counts a 10-cell disk', () => {
     SALT_NODE_LAND_PROXIMITY_RADIUS,
   )
   assert.strictEqual(sampleCount, 317)
+})
+
+test('measureLandBiomeFractionWithinRadius scales disk area with grid-scaled radius', () => {
+  const biomes = new Uint8Array(width * height).fill(BIOMES.OCEAN)
+  const referenceCount = measureLandBiomeFractionWithinRadius(
+    24,
+    24,
+    biomes,
+    width,
+    height,
+    SALT_NODE_LAND_PROXIMITY_RADIUS,
+  ).sampleCount
+  const scaledCount = measureLandBiomeFractionWithinRadius(
+    24,
+    24,
+    biomes,
+    width,
+    height,
+    saltLandProximityRadiusForGrid(1024),
+  ).sampleCount
+
+  assert.ok(scaledCount > referenceCount)
 })
 
 test('saltNodeHasSubstantialLandProximity rejects a lone land hot pixel in open ocean', () => {
@@ -173,6 +193,36 @@ test('placeSaltNodes rejects embayed nodes with only a sliver of nearby land', (
     makeSaltFixture([{ x: cx, y: cy, value: 0.95, biome: BIOMES.RIVER_CORRIDOR }], biomes),
   )
   assert.strictEqual(nodes.some((node) => node.x === cx && node.y === cy), false)
+})
+
+test('placeSaltNodes prefers shoreline candidates over inland cells with equal salinity', () => {
+  const shorelineX = 23
+  const cy = 24
+  const biomes = makeBiomeGrid(shorelineX + 1, cy, (x) =>
+    x <= shorelineX ? BIOMES.GRASSLAND : BIOMES.OCEAN,
+  )
+  const elevation = new Float32Array(width * height).fill(SEA_LEVEL + 0.2)
+  for (let x = shorelineX + 1; x < width; x += 1) {
+    elevation[cy * width + x] = SEA_LEVEL - 0.1
+  }
+  const salinity = new Float32Array(width * height).fill(0.5)
+  salinity[cy * width + shorelineX] = 0.7
+  salinity[cy * width + 8] = 0.7
+
+  const nodes = placeSaltNodes({
+    elevation,
+    salinity,
+    biomes,
+    lakes: [],
+    width,
+    height,
+    geographySeed: 42,
+    maxNodes: 1,
+  })
+
+  assert.strictEqual(nodes.length, 1)
+  assert.strictEqual(nodes[0].x, shorelineX)
+  assert.strictEqual(nodes[0].y, cy)
 })
 
 test('placeSaltNodes keeps coastal candidates with substantial neighboring land', () => {

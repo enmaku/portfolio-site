@@ -2,6 +2,11 @@
 /** @typedef {import('./hydrologySubsteps.js').HydrologySubstepId} HydrologySubstepId */
 
 /**
+ * River mask fields follow {@link import('./riverMaskLifecycle.js').RIVER_MASK_LIFECYCLE_FIELDS}:
+ * sketch → incised → settled → presentation (refine or skipRefine) → painted.
+ */
+
+/**
  * @typedef {Object} HydrologySubstepContract
  * @property {HydrologySubstepId} id
  * @property {string} label
@@ -114,7 +119,7 @@ export const HYDROLOGY_SUBSTEP_CONTRACTS = {
       'riverNetworkMask',
       'effectiveRunoff',
     ],
-    outputKeys: ['settledElevation', 'incisedRiverNetworkMask', 'incisedCorridorMask'],
+    outputKeys: ['settledElevation', 'incisedCorridorMask'],
   },
   hydrologyExtract: {
     id: 'hydrologyExtract',
@@ -138,7 +143,6 @@ export const HYDROLOGY_SUBSTEP_CONTRACTS = {
       'settledOcean',
       'settledRiverNetworkMask',
       'channelWidth',
-      'coastNavigability',
       'settledRiverGraph',
     ],
   },
@@ -241,268 +245,89 @@ function rainfallSourceFromContext(ctx) {
   return ctx.state.baselineDoc?.fields.rainfall ?? ctx.state.fields?.rainfall ?? null
 }
 
+/** @type {Partial<Record<HydrologySubstepId, ReadonlySet<string>>>} */
+const OPTIONAL_NULL_HYDROLOGY_INPUT_KEYS = {
+  hydrologyRoute: new Set(['meltContribution']),
+  hydrologyExtract: new Set(['meltContribution']),
+  hydrologySeasonal: new Set(['meltContribution']),
+  hydrologySettle: new Set(['presentationRiverNetworkMask', 'lakeIdByCell']),
+  hydrologyPaint: new Set(['presentationRiverNetworkMask']),
+}
+
+/**
+ * @param {HydrologySubstepId} substepId
+ * @param {string} key
+ * @param {HydrologySubstepContext} ctx
+ */
+function resolveHydrologySubstepInputKey(substepId, key, ctx) {
+  const { state } = ctx
+  switch (key) {
+    case 'geographySeed':
+      return state.geographySeed
+    case 'prevailingWindDegrees':
+      return state.prevailingWindDegrees
+    case 'options':
+      return state.options
+    case 'width':
+      return ctx.width
+    case 'height':
+      return ctx.height
+    case 'erodedElevation':
+      return state.erodedElevation
+    case 'baselineDrainage':
+      return baselineDrainageFromContext(ctx)
+    case 'rainfall':
+      return substepId === 'hydrologyFill' ? rainfallSourceFromContext(ctx) : ctx.rainfall
+    default:
+      return ctx[key]
+  }
+}
+
+/**
+ * @param {HydrologySubstepId} substepId
+ * @param {string} key
+ * @param {HydrologySubstepContext} ctx
+ */
+function requireHydrologySubstepInputKey(substepId, key, ctx) {
+  const value = resolveHydrologySubstepInputKey(substepId, key, ctx)
+  if (value === null || value === undefined) {
+    throw new Error(`${substepId} missing input ${key}`)
+  }
+  return value
+}
+
+/**
+ * @param {HydrologySubstepId} substepId
+ * @param {string} key
+ */
+function isOptionalNullHydrologyInputKey(substepId, key) {
+  return OPTIONAL_NULL_HYDROLOGY_INPUT_KEYS[substepId]?.has(key) ?? false
+}
+
 /**
  * @param {HydrologySubstepId} substepId
  * @param {HydrologySubstepContext} ctx
  * @returns {Record<string, unknown>}
  */
 export function pickHydrologySubstepInput(substepId, ctx) {
+  const contract = HYDROLOGY_SUBSTEP_CONTRACTS[substepId]
+  if (!contract) {
+    throw new Error(`Unknown hydrology substep: ${substepId}`)
+  }
+
   const prerequisite = HYDROLOGY_SUBSTEP_PREREQUISITES[substepId]
   if (prerequisite && ctx.lastCompletedSubstep !== prerequisite) {
     throw new Error(`${prerequisite} required before ${substepId}`)
   }
 
-  const { state, width, height } = ctx
-  const baselineDrainage = baselineDrainageFromContext(ctx)
-
-  switch (substepId) {
-    case 'hydrologyFill': {
-      if (!state.erodedElevation) {
-        throw new Error('erosion erodedElevation required before hydrologyFill')
-      }
-      const rainfall = rainfallSourceFromContext(ctx)
-      if (!rainfall) {
-        throw new Error('baseline rainfall required before hydrologyFill')
-      }
-      return {
-        geographySeed: state.geographySeed,
-        options: state.options,
-        width,
-        height,
-        erodedElevation: state.erodedElevation,
-        rainfall,
-      }
-    }
-    case 'hydrologyClimate': {
-      if (!state.erodedElevation) {
-        throw new Error('erosion erodedElevation required before hydrologyClimate')
-      }
-      if (!baselineDrainage) {
-        throw new Error('baseline drainage required before hydrologyClimate')
-      }
-      return {
-        geographySeed: state.geographySeed,
-        prevailingWindDegrees: state.prevailingWindDegrees,
-        options: state.options,
-        width,
-        height,
-        erodedElevation: state.erodedElevation,
-        baselineDrainage,
-      }
-    }
-    case 'hydrologySeasonal': {
-      if (
-        !ctx.filledElevation ||
-        !ctx.lakeMask ||
-        !ctx.lakes ||
-        !ctx.lakeMeta ||
-        !ctx.lakeIdByCell ||
-        !ctx.catchmentCellsByLake ||
-        !ctx.temperature ||
-        !ctx.rainfall ||
-        !ctx.snowCapMask ||
-        !ctx.ocean
-      ) {
-        throw new Error('hydrologyFill and hydrologyClimate outputs required before hydrologySeasonal')
-      }
-      if (!state.erodedElevation) {
-        throw new Error('erosion erodedElevation required before hydrologySeasonal')
-      }
-      if (!baselineDrainage) {
-        throw new Error('baseline drainage required before hydrologySeasonal')
-      }
-      return {
-        geographySeed: state.geographySeed,
-        prevailingWindDegrees: state.prevailingWindDegrees,
-        options: state.options,
-        width,
-        height,
-        erodedElevation: state.erodedElevation,
-        filledElevation: ctx.filledElevation,
-        lakeMask: ctx.lakeMask,
-        lakes: ctx.lakes,
-        lakeMeta: ctx.lakeMeta,
-        lakeIdByCell: ctx.lakeIdByCell,
-        catchmentCellsByLake: ctx.catchmentCellsByLake,
-        temperature: ctx.temperature,
-        rainfall: ctx.rainfall,
-        snowCapMask: ctx.snowCapMask,
-        meltContribution: ctx.meltContribution,
-        ocean: ctx.ocean,
-        baselineDrainage,
-      }
-    }
-    case 'hydrologyRoute': {
-      if (
-        !ctx.filledElevation ||
-        !ctx.lakeMask ||
-        !ctx.spillOutlet ||
-        !ctx.temperature ||
-        !ctx.rainfall ||
-        !ctx.effectiveRunoff
-      ) {
-        throw new Error('fill, climate, and seasonal outputs required before hydrologyRoute')
-      }
-      if (!baselineDrainage) {
-        throw new Error('baseline drainage required before hydrologyRoute')
-      }
-      return {
-        options: state.options,
-        width,
-        height,
-        geographySeed: state.geographySeed,
-        filledElevation: ctx.filledElevation,
-        lakeMask: ctx.lakeMask,
-        spillOutlet: ctx.spillOutlet,
-        temperature: ctx.temperature,
-        rainfall: ctx.rainfall,
-        effectiveRunoff: ctx.effectiveRunoff,
-        meltContribution: ctx.meltContribution,
-        baselineDrainage,
-      }
-    }
-    case 'hydrologyIncise': {
-      if (
-        !ctx.filledElevation ||
-        !ctx.lakeMask ||
-        !ctx.lakeOcean ||
-        !ctx.flowDirection ||
-        !ctx.flowAccumulation ||
-        !ctx.riverNetworkMask ||
-        !ctx.effectiveRunoff
-      ) {
-        throw new Error('hydrologyRoute outputs required before hydrologyIncise')
-      }
-      return {
-        options: state.options,
-        width,
-        height,
-        geographySeed: state.geographySeed,
-        filledElevation: ctx.filledElevation,
-        lakeMask: ctx.lakeMask,
-        lakeOcean: ctx.lakeOcean,
-        flowDirection: ctx.flowDirection,
-        flowAccumulation: ctx.flowAccumulation,
-        riverNetworkMask: ctx.riverNetworkMask,
-        effectiveRunoff: ctx.effectiveRunoff,
-      }
-    }
-    case 'hydrologyExtract': {
-      if (
-        !ctx.settledElevation ||
-        !ctx.lakeMask ||
-        !ctx.lakeOcean ||
-        !ctx.incisedCorridorMask ||
-        !ctx.rainfall ||
-        !ctx.effectiveRunoff
-      ) {
-        throw new Error('hydrologyIncise outputs required before hydrologyExtract')
-      }
-      if (!baselineDrainage) {
-        throw new Error('baseline drainage required before hydrologyExtract')
-      }
-      return {
-        options: state.options,
-        width,
-        height,
-        settledElevation: ctx.settledElevation,
-        lakeMask: ctx.lakeMask,
-        lakeOcean: ctx.lakeOcean,
-        incisedCorridorMask: ctx.incisedCorridorMask,
-        rainfall: ctx.rainfall,
-        effectiveRunoff: ctx.effectiveRunoff,
-        meltContribution: ctx.meltContribution,
-        baselineDrainage,
-      }
-    }
-    case 'hydrologyRefine': {
-      if (
-        !ctx.settledElevation ||
-        !ctx.effectiveRunoff ||
-        !ctx.settledRiverNetworkMask ||
-        !ctx.settledFlowDirection ||
-        !ctx.settledFlowAccumulation ||
-        !ctx.settledOcean ||
-        !ctx.lakeMask
-      ) {
-        throw new Error('hydrologyExtract outputs required before hydrologyRefine')
-      }
-      return {
-        options: state.options,
-        width,
-        height,
-        geographySeed: state.geographySeed,
-        settledElevation: ctx.settledElevation,
-        effectiveRunoff: ctx.effectiveRunoff,
-        settledRiverNetworkMask: ctx.settledRiverNetworkMask,
-        settledFlowDirection: ctx.settledFlowDirection,
-        settledFlowAccumulation: ctx.settledFlowAccumulation,
-        settledOcean: ctx.settledOcean,
-        lakeMask: ctx.lakeMask,
-      }
-    }
-    case 'hydrologySettle': {
-      if (
-        !ctx.settledElevation ||
-        !ctx.lakeMask ||
-        !ctx.lakes ||
-        !ctx.lakeMeta ||
-        !ctx.settledFlowAccumulation ||
-        !ctx.settledFlowDirection ||
-        !ctx.settledOcean ||
-        !ctx.settledRiverNetworkMask
-      ) {
-        throw new Error('hydrologyExtract outputs required before hydrologySettle')
-      }
-      if (!baselineDrainage) {
-        throw new Error('baseline drainage required before hydrologySettle')
-      }
-      return {
-        options: state.options,
-        width,
-        height,
-        settledElevation: ctx.settledElevation,
-        lakeMask: ctx.lakeMask,
-        lakes: ctx.lakes,
-        lakeMeta: ctx.lakeMeta,
-        settledFlowAccumulation: ctx.settledFlowAccumulation,
-        settledFlowDirection: ctx.settledFlowDirection,
-        settledOcean: ctx.settledOcean,
-        settledRiverNetworkMask: ctx.settledRiverNetworkMask,
-        presentationRiverNetworkMask: ctx.presentationRiverNetworkMask,
-        effectiveRunoff: ctx.effectiveRunoff,
-        rainfall: ctx.rainfall,
-        lakeIdByCell: ctx.lakeIdByCell,
-        baselineDrainage,
-      }
-    }
-    case 'hydrologyPaint': {
-      if (
-        !ctx.settledElevation ||
-        !ctx.settledFlowDirection ||
-        !ctx.settledRiverNetworkMask ||
-        !ctx.channelWidth ||
-        !ctx.settledRiverGraph
-      ) {
-        throw new Error('hydrologySettle outputs required before hydrologyPaint')
-      }
-      return {
-        width,
-        height,
-        settledElevation: ctx.settledElevation,
-        settledFlowDirection: ctx.settledFlowDirection,
-        settledRiverNetworkMask: ctx.settledRiverNetworkMask,
-        presentationRiverNetworkMask: ctx.presentationRiverNetworkMask,
-        channelWidth: ctx.channelWidth,
-        settledRiverGraph: ctx.settledRiverGraph,
-        settledFlowAccumulation: ctx.settledFlowAccumulation,
-        settledOcean: ctx.settledOcean,
-        lakeMask: ctx.lakeMask,
-      }
-    }
-    default:
-      throw new Error(`Unknown hydrology substep: ${substepId}`)
+  /** @type {Record<string, unknown>} */
+  const input = {}
+  for (const key of contract.inputKeys) {
+    input[key] = isOptionalNullHydrologyInputKey(substepId, key)
+      ? resolveHydrologySubstepInputKey(substepId, key, ctx)
+      : requireHydrologySubstepInputKey(substepId, key, ctx)
   }
+  return input
 }
 
 /**

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { BIOMES, SEA_LEVEL } from './biomeIds.js'
 import { buildGenerationReport } from './buildGenerationReport.js'
 import { assembleRiverNetwork } from './hydrology/riverNetwork.js'
+import { strategicResourceNodeSpacingForGrid } from './resourcePlacementScaling.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
 
 function makeReportParams(overrides = {}) {
@@ -101,6 +103,12 @@ test('buildGenerationReport exposes logistics-facing validation signals', () => 
   )
   assert.strictEqual(typeof report.validationSignals.resources.meanInlandSalinity, 'number')
   assert.strictEqual(typeof report.validationSignals.resources.oceanSalinityMean, 'number')
+  assert.strictEqual(typeof report.validationSignals.resources.arableLandFraction, 'number')
+  assert.strictEqual(typeof report.validationSignals.resources.saltNodeProximityViolationCount, 'number')
+  assert.strictEqual(
+    typeof report.validationSignals.resources.strategicResourceSpacingViolationCount,
+    'number',
+  )
   assert.strictEqual(typeof report.validationSignals.landmassPlausibility.highlandFraction, 'number')
   assert.strictEqual(typeof report.validationSignals.climate.windRainfallAsymmetryActive, 'boolean')
 })
@@ -135,4 +143,89 @@ test('buildGenerationReport passes precomputed hydrology metrics into validation
   const hacksRow = report.validationRows.find((row) => row.checkId === 'hacksLawExponent')
   assert.strictEqual(hacksRow?.status, 'fail')
   assert.strictEqual(report.hydrology.hacksLawExponent, null)
+})
+
+test('buildGenerationReport includes resource validation rows from current contract', () => {
+  const width = 48
+  const height = 48
+  const cellCount = width * height
+  const biomes = new Uint8Array(cellCount).fill(BIOMES.OCEAN)
+  biomes[24 * width + 24] = BIOMES.GRASSLAND
+
+  const report = buildGenerationReport(
+    makeReportParams({
+      gridWidth: width,
+      gridHeight: height,
+      biomes,
+      fields: {
+        elevation: new Float32Array(cellCount).fill(SEA_LEVEL + 0.3),
+        temperature: new Float32Array(cellCount).fill(0.5),
+        rainfall: new Float32Array(cellCount).fill(0.5),
+        drainage: new Float32Array(cellCount).fill(0.5),
+        salinity: new Float32Array(cellCount).fill(0.1),
+      },
+      arableRaster: new Float32Array(cellCount).fill(0.5),
+      saltNodes: [{ id: 'salt-0', x: 24, y: 24, score: 0.9 }],
+      metalNodes: [{ id: 'metal-0', x: 10, y: 10, score: 0.9 }],
+    }),
+  )
+
+  const resourceIds = [
+    'arableEnvelopeCoverage',
+    'saltNodeLandProximity',
+    'strategicResourceSpacing',
+  ]
+  for (const checkId of resourceIds) {
+    assert.ok(report.validationRows.some((row) => row.checkId === checkId))
+  }
+
+  const arableRow = report.validationRows.find((row) => row.checkId === 'arableEnvelopeCoverage')
+  const saltRow = report.validationRows.find((row) => row.checkId === 'saltNodeLandProximity')
+  assert.strictEqual(arableRow?.rejectable, false)
+  assert.strictEqual(arableRow?.category, 'resources')
+  assert.strictEqual(saltRow?.rejectable, true)
+  assert.strictEqual(saltRow?.status, 'warn')
+  assert.strictEqual(report.validationSignals.resources.arableEnvelopeCheckStatus, 'pass')
+  assert.strictEqual(report.validationSignals.resources.saltNodeLandProximityCheckStatus, 'warn')
+  assert.strictEqual(report.validationSignals.resources.saltNodeProximityViolationCount, 1)
+})
+
+test('buildGenerationReport rejects enforced strategic resource spacing violations', () => {
+  const gridSize = 256
+  const cellCount = gridSize * gridSize
+  const minSpacing = strategicResourceNodeSpacingForGrid(gridSize)
+
+  const report = buildGenerationReport(
+    makeReportParams({
+      gridWidth: gridSize,
+      gridHeight: gridSize,
+      fields: {
+        elevation: new Float32Array(cellCount).fill(SEA_LEVEL + 0.3),
+        temperature: new Float32Array(cellCount).fill(0.5),
+        rainfall: new Float32Array(cellCount).fill(0.5),
+        drainage: new Float32Array(cellCount).fill(0.5),
+        salinity: new Float32Array(cellCount).fill(0.1),
+      },
+      biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+      metalNodes: [
+        { id: 'metal-0', x: 80, y: 80, score: 0.9 },
+        { id: 'metal-1', x: 80 + minSpacing - 2, y: 80, score: 0.85 },
+      ],
+      validationOptions: {
+        ...DEFAULT_WORLD_GENERATION_OPTIONS,
+        enforceStrategicResourceSpacing: true,
+      },
+    }),
+  )
+
+  const spacingRow = report.validationRows.find(
+    (row) => row.checkId === 'strategicResourceSpacing',
+  )
+  assert.strictEqual(spacingRow?.status, 'fail')
+  assert.strictEqual(report.shouldReject, true)
+  assert.strictEqual(report.rejectionSamplingEnforced, true)
+  assert.deepStrictEqual(report.structuredRejectionReasons, [
+    { checkId: 'strategicResourceSpacing', category: 'resources' },
+  ])
+  assert.ok(report.validationSignals.resources.strategicResourceSpacingViolationCount >= 1)
 })

@@ -22,6 +22,43 @@ function makeGentleRamp(width, height) {
   return elevation
 }
 
+function makeMinimalRiverGraphParams(width = 8, height = 8) {
+  const cellCount = width * height
+  return {
+    flowAccumulation: new Float32Array(cellCount),
+    flowDirection: new Int16Array(cellCount).fill(-1),
+    ocean: Array.from({ length: cellCount }, () => false),
+    lakeMask: new Uint8Array(cellCount),
+    width,
+    height,
+  }
+}
+
+test('buildRiverGraph rejects unknown parameters', () => {
+  assert.throws(
+    () =>
+      buildRiverGraph({
+        ...makeMinimalRiverGraphParams(),
+        coastNavigability: new Float32Array(64),
+      }),
+    /unknown parameter: coastNavigability/,
+  )
+})
+
+test('buildRiverGraph rejects legacy elevation and seaLevel parameters', () => {
+  const params = makeMinimalRiverGraphParams()
+  const elevation = new Float32Array(64).fill(0.5)
+
+  assert.throws(
+    () => buildRiverGraph({ ...params, elevation }),
+    /unknown parameter: elevation/,
+  )
+  assert.throws(
+    () => buildRiverGraph({ ...params, seaLevel: 0.42 }),
+    /unknown parameter: seaLevel/,
+  )
+})
+
 test('buildRiverGraph creates mouth nodes at coast on gentle ramp', () => {
   const width = 32
   const height = 32

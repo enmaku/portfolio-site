@@ -1,4 +1,5 @@
 import { BIOMES_CATALOG } from './biomeCatalog.js'
+import { buildDisplayBiomes } from './buildDisplayBiomes.js'
 import { classifyBiomesFromFields } from './classifyBiomesFromFields.js'
 import { generateDrainage } from './fields/generateDrainage.js'
 import { generateElevation } from './fields/generateElevation.js'
@@ -49,6 +50,7 @@ export function generatePhysicalTerrainBaseline(params) {
     geographySeed,
     options.biomeEdgeNoiseStrength,
   )
+  const displayBiomes = buildDisplayBiomes(biomes, fields, options.seaLevel)
 
   return {
     geographySeed: geographySeed >= 0 ? geographySeed : geographySeed + 4294967296,
@@ -57,6 +59,7 @@ export function generatePhysicalTerrainBaseline(params) {
     gridHeight: height,
     fields,
     biomes,
+    displayBiomes,
     biomeCatalog: BIOMES_CATALOG,
     generatedAt: new Date().toISOString(),
     pipelineStage: PIPELINE_STAGE_PHYSICAL_TERRAIN_BASELINE,
