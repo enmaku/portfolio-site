@@ -1,7 +1,11 @@
+import { diffWorldDocumentMapLayers } from './renderer/diffWorldDocumentMapLayers.js'
+
 /**
  * @typedef {Object} GenerationMapViewportHandle
- * @property {(doc: import('./core/types.js').WorldDocument) => void} updateWorldDocument
+ * @property {(doc: import('./core/types.js').WorldDocument, options?: { changedLayers?: Iterable<import('./renderer/mapLayerRefresh.js').MapLayerId> | null }) => void} updateWorldDocument
+ * @property {() => void} fitToWorld
  * @property {(focus: import('./core/types.js').MapFocus) => void} [focusOn]
+ * @property {(state: import('./resourceOverlayState.js').ResourceOverlayPageState) => void} [syncOverlayRenderCache]
  * @property {(resourceId: string, visible: boolean) => void} [setResourceOverlayVisibility]
  * @property {() => void} destroy
  */
@@ -26,9 +30,23 @@
 export function createGenerationMapLifecycle({ getMapHost, getCreateViewport, onViewportReady }) {
   /** @type {GenerationMapViewportHandle | null} */
   let mapViewport = null
+  /** @type {import('./core/types.js').WorldDocument | null} */
+  let lastAppliedWorldDocument = null
   /** @type {Promise<void> | null} */
   let initInFlight = null
   let destroyed = false
+
+  /**
+   * @param {import('./core/types.js').WorldDocument} doc
+   */
+  function updateViewportWorldDocument(doc) {
+    const changedLayers = diffWorldDocumentMapLayers(lastAppliedWorldDocument, doc)
+    mapViewport?.updateWorldDocument(
+      doc,
+      changedLayers == null ? undefined : { changedLayers },
+    )
+    lastAppliedWorldDocument = doc
+  }
 
   return {
     async applyWorldDocument(doc) {
@@ -37,7 +55,7 @@ export function createGenerationMapLifecycle({ getMapHost, getCreateViewport, on
       }
 
       if (mapViewport) {
-        mapViewport.updateWorldDocument(doc)
+        updateViewportWorldDocument(doc)
         return
       }
 
@@ -46,7 +64,9 @@ export function createGenerationMapLifecycle({ getMapHost, getCreateViewport, on
         if (destroyed) {
           return
         }
-        mapViewport?.updateWorldDocument(doc)
+        if (mapViewport) {
+          updateViewportWorldDocument(doc)
+        }
         return
       }
 
@@ -67,6 +87,7 @@ export function createGenerationMapLifecycle({ getMapHost, getCreateViewport, on
             return
           }
           mapViewport = createdViewport
+          lastAppliedWorldDocument = doc
           onViewportReady?.()
         } finally {
           initInFlight = null
@@ -84,6 +105,7 @@ export function createGenerationMapLifecycle({ getMapHost, getCreateViewport, on
       destroyed = true
       mapViewport?.destroy()
       mapViewport = null
+      lastAppliedWorldDocument = null
       initInFlight = null
     },
   }

@@ -1,4 +1,5 @@
 import { buildLandTerrainRgba } from './buildLandTerrainRgba.js'
+import { buildLakeOverlayCanvas } from './buildLakeOverlayCanvas.js'
 import { buildRiverOverlayCanvas } from './buildRiverOverlayCanvas.js'
 import { buildTopographyContourCanvas } from './buildTopographyContourCanvas.js'
 import {
@@ -11,8 +12,8 @@ import {
   refreshResourceRasterOverlayCanvas,
   RESOURCE_RASTER_OVERLAY_LAYER_IDS,
 } from './resourceRasterOverlayRefresh.js'
+import { createMapLayerRefreshRunner } from './mapLayerRefresh.js'
 import {
-  collectLakeOverlayRects,
   computeRegionFocusScale,
   resolveMetalsOverlayDrawn,
   resolveSaltNodeOverlayDrawn,
@@ -26,6 +27,11 @@ export const SALT_NODE_OVERLAY_COLOR = 0xffffff
 
 /** Grid-cell radius for metal/salt strategic-resource node markers. */
 export const STRATEGIC_RESOURCE_NODE_MARKER_RADIUS = 7
+
+/**
+ * @typedef {Object} UpdateWorldDocumentOptions
+ * @property {Iterable<import('./mapLayerRefresh.js').MapLayerId> | null} [changedLayers] omit for full rebuild
+ */
 
 /**
  * @param {HTMLElement} hostEl
@@ -56,6 +62,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   timber.visible = false
   const metals = new Sprite(Texture.EMPTY)
   metals.visible = false
+  const lakes = new Sprite(Texture.EMPTY)
+  lakes.visible = false
+  let lakeTexture = null
   const rivers = new Sprite(Texture.EMPTY)
   rivers.visible = false
   let riverTexture = null
@@ -64,6 +73,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
   /** @type {import('../core/types.js').WorldDocument} */
   let currentWorldDocument = worldDocument
+  /** @type {{ elevationTint?: boolean }} */
+  let terrainBuildOptions = {}
 
   /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Texture | null>} */
   const resourceRasterTextures = {
@@ -93,6 +104,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(arable)
   viewport.addChild(timber)
   viewport.addChild(metals)
+  viewport.addChild(lakes)
   viewport.addChild(rivers)
   viewport.addChild(overlay)
   viewport
@@ -107,16 +119,76 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
 
   const resizeObserver = new ResizeObserver(() => {
     syncViewportToHost(viewport, hostEl, viewport.worldWidth, viewport.worldHeight)
-    fitMapToView(viewport, viewport.worldWidth, viewport.worldHeight)
   })
   resizeObserver.observe(hostEl)
-  refreshContours(worldDocument)
-  refreshAllResourceRasterOverlays(worldDocument)
-  refreshRiverOverlay(worldDocument)
-  drawOverlays(overlay, worldDocument, resourceOverlayVisibility)
 
   /** @type {ReturnType<typeof setInterval> | null} */
   let replayTimer = null
+
+  /**
+   * @param {import('./mapLayerRefresh.js').MapLayerId} layerId
+   */
+  function hideMapLayer(layerId) {
+    switch (layerId) {
+      case 'terrain':
+        break
+      case 'contours':
+        contours.visible = false
+        break
+      case 'arable':
+        arable.visible = false
+        break
+      case 'timber':
+        timber.visible = false
+        break
+      case 'metals':
+        metals.visible = false
+        break
+      case 'rivers':
+        rivers.visible = false
+        break
+      case 'lakes':
+        lakes.visible = false
+        break
+      case 'vectorOverlays':
+        overlay.clear()
+        break
+      default:
+        break
+    }
+  }
+
+  const mapLayerRefresh = createMapLayerRefreshRunner(
+    {
+      terrain: refreshTerrain,
+      contours: () => refreshContours(currentWorldDocument),
+      arable: () => refreshResourceRasterOverlay('arable', currentWorldDocument),
+      timber: () => refreshResourceRasterOverlay('timber', currentWorldDocument),
+      metals: () => refreshResourceRasterOverlay('metals', currentWorldDocument),
+      rivers: () => refreshRiverOverlay(currentWorldDocument),
+      lakes: () => refreshLakeOverlay(currentWorldDocument),
+      vectorOverlays: () =>
+        drawVectorOverlays(overlay, currentWorldDocument, resourceOverlayVisibility),
+    },
+    { hideLayer: hideMapLayer },
+  )
+
+  mapLayerRefresh.refresh()
+
+  /**
+   * @param {Iterable<import('./mapLayerRefresh.js').MapLayerId> | null | undefined} changedLayers
+   * @param {import('./mapLayerRefresh.js').MapLayerRefreshOptions} [options]
+   */
+  function refreshMapLayers(changedLayers, options) {
+    mapLayerRefresh.refresh(changedLayers, options)
+  }
+
+  function refreshTerrain() {
+    terrainTexture.destroy(true)
+    terrainCanvas = buildTerrainCanvas(currentWorldDocument, terrainBuildOptions)
+    terrainTexture = Texture.from(terrainCanvas)
+    terrain.texture = terrainTexture
+  }
 
   /**
    * @param {import('../core/types.js').WorldDocument} doc
@@ -135,15 +207,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     contourTexture = Texture.from(nextCanvas)
     contours.texture = contourTexture
     contours.visible = true
-  }
-
-  /**
-   * @param {import('../core/types.js').WorldDocument} doc
-   */
-  function refreshAllResourceRasterOverlays(doc) {
-    for (const resourceId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {
-      refreshResourceRasterOverlay(resourceId, doc)
-    }
   }
 
   /**
@@ -191,21 +254,46 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     rivers.visible = true
   }
 
+  /**
+   * @param {import('../core/types.js').WorldDocument} doc
+   */
+  function refreshLakeOverlay(doc) {
+    const nextCanvas = buildLakeOverlayCanvas(doc.lakeMask, doc.gridWidth, doc.gridHeight)
+    lakeTexture?.destroy(true)
+    lakeTexture = null
+
+    if (!nextCanvas) {
+      lakes.visible = false
+      lakes.texture = Texture.EMPTY
+      return
+    }
+
+    lakeTexture = Texture.from(nextCanvas)
+    lakes.texture = lakeTexture
+    lakes.visible = true
+  }
+
   return {
-    /** @param {import('../core/types.js').WorldDocument} nextDocument */
-    updateWorldDocument(nextDocument) {
+    /**
+     * @param {import('../core/types.js').WorldDocument} nextDocument
+     * @param {UpdateWorldDocumentOptions} [options]
+     */
+    updateWorldDocument(nextDocument, options = {}) {
       stopReplay()
+      terrainBuildOptions = {}
+      const dimensionsChanged =
+        nextDocument.gridWidth !== currentWorldDocument.gridWidth ||
+        nextDocument.gridHeight !== currentWorldDocument.gridHeight
       currentWorldDocument = nextDocument
-      terrainTexture.destroy(true)
-      terrainCanvas = buildTerrainCanvas(nextDocument)
-      terrainTexture = Texture.from(terrainCanvas)
-      terrain.texture = terrainTexture
-      refreshContours(nextDocument)
-      refreshAllResourceRasterOverlays(nextDocument)
-      refreshRiverOverlay(nextDocument)
-      drawOverlays(overlay, nextDocument, resourceOverlayVisibility)
-      syncViewportToHost(viewport, hostEl, nextDocument.gridWidth, nextDocument.gridHeight)
-      fitMapToView(viewport, nextDocument.gridWidth, nextDocument.gridHeight)
+      refreshMapLayers(options.changedLayers)
+      if (dimensionsChanged) {
+        syncViewportToHost(viewport, hostEl, nextDocument.gridWidth, nextDocument.gridHeight)
+      }
+    },
+
+    fitToWorld() {
+      const { gridWidth, gridHeight } = currentWorldDocument
+      fitMapToView(viewport, gridWidth, gridHeight)
     },
 
     /** @param {import('../core/types.js').MapFocus} mapFocus */
@@ -243,34 +331,38 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       let frame = 0
       replayTimer = setInterval(() => {
         const snapshot = snapshots[frame]
-        const replayDoc = {
+        currentWorldDocument = {
           ...baseDocument,
           fields: { ...baseDocument.fields, elevation: snapshot },
         }
-        terrainTexture.destroy(true)
-        terrainCanvas = buildTerrainCanvas(replayDoc, { elevationTint: true })
-        terrainTexture = Texture.from(terrainCanvas)
-        terrain.texture = terrainTexture
-        refreshContours(replayDoc)
-        rivers.visible = false
-        arable.visible = false
-        timber.visible = false
-        metals.visible = false
-        overlay.clear()
+        terrainBuildOptions = { elevationTint: true }
+        refreshMapLayers(['terrain', 'contours'], { hideUnrefreshedLayers: true })
         onFrame?.(frame)
         frame += 1
         if (frame >= snapshots.length) {
           stopReplay()
-          terrainTexture.destroy(true)
-          terrainCanvas = buildTerrainCanvas(baseDocument)
-          terrainTexture = Texture.from(terrainCanvas)
-          terrain.texture = terrainTexture
-          refreshContours(baseDocument)
-          refreshAllResourceRasterOverlays(baseDocument)
-          refreshRiverOverlay(baseDocument)
-          drawOverlays(overlay, baseDocument, resourceOverlayVisibility)
+          currentWorldDocument = baseDocument
+          terrainBuildOptions = {}
+          refreshMapLayers()
         }
       }, 120)
+    },
+
+    /**
+     * Bulk projection from overlay owner state into viewport render cache.
+     *
+     * @param {import('../resourceOverlayState.js').ResourceOverlayPageState} overlayState
+     */
+    syncOverlayRenderCache(overlayState) {
+      resourceOverlayVisibility = {
+        ...createDefaultResourceOverlayVisibility(),
+        ...overlayState.visibility,
+      }
+      arableMinimumProductivity = Math.max(
+        0,
+        Math.min(1, overlayState.displaySettings.arableMinimumProductivity),
+      )
+      refreshMapLayers(['arable', 'timber', 'metals', 'vectorOverlays'])
     },
 
     /**
@@ -283,16 +375,20 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         resourceId,
         visible,
       )
+      /** @type {import('./mapLayerRefresh.js').MapLayerId[]} */
+      const changedLayers = ['vectorOverlays']
       if (isResourceRasterOverlayLayerId(resourceId)) {
-        refreshResourceRasterOverlay(resourceId, currentWorldDocument)
+        changedLayers.unshift(
+          /** @type {import('./mapLayerRefresh.js').MapLayerId} */ (resourceId),
+        )
       }
-      drawOverlays(overlay, currentWorldDocument, resourceOverlayVisibility)
+      refreshMapLayers(changedLayers)
     },
 
     /** @param {number} minimumProductivity */
     setArableOverlayMinimumProductivity(minimumProductivity) {
       arableMinimumProductivity = Math.max(0, Math.min(1, minimumProductivity))
-      refreshResourceRasterOverlay('arable', currentWorldDocument)
+      refreshMapLayers(['arable'])
     },
 
     destroy() {
@@ -300,6 +396,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       resizeObserver.disconnect()
       terrainTexture.destroy(true)
       contourTexture?.destroy(true)
+      lakeTexture?.destroy(true)
       riverTexture?.destroy(true)
       for (const resourceId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {
         resourceRasterTextures[resourceId]?.destroy(true)
@@ -379,7 +476,7 @@ function elevationToGrayscaleRgba(elevation) {
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @param {Record<string, boolean>} resourceOverlayVisibility
  */
-function drawOverlays(overlay, worldDocument, resourceOverlayVisibility) {
+function drawVectorOverlays(overlay, worldDocument, resourceOverlayVisibility) {
   overlay.clear()
 
   if (worldDocument.coastalNodes?.length) {
@@ -403,17 +500,6 @@ function drawOverlays(overlay, worldDocument, resourceOverlayVisibility) {
       overlay.fill({ color: SALT_NODE_OVERLAY_COLOR, alpha: 0.9 })
     }
   }
-
-  if (worldDocument.lakeMask) {
-    for (const { x, y, w, h } of collectLakeOverlayRects(
-      worldDocument.lakeMask,
-      worldDocument.gridWidth,
-    )) {
-      overlay.rect(x, y, w, h)
-      overlay.fill({ color: 0x3a8fd9, alpha: 0.25 })
-    }
-  }
-
 }
 
 /** @param {import('../core/types.js').CoastalNodeKind} kind */

@@ -256,6 +256,66 @@ test('runDerivedGeographyInWorker cancel posts cancel and terminates worker', ()
   assert.deepStrictEqual(lastWorker?.postMessageCalls.at(-1), { type: 'cancel' })
 })
 
+test('runDerivedGeographyInWorker cancel invokes onCancelled like worker cancelled message', () => {
+  const cancelled = []
+  const job = startWorker({
+    onCancelled: () => cancelled.push(true),
+  })
+
+  job.cancel()
+
+  assert.deepStrictEqual(cancelled, [true])
+  assert.strictEqual(lastWorker?.terminated, true)
+})
+
+test('runDerivedGeographyInWorker delivers onCancelled only once when cancel races worker ack', () => {
+  const cancelled = []
+  const job = startWorker({
+    onCancelled: () => cancelled.push(true),
+  })
+
+  deliverWorkerMessage({ type: 'cancelled' })
+  job.cancel()
+
+  assert.strictEqual(cancelled.length, 1)
+})
+
+test('runDerivedGeographyInWorker delivers onCancelled only once when worker ack races client cancel', () => {
+  const cancelled = []
+  const job = startWorker({
+    onCancelled: () => cancelled.push(true),
+  })
+
+  const handlerBeforeCancel = lastWorker?.onmessage
+  job.cancel()
+  handlerBeforeCancel?.({ data: { type: 'cancelled' } })
+
+  assert.strictEqual(cancelled.length, 1)
+})
+
+test('runDerivedGeographyInWorker ignores worker messages after client cancel', () => {
+  const steps = []
+  const job = startWorker({
+    onStepStart: (payload) => steps.push(payload),
+    onComplete: () => steps.push('complete'),
+  })
+
+  const handlerBeforeCancel = lastWorker?.onmessage
+  job.cancel()
+  handlerBeforeCancel?.({
+    data: {
+      type: 'step-start',
+      stepId: 'baseline',
+      stepIndex: 0,
+      stepCount: 3,
+      label: 'baseline-label',
+    },
+  })
+  handlerBeforeCancel?.({ data: { type: 'complete' } })
+
+  assert.strictEqual(steps.length, 0)
+})
+
 test('runDerivedGeographyInWorker ignores unknown worker message types', () => {
   const completed = []
   startWorker({

@@ -53,14 +53,13 @@ export { LANDMASS_PIPELINE_STEP_IDS }
 /**
  * @typedef {Object} FieldRefreshStageInput
  * @property {number} geographySeed
- * @property {number} prevailingWindDegrees
  * @property {WorldGenerationOptions} options
  * @property {number} width
  * @property {number} height
- * @property {Float32Array} workingElevation
  * @property {Uint8Array} lakeMask
  * @property {Uint8Array} riverNetworkMask
  * @property {import('./types.js').ScalarFields} fields
+ * @property {Uint8Array} biomes
  * @property {Uint8Array | null} riverCorridorMask
  * @property {Int16Array | null} flowDirection
  */
@@ -166,17 +165,16 @@ export const LANDMASS_PIPELINE_STAGE_CONTRACTS = {
   },
   fieldRefresh: {
     id: 'fieldRefresh',
-    label: 'Climate field refresh',
+    label: 'Seasonal climate annualization',
     inputKeys: [
       'geographySeed',
-      'prevailingWindDegrees',
       'options',
       'width',
       'height',
-      'workingElevation',
       'lakeMask',
       'riverNetworkMask',
       'fields',
+      'biomes',
       'riverCorridorMask',
       'flowDirection',
     ],
@@ -341,20 +339,21 @@ function pickFieldRefreshStageInput(state) {
   if (!state.workingElevation || !state.lakeMask || !state.riverNetworkMask) {
     throw new Error('hydrology outputs required before fieldRefresh')
   }
-  const drainage = state.fields?.drainage
-  if (!drainage) {
+  if (!state.fields?.drainage) {
     throw new Error('hydrology fields.drainage required before fieldRefresh')
+  }
+  if (!state.biomes) {
+    throw new Error('hydrology biomes required before fieldRefresh')
   }
   return {
     geographySeed: state.geographySeed,
-    prevailingWindDegrees: state.prevailingWindDegrees,
     options: state.options,
     width: state.width,
     height: state.height,
-    workingElevation: state.workingElevation,
     lakeMask: state.lakeMask,
     riverNetworkMask: state.riverNetworkMask,
     fields: state.fields,
+    biomes: state.biomes,
     riverCorridorMask: state.riverCorridorMask,
     flowDirection: state.flowDirection,
   }

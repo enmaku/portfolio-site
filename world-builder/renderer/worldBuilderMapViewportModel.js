@@ -16,26 +16,6 @@ export function computeRegionFocusScale(worldWidth, region) {
 }
 
 /**
- * @param {Uint8Array} lakeMask
- * @param {number} gridWidth
- * @returns {Array<{ x: number, y: number, w: number, h: number }>}
- */
-export function collectLakeOverlayRects(lakeMask, gridWidth) {
-  /** @type {Array<{ x: number, y: number, w: number, h: number }>} */
-  const rects = []
-  for (let i = 0; i < lakeMask.length; i += 1) {
-    if (!lakeMask[i]) continue
-    rects.push({
-      x: i % gridWidth,
-      y: Math.floor(i / gridWidth),
-      w: 1,
-      h: 1,
-    })
-  }
-  return rects
-}
-
-/**
  * @param {Record<string, boolean>} visibility
  * @param {'timber' | 'metals'} resourceId
  * @param {import('../core/types.js').WorldDocument} worldDocument

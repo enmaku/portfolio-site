@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.js'
+import { DEFAULT_WORLD_GENERATION_OPTIONS, DEFAULT_GEOGRAPHY_SEED } from './core/worldGenerationOptions.js'
 import {
   buildDerivedGeographyParams,
   createControlsStateForSeed,
@@ -14,14 +14,13 @@ import {
   createHydrologySubstepStatuses,
   createHydrologySubstepTimingsForDisplay,
   formatHydrologySubstepTimingForDisplay,
-  DEFAULT_GEOGRAPHY_SEED,
   formatHydrologyMetricValue,
   formatSlopeAreaConcavityForDisplay,
   normalizeGeographySeed,
   shouldShowGenerationProgress,
   shouldShowResourceOverlayBar,
   shouldShowValidationFailureIndicator,
-  isPipelineCleanSuccess,
+  isGenerationRunSuccess,
   WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID,
   validationStatusColor,
   validationStatusIcon,
@@ -295,22 +294,22 @@ test('createDefaultResourceOverlayVisibility defaults every overlay off', () => 
   })
 })
 
-test('shouldShowGenerationProgress is true only while generating', () => {
-  assert.strictEqual(shouldShowGenerationProgress(true), true)
-  assert.strictEqual(shouldShowGenerationProgress(false), false)
+test('shouldShowGenerationProgress is true only while running', () => {
+  assert.strictEqual(shouldShowGenerationProgress('running'), true)
+  assert.strictEqual(shouldShowGenerationProgress('idle'), false)
+  assert.strictEqual(shouldShowGenerationProgress('success'), false)
 })
 
-test('shouldShowResourceOverlayBar is true only when idle after successful pipeline completion', () => {
-  assert.strictEqual(shouldShowResourceOverlayBar(true, 'success'), false)
-  assert.strictEqual(shouldShowResourceOverlayBar(true, 'exhausted'), false)
-  assert.strictEqual(shouldShowResourceOverlayBar(false, 'idle'), false)
-  assert.strictEqual(shouldShowResourceOverlayBar(false, 'exhausted'), false)
-  assert.strictEqual(shouldShowResourceOverlayBar(false, 'success'), true)
+test('shouldShowResourceOverlayBar is true only after successful pipeline completion', () => {
+  assert.strictEqual(shouldShowResourceOverlayBar('running'), false)
+  assert.strictEqual(shouldShowResourceOverlayBar('exhausted'), false)
+  assert.strictEqual(shouldShowResourceOverlayBar('idle'), false)
+  assert.strictEqual(shouldShowResourceOverlayBar('success'), true)
 })
 
 test('shouldShowResourceOverlayBar stays hidden after failed mid-pipeline runs', () => {
-  assert.strictEqual(shouldShowResourceOverlayBar(false, 'cancelled'), false)
-  assert.strictEqual(shouldShowResourceOverlayBar(false, 'error'), false)
+  assert.strictEqual(shouldShowResourceOverlayBar('cancelled'), false)
+  assert.strictEqual(shouldShowResourceOverlayBar('error'), false)
 })
 
 test('shouldShowValidationFailureIndicator is true only for exhausted runs', () => {
@@ -322,10 +321,10 @@ test('shouldShowValidationFailureIndicator is true only for exhausted runs', () 
   assert.strictEqual(shouldShowValidationFailureIndicator('error'), false)
 })
 
-test('isPipelineCleanSuccess is true only for success status', () => {
-  assert.strictEqual(isPipelineCleanSuccess('success'), true)
-  assert.strictEqual(isPipelineCleanSuccess('exhausted'), false)
-  assert.strictEqual(isPipelineCleanSuccess('idle'), false)
+test('isGenerationRunSuccess is true only for success status', () => {
+  assert.strictEqual(isGenerationRunSuccess('success'), true)
+  assert.strictEqual(isGenerationRunSuccess('exhausted'), false)
+  assert.strictEqual(isGenerationRunSuccess('idle'), false)
 })
 
 test('WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID is a stable non-empty string', () => {
@@ -336,17 +335,18 @@ test('WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID is a stable non-empty
 
 test('exhausted run presentation hides clean-success chrome', () => {
   assert.strictEqual(shouldShowValidationFailureIndicator('exhausted'), true)
-  assert.strictEqual(shouldShowResourceOverlayBar(false, 'exhausted'), false)
-  assert.strictEqual(isPipelineCleanSuccess('exhausted'), false)
-  assert.strictEqual(shouldShowValidationFailureIndicator('exhausted') && shouldShowResourceOverlayBar(false, 'exhausted'), false)
+  assert.strictEqual(shouldShowResourceOverlayBar('exhausted'), false)
+  assert.strictEqual(isGenerationRunSuccess('exhausted'), false)
+  assert.strictEqual(
+    shouldShowValidationFailureIndicator('exhausted') && shouldShowResourceOverlayBar('exhausted'),
+    false,
+  )
 })
 
 test('status bar helpers never show progress and overlay bar together', () => {
-  for (const isGenerating of [true, false]) {
-    for (const pipelineRunStatus of ['idle', 'success', 'exhausted', 'cancelled', 'error']) {
-      const showProgress = shouldShowGenerationProgress(isGenerating)
-      const showOverlayBar = shouldShowResourceOverlayBar(isGenerating, pipelineRunStatus)
-      assert.strictEqual(showProgress && showOverlayBar, false)
-    }
+  for (const runPhase of ['idle', 'running', 'success', 'exhausted', 'cancelled', 'error']) {
+    const showProgress = shouldShowGenerationProgress(runPhase)
+    const showOverlayBar = shouldShowResourceOverlayBar(runPhase)
+    assert.strictEqual(showProgress && showOverlayBar, false)
   }
 })

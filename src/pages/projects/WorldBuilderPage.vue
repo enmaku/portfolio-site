@@ -61,7 +61,7 @@
             :model-value="resourceOverlayVisibility[overlay.id]"
             :data-testid="`world-builder-overlay-toggle-${overlay.id}`"
             :label="overlay.label"
-            @update:model-value="(value) => onResourceOverlayToggle(overlay.id, value)"
+            @update:model-value="(value) => toggleResourceOverlayVisibility(overlay.id, value)"
           />
         </div>
       </div>
@@ -218,7 +218,7 @@
                   :step="control.step"
                   label
                   color="primary"
-                  @update:model-value="onOverlaySliderChange(control.key, $event)"
+                  @update:model-value="setResourceOverlayDisplaySetting(control.key, $event)"
                 />
               </div>
             </q-expansion-item>
@@ -232,7 +232,7 @@
             label="Regenerate"
             unelevated
             square
-            :loading="isGenerating"
+            :loading="runPhase === 'running'"
             @click="regenerate"
           />
         </div>
@@ -354,7 +354,6 @@ import { storeToRefs } from 'pinia'
 import {
   DERIVED_GEOGRAPHY_STEPS,
   HYDROLOGY_SUBSTEPS,
-  runDerivedGeographyInWorker,
 } from '@world-builder/runDerivedGeographyInWorker.js'
 import {
   WORLD_BUILDER_GENERATION_CONTROL_SECTIONS,
@@ -368,19 +367,8 @@ import {
 import {
   createResourceOverlayDefinitions,
 } from '@world-builder/resourceOverlays.js'
-import {
-  commitResourceOverlayState,
-  createResourceOverlayPageState,
-  resetResourceOverlayVisibilityState,
-  toggleResourceOverlayVisibility,
-  updateOverlayDisplaySetting,
-} from '@world-builder/resourceOverlayState.js'
 import { createGenerationMapLifecycle } from '@world-builder/worldBuilderGenerationMapLifecycle.js'
-import {
-  createGenerationRunController,
-  createInitialGenerationProgress,
-  startDerivedGeographyGeneration,
-} from '@world-builder/worldBuilderGenerationOrchestrator.js'
+import { DEFAULT_GEOGRAPHY_SEED } from '@world-builder/core/worldGenerationOptions.js'
 import {
   buildDerivedGeographyParams,
   createGenerationStepStatuses,
@@ -394,57 +382,85 @@ import {
   formatHydrologyMetricValue,
   formatSlopeAreaConcavityForDisplay,
   parseGeographySeedInput,
-  shouldShowGenerationProgress,
-  shouldShowResourceOverlayBar,
-  shouldShowValidationFailureIndicator,
   WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID,
   validationStatusColor,
   validationStatusIcon,
 } from '@world-builder/worldBuilderPageModel.js'
+import { useWorldBuilderGeneration } from '../../composables/useWorldBuilderGeneration.js'
+import { useWorldBuilderOverlayState } from '../../composables/useWorldBuilderOverlayState.js'
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
 import PrevailingWindArrow from '../../components/world-builder/PrevailingWindArrow.vue'
 import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
 
 const $q = useQuasar()
 const settingsStore = useWorldBuilderSettingsStore()
-const { prevailingWindDegrees, generationOptions, overlayDisplaySettings } = storeToRefs(settingsStore)
+const { prevailingWindDegrees, generationOptions } = storeToRefs(settingsStore)
 
 const mapHostRef = ref(null)
-const seedInput = ref('0')
-const isGenerating = ref(false)
-/** @type {import('vue').Ref<import('@world-builder/worldBuilderPageModel.js').PipelineRunStatus>} */
-const pipelineRunStatus = ref('idle')
+const seedInput = ref(String(DEFAULT_GEOGRAPHY_SEED))
 const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
 const overlayControlDefinitions = WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS
 const resourceOverlayDefinitions = createResourceOverlayDefinitions()
 
-/** @type {import('vue').Ref<import('@world-builder/resourceOverlayState.js').ResourceOverlayPageState>} */
-const resourceOverlayState = ref(createResourceOverlayPageState(overlayDisplaySettings.value))
-
-const resourceOverlayVisibility = computed(() => resourceOverlayState.value.visibility)
-
-/** @type {import('vue').Ref<import('@world-builder/core/types.js').WorldDocument | null>} */
-const worldDocument = ref(null)
-
-/** @type {import('vue').Ref<{ percent: number, activeStepIndex: number, completedStepIndex: number, label: string, activeHydrologySubstepIndex: number, completedHydrologySubstepIndex: number }>} */
-const generationProgress = ref({
-  percent: 0,
-  activeStepIndex: -1,
-  completedStepIndex: -1,
-  label: '',
-  activeHydrologySubstepIndex: -1,
-  completedHydrologySubstepIndex: -1,
-  skippedHydrologySubstepIds: [],
-})
-
 /** @type {typeof import('@world-builder/renderer/createWorldBuilderMapViewport.js').createWorldBuilderMapViewport | null} */
 let createWorldBuilderMapViewport = null
 
-/** @type {ReturnType<typeof createGenerationRunController> | null} */
-let generationRunController = null
-
 /** @type {ReturnType<typeof createGenerationMapLifecycle> | null} */
 let generationMapLifecycle = null
+
+const {
+  visibility: resourceOverlayVisibility,
+  overlayDisplaySetting,
+  toggleVisibility: toggleResourceOverlayVisibility,
+  setDisplaySetting: setResourceOverlayDisplaySetting,
+  resetVisibility: resetResourceOverlayVisibility,
+  applyPersistedDefaults: applyResourceOverlayPersistedDefaults,
+  hydrateFromPersistedSettings: hydrateResourceOverlayFromSettings,
+  syncToViewport: syncResourceOverlayToViewport,
+} = useWorldBuilderOverlayState({
+  getViewport: () => generationMapLifecycle?.getViewport() ?? null,
+  settingsStore,
+})
+
+function getDerivedGeographyParams() {
+  const parsedSeed = parseGeographySeedInput(seedInput.value)
+  if (parsedSeed === null) {
+    return null
+  }
+  return buildDerivedGeographyParams(
+    parsedSeed,
+    prevailingWindDegrees.value,
+    generationOptions.value,
+  )
+}
+
+async function applyWorldDocumentToMap(doc) {
+  await generationMapLifecycle?.applyWorldDocument(doc)
+}
+
+const {
+  runPhase,
+  worldDocument,
+  generationProgress,
+  showGenerationProgress,
+  showResourceOverlayBar,
+  showValidationFailureIndicator,
+  regenerate,
+  dispose: disposeGeneration,
+} = useWorldBuilderGeneration({
+  getDerivedGeographyParams,
+  applyWorldDocument: applyWorldDocumentToMap,
+  onBeforeRun: () => resetResourceOverlayVisibility(),
+  onRunCompleteSuccess: () => resetResourceOverlayVisibility(),
+  onRunError(message) {
+    $q.notify({
+      type: 'negative',
+      message: `World generation failed: ${message}`,
+      timeout: 0,
+      actions: [{ label: 'Dismiss', color: 'white' }],
+    })
+  },
+})
 
 const validationRows = computed(() =>
   createValidationRowsForDisplay(worldDocument.value?.generationReport),
@@ -473,13 +489,6 @@ const hydrologySubstepStatuses = computed(() =>
 const hydrologySubstepTimings = computed(() =>
   createHydrologySubstepTimingsForDisplay(worldDocument.value?.generationReport),
 )
-const showGenerationProgress = computed(() => shouldShowGenerationProgress(isGenerating.value))
-const showResourceOverlayBar = computed(() =>
-  shouldShowResourceOverlayBar(isGenerating.value, pipelineRunStatus.value),
-)
-const showValidationFailureIndicator = computed(() =>
-  shouldShowValidationFailureIndicator(pipelineRunStatus.value),
-)
 
 /**
  * @param {'pending' | 'active' | 'complete' | 'skipped'} status
@@ -489,54 +498,6 @@ function stepStatusColor(status) {
   if (status === 'active') return 'primary'
   if (status === 'skipped') return 'grey-6'
   return 'grey-8'
-}
-
-function resetGenerationProgress() {
-  generationProgress.value = createInitialGenerationProgress()
-}
-
-function resetResourceOverlayVisibility() {
-  resourceOverlayState.value = commitResourceOverlayState(
-    generationMapLifecycle?.getViewport(),
-    resetResourceOverlayVisibilityState(resourceOverlayState.value),
-  )
-}
-
-function syncResourceOverlayVisibilityToMapViewport() {
-  resourceOverlayState.value = commitResourceOverlayState(
-    generationMapLifecycle?.getViewport(),
-    resourceOverlayState.value,
-  )
-}
-
-/**
- * @param {string} resourceId
- * @param {boolean} visible
- */
-function onResourceOverlayToggle(resourceId, visible) {
-  resourceOverlayState.value = commitResourceOverlayState(
-    generationMapLifecycle?.getViewport(),
-    toggleResourceOverlayVisibility(resourceOverlayState.value, resourceId, visible),
-  )
-}
-
-/**
- * @param {'arableMinimumProductivity'} key
- */
-function overlayDisplaySetting(key) {
-  return resourceOverlayState.value.displaySettings[key]
-}
-
-/**
- * @param {'arableMinimumProductivity'} key
- * @param {number} value
- */
-function onOverlaySliderChange(key, value) {
-  settingsStore.setOverlayDisplaySetting(key, value)
-  resourceOverlayState.value = commitResourceOverlayState(
-    generationMapLifecycle?.getViewport(),
-    updateOverlayDisplaySetting(resourceOverlayState.value, key, value),
-  )
 }
 
 /**
@@ -584,86 +545,6 @@ function formatControlValue(key, value) {
 }
 
 /**
- * @param {import('@world-builder/core/types.js').WorldDocument} doc
- */
-async function applyWorldDocumentToMap(doc) {
-  worldDocument.value = doc
-  await generationMapLifecycle?.applyWorldDocument(doc)
-}
-
-/**
- * @param {unknown} error
- */
-function showGenerationFailure(error) {
-  generationRunController?.invalidateRuns()
-  isGenerating.value = false
-  pipelineRunStatus.value = 'error'
-  const message = error instanceof Error ? error.message : String(error)
-  $q.notify({
-    type: 'negative',
-    message: `World generation failed: ${message}`,
-    timeout: 0,
-    actions: [{ label: 'Dismiss', color: 'white' }],
-  })
-}
-
-function regenerate() {
-  const parsedSeed = parseGeographySeedInput(seedInput.value)
-  if (parsedSeed === null) {
-    return
-  }
-
-  if (!generationRunController) {
-    generationRunController = createGenerationRunController()
-  }
-
-  isGenerating.value = true
-  pipelineRunStatus.value = 'running'
-  resetGenerationProgress()
-  resetResourceOverlayVisibility()
-
-  startDerivedGeographyGeneration({
-    controller: generationRunController,
-    params: buildDerivedGeographyParams(
-      parsedSeed,
-      prevailingWindDegrees.value,
-      generationOptions.value,
-    ),
-    runDerivedGeographyInWorker,
-    handlers: {
-      onRunStarted({ progress }) {
-        generationProgress.value = progress
-      },
-      onProgress(progress) {
-        generationProgress.value = progress
-      },
-      onWorldDocument(doc) {
-        void applyWorldDocumentToMap(doc).catch((error) => {
-          showGenerationFailure(error)
-        })
-      },
-      onComplete() {
-        isGenerating.value = false
-        pipelineRunStatus.value = 'success'
-        resetResourceOverlayVisibility()
-      },
-      onExhausted() {
-        isGenerating.value = false
-        pipelineRunStatus.value = 'exhausted'
-      },
-      onCancelled() {
-        isGenerating.value = false
-        pipelineRunStatus.value = 'cancelled'
-        resetGenerationProgress()
-      },
-      onError(message) {
-        showGenerationFailure(message)
-      },
-    },
-  })
-}
-
-/**
  * @param {{ mapFocus?: import('@world-builder/core/types.js').MapFocus }} row
  */
 function onValidationRowClick(row) {
@@ -684,32 +565,27 @@ function randomizeSeed() {
 
 function resetToDefaults() {
   settingsStore.resetToDefaults()
-  resourceOverlayState.value = commitResourceOverlayState(
-    generationMapLifecycle?.getViewport(),
-    createResourceOverlayPageState(overlayDisplaySettings.value),
-  )
+  applyResourceOverlayPersistedDefaults()
   regenerate()
 }
 
 onMounted(async () => {
   settingsStore.ensureInitialized()
   seedInput.value = String(settingsStore.geographySeed)
-  resourceOverlayState.value = createResourceOverlayPageState(overlayDisplaySettings.value)
+  hydrateResourceOverlayFromSettings()
 
   const rendererModule = await import('@world-builder/renderer/createWorldBuilderMapViewport.js')
   createWorldBuilderMapViewport = rendererModule.createWorldBuilderMapViewport
   generationMapLifecycle = createGenerationMapLifecycle({
     getMapHost: () => mapHostRef.value,
     getCreateViewport: () => createWorldBuilderMapViewport,
-    onViewportReady: syncResourceOverlayVisibilityToMapViewport,
+    onViewportReady: () => syncResourceOverlayToViewport(),
   })
-  generationRunController = createGenerationRunController()
   regenerate()
 })
 
 onUnmounted(() => {
-  generationRunController?.cancelActive()
-  generationRunController = null
+  disposeGeneration()
   generationMapLifecycle?.destroy()
   generationMapLifecycle = null
 })

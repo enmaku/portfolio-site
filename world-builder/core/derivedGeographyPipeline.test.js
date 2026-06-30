@@ -64,7 +64,7 @@ test('runPipelineStep hydrology records substep timings on state', () => {
   assert.strictEqual(state.hydrologySubstepTimings.length, 9)
 })
 
-test('runPipelineStep hydrology runs hydrologyRefine when enabled by default', () => {
+test('runPipelineStep hydrology skips hydrologyRefine when enableMeanderRefine is false by default', () => {
   let state = createInitialPipelineState(params)
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')
@@ -74,8 +74,8 @@ test('runPipelineStep hydrology runs hydrologyRefine when enabled by default', (
     (row) => row.substepId === 'hydrologyRefine',
   )
   assert.ok(refineTiming)
-  assert.strictEqual(refineTiming.skipped, false)
-  assert.ok(refineTiming.durationMs >= 0)
+  assert.strictEqual(refineTiming.skipped, true)
+  assert.strictEqual(refineTiming.durationMs, 0)
 })
 
 test('full pipeline generation report includes hydrology substep timings', () => {

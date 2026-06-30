@@ -56,16 +56,22 @@ test('resolveWorldGenerationOptions preserves maxValidationRetries default', () 
   assert.strictEqual(options.maxValidationRetries, 3)
 })
 
-test('resolveWorldGenerationOptions enables river bridging and meander refine by default', () => {
+test('resolveWorldGenerationOptions defaults legacy presentation heuristics off (issue #345 Option A)', () => {
   const options = resolveWorldGenerationOptions()
-  assert.strictEqual(options.riverAttractionRadiusScale, 6)
-  assert.strictEqual(options.enableMeanderRefine, true)
+  assert.strictEqual(options.riverAttractionRadiusScale, 0)
+  assert.strictEqual(options.enableMeanderRefine, false)
 })
 
 test('resolveWorldGenerationOptions merges enableMeanderRefine override', () => {
-  const options = resolveWorldGenerationOptions({ enableMeanderRefine: false })
-  assert.strictEqual(options.enableMeanderRefine, false)
+  const options = resolveWorldGenerationOptions({ enableMeanderRefine: true })
+  assert.strictEqual(options.enableMeanderRefine, true)
+  assert.strictEqual(options.riverAttractionRadiusScale, 0)
+})
+
+test('resolveWorldGenerationOptions merges riverAttractionRadiusScale for presentation opt-in', () => {
+  const options = resolveWorldGenerationOptions({ riverAttractionRadiusScale: 6 })
   assert.strictEqual(options.riverAttractionRadiusScale, 6)
+  assert.strictEqual(options.enableMeanderRefine, false)
 })
 
 test('resolveWorldGenerationOptions preserves rainfall amount default', () => {

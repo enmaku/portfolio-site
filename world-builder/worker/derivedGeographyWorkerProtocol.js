@@ -166,3 +166,27 @@ export function isSlimWorkerStepCompleteMessage(message) {
   }
   return !('state' in record)
 }
+
+/**
+ * Whether a worker world-document delivery should refresh the map preview.
+ * Only validation `step-complete` and `exhausted` terminals carry preview documents.
+ *
+ * @param {{
+ *   delivery: 'step-complete' | 'exhausted',
+ *   stepId?: DerivedGeographyStepId,
+ *   worldDocument?: import('../core/types.js').WorldDocument | null | undefined,
+ * }} payload
+ * @returns {boolean}
+ */
+export function isMapPreviewWorldDocumentDelivery(payload) {
+  if (payload.worldDocument == null) {
+    return false
+  }
+  if (payload.delivery === 'exhausted') {
+    return true
+  }
+  if (payload.delivery === 'step-complete') {
+    return payload.stepId === 'validation'
+  }
+  return false
+}

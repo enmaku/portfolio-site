@@ -2,7 +2,6 @@ import {
   applyResourceOverlayVisibility,
   createDefaultOverlayDisplaySettings,
   createDefaultResourceOverlayVisibility,
-  createResourceOverlayIds,
 } from './resourceOverlays.js'
 
 /** @typedef {import('./resourceOverlays.js').OverlayDisplaySettings} OverlayDisplaySettings */
@@ -68,22 +67,18 @@ export function updateOverlayDisplaySetting(state, key, value) {
 
 /**
  * @param {{
- *   setResourceOverlayVisibility: (resourceId: string, visible: boolean) => void,
- *   setArableOverlayMinimumProductivity: (minimumProductivity: number) => void,
+ *   syncOverlayRenderCache: (state: ResourceOverlayPageState) => void,
  * }} viewport
  * @param {ResourceOverlayPageState} state
  */
 export function syncResourceOverlayStateToViewport(viewport, state) {
-  viewport.setArableOverlayMinimumProductivity(state.displaySettings.arableMinimumProductivity)
-  for (const resourceId of createResourceOverlayIds()) {
-    viewport.setResourceOverlayVisibility(resourceId, state.visibility[resourceId] === true)
-  }
+  viewport.syncOverlayRenderCache(state)
 }
 
 /**
  * Commit overlay state and project it to the viewport when one is available.
  *
- * @param {Parameters<typeof syncResourceOverlayStateToViewport>[0] | null | undefined} viewport
+ * @param {{ syncOverlayRenderCache?: (state: ResourceOverlayPageState) => void } | null | undefined} viewport
  * @param {ResourceOverlayPageState} nextState
  * @returns {ResourceOverlayPageState}
  */

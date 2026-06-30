@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from '../biomeIds.js'
 import { generateDerivedGeography } from '../generateDerivedGeography.js'
-import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
+import { DEFAULT_GEOGRAPHY_SEED } from '../../core/worldGenerationOptions.js'
 import {
   buildPhysicalRiverCorridorMask,
   capRiverCorridorRadiusAtWaterEdge,

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from './biomeIds.js'
 import { runFullDerivedGeographyPipeline } from './derivedGeographyPipeline.js'
-import { DEFAULT_GEOGRAPHY_SEED } from '../worldBuilderPageModel.js'
+import { DEFAULT_GEOGRAPHY_SEED } from './worldGenerationOptions.js'
 
 const params = {
   geographySeed: 12345,

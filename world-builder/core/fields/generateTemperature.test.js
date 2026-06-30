@@ -5,7 +5,7 @@ import { deriveFieldSeed } from '../noise/seededRandom.js'
 import { generateFbm2d } from '../noise/fbm2d.js'
 import { scaleForGridSize } from '../types.js'
 import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
-import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
+import { DEFAULT_GEOGRAPHY_SEED } from '../../core/worldGenerationOptions.js'
 import { generateTemperature } from './generateTemperature.js'
 
 const REPRESENTATIVE_GEOGRAPHY_SEEDS = [12345, 31842, DEFAULT_GEOGRAPHY_SEED]

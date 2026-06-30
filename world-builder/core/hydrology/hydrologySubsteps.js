@@ -38,8 +38,12 @@ import {
 import { assembleRiverNetwork } from './riverNetwork.js'
 import {
   applySkipRefineTransition,
-  resolveDisplayRiverNetworkMask,
+  createRiverMaskPipeline,
+  getRiverMaskStageFromContext,
+  requireRiverMaskStageFromContext,
+  resolveDisplayRiverNetworkMaskFromPipeline,
   RIVER_MASK_SKIP_REFINE_TRANSITION,
+  setRiverMaskStage,
   snapshotRiverMaskLifecycle,
 } from './riverMaskLifecycle.js'
 import { settleLakeEquilibrium } from './settleLakeEquilibrium.js'
@@ -95,18 +99,14 @@ export const HYDROLOGY_SUBSTEPS = Object.entries(HYDROLOGY_SUBSTEP_CONTRACTS).ma
  * @property {Int16Array | null} flowDirection
  * @property {Float32Array | null} flowAccumulation
  * @property {boolean[] | null} lakeOcean
- * @property {Uint8Array | null} riverNetworkMask
- * @property {Uint8Array | null} incisedCorridorMask
+ * @property {import('./riverMaskLifecycle.js').RiverMaskPipeline} riverMaskPipeline
  * @property {Float32Array | null} channelWidth
  * @property {Float32Array | null} settledElevation
- * @property {Uint8Array | null} settledRiverNetworkMask
- * @property {Uint8Array | null} presentationRiverNetworkMask
  * @property {Int16Array | null} settledFlowDirection
  * @property {Float32Array | null} settledFlowAccumulation
  * @property {Uint8Array | null} settledOcean
  * @property {Float32Array | null} settledDrainage
  * @property {import('../types.js').RiverGraph | null} settledRiverGraph
- * @property {Uint8Array | null} riverCorridorMask
  * @property {import('../types.js').RiverNetwork | null} riverNetwork
  * @property {HydrologySubstepId | null} lastCompletedSubstep
  * @property {import('./flowField.js').FlowFieldSession} flowFieldSession
@@ -142,18 +142,14 @@ function createHydrologyContext(state, hooks = {}) {
     flowDirection: null,
     flowAccumulation: null,
     lakeOcean: null,
-    riverNetworkMask: null,
-    incisedCorridorMask: null,
+    riverMaskPipeline: createRiverMaskPipeline(),
     channelWidth: null,
     settledElevation: null,
-    settledRiverNetworkMask: null,
-    presentationRiverNetworkMask: null,
     settledFlowDirection: null,
     settledFlowAccumulation: null,
     settledOcean: null,
     settledDrainage: null,
     settledRiverGraph: null,
-    riverCorridorMask: null,
     riverNetwork: null,
     lastCompletedSubstep: null,
   }
@@ -364,7 +360,7 @@ function runHydrologyRouteSubstep(ctx) {
   ctx.flowDirection = flowDirection
   ctx.flowAccumulation = flowAccumulation
   ctx.lakeOcean = lakeOcean
-  ctx.riverNetworkMask = riverNetworkMask
+  setRiverMaskStage(ctx.riverMaskPipeline, 'sketch', riverNetworkMask)
 }
 
 /**
@@ -396,7 +392,7 @@ function runHydrologyInciseSubstep(ctx) {
     height,
     geographySeed: state.geographySeed,
     seaLevel: state.options.seaLevel,
-    channelSeedMask: ctx.riverNetworkMask,
+    channelSeedMask: requireRiverMaskStageFromContext(ctx, 'sketch'),
     incisionDepth: state.options.erosionChannelWear * 1.5,
     inciseIterations: state.options.inciseIterations,
     streamPowerK: state.options.streamPowerK,
@@ -407,9 +403,13 @@ function runHydrologyInciseSubstep(ctx) {
   })
 
   ctx.settledElevation = carved.elevation
-  ctx.incisedCorridorMask = unionCorridorMasks(
-    carved.corridorMask,
-    deriveIncisedCorridorMask(ctx.filledElevation, carved.elevation, ctx.lakeOcean),
+  setRiverMaskStage(
+    ctx.riverMaskPipeline,
+    'incised',
+    unionCorridorMasks(
+      carved.corridorMask,
+      deriveIncisedCorridorMask(ctx.filledElevation, carved.elevation, ctx.lakeOcean),
+    ),
   )
 }
 
@@ -421,7 +421,7 @@ function runHydrologyExtractSubstep(ctx) {
   const soilDrainage = state.baselineDoc?.fields.drainage ?? state.fields?.drainage
   const extracted = extractRiverNetworkFromIncisedChannels({
     elevation: ctx.settledElevation,
-    incisedCorridorMask: ctx.incisedCorridorMask,
+    incisedCorridorMask: requireRiverMaskStageFromContext(ctx, 'incised'),
     rainfall: ctx.rainfall,
     meltContribution: ctx.meltContribution,
     cellRunoff: ctx.effectiveRunoff,
@@ -438,7 +438,7 @@ function runHydrologyExtractSubstep(ctx) {
   ctx.settledFlowDirection = extracted.flowDirection
   ctx.settledFlowAccumulation = extracted.flowAccumulation
   ctx.settledOcean = extracted.ocean
-  ctx.settledRiverNetworkMask = extracted.channelMask
+  setRiverMaskStage(ctx.riverMaskPipeline, 'settled', extracted.channelMask)
   ctx.channelWidth = extracted.channelWidth
   ctx.settledRiverGraph = extracted.riverGraph
 }
@@ -449,7 +449,7 @@ function runHydrologyExtractSubstep(ctx) {
 function runHydrologyRefineSubstep(ctx) {
   const { state, width, height } = ctx
   const refined = applyRefineStageMeanderPresentation({
-    sketchMask: ctx.settledRiverNetworkMask,
+    sketchMask: requireRiverMaskStageFromContext(ctx, 'settled'),
     elevation: ctx.settledElevation,
     ocean: ctx.settledOcean,
     flowDirection: ctx.settledFlowDirection,
@@ -461,9 +461,10 @@ function runHydrologyRefineSubstep(ctx) {
     options: state.options,
   })
   ctx.settledElevation = refined.elevation
-  ctx.presentationRiverNetworkMask = unionCorridorMasks(
-    ctx.settledRiverNetworkMask,
-    refined.riverNetworkMask,
+  setRiverMaskStage(
+    ctx.riverMaskPipeline,
+    'presentation',
+    unionCorridorMasks(requireRiverMaskStageFromContext(ctx, 'settled'), refined.riverNetworkMask),
   )
 }
 
@@ -509,10 +510,7 @@ function runHydrologySettleSubstep(ctx) {
   ctx.settledOcean = settledOcean
 
   ctx.settledDrainage = deriveDrainageFromFlow(ctx.settledFlowAccumulation)
-  const displayRiverNetworkMask = resolveDisplayRiverNetworkMask(
-    ctx.presentationRiverNetworkMask,
-    ctx.settledRiverNetworkMask,
-  )
+  const displayRiverNetworkMask = resolveDisplayRiverNetworkMaskFromPipeline(ctx.riverMaskPipeline)
   ctx.channelWidth = buildChannelWidthField({
     flowAccumulation: ctx.settledFlowAccumulation,
     channelMask: displayRiverNetworkMask,
@@ -561,10 +559,7 @@ function runHydrologyPaintSubstep(ctx) {
     })
   }
 
-  const riverNetworkMask = resolveDisplayRiverNetworkMask(
-    ctx.presentationRiverNetworkMask,
-    ctx.settledRiverNetworkMask,
-  )
+  const riverNetworkMask = resolveDisplayRiverNetworkMaskFromPipeline(ctx.riverMaskPipeline)
   const rawMask = buildPhysicalRiverCorridorMask(riverNetworkMask, width, height, {
     elevation: ctx.settledElevation,
     flowDirection: ctx.settledFlowDirection,
@@ -573,10 +568,11 @@ function runHydrologyPaintSubstep(ctx) {
     lakeMask: ctx.lakeMask ?? undefined,
     onProgress: (progress) => reportPaintProgress(progress * 0.92),
   })
-  ctx.riverCorridorMask = smoothRiverCorridorMaskForDisplay(rawMask, width, height, 1)
+  const paintedCorridorMask = smoothRiverCorridorMaskForDisplay(rawMask, width, height, 1)
+  setRiverMaskStage(ctx.riverMaskPipeline, 'painted', paintedCorridorMask)
   ctx.riverNetwork = assembleRiverNetwork({
     centerline: riverNetworkMask,
-    corridor: ctx.riverCorridorMask,
+    corridor: paintedCorridorMask,
     flowDirection: ctx.settledFlowDirection,
     flowAccumulation: ctx.settledFlowAccumulation,
     channelWidth: ctx.channelWidth,
@@ -644,7 +640,7 @@ function buildPipelineStateFromHydrologyContext(ctx) {
     fields: previewFields,
     biomes: classifyBiomesWithHydrology(previewFields, width, height, {
       lakeMask: ctx.lakeMask,
-      riverCorridorMask: ctx.riverCorridorMask,
+      riverCorridorMask: getRiverMaskStageFromContext(ctx, 'painted'),
       flowDirection: ctx.settledFlowDirection,
     }, state.options.seaLevel, state.geographySeed, state.options.biomeEdgeNoiseStrength),
     lastCompletedStep: 'hydrology',

@@ -244,8 +244,8 @@
  * @property {LakeRecord[]=} lakes
  * @property {LakeMetaRecord[]=} lakeMeta
  * @property {Uint8Array=} lakeMask
- * @property {Uint8Array=} riverNetworkMask
- * @property {Uint8Array=} riverCorridorMask
+ * @property {Uint8Array=} riverNetworkMask Simulation centerline (settled mask; presentation refine when opted in).
+ * @property {Uint8Array=} riverCorridorMask Presentation painted corridor from hydrologyPaint; map display only.
  * @property {Float32Array=} channelWidth
  * @property {Int16Array=} flowDirection
  * @property {Float32Array=} coastNavigability
@@ -286,8 +286,8 @@
  * @property {number} temperatureLapseRate
  * @property {number} rainfallFrequencyScale
  * @property {number} navigableFlowCutoffScale
- * @property {number} riverAttractionRadiusScale
- * @property {boolean} enableMeanderRefine
+ * @property {number} riverAttractionRadiusScale Legacy presentation corridor bridging; 0 = off (Option A default).
+ * @property {boolean} enableMeanderRefine Legacy presentation meander refine; default false (Option A).
  * @property {number} riverMeanderStrength
  * @property {number} riverSettlementSteps
  * @property {number} riverMergeStrength

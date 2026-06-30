@@ -52,7 +52,31 @@ export function runDerivedGeographyInWorker(params, callbacks) {
     { type: 'module' },
   )
 
+  let settled = false
+
+  /** @returns {boolean} */
+  function settleWorker() {
+    if (settled) {
+      return false
+    }
+    settled = true
+    worker.onmessage = null
+    worker.onerror = null
+    return true
+  }
+
+  function handleCancelled() {
+    if (!settleWorker()) {
+      return
+    }
+    callbacks.onCancelled?.()
+    worker.terminate()
+  }
+
   worker.onmessage = (event) => {
+    if (settled) {
+      return
+    }
     const message = event.data
     switch (message.type) {
       case 'step-start':
@@ -74,20 +98,28 @@ export function runDerivedGeographyInWorker(params, callbacks) {
         callbacks.onSubstepPrepare?.(message)
         break
       case 'complete':
+        if (!settleWorker()) {
+          return
+        }
         callbacks.onComplete?.()
         worker.terminate()
         break
       case 'exhausted':
+        if (!settleWorker()) {
+          return
+        }
         if (message.worldDocument) {
           callbacks.onExhausted?.(message.worldDocument)
         }
         worker.terminate()
         break
       case 'cancelled':
-        callbacks.onCancelled?.()
-        worker.terminate()
+        handleCancelled()
         break
       case 'error':
+        if (!settleWorker()) {
+          return
+        }
         callbacks.onError?.(message.message)
         worker.terminate()
         break
@@ -97,6 +129,9 @@ export function runDerivedGeographyInWorker(params, callbacks) {
   }
 
   worker.onerror = (event) => {
+    if (!settleWorker()) {
+      return
+    }
     callbacks.onError?.(event.message || 'Worker failed')
     worker.terminate()
   }
@@ -106,10 +141,8 @@ export function runDerivedGeographyInWorker(params, callbacks) {
   return {
     worker,
     cancel() {
-      worker.onmessage = null
-      worker.onerror = null
       worker.postMessage({ type: 'cancel' })
-      worker.terminate()
+      handleCancelled()
     },
   }
 }

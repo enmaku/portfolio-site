@@ -12,7 +12,7 @@ import {
 import { createGenerationMapLifecycle } from './worldBuilderGenerationMapLifecycle.js'
 import { shouldApplyStepPreviewToMap } from './worldBuilderGenerationPolicy.js'
 import {
-  isPipelineCleanSuccess,
+  isGenerationRunSuccess,
   shouldShowResourceOverlayBar,
   shouldShowValidationFailureIndicator,
 } from './worldBuilderPageModel.js'
@@ -260,9 +260,9 @@ test('startDerivedGeographyGeneration forwards exhausted lifecycle without treat
   assert.strictEqual(exhausted, true)
   assert.strictEqual(completed, false)
   assert.strictEqual(documents.length, 2)
-  assert.strictEqual(isPipelineCleanSuccess('exhausted'), false)
+  assert.strictEqual(isGenerationRunSuccess('exhausted'), false)
   assert.strictEqual(shouldShowValidationFailureIndicator('exhausted'), true)
-  assert.strictEqual(shouldShowResourceOverlayBar(false, 'exhausted'), false)
+  assert.strictEqual(shouldShowResourceOverlayBar('exhausted'), false)
 })
 
 test('startDerivedGeographyGeneration ignores callbacks from stale runs', () => {
@@ -296,6 +296,127 @@ test('startDerivedGeographyGeneration ignores callbacks from stale runs', () => 
   assert.strictEqual(progressCount, 0)
 })
 
+test('startDerivedGeographyGeneration rejects ineligible step-complete previews for non-validation steps', () => {
+  const controller = createGenerationRunController()
+  /** @type {import('./core/types.js').WorldDocument[]} */
+  const documents = []
+
+  const previewDoc = {
+    gridWidth: 2,
+    gridHeight: 2,
+    biomes: new Uint8Array(4),
+    fields: { elevation: new Float32Array(4) },
+  }
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      callbacks.onStepComplete?.({
+        stepId: 'erosion',
+        stepIndex: 1,
+        stepCount: 6,
+        label: 'Erosion',
+        worldDocument: previewDoc,
+      })
+      callbacks.onComplete?.()
+      return { cancel() {} }
+    },
+    handlers: {
+      onWorldDocument(doc) {
+        documents.push(doc)
+      },
+    },
+  })
+
+  assert.strictEqual(documents.length, 0)
+})
+
+test('startDerivedGeographyGeneration does not push world document on metadata-only terminals', () => {
+  const controller = createGenerationRunController()
+  /** @type {import('./core/types.js').WorldDocument[]} */
+  const documents = []
+
+  const fakeWorldDocument = {
+    gridWidth: 2,
+    gridHeight: 2,
+    biomes: new Uint8Array(4),
+    fields: { elevation: new Float32Array(4) },
+  }
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      callbacks.onComplete?.()
+      return { cancel() {} }
+    },
+    handlers: {
+      onWorldDocument(doc) {
+        documents.push(doc)
+      },
+    },
+  })
+  assert.strictEqual(documents.length, 0, 'complete terminal must not deliver world document')
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      callbacks.onCancelled?.()
+      return { cancel() {} }
+    },
+    handlers: {
+      onWorldDocument(doc) {
+        documents.push(doc)
+      },
+    },
+  })
+  assert.strictEqual(documents.length, 0, 'cancelled terminal must not deliver world document')
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      callbacks.onError?.('worker failed')
+      return { cancel() {} }
+    },
+    handlers: {
+      onWorldDocument(doc) {
+        documents.push(doc)
+      },
+    },
+  })
+  assert.strictEqual(documents.length, 0, 'error terminal must not deliver world document')
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      callbacks.onStepComplete?.({
+        stepId: 'validation',
+        stepIndex: 5,
+        stepCount: 6,
+        label: 'Validation',
+        worldDocument: fakeWorldDocument,
+      })
+      callbacks.onComplete?.()
+      return { cancel() {} }
+    },
+    handlers: {
+      onWorldDocument(doc) {
+        documents.push(doc)
+      },
+    },
+  })
+  assert.strictEqual(
+    documents.length,
+    1,
+    'complete terminal must not add a second delivery after validation step-complete',
+  )
+  assert.strictEqual(documents[0], fakeWorldDocument)
+})
+
 test('startDerivedGeographyGeneration applies preview policy from generation policy module', () => {
   const controller = createGenerationRunController()
   /** @type {import('./core/types.js').WorldDocument[]} */
@@ -308,8 +429,18 @@ test('startDerivedGeographyGeneration applies preview policy from generation pol
     fields: { elevation: new Float32Array(4) },
   }
 
-  assert.strictEqual(shouldApplyStepPreviewToMap(previewEligible), true)
-  assert.strictEqual(shouldApplyStepPreviewToMap(undefined), false)
+  assert.strictEqual(
+    shouldApplyStepPreviewToMap({
+      delivery: 'step-complete',
+      stepId: 'validation',
+      worldDocument: previewEligible,
+    }),
+    true,
+  )
+  assert.strictEqual(
+    shouldApplyStepPreviewToMap({ delivery: 'step-complete', stepId: 'erosion', worldDocument: previewEligible }),
+    false,
+  )
 
   startDerivedGeographyGeneration({
     controller,
@@ -365,10 +496,80 @@ test('startDerivedGeographyGeneration cancels the previous active worker job', (
   assert.strictEqual(cancelCount, 1)
 })
 
+test('startDerivedGeographyGeneration cancelActive invokes onCancelled once', () => {
+  const controller = createGenerationRunController()
+  let cancelled = 0
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      return {
+        cancel() {
+          callbacks.onCancelled?.()
+        },
+      }
+    },
+    handlers: {
+      onCancelled() {
+        cancelled += 1
+      },
+    },
+  })
+
+  controller.cancelActive()
+
+  assert.strictEqual(cancelled, 1)
+})
+
+test('startDerivedGeographyGeneration ignores stale onCancelled after supersede via beginRun', () => {
+  const controller = createGenerationRunController()
+  let firstRunCancelled = 0
+  /** @type {import('./worldBuilderGenerationOrchestrator.js').DerivedGeographyWorkerCallbacks} */
+  let firstRunCallbacks = {}
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      firstRunCallbacks = callbacks
+      return {
+        cancel() {
+          callbacks.onCancelled?.()
+        },
+      }
+    },
+    handlers: {
+      onCancelled() {
+        firstRunCancelled += 1
+      },
+    },
+  })
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 2, prevailingWindDegrees: 180, options: {} },
+    runDerivedGeographyInWorker() {
+      return { cancel() {} }
+    },
+    handlers: {
+      onCancelled() {
+        throw new Error('second run should not cancel before finishing')
+      },
+    },
+  })
+
+  assert.strictEqual(firstRunCancelled, 0)
+
+  firstRunCallbacks.onCancelled?.()
+  assert.strictEqual(firstRunCancelled, 0)
+})
+
 test('burst step-complete previews join single-flight map lifecycle without duplicate creates', async () => {
   const controller = createGenerationRunController()
   let createCount = 0
   let updateCount = 0
+  let fitToWorldCount = 0
 
   const lifecycle = createGenerationMapLifecycle({
     getMapHost: () => ({}),
@@ -379,6 +580,9 @@ test('burst step-complete previews join single-flight map lifecycle without dupl
         updateWorldDocument() {
           updateCount += 1
         },
+        fitToWorld() {
+          fitToWorldCount += 1
+        },
         destroy() {},
       }
     },
@@ -388,21 +592,14 @@ test('burst step-complete previews join single-flight map lifecycle without dupl
   const mapUpdates = []
 
   /** @type {import('./core/types.js').WorldDocument} */
-  const docOne = {
+  const ineligiblePreview = {
     gridWidth: 2,
     gridHeight: 2,
     biomes: new Uint8Array(4),
     fields: { elevation: new Float32Array(4) },
   }
   /** @type {import('./core/types.js').WorldDocument} */
-  const docTwo = {
-    gridWidth: 4,
-    gridHeight: 4,
-    biomes: new Uint8Array(16),
-    fields: { elevation: new Float32Array(16) },
-  }
-  /** @type {import('./core/types.js').WorldDocument} */
-  const docThree = {
+  const validationPreview = {
     gridWidth: 6,
     gridHeight: 6,
     biomes: new Uint8Array(36),
@@ -414,25 +611,25 @@ test('burst step-complete previews join single-flight map lifecycle without dupl
     params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
     runDerivedGeographyInWorker(_params, callbacks) {
       callbacks.onStepComplete?.({
-        stepId: 'baseline',
+        stepId: 'physicalTerrainBaseline',
         stepIndex: 0,
         stepCount: 3,
         label: 'Baseline',
-        worldDocument: docOne,
+        worldDocument: ineligiblePreview,
       })
       callbacks.onStepComplete?.({
         stepId: 'erosion',
         stepIndex: 1,
         stepCount: 3,
         label: 'Erosion',
-        worldDocument: docTwo,
+        worldDocument: ineligiblePreview,
       })
       callbacks.onStepComplete?.({
         stepId: 'validation',
         stepIndex: 2,
         stepCount: 3,
         label: 'Validation',
-        worldDocument: docThree,
+        worldDocument: validationPreview,
       })
       callbacks.onComplete?.()
       return { cancel() {} }
@@ -447,6 +644,7 @@ test('burst step-complete previews join single-flight map lifecycle without dupl
   await Promise.all(mapUpdates)
 
   assert.strictEqual(createCount, 1)
-  assert.strictEqual(updateCount, 2)
+  assert.strictEqual(updateCount, 0)
+  assert.strictEqual(fitToWorldCount, 0)
   assert.strictEqual(lifecycle.getViewport() != null, true)
 })

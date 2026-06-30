@@ -3,7 +3,7 @@ import test from 'node:test'
 import { BIOMES } from '../core/biomeIds.js'
 import { buildDisplayBiomes } from '../core/buildDisplayBiomes.js'
 import { generateDerivedGeography } from '../core/generateDerivedGeography.js'
-import { DEFAULT_GEOGRAPHY_SEED } from '../worldBuilderPageModel.js'
+import { DEFAULT_GEOGRAPHY_SEED } from '../core/worldGenerationOptions.js'
 import { biomeColorForId } from './biomePalette.js'
 import { buildLandTerrainRgba } from './buildLandTerrainRgba.js'
 
@@ -61,7 +61,7 @@ test('buildLandTerrainRgba uses display biomes without reclassifying river cells
   )
 })
 
-test('buildLandTerrainRgba matches prior river-corridor land tint for default seed', () => {
+test('buildLandTerrainRgba matches Option A default-seed river-corridor land tint', () => {
   const doc = generateDerivedGeography({
     geographySeed: DEFAULT_GEOGRAPHY_SEED,
     prevailingWindDegrees: 90,
@@ -70,5 +70,5 @@ test('buildLandTerrainRgba matches prior river-corridor land tint for default se
   })
 
   const rgba = buildLandTerrainRgba(doc)
-  assert.strictEqual(fnv1aRgbaHash(rgba), '8fe5a7dd')
+  assert.strictEqual(fnv1aRgbaHash(rgba), '8bb4f645')
 })

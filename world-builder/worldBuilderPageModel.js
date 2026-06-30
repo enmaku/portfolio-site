@@ -1,8 +1,10 @@
 import { derivePrevailingWindFromSeed } from './core/derivePrevailingWindFromSeed.js'
-import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.js'
+import {
+  DEFAULT_GEOGRAPHY_SEED,
+  DEFAULT_WORLD_GENERATION_OPTIONS,
+} from './core/worldGenerationOptions.js'
 
-/** Default geography seed for generation controls and reset. */
-export const DEFAULT_GEOGRAPHY_SEED = 0
+export { DEFAULT_GEOGRAPHY_SEED } from './core/worldGenerationOptions.js'
 
 /** Stable test id for the validation-retry exhaustion banner on World Builder. */
 export const WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID =
@@ -254,40 +256,39 @@ export {
 } from './resourceOverlays.js'
 
 /**
- * @param {boolean} isGenerating
+ * @typedef {'idle' | 'running' | 'success' | 'exhausted' | 'cancelled' | 'error'} GenerationRunPhase
+ */
+
+/**
+ * @param {GenerationRunPhase} runPhase
  * @returns {boolean}
  */
-export function shouldShowGenerationProgress(isGenerating) {
-  return isGenerating
+export function shouldShowGenerationProgress(runPhase) {
+  return runPhase === 'running'
 }
 
 /**
- * @typedef {'idle' | 'running' | 'success' | 'exhausted' | 'cancelled' | 'error'} PipelineRunStatus
- */
-
-/**
- * @param {boolean} isGenerating
- * @param {PipelineRunStatus} pipelineRunStatus
+ * @param {GenerationRunPhase} runPhase
  * @returns {boolean}
  */
-export function shouldShowResourceOverlayBar(isGenerating, pipelineRunStatus) {
-  return !isGenerating && pipelineRunStatus === 'success'
+export function shouldShowResourceOverlayBar(runPhase) {
+  return runPhase === 'success'
 }
 
 /**
- * @param {PipelineRunStatus} pipelineRunStatus
+ * @param {GenerationRunPhase} runPhase
  * @returns {boolean}
  */
-export function shouldShowValidationFailureIndicator(pipelineRunStatus) {
-  return pipelineRunStatus === 'exhausted'
+export function shouldShowValidationFailureIndicator(runPhase) {
+  return runPhase === 'exhausted'
 }
 
 /**
- * @param {PipelineRunStatus} pipelineRunStatus
+ * @param {GenerationRunPhase} runPhase
  * @returns {boolean}
  */
-export function isPipelineCleanSuccess(pipelineRunStatus) {
-  return pipelineRunStatus === 'success'
+export function isGenerationRunSuccess(runPhase) {
+  return runPhase === 'success'
 }
 
 /**

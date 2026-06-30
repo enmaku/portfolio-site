@@ -9,7 +9,6 @@ import { computeCoastNavigability } from './coast/computeCoastNavigability.js'
 import { deriveCoastalNodes } from './coast/deriveCoastalNodes.js'
 import { applyErosion } from './erosion/applyErosion.js'
 import { refreshClimateScalarsAfterElevationMutation } from './fields/refreshClimateScalarsAfterElevationMutation.js'
-import { refreshFieldsAfterErosion } from './fields/refreshFieldsAfterErosion.js'
 import { deriveAnnualMeanClimate } from './hydrology/seasonalClimatology.js'
 import { generatePhysicalTerrainBaseline } from './generatePhysicalTerrainBaseline.js'
 import { runHydrologySubsteps } from './hydrology/hydrologySubsteps.js'
@@ -638,31 +637,29 @@ function runHydrologyStep(input, options = {}) {
 }
 
 /**
+ * Hydrology exit is authoritative for climate scalars and biomes when seasonal hydrology is off.
+ * This stage only annualizes climate and re-classifies biomes when seasonal hydrology is enabled.
  * @param {import('./landmassPipelineStageContracts.js').FieldRefreshStageInput} input
  */
 function runFieldRefreshStep(input) {
+  if (!input.options.enableSeasonalHydrology) {
+    return {
+      fields: input.fields,
+      biomes: input.biomes,
+      lastCompletedStep: /** @type {const} */ ('fieldRefresh'),
+    }
+  }
+
   const { width, height } = input
-  const refreshed = refreshFieldsAfterErosion({
-    geographySeed: input.geographySeed,
-    prevailingWindDegrees: input.prevailingWindDegrees,
-    elevation: input.workingElevation,
-    drainage: input.fields.drainage,
-    width,
-    height,
+  const annualClimate = deriveAnnualMeanClimate({
+    baseRainfall: input.fields.rainfall,
+    baseTemperature: input.fields.temperature,
     options: input.options,
   })
-  let fields = refreshed
-  if (input.options.enableSeasonalHydrology) {
-    const annualClimate = deriveAnnualMeanClimate({
-      baseRainfall: refreshed.rainfall,
-      baseTemperature: refreshed.temperature,
-      options: input.options,
-    })
-    fields = {
-      ...refreshed,
-      rainfall: annualClimate.rainfall,
-      temperature: annualClimate.temperature,
-    }
+  const fields = {
+    ...input.fields,
+    rainfall: annualClimate.rainfall,
+    temperature: annualClimate.temperature,
   }
   const biomes = classifyBiomesWithHydrology(fields, width, height, {
     lakeMask: input.lakeMask,

@@ -5,7 +5,6 @@ import {
   resetResourceRasterOverlayRgbaBuildCount,
 } from './buildResourceRasterOverlayRgba.js'
 import {
-  collectLakeOverlayRects,
   computeRegionFocusScale,
   resolveArableRasterLayerVisible,
   resolveMetalsOverlayDrawn,
@@ -19,13 +18,6 @@ test('computeRegionFocusScale uses the active world width after regeneration', (
 
   assert.strictEqual(computeRegionFocusScale(4, region), 1)
   assert.strictEqual(computeRegionFocusScale(80, region), 1)
-})
-
-test('collectLakeOverlayRects reads lakeMask cells instead of biome labels', () => {
-  const lakeMask = new Uint8Array(16)
-  lakeMask[6] = 1
-
-  assert.deepStrictEqual(collectLakeOverlayRects(lakeMask, 4), [{ x: 2, y: 1, w: 1, h: 1 }])
 })
 
 test('resolveResourceRasterLayerVisible hides timber raster by default', () => {

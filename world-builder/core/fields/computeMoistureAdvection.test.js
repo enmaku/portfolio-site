@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { generatePhysicalTerrainBaseline } from '../generatePhysicalTerrainBaseline.js'
-import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
+import { DEFAULT_GEOGRAPHY_SEED } from '../../core/worldGenerationOptions.js'
 import { computeMoistureAdvection } from './computeMoistureAdvection.js'
 
 const REPRESENTATIVE_GEOGRAPHY_SEEDS = [12345, 31842, DEFAULT_GEOGRAPHY_SEED]

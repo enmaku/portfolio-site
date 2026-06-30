@@ -241,7 +241,7 @@ test('field refresh stage input salinity from hydrology is fresh for working ele
 
   const fieldRefreshInput = pickLandmassStageInput('fieldRefresh', state)
   const expected = expectedSalinityForElevation(
-    fieldRefreshInput.workingElevation,
+    state.workingElevation,
     state.width,
     state.height,
     state.options.seaLevel,

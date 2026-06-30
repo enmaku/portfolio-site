@@ -3,7 +3,7 @@ import test from 'node:test'
 import { SEA_LEVEL } from '../biomeIds.js'
 import { isOceanCell } from '../fields/applyClosedIslandRim.js'
 import { generatePhysicalTerrainBaseline } from '../generatePhysicalTerrainBaseline.js'
-import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
+import { DEFAULT_GEOGRAPHY_SEED } from '../../core/worldGenerationOptions.js'
 import { fillLakes } from './fillLakes.js'
 import { deriveBasinCatchments, buildLakeIdByCell, OCEAN_SINK } from './deriveBasinCatchments.js'
 

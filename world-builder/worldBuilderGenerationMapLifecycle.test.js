@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createGenerationMapLifecycle } from './worldBuilderGenerationMapLifecycle.js'
+import { diffWorldDocumentMapLayers } from './renderer/diffWorldDocumentMapLayers.js'
 
 /**
  * @param {Object} [overrides]
@@ -21,16 +22,20 @@ function fakeWorldDocument(overrides = {}) {
  * @param {() => unknown} [options.getMapHost]
  * @param {() => ((host: unknown, doc: import('./core/types.js').WorldDocument) => Promise<{
  *   updateWorldDocument: (doc: import('./core/types.js').WorldDocument) => void,
+ *   fitToWorld: () => void,
  *   destroy: () => void,
  * }>) | null} [options.getCreateViewport]
  */
 function createTestLifecycle(options = {}) {
   let createCount = 0
   let updateCount = 0
+  let fitToWorldCount = 0
   /** @type {import('./core/types.js').WorldDocument[]} */
   const createdWith = []
   /** @type {import('./core/types.js').WorldDocument[]} */
   const updatedWith = []
+  /** @type {Array<import('./renderer/mapLayerRefresh.js').MapLayerId[] | null | undefined>} */
+  const updateChangedLayers = []
 
   const lifecycle = createGenerationMapLifecycle({
     getMapHost: options.getMapHost ?? (() => ({})),
@@ -41,9 +46,13 @@ function createTestLifecycle(options = {}) {
         createdWith.push(doc)
         await new Promise((resolve) => setTimeout(resolve, 5))
         return {
-          updateWorldDocument(nextDoc) {
+          updateWorldDocument(nextDoc, updateOptions) {
             updateCount += 1
             updatedWith.push(nextDoc)
+            updateChangedLayers.push(updateOptions?.changedLayers ?? null)
+          },
+          fitToWorld() {
+            fitToWorldCount += 1
           },
           destroy() {},
         }
@@ -52,7 +61,14 @@ function createTestLifecycle(options = {}) {
 
   return {
     lifecycle,
-    metrics: () => ({ createCount, updateCount, createdWith, updatedWith }),
+    metrics: () => ({
+      createCount,
+      updateCount,
+      fitToWorldCount,
+      createdWith,
+      updatedWith,
+      updateChangedLayers,
+    }),
   }
 }
 
@@ -63,12 +79,13 @@ test('concurrent applyWorldDocument calls create viewport only once', async () =
 
   await Promise.all([lifecycle.applyWorldDocument(docA), lifecycle.applyWorldDocument(docB)])
 
-  const { createCount, updateCount, createdWith, updatedWith } = metrics()
+  const { createCount, updateCount, createdWith, updatedWith, fitToWorldCount } = metrics()
   assert.strictEqual(createCount, 1)
   assert.strictEqual(createdWith.length, 1)
   assert.strictEqual(createdWith[0], docA)
   assert.strictEqual(updateCount, 1)
   assert.strictEqual(updatedWith[0], docB)
+  assert.strictEqual(fitToWorldCount, 0)
 })
 
 test('sequential applyWorldDocument updates without recreating viewport', async () => {
@@ -79,9 +96,10 @@ test('sequential applyWorldDocument updates without recreating viewport', async 
   await lifecycle.applyWorldDocument(docA)
   await lifecycle.applyWorldDocument(docB)
 
-  const { createCount, updateCount } = metrics()
+  const { createCount, updateCount, fitToWorldCount } = metrics()
   assert.strictEqual(createCount, 1)
   assert.strictEqual(updateCount, 1)
+  assert.strictEqual(fitToWorldCount, 0)
 })
 
 test('applyWorldDocument no-ops when map host or factory is unavailable', async () => {
@@ -101,6 +119,7 @@ test('destroy clears viewport and in-flight init', async () => {
   const { lifecycle } = createTestLifecycle({
     getCreateViewport: () => async () => ({
       updateWorldDocument() {},
+      fitToWorld() {},
       destroy() {
         destroyed = true
       },
@@ -121,6 +140,7 @@ test('destroy during in-flight init discards completed viewport', async () => {
       await new Promise((resolve) => setTimeout(resolve, 20))
       return {
         updateWorldDocument() {},
+        fitToWorld() {},
         destroy() {
           viewportDestroyed = true
         },
@@ -154,6 +174,7 @@ test('onViewportReady runs once after first viewport create', async () => {
     getMapHost: () => ({}),
     getCreateViewport: () => async () => ({
       updateWorldDocument() {},
+      fitToWorld() {},
       destroy() {},
     }),
     onViewportReady() {
@@ -167,4 +188,45 @@ test('onViewportReady runs once after first viewport create', async () => {
   ])
 
   assert.strictEqual(readyCount, 1)
+})
+
+test('applyWorldDocument forwards changedLayers from upstream layer diff', async () => {
+  const { lifecycle, metrics } = createTestLifecycle()
+  const cellCount = 4
+  const docA = fakeWorldDocument({
+    gridWidth: 2,
+    gridHeight: 2,
+    displayBiomes: new Uint8Array(cellCount),
+    arableRaster: new Float32Array(cellCount),
+    timberRaster: new Float32Array(cellCount),
+    metalsRaster: new Float32Array(cellCount),
+  })
+  const docB = fakeWorldDocument({
+    gridWidth: 2,
+    gridHeight: 2,
+    displayBiomes: Uint8Array.from(docA.displayBiomes, (value, index) =>
+      index === 0 ? value + 1 : value,
+    ),
+    arableRaster: docA.arableRaster,
+    timberRaster: docA.timberRaster,
+    metalsRaster: docA.metalsRaster,
+  })
+
+  await lifecycle.applyWorldDocument(docA)
+  await lifecycle.applyWorldDocument(docB)
+
+  const { updateChangedLayers } = metrics()
+  assert.deepStrictEqual(updateChangedLayers[0], diffWorldDocumentMapLayers(docA, docB))
+  assert.deepStrictEqual(updateChangedLayers[0], ['terrain'])
+})
+
+test('applyWorldDocument omits changedLayers when grid dimensions change', async () => {
+  const { lifecycle, metrics } = createTestLifecycle()
+  const docA = fakeWorldDocument({ gridWidth: 2, gridHeight: 2 })
+  const docB = fakeWorldDocument({ gridWidth: 4, gridHeight: 4 })
+
+  await lifecycle.applyWorldDocument(docA)
+  await lifecycle.applyWorldDocument(docB)
+
+  assert.strictEqual(metrics().updateChangedLayers[0], null)
 })

@@ -2,9 +2,16 @@
 /** @typedef {import('./hydrologySubsteps.js').HydrologySubstepId} HydrologySubstepId */
 
 /**
- * River mask fields follow {@link import('./riverMaskLifecycle.js').RIVER_MASK_LIFECYCLE_FIELDS}:
- * sketch → incised → settled → presentation (refine or skipRefine) → painted.
+ * River mask inputs and outputs use {@link import('./riverMaskLifecycle.js').riverMaskContractKey}:
+ * sketch → incised → settled → presentation (refine or skipRefine) → painted on `ctx.riverMaskPipeline`.
  */
+
+import {
+  getRiverMaskStage,
+  isRiverMaskContractKey,
+  riverMaskContractKey,
+  riverMaskStageFromContractKey,
+} from './riverMaskLifecycle.js'
 
 /**
  * @typedef {Object} HydrologySubstepContract
@@ -101,7 +108,7 @@ export const HYDROLOGY_SUBSTEP_CONTRACTS = {
       'meltContribution',
       'baselineDrainage',
     ],
-    outputKeys: ['flowDirection', 'flowAccumulation', 'lakeOcean', 'riverNetworkMask'],
+    outputKeys: ['flowDirection', 'flowAccumulation', 'lakeOcean', riverMaskContractKey('sketch')],
   },
   hydrologyIncise: {
     id: 'hydrologyIncise',
@@ -116,10 +123,10 @@ export const HYDROLOGY_SUBSTEP_CONTRACTS = {
       'lakeOcean',
       'flowDirection',
       'flowAccumulation',
-      'riverNetworkMask',
+      riverMaskContractKey('sketch'),
       'effectiveRunoff',
     ],
-    outputKeys: ['settledElevation', 'incisedCorridorMask'],
+    outputKeys: ['settledElevation', riverMaskContractKey('incised')],
   },
   hydrologyExtract: {
     id: 'hydrologyExtract',
@@ -131,7 +138,7 @@ export const HYDROLOGY_SUBSTEP_CONTRACTS = {
       'settledElevation',
       'lakeMask',
       'lakeOcean',
-      'incisedCorridorMask',
+      riverMaskContractKey('incised'),
       'rainfall',
       'effectiveRunoff',
       'meltContribution',
@@ -141,7 +148,7 @@ export const HYDROLOGY_SUBSTEP_CONTRACTS = {
       'settledFlowDirection',
       'settledFlowAccumulation',
       'settledOcean',
-      'settledRiverNetworkMask',
+      riverMaskContractKey('settled'),
       'channelWidth',
       'settledRiverGraph',
     ],
@@ -156,13 +163,13 @@ export const HYDROLOGY_SUBSTEP_CONTRACTS = {
       'geographySeed',
       'settledElevation',
       'effectiveRunoff',
-      'settledRiverNetworkMask',
+      riverMaskContractKey('settled'),
       'settledFlowDirection',
       'settledFlowAccumulation',
       'settledOcean',
       'lakeMask',
     ],
-    outputKeys: ['settledElevation', 'presentationRiverNetworkMask'],
+    outputKeys: ['settledElevation', riverMaskContractKey('presentation')],
   },
   hydrologySettle: {
     id: 'hydrologySettle',
@@ -178,8 +185,8 @@ export const HYDROLOGY_SUBSTEP_CONTRACTS = {
       'settledFlowAccumulation',
       'settledFlowDirection',
       'settledOcean',
-      'settledRiverNetworkMask',
-      'presentationRiverNetworkMask',
+      riverMaskContractKey('settled'),
+      riverMaskContractKey('presentation'),
       'effectiveRunoff',
       'rainfall',
       'lakeIdByCell',
@@ -206,15 +213,15 @@ export const HYDROLOGY_SUBSTEP_CONTRACTS = {
       'height',
       'settledElevation',
       'settledFlowDirection',
-      'settledRiverNetworkMask',
-      'presentationRiverNetworkMask',
+      riverMaskContractKey('settled'),
+      riverMaskContractKey('presentation'),
       'channelWidth',
       'settledRiverGraph',
       'settledFlowAccumulation',
       'settledOcean',
       'lakeMask',
     ],
-    outputKeys: ['riverCorridorMask', 'riverNetwork'],
+    outputKeys: [riverMaskContractKey('painted'), 'riverNetwork'],
   },
 }
 
@@ -250,8 +257,8 @@ const OPTIONAL_NULL_HYDROLOGY_INPUT_KEYS = {
   hydrologyRoute: new Set(['meltContribution']),
   hydrologyExtract: new Set(['meltContribution']),
   hydrologySeasonal: new Set(['meltContribution']),
-  hydrologySettle: new Set(['presentationRiverNetworkMask', 'lakeIdByCell']),
-  hydrologyPaint: new Set(['presentationRiverNetworkMask']),
+  hydrologySettle: new Set([riverMaskContractKey('presentation'), 'lakeIdByCell']),
+  hydrologyPaint: new Set([riverMaskContractKey('presentation')]),
 }
 
 /**
@@ -261,6 +268,10 @@ const OPTIONAL_NULL_HYDROLOGY_INPUT_KEYS = {
  */
 function resolveHydrologySubstepInputKey(substepId, key, ctx) {
   const { state } = ctx
+  if (isRiverMaskContractKey(key)) {
+    return getRiverMaskStage(ctx.riverMaskPipeline, riverMaskStageFromContractKey(key))
+  }
+
   switch (key) {
     case 'geographySeed':
       return state.geographySeed
@@ -306,6 +317,25 @@ function isOptionalNullHydrologyInputKey(substepId, key) {
 
 /**
  * @param {HydrologySubstepId} substepId
+ * @param {string} key
+ * @param {HydrologySubstepContext} ctx
+ */
+function requireHydrologySubstepOutputKey(substepId, key, ctx) {
+  if (isRiverMaskContractKey(key)) {
+    const value = getRiverMaskStage(ctx.riverMaskPipeline, riverMaskStageFromContractKey(key))
+    if (value === null || value === undefined) {
+      throw new Error(`${substepId} missing output ${key}`)
+    }
+    return
+  }
+
+  if (ctx[key] === null || ctx[key] === undefined) {
+    throw new Error(`${substepId} missing output ${key}`)
+  }
+}
+
+/**
+ * @param {HydrologySubstepId} substepId
  * @param {HydrologySubstepContext} ctx
  * @returns {Record<string, unknown>}
  */
@@ -337,8 +367,6 @@ export function pickHydrologySubstepInput(substepId, ctx) {
 export function assertHydrologySubstepOutputs(substepId, ctx) {
   const contract = HYDROLOGY_SUBSTEP_CONTRACTS[substepId]
   for (const key of contract.outputKeys) {
-    if (ctx[key] === null || ctx[key] === undefined) {
-      throw new Error(`${substepId} missing output ${key}`)
-    }
+    requireHydrologySubstepOutputKey(substepId, key, ctx)
   }
 }

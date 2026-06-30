@@ -4,7 +4,7 @@ import { BIOMES } from './biomeIds.js'
 import { classifyBiomeFromSample } from './classifyBiomesFromFields.js'
 import { buildDisplayBiomes } from './buildDisplayBiomes.js'
 import { generateDerivedGeography } from './generateDerivedGeography.js'
-import { DEFAULT_GEOGRAPHY_SEED } from '../worldBuilderPageModel.js'
+import { DEFAULT_GEOGRAPHY_SEED } from './worldGenerationOptions.js'
 
 test('buildDisplayBiomes replaces river corridor with underlying land biome', () => {
   const sample = {

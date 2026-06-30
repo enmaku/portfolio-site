@@ -4,14 +4,23 @@ import { after, before, mock, test } from 'node:test'
 /** @type {Array<{ x: number, y: number, color: number }>} */
 let drawnCircles = []
 
-/** @type {Array<{ x: number, y: number, w: number, h: number }>} */
-let drawnRects = []
-
 /** @type {Array<{ position: { x: number, y: number }, scale: number }>} */
 let viewportAnimations = []
 
-/** @type {{ worldWidth: number, worldHeight: number } | null} */
+/** @type {{ screenWidth: number, screenHeight: number, worldWidth: number, worldHeight: number } | null} */
 let lastViewportResize = null
+
+/** @type {number} */
+let fitWorldCallCount = 0
+
+/** @type {number} */
+let moveCenterCallCount = 0
+
+/** @type {(() => void) | null} */
+let resizeObserverCallback = null
+
+/** @type {{ scale: { x: number, y: number }, center: { x: number, y: number } } | null} */
+let lastViewportInstance = null
 
 /** @type {Array<{ visible: boolean, texture: unknown }>} */
 let spriteLayers = []
@@ -25,9 +34,12 @@ before(async () => {
   if (!mock.module) return
 
   drawnCircles = []
-  drawnRects = []
   viewportAnimations = []
   lastViewportResize = null
+  fitWorldCallCount = 0
+  moveCenterCallCount = 0
+  resizeObserverCallback = null
+  lastViewportInstance = null
   spriteLayers = []
 
   globalThis.ImageData = class {
@@ -53,6 +65,10 @@ before(async () => {
   }
 
   globalThis.ResizeObserver = class {
+    /** @param {() => void} callback */
+    constructor(callback) {
+      resizeObserverCallback = callback
+    }
     observe() {}
     disconnect() {}
   }
@@ -84,7 +100,6 @@ before(async () => {
       Graphics: class {
         clear() {
           drawnCircles = []
-          drawnRects = []
         }
         circle(x, y) {
           drawnCircles.push({ x, y, color: null })
@@ -93,9 +108,7 @@ before(async () => {
           const last = drawnCircles.at(-1)
           if (last) last.color = color
         }
-        rect(x, y, w, h) {
-          drawnRects.push({ x, y, w, h })
-        }
+        rect() {}
       },
     },
   })
@@ -106,6 +119,9 @@ before(async () => {
         constructor() {
           this.worldWidth = 0
           this.worldHeight = 0
+          this.scale = { x: 1, y: 1 }
+          this.center = { x: 0, y: 0 }
+          lastViewportInstance = this
         }
         addChild() {
           return this
@@ -125,13 +141,19 @@ before(async () => {
         clampZoom() {
           return this
         }
-        resize(_width, _height, worldWidth, worldHeight) {
+        resize(screenWidth, screenHeight, worldWidth, worldHeight) {
           this.worldWidth = worldWidth
           this.worldHeight = worldHeight
-          lastViewportResize = { worldWidth, worldHeight }
+          lastViewportResize = { screenWidth, screenHeight, worldWidth, worldHeight }
         }
-        fitWorld() {}
-        moveCenter() {}
+        fitWorld() {
+          fitWorldCallCount += 1
+          this.scale = { x: 0.25, y: 0.25 }
+        }
+        moveCenter(x, y) {
+          moveCenterCallCount += 1
+          this.center = { x, y }
+        }
         animate(options) {
           viewportAnimations.push(options)
         }
@@ -177,10 +199,10 @@ function createSaltNodeFixture() {
   })
 }
 /**
- * Sprites from the most recently created viewport (six raster layers).
+ * Sprites from the most recently created viewport (seven raster layers).
  */
 function recentSpriteLayers() {
-  return spriteLayers.slice(-6)
+  return spriteLayers.slice(-7)
 }
 
 /**
@@ -212,10 +234,17 @@ function metalsSpriteLayer() {
 }
 
 /**
- * Rivers sprite sits above resource raster overlays in the layer stack.
+ * Lakes sprite sits above resource raster overlays in the layer stack.
+ */
+function lakesSpriteLayer() {
+  return recentSpriteLayers()[5]
+}
+
+/**
+ * Rivers sprite sits above lakes in the layer stack.
  */
 function riversSpriteLayer() {
-  return recentSpriteLayers()[5]
+  return recentSpriteLayers()[6]
 }
 
 /**
@@ -303,7 +332,7 @@ test(
 )
 
 test(
-  'viewport layer stack follows terrain contours arable timber metals rivers order',
+  'viewport layer stack follows terrain contours arable timber metals lakes rivers order',
   viewportTests,
   async () => {
     const hostEl = {
@@ -315,12 +344,13 @@ test(
     const viewport = await createWorldBuilderMapViewport(hostEl, createArableRasterFixture())
     const layers = recentSpriteLayers()
 
-    assert.strictEqual(layers.length, 6)
+    assert.strictEqual(layers.length, 7)
     assert.strictEqual(contoursSpriteLayer(), layers[1])
     assert.strictEqual(arableSpriteLayer(), layers[2])
     assert.strictEqual(timberSpriteLayer(), layers[3])
     assert.strictEqual(metalsSpriteLayer(), layers[4])
-    assert.strictEqual(riversSpriteLayer(), layers[5])
+    assert.strictEqual(lakesSpriteLayer(), layers[5])
+    assert.strictEqual(riversSpriteLayer(), layers[6])
 
     viewport.destroy()
   },
@@ -409,6 +439,60 @@ test(
       resolveArableRasterLayerVisible(visibleVisibility, fixture, 0),
     )
 
+    viewport.destroy()
+  },
+)
+
+test(
+  'syncOverlayRenderCache projects owner overlay state in one refresh pass',
+  viewportTests,
+  async () => {
+    const { createResourceOverlayPageState, toggleResourceOverlayVisibility } = await import(
+      '../resourceOverlayState.js'
+    )
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+    const fixture = createTimberRasterFixture()
+    const viewport = await createWorldBuilderMapViewport(hostEl, fixture)
+    const ownerState = toggleResourceOverlayVisibility(
+      createResourceOverlayPageState({ arableMinimumProductivity: 0.42 }),
+      'timber',
+      true,
+    )
+
+    viewport.syncOverlayRenderCache(ownerState)
+
+    assert.strictEqual(timberSpriteLayer().visible, true)
+    viewport.destroy()
+  },
+)
+
+test(
+  'updateWorldDocument preserves overlay render cache set by syncOverlayRenderCache',
+  viewportTests,
+  async () => {
+    const { createResourceOverlayPageState, toggleResourceOverlayVisibility } = await import(
+      '../resourceOverlayState.js'
+    )
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+    const fixture = createTimberRasterFixture()
+    const viewport = await createWorldBuilderMapViewport(hostEl, fixture)
+    const ownerState = toggleResourceOverlayVisibility(createResourceOverlayPageState(), 'timber', true)
+
+    viewport.syncOverlayRenderCache(ownerState)
+    viewport.updateWorldDocument({
+      ...fixture,
+      timberRaster: Float32Array.from(fixture.timberRaster),
+    })
+
+    assert.strictEqual(timberSpriteLayer().visible, true)
     viewport.destroy()
   },
 )
@@ -581,7 +665,12 @@ test(
       }),
     )
 
-    assert.deepStrictEqual(lastViewportResize, { worldWidth: 64, worldHeight: 48 })
+    assert.deepStrictEqual(lastViewportResize, {
+      screenWidth: 400,
+      screenHeight: 300,
+      worldWidth: 64,
+      worldHeight: 48,
+    })
 
     viewport.destroy()
   },
@@ -616,7 +705,7 @@ test(
 )
 
 test(
-  'lake overlay draws from lakeMask rather than biome labels',
+  'lake overlay rasterizes from lakeMask rather than per-cell vector rects',
   viewportTests,
   async () => {
     const hostEl = {
@@ -641,7 +730,8 @@ test(
       }),
     )
 
-    assert.deepStrictEqual(drawnRects, [{ x: 2, y: 1, w: 1, h: 1 }])
+    assert.strictEqual(lakesSpriteLayer().visible, true)
+    assert.notStrictEqual(lakesSpriteLayer().texture, null)
 
     viewport.destroy()
   },
@@ -735,6 +825,201 @@ test(
       metalsRaster: Float32Array.from(fixture.metalsRaster),
     })
     assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 3)
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'updateWorldDocument with changedLayers skips unchanged visible resource layers',
+  viewportTests,
+  async () => {
+    const {
+      getResourceRasterOverlayRgbaBuildCount,
+      resetResourceRasterOverlayRgbaBuildCount,
+    } = await import('./buildResourceRasterOverlayRgba.js')
+
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+    const fixture = {
+      ...createArableRasterFixture(),
+      timberRaster: createTimberRasterFixture().timberRaster,
+      metalsRaster: createMetalsFixture().metalsRaster,
+    }
+    const viewport = await createWorldBuilderMapViewport(hostEl, fixture)
+
+    viewport.setResourceOverlayVisibility('arable', true)
+    viewport.setResourceOverlayVisibility('timber', true)
+    viewport.setResourceOverlayVisibility('metals', true)
+
+    resetResourceRasterOverlayRgbaBuildCount()
+    viewport.updateWorldDocument(
+      {
+        ...fixture,
+        timberRaster: Float32Array.from(fixture.timberRaster),
+      },
+      { changedLayers: ['timber'] },
+    )
+    assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 1)
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'setResourceOverlayVisibility toggles timber on displayed document without rebuilding arable',
+  viewportTests,
+  async () => {
+    const {
+      getResourceRasterOverlayRgbaBuildCount,
+      resetResourceRasterOverlayRgbaBuildCount,
+    } = await import('./buildResourceRasterOverlayRgba.js')
+
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+    const fixture = {
+      ...createArableRasterFixture(),
+      timberRaster: createTimberRasterFixture().timberRaster,
+    }
+    const viewport = await createWorldBuilderMapViewport(hostEl, fixture)
+
+    viewport.setResourceOverlayVisibility('arable', true)
+    resetResourceRasterOverlayRgbaBuildCount()
+    viewport.setResourceOverlayVisibility('timber', true)
+
+    assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 1)
+    assert.strictEqual(arableSpriteLayer().visible, true)
+    assert.strictEqual(timberSpriteLayer().visible, true)
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'initial mount fits viewport to world bounds once',
+  viewportTests,
+  async () => {
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+
+    fitWorldCallCount = 0
+    moveCenterCallCount = 0
+    const viewport = await createWorldBuilderMapViewport(hostEl, createSaltNodeFixture())
+
+    assert.strictEqual(fitWorldCallCount, 1)
+    assert.strictEqual(moveCenterCallCount, 1)
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'updateWorldDocument syncs viewport dimensions without refitting to world',
+  viewportTests,
+  async () => {
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+
+    const viewport = await createWorldBuilderMapViewport(hostEl, createSaltNodeFixture())
+    fitWorldCallCount = 0
+    moveCenterCallCount = 0
+
+    viewport.updateWorldDocument(
+      worldDocFixture({
+        gridWidth: 64,
+        gridHeight: 48,
+        saltNodes: [{ x: 1, y: 2 }],
+      }),
+    )
+
+    assert.deepStrictEqual(lastViewportResize, {
+      screenWidth: 400,
+      screenHeight: 300,
+      worldWidth: 64,
+      worldHeight: 48,
+    })
+    assert.strictEqual(fitWorldCallCount, 0)
+    assert.strictEqual(moveCenterCallCount, 0)
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'ResizeObserver syncs host dimensions without refitting after initial mount',
+  viewportTests,
+  async () => {
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+
+    const viewport = await createWorldBuilderMapViewport(hostEl, createSaltNodeFixture())
+    assert.ok(lastViewportInstance)
+    lastViewportInstance.scale = { x: 3, y: 3 }
+    lastViewportInstance.center = { x: 50, y: 75 }
+    const userScale = { ...lastViewportInstance.scale }
+    const userCenter = { ...lastViewportInstance.center }
+    fitWorldCallCount = 0
+    moveCenterCallCount = 0
+
+    hostEl.clientWidth = 640
+    hostEl.clientHeight = 480
+    resizeObserverCallback?.()
+
+    assert.deepStrictEqual(lastViewportResize, {
+      screenWidth: 640,
+      screenHeight: 480,
+      worldWidth: 4,
+      worldHeight: 4,
+    })
+    assert.strictEqual(fitWorldCallCount, 0)
+    assert.strictEqual(moveCenterCallCount, 0)
+    assert.deepStrictEqual(lastViewportInstance.scale, userScale)
+    assert.deepStrictEqual(lastViewportInstance.center, userCenter)
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'fitToWorld explicitly refits viewport to current world document',
+  viewportTests,
+  async () => {
+    const hostEl = {
+      clientWidth: 400,
+      clientHeight: 300,
+      replaceChildren() {},
+    }
+
+    const viewport = await createWorldBuilderMapViewport(hostEl, createSaltNodeFixture())
+    fitWorldCallCount = 0
+    moveCenterCallCount = 0
+
+    viewport.updateWorldDocument(
+      worldDocFixture({
+        gridWidth: 80,
+        gridHeight: 60,
+        saltNodes: [{ x: 1, y: 2 }],
+      }),
+    )
+    viewport.fitToWorld()
+
+    assert.strictEqual(fitWorldCallCount, 1)
+    assert.strictEqual(moveCenterCallCount, 1)
 
     viewport.destroy()
   },

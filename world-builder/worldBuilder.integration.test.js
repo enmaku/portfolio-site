@@ -11,7 +11,7 @@ import {
   shouldShowGenerationProgress,
   shouldShowResourceOverlayBar,
   shouldShowValidationFailureIndicator,
-  isPipelineCleanSuccess,
+  isGenerationRunSuccess,
   WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID,
 } from './worldBuilderPageModel.js'
 import { shouldApplyStepPreviewToMap } from './worldBuilderGenerationPolicy.js'
@@ -95,12 +95,10 @@ test('default controls state builds worker-ready derived geography params', () =
 
 
 test('status bar helpers never show progress and overlay bar together', () => {
-  for (const isGenerating of [true, false]) {
-    for (const pipelineRunStatus of ['idle', 'success', 'exhausted', 'cancelled', 'error']) {
-      const showProgress = shouldShowGenerationProgress(isGenerating)
-      const showOverlayBar = shouldShowResourceOverlayBar(isGenerating, pipelineRunStatus)
-      assert.strictEqual(showProgress && showOverlayBar, false)
-    }
+  for (const runPhase of ['idle', 'running', 'success', 'exhausted', 'cancelled', 'error']) {
+    const showProgress = shouldShowGenerationProgress(runPhase)
+    const showOverlayBar = shouldShowResourceOverlayBar(runPhase)
+    assert.strictEqual(showProgress && showOverlayBar, false)
   }
 })
 
@@ -109,14 +107,18 @@ test('validation exhausted indicator test id is wired to exhausted-only presenta
   assert.ok(WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID.includes('validation'))
   assert.strictEqual(shouldShowValidationFailureIndicator('exhausted'), true)
   assert.strictEqual(shouldShowValidationFailureIndicator('success'), false)
-  assert.strictEqual(isPipelineCleanSuccess('exhausted'), false)
-  assert.strictEqual(shouldShowResourceOverlayBar(false, 'exhausted'), false)
+  assert.strictEqual(isGenerationRunSuccess('exhausted'), false)
+  assert.strictEqual(shouldShowResourceOverlayBar('exhausted'), false)
   assert.strictEqual(
     shouldApplyStepPreviewToMap({
-      gridWidth: 4,
-      gridHeight: 4,
-      biomes: new Uint8Array(16),
-      fields: { elevation: new Float32Array(16) },
+      delivery: 'step-complete',
+      stepId: 'validation',
+      worldDocument: {
+        gridWidth: 4,
+        gridHeight: 4,
+        biomes: new Uint8Array(16),
+        fields: { elevation: new Float32Array(16) },
+      },
     }),
     true,
   )

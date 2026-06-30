@@ -1,52 +1,181 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
+import { effectScope } from 'vue'
+import { useWorldBuilderOverlayState } from '../src/composables/useWorldBuilderOverlayState.js'
+import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from './resourceOverlays.js'
 
-const repoRoot = fileURLToPath(new URL('..', import.meta.url))
-const worldBuilderPagePath = join(repoRoot, 'src/pages/projects/WorldBuilderPage.vue')
+/**
+ * @returns {{ syncOverlayRenderCache: (state: import('./resourceOverlayState.js').ResourceOverlayPageState) => void, syncedStates: import('./resourceOverlayState.js').ResourceOverlayPageState[], setResourceOverlayVisibility?: never }}
+ */
+function createViewportSyncSeam() {
+  /** @type {import('./resourceOverlayState.js').ResourceOverlayPageState[]} */
+  const syncedStates = []
+  return {
+    syncedStates,
+    syncOverlayRenderCache(state) {
+      syncedStates.push(state)
+    },
+  }
+}
 
-test('WorldBuilderPage does not call setResourceOverlayVisibility on the viewport directly', () => {
-  const source = readFileSync(worldBuilderPagePath, 'utf8')
-  assert.ok(
-    !/\.setResourceOverlayVisibility\s*\(/.test(source),
-    'page must route overlay visibility through resourceOverlayState commit/sync only',
-  )
+/**
+ * @param {Partial<import('./resourceOverlays.js').OverlayDisplaySettings>} [initial]
+ */
+function createMockSettingsStore(initial = {}) {
+  /** @type {string[]} */
+  const persistedKeys = []
+  const overlayDisplaySettings = {
+    arableMinimumProductivity: DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+    ...initial,
+  }
+  return {
+    overlayDisplaySettings,
+    persistedKeys,
+    setOverlayDisplaySetting(key, value) {
+      persistedKeys.push(key)
+      overlayDisplaySettings[key] = value
+    },
+    resetToDefaults() {
+      overlayDisplaySettings.arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
+    },
+  }
+}
+
+test('useWorldBuilderOverlayState seam routes toggle through syncOverlayRenderCache only', () => {
+  const scope = effectScope(true)
+  try {
+    const viewport = createViewportSyncSeam()
+    const settingsStore = createMockSettingsStore()
+    const ctx = scope.run(() =>
+      useWorldBuilderOverlayState({
+        getViewport: () => viewport,
+        settingsStore,
+      }),
+    )
+
+    ctx.toggleVisibility('timber', true)
+
+    assert.strictEqual(ctx.visibility.value.timber, true)
+    assert.strictEqual(viewport.syncedStates.length, 1)
+    assert.strictEqual(viewport.syncedStates[0].visibility.timber, true)
+    assert.strictEqual('setResourceOverlayVisibility' in viewport, false)
+    assert.deepStrictEqual(settingsStore.persistedKeys, [])
+  } finally {
+    scope.stop()
+  }
 })
 
-test('WorldBuilderPage commits overlay mutations through resourceOverlayState', () => {
-  const source = readFileSync(worldBuilderPagePath, 'utf8')
-  assert.ok(source.includes('commitResourceOverlayState'))
+test('useWorldBuilderOverlayState seam routes resetVisibility through syncOverlayRenderCache only', () => {
+  const scope = effectScope(true)
+  try {
+    const viewport = createViewportSyncSeam()
+    const settingsStore = createMockSettingsStore({ arableMinimumProductivity: 0.3 })
+    const ctx = scope.run(() =>
+      useWorldBuilderOverlayState({
+        getViewport: () => viewport,
+        settingsStore,
+      }),
+    )
+
+    ctx.toggleVisibility('salt', true)
+    viewport.syncedStates.length = 0
+    ctx.resetVisibility()
+
+    assert.strictEqual(ctx.visibility.value.salt, false)
+    assert.strictEqual(ctx.overlayDisplaySetting('arableMinimumProductivity'), 0.3)
+    assert.strictEqual(viewport.syncedStates.length, 1)
+    assert.strictEqual(viewport.syncedStates[0].visibility.salt, false)
+    assert.strictEqual(viewport.syncedStates[0].displaySettings.arableMinimumProductivity, 0.3)
+    assert.strictEqual('setResourceOverlayVisibility' in viewport, false)
+    assert.deepStrictEqual(settingsStore.persistedKeys, [])
+  } finally {
+    scope.stop()
+  }
 })
 
-test('WorldBuilderPage does not call syncResourceOverlayStateToViewport directly', () => {
-  const source = readFileSync(worldBuilderPagePath, 'utf8')
-  assert.ok(
-    !source.includes('syncResourceOverlayStateToViewport'),
-    'page must project overlay state through commitResourceOverlayState only',
-  )
+test('useWorldBuilderOverlayState seam routes setDisplaySetting through syncOverlayRenderCache and persists once', () => {
+  const scope = effectScope(true)
+  try {
+    const viewport = createViewportSyncSeam()
+    const settingsStore = createMockSettingsStore()
+    const ctx = scope.run(() =>
+      useWorldBuilderOverlayState({
+        getViewport: () => viewport,
+        settingsStore,
+      }),
+    )
+
+    ctx.setDisplaySetting('arableMinimumProductivity', 0.18)
+
+    assert.strictEqual(ctx.overlayDisplaySetting('arableMinimumProductivity'), 0.18)
+    assert.strictEqual(viewport.syncedStates.length, 1)
+    assert.strictEqual(
+      viewport.syncedStates[0].displaySettings.arableMinimumProductivity,
+      0.18,
+    )
+    assert.deepStrictEqual(settingsStore.persistedKeys, ['arableMinimumProductivity'])
+    assert.strictEqual(settingsStore.overlayDisplaySettings.arableMinimumProductivity, 0.18)
+    assert.strictEqual('setResourceOverlayVisibility' in viewport, false)
+  } finally {
+    scope.stop()
+  }
 })
 
-test('WorldBuilderPage reads overlay display settings from canonical page state', () => {
-  const source = readFileSync(worldBuilderPagePath, 'utf8')
-  assert.ok(
-    source.includes('resourceOverlayState.value.displaySettings'),
-    'page must read overlay display settings from resourceOverlayState owner',
-  )
-  assert.ok(
-    !/overlayDisplaySettings\.value\[[^\]]+\]/.test(source),
-    'page must not read overlay display settings directly from Pinia',
-  )
+test('useWorldBuilderOverlayState seam syncToViewport projects owner state when viewport becomes ready', () => {
+  const scope = effectScope(true)
+  try {
+    const viewport = createViewportSyncSeam()
+    /** @type {(() => typeof viewport | null) | null} */
+    let getViewport = () => null
+    const ctx = scope.run(() =>
+      useWorldBuilderOverlayState({
+        getViewport: () => getViewport?.() ?? null,
+        settingsStore: createMockSettingsStore(),
+      }),
+    )
+
+    ctx.toggleVisibility('timber', true)
+    assert.strictEqual(viewport.syncedStates.length, 0)
+
+    getViewport = () => viewport
+    ctx.syncToViewport()
+
+    assert.strictEqual(viewport.syncedStates.length, 1)
+    assert.strictEqual(viewport.syncedStates[0].visibility.timber, true)
+  } finally {
+    scope.stop()
+  }
 })
 
-test('WorldBuilderPage routes toggle, slider, reset, and defaults through commitResourceOverlayState', () => {
-  const source = readFileSync(worldBuilderPagePath, 'utf8')
-  const commitBlocks = source.match(/commitResourceOverlayState\([\s\S]*?\)/g) ?? []
-  assert.ok(commitBlocks.length >= 5, 'expected commit on toggle, slider, reset, defaults, and viewport-ready sync')
-  assert.match(source, /function onResourceOverlayToggle[\s\S]*?commitResourceOverlayState/)
-  assert.match(source, /function onOverlaySliderChange[\s\S]*?commitResourceOverlayState/)
-  assert.match(source, /function resetResourceOverlayVisibility[\s\S]*?commitResourceOverlayState/)
-  assert.match(source, /function resetToDefaults[\s\S]*?commitResourceOverlayState/)
-  assert.match(source, /function syncResourceOverlayVisibilityToMapViewport[\s\S]*?commitResourceOverlayState/)
+test('useWorldBuilderOverlayState seam applyPersistedDefaults restores store defaults without Pinia dual-write', () => {
+  const scope = effectScope(true)
+  try {
+    const viewport = createViewportSyncSeam()
+    const settingsStore = createMockSettingsStore()
+    const ctx = scope.run(() =>
+      useWorldBuilderOverlayState({
+        getViewport: () => viewport,
+        settingsStore,
+      }),
+    )
+
+    ctx.toggleVisibility('metals', true)
+    ctx.setDisplaySetting('arableMinimumProductivity', 0.42)
+    settingsStore.resetToDefaults()
+    viewport.syncedStates.length = 0
+    settingsStore.persistedKeys.length = 0
+
+    ctx.applyPersistedDefaults()
+
+    assert.strictEqual(ctx.visibility.value.metals, false)
+    assert.strictEqual(
+      ctx.overlayDisplaySetting('arableMinimumProductivity'),
+      DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+    )
+    assert.deepStrictEqual(settingsStore.persistedKeys, [])
+    assert.strictEqual(viewport.syncedStates.length, 1)
+    assert.strictEqual(viewport.syncedStates[0].visibility.metals, false)
+  } finally {
+    scope.stop()
+  }
 })

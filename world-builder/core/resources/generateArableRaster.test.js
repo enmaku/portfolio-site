@@ -3,7 +3,7 @@ import test from 'node:test'
 import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
 import { generatePhysicalTerrainBaseline } from '../generatePhysicalTerrainBaseline.js'
 import { generateTemperature } from '../fields/generateTemperature.js'
-import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
+import { DEFAULT_GEOGRAPHY_SEED } from '../../core/worldGenerationOptions.js'
 import { generateArableRaster } from './generateArableRaster.js'
 
 const REPRESENTATIVE_GEOGRAPHY_SEEDS = [12345, 31842, DEFAULT_GEOGRAPHY_SEED]

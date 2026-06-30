@@ -254,9 +254,9 @@ function concavityChecksum(samples) {
   return checksum
 }
 
-test('computeHydrologyMetrics slope-area concavity preserves golden checksum for seed 12345', () => {
+test('computeHydrologyMetrics slope-area concavity preserves golden checksum on default simulation path', () => {
   const doc = generateDerivedGeography({
-    geographySeed: 12345,
+    geographySeed: 0,
     prevailingWindDegrees: 90,
     width: 64,
     height: 64,
@@ -272,5 +272,5 @@ test('computeHydrologyMetrics slope-area concavity preserves golden checksum for
   })
 
   assert.ok(metrics.slopeAreaConcavitySamples.length > 0)
-  assert.strictEqual(concavityChecksum(metrics.slopeAreaConcavitySamples), -1062786)
+  assert.strictEqual(concavityChecksum(metrics.slopeAreaConcavitySamples), -7903943)
 })

@@ -193,7 +193,13 @@ export function startDerivedGeographyGeneration({
       if (isStale()) return
       progress = reduceGenerationProgressOnStepComplete(progress, payload)
       handlers.onProgress?.(progress)
-      if (shouldApplyStepPreviewToMap(payload.worldDocument)) {
+      if (
+        shouldApplyStepPreviewToMap({
+          delivery: 'step-complete',
+          stepId: payload.stepId,
+          worldDocument: payload.worldDocument,
+        })
+      ) {
         handlers.onWorldDocument?.(payload.worldDocument)
       }
     },
@@ -217,7 +223,7 @@ export function startDerivedGeographyGeneration({
         activeStepIndex: -1,
       }
       handlers.onProgress?.(progress)
-      if (shouldApplyStepPreviewToMap(worldDocument)) {
+      if (shouldApplyStepPreviewToMap({ delivery: 'exhausted', worldDocument })) {
         handlers.onWorldDocument?.(worldDocument)
       }
       handlers.onExhausted?.()

@@ -8,12 +8,18 @@ import {
 } from './riverPathfinding.js'
 import {
   applySkipRefineTransition,
+  applySkipRefineToPipeline,
+  createRiverMaskPipeline,
+  getRiverMaskStageFromContext,
+  requireRiverMaskStageFromContext,
   resolveDisplayRiverNetworkMask,
-  RIVER_MASK_LIFECYCLE_FIELDS,
+  resolveDisplayRiverNetworkMaskFromPipeline,
   RIVER_MASK_LIFECYCLE_ORDER,
   RIVER_MASK_SKIP_REFINE_TRANSITION,
+  riverMaskContractKey,
   riverMasksEqual,
   snapshotRiverMaskLifecycle,
+  snapshotRiverMaskPipeline,
 } from './riverMaskLifecycle.js'
 
 /**
@@ -155,8 +161,8 @@ test('RIVER_MASK_LIFECYCLE_ORDER documents sketch through painted stages', () =>
     'presentation',
     'painted',
   ])
-  assert.strictEqual(RIVER_MASK_LIFECYCLE_FIELDS.presentation, 'presentationRiverNetworkMask')
   assert.strictEqual(RIVER_MASK_SKIP_REFINE_TRANSITION, 'skipRefine')
+  assert.strictEqual(riverMaskContractKey('presentation'), 'riverMask.presentation')
 })
 
 test('resolveDisplayRiverNetworkMask prefers presentation over settled', () => {
@@ -168,26 +174,64 @@ test('resolveDisplayRiverNetworkMask prefers presentation over settled', () => {
 
 test('applySkipRefineTransition copies settled mask to presentation', () => {
   const settled = new Uint8Array([1, 0, 1, 0])
-  const ctx = {
-    settledRiverNetworkMask: settled,
-    presentationRiverNetworkMask: null,
-  }
-  applySkipRefineTransition(ctx)
-  assert.ok(riverMasksEqual(ctx.presentationRiverNetworkMask, settled))
-  assert.equal(ctx.presentationRiverNetworkMask, settled)
+  const pipeline = createRiverMaskPipeline({ settled })
+  applySkipRefineTransition({ riverMaskPipeline: pipeline })
+  assert.ok(riverMasksEqual(pipeline.presentation, settled))
+  assert.equal(pipeline.presentation, settled)
+})
+
+test('applySkipRefineToPipeline copies settled mask to presentation', () => {
+  const settled = new Uint8Array([1, 0, 1, 0])
+  const pipeline = createRiverMaskPipeline({ settled })
+  applySkipRefineToPipeline(pipeline)
+  assert.equal(pipeline.presentation, settled)
+})
+
+test('resolveDisplayRiverNetworkMaskFromPipeline prefers presentation over settled', () => {
+  const settled = new Uint8Array([1, 0, 1])
+  const presentation = new Uint8Array([0, 1, 0])
+  const pipeline = createRiverMaskPipeline({ settled, presentation })
+  assert.equal(resolveDisplayRiverNetworkMaskFromPipeline(pipeline), presentation)
+})
+
+test('snapshotRiverMaskPipeline captures mask fields by stage', () => {
+  const sketch = new Uint8Array([1])
+  const settled = new Uint8Array([0])
+  const snapshot = snapshotRiverMaskPipeline(
+    createRiverMaskPipeline({ sketch, settled }),
+  )
+  assert.equal(snapshot.sketch, sketch)
+  assert.strictEqual(snapshot.incised, null)
+  assert.equal(snapshot.settled, settled)
 })
 
 test('snapshotRiverMaskLifecycle captures mask fields by stage', () => {
   const sketch = new Uint8Array([1])
   const settled = new Uint8Array([0])
   const snapshot = snapshotRiverMaskLifecycle({
-    riverNetworkMask: sketch,
-    incisedCorridorMask: null,
-    settledRiverNetworkMask: settled,
-    presentationRiverNetworkMask: null,
-    riverCorridorMask: null,
+    riverMaskPipeline: createRiverMaskPipeline({ sketch, settled }),
   })
   assert.equal(snapshot.sketch, sketch)
   assert.strictEqual(snapshot.incised, null)
   assert.equal(snapshot.settled, settled)
+})
+
+test('getRiverMaskStageFromContext reads pipeline stage from hydrology context', () => {
+  const sketch = new Uint8Array([1, 0])
+  const ctx = { riverMaskPipeline: createRiverMaskPipeline({ sketch }) }
+  assert.equal(getRiverMaskStageFromContext(ctx, 'sketch'), sketch)
+  assert.strictEqual(getRiverMaskStageFromContext(ctx, 'incised'), null)
+})
+
+test('requireRiverMaskStageFromContext throws when stage is missing', () => {
+  const ctx = { riverMaskPipeline: createRiverMaskPipeline() }
+  assert.throws(
+    () => requireRiverMaskStageFromContext(ctx, 'sketch'),
+    /river mask stage sketch required/,
+  )
+})
+
+test('riverMaskContractKey names pipeline stages for substep contracts', () => {
+  assert.strictEqual(riverMaskContractKey('sketch'), 'riverMask.sketch')
+  assert.strictEqual(riverMaskContractKey('painted'), 'riverMask.painted')
 })

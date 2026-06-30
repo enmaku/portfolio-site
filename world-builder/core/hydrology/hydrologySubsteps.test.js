@@ -21,7 +21,7 @@ import { computeFlowAccumulation, downstreamIndex } from './computeFlowAccumulat
 import { deriveOceanMask, FLOW_RECOMPUTE_REASONS, FLOW_RECOMPUTE_STAGES } from './flowField.js'
 import { computeRiverNetworkMaxChannelWidth } from './riverCorridorDisplay.js'
 import { readRiverNetworkFromWorldDocument } from './riverNetwork.js'
-import { DEFAULT_GEOGRAPHY_SEED } from '../../worldBuilderPageModel.js'
+import { DEFAULT_GEOGRAPHY_SEED } from '../../core/worldGenerationOptions.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
 import { generateDerivedGeography } from '../generateDerivedGeography.js'
 import {
@@ -689,8 +689,10 @@ test('hydrologySubsteps wires river mask lifecycle helpers at settle and paint s
   )
 
   assert.match(source, /applySkipRefineTransition/)
-  assert.match(source, /resolveDisplayRiverNetworkMask/)
+  assert.match(source, /resolveDisplayRiverNetworkMaskFromPipeline/)
+  assert.match(source, /getRiverMaskStageFromContext|requireRiverMaskStageFromContext/)
   assert.doesNotMatch(source, /presentationRiverNetworkMask \?\? ctx\.settledRiverNetworkMask/)
+  assert.doesNotMatch(source, /riverMaskPipeline\.(sketch|incised|settled|presentation|painted)/)
 })
 
 test('runHydrologySubsteps produces painted corridor and centerline masks', () => {

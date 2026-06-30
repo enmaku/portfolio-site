@@ -20,6 +20,7 @@ test('isCorridorAttractionEnabled is false when radius scale is zero', () => {
 })
 
 test('isMeanderRefineEnabled follows enableMeanderRefine option', () => {
+  assert.equal(isMeanderRefineEnabled(DEFAULT_WORLD_GENERATION_OPTIONS), false)
   assert.equal(
     isMeanderRefineEnabled({ ...DEFAULT_WORLD_GENERATION_OPTIONS, enableMeanderRefine: false }),
     false,
@@ -27,6 +28,13 @@ test('isMeanderRefineEnabled follows enableMeanderRefine option', () => {
   assert.equal(
     isMeanderRefineEnabled({ ...DEFAULT_WORLD_GENERATION_OPTIONS, enableMeanderRefine: true }),
     true,
+  )
+})
+
+test('DEFAULT_WORLD_GENERATION_OPTIONS disables corridor attraction (Option A)', () => {
+  assert.equal(
+    isCorridorAttractionEnabled(64, DEFAULT_WORLD_GENERATION_OPTIONS.riverAttractionRadiusScale),
+    false,
   )
 })
 

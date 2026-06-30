@@ -3,6 +3,9 @@ import { EROSION_STEP_COUNT } from './types.js'
 
 /** @typedef {import('./types.js').WorldGenerationOptions} WorldGenerationOptions */
 
+/** Default geography seed for generation controls and reset. */
+export const DEFAULT_GEOGRAPHY_SEED = 0
+
 /** @type {WorldGenerationOptions} */
 export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   seaLevel: SEA_LEVEL,
@@ -36,10 +39,16 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   temperatureLapseRate: 0.5,
   rainfallFrequencyScale: 1.35,
   navigableFlowCutoffScale: 0.6,
-  /** Legacy: opt-in corridor bridging via A* paths; 0 disables connectNearbyRiverCorridors. */
-  riverAttractionRadiusScale: 6,
-  /** Optional hydrologyRefine substep (A* meander); presentation geometry only. */
-  enableMeanderRefine: true,
+  /**
+   * Issue #345 Option A — simulation vs presentation seam: legacy pathfinding/meander
+   * heuristics default off so the lean simulation path runs by default. Set
+   * riverAttractionRadiusScale > 0 and/or enableMeanderRefine to opt into presentation
+   * corridor bridging and meander refine on hydrologyRoute / hydrologyRefine.
+   */
+  /** Legacy presentation: corridor bridging via A* paths; 0 disables connectNearbyRiverCorridors. */
+  riverAttractionRadiusScale: 0,
+  /** Legacy presentation: hydrologyRefine substep (A* meander); off by default (Option A). */
+  enableMeanderRefine: false,
   /** Legacy: meander strength when enableMeanderRefine is true. */
   riverMeanderStrength: 1.4,
   /** Legacy: valley settling when enableMeanderRefine is true (presentation carve disabled). */

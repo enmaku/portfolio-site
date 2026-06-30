@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  isMapPreviewWorldDocumentDelivery,
   isSlimWorkerStepCompleteMessage,
   toWorkerCancelledMessage,
   toWorkerCompleteMessage,
@@ -194,4 +195,58 @@ test('worker pipeline callbacks suppress messages after cancellation', () => {
 
   assert.strictEqual(posted.length, 1)
   assert.strictEqual(/** @type {{ type: string }} */ (posted[0]).type, 'step-start')
+})
+
+/** @type {import('../core/types.js').WorldDocument} */
+const SAMPLE_DOC = {
+  gridWidth: 2,
+  gridHeight: 2,
+  biomes: new Uint8Array(4),
+  fields: { elevation: new Float32Array(4) },
+}
+
+test('isMapPreviewWorldDocumentDelivery accepts validation step-complete with world document', () => {
+  assert.strictEqual(
+    isMapPreviewWorldDocumentDelivery({
+      delivery: 'step-complete',
+      stepId: 'validation',
+      worldDocument: SAMPLE_DOC,
+    }),
+    true,
+  )
+})
+
+test('isMapPreviewWorldDocumentDelivery rejects step-complete without world document', () => {
+  assert.strictEqual(
+    isMapPreviewWorldDocumentDelivery({ delivery: 'step-complete', stepId: 'validation' }),
+    false,
+  )
+})
+
+test('isMapPreviewWorldDocumentDelivery rejects non-validation step-complete even with world document', () => {
+  for (const stepId of ['physicalTerrainBaseline', 'erosion', 'hydrology', 'fieldRefresh', 'coastAndResources']) {
+    assert.strictEqual(
+      isMapPreviewWorldDocumentDelivery({
+        delivery: 'step-complete',
+        stepId,
+        worldDocument: SAMPLE_DOC,
+      }),
+      false,
+      stepId,
+    )
+  }
+})
+
+test('isMapPreviewWorldDocumentDelivery accepts exhausted terminal with world document', () => {
+  assert.strictEqual(
+    isMapPreviewWorldDocumentDelivery({
+      delivery: 'exhausted',
+      worldDocument: { ...SAMPLE_DOC, generationReport: { shouldReject: true } },
+    }),
+    true,
+  )
+})
+
+test('isMapPreviewWorldDocumentDelivery rejects exhausted terminal without world document', () => {
+  assert.strictEqual(isMapPreviewWorldDocumentDelivery({ delivery: 'exhausted' }), false)
 })
