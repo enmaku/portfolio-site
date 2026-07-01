@@ -309,7 +309,5 @@ Current monolith **884** → facade **~120** achieves #361 acceptance criterion.
 
 ## Related docs
 
-- [LANDMASS-STAGE-MODULES.md](./LANDMASS-STAGE-MODULES.md)
-- [FILE-SIZE-BUDGET.md](./FILE-SIZE-BUDGET.md) (referenced by #372)
-- [MINI-REVIEW-RUBRICS.md](./MINI-REVIEW-RUBRICS.md) § `orchestrator-decompose`
-- [COMMIT-SLICE-MAP.md](./COMMIT-SLICE-MAP.md) — landmass commit group
+- [LANDMASS-STAGE-MODULES.md](./LANDMASS-STAGE-MODULES.md) — stage module registry
+- [FILE-SIZE-BUDGET.md](./FILE-SIZE-BUDGET.md) — orchestrator line caps

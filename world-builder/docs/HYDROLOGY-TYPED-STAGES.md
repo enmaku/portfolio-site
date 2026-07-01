@@ -613,7 +613,7 @@ npx eslint --max-warnings 0 <changed-files>
 | [RIVER-MASK-LIFECYCLE.md](./RIVER-MASK-LIFECYCLE.md) | mask stage semantics |
 | [FLOW-FIELD-INVARIANTS.md](./FLOW-FIELD-INVARIANTS.md) | three full flow solves |
 | [hydrology/substep-specs/](./hydrology/substep-specs/) | per-substep specs |
-| [plans/ISSUE-355.md](./plans/ISSUE-355.md) | issue plan |
+| [SEAM-TEST-CATALOG.md](./SEAM-TEST-CATALOG.md) | hydrology seam tests |
 
 ---
 

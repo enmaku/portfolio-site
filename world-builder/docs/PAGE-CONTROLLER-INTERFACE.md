@@ -201,5 +201,5 @@ Cross-reference: [SEAM-TEST-CATALOG.md](./SEAM-TEST-CATALOG.md) entries for `use
 ## Related docs
 
 - [SEAM-TEST-CATALOG.md](./SEAM-TEST-CATALOG.md)
-- [MINI-REVIEW-RUBRICS.md](./MINI-REVIEW-RUBRICS.md) § `page-controller-test`, `page-sfc`
-- [plans/ISSUE-368.md](./plans/ISSUE-368.md), [plans/ISSUE-375.md](./plans/ISSUE-375.md)
+- [ARCHITECTURE-SEAMS.md](./ARCHITECTURE-SEAMS.md) — page and composable seam boundaries
+- [OVERLAY-LAYER-LOCALITY.md](./OVERLAY-LAYER-LOCALITY.md) — overlay owner wiring

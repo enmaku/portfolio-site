@@ -1,6 +1,6 @@
 # File size budget — World Builder production code
 
-Line-count limits for Phase 5 ([#354](https://github.com/enmaku/portfolio-site/issues/354)) and ongoing maintenance. Audit issue: [#372](https://github.com/enmaku/portfolio-site/issues/372). Thermo-nuclear instant REWORK: any production file **>1000 lines** without explicit PR justification ([`REWORK-PROTOCOL.md`](./REWORK-PROTOCOL.md)).
+Line-count limits for World Builder production code and ongoing maintenance. Enforced by `npm run check:world-builder-file-size`. Any production file **>1000 lines** should be split before merge unless the PR documents an explicit exception.
 
 Count production lines with:
 
@@ -188,7 +188,6 @@ Paste after running `npm run check:world-builder-file-size`. Replace warning row
 
 | Document | Role |
 | --- | --- |
-| [`PHASE-5-MASTER-PLAN.md`](./PHASE-5-MASTER-PLAN.md) | Issue #372 in wave D |
-| [`MERGE-GATES.md`](./MERGE-GATES.md) | File size gate in #378 |
-| [`plans/ISSUE-356.md`](./plans/ISSUE-356.md) | Substep extract line caps |
-| [`plans/ISSUE-361.md`](./plans/ISSUE-361.md) | Orchestrator decomposition caps |
+| [`HYDROLOGY-SUBSTEP-FILE-MAP.md`](./HYDROLOGY-SUBSTEP-FILE-MAP.md) | Substep extract line caps |
+| [`ORCHESTRATOR-DECOMPOSITION.md`](./ORCHESTRATOR-DECOMPOSITION.md) | Orchestrator decomposition caps |
+| [`world-builder/scripts/fileSizeBudgetConfig.mjs`](../scripts/fileSizeBudgetConfig.mjs) | Budget constants consumed by CI |

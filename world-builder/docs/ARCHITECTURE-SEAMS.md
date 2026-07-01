@@ -2,7 +2,7 @@
 
 This document defines the **seam boundaries** for the World Builder **landmass pipeline** and map display stack. It implements the package layout decided in [ADR-0009](../../docs/adr/0009-world-builder-map-display-stack.md): generators and editors mutate **world document** state; renderers read state and never mutate it.
 
-Domain vocabulary: [`world-builder/CONTEXT.md`](../CONTEXT.md). Phase 5 enforcement: [`PHASE-5-MASTER-PLAN.md`](./PHASE-5-MASTER-PLAN.md), [`ADR-0009-COMPLIANCE-CHECKLIST.md`](./ADR-0009-COMPLIANCE-CHECKLIST.md).
+Domain vocabulary: [`world-builder/CONTEXT.md`](../CONTEXT.md). Compliance audit: [`ADR-0009-COMPLIANCE-CHECKLIST.md`](./ADR-0009-COMPLIANCE-CHECKLIST.md).
 
 ---
 

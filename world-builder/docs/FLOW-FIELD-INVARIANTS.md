@@ -242,4 +242,4 @@ When cached count is unexpectedly high:
 
 - [HYDROLOGY-TYPED-STAGES.md](./HYDROLOGY-TYPED-STAGES.md) — which substeps read flow outputs
 - [RIVER-MASK-LIFECYCLE.md](./RIVER-MASK-LIFECYCLE.md) — mask stages orthogonal to flow solves
-- [plans/ISSUE-357.md](./plans/ISSUE-357.md) — regression guard work
+- [SEAM-TEST-CATALOG.md](./SEAM-TEST-CATALOG.md) — flow-field regression tests

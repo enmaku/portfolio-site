@@ -1,10 +1,10 @@
 # Seam test catalog
 
-> **Purpose:** Index every World Builder test file with its architectural seam, primary behaviors, and skip conditions. Phase 5 issues (#364–#375, #369) reference this matrix when adding or tightening seam coverage.
+> **Purpose:** Index every World Builder test file with its architectural seam, primary behaviors, and skip conditions.
 >
-> **Scope:** `world-builder/**/*.test.js` (127 files) plus `src/composables/useWorldBuilder*.test.js` (3 files) = **130** catalog entries.
+> **Scope:** `world-builder/**/*.test.js` plus `src/composables/useWorldBuilder*.test.js` catalog entries.
 >
-> **Last generated:** Run `node world-builder/docs/_generate-seam-catalog.mjs` after adding test files.
+> **Maintenance:** Update this file when adding or moving seam contract tests.
 
 ---
 
@@ -2270,8 +2270,7 @@ Each file lists individual `test(...)` titles for reviewer grep and #375 control
 
 ## Related docs
 
-- [REWORK-PROTOCOL.md](./REWORK-PROTOCOL.md) — thermo instant-REWORK rules for seam tests
-- [MINI-REVIEW-RUBRICS.md](./MINI-REVIEW-RUBRICS.md) — slice-type review checklists
-- [PAGE-CONTROLLER-INTERFACE.md](./PAGE-CONTROLLER-INTERFACE.md) — controller method → test mapping (#375)
-- [COMMIT-SLICE-MAP.md](./COMMIT-SLICE-MAP.md) — which issue owns seam test edits
+- [ARCHITECTURE-SEAMS.md](./ARCHITECTURE-SEAMS.md) — seam vocabulary and forbidden imports
+- [PAGE-CONTROLLER-INTERFACE.md](./PAGE-CONTROLLER-INTERFACE.md) — controller method → test mapping
+- [ADR-0009-COMPLIANCE-CHECKLIST.md](./ADR-0009-COMPLIANCE-CHECKLIST.md) — behavioral audit steps
 

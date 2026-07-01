@@ -58,3 +58,7 @@ data/replays/*
 world-builder/research/youtube-subtitles/*.en.txt
 world-builder/research/youtube-subtitles/raw/*
 !world-builder/research/youtube-subtitles/raw/.gitkeep
+
+# World Builder — local sensitivity analysis runs
+world-builder/research/sensitivity-results/*
+!world-builder/research/sensitivity-results/.gitkeep

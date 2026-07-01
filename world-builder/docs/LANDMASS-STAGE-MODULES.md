@@ -382,13 +382,12 @@ No new copy-assertion tests. Behavior unchanged for default generation and valid
 3. Register modules in `landmassPipelineStageModules.js`.
 4. Replace `executeLandmassPipelineStage` switch with module lookup.
 5. Keep exports stable: `runPipelineStep`, `DERIVED_GEOGRAPHY_STEPS`, re-export contracts.
-6. Run AutoVerify from [plans/ISSUE-359.md](./plans/ISSUE-359.md).
+6. Run `npm run test:world-builder` and `npm run check:world-builder-file-size`.
 
 ---
 
 ## Related docs
 
-- [ORCHESTRATOR-DECOMPOSITION.md](./ORCHESTRATOR-DECOMPOSITION.md) — runner extraction (#361)
+- [ORCHESTRATOR-DECOMPOSITION.md](./ORCHESTRATOR-DECOMPOSITION.md) — runner extraction
 - [landmass/stage-specs/](./landmass/stage-specs/) — per-stage deep specs
-- [REWORK-PROTOCOL.md](./REWORK-PROTOCOL.md) — mini review gates
 - [SEAM-TEST-CATALOG.md](./SEAM-TEST-CATALOG.md) — pipeline test matrix

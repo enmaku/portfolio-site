@@ -333,7 +333,7 @@ Post-#362 production code must not reference `vectorOverlays`:
 rg 'vectorOverlays' world-builder/renderer/ --glob '*.js' | rg -v test | rg -v '\.test\.'
 ```
 
-Expected: zero hits (see REWORK-PROTOCOL.md).
+Expected: zero hits.
 
 Other forbiddens:
 
@@ -370,8 +370,8 @@ Existing raster overlay sync tests must pass (362.8) — metal/salt raster toggl
 
 ## Related documents
 
-- [plans/ISSUE-362.md](./plans/ISSUE-362.md)
-- [REWORK-PROTOCOL.md](./REWORK-PROTOCOL.md) — vectorOverlays grep gate
+- [ARCHITECTURE-SEAMS.md](./ARCHITECTURE-SEAMS.md) — renderer seam boundaries
+- [SEAM-TEST-CATALOG.md](./SEAM-TEST-CATALOG.md) — overlay locality test matrix
 - [HYDROLOGY-TYPED-STAGES.md](./HYDROLOGY-TYPED-STAGES.md) — hydrology does not produce node overlays
 
 ---

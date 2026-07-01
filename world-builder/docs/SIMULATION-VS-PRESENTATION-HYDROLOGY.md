@@ -245,5 +245,4 @@ A: Step previews may attach partial documents to the map (`shouldApplyStepPrevie
 | [`RIVER-MASK-LIFECYCLE.md`](./RIVER-MASK-LIFECYCLE.md) | Stage transition detail |
 | [`FLOW-FIELD-INVARIANTS.md`](./FLOW-FIELD-INVARIANTS.md) | Full flow solve count |
 | [`ARCHITECTURE-SEAMS.md`](./ARCHITECTURE-SEAMS.md) | Seam 3 summary |
-| [`plans/ISSUE-358.md`](./plans/ISSUE-358.md) | Lifecycle regression issue |
-| [`plans/ISSUE-365.md`](./plans/ISSUE-365.md) | Validation consumer issue |
+| [`SEAM-TEST-CATALOG.md`](./SEAM-TEST-CATALOG.md) | Simulation vs presentation seam tests |
