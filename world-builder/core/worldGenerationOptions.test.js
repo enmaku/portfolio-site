@@ -1,0 +1,110 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import {
+  ADVISORY_VALIDATION_CHECK_IDS,
+  REJECTABLE_VALIDATION_CHECK_IDS,
+  readEnforceFlag,
+} from './validation/landmassValidationContracts.js'
+import {
+  DEFAULT_BREACH_THRESHOLD,
+  DEFAULT_WORLD_GENERATION_OPTIONS,
+  resolveWorldGenerationOptions,
+} from './worldGenerationOptions.js'
+
+test('DEFAULT_WORLD_GENERATION_OPTIONS documents breachThreshold default', () => {
+  assert.strictEqual(DEFAULT_WORLD_GENERATION_OPTIONS.breachThreshold, 0.3)
+  assert.strictEqual(DEFAULT_BREACH_THRESHOLD, 0.3)
+  assert.strictEqual(DEFAULT_WORLD_GENERATION_OPTIONS.maxValidationRetries, 3)
+})
+
+test('resolveWorldGenerationOptions preserves breachThreshold default', () => {
+  const options = resolveWorldGenerationOptions()
+  assert.strictEqual(options.breachThreshold, DEFAULT_BREACH_THRESHOLD)
+})
+
+test('resolveWorldGenerationOptions merges partial breachThreshold override', () => {
+  const options = resolveWorldGenerationOptions({ breachThreshold: 0.75 })
+  assert.strictEqual(options.breachThreshold, 0.75)
+  assert.strictEqual(options.seaLevel, DEFAULT_WORLD_GENERATION_OPTIONS.seaLevel)
+})
+
+test('resolveWorldGenerationOptions preserves stream-power incision defaults', () => {
+  const options = resolveWorldGenerationOptions()
+  assert.strictEqual(options.inciseIterations, 8)
+  assert.strictEqual(options.streamPowerK, 0.0045)
+  assert.strictEqual(options.streamPowerM, 0.35)
+  assert.strictEqual(options.streamPowerN, 1.5)
+  assert.strictEqual(options.channelInitiationThreshold, 0.005)
+})
+
+test('resolveWorldGenerationOptions preserves hydrology validation defaults', () => {
+  const options = resolveWorldGenerationOptions()
+  assert.strictEqual(options.enforceNavigableRiverQuota, false)
+  assert.strictEqual(options.enforceCoastMouth, false)
+  assert.strictEqual(options.maxParallelStrandRatio, 0.35)
+  assert.strictEqual(options.minCoastConnectedNavigablePathCells, 8)
+  for (const checkId of REJECTABLE_VALIDATION_CHECK_IDS) {
+    assert.strictEqual(readEnforceFlag(checkId, options), false)
+  }
+  for (const checkId of ADVISORY_VALIDATION_CHECK_IDS) {
+    assert.strictEqual(readEnforceFlag(checkId, options), false)
+  }
+})
+
+test('resolveWorldGenerationOptions preserves maxValidationRetries default', () => {
+  const options = resolveWorldGenerationOptions()
+  assert.strictEqual(options.maxValidationRetries, 3)
+})
+
+test('resolveWorldGenerationOptions defaults legacy presentation heuristics off (issue #345 Option A)', () => {
+  const options = resolveWorldGenerationOptions()
+  assert.strictEqual(options.riverAttractionRadiusScale, 0)
+  assert.strictEqual(options.enableMeanderRefine, false)
+})
+
+test('resolveWorldGenerationOptions merges enableMeanderRefine override', () => {
+  const options = resolveWorldGenerationOptions({ enableMeanderRefine: true })
+  assert.strictEqual(options.enableMeanderRefine, true)
+  assert.strictEqual(options.riverAttractionRadiusScale, 0)
+})
+
+test('resolveWorldGenerationOptions merges riverAttractionRadiusScale for presentation opt-in', () => {
+  const options = resolveWorldGenerationOptions({ riverAttractionRadiusScale: 6 })
+  assert.strictEqual(options.riverAttractionRadiusScale, 6)
+  assert.strictEqual(options.enableMeanderRefine, false)
+})
+
+test('resolveWorldGenerationOptions preserves rainfall amount default', () => {
+  const options = resolveWorldGenerationOptions()
+  assert.strictEqual(options.rainfallAmountScale, 1.4)
+  assert.strictEqual(options.biomeEdgeNoiseStrength, 1)
+})
+
+test('resolveWorldGenerationOptions merges biomeEdgeNoiseStrength override', () => {
+  const options = resolveWorldGenerationOptions({ biomeEdgeNoiseStrength: 0.25 })
+  assert.strictEqual(options.biomeEdgeNoiseStrength, 0.25)
+})
+
+test('resolveWorldGenerationOptions merges rainfallAmountScale override', () => {
+  const options = resolveWorldGenerationOptions({ rainfallAmountScale: 1.75 })
+  assert.strictEqual(options.rainfallAmountScale, 1.75)
+  assert.strictEqual(options.rainfallFrequencyScale, 1.35)
+})
+
+test('resolveWorldGenerationOptions preserves seasonal hydrology defaults', () => {
+  const options = resolveWorldGenerationOptions()
+  assert.strictEqual(options.enableSeasonalHydrology, true)
+  assert.strictEqual(options.seasonalBiomeInfluenceScale, 0.2)
+  assert.strictEqual(options.seasonalYearCount, 5)
+  assert.strictEqual(options.dryRainMult, 0.15)
+  assert.strictEqual(options.wetRainMult, 1)
+  assert.strictEqual(options.yearlyClimateNoiseScale, 0.15)
+  assert.strictEqual(options.meltReleaseScale, 1)
+  assert.strictEqual(options.lakeBankCrumblePerYear, 0)
+})
+
+test('resolveWorldGenerationOptions merges enableSeasonalHydrology override', () => {
+  const options = resolveWorldGenerationOptions({ enableSeasonalHydrology: false })
+  assert.strictEqual(options.enableSeasonalHydrology, false)
+  assert.strictEqual(options.seasonalYearCount, DEFAULT_WORLD_GENERATION_OPTIONS.seasonalYearCount)
+})
