@@ -138,3 +138,72 @@ test('generateDerivedGeography on tiny grid completes landmass pipeline outputs'
   assert.ok(doc.riverNetworkMask)
   assert.ok(doc.generationReport)
 })
+
+test(
+  'default generation smoke on 128 grid completes full pipeline without hydrology mocks',
+  { timeout: 60_000 },
+  () => {
+    const controls = createDefaultControlsState()
+    const params = buildDerivedGeographyParams(
+      controls.geographySeed,
+      controls.prevailingWindDegrees,
+      controls.generationOptions,
+    )
+    const gridSize = 128
+    const cellCount = gridSize * gridSize
+    const startedAt = performance.now()
+
+    const doc = generateDerivedGeography({
+      ...params,
+      width: gridSize,
+      height: gridSize,
+    })
+
+    const elapsedMs = performance.now() - startedAt
+    assert.ok(
+      elapsedMs < 60_000,
+      `expected default generation under 60s, took ${Math.round(elapsedMs)}ms`,
+    )
+
+    assert.strictEqual(doc.pipelineStage, PIPELINE_STAGE_DERIVED_GEOGRAPHY)
+    assert.strictEqual(doc.gridWidth, gridSize)
+    assert.strictEqual(doc.gridHeight, gridSize)
+    assert.strictEqual(doc.fields.elevation.length, cellCount)
+    assert.ok(doc.riverGraph)
+    assert.ok(doc.riverNetworkMask)
+    assert.ok(doc.lakeMask)
+
+    assert.ok(doc.simulationRiverMask)
+    assert.strictEqual(doc.simulationRiverMask.length, cellCount)
+    let simulationRiverCellCount = 0
+    for (let i = 0; i < doc.simulationRiverMask.length; i += 1) {
+      if (doc.simulationRiverMask[i]) simulationRiverCellCount += 1
+    }
+    assert.ok(
+      simulationRiverCellCount > 0,
+      'expected simulationRiverMask populated after hydrology',
+    )
+
+    assert.ok(doc.displayBiomes)
+    assert.strictEqual(doc.displayBiomes.length, cellCount)
+    let displayBiomeKindCount = 0
+    for (let i = 0; i < doc.displayBiomes.length; i += 1) {
+      if (doc.displayBiomes[i] !== 0) displayBiomeKindCount += 1
+    }
+    assert.ok(displayBiomeKindCount > 0, 'expected displayBiomes populated for terrain tint')
+
+    assert.ok(doc.generationReport)
+    assert.ok(Array.isArray(doc.generationReport.validationRows))
+    assert.ok(doc.generationReport.validationRows.length > 0)
+    for (const row of doc.generationReport.validationRows) {
+      assert.strictEqual(typeof row.checkId, 'string')
+      assert.strictEqual(typeof row.status, 'string')
+      assert.ok(row.summary.length > 0)
+    }
+    assert.ok(doc.generationReport.hydrology)
+    assert.ok(doc.generationReport.hydrology.riverCellCount > 0)
+    assert.strictEqual(typeof doc.generationReport.shouldReject, 'boolean')
+    assert.ok(Array.isArray(doc.generationReport.rejectionReasons))
+    assert.ok(doc.generationReport.validationSignals)
+  },
+)

@@ -53,6 +53,24 @@ function mountOverlayState(scope, overrides = {}) {
   }
 }
 
+test('toggleVisibility on then off stores false for checkbox binding', () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx } = mountOverlayState(scope)
+
+    ctx.toggleVisibility('arable', true)
+    ctx.toggleVisibility('arable', false)
+    ctx.toggleVisibility('arable', null)
+
+    assert.strictEqual(ctx.visibility.value.arable, false)
+    for (const value of Object.values(ctx.visibility.value)) {
+      assert.strictEqual(typeof value, 'boolean')
+    }
+  } finally {
+    scope.stop()
+  }
+})
+
 test('toggleVisibility updates owner state and syncs viewport', () => {
   const scope = effectScope(true)
   try {

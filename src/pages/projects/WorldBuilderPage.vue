@@ -26,7 +26,7 @@
               <q-chip
                 dense
                 :data-testid="`world-builder-generation-step-${step.id}`"
-                :color="stepStatusColor(step.status)"
+                :color="generationStepStatusColor(step.status)"
                 text-color="white"
                 :outline="step.status === 'pending'"
               >
@@ -38,7 +38,7 @@
                   :key="substep.id"
                   dense
                   :data-testid="`world-builder-hydrology-substep-${substep.id}`"
-                  :color="stepStatusColor(substep.status)"
+                  :color="generationStepStatusColor(substep.status)"
                   text-color="white"
                   :outline="substep.status === 'pending'"
                   size="sm"
@@ -58,10 +58,13 @@
             v-for="overlay in resourceOverlayDefinitions"
             :key="overlay.id"
             dense
-            :model-value="resourceOverlayVisibility[overlay.id]"
+            :toggle-indeterminate="false"
+            :model-value="resourceOverlayVisibility[overlay.id] === true"
             :data-testid="`world-builder-overlay-toggle-${overlay.id}`"
             :label="overlay.label"
-            @update:model-value="(value) => toggleResourceOverlayVisibility(overlay.id, value)"
+            @update:model-value="
+              (value) => toggleResourceOverlayVisibility(overlay.id, value === true)
+            "
           />
         </div>
       </div>
@@ -136,7 +139,7 @@
                 <div class="row items-center no-wrap q-gutter-xs q-mb-xs">
                   <span class="text-caption">
                     {{ control.label }}:
-                    {{ formatControlValue(control.key, controlValue(control.key)) }}
+                    {{ formatGenerationControlValue(control.key, controlValue(control.key)) }}
                   </span>
                   <WorldBuilderSettingHelp
                     :text="control.tooltip"
@@ -351,22 +354,19 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import {
-  WORLD_BUILDER_GENERATION_CONTROL_SECTIONS,
-  GEOGRAPHY_SEED_TOOLTIP,
+  createResourceOverlayDefinitions,
   formatGenerationControlValue,
-} from '@world-builder/worldBuilderGenerationControls.js'
-import {
-  WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS,
-  formatOverlayControlValue,
-} from '@world-builder/worldBuilderOverlayControls.js'
-import { createResourceOverlayDefinitions } from '@world-builder/resourceOverlays.js'
-import {
-  formatHydrologySubstepTimingForDisplay,
   formatHydrologyMetricValue,
+  formatHydrologySubstepTimingForDisplay,
+  formatOverlayControlValue,
   formatSlopeAreaConcavityForDisplay,
-  WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID,
+  generationStepStatusColor,
+  GEOGRAPHY_SEED_TOOLTIP,
   validationStatusColor,
   validationStatusIcon,
+  WORLD_BUILDER_GENERATION_CONTROL_SECTIONS,
+  WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS,
+  WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID,
 } from '@world-builder/worldBuilderPageModel.js'
 import { useWorldBuilderPageController } from '../../composables/useWorldBuilderPageController.js'
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
@@ -420,24 +420,6 @@ const {
     })
   },
 })
-
-/**
- * @param {'pending' | 'active' | 'complete' | 'skipped'} status
- */
-function stepStatusColor(status) {
-  if (status === 'complete') return 'positive'
-  if (status === 'active') return 'primary'
-  if (status === 'skipped') return 'grey-6'
-  return 'grey-8'
-}
-
-/**
- * @param {string} key
- * @param {number | boolean} value
- */
-function formatControlValue(key, value) {
-  return formatGenerationControlValue(key, value)
-}
 
 onMounted(start)
 onUnmounted(destroy)

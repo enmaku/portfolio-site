@@ -15,6 +15,12 @@ import {
   extractRiverNetworkFromIncisedChannels,
   selectIncisedChannelSeeds,
 } from './extractRiverNetworkFromIncisedChannels.js'
+import {
+  createFlowFieldSession,
+  FLOW_RECOMPUTE_REASONS,
+  FLOW_RECOMPUTE_STAGES,
+} from './flowField.js'
+import { applyClosedIslandRim } from '../fields/applyClosedIslandRim.js'
 
 function makeYJunctionTerrain(width, height) {
   const elevation = new Float32Array(width * height).fill(SEA_LEVEL + 0.2)
@@ -427,6 +433,36 @@ test('extractRiverNetworkFromIncisedChannels marks every graph edge as navigable
   if (extracted.riverGraph.edges.length > 0) {
     assert.ok(extracted.riverGraph.edges.every((edge) => edge.navigable))
   }
+})
+
+test('extractRiverNetworkFromIncisedChannels logs extract flow solve when flowFieldSession is provided', () => {
+  const width = 16
+  const height = 16
+  const elevation = new Float32Array(width * height).fill(0.85)
+  applyClosedIslandRim(elevation, width, height)
+  const rainfall = new Float32Array(width * height).fill(0.5)
+  const flowFieldSession = createFlowFieldSession()
+
+  extractRiverNetworkFromIncisedChannels({
+    elevation,
+    incisedCorridorMask: new Uint8Array(width * height),
+    rainfall,
+    width,
+    height,
+    flowFieldSession,
+  })
+
+  assert.strictEqual(flowFieldSession.fullFlowSolveCount, 1)
+  assert.deepStrictEqual(
+    flowFieldSession.solveLog.filter((entry) => !entry.cached),
+    [
+      {
+        stage: FLOW_RECOMPUTE_STAGES.hydrologyExtract,
+        reason: FLOW_RECOMPUTE_REASONS.hydrologyExtract,
+        cached: false,
+      },
+    ],
+  )
 })
 
 test('extractRiverNetworkFromIncisedChannels produces non-empty graph for default pipeline seed', () => {

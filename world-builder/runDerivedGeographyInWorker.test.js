@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.js'
+import { worldDocumentHasSimulationRiverMask } from './worker/derivedGeographyWorkerProtocol.js'
 
 /** @type {MockWorker | undefined} */
 let lastWorker
@@ -109,6 +110,38 @@ test('runDerivedGeographyInWorker forwards validation step-complete with world d
     onStepComplete: (payload) => completed.push(payload),
   })
 
+  const simulationRiverMask = new Uint8Array(64)
+  simulationRiverMask[3] = 1
+  const riverNetworkMask = new Uint8Array(64)
+  riverNetworkMask[3] = 1
+  riverNetworkMask[4] = 1
+  const worldDocument = {
+    gridWidth: 8,
+    gridHeight: 8,
+    pipelineStage: 'derivedGeography',
+    simulationRiverMask,
+    riverNetworkMask,
+  }
+  deliverWorkerMessage({
+    type: 'step-complete',
+    stepId: 'validation',
+    stepIndex: 5,
+    stepCount: 6,
+    label: 'validation-label',
+    worldDocument,
+  })
+
+  assert.strictEqual(completed.length, 1)
+  assert.strictEqual(completed[0].worldDocument, worldDocument)
+  assert.ok(worldDocumentHasSimulationRiverMask(completed[0].worldDocument))
+})
+
+test('runDerivedGeographyInWorker forwards hydrology step-complete with optional world document', () => {
+  const completed = []
+  startWorker({
+    onStepComplete: (payload) => completed.push(payload),
+  })
+
   const worldDocument = { gridWidth: 8, gridHeight: 8, pipelineStage: 'derivedGeography' }
   deliverWorkerMessage({
     type: 'step-complete',
@@ -195,11 +228,20 @@ test('runDerivedGeographyInWorker forwards exhausted status with world document'
     },
   })
 
-  const worldDocument = { gridWidth: 8, gridHeight: 8, pipelineStage: 'derivedGeography' }
+  const simulationRiverMask = new Uint8Array(64)
+  simulationRiverMask[7] = 1
+  const worldDocument = {
+    gridWidth: 8,
+    gridHeight: 8,
+    pipelineStage: 'derivedGeography',
+    simulationRiverMask,
+    generationReport: { shouldReject: true },
+  }
   deliverWorkerMessage({ type: 'exhausted', worldDocument })
 
   assert.strictEqual(exhaustedDocs.length, 1)
   assert.strictEqual(exhaustedDocs[0], worldDocument)
+  assert.ok(worldDocumentHasSimulationRiverMask(exhaustedDocs[0]))
   assert.strictEqual(lastWorker?.terminated, true)
 })
 

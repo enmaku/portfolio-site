@@ -51,6 +51,9 @@ test('HYDROLOGY_SUBSTEPS lists nine substeps in canonical order', () => {
   )
 })
 
+// Default hydrology: three uncached full flow solves logged on FlowFieldSession —
+// 1. hydrologyRoute (route-filled-dem), 2. hydrologyExtract (extract-post-incision,
+// delegated inside extract module), 3. hydrologySettle (settle-post-lake-equilibrium).
 test('runHydrologySubsteps performs three full flow solves per world', () => {
   let state = createInitialPipelineState(params)
   state = runPipelineStep(state, 'physicalTerrainBaseline')
@@ -80,6 +83,9 @@ test('runHydrologySubsteps performs three full flow solves per world', () => {
       FLOW_RECOMPUTE_REASONS.hydrologySettle,
     ],
   )
+  for (const entry of uncachedLog) {
+    assert.strictEqual(entry.reason, FLOW_RECOMPUTE_REASONS[entry.stage])
+  }
 })
 
 test('runHydrologySubsteps routes every full flow solve through the flowField session', () => {
@@ -94,6 +100,48 @@ test('runHydrologySubsteps routes every full flow solve through the flowField se
     flowField.solveLog.filter((entry) => !entry.cached).length,
   )
   assert.ok(flowField.solveLog.length > 0)
+})
+
+test('runHydrologySubsteps with seasonal hydrology enabled keeps three full flow solves', () => {
+  let baselineState = createInitialPipelineState({
+    ...params,
+    options: { ...DEFAULT_WORLD_GENERATION_OPTIONS, enableSeasonalHydrology: false },
+  })
+  baselineState = runPipelineStep(baselineState, 'physicalTerrainBaseline')
+  baselineState = runPipelineStep(baselineState, 'erosion')
+
+  let seasonalState = createInitialPipelineState({
+    ...params,
+    options: { ...DEFAULT_WORLD_GENERATION_OPTIONS, enableSeasonalHydrology: true },
+  })
+  seasonalState = runPipelineStep(seasonalState, 'physicalTerrainBaseline')
+  seasonalState = runPipelineStep(seasonalState, 'erosion')
+
+  const baseline = runHydrologySubsteps(baselineState)
+  const seasonal = runHydrologySubsteps(seasonalState)
+
+  assert.strictEqual(seasonal.flowField.fullFlowSolveCount, 3)
+  assert.strictEqual(
+    seasonal.flowField.fullFlowSolveCount,
+    baseline.flowField.fullFlowSolveCount,
+  )
+  const seasonalUncached = seasonal.flowField.solveLog.filter((entry) => !entry.cached)
+  assert.deepStrictEqual(
+    seasonalUncached.map((entry) => entry.stage),
+    [
+      FLOW_RECOMPUTE_STAGES.hydrologyRoute,
+      FLOW_RECOMPUTE_STAGES.hydrologyExtract,
+      FLOW_RECOMPUTE_STAGES.hydrologySettle,
+    ],
+  )
+  assert.deepStrictEqual(
+    seasonalUncached.map((entry) => entry.reason),
+    [
+      FLOW_RECOMPUTE_REASONS.hydrologyRoute,
+      FLOW_RECOMPUTE_REASONS.hydrologyExtract,
+      FLOW_RECOMPUTE_REASONS.hydrologySettle,
+    ],
+  )
 })
 
 test('runHydrologySubsteps invokes seasonal between climate and route', () => {

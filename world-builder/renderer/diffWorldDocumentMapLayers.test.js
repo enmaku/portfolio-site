@@ -109,7 +109,7 @@ test('diffWorldDocumentMapLayers detects hydrology and lake mask changes', () =>
   assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, nextRivers), ['rivers'])
 })
 
-test('diffWorldDocumentMapLayers detects vector overlay node changes', () => {
+test('diffWorldDocumentMapLayers detects metal node changes only in metalNodes layer', () => {
   const previous = baseDocument({
     metalNodes: [{ id: 'm1', x: 1, y: 2, score: 0.5 }],
   })
@@ -117,5 +117,27 @@ test('diffWorldDocumentMapLayers detects vector overlay node changes', () => {
     metalNodes: [{ id: 'm1', x: 1, y: 2, score: 0.6 }],
   })
 
-  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['vectorOverlays'])
+  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['metalNodes'])
+})
+
+test('diffWorldDocumentMapLayers detects coastal node changes only in coastalNodes layer', () => {
+  const previous = baseDocument({
+    coastalNodes: [{ id: 'c1', x: 1, y: 2, kind: 'mouth' }],
+  })
+  const next = baseDocument({
+    coastalNodes: [{ id: 'c1', x: 2, y: 2, kind: 'mouth' }],
+  })
+
+  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['coastalNodes'])
+})
+
+test('diffWorldDocumentMapLayers detects salt node changes only in saltNodes layer', () => {
+  const previous = baseDocument({
+    saltNodes: [{ id: 's1', x: 1, y: 2, score: 0.5 }],
+  })
+  const next = baseDocument({
+    saltNodes: [{ id: 's1', x: 1, y: 2, score: 0.7 }],
+  })
+
+  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['saltNodes'])
 })

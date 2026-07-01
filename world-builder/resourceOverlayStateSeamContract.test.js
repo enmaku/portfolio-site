@@ -147,7 +147,7 @@ test('useWorldBuilderOverlayState seam syncToViewport projects owner state when 
   }
 })
 
-test('useWorldBuilderOverlayState seam applyPersistedDefaults restores store defaults without Pinia dual-write', () => {
+test('useWorldBuilderOverlayState seam applyPersistedDefaults (resetDefaults overlay path) restores defaults and syncs viewport once', () => {
   const scope = effectScope(true)
   try {
     const viewport = createViewportSyncSeam()
@@ -175,6 +175,39 @@ test('useWorldBuilderOverlayState seam applyPersistedDefaults restores store def
     assert.deepStrictEqual(settingsStore.persistedKeys, [])
     assert.strictEqual(viewport.syncedStates.length, 1)
     assert.strictEqual(viewport.syncedStates[0].visibility.metals, false)
+    assert.strictEqual(
+      viewport.syncedStates[0].displaySettings.arableMinimumProductivity,
+      DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+    )
+  } finally {
+    scope.stop()
+  }
+})
+
+test('useWorldBuilderOverlayState seam setDisplaySetting (setResourceOverlayDisplaySetting path) persists only when value changes', () => {
+  const scope = effectScope(true)
+  try {
+    const viewport = createViewportSyncSeam()
+    const settingsStore = createMockSettingsStore()
+    const ctx = scope.run(() =>
+      useWorldBuilderOverlayState({
+        getViewport: () => viewport,
+        settingsStore,
+      }),
+    )
+
+    ctx.setDisplaySetting('arableMinimumProductivity', 0.18)
+    settingsStore.persistedKeys.length = 0
+    viewport.syncedStates.length = 0
+
+    ctx.setDisplaySetting('arableMinimumProductivity', 0.18)
+
+    assert.deepStrictEqual(settingsStore.persistedKeys, [])
+    assert.strictEqual(viewport.syncedStates.length, 1)
+    assert.strictEqual(
+      viewport.syncedStates[0].displaySettings.arableMinimumProductivity,
+      0.18,
+    )
   } finally {
     scope.stop()
   }

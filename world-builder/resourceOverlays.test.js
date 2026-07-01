@@ -17,12 +17,16 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
   const definitions = createResourceOverlayDefinitions()
   assert.strictEqual(definitions.length, 4)
   assert.deepStrictEqual(
-    definitions.map((definition) => ({ id: definition.id, kind: definition.kind })),
+    definitions.map((definition) => ({
+      id: definition.id,
+      kind: definition.kind,
+      vectorLayerId: definition.vectorLayerId,
+    })),
     [
-      { id: 'arable', kind: 'raster' },
-      { id: 'timber', kind: 'raster' },
-      { id: 'metals', kind: 'rasterAndNodes' },
-      { id: 'salt', kind: 'nodes' },
+      { id: 'arable', kind: 'raster', vectorLayerId: undefined },
+      { id: 'timber', kind: 'raster', vectorLayerId: undefined },
+      { id: 'metals', kind: 'rasterAndNodes', vectorLayerId: 'metalNodes' },
+      { id: 'salt', kind: 'nodes', vectorLayerId: 'saltNodes' },
     ],
   )
 })

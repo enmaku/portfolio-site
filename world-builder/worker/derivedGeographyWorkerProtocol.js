@@ -190,3 +190,36 @@ export function isMapPreviewWorldDocumentDelivery(payload) {
   }
   return false
 }
+
+/**
+ * Worker world-document payloads after hydrology must include a populated simulationRiverMask.
+ *
+ * @param {import('../core/types.js').WorldDocument | null | undefined} worldDocument
+ * @returns {boolean}
+ */
+export function worldDocumentHasSimulationRiverMask(worldDocument) {
+  const mask = worldDocument?.simulationRiverMask
+  return mask instanceof Uint8Array && mask.length > 0
+}
+
+/**
+ * Clone and worker preview documents must not alias simulation and presentation mask buffers.
+ *
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function simulationRiverMaskIsIndependentFromPresentationMasks(worldDocument) {
+  const simulation = worldDocument.simulationRiverMask
+  if (!(simulation instanceof Uint8Array)) {
+    return false
+  }
+  const presentation = worldDocument.riverNetworkMask
+  const corridor = worldDocument.riverCorridorMask
+  if (presentation instanceof Uint8Array && presentation === simulation) {
+    return false
+  }
+  if (corridor instanceof Uint8Array && corridor === simulation) {
+    return false
+  }
+  return true
+}

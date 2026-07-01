@@ -1,4 +1,4 @@
-/** @typedef {'terrain' | 'contours' | 'arable' | 'timber' | 'metals' | 'rivers' | 'lakes' | 'vectorOverlays'} MapLayerId */
+/** @typedef {'terrain' | 'contours' | 'arable' | 'timber' | 'metals' | 'rivers' | 'lakes' | 'coastalNodes' | 'metalNodes' | 'saltNodes'} MapLayerId */
 
 /** @type {readonly MapLayerId[]} */
 export const ALL_MAP_LAYER_IDS = [
@@ -9,7 +9,9 @@ export const ALL_MAP_LAYER_IDS = [
   'metals',
   'rivers',
   'lakes',
-  'vectorOverlays',
+  'coastalNodes',
+  'metalNodes',
+  'saltNodes',
 ]
 
 /**

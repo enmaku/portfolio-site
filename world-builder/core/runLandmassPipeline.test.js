@@ -199,6 +199,43 @@ test('runLandmassPipeline returns exhausted when validation retries are exhauste
   assert.notStrictEqual(result.worldDocument.fields.elevation, null)
 })
 
+test('runLandmassPipeline exhausted fixture pins structured coast path rejection', async () => {
+  const result = await runLandmassPipeline(forceValidationRejectionParams)
+
+  assert.strictEqual(result.status, 'exhausted')
+  assert.strictEqual(result.worldDocument?.geographySeed, forceValidationRejectionParams.geographySeed)
+  assert.strictEqual(result.worldDocument?.generationReport?.shouldReject, true)
+  assert.strictEqual(result.worldDocument?.generationReport?.rejectionSamplingEnforced, true)
+  assert.deepStrictEqual(result.worldDocument?.generationReport?.structuredRejectionReasons, [
+    { checkId: 'coastConnectedNavigablePath', category: 'coast' },
+  ])
+  const failIds = (result.worldDocument?.generationReport?.validationRows ?? [])
+    .filter((row) => row.status === 'fail')
+    .map((row) => row.checkId)
+  assert.deepStrictEqual(failIds, ['coastConnectedNavigablePath'])
+  const failingRows = (result.worldDocument?.generationReport?.validationRows ?? []).filter(
+    (row) => row.status === 'fail',
+  )
+  for (const row of failingRows) {
+    assert.ok(row.mapFocus)
+    assert.equal(typeof row.mapFocus.x, 'number')
+    assert.equal(typeof row.mapFocus.y, 'number')
+    assert.equal(typeof row.mapFocus.zoom, 'number')
+  }
+})
+
+test('runLandmassPipelineRun exhausted fixture pins structured coast path rejection', () => {
+  const result = runLandmassPipelineRun(forceValidationRejectionParams)
+
+  assert.strictEqual(result.status, 'exhausted')
+  assert.strictEqual(result.worldDocument?.geographySeed, forceValidationRejectionParams.geographySeed)
+  assert.strictEqual(result.worldDocument?.generationReport?.shouldReject, true)
+  assert.strictEqual(result.worldDocument?.generationReport?.rejectionSamplingEnforced, true)
+  assert.deepStrictEqual(result.worldDocument?.generationReport?.structuredRejectionReasons, [
+    { checkId: 'coastConnectedNavigablePath', category: 'coast' },
+  ])
+})
+
 test('runLandmassPipeline exhausted world document is cloneable for map display', async () => {
   const result = await runLandmassPipeline(forceValidationRejectionParams)
   assert.strictEqual(result.status, 'exhausted')
@@ -353,4 +390,54 @@ test('runLandmassPipelineRun retries validation with incremented seed', () => {
   } else {
     assert.strictEqual(result.status, 'success')
   }
+})
+
+const validationRetryCancelParams = {
+  geographySeed: 999999,
+  prevailingWindDegrees: 270,
+  width: 16,
+  height: 16,
+  options: {
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    enforceCoastMouth: true,
+    maxValidationRetries: 5,
+  },
+}
+
+test('runLandmassPipelineRun returns cancelled when shouldCancel fires between validation retries', () => {
+  let validationAttempts = 0
+  const result = runLandmassPipelineRun(validationRetryCancelParams, {
+    onStepComplete({ stepId }) {
+      if (stepId === 'validation') {
+        validationAttempts += 1
+      }
+    },
+    shouldCancel() {
+      return validationAttempts >= 1
+    },
+  })
+
+  assert.strictEqual(result.status, 'cancelled')
+  assert.strictEqual(result.worldDocument, null)
+  assert.ok(result.state)
+  assert.strictEqual(validationAttempts, 1)
+})
+
+test('runLandmassPipeline returns cancelled when shouldCancel fires between validation retries', async () => {
+  let validationAttempts = 0
+  const result = await runLandmassPipeline(validationRetryCancelParams, {
+    onStepComplete({ stepId }) {
+      if (stepId === 'validation') {
+        validationAttempts += 1
+      }
+    },
+    shouldCancel() {
+      return validationAttempts >= 1
+    },
+  })
+
+  assert.strictEqual(result.status, 'cancelled')
+  assert.strictEqual(result.worldDocument, null)
+  assert.ok(result.state)
+  assert.strictEqual(validationAttempts, 1)
 })

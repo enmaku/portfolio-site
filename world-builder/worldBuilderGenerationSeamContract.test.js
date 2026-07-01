@@ -212,3 +212,89 @@ test('generation run hooks reset overlay visibility before run and after success
     scope.stop()
   }
 })
+
+test('generation composable reaches exhausted terminal through applyWorldDocument without viewport', async () => {
+  const scope = effectScope(true)
+  try {
+    const exhaustedDoc = previewDoc()
+    /** @type {import('./core/types.js').WorldDocument[]} */
+    const appliedDocs = []
+
+    const ctx = scope.run(() =>
+      useWorldBuilderGeneration({
+        getDerivedGeographyParams: () => SAMPLE_PARAMS,
+        applyWorldDocument: (doc) => {
+          appliedDocs.push(doc)
+        },
+        runDerivedGeographyInWorker(_params, callbacks) {
+          callbacks.onExhausted?.(exhaustedDoc)
+          return { cancel() {} }
+        },
+      }),
+    )
+
+    ctx.regenerate()
+    await nextTick()
+
+    assert.strictEqual(ctx.runPhase.value, 'exhausted')
+    assert.strictEqual(ctx.showValidationFailureIndicator.value, true)
+    assert.strictEqual(ctx.showResourceOverlayBar.value, false)
+    assert.deepStrictEqual(appliedDocs, [exhaustedDoc])
+  } finally {
+    scope.stop()
+  }
+})
+
+test('generation composable forwards worker errors without viewport or map lifecycle', async () => {
+  const scope = effectScope(true)
+  try {
+    /** @type {string[]} */
+    const errors = []
+
+    const ctx = scope.run(() =>
+      useWorldBuilderGeneration({
+        getDerivedGeographyParams: () => SAMPLE_PARAMS,
+        applyWorldDocument: () => {},
+        onRunError: (message) => {
+          errors.push(message)
+        },
+        runDerivedGeographyInWorker(_params, callbacks) {
+          callbacks.onError?.('worker seam failure')
+          return { cancel() {} }
+        },
+      }),
+    )
+
+    ctx.regenerate()
+    await nextTick()
+
+    assert.strictEqual(ctx.runPhase.value, 'error')
+    assert.deepStrictEqual(errors, ['worker seam failure'])
+    assert.strictEqual(ctx.showGenerationProgress.value, false)
+  } finally {
+    scope.stop()
+  }
+})
+
+/**
+ * #370.5 — Copy into merge PR ## Test plan → ADR-0009 audit (#370)
+ *
+ * ## ADR-0009 seam audit findings (#370)
+ *
+ * - Package boundaries: core, worker, orchestrator, and `useWorldBuilderGeneration` have zero
+ *   production imports from `world-builder/renderer` (AutoVerify shell rg gate).
+ * - Renderer terrain seam: `buildLandTerrainRgba` tints from `displayBiomes`; simulation `biomes`
+ *   changes are invisible when presentation biomes are unchanged (`rendererSeamContract.test.js`).
+ * - Simulation vs presentation hydrology: river overlay reads presentation corridor masks only;
+ *   diverging `simulationRiverMask` does not change overlay RGBA when presentation masks match.
+ * - Generation seam: composable completes success, exhausted, cancel, and error paths through
+ *   injected worker fakes and `applyWorldDocument` — no viewport factory, Pixi, or DOM host.
+ * - Overlay owner seam: visibility and display settings mutate viewport only via
+ *   `syncOverlayRenderCache` (`resourceOverlayStateSeamContract.test.js`).
+ * - Seam tests use behavioral assertions only — no `readFileSync` source greps in runtime seam
+ *   contract files (research asset tests exempt per ADR-0009 checklist §7.1).
+ *
+ * Deferred to sibling issues / merge PR #382 checklist: renderer non-mutation (#383), document
+ * dirty refresh locality (#383), vector per-family overlay locality (#362–#363), page controller
+ * lifecycle (#375), manual QA (#381).
+ */

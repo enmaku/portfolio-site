@@ -179,23 +179,39 @@ test('issue #345 Option A defaults keep legacy presentation heuristics off', () 
 })
 
 test('default generation exports simulation centerline and presentation corridor mask', () => {
+  const width = 64
+  const height = 64
   const doc = generateDerivedGeography({
     geographySeed: DEFAULT_GEOGRAPHY_SEED,
     prevailingWindDegrees: 90,
-    width: 64,
-    height: 64,
+    width,
+    height,
   })
+
+  assert.ok(doc.simulationRiverMask)
+  assert.strictEqual(doc.simulationRiverMask.length, width * height)
+  const simulationCenterlineCount = doc.simulationRiverMask.reduce((sum, value) => sum + value, 0)
+  assert.ok(
+    simulationCenterlineCount > 0,
+    'default generation should populate simulationRiverMask for logistics consumers',
+  )
 
   assert.ok(doc.riverNetworkMask)
   assert.ok(doc.riverCorridorMask)
 
-  const centerlineCount = doc.riverNetworkMask.reduce((sum, value) => sum + value, 0)
+  const presentationCenterlineCount = doc.riverNetworkMask.reduce((sum, value) => sum + value, 0)
   const corridorCount = doc.riverCorridorMask.reduce((sum, value) => sum + value, 0)
 
-  assert.ok(centerlineCount > 0, 'default simulation path should produce river centerline cells')
   assert.ok(
-    corridorCount >= centerlineCount,
+    presentationCenterlineCount > 0,
+    'default generation should produce presentation centerline cells',
+  )
+  assert.ok(
+    corridorCount >= presentationCenterlineCount,
     'presentation corridor should cover at least the centerline',
   )
   assert.notStrictEqual(doc.riverCorridorMask, doc.riverNetworkMask)
+
+  // Option A defaults skip meander refine; bytes may match, but validation/logistics must bind simulationRiverMask.
+  assert.deepStrictEqual(doc.simulationRiverMask, doc.riverNetworkMask)
 })

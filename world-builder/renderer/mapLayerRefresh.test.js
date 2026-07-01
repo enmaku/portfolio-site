@@ -24,11 +24,12 @@ test('shouldRefreshMapLayer refreshes every layer on full rebuild', () => {
 })
 
 test('shouldRefreshMapLayer refreshes only listed layers on partial rebuild', () => {
-  const changedLayers = ['timber', 'vectorOverlays']
+  const changedLayers = ['timber', 'saltNodes']
   assert.strictEqual(shouldRefreshMapLayer(changedLayers, 'timber'), true)
-  assert.strictEqual(shouldRefreshMapLayer(changedLayers, 'vectorOverlays'), true)
+  assert.strictEqual(shouldRefreshMapLayer(changedLayers, 'saltNodes'), true)
   assert.strictEqual(shouldRefreshMapLayer(changedLayers, 'arable'), false)
   assert.strictEqual(shouldRefreshMapLayer(changedLayers, 'terrain'), false)
+  assert.strictEqual(shouldRefreshMapLayer(changedLayers, 'coastalNodes'), false)
 })
 
 test('createMapLayerRefreshRunner invokes every handler on full rebuild', () => {
@@ -64,7 +65,26 @@ test('createMapLayerRefreshRunner invokes only changed handlers on partial rebui
   assert.strictEqual(calls.metals, 1)
   assert.strictEqual(calls.timber, 0)
   assert.strictEqual(calls.terrain, 0)
-  assert.strictEqual(calls.vectorOverlays, 0)
+  assert.strictEqual(calls.coastalNodes, 0)
+  assert.strictEqual(calls.metalNodes, 0)
+  assert.strictEqual(calls.saltNodes, 0)
+})
+
+test('createMapLayerRefreshRunner saltNodes refresh does not invoke coastalNodes handler', () => {
+  /** @type {Record<string, number>} */
+  const calls = Object.fromEntries(ALL_MAP_LAYER_IDS.map((id) => [id, 0]))
+  const runner = createMapLayerRefreshRunner(
+    Object.fromEntries(
+      ALL_MAP_LAYER_IDS.map((id) => [id, () => {
+        calls[id] += 1
+      }]),
+    ),
+  )
+
+  runner.refresh(['saltNodes'])
+  assert.strictEqual(calls.saltNodes, 1)
+  assert.strictEqual(calls.coastalNodes, 0)
+  assert.strictEqual(calls.metalNodes, 0)
 })
 
 test('createMapLayerRefreshRunner hides unrefreshed layers when requested', () => {

@@ -10,9 +10,26 @@ import {
   runLandmassPipelineRun,
   runPipelineStep,
 } from './derivedGeographyPipeline.js'
-import { LANDMASS_PIPELINE_STEP_IDS } from './landmassPipelineStageContracts.js'
+import {
+  buildPipelineStateForHydrologySubsteps,
+  LANDMASS_PIPELINE_STEP_IDS,
+} from './landmassPipelineStageContracts.js'
+import {
+  LANDMASS_PIPELINE_STAGE_MODULE_BY_ID,
+  selectLandmassStageInput,
+} from './landmassPipelineStageModules.js'
+import {
+  createSyncLandmassPipelineHooks,
+  isThenable,
+  runLandmassPipelineWithRetryShared,
+} from './landmassPipelineRunner.js'
 import { LandmassPipelineCancelledError } from './landmassPipelineTypes.js'
 import { countMarkedCells } from './hydrology/riverNetwork.js'
+import {
+  FLOW_RECOMPUTE_REASONS,
+  FLOW_RECOMPUTE_STAGES,
+} from './hydrology/flowField.js'
+import { runHydrologySubsteps } from './hydrology/hydrologySubsteps.js'
 
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
 
@@ -21,6 +38,52 @@ const params = {
   prevailingWindDegrees: 90,
   width: 64,
   height: 64,
+}
+
+/**
+ * Default hydrology performs exactly three uncached full D-infinity flow solves:
+ * 1. hydrologyRoute — reason `route-filled-dem` on filledElevation
+ * 2. hydrologyExtract — reason `extract-post-incision` on settledElevation (delegated in extract module)
+ * 3. hydrologySettle — reason `settle-post-lake-equilibrium` on post-lake-equilibrium elevation
+ *
+ * @param {{ fullFlowSolveCount: number, solveLog: import('./hydrology/flowField.js').FlowRecomputeLogEntry[] }} flowField
+ */
+function assertDefaultHydrologyFlowFieldInvariants(flowField) {
+  assert.strictEqual(
+    flowField.fullFlowSolveCount,
+    3,
+    'expected route, extract, and settle full flow solves only',
+  )
+  const uncachedLog = flowField.solveLog.filter((entry) => !entry.cached)
+  assert.strictEqual(flowField.fullFlowSolveCount, uncachedLog.length)
+  assert.deepStrictEqual(
+    uncachedLog.map((entry) => entry.stage),
+    [
+      FLOW_RECOMPUTE_STAGES.hydrologyRoute,
+      FLOW_RECOMPUTE_STAGES.hydrologyExtract,
+      FLOW_RECOMPUTE_STAGES.hydrologySettle,
+    ],
+  )
+  assert.deepStrictEqual(
+    uncachedLog.map((entry) => entry.reason),
+    [
+      FLOW_RECOMPUTE_REASONS.hydrologyRoute,
+      FLOW_RECOMPUTE_REASONS.hydrologyExtract,
+      FLOW_RECOMPUTE_REASONS.hydrologySettle,
+    ],
+  )
+  for (const entry of uncachedLog) {
+    assert.strictEqual(entry.reason, FLOW_RECOMPUTE_REASONS[entry.stage])
+  }
+}
+
+/** @param {typeof params & { options?: import('./worldGenerationOptions.js').WorldGenerationOptions }} pipelineParams */
+function runHydrologyFlowField(pipelineParams) {
+  let state = createInitialPipelineState(pipelineParams)
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+  const input = selectLandmassStageInput(LANDMASS_PIPELINE_STAGE_MODULE_BY_ID.hydrology, state)
+  return runHydrologySubsteps(buildPipelineStateForHydrologySubsteps(input))
 }
 
 test('runFullDerivedGeographyPipeline matches generateDerivedGeography', () => {
@@ -137,6 +200,129 @@ test('validation hydrology metrics read the simulation centerline, not presentat
     'meander refine should change the presentation centerline cell count',
   )
   assert.strictEqual(doc.generationReport?.hydrology.riverCellCount, simulationCellCount)
+})
+
+const PHYSICS_FACING_VALIDATION_CHECK_IDS = [
+  'navigableRiverQuota',
+  'coastMouth',
+  'hacksLawExponent',
+  'slopeAreaConcavity',
+  'parallelStrandRatio',
+  'coastConnectedNavigablePath',
+  'endorheicFractionCap',
+]
+
+function pickLogisticsHydrologyMetrics(report) {
+  const { hydrology } = report
+  return {
+    riverCellCount: hydrology.riverCellCount,
+    navigableEdgeCount: hydrology.navigableEdgeCount,
+    navigableKmEstimate: hydrology.navigableKmEstimate,
+    mouthCount: hydrology.mouthCount,
+    parallelStrandRatio: hydrology.parallelStrandRatio,
+    coastConnectedNavigablePathLength: hydrology.coastConnectedNavigablePathLength,
+  }
+}
+
+function pickPhysicsFacingValidationOutcomes(report) {
+  return report.validationRows
+    .filter((row) => PHYSICS_FACING_VALIDATION_CHECK_IDS.includes(row.checkId))
+    .map(({ checkId, status }) => ({ checkId, status }))
+}
+
+test('presentation meander and attraction leave validation hydrology metrics unchanged', () => {
+  const baseParams = {
+    geographySeed: 5000,
+    prevailingWindDegrees: 90,
+    width: 256,
+    height: 256,
+  }
+  const runFullPipeline = (options) => {
+    let state = createInitialPipelineState({ ...baseParams, options })
+    for (const step of DERIVED_GEOGRAPHY_STEPS) {
+      state = runPipelineStep(state, step.id)
+    }
+    return buildWorldDocumentFromPipelineState(state)
+  }
+
+  const baselineDoc = runFullPipeline(DEFAULT_WORLD_GENERATION_OPTIONS)
+  const presentationDoc = runFullPipeline({
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    enableMeanderRefine: true,
+    riverMeanderStrength: 2,
+    riverAttractionRadiusScale: 6,
+  })
+
+  assert.deepStrictEqual(
+    presentationDoc.simulationRiverMask,
+    baselineDoc.simulationRiverMask,
+  )
+  assert.notDeepStrictEqual(
+    presentationDoc.riverNetworkMask,
+    baselineDoc.riverNetworkMask,
+  )
+  assert.notDeepStrictEqual(
+    presentationDoc.riverCorridorMask,
+    baselineDoc.riverCorridorMask,
+  )
+
+  const baselineReport = baselineDoc.generationReport
+  const presentationReport = presentationDoc.generationReport
+  assert.ok(baselineReport)
+  assert.ok(presentationReport)
+
+  assert.deepStrictEqual(
+    pickLogisticsHydrologyMetrics(presentationReport),
+    pickLogisticsHydrologyMetrics(baselineReport),
+  )
+  assert.deepStrictEqual(
+    pickPhysicsFacingValidationOutcomes(presentationReport),
+    pickPhysicsFacingValidationOutcomes(baselineReport),
+  )
+  assert.strictEqual(presentationReport.shouldReject, baselineReport.shouldReject)
+  assert.strictEqual(
+    presentationReport.navigableRiverEdgeCount,
+    baselineReport.navigableRiverEdgeCount,
+  )
+  assert.deepStrictEqual(
+    presentationReport.validationSignals.movement,
+    baselineReport.validationSignals.movement,
+  )
+  const hacksRow = presentationReport.validationRows.find((row) => row.checkId === 'hacksLawExponent')
+  const baselineHacksRow = baselineReport.validationRows.find((row) => row.checkId === 'hacksLawExponent')
+  assert.strictEqual(hacksRow?.status, baselineHacksRow?.status)
+})
+
+test('default derived geography hydrology performs three full flow solves', () => {
+  const { flowField } = runHydrologyFlowField(params)
+  assertDefaultHydrologyFlowFieldInvariants(flowField)
+})
+
+test('seasonal hydrology does not add full flow solves beyond the baseline three', () => {
+  const baseline = runHydrologyFlowField({
+    ...params,
+    options: { ...DEFAULT_WORLD_GENERATION_OPTIONS, enableSeasonalHydrology: false },
+  })
+  const seasonal = runHydrologyFlowField({
+    ...params,
+    options: { ...DEFAULT_WORLD_GENERATION_OPTIONS, enableSeasonalHydrology: true },
+  })
+
+  assertDefaultHydrologyFlowFieldInvariants(seasonal.flowField)
+  assert.strictEqual(
+    seasonal.flowField.fullFlowSolveCount,
+    baseline.flowField.fullFlowSolveCount,
+  )
+  const baselineUncached = baseline.flowField.solveLog.filter((entry) => !entry.cached)
+  const seasonalUncached = seasonal.flowField.solveLog.filter((entry) => !entry.cached)
+  assert.deepStrictEqual(
+    seasonalUncached.map((entry) => entry.stage),
+    baselineUncached.map((entry) => entry.stage),
+  )
+  assert.deepStrictEqual(
+    seasonalUncached.map((entry) => entry.reason),
+    baselineUncached.map((entry) => entry.reason),
+  )
 })
 
 test('runPipelineStep hydrology records substep timings on state', () => {
@@ -411,6 +597,21 @@ test('runPipelineStep validation emits contract-backed generation report', () =>
   )
   assert.ok(report.validationRows.every((row) => typeof row.rejectable === 'boolean'))
   assert.ok(report.validationRows.every((row) => typeof row.category === 'string'))
+})
+
+test('extracted landmassPipelineRunner matches facade runLandmassPipelineRun', () => {
+  const fromFacade = runLandmassPipelineRun(params)
+  const fromRunner = runLandmassPipelineWithRetryShared(
+    params,
+    {},
+    createSyncLandmassPipelineHooks({}),
+  )
+  assert.equal(isThenable(fromRunner), false)
+  assert.strictEqual(fromRunner.status, fromFacade.status)
+  assert.strictEqual(
+    fromRunner.worldDocument?.geographySeed,
+    fromFacade.worldDocument?.geographySeed,
+  )
 })
 
 test('DERIVED_GEOGRAPHY_STEPS has stable step ids', () => {

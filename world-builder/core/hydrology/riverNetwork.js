@@ -112,6 +112,7 @@ export function assembleRiverNetworkFromFields({
  * @param {import('../types.js').RiverGraph} [slice.riverGraph]
  * @param {Uint8Array} [slice.riverNetworkMask]
  * @param {Uint8Array} [slice.riverCorridorMask]
+ * @param {Uint8Array} [slice.simulationRiverMask]
  * @param {Int16Array} [slice.flowDirection]
  * @param {import('../types.js').ScalarFields} slice.fields
  * @param {number} slice.gridWidth
@@ -129,6 +130,7 @@ export function assembleRiverNetworkFromValidationSlice(slice) {
   return assembleRiverNetworkFromFields({
     riverNetworkMask: slice.riverNetworkMask,
     riverCorridorMask: slice.riverCorridorMask,
+    simulationRiverMask: slice.simulationRiverMask,
     flowDirection,
     flowAccumulation: fields.drainage,
     channelWidth: slice.channelWidth ?? undefined,

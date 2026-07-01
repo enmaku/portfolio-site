@@ -88,6 +88,18 @@ Freshwater-lake and river-corridor labels wait for hydrology **derived geography
 
 _Avoid_: Painting these labels before **fields before labels** completes; treating the list as **culture** names.
 
+### Simulation hydrology
+
+Physics- and logistics-facing hydrology from the **landmass pipeline** through settled extract: stable simulation river centerline and graph metrics. Consumed by **validation checks**, generation reports, and future **logistics pass** work (**movement cost**, **trade route** viability, **maritime reach** inputs)—not map cosmetics or renderer overlays.
+
+_Avoid_: "River network" or "river network mask" alone when meaning **simulation hydrology**; using presentation centerline or corridor width for navigability **validation checks**; treating presentation-widened corridors as haul-capacity input.
+
+### Presentation hydrology
+
+Map-facing hydrology after optional refine and paint: display river centerline, painted corridor width, and river-adjacent display biome labels. Consumed by the renderer and display biome refresh—not **validation checks**, generation reports, or future logistics math.
+
+_Avoid_: "River network mask" when meaning simulation centerline; treating presentation corridor width as haul-capacity input; conflating with **simulation hydrology**; drawing map overlays from simulation centerline alone.
+
 ### Logistics pass
 
 World Builder–specific **landmass pipeline** stage after physical terrain: **movement cost**, **haul-shed**, **maritime reach**, **arable envelope**, **strategic resource** placement, and **population ceiling** inputs—bulk haul economics the playlist defines and Dwarf Fortress does not model at macro scale.

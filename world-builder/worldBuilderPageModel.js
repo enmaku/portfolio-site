@@ -255,6 +255,28 @@ export {
   createResourceOverlayIds,
 } from './resourceOverlays.js'
 
+export {
+  GEOGRAPHY_SEED_TOOLTIP,
+  WORLD_BUILDER_GENERATION_CONTROL_SECTIONS,
+  formatGenerationControlValue,
+} from './worldBuilderGenerationControls.js'
+
+export {
+  WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS,
+  formatOverlayControlValue,
+} from './worldBuilderOverlayControls.js'
+
+/**
+ * @param {'pending' | 'active' | 'complete' | 'skipped'} status
+ * @returns {string}
+ */
+export function generationStepStatusColor(status) {
+  if (status === 'complete') return 'positive'
+  if (status === 'active') return 'primary'
+  if (status === 'skipped') return 'grey-6'
+  return 'grey-8'
+}
+
 /**
  * @typedef {'idle' | 'running' | 'success' | 'exhausted' | 'cancelled' | 'error'} GenerationRunPhase
  */

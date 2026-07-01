@@ -67,7 +67,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const rivers = new Sprite(Texture.EMPTY)
   rivers.visible = false
   let riverTexture = null
-  const overlay = new Graphics()
+  const coastalOverlay = new Graphics()
+  const metalOverlay = new Graphics()
+  const saltOverlay = new Graphics()
   let resourceOverlayVisibility = createDefaultResourceOverlayVisibility()
   let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
   /**
@@ -115,7 +117,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(metals)
   viewport.addChild(lakes)
   viewport.addChild(rivers)
-  viewport.addChild(overlay)
+  viewport.addChild(coastalOverlay)
+  viewport.addChild(metalOverlay)
+  viewport.addChild(saltOverlay)
   viewport
     .drag()
     .pinch()
@@ -159,8 +163,14 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       case 'lakes':
         lakes.visible = false
         break
-      case 'vectorOverlays':
-        overlay.clear()
+      case 'coastalNodes':
+        coastalOverlay.clear()
+        break
+      case 'metalNodes':
+        metalOverlay.clear()
+        break
+      case 'saltNodes':
+        saltOverlay.clear()
         break
       default:
         break
@@ -176,8 +186,11 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       metals: () => refreshResourceRasterOverlay('metals', currentWorldDocument),
       rivers: () => refreshRiverOverlay(currentWorldDocument),
       lakes: () => refreshLakeOverlay(currentWorldDocument),
-      vectorOverlays: () =>
-        drawVectorOverlays(overlay, currentWorldDocument, resourceOverlayVisibility),
+      coastalNodes: () => drawCoastalNodes(coastalOverlay, currentWorldDocument),
+      metalNodes: () =>
+        drawMetalNodes(metalOverlay, currentWorldDocument, resourceOverlayVisibility),
+      saltNodes: () =>
+        drawSaltNodes(saltOverlay, currentWorldDocument, resourceOverlayVisibility),
     },
     { hideLayer: hideMapLayer },
   )
@@ -469,9 +482,8 @@ function elevationToGrayscaleRgba(elevation) {
 /**
  * @param {import('pixi.js').Graphics} overlay
  * @param {import('../core/types.js').WorldDocument} worldDocument
- * @param {Record<string, boolean>} resourceOverlayVisibility
  */
-function drawVectorOverlays(overlay, worldDocument, resourceOverlayVisibility) {
+function drawCoastalNodes(overlay, worldDocument) {
   overlay.clear()
 
   if (worldDocument.coastalNodes?.length) {
@@ -481,6 +493,15 @@ function drawVectorOverlays(overlay, worldDocument, resourceOverlayVisibility) {
       overlay.fill({ color, alpha: 0.85 })
     }
   }
+}
+
+/**
+ * @param {import('pixi.js').Graphics} overlay
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @param {Record<string, boolean>} resourceOverlayVisibility
+ */
+function drawMetalNodes(overlay, worldDocument, resourceOverlayVisibility) {
+  overlay.clear()
 
   if (resolveMetalsOverlayDrawn(resourceOverlayVisibility, worldDocument).nodesVisible) {
     for (const node of worldDocument.metalNodes) {
@@ -488,6 +509,15 @@ function drawVectorOverlays(overlay, worldDocument, resourceOverlayVisibility) {
       overlay.fill({ color: METAL_NODE_OVERLAY_COLOR, alpha: 0.9 })
     }
   }
+}
+
+/**
+ * @param {import('pixi.js').Graphics} overlay
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @param {Record<string, boolean>} resourceOverlayVisibility
+ */
+function drawSaltNodes(overlay, worldDocument, resourceOverlayVisibility) {
+  overlay.clear()
 
   if (resolveSaltNodeOverlayDrawn(resourceOverlayVisibility, worldDocument)) {
     for (const node of worldDocument.saltNodes) {

@@ -4,12 +4,20 @@ import {
   HYDROLOGY_SUBSTEP_MODULES,
   HYDROLOGY_SUBSTEP_MODULE_BY_ID,
   selectHydrologySubstepInput,
-} from './hydrologySubstepModules.js'
+} from './substeps/index.js'
+import {
+  createInitialHydrologyWorld,
+  mergeHydrologyWorld,
+} from './hydrologyWorldTypes.js'
 import {
   createRiverMaskPipeline,
   getRiverMaskStage,
 } from './riverMaskLifecycle.js'
-import { createFlowFieldSession } from './flowField.js'
+import {
+  createFlowFieldSession,
+  FLOW_RECOMPUTE_REASONS,
+  FLOW_RECOMPUTE_STAGES,
+} from './flowField.js'
 import {
   createInitialPipelineState,
   runPipelineStep,
@@ -39,8 +47,7 @@ function composeSubsteps(state, stopAfter) {
   const flowFieldSession = createFlowFieldSession()
   const riverMaskPipeline = createRiverMaskPipeline()
   const noop = () => {}
-  /** @type {import('./hydrologySubstepModules.js').HydrologyWorld} */
-  let world = { state, width: state.width, height: state.height, riverMaskPipeline }
+  let world = createInitialHydrologyWorld(state)
   /** @type {string[]} */
   const ran = []
 
@@ -48,13 +55,14 @@ function composeSubsteps(state, stopAfter) {
     const input = selectHydrologySubstepInput(module, world)
     const skipped = module.shouldSkip?.(world) ?? false
     const shared = { flowFieldSession, riverMaskPipeline, onProgress: noop }
+    /** @type {Object} */
     let output = {}
     if (!skipped) {
       output = module.run(input, shared)
     } else if (module.runSkipped) {
       output = module.runSkipped(input, shared)
     }
-    world = { ...world, ...output }
+    world = mergeHydrologyWorld(world, output)
     ran.push(`${module.id}${skipped ? ':skipped' : ''}`)
     if (module.id === stopAfter) break
   }
@@ -72,11 +80,18 @@ test('hydrologyFill module derives an ocean mask and fills lakes from its narrow
   assert.strictEqual(typeof world.hydrologyStats.lakeCount, 'number')
 })
 
+test('hydrologyFill module deriveOceanMask does not perform a full flow solve', () => {
+  const { flowFieldSession } = composeSubsteps(erodedState(), 'hydrologyFill')
+
+  assert.strictEqual(flowFieldSession.fullFlowSolveCount, 0)
+  assert.strictEqual(flowFieldSession.solveLog.length, 0)
+})
+
 test('composition does not seed a nullable context: produced keys appear only after their substep', () => {
   const state = erodedState()
   const flowFieldSession = createFlowFieldSession()
   const riverMaskPipeline = createRiverMaskPipeline()
-  const world = { state, width: state.width, height: state.height, riverMaskPipeline }
+  const world = createInitialHydrologyWorld(state)
 
   assert.ok(!('ocean' in world))
   assert.ok(!('flowDirection' in world))
@@ -135,6 +150,24 @@ test('hydrologyExtract module performs the post-incision flow solve and builds a
   assert.ok(getRiverMaskStage(riverMaskPipeline, 'settled')?.some((value) => value === 1))
 })
 
+// Extract delegates recomputeFullFlow inside extractRiverNetworkFromIncisedChannels — must log, not hide.
+test('hydrologyExtract delegate records post-incision flow solve on the session solveLog', () => {
+  const { flowFieldSession } = composeSubsteps(erodedState(), 'hydrologyExtract')
+
+  const uncachedLog = flowFieldSession.solveLog.filter((entry) => !entry.cached)
+  assert.strictEqual(uncachedLog.length, 2)
+  assert.deepStrictEqual(uncachedLog[0], {
+    stage: FLOW_RECOMPUTE_STAGES.hydrologyRoute,
+    reason: FLOW_RECOMPUTE_REASONS.hydrologyRoute,
+    cached: false,
+  })
+  assert.deepStrictEqual(uncachedLog[1], {
+    stage: FLOW_RECOMPUTE_STAGES.hydrologyExtract,
+    reason: FLOW_RECOMPUTE_REASONS.hydrologyExtract,
+    cached: false,
+  })
+})
+
 test('hydrologyRefine module is skipped when meander refine is disabled, copying settled to presentation', () => {
   const options = { ...DEFAULT_WORLD_GENERATION_OPTIONS, enableMeanderRefine: false }
   const { ran, riverMaskPipeline } = composeSubsteps(erodedState(options), 'hydrologyRefine')
@@ -164,6 +197,18 @@ test('hydrologySettle module performs the post-equilibrium flow solve and derive
 
   assert.strictEqual(flowFieldSession.fullFlowSolveCount, 3)
   assert.ok(world.settledDrainage instanceof Float32Array)
+})
+
+test('hydrologySettle module records post-equilibrium flow solve on the session solveLog', () => {
+  const { flowFieldSession } = composeSubsteps(erodedState(), 'hydrologySettle')
+
+  const uncachedLog = flowFieldSession.solveLog.filter((entry) => !entry.cached)
+  assert.strictEqual(uncachedLog.length, 3)
+  assert.deepStrictEqual(uncachedLog[2], {
+    stage: FLOW_RECOMPUTE_STAGES.hydrologySettle,
+    reason: FLOW_RECOMPUTE_REASONS.hydrologySettle,
+    cached: false,
+  })
 })
 
 test('hydrologyPaint module assembles the river network and paints the corridor mask', () => {

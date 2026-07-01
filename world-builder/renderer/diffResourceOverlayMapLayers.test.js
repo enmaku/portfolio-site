@@ -24,15 +24,15 @@ test('toggling timber visibility changes only the timber raster layer', () => {
   )
 })
 
-test('toggling metals visibility changes the metals raster and the vector node layer', () => {
+test('toggling metals visibility changes the metals raster and metalNodes layer', () => {
   const changed = diffResourceOverlayMapLayers(overlayState({}), overlayState({ metals: true }))
-  assert.deepStrictEqual(new Set(changed), new Set(['metals', 'vectorOverlays']))
+  assert.deepStrictEqual(new Set(changed), new Set(['metals', 'metalNodes']))
 })
 
-test('toggling salt visibility changes only the vector node layer', () => {
+test('toggling salt visibility changes only the saltNodes layer', () => {
   assert.deepStrictEqual(
     diffResourceOverlayMapLayers(overlayState({}), overlayState({ salt: true })),
-    ['vectorOverlays'],
+    ['saltNodes'],
   )
 })
 
@@ -62,5 +62,5 @@ test('independent overlay changes union into the affected layers only', () => {
     overlayState({ timber: true }, 0.25),
     overlayState({ timber: true, salt: true }, 0.6),
   )
-  assert.deepStrictEqual(new Set(changed), new Set(['vectorOverlays', 'arable']))
+  assert.deepStrictEqual(new Set(changed), new Set(['saltNodes', 'arable']))
 })

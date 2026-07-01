@@ -57,6 +57,56 @@ function makeReportParams(overrides = {}) {
   }
 }
 
+test('buildGenerationReport hydrology riverCellCount uses simulation centerline', () => {
+  const gridWidth = 4
+  const gridHeight = 4
+  const cellCount = gridWidth * gridHeight
+  const simulationCenterline = new Uint8Array(cellCount)
+  simulationCenterline[5] = 1
+  simulationCenterline[9] = 1
+  const presentationCenterline = new Uint8Array(cellCount)
+  presentationCenterline[5] = 1
+  presentationCenterline[9] = 1
+  presentationCenterline[10] = 1
+  presentationCenterline[11] = 1
+  const riverGraph = {
+    nodes: [
+      { id: 'a', x: 1, y: 1, kind: 'source' },
+      { id: 'b', x: 1, y: 2, kind: 'mouth' },
+    ],
+    edges: [{ fromNodeId: 'a', toNodeId: 'b', navigable: true, cellPath: [5, 9] }],
+  }
+  const riverNetwork = assembleRiverNetwork({
+    centerline: presentationCenterline,
+    corridor: presentationCenterline,
+    simulationCenterline,
+    flowDirection: new Int16Array(cellCount).fill(-1),
+    flowAccumulation: new Float32Array(cellCount).fill(0.5),
+    graph: riverGraph,
+    width: gridWidth,
+    height: gridHeight,
+  })
+
+  const report = buildGenerationReport(
+    makeReportParams({
+      gridWidth,
+      gridHeight,
+      riverGraph,
+      riverNetwork,
+      fields: {
+        elevation: new Float32Array(cellCount).fill(0.5),
+        temperature: new Float32Array(cellCount).fill(0.5),
+        rainfall: new Float32Array(cellCount).fill(0.5),
+        drainage: new Float32Array(cellCount).fill(0.5),
+        salinity: new Float32Array(cellCount).fill(0.1),
+      },
+      biomes: new Uint8Array(cellCount).fill(1),
+    }),
+  )
+
+  assert.strictEqual(report.hydrology.riverCellCount, 2)
+})
+
 test('buildGenerationReport includes hydrology breach and endorheic stats', () => {
   const report = buildGenerationReport(makeReportParams())
 

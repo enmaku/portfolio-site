@@ -4,6 +4,7 @@ import { computeHydrologyMetrics } from './validation/computeHydrologyMetrics.js
 import { buildValidationSignals } from './validation/landmassValidationContracts.js'
 import {
   computeSalinityGradientMetrics,
+  riverNetworkForLogisticsMetrics,
   runGeographyValidationChecks,
 } from './validation/runGeographyValidationChecks.js'
 import {
@@ -70,7 +71,7 @@ export function buildGenerationReport({
     elevation: fields.elevation,
     drainage: fields.drainage,
     riverGraph: resolvedNetwork.graph ?? riverGraph,
-    riverNetwork: resolvedNetwork,
+    riverNetwork: riverNetworkForLogisticsMetrics(resolvedNetwork),
     gridWidth,
     gridHeight,
   })
@@ -80,6 +81,10 @@ export function buildGenerationReport({
     biomes,
     riverGraph: resolvedNetwork?.graph ?? riverGraph,
     riverNetwork: resolvedNetwork ?? undefined,
+    simulationRiverMask: worldDocument?.simulationRiverMask,
+    riverNetworkMask: worldDocument?.riverNetworkMask,
+    riverCorridorMask: worldDocument?.riverCorridorMask,
+    flowDirection: worldDocument?.flowDirection,
     coastalNodes,
     gridWidth,
     gridHeight,

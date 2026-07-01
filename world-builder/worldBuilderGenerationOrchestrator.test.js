@@ -522,6 +522,79 @@ test('startDerivedGeographyGeneration cancelActive invokes onCancelled once', ()
   assert.strictEqual(cancelled, 1)
 })
 
+test('startDerivedGeographyGeneration ignores stale validation step-complete after rapid supersede', () => {
+  const controller = createGenerationRunController()
+  /** @type {import('./worldBuilderGenerationOrchestrator.js').DerivedGeographyWorkerCallbacks} */
+  let firstRunCallbacks = {}
+  /** @type {import('./core/types.js').WorldDocument[]} */
+  const documents = []
+
+  const staleDoc = {
+    gridWidth: 2,
+    gridHeight: 2,
+    biomes: new Uint8Array(4),
+    fields: { elevation: new Float32Array(4) },
+  }
+  const currentDoc = {
+    gridWidth: 4,
+    gridHeight: 4,
+    biomes: new Uint8Array(16),
+    fields: { elevation: new Float32Array(16) },
+  }
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      firstRunCallbacks = callbacks
+      return { cancel() {} }
+    },
+    handlers: {
+      onWorldDocument(doc) {
+        documents.push(doc)
+      },
+    },
+  })
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 2, prevailingWindDegrees: 180, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      callbacks.onStepComplete?.({
+        stepId: 'validation',
+        stepIndex: 5,
+        stepCount: 6,
+        label: 'Validation',
+        worldDocument: currentDoc,
+      })
+      callbacks.onComplete?.()
+      return { cancel() {} }
+    },
+    handlers: {
+      onWorldDocument(doc) {
+        documents.push(doc)
+      },
+    },
+  })
+
+  assert.strictEqual(documents.length, 1)
+  assert.strictEqual(documents[0], currentDoc)
+
+  firstRunCallbacks.onStepComplete?.({
+    stepId: 'validation',
+    stepIndex: 5,
+    stepCount: 6,
+    label: 'Validation',
+    worldDocument: staleDoc,
+  })
+
+  assert.strictEqual(
+    documents.length,
+    1,
+    'stale validation step-complete must not duplicate world document apply',
+  )
+})
+
 test('startDerivedGeographyGeneration ignores stale onCancelled after supersede via beginRun', () => {
   const controller = createGenerationRunController()
   let firstRunCancelled = 0

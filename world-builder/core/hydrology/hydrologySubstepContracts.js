@@ -2,13 +2,13 @@
 
 /**
  * Substep contracts are a read-only descriptor derived from the substep modules in
- * {@link import('./hydrologySubstepModules.js')}, which own the authoritative narrow
+ * {@link import('./substeps/index.js')}, which own the authoritative narrow
  * input/output contracts. River mask stages use
  * {@link import('./riverMaskLifecycle.js').riverMaskContractKey}:
  * sketch → incised → settled → presentation (refine or skipRefine) → painted.
  */
 
-import { HYDROLOGY_SUBSTEP_MODULES } from './hydrologySubstepModules.js'
+import { HYDROLOGY_SUBSTEP_MODULES } from './substeps/index.js'
 
 /**
  * @typedef {Object} HydrologySubstepContract

@@ -113,6 +113,32 @@ test('createValidationRow copies category and rejectable from contract', () => {
   assert.strictEqual(row.rejectable, true)
 })
 
+test('createValidationRow preserves mapFocus for controller focus seam', () => {
+  const mapFocus = { x: 4, y: 8, zoom: 2 }
+  const row = createValidationRow('navigableRiverQuota', 'warn', 'fixture summary', mapFocus)
+  assert.strictEqual(row.mapFocus, mapFocus)
+})
+
+test('createValidationRow leaves mapFocus undefined when omitted', () => {
+  const row = createValidationRow('coastMouth', 'pass', 'fixture summary')
+  assert.strictEqual(row.mapFocus, undefined)
+})
+
+test('rejectable contract ids include coast mouth and navigable quota checks', () => {
+  assert.ok(REJECTABLE_VALIDATION_CHECK_IDS.includes('coastMouth'))
+  assert.ok(REJECTABLE_VALIDATION_CHECK_IDS.includes('navigableRiverQuota'))
+  assert.ok(REJECTABLE_VALIDATION_CHECK_IDS.includes('coastConnectedNavigablePath'))
+})
+
+test('createValidationRow forwards mapFocus for coast and navigable controller focus checks', () => {
+  const mapFocus = { x: 11, y: 4, zoom: 2 }
+  for (const checkId of ['coastMouth', 'navigableRiverQuota', 'coastConnectedNavigablePath']) {
+    const row = createValidationRow(checkId, 'fail', 'fixture summary', mapFocus)
+    assert.strictEqual(row.mapFocus, mapFocus)
+    assert.strictEqual(row.checkId, checkId)
+  }
+})
+
 test('resource validation contracts document advisory vs rejectable behavior', () => {
   const arable = validationCheckContract('arableEnvelopeCoverage')
   const saltProximity = validationCheckContract('saltNodeLandProximity')

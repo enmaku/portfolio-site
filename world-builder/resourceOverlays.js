@@ -12,14 +12,14 @@ export const DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY =
   DEFAULT_WORLD_GENERATION_OPTIONS.arableMinimumProductivity
 
 /**
- * @returns {Array<{ id: string, kind: 'nodes' | 'raster' | 'rasterAndNodes', label: string }>}
+ * @returns {Array<{ id: string, kind: 'nodes' | 'raster' | 'rasterAndNodes', label: string, vectorLayerId?: import('./renderer/mapLayerRefresh.js').MapLayerId }>}
  */
 export function createResourceOverlayDefinitions() {
   return [
     { id: 'arable', kind: 'raster', label: 'Arable' },
     { id: 'timber', kind: 'raster', label: 'Timber' },
-    { id: 'metals', kind: 'rasterAndNodes', label: 'Metals' },
-    { id: 'salt', kind: 'nodes', label: 'Salt' },
+    { id: 'metals', kind: 'rasterAndNodes', label: 'Metals', vectorLayerId: 'metalNodes' },
+    { id: 'salt', kind: 'nodes', label: 'Salt', vectorLayerId: 'saltNodes' },
   ]
 }
 

@@ -1,17 +1,18 @@
-import { classifyBiomesWithHydrology } from '../classifyBiomesFromFields.js'
-import { refreshClimateScalarsAfterElevationMutation } from '../fields/refreshClimateScalarsAfterElevationMutation.js'
 import { LandmassPipelineCancelledError } from '../landmassPipelineTypes.js'
+import { buildPipelineStateFromHydrologyWorld } from './buildPipelineStateFromHydrologyWorld.js'
 import { createFlowFieldSession } from './flowField.js'
-import { applyLakeSurfacesFromMeta } from './lakeDisplayCoherence.js'
 import {
   createRiverMaskPipeline,
-  getRiverMaskStage,
   snapshotRiverMaskPipeline,
 } from './riverMaskLifecycle.js'
 import {
   HYDROLOGY_SUBSTEP_MODULES,
   selectHydrologySubstepInput,
-} from './hydrologySubstepModules.js'
+} from './substeps/index.js'
+import {
+  createInitialHydrologyWorld,
+  mergeHydrologyWorld,
+} from './hydrologyWorldTypes.js'
 
 /** @typedef {'hydrologyFill' | 'hydrologyClimate' | 'hydrologySeasonal' | 'hydrologyRoute' | 'hydrologyIncise' | 'hydrologyExtract' | 'hydrologyRefine' | 'hydrologySettle' | 'hydrologyPaint'} HydrologySubstepId */
 
@@ -20,10 +21,6 @@ export const HYDROLOGY_SUBSTEPS = HYDROLOGY_SUBSTEP_MODULES.map((module) => ({
   id: /** @type {HydrologySubstepId} */ (module.id),
   label: module.label,
 }))
-
-/**
- * @typedef {import('./hydrologySubstepModules.js').HydrologyWorld} HydrologyWorld
- */
 
 /**
  * @typedef {Object} HydrologySubstepTiming
@@ -38,69 +35,9 @@ export const HYDROLOGY_SUBSTEPS = HYDROLOGY_SUBSTEP_MODULES.map((module) => ({
  * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string }) => void} [onSubstepStart]
  * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string, progress: number }) => void} [onSubstepProgress]
  * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string, progress: number, skipped?: boolean, transition?: string, maskLifecycle?: ReturnType<typeof snapshotRiverMaskPipeline> }) => void} [onSubstepComplete]
- * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string, input: Record<string, unknown> }) => void} [onSubstepPrepare]
+ * @property {(payload: { substepId: HydrologySubstepId, substepIndex: number, substepCount: number, label: string, input: Object }) => void} [onSubstepPrepare]
  * @property {() => boolean} [shouldCancel]
  */
-
-/**
- * @param {HydrologyWorld} world
- * @returns {import('../landmassPipelineTypes.js').DerivedGeographyPipelineState}
- */
-function buildPipelineStateFromHydrologyWorld(world) {
-  const { state, width, height } = world
-  const settledElevation = /** @type {Float32Array} */ (world.settledElevation)
-  const lakeIdByCell = /** @type {Int32Array | null} */ (world.lakeIdByCell)
-  const lakeMeta = /** @type {import('../types.js').LakeMetaRecord[] | null} */ (world.lakeMeta)
-  const lakeMask = /** @type {Uint8Array | null} */ (world.lakeMask)
-  if (lakeIdByCell && lakeMeta && lakeMask) {
-    applyLakeSurfacesFromMeta(settledElevation, lakeIdByCell, lakeMeta, lakeMask, width, height)
-  }
-
-  const previewFields = refreshClimateScalarsAfterElevationMutation({
-    geographySeed: state.geographySeed,
-    prevailingWindDegrees: state.prevailingWindDegrees,
-    elevation: settledElevation,
-    drainage: /** @type {Float32Array} */ (world.settledDrainage),
-    width,
-    height,
-    options: state.options,
-  })
-
-  const riverNetwork = /** @type {import('../types.js').RiverNetwork} */ (world.riverNetwork)
-
-  return {
-    ...state,
-    lakeMask,
-    lakes: /** @type {import('../types.js').LakeRecord[] | null} */ (world.lakes),
-    lakeMeta,
-    lakeIdByCell,
-    hydrologyStats: /** @type {import('../types.js').HydrologyPipelineStats | null} */ (
-      world.hydrologyStats
-    ),
-    workingElevation: settledElevation,
-    riverGraph: riverNetwork.graph,
-    simulationRiverMask: riverNetwork.simulationCenterline,
-    riverNetworkMask: riverNetwork.centerline,
-    riverCorridorMask: riverNetwork.corridor,
-    channelWidth: /** @type {Float32Array} */ (world.channelWidth),
-    flowDirection: /** @type {Int16Array} */ (world.settledFlowDirection),
-    fields: previewFields,
-    biomes: classifyBiomesWithHydrology(
-      previewFields,
-      width,
-      height,
-      {
-        lakeMask,
-        riverCorridorMask: getRiverMaskStage(world.riverMaskPipeline, 'painted'),
-        flowDirection: /** @type {Int16Array} */ (world.settledFlowDirection),
-      },
-      state.options.seaLevel,
-      state.geographySeed,
-      state.options.biomeEdgeNoiseStrength,
-    ),
-    lastCompletedStep: 'hydrology',
-  }
-}
 
 /**
  * @param {import('../landmassPipelineTypes.js').DerivedGeographyPipelineState} state
@@ -115,13 +52,7 @@ export function runHydrologySubsteps(state, hooks = {}) {
   const flowFieldSession = createFlowFieldSession()
   const riverMaskPipeline = createRiverMaskPipeline()
 
-  /** @type {HydrologyWorld} */
-  let world = {
-    state,
-    width: state.width,
-    height: state.height,
-    riverMaskPipeline,
-  }
+  let world = createInitialHydrologyWorld(state)
 
   const substepCount = HYDROLOGY_SUBSTEP_MODULES.length
   /** @type {HydrologySubstepTiming[]} */
@@ -147,17 +78,18 @@ export function runHydrologySubsteps(state, hooks = {}) {
     }
 
     let durationMs = 0
-    /** @type {Record<string, unknown>} */
+    /** @type {Object} */
     let output = {}
+    const shared = { flowFieldSession, riverMaskPipeline, onProgress }
     if (!skipped) {
       const startedAt = performance.now()
-      output = module.run(input, { flowFieldSession, riverMaskPipeline, onProgress })
+      output = module.run(input, shared)
       durationMs = performance.now() - startedAt
     } else if (module.runSkipped) {
-      output = module.runSkipped(input, { flowFieldSession, riverMaskPipeline, onProgress })
+      output = module.runSkipped(input, shared)
     }
 
-    world = { ...world, ...output }
+    world = mergeHydrologyWorld(world, output)
 
     hooks.onSubstepProgress?.({ substepId, substepIndex, substepCount, label: module.label, progress: 1 })
     hooks.onSubstepComplete?.({
@@ -174,7 +106,10 @@ export function runHydrologySubsteps(state, hooks = {}) {
   }
 
   return {
-    state: buildPipelineStateFromHydrologyWorld(world),
+    state: buildPipelineStateFromHydrologyWorld(
+      /** @type {import('./hydrologyWorldTypes.js').HydrologyAfterPaint} */ (world),
+      riverMaskPipeline,
+    ),
     timings,
     flowField: {
       fullFlowSolveCount: flowFieldSession.fullFlowSolveCount,

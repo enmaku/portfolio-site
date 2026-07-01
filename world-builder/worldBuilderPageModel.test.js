@@ -13,9 +13,12 @@ import {
   createHydrologyStatsForDisplay,
   createHydrologySubstepStatuses,
   createHydrologySubstepTimingsForDisplay,
+  formatGenerationControlValue,
   formatHydrologySubstepTimingForDisplay,
   formatHydrologyMetricValue,
+  formatOverlayControlValue,
   formatSlopeAreaConcavityForDisplay,
+  generationStepStatusColor,
   normalizeGeographySeed,
   shouldShowGenerationProgress,
   shouldShowResourceOverlayBar,
@@ -25,6 +28,21 @@ import {
   validationStatusColor,
   validationStatusIcon,
 } from './worldBuilderPageModel.js'
+
+test('generationStepStatusColor maps pipeline step statuses to Quasar chip colors', () => {
+  assert.strictEqual(generationStepStatusColor('complete'), 'positive')
+  assert.strictEqual(generationStepStatusColor('active'), 'primary')
+  assert.strictEqual(generationStepStatusColor('skipped'), 'grey-6')
+  assert.strictEqual(generationStepStatusColor('pending'), 'grey-8')
+})
+
+test('formatGenerationControlValue renders prevailing wind through page model export', () => {
+  assert.match(formatGenerationControlValue('prevailingWindDegrees', 90), /\d/)
+})
+
+test('formatOverlayControlValue renders overlay display settings through page model export', () => {
+  assert.strictEqual(formatOverlayControlValue('arableMinimumProductivity', 0.25), '0.25')
+})
 
 test('createDefaultControlsState matches default geography seed and generation options', () => {
   const defaults = createDefaultControlsState()

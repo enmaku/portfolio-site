@@ -144,3 +144,48 @@ test('river overlay draws from the presentation corridor mask, ignoring biome-pa
   assert.ok(rgba)
   assert.ok(rgba[(2 * width + 2) * 4 + 3] > 0)
 })
+
+test('river overlay is invariant when simulationRiverMask diverges from presentation masks', () => {
+  const width = 5
+  const height = 5
+  const cellCount = width * height
+  const presentationCenterline = new Uint8Array(cellCount)
+  const presentationCorridor = new Uint8Array(cellCount)
+  for (let y = 1; y <= 3; y += 1) {
+    presentationCenterline[y * width + 2] = 1
+    presentationCorridor[y * width + 2] = 1
+  }
+
+  const simulationOnlyCenterline = new Uint8Array(cellCount)
+  for (let y = 1; y <= 3; y += 1) {
+    simulationOnlyCenterline[y * width] = 1
+  }
+
+  const flowDirection = new Int16Array(cellCount).fill(-1)
+  const flowAccumulation = new Float32Array(cellCount).fill(0.5)
+  const fields = {
+    elevation: new Float32Array(cellCount),
+    drainage: flowAccumulation,
+  }
+  /** @type {import('../core/types.js').WorldDocument} */
+  const baseDoc = {
+    gridWidth: width,
+    gridHeight: height,
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    fields,
+    riverNetworkMask: presentationCenterline,
+    riverCorridorMask: presentationCorridor,
+    simulationRiverMask: presentationCenterline,
+    flowDirection,
+    riverGraph: { nodes: [], edges: [] },
+  }
+
+  const matchedSimulation = buildRiverOverlayRgba(baseDoc)
+  const divergentSimulation = buildRiverOverlayRgba({
+    ...baseDoc,
+    simulationRiverMask: simulationOnlyCenterline,
+  })
+
+  assert.ok(matchedSimulation)
+  assert.deepStrictEqual(divergentSimulation, matchedSimulation)
+})

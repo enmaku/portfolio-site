@@ -1,5 +1,8 @@
 import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
-import { assembleRiverNetworkFromValidationSlice } from '../hydrology/riverNetwork.js'
+import {
+  assembleRiverNetworkFromFields,
+  assembleRiverNetworkFromValidationSlice,
+} from '../hydrology/riverNetwork.js'
 import {
   MIN_BIOME_DIVERSITY,
   MIN_HIGHLAND_ELEVATION,
@@ -31,6 +34,10 @@ const MIN_OCEAN_SALINITY_MEAN = 0.9
  * @param {Uint8Array} slice.biomes
  * @param {import('../types.js').RiverGraph} slice.riverGraph
  * @param {import('../types.js').RiverNetwork} [slice.riverNetwork]
+ * @param {Uint8Array} [slice.riverNetworkMask]
+ * @param {Uint8Array} [slice.riverCorridorMask]
+ * @param {Uint8Array} [slice.simulationRiverMask]
+ * @param {Int16Array} [slice.flowDirection]
  * @param {import('../types.js').CoastalNode[]} slice.coastalNodes
  * @param {number} slice.gridWidth
  * @param {number} slice.gridHeight
@@ -68,17 +75,26 @@ export function runGeographyValidationChecks(slice) {
   } = slice
   const cellCount = gridWidth * gridHeight
   const graph = riverNetwork?.graph ?? riverGraph
-  const resolvedRiverNetwork = riverNetwork ?? assembleRiverNetworkFromValidationSlice(slice)
+  const resolvedRiverNetwork =
+    riverNetwork ?? assembleRiverNetworkForLogisticsValidation(slice)
+  const metricsNetwork = resolvedRiverNetwork
+    ? riverNetworkForLogisticsMetrics(resolvedRiverNetwork)
+    : null
   const metrics =
     hydrologyMetrics ??
-    computeHydrologyMetrics({
-      elevation: fields.elevation,
-      drainage: fields.drainage,
-      riverGraph: graph,
-      riverNetwork: resolvedRiverNetwork ?? undefined,
-      gridWidth,
-      gridHeight,
-    })
+    (metricsNetwork
+      ? computeHydrologyMetrics({
+          elevation: fields.elevation,
+          drainage: fields.drainage,
+          riverGraph: graph,
+          riverNetwork: metricsNetwork,
+          gridWidth,
+          gridHeight,
+        })
+      : null)
+  if (!metrics) {
+    throw new Error('riverNetwork or hydrologyMetrics required for geography validation')
+  }
 
   const navigableEdges = selectNavigableRiverEdges(graph.edges)
   const minNavigable = minNavigableRiverEdgesForGrid(gridWidth)
@@ -282,6 +298,50 @@ export function runGeographyValidationChecks(slice) {
   )
 
   return rows
+}
+
+/**
+ * @param {import('../types.js').RiverNetwork} riverNetwork
+ * @returns {import('../types.js').RiverNetwork}
+ */
+export function riverNetworkForLogisticsMetrics(riverNetwork) {
+  return {
+    ...riverNetwork,
+    centerline: riverNetwork.simulationCenterline,
+  }
+}
+
+/**
+ * @param {Object} slice
+ * @param {import('../types.js').RiverNetwork} [slice.riverNetwork]
+ * @param {import('../types.js').RiverGraph} [slice.riverGraph]
+ * @param {Uint8Array} [slice.riverNetworkMask]
+ * @param {Uint8Array} [slice.riverCorridorMask]
+ * @param {Uint8Array} [slice.simulationRiverMask]
+ * @param {Int16Array} [slice.flowDirection]
+ * @param {import('../types.js').ScalarFields} slice.fields
+ * @param {number} slice.gridWidth
+ * @param {number} slice.gridHeight
+ * @returns {import('../types.js').RiverNetwork | null}
+ */
+export function assembleRiverNetworkForLogisticsValidation(slice) {
+  if (slice.riverNetwork) return slice.riverNetwork
+  if (slice.simulationRiverMask && slice.riverGraph && slice.fields?.drainage) {
+    const { riverGraph, fields, gridWidth, gridHeight } = slice
+    const cellCount = gridWidth * gridHeight
+    return assembleRiverNetworkFromFields({
+      riverNetworkMask: slice.riverNetworkMask,
+      riverCorridorMask: slice.riverCorridorMask,
+      simulationRiverMask: slice.simulationRiverMask,
+      flowDirection: slice.flowDirection ?? new Int16Array(cellCount).fill(-1),
+      flowAccumulation: fields.drainage,
+      channelWidth: slice.channelWidth ?? undefined,
+      riverGraph,
+      width: gridWidth,
+      height: gridHeight,
+    })
+  }
+  return assembleRiverNetworkFromValidationSlice(slice)
 }
 
 /**

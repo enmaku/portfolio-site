@@ -1,12 +1,19 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import {
   LANDMASS_PIPELINE_STAGE_CONTRACTS,
-  LANDMASS_PIPELINE_STEP_IDS,
   assertLandmassStageOutputs,
   buildPipelineStateForHydrologySubsteps,
+  deriveLandmassStageContract,
   pickLandmassStageInput,
 } from './landmassPipelineStageContracts.js'
+import {
+  LANDMASS_PIPELINE_STAGE_MODULES,
+  LANDMASS_PIPELINE_STAGE_MODULE_BY_ID,
+  selectLandmassStageInput,
+} from './landmassPipelineStageModules.js'
 import {
   createInitialPipelineState,
   runPipelineStep,
@@ -20,71 +27,80 @@ const params = {
   height: 32,
 }
 
-test('LANDMASS_PIPELINE_STEP_IDS matches derived geography stage order', () => {
-  assert.deepStrictEqual(LANDMASS_PIPELINE_STEP_IDS, [
-    'physicalTerrainBaseline',
-    'erosion',
-    'hydrology',
-    'fieldRefresh',
-    'coastAndResources',
-    'validation',
-  ])
-})
+const contractsSource = readFileSync(
+  fileURLToPath(new URL('./landmassPipelineStageContracts.js', import.meta.url)),
+  'utf8',
+)
 
-test('each landmass stage contract declares narrow input and output keys', () => {
-  for (const stepId of LANDMASS_PIPELINE_STEP_IDS) {
-    const contract = LANDMASS_PIPELINE_STAGE_CONTRACTS[stepId]
-    assert.ok(contract, `missing contract for ${stepId}`)
-    assert.strictEqual(contract.id, stepId)
-    assert.ok(contract.label.length > 0)
-    assert.ok(contract.inputKeys.length > 0, `${stepId} inputKeys`)
-    assert.ok(contract.outputKeys.length > 0, `${stepId} outputKeys`)
+test('stage contracts are derived from stage modules as a single source of truth', () => {
+  for (const module of LANDMASS_PIPELINE_STAGE_MODULES) {
+    const contract = LANDMASS_PIPELINE_STAGE_CONTRACTS[module.id]
+    assert.ok(contract, `missing contract for ${module.id}`)
+    assert.strictEqual(contract.id, module.id)
+    assert.strictEqual(contract.label, module.label)
+    assert.deepStrictEqual(contract.inputKeys, Object.keys(module.inputs))
+    assert.deepStrictEqual(contract.outputKeys, [...module.outputKeys])
+    assert.deepStrictEqual(deriveLandmassStageContract(module), contract)
     assert.ok(
       contract.outputKeys.includes('lastCompletedStep'),
-      `${stepId} must declare lastCompletedStep output`,
+      `${module.id} must declare lastCompletedStep output`,
     )
   }
 })
 
-test('pickLandmassStageInput rejects erosion without physical terrain baseline', () => {
+test('landmass contract source omits hand-maintained stage picker switch', () => {
+  assert.ok(!contractsSource.includes('pickErosionStageInput'))
+  assert.ok(!contractsSource.includes('pickHydrologyStageInput'))
+  assert.ok(!contractsSource.includes('pickFieldRefreshStageInput'))
+  assert.ok(!contractsSource.includes('pickCoastAndResourcesStageInput'))
+  assert.ok(!contractsSource.includes('pickValidationStageInput'))
+  assert.ok(!contractsSource.includes('pickPhysicalTerrainBaselineInput'))
+  assert.ok(!contractsSource.includes('switch (stepId)'))
+})
+
+test('selectLandmassStageInput rejects erosion without physical terrain baseline', () => {
   const state = createInitialPipelineState(params)
+  const module = LANDMASS_PIPELINE_STAGE_MODULE_BY_ID.erosion
   assert.throws(
-    () => pickLandmassStageInput('erosion', state),
+    () => selectLandmassStageInput(module, state),
     /physicalTerrainBaseline/,
   )
 })
 
-test('pickLandmassStageInput rejects hydrology without erosion', () => {
+test('selectLandmassStageInput rejects hydrology without erosion', () => {
   let state = createInitialPipelineState(params)
   state = runPipelineStep(state, 'physicalTerrainBaseline')
+  const module = LANDMASS_PIPELINE_STAGE_MODULE_BY_ID.hydrology
   assert.throws(
-    () => pickLandmassStageInput('hydrology', state),
+    () => selectLandmassStageInput(module, state),
     /erosion/,
   )
 })
 
-test('pickLandmassStageInput rejects field refresh without hydrology outputs', () => {
+test('selectLandmassStageInput rejects field refresh without hydrology outputs', () => {
   let state = createInitialPipelineState(params)
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')
+  const module = LANDMASS_PIPELINE_STAGE_MODULE_BY_ID.fieldRefresh
   assert.throws(
-    () => pickLandmassStageInput('fieldRefresh', state),
+    () => selectLandmassStageInput(module, state),
     /hydrology/,
   )
 })
 
-test('pickLandmassStageInput rejects coast and resources before field refresh', () => {
+test('selectLandmassStageInput rejects coast and resources before field refresh', () => {
   let state = createInitialPipelineState(params)
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')
   state = runPipelineStep(state, 'hydrology')
+  const module = LANDMASS_PIPELINE_STAGE_MODULE_BY_ID.coastAndResources
   assert.throws(
-    () => pickLandmassStageInput('coastAndResources', state),
+    () => selectLandmassStageInput(module, state),
     /fieldRefresh/,
   )
 })
 
-test('pickLandmassStageInput rejects validation before coast and resources', () => {
+test('selectLandmassStageInput rejects validation before coast and resources', () => {
   let state = createInitialPipelineState(params)
   for (const stepId of [
     'physicalTerrainBaseline',
@@ -94,19 +110,32 @@ test('pickLandmassStageInput rejects validation before coast and resources', () 
   ]) {
     state = runPipelineStep(state, stepId)
   }
+  const module = LANDMASS_PIPELINE_STAGE_MODULE_BY_ID.validation
   assert.throws(
-    () => pickLandmassStageInput('validation', state),
+    () => selectLandmassStageInput(module, state),
     /coastAndResources/,
   )
 })
 
-test('pickLandmassStageInput returns only contract input keys for each stage', () => {
+test('selectLandmassStageInput yields exactly the contract input keys', () => {
   let state = createInitialPipelineState(params)
-  for (const stepId of LANDMASS_PIPELINE_STEP_IDS) {
-    const input = pickLandmassStageInput(stepId, state)
-    const contract = LANDMASS_PIPELINE_STAGE_CONTRACTS[stepId]
-    assert.deepStrictEqual(Object.keys(input).sort(), [...contract.inputKeys].sort())
-    state = runPipelineStep(state, stepId)
+  for (const module of LANDMASS_PIPELINE_STAGE_MODULES) {
+    const input = selectLandmassStageInput(module, state)
+    assert.deepStrictEqual(
+      Object.keys(input).sort(),
+      [...LANDMASS_PIPELINE_STAGE_CONTRACTS[module.id].inputKeys].sort(),
+    )
+    state = runPipelineStep(state, module.id)
+  }
+})
+
+test('pickLandmassStageInput delegates to module input selectors', () => {
+  let state = createInitialPipelineState(params)
+  for (const module of LANDMASS_PIPELINE_STAGE_MODULES) {
+    const picked = pickLandmassStageInput(module.id, state)
+    const selected = selectLandmassStageInput(module, state)
+    assert.deepStrictEqual(picked, selected)
+    state = runPipelineStep(state, module.id)
   }
 })
 
@@ -159,7 +188,10 @@ test('buildPipelineStateForHydrologySubsteps seeds minimal erosion-complete stat
     metalsRaster: new Float32Array(4),
   }
 
-  const input = pickLandmassStageInput('hydrology', state)
+  const input = selectLandmassStageInput(
+    LANDMASS_PIPELINE_STAGE_MODULE_BY_ID.hydrology,
+    state,
+  )
   const hydrologyState = buildPipelineStateForHydrologySubsteps(input)
 
   assert.strictEqual(hydrologyState.coastalNodes, null)

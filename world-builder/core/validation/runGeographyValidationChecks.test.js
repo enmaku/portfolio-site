@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from '../biomeIds.js'
-import { assembleRiverNetworkFromValidationSlice } from '../hydrology/riverNetwork.js'
-import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
 import {
+  assembleRiverNetwork,
+  assembleRiverNetworkFromValidationSlice,
+} from '../hydrology/riverNetwork.js'
+import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
+import { computeHydrologyMetrics } from './computeHydrologyMetrics.js'
+import {
+  assembleRiverNetworkForLogisticsValidation,
   maxEndorheicFractionForOptions,
+  riverNetworkForLogisticsMetrics,
   runGeographyValidationChecks,
 } from './runGeographyValidationChecks.js'
 
@@ -47,6 +53,236 @@ function makeSlice(overrides = {}) {
     ...overrides,
   }
 }
+
+/** Checks that intentionally omit mapFocus even when not passing. */
+const CONTROLLER_FOCUS_EXEMPT_CHECK_IDS = new Set(['windRainfallAsymmetry'])
+
+/**
+ * @param {import('../types.js').MapFocus | undefined} mapFocus
+ */
+function assertMapFocusContract(mapFocus) {
+  assert.ok(mapFocus)
+  if ('minX' in mapFocus) {
+    assert.equal(typeof mapFocus.minX, 'number')
+    assert.equal(typeof mapFocus.minY, 'number')
+    assert.equal(typeof mapFocus.maxX, 'number')
+    assert.equal(typeof mapFocus.maxY, 'number')
+    return
+  }
+  assert.equal(typeof mapFocus.x, 'number')
+  assert.equal(typeof mapFocus.y, 'number')
+  assert.equal(typeof mapFocus.zoom, 'number')
+}
+
+/**
+ * @param {boolean} [inflatePresentation]
+ */
+function makeSimulationPresentationDivergenceSlice(inflatePresentation = true) {
+  const gridWidth = 16
+  const gridHeight = 16
+  const cellCount = gridWidth * gridHeight
+  const simulationRiverMask = new Uint8Array(cellCount)
+  simulationRiverMask[50] = 1
+  simulationRiverMask[66] = 1
+  const riverNetworkMask = new Uint8Array(simulationRiverMask)
+  const riverCorridorMask = new Uint8Array(simulationRiverMask)
+  if (inflatePresentation) {
+    riverNetworkMask[51] = 1
+    riverNetworkMask[52] = 1
+    riverCorridorMask[51] = 1
+    riverCorridorMask[67] = 1
+  }
+  const drainage = new Float32Array(cellCount).fill(0.2)
+  const riverGraph = {
+    nodes: [
+      { id: 's', x: 2, y: 2, kind: 'source' },
+      { id: 'm', x: 2, y: 4, kind: 'mouth' },
+    ],
+    edges: [
+      { fromNodeId: 's', toNodeId: 'm', navigable: true, cellPath: [50, 66] },
+      { fromNodeId: 's', toNodeId: 'm', navigable: true, cellPath: [34, 50] },
+      { fromNodeId: 's', toNodeId: 'm', navigable: true, cellPath: [18, 34] },
+    ],
+  }
+  const fields = {
+    elevation: new Float32Array(cellCount).fill(0.5),
+    temperature: new Float32Array(cellCount).fill(0.5),
+    rainfall: new Float32Array(cellCount).fill(0.5),
+    drainage,
+    salinity: new Float32Array(cellCount).fill(0.15),
+  }
+  for (let i = 0; i < gridWidth; i += 1) {
+    fields.elevation[i] = 0.2
+    fields.salinity[i] = 1
+  }
+  const biomes = new Uint8Array(cellCount).fill(BIOMES.GRASSLAND)
+  biomes.fill(BIOMES.OCEAN, 0, gridWidth)
+
+  return {
+    fields,
+    biomes,
+    riverGraph,
+    coastalNodes: [{ id: 'c1', x: 2, y: 4, kind: 'mouth' }],
+    riverNetworkMask,
+    riverCorridorMask,
+    simulationRiverMask,
+    flowDirection: new Int16Array(cellCount).fill(-1),
+    gridWidth,
+    gridHeight,
+    hydrologyStats: {
+      breachCount: 0,
+      endorheicCount: 0,
+      endorheicFraction: 0,
+      lakeCount: 0,
+    },
+    validationOptions: DEFAULT_WORLD_GENERATION_OPTIONS,
+  }
+}
+
+test('riverNetworkForLogisticsMetrics binds hydrology metrics to simulation centerline', () => {
+  const gridWidth = 8
+  const gridHeight = 8
+  const cellCount = gridWidth * gridHeight
+  const simulationCenterline = new Uint8Array(cellCount)
+  simulationCenterline[10] = 1
+  simulationCenterline[18] = 1
+  const presentationCenterline = new Uint8Array(cellCount)
+  presentationCenterline[10] = 1
+  presentationCenterline[18] = 1
+  presentationCenterline[19] = 1
+  presentationCenterline[20] = 1
+  const drainage = new Float32Array(cellCount).fill(0.2)
+  const graph = {
+    nodes: [{ id: 'm', x: 2, y: 2, kind: 'mouth' }],
+    edges: [{ fromNodeId: 'm', toNodeId: 'm', navigable: true, cellPath: [10, 18] }],
+  }
+  const riverNetwork = assembleRiverNetwork({
+    centerline: presentationCenterline,
+    corridor: presentationCenterline,
+    simulationCenterline,
+    flowDirection: new Int16Array(cellCount).fill(-1),
+    flowAccumulation: drainage,
+    graph,
+    width: gridWidth,
+    height: gridHeight,
+  })
+
+  const logisticsMetrics = computeHydrologyMetrics({
+    elevation: drainage,
+    drainage,
+    riverNetwork: riverNetworkForLogisticsMetrics(riverNetwork),
+    gridWidth,
+    gridHeight,
+  })
+  const presentationMetrics = computeHydrologyMetrics({
+    elevation: drainage,
+    drainage,
+    riverNetwork,
+    gridWidth,
+    gridHeight,
+  })
+
+  assert.strictEqual(logisticsMetrics.riverCellCount, 2)
+  assert.strictEqual(presentationMetrics.riverCellCount, 4)
+})
+
+test('runGeographyValidationChecks binds slice assembly to simulationRiverMask', () => {
+  const gridWidth = 8
+  const gridHeight = 8
+  const cellCount = gridWidth * gridHeight
+  const simulationRiverMask = new Uint8Array(cellCount)
+  simulationRiverMask[10] = 1
+  simulationRiverMask[18] = 1
+  const riverNetworkMask = new Uint8Array(cellCount)
+  riverNetworkMask[10] = 1
+  riverNetworkMask[18] = 1
+  riverNetworkMask[19] = 1
+  riverNetworkMask[20] = 1
+  const riverCorridorMask = new Uint8Array(cellCount)
+  riverCorridorMask[10] = 1
+  riverCorridorMask[18] = 1
+  riverCorridorMask[19] = 1
+  riverCorridorMask[20] = 1
+  const flowDirection = new Int16Array(cellCount).fill(-1)
+  const drainage = new Float32Array(cellCount).fill(0.2)
+  const graph = {
+    nodes: [{ id: 'm', x: 2, y: 2, kind: 'mouth' }],
+    edges: [{ fromNodeId: 'm', toNodeId: 'm', navigable: true, cellPath: [10, 18] }],
+  }
+  const slice = {
+    fields: {
+      elevation: drainage,
+      temperature: drainage,
+      rainfall: drainage,
+      drainage,
+      salinity: drainage,
+    },
+    riverGraph: graph,
+    riverNetworkMask,
+    riverCorridorMask,
+    simulationRiverMask,
+    flowDirection,
+    gridWidth,
+    gridHeight,
+  }
+
+  const assembled = assembleRiverNetworkForLogisticsValidation(slice)
+  assert.ok(assembled)
+  assert.strictEqual(assembled.simulationCenterline, simulationRiverMask)
+  assert.strictEqual(assembled.centerline, riverNetworkMask)
+  assert.strictEqual(
+    computeHydrologyMetrics({
+      elevation: drainage,
+      drainage,
+      riverNetwork: riverNetworkForLogisticsMetrics(assembled),
+      gridWidth,
+      gridHeight,
+    }).riverCellCount,
+    2,
+  )
+})
+
+test('runGeographyValidationChecks keeps coast mouth and navigable checks stable when presentation masks exceed simulation', () => {
+  const maskInvariantCheckIds = ['coastMouth', 'navigableRiverQuota', 'coastConnectedNavigablePath']
+  const divergentRows = runGeographyValidationChecks(makeSimulationPresentationDivergenceSlice(true))
+  const alignedRows = runGeographyValidationChecks(makeSimulationPresentationDivergenceSlice(false))
+
+  for (const checkId of maskInvariantCheckIds) {
+    const divergent = divergentRows.find((row) => row.checkId === checkId)
+    const aligned = alignedRows.find((row) => row.checkId === checkId)
+    assert.strictEqual(divergent?.status, aligned?.status, checkId)
+    assert.strictEqual(divergent?.summary, aligned?.summary, checkId)
+  }
+})
+
+test('runGeographyValidationChecks exposes mapFocus on non-pass rows for controller focus seam', () => {
+  const rows = runGeographyValidationChecks(makeSlice())
+
+  for (const row of rows) {
+    if (row.status === 'pass' || CONTROLLER_FOCUS_EXEMPT_CHECK_IDS.has(row.checkId)) {
+      assert.strictEqual(row.mapFocus, undefined, `${row.checkId} should omit mapFocus`)
+      continue
+    }
+    assertMapFocusContract(row.mapFocus)
+  }
+})
+
+test('runGeographyValidationChecks omits mapFocus on passing coast and navigable rows', () => {
+  const rows = runGeographyValidationChecks(makeSimulationPresentationDivergenceSlice(false))
+  for (const checkId of ['coastMouth', 'navigableRiverQuota']) {
+    const row = rows.find((entry) => entry.checkId === checkId)
+    assert.strictEqual(row?.status, 'pass')
+    assert.strictEqual(row?.mapFocus, undefined)
+  }
+})
+
+test('runGeographyValidationChecks exposes coastMouth mapFocus toward south coast on failure', () => {
+  const gridWidth = 32
+  const gridHeight = 32
+  const row = runGeographyValidationChecks(makeSlice()).find((entry) => entry.checkId === 'coastMouth')
+  assert.strictEqual(row?.status, 'warn')
+  assert.deepStrictEqual(row?.mapFocus, { x: gridWidth / 2, y: gridHeight - 2, zoom: 2 })
+})
 
 test('runGeographyValidationChecks resolves river metrics from assembled contract', () => {
   const gridWidth = 8
@@ -162,6 +398,7 @@ test('runGeographyValidationChecks hard-fails navigableRiverQuota when enforced'
   ).find((entry) => entry.checkId === 'navigableRiverQuota')
   assert.strictEqual(row?.status, 'fail')
   assert.strictEqual(row?.rejectable, true)
+  assertMapFocusContract(row?.mapFocus)
 })
 
 test('runGeographyValidationChecks ignores non-navigable edges for navigableRiverQuota', () => {
@@ -216,6 +453,7 @@ test('runGeographyValidationChecks hard-fails coastMouth when enforced', () => {
     }),
   ).find((entry) => entry.checkId === 'coastMouth')
   assert.strictEqual(row?.status, 'fail')
+  assertMapFocusContract(row?.mapFocus)
 })
 
 test('runGeographyValidationChecks enforces endorheic fraction cap from breach threshold', () => {
@@ -357,6 +595,7 @@ test('runGeographyValidationChecks hard-fails coastConnectedNavigablePath when e
     }),
   ).find((entry) => entry.checkId === 'coastConnectedNavigablePath')
   assert.strictEqual(row?.status, 'fail')
+  assertMapFocusContract(row?.mapFocus)
 })
 
 test('maxEndorheicFractionForOptions uses explicit cap when finite', () => {

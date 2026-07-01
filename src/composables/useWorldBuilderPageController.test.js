@@ -5,6 +5,44 @@ import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../../world-builder/core/world
 import { useWorldBuilderPageController } from './useWorldBuilderPageController.js'
 
 /**
+ * PAGE-CONTROLLER-INTERFACE.md § Returned actions — side-effect methods and their
+ * covering test titles in this file (375.7 matrix).
+ * @type {Record<string, string[]>}
+ */
+const SIDE_EFFECT_METHOD_COVERAGE = {
+  start: [
+    'start runs initial generation and applies the world document to the map',
+    'start syncs overlay state when the viewport becomes ready',
+  ],
+  destroy: ['destroy cancels the active run and tears down the map lifecycle'],
+  regenerate: [
+    'regenerate starts a fresh generation run',
+    'a completed run resets overlay visibility',
+    'superseding regenerate ignores stale terminal callbacks from prior run',
+    'supersede ignores stale step-complete world document from prior run',
+    'rapid regenerate does not duplicate world document apply from stale worker',
+  ],
+  onToggleChange: ['onToggleChange persists to settings and regenerates'],
+  onSliderInput: ['onSliderInput persists to settings without regenerating'],
+  onSliderCommit: ['committing a slider value persists to settings and regenerates'],
+  commitSeed: ['committing a seed applies it to settings and regenerates'],
+  randomizeSeed: ['randomizeSeed updates seed input, settings, and regenerates'],
+  resetDefaults: [
+    'resetDefaults resets settings, restores overlay display settings, and regenerates',
+  ],
+  toggleResourceOverlayVisibility: [
+    'toggleResourceOverlayVisibility syncs visibility to the viewport',
+  ],
+  setResourceOverlayDisplaySetting: [
+    'setResourceOverlayDisplaySetting persists to settings and syncs viewport',
+  ],
+  resetOverlays: ['resetOverlays clears overlay visibility and syncs viewport'],
+  focusValidationRow: [
+    'focusValidationRow focuses the viewport only when the row has a map focus',
+  ],
+}
+
+/**
  * @param {Object} [overrides]
  * @returns {import('../../world-builder/core/types.js').WorldDocument}
  */
@@ -211,6 +249,186 @@ test('regenerate starts a fresh generation run', async () => {
   }
 })
 
+test('superseding regenerate ignores stale terminal callbacks from prior run', async () => {
+  const scope = effectScope(true)
+  try {
+    /** @type {import('../../world-builder/runDerivedGeographyInWorker.js').DerivedGeographyWorkerCallbacks} */
+    let firstRunCallbacks = {}
+
+    const worker = createPendingWorker()
+    const { ctx, appliedDocs } = mountController(scope, {
+      runDerivedGeographyInWorker(_params, callbacks) {
+        if (Object.keys(firstRunCallbacks).length === 0) {
+          firstRunCallbacks = callbacks
+        }
+        return worker.run(_params, callbacks)
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    ctx.regenerate()
+    await nextTick()
+
+    const appliedBeforeStale = appliedDocs.length
+    firstRunCallbacks.onComplete?.()
+    await nextTick()
+
+    assert.strictEqual(ctx.runPhase.value, 'running')
+    assert.strictEqual(appliedDocs.length, appliedBeforeStale)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('supersede ignores stale step-complete world document from prior run', async () => {
+  const scope = effectScope(true)
+  try {
+    /** @type {import('../../world-builder/runDerivedGeographyInWorker.js').DerivedGeographyWorkerCallbacks} */
+    let firstRunCallbacks = {}
+
+    const { ctx, appliedDocs } = mountController(scope, {
+      runDerivedGeographyInWorker(_params, callbacks) {
+        if (Object.keys(firstRunCallbacks).length === 0) {
+          firstRunCallbacks = callbacks
+          return { cancel() {} }
+        }
+        return { cancel() {} }
+      },
+    })
+
+    ctx.regenerate()
+    ctx.regenerate()
+    await nextTick()
+
+    firstRunCallbacks.onStepComplete?.({
+      stepId: 'validation',
+      stepIndex: 5,
+      stepCount: 6,
+      label: 'Validation',
+      worldDocument: fakeWorldDocument({ geographySeed: 99999 }),
+    })
+    await nextTick()
+
+    assert.strictEqual(ctx.runPhase.value, 'running')
+    assert.strictEqual(appliedDocs.length, 0)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('rapid regenerate does not duplicate world document apply from stale worker', async () => {
+  const scope = effectScope(true)
+  try {
+    /** @type {import('../../world-builder/runDerivedGeographyInWorker.js').DerivedGeographyWorkerCallbacks} */
+    let firstRunCallbacks = {}
+    let runCount = 0
+
+    const currentDoc = fakeWorldDocument({ geographySeed: 42 })
+    const staleDoc = fakeWorldDocument({ geographySeed: 99999 })
+
+    const { ctx, appliedDocs } = mountController(scope, {
+      runDerivedGeographyInWorker(_params, callbacks) {
+        runCount += 1
+        if (runCount === 1) {
+          callbacks.onStepComplete?.({
+            stepId: 'validation',
+            stepIndex: 5,
+            stepCount: 6,
+            label: 'Validation',
+            worldDocument: fakeWorldDocument(),
+          })
+          callbacks.onComplete?.()
+          return { cancel() {} }
+        }
+        if (runCount === 2) {
+          firstRunCallbacks = callbacks
+          return { cancel() {} }
+        }
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: currentDoc,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    const appliedAfterStart = appliedDocs.length
+
+    ctx.regenerate()
+    ctx.regenerate()
+    await nextTick()
+
+    assert.strictEqual(ctx.runPhase.value, 'success')
+    assert.strictEqual(appliedDocs.length, appliedAfterStart + 1)
+    assert.strictEqual(appliedDocs.at(-1), currentDoc)
+
+    firstRunCallbacks.onStepComplete?.({
+      stepId: 'validation',
+      stepIndex: 5,
+      stepCount: 6,
+      label: 'Validation',
+      worldDocument: staleDoc,
+    })
+    await nextTick()
+
+    assert.strictEqual(appliedDocs.length, appliedAfterStart + 1)
+    assert.strictEqual(appliedDocs.at(-1), currentDoc)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('onToggleChange persists to settings and regenerates', async () => {
+  const scope = effectScope(true)
+  try {
+    const worker = createPendingWorker()
+    const { ctx, settingsStore } = mountController(scope, {
+      runDerivedGeographyInWorker: (params, callbacks) => worker.run(params, callbacks),
+    })
+
+    await ctx.start()
+    await nextTick()
+    const runsAfterStart = worker.runCount()
+
+    ctx.onToggleChange('enableMeanderRefine', true)
+    await nextTick()
+
+    assert.strictEqual(settingsStore.generationOptions.enableMeanderRefine, true)
+    assert.strictEqual(worker.runCount(), runsAfterStart + 1)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('onSliderInput persists to settings without regenerating', async () => {
+  const scope = effectScope(true)
+  try {
+    const worker = createPendingWorker()
+    const { ctx, settingsStore } = mountController(scope, {
+      runDerivedGeographyInWorker: (params, callbacks) => worker.run(params, callbacks),
+    })
+
+    await ctx.start()
+    await nextTick()
+    const runsAfterStart = worker.runCount()
+
+    ctx.onSliderInput('seaLevel', 0.55)
+    await nextTick()
+
+    assert.strictEqual(settingsStore.generationOptions.seaLevel, 0.55)
+    assert.strictEqual(worker.runCount(), runsAfterStart)
+  } finally {
+    scope.stop()
+  }
+})
+
 test('committing a slider value persists to settings and regenerates', async () => {
   const scope = effectScope(true)
   try {
@@ -227,6 +445,36 @@ test('committing a slider value persists to settings and regenerates', async () 
     await nextTick()
 
     assert.strictEqual(settingsStore.generationOptions.seaLevel, 0.42)
+    assert.strictEqual(worker.runCount(), runsAfterStart + 1)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('randomizeSeed updates seed input, settings, and regenerates', async () => {
+  const scope = effectScope(true)
+  try {
+    const worker = createPendingWorker()
+    const { ctx, settingsStore } = mountController(scope, {
+      runDerivedGeographyInWorker: (params, callbacks) => worker.run(params, callbacks),
+    })
+
+    await ctx.start()
+    await nextTick()
+    const runsAfterStart = worker.runCount()
+    const originalRandom = Math.random
+    Math.random = () => 0.25
+
+    try {
+      ctx.randomizeSeed()
+      await nextTick()
+    } finally {
+      Math.random = originalRandom
+    }
+
+    const expectedSeed = (0.25 * 4294967296) | 0
+    assert.strictEqual(ctx.seedInput.value, String(expectedSeed))
+    assert.strictEqual(settingsStore.geographySeed, expectedSeed)
     assert.strictEqual(worker.runCount(), runsAfterStart + 1)
   } finally {
     scope.stop()
@@ -322,11 +570,11 @@ test('a completed run resets overlay visibility', async () => {
   }
 })
 
-test('resetOverlays clears overlay visibility without regenerating', async () => {
+test('resetOverlays clears overlay visibility and syncs viewport', async () => {
   const scope = effectScope(true)
   try {
     const worker = createPendingWorker()
-    const { ctx } = mountController(scope, {
+    const { ctx, viewport } = mountController(scope, {
       runDerivedGeographyInWorker: (params, callbacks) => worker.run(params, callbacks),
     })
 
@@ -334,11 +582,74 @@ test('resetOverlays clears overlay visibility without regenerating', async () =>
     await nextTick()
     ctx.toggleResourceOverlayVisibility('timber', true)
     const runsBefore = worker.runCount()
+    const syncsBeforeReset = viewport.overlaySyncs.length
 
     ctx.resetOverlays()
 
     assert.strictEqual(ctx.resourceOverlayVisibility.value.timber, false)
     assert.strictEqual(worker.runCount(), runsBefore)
+    assert.ok(viewport.overlaySyncs.length > syncsBeforeReset)
+    assert.strictEqual(viewport.overlaySyncs.at(-1).visibility.timber, false)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('start syncs overlay state when the viewport becomes ready', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, viewport } = mountController(scope)
+
+    await ctx.start()
+    await nextTick()
+
+    assert.ok(viewport.overlaySyncs.length > 0)
+    assert.strictEqual(
+      viewport.overlaySyncs.at(-1).displaySettings.arableMinimumProductivity,
+      0.1,
+    )
+  } finally {
+    scope.stop()
+  }
+})
+
+test('toggleResourceOverlayVisibility syncs visibility to the viewport', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, viewport } = mountController(scope)
+
+    await ctx.start()
+    await nextTick()
+    const syncsBefore = viewport.overlaySyncs.length
+
+    ctx.toggleResourceOverlayVisibility('salt', true)
+
+    assert.strictEqual(ctx.resourceOverlayVisibility.value.salt, true)
+    assert.ok(viewport.overlaySyncs.length > syncsBefore)
+    assert.strictEqual(viewport.overlaySyncs.at(-1).visibility.salt, true)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('setResourceOverlayDisplaySetting persists to settings and syncs viewport', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, settingsStore, viewport } = mountController(scope)
+
+    await ctx.start()
+    await nextTick()
+    const syncsBefore = viewport.overlaySyncs.length
+
+    ctx.setResourceOverlayDisplaySetting('arableMinimumProductivity', 0.22)
+
+    assert.strictEqual(settingsStore.overlayDisplaySettings.arableMinimumProductivity, 0.22)
+    assert.strictEqual(ctx.overlayDisplaySetting('arableMinimumProductivity'), 0.22)
+    assert.ok(viewport.overlaySyncs.length > syncsBefore)
+    assert.strictEqual(
+      viewport.overlaySyncs.at(-1).displaySettings.arableMinimumProductivity,
+      0.22,
+    )
   } finally {
     scope.stop()
   }
@@ -359,6 +670,22 @@ test('generation errors are forwarded to the error handler', async () => {
 
     assert.strictEqual(ctx.runPhase.value, 'error')
     assert.deepStrictEqual(errors, ['worker failed'])
+  } finally {
+    scope.stop()
+  }
+})
+
+test('every documented side-effect method is registered in the coverage matrix', () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx } = mountController(scope)
+    for (const method of Object.keys(SIDE_EFFECT_METHOD_COVERAGE)) {
+      assert.equal(typeof ctx[method], 'function', `missing controller method: ${method}`)
+    }
+    assert.ok(
+      Object.keys(SIDE_EFFECT_METHOD_COVERAGE).length >= 12,
+      'matrix should list every PAGE-CONTROLLER-INTERFACE side-effect method',
+    )
   } finally {
     scope.stop()
   }

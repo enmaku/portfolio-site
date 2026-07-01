@@ -1,8 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { cloneWorldDocument } from '../core/cloneWorldDocument.js'
+import {
+  buildWorldDocumentFromPipelineState,
+  createInitialPipelineState,
+  DERIVED_GEOGRAPHY_STEPS,
+  runLandmassPipeline,
+  runPipelineStep,
+} from '../core/derivedGeographyPipeline.js'
+import { countMarkedCells } from '../core/hydrology/riverNetwork.js'
+import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../core/worldGenerationOptions.js'
 import {
   isMapPreviewWorldDocumentDelivery,
   isSlimWorkerStepCompleteMessage,
+  simulationRiverMaskIsIndependentFromPresentationMasks,
   toWorkerCancelledMessage,
   toWorkerCompleteMessage,
   toWorkerErrorMessage,
@@ -10,8 +21,42 @@ import {
   toWorkerStepCompleteMessage,
   toWorkerSubstepPrepareMessage,
   toWorkerTerminalMessage,
+  worldDocumentHasSimulationRiverMask,
 } from './derivedGeographyWorkerProtocol.js'
 import { createDerivedGeographyWorkerPipelineCallbacks } from './createDerivedGeographyWorkerPipelineCallbacks.js'
+
+const workerParams = {
+  geographySeed: 42,
+  prevailingWindDegrees: 90,
+  width: 8,
+  height: 8,
+  options: DEFAULT_WORLD_GENERATION_OPTIONS,
+}
+
+const meanderPreviewParams = {
+  geographySeed: 5000,
+  prevailingWindDegrees: 90,
+  width: 256,
+  height: 256,
+  options: {
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    enableMeanderRefine: true,
+    riverMeanderStrength: 2,
+  },
+}
+
+/**
+ * @param {{ isCancelled?: () => boolean }} [options]
+ */
+function collectWorkerMessages(options = {}) {
+  /** @type {unknown[]} */
+  const posted = []
+  const callbacks = createDerivedGeographyWorkerPipelineCallbacks({
+    postMessage: (message) => posted.push(message),
+    isCancelled: options.isCancelled ?? (() => false),
+  })
+  return { posted, callbacks }
+}
 
 test('toWorkerStepCompleteMessage omits pipeline state and keeps optional world document', () => {
   const worldDocument = { gridWidth: 4, gridHeight: 4, pipelineStage: 'derivedGeography' }
@@ -249,4 +294,130 @@ test('isMapPreviewWorldDocumentDelivery accepts exhausted terminal with world do
 
 test('isMapPreviewWorldDocumentDelivery rejects exhausted terminal without world document', () => {
   assert.strictEqual(isMapPreviewWorldDocumentDelivery({ delivery: 'exhausted' }), false)
+})
+
+test('worldDocumentHasSimulationRiverMask requires a non-empty Uint8Array', () => {
+  assert.strictEqual(worldDocumentHasSimulationRiverMask(null), false)
+  assert.strictEqual(worldDocumentHasSimulationRiverMask({ gridWidth: 2, gridHeight: 2 }), false)
+  assert.strictEqual(
+    worldDocumentHasSimulationRiverMask({ simulationRiverMask: new Uint8Array(0) }),
+    false,
+  )
+  assert.strictEqual(
+    worldDocumentHasSimulationRiverMask({ simulationRiverMask: new Uint8Array(4) }),
+    true,
+  )
+})
+
+test('simulationRiverMaskIsIndependentFromPresentationMasks rejects shared mask references', () => {
+  const shared = new Uint8Array(4)
+  assert.strictEqual(
+    simulationRiverMaskIsIndependentFromPresentationMasks({
+      simulationRiverMask: shared,
+      riverNetworkMask: shared,
+    }),
+    false,
+  )
+  assert.strictEqual(
+    simulationRiverMaskIsIndependentFromPresentationMasks({
+      simulationRiverMask: new Uint8Array(4),
+      riverNetworkMask: new Uint8Array(4),
+    }),
+    true,
+  )
+})
+
+test('worker validation step-complete payload carries populated simulationRiverMask', async () => {
+  const { posted, callbacks } = collectWorkerMessages()
+  const result = await runLandmassPipeline(workerParams, callbacks)
+
+  assert.strictEqual(result.status, 'success')
+  const validationComplete = posted.find(
+    (message) =>
+      /** @type {{ type?: string, stepId?: string }} */ (message).type === 'step-complete' &&
+      /** @type {{ stepId?: string }} */ (message).stepId === 'validation',
+  )
+  const worldDocument = /** @type {{ worldDocument?: import('../core/types.js').WorldDocument }} */ (
+    validationComplete
+  ).worldDocument
+  assert.ok(worldDocument)
+  assert.ok(worldDocumentHasSimulationRiverMask(worldDocument))
+  assert.ok(simulationRiverMaskIsIndependentFromPresentationMasks(worldDocument))
+  assert.ok(countMarkedCells(worldDocument.simulationRiverMask) > 0)
+})
+
+test('worker exhausted terminal payload carries populated simulationRiverMask', async () => {
+  const { posted, callbacks } = collectWorkerMessages()
+  const result = await runLandmassPipeline(
+    {
+      geographySeed: 999999,
+      prevailingWindDegrees: 270,
+      width: 16,
+      height: 16,
+      options: {
+        ...DEFAULT_WORLD_GENERATION_OPTIONS,
+        enforceCoastConnectedNavigablePath: true,
+        minCoastConnectedNavigablePathCells: 99_999,
+        maxValidationRetries: 0,
+      },
+    },
+    callbacks,
+  )
+
+  assert.strictEqual(result.status, 'exhausted')
+  posted.push(toWorkerTerminalMessage(result))
+  const terminal = posted.at(-1)
+  const worldDocument = /** @type {{ worldDocument?: import('../core/types.js').WorldDocument }} */ (
+    terminal
+  ).worldDocument
+  assert.ok(worldDocument)
+  assert.ok(worldDocumentHasSimulationRiverMask(worldDocument))
+})
+
+test('cloneWorldDocument deep-copies simulationRiverMask independently from presentation masks', () => {
+  const doc = runPipelineStep(
+    runPipelineStep(
+      runPipelineStep(createInitialPipelineState(workerParams), 'physicalTerrainBaseline'),
+      'erosion',
+    ),
+    'hydrology',
+  )
+  const source = buildWorldDocumentFromPipelineState(doc)
+  const cloned = cloneWorldDocument(source)
+
+  assert.ok(source.simulationRiverMask)
+  assert.ok(source.riverNetworkMask)
+  assert.ok(cloned.simulationRiverMask)
+  assert.ok(cloned.riverNetworkMask)
+  assert.notStrictEqual(cloned.simulationRiverMask, source.simulationRiverMask)
+  assert.notStrictEqual(cloned.riverNetworkMask, source.riverNetworkMask)
+  assert.ok(simulationRiverMaskIsIndependentFromPresentationMasks(cloned))
+
+  const originalSimulation = cloned.simulationRiverMask[0]
+  cloned.simulationRiverMask[0] = originalSimulation === 0 ? 1 : 0
+  assert.notStrictEqual(cloned.simulationRiverMask[0], source.simulationRiverMask[0])
+  assert.strictEqual(cloned.riverNetworkMask[0], source.riverNetworkMask[0])
+
+  cloned.riverNetworkMask[1] = source.riverNetworkMask[1] === 0 ? 1 : 0
+  assert.notStrictEqual(cloned.riverNetworkMask[1], source.riverNetworkMask[1])
+  assert.strictEqual(cloned.simulationRiverMask[1], source.simulationRiverMask[1])
+})
+
+test('worker preview clone retains simulationRiverMask when meander widens presentation masks', () => {
+  let state = createInitialPipelineState(meanderPreviewParams)
+  for (const step of DERIVED_GEOGRAPHY_STEPS) {
+    state = runPipelineStep(state, step.id)
+  }
+
+  const preview = cloneWorldDocument(buildWorldDocumentFromPipelineState(state))
+  assert.ok(preview.simulationRiverMask)
+  assert.ok(preview.riverNetworkMask)
+  assert.ok(worldDocumentHasSimulationRiverMask(preview))
+  assert.ok(simulationRiverMaskIsIndependentFromPresentationMasks(preview))
+  assert.ok(countMarkedCells(preview.simulationRiverMask) > 0)
+  assert.notStrictEqual(
+    countMarkedCells(preview.simulationRiverMask),
+    countMarkedCells(preview.riverNetworkMask),
+    'preview must keep settled simulation bytes when presentation centerline diverges',
+  )
 })

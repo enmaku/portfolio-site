@@ -9,6 +9,7 @@ import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays
  *
  * @typedef {Object} ViewportSpyState
  * @property {Array<{ x: number, y: number, color: number | null }>} drawnCircles
+ * @property {import('pixi.js').Graphics[]} graphicsLayers
  * @property {Array<{ visible: boolean, texture: unknown }>} spriteLayers
  * @property {Array<{ position: { x: number, y: number }, scale: number }>} viewportAnimations
  * @property {{ screenWidth: number, screenHeight: number, worldWidth: number, worldHeight: number } | null} lastViewportResize
@@ -16,11 +17,13 @@ import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays
  * @property {number} moveCenterCallCount
  * @property {(() => void) | null} resizeObserverCallback
  * @property {{ scale: { x: number, y: number }, center: { x: number, y: number } } | null} lastViewportInstance
+ * @property {Record<'coastalNodes' | 'metalNodes' | 'saltNodes', Array<{ x: number, y: number, color: number | null }>>} drawnCirclesByLayer
  */
 
 /** @type {ViewportSpyState} */
 export const viewportSpyState = {
   drawnCircles: [],
+  graphicsLayers: [],
   spriteLayers: [],
   viewportAnimations: [],
   lastViewportResize: null,
@@ -28,6 +31,11 @@ export const viewportSpyState = {
   moveCenterCallCount: 0,
   resizeObserverCallback: null,
   lastViewportInstance: null,
+  drawnCirclesByLayer: {
+    coastalNodes: [],
+    metalNodes: [],
+    saltNodes: [],
+  },
 }
 
 /** Skip viewport suites when the runtime lacks module mocking support. */
@@ -35,6 +43,7 @@ export const viewportTestOptions = { skip: !mock.module }
 
 export function resetViewportSpyState() {
   viewportSpyState.drawnCircles = []
+  viewportSpyState.graphicsLayers = []
   viewportSpyState.spriteLayers = []
   viewportSpyState.viewportAnimations = []
   viewportSpyState.lastViewportResize = null
@@ -42,6 +51,21 @@ export function resetViewportSpyState() {
   viewportSpyState.moveCenterCallCount = 0
   viewportSpyState.resizeObserverCallback = null
   viewportSpyState.lastViewportInstance = null
+  viewportSpyState.drawnCirclesByLayer = {
+    coastalNodes: [],
+    metalNodes: [],
+    saltNodes: [],
+  }
+}
+
+/** Vector overlay Graphics are always created coastal → metal → salt per viewport. */
+const VECTOR_LAYER_IDS = /** @type {const} */ (['coastalNodes', 'metalNodes', 'saltNodes'])
+
+function syncDrawnCirclesByLayer() {
+  const vectorLayers = viewportSpyState.graphicsLayers.slice(-VECTOR_LAYER_IDS.length)
+  for (let i = 0; i < VECTOR_LAYER_IDS.length; i += 1) {
+    viewportSpyState.drawnCirclesByLayer[VECTOR_LAYER_IDS[i]] = vectorLayers[i]?.circles ?? []
+  }
 }
 
 /**
@@ -108,15 +132,29 @@ export async function installViewportMocks() {
         },
       },
       Graphics: class {
+        constructor() {
+          /** @type {Array<{ x: number, y: number, color: number | null }>} */
+          this.circles = []
+          viewportSpyState.graphicsLayers.push(this)
+        }
+        syncDrawnCircles() {
+          viewportSpyState.drawnCircles = viewportSpyState.graphicsLayers.flatMap(
+            (layer) => layer.circles,
+          )
+          syncDrawnCirclesByLayer()
+        }
         clear() {
-          viewportSpyState.drawnCircles = []
+          this.circles = []
+          this.syncDrawnCircles()
         }
         circle(x, y) {
-          viewportSpyState.drawnCircles.push({ x, y, color: null })
+          this.circles.push({ x, y, color: null })
+          this.syncDrawnCircles()
         }
         fill({ color } = {}) {
-          const last = viewportSpyState.drawnCircles.at(-1)
+          const last = this.circles.at(-1)
           if (last) last.color = color
+          this.syncDrawnCircles()
         }
         rect() {}
       },
@@ -303,6 +341,17 @@ export function createArableRasterFixture() {
 /**
  * @returns {import('../core/types.js').WorldDocument}
  */
+export function createCoastalNodesFixture() {
+  return worldDocFixture({
+    gridWidth: 4,
+    gridHeight: 4,
+    coastalNodes: [{ id: 'mouth-0', x: 1, y: 1, kind: 'mouth' }],
+  })
+}
+
+/**
+ * @returns {import('../core/types.js').WorldDocument}
+ */
 export function createMetalsFixture() {
   const metalsRaster = new Float32Array(16)
   metalsRaster[6] = 0.85
@@ -350,4 +399,14 @@ export function lakesSpriteLayer() {
 /** Rivers sprite sits above lakes in the layer stack. */
 export function riversSpriteLayer() {
   return recentSpriteLayers()[6]
+}
+
+/**
+ * Per-vector-layer circle records from the most recently created viewport.
+ *
+ * @returns {ViewportSpyState['drawnCirclesByLayer']}
+ */
+export function drawnCirclesByLayer() {
+  syncDrawnCirclesByLayer()
+  return viewportSpyState.drawnCirclesByLayer
 }

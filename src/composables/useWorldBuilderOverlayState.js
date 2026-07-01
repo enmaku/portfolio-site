@@ -64,10 +64,10 @@ export function useWorldBuilderOverlayState(options) {
 
   /**
    * @param {string} resourceId
-   * @param {boolean} visible
+   * @param {boolean | null | undefined} visible
    */
   function toggleVisibility(resourceId, visible) {
-    commit(toggleResourceOverlayVisibility(state.value, resourceId, visible))
+    commit(toggleResourceOverlayVisibility(state.value, resourceId, visible === true))
   }
 
   /**

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
+import { BIOMES } from '../core/biomeIds.js'
+import { diffWorldDocumentMapLayers } from './diffWorldDocumentMapLayers.js'
 import {
   arableSpriteLayer,
   createArableRasterFixture,
@@ -9,6 +11,9 @@ import {
   createSaltNodeFixture,
   createTimberRasterFixture,
   installViewportMocks,
+  lakesSpriteLayer,
+  recentSpriteLayers,
+  riversSpriteLayer,
   timberSpriteLayer,
   uninstallViewportGlobals,
   viewportSpyState,
@@ -45,6 +50,51 @@ function multiRasterFixture() {
     timberRaster: createTimberRasterFixture().timberRaster,
     metalsRaster: createMetalsFixture().metalsRaster,
   }
+}
+
+function terrainSpriteLayer() {
+  return recentSpriteLayers()[0]
+}
+
+/**
+ * @param {Partial<import('../core/types.js').WorldDocument>} [overrides]
+ * @returns {import('../core/types.js').WorldDocument}
+ */
+function hydrologyDocumentFixture(overrides = {}) {
+  const gridWidth = 5
+  const gridHeight = 5
+  const cellCount = gridWidth * gridHeight
+  const displayBiomes = new Uint8Array(cellCount).fill(BIOMES.GRASSLAND)
+  const riverNetworkMask = new Uint8Array(cellCount)
+  const riverCorridorMask = new Uint8Array(cellCount)
+  const lakeMask = new Uint8Array(cellCount)
+
+  for (let y = 1; y <= 3; y += 1) {
+    riverNetworkMask[y * gridWidth + 2] = 1
+    riverCorridorMask[y * gridWidth + 2] = 1
+  }
+  lakeMask[7] = 1
+
+  return worldDocFixture({
+    gridWidth,
+    gridHeight,
+    displayBiomes,
+    biomes: displayBiomes,
+    lakeMask,
+    riverNetworkMask,
+    riverCorridorMask,
+    simulationRiverMask: riverNetworkMask,
+    flowDirection: new Int16Array(cellCount).fill(-1),
+    riverGraph: { nodes: [], edges: [] },
+    fields: {
+      elevation: new Float32Array(cellCount).fill(0.55),
+      drainage: new Float32Array(cellCount).fill(0.5),
+    },
+    arableRaster: new Float32Array(cellCount),
+    timberRaster: new Float32Array(cellCount),
+    metalsRaster: new Float32Array(cellCount),
+    ...overrides,
+  })
 }
 
 test(
@@ -175,6 +225,103 @@ test(
     assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 1)
     assert.strictEqual(arableSpriteLayer().visible, true)
     assert.strictEqual(timberSpriteLayer().visible, true)
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'updateWorldDocument displayBiomes-only change refreshes terrain not hydrology or rasters',
+  viewportTestOptions,
+  async () => {
+    const { getResourceRasterOverlayRgbaBuildCount, resetResourceRasterOverlayRgbaBuildCount } =
+      await importBuildCounters()
+
+    const fixture = hydrologyDocumentFixture()
+    const viewport = await createWorldBuilderMapViewport(createHostEl(), fixture)
+    const overlay = createOverlayOwnerDriver(viewport)
+
+    overlay.setVisibility('arable', true)
+    overlay.setVisibility('timber', true)
+
+    const terrainTextureBefore = terrainSpriteLayer().texture
+    const riversTextureBefore = riversSpriteLayer().texture
+    const lakesTextureBefore = lakesSpriteLayer().texture
+
+    const nextDoc = {
+      ...fixture,
+      displayBiomes: Uint8Array.from(fixture.displayBiomes, (value, index) =>
+        index === 0 ? BIOMES.DESERT : value,
+      ),
+    }
+    const changedLayers = diffWorldDocumentMapLayers(fixture, nextDoc)
+
+    resetResourceRasterOverlayRgbaBuildCount()
+    viewport.updateWorldDocument(nextDoc, { changedLayers })
+
+    assert.deepStrictEqual(changedLayers, ['terrain'])
+    assert.notStrictEqual(terrainSpriteLayer().texture, terrainTextureBefore)
+    assert.strictEqual(riversSpriteLayer().texture, riversTextureBefore)
+    assert.strictEqual(lakesSpriteLayer().texture, lakesTextureBefore)
+    assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 0)
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'updateWorldDocument presentation river mask change refreshes rivers not terrain or lakes',
+  viewportTestOptions,
+  async () => {
+    const fixture = hydrologyDocumentFixture()
+    const viewport = await createWorldBuilderMapViewport(createHostEl(), fixture)
+
+    const terrainTextureBefore = terrainSpriteLayer().texture
+    const riversTextureBefore = riversSpriteLayer().texture
+    const lakesTextureBefore = lakesSpriteLayer().texture
+
+    const nextDoc = {
+      ...fixture,
+      riverCorridorMask: Uint8Array.from(fixture.riverCorridorMask, (value, index) =>
+        index === 13 ? 1 : value,
+      ),
+    }
+    const changedLayers = diffWorldDocumentMapLayers(fixture, nextDoc)
+
+    viewport.updateWorldDocument(nextDoc, { changedLayers })
+
+    assert.deepStrictEqual(changedLayers, ['rivers'])
+    assert.notStrictEqual(riversSpriteLayer().texture, riversTextureBefore)
+    assert.strictEqual(terrainSpriteLayer().texture, terrainTextureBefore)
+    assert.strictEqual(lakesSpriteLayer().texture, lakesTextureBefore)
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'updateWorldDocument presentation lake mask change refreshes lakes not terrain or rivers',
+  viewportTestOptions,
+  async () => {
+    const fixture = hydrologyDocumentFixture()
+    const viewport = await createWorldBuilderMapViewport(createHostEl(), fixture)
+
+    const terrainTextureBefore = terrainSpriteLayer().texture
+    const riversTextureBefore = riversSpriteLayer().texture
+    const lakesTextureBefore = lakesSpriteLayer().texture
+
+    const nextDoc = {
+      ...fixture,
+      lakeMask: Uint8Array.from(fixture.lakeMask, (value, index) => (index === 8 ? 1 : value)),
+    }
+    const changedLayers = diffWorldDocumentMapLayers(fixture, nextDoc)
+
+    viewport.updateWorldDocument(nextDoc, { changedLayers })
+
+    assert.deepStrictEqual(changedLayers, ['lakes'])
+    assert.notStrictEqual(lakesSpriteLayer().texture, lakesTextureBefore)
+    assert.strictEqual(terrainSpriteLayer().texture, terrainTextureBefore)
+    assert.strictEqual(riversSpriteLayer().texture, riversTextureBefore)
 
     viewport.destroy()
   },

@@ -1,14 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {
-  HYDROLOGY_SUBSTEP_CONTRACTS,
-  HYDROLOGY_SUBSTEP_IDS,
-} from './hydrologySubstepContracts.js'
+import { HYDROLOGY_SUBSTEP_CONTRACTS } from './hydrologySubstepContracts.js'
 import {
   HYDROLOGY_SUBSTEP_MODULES,
   selectHydrologySubstepInput,
-} from './hydrologySubstepModules.js'
-import { createRiverMaskPipeline, riverMaskContractKey } from './riverMaskLifecycle.js'
+} from './substeps/index.js'
+import { riverMaskContractKey } from './riverMaskLifecycle.js'
+import { createInitialHydrologyWorld } from './hydrologyWorldTypes.js'
 import {
   createInitialPipelineState,
   runPipelineStep,
@@ -21,24 +19,6 @@ const params = {
   height: 32,
 }
 
-test('HYDROLOGY_SUBSTEP_IDS matches hydrology substep module order', () => {
-  assert.deepStrictEqual(HYDROLOGY_SUBSTEP_IDS, [
-    'hydrologyFill',
-    'hydrologyClimate',
-    'hydrologySeasonal',
-    'hydrologyRoute',
-    'hydrologyIncise',
-    'hydrologyExtract',
-    'hydrologyRefine',
-    'hydrologySettle',
-    'hydrologyPaint',
-  ])
-  assert.deepStrictEqual(
-    HYDROLOGY_SUBSTEP_MODULES.map((module) => module.id),
-    HYDROLOGY_SUBSTEP_IDS,
-  )
-})
-
 test('substep contracts are derived from the substep modules as a single source of truth', () => {
   for (const module of HYDROLOGY_SUBSTEP_MODULES) {
     const contract = HYDROLOGY_SUBSTEP_CONTRACTS[module.id]
@@ -50,28 +30,11 @@ test('substep contracts are derived from the substep modules as a single source 
   }
 })
 
-test('each hydrology substep declares a narrow non-empty input and output interface', () => {
-  for (const module of HYDROLOGY_SUBSTEP_MODULES) {
-    assert.ok(module.label.length > 0)
-    assert.ok(typeof module.run === 'function')
-    assert.ok(Object.keys(module.inputs).length > 0, `${module.id} inputs`)
-    assert.ok(module.outputKeys.length > 0, `${module.id} outputKeys`)
-    for (const select of Object.values(module.inputs)) {
-      assert.strictEqual(typeof select, 'function')
-    }
-  }
-})
-
 test('selectHydrologySubstepInput yields exactly the contract input keys', () => {
   let state = createInitialPipelineState(params)
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')
-  const world = {
-    state,
-    width: state.width,
-    height: state.height,
-    riverMaskPipeline: createRiverMaskPipeline(),
-  }
+  const world = createInitialHydrologyWorld(state)
 
   for (const module of HYDROLOGY_SUBSTEP_MODULES) {
     const input = selectHydrologySubstepInput(module, world)

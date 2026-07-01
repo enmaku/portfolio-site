@@ -2,6 +2,7 @@ import {
   applyResourceOverlayVisibility,
   createDefaultOverlayDisplaySettings,
   createDefaultResourceOverlayVisibility,
+  createResourceOverlayIds,
 } from './resourceOverlays.js'
 
 /** @typedef {import('./resourceOverlays.js').OverlayDisplaySettings} OverlayDisplaySettings */
@@ -37,15 +38,30 @@ export function resetResourceOverlayVisibilityState(state) {
 }
 
 /**
+ * Quasar QCheckbox treats null/undefined model-value as indeterminate. Coerce every
+ * overlay id to a strict boolean before binding or persisting owner state.
+ *
+ * @param {Record<string, boolean | null | undefined>} visibility
+ * @param {string[]} [resourceIds]
+ * @returns {Record<string, boolean>}
+ */
+export function normalizeResourceOverlayVisibility(
+  visibility,
+  resourceIds = createResourceOverlayIds(),
+) {
+  return Object.fromEntries(resourceIds.map((resourceId) => [resourceId, visibility[resourceId] === true]))
+}
+
+/**
  * @param {ResourceOverlayPageState} state
  * @param {string} resourceId
- * @param {boolean} visible
+ * @param {boolean | null | undefined} visible
  * @returns {ResourceOverlayPageState}
  */
 export function toggleResourceOverlayVisibility(state, resourceId, visible) {
   return {
     ...state,
-    visibility: applyResourceOverlayVisibility(state.visibility, resourceId, visible),
+    visibility: applyResourceOverlayVisibility(state.visibility, resourceId, visible === true),
   }
 }
 
@@ -83,8 +99,12 @@ export function syncResourceOverlayStateToViewport(viewport, state) {
  * @returns {ResourceOverlayPageState}
  */
 export function commitResourceOverlayState(viewport, nextState) {
-  if (viewport) {
-    syncResourceOverlayStateToViewport(viewport, nextState)
+  const normalizedState = {
+    ...nextState,
+    visibility: normalizeResourceOverlayVisibility(nextState.visibility),
   }
-  return nextState
+  if (viewport) {
+    syncResourceOverlayStateToViewport(viewport, normalizedState)
+  }
+  return normalizedState
 }

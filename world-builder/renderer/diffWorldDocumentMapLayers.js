@@ -179,12 +179,14 @@ export function diffWorldDocumentMapLayers(previous, next) {
   if (typedArrayContentChanged(previous.lakeMask, next.lakeMask)) {
     changedLayers.push('lakes')
   }
-  if (
-    nodeListChanged(previous.coastalNodes, next.coastalNodes) ||
-    nodeListChanged(previous.metalNodes, next.metalNodes) ||
-    nodeListChanged(previous.saltNodes, next.saltNodes)
-  ) {
-    changedLayers.push('vectorOverlays')
+  if (nodeListChanged(previous.coastalNodes, next.coastalNodes)) {
+    changedLayers.push('coastalNodes')
+  }
+  if (nodeListChanged(previous.metalNodes, next.metalNodes)) {
+    changedLayers.push('metalNodes')
+  }
+  if (nodeListChanged(previous.saltNodes, next.saltNodes)) {
+    changedLayers.push('saltNodes')
   }
 
   return changedLayers

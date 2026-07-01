@@ -5,7 +5,7 @@ import { createResourceOverlayDefinitions } from '../resourceOverlays.js'
 
 /**
  * Map layers whose visible output depends on overlay owner state. Resource raster
- * layers share an id with their resource; node markers composite into vectorOverlays.
+ * layers share an id with their resource; node markers map to per-family vector layers.
  *
  * @param {ResourceOverlayPageState} previous
  * @param {ResourceOverlayPageState} next
@@ -22,8 +22,11 @@ export function diffResourceOverlayMapLayers(previous, next) {
     if (definition.kind === 'raster' || definition.kind === 'rasterAndNodes') {
       changed.add(/** @type {MapLayerId} */ (definition.id))
     }
-    if (definition.kind === 'nodes' || definition.kind === 'rasterAndNodes') {
-      changed.add('vectorOverlays')
+    if (
+      (definition.kind === 'nodes' || definition.kind === 'rasterAndNodes') &&
+      definition.vectorLayerId
+    ) {
+      changed.add(definition.vectorLayerId)
     }
   }
 

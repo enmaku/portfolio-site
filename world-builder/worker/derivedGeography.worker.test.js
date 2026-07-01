@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { cloneWorldDocument, runLandmassPipeline } from '../core/derivedGeographyPipeline.js'
+import { cloneWorldDocument } from '../core/cloneWorldDocument.js'
+import { runLandmassPipeline } from '../core/derivedGeographyPipeline.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../core/worldGenerationOptions.js'
 import { createDerivedGeographyWorkerPipelineCallbacks } from './createDerivedGeographyWorkerPipelineCallbacks.js'
 import {
