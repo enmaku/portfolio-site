@@ -18,8 +18,8 @@ function intRasterChecksum(arr, stride = 97) {
 }
 
 const CATCHMENT_GOLDEN_CHECKSUMS = new Map([
-  [12345, 87557724],
-  [DEFAULT_GEOGRAPHY_SEED, 87539865],
+  [12345, 87541905],
+  [DEFAULT_GEOGRAPHY_SEED, 87579365],
 ])
 
 test('deriveBasinCatchments maps hillside cells into lake catchments', () => {

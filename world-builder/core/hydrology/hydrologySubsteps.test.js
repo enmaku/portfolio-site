@@ -512,6 +512,11 @@ test('runHydrologySubsteps places settled mouth nodes at ocean drainage cells', 
     prevailingWindDegrees: 90,
     width: 256,
     height: 256,
+    options: {
+      ...DEFAULT_WORLD_GENERATION_OPTIONS,
+      enableMeanderRefine: false,
+      riverAttractionRadiusScale: 0,
+    },
   })
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')
@@ -620,6 +625,7 @@ test('runHydrologySubsteps skips hydrologyRefine when enableMeanderRefine is fal
     options: {
       ...DEFAULT_WORLD_GENERATION_OPTIONS,
       enableMeanderRefine: false,
+      riverAttractionRadiusScale: 0,
     },
   })
   state = runPipelineStep(state, 'physicalTerrainBaseline')
@@ -737,9 +743,13 @@ test('legacy meander refine leaves the simulation river mask unchanged', () => {
 
 test('legacy corridor attraction leaves the simulation river mask unchanged', () => {
   const seed = 5000
-  const { state: withoutAttraction } = runHydrologyForSeed(seed)
-  const { state: withAttraction } = runHydrologyForSeed(seed, {
+  const leanOptions = {
     ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    riverAttractionRadiusScale: 0,
+  }
+  const { state: withoutAttraction } = runHydrologyForSeed(seed, leanOptions)
+  const { state: withAttraction } = runHydrologyForSeed(seed, {
+    ...leanOptions,
     riverAttractionRadiusScale: 6,
   })
 
@@ -763,6 +773,7 @@ test('runHydrologySubsteps reports mask lifecycle transitions at substep seams',
     options: {
       ...DEFAULT_WORLD_GENERATION_OPTIONS,
       enableMeanderRefine: false,
+      riverAttractionRadiusScale: 0,
     },
   })
   state = runPipelineStep(state, 'physicalTerrainBaseline')
@@ -815,6 +826,7 @@ test('skip refine transition is deterministic for a fixed seed', () => {
   const options = {
     ...DEFAULT_WORLD_GENERATION_OPTIONS,
     enableMeanderRefine: false,
+    riverAttractionRadiusScale: 0,
   }
   const first = runHydrologyForSeed(seed, options)
   const second = runHydrologyForSeed(seed, options)

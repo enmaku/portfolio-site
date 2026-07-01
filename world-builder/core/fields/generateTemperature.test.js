@@ -53,9 +53,9 @@ function rasterChecksum(arr, stride = 97) {
 }
 
 const TEMPERATURE_GOLDEN_CHECKSUMS = new Map([
-  [12345, 1298759527],
-  [31842, 1650857958],
-  [DEFAULT_GEOGRAPHY_SEED, 1610417695],
+  [12345, 1559545708],
+  [31842, 582217037],
+  [DEFAULT_GEOGRAPHY_SEED, 1813413154],
 ])
 
 test('generateTemperature returns finite values for a 1-row grid', () => {

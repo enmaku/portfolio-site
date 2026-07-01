@@ -15,9 +15,9 @@ function rasterChecksum(arr, stride = 97) {
 }
 
 const ADVECTION_GOLDEN_CHECKSUMS = new Map([
-  [12345, 104894547],
-  [31842, 1257282474],
-  [DEFAULT_GEOGRAPHY_SEED, 1252986939],
+  [12345, 1947922035],
+  [31842, 684776590],
+  [DEFAULT_GEOGRAPHY_SEED, 1990936506],
 ])
 
 function buildIsland(width, height, landColStart, landColEnd) {

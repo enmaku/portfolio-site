@@ -61,7 +61,7 @@ test('buildLandTerrainRgba uses display biomes without reclassifying river cells
   )
 })
 
-test('buildLandTerrainRgba matches Option A default-seed river-corridor land tint', () => {
+test('buildLandTerrainRgba matches default-seed river-corridor land tint', () => {
   const doc = generateDerivedGeography({
     geographySeed: DEFAULT_GEOGRAPHY_SEED,
     prevailingWindDegrees: 90,
@@ -70,5 +70,5 @@ test('buildLandTerrainRgba matches Option A default-seed river-corridor land tin
   })
 
   const rgba = buildLandTerrainRgba(doc)
-  assert.strictEqual(fnv1aRgbaHash(rgba), '8bb4f645')
+  assert.strictEqual(fnv1aRgbaHash(rgba), 'e0760345')
 })

@@ -216,6 +216,7 @@ test('mask lifecycle snapshots follow sketch→incised→settled→presentation�
     options: {
       ...DEFAULT_WORLD_GENERATION_OPTIONS,
       enableMeanderRefine: false,
+      riverAttractionRadiusScale: 0,
     },
   })
   state = runPipelineStep(state, 'physicalTerrainBaseline')
@@ -321,6 +322,7 @@ test('skipRefine transition copies settled mask to presentation when refine is s
     options: {
       ...DEFAULT_WORLD_GENERATION_OPTIONS,
       enableMeanderRefine: false,
+      riverAttractionRadiusScale: 0,
     },
   })
   state = runPipelineStep(state, 'physicalTerrainBaseline')
@@ -377,9 +379,13 @@ test('enableMeanderRefine changes presentation mask but leaves simulationRiverMa
 
 test('riverAttractionRadiusScale changes presentation only and leaves simulationRiverMask byte-equal', () => {
   const seed = 5000
-  const { state: withoutAttraction } = runHydrologyForSeed(seed)
-  const { state: withAttraction } = runHydrologyForSeed(seed, {
+  const leanOptions = {
     ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    riverAttractionRadiusScale: 0,
+  }
+  const { state: withoutAttraction } = runHydrologyForSeed(seed, leanOptions)
+  const { state: withAttraction } = runHydrologyForSeed(seed, {
+    ...leanOptions,
     riverAttractionRadiusScale: 6,
   })
 

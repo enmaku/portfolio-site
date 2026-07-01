@@ -135,7 +135,11 @@ test('hydrology substeps drive the river mask lifecycle through the shared pipel
     prevailingWindDegrees: 90,
     width: 64,
     height: 64,
-    options: { ...DEFAULT_WORLD_GENERATION_OPTIONS, enableMeanderRefine: false },
+    options: {
+      ...DEFAULT_WORLD_GENERATION_OPTIONS,
+      enableMeanderRefine: false,
+      riverAttractionRadiusScale: 0,
+    },
   })
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')
@@ -173,9 +177,9 @@ test('hydrology substep contracts expose explicit river mask lifecycle stages', 
   assert.strictEqual(RIVER_MASK_SKIP_REFINE_TRANSITION, 'skipRefine')
 })
 
-test('issue #345 Option A defaults keep legacy presentation heuristics off', () => {
-  assert.strictEqual(DEFAULT_WORLD_GENERATION_OPTIONS.riverAttractionRadiusScale, 0)
-  assert.strictEqual(DEFAULT_WORLD_GENERATION_OPTIONS.enableMeanderRefine, false)
+test('DEFAULT_WORLD_GENERATION_OPTIONS enables presentation hydrology heuristics', () => {
+  assert.strictEqual(DEFAULT_WORLD_GENERATION_OPTIONS.riverAttractionRadiusScale, 7.5)
+  assert.strictEqual(DEFAULT_WORLD_GENERATION_OPTIONS.enableMeanderRefine, true)
 })
 
 test('default generation exports simulation centerline and presentation corridor mask', () => {
@@ -211,7 +215,4 @@ test('default generation exports simulation centerline and presentation corridor
     'presentation corridor should cover at least the centerline',
   )
   assert.notStrictEqual(doc.riverCorridorMask, doc.riverNetworkMask)
-
-  // Option A defaults skip meander refine; bytes may match, but validation/logistics must bind simulationRiverMask.
-  assert.deepStrictEqual(doc.simulationRiverMask, doc.riverNetworkMask)
 })

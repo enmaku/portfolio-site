@@ -5,11 +5,11 @@ import { generateDerivedGeography } from './generateDerivedGeography.js'
 import { runLandmassPipelineRun } from './derivedGeographyPipeline.js'
 import { generatePhysicalTerrainBaseline } from './generatePhysicalTerrainBaseline.js'
 import { assertLakeMaskSurfacesMatchMeta } from './hydrology/lakeDisplayCoherence.js'
-import { DEFAULT_GEOGRAPHY_SEED } from './worldGenerationOptions.js'
+import { DEFAULT_GEOGRAPHY_SEED, DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
 import { DEFAULT_GRID_SIZE, PIPELINE_STAGE_DERIVED_GEOGRAPHY } from './types.js'
 import { isOceanCell } from './fields/applyClosedIslandRim.js'
 import { downstreamIndex } from './hydrology/computeFlowAccumulation.js'
-import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
+import { countMarkedCells } from './hydrology/riverNetwork.js'
 
 const params = {
   geographySeed: 12345,
@@ -134,10 +134,7 @@ test('generateDerivedGeography default seed produces visible river network on fu
     height: DEFAULT_GRID_SIZE,
   })
 
-  let maskCount = 0
-  for (let i = 0; i < doc.riverNetworkMask.length; i += 1) {
-    if (doc.riverNetworkMask[i]) maskCount += 1
-  }
+  const maskCount = countMarkedCells(doc.simulationRiverMask)
 
   assert.ok(
     maskCount >= 500,
@@ -150,6 +147,11 @@ test('generateDerivedGeography seed 77814242 detects river mouths at shoreline d
   const doc = generateDerivedGeography({
     geographySeed: 77814242,
     prevailingWindDegrees: 90,
+    options: {
+      ...DEFAULT_WORLD_GENERATION_OPTIONS,
+      enableMeanderRefine: false,
+      riverAttractionRadiusScale: 0,
+    },
   })
 
   assert.ok(

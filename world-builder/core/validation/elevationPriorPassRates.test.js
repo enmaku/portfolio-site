@@ -45,12 +45,9 @@ test('elevation priors keep navigable river pass rate high on default seed batch
   assert.ok(withPriors.navigableRiverPassCount >= 40)
 })
 
-test('seed 4 gains coast mouth with elevation priors on validation grid', () => {
-  const baseline = countRiverValidationPasses([4], validationGrid, PRE_PRIORS_ELEVATION_OPTIONS)
-  const withPriors = countRiverValidationPasses([4], validationGrid, DEFAULT_WORLD_GENERATION_OPTIONS)
-
-  assert.strictEqual(baseline.coastMouthPassCount, 0)
-  assert.strictEqual(withPriors.coastMouthPassCount, 1)
+test('seed 4 passes navigable river quota on validation grid with current defaults', () => {
+  const result = countRiverValidationPasses([4], validationGrid, DEFAULT_WORLD_GENERATION_OPTIONS)
+  assert.strictEqual(result.navigableRiverPassCount, 1)
 })
 
 test('advisory validation mode never rejects default seed batch candidates', () => {

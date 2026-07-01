@@ -56,27 +56,27 @@ test('resolveWorldGenerationOptions preserves maxValidationRetries default', () 
   assert.strictEqual(options.maxValidationRetries, 3)
 })
 
-test('resolveWorldGenerationOptions defaults legacy presentation heuristics off (issue #345 Option A)', () => {
+test('resolveWorldGenerationOptions defaults presentation hydrology heuristics on', () => {
   const options = resolveWorldGenerationOptions()
-  assert.strictEqual(options.riverAttractionRadiusScale, 0)
-  assert.strictEqual(options.enableMeanderRefine, false)
+  assert.strictEqual(options.riverAttractionRadiusScale, 7.5)
+  assert.strictEqual(options.enableMeanderRefine, true)
 })
 
 test('resolveWorldGenerationOptions merges enableMeanderRefine override', () => {
-  const options = resolveWorldGenerationOptions({ enableMeanderRefine: true })
-  assert.strictEqual(options.enableMeanderRefine, true)
-  assert.strictEqual(options.riverAttractionRadiusScale, 0)
+  const options = resolveWorldGenerationOptions({ enableMeanderRefine: false })
+  assert.strictEqual(options.enableMeanderRefine, false)
+  assert.strictEqual(options.riverAttractionRadiusScale, 7.5)
 })
 
-test('resolveWorldGenerationOptions merges riverAttractionRadiusScale for presentation opt-in', () => {
+test('resolveWorldGenerationOptions merges riverAttractionRadiusScale override', () => {
   const options = resolveWorldGenerationOptions({ riverAttractionRadiusScale: 6 })
   assert.strictEqual(options.riverAttractionRadiusScale, 6)
-  assert.strictEqual(options.enableMeanderRefine, false)
+  assert.strictEqual(options.enableMeanderRefine, true)
 })
 
 test('resolveWorldGenerationOptions preserves rainfall amount default', () => {
   const options = resolveWorldGenerationOptions()
-  assert.strictEqual(options.rainfallAmountScale, 1.4)
+  assert.strictEqual(options.rainfallAmountScale, 1.9)
   assert.strictEqual(options.biomeEdgeNoiseStrength, 1)
 })
 
@@ -95,12 +95,12 @@ test('resolveWorldGenerationOptions preserves seasonal hydrology defaults', () =
   const options = resolveWorldGenerationOptions()
   assert.strictEqual(options.enableSeasonalHydrology, true)
   assert.strictEqual(options.seasonalBiomeInfluenceScale, 0.2)
-  assert.strictEqual(options.seasonalYearCount, 5)
-  assert.strictEqual(options.dryRainMult, 0.15)
-  assert.strictEqual(options.wetRainMult, 1)
+  assert.strictEqual(options.seasonalYearCount, 20)
+  assert.strictEqual(options.dryRainMult, 0.42)
+  assert.strictEqual(options.wetRainMult, 2.15)
   assert.strictEqual(options.yearlyClimateNoiseScale, 0.15)
-  assert.strictEqual(options.meltReleaseScale, 1)
-  assert.strictEqual(options.lakeBankCrumblePerYear, 0)
+  assert.strictEqual(options.meltReleaseScale, 1.6)
+  assert.strictEqual(options.lakeBankCrumblePerYear, 1)
 })
 
 test('resolveWorldGenerationOptions merges enableSeasonalHydrology override', () => {

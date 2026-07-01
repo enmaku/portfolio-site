@@ -130,14 +130,15 @@ test('world document exposes a populated simulation river mask after hydrology',
   assert.ok(doc.simulationRiverMask.some((value) => value === 1))
 })
 
-test('default generation simulation river mask equals the settled display centerline', () => {
+test('default generation populates simulation and presentation river masks', () => {
   let state = createInitialPipelineState(params)
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')
   state = runPipelineStep(state, 'hydrology')
 
   const doc = buildWorldDocumentFromPipelineState(state)
-  assert.deepStrictEqual(doc.simulationRiverMask, doc.riverNetworkMask)
+  assert.ok(doc.simulationRiverMask.some((value) => value === 1))
+  assert.ok(doc.riverNetworkMask.some((value) => value === 1))
 })
 
 test('world document simulation river mask is invariant to corridor attraction', () => {
@@ -155,7 +156,10 @@ test('world document simulation river mask is invariant to corridor attraction',
     return buildWorldDocumentFromPipelineState(state)
   }
 
-  const withoutAttraction = buildDoc(DEFAULT_WORLD_GENERATION_OPTIONS)
+  const withoutAttraction = buildDoc({
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    riverAttractionRadiusScale: 0,
+  })
   const withAttraction = buildDoc({
     ...DEFAULT_WORLD_GENERATION_OPTIONS,
     riverAttractionRadiusScale: 6,
@@ -335,7 +339,7 @@ test('runPipelineStep hydrology records substep timings on state', () => {
   assert.strictEqual(state.hydrologySubstepTimings.length, 9)
 })
 
-test('runPipelineStep hydrology skips hydrologyRefine when enableMeanderRefine is false by default', () => {
+test('runPipelineStep hydrology runs hydrologyRefine by default', () => {
   let state = createInitialPipelineState(params)
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')
@@ -345,8 +349,8 @@ test('runPipelineStep hydrology skips hydrologyRefine when enableMeanderRefine i
     (row) => row.substepId === 'hydrologyRefine',
   )
   assert.ok(refineTiming)
-  assert.strictEqual(refineTiming.skipped, true)
-  assert.strictEqual(refineTiming.durationMs, 0)
+  assert.strictEqual(refineTiming.skipped, false)
+  assert.ok(refineTiming.durationMs > 0)
 })
 
 test('full pipeline generation report includes hydrology substep timings', () => {

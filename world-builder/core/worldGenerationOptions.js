@@ -9,46 +9,40 @@ export const DEFAULT_GEOGRAPHY_SEED = 0
 /** @type {WorldGenerationOptions} */
 export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   seaLevel: SEA_LEVEL,
-  elevationScale: 1.2,
-  elevationFrequencyScale: 1.3,
+  elevationScale: 1.5,
+  elevationFrequencyScale: 1.65,
   elevationOctaves: 6,
   elevationPersistence: 0.6,
   /** Domain warp amplitude in cells at REFERENCE_GRID_SIZE; 0 disables. */
-  elevationDomainWarpStrength: 16,
+  elevationDomainWarpStrength: 20,
   /** Pulls coastal land down and lifts inland plateaus for drainage headroom. */
-  elevationCoastBiasStrength: 0.125,
+  elevationCoastBiasStrength: 0.15,
   /** Smooths mid elevations while preserving peaks above ~0.78. */
-  elevationMidSmoothingStrength: 0.5,
+  elevationMidSmoothingStrength: 0.64,
   /** Adds high-frequency detail on steep slopes only. */
-  elevationSlopeRoughnessStrength: 0.08,
+  elevationSlopeRoughnessStrength: 0.105,
   /** Scales fine FBM octaves on gentle terrain; lower = smoother lowlands. */
-  elevationGentleSlopePersistenceScale: 0.38,
+  elevationGentleSlopePersistenceScale: 0.56,
   erosionStepCount: EROSION_STEP_COUNT,
-  erosionChannelWear: 0.01,
+  erosionChannelWear: 0.0185,
   erosionPeakWear: 0.001,
   inciseIterations: 8,
   streamPowerK: 0.0045,
   streamPowerM: 0.35,
   streamPowerN: 1.5,
   channelInitiationThreshold: 0.005,
-  rainShadowStrength: 1,
-  moistureAdvectionStrength: 0.65,
-  rainfallAmountScale: 1.4,
+  rainShadowStrength: 0.7,
+  moistureAdvectionStrength: 0.75,
+  rainfallAmountScale: 1.9,
   /** 0–1 strength of seeded fractal noise on inland biome boundaries. */
   biomeEdgeNoiseStrength: 1,
   temperatureLapseRate: 0.5,
   rainfallFrequencyScale: 1.35,
   navigableFlowCutoffScale: 0.6,
-  /**
-   * Issue #345 Option A — simulation vs presentation seam: legacy pathfinding/meander
-   * heuristics default off so the lean simulation path runs by default. Set
-   * riverAttractionRadiusScale > 0 and/or enableMeanderRefine to opt into presentation
-   * corridor bridging and meander refine on the presentation hydrologyRefine substep.
-   */
-  /** Legacy presentation: corridor bridging via A* paths; 0 disables connectNearbyRiverCorridors. */
-  riverAttractionRadiusScale: 0,
-  /** Legacy presentation: hydrologyRefine substep (A* meander); off by default (Option A). */
-  enableMeanderRefine: false,
+  /** Presentation corridor bridging via A* paths; 0 disables connectNearbyRiverCorridors. */
+  riverAttractionRadiusScale: 7.5,
+  /** Presentation hydrologyRefine substep (A* meander). */
+  enableMeanderRefine: true,
   /** Legacy: meander strength when enableMeanderRefine is true. */
   riverMeanderStrength: 1.4,
   /** Legacy: valley settling when enableMeanderRefine is true (presentation carve disabled). */
@@ -56,7 +50,7 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   /** Legacy: tributary merge bias when enableMeanderRefine is true. */
   riverMergeStrength: 1.4,
   minLakeAreaScale: 1,
-  soilDrainageScale: 1.6,
+  soilDrainageScale: 1.25,
   maxSaltNodes: 12,
   maxMetalNodes: 12,
   /** Cells below this arable score are treated as non-arable (0). */
@@ -70,15 +64,15 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   enableSeasonalHydrology: true,
   /** 0–1 blend of season-weighted climate onto land biome classification. */
   seasonalBiomeInfluenceScale: 0.2,
-  seasonalYearCount: 5,
-  dryRainMult: 0.15,
-  wetRainMult: 1,
+  seasonalYearCount: 20,
+  dryRainMult: 0.42,
+  wetRainMult: 2.15,
   yearlyClimateNoiseScale: 0.15,
   lakeEvaporationScale: 1,
-  snowAccumRate: 1,
-  meltReleaseScale: 1,
+  snowAccumRate: 1.55,
+  meltReleaseScale: 1.6,
   /** Largest lakes that lose a bank segment each simulation year (0 disables). */
-  lakeBankCrumblePerYear: 0,
+  lakeBankCrumblePerYear: 1,
   enforceNavigableRiverQuota: false,
   enforceCoastMouth: false,
   enforceHacksLawExponent: false,

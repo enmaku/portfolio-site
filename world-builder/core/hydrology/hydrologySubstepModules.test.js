@@ -169,7 +169,11 @@ test('hydrologyExtract delegate records post-incision flow solve on the session 
 })
 
 test('hydrologyRefine module is skipped when meander refine is disabled, copying settled to presentation', () => {
-  const options = { ...DEFAULT_WORLD_GENERATION_OPTIONS, enableMeanderRefine: false }
+  const options = {
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    enableMeanderRefine: false,
+    riverAttractionRadiusScale: 0,
+  }
   const { ran, riverMaskPipeline } = composeSubsteps(erodedState(options), 'hydrologyRefine')
 
   assert.ok(ran.includes('hydrologyRefine:skipped'))
