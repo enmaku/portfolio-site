@@ -57,7 +57,6 @@ export function runGeographyValidationChecks(slice) {
     biomes,
     riverGraph,
     riverNetwork,
-    coastalNodes,
     gridWidth,
     gridHeight,
     hydrologyStats = {
@@ -110,16 +109,16 @@ export function runGeographyValidationChecks(slice) {
     ),
   )
 
-  const mouthNodes = coastalNodes.filter((node) => node.kind === 'mouth')
-  const coastMouthPass = mouthNodes.length >= 1
+  const mouthCount = metrics.mouthCount
+  const coastMouthPass = mouthCount >= 1
   rows.push(
     createValidationRow(
       'coastMouth',
       resolveValidationCheckStatus(coastMouthPass, 'coastMouth', validationOptions),
       coastMouthPass
-        ? `Coast mouths: ${mouthNodes.length}`
+        ? `River mouths: ${mouthCount}`
         : 'No river mouths detected',
-      coastMouthPass ? undefined : { x: gridWidth / 2, y: gridHeight - 2, zoom: 2 },
+      coastMouthPass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
     ),
   )
 

@@ -276,12 +276,65 @@ test('runGeographyValidationChecks omits mapFocus on passing coast and navigable
   }
 })
 
-test('runGeographyValidationChecks exposes coastMouth mapFocus toward south coast on failure', () => {
+test('runGeographyValidationChecks exposes coastMouth mapFocus on failure', () => {
   const gridWidth = 32
   const gridHeight = 32
   const row = runGeographyValidationChecks(makeSlice()).find((entry) => entry.checkId === 'coastMouth')
   assert.strictEqual(row?.status, 'warn')
-  assert.deepStrictEqual(row?.mapFocus, { x: gridWidth / 2, y: gridHeight - 2, zoom: 2 })
+  assert.deepStrictEqual(row?.mapFocus, { x: gridWidth / 2, y: gridHeight / 2, zoom: 1 })
+})
+
+test('runGeographyValidationChecks passes coastMouth when river graph mouths sit inside edge margin', () => {
+  const gridWidth = 48
+  const gridHeight = 48
+  const cellCount = gridWidth * gridHeight
+  const fields = {
+    elevation: new Float32Array(cellCount).fill(0.5),
+    temperature: new Float32Array(cellCount).fill(0.5),
+    rainfall: new Float32Array(cellCount).fill(0.5),
+    drainage: new Float32Array(cellCount).fill(0.5),
+    salinity: new Float32Array(cellCount).fill(0.15),
+  }
+  for (let i = 0; i < gridWidth; i += 1) {
+    fields.elevation[i] = 0.2
+    fields.salinity[i] = 1
+  }
+  const biomes = new Uint8Array(cellCount).fill(BIOMES.GRASSLAND)
+  biomes.fill(BIOMES.OCEAN, 0, gridWidth)
+  const riverGraph = {
+    nodes: [{ id: 'm', x: 3, y: gridHeight - 3, kind: 'mouth' }],
+    edges: [],
+  }
+  const row = runGeographyValidationChecks({
+    fields,
+    biomes,
+    riverGraph,
+    coastalNodes: [],
+    gridWidth,
+    gridHeight,
+    hydrologyStats: {
+      breachCount: 0,
+      endorheicCount: 0,
+      endorheicFraction: 0,
+      lakeCount: 0,
+    },
+    hydrologyMetrics: computeHydrologyMetrics({
+      elevation: fields.elevation,
+      drainage: fields.drainage,
+      riverGraph,
+      riverNetwork: {
+        graph: riverGraph,
+        centerline: new Uint8Array(cellCount),
+        simulationCenterline: new Uint8Array(cellCount),
+      },
+      gridWidth,
+      gridHeight,
+    }),
+    validationOptions: DEFAULT_WORLD_GENERATION_OPTIONS,
+  }).find((entry) => entry.checkId === 'coastMouth')
+
+  assert.strictEqual(row?.status, 'pass')
+  assert.match(row?.summary ?? '', /River mouths: 1/)
 })
 
 test('runGeographyValidationChecks resolves river metrics from assembled contract', () => {
