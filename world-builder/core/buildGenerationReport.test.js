@@ -166,7 +166,7 @@ test('buildGenerationReport exposes logistics-facing validation signals', () => 
 test('buildGenerationReport surfaces structured rejection reasons for enforced failures', () => {
   const report = buildGenerationReport(
     makeReportParams({
-      coastalNodes: [],
+      riverGraph: { nodes: [], edges: [] },
       validationOptions: {
         ...DEFAULT_WORLD_GENERATION_OPTIONS,
         enforceCoastMouth: true,
