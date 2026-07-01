@@ -149,6 +149,7 @@
                 <q-toggle
                   v-if="control.kind === 'toggle'"
                   :model-value="Boolean(controlValue(control.key))"
+                  :disable="isGenerationControlDisabled(control.key, generationOptions)"
                   :data-testid="control.testId"
                   color="primary"
                   @update:model-value="onToggleChange(control.key, $event)"
@@ -158,6 +159,7 @@
                   class="generation-control__slider full-width"
                   dense
                   :model-value="controlValue(control.key)"
+                  :disable="isGenerationControlDisabled(control.key, generationOptions)"
                   :data-testid="control.testId"
                   :min="control.min"
                   :max="control.max"
@@ -175,6 +177,7 @@
                     class="col generation-control__slider"
                     dense
                     :model-value="controlValue(control.key)"
+                    :disable="isGenerationControlDisabled(control.key, generationOptions)"
                     :data-testid="control.testId"
                     :min="control.min"
                     :max="control.max"
@@ -367,6 +370,7 @@ import {
   WORLD_BUILDER_GENERATION_CONTROL_SECTIONS,
   WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS,
   WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID,
+  isGenerationControlDisabled,
 } from '@world-builder/worldBuilderPageModel.js'
 import { useWorldBuilderPageController } from '../../composables/useWorldBuilderPageController.js'
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
@@ -398,6 +402,7 @@ const {
   toggleResourceOverlayVisibility,
   setResourceOverlayDisplaySetting,
   controlValue,
+  generationOptions,
   onToggleChange,
   onSliderInput,
   onSliderCommit,

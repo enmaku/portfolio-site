@@ -126,6 +126,7 @@ export function useWorldBuilderPageController(options) {
   const hydrologySubstepTimings = computed(() =>
     createHydrologySubstepTimingsForDisplay(generation.worldDocument.value?.generationReport),
   )
+  const generationOptions = computed(() => settingsStore.generationOptions)
 
   function regenerate() {
     generation.regenerate()
@@ -236,6 +237,7 @@ export function useWorldBuilderPageController(options) {
     toggleResourceOverlayVisibility: overlay.toggleVisibility,
     setResourceOverlayDisplaySetting: overlay.setDisplaySetting,
     controlValue,
+    generationOptions,
     onToggleChange,
     onSliderInput,
     onSliderCommit,

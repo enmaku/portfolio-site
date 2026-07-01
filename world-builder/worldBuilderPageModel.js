@@ -259,6 +259,7 @@ export {
   GEOGRAPHY_SEED_TOOLTIP,
   WORLD_BUILDER_GENERATION_CONTROL_SECTIONS,
   formatGenerationControlValue,
+  isGenerationControlDisabled,
 } from './worldBuilderGenerationControls.js'
 
 export {

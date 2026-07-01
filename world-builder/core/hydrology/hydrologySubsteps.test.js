@@ -625,7 +625,6 @@ test('runHydrologySubsteps skips hydrologyRefine when enableMeanderRefine is fal
     options: {
       ...DEFAULT_WORLD_GENERATION_OPTIONS,
       enableMeanderRefine: false,
-      riverAttractionRadiusScale: 0,
     },
   })
   state = runPipelineStep(state, 'physicalTerrainBaseline')
@@ -648,6 +647,42 @@ test('runHydrologySubsteps skips hydrologyRefine when enableMeanderRefine is fal
   assert.strictEqual(refineTiming.skipped, true)
   assert.strictEqual(refineTiming.durationMs, 0)
   assert.ok(hydrologyState.riverNetworkMask.some((value) => value === 1))
+})
+
+test('runHydrologySubsteps skips hydrologyRefine when meander is off even with river attraction enabled', () => {
+  let state = createInitialPipelineState({
+    ...params,
+    options: {
+      ...DEFAULT_WORLD_GENERATION_OPTIONS,
+      enableMeanderRefine: false,
+      riverAttractionRadiusScale: 6,
+    },
+  })
+  state = runPipelineStep(state, 'physicalTerrainBaseline')
+  state = runPipelineStep(state, 'erosion')
+
+  const { state: withAttractionEnabled, timings } = runHydrologySubsteps(state)
+
+  let leanState = createInitialPipelineState({
+    ...params,
+    options: {
+      ...DEFAULT_WORLD_GENERATION_OPTIONS,
+      enableMeanderRefine: false,
+      riverAttractionRadiusScale: 0,
+    },
+  })
+  leanState = runPipelineStep(leanState, 'physicalTerrainBaseline')
+  leanState = runPipelineStep(leanState, 'erosion')
+  const { state: withAttractionDisabled } = runHydrologySubsteps(leanState)
+
+  const refineTiming = timings.find((row) => row.substepId === 'hydrologyRefine')
+  assert.ok(refineTiming)
+  assert.strictEqual(refineTiming.skipped, true)
+  assert.strictEqual(refineTiming.durationMs, 0)
+  assert.ok(
+    riverMasksEqual(withAttractionEnabled.riverNetworkMask, withAttractionDisabled.riverNetworkMask),
+    'expected meander-off to ignore river attraction',
+  )
 })
 
 test('runHydrologySubsteps runs hydrologyRefine when enableMeanderRefine is true', () => {

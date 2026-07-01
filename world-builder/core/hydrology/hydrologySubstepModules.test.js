@@ -172,7 +172,6 @@ test('hydrologyRefine module is skipped when meander refine is disabled, copying
   const options = {
     ...DEFAULT_WORLD_GENERATION_OPTIONS,
     enableMeanderRefine: false,
-    riverAttractionRadiusScale: 0,
   }
   const { ran, riverMaskPipeline } = composeSubsteps(erodedState(options), 'hydrologyRefine')
 

@@ -1,7 +1,6 @@
 import {
   applyPresentationStageCorridorAttraction,
   applyRefineStageMeanderPresentation,
-  isCorridorAttractionEnabled,
 } from '../riverNetworkLegacyMeanders.js'
 import {
   applySkipRefineToPipeline,
@@ -31,9 +30,7 @@ export const hydrologyRefineSubstep = {
   },
   outputKeys: ['settledElevation', riverMaskContractKey('presentation')],
   skipTransition: RIVER_MASK_SKIP_REFINE_TRANSITION,
-  shouldSkip: (world) =>
-    !world.state.options.enableMeanderRefine &&
-    !isCorridorAttractionEnabled(world.width, world.state.options.riverAttractionRadiusScale),
+  shouldSkip: (world) => !world.state.options.enableMeanderRefine,
   run(input, { riverMaskPipeline }) {
     const {
       options,
@@ -57,10 +54,6 @@ export const hydrologyRefineSubstep = {
       flowDirection: settledFlowDirection,
       riverAttractionRadiusScale: options.riverAttractionRadiusScale,
     })
-    if (!options.enableMeanderRefine) {
-      setRiverMaskStage(riverMaskPipeline, 'presentation', attractedMask)
-      return {}
-    }
     const refined = applyRefineStageMeanderPresentation({
       sketchMask: attractedMask,
       elevation: settledElevation,

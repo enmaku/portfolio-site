@@ -90,15 +90,21 @@ _Avoid_: Painting these labels before **fields before labels** completes; treati
 
 ### Simulation hydrology
 
-Physics- and logistics-facing hydrology from the **landmass pipeline** through settled extract: stable simulation river centerline and graph metrics. Consumed by **validation checks**, generation reports, and future **logistics pass** work (**movement cost**, **trade route** viability, **maritime reach** inputs)—not map cosmetics or renderer overlays.
+Pre-refine drainage physics from the **landmass pipeline** through settled extract: flow direction, accumulation, and the settled centerline before optional **meander refine**. Input to refine and paint—not the authoritative definition of **traversable water** once the final map is drawn.
 
-_Avoid_: "River network" or "river network mask" alone when meaning **simulation hydrology**; using presentation centerline or corridor width for navigability **validation checks**; treating presentation-widened corridors as haul-capacity input.
+_Avoid_: "River network" or "river network mask" alone when meaning settled centerline vs final display; treating settled connectivity as final when **meander refine** bridged segments on the map; using simulation-only graphs for **validation checks** that claim to measure traversable rivers.
 
 ### Presentation hydrology
 
-Map-facing hydrology after optional refine and paint: display river centerline, painted corridor width, and river-adjacent display biome labels. Consumed by the renderer and display biome refresh—not **validation checks**, generation reports, or future logistics math.
+Map-facing hydrology after optional refine and paint: display river centerline, painted corridor width, and river-adjacent display biome labels. Consumed by the renderer and display biome refresh.
 
-_Avoid_: "River network mask" when meaning simulation centerline; treating presentation corridor width as haul-capacity input; conflating with **simulation hydrology**; drawing map overlays from simulation centerline alone.
+_Avoid_: "River network mask" when meaning simulation centerline; conflating with **simulation hydrology** when the question is what the player sees on the map.
+
+### Traversable water
+
+Water a **movement cost** or **trade route** graph treats as passable by boat or downstream haul—the same water the final map shows as river, lake, or navigable coast. **Canonical rule:** if the cell reads as water on the rendered **landmass** output, it is traversable; generation heuristics (including **meander refine**) must not draw connected rivers that the simulation then ignores.
+
+_Avoid_: "Navigable" metrics computed from a separate centerline graph while the map shows different connectivity; **simulation hydrology** alone as the traversability source when presentation paint disagrees; cosmetic bridges that fail the blue-pixel test.
 
 ### Logistics pass
 
@@ -449,6 +455,7 @@ Used by **rejection sampling**; same role as Dwarf Fortress biome and feature qu
 
 ## Flagged ambiguities
 
+- **Simulation vs presentation hydrology (#358, #365):** glossary now treats **traversable water** as map-truth (blue pixel). Existing docs and code still split simulation graph from presentation paint for navigability metrics—reconcile in implementation.
 - **WAAC** spelling vs playlist “WAC” / “WOAC”—canonical here is **WAAC cycle** (four explicit steps).
 - **Fantasy races** vs **culture**: playlist #14 argues species should diverge in cognition/biology; v1 **culture engine** may assume human-norm peoples unless a separate species layer is added later.
 - **Magic / industrial exceptions**: **ox paradox** and **population ceiling** assume pre-industrial logistics; teleportation, flying mounts, or preservation magic need explicit overrides or they break **supply-chain feudalism**.

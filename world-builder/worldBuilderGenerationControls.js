@@ -443,15 +443,26 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         testId: 'world-builder-control-flow-cutoff',
       },
       {
-        key: 'riverAttractionRadiusScale',
-        label: 'River attraction radius',
+        key: 'soilDrainageScale',
+        label: 'Soil drainage',
         tooltip:
-          'Legacy corridor-bridging radius. When enabled, nudges disconnected river paths toward each other; zero disables.',
+          'Scales soil permeability in the drainage field. Lower values yield wetter soils and swamps; higher values speed runoff and dry ground.',
         kind: 'slider',
-        min: 0,
-        max: 15,
-        step: 0.5,
-        testId: 'world-builder-control-river-attraction',
+        min: 0.2,
+        max: 4,
+        step: 0.05,
+        testId: 'world-builder-control-soil-drainage',
+      },
+      {
+        key: 'minLakeAreaScale',
+        label: 'Minimum lake size',
+        tooltip:
+          'Minimum lake area relative to default. Lower values keep more small ponds; higher values filter out tiny lakes.',
+        kind: 'slider',
+        min: 0.25,
+        max: 3,
+        step: 0.05,
+        testId: 'world-builder-control-min-lake-area',
       },
       {
         key: 'enableMeanderRefine',
@@ -460,6 +471,17 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
           'Runs an optional hydrology refine pass that smooths river geometry for display. Does not change underlying drainage physics.',
         kind: 'toggle',
         testId: 'world-builder-control-meander-refine',
+      },
+      {
+        key: 'riverAttractionRadiusScale',
+        label: 'River attraction radius',
+        tooltip:
+          'Corridor-bridging radius during meander refine. Nudges disconnected river paths toward each other; zero disables attraction.',
+        kind: 'slider',
+        min: 0,
+        max: 15,
+        step: 0.5,
+        testId: 'world-builder-control-river-attraction',
       },
       {
         key: 'riverMeanderStrength',
@@ -494,28 +516,6 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         step: 0.05,
         testId: 'world-builder-control-river-merge',
       },
-      {
-        key: 'soilDrainageScale',
-        label: 'Soil drainage',
-        tooltip:
-          'Scales soil permeability in the drainage field. Lower values yield wetter soils and swamps; higher values speed runoff and dry ground.',
-        kind: 'slider',
-        min: 0.2,
-        max: 4,
-        step: 0.05,
-        testId: 'world-builder-control-soil-drainage',
-      },
-      {
-        key: 'minLakeAreaScale',
-        label: 'Minimum lake size',
-        tooltip:
-          'Minimum lake area relative to default. Lower values keep more small ponds; higher values filter out tiny lakes.',
-        kind: 'slider',
-        min: 0.25,
-        max: 3,
-        step: 0.05,
-        testId: 'world-builder-control-min-lake-area',
-      },
     ],
   },
   {
@@ -546,6 +546,23 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
     ],
   },
 ]
+
+/** Sliders grouped under the meander refine toggle in the Erosion & hydrology section. */
+export const MEANDER_REFINE_DEPENDENT_CONTROL_KEYS = new Set([
+  'riverAttractionRadiusScale',
+  'riverMeanderStrength',
+  'riverSettlementSteps',
+  'riverMergeStrength',
+])
+
+/**
+ * @param {string} key
+ * @param {import('./core/types.js').WorldGenerationOptions} options
+ * @returns {boolean}
+ */
+export function isGenerationControlDisabled(key, options) {
+  return MEANDER_REFINE_DEPENDENT_CONTROL_KEYS.has(key) && !options.enableMeanderRefine
+}
 
 /**
  * @param {string} key
