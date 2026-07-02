@@ -2,7 +2,7 @@
 
 Desktop app for procedural fantasy **worlds**: plausible **landmasses**, **settlements** and **trade networks** driven by logistics, and **histories** that produce **factions** and **rivalries** with traceable causes.
 
-Epic: [#293](https://github.com/enmaku/portfolio-site/issues/293). Research index: [`research/README.md`](./research/README.md) (Worldbuilding Insights playlist; [Dwarf Fortress terrain notes](./research/dwarf-fortress-terrain-notes.md)).
+Epic: [#293](https://github.com/enmaku/portfolio-site/issues/293) (overall); colonization phase: [#390](https://github.com/enmaku/portfolio-site/issues/390). Research index: [`research/README.md`](./research/README.md) (Worldbuilding Insights playlist; [Dwarf Fortress terrain notes](./research/dwarf-fortress-terrain-notes.md)).
 
 ## Language
 
@@ -38,9 +38,69 @@ _Avoid_: “Island generator” as the whole product; conflating with **maritime
 
 ### Landmass pipeline
 
-Ordered generation stages for one **landmass**: **scalar fields**, derived geography (biomes, hydrology), **logistics pass**, **rejection sampling**, then handoff to **culture engine**, **settlement** placement, and **history log**. Physical terrain completes before history simulation begins—same high-level split as Dwarf Fortress world creation (see research notes).
+Ordered generation stages for one **landmass** during **terrain authoring**: **scalar fields**, derived geography (biomes, hydrology), **logistics pass**, **rejection sampling**. Produces geography the **colonization phase** reads; no people, **settlements**, or **factions** until the user **Colonize**s. Same high-level physical-world-first split as Dwarf Fortress world creation (see research notes).
 
-_Avoid_: “Worldgen” as a single opaque step; skipping **validation checks** and accepting incoherent geography.
+_Avoid_: “Worldgen” as a single opaque step; skipping **validation checks** and accepting incoherent geography; auto-placing **settlements** when terrain generation finishes.
+
+### Terrain authoring
+
+First product phase: generate and tune a **landmass** until the user is satisfied—regenerate, tweak parameters, inspect overlays, pass **validation checks**. Ends when the user is ready to **Colonize**; geography is frozen (or only edited with explicit “break colonization” intent—TBD).
+
+_Avoid_: “Map editing phase” when **scalar fields** and pipeline stages are meant; conflating with **colonization phase** simulation.
+
+### Colonization phase
+
+Second product phase: user completes **colonization setup**, then **begin colonization** runs annual **epoch** ticks. Delivered in three product increments—**single-colony survival**, then **exploration and new settlements**, then **economy, politics, and history** together. Hands-off simulation after initial conditions: user sets geography and **colonist settings**, then the sim advances with minimal intervention—observe, **epoch step**, or **continuous colonization run**; no mid-run outcome edits in v1. Pause may adjust non-geography controls (e.g. extend **year cap**) without rewriting causality.
+
+_Avoid_: “History sim” alone when founding, expansion, and present-day structure are all meant; restarting terrain pipeline silently mid-colonization; requiring user unlock for core **faction** / **trade route** behavior once thresholds fire.
+
+### Single-colony survival
+
+First colonization increment: one **founding landing**, one growing **settlement**—no exploration, no additional **settlements**. Simulation tracks a **survival triad** at the landing site: food ( **arable envelope** ), freshwater, and a fuel/shelter proxy from local biomes—**salt**, metals, and inter-**settlement** trade deferred until increment 1 is proven (**strategic resource** preservation layer added before increment 1 is considered complete). Territorial expansion is settlement size only, not map claim. Runs until **equilibrium state**.
+
+_Avoid_: “Phase 1 worldgen”; conflating with **terrain authoring**; multi-**settlement** maps in the first colonization test slice; full **resource profile** accounting before the survival triad works.
+
+### Equilibrium state
+
+Colonization pause condition for **single-colony survival**: (1) local resource production meets consumption—food, water, and key **strategic resource** stockpiles stay within a stable band; and (2) the founding **settlement** reaches max size justified by local **arable envelope** and **haul-shed** (**population ceiling** for one site). User may acknowledge equilibrium early during testing when auto-thresholds are not yet trustworthy.
+
+_Avoid_: “Victory screen”; implying **colonization phase** ends permanently; population-stable-only detection that masks broken resource accounting.
+
+### Exploration and new settlements
+
+Second colonization increment: **exploration fog** overlay clears along **expedition** paths; additional **settlements** founded automatically at logistics nodes when **expeditions** succeed. **Expeditions** dispatch automatically with stochastic timing from each **settlement** in one realm (not independent **city-states** yet). Still before full **trade route**, **faction**, and **history log** interdependence.
+
+_Avoid_: “Expansion pack” naming; treating as optional when it is the planned second test gate; **city-state** independence before increment 3; requiring user confirmation per new **settlement** in hands-off mode.
+
+### Colonize
+
+User action that ends **terrain authoring** and opens **colonization setup**: place the **founding landing**, configure **colonist settings**, then **begin colonization** to start the clock. Available once terrain **validation checks** pass; colonization reads whatever geography layers exist and fills gaps with documented heuristics—full **logistics pass** is not a hard gate.
+
+_Avoid_: “Generate world” when only people-layer simulation is starting; blocking **Colonize** until every **landmass pipeline** stage is implemented; silent failure when a layer is missing instead of heuristic fallback.
+
+### Colonization setup
+
+Interactive step between **Colonize** and **begin colonization**: user places the **founding landing**, edits **colonist settings** (homeland flavor, era logistics, **history seed**), and reviews geography. Map time is frozen; no **settlements** or **epoch** ticks yet.
+
+_Avoid_: “Pre-sim” in UI copy; conflating with **terrain authoring** parameter panels.
+
+### Colonist settings
+
+Configuration during **colonization setup** for the founding wave. Increment 1 pane: **three-day haul distance** (scale calibration), **history seed**, **homeland flavor** (presets + notes for **landing culture snapshot**), optional **starting population**, optional **yield modifier** (marginal / typical / bountiful **arable envelope** interpretation). Later: simulation **year cap** (max **epochs** before auto-stop). Trade, diplomacy, and expansion temperament knobs wait for later increments.
+
+_Avoid_: “Civ picker” that implies pre-existing on-map peoples; “Difficulty” sliders without geographic meaning; settings that only apply to increment 3 **faction** play in the first test slice.
+
+### Begin colonization
+
+User action that commits **colonization setup** and starts the **colonization phase** clock—annual **epoch** ticks, expansion, **settlement** growth, and downstream simulation. **Terrain authoring** is hard-locked afterward; geography cannot change without resetting colonization state. The run ends when **political equilibrium** holds for N consecutive **epochs** or a **colonist settings** year cap is reached—whichever comes first; export may happen earlier.
+
+_Avoid_: “Play” / “Run” without colonization context; auto-starting simulation when the **founding landing** is placed; silent terrain edits mid-run; infinite run with no stop condition.
+
+### Founding landing
+
+Map cell where the first colonizing boat makes shore—the seed **settlement** and expansion origin for one founding wave. Chosen by the user at **Colonize** time; must be **Sail overlay**-reachable coast or river mouth unless params allow overland-only founding (TBD).
+
+_Avoid_: “Capital” before a **drain city** or political apex exists; random auto-placement without user intent.
 
 ### Scalar field
 
@@ -128,6 +188,36 @@ _Avoid_: “Navigable river graph” as a stand-in for **Sail overlay**; using u
 
 **Derivation:** not persisted—computed on demand from final water inputs and **fixed pipeline constants** (blur radius, high-pass threshold); validation and renderer share one deterministic function. Not user-adjustable in v1. **Meander refine** is optional—checks describe the generated map as shown, not a counterfactual with refine enabled.
 
+### Exploration fog
+
+Colonization overlay hiding unvisited territory until **expeditions** clear it. Cleared cells persist; uncleared cells hide geography-dependent opportunity until reached.
+
+_Avoid_: “Fog of war” in domain language when **exploration fog** is the product term; pre-revealing the whole map during **terrain authoring**.
+
+### Faction territory overlay
+
+Colonization map layer showing which **faction** controls each cell or **settlement** claim—primary political game board in increment 3.
+
+_Avoid_: “Borders” as hand-drawn lines without simulation claims; painting territory independent of **history log**.
+
+### Trade route overlay
+
+Colonization map layer showing active **trade routes**; blocked or embargoed corridors visually distinct from open haul.
+
+_Avoid_: Decorative path lines without commodity/volume semantics; user-drawn routes in hands-off mode.
+
+### Expedition
+
+An outbound trek from a **settlement** that advances **exploration fog**, surveys logistics nodes, and may lead to a new **settlement** site. Dispatched automatically with stochastic timing per sending **settlement**; exact routing and outcomes TBD.
+
+_Avoid_: “Scout unit” as schema keys; player micro of every path in increment 2 unless a later mode adds it.
+
+### Supply-chain independence
+
+When two **settlements** no longer share one viable bulk-food **grain circle**—the increment 3 entry signal. **Land branch**: beyond shared **haul-shed** (**ox paradox**). **Maritime branch**: a **drain city** sustains on **maritime reach** / import calories with its own sea-lane dependence, decoupled from inland **settlements** even if land distance is small.
+
+_Avoid_: “Too far apart” without haul math; ignoring **drain city** import logic when judging whether politics should activate.
+
 ### Logistics pass
 
 World Builder–specific **landmass pipeline** stage after physical terrain: **movement cost**, **haul-shed**, **maritime reach**, **arable envelope**, **strategic resource** placement, and **population ceiling** inputs—bulk haul economics the playlist defines and Dwarf Fortress does not model at macro scale.
@@ -152,11 +242,17 @@ Deterministic input to **history log** simulation after **landmass** and initial
 
 _Avoid_: Single **seed** in export when authors need to share geography-only or replay history variants.
 
+### Landing culture snapshot
+
+One-time **culture** output at **begin colonization**: compressed summary from **colonist settings** plus **environmental pressure stack** at the **founding landing**—readable flavor, not annual **WAAC** drift. Used in **single-colony survival**; full **culture engine** cycles deferred to later increments.
+
+_Avoid_: “Culture sheet” checklist; treating the snapshot as the full **six culture layers** simulation; rerolling culture every **epoch** in increment 1.
+
 ### Culture engine
 
-Causality-driven framework for generating **cultures**: **environmental pressures** and **five forces** run **WAAC cycles** that emit **culture layers**—not aesthetic-first trait picking.
+Causality-driven framework for generating **cultures**: **environmental pressures** and **five forces** run **WAAC cycles** that emit **culture layers**—not aesthetic-first trait picking. In **single-colony survival**, only a **landing culture snapshot** runs. In increment 3, **hybrid** mode: full **WAAC** at **faction** emergence, at **supply-chain independence**, and on major **history log** events—not continuous per-**epoch** drift for every **faction**.
 
-_Avoid_: “Lore generator”; “culture tables” that pick dress and gods without pressure inputs.
+_Avoid_: “Lore generator”; “culture tables” that pick dress and gods without pressure inputs; annual culture rerolls for all **factions** every **epoch**.
 
 ### WAAC cycle
 
@@ -233,9 +329,9 @@ _Avoid_: Post-hoc one-line justifications with no chain; “because it's cool.�
 
 ### Conflict engine
 
-Under any political surface (feudal, republic, tribal, …): **power centers** with wants, blockers, and actions—the machine that produces ongoing **rivalry**. Built from **WAAC cycles**, not throne furniture.
+Under any political surface (feudal, republic, tribal, …): **power centers** with wants, blockers, and actions—the machine that produces ongoing **rivalry**. Built from **WAAC cycles**, not throne furniture. Increment 3: routine border pressure resolves as **economic contest** (haul capacity, **strategic resource** stockpiles, **chokepoint** control); full **WAAC** cycles engage for major wars—not every skirmish each **epoch**.
 
-_Avoid_: “Factions” lists with static alignments; “everyone hates the evil king” without **obstacles**.
+_Avoid_: “Factions” lists with static alignments; “everyone hates the evil king” without **obstacles**; tactical battle simulation.
 
 ### Political skeleton
 
@@ -269,9 +365,9 @@ _Avoid_: “Kingdom” when the house is the actor; family name without economic
 
 ### Vassal
 
-**Middle-layer** holder of delegated authority (land, fort, toll)—**loyalty** tied to protection, profit, or habit.
+**Middle-layer** holder of delegated authority (land, fort, toll)—**loyalty** tied to protection, profit, or habit. Increment 3: internal to a **faction** as **notable figures** with **conditional loyalty** tied to **chokepoint** / **grain circle** economics—not separate **faction territory** until defection (major **history log** event may spawn a new **faction**).
 
-_Avoid_: “Lord” generically for every noble; vassal without a liege relationship.
+_Avoid_: “Lord” generically for every noble; vassal without a liege relationship; every **vassal** as an independent map **faction** in v1 increment 3.
 
 ### Supply-chain feudalism
 
@@ -293,15 +389,15 @@ _Avoid_: Infinite overland caravans; “500 miles” without cargo math.
 
 ### Haul-shed
 
-Region where delivery still pays after **ox paradox** (and road **movement cost**). Primary limit on land **trade** and garrison feeding.
+Region where delivery still pays after **ox paradox** (and road **movement cost**). Primary limit on land **trade** and garrison feeding. Extent is derived from **movement cost**, **three-day haul distance** (**colonist settings**), and **travel time**—not from raw grid pixels alone.
 
-_Avoid_: “Radius” in miles only; use **travel time** at human scale where possible.
+_Avoid_: “Radius” in miles only without calibration; fixed pixels-per-day baked into the **landmass** without author-facing scale.
 
 ### Three-day rule
 
-Rule of thumb: beyond ~three days' **travel time** by cart, bulk food **haul** often fails economically—not tradition, arithmetic.
+Rule of thumb: beyond ~three days' **travel time** by cart, bulk food **haul** often fails economically—not tradition, arithmetic. In v1 the distance implied by “three days” is set in **colonist settings** (calibrated **haul-shed** anchor) because the **landmass** grid has no intrinsic real-world scale.
 
-_Avoid_: Stating distances in miles/km alone for RPG prep; “two weeks north” without consistency.
+_Avoid_: Stating distances in miles/km alone for RPG prep; “two weeks north” without consistency; assuming one global real-world scale per grid cell without author calibration.
 
 ### Travel time
 
@@ -323,9 +419,9 @@ _Avoid_: Ports that are decorative; continents fed entirely by ox cart from one 
 
 ### Drain city
 
-**Settlement** that concentrates flow (often port or river hub)—“parasite” in the sense of importing surplus from a wide **arable envelope** or **maritime reach**, not local subsistence.
+**Settlement** that concentrates flow (often port or river hub)—imports surplus from a wide **arable envelope** or **maritime reach**, not local subsistence alone. **Parasite city** pattern: grows past local **population ceiling** by sea-fed calories; foreign policy becomes sea-lane control.
 
-_Avoid_: “Capital” with arbitrary population; metropolis in a food desert.
+_Avoid_: “Capital” with arbitrary population; metropolis in a food desert without import logic; treating as a normal inland **settlement** for **haul-shed** fracture.
 
 ### Population ceiling
 
@@ -338,6 +434,12 @@ _Avoid_: “100k city” by aesthetic; capitals larger than their hinterland can
 Land that can sustainably feed a **settlement** or **drain city** given era-appropriate yields and **haul**—typically many times the built area for pre-industrial density.
 
 _Avoid_: Farmland drawn only as map texture; farm percentage ignored (~80–95% rural in pre-industrial models).
+
+### Survival triad
+
+Minimum resource accounting for **single-colony survival**: food from **arable envelope**, freshwater from hydrology/coast access, fuel/shelter proxy from local biome and timber availability. Increment 1 test slice starts here; **salt** and fuller **strategic resource** layers complete increment 1 before **exploration and new settlements**.
+
+_Avoid_: “Needs bars” UI jargon; treating the triad as the full **economy** model.
 
 ### Strategic resource
 
@@ -353,39 +455,93 @@ _Avoid_: “Border” lines without funnel geography; castles off the corridor.
 
 ### Trade route
 
-Graph edge or corridor where moved goods still pay after **haul decay**—rivers, roads, sea lanes, **salt roads**—often explains **settlements** and **political middle layer** placement.
+Graph edge or corridor where moved goods still pay after **haul decay**—rivers, roads, sea lanes, **salt roads**—often explains **settlements** and **political middle layer** placement. Increment 3: geography proposes viable corridors; **faction** relations and **history log** events activate, tax, block, or sever them (war, embargo, treaty).
 
-_Avoid_: “Trade route” as a line on art without volume or commodity; every road equal.
+_Avoid_: “Trade route” as a line on art without volume or commodity; every road equal; user-drawn routes in hands-off mode.
 
 ### Settlement
 
-A persisted population node (hamlet to **drain city**) whose tier and role should be justified by **arable envelope**, **chokepoint**, **strategic resource**, or **trade route**—not random dots.
+A persisted population node (hamlet to **drain city**) whose tier and role should be justified by **arable envelope**, **chokepoint**, **strategic resource**, or **trade route**—not random dots. Exposes tier label and population count on inspect; size constrained by local **population ceiling** in **single-colony survival**.
 
-_Avoid_: “City” / “town” labels without simulation backing; one capital per kingdom by default.
+_Avoid_: “City” / “town” labels without simulation backing; one capital per kingdom by default; tier without backing population accounting.
+
+### Settlement tier
+
+RPG-facing size band for a **settlement** (e.g. hamlet → village → town). Primary label on the map; pairs with population count in inspect panels.
+
+_Avoid_: “Level” in domain language; tier divorced from **population ceiling** math.
+
+### Population overlay
+
+Map heatmap of where people actually are after each **epoch**'s **population collapse**—bulk population density, not just **settlement** pin dots.
+
+_Avoid_: “People layer” when only **settlement** markers are shown; static density painted by hand.
+
+### Bulk population
+
+The vast majority of people not simulated as individuals—held as regional parameters (density, distribution constraints) until **population collapse** each **epoch**.
+
+_Avoid_: “NPCs”; census lists for every farmer; agent simulation of every person in v1.
+
+### Population collapse
+
+Once per **epoch**, resolve bulk population parameters into a concrete spatial distribution for the **population overlay** and **settlement** totals—inspired by wavefunction-collapse-style constraint satisfaction (exact algorithm TBD). The canonical “where people are this year” observation.
+
+_Avoid_: “Render pass” alone when simulation state is meant; collapsing mid-epoch for gameplay sub-ticks unless explicitly modeled.
+
+### Notable figure
+
+A directly tracked person (explorer, lord, expedition leader, …) whose individual state matters to simulation or **history log**—outside **bulk population** accounting. Increment 1 test slice: none; founder before increment 1 complete. Increment 3 **power roster**: apex leader per **faction** plus key **vassals** at **chokepoints**, **drain city** stewards, and active **expedition** leads—handful per **faction**, not proportional census.
+
+_Avoid_: “Hero” in schema keys; simulating every notable as a full agent; full roster before exploration mechanics exist; dozens of tracked individuals per **city-state**.
 
 ### Faction
 
-Simulated **power center** or aligned group with territory claims, economic wants, and **rivalry** edges—emerges from **history log**, not only from culture dress.
+Simulated **power center** or aligned group with territory claims across one or more **settlements**, economic wants, and **rivalry** edges—emerges gradually in increment 3 from **supply-chain independence**, not at **founding landing**. A **city-state** is a **faction** whose capital **settlement** has reached sovereign town-tier or higher.
 
-_Avoid_: “Race = faction”; static good/evil teams.
+_Avoid_: “Race = faction”; static good/evil teams; 1:1 **faction** ↔ single hamlet without territorial claims.
+
+### City-state
+
+A **faction** whose capital **settlement** has reached sovereign town-tier or higher—an urban polity with its own **grain circle** or **maritime reach** dependence, not merely a fort on the frontier.
+
+_Avoid_: “Kingdom” when only one city is sovereign; **city-state** before increment 3 independence; labeling every **settlement** a **city-state**.
+
+### Political equilibrium
+
+Colonization stop condition (with **year cap** backstop): **faction** borders and **rivalry** intensity stabilize for N consecutive **epochs**—present-day snapshot is readable without major pending realignments.
+
+_Avoid_: “World peace” as victory; implying simulation cannot continue if user extends the **year cap**.
 
 ### Rivalry
 
-Directed political tension between **factions** with stored causes (border, succession, trade denial, old war)—for GM-readable hooks.
+Directed political tension between **factions** with stored causes—for GM-readable hooks. Increment 3 records causes sparsely when a **rivalry** edge is created or intensifies, across: **resource** (monopoly, embargo), **logistics** (**chokepoint**, **grain circle**, sea-lane), **territory** (border, succession), **legacy** (war, treaty), and **belief** (legitimacy, schism).
 
-_Avoid_: “They hate each other”; rivalry without **legacy** or resource **obstacle**.
+_Avoid_: “They hate each other”; **rivalry** without **legacy** or resource **obstacle**; logging every minor insult.
 
 ### History log
 
-Ordered **epochs** and events (founding, conquest, famine, treaty) that feed **legacy** and reshape borders.
+Ordered **epochs** and events (founding, conquest, famine, treaty) that feed **legacy** and reshape borders. Browsable in-app via **epoch scrubber** (map and **faction** state at selected year) and filterable **event feed** (wars, treaties, founding, …) that jumps to map locations.
 
-_Avoid_: “Timeline” as flavor-only; events that don’t touch **power centers**.
+_Avoid_: “Timeline” as flavor-only; events that don’t touch **power centers**; export-only log with no in-app investigation.
 
 ### Epoch
 
-Discrete simulation tick for **history log**—generational or seasonal abstraction, not necessarily year-by-year.
+Discrete simulation tick for **colonization phase** and **history log**—one in-world **year** per tick in v1 (harvest cycles, haul economics, and **history log** entries align to annual steps). v1 advances by manual **epoch step**; **continuous colonization run** with pause/speed is the target UX once epoch application is reliable.
 
-_Avoid_: “Year 1042” precision without source events; real-time simulation in v1 copy.
+_Avoid_: “Year 1042” precision without source events; real-time wall-clock simulation in v1 copy; conflating with **terrain authoring** (no **epochs** until **begin colonization**); generational or seasonal ticks unless explicitly switched in **colonist settings**.
+
+### Epoch step
+
+Manual advance of one **epoch** during **colonization phase**—primary v1 time control for testing and inspecting causality between ticks.
+
+_Avoid_: “Turn” in domain language when **epoch** is the persisted unit; sub-epoch micro-ticks in user-facing copy unless explicitly modeled.
+
+### Continuous colonization run
+
+Target UX: after **begin colonization**, simulation auto-advances **epochs** with pause and speed controls—same tick semantics as **epoch step**, not a different time model.
+
+_Avoid_: “Real-time strategy mode”; wall-clock tied to in-world days.
 
 ### Seed
 
@@ -395,17 +551,30 @@ _Avoid_: “Random” without reproducibility; sharing worlds without **seed** e
 
 ### World document
 
-Serializable snapshot: **geography seed**, **history seed**, stage parameters, geography **fields**, **settlements**, **factions**, **trade routes**, **history log**, derived **culture** summaries.
+Serializable snapshot: **geography seed**, **history seed**, stage parameters, geography **fields**, **settlements**, **factions**, **trade routes**, **history log**, derived **culture** summaries. At simulation stop, exports support a **campaign kit**—not JSON alone.
 
 _Avoid_: “Save file” in UI copy when the artifact is author-facing; PNG-only export as the whole **world**.
+
+### Campaign kit
+
+Primary GM deliverable when colonization reaches **political equilibrium** or **year cap**: map layers, structured **world document**, present-day brief (**factions**, **rivalries** with causes, key **settlements**), story hooks (border friction, **strategic resource** pressure, **vassal** defection risk), **reverse-engineering culture** notes per **faction**, and per-**settlement** **trade profile** (what each place wants and supplies for table-side trade play).
+
+_Avoid_: “Lore dump” without causal hooks; politics-only export when economic trade opportunities are omitted.
+
+### Settlement trade profile
+
+Per-**settlement** synopsis of wanted vs supplied commodities—structured surplus/deficit per simulated good (grain, fish, **salt**, metals, timber, …) with triad-style headlines in the **campaign kit** UI. Derived from local **resource profile**, **haul-shed**, and active **trade routes**.
+
+_Avoid_: Static flavor text without supply/demand backing; narrative-only profiles without structured fields; duplicating full **economy** simulation in the export blurb.
 
 ## Relationships
 
 - **Landmass pipeline → fields before labels**: **scalar fields** (elevation, rainfall, temperature, drainage, salinity) overlap into **biomes** and **resource rasters**; hydrology is derived (erosion, river graph)—not painted first (Dwarf Fortress pattern; see research notes).
 - **Landmass → hydrology → Sail overlay**: rivers, lakes, and coast on the final map feed **traversable water**; **meander refine** bridges must appear in **Sail overlay** connectivity, not only in presentation paint ignored by metrics.
 - **Landmass pipeline → logistics pass**: after physical terrain, **ox paradox**, **arable envelope**, **maritime reach**, and **strategic resource** nodes apply—World Builder’s layer on top of DF-style geography.
+- **Terrain authoring → Colonize → colonization setup → begin colonization**: user finishes tuning geography, places **founding landing**, sets **colonist settings**, then starts the **colonization phase** clock on a fixed **landmass**.
 - **Rejection sampling → validation checks**: failed **population ceiling**, haul corridor, or node presence → regenerate candidate **landmass**; reject reasons inform tuning.
-- **Geography seed / history seed → world document**: same map with different **history log** when only **history seed** changes.
+- **Geography seed / history seed → world document**: same map with different **history log** when only **history seed** changes; **founding landing** is independent of **geography seed**.
 - **Named region → culture engine**: **exchange** and **connectivity** pressures often differ by contiguous region cluster, not single-tile **biome**.
 - **Landmass → environmental pressure stack**: elevation, hydrology, and **climate** produce movement cost, visibility, connectivity, predictability, survival stress, and **resource profile** inputs.
 - **Environmental pressure stack → culture engine**: pressures run **WAAC cycles** that fill **six culture layers** per people; **exchange** modulates isolation vs synthesis.
@@ -413,11 +582,13 @@ _Avoid_: “Save file” in UI copy when the artifact is author-facing; PNG-only
 - **Ox paradox + movement cost → haul-shed**: caps land **trade**; explains **three-day rule** and spacing of **baronies** along **grain circle** routes.
 - **Maritime reach → drain city**: sea **haul cost** enables large **population ceiling** off-site; **strategic resource** ports become **power centers**.
 - **Settlement + haul → trade route**: routes are viable edges on the movement graph; **chokepoints** attract toll **vassals** and forts.
+- **Bulk population → population collapse → population overlay**: each **epoch**, parameters resolve to density the map can show; **notable figures** stay tracked outside the bulk model.
 - **Trade route + strategic resource → conflict engine**: scarcity creates **obstacles** between **power centers**; **exchange** force drives smuggling and alliance.
 - **Supply-chain feudalism → political middle layer**: **vassals** hold nodes on **grain circle** and **trade route** graphs; **conditional loyalty** when logistics shift.
 - **Five forces → conflict engine**: same **WAAC** machinery as **culture engine**; **belief** **legitimizes** **power**; **legacy** stores grudges as **rivalry**.
 - **History log → legacy → rivalry**: wars and treaties rewrite borders and **faction** wants; present politics read from the log, not freehand borders.
 - **Reverse-engineering culture ↔ export**: GM-facing tooltips trace rituals and borders to pressures for table use.
+- **Campaign kit export**: present-day brief, political hooks, per-**faction** culture notes, per-**settlement** **trade profile** (wants/supplies)—primary GM deliverable at simulation stop.
 
 ## Example dialogue
 
@@ -427,6 +598,7 @@ _Avoid_: “Save file” in UI copy when the artifact is author-facing; PNG-only
 - “**Rivalry** here is trade denial on **salt**, not ‘evil neighbors’—check the **strategic resource** layer.”
 - “Same **geography seed**, new **history seed**—the delta’s still there; only the **faction** borders moved.”
 - “**Rejection sampling** dropped that map: capital over **population ceiling** with no **maritime reach**.”
+- “**Colonize** at the delta mouth—set **three-day haul distance** in **colonist settings**, then **begin colonization**.”
 
 ## Landmass constraints (simulation inputs)
 
@@ -438,9 +610,16 @@ Geography is not decorative: **landmass pipeline** stages must emit fields the *
 2. **Derived geography** — **biomes**, erosion, river graph, lakes, coast navigability, mineral and **strategic resource** nodes.
 3. **Logistics pass** — **movement cost**, visibility, connectivity, **arable envelope**, **maritime reach**, natural threat zones.
 4. **Rejection sampling** — **validation checks**; regenerate on failure.
-5. **Downstream handoff** — **culture engine**, **settlement** nodes (choke, junction, surplus, refinery, **drain city**), **trade routes**, then **history log** (**epoch** ticks).
 
-Physical **landmass** completes before **history seed** simulation runs.
+**Colonization phase** (after **begin colonization**), three increments:
+
+1. **Single-colony survival** — one **settlement**, local resource exploitation, **equilibrium state**; settlement size growth only.
+2. **Exploration and new settlements** — territory expansion, additional **settlements** at logistics nodes.
+3. **Economy, politics, and history** — **trade routes**, **factions**, **city-states**, **history log**, **rivalry** (interdependent; one delivery slice). Enters automatically when **supply-chain independence** fires (land **haul-shed** split and/or **drain city** **maritime reach** branch)—either branch sufficient alone.
+
+Within each increment, **culture engine** pressure may apply when regions are engaged; full **WAAC** visibility arrives with increment 3 unless earlier increments prove partial cycles.
+
+Physical **landmass** and **logistics pass** complete during **terrain authoring**; **history seed** applies when **colonization phase** runs.
 
 ### Required geographic outputs
 
@@ -491,3 +670,15 @@ _Avoid_: Rejecting or accepting worlds based on `riverGraph` edge counts when **
 - **Map-first vs story-first**: playlist #05 warns against pretty maps before need; World Builder generates geography-first for simulation, but export should still answer “why is this port valuable?” like a journey-driven story map.
 - **Dwarf Fortress depth vs v1 scope**: DF history is full agent simulation; v1 **history log** may use lighter **epoch** ticks with stored **rivalry** causes—same “simulation log, not authored timeline” pattern, not necessarily DF agent count.
 - **DF research vs implementation**: terrain notes are conceptual inspiration for **fields before labels**, hydrology-as-derived-graph, and rejection *pattern*—not a mandate to match DF algorithms (e.g. midpoint-displacement elevation), biomes, fantasy layers (good/evil, savagery), or rejection UX (hundreds of silent retries). **`world-builder/core`** ships in JavaScript with JSDoc (portfolio repo convention), not a separate TypeScript toolchain.
+- **User-gated colonization vs DF auto-civ-placement**: DF places civilizations after terrain verification without a player-chosen landing; World Builder uses **colonization setup** (**founding landing** + **colonist settings**) then **begin colonization**. v1 continent is empty until the founding wave (no indigenous peoples).
+- **Colonization geography inputs**: **best-effort**—**Colonize** after terrain validates; missing layers (e.g. full **movement cost**, **maritime reach**) use heuristics until **logistics pass** matures. Increment 2+ may tighten required layers.
+- **Terrain lock**: geography hard-frozen at **begin colonization**; editing terrain requires resetting colonization state.
+- **Increment 3 entry**: automatic when **supply-chain independence** fires (land **haul-shed** split and/or **drain city** **maritime reach** branch)—either branch sufficient alone.
+- **Increment 3 politics**: **factions**, **city-states**, and **rivalry** emerge gradually over **epochs** after entry—not an instant realm split on the threshold **epoch**.
+- **Simulation stop**: **political equilibrium** for N **epochs** or **year cap** from **colonist settings**—whichever first; early export allowed.
+- **Increment 3 overlays**: **faction territory** and **trade route** overlays required; **strategic resource** layers reuse terrain; **haul-shed** and **rivalry** heat deferred to inspect/debug.
+- **Mid-run control**: observe-only for outcomes in v1; pause may tweak non-geography settings (e.g. **year cap**), not **faction** borders or **history log** events.
+- **Population model**: **bulk population** parameters + per-**epoch** **population collapse** for **population overlay**; **notable figures** tracked individually—WFC-style constraint satisfaction is inspiration, not a committed algorithm name in product copy.
+- **Increment 2 exploration**: **exploration fog** overlay + auto-dispatched **expeditions**; new **settlements** founded automatically at logistics nodes—one realm until increment 3.
+- **Grid scale**: no intrinsic km-per-cell; **three-day haul distance** and related **travel time** metrics are author-calibrated in **colonist settings** until map scale is modeled.
+- **Colonization time controls**: v1 ships **epoch step**; **continuous colonization run** (pause/speed) is the target UX once epoch ticks are trustworthy.
