@@ -19,6 +19,7 @@ import {
   shouldRejectGeographyCandidate,
 } from './validation/shouldRejectGeographyCandidate.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
+import { resolveSailOverlayFromSlice } from './sail/resolveSailMetricsFromSlice.js'
 
 /**
  * @param {Object} params
@@ -38,6 +39,8 @@ import { DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
  * @param {Float32Array | null | undefined} [params.arableRaster]
  * @param {import('./types.js').SaltNode[] | null | undefined} [params.saltNodes]
  * @param {import('./types.js').MetalNode[] | null | undefined} [params.metalNodes]
+ * @param {Uint8Array | null | undefined} [params.lakeMask]
+ * @param {Uint8Array | null | undefined} [params.riverCorridorMask]
  * @returns {import('./types.js').GenerationReport}
  */
 export function buildGenerationReport({
@@ -57,10 +60,14 @@ export function buildGenerationReport({
   arableRaster: arableRasterParam,
   saltNodes: saltNodesParam,
   metalNodes: metalNodesParam,
+  lakeMask: lakeMaskParam,
+  riverCorridorMask: riverCorridorMaskParam,
 }) {
   const arableRaster = arableRasterParam ?? worldDocument?.arableRaster
   const saltNodes = saltNodesParam ?? worldDocument?.saltNodes
   const metalNodes = metalNodesParam ?? worldDocument?.metalNodes
+  const lakeMask = lakeMaskParam ?? worldDocument?.lakeMask
+  const riverCorridorMask = riverCorridorMaskParam ?? worldDocument?.riverCorridorMask
   const resolvedNetwork =
     riverNetwork ??
     (worldDocument ? readRiverNetworkFromWorldDocument(worldDocument) : null)
@@ -75,15 +82,15 @@ export function buildGenerationReport({
     gridWidth,
     gridHeight,
   })
-  const navigableRiverEdgeCount = metrics.navigableEdgeCount
-  const validationRows = runGeographyValidationChecks({
+  const validationSlice = {
     fields,
     biomes,
     riverGraph: resolvedNetwork?.graph ?? riverGraph,
     riverNetwork: resolvedNetwork ?? undefined,
     simulationRiverMask: worldDocument?.simulationRiverMask,
     riverNetworkMask: worldDocument?.riverNetworkMask,
-    riverCorridorMask: worldDocument?.riverCorridorMask,
+    riverCorridorMask,
+    lakeMask,
     flowDirection: worldDocument?.flowDirection,
     coastalNodes,
     gridWidth,
@@ -95,7 +102,9 @@ export function buildGenerationReport({
     arableRaster,
     saltNodes,
     metalNodes,
-  })
+  }
+  const { metrics: sailMetrics } = resolveSailOverlayFromSlice(validationSlice)
+  const validationRows = runGeographyValidationChecks(validationSlice)
   const lakeCount = hydrologyStats.lakeCount
   const endorheicFraction = lakeCount > 0 ? hydrologyStats.endorheicCount / lakeCount : 0
   const cellCount = gridWidth * gridHeight
@@ -129,7 +138,7 @@ export function buildGenerationReport({
 
   return {
     erosionStepCount,
-    navigableRiverEdgeCount,
+    largestSailComponentCellCount: sailMetrics.largestComponentCellCount,
     coastalNodeCount: coastalNodes.length,
     validationRows,
     shouldReject: shouldRejectGeographyCandidate(validationRows),
@@ -147,6 +156,7 @@ export function buildGenerationReport({
       arableLandFraction: arableMetrics.arableLandFraction,
       saltNodeProximityViolationCount: saltProximityViolations.length,
       strategicResourceSpacingViolationCount: spacingViolations.length,
+      sailMetrics,
     }),
     hydrologySubstepTimings,
     hydrology: {
@@ -166,6 +176,9 @@ export function buildGenerationReport({
       slopeAreaConcavitySamples: metrics.slopeAreaConcavitySamples,
       parallelStrandRatio: metrics.parallelStrandRatio,
       coastConnectedNavigablePathLength: metrics.coastConnectedNavigablePathLength,
+      largestSailComponentCellCount: sailMetrics.largestComponentCellCount,
+      coastalRiverAccess: sailMetrics.hasCoastalRiverAccess,
+      coastToInteriorSailPathLength: sailMetrics.coastToInteriorPathLength,
     },
   }
 }

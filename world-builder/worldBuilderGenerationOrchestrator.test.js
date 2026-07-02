@@ -221,7 +221,7 @@ test('startDerivedGeographyGeneration forwards exhausted lifecycle without treat
     generationReport: {
       shouldReject: true,
       erosionStepCount: 0,
-      navigableRiverEdgeCount: 0,
+      largestSailComponentCellCount: 0,
       coastalNodeCount: 0,
       validationRows: [],
       rejectionReasons: ['coastMouth: fixture'],

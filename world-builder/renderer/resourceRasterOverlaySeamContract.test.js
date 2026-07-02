@@ -26,6 +26,19 @@ import {
  * @returns {import('../core/types.js').WorldDocument}
  */
 function visibleRasterFixture(resourceId) {
+  if (resourceId === 'sail') {
+    const cellCount = 16
+    const elevation = new Float32Array(cellCount).fill(0.5)
+    const riverCorridorMask = new Uint8Array(cellCount)
+    riverCorridorMask[5] = 1
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      fields: { elevation },
+      riverCorridorMask,
+    }
+  }
+
   const raster = new Float32Array(16)
   raster[5] = 0.8
   return {

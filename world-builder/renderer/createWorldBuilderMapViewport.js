@@ -67,6 +67,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const rivers = new Sprite(Texture.EMPTY)
   rivers.visible = false
   let riverTexture = null
+  const sail = new Sprite(Texture.EMPTY)
+  sail.visible = false
   const coastalOverlay = new Graphics()
   const metalOverlay = new Graphics()
   const saltOverlay = new Graphics()
@@ -92,6 +94,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     arable: null,
     timber: null,
     metals: null,
+    sail: null,
   }
 
   /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Sprite>} */
@@ -99,6 +102,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     arable,
     timber,
     metals,
+    sail,
   }
 
   const viewport = new Viewport({
@@ -117,6 +121,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(metals)
   viewport.addChild(lakes)
   viewport.addChild(rivers)
+  viewport.addChild(sail)
   viewport.addChild(coastalOverlay)
   viewport.addChild(metalOverlay)
   viewport.addChild(saltOverlay)
@@ -157,6 +162,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       case 'metals':
         metals.visible = false
         break
+      case 'sail':
+        sail.visible = false
+        break
       case 'rivers':
         rivers.visible = false
         break
@@ -184,6 +192,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       arable: () => refreshResourceRasterOverlay('arable', currentWorldDocument),
       timber: () => refreshResourceRasterOverlay('timber', currentWorldDocument),
       metals: () => refreshResourceRasterOverlay('metals', currentWorldDocument),
+      sail: () => refreshResourceRasterOverlay('sail', currentWorldDocument),
       rivers: () => refreshRiverOverlay(currentWorldDocument),
       lakes: () => refreshLakeOverlay(currentWorldDocument),
       coastalNodes: () => drawCoastalNodes(coastalOverlay, currentWorldDocument),

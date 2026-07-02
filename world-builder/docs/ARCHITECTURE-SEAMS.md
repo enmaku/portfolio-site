@@ -182,7 +182,20 @@ Deprecated: monolithic `vectorOverlays` object that refreshed all markers togeth
 
 ### Layer stack (Pixi)
 
-Terrain → contours → resource rasters (arable, timber, metals) → lakes → rivers → vector overlay (`Graphics`) → labels (future).
+Terrain → contours → resource rasters (arable, timber, metals) → lakes → rivers → **sail** → vector overlay (`Graphics`) → labels (future).
+
+Sail renders above lakes and rivers so the pink traversability tint stays visible on water.
+
+### Sail overlay derive seam (#388)
+
+| Layer | Module | Rule |
+| --- | --- | --- |
+| Derive mask | `core/sail/deriveSailOverlayMask.js` | Single source of truth: ocean + `lakeMask` + `riverCorridorMask` → blur → high-pass |
+| Metrics | `core/sail/computeSailMetrics.js` | 8-connected analysis for validation + report |
+| Validation adapter | `core/validation/runGeographyValidationChecks.js` | Sailing checks only; graph metrics unchanged for physics diagnostics |
+| Renderer adapter | `renderer/buildSailOverlayRgba.js` | Pink tint; must not duplicate blur math |
+
+Tests: `core/sail/*.test.js`, `renderer/buildSailOverlayRgba.test.js`, `renderer/resourceRasterOverlayRefresh.test.js`.
 
 ### Document update locality (#383)
 

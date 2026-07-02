@@ -366,9 +366,9 @@ export function createMetalsFixture() {
   })
 }
 
-/** Sprites from the most recently created viewport (seven raster layers). */
+/** Sprites from the most recently created viewport (eight raster layers). */
 export function recentSpriteLayers() {
-  return viewportSpyState.spriteLayers.slice(-7)
+  return viewportSpyState.spriteLayers.slice(-8)
 }
 
 /** Contours sprite sits above terrain in the layer stack. */
@@ -399,6 +399,11 @@ export function lakesSpriteLayer() {
 /** Rivers sprite sits above lakes in the layer stack. */
 export function riversSpriteLayer() {
   return recentSpriteLayers()[6]
+}
+
+/** Sail sprite sits above rivers so the pink overlay stays visible on water. */
+export function sailSpriteLayer() {
+  return recentSpriteLayers()[7]
 }
 
 /**

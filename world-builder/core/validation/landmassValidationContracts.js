@@ -131,6 +131,21 @@ export const VALIDATION_CHECK_CONTRACTS = {
   },
 }
 
+/** @type {Record<string, string>} */
+const VALIDATION_CHECK_DISPLAY_LABELS = {
+  navigableRiverQuota: 'Sailable water',
+  coastMouth: 'Coastal river access',
+  coastConnectedNavigablePath: 'Coast-to-interior sailing path',
+}
+
+/**
+ * @param {string} checkId
+ * @returns {string}
+ */
+export function validationCheckDisplayLabel(checkId) {
+  return VALIDATION_CHECK_DISPLAY_LABELS[checkId] ?? checkId
+}
+
 /** @type {readonly string[]} */
 export const REJECTABLE_VALIDATION_CHECK_IDS = VALIDATION_CHECK_IDS.filter(
   (checkId) => VALIDATION_CHECK_CONTRACTS[checkId].rejectable,
@@ -213,6 +228,7 @@ export function collectStructuredRejectionReasons(validationRows) {
  */
 export function buildValidationSignals(validationRows, hydrologyMetrics, context) {
   const statusByCheckId = new Map(validationRows.map((row) => [row.checkId, row.status]))
+  const sailMetrics = context.sailMetrics
 
   return {
     hydrology: {
@@ -228,7 +244,9 @@ export function buildValidationSignals(validationRows, hydrologyMetrics, context
       coastalNodeCount: context.coastalNodeCount,
       mouthCount: hydrologyMetrics.mouthCount,
       coastMouthCheckStatus: statusByCheckId.get('coastMouth') ?? 'pass',
-      coastConnectedNavigablePathLength: hydrologyMetrics.coastConnectedNavigablePathLength,
+      coastConnectedNavigablePathLength: sailMetrics.coastToInteriorPathLength,
+      coastalRiverAccess: sailMetrics.hasCoastalRiverAccess,
+      coastToInteriorSailPathLength: sailMetrics.coastToInteriorPathLength,
     },
     climate: {
       windRainfallAsymmetryActive: context.windRainfallAsymmetryActive,
@@ -255,8 +273,8 @@ export function buildValidationSignals(validationRows, hydrologyMetrics, context
       biomeDiversityCheckStatus: statusByCheckId.get('biomeDiversity') ?? 'pass',
     },
     movement: {
-      navigableRiverEdgeCount: hydrologyMetrics.navigableEdgeCount,
-      coastConnectedNavigablePathLength: hydrologyMetrics.coastConnectedNavigablePathLength,
+      largestSailComponentCellCount: sailMetrics.largestComponentCellCount,
+      coastToInteriorSailPathLength: sailMetrics.coastToInteriorPathLength,
       navigableRiverCheckStatus: statusByCheckId.get('navigableRiverQuota') ?? 'pass',
       coastConnectedNavigablePathCheckStatus:
         statusByCheckId.get('coastConnectedNavigablePath') ?? 'pass',

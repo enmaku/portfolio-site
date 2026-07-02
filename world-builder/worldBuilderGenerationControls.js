@@ -468,7 +468,7 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         key: 'enableMeanderRefine',
         label: 'Meander refine',
         tooltip:
-          'Runs an optional hydrology refine pass that smooths river geometry for display. Does not change underlying drainage physics.',
+          'Runs an optional hydrology refine pass that widens river corridors and can bridge gaps on the Sail overlay. Affects map-truth sailing validation, not simulation drainage physics.',
         kind: 'toggle',
         testId: 'world-builder-control-meander-refine',
       },

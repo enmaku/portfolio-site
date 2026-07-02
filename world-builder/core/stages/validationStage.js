@@ -50,6 +50,7 @@ export const validationStage = {
     arableRaster: (state) => state.arableRaster,
     saltNodes: (state) => state.saltNodes,
     metalNodes: (state) => state.metalNodes,
+    lakeMask: (state) => state.lakeMask,
   },
   outputKeys: ['generationReport', 'lastCompletedStep'],
   run(input) {
@@ -73,6 +74,7 @@ export const validationStage = {
       arableRaster,
       saltNodes,
       metalNodes,
+      lakeMask,
     } = input
     const riverNetwork = assembleRiverNetworkFromFields({
       riverNetworkMask,
@@ -106,6 +108,8 @@ export const validationStage = {
       arableRaster: arableRaster ?? undefined,
       saltNodes: saltNodes ?? undefined,
       metalNodes: metalNodes ?? undefined,
+      lakeMask: lakeMask ?? undefined,
+      riverCorridorMask: riverCorridorMask ?? undefined,
     })
     return {
       generationReport,

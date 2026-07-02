@@ -144,11 +144,13 @@ test('buildGenerationReport includes hydrology validation rows', () => {
 
 test('buildGenerationReport exposes logistics-facing validation signals', () => {
   const report = buildGenerationReport(makeReportParams())
-  assert.strictEqual(typeof report.validationSignals.hydrology.navigableRiverEdgeCount, 'number')
+  assert.strictEqual(typeof report.hydrology.largestSailComponentCellCount, 'number')
+  assert.strictEqual(typeof report.hydrology.coastalRiverAccess, 'boolean')
+  assert.strictEqual(typeof report.hydrology.coastToInteriorSailPathLength, 'number')
   assert.strictEqual(typeof report.validationSignals.coast.coastalNodeCount, 'number')
-  assert.strictEqual(typeof report.validationSignals.movement.navigableRiverEdgeCount, 'number')
+  assert.strictEqual(typeof report.validationSignals.movement.largestSailComponentCellCount, 'number')
   assert.strictEqual(
-    typeof report.validationSignals.movement.coastConnectedNavigablePathLength,
+    typeof report.validationSignals.movement.coastToInteriorSailPathLength,
     'number',
   )
   assert.strictEqual(typeof report.validationSignals.resources.meanInlandSalinity, 'number')
