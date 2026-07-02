@@ -135,10 +135,11 @@
 | `resources/placeMetalNodes.test.js` | `core-unit` | Seed determinism | None — runs under npm run test:world-builder |
 | `resources/placeSaltNodes.test.js` | `core-unit` | measureLandBiomeFractionWithinRadius counts a 10-cell disk; +8 additional cases | None — runs under npm run test:world-builder |
 | `runLandmassPipeline.test.js` | `landmass-pipeline` | Typed array / graph clone independence; Pipeline cancellation semantics; Seed determinism | None — runs under npm run test:world-builder |
+| `sail/computeSailMetrics.test.js` | `validation-unit` | Sail overlay metrics (ADR 0010): component size, coastal access, coast-to-interior path | None — runs under npm run test:world-builder |
+| `sail/deriveSailOverlayMask.test.js` | `validation-unit` | Sail overlay derive: water-union blur bridges and waterfront sliver | None — runs under npm run test:world-builder |
 | `validation/computeHydrologyMetrics.test.js` | `validation-unit` | simulationRiverMask population or invariance | None — runs under npm run test:world-builder |
 | `validation/computeResourceValidationMetrics.test.js` | `validation-unit` | computeArableEnvelopeMetrics counts productive land cells from arable raster; +7 additional cases | None — runs under npm run test:world-builder |
 | `validation/computeWindRainfallAsymmetry.test.js` | `validation-unit` | computeWindRainfallAsymmetry reports a positive gap when the windward flank is w; +2 additional cases | None — runs under npm run test:world-builder |
-| `validation/elevationPriorPassRates.test.js` | `validation-unit` | Seed determinism | None — runs under npm run test:world-builder |
 | `validation/landmassValidationContracts.test.js` | `validation-unit` | Contract derivation or selector wiring | None — runs under npm run test:world-builder |
 | `validation/runGeographyValidationChecks.test.js` | `validation-unit` | Contract derivation or selector wiring | None — runs under npm run test:world-builder |
 | `validation/runResourceValidationChecks.test.js` | `validation-unit` | runResourceValidationChecks returns resource check ids in stable order; +7 additional cases | None — runs under npm run test:world-builder |
@@ -163,10 +164,11 @@
 | `buildMetalsOverlayCanvas.test.js` | `renderer-unit` | buildMetalsOverlayCanvas returns null when metals raster is empty; +3 additional cases | None — runs under npm run test:world-builder |
 | `buildResourceRasterOverlayRgba.test.js` | `renderer-unit` | resourceRasterHatchFactor leaves transparent gaps between diagonal crosshatch ba; +8 additional cases | None — runs under npm run test:world-builder |
 | `buildRiverOverlayCanvas.test.js` | `renderer-unit` | Contract derivation or selector wiring | None — runs under npm run test:world-builder |
+| `buildSailOverlayRgba.test.js` | `renderer-unit` | Pink Sail raster adapter over deriveSailOverlayMask | None — runs under npm run test:world-builder |
 | `buildTimberOverlayCanvas.test.js` | `renderer-unit` | buildTimberOverlayRgba returns null when raster is absent; +2 additional cases | None — runs under npm run test:world-builder |
 | `buildTopographyContourCanvas.test.js` | `renderer-unit` | buildTopographyContourCanvas returns null for flat submerged terrain; +2 additional cases | None — runs under npm run test:world-builder |
 | `createWorldBuilderMapViewport.documentUpdate.test.js` | `viewport-behavior` | updateWorldDocument preserves overlay render cache set by syncOverlayRenderCache; +5 additional cases | May require --experimental-test-module-mocks in npm test (#369) |
-| `createWorldBuilderMapViewport.layers.test.js` | `viewport-behavior` | viewport layer stack follows terrain contours arable timber metals lakes rivers ; +1 additional cases | May require --experimental-test-module-mocks in npm test (#369) |
+| `createWorldBuilderMapViewport.layers.test.js` | `viewport-behavior` | viewport layer stack includes sail above rivers; +1 additional cases | May require --experimental-test-module-mocks in npm test (#369) |
 | `createWorldBuilderMapViewport.overlaySync.test.js` | `viewport-behavior` | Layer refresh locality | May require --experimental-test-module-mocks in npm test (#369) |
 | `createWorldBuilderMapViewport.overlayVisibility.test.js` | `viewport-behavior` | Typed array / graph clone independence | May require --experimental-test-module-mocks in npm test (#369) |
 | `createWorldBuilderMapViewport.viewportFraming.test.js` | `viewport-behavior` | focusOn uses current world document width after regeneration; +3 additional cases | May require --experimental-test-module-mocks in npm test (#369) |
@@ -205,7 +207,7 @@
 
 | File | Seam | Behaviors | Skip conditions |
 |------|------|-----------|------------------|
-| `world-builder/resourceOverlays.test.js` | `overlay-state` | createResourceOverlayDefinitions lists canonical overlay ids and kinds; +18 additional cases | None — runs under npm run test:world-builder |
+| `world-builder/resourceOverlays.test.js` | `overlay-state` | createResourceOverlayDefinitions lists canonical overlay ids and kinds; +19 additional cases | None — runs under npm run test:world-builder |
 
 ### `world-builder/runDerivedGeographyInWorker.test.js/`
 
@@ -480,7 +482,7 @@ Each file lists individual `test(...)` titles for reviewer grep and #375 control
 ### `world-builder/core/derivedGeographyPipeline.test.js`
 
 - **Seam:** `landmass-pipeline` — Derived geography pipeline orchestration
-- **Test count:** 27
+- **Test count:** 26
 - **Skip conditions:** None — runs under npm run test:world-builder
 - **Behaviors:** simulationRiverMask population or invariance; Flow-field full-flow solve budget invariants; Typed array / graph clone independence; Pipeline cancellation semantics; Contract derivation or selector wiring; Seed determinism
 - **Cases:**
@@ -489,7 +491,7 @@ Each file lists individual `test(...)` titles for reviewer grep and #375 control
   - world document exposes a populated simulation river mask after hydrology
   - default generation simulation river mask equals the settled display centerline
   - world document simulation river mask is invariant to corridor attraction
-  - validation hydrology metrics read the simulation centerline, not presentation refinements
+  - validation hydrology metrics read the simulation centerline for graph diagnostics
   - default derived geography hydrology performs three full flow solves
   - seasonal hydrology does not add full flow solves beyond the baseline three
   - runPipelineStep hydrology records substep timings on state
@@ -1488,22 +1490,10 @@ Each file lists individual `test(...)` titles for reviewer grep and #375 control
   - computeWindRainfallAsymmetry flips sign when the wind reverses
   - computeWindRainfallAsymmetry returns zero when no highland cells exist
 
-### `world-builder/core/validation/elevationPriorPassRates.test.js`
-
-- **Seam:** `validation-unit` — Generation report and rejection checks
-- **Test count:** 4
-- **Skip conditions:** None — runs under npm run test:world-builder
-- **Behaviors:** Seed determinism
-- **Cases:**
-  - countRiverValidationPasses returns tallies for each seed in batch
-  - elevation priors keep navigable river pass rate high on default seed batch
-  - seed 4 gains coast mouth with elevation priors on validation grid
-  - advisory validation mode never rejects default seed batch candidates
-
 ### `world-builder/core/validation/landmassValidationContracts.test.js`
 
 - **Seam:** `validation-unit` — Generation report and rejection checks
-- **Test count:** 11
+- **Test count:** 16
 - **Skip conditions:** None — runs under npm run test:world-builder
 - **Behaviors:** Contract derivation or selector wiring
 - **Cases:**
@@ -1517,22 +1507,22 @@ Each file lists individual `test(...)` titles for reviewer grep and #375 control
   - collectStructuredRejectionReasons returns check ids and categories only
   - createValidationRow copies category and rejectable from contract
   - resource validation contracts document advisory vs rejectable behavior
-  - buildValidationSignals exposes logistics-facing movement metrics
+  - validationCheckDisplayLabel maps sailing checks to glossary names
+  - buildValidationSignals exposes sail-facing movement metrics
 
 ### `world-builder/core/validation/runGeographyValidationChecks.test.js`
 
 - **Seam:** `validation-unit` — Generation report and rejection checks
-- **Test count:** 21
+- **Test count:** 28
 - **Skip conditions:** None — runs under npm run test:world-builder
 - **Behaviors:** Contract derivation or selector wiring
 - **Cases:**
   - runGeographyValidationChecks resolves river metrics from assembled contract
   - runGeographyValidationChecks returns all check ids
   - runGeographyValidationChecks marks rejectable rows from contract
-  - runGeographyValidationChecks warns on missing navigable rivers
+  - runGeographyValidationChecks warns on insufficient sailable water
   - runGeographyValidationChecks hard-fails navigableRiverQuota when enforced
-  - runGeographyValidationChecks ignores non-navigable edges for navigableRiverQuota
-  - runGeographyValidationChecks passes with sufficient navigable edges
+  - runGeographyValidationChecks passes navigableRiverQuota with sufficient sail component cells
   - runGeographyValidationChecks hard-fails coastMouth when enforced
   - runGeographyValidationChecks enforces endorheic fraction cap from breach threshold
   - runGeographyValidationChecks detects resource mismatch
@@ -1750,9 +1740,9 @@ Each file lists individual `test(...)` titles for reviewer grep and #375 control
 - **Seam:** `viewport-behavior` — Map viewport layer sync and framing
 - **Test count:** 2
 - **Skip conditions:** May require --experimental-test-module-mocks in npm test (#369)
-- **Behaviors:** viewport layer stack follows terrain contours arable timber metals lakes rivers ; +1 additional cases
+- **Behaviors:** viewport layer stack includes sail above rivers; +1 additional cases
 - **Cases:**
-  - viewport layer stack follows terrain contours arable timber metals lakes rivers order
+  - viewport layer stack follows terrain contours arable timber metals lakes rivers sail order
   - lake overlay rasterizes from lakeMask rather than per-cell vector rects
 
 ### `world-builder/renderer/createWorldBuilderMapViewport.overlaySync.test.js`
@@ -1906,6 +1896,31 @@ Each file lists individual `test(...)` titles for reviewer grep and #375 control
   - refreshAllResourceRasterOverlayCanvases rasterizes only visible layers once each
   - buildResourceRasterOverlayCanvasForId builds metals canvas with a single RGBA pass
   - buildResourceRasterOverlayRgba increments seam build counter
+
+### `world-builder/core/sail/deriveSailOverlayMask.test.js`
+
+- **Seam:** `validation-unit` — Sail overlay derive (ADR 0010)
+- **Skip conditions:** None — runs under npm run test:world-builder
+- **Behaviors:** Water union blur bridges nearby corridors; waterfront sliver extends beyond raw union
+- **Cases:**
+  - deriveSailOverlayMask connects nearby waterways separated by a one-cell land gap
+  - deriveSailOverlayMask includes waterfront sliver beyond raw water union cells
+
+### `world-builder/core/sail/computeSailMetrics.test.js`
+
+- **Seam:** `validation-unit` — Sail overlay metrics (ADR 0010)
+- **Skip conditions:** None — runs under npm run test:world-builder
+- **Behaviors:** Largest inland-connected component; coastal river access; coast-to-interior path length
+
+### `world-builder/renderer/buildSailOverlayRgba.test.js`
+
+- **Seam:** `renderer-unit` — Pink Sail raster adapter
+- **Skip conditions:** None — runs under npm run test:world-builder
+- **Behaviors:** Alpha/channel pattern on derived mask; seam build counter
+- **Cases:**
+  - buildSailOverlayRgba writes pink alpha only on derived sail mask cells
+  - buildSailOverlayRgba returns null without elevation fields
+  - buildSailOverlayRgba increments seam build counter
 
 ### `world-builder/renderer/resourceRasterOverlaySeamContract.test.js`
 

@@ -12,6 +12,7 @@ import {
   readEnforceFlag,
   resolveValidationCheckStatus,
   validationCheckContract,
+  validationCheckDisplayLabel,
 } from './landmassValidationContracts.js'
 
 test('VALIDATION_CHECK_IDS lists every contract in stable order', () => {
@@ -161,7 +162,17 @@ test('resource validation contracts document advisory vs rejectable behavior', (
   assert.ok(ADVISORY_VALIDATION_CHECK_IDS.includes('arableEnvelopeCoverage'))
 })
 
-test('buildValidationSignals exposes logistics-facing movement metrics', () => {
+test('validationCheckDisplayLabel maps sailing checks to glossary names', () => {
+  assert.strictEqual(validationCheckDisplayLabel('navigableRiverQuota'), 'Sailable water')
+  assert.strictEqual(validationCheckDisplayLabel('coastMouth'), 'Coastal river access')
+  assert.strictEqual(
+    validationCheckDisplayLabel('coastConnectedNavigablePath'),
+    'Coast-to-interior sailing path',
+  )
+  assert.strictEqual(validationCheckDisplayLabel('hacksLawExponent'), 'hacksLawExponent')
+})
+
+test('buildValidationSignals exposes sail-facing movement metrics', () => {
   const signals = buildValidationSignals(
     [
       { checkId: 'navigableRiverQuota', status: 'warn' },
@@ -192,11 +203,16 @@ test('buildValidationSignals exposes logistics-facing movement metrics', () => {
       arableLandFraction: 0.35,
       saltNodeProximityViolationCount: 0,
       strategicResourceSpacingViolationCount: 0,
+      sailMetrics: {
+        largestComponentCellCount: 64,
+        hasCoastalRiverAccess: true,
+        coastToInteriorPathLength: 9,
+      },
     },
   )
 
-  assert.strictEqual(signals.movement.navigableRiverEdgeCount, 4)
-  assert.strictEqual(signals.movement.coastConnectedNavigablePathLength, 9)
+  assert.strictEqual(signals.movement.largestSailComponentCellCount, 64)
+  assert.strictEqual(signals.movement.coastToInteriorSailPathLength, 9)
   assert.strictEqual(signals.movement.navigableRiverCheckStatus, 'warn')
   assert.strictEqual(signals.movement.coastConnectedNavigablePathCheckStatus, 'pass')
 })

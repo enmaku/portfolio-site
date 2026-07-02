@@ -6,6 +6,10 @@ export const RESOURCE_RASTER_HATCH_LINE_WIDTH = 2
 
 let resourceRasterOverlayRgbaBuildCount = 0
 
+export function incrementResourceRasterOverlayRgbaBuildCount() {
+  resourceRasterOverlayRgbaBuildCount += 1
+}
+
 /** @returns {number} */
 export function getResourceRasterOverlayRgbaBuildCount() {
   return resourceRasterOverlayRgbaBuildCount
@@ -108,7 +112,7 @@ export function buildResourceRasterOverlayRgba({
   style,
   minimumProductivity = 0,
 }) {
-  resourceRasterOverlayRgbaBuildCount += 1
+  incrementResourceRasterOverlayRgbaBuildCount()
   const rgba = new Uint8ClampedArray(width * height * 4)
   const [red, green, blue] = style.rgb
   let hasPositive = false

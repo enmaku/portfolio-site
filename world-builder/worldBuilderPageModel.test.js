@@ -154,7 +154,7 @@ test('formatHydrologySubstepTimingForDisplay omits duration for skipped substeps
 test('createHydrologySubstepTimingsForDisplay reads report timings', () => {
   const timings = createHydrologySubstepTimingsForDisplay({
     erosionStepCount: 1,
-    navigableRiverEdgeCount: 2,
+    largestSailComponentCellCount: 2,
     coastalNodeCount: 3,
     validationRows: [],
     hydrologySubstepTimings: [
@@ -186,7 +186,7 @@ test('validationStatusColor and validationStatusIcon cover hard failures', () =>
 test('createValidationRowsForDisplay omits hydrology shape checks from sidebar', () => {
   const rows = createValidationRowsForDisplay({
     erosionStepCount: 1,
-    navigableRiverEdgeCount: 2,
+    largestSailComponentCellCount: 2,
     coastalNodeCount: 3,
     validationRows: [
       { checkId: 'navigableRiverQuota', status: 'pass', summary: 'ok' },
@@ -205,7 +205,7 @@ test('createValidationRowsForDisplay omits hydrology shape checks from sidebar',
 test('createHydrologyStatsForDisplay surfaces hydrology metrics and rejection state', () => {
   const stats = createHydrologyStatsForDisplay({
     erosionStepCount: 1,
-    navigableRiverEdgeCount: 2,
+    largestSailComponentCellCount: 2,
     coastalNodeCount: 3,
     validationRows: [],
     shouldReject: true,
@@ -219,28 +219,26 @@ test('createHydrologyStatsForDisplay surfaces hydrology metrics and rejection st
       endorheicFraction: 0.5,
       lakeCount: 4,
       riverCellCount: 10,
-      navigableEdgeCount: 3,
-      navigableKmEstimate: 12.5,
-      mouthCount: 0,
+      largestSailComponentCellCount: 64,
+      coastalRiverAccess: true,
+      coastToInteriorSailPathLength: 12,
       hacksLawExponent: 0.55,
       slopeAreaConcavitySamples: [0.1],
       parallelStrandRatio: 0.12,
-      coastConnectedNavigablePathLength: 6,
     },
   })
 
   assert.strictEqual(stats.hacksLawExponent, 0.55)
   assert.strictEqual(stats.riverCellCount, 10)
-  assert.strictEqual(stats.navigableEdgeCount, 3)
+  assert.strictEqual(stats.largestSailComponentCellCount, 64)
+  assert.strictEqual(stats.coastalRiverAccess, true)
+  assert.strictEqual(stats.coastToInteriorSailPathLength, 12)
   assert.strictEqual(stats.slopeAreaConcavityMedian, 0.1)
   assert.strictEqual(stats.slopeAreaConcavitySampleCount, 1)
   assert.strictEqual(stats.lakeCount, 4)
   assert.strictEqual(stats.parallelStrandRatio, 0.12)
-  assert.strictEqual(stats.navigableKmEstimate, 12.5)
-  assert.strictEqual(stats.mouthCount, 0)
   assert.strictEqual(stats.breachCount, 1)
   assert.strictEqual(stats.endorheicFraction, 0.5)
-  assert.strictEqual(stats.coastConnectedNavigablePathLength, 6)
   assert.strictEqual(stats.shouldReject, true)
   assert.strictEqual(stats.rejectionSamplingEnforced, true)
   assert.deepStrictEqual(stats.structuredRejectionReasons, [
@@ -262,7 +260,7 @@ test('createHydrologyStatsForDisplay defaults when hydrology section missing', (
 test('createValidationRowsForDisplay preserves contract metadata on rows', () => {
   const rows = createValidationRowsForDisplay({
     erosionStepCount: 1,
-    navigableRiverEdgeCount: 2,
+    largestSailComponentCellCount: 2,
     coastalNodeCount: 3,
     validationRows: [
       {
@@ -277,6 +275,7 @@ test('createValidationRowsForDisplay preserves contract metadata on rows', () =>
   assert.strictEqual(rows[0]?.category, 'coast')
   assert.strictEqual(rows[0]?.rejectable, true)
   assert.strictEqual(rows[0]?.checkId, 'coastMouth')
+  assert.strictEqual(rows[0]?.label, 'Coastal river access')
 })
 
 test('formatSlopeAreaConcavityForDisplay renders median and sample count', () => {
@@ -291,7 +290,7 @@ test('formatHydrologyMetricValue renders null as n/a', () => {
 
 test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
   const definitions = createResourceOverlayDefinitions()
-  assert.strictEqual(definitions.length, 4)
+  assert.strictEqual(definitions.length, 5)
   assert.deepStrictEqual(
     definitions.map((definition) => ({ id: definition.id, kind: definition.kind })),
     [
@@ -299,6 +298,7 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'timber', kind: 'raster' },
       { id: 'metals', kind: 'rasterAndNodes' },
       { id: 'salt', kind: 'nodes' },
+      { id: 'sail', kind: 'raster' },
     ],
   )
 })
@@ -309,6 +309,7 @@ test('createDefaultResourceOverlayVisibility defaults every overlay off', () => 
     timber: false,
     metals: false,
     salt: false,
+    sail: false,
   })
 })
 

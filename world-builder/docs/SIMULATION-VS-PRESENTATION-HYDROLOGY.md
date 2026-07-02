@@ -78,10 +78,22 @@ All masks are `Uint8Array` length `gridWidth * gridHeight`, cell values 0 or 1 u
 
 | Field | Family | Notes |
 | --- | --- | --- |
-| `lakeMask` | Mixed | Simulation fill; display coherence in `lakeDisplayCoherence.js` |
+| `lakeMask` | Mixed | Simulation fill; display coherence in `lakeDisplayCoherence.js`; **Sail overlay** water union (#388) |
 | `channelWidth` | Presentation | Per-cell width metadata for overlay |
 | `displayBiomes` | Presentation | Authoritative for terrain tint in renderer |
 | `biomes` | Simulation | Field-overlap classification before display smoothing |
+
+### 3.5 **Sail overlay** (derived, not persisted)
+
+| Property | Value |
+| --- | --- |
+| **Meaning** | Map-truth boat traversability mask: ocean + lakes + corridors → blur → high-pass |
+| **Pipeline source** | Derived at validation/renderer seams from `elevation`, `lakeMask`, `riverCorridorMask` |
+| **Module** | `core/sail/deriveSailOverlayMask.js`, `computeSailMetrics.js` |
+| **Renderer** | Pink raster via `buildSailOverlayRgba.js`; toggle in resource overlay bar |
+| **Validation** | `navigableRiverQuota`, `coastMouth`, `coastConnectedNavigablePath` (#388) |
+
+Not stored on **world document**. Single derive function shared by validation and renderer.
 
 ---
 
@@ -91,8 +103,9 @@ All masks are `Uint8Array` length `gridWidth * gridHeight`, cell values 0 or 1 u
 
 | Consumer | Module | Rule |
 | --- | --- | --- |
-| Geography **validation checks** | `core/validation/runGeographyValidationChecks.js` | Navigability, mouth counts, Hacks-law metrics (#365) |
-| Generation report hydrology section | `core/buildGenerationReport.js` | River mouth count, navigable km (#365) |
+| Geography **validation checks** (sailing) | `core/validation/runGeographyValidationChecks.js` | **Sail overlay** metrics from `core/sail/` (#388, ADR 0010) |
+| Geography **validation checks** (Hacks law, parallel strand) | `core/validation/runGeographyValidationChecks.js` | Simulation river graph via `computeHydrologyMetrics` |
+| Generation report hydrology section | `core/buildGenerationReport.js` | Sail metrics for movement/coast; graph diagnostics retained under `hydrology` |
 | `assembleRiverNetwork` logistics path | `core/hydrology/riverNetwork.js` | Pass `simulationRiverMask` as `simulationCenterline` |
 | Future **movement cost** / **trade route** graph | (not Phase 5) | Documented seam for logistics pass |
 | Worker / clone round-trip | `cloneWorldDocument.js`, worker protocol | Independent buffer copy (#366) |
@@ -119,7 +132,8 @@ All masks are `Uint8Array` length `gridWidth * gridHeight`, cell values 0 or 1 u
 
 | Anti-pattern | Why |
 | --- | --- |
-| Validation reads `riverNetworkMask` when meander enabled | Overstates navigability |
+| Validation reads `riverNetworkMask` for **sailing checks** when meander enabled | Understates/overstates vs map-truth **Sail overlay** |
+| Validation reads `simulationRiverMask` for **sailing checks** | Ignores corridor paint and meander bridges (#388) |
 | Renderer reads `simulationRiverMask` for corridor width | Ignores paint stage |
 | Test title says "simulation" but asserts only `riverNetworkMask` | False seam coverage (#364) |
 | Mutating `simulationRiverMask` in `hydrologyRefine` / `hydrologyPaint` | Breaks byte-invariance (#358) |
@@ -133,7 +147,7 @@ From `world-builder/core/types.js` / `worldGenerationOptions`:
 
 | Option | Affects simulation? | Affects presentation? |
 | --- | :---: | :---: |
-| `enableMeanderRefine: true` | No | Yes — `presentation` stage |
+| `enableMeanderRefine: true` | No (`simulationRiverMask`) | Yes — `presentation` stage; **Sail overlay** and sailing validation (#388) |
 | `riverAttractionRadiusScale` | No | Yes — path attraction heuristic |
 | Default (refine skipped) | — | `riverNetworkMask` may equal `simulationRiverMask` |
 
@@ -155,9 +169,16 @@ scalar fields (drainage, elevation)
         │
         ├─ simulationRiverMask ◄── settled stage
         │         │
-        │         ├── validation (runGeographyValidationChecks)
-        │         ├── generation report (buildGenerationReport)
+        │         ├── validation (Hacks law, parallel strand, graph diagnostics)
+        │         ├── generation report (simulation hydrology block)
         │         └── worker terminal / clone
+        │
+        ├─ lakeMask + riverCorridorMask + ocean
+        │         │
+        │         ├── deriveSailOverlayMask (core/sail)
+        │         │         ├── sailing validation checks
+        │         │         ├── generation report sail metrics
+        │         │         └── pink Sail raster overlay
         │
         ├─ riverNetworkMask ◄── presentation or settled centerline
         │         │
@@ -191,8 +212,8 @@ River mask stages expose contract keys via `riverMaskContractKey(stage)`:
 | --- | --- |
 | `hydrologyRiverPathfindingSeamContract.test.js` | Default gen: `simulationRiverMask` length = cell count, count > 0 |
 | `riverMaskLifecycle.test.js` | Stage order; skipRefine; presentation transitions |
-| `derivedGeographyPipeline.test.js` | Meander on → simulation bytes unchanged |
-| `runGeographyValidationChecks.test.js` | Metrics invariant to presentation toggles (#365, #386) |
+| `derivedGeographyPipeline.test.js` | Meander on → simulation bytes unchanged; sail metrics may change (#388) |
+| `runGeographyValidationChecks.test.js` | Sailing checks respond to presentation corridor bridges (#388); graph checks invariant (#365) |
 | `derivedGeographyWorkerProtocol.test.js` | Terminal payload includes simulation mask (#366) |
 | `renderer/rendererSeamContract.test.js` | Renderer uses presentation masks for draw |
 

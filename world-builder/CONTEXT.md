@@ -100,11 +100,33 @@ Map-facing hydrology after optional refine and paint: display river centerline, 
 
 _Avoid_: "River network mask" when meaning simulation centerline; conflating with **simulation hydrology** when the question is what the player sees on the map.
 
-### Traversable water
+### Sailable water
 
-Water a **movement cost** or **trade route** graph treats as passable by boat or downstream haul—the same water the final map shows as river, lake, or navigable coast. **Canonical rule:** if the cell reads as water on the rendered **landmass** output, it is traversable; generation heuristics (including **meander refine**) must not draw connected rivers that the simulation then ignores.
+Connected **traversable water** and **waterfront sliver** regions as read from the **Sail overlay**—the metric and validation label for “how much of the map supports boat travel and shore access.” Replaces legacy “navigable river” / graph edge counts in user-facing reports. **Check rule:** pass requires meaningful connected sailing area (largest **8-connected** overlay component ≥ threshold); **Coastal river access** remains a separate row for ocean contact.
 
-_Avoid_: "Navigable" metrics computed from a separate centerline graph while the map shows different connectivity; **simulation hydrology** alone as the traversability source when presentation paint disagrees; cosmetic bridges that fail the blue-pixel test.
+_Avoid_: “Navigable” when meaning **Sail overlay** area or components; equating sailable area with **simulation hydrology** centerline length; using total pixel count alone when water is fragmented into useless puddles.
+
+### Coastal river access
+
+Validation check that at least one river or lake meets the ocean through **Sail overlay** connectivity—a sail-native mouth test replacing graph **mouth** node counts. Sidebar label for the former `coastMouth` row.
+
+_Avoid_: “Coast mouth” / graph node IDs as the user-facing contract; failing inland dead-end rivers when overlay shows no coastal connection.
+
+### Coast-to-interior sailing path
+
+Longest (or qualifying) continuous **8-connected** path from ocean/coast inward through the **Sail overlay** without crossing unset pixels—the validation check that inland water is actually reachable from the sea by boat. Replaces legacy “coast-connected navigable path” wording.
+
+_Avoid_: Measuring this on pre-refine **simulation hydrology** graphs; “navigable path” in sidebar copy when **Sail overlay** is the source of truth.
+
+### Sail overlay
+
+Bright-pink map overlay showing where boat travel is allowed and where people can reach the water. Built from the **final display water union** (ocean + lakes + painted river corridors), blurred so connections between waterways close and shore outlines soften, then high-pass filtered so continuous sailing regions read clearly. Includes a narrow waterfront sliver around waterways so simulated people can launch, land, and sail. **Connectivity rule:** two points are sail-connected if an **8-connected** path through the overlay never crosses an unset pixel (diagonal steps allowed).
+
+Display and analysis layer for **traversable water** and sailing **validation checks**; toggled like other map overlays. v1 ships with tuned blur/high-pass so the mask includes connected waterways and a usable **waterfront sliver** for launch and landings—not deferred. Upstream vs downstream cost is out of scope for v1—future simulations may use elevation incline along flow direction.
+
+_Avoid_: “Navigable river graph” as a stand-in for **Sail overlay**; using unblurred centerline masks; conflating overlay visibility with generation options; treating shoreline outline pixels on the base map as non-traversable when the overlay bridge connects them; storing a separate sail mask on the **world document** that can drift from the derive function used at validation time.
+
+**Derivation:** not persisted—computed on demand from final water inputs and **fixed pipeline constants** (blur radius, high-pass threshold); validation and renderer share one deterministic function. Not user-adjustable in v1. **Meander refine** is optional—checks describe the generated map as shown, not a counterfactual with refine enabled.
 
 ### Logistics pass
 
@@ -380,6 +402,7 @@ _Avoid_: “Save file” in UI copy when the artifact is author-facing; PNG-only
 ## Relationships
 
 - **Landmass pipeline → fields before labels**: **scalar fields** (elevation, rainfall, temperature, drainage, salinity) overlap into **biomes** and **resource rasters**; hydrology is derived (erosion, river graph)—not painted first (Dwarf Fortress pattern; see research notes).
+- **Landmass → hydrology → Sail overlay**: rivers, lakes, and coast on the final map feed **traversable water**; **meander refine** bridges must appear in **Sail overlay** connectivity, not only in presentation paint ignored by metrics.
 - **Landmass pipeline → logistics pass**: after physical terrain, **ox paradox**, **arable envelope**, **maritime reach**, and **strategic resource** nodes apply—World Builder’s layer on top of DF-style geography.
 - **Rejection sampling → validation checks**: failed **population ceiling**, haul corridor, or node presence → regenerate candidate **landmass**; reject reasons inform tuning.
 - **Geography seed / history seed → world document**: same map with different **history log** when only **history seed** changes.
@@ -443,7 +466,11 @@ Interesting play locations tend to sit where pressures collide:
 
 ### Validation checks (world feels “read,” not invented)
 
-Used by **rejection sampling**; same role as Dwarf Fortress biome and feature quotas, but logistics-grounded:
+Used by **rejection sampling**; same role as Dwarf Fortress biome and feature quotas, but logistics-grounded. Hydrology sailing checks measure **Sail overlay** connectivity using sail-native report labels—**Sailable water**, **Coastal river access**, **Coast-to-interior sailing path**—not pre-refine graph edge counts or “navigable” wording.
+
+_Avoid_: Rejecting or accepting worlds based on `riverGraph` edge counts when **Sail overlay** shows different connectivity; validation metrics that ignore **meander refine** bridges visible on the final map; legacy “navigable edge” language in user-facing validation rows.
+
+**UI vs schema:** validation and generation-control **labels** use sail-native names (**Sailable water**, **Coastal river access**, **Coast-to-interior sailing path**); internal `enforce*` option keys (e.g. `enforceNavigableRiverQuota`) stay stable for saved settings.
 
 - No **population ceiling** violation: urban nodes fit their **arable envelope** and **haul** mode.
 - No impossible capitals: apex **settlements** sit on sea, river, or rich hinterland—not isolated peaks without **maritime reach**.
@@ -453,9 +480,11 @@ Used by **rejection sampling**; same role as Dwarf Fortress biome and feature qu
 - **Strategic resource** scarcity produces explainable **conflict engine** wants (salt wars, timber monopolies).
 - Resource-mismatch zones present where params expect interesting friction (fertile delta beside scarcity, rain-shadow dry belt).
 
+**Generation report (hydrology):** user-facing stats use **Sail overlay** metrics (**Sailable water**, **Coastal river access**, **Coast-to-interior sailing path**); legacy graph-edge counts (navigable edges, mouth count, navigable km from centerline graph) drop from the default report.
+
 ## Flagged ambiguities
 
-- **Simulation vs presentation hydrology (#358, #365):** glossary now treats **traversable water** as map-truth (blue pixel). Existing docs and code still split simulation graph from presentation paint for navigability metrics—reconcile in implementation.
+- **Simulation vs presentation hydrology (#358, #365):** resolved by [ADR 0010](../docs/adr/0010-world-builder-sail-overlay-traversability.md)—**Sail overlay** is traversability source of truth; simulation graph demoted for sailing checks.
 - **WAAC** spelling vs playlist “WAC” / “WOAC”—canonical here is **WAAC cycle** (four explicit steps).
 - **Fantasy races** vs **culture**: playlist #14 argues species should diverge in cognition/biology; v1 **culture engine** may assume human-norm peoples unless a separate species layer is added later.
 - **Magic / industrial exceptions**: **ox paradox** and **population ceiling** assume pre-industrial logistics; teleportation, flying mounts, or preservation magic need explicit overrides or they break **supply-chain feudalism**.

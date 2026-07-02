@@ -7,11 +7,15 @@ import {
   MIN_BIOME_DIVERSITY,
   MIN_HIGHLAND_ELEVATION,
   MIN_HIGHLAND_FRACTION,
-  minNavigableRiverEdgesForGrid,
+  minSailableWaterCellsForGrid,
 } from '../types.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../worldGenerationOptions.js'
-import { computeHydrologyMetrics, selectNavigableRiverEdges } from './computeHydrologyMetrics.js'
+import { computeHydrologyMetrics } from './computeHydrologyMetrics.js'
 import { computeWindRainfallAsymmetry } from './computeWindRainfallAsymmetry.js'
+import {
+  findSailOverlayFocus,
+  resolveSailOverlayFromSlice,
+} from '../sail/resolveSailMetricsFromSlice.js'
 import {
   createValidationRow,
   resolveValidationCheckStatus,
@@ -95,30 +99,30 @@ export function runGeographyValidationChecks(slice) {
     throw new Error('riverNetwork or hydrologyMetrics required for geography validation')
   }
 
-  const navigableEdges = selectNavigableRiverEdges(graph.edges)
-  const minNavigable = minNavigableRiverEdgesForGrid(gridWidth)
-  const navigablePass = navigableEdges.length >= minNavigable
+  const { mask: sailMask, metrics: sailMetrics } = resolveSailOverlayFromSlice(slice)
+  const sailFocus = findSailOverlayFocus(sailMask, gridWidth, gridHeight)
+  const minSailableCells = minSailableWaterCellsForGrid(gridWidth)
+  const sailablePass = sailMetrics.largestComponentCellCount >= minSailableCells
   rows.push(
     createValidationRow(
       'navigableRiverQuota',
-      resolveValidationCheckStatus(navigablePass, 'navigableRiverQuota', validationOptions),
-      navigablePass
-        ? `Navigable river segments: ${navigableEdges.length}`
-        : `Low navigable river count: ${navigableEdges.length} (min ${minNavigable})`,
-      navigablePass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
+      resolveValidationCheckStatus(sailablePass, 'navigableRiverQuota', validationOptions),
+      sailablePass
+        ? `Sailable water: ${sailMetrics.largestComponentCellCount} cells`
+        : `Low sailable water: ${sailMetrics.largestComponentCellCount} cells (min ${minSailableCells})`,
+      sailablePass ? undefined : sailFocus,
     ),
   )
 
-  const mouthCount = metrics.mouthCount
-  const coastMouthPass = mouthCount >= 1
+  const coastMouthPass = sailMetrics.hasCoastalRiverAccess
   rows.push(
     createValidationRow(
       'coastMouth',
       resolveValidationCheckStatus(coastMouthPass, 'coastMouth', validationOptions),
       coastMouthPass
-        ? `River mouths: ${mouthCount}`
-        : 'No river mouths detected',
-      coastMouthPass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
+        ? 'Coastal river access detected'
+        : 'No coastal river access detected',
+      coastMouthPass ? undefined : sailFocus,
     ),
   )
 
@@ -158,7 +162,7 @@ export function runGeographyValidationChecks(slice) {
   )
 
   const coastPathPass =
-    metrics.coastConnectedNavigablePathLength >=
+    sailMetrics.coastToInteriorPathLength >=
     validationOptions.minCoastConnectedNavigablePathCells
   rows.push(
     createValidationRow(
@@ -169,9 +173,9 @@ export function runGeographyValidationChecks(slice) {
         validationOptions,
       ),
       coastPathPass
-        ? `Coast-connected navigable path: ${metrics.coastConnectedNavigablePathLength} cells`
-        : `Coast-connected navigable path ${metrics.coastConnectedNavigablePathLength} below min ${validationOptions.minCoastConnectedNavigablePathCells}`,
-      coastPathPass ? undefined : findRiverFocus(riverGraph, gridWidth, gridHeight),
+        ? `Coast-to-interior sailing path: ${sailMetrics.coastToInteriorPathLength} cells`
+        : `Coast-to-interior sailing path ${sailMetrics.coastToInteriorPathLength} below min ${validationOptions.minCoastConnectedNavigablePathCells}`,
+      coastPathPass ? undefined : sailFocus,
     ),
   )
 

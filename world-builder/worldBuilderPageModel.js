@@ -3,6 +3,7 @@ import {
   DEFAULT_GEOGRAPHY_SEED,
   DEFAULT_WORLD_GENERATION_OPTIONS,
 } from './core/worldGenerationOptions.js'
+import { validationCheckDisplayLabel } from './core/validation/landmassValidationContracts.js'
 
 export { DEFAULT_GEOGRAPHY_SEED } from './core/worldGenerationOptions.js'
 
@@ -141,23 +142,26 @@ export function validationStatusIcon(status) {
 
 /**
  * @param {import('./core/types.js').GenerationReport | undefined} report
- * @returns {Array<{ checkId: string, status: 'pass' | 'warn' | 'fail', summary: string, mapFocus?: import('./core/types.js').MapFocus }>}
+ * @returns {Array<{ checkId: string, label: string, status: 'pass' | 'warn' | 'fail', summary: string, mapFocus?: import('./core/types.js').MapFocus }>}
  */
 export function createValidationRowsForDisplay(report) {
   if (!report) return []
-  return report.validationRows.filter(
-    (row) => !HIDDEN_SIDEBAR_VALIDATION_CHECK_IDS.has(row.checkId),
-  )
+  return report.validationRows
+    .filter((row) => !HIDDEN_SIDEBAR_VALIDATION_CHECK_IDS.has(row.checkId))
+    .map((row) => ({
+      ...row,
+      label: validationCheckDisplayLabel(row.checkId),
+    }))
 }
 
 /**
  * @param {import('./core/types.js').GenerationReport | undefined} report
- * @returns {{ erosionStepCount: number, navigableRiverEdgeCount: number, coastalNodeCount: number }}
+ * @returns {{ erosionStepCount: number, largestSailComponentCellCount: number, coastalNodeCount: number }}
  */
 export function createStageSummaryForDisplay(report) {
   return {
     erosionStepCount: report?.erosionStepCount ?? 0,
-    navigableRiverEdgeCount: report?.navigableRiverEdgeCount ?? 0,
+    largestSailComponentCellCount: report?.largestSailComponentCellCount ?? 0,
     coastalNodeCount: report?.coastalNodeCount ?? 0,
   }
 }
@@ -169,17 +173,16 @@ export function createHydrologyStatsForDisplay(report) {
   if (!report?.hydrology) {
     return {
       riverCellCount: null,
-      navigableEdgeCount: null,
+      largestSailComponentCellCount: null,
+      coastalRiverAccess: null,
+      coastToInteriorSailPathLength: null,
       hacksLawExponent: null,
       slopeAreaConcavityMedian: null,
       slopeAreaConcavitySampleCount: 0,
       parallelStrandRatio: null,
-      navigableKmEstimate: null,
-      mouthCount: null,
       breachCount: null,
       lakeCount: null,
       endorheicFraction: null,
-      coastConnectedNavigablePathLength: null,
       shouldReject: false,
       rejectionSamplingEnforced: false,
       structuredRejectionReasons: [],
@@ -191,17 +194,16 @@ export function createHydrologyStatsForDisplay(report) {
   )
   return {
     riverCellCount: report.hydrology.riverCellCount,
-    navigableEdgeCount: report.hydrology.navigableEdgeCount,
+    largestSailComponentCellCount: report.hydrology.largestSailComponentCellCount,
+    coastalRiverAccess: report.hydrology.coastalRiverAccess,
+    coastToInteriorSailPathLength: report.hydrology.coastToInteriorSailPathLength,
     hacksLawExponent: report.hydrology.hacksLawExponent,
     slopeAreaConcavityMedian,
     slopeAreaConcavitySampleCount: report.hydrology.slopeAreaConcavitySamples.length,
     parallelStrandRatio: report.hydrology.parallelStrandRatio,
-    navigableKmEstimate: report.hydrology.navigableKmEstimate,
-    mouthCount: report.hydrology.mouthCount,
     breachCount: report.hydrology.breachCount,
     lakeCount: report.hydrology.lakeCount,
     endorheicFraction: report.hydrology.endorheicFraction,
-    coastConnectedNavigablePathLength: report.hydrology.coastConnectedNavigablePathLength,
     shouldReject: report.shouldReject,
     rejectionSamplingEnforced: report.rejectionSamplingEnforced,
     structuredRejectionReasons: report.structuredRejectionReasons.map((reason) => ({

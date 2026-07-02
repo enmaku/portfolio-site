@@ -10,6 +10,7 @@ import {
   metalsSpriteLayer,
   recentSpriteLayers,
   riversSpriteLayer,
+  sailSpriteLayer,
   timberSpriteLayer,
   uninstallViewportGlobals,
   viewportTestOptions,
@@ -30,19 +31,20 @@ after(() => {
 })
 
 test(
-  'viewport layer stack follows terrain contours arable timber metals lakes rivers order',
+  'viewport layer stack follows terrain contours arable timber metals lakes rivers sail order',
   viewportTestOptions,
   async () => {
     const viewport = await createWorldBuilderMapViewport(createHostEl(), createArableRasterFixture())
     const layers = recentSpriteLayers()
 
-    assert.strictEqual(layers.length, 7)
+    assert.strictEqual(layers.length, 8)
     assert.strictEqual(contoursSpriteLayer(), layers[1])
     assert.strictEqual(arableSpriteLayer(), layers[2])
     assert.strictEqual(timberSpriteLayer(), layers[3])
     assert.strictEqual(metalsSpriteLayer(), layers[4])
     assert.strictEqual(lakesSpriteLayer(), layers[5])
     assert.strictEqual(riversSpriteLayer(), layers[6])
+    assert.strictEqual(sailSpriteLayer(), layers[7])
 
     viewport.destroy()
   },

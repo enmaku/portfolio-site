@@ -95,8 +95,8 @@ test('generateDerivedGeography is deterministic for same seed and wind', () => {
   assert.deepStrictEqual(first.timberRaster, second.timberRaster)
   assert.deepStrictEqual(first.metalsRaster, second.metalsRaster)
   assert.deepStrictEqual(first.metalNodes, second.metalNodes)
-  assert.strictEqual(first.generationReport.navigableRiverEdgeCount,
-    second.generationReport.navigableRiverEdgeCount)
+  assert.strictEqual(first.generationReport.largestSailComponentCellCount,
+    second.generationReport.largestSailComponentCellCount)
 })
 
 test('generateDerivedGeography differs for different seeds', () => {

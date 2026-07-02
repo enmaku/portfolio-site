@@ -92,6 +92,9 @@
  * @property {number[]} slopeAreaConcavitySamples
  * @property {number} parallelStrandRatio
  * @property {number} coastConnectedNavigablePathLength
+ * @property {number} largestSailComponentCellCount
+ * @property {boolean} coastalRiverAccess
+ * @property {number} coastToInteriorSailPathLength
  * @property {number=} overflowLakeCount
  * @property {number=} seasonalYearCount
  * @property {number=} meanLakeLevelDelta
@@ -178,6 +181,8 @@
  * @property {number} coast.mouthCount
  * @property {'pass' | 'warn' | 'fail'} coast.coastMouthCheckStatus
  * @property {number} coast.coastConnectedNavigablePathLength
+ * @property {boolean} coast.coastalRiverAccess
+ * @property {number} coast.coastToInteriorSailPathLength
  * @property {Object} climate
  * @property {boolean} climate.windRainfallAsymmetryActive
  * @property {'pass' | 'warn' | 'fail'} climate.windRainfallCheckStatus
@@ -199,8 +204,8 @@
  * @property {'pass' | 'warn' | 'fail'} landmassPlausibility.highlandCheckStatus
  * @property {'pass' | 'warn' | 'fail'} landmassPlausibility.biomeDiversityCheckStatus
  * @property {Object} movement
- * @property {number} movement.navigableRiverEdgeCount
- * @property {number} movement.coastConnectedNavigablePathLength
+ * @property {number} movement.largestSailComponentCellCount
+ * @property {number} movement.coastToInteriorSailPathLength
  * @property {'pass' | 'warn' | 'fail'} movement.navigableRiverCheckStatus
  * @property {'pass' | 'warn' | 'fail'} movement.coastConnectedNavigablePathCheckStatus
  */
@@ -216,7 +221,7 @@
 /**
  * @typedef {Object} GenerationReport
  * @property {number} erosionStepCount
- * @property {number} navigableRiverEdgeCount
+ * @property {number} largestSailComponentCellCount
  * @property {number} coastalNodeCount
  * @property {ValidationRow[]} validationRows
  * @property {boolean} shouldReject
@@ -373,6 +378,9 @@ export const REFERENCE_MIN_RIVER_MOUTH_CHANNEL_CELLS = 12
 /** Minimum navigable river edge count for validation pass (reference grid). */
 export const REFERENCE_MIN_NAVIGABLE_RIVER_EDGES = 3
 
+/** Minimum largest sail-overlay component size for validation pass (reference grid). */
+export const REFERENCE_MIN_SAILABLE_WATER_CELLS = 48
+
 /** Minimum highland cell fraction for validation pass. */
 export const MIN_HIGHLAND_ELEVATION = 0.72
 
@@ -464,4 +472,15 @@ export function minLakeAreaForGrid(gridSize) {
  */
 export function minNavigableRiverEdgesForGrid(gridSize) {
   return Math.max(1, Math.round(REFERENCE_MIN_NAVIGABLE_RIVER_EDGES * (gridSize / REFERENCE_GRID_SIZE)))
+}
+
+/**
+ * Minimum largest connected sail-overlay component for navigableRiverQuota pass.
+ * @param {number} gridSize
+ */
+export function minSailableWaterCellsForGrid(gridSize) {
+  return Math.max(
+    8,
+    Math.round(REFERENCE_MIN_SAILABLE_WATER_CELLS * (gridSize / REFERENCE_GRID_SIZE)),
+  )
 }

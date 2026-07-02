@@ -281,15 +281,15 @@
                 />
               </q-item-section>
               <q-item-section>
-                <q-item-label>{{ row.checkId }}</q-item-label>
+                <q-item-label>{{ row.label ?? row.checkId }}</q-item-label>
                 <q-item-label caption>{{ row.summary }}</q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
           <div class="text-subtitle2 q-mb-sm">Generation report</div>
           <div class="text-caption q-mb-md">
-            Erosion steps: {{ stageSummary.erosionStepCount }} · Navigable rivers:
-            {{ stageSummary.navigableRiverEdgeCount }} · Coastal nodes:
+            Erosion steps: {{ stageSummary.erosionStepCount }} · Sailable water cells:
+            {{ stageSummary.largestSailComponentCellCount }} · Coastal nodes:
             {{ stageSummary.coastalNodeCount }}
           </div>
           <div
@@ -297,7 +297,24 @@
             data-testid="world-builder-hydrology-stats"
           >
             <div>River cells: {{ hydrologyStats.riverCellCount ?? 'n/a' }}</div>
-            <div>Navigable edges: {{ hydrologyStats.navigableEdgeCount ?? 'n/a' }}</div>
+            <div>
+              Largest sail component:
+              {{ hydrologyStats.largestSailComponentCellCount ?? 'n/a' }} cells
+            </div>
+            <div>
+              Coastal river access:
+              {{
+                hydrologyStats.coastalRiverAccess === null
+                  ? 'n/a'
+                  : hydrologyStats.coastalRiverAccess
+                    ? 'yes'
+                    : 'no'
+              }}
+            </div>
+            <div>
+              Coast-to-interior sail path:
+              {{ hydrologyStats.coastToInteriorSailPathLength ?? 'n/a' }} cells
+            </div>
             <div>Hack's law exponent: {{ formatHydrologyMetricValue(hydrologyStats.hacksLawExponent) }}</div>
             <div>
               Slope–area concavity:
@@ -309,15 +326,9 @@
               }}
             </div>
             <div>Parallel strand ratio: {{ formatHydrologyMetricValue(hydrologyStats.parallelStrandRatio) }}</div>
-            <div>Navigable km estimate: {{ formatHydrologyMetricValue(hydrologyStats.navigableKmEstimate, 1) }}</div>
-            <div>Mouth count: {{ hydrologyStats.mouthCount ?? 'n/a' }}</div>
             <div>Lake count: {{ hydrologyStats.lakeCount ?? 'n/a' }}</div>
             <div>Breach count: {{ hydrologyStats.breachCount ?? 'n/a' }}</div>
             <div>Endorheic fraction: {{ formatHydrologyMetricValue(hydrologyStats.endorheicFraction) }}</div>
-            <div>
-              Coast-connected navigable path:
-              {{ hydrologyStats.coastConnectedNavigablePathLength ?? 'n/a' }} cells
-            </div>
             <div data-testid="world-builder-rejection-status">
               Rejected:
               {{ hydrologyStats.shouldReject ? 'yes' : 'no' }}

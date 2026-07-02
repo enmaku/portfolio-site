@@ -36,7 +36,7 @@ Completing this stage sets `lastCompletedStep === 'validation'`, which switches 
 | `riverGraph` | graph | state |
 | `coastalNodes` | nodes | state |
 | `hydrologyStats`, `hydrologySubstepTimings` | report inputs | state (defaults for null stats) |
-| `simulationRiverMask`, `riverNetworkMask`, `riverCorridorMask` | masks | state |
+| `simulationRiverMask`, `riverNetworkMask`, `riverCorridorMask`, `lakeMask` | masks | state |
 | `flowDirection`, `channelWidth` | optional | state |
 | `arableRaster`, `saltNodes`, `metalNodes` | optional resources | state |
 
@@ -58,7 +58,9 @@ assembleRiverNetworkFromFields({
 })
 ```
 
-**Simulation-first (#365):** prefer `simulationRiverMask` for logistics-facing network assembly. Presentation-only toggles must not change validation outcomes.
+**Simulation-first (#365):** prefer `simulationRiverMask` for logistics-facing network assembly (Hacks law, parallel strand, graph diagnostics). Presentation-only toggles must not change those simulation metrics.
+
+**Sail overlay (#388, ADR 0010):** sailing validation checks (`navigableRiverQuota`, `coastMouth`, `coastConnectedNavigablePath`) derive from `core/sail/` using `elevation`, `lakeMask`, and `riverCorridorMask`. Meander refine may change sailing outcomes without changing `simulationRiverMask`.
 
 ---
 
@@ -67,6 +69,7 @@ assembleRiverNetworkFromFields({
 `buildGenerationReport` receives:
 
 - Erosion and hydrology timing/stats  
+- `lakeMask`, `riverCorridorMask` for **Sail overlay** metrics  
 - `prevailingWindDegrees`, `validationOptions: input.options`  
 - Optional resource outputs for resource validation slice  
 - Default `hydrologyStats` when null:

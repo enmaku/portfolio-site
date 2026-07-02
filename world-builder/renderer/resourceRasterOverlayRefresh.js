@@ -1,14 +1,16 @@
 import { buildArableOverlayRgba } from './buildArableOverlayCanvas.js'
 import { buildMetalsOverlayRgba } from './buildMetalsOverlayCanvas.js'
+import { buildSailOverlayRgba } from './buildSailOverlayRgba.js'
 import { buildTimberOverlayRgba } from './buildTimberOverlayCanvas.js'
 import { resourceRasterOverlayCanvasFromRgba } from './buildResourceRasterOverlayRgba.js'
 import { createResourceOverlayDefinitions } from '../resourceOverlays.js'
 import {
   resolveArableRasterLayerVisible,
   resolveResourceRasterLayerVisible,
+  resolveSailRasterLayerVisible,
 } from './worldBuilderMapViewportModel.js'
 
-/** @typedef {'arable' | 'timber' | 'metals'} ResourceRasterOverlayLayerId */
+/** @typedef {'arable' | 'timber' | 'metals' | 'sail'} ResourceRasterOverlayLayerId */
 
 /**
  * @typedef {Object} ResourceRasterOverlayRefreshContext
@@ -44,6 +46,12 @@ export const RESOURCE_RASTER_OVERLAY_REGISTRY = {
     resolveVisible: (visibility, worldDocument) =>
       resolveResourceRasterLayerVisible(visibility, 'metals', worldDocument),
     buildRgba: (worldDocument) => buildMetalsOverlayRgba(worldDocument),
+  },
+  sail: {
+    id: 'sail',
+    resolveVisible: (visibility, worldDocument) =>
+      resolveSailRasterLayerVisible(visibility, worldDocument),
+    buildRgba: (worldDocument) => buildSailOverlayRgba(worldDocument),
   },
 }
 
@@ -130,6 +138,7 @@ export function refreshAllResourceRasterOverlayCanvases(context) {
     arable: null,
     timber: null,
     metals: null,
+    sail: null,
   }
 
   for (const resourceId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {

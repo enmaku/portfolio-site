@@ -15,7 +15,7 @@ import {
 
 test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
   const definitions = createResourceOverlayDefinitions()
-  assert.strictEqual(definitions.length, 4)
+  assert.strictEqual(definitions.length, 5)
   assert.deepStrictEqual(
     definitions.map((definition) => ({
       id: definition.id,
@@ -27,12 +27,13 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'timber', kind: 'raster', vectorLayerId: undefined },
       { id: 'metals', kind: 'rasterAndNodes', vectorLayerId: 'metalNodes' },
       { id: 'salt', kind: 'nodes', vectorLayerId: 'saltNodes' },
+      { id: 'sail', kind: 'raster', vectorLayerId: undefined },
     ],
   )
 })
 
 test('createResourceOverlayIds returns canonical overlay ids in order', () => {
-  assert.deepStrictEqual(createResourceOverlayIds(), ['arable', 'timber', 'metals', 'salt'])
+  assert.deepStrictEqual(createResourceOverlayIds(), ['arable', 'timber', 'metals', 'salt', 'sail'])
 })
 
 test('createDefaultResourceOverlayVisibility defaults every canonical overlay off', () => {
@@ -41,6 +42,7 @@ test('createDefaultResourceOverlayVisibility defaults every canonical overlay of
     timber: false,
     metals: false,
     salt: false,
+    sail: false,
   })
 })
 

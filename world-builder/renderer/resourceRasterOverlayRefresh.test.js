@@ -54,14 +54,50 @@ function createMetalsFixture() {
   }
 }
 
+function createSailFixture() {
+  const cellCount = 64
+  const elevation = new Float32Array(cellCount).fill(0.5)
+  const riverCorridorMask = new Uint8Array(cellCount)
+  riverCorridorMask[36] = 1
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    fields: { elevation },
+    riverCorridorMask,
+  }
+}
+
+function createUnifiedRasterFixture() {
+  const cellCount = 64
+  const arableRaster = new Float32Array(cellCount)
+  arableRaster[36] = 0.75
+  const timberRaster = new Float32Array(cellCount)
+  timberRaster[36] = 0.8
+  const metalsRaster = new Float32Array(cellCount)
+  metalsRaster[36] = 0.85
+  const elevation = new Float32Array(cellCount).fill(0.5)
+  const riverCorridorMask = new Uint8Array(cellCount)
+  riverCorridorMask[36] = 1
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    arableRaster,
+    timberRaster,
+    metalsRaster,
+    fields: { elevation },
+    riverCorridorMask,
+  }
+}
+
 test('RESOURCE_RASTER_OVERLAY_LAYER_IDS lists raster overlay layers from definitions', () => {
-  assert.deepStrictEqual(RESOURCE_RASTER_OVERLAY_LAYER_IDS, ['arable', 'timber', 'metals'])
+  assert.deepStrictEqual(RESOURCE_RASTER_OVERLAY_LAYER_IDS, ['arable', 'timber', 'metals', 'sail'])
 })
 
 test('isResourceRasterOverlayLayerId identifies raster layers only', () => {
   assert.strictEqual(isResourceRasterOverlayLayerId('arable'), true)
   assert.strictEqual(isResourceRasterOverlayLayerId('timber'), true)
   assert.strictEqual(isResourceRasterOverlayLayerId('metals'), true)
+  assert.strictEqual(isResourceRasterOverlayLayerId('sail'), true)
   assert.strictEqual(isResourceRasterOverlayLayerId('salt'), false)
 })
 
@@ -136,7 +172,9 @@ test('refreshResourceRasterOverlayCanvas performs at most one RGBA build per lay
         ? createArableFixture()
         : resourceId === 'timber'
           ? createTimberFixture()
-          : createMetalsFixture()
+          : resourceId === 'metals'
+            ? createMetalsFixture()
+            : createSailFixture()
     const visibility = applyResourceOverlayVisibility(
       createDefaultResourceOverlayVisibility(),
       resourceId,
@@ -181,13 +219,7 @@ test('refreshAllResourceRasterOverlayCanvases rasterizes only visible layers onc
     },
   }
 
-  const worldDocument = {
-    gridWidth: 4,
-    gridHeight: 4,
-    arableRaster: createArableFixture().arableRaster,
-    timberRaster: createTimberFixture().timberRaster,
-    metalsRaster: createMetalsFixture().metalsRaster,
-  }
+  const worldDocument = createUnifiedRasterFixture()
   const hiddenContext = {
     visibility: createDefaultResourceOverlayVisibility(),
     worldDocument,
@@ -199,12 +231,14 @@ test('refreshAllResourceRasterOverlayCanvases rasterizes only visible layers onc
   assert.strictEqual(hiddenCanvases.arable, null)
   assert.strictEqual(hiddenCanvases.timber, null)
   assert.strictEqual(hiddenCanvases.metals, null)
+  assert.strictEqual(hiddenCanvases.sail, null)
   assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 0)
 
   let visibility = createDefaultResourceOverlayVisibility()
   visibility = applyResourceOverlayVisibility(visibility, 'arable', true)
   visibility = applyResourceOverlayVisibility(visibility, 'timber', true)
   visibility = applyResourceOverlayVisibility(visibility, 'metals', true)
+  visibility = applyResourceOverlayVisibility(visibility, 'sail', true)
 
   resetResourceRasterOverlayRgbaBuildCount()
   const visibleCanvases = refreshAllResourceRasterOverlayCanvases({
@@ -215,7 +249,8 @@ test('refreshAllResourceRasterOverlayCanvases rasterizes only visible layers onc
   assert.ok(visibleCanvases.arable)
   assert.ok(visibleCanvases.timber)
   assert.ok(visibleCanvases.metals)
-  assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 3)
+  assert.ok(visibleCanvases.sail)
+  assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 4)
 
   delete globalThis.document
   delete globalThis.ImageData

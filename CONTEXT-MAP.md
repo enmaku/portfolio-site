@@ -7,7 +7,7 @@
 - [Game Timer](./src/features/game-timer/CONTEXT.md) — Synchronized tabletop-style countdown timers for multiple players.
 - [Movie Vote](./src/features/movie-vote/CONTEXT.md) — Group movie nomination, ballots, and configurable standard voting methods (IRV, Borda, Condorcet, Copeland, …).
 - [Dungeon Runner](./src/features/dungeon-runner/CONTEXT.md) — Single-device deterministic card match vs AI opponents; completed **match** replays for later analysis.
-- [World Builder](./world-builder/CONTEXT.md) — Desktop procedural **worlds**: **landmass pipeline**, **culture engine**, logistics-bound **settlements** and **trade routes**, **history log** and **rivalry** (see [#293](https://github.com/enmaku/portfolio-site/issues/293); terrain research: [DF notes](./world-builder/research/dwarf-fortress-terrain-notes.md); map viewport: [ADR 0009](./docs/adr/0009-world-builder-map-display-stack.md)).
+- [World Builder](./world-builder/CONTEXT.md) — Desktop procedural **worlds**: **landmass pipeline**, **culture engine**, logistics-bound **settlements** and **trade routes**, **history log** and **rivalry** (see [#293](https://github.com/enmaku/portfolio-site/issues/293); terrain research: [DF notes](./world-builder/research/dwarf-fortress-terrain-notes.md); map viewport: [ADR 0009](./docs/adr/0009-world-builder-map-display-stack.md); sail traversability: [ADR 0010](./docs/adr/0010-world-builder-sail-overlay-traversability.md)).
 
 ## Relationships
 

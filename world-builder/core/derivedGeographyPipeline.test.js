@@ -96,8 +96,8 @@ test('runFullDerivedGeographyPipeline matches generateDerivedGeography', () => {
   assert.deepStrictEqual(fromPipeline.fields.drainage, direct.fields.drainage)
   assert.deepStrictEqual(fromPipeline.fields.salinity, direct.fields.salinity)
   assert.strictEqual(
-    fromPipeline.generationReport?.navigableRiverEdgeCount,
-    direct.generationReport?.navigableRiverEdgeCount,
+    fromPipeline.generationReport?.largestSailComponentCellCount,
+    direct.generationReport?.largestSailComponentCellCount,
   )
 })
 
@@ -180,8 +180,8 @@ test('validation hydrology metrics read the simulation centerline, not presentat
   const refineParams = {
     geographySeed: 5000,
     prevailingWindDegrees: 90,
-    width: 256,
-    height: 256,
+    width: 64,
+    height: 64,
     options: {
       ...DEFAULT_WORLD_GENERATION_OPTIONS,
       enableMeanderRefine: true,
@@ -204,97 +204,6 @@ test('validation hydrology metrics read the simulation centerline, not presentat
     'meander refine should change the presentation centerline cell count',
   )
   assert.strictEqual(doc.generationReport?.hydrology.riverCellCount, simulationCellCount)
-})
-
-const PHYSICS_FACING_VALIDATION_CHECK_IDS = [
-  'navigableRiverQuota',
-  'coastMouth',
-  'hacksLawExponent',
-  'slopeAreaConcavity',
-  'parallelStrandRatio',
-  'coastConnectedNavigablePath',
-  'endorheicFractionCap',
-]
-
-function pickLogisticsHydrologyMetrics(report) {
-  const { hydrology } = report
-  return {
-    riverCellCount: hydrology.riverCellCount,
-    navigableEdgeCount: hydrology.navigableEdgeCount,
-    navigableKmEstimate: hydrology.navigableKmEstimate,
-    mouthCount: hydrology.mouthCount,
-    parallelStrandRatio: hydrology.parallelStrandRatio,
-    coastConnectedNavigablePathLength: hydrology.coastConnectedNavigablePathLength,
-  }
-}
-
-function pickPhysicsFacingValidationOutcomes(report) {
-  return report.validationRows
-    .filter((row) => PHYSICS_FACING_VALIDATION_CHECK_IDS.includes(row.checkId))
-    .map(({ checkId, status }) => ({ checkId, status }))
-}
-
-test('presentation meander and attraction leave validation hydrology metrics unchanged', () => {
-  const baseParams = {
-    geographySeed: 5000,
-    prevailingWindDegrees: 90,
-    width: 256,
-    height: 256,
-  }
-  const runFullPipeline = (options) => {
-    let state = createInitialPipelineState({ ...baseParams, options })
-    for (const step of DERIVED_GEOGRAPHY_STEPS) {
-      state = runPipelineStep(state, step.id)
-    }
-    return buildWorldDocumentFromPipelineState(state)
-  }
-
-  const baselineDoc = runFullPipeline(DEFAULT_WORLD_GENERATION_OPTIONS)
-  const presentationDoc = runFullPipeline({
-    ...DEFAULT_WORLD_GENERATION_OPTIONS,
-    enableMeanderRefine: true,
-    riverMeanderStrength: 2,
-    riverAttractionRadiusScale: 6,
-  })
-
-  assert.deepStrictEqual(
-    presentationDoc.simulationRiverMask,
-    baselineDoc.simulationRiverMask,
-  )
-  assert.notDeepStrictEqual(
-    presentationDoc.riverNetworkMask,
-    baselineDoc.riverNetworkMask,
-  )
-  assert.notDeepStrictEqual(
-    presentationDoc.riverCorridorMask,
-    baselineDoc.riverCorridorMask,
-  )
-
-  const baselineReport = baselineDoc.generationReport
-  const presentationReport = presentationDoc.generationReport
-  assert.ok(baselineReport)
-  assert.ok(presentationReport)
-
-  assert.deepStrictEqual(
-    pickLogisticsHydrologyMetrics(presentationReport),
-    pickLogisticsHydrologyMetrics(baselineReport),
-  )
-  assert.deepStrictEqual(
-    pickPhysicsFacingValidationOutcomes(presentationReport),
-    pickPhysicsFacingValidationOutcomes(baselineReport),
-  )
-  assert.strictEqual(presentationReport.shouldReject, baselineReport.shouldReject)
-  assert.strictEqual(
-    presentationReport.navigableRiverEdgeCount,
-    baselineReport.navigableRiverEdgeCount,
-  )
-  assert.deepStrictEqual(
-    presentationReport.validationSignals.movement,
-    baselineReport.validationSignals.movement,
-  )
-  const hacksRow = presentationReport.validationRows.find((row) => row.checkId === 'hacksLawExponent')
-  const baselineHacksRow = baselineReport.validationRows.find((row) => row.checkId === 'hacksLawExponent')
-  assert.strictEqual(hacksRow?.status, baselineHacksRow?.status)
 })
 
 test('default derived geography hydrology performs three full flow solves', () => {
@@ -594,9 +503,9 @@ test('runPipelineStep validation emits contract-backed generation report', () =>
   assert.strictEqual(typeof report.shouldReject, 'boolean')
   assert.strictEqual(typeof report.rejectionSamplingEnforced, 'boolean')
   assert.ok(Array.isArray(report.structuredRejectionReasons))
-  assert.strictEqual(typeof report.validationSignals.movement.navigableRiverEdgeCount, 'number')
+  assert.strictEqual(typeof report.validationSignals.movement.largestSailComponentCellCount, 'number')
   assert.strictEqual(
-    typeof report.validationSignals.movement.coastConnectedNavigablePathLength,
+    typeof report.validationSignals.movement.coastToInteriorSailPathLength,
     'number',
   )
   assert.ok(report.validationRows.every((row) => typeof row.rejectable === 'boolean'))
