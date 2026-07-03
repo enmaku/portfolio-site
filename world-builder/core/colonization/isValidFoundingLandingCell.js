@@ -94,19 +94,18 @@ export function isValidFoundingLandingCell(doc, x, y) {
 
 /**
  * Snap a click to the nearest valid founding landing within `maxDistance` (Chebyshev).
- * @param {import('../types.js').WorldDocument} doc
+ * @param {FoundingLandingValidityContext} ctx
  * @param {number} x
  * @param {number} y
  * @param {number} [maxDistance]
  * @returns {{ x: number, y: number } | null}
  */
-export function snapFoundingLandingCell(
-  doc,
+export function snapFoundingLandingCellInContext(
+  ctx,
   x,
   y,
   maxDistance = FOUNDING_LANDING_SNAP_RADIUS,
 ) {
-  const ctx = createFoundingLandingValidityContext(doc)
   if (!ctx || !Number.isInteger(x) || !Number.isInteger(y) || maxDistance < 0) {
     return null
   }
@@ -133,6 +132,24 @@ export function snapFoundingLandingCell(
   }
 
   return best ? { x: best.x, y: best.y } : null
+}
+
+/**
+ * Snap a click to the nearest valid founding landing within `maxDistance` (Chebyshev).
+ * @param {import('../types.js').WorldDocument} doc
+ * @param {number} x
+ * @param {number} y
+ * @param {number} [maxDistance]
+ * @returns {{ x: number, y: number } | null}
+ */
+export function snapFoundingLandingCell(
+  doc,
+  x,
+  y,
+  maxDistance = FOUNDING_LANDING_SNAP_RADIUS,
+) {
+  const ctx = createFoundingLandingValidityContext(doc)
+  return snapFoundingLandingCellInContext(ctx, x, y, maxDistance)
 }
 
 /**

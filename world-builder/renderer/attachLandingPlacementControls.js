@@ -1,4 +1,7 @@
-import { snapFoundingLandingCell } from '../core/colonization/isValidFoundingLandingCell.js'
+import {
+  createFoundingLandingValidityContext,
+  snapFoundingLandingCellInContext,
+} from '../core/colonization/isValidFoundingLandingCell.js'
 
 /** Pin radius in screen pixels so it stays visible when zoomed out. */
 const PIN_SCREEN_RADIUS_PX = 9
@@ -38,6 +41,10 @@ export function attachLandingPlacementControls(options) {
   let landingPlacementEnabled = false
   /** @type {{ x: number, y: number } | null} */
   let currentMarker = null
+  /** @type {import('../core/types.js').WorldDocument | null} */
+  let validityContextDoc = null
+  /** @type {import('../core/colonization/isValidFoundingLandingCell.js').FoundingLandingValidityContext | null} */
+  let validityContext = null
 
   hostEl.style.cursor = ''
   viewport.eventMode = 'static'
@@ -51,7 +58,8 @@ export function attachLandingPlacementControls(options) {
     ).getLocalPosition(viewport)
     const x = Math.floor(world.x)
     const y = Math.floor(world.y)
-    hostEl.style.cursor = snapFoundingLandingCell(getWorldDocument(), x, y)
+    const ctx = getValidityContext()
+    hostEl.style.cursor = snapFoundingLandingCellInContext(ctx, x, y)
       ? 'crosshair'
       : 'not-allowed'
   })
@@ -70,6 +78,28 @@ export function attachLandingPlacementControls(options) {
   viewport.on('moved', () => {
     redrawLandingPin()
   })
+
+  function clearValidityContext() {
+    validityContextDoc = null
+    validityContext = null
+  }
+
+  /**
+   * @returns {import('../core/colonization/isValidFoundingLandingCell.js').FoundingLandingValidityContext | null}
+   */
+  function getValidityContext() {
+    const doc = getWorldDocument()
+    if (!doc) {
+      clearValidityContext()
+      return null
+    }
+    if (validityContext && validityContextDoc === doc) {
+      return validityContext
+    }
+    validityContextDoc = doc
+    validityContext = createFoundingLandingValidityContext(doc)
+    return validityContext
+  }
 
   /**
    * @param {number} screenPx
@@ -112,6 +142,9 @@ export function attachLandingPlacementControls(options) {
       landingPlacementEnabled = enabled === true
       if (!landingPlacementEnabled) {
         hostEl.style.cursor = ''
+        clearValidityContext()
+      } else {
+        getValidityContext()
       }
     },
 

@@ -263,6 +263,7 @@
  * @property {MetalNode[]=} metalNodes
  * @property {GenerationReport=} generationReport
  * @property {Float32Array[]=} erosionSnapshots
+ * @property {Float32Array=} movementCost Per-cell travel cost for haul-shed isochrones (logistics pass).
  * @property {import('./colonization/createDefaultColonizationSlice.js').ColonizationPhase=} colonizationPhase
  * @property {number=} epoch
  * @property {import('./colonization/createDefaultColonizationSlice.js').ColonistSettings=} colonistSettings

@@ -92,11 +92,10 @@ function computeIsochroneReach({ origin, budget, gridWidth, gridHeight, movement
 
   travelTime[originIndex] = 0
   /** @type {Array<{ x: number, y: number, time: number }>} */
-  const queue = [{ x: origin.x, y: origin.y, time: 0 }]
+  const heap = [{ x: origin.x, y: origin.y, time: 0 }]
 
-  while (queue.length > 0) {
-    queue.sort((a, b) => a.time - b.time)
-    const current = queue.shift()
+  while (heap.length > 0) {
+    const current = popMinTravelTime(heap)
     if (!current) break
     const currentIndex = current.y * gridWidth + current.x
     if (current.time > travelTime[currentIndex]) continue
@@ -114,7 +113,7 @@ function computeIsochroneReach({ origin, budget, gridWidth, gridHeight, movement
         const nextTime = current.time + stepCost * diagonalScale
         if (nextTime > budget || nextTime >= travelTime[nextIndex]) continue
         travelTime[nextIndex] = nextTime
-        queue.push({ x: nx, y: ny, time: nextTime })
+        pushMinTravelTime(heap, { x: nx, y: ny, time: nextTime })
       }
     }
   }
@@ -129,4 +128,51 @@ function computeIsochroneReach({ origin, budget, gridWidth, gridHeight, movement
     }
   }
   return cells
+}
+
+/**
+ * @param {Array<{ x: number, y: number, time: number }>} heap
+ * @param {{ x: number, y: number, time: number }} entry
+ */
+function pushMinTravelTime(heap, entry) {
+  heap.push(entry)
+  let index = heap.length - 1
+  while (index > 0) {
+    const parent = (index - 1) >> 1
+    if (heap[parent].time <= heap[index].time) break
+    const swap = heap[parent]
+    heap[parent] = heap[index]
+    heap[index] = swap
+    index = parent
+  }
+}
+
+/**
+ * @param {Array<{ x: number, y: number, time: number }>} heap
+ * @returns {{ x: number, y: number, time: number } | undefined}
+ */
+function popMinTravelTime(heap) {
+  if (heap.length === 0) return undefined
+  const min = heap[0]
+  const last = heap.pop()
+  if (heap.length === 0 || last === undefined) return min
+  heap[0] = last
+  let index = 0
+  while (true) {
+    const left = index * 2 + 1
+    const right = left + 1
+    let smallest = index
+    if (left < heap.length && heap[left].time < heap[smallest].time) {
+      smallest = left
+    }
+    if (right < heap.length && heap[right].time < heap[smallest].time) {
+      smallest = right
+    }
+    if (smallest === index) break
+    const swap = heap[index]
+    heap[index] = heap[smallest]
+    heap[smallest] = swap
+    index = smallest
+  }
+  return min
 }

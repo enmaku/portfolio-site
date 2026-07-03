@@ -3,8 +3,10 @@ import test from 'node:test'
 import { SEA_LEVEL } from '../biomeIds.js'
 import {
   FOUNDING_LANDING_SNAP_RADIUS,
+  createFoundingLandingValidityContext,
   isValidFoundingLandingCell,
   snapFoundingLandingCell,
+  snapFoundingLandingCellInContext,
 } from './isValidFoundingLandingCell.js'
 
 const WIDTH = 8
@@ -59,4 +61,22 @@ test('snapFoundingLandingCell prefers the nearest valid cell when several are in
   const doc = coastalDoc()
   const snapped = snapFoundingLandingCell(doc, 4, 3, 3)
   assert.deepStrictEqual(snapped, { x: 3, y: 3 })
+})
+
+test('snapFoundingLandingCellInContext matches snapFoundingLandingCell for the same context', () => {
+  const doc = coastalDoc()
+  const ctx = createFoundingLandingValidityContext(doc)
+  assert.ok(ctx)
+
+  for (const [x, y] of [
+    [3, 3],
+    [4, 3],
+    [0, 0],
+    [7, 7],
+  ]) {
+    assert.deepStrictEqual(
+      snapFoundingLandingCellInContext(ctx, x, y),
+      snapFoundingLandingCell(doc, x, y),
+    )
+  }
 })

@@ -1,4 +1,7 @@
-import { cloneColonizationSlice } from './colonization/createDefaultColonizationSlice.js'
+import {
+  cloneColonizationSlice,
+  pickColonizationSliceFields,
+} from './colonization/createDefaultColonizationSlice.js'
 
 /**
  * Clone typed arrays so worker postMessage copies are independent on the main thread.
@@ -15,16 +18,7 @@ export function cloneWorldDocument(doc) {
   }
   const colonization =
     doc.colonizationPhase !== undefined
-      ? cloneColonizationSlice({
-          colonizationPhase: doc.colonizationPhase,
-          epoch: doc.epoch ?? 0,
-          colonistSettings: doc.colonistSettings,
-          foundingLanding: doc.foundingLanding ?? null,
-          historyLog: doc.historyLog ?? [],
-          settlements: doc.settlements ?? [],
-          committedTips: doc.committedTips ?? [],
-          realmId: doc.realmId ?? null,
-        })
+      ? cloneColonizationSlice(pickColonizationSliceFields(doc))
       : null
   return {
     ...doc,
@@ -43,6 +37,7 @@ export function cloneWorldDocument(doc) {
     coastNavigability: doc.coastNavigability
       ? new Float32Array(doc.coastNavigability)
       : undefined,
+    movementCost: doc.movementCost ? new Float32Array(doc.movementCost) : undefined,
     erosionSnapshots: doc.erosionSnapshots?.map((snapshot) => new Float32Array(snapshot)),
     riverGraph: doc.riverGraph
       ? {

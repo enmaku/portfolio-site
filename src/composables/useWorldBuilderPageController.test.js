@@ -862,7 +862,7 @@ test('enterColonizationSetup moves to setup when a landmass exists', async () =>
     assert.strictEqual(ctx.showColonistSettingsPanel.value, true)
     assert.strictEqual(ctx.worldDocument.value?.colonizationPhase, COLONIZATION_PHASE_SETUP)
     assert.strictEqual(settingsStore.colonizationSession.colonizationPhase, COLONIZATION_PHASE_SETUP)
-    assert.strictEqual(appliedDocs.at(-1)?.colonizationPhase, COLONIZATION_PHASE_TERRAIN)
+    assert.strictEqual(appliedDocs.at(-1)?.colonizationPhase, COLONIZATION_PHASE_SETUP)
   } finally {
     scope.stop()
   }
@@ -1214,7 +1214,7 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
   const scope = effectScope(true)
   try {
     const landmass = coastalLandmassDocument()
-    const { ctx, settingsStore } = mountController(scope, {
+    const { ctx, settingsStore, appliedDocs } = mountController(scope, {
       runDerivedGeographyInWorker: (_params, callbacks) => {
         callbacks.onStepComplete?.({
           stepId: 'validation',
@@ -1247,6 +1247,8 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
     assert.strictEqual(ctx.timeControlsActive.value, false)
     assert.strictEqual(ctx.showResetColonization.value, true)
     assert.strictEqual(settingsStore.colonizationSession.colonizationPhase, COLONIZATION_PHASE_RUNNING)
+    assert.strictEqual(appliedDocs.at(-1)?.colonizationPhase, COLONIZATION_PHASE_RUNNING)
+    assert.strictEqual(appliedDocs.at(-1)?.settlements?.length, 1)
   } finally {
     scope.stop()
   }

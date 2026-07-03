@@ -3,6 +3,7 @@ import {
   COLONIZATION_PHASE_TERRAIN,
   cloneColonizationSlice,
   createDefaultColonizationSlice,
+  pickColonizationSliceFields,
   resolveColonizationSlice,
 } from './createDefaultColonizationSlice.js'
 
@@ -50,14 +51,5 @@ export function extractColonizationSliceFromWorldDocument(doc) {
   if (!doc) {
     return createDefaultColonizationSlice()
   }
-  return resolveColonizationSlice({
-    colonizationPhase: doc.colonizationPhase,
-    epoch: doc.epoch,
-    colonistSettings: doc.colonistSettings,
-    foundingLanding: doc.foundingLanding,
-    historyLog: doc.historyLog,
-    settlements: doc.settlements,
-    committedTips: doc.committedTips,
-    realmId: doc.realmId,
-  })
+  return resolveColonizationSlice(pickColonizationSliceFields(doc))
 }

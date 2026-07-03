@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { COLONIZATION_SLICE_KEYS } from './colonization/createDefaultColonizationSlice.js'
 import {
   buildTerrainCacheFingerprint,
   stripColonizationFromWorldDocument,
@@ -47,4 +48,19 @@ test('stripColonizationFromWorldDocument removes colonization fields only', () =
   assert.strictEqual(stripped.foundingLanding, undefined)
   assert.strictEqual(stripped.settlements, undefined)
   assert.strictEqual(doc.colonizationPhase, 'setup')
+})
+
+test('stripColonizationFromWorldDocument removes exactly COLONIZATION_SLICE_KEYS', () => {
+  /** @type {Record<string, unknown>} */
+  const doc = { geographySeed: 1 }
+  for (const key of COLONIZATION_SLICE_KEYS) {
+    doc[key] = key === 'epoch' ? 0 : key
+  }
+  const stripped = stripColonizationFromWorldDocument(
+    /** @type {import('./types.js').WorldDocument} */ (doc),
+  )
+  assert.strictEqual(stripped.geographySeed, 1)
+  for (const key of COLONIZATION_SLICE_KEYS) {
+    assert.strictEqual(stripped[key], undefined)
+  }
 })

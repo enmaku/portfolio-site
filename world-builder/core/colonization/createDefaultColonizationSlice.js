@@ -31,6 +31,18 @@ export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
 export const COLONIZATION_PHASE_SETUP = /** @type {const} */ ('setup')
 export const COLONIZATION_PHASE_RUNNING = /** @type {const} */ ('running')
 
+/** Document / session field names owned by the colonization slice. */
+export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
+  'colonizationPhase',
+  'epoch',
+  'colonistSettings',
+  'foundingLanding',
+  'historyLog',
+  'settlements',
+  'committedTips',
+  'realmId',
+])
+
 export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 50
 /** Upper bound for author scale calibration. */
 export const MAX_THREE_DAY_HAUL_DISTANCE = 100
@@ -173,4 +185,37 @@ function clampPositiveNumber(value, fallback, max) {
  */
 export function cloneColonizationSlice(slice) {
   return resolveColonizationSlice(slice)
+}
+
+/**
+ * @param {object | null | undefined} source
+ * @returns {Partial<ColonizationSlice>}
+ */
+export function pickColonizationSliceFields(source) {
+  if (!source || typeof source !== 'object') {
+    return {}
+  }
+  /** @type {Partial<ColonizationSlice>} */
+  const picked = {}
+  const record = /** @type {Record<string, unknown>} */ (source)
+  for (const key of COLONIZATION_SLICE_KEYS) {
+    if (key in record) {
+      picked[key] = /** @type {ColonizationSlice[typeof key]} */ (record[key])
+    }
+  }
+  return picked
+}
+
+/**
+ * Geography-only shallow copy (colonization fields removed).
+ * @template {object} T
+ * @param {T} doc
+ * @returns {T}
+ */
+export function omitColonizationSliceFields(doc) {
+  const next = { ...doc }
+  for (const key of COLONIZATION_SLICE_KEYS) {
+    delete next[key]
+  }
+  return next
 }

@@ -1,3 +1,5 @@
+import { omitColonizationSliceFields } from './colonization/createDefaultColonizationSlice.js'
+
 /**
  * Stable identity for a generated landmass (seed + generation controls).
  * @param {{
@@ -21,14 +23,5 @@ export function buildTerrainCacheFingerprint(input) {
  * @returns {import('./types.js').WorldDocument}
  */
 export function stripColonizationFromWorldDocument(doc) {
-  const next = { ...doc }
-  delete next.colonizationPhase
-  delete next.epoch
-  delete next.colonistSettings
-  delete next.foundingLanding
-  delete next.historyLog
-  delete next.settlements
-  delete next.committedTips
-  delete next.realmId
-  return next
+  return omitColonizationSliceFields(doc)
 }

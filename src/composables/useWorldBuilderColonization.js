@@ -32,10 +32,12 @@ import { snapFoundingLandingCell } from '../../world-builder/core/colonization/i
  *     onCellPick?: (handler: ((cell: { x: number, y: number }) => void) | null) => void,
  *   } | null,
  *   getGeographyDocument?: () => import('../../world-builder/core/types.js').WorldDocument | null,
+ *   onSliceChanged?: () => void,
  * }} options
  */
 export function useWorldBuilderColonization(options) {
-  const { settingsStore, requestConfirm, getViewport, getGeographyDocument } = options
+  const { settingsStore, requestConfirm, getViewport, getGeographyDocument, onSliceChanged } =
+    options
 
   /** @type {import('vue').Ref<import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice>} */
   const slice = ref(loadInitialSlice())
@@ -70,6 +72,7 @@ export function useWorldBuilderColonization(options) {
 
   function persistSlice() {
     settingsStore.setColonizationSession?.(slice.value)
+    onSliceChanged?.()
   }
 
   function hydrateFromPersistedSettings() {
@@ -196,14 +199,10 @@ export function useWorldBuilderColonization(options) {
       threeDayHaulDistance: slice.value.colonistSettings.threeDayHaulDistance,
       gridWidth: doc.gridWidth,
       gridHeight: doc.gridHeight,
-      movementCost: /** @type {{ movementCost?: Float32Array }} */ (doc).movementCost,
+      movementCost: doc.movementCost,
     })
   }
 
-  /**
-   * @param {keyof import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonistSettings} key
-   * @param {unknown} value
-   */
   function beginColonization() {
     if (!canBeginColonization.value) {
       return false
@@ -241,6 +240,10 @@ export function useWorldBuilderColonization(options) {
     return true
   }
 
+  /**
+   * @param {keyof import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonistSettings} key
+   * @param {unknown} value
+   */
   function setColonistSetting(key, value) {
     if (
       slice.value.colonizationPhase !== COLONIZATION_PHASE_SETUP &&

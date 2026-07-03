@@ -98,12 +98,24 @@ export function useWorldBuilderPageController(options) {
   })
   /** @type {ReturnType<typeof useWorldBuilderGeneration> | null} */
   let generation = null
+  /** @type {ReturnType<typeof useWorldBuilderColonization>} */
+  let colonization
 
-  const colonization = useWorldBuilderColonization({
+  function syncColonizationDocumentToMap() {
+    const doc = generation?.worldDocument.value
+    if (!doc || !mapLifecycle) {
+      return
+    }
+    void mapLifecycle.applyWorldDocument(colonization.applyToWorldDocument(doc))
+    colonization.syncLandingVisuals()
+  }
+
+  colonization = useWorldBuilderColonization({
     settingsStore,
     requestConfirm,
     getViewport: () => mapLifecycle?.getViewport() ?? null,
     getGeographyDocument: () => generation?.worldDocument.value ?? null,
+    onSliceChanged: syncColonizationDocumentToMap,
   })
 
   function getDerivedGeographyParams() {
@@ -271,15 +283,26 @@ export function useWorldBuilderPageController(options) {
   }
 
   /**
+   * @template T
+   * @param {() => T} fn
+   * @returns {T | undefined}
+   */
+  function withTerrainAuthoring(fn) {
+    if (colonization.isTerrainLocked.value) {
+      return
+    }
+    return fn()
+  }
+
+  /**
    * @param {string} key
    * @param {number | boolean} value
    */
   function onToggleChange(key, value) {
-    if (colonization.isTerrainLocked.value) {
-      return
-    }
-    settingsStore.setControl(key, value)
-    regenerate()
+    withTerrainAuthoring(() => {
+      settingsStore.setControl(key, value)
+      regenerate()
+    })
   }
 
   /**
@@ -287,10 +310,9 @@ export function useWorldBuilderPageController(options) {
    * @param {number | boolean} value
    */
   function onSliderInput(key, value) {
-    if (colonization.isTerrainLocked.value) {
-      return
-    }
-    settingsStore.setControl(key, value)
+    withTerrainAuthoring(() => {
+      settingsStore.setControl(key, value)
+    })
   }
 
   /**
@@ -298,11 +320,10 @@ export function useWorldBuilderPageController(options) {
    * @param {number | boolean} value
    */
   function onSliderCommit(key, value) {
-    if (colonization.isTerrainLocked.value) {
-      return
-    }
-    settingsStore.setControl(key, value)
-    regenerate()
+    withTerrainAuthoring(() => {
+      settingsStore.setControl(key, value)
+      regenerate()
+    })
   }
 
   /**
@@ -314,29 +335,26 @@ export function useWorldBuilderPageController(options) {
   }
 
   function commitSeed() {
-    if (colonization.isTerrainLocked.value) {
-      return
-    }
-    settingsStore.applySeed(seedInput.value)
-    regenerate()
+    withTerrainAuthoring(() => {
+      settingsStore.applySeed(seedInput.value)
+      regenerate()
+    })
   }
 
   function randomizeSeed() {
-    if (colonization.isTerrainLocked.value) {
-      return
-    }
-    seedInput.value = String(createRandomGeographySeed())
-    settingsStore.applySeed(seedInput.value)
-    regenerate()
+    withTerrainAuthoring(() => {
+      seedInput.value = String(createRandomGeographySeed())
+      settingsStore.applySeed(seedInput.value)
+      regenerate()
+    })
   }
 
   function resetDefaults() {
-    if (colonization.isTerrainLocked.value) {
-      return
-    }
-    settingsStore.resetToDefaults()
-    overlay.applyPersistedDefaults()
-    regenerate()
+    withTerrainAuthoring(() => {
+      settingsStore.resetToDefaults()
+      overlay.applyPersistedDefaults()
+      regenerate()
+    })
   }
 
   function resetOverlays() {
