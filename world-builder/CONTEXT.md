@@ -50,13 +50,13 @@ _Avoid_: “Map editing phase” when **scalar fields** and pipeline stages are 
 
 ### Colonization phase
 
-Second product phase: user completes **colonization setup**, then **begin colonization** runs annual **epoch** ticks. Delivered in three product increments—**single-colony survival**, then **exploration and new settlements**, then **economy, politics, and history** together. Hands-off simulation after initial conditions: user sets geography and **colonist settings**, then the sim advances with minimal intervention—observe and **epoch step** (or later **epoch batch** controls); no mid-run outcome edits in v1. No fixed or terminal run endpoint—the user keeps stepping **epochs** as long as they like; “present day” for **campaign kit** export is a subjective call, not a sim state change. In `running` phase: left panel keeps **colonist settings** (read-only except permitted mid-run tweaks such as **epoch batch**); right panel shows **validation advisory** at **epoch** 0, then sim/event feed content as increments ship. **Reset colonization** lives in persistent chrome, not the left panel. Terrain generation controls stay fully hidden; map overlay toggles remain for reading geography.
+Second product phase: user completes **colonization setup**, then **begin colonization** runs annual **epoch** ticks. Delivered in three product increments—**single-colony survival**, then **exploration and new settlements**, then **economy, politics, and history** together. Hands-off simulation after initial conditions: user sets geography and **colonist settings**, then the sim advances with minimal intervention—observe and **epoch step** (or later **epoch batch** controls); no mid-run outcome edits in v1. No fixed or terminal run endpoint—the user keeps stepping **epochs** as long as they like; “present day” for **campaign kit** export is a subjective call, not a sim state change. In `running` phase: left panel keeps **colonist settings** (read-only except permitted mid-run tweaks such as **epoch batch**); right panel shows **validation advisory** at **epoch** 0 only, then increment 2+ **sim status** ( **epoch**, **settlement** count, active **expeditions**, frontier exhaustion) plus a minimal **founding chronicle** listing **history log** entries—full **epoch scrubber** and filterable **event feed** arrive in increment 3. **Reset colonization** lives in persistent chrome, not the left panel. Terrain generation controls stay fully hidden; map overlay toggles remain for reading geography.
 
 _Avoid_: “History sim” alone when founding, expansion, and present-day structure are all meant; restarting terrain pipeline silently mid-colonization; requiring user unlock for core **faction** / **trade route** behavior once thresholds fire; swapping the full panel layout again at increment 1; hiding read-only resource overlays during the run; auto-stop or terminal freeze on **equilibrium state**, **political equilibrium**, or **stop colonization** (scrubbed).
 
 ### Single-colony survival
 
-First colonization increment: one **founding landing**, one growing **settlement**—no exploration, no additional **settlements**. Simulation tracks a **survival triad** within the founding **haul-shed** circle (**three-day haul distance** from the pin): food ( **arable envelope** ), freshwater, and a fuel/shelter proxy from local biomes inside that zone—**salt**, metals, and inter-**settlement** trade deferred until increment 1 is proven (**strategic resource** preservation layer added before increment 1 is considered complete). **Population collapse** distributes bulk population across cells in the same circle; **settlement tier** stays a single node at the pin. Territorial expansion is settlement size only, not map claim. No sim-detected endpoint—the user keeps stepping **epochs** indefinitely.
+First colonization increment: one **founding landing**, one growing **settlement**—no exploration, no additional **settlements**. Simulation tracks a **survival triad** within the founding **haul-shed** (**three-day haul distance** **travel time** budget from the pin): food ( **arable envelope** ), freshwater, and a fuel/shelter proxy from local biomes inside that zone—**salt**, metals, and inter-**settlement** trade deferred until increment 1 is proven (**strategic resource** preservation layer added before increment 1 is considered complete). **Population collapse** distributes bulk population across cells in the same **haul-shed**; **settlement tier** stays a single node at the pin. Territorial expansion is settlement size only, not map claim. No sim-detected endpoint—the user keeps stepping **epochs** indefinitely.
 
 _Avoid_: “Phase 1 worldgen”; conflating with **terrain authoring**; multi-**settlement** maps in the first colonization test slice; full **resource profile** accounting before the survival triad works; **equilibrium state** as a completion gate (scrubbed).
 
@@ -68,9 +68,9 @@ _Avoid_: “Speed slider” that changes tick semantics; sub-year **epochs** unl
 
 ### Exploration and new settlements
 
-Second colonization increment: **exploration fog** overlay clears along **expedition** paths; additional **settlements** founded automatically at logistics nodes when **expeditions** succeed. **Expeditions** dispatch automatically with stochastic timing from each **settlement** in one realm (not independent **city-states** yet). Still before full **trade route**, **faction**, and **history log** interdependence.
+Second colonization increment: **exploration fog** overlay clears along **expedition** paths; additional **settlements** founded automatically when an **expedition** reaches a cell that is both a scored **logistics node** and locally viable under **survival triad** rules (freshwater hard gate + non-trivial arable in the site **haul-shed**). Paths may clear fog without founding if nodes fail viability. **Expeditions** dispatch automatically with stochastic timing from each **settlement** in one realm (not independent **city-states** yet). New **settlement** pins must differ from all existing pins; overlapping **haul-shed** regions are allowed—satellite nodes may share hinterland until increment 3 **supply-chain independence**. No hard cap on **settlement** count—founding stays automatic for every viable unscouted node—but dispatch rolls taper naturally once all scored **logistics nodes** are founded or exhausted (surveyed and failed viability). Still before full **trade route**, **faction**, and **history log** interdependence.
 
-_Avoid_: “Expansion pack” naming; treating as optional when it is the planned second test gate; **city-state** independence before increment 3; requiring user confirmation per new **settlement** in hands-off mode.
+_Avoid_: “Expansion pack” naming; treating as optional when it is the planned second test gate; **city-state** independence before increment 3; requiring user confirmation per new **settlement** in hands-off mode; founding at high-scored nodes that fail freshwater or food viability; rejecting founding solely because **haul-shed** regions overlap another **settlement**; arbitrary maximum **settlement** count; auto-stop or terminal phase when the frontier is exhausted—**epoch step** and existing **settlement** growth continue.
 
 ### Colonize
 
@@ -104,9 +104,9 @@ _Avoid_: “New world” as the only escape hatch; preserving sim progress acros
 
 ### Founding landing
 
-Map cell where the first colonizing boat makes shore—the seed **settlement** and expansion origin for one founding wave. Chosen by the user during **colonization setup**; must be **Sail overlay**-reachable coast or river mouth. Invalid cells (inland, non-sailable shore) are not selectable—the map shows a “no” cursor like other disabled controls, without error copy. During setup, a single persistent map marker shows the chosen cell, with a small circle centered on the pin showing **three-day haul distance** (oxcart **haul-shed** reach); the circle rescales live as the slider moves. Clicking another valid cell moves the pin and circle. The marker and circle persist in `running` as read-only reference at the **founding landing**.
+Map cell where the first colonizing boat makes shore—the seed **settlement** and expansion origin for one founding wave. Chosen by the user during **colonization setup**; must be **Sail overlay**-reachable coast or river mouth. Invalid cells (inland, non-sailable shore) are not selectable—the map shows a “no” cursor like other disabled controls, without error copy. During setup, a single persistent map marker shows the chosen cell, with a live **haul-shed** reach preview centered on the pin (**three-day haul distance** calibration—isochrone when **movement cost** exists, approximate circle under heuristics); the preview rescales as the slider moves. Clicking another valid cell moves the pin and preview. The marker and preview persist in `running` as read-only reference at the **founding landing**.
 
-_Avoid_: “Capital” before a **drain city** or political apex exists; random auto-placement without user intent; overland-only founding in v1; toast or modal explaining why a cell is invalid during placement; hover preview halos beyond the haul circle.
+_Avoid_: “Capital” before a **drain city** or political apex exists; random auto-placement without user intent; overland-only founding in v1; toast or modal explaining why a cell is invalid during placement; hover preview halos beyond the **haul-shed** preview; assuming the preview is always a circle when terrain-aware reach is available.
 
 ### Scalar field
 
@@ -208,9 +208,9 @@ _Avoid_: “Aquifer”; per-cell well depth simulation; **well-viable** on ocean
 
 ### Exploration fog
 
-Colonization overlay hiding unvisited territory until **expeditions** clear it. Cleared cells persist; uncleared cells hide geography-dependent opportunity until reached.
+Colonization overlay recording which cells the realm has **visited**—not concealing underlying geography. During `running`, base terrain and standard inspect overlays remain readable everywhere; uncleared cells carry a semi-transparent fog tint showing “not yet reached by the realm.” Cleared cells persist as visited; the overlay is toggleable like **Sail overlay** and **Freshwater availability overlay**. Does not hide biomes or resource rasters from the author—visit status is sim state, not a secret map. At **begin colonization** (**epoch** 0), all cells in the founding **haul-shed** are already visited; the rest of the map starts unvisited until **expeditions** clear it. When a daughter **settlement** is founded, its full **haul-shed** becomes visited immediately—same rule as the founding site.
 
-_Avoid_: “Fog of war” in domain language when **exploration fog** is the product term; pre-revealing the whole map during **terrain authoring**.
+_Avoid_: “Fog of war” in domain language when **exploration fog** is the product term; pre-revealing visit semantics during **terrain authoring** (overlay absent until colonization); treating fog as the only way to read geography during `running`; full concealment of terrain under uncleared cells; marking only the **founding landing** pin visited while the founding **haul-shed** stays unvisited.
 
 ### Faction territory overlay
 
@@ -226,9 +226,9 @@ _Avoid_: Decorative path lines without commodity/volume semantics; user-drawn ro
 
 ### Expedition
 
-An outbound trek from a **settlement** that advances **exploration fog**, surveys logistics nodes, and may lead to a new **settlement** site. Dispatched automatically with stochastic timing per sending **settlement**; exact routing and outcomes TBD.
+An outbound trek from a **settlement** that advances **exploration fog**, surveys **logistics nodes**, and may lead to a new **settlement** site. Dispatched automatically with stochastic timing per sending **settlement** each **epoch**—eligible from the first **epoch step** after **begin colonization** (no hard population or **settlement tier** gate). Dispatch probability may rise with population and food surplus but never blocks the first roll. At most **one active expedition per settlement**; a new dispatch roll applies only when that **settlement** has no trek in progress (one attempt per **settlement** per **epoch** while idle). An in-progress **expedition** persists across **epoch** steps, advancing by a **travel time** budget each **epoch** (weighted by **movement cost** along the route—uphill slower than downhill, **road** faster than wilderness) until it completes, founds, or fails at an exhausted node. Each dispatch picks a stochastic **exploration target** (direction bias toward an unscouted scored node)—not a blind commitment to found there. **Mode** follows geography: overland **expeditions** route across **movement cost** (terrain-hugging paths—not straight lines); each dispatch picks land vs **sail expedition** automatically by lowest **travel time** to the stochastic target (**Sail overlay** when boat is faster, overland when not, including mixed treks with portage). While moving, visit status extends along the routed path (one cell wide through previously unvisited cells). **Scored logistics nodes** in the path corridor (routed cell plus immediate neighbors) are evaluated for founding viability in **travel order**—first viable unscouted node wins. When a viable node is found overland, the **expedition** path persists as an initial **road** to the new **settlement**. When the party reaches a scored **logistics node** (en route or at terminus), that site clears a local patch (disc around the cell) whether or not founding succeeds—failed viability still records “we’ve surveyed here”; exhausted rejected nodes are not re-targeted while terrain remains locked.
 
-_Avoid_: “Scout unit” as schema keys; player micro of every path in increment 2 unless a later mode adds it.
+_Avoid_: “Scout unit” as schema keys; player micro of every path in increment 2 unless a later mode adds it; a minimum-survival **epoch** count or tier threshold before any expedition can dispatch; wide corridor clearing that reveals whole regions per step; leaving a reached but rejected node visually unvisited; multiple concurrent treks from the same **settlement**; realm-wide expedition caps unrelated to per-site agency; destination-only founding checks that ignore viable **logistics nodes** along the march; return-home treks that discard en-route survey value; straight-line routing that ignores **movement cost**; overland-only dispatch when **Sail overlay** offers a shorter legal path; founding overland without recording the path as **road**.
 
 ### Supply-chain independence
 
@@ -419,9 +419,9 @@ _Avoid_: Infinite overland caravans; “500 miles” without cargo math.
 
 ### Haul-shed
 
-Region where delivery still pays after **ox paradox** (and road **movement cost**). Primary limit on land **trade** and garrison feeding. In **single-colony survival**, the founding **haul-shed** is the circle centered on **founding landing** with radius from **three-day haul distance**—same circle shown during **colonization setup**; local **survival triad** accounting and **population collapse** use this boundary. Extent is derived from **movement cost**, **three-day haul distance** (**colonist settings**), and **travel time**—not from raw grid pixels alone.
+Region where delivery still pays after **ox paradox** and **movement cost**—not a geometric circle. For each **settlement**, the **haul-shed** is the terrain-aware reachable zone: cells whose **travel time** from the pin stays within the **three-day haul distance** budget from **colonist settings**, weighted by slope and surface (uphill costs more than downhill; **road** cells cost less than open wilderness). **Colonization setup** may show an approximate reach preview on the map (isochrone when **movement cost** exists; circle fallback under best-effort heuristics) so authors calibrate scale—simulation accounting uses the terrain-aware region. Local **survival triad**, **population collapse**, visit status at founding, and overlap between **settlements** all use this boundary.
 
-_Avoid_: “Radius” in miles only without calibration; fixed pixels-per-day baked into the **landmass** without author-facing scale.
+_Avoid_: “Radius” in miles only without calibration; fixed pixels-per-day baked into the **landmass** without author-facing scale; treating the setup preview shape as the simulation boundary when **movement cost** is available; ignoring **road** travel bonuses inside the reachable zone.
 
 ### Three-day rule
 
@@ -437,9 +437,15 @@ _Avoid_: “Hexes” in domain language unless the product explicitly uses a hex
 
 ### Movement cost
 
-Energy or time to cross terrain (slope, swamp, road quality); high cost → isolation, local self-sufficiency; low cost → **exchange** and blended **cultures**.
+Energy or time to cross terrain (slope, swamp, surface quality); high cost → isolation, local self-sufficiency; low cost → **exchange** and blended **cultures**. Drives terrain-aware **haul-shed** isochrones, **expedition** routing, and **trade route** viability. Uphill segments cost more than downhill along the same path.
 
-_Avoid_: “Difficult terrain” without graph weights; uniform plains with no connectivity story.
+_Avoid_: “Difficult terrain” without graph weights; uniform plains with no connectivity story; Euclidean distance substituting for **travel time** in **haul-shed** or **expedition** pathing.
+
+### Road
+
+Persisted overland link on the **world document**—initial **colonization phase** roads come from successful overland **expedition** path segments when a new **settlement** is founded (the march becomes the first road to that site). **Sail expedition** legs do not create **roads**—they may seed increment 3 **trade route** / sea-lane geometry later. Portage: only the overland portion of a mixed trek persists as **road**. Later increments may add roads from **trade route** activation and logistics pressure. **Road** cells apply a **movement cost** multiplier (faster/easier **haul** than open wilderness) for **travel time**, **haul-shed** reach, and routing. Map-visible toggleable overlay when increment 2 ships **road** geometry.
+
+_Avoid_: User-drawn roads in hands-off v1; decorative lines without **movement cost** effect; treating **trade route** sea lanes as **road**; erasing founding paths that did not result in a **settlement**; **road** segments from pure **Sail overlay** travel.
 
 ### Maritime reach
 
@@ -479,9 +485,33 @@ _Avoid_: “Rare ore” with no logistics effect; salt as flavor text; **salt** 
 
 ### Chokepoint
 
-Pass, strait, ford, or toll segment where **movement cost** forces traffic—natural fort and **trade** leverage.
+Pass, strait, ford, or toll segment where **movement cost** forces traffic—natural fort and **trade** leverage. One **logistics node** type for automatic **settlement** founding in increment 2.
 
 _Avoid_: “Border” lines without funnel geography; castles off the corridor.
+
+### Logistics node
+
+Geography-scored candidate cell where a **settlement** plausibly anchors—choke, **haul junction**, **surplus basin**, **refinery**, or **drain city** pressure. Increment 2 founding scores cells with **multi-tag** weights (non-exclusive—a river mouth may score junction + **drain city** + **surplus basin**); inspect shows a primary type (highest-weight contributor) plus secondary tags. An **expedition** must reach a scored node above threshold **and** pass local **survival triad** viability before automatic founding.
+
+_Avoid_: Mutually exclusive single-type assignment when several roles overlap; founding on type score alone without freshwater/arable viability; random dots without logistics justification.
+
+### Haul junction
+
+**Logistics node** type where **grain circle** or river/road **haul** paths meet—confluence, crossroads, portage landing. Distinct from **chokepoint** (funnel) though one cell may score both.
+
+_Avoid_: “Crossroads” in schema keys; treating every river tile as a junction.
+
+### Surplus basin
+
+**Logistics node** type where local **arable envelope** inside viable **haul-shed** exceeds typical hinterland—farm surplus worth a second **settlement** seat.
+
+_Avoid_: “Farmland tile” without aggregated circle productivity; surplus relative to neighbor **population ceiling** instead of absolute arable sum.
+
+### Refinery
+
+**Logistics node** type tied to **strategic resource** concentration worth processing or taxing— **salt**, metals, timber above treeline gaps—not a generic workshop label. Founding follows the same **logistics node** score + **survival triad** gate as other types.
+
+_Avoid_: “Factory”; decorative industry without **strategic resource** geography; conflating with **surplus basin** when no scarce resource is present.
 
 ### Trade route
 
@@ -491,9 +521,9 @@ _Avoid_: “Trade route” as a line on art without volume or commodity; every r
 
 ### Settlement
 
-A persisted population node (hamlet to **drain city**) whose tier and role should be justified by **arable envelope**, **chokepoint**, **strategic resource**, or **trade route**—not random dots. Exposes tier label and population count on inspect; size constrained by local **population ceiling** in **single-colony survival**. Population changes each **epoch** from food surplus (production minus consumption)—growth when surplus is positive, stall at balance, decline when negative; **starting population** from **colonist settings** seeds **epoch** 0.
+A persisted population node (hamlet to **drain city**) whose tier and role should be justified by **arable envelope**, **chokepoint**, **strategic resource**, or **trade route**—not random dots. Exposes tier label and population count on inspect; size constrained by local **population ceiling** in **single-colony survival**. Population changes each **epoch** from food surplus (production minus consumption)—growth when surplus is positive, stall at balance, decline when negative; **starting population** from **colonist settings** seeds the founding **settlement** at **epoch** 0 only. Daughter **settlements** founded in increment 2 start at a fixed small outpost headcount (implementation-tuned constant, below founding `startingPopulation`) and use the same global **three-day haul distance** from **colonist settings** for their local **haul-shed**—centered on the new pin, not the **founding landing**.
 
-_Avoid_: “City” / “town” labels without simulation backing; one capital per kingdom by default; tier without backing population accounting; fixed per-**epoch** headcount increments divorced from **survival triad** production.
+_Avoid_: “City” / “town” labels without simulation backing; one capital per kingdom by default; tier without backing population accounting; fixed per-**epoch** headcount increments divorced from **survival triad** production; reusing full founding `startingPopulation` for every daughter site; per-**settlement** **three-day haul distance** knobs in increment 2.
 
 ### Settlement tier
 
@@ -503,9 +533,9 @@ _Avoid_: “Level” in domain language; ceiling-relative tier (e.g. “60% of l
 
 ### Population overlay
 
-Map heatmap of where people actually are after each **epoch**'s **population collapse**—bulk population density, not just **settlement** pin dots. In **single-colony survival**, distribution spans the founding **haul-shed**: a **core + hinterland** split—a fixed fraction at **founding landing** (urban cluster) and the remainder spread across the circle weighted by arable productivity (rural envelope). The pin carries **settlement tier** and total population; the overlay shows spatial spread.
+Map heatmap of where people actually are after each **epoch**'s **population collapse**—bulk population density, not just **settlement** pin dots. In **single-colony survival**, distribution spans the founding **haul-shed**: a **core + hinterland** split—a fixed fraction at **founding landing** (urban cluster) and the remainder spread across the circle weighted by arable productivity (rural envelope). In increment 2, each **settlement** runs its own **core + hinterland** collapse within its **haul-shed**; overlapping circles **sum** cell density on the heatmap while each pin’s total population still matches that **settlement**’s headcount. The pin carries **settlement tier** and total population; the overlay shows spatial spread.
 
-_Avoid_: “People layer” when only **settlement** markers are shown; static density painted by hand; all population on one cell when **haul-shed** rural spread is intended; ceiling-relative density that ignores where arable lies.
+_Avoid_: “People layer” when only **settlement** markers are shown; static density painted by hand; all population on one cell when **haul-shed** rural spread is intended; ceiling-relative density that ignores where arable lies; max-blending overlap that hides shared hinterland; realm-wide single collapse before increment 3 needs it.
 
 ### Bulk population
 
@@ -521,9 +551,9 @@ _Avoid_: “Render pass” alone when simulation state is meant; collapsing mid-
 
 ### Notable figure
 
-A tracked **dynasty** or lineage—not a single person—whose seat persists across **epochs** while holders change every generation. With **epoch batch** spans of many years, one **epoch** may cover multiple lifetimes; the sim tracks the house (e.g. “The Saltmarsh Flats Dynasty”), not “Lord Trentor Abernathy.” Outside **bulk population** accounting; v1 house labels come from a **landing geography heuristic** at **founding landing** (coast, river mouth, wetland, pass, …) + “Dynasty”—no procedural personal names; authors rename freely. Increment 1 slice B seeds one founding dynasty (flavor only, no per-**epoch** mechanics). Increment 3 **power roster**: apex house per **faction** plus key **vassal** dynasties at **chokepoints**, **drain city** stewards, and active **expedition** houses—handful per **faction**, not proportional census. **Named region** labels may supersede landing heuristics when that **derived geography** ships.
+A tracked **dynasty** or lineage—not a single person—whose seat persists across **epochs** while holders change every generation. With **epoch batch** spans of many years, one **epoch** may cover multiple lifetimes; the sim tracks the house (e.g. “The Saltmarsh Flats Dynasty”), not “Lord Trentor Abernathy.” Outside **bulk population** accounting; v1 house labels come from a **landing geography heuristic** at the site (coast, river mouth, wetland, pass, …) + “Dynasty”—no procedural personal names; authors rename freely. Increment 1 slice B seeds one founding dynasty at **founding landing** (flavor only, no per-**epoch** mechanics). Increment 2 adds one dynasty per daughter **settlement** at automatic founding—same labeling pattern, no **expedition** lead or **vassal** seats yet. Increment 3 **power roster**: apex house per **faction** plus key **vassal** dynasties at **chokepoints**, **drain city** stewards, and richer political seats—handful per **faction**, not proportional census. **Named region** labels may supersede landing heuristics when that **derived geography** ships.
 
-_Avoid_: “Hero” in schema keys; simulating every holder as a full agent; personal name generation in product output; **notable figure** as one immortal individual across centuries; full roster before exploration mechanics exist; dozens of tracked houses per **city-state**; assuming **named region** strings exist before that pipeline stage is implemented.
+_Avoid_: “Hero” in schema keys; simulating every holder as a full agent; personal name generation in product output; **notable figure** as one immortal individual across centuries; transient **expedition** lead dynasty seats in increment 2; full **vassal** roster before increment 3 **factions**; dozens of tracked houses per **city-state**; assuming **named region** strings exist before that pipeline stage is implemented.
 
 ### Faction
 
@@ -545,9 +575,9 @@ _Avoid_: “They hate each other”; **rivalry** without **legacy** or resource 
 
 ### History log
 
-Ordered **epochs** and events (founding, conquest, famine, treaty) that feed **legacy** and reshape borders. Browsable in-app via **epoch scrubber** (map and **faction** state at selected year) and filterable **event feed** (wars, treaties, founding, …) that jumps to map locations. Increment 1 (#392): one founding entry written at **begin colonization** (**epoch** 0 anchor)—full feed and scrubber arrive in increment 3.
+Ordered **epochs** and events (founding, conquest, famine, treaty) that feed **legacy** and reshape borders. Browsable in-app via **epoch scrubber** (map and **faction** state at selected year) and filterable **event feed** (wars, treaties, founding, …) that jumps to map locations. **Epoch** 0: one founding entry at **begin colonization** (#391). Increment 2 (#393): one structured entry per daughter **settlement** founded (**epoch**, site, primary **logistics node** type, originating **settlement**)—no expedition lifecycle or rejected-site entries. Full feed and scrubber arrive in increment 3.
 
-_Avoid_: “Timeline” as flavor-only; events that don’t touch **power centers**; export-only log with no in-app investigation; deferring the founding entry until the first **epoch step** when **epoch** 0 should record the commit.
+_Avoid_: “Timeline” as flavor-only; events that don’t touch **power centers**; export-only log with no in-app investigation; deferring the founding entry until the first **epoch step** when **epoch** 0 should record the commit; logging every **expedition** departure or failed-viability survey in increment 2.
 
 ### Epoch
 
@@ -560,6 +590,12 @@ _Avoid_: “Year 1042” precision without source events; real-time wall-clock s
 Manual advance during **colonization phase**—applies **epoch batch** sequential annual ticks (1 in first release, configurable later). Primary time control for inspecting causality; no fixed endpoint.
 
 _Avoid_: “Turn” in domain language when **epoch** is the persisted unit; sub-epoch micro-ticks in user-facing copy unless explicitly modeled; implying the sim should halt when resources or population stabilize.
+
+### Founding chronicle
+
+Minimal right-panel list during increment 2 **colonization phase** `running`: chronological **history log** entries (founding wave + each daughter **settlement** founding)—structured fields, not prose narrative. Paired with compact **sim status** (**epoch**, **settlement** count, active **expeditions**, frontier exhaustion). Replaced by full **epoch scrubber** and filterable **event feed** in increment 3—not a separate persisted artifact.
+
+_Avoid_: “Event log” as schema keys; replaying validation advisory after **epoch** 0; building scrubber/filter UX in increment 2; user-facing prose paragraphs in the chronicle rows.
 
 ### Continuous colonization run
 
@@ -704,10 +740,30 @@ _Avoid_: Rejecting or accepting worlds based on `riverGraph` edge counts when **
 - **Mid-run control**: observe-only for outcomes in v1; **epoch batch** editable mid-run; no rewriting **faction** borders or **history log** events by hand.
 - **Population model**: **bulk population** parameters + per-**epoch** **population collapse** for **population overlay**; **notable figure** dynasties tracked outside the bulk model—WFC-style constraint satisfaction is inspiration, not a committed algorithm name in product copy.
 - **Increment 2 exploration**: **exploration fog** overlay + auto-dispatched **expeditions**; new **settlements** founded automatically at logistics nodes—one realm until increment 3.
+- **Expedition dispatch gate**: resolved — eligible from first **epoch step**; per-**settlement** stochastic timing each **epoch**; optional surplus/population bias only, no hard tier or survival-streak prerequisite.
+- **Automatic founding gate**: resolved — requires scored **logistics node** **and** local **survival triad** viability (freshwater hard gate + non-trivial arable in site **haul-shed**); fog may clear without founding when nodes fail viability.
+- **Exploration fog semantics**: resolved — visit-status tint only; geography and resource overlays stay readable; toggleable overlay during `running` (and absent during **terrain authoring**).
+- **Initial visited territory**: resolved — founding **haul-shed** cleared at **begin colonization** (**epoch** 0); remainder unvisited until **expeditions** extend it.
+- **Expedition fog clearing**: resolved — one-cell-wide routed path; terminus disc when a scored **logistics node** is reached (viability pass or fail).
+- **Logistics node scoring**: resolved — multi-tag non-exclusive weights; primary type = highest contributor in inspect; five types (**chokepoint**, **haul junction**, **surplus basin**, **refinery**, **drain city**); **drain city** included in increment 2 founding mix when geography supports it.
+- **Daughter settlement seed**: resolved — fixed small outpost headcount (implementation constant); global **three-day haul distance** **haul-shed** centered on each new pin.
+- **Expedition concurrency**: resolved — one active **expedition** per **settlement**; one dispatch attempt per **settlement** per **epoch** while idle.
+- **Settlement haul-shed overlap**: resolved — distinct pins required; overlapping **haul-shed** regions allowed in increment 2.
+- **Increment 2 history log**: resolved — daughter **settlement** founding entries only; no expedition or rejected-site events.
+- **Increment 2 notable figures**: resolved — one dynasty per **settlement** at founding (geography heuristic + “Dynasty”); no **expedition** lead or **vassal** seats until increment 3.
+- **Multi-settlement population overlay**: resolved — per-**settlement** **core + hinterland** collapse; summed density in overlapping **haul-shed** cells.
+- **Settlement count cap**: resolved — no hard cap; dispatch exhausts when all scored **logistics nodes** are founded or rejected; sim does not auto-stop.
+- **Rejected logistics nodes**: resolved — once surveyed and failed **survival triad** viability, not re-targeted while terrain is locked.
+- **En-route founding**: resolved — evaluate scored **logistics nodes** in path corridor (routed cell + immediate neighbors) in travel order; first viable unscouted node wins; stochastic target biases route only.
+- **Daughter visit on founding**: resolved — full **haul-shed** becomes visited at automatic founding.
+- **Haul-shed shape**: resolved — terrain-aware **travel time** isochrone from **movement cost** + **three-day haul distance** budget (not a circle); setup preview approximates reach for calibration.
+- **Roads and exploration**: resolved — terrain-aware **haul-shed** in increment 1 / shared colonization seam (#392 or prerequisite); increment 2 (#393) adds **road** persistence from overland founding paths, **road** **movement cost** multiplier, toggleable **road** overlay, and automatic land vs **sail expedition** by lowest **travel time** (B2); sail legs do not create **roads**.
+- **Expedition duration**: resolved — multi-**epoch** treks; **travel time** budget per **epoch** along precomputed terrain-hugging route; founding checks each step.
+- **Increment 2 right panel**: resolved — **sim status** header + **founding chronicle** after **epoch** 0; **validation advisory** only at **epoch** 0.
 - **Grid scale**: no intrinsic km-per-cell; **three-day haul distance** and related **travel time** metrics are author-calibrated in **colonist settings** until map scale is modeled.
 - **Colonization phase states**: `terrain` → `setup` → `running` until **reset colonization** returns to `terrain`. No **`stopped`** phase (scrubbed). **Colonization setup** (#391) ships the full transition through `running` with document fields initialized; increment 1 (#392) plugs in **epoch** ticks without adding interim phases.
 - **Colonization setup chrome**: terrain authoring panels fully hidden; left panel → **colonist settings**, right panel → **validation advisory** (warnings/errors). Same panel real estate as terrain phase, different content.
-- **Colonization running chrome**: left panel → **colonist settings** (read-only except permitted mid-run edits such as **epoch batch**); right panel → **validation advisory** at **epoch** 0, then sim/event feed as increments ship. **Campaign kit** export and **reset colonization** in persistent toolbar chrome. Terrain generation controls hidden; map overlay toggles remain for inspect.
+- **Colonization running chrome**: left panel → **colonist settings** (read-only except permitted mid-run edits such as **epoch batch**); right panel → **validation advisory** at **epoch** 0 only, then **sim status** + **founding chronicle** (increment 2) → full **epoch scrubber** / **event feed** (increment 3). **Campaign kit** export and **reset colonization** in persistent toolbar chrome. Terrain generation controls hidden; map overlay toggles remain for inspect.
 - **Session persistence**: colonization phase, **founding landing**, and **colonist settings** live on the existing `worldBuilderSettings` Pinia store (same `portfolio-world-builder-settings` persist key as generation settings)—not a separate colonization store. On page refresh, the app silently regenerates the **landmass** from persisted seed/settings, then rehydrates colonization state so the user lands back in the same phase. **Campaign kit** export is user-initiated during `running`, repeatable, non-terminal.
 - **Colonization RNG**: no separate **history seed**—**geography seed** seeds colonization stochastic rolls; not author-facing in **colonist settings**.
 - **Colonization time controls**: first release ships manual **epoch step** ( **epoch batch** = 1 ); target UX raises default **epoch batch** (~100) with author adjustment; **continuous colonization run** deferred.
