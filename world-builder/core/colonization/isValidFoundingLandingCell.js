@@ -1,9 +1,16 @@
 import { SEA_LEVEL } from '../biomeIds.js'
 import { isOceanCell } from '../fields/applyClosedIslandRim.js'
+import { collectConnectedComponents } from '../grid/gridTopology.js'
 import { deriveSailOverlayMask } from '../sail/deriveSailOverlayMask.js'
 
 /** Grid cells within this Chebyshev radius of a click may snap to a valid landing. */
 export const FOUNDING_LANDING_SNAP_RADIUS = 8
+
+/**
+ * Minimum 4-connected land cells for a body to accept a founding landing.
+ * Rejects offshore sandbar wisps while allowing modest islands.
+ */
+export const MIN_COLONIZABLE_LANDMASS_CELLS = 32
 
 /**
  * @typedef {Object} FoundingLandingValidityContext
@@ -12,6 +19,7 @@ export const FOUNDING_LANDING_SNAP_RADIUS = 8
  * @property {boolean[]} ocean
  * @property {Uint8Array} sailMask
  * @property {Set<string>} mouthKeys
+ * @property {Uint32Array} landmassSizeByCell
  */
 
 /**
@@ -34,10 +42,11 @@ export function createFoundingLandingValidityContext(doc) {
     }
   }
 
+  const ocean = isOceanCell(elevation, width, height, SEA_LEVEL)
   return {
     width,
     height,
-    ocean: isOceanCell(elevation, width, height, SEA_LEVEL),
+    ocean,
     sailMask: deriveSailOverlayMask({
       elevation,
       lakeMask: doc.lakeMask,
@@ -47,6 +56,7 @@ export function createFoundingLandingValidityContext(doc) {
       seaLevel: SEA_LEVEL,
     }),
     mouthKeys,
+    landmassSizeByCell: buildLandmassSizeByCell(ocean, width, height),
   }
 }
 
@@ -63,6 +73,10 @@ export function isValidFoundingLandingCellInContext(ctx, x, y) {
 
   const index = y * ctx.width + x
   if (ctx.ocean[index]) {
+    return false
+  }
+
+  if (ctx.landmassSizeByCell[index] < MIN_COLONIZABLE_LANDMASS_CELLS) {
     return false
   }
 
@@ -150,6 +164,29 @@ export function snapFoundingLandingCell(
 ) {
   const ctx = createFoundingLandingValidityContext(doc)
   return snapFoundingLandingCellInContext(ctx, x, y, maxDistance)
+}
+
+/**
+ * @param {boolean[]} ocean
+ * @param {number} width
+ * @param {number} height
+ * @returns {Uint32Array}
+ */
+function buildLandmassSizeByCell(ocean, width, height) {
+  const cellCount = width * height
+  const landMask = new Uint8Array(cellCount)
+  for (let i = 0; i < cellCount; i += 1) {
+    landMask[i] = ocean[i] ? 0 : 1
+  }
+
+  const landmassSizeByCell = new Uint32Array(cellCount)
+  for (const component of collectConnectedComponents(landMask, width, height, 4)) {
+    const size = component.length
+    for (const idx of component) {
+      landmassSizeByCell[idx] = size
+    }
+  }
+  return landmassSizeByCell
 }
 
 /**
