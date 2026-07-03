@@ -263,6 +263,15 @@
  * @property {MetalNode[]=} metalNodes
  * @property {GenerationReport=} generationReport
  * @property {Float32Array[]=} erosionSnapshots
+ * @property {Float32Array=} movementCost Per-cell travel cost for haul-shed isochrones (logistics pass).
+ * @property {import('./colonization/createDefaultColonizationSlice.js').ColonizationPhase=} colonizationPhase
+ * @property {number=} epoch
+ * @property {import('./colonization/createDefaultColonizationSlice.js').ColonistSettings=} colonistSettings
+ * @property {import('./colonization/createDefaultColonizationSlice.js').FoundingLanding | null=} foundingLanding
+ * @property {object[]=} historyLog
+ * @property {object[]=} settlements
+ * @property {object[]=} committedTips
+ * @property {string | null=} realmId
  */
 
 /**

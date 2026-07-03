@@ -17,6 +17,22 @@ import {
   createValidationRowsForDisplay,
   parseGeographySeedInput,
 } from '../../world-builder/worldBuilderPageModel.js'
+import {
+  COLONIZATION_PHASE_RUNNING,
+  COLONIZATION_PHASE_SETUP,
+} from '../../world-builder/core/colonization/createDefaultColonizationSlice.js'
+import {
+  colonizationAdvisoryRequiresConfirm,
+  filterColonizationValidationRows,
+  resolveColonizationGeographyGaps,
+} from '../../world-builder/core/colonization/filterColonizationValidationRows.js'
+import { buildTerrainCacheFingerprint } from '../../world-builder/core/terrainCacheFingerprint.js'
+import {
+  clearLockedTerrain as defaultClearLockedTerrain,
+  loadLockedTerrain as defaultLoadLockedTerrain,
+  saveLockedTerrain as defaultSaveLockedTerrain,
+} from '../utils/worldBuilderTerrainCache.js'
+import { useWorldBuilderColonization } from './useWorldBuilderColonization.js'
 import { useWorldBuilderGeneration } from './useWorldBuilderGeneration.js'
 import { useWorldBuilderOverlayState } from './useWorldBuilderOverlayState.js'
 
@@ -38,15 +54,21 @@ async function loadWorldBuilderViewportFactory() {
  *     geographySeed: number | null,
  *     prevailingWindDegrees: number,
  *     generationOptions: import('../../world-builder/core/types.js').WorldGenerationOptions,
+ *     colonizationSession?: import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice,
  *     ensureInitialized: () => void,
  *     applySeed: (rawSeed: string | number) => void,
  *     setControl: (key: string, value: number | boolean) => void,
+ *     setColonizationSession?: (slice: import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice) => void,
  *     resetToDefaults: () => void,
  *   },
  *   onGenerationError?: (message: string) => void,
+ *   requestConfirm?: (options?: { title?: string, message?: string }) => boolean | Promise<boolean>,
  *   loadViewportFactory?: () => Promise<unknown>,
  *   createMapLifecycle?: typeof createGenerationMapLifecycle,
  *   runDerivedGeographyInWorker?: typeof defaultRunDerivedGeographyInWorker,
+ *   loadLockedTerrain?: typeof defaultLoadLockedTerrain,
+ *   saveLockedTerrain?: typeof defaultSaveLockedTerrain,
+ *   clearLockedTerrain?: typeof defaultClearLockedTerrain,
  * }} options
  */
 export function useWorldBuilderPageController(options) {
@@ -54,9 +76,13 @@ export function useWorldBuilderPageController(options) {
     getMapHost,
     settingsStore,
     onGenerationError,
+    requestConfirm,
     loadViewportFactory = loadWorldBuilderViewportFactory,
     createMapLifecycle = createGenerationMapLifecycle,
     runDerivedGeographyInWorker = defaultRunDerivedGeographyInWorker,
+    loadLockedTerrain = defaultLoadLockedTerrain,
+    saveLockedTerrain = defaultSaveLockedTerrain,
+    clearLockedTerrain = defaultClearLockedTerrain,
   } = options
 
   const seedInput = ref(String(DEFAULT_GEOGRAPHY_SEED))
@@ -69,6 +95,27 @@ export function useWorldBuilderPageController(options) {
   const overlay = useWorldBuilderOverlayState({
     getViewport: () => mapLifecycle?.getViewport() ?? null,
     settingsStore,
+  })
+  /** @type {ReturnType<typeof useWorldBuilderGeneration> | null} */
+  let generation = null
+  /** @type {ReturnType<typeof useWorldBuilderColonization>} */
+  let colonization
+
+  function syncColonizationDocumentToMap() {
+    const doc = generation?.worldDocument.value
+    if (!doc || !mapLifecycle) {
+      return
+    }
+    void mapLifecycle.applyWorldDocument(colonization.applyToWorldDocument(doc))
+    colonization.syncLandingVisuals()
+  }
+
+  colonization = useWorldBuilderColonization({
+    settingsStore,
+    requestConfirm,
+    getViewport: () => mapLifecycle?.getViewport() ?? null,
+    getGeographyDocument: () => generation?.worldDocument.value ?? null,
+    onSliceChanged: syncColonizationDocumentToMap,
   })
 
   function getDerivedGeographyParams() {
@@ -87,26 +134,82 @@ export function useWorldBuilderPageController(options) {
    * @param {import('../../world-builder/core/types.js').WorldDocument} doc
    */
   async function applyWorldDocumentToMap(doc) {
-    await mapLifecycle?.applyWorldDocument(doc)
+    await mapLifecycle?.applyWorldDocument(colonization.applyToWorldDocument(doc))
+    colonization.syncLandingVisuals()
   }
 
-  const generation = useWorldBuilderGeneration({
+  function currentTerrainFingerprint() {
+    return buildTerrainCacheFingerprint({
+      geographySeed: settingsStore.geographySeed ?? 0,
+      prevailingWindDegrees: settingsStore.prevailingWindDegrees,
+      generationOptions: settingsStore.generationOptions,
+    })
+  }
+
+  async function persistLockedTerrainIfNeeded() {
+    if (!colonization.isTerrainLocked.value) {
+      return
+    }
+    const doc = generation?.worldDocument.value
+    if (!doc) {
+      return
+    }
+    try {
+      await saveLockedTerrain({
+        fingerprint: currentTerrainFingerprint(),
+        worldDocument: doc,
+      })
+    } catch {
+      // Cache is best-effort; regen remains the fallback.
+    }
+  }
+
+  async function discardLockedTerrain() {
+    try {
+      await clearLockedTerrain()
+    } catch {
+      // ignore
+    }
+  }
+
+  generation = useWorldBuilderGeneration({
     getDerivedGeographyParams,
     applyWorldDocument: applyWorldDocumentToMap,
     onBeforeRun: () => overlay.resetVisibility(),
-    onRunCompleteSuccess: () => overlay.resetVisibility(),
+    onRunCompleteSuccess: () => {
+      overlay.resetVisibility()
+      colonization.syncLandingVisuals()
+      void persistLockedTerrainIfNeeded()
+    },
     onRunError: (message) => onGenerationError?.(message),
     runDerivedGeographyInWorker,
   })
 
-  const validationRows = computed(() =>
-    createValidationRowsForDisplay(generation.worldDocument.value?.generationReport),
-  )
+  const worldDocument = computed(() => {
+    const doc = generation.worldDocument.value
+    if (!doc) {
+      return null
+    }
+    return colonization.applyToWorldDocument(doc)
+  })
+  const hasLandmass = computed(() => worldDocument.value != null)
+
+  const validationRows = computed(() => {
+    const runPhase = generation.runPhase.value
+    if (runPhase !== 'success' && runPhase !== 'exhausted') {
+      return []
+    }
+    const displayRows = createValidationRowsForDisplay(worldDocument.value?.generationReport)
+    return filterColonizationValidationRows(
+      displayRows,
+      resolveColonizationGeographyGaps(worldDocument.value),
+    )
+  })
   const stageSummary = computed(() =>
-    createStageSummaryForDisplay(generation.worldDocument.value?.generationReport),
+    createStageSummaryForDisplay(worldDocument.value?.generationReport),
   )
   const hydrologyStats = computed(() =>
-    createHydrologyStatsForDisplay(generation.worldDocument.value?.generationReport),
+    createHydrologyStatsForDisplay(worldDocument.value?.generationReport),
   )
   const generationStepStatuses = computed(() =>
     createGenerationStepStatuses(
@@ -124,12 +227,48 @@ export function useWorldBuilderPageController(options) {
     ),
   )
   const hydrologySubstepTimings = computed(() =>
-    createHydrologySubstepTimingsForDisplay(generation.worldDocument.value?.generationReport),
+    createHydrologySubstepTimingsForDisplay(worldDocument.value?.generationReport),
   )
   const generationOptions = computed(() => settingsStore.generationOptions)
 
-  function regenerate() {
+  /**
+   * @param {{ force?: boolean }} [options]
+   */
+  function regenerate(options = {}) {
+    if (!options.force && colonization.isTerrainLocked.value) {
+      return
+    }
+    if (!colonization.isTerrainLocked.value) {
+      void discardLockedTerrain()
+    }
     generation.regenerate()
+  }
+
+  async function enterColonizationSetup() {
+    const requiresConfirm = colonizationAdvisoryRequiresConfirm(validationRows.value)
+    const entered = await colonization.enterColonizationSetup(hasLandmass.value, {
+      requiresConfirm,
+    })
+    if (entered) {
+      await persistLockedTerrainIfNeeded()
+    }
+    return entered
+  }
+
+  async function backToTerrain() {
+    const result = colonization.backToTerrain()
+    if (result) {
+      await discardLockedTerrain()
+    }
+    return result
+  }
+
+  async function resetColonization() {
+    const result = await colonization.resetColonization()
+    if (result) {
+      await discardLockedTerrain()
+    }
+    return result
   }
 
   /**
@@ -144,12 +283,26 @@ export function useWorldBuilderPageController(options) {
   }
 
   /**
+   * @template T
+   * @param {() => T} fn
+   * @returns {T | undefined}
+   */
+  function withTerrainAuthoring(fn) {
+    if (colonization.isTerrainLocked.value) {
+      return
+    }
+    return fn()
+  }
+
+  /**
    * @param {string} key
    * @param {number | boolean} value
    */
   function onToggleChange(key, value) {
-    settingsStore.setControl(key, value)
-    regenerate()
+    withTerrainAuthoring(() => {
+      settingsStore.setControl(key, value)
+      regenerate()
+    })
   }
 
   /**
@@ -157,7 +310,9 @@ export function useWorldBuilderPageController(options) {
    * @param {number | boolean} value
    */
   function onSliderInput(key, value) {
-    settingsStore.setControl(key, value)
+    withTerrainAuthoring(() => {
+      settingsStore.setControl(key, value)
+    })
   }
 
   /**
@@ -165,8 +320,10 @@ export function useWorldBuilderPageController(options) {
    * @param {number | boolean} value
    */
   function onSliderCommit(key, value) {
-    settingsStore.setControl(key, value)
-    regenerate()
+    withTerrainAuthoring(() => {
+      settingsStore.setControl(key, value)
+      regenerate()
+    })
   }
 
   /**
@@ -178,20 +335,26 @@ export function useWorldBuilderPageController(options) {
   }
 
   function commitSeed() {
-    settingsStore.applySeed(seedInput.value)
-    regenerate()
+    withTerrainAuthoring(() => {
+      settingsStore.applySeed(seedInput.value)
+      regenerate()
+    })
   }
 
   function randomizeSeed() {
-    seedInput.value = String(createRandomGeographySeed())
-    settingsStore.applySeed(seedInput.value)
-    regenerate()
+    withTerrainAuthoring(() => {
+      seedInput.value = String(createRandomGeographySeed())
+      settingsStore.applySeed(seedInput.value)
+      regenerate()
+    })
   }
 
   function resetDefaults() {
-    settingsStore.resetToDefaults()
-    overlay.applyPersistedDefaults()
-    regenerate()
+    withTerrainAuthoring(() => {
+      settingsStore.resetToDefaults()
+      overlay.applyPersistedDefaults()
+      regenerate()
+    })
   }
 
   function resetOverlays() {
@@ -202,14 +365,32 @@ export function useWorldBuilderPageController(options) {
     settingsStore.ensureInitialized()
     seedInput.value = String(settingsStore.geographySeed)
     overlay.hydrateFromPersistedSettings()
+    colonization.hydrateFromPersistedSettings()
 
     createViewport = /** @type {typeof createViewport} */ (await loadViewportFactory())
     mapLifecycle = createMapLifecycle({
       getMapHost,
       getCreateViewport: () => createViewport,
-      onViewportReady: () => overlay.syncToViewport(),
+      onViewportReady: () => {
+        overlay.syncToViewport()
+        colonization.syncLandingVisuals()
+      },
     })
-    regenerate()
+
+    const phase = colonization.colonizationPhase.value
+    if (phase === COLONIZATION_PHASE_SETUP || phase === COLONIZATION_PHASE_RUNNING) {
+      try {
+        const cached = await loadLockedTerrain(currentTerrainFingerprint())
+        if (cached) {
+          await generation.applyCachedWorldDocument(cached)
+          return
+        }
+      } catch {
+        // Fall through to regen.
+      }
+    }
+
+    regenerate({ force: true })
   }
 
   function destroy() {
@@ -221,7 +402,7 @@ export function useWorldBuilderPageController(options) {
   return {
     seedInput,
     runPhase: generation.runPhase,
-    worldDocument: generation.worldDocument,
+    worldDocument,
     generationProgress: generation.generationProgress,
     showGenerationProgress: generation.showGenerationProgress,
     showResourceOverlayBar: generation.showResourceOverlayBar,
@@ -238,6 +419,25 @@ export function useWorldBuilderPageController(options) {
     setResourceOverlayDisplaySetting: overlay.setDisplaySetting,
     controlValue,
     generationOptions,
+    colonizationPhase: colonization.colonizationPhase,
+    isTerrainLocked: colonization.isTerrainLocked,
+    showTerrainAuthoringControls: colonization.showTerrainAuthoringControls,
+    showColonistSettingsPanel: colonization.showColonistSettingsPanel,
+    foundingLanding: colonization.foundingLanding,
+    colonistSettings: colonization.colonistSettings,
+    hasLandmass,
+    enterColonizationSetup,
+    backToTerrain,
+    beginColonization: colonization.beginColonization,
+    resetColonization,
+    canBeginColonization: colonization.canBeginColonization,
+    showResetColonization: colonization.showResetColonization,
+    timeControlsActive: colonization.timeControlsActive,
+    isColonistSettingsReadOnlyExceptEpochBatch:
+      colonization.isColonistSettingsReadOnlyExceptEpochBatch,
+    pickFoundingLanding: colonization.pickFoundingLanding,
+    setColonistSetting: colonization.setColonistSetting,
+    resetColonistSettings: colonization.resetColonistSettings,
     onToggleChange,
     onSliderInput,
     onSliderCommit,

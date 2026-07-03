@@ -1,3 +1,4 @@
+import { attachLandingPlacementControls } from './attachLandingPlacementControls.js'
 import { buildLandTerrainRgba } from './buildLandTerrainRgba.js'
 import { buildLakeOverlayCanvas } from './buildLakeOverlayCanvas.js'
 import { buildRiverOverlayCanvas } from './buildRiverOverlayCanvas.js'
@@ -304,6 +305,13 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     lakes.visible = true
   }
 
+  const landingPlacement = attachLandingPlacementControls({
+    Graphics,
+    viewport,
+    hostEl,
+    getWorldDocument: () => currentWorldDocument,
+  })
+
   return {
     /**
      * @param {import('../core/types.js').WorldDocument} nextDocument
@@ -408,8 +416,14 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       refreshMapLayers(changedLayers)
     },
 
+    setLandingPlacementMode: landingPlacement.setLandingPlacementMode,
+    setFoundingLandingMarker: landingPlacement.setFoundingLandingMarker,
+    setHaulShedPreviewCells: landingPlacement.setHaulShedPreviewCells,
+    onCellPick: landingPlacement.onCellPick,
+
     destroy() {
       stopReplay()
+      landingPlacement.clearCursor()
       resizeObserver.disconnect()
       terrainTexture.destroy(true)
       contourTexture?.destroy(true)

@@ -1,3 +1,8 @@
+import {
+  cloneColonizationSlice,
+  pickColonizationSliceFields,
+} from './colonization/createDefaultColonizationSlice.js'
+
 /**
  * Clone typed arrays so worker postMessage copies are independent on the main thread.
  * @param {import('./types.js').WorldDocument} doc
@@ -11,8 +16,13 @@ export function cloneWorldDocument(doc) {
     drainage: new Float32Array(doc.fields.drainage),
     salinity: new Float32Array(doc.fields.salinity),
   }
+  const colonization =
+    doc.colonizationPhase !== undefined
+      ? cloneColonizationSlice(pickColonizationSliceFields(doc))
+      : null
   return {
     ...doc,
+    ...(colonization ?? {}),
     fields,
     biomes: new Uint8Array(doc.biomes),
     displayBiomes: new Uint8Array(doc.displayBiomes),
@@ -27,6 +37,7 @@ export function cloneWorldDocument(doc) {
     coastNavigability: doc.coastNavigability
       ? new Float32Array(doc.coastNavigability)
       : undefined,
+    movementCost: doc.movementCost ? new Float32Array(doc.movementCost) : undefined,
     erosionSnapshots: doc.erosionSnapshots?.map((snapshot) => new Float32Array(snapshot)),
     riverGraph: doc.riverGraph
       ? {

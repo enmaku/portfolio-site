@@ -72,6 +72,7 @@
     </div>
     <div class="row col map-row">
       <aside
+        v-if="showTerrainAuthoringControls"
         data-testid="world-builder-generation-controls"
         class="generation-controls-panel bg-grey-10"
       >
@@ -243,6 +244,38 @@
           />
         </div>
       </aside>
+      <aside
+        v-else-if="showColonistSettingsPanel"
+        data-testid="world-builder-colonist-settings"
+        class="generation-controls-panel bg-grey-10"
+      >
+        <div class="panel-scroll q-pa-md">
+          <q-btn
+            v-if="colonizationPhase === 'setup'"
+            unelevated
+            color="negative"
+            class="full-width q-mb-md"
+            data-testid="world-builder-back-to-terrain"
+            label="Back to terrain"
+            @click="backToTerrain"
+          />
+          <q-btn
+            v-else-if="showResetColonization"
+            unelevated
+            color="negative"
+            class="full-width q-mb-md"
+            data-testid="world-builder-reset-colonization"
+            label="Reset colonization"
+            @click="resetColonization"
+          />
+          <WorldBuilderColonistSettingsPanel
+            :colonist-settings="colonistSettings"
+            :read-only-except-epoch-batch="isColonistSettingsReadOnlyExceptEpochBatch"
+            @update-setting="setColonistSetting"
+            @reset-defaults="resetColonistSettings"
+          />
+        </div>
+      </aside>
       <div
         ref="mapHostRef"
         data-testid="world-builder-map-host"
@@ -253,6 +286,26 @@
         class="generation-report-panel bg-grey-10"
       >
         <div class="panel-scroll q-pa-md">
+          <q-btn
+            v-if="colonizationPhase === 'terrain'"
+            unelevated
+            color="positive"
+            class="full-width q-mb-md"
+            data-testid="world-builder-colonize"
+            label="Colonize"
+            :disable="!hasLandmass"
+            @click="enterColonizationSetup"
+          />
+          <q-btn
+            v-else-if="colonizationPhase === 'setup'"
+            unelevated
+            color="positive"
+            class="full-width q-mb-md"
+            data-testid="world-builder-begin-colonization"
+            label="Begin colonization"
+            :disable="!canBeginColonization"
+            @click="beginColonization"
+          />
           <q-banner
             v-if="showValidationFailureIndicator"
             :data-testid="WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID"
@@ -263,9 +316,10 @@
             Validation retries exhausted — map shows the last candidate.
           </q-banner>
           <q-list
+            v-if="validationRows.length > 0"
             bordered
             separator
-            class="q-mb-md"
+            class="q-mb-md validation-advisory-list"
           >
             <q-item
               v-for="row in validationRows"
@@ -280,9 +334,15 @@
                   :color="validationStatusColor(row.status)"
                 />
               </q-item-section>
-              <q-item-section>
-                <q-item-label>{{ row.label ?? row.checkId }}</q-item-label>
-                <q-item-label caption>{{ row.summary }}</q-item-label>
+              <q-item-section class="validation-advisory-item__body">
+                <q-item-label class="validation-advisory-item__label">{{
+                  row.label ?? row.checkId
+                }}</q-item-label>
+                <q-item-label
+                  caption
+                  class="validation-advisory-item__summary"
+                  >{{ row.summary }}</q-item-label
+                >
               </q-item-section>
             </q-item>
           </q-list>
@@ -386,6 +446,7 @@ import {
 import { useWorldBuilderPageController } from '../../composables/useWorldBuilderPageController.js'
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
 import PrevailingWindArrow from '../../components/world-builder/PrevailingWindArrow.vue'
+import WorldBuilderColonistSettingsPanel from '../../components/world-builder/WorldBuilderColonistSettingsPanel.vue'
 import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
 
 const $q = useQuasar()
@@ -414,6 +475,20 @@ const {
   setResourceOverlayDisplaySetting,
   controlValue,
   generationOptions,
+  colonizationPhase,
+  showTerrainAuthoringControls,
+  showColonistSettingsPanel,
+  colonistSettings,
+  hasLandmass,
+  canBeginColonization,
+  showResetColonization,
+  isColonistSettingsReadOnlyExceptEpochBatch,
+  enterColonizationSetup,
+  backToTerrain,
+  beginColonization,
+  resetColonization,
+  setColonistSetting,
+  resetColonistSettings,
   onToggleChange,
   onSliderInput,
   onSliderCommit,
@@ -433,6 +508,27 @@ const {
       message: `World generation failed: ${message}`,
       timeout: 0,
       actions: [{ label: 'Dismiss', color: 'white' }],
+    })
+  },
+  requestConfirm(options = {}) {
+    return new Promise((resolve) => {
+      let settled = false
+      const finish = (value) => {
+        if (settled) {
+          return
+        }
+        settled = true
+        resolve(value)
+      }
+      $q.dialog({
+        title: options.title ?? 'Confirm',
+        message: options.message ?? 'Continue?',
+        cancel: true,
+        persistent: true,
+      })
+        .onOk(() => finish(true))
+        .onCancel(() => finish(false))
+        .onDismiss(() => finish(false))
     })
   },
 })
@@ -538,6 +634,22 @@ onUnmounted(destroy)
 .generation-report-panel {
   width: 320px;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.validation-advisory-list {
+  min-width: 0;
+}
+
+.validation-advisory-item__body {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.validation-advisory-item__label,
+.validation-advisory-item__summary {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .panel-scroll {
