@@ -44,15 +44,15 @@ _Avoid_: “Worldgen” as a single opaque step; skipping **validation checks** 
 
 ### Terrain authoring
 
-First product phase: generate and tune a **landmass** until the user is satisfied—regenerate, tweak parameters, inspect overlays, pass **validation checks**. Ends when the user is ready to **Colonize**; geography is frozen (or only edited with explicit “break colonization” intent—TBD).
+First product phase: generate and tune a **landmass** until the user is satisfied—regenerate, tweak parameters, inspect overlays, review **validation checks** (pass or fail). Ends when the user clicks **Colonize**; the user may return from **colonization setup** to edit geography again until **begin colonization**—returning discards in-progress colonization state (no draft resume).
 
-_Avoid_: “Map editing phase” when **scalar fields** and pipeline stages are meant; conflating with **colonization phase** simulation.
+_Avoid_: “Map editing phase” when **scalar fields** and pipeline stages are meant; conflating with **colonization phase** simulation; persisting partial setup across a return to terrain.
 
 ### Colonization phase
 
-Second product phase: user completes **colonization setup**, then **begin colonization** runs annual **epoch** ticks. Delivered in three product increments—**single-colony survival**, then **exploration and new settlements**, then **economy, politics, and history** together. Hands-off simulation after initial conditions: user sets geography and **colonist settings**, then the sim advances with minimal intervention—observe, **epoch step**, or **continuous colonization run**; no mid-run outcome edits in v1. Pause may adjust non-geography controls (e.g. extend **year cap**) without rewriting causality.
+Second product phase: user completes **colonization setup**, then **begin colonization** runs annual **epoch** ticks. Delivered in three product increments—**single-colony survival**, then **exploration and new settlements**, then **economy, politics, and history** together. Hands-off simulation after initial conditions: user sets geography and **colonist settings**, then the sim advances with minimal intervention—observe, **epoch step**, or **continuous colonization run**; no mid-run outcome edits in v1. Pause may adjust non-geography controls (e.g. extend **year cap**) without rewriting causality. In `running` phase: left panel keeps **colonist settings** (read-only except **year cap** and other permitted mid-run tweaks); right panel shows **validation advisory** at **epoch** 0, then sim/event feed content as increments ship. **Reset colonization** lives in persistent chrome, not the left panel. Terrain generation controls stay fully hidden; map overlay toggles remain for reading geography.
 
-_Avoid_: “History sim” alone when founding, expansion, and present-day structure are all meant; restarting terrain pipeline silently mid-colonization; requiring user unlock for core **faction** / **trade route** behavior once thresholds fire.
+_Avoid_: “History sim” alone when founding, expansion, and present-day structure are all meant; restarting terrain pipeline silently mid-colonization; requiring user unlock for core **faction** / **trade route** behavior once thresholds fire; swapping the full panel layout again at increment 1; hiding read-only resource overlays during the run.
 
 ### Single-colony survival
 
@@ -74,33 +74,39 @@ _Avoid_: “Expansion pack” naming; treating as optional when it is the planne
 
 ### Colonize
 
-User action that ends **terrain authoring** and opens **colonization setup**: place the **founding landing**, configure **colonist settings**, then **begin colonization** to start the clock. Available once terrain **validation checks** pass; colonization reads whatever geography layers exist and fills gaps with documented heuristics—full **logistics pass** is not a hard gate.
+User action that ends **terrain authoring** and opens **colonization setup**: place the **founding landing**, configure **colonist settings**, then **begin colonization** to start the clock. Available once a **landmass** exists to work with—not gated on **validation checks** passing. **Validation advisory** surfaces errors and warnings first; the user may proceed anyway. Colonization reads whatever geography layers exist and fills gaps with documented heuristics—full **logistics pass** is not a hard gate.
 
-_Avoid_: “Generate world” when only people-layer simulation is starting; blocking **Colonize** until every **landmass pipeline** stage is implemented; silent failure when a layer is missing instead of heuristic fallback.
+_Avoid_: “Generate world” when only people-layer simulation is starting; blocking **Colonize** until every check is green; hiding failed checks when the user opts in; silent failure when a layer is missing instead of heuristic fallback.
 
 ### Colonization setup
 
-Interactive step between **Colonize** and **begin colonization**: user places the **founding landing**, edits **colonist settings** (homeland flavor, era logistics, **history seed**), and reviews geography. Map time is frozen; no **settlements** or **epoch** ticks yet.
+Interactive step between **Colonize** and **begin colonization**: user places the **founding landing**, edits **colonist settings** (homeland flavor, era logistics), and reviews geography. Map time is frozen; no **settlements** or **epoch** ticks yet. **Terrain authoring** controls are fully hidden—not merely disabled; the left and right chrome panels show **colonist settings** and **validation advisory** (warnings/errors) respectively. **Begin colonization** enables once a valid **founding landing** exists—all **colonist settings** already hold defaults in the pane. User may return to **terrain authoring** until **begin colonization**—all setup progress is discarded on return (landing pin, settings edits); no partial-state resume.
 
-_Avoid_: “Pre-sim” in UI copy; conflating with **terrain authoring** parameter panels.
+_Avoid_: “Pre-sim” in UI copy; conflating with **terrain authoring** parameter panels; saving colonization setup drafts across a terrain return; indeterminate colonist controls; leaving terrain sliders visible in setup.
 
 ### Colonist settings
 
-Configuration during **colonization setup** for the founding wave. Increment 1 pane: **three-day haul distance** (scale calibration), **history seed**, **homeland flavor** (presets + notes for **landing culture snapshot**), optional **starting population**, optional **yield modifier** (marginal / typical / bountiful **arable envelope** interpretation). Later: simulation **year cap** (max **epochs** before auto-stop). Trade, diplomacy, and expansion temperament knobs wait for later increments.
+Configuration during **colonization setup** for the founding wave. Pane ships in **colonization setup** (#391): **three-day haul distance** (scale calibration), **homeland flavor** (preset list + optional notes for **landing culture snapshot**), **starting population**, **yield modifier** (marginal / typical / bountiful **arable envelope** interpretation), and **year cap** (max **epochs** before auto-stop—stored at setup, enforced once **epoch** ticks run). Every field has a concrete default—sliders and controls are never indeterminate. **Begin colonization** enables once a valid **founding landing** is placed; unset-looking controls still carry defaults. Trade, diplomacy, and expansion temperament knobs wait for later increments. No author-facing RNG seed—colonization reuses **geography seed**.
 
-_Avoid_: “Civ picker” that implies pre-existing on-map peoples; “Difficulty” sliders without geographic meaning; settings that only apply to increment 3 **faction** play in the first test slice.
+_Avoid_: “Civ picker” that implies pre-existing on-map peoples; “Difficulty” sliders without geographic meaning; indeterminate or empty UI state for colonist controls; a separate **history seed** or **simulation seed** in the setup pane; deferring **year cap** until increment 1 when the field has no sim dependency; settings that only apply to increment 3 **faction** play in the first test slice.
 
 ### Begin colonization
 
-User action that commits **colonization setup** and starts the **colonization phase** clock—annual **epoch** ticks, expansion, **settlement** growth, and downstream simulation. **Terrain authoring** is hard-locked afterward; geography cannot change without resetting colonization state. The run ends when **political equilibrium** holds for N consecutive **epochs** or a **colonist settings** year cap is reached—whichever comes first; export may happen earlier.
+User action that commits **colonization setup** and enters the **colonization phase** `running` state—terrain hard-locked, **landing culture snapshot** written, **epoch** initialized (0), empty **settlements** placeholder. Annual **epoch** ticks and **epoch step** arrive with increment 1; until then the UI stays in colonization mode with time controls inert. The run ends when **political equilibrium** holds for N consecutive **epochs** or a **colonist settings** **year cap** is reached—whichever comes first; export may happen earlier.
 
-_Avoid_: “Play” / “Run” without colonization context; auto-starting simulation when the **founding landing** is placed; silent terrain edits mid-run; infinite run with no stop condition.
+_Avoid_: “Play” / “Run” without colonization context; auto-starting simulation when the **founding landing** is placed; silent terrain edits mid-run; infinite run with no stop condition; a fourth “ready” phase between setup and running.
+
+### Reset colonization
+
+Explicit user action from `running` (or `stopped`) that abandons the colonization run: wipes colonization state (**founding landing**, **colonist settings**, **epoch**, **settlements**, **history log**, …), returns phase to `terrain`, and unlocks geography editing. Always available once **begin colonization** has committed—including at **epoch** 0. One confirm step; no partial colonization resume.
+
+_Avoid_: “New world” as the only escape hatch; preserving sim progress across a reset; different reset rules before vs after the first **epoch** tick.
 
 ### Founding landing
 
-Map cell where the first colonizing boat makes shore—the seed **settlement** and expansion origin for one founding wave. Chosen by the user at **Colonize** time; must be **Sail overlay**-reachable coast or river mouth unless params allow overland-only founding (TBD).
+Map cell where the first colonizing boat makes shore—the seed **settlement** and expansion origin for one founding wave. Chosen by the user during **colonization setup**; must be **Sail overlay**-reachable coast or river mouth. Invalid cells (inland, non-sailable shore) are not selectable—the map shows a “no” cursor like other disabled controls, without error copy. During setup, a single persistent map marker shows the chosen cell, with a small circle centered on the pin showing **three-day haul distance** (oxcart **haul-shed** reach); the circle rescales live as the slider moves. Clicking another valid cell moves the pin and circle. The marker and circle persist in `running` as read-only reference at the **founding landing**.
 
-_Avoid_: “Capital” before a **drain city** or political apex exists; random auto-placement without user intent.
+_Avoid_: “Capital” before a **drain city** or political apex exists; random auto-placement without user intent; overland-only founding in v1; toast or modal explaining why a cell is invalid during placement; hover preview halos beyond the haul circle.
 
 ### Scalar field
 
@@ -226,25 +232,37 @@ _Avoid_: “Economy sim” for the whole **world**; conflating with **history lo
 
 ### Rejection sampling
 
-Regenerate the candidate **landmass** when **validation checks** fail (missing haul corridors, **population ceiling** violation, impossible capital site)—same belt-and-braces pattern as Dwarf Fortress world rejection, but grounded in logistics constraints rather than biome quotas alone.
+Regenerate the candidate **landmass** when **validation checks** fail (missing haul corridors, **population ceiling** violation, impossible capital site)—same belt-and-braces pattern as Dwarf Fortress world rejection, but grounded in logistics constraints rather than biome quotas alone. Automatic during generation when enabled; distinct from **validation advisory**, which never blocks **Colonize**.
 
-_Avoid_: “Retry button” without logged reject reasons; accepting broken worlds for speed.
+_Avoid_: “Retry button” without logged reject reasons; conflating auto-reject during generation with a hard **Colonize** gate.
+
+### Validation advisory
+
+Pre-**Colonize** (and optionally pre-**begin colonization**) presentation of **validation checks** results—errors and warnings visible, never a hard block. Failing checks stay surfaced in the validation panel; **warnings** alone do not add friction. When any check is in **error** state, **Colonize** requires a lightweight confirm (“colonize anyway”) before **colonization setup** opens—proceeding on marginal geography is deliberate, not accidental. **Begin colonization** does not repeat the confirm; the author already accepted the map. The user may **Colonize** on intentionally marginal geography; odd or “failed” **landmasses** are a valid author choice. Distinct from **rejection sampling**, which may discard candidates during generation.
+
+_Avoid_: requiring all checks green to **Colonize**; proceeding without surfacing what failed; blocking **begin colonization** again after setup.
 
 ### Geography seed
 
-Deterministic input to **landmass pipeline** stages through **logistics pass** and **validation checks**. Same **geography seed** + params → same terrain fields and derived graph; independent of **history seed**.
+Deterministic input to **landmass pipeline** stages through **logistics pass** and **validation checks**, and the RNG for **colonization phase** simulation (**population collapse**, **expeditions**, **conflict engine**, …). Same **geography seed** + params + **colonist settings** + **founding landing** → same terrain and same colonization run.
 
-_Avoid_: “World seed” alone when history events must also be reproducible; conflating with **seed** when both are meant.
+_Avoid_: “World seed” alone when only terrain is meant; a separate **history seed** in author UI or **world document**; conflating with opaque **seed** when debugging requires knowing which stage diverged.
 
-### History seed
+### Seed
 
-Deterministic input to **history log** simulation after **landmass** and initial **settlement** / **faction** placement. Same **geography seed** with different **history seed** → same map, different **rivalry** and borders.
+Deterministic input to generation and colonization; same **geography seed** + params + colonization inputs → same **world**. One author-facing seed per **world document**.
 
-_Avoid_: Single **seed** in export when authors need to share geography-only or replay history variants.
+_Avoid_: “Random” without reproducibility; sharing worlds without **geography seed** export; **history seed** / **simulation seed** as a second user-facing knob.
+
+### Homeland flavor
+
+**Colonist settings** input describing where the founding wave came from before they met the **landmass**. Author picks one preset from a fixed list (e.g. maritime traders, highland clans, river-valley farmers) plus optional free-text notes. Default preset applies on entry; notes may be empty. Feeds the **landing culture snapshot** at **begin colonization** together with the **environmental pressure stack** at the **founding landing**—not a full **culture engine** run.
+
+_Avoid_: “Civ picker” implying pre-existing on-map peoples; open-ended culture without a preset anchor; structured toggle mini-forms in v1 when presets + notes suffice.
 
 ### Landing culture snapshot
 
-One-time **culture** output at **begin colonization**: compressed summary from **colonist settings** plus **environmental pressure stack** at the **founding landing**—readable flavor, not annual **WAAC** drift. Used in **single-colony survival**; full **culture engine** cycles deferred to later increments.
+One-time **culture** output at **begin colonization**: compressed summary from **homeland flavor** (preset + notes) plus **environmental pressure stack** at the **founding landing**—readable flavor, not annual **WAAC** drift. Used in **single-colony survival**; full **culture engine** cycles deferred to later increments.
 
 _Avoid_: “Culture sheet” checklist; treating the snapshot as the full **six culture layers** simulation; rerolling culture every **epoch** in increment 1.
 
@@ -543,17 +561,11 @@ Target UX: after **begin colonization**, simulation auto-advances **epochs** wit
 
 _Avoid_: “Real-time strategy mode”; wall-clock tied to in-world days.
 
-### Seed
-
-Deterministic input to generation; same **seed** + params → same **world**. Prefer explicit **geography seed** and **history seed** in the **world document** when stages are separable.
-
-_Avoid_: “Random” without reproducibility; sharing worlds without **seed** export; one opaque seed when debugging requires knowing which stage diverged.
-
 ### World document
 
-Serializable snapshot: **geography seed**, **history seed**, stage parameters, geography **fields**, **settlements**, **factions**, **trade routes**, **history log**, derived **culture** summaries. At simulation stop, exports support a **campaign kit**—not JSON alone.
+Serializable snapshot: **geography seed**, stage parameters, geography **fields**, colonization state (**founding landing**, **colonist settings**, **settlements**, **factions**, **trade routes**, **history log**), derived **culture** summaries. Authoritative in-memory sim state during a session. At simulation stop, the only user-initiated save is **campaign kit** export—not mid-run file save. Session survival (page refresh) extends the existing Pinia/localStorage pattern alongside generation settings; no separate colonization save/load UX.
 
-_Avoid_: “Save file” in UI copy when the artifact is author-facing; PNG-only export as the whole **world**.
+_Avoid_: “Save file” in UI copy when the artifact is author-facing; PNG-only export as the whole **world**; a redundant **history seed** field; explicit save/load buttons for in-progress colonization.
 
 ### Campaign kit
 
@@ -574,7 +586,7 @@ _Avoid_: Static flavor text without supply/demand backing; narrative-only profil
 - **Landmass pipeline → logistics pass**: after physical terrain, **ox paradox**, **arable envelope**, **maritime reach**, and **strategic resource** nodes apply—World Builder’s layer on top of DF-style geography.
 - **Terrain authoring → Colonize → colonization setup → begin colonization**: user finishes tuning geography, places **founding landing**, sets **colonist settings**, then starts the **colonization phase** clock on a fixed **landmass**.
 - **Rejection sampling → validation checks**: failed **population ceiling**, haul corridor, or node presence → regenerate candidate **landmass**; reject reasons inform tuning.
-- **Geography seed / history seed → world document**: same map with different **history log** when only **history seed** changes; **founding landing** is independent of **geography seed**.
+- **Geography seed → world document**: one seed drives terrain generation and colonization RNG; same seed + params + **colonist settings** + **founding landing** → reproducible full run. **Founding landing** is independent of **geography seed** placement on the grid.
 - **Named region → culture engine**: **exchange** and **connectivity** pressures often differ by contiguous region cluster, not single-tile **biome**.
 - **Landmass → environmental pressure stack**: elevation, hydrology, and **climate** produce movement cost, visibility, connectivity, predictability, survival stress, and **resource profile** inputs.
 - **Environmental pressure stack → culture engine**: pressures run **WAAC cycles** that fill **six culture layers** per people; **exchange** modulates isolation vs synthesis.
@@ -596,7 +608,7 @@ _Avoid_: Static flavor text without supply/demand backing; narrative-only profil
 - “The pass **chokepoint** explains the **vassal** fort; if we add a lowland road, **conditional loyalty** breaks because the **grain circle** bypasses them.”
 - “Run one **WAAC cycle** for the desert **environment** force before naming gods—wellkeepers are a **consequence**, not a aesthetic pick.”
 - “**Rivalry** here is trade denial on **salt**, not ‘evil neighbors’—check the **strategic resource** layer.”
-- “Same **geography seed**, new **history seed**—the delta’s still there; only the **faction** borders moved.”
+- “Change **homeland flavor** or **yield modifier** and **begin colonization** again—the delta’s still there; only the colony’s trajectory moves.”
 - “**Rejection sampling** dropped that map: capital over **population ceiling** with no **maritime reach**.”
 - “**Colonize** at the delta mouth—set **three-day haul distance** in **colonist settings**, then **begin colonization**.”
 
@@ -619,7 +631,7 @@ Geography is not decorative: **landmass pipeline** stages must emit fields the *
 
 Within each increment, **culture engine** pressure may apply when regions are engaged; full **WAAC** visibility arrives with increment 3 unless earlier increments prove partial cycles.
 
-Physical **landmass** and **logistics pass** complete during **terrain authoring**; **history seed** applies when **colonization phase** runs.
+Physical **landmass** and **logistics pass** complete during **terrain authoring**; **colonization phase** reuses **geography seed** for simulation RNG.
 
 ### Required geographic outputs
 
@@ -645,7 +657,7 @@ Interesting play locations tend to sit where pressures collide:
 
 ### Validation checks (world feels “read,” not invented)
 
-Used by **rejection sampling**; same role as Dwarf Fortress biome and feature quotas, but logistics-grounded. Hydrology sailing checks measure **Sail overlay** connectivity using sail-native report labels—**Sailable water**, **Coastal river access**, **Coast-to-interior sailing path**—not pre-refine graph edge counts or “navigable” wording.
+Used by **rejection sampling** and **validation advisory**; same role as Dwarf Fortress biome and feature quotas, but logistics-grounded. Hydrology sailing checks measure **Sail overlay** connectivity using sail-native report labels—**Sailable water**, **Coastal river access**, **Coast-to-interior sailing path**—not pre-refine graph edge counts or “navigable” wording.
 
 _Avoid_: Rejecting or accepting worlds based on `riverGraph` edge counts when **Sail overlay** shows different connectivity; validation metrics that ignore **meander refine** bridges visible on the final map; legacy “navigable edge” language in user-facing validation rows.
 
@@ -671,8 +683,8 @@ _Avoid_: Rejecting or accepting worlds based on `riverGraph` edge counts when **
 - **Dwarf Fortress depth vs v1 scope**: DF history is full agent simulation; v1 **history log** may use lighter **epoch** ticks with stored **rivalry** causes—same “simulation log, not authored timeline” pattern, not necessarily DF agent count.
 - **DF research vs implementation**: terrain notes are conceptual inspiration for **fields before labels**, hydrology-as-derived-graph, and rejection *pattern*—not a mandate to match DF algorithms (e.g. midpoint-displacement elevation), biomes, fantasy layers (good/evil, savagery), or rejection UX (hundreds of silent retries). **`world-builder/core`** ships in JavaScript with JSDoc (portfolio repo convention), not a separate TypeScript toolchain.
 - **User-gated colonization vs DF auto-civ-placement**: DF places civilizations after terrain verification without a player-chosen landing; World Builder uses **colonization setup** (**founding landing** + **colonist settings**) then **begin colonization**. v1 continent is empty until the founding wave (no indigenous peoples).
-- **Colonization geography inputs**: **best-effort**—**Colonize** after terrain validates; missing layers (e.g. full **movement cost**, **maritime reach**) use heuristics until **logistics pass** matures. Increment 2+ may tighten required layers.
-- **Terrain lock**: geography hard-frozen at **begin colonization**; editing terrain requires resetting colonization state.
+- **Colonization geography inputs**: **best-effort**—**Colonize** when the author is satisfied with the **landmass**; **validation advisory** informs but does not gate. Missing layers (e.g. full **movement cost**, **maritime reach**) use heuristics until **logistics pass** matures. Increment 2+ may tighten required layers.
+- **Terrain lock**: geography hard-frozen at **begin colonization**; **reset colonization** is the only way back to editable terrain—no in-place geography edits while colonization state exists.
 - **Increment 3 entry**: automatic when **supply-chain independence** fires (land **haul-shed** split and/or **drain city** **maritime reach** branch)—either branch sufficient alone.
 - **Increment 3 politics**: **factions**, **city-states**, and **rivalry** emerge gradually over **epochs** after entry—not an instant realm split on the threshold **epoch**.
 - **Simulation stop**: **political equilibrium** for N **epochs** or **year cap** from **colonist settings**—whichever first; early export allowed.
@@ -681,4 +693,9 @@ _Avoid_: Rejecting or accepting worlds based on `riverGraph` edge counts when **
 - **Population model**: **bulk population** parameters + per-**epoch** **population collapse** for **population overlay**; **notable figures** tracked individually—WFC-style constraint satisfaction is inspiration, not a committed algorithm name in product copy.
 - **Increment 2 exploration**: **exploration fog** overlay + auto-dispatched **expeditions**; new **settlements** founded automatically at logistics nodes—one realm until increment 3.
 - **Grid scale**: no intrinsic km-per-cell; **three-day haul distance** and related **travel time** metrics are author-calibrated in **colonist settings** until map scale is modeled.
+- **Colonization phase states**: `terrain` → `setup` → `running` (→ `stopped` at sim end). **Colonization setup** (#391) ships the full transition through `running` with document fields initialized; increment 1 (#392) plugs in **epoch** ticks without adding interim phases.
+- **Colonization setup chrome**: terrain authoring panels fully hidden; left panel → **colonist settings**, right panel → **validation advisory** (warnings/errors). Same panel real estate as terrain phase, different content.
+- **Colonization running chrome**: left panel → **colonist settings** (read-only except permitted mid-run edits such as **year cap**); right panel → **validation advisory** at **epoch** 0, then sim/event feed as increments ship. **Reset colonization** in persistent toolbar chrome. Terrain generation controls hidden; map overlay toggles remain for inspect.
+- **Session persistence**: colonization phase, **founding landing**, and **colonist settings** live on the existing `worldBuilderSettings` Pinia store (same `portfolio-world-builder-settings` persist key as generation settings)—not a separate colonization store. On page refresh, the app silently regenerates the **landmass** from persisted seed/settings, then rehydrates colonization state so the user lands back in the same phase. **Campaign kit** is the only author-initiated export at run end.
+- **Colonization RNG**: no separate **history seed**—**geography seed** seeds colonization stochastic rolls; not author-facing in **colonist settings**.
 - **Colonization time controls**: v1 ships **epoch step**; **continuous colonization run** (pause/speed) is the target UX once epoch ticks are trustworthy.
