@@ -59,7 +59,7 @@ The script deduplicates YouTube's rolling-caption overlap, strips `[music]` mark
 | 05 | Stop Drawing Maps. Start Building Worlds. | When geography matters; **travel time** |
 | 06 | Your Fantasy Society is Too Fair | Rigged **power** structures |
 | 07–08 | Boring politics / one-dimensional characters | **Power center** depth |
-| 09 | The 5 Forces That Make Cultures Believable | **Five forces**, **WAAC cycle**, **six culture layers** |
+| 09 | The 5 Forces That Make Cultures Believable | **Five forces**, **WOAC cycle**, **six culture layers** |
 | 10 | Fix Your Fantasy Cultures | Culture engine application |
 | 11 | Every Political System in History Runs on This One Engine | **Political skeleton**, **power centers** |
 | 12 | The King's Fatal Mistake: Adding A Middle Class | **Legacy** / class pressure |
