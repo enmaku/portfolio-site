@@ -23,6 +23,8 @@ UI → editors → world document → renderer
 | `src/composables/` | Page controller, overlay owner, generation composables | `world-builder/*` public entry points — lazy-load renderer |
 | `src/pages/projects/WorldBuilderPage.vue` | Quasar layout, thin bindings | Vue, Quasar, composables, page model only |
 
+**Panel navigation actions:** left sidebar = backward / abandon (red, full-width control at top of the panel); right sidebar = forward / commit (green, full-width control at top of the panel). Phase labels and a shared top action toolbar are not used for these transitions. Domain wording: [`CONTEXT.md`](../CONTEXT.md) (colonization chrome / panel navigation actions).
+
 **Primary viewport:** PixiJS 8 + pixi-viewport, mounted imperatively from `world-builder/renderer/createWorldBuilderMapViewport.js`.
 
 **Simulation stays CPU-side and deterministic** (same **geography seed** → same **scalar fields**). Renderer replays pipeline snapshots for animation; it does not re-run erosion or hydrology.

@@ -104,6 +104,20 @@ export function useWorldBuilderGeneration(options) {
     })
   }
 
+  /**
+   * Apply a previously generated landmass without running the worker (terrain cache restore).
+   * @param {import('../../world-builder/core/types.js').WorldDocument} doc
+   * @returns {Promise<void>}
+   */
+  async function applyCachedWorldDocument(doc) {
+    generationRunController.value?.cancelActive()
+    worldDocument.value = doc
+    runPhase.value = 'success'
+    generationProgress.value = createInitialGenerationProgress()
+    await Promise.resolve(options.applyWorldDocument(doc))
+    options.onRunCompleteSuccess?.()
+  }
+
   function dispose() {
     generationRunController.value?.cancelActive()
     generationRunController.value = null
@@ -118,6 +132,7 @@ export function useWorldBuilderGeneration(options) {
     showResourceOverlayBar,
     showValidationFailureIndicator,
     regenerate,
+    applyCachedWorldDocument,
     dispose,
   }
 }

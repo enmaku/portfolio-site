@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { effectScope, nextTick } from 'vue'
+import { SEA_LEVEL } from '../../world-builder/core/biomeIds.js'
+import {
+  COLONIZATION_PHASE_RUNNING,
+  COLONIZATION_PHASE_SETUP,
+  COLONIZATION_PHASE_TERRAIN,
+  createDefaultColonistSettings,
+  createDefaultColonizationSlice,
+  resolveColonizationSlice,
+} from '../../world-builder/core/colonization/createDefaultColonizationSlice.js'
+import { buildTerrainCacheFingerprint } from '../../world-builder/core/terrainCacheFingerprint.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../../world-builder/core/worldGenerationOptions.js'
 import { useWorldBuilderPageController } from './useWorldBuilderPageController.js'
 
@@ -40,6 +50,54 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
   focusValidationRow: [
     'focusValidationRow focuses the viewport only when the row has a map focus',
   ],
+  enterColonizationSetup: [
+    'enterColonizationSetup moves to setup when a landmass exists',
+    'enterColonizationSetup is a no-op without a landmass',
+    'enterColonizationSetup requires confirm when advisory has fail rows',
+    'enterColonizationSetup skips confirm when advisory is warn-only',
+  ],
+  backToTerrain: [
+    'backToTerrain returns to terrain and discards setup progress',
+  ],
+  pickFoundingLanding: [
+    'pickFoundingLanding accepts a valid coastal cell and updates haul-shed preview',
+    'pickFoundingLanding snaps a nearby click to the nearest valid landing',
+    'pickFoundingLanding rejects an invalid cell',
+  ],
+  setColonistSetting: [
+    'setColonistSetting updates three-day haul distance and rescales preview',
+  ],
+  resetColonistSettings: [
+    'resetColonistSettings restores colonist setting defaults in setup',
+  ],
+  beginColonization: [
+    'beginColonization commits founding settlement tip and locks terrain',
+    'beginColonization is disabled without a founding landing',
+  ],
+  resetColonization: [
+    'resetColonization clears tips and returns to terrain when confirmed',
+    'resetColonization stays in running when confirm is declined',
+  ],
+}
+
+function coastalLandmassDocument() {
+  const width = 8
+  const height = 8
+  const elevation = new Float32Array(width * height).fill(SEA_LEVEL + 0.2)
+  for (let y = 2; y < 6; y += 1) {
+    elevation[y * width + 2] = SEA_LEVEL - 0.2
+  }
+  return fakeWorldDocument({
+    gridWidth: width,
+    gridHeight: height,
+    fields: { elevation },
+    lakeMask: new Uint8Array(width * height),
+    generationReport: {
+      validationRows: [],
+      validationSignals: { movement: { largestSailComponentCellCount: 8 } },
+      largestSailComponentCellCount: 8,
+    },
+  })
 }
 
 /**
@@ -62,6 +120,7 @@ function createFakeSettingsStore(initial = {}) {
     prevailingWindDegrees: 90,
     generationOptions: { ...DEFAULT_WORLD_GENERATION_OPTIONS },
     overlayDisplaySettings: { arableMinimumProductivity: 0.1 },
+    colonizationSession: createDefaultColonizationSlice(),
     ensureInitializedCount: 0,
     resetToDefaultsCount: 0,
     ensureInitialized() {
@@ -83,6 +142,9 @@ function createFakeSettingsStore(initial = {}) {
     setOverlayDisplaySetting(key, value) {
       this.overlayDisplaySettings = { ...this.overlayDisplaySettings, [key]: value }
     },
+    setColonizationSession(slice) {
+      this.colonizationSession = resolveColonizationSlice(slice)
+    },
     resetToDefaults() {
       this.resetToDefaultsCount += 1
       this.overlayDisplaySettings = { arableMinimumProductivity: 0.1 }
@@ -98,9 +160,20 @@ function createFakeSettingsStore(initial = {}) {
 function createFakeViewport() {
   const focusCalls = []
   const overlaySyncs = []
+  const landingMarkers = []
+  const haulShedPreviews = []
+  const placementModes = []
+  /** @type {((cell: { x: number, y: number }) => void) | null} */
+  let cellPickHandler = null
   return {
     focusCalls,
     overlaySyncs,
+    landingMarkers,
+    haulShedPreviews,
+    placementModes,
+    triggerCellPick(cell) {
+      cellPickHandler?.(cell)
+    },
     handle: {
       focusOn(focus) {
         focusCalls.push(focus)
@@ -108,9 +181,46 @@ function createFakeViewport() {
       syncOverlayRenderCache(state) {
         overlaySyncs.push(state)
       },
+      setLandingPlacementMode(enabled) {
+        placementModes.push(enabled)
+      },
+      setFoundingLandingMarker(marker) {
+        landingMarkers.push(marker)
+      },
+      setHaulShedPreviewCells(cells) {
+        haulShedPreviews.push(cells)
+      },
+      onCellPick(handler) {
+        cellPickHandler = handler
+      },
       updateWorldDocument() {},
       fitToWorld() {},
       destroy() {},
+    },
+  }
+}
+
+function createMemoryTerrainCache() {
+  /** @type {{ fingerprint: string, worldDocument: import('../../world-builder/core/types.js').WorldDocument } | null} */
+  let record = null
+  return {
+    async saveLockedTerrain(payload) {
+      record = {
+        fingerprint: payload.fingerprint,
+        worldDocument: payload.worldDocument,
+      }
+    },
+    async loadLockedTerrain(fingerprint) {
+      if (!record || record.fingerprint !== fingerprint) {
+        return null
+      }
+      return record.worldDocument
+    },
+    async clearLockedTerrain() {
+      record = null
+    },
+    getRecord() {
+      return record
     },
   }
 }
@@ -121,8 +231,11 @@ function createFakeViewport() {
 function mountController(scope, overrides = {}) {
   const appliedDocs = []
   const errors = []
+  const confirmCalls = []
   const viewport = overrides.viewport ?? createFakeViewport()
+  const terrainCache = overrides.terrainCache ?? createMemoryTerrainCache()
   let lifecycleDestroyed = false
+  let workerRunCount = 0
 
   const settingsStore = overrides.settingsStore ?? createFakeSettingsStore()
 
@@ -131,6 +244,12 @@ function mountController(scope, overrides = {}) {
       getMapHost: () => ({}),
       settingsStore,
       onGenerationError: (message) => errors.push(message),
+      requestConfirm:
+        overrides.requestConfirm ??
+        (async () => {
+          confirmCalls.push(true)
+          return true
+        }),
       loadViewportFactory: async () => async () => viewport.handle,
       createMapLifecycle: ({ onViewportReady }) => ({
         async applyWorldDocument(doc) {
@@ -142,9 +261,13 @@ function mountController(scope, overrides = {}) {
           lifecycleDestroyed = true
         },
       }),
+      loadLockedTerrain: terrainCache.loadLockedTerrain,
+      saveLockedTerrain: terrainCache.saveLockedTerrain,
+      clearLockedTerrain: terrainCache.clearLockedTerrain,
       runDerivedGeographyInWorker:
         overrides.runDerivedGeographyInWorker ??
         ((_params, callbacks) => {
+          workerRunCount += 1
           callbacks.onStepComplete?.({
             stepId: 'validation',
             stepIndex: 5,
@@ -164,6 +287,9 @@ function mountController(scope, overrides = {}) {
     viewport,
     appliedDocs,
     errors,
+    confirmCalls,
+    terrainCache,
+    workerRunCount: () => workerRunCount,
     isLifecycleDestroyed: () => lifecycleDestroyed,
   }
 }
@@ -367,7 +493,7 @@ test('rapid regenerate does not duplicate world document apply from stale worker
 
     assert.strictEqual(ctx.runPhase.value, 'success')
     assert.strictEqual(appliedDocs.length, appliedAfterStart + 1)
-    assert.strictEqual(appliedDocs.at(-1), currentDoc)
+    assert.strictEqual(appliedDocs.at(-1)?.geographySeed, currentDoc.geographySeed)
 
     firstRunCallbacks.onStepComplete?.({
       stepId: 'validation',
@@ -379,7 +505,7 @@ test('rapid regenerate does not duplicate world document apply from stale worker
     await nextTick()
 
     assert.strictEqual(appliedDocs.length, appliedAfterStart + 1)
-    assert.strictEqual(appliedDocs.at(-1), currentDoc)
+    assert.strictEqual(appliedDocs.at(-1)?.geographySeed, currentDoc.geographySeed)
   } finally {
     scope.stop()
   }
@@ -670,6 +796,689 @@ test('generation errors are forwarded to the error handler', async () => {
 
     assert.strictEqual(ctx.runPhase.value, 'error')
     assert.deepStrictEqual(errors, ['worker failed'])
+  } finally {
+    scope.stop()
+  }
+})
+
+test('validationRows stay empty before generation completes', async () => {
+  const scope = effectScope(true)
+  try {
+    const worker = createPendingWorker()
+    const { ctx } = mountController(scope, {
+      runDerivedGeographyInWorker: (params, callbacks) => worker.run(params, callbacks),
+    })
+
+    assert.deepStrictEqual(ctx.validationRows.value, [])
+
+    await ctx.start()
+    await nextTick()
+
+    assert.strictEqual(ctx.runPhase.value, 'running')
+    assert.deepStrictEqual(ctx.validationRows.value, [])
+
+    worker.lastCallbacks().onStepComplete?.({
+      stepId: 'validation',
+      stepIndex: 5,
+      stepCount: 6,
+      label: 'Validation',
+      worldDocument: fakeWorldDocument({
+        generationReport: {
+          validationRows: [{ checkId: 'coastMouth', status: 'fail', summary: 'x' }],
+          validationSignals: { movement: { largestSailComponentCellCount: 0 } },
+        },
+      }),
+    })
+    await nextTick()
+    assert.deepStrictEqual(ctx.validationRows.value, [])
+
+    worker.lastCallbacks().onComplete?.()
+    await nextTick()
+    assert.ok(ctx.validationRows.value.length > 0)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('enterColonizationSetup moves to setup when a landmass exists', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, settingsStore, appliedDocs } = mountController(scope)
+
+    await ctx.start()
+    await nextTick()
+
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_TERRAIN)
+    assert.strictEqual(ctx.hasLandmass.value, true)
+    assert.strictEqual(ctx.showTerrainAuthoringControls.value, true)
+
+    const entered = await ctx.enterColonizationSetup()
+    await nextTick()
+
+    assert.strictEqual(entered, true)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_SETUP)
+    assert.strictEqual(ctx.showTerrainAuthoringControls.value, false)
+    assert.strictEqual(ctx.isTerrainLocked.value, true)
+    assert.strictEqual(ctx.showColonistSettingsPanel.value, true)
+    assert.strictEqual(ctx.worldDocument.value?.colonizationPhase, COLONIZATION_PHASE_SETUP)
+    assert.strictEqual(settingsStore.colonizationSession.colonizationPhase, COLONIZATION_PHASE_SETUP)
+    assert.strictEqual(appliedDocs.at(-1)?.colonizationPhase, COLONIZATION_PHASE_TERRAIN)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('enterColonizationSetup is a no-op without a landmass', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx } = mountController(scope, {
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onError?.('no landmass')
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+
+    assert.strictEqual(ctx.hasLandmass.value, false)
+    assert.strictEqual(await ctx.enterColonizationSetup(), false)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_TERRAIN)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('enterColonizationSetup requires confirm when advisory has fail rows', async () => {
+  const scope = effectScope(true)
+  try {
+    const confirmCalls = []
+    const { ctx } = mountController(scope, {
+      requestConfirm: async () => {
+        confirmCalls.push(true)
+        return false
+      },
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: fakeWorldDocument({
+            generationReport: {
+              validationRows: [{ checkId: 'coastMouth', status: 'fail', summary: 'x' }],
+              validationSignals: { movement: { largestSailComponentCellCount: 0 } },
+            },
+          }),
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+
+    assert.ok(ctx.validationRows.value.some((row) => row.status === 'fail'))
+    assert.strictEqual(await ctx.enterColonizationSetup(), false)
+    assert.strictEqual(confirmCalls.length, 1)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_TERRAIN)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('enterColonizationSetup skips confirm when advisory is warn-only', async () => {
+  const scope = effectScope(true)
+  try {
+    const confirmCalls = []
+    const { ctx } = mountController(scope, {
+      requestConfirm: async () => {
+        confirmCalls.push(true)
+        return false
+      },
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: fakeWorldDocument({
+            lakeMask: new Uint8Array([1, 0, 0, 0]),
+            generationReport: {
+              validationRows: [{ checkId: 'arableEnvelopeCoverage', status: 'warn', summary: 'x' }],
+              validationSignals: { movement: { largestSailComponentCellCount: 8 } },
+              largestSailComponentCellCount: 8,
+            },
+          }),
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+
+    assert.ok(ctx.validationRows.value.every((row) => row.status !== 'fail'))
+    assert.strictEqual(await ctx.enterColonizationSetup(), true)
+    assert.strictEqual(confirmCalls.length, 0)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_SETUP)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('backToTerrain returns to terrain and discards setup progress', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, settingsStore } = mountController(scope)
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_SETUP)
+
+    const discarded = await ctx.backToTerrain()
+    await nextTick()
+
+    assert.strictEqual(discarded, true)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_TERRAIN)
+    assert.strictEqual(ctx.showTerrainAuthoringControls.value, true)
+    assert.strictEqual(ctx.isTerrainLocked.value, false)
+    assert.strictEqual(ctx.showColonistSettingsPanel.value, false)
+    assert.deepStrictEqual(
+      settingsStore.colonizationSession,
+      createDefaultColonizationSlice(),
+    )
+    assert.strictEqual(ctx.worldDocument.value?.colonizationPhase, COLONIZATION_PHASE_TERRAIN)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('regenerate is blocked while colonization setup locks terrain', async () => {
+  const scope = effectScope(true)
+  try {
+    const worker = createPendingWorker()
+    const { ctx } = mountController(scope, {
+      runDerivedGeographyInWorker: (params, callbacks) => worker.run(params, callbacks),
+    })
+
+    await ctx.start()
+    worker.lastCallbacks().onStepComplete?.({
+      stepId: 'validation',
+      stepIndex: 5,
+      stepCount: 6,
+      label: 'Validation',
+      worldDocument: fakeWorldDocument(),
+    })
+    worker.lastCallbacks().onComplete?.()
+    await nextTick()
+
+    const runsAfterStart = worker.runCount()
+    await ctx.enterColonizationSetup()
+    ctx.regenerate()
+    await nextTick()
+
+    assert.strictEqual(worker.runCount(), runsAfterStart)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('pickFoundingLanding accepts a valid coastal cell and updates haul-shed preview', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const { ctx, viewport, settingsStore } = mountController(scope, {
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+
+    assert.strictEqual(ctx.pickFoundingLanding(3, 3), true)
+    assert.deepStrictEqual(ctx.foundingLanding.value, { x: 3, y: 3 })
+    assert.deepStrictEqual(settingsStore.colonizationSession.foundingLanding, { x: 3, y: 3 })
+    assert.ok(viewport.landingMarkers.some((marker) => marker?.x === 3 && marker?.y === 3))
+    assert.ok(viewport.haulShedPreviews.at(-1)?.length > 0)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('pickFoundingLanding snaps a nearby click to the nearest valid landing', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const { ctx, settingsStore } = mountController(scope, {
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+
+    assert.strictEqual(ctx.pickFoundingLanding(4, 3), true)
+    assert.deepStrictEqual(ctx.foundingLanding.value, { x: 3, y: 3 })
+    assert.deepStrictEqual(settingsStore.colonizationSession.foundingLanding, { x: 3, y: 3 })
+  } finally {
+    scope.stop()
+  }
+})
+
+test('pickFoundingLanding rejects an invalid cell', async () => {
+  const scope = effectScope(true)
+  try {
+    const width = 32
+    const height = 32
+    const elevation = new Float32Array(width * height).fill(SEA_LEVEL - 0.2)
+    for (let y = 4; y <= 6; y += 1) {
+      for (let x = 4; x <= 6; x += 1) {
+        elevation[y * width + x] = SEA_LEVEL + 0.2
+      }
+    }
+    const landmass = fakeWorldDocument({
+      gridWidth: width,
+      gridHeight: height,
+      fields: { elevation },
+      lakeMask: new Uint8Array(width * height),
+      generationReport: {
+        validationRows: [],
+        validationSignals: { movement: { largestSailComponentCellCount: 8 } },
+        largestSailComponentCellCount: 8,
+      },
+    })
+    const { ctx } = mountController(scope, {
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+
+    assert.strictEqual(ctx.pickFoundingLanding(24, 24), false)
+    assert.strictEqual(ctx.foundingLanding.value, null)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('resetColonistSettings restores colonist setting defaults in setup', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const { ctx, settingsStore } = mountController(scope, {
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+    ctx.setColonistSetting('threeDayHaulDistance', 1)
+    ctx.setColonistSetting('startingPopulation', 50)
+    ctx.setColonistSetting('yieldModifier', 'marginal')
+    ctx.setColonistSetting('epochBatch', 10)
+
+    ctx.resetColonistSettings()
+    await nextTick()
+
+    assert.deepStrictEqual(ctx.colonistSettings.value, createDefaultColonistSettings())
+    assert.deepStrictEqual(
+      settingsStore.colonizationSession.colonistSettings,
+      createDefaultColonistSettings(),
+    )
+  } finally {
+    scope.stop()
+  }
+})
+
+test('setColonistSetting updates three-day haul distance and rescales preview', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const { ctx, viewport } = mountController(scope, {
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+    ctx.pickFoundingLanding(3, 3)
+    ctx.setColonistSetting('threeDayHaulDistance', 1)
+    const smallPreview = viewport.haulShedPreviews.at(-1)?.length ?? 0
+
+    ctx.setColonistSetting('threeDayHaulDistance', 4)
+    const largePreview = viewport.haulShedPreviews.at(-1)?.length ?? 0
+
+    assert.strictEqual(ctx.colonistSettings.value.threeDayHaulDistance, 4)
+    assert.ok(largePreview > smallPreview)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('beginColonization commits founding settlement tip and locks terrain', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const { ctx, settingsStore } = mountController(scope, {
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+    assert.strictEqual(ctx.canBeginColonization.value, false)
+    ctx.pickFoundingLanding(3, 3)
+    assert.strictEqual(ctx.canBeginColonization.value, true)
+
+    assert.strictEqual(ctx.beginColonization(), true)
+    await nextTick()
+
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+    assert.strictEqual(ctx.worldDocument.value?.settlements?.length, 1)
+    assert.strictEqual(ctx.worldDocument.value?.committedTips?.length, 1)
+    assert.strictEqual(ctx.worldDocument.value?.historyLog?.[0]?.kind, 'founding')
+    assert.ok(ctx.worldDocument.value?.realmId)
+    assert.strictEqual(ctx.isTerrainLocked.value, true)
+    assert.strictEqual(ctx.timeControlsActive.value, false)
+    assert.strictEqual(ctx.showResetColonization.value, true)
+    assert.strictEqual(settingsStore.colonizationSession.colonizationPhase, COLONIZATION_PHASE_RUNNING)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('beginColonization is disabled without a founding landing', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx } = mountController(scope)
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+
+    assert.strictEqual(ctx.beginColonization(), false)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_SETUP)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('resetColonization clears tips and returns to terrain when confirmed', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const confirmOptions = []
+    const { ctx, settingsStore } = mountController(scope, {
+      requestConfirm: async (options) => {
+        confirmOptions.push(options)
+        return true
+      },
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+    ctx.pickFoundingLanding(3, 3)
+    ctx.beginColonization()
+
+    assert.strictEqual(await ctx.resetColonization(), true)
+    await nextTick()
+
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_TERRAIN)
+    assert.strictEqual(ctx.isTerrainLocked.value, false)
+    assert.deepStrictEqual(settingsStore.colonizationSession, createDefaultColonizationSlice())
+    assert.ok(confirmOptions.some((options) => options?.title))
+  } finally {
+    scope.stop()
+  }
+})
+
+test('resetColonization stays in running when confirm is declined', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const { ctx, settingsStore } = mountController(scope, {
+      requestConfirm: async () => false,
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+    ctx.pickFoundingLanding(3, 3)
+    ctx.beginColonization()
+
+    assert.strictEqual(await ctx.resetColonization(), false)
+    await nextTick()
+
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+    assert.strictEqual(settingsStore.colonizationSession.colonizationPhase, COLONIZATION_PHASE_RUNNING)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('start restores colonization phase from session after landmass regen', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const persisted = createDefaultColonizationSlice()
+    persisted.colonizationPhase = COLONIZATION_PHASE_SETUP
+    const { ctx, appliedDocs, viewport } = mountController(scope, {
+      settingsStore: createFakeSettingsStore({ colonizationSession: persisted }),
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_SETUP)
+    assert.strictEqual(ctx.worldDocument.value?.colonizationPhase, COLONIZATION_PHASE_SETUP)
+    assert.strictEqual(ctx.isTerrainLocked.value, true)
+    assert.strictEqual(appliedDocs.at(-1)?.colonizationPhase, COLONIZATION_PHASE_SETUP)
+    assert.ok(viewport.placementModes.includes(true))
+    viewport.triggerCellPick({ x: 3, y: 3 })
+    await nextTick()
+    assert.deepStrictEqual(ctx.foundingLanding.value, { x: 3, y: 3 })
+  } finally {
+    scope.stop()
+  }
+})
+
+test('start restores locked terrain from cache without running the worker', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const persisted = createDefaultColonizationSlice()
+    persisted.colonizationPhase = COLONIZATION_PHASE_SETUP
+    const settingsStore = createFakeSettingsStore({ colonizationSession: persisted })
+    const terrainCache = createMemoryTerrainCache()
+    await terrainCache.saveLockedTerrain({
+      fingerprint: buildTerrainCacheFingerprint({
+        geographySeed: settingsStore.geographySeed,
+        prevailingWindDegrees: settingsStore.prevailingWindDegrees,
+        generationOptions: settingsStore.generationOptions,
+      }),
+      worldDocument: landmass,
+    })
+
+    let workerRuns = 0
+    const { ctx, appliedDocs } = mountController(scope, {
+      settingsStore,
+      terrainCache,
+      runDerivedGeographyInWorker: () => {
+        workerRuns += 1
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+
+    assert.strictEqual(workerRuns, 0)
+    assert.strictEqual(ctx.runPhase.value, 'success')
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_SETUP)
+    assert.strictEqual(appliedDocs.at(-1)?.gridWidth, landmass.gridWidth)
+    assert.strictEqual(ctx.worldDocument.value?.colonizationPhase, COLONIZATION_PHASE_SETUP)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('enterColonizationSetup persists locked terrain and backToTerrain clears it', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const terrainCache = createMemoryTerrainCache()
+    const { ctx } = mountController(scope, {
+      terrainCache,
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+    await nextTick()
+
+    assert.ok(terrainCache.getRecord())
+    assert.strictEqual(terrainCache.getRecord()?.worldDocument.gridWidth, landmass.gridWidth)
+
+    await ctx.backToTerrain()
+    await nextTick()
+    assert.strictEqual(terrainCache.getRecord(), null)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('start restores running colonization tips from session after landmass regen', async () => {
+  const scope = effectScope(true)
+  try {
+    const persisted = createDefaultColonizationSlice()
+    persisted.colonizationPhase = COLONIZATION_PHASE_RUNNING
+    persisted.foundingLanding = { x: 3, y: 3 }
+    persisted.settlements = [{ id: 's1', x: 3, y: 3, population: 100 }]
+    persisted.committedTips = [{ epoch: 0, settlements: [{ id: 's1' }] }]
+    persisted.historyLog = [{ kind: 'founding', epoch: 0 }]
+    persisted.realmId = 'realm-test'
+    const { ctx } = mountController(scope, {
+      settingsStore: createFakeSettingsStore({ colonizationSession: persisted }),
+    })
+
+    await ctx.start()
+    await nextTick()
+
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+    assert.strictEqual(ctx.worldDocument.value?.committedTips?.length, 1)
+    assert.strictEqual(ctx.worldDocument.value?.settlements?.length, 1)
+    assert.strictEqual(ctx.worldDocument.value?.realmId, 'realm-test')
+    assert.strictEqual(ctx.isTerrainLocked.value, true)
   } finally {
     scope.stop()
   }

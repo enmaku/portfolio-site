@@ -1,4 +1,8 @@
 import { acceptHMRUpdate, defineStore } from 'pinia'
+import {
+  createDefaultColonizationSlice,
+  resolveColonizationSlice,
+} from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
 import { resolveWorldGenerationOptions } from '@world-builder/core/worldGenerationOptions.js'
 import {
   createControlsStateForSeed,
@@ -41,11 +45,18 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
     prevailingWindDegrees: 0,
     generationOptions: createDefaultGenerationOptions(),
     overlayDisplaySettings: createDefaultOverlayDisplaySettings(),
+    colonizationSession: createDefaultColonizationSlice(),
   }),
 
   persist: {
     key: 'portfolio-world-builder-settings',
-    pick: ['geographySeed', 'prevailingWindDegrees', 'generationOptions', 'overlayDisplaySettings'],
+    pick: [
+      'geographySeed',
+      'prevailingWindDegrees',
+      'generationOptions',
+      'overlayDisplaySettings',
+      'colonizationSession',
+    ],
     afterHydrate: ({ store }) => {
       store.geographySeed = parseStoredGeographySeed(store.geographySeed)
       store.prevailingWindDegrees = normalizeWindDegrees(store.prevailingWindDegrees)
@@ -54,6 +65,7 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
         ...createDefaultOverlayDisplaySettings(),
         ...store.overlayDisplaySettings,
       }
+      store.colonizationSession = resolveColonizationSlice(store.colonizationSession)
       ensureGeographySeedInitialized(store)
     },
   },
@@ -89,6 +101,10 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
         ...this.overlayDisplaySettings,
         [key]: value,
       }
+    },
+
+    setColonizationSession(slice) {
+      this.colonizationSession = resolveColonizationSlice(slice)
     },
 
     resetToDefaults() {
