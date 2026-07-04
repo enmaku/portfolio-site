@@ -3,14 +3,14 @@ import {
   resourceRasterOverlayCanvasFromRgba,
 } from './buildResourceRasterOverlayRgba.js'
 
-/** Magenta population overlay tint. */
-export const POPULATION_OVERLAY_RGB = [255, 64, 160]
+/** Red population overlay tint. */
+export const POPULATION_OVERLAY_RGB = [220, 40, 40]
 
 /** Alpha for the sparsest occupied cell (count >= 1). */
-export const POPULATION_OVERLAY_MIN_ALPHA = 0.35
+export const POPULATION_OVERLAY_MIN_ALPHA = 0.62
 
 /** Max alpha for the densest population cell. */
-export const POPULATION_OVERLAY_MAX_ALPHA = 0.95
+export const POPULATION_OVERLAY_MAX_ALPHA = 1
 
 /**
  * @param {number} value

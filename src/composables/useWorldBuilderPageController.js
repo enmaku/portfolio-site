@@ -271,6 +271,14 @@ export function useWorldBuilderPageController(options) {
     return result
   }
 
+  function beginColonization() {
+    const started = colonization.beginColonization()
+    if (started) {
+      overlay.toggleVisibility('population', true)
+    }
+    return started
+  }
+
   /**
    * @param {string} key
    * @returns {number | boolean | undefined}
@@ -383,6 +391,9 @@ export function useWorldBuilderPageController(options) {
         const cached = await loadLockedTerrain(currentTerrainFingerprint())
         if (cached) {
           await generation.applyCachedWorldDocument(cached)
+          if (phase === COLONIZATION_PHASE_RUNNING) {
+            overlay.toggleVisibility('population', true)
+          }
           return
         }
       } catch {
@@ -391,6 +402,9 @@ export function useWorldBuilderPageController(options) {
     }
 
     regenerate({ force: true })
+    if (colonization.colonizationPhase.value === COLONIZATION_PHASE_RUNNING) {
+      overlay.toggleVisibility('population', true)
+    }
   }
 
   function destroy() {
@@ -428,7 +442,7 @@ export function useWorldBuilderPageController(options) {
     hasLandmass,
     enterColonizationSetup,
     backToTerrain,
-    beginColonization: colonization.beginColonization,
+    beginColonization,
     epochStep: colonization.epochStep,
     resetColonization,
     canBeginColonization: colonization.canBeginColonization,

@@ -1256,6 +1256,7 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
     await nextTick()
 
     assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+    assert.strictEqual(ctx.resourceOverlayVisibility.value.population, true)
     assert.strictEqual(ctx.worldDocument.value?.settlements?.length, 1)
     assert.strictEqual(ctx.worldDocument.value?.committedTips?.length, 1)
     assert.strictEqual(ctx.worldDocument.value?.historyLog?.[0]?.kind, 'founding')
