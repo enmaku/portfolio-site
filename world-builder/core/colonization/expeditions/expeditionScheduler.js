@@ -10,19 +10,13 @@ import {
   evaluateFirstViableCorridorCandidate,
   listCorridorFoundingCandidates,
 } from './evaluateCorridorFounding.js'
+import { LOGISTICS_NODE_VISIT_DISC_RADIUS } from './expeditionConstants.js'
 import {
-  EXPEDITION_DISPATCH_BASE_PROBABILITY,
-  FRONTIER_EXHAUSTED_DISPATCH_MULTIPLIER,
-  LOGISTICS_NODE_VISIT_DISC_RADIUS,
-} from './expeditionConstants.js'
-import {
-  advanceRouteProgress,
-  buildCorridorCells,
-  chooseLowestTravelTimeRoute,
-  routeCellsUpToProgress,
-} from './expeditionRouting.js'
+  advanceExplorationProgress,
+  buildSimpleExplorationRoute,
+  routeCellsEnteredSince,
+} from './buildSimpleExplorationRoute.js'
 import { foundDaughterSettlement } from './foundDaughterSettlement.js'
-import { createExpeditionRouteContext } from './expeditionRouteContext.js'
 import { pickExplorationTarget } from './pickExplorationTarget.js'
 import {
   getActiveExpeditionForSettlement,
@@ -91,7 +85,7 @@ async function runExpeditionNetworkPhase(slice, worldDocument, options = {}) {
 
   emitNetworkSubstep(hooks, 'substep-start', 0, 'dispatch')
   await yieldToUi?.()
-  currentSlice = dispatchExpeditions(currentSlice, currentDoc, geographySeed, nextEpoch)
+  currentSlice = await dispatchExpeditions(currentSlice, currentDoc, geographySeed, nextEpoch, yieldToUi)
   emitNetworkSubstep(hooks, 'substep-complete', 0, 'dispatch')
   await yieldToUi?.()
 
@@ -168,7 +162,7 @@ export function applyExpeditionNetworkPhase(slice, worldDocument, options = {}) 
   const foundingEvents = []
 
   emitNetworkSubstep(hooks, 'substep-start', 0, 'dispatch')
-  currentSlice = dispatchExpeditions(currentSlice, currentDoc, geographySeed, nextEpoch)
+  currentSlice = dispatchExpeditionsSync(currentSlice, currentDoc, geographySeed, nextEpoch)
   emitNetworkSubstep(hooks, 'substep-complete', 0, 'dispatch')
 
   emitNetworkSubstep(hooks, 'substep-start', 1, 'advance')
@@ -214,18 +208,64 @@ export function applyExpeditionNetworkPhaseAsync(slice, worldDocument, options =
 }
 
 /**
+ * @param {{
+ *   settlement: { id: string, x: number, y: number },
+ *   doc: import('../../types.js').WorldDocument,
+ *   visitRaster: Uint8Array,
+ *   geographySeed: number,
+ *   epoch: number,
+ *   explorationHorizon: number,
+ * }} params
+ * @returns {import('./expeditionConstants.js').ExpeditionRecord | null}
+ */
+function planExpeditionForSettlement(params) {
+  const { settlement, doc, visitRaster, geographySeed, epoch, explorationHorizon } = params
+  const random = createSeededRandom(
+    deriveFieldSeed(geographySeed, `expedition-dispatch-${epoch}-${settlement.id}`),
+  )
+
+  const target = pickExplorationTarget({
+    doc,
+    visitRaster,
+    settlement,
+    random,
+    horizonCells: explorationHorizon,
+  })
+  if (!target) {
+    return null
+  }
+
+  const straightLine = Math.hypot(target.x - settlement.x, target.y - settlement.y)
+  const routeChoice = buildSimpleExplorationRoute(
+    doc,
+    { x: settlement.x, y: settlement.y },
+    target,
+    Math.ceil(straightLine + explorationHorizon),
+  )
+  if (!routeChoice || routeChoice.cells.length < 2) {
+    return null
+  }
+
+  return {
+    id: `expedition-${epoch}-${settlement.id}-${target.x}-${target.y}`,
+    settlementId: settlement.id,
+    mode: routeChoice.mode,
+    route: routeChoice.cells,
+    progressIndex: 0,
+    target,
+    status: 'active',
+  }
+}
+
+/**
  * @param {import('../createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../../types.js').WorldDocument} doc
  * @param {number} geographySeed
  * @param {number} epoch
  */
-function dispatchExpeditions(slice, doc, geographySeed, epoch) {
-  const survey = slice.logisticsNodeSurvey ?? []
-  const frontierExhausted = isFrontierExhausted(survey)
-  const dispatchMultiplier = frontierExhausted ? FRONTIER_EXHAUSTED_DISPATCH_MULTIPLIER : 1
+function dispatchExpeditionsSync(slice, doc, geographySeed, epoch) {
   const visitRaster = slice.visitedCells
   const explorationHorizon = slice.colonistSettings.threeDayHaulDistance
-  const routeContext = createExpeditionRouteContext(doc)
   /** @type {import('./expeditionConstants.js').ExpeditionRecord[]} */
   const expeditions = [...resolveExpeditions(slice.expeditions)]
 
@@ -233,44 +273,54 @@ function dispatchExpeditions(slice, doc, geographySeed, epoch) {
     if (getActiveExpeditionForSettlement({ expeditions }, settlement.id)) {
       continue
     }
-    const random = createSeededRandom(
-      deriveFieldSeed(geographySeed, `expedition-dispatch-${epoch}-${settlement.id}`),
-    )
-    const populationBias = Math.min(0.25, (settlement.population ?? 0) / 1000)
-    const dispatchProbability = Math.min(
-      0.95,
-      (EXPEDITION_DISPATCH_BASE_PROBABILITY + populationBias) * dispatchMultiplier,
-    )
-    if (random() > dispatchProbability) {
+
+    const planned = planExpeditionForSettlement({
+      settlement,
+      doc,
+      visitRaster,
+      geographySeed,
+      epoch,
+      explorationHorizon,
+    })
+    if (planned) {
+      expeditions.push(planned)
+    }
+  }
+
+  return { ...slice, expeditions }
+}
+
+/**
+ * @param {import('../createDefaultColonizationSlice.js').ColonizationSlice} slice
+ * @param {import('../../types.js').WorldDocument} doc
+ * @param {number} geographySeed
+ * @param {number} epoch
+ * @param {(() => Promise<void>) | undefined} [yieldToUi]
+ */
+async function dispatchExpeditions(slice, doc, geographySeed, epoch, yieldToUi) {
+  const visitRaster = slice.visitedCells
+  const explorationHorizon = slice.colonistSettings.threeDayHaulDistance
+  /** @type {import('./expeditionConstants.js').ExpeditionRecord[]} */
+  const expeditions = [...resolveExpeditions(slice.expeditions)]
+
+  for (const settlement of livingSettlements(slice.settlements)) {
+    await yieldToUi?.()
+
+    if (getActiveExpeditionForSettlement({ expeditions }, settlement.id)) {
       continue
     }
 
-    const target = pickExplorationTarget({
+    const planned = planExpeditionForSettlement({
+      settlement,
       doc,
       visitRaster,
-      settlement,
-      random,
-      horizonCells: explorationHorizon,
+      geographySeed,
+      epoch,
+      explorationHorizon,
     })
-    if (!target) continue
-
-    const routeChoice = chooseLowestTravelTimeRoute(
-      doc,
-      { x: settlement.x, y: settlement.y },
-      target,
-      routeContext,
-    )
-    if (!routeChoice || routeChoice.cells.length < 2) continue
-
-    expeditions.push({
-      id: `expedition-${epoch}-${settlement.id}-${target.x}-${target.y}`,
-      settlementId: settlement.id,
-      mode: routeChoice.mode,
-      route: routeChoice.cells,
-      progressIndex: 0,
-      target,
-      status: 'active',
-    })
+    if (planned) {
+      expeditions.push(planned)
+    }
   }
 
   return { ...slice, expeditions }
@@ -286,7 +336,7 @@ function dispatchExpeditions(slice, doc, geographySeed, epoch) {
  * }} params
  */
 function advanceActiveExpeditions(params) {
-  const { slice, worldDocument, epoch, roadCellMask } = params
+  const { slice, worldDocument, epoch } = params
   let currentSlice = { ...slice }
   let currentDoc = { ...worldDocument }
   /** @type {object[]} */
@@ -300,27 +350,26 @@ function advanceActiveExpeditions(params) {
       continue
     }
 
-    const budget = slice.colonistSettings.threeDayHaulDistance
-    const progressIndex = advanceRouteProgress(
-      currentDoc,
+    const cellsPerEpoch = slice.colonistSettings.threeDayHaulDistance
+    const previousIndex = expedition.progressIndex
+    const progressIndex = advanceExplorationProgress(
       expedition.route,
-      expedition.progressIndex,
-      budget,
-      expedition.mode,
-      roadCellMask,
+      previousIndex,
+      cellsPerEpoch,
     )
-    const traveled = routeCellsUpToProgress(expedition.route, progressIndex)
+    const traveled = routeCellsEnteredSince(expedition.route, previousIndex, progressIndex)
     markCellsVisited(currentSlice.visitedCells, traveled, currentDoc.gridWidth)
 
-    for (const cell of traveled) {
+    const tip = expedition.route[progressIndex]
+    if (tip) {
       const node = (currentSlice.logisticsNodeSurvey ?? []).find(
-        (entry) => entry.x === cell.x && entry.y === cell.y,
+        (entry) => entry.x === tip.x && entry.y === tip.y,
       )
       if (node) {
         markVisitDisc(
           currentSlice.visitedCells,
-          cell.x,
-          cell.y,
+          tip.x,
+          tip.y,
           currentDoc.gridWidth,
           currentDoc.gridHeight,
           LOGISTICS_NODE_VISIT_DISC_RADIUS,
@@ -328,15 +377,9 @@ function advanceActiveExpeditions(params) {
       }
     }
 
-    const corridor = buildCorridorCells(
-      traveled,
-      currentDoc.gridWidth,
-      currentDoc.gridHeight,
-    )
-    const candidates = listCorridorFoundingCandidates(
-      corridor,
-      currentSlice.logisticsNodeSurvey ?? [],
-    )
+    const candidates = tip
+      ? listCorridorFoundingCandidates([tip], currentSlice.logisticsNodeSurvey ?? [])
+      : []
     const evaluation = evaluateFirstViableCorridorCandidate(
       candidates,
       currentSlice.settlements,

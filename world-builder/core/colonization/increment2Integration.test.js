@@ -139,6 +139,21 @@ test('expedition dispatch is deterministic for same seed and landing', () => {
   assert.strictEqual(JSON.stringify(second.expeditions), firstExpeditions)
 })
 
+test('expeditions dispatch and expand visit raster beyond the founding haul-shed', () => {
+  const doc = colonizationFixtureDoc()
+  let slice = commitOnDoc(doc)
+  slice.colonistSettings.threeDayHaulDistance = 5
+  const visitedAtFounding = slice.visitedCells.filter((value) => value === 1).length
+
+  for (let i = 0; i < 10; i += 1) {
+    slice = applyColonizationEpoch(slice, doc).slice
+  }
+
+  const visitedAfter = slice.visitedCells.filter((value) => value === 1).length
+  assert.ok(slice.expeditions.length > 0, 'expected at least one expedition dispatch')
+  assert.ok(visitedAfter > visitedAtFounding, 'expected exploration to clear fog beyond haul-shed')
+})
+
 test('frontierExhausted stops new dispatch but epoch still advances', () => {
   const doc = colonizationFixtureDoc()
   let slice = commitOnDoc(doc)
