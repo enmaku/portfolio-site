@@ -2,11 +2,17 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { cloneWorldDocument } from '../cloneWorldDocument.js'
 import {
+  COLONIZATION_PHASE_RUNNING,
+  COLONIZATION_PHASE_SETUP,
   COLONIZATION_PHASE_TERRAIN,
   MAX_THREE_DAY_HAUL_DISTANCE,
+  cloneColonizationSlice,
   createDefaultColonistSettings,
   createDefaultColonizationSlice,
+  mergeColonizationSessions,
   resolveColonistSettings,
+  resolveColonizationSlice,
+  serializeColonizationSessionForStorage,
 } from './createDefaultColonizationSlice.js'
 
 test('createDefaultColonizationSlice starts in terrain with empty scaffolding', () => {
@@ -19,6 +25,9 @@ test('createDefaultColonizationSlice starts in terrain with empty scaffolding', 
   assert.deepStrictEqual(slice.settlements, [])
   assert.deepStrictEqual(slice.historyLog, [])
   assert.deepStrictEqual(slice.committedTips, [])
+  assert.deepStrictEqual(slice.primaryClaim, {})
+  assert.strictEqual(slice.populationCollapseRaster, null)
+  assert.deepStrictEqual(slice.notableFigures, [])
   assert.deepStrictEqual(slice.colonistSettings, createDefaultColonistSettings())
 })
 
@@ -37,6 +46,59 @@ test('createDefaultColonistSettings provides concrete defaults for every field',
 test('resolveColonistSettings clamps three-day haul distance to the scale calibration max', () => {
   const settings = resolveColonistSettings({ threeDayHaulDistance: MAX_THREE_DAY_HAUL_DISTANCE + 50 })
   assert.strictEqual(settings.threeDayHaulDistance, MAX_THREE_DAY_HAUL_DISTANCE)
+})
+
+test('serializeColonizationSessionForStorage omits derived collapse raster', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = COLONIZATION_PHASE_RUNNING
+  slice.populationCollapseRaster = new Float32Array([0, 12, 3])
+
+  const serialized = serializeColonizationSessionForStorage(slice)
+  assert.strictEqual('populationCollapseRaster' in serialized, false)
+
+  const revived = resolveColonizationSlice(serialized)
+  assert.strictEqual(revived.populationCollapseRaster, null)
+})
+
+test('mergeColonizationSessions prefers running over setup', () => {
+  const setup = createDefaultColonizationSlice()
+  setup.colonizationPhase = COLONIZATION_PHASE_SETUP
+  setup.foundingLanding = { x: 1, y: 2 }
+
+  const running = createDefaultColonizationSlice()
+  running.colonizationPhase = COLONIZATION_PHASE_RUNNING
+  running.epoch = 50
+  running.settlements = [{ id: 's1', population: 100 }]
+
+  assert.strictEqual(
+    mergeColonizationSessions(setup, running).colonizationPhase,
+    COLONIZATION_PHASE_RUNNING,
+  )
+  assert.strictEqual(
+    mergeColonizationSessions(running, setup).colonizationPhase,
+    COLONIZATION_PHASE_RUNNING,
+  )
+})
+
+test('cloneColonizationSlice preserves in-memory collapse raster', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.populationCollapseRaster = new Float32Array([0, 12, 3])
+  const cloned = cloneColonizationSlice(slice)
+  assert.ok(cloned.populationCollapseRaster instanceof Float32Array)
+  assert.deepStrictEqual([...cloned.populationCollapseRaster], [0, 12, 3])
+  assert.notStrictEqual(cloned.populationCollapseRaster, slice.populationCollapseRaster)
+})
+
+test('resolveColonizationSlice ignores persisted collapse raster payloads', () => {
+  const fromArray = resolveColonizationSlice({
+    populationCollapseRaster: [0, 12, 3],
+  })
+  assert.strictEqual(fromArray.populationCollapseRaster, null)
+
+  const fromIndexMap = resolveColonizationSlice({
+    populationCollapseRaster: { 0: 0, 1: 12, 2: 3 },
+  })
+  assert.strictEqual(fromIndexMap.populationCollapseRaster, null)
 })
 
 test('cloneWorldDocument copies colonization slice independently', () => {

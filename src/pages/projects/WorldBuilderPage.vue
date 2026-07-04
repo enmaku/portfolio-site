@@ -306,6 +306,15 @@
             :disable="!canBeginColonization"
             @click="beginColonization"
           />
+          <q-btn
+            v-else-if="timeControlsActive"
+            unelevated
+            color="primary"
+            class="full-width q-mb-md"
+            data-testid="world-builder-epoch-step"
+            label="Epoch step"
+            @click="epochStep"
+          />
           <q-banner
             v-if="showValidationFailureIndicator"
             :data-testid="WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID"
@@ -482,10 +491,12 @@ const {
   hasLandmass,
   canBeginColonization,
   showResetColonization,
+  timeControlsActive,
   isColonistSettingsReadOnlyExceptEpochBatch,
   enterColonizationSetup,
   backToTerrain,
   beginColonization,
+  epochStep,
   resetColonization,
   setColonistSetting,
   resetColonistSettings,

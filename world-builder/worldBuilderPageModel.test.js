@@ -290,7 +290,7 @@ test('formatHydrologyMetricValue renders null as n/a', () => {
 
 test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
   const definitions = createResourceOverlayDefinitions()
-  assert.strictEqual(definitions.length, 5)
+  assert.strictEqual(definitions.length, 7)
   assert.deepStrictEqual(
     definitions.map((definition) => ({ id: definition.id, kind: definition.kind })),
     [
@@ -299,6 +299,8 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'metals', kind: 'rasterAndNodes' },
       { id: 'salt', kind: 'nodes' },
       { id: 'sail', kind: 'raster' },
+      { id: 'freshwater', kind: 'raster' },
+      { id: 'population', kind: 'raster' },
     ],
   )
 })
@@ -310,6 +312,8 @@ test('createDefaultResourceOverlayVisibility defaults every overlay off', () => 
     metals: false,
     salt: false,
     sail: false,
+    freshwater: false,
+    population: false,
   })
 })
 

@@ -1,16 +1,20 @@
 import { buildArableOverlayRgba } from './buildArableOverlayCanvas.js'
+import { buildFreshwaterOverlayRgba } from './buildFreshwaterOverlayRgba.js'
 import { buildMetalsOverlayRgba } from './buildMetalsOverlayCanvas.js'
+import { buildPopulationOverlayRgba } from './buildPopulationOverlayRgba.js'
 import { buildSailOverlayRgba } from './buildSailOverlayRgba.js'
 import { buildTimberOverlayRgba } from './buildTimberOverlayCanvas.js'
 import { resourceRasterOverlayCanvasFromRgba } from './buildResourceRasterOverlayRgba.js'
 import { createResourceOverlayDefinitions } from '../resourceOverlays.js'
 import {
   resolveArableRasterLayerVisible,
+  resolveFreshwaterRasterLayerVisible,
+  resolvePopulationRasterLayerVisible,
   resolveResourceRasterLayerVisible,
   resolveSailRasterLayerVisible,
 } from './worldBuilderMapViewportModel.js'
 
-/** @typedef {'arable' | 'timber' | 'metals' | 'sail'} ResourceRasterOverlayLayerId */
+/** @typedef {'arable' | 'timber' | 'metals' | 'sail' | 'freshwater' | 'population'} ResourceRasterOverlayLayerId */
 
 /**
  * @typedef {Object} ResourceRasterOverlayRefreshContext
@@ -52,6 +56,18 @@ export const RESOURCE_RASTER_OVERLAY_REGISTRY = {
     resolveVisible: (visibility, worldDocument) =>
       resolveSailRasterLayerVisible(visibility, worldDocument),
     buildRgba: (worldDocument) => buildSailOverlayRgba(worldDocument),
+  },
+  freshwater: {
+    id: 'freshwater',
+    resolveVisible: (visibility, worldDocument) =>
+      resolveFreshwaterRasterLayerVisible(visibility, worldDocument),
+    buildRgba: (worldDocument) => buildFreshwaterOverlayRgba(worldDocument),
+  },
+  population: {
+    id: 'population',
+    resolveVisible: (visibility, worldDocument) =>
+      resolvePopulationRasterLayerVisible(visibility, worldDocument),
+    buildRgba: (worldDocument) => buildPopulationOverlayRgba(worldDocument),
   },
 }
 
@@ -139,6 +155,8 @@ export function refreshAllResourceRasterOverlayCanvases(context) {
     timber: null,
     metals: null,
     sail: null,
+    freshwater: null,
+    population: null,
   }
 
   for (const resourceId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {

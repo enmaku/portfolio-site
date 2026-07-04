@@ -1,4 +1,6 @@
 import { computed, ref } from 'vue'
+import { applyEpochStep } from '../../world-builder/core/colonization/applyEpochStep.js'
+import { applyPopulationCollapse } from '../../world-builder/core/colonization/applyPopulationCollapse.js'
 import { beginColonizationCommit } from '../../world-builder/core/colonization/beginColonizationCommit.js'
 import { computeHaulShedReachPreview } from '../../world-builder/core/colonization/computeHaulShedReachPreview.js'
 import {
@@ -61,7 +63,9 @@ export function useWorldBuilderColonization(options) {
   const showResetColonization = computed(
     () => slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING,
   )
-  const timeControlsActive = computed(() => false)
+  const timeControlsActive = computed(
+    () => slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING,
+  )
   const isColonistSettingsReadOnlyExceptEpochBatch = computed(
     () => slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING,
   )
@@ -126,12 +130,14 @@ export function useWorldBuilderColonization(options) {
     }
     const phase = slice.value.colonizationPhase
     const placementEnabled = phase === COLONIZATION_PHASE_SETUP
-    const showMarker =
-      phase === COLONIZATION_PHASE_SETUP || phase === COLONIZATION_PHASE_RUNNING
+    // Pin + haul-shed preview are setup-only; in running they sit on top of the
+    // population overlay and hide the claimed-cell density.
     viewport.setLandingPlacementMode?.(placementEnabled)
-    viewport.setFoundingLandingMarker?.(showMarker ? slice.value.foundingLanding : null)
+    viewport.setFoundingLandingMarker?.(
+      placementEnabled ? slice.value.foundingLanding : null,
+    )
     viewport.setHaulShedPreviewCells?.(
-      showMarker ? haulShedPreviewCells(getGeographyDocument?.() ?? null) : [],
+      placementEnabled ? haulShedPreviewCells(getGeographyDocument?.() ?? null) : [],
     )
     if (placementEnabled) {
       viewport.onCellPick?.((cell) => {
@@ -160,7 +166,30 @@ export function useWorldBuilderColonization(options) {
    * @returns {import('../../world-builder/core/types.js').WorldDocument}
    */
   function applyToWorldDocument(doc) {
-    return applyColonizationSliceToWorldDocument(doc, slice.value)
+    const resolvedSlice = recomputePopulationCollapseRaster(slice.value, doc)
+    if (resolvedSlice !== slice.value) {
+      slice.value = resolvedSlice
+    }
+    return applyColonizationSliceToWorldDocument(doc, resolvedSlice)
+  }
+
+  /**
+   * Derive collapse raster from settlements, claims, epoch, and geography (never loaded from storage).
+   *
+   * @param {import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice} current
+   * @param {import('../../world-builder/core/types.js').WorldDocument} doc
+   * @returns {import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice}
+   */
+  function recomputePopulationCollapseRaster(current, doc) {
+    if (current.colonizationPhase !== COLONIZATION_PHASE_RUNNING) {
+      return current
+    }
+    const raster = current.populationCollapseRaster
+    const expectedLength = doc.gridWidth * doc.gridHeight
+    if (raster instanceof Float32Array && raster.length === expectedLength) {
+      return current
+    }
+    return applyPopulationCollapse(current, doc).slice
   }
 
   /**
@@ -215,6 +244,20 @@ export function useWorldBuilderColonization(options) {
     persistSlice()
     syncLandingVisuals()
     return slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING
+  }
+
+  function epochStep() {
+    if (!timeControlsActive.value) {
+      return false
+    }
+    const doc = getGeographyDocument?.()
+    if (!doc) {
+      return false
+    }
+    slice.value = applyEpochStep(slice.value, doc)
+    persistSlice()
+    syncLandingVisuals()
+    return true
   }
 
   /**
@@ -302,7 +345,10 @@ export function useWorldBuilderColonization(options) {
     enterColonizationSetup,
     backToTerrain,
     beginColonization,
+    epochStep,
     resetColonization,
+    epoch: computed(() => slice.value.epoch),
+    settlements: computed(() => slice.value.settlements),
     applyToWorldDocument,
     setFoundingLanding,
     pickFoundingLanding,

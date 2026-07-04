@@ -173,6 +173,14 @@ export function diffWorldDocumentMapLayers(previous, next) {
   if (typedArrayContentChanged(previous.metalsRaster, next.metalsRaster)) {
     changedLayers.push('metals')
   }
+  if (
+    typedArrayContentChanged(
+      previous.populationCollapseRaster,
+      next.populationCollapseRaster,
+    )
+  ) {
+    changedLayers.push('population')
+  }
   if (riverLayerInputsChanged(previous, next)) {
     changedLayers.push('rivers')
   }

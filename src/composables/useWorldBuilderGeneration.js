@@ -107,15 +107,18 @@ export function useWorldBuilderGeneration(options) {
   /**
    * Apply a previously generated landmass without running the worker (terrain cache restore).
    * @param {import('../../world-builder/core/types.js').WorldDocument} doc
+   * @param {{ skipPersist?: boolean }} [options]
    * @returns {Promise<void>}
    */
-  async function applyCachedWorldDocument(doc) {
+  async function applyCachedWorldDocument(doc, applyOptions = {}) {
     generationRunController.value?.cancelActive()
     worldDocument.value = doc
     runPhase.value = 'success'
     generationProgress.value = createInitialGenerationProgress()
     await Promise.resolve(options.applyWorldDocument(doc))
-    options.onRunCompleteSuccess?.()
+    if (!applyOptions.skipPersist) {
+      options.onRunCompleteSuccess?.()
+    }
   }
 
   function dispose() {

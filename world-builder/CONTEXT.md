@@ -539,7 +539,7 @@ _Avoid_: “NPCs”; census lists for every farmer; agent simulation of every pe
 
 ### Population collapse
 
-Once per **epoch**, resolve bulk population parameters into a concrete spatial distribution for the **population overlay** and **settlement** totals—inspired by wavefunction-collapse-style constraint satisfaction (exact algorithm TBD). In increment 1, uses **core + hinterland** weighting inside the founding **haul-shed**. Deterministic from **geography seed** + **colonist settings** + **founding landing** + sim state. The canonical “where people are this year” observation.
+Once per **epoch**, resolve bulk population parameters into a concrete spatial distribution for the **population overlay** and **settlement** totals—inspired by wavefunction-collapse-style constraint satisfaction: seeded weighted placement of integer people onto legal claimed land (urban cluster at the pin plus arable hinterland sample), not a reachability tint. In increment 1, uses **core + hinterland** weighting inside the founding **haul-shed**. Deterministic from **geography seed** + **colonist settings** + **founding landing** + sim state. The canonical “where people are this year” observation.
 
 _Avoid_: “Render pass” alone when simulation state is meant; collapsing mid-epoch for gameplay sub-ticks unless explicitly modeled; spatial output that disagrees with **settlement** pin population total.
 
@@ -770,7 +770,7 @@ _Avoid_: Rejecting or accepting worlds based on `riverGraph` edge counts when **
 - **Extinct polity**: resolved (epic cross-cut) — **faction** with no living members goes extinct (**history log**); **realm** with only **ruins** stays as colonial memory in `running` (scrub/export/**reset colonization** only—no auto-reset, no further exploration/politics progress).
 - **Faction territory overlay**: resolved — pins + **haul-shed** fill; **vassals** under liege; contested overlaps; not visit-status claims.
 - **Mid-run control**: observe-only for outcomes in v1; **epoch batch** editable mid-run; no rewriting **faction** borders or **history log** events by hand.
-- **Population model**: **bulk population** parameters + per-**epoch** **population collapse** for **population overlay**; **notable figure** dynasties tracked outside the bulk model—WFC-style constraint satisfaction is inspiration, not a committed algorithm name in product copy.
+- **Population model**: **bulk population** parameters + per-**epoch** **population collapse** for **population overlay**; **notable figure** dynasties tracked outside the bulk model—WFC-style constraint satisfaction (seeded integer placement on legal land) is the collapse mechanism; “wavefunction collapse” is not product UI copy.
 - **Increment 2 exploration**: **exploration fog** overlay + auto-dispatched **expeditions**; new **settlements** founded automatically at logistics nodes—one **realm** as sole polity until increment 3.
 - **Realm after latch**: resolved (epic cross-cut) — **realm** stays the colonial-origin umbrella (shared founding wave); **factions** are political bodies inside it. Not retired; not 1:1 with the origin **faction**.
 - **Expedition dispatch gate**: resolved — eligible from first **epoch step**; per-**settlement** stochastic timing each **epoch**; optional surplus/population bias only, no hard tier or survival-streak prerequisite.

@@ -1,6 +1,10 @@
 import { hasDrawableResourceRasterOverlayPixels } from './buildResourceRasterOverlayRgba.js'
 import { RESOURCE_RASTER_OVERLAY_STYLES } from './resourceRasterOverlayStyles.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../core/worldGenerationOptions.js'
+import {
+  FRESHWATER_NONE,
+  deriveFreshwaterAvailabilityFromDocument,
+} from '../core/colonization/freshwater/deriveFreshwaterAvailability.js'
 import { deriveSailOverlayMask } from '../core/sail/deriveSailOverlayMask.js'
 import {
   isResourceOverlayVisible,
@@ -102,4 +106,36 @@ export function resolveSailRasterLayerVisible(visibility, worldDocument) {
     seaLevel: DEFAULT_WORLD_GENERATION_OPTIONS.seaLevel,
   })
   return mask.some((value) => value === 1)
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolveFreshwaterRasterLayerVisible(visibility, worldDocument) {
+  if (!isResourceOverlayVisible(visibility, 'freshwater')) {
+    return false
+  }
+  const classification = deriveFreshwaterAvailabilityFromDocument(worldDocument)
+  if (!classification) {
+    return false
+  }
+  return classification.some((value) => value !== FRESHWATER_NONE)
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolvePopulationRasterLayerVisible(visibility, worldDocument) {
+  if (!isResourceOverlayVisible(visibility, 'population')) {
+    return false
+  }
+  const raster = worldDocument.populationCollapseRaster
+  if (!raster || raster.length !== worldDocument.gridWidth * worldDocument.gridHeight) {
+    return false
+  }
+  return raster.some((value) => value > 0)
 }
