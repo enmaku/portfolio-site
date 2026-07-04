@@ -37,6 +37,8 @@ test('createResourceOverlayPageState defaults visibility off and uses persisted 
     sail: false,
     freshwater: false,
     population: false,
+    explorationFog: false,
+    roads: false,
   })
   assert.strictEqual(state.displaySettings.arableMinimumProductivity, 0.25)
 })
@@ -162,6 +164,8 @@ test('normalizeResourceOverlayVisibility coerces null and undefined to false', (
       sail: false,
       freshwater: false,
       population: false,
+    explorationFog: false,
+    roads: false,
     },
   )
 })
@@ -175,6 +179,8 @@ test('normalizeResourceOverlayVisibility fills missing overlay ids with false', 
     sail: false,
     freshwater: false,
     population: false,
+    explorationFog: false,
+    roads: false,
   })
 })
 
@@ -205,6 +211,8 @@ test('commitResourceOverlayState normalizes visibility before sync', () => {
     sail: false,
     freshwater: false,
     population: false,
+    explorationFog: false,
+    roads: false,
   })
   assert.deepStrictEqual(viewport.syncedStates[0].visibility, committed.visibility)
 })

@@ -40,9 +40,9 @@ function objectStore(db, mode) {
  * @returns {Promise<void>}
  */
 export async function saveColonizationSession(fingerprint, session) {
+  const payload = serializeColonizationSessionForStorage(session)
   const db = await openDb()
   try {
-    const payload = serializeColonizationSessionForStorage(session)
     await new Promise((resolve, reject) => {
       const request = objectStore(db, 'readwrite').put(
         {

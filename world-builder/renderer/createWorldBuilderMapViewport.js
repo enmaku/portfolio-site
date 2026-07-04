@@ -74,6 +74,10 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   freshwater.visible = false
   const population = new Sprite(Texture.EMPTY)
   population.visible = false
+  const explorationFog = new Sprite(Texture.EMPTY)
+  explorationFog.visible = false
+  const roads = new Sprite(Texture.EMPTY)
+  roads.visible = false
   const coastalOverlay = new Graphics()
   const metalOverlay = new Graphics()
   const saltOverlay = new Graphics()
@@ -102,6 +106,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     sail: null,
     freshwater: null,
     population: null,
+    explorationFog: null,
+    roads: null,
   }
 
   /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Sprite>} */
@@ -112,6 +118,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     sail,
     freshwater,
     population,
+    explorationFog,
+    roads,
   }
 
   const viewport = new Viewport({
@@ -133,21 +141,74 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(sail)
   viewport.addChild(freshwater)
   viewport.addChild(population)
+  viewport.addChild(explorationFog)
+  viewport.addChild(roads)
   viewport.addChild(coastalOverlay)
   viewport.addChild(metalOverlay)
   viewport.addChild(saltOverlay)
   viewport
     .drag()
     .pinch()
-    .wheel({ smooth: 3 })
-    .decelerate()
+    .wheel({ smooth: false })
     .clampZoom({ maxScale: 24 })
+
+  app.ticker.stop()
+
+  let interactiveRenderActive = false
+
+  function renderFrame() {
+    app.renderer.render(app.stage)
+  }
+
+  function startInteractiveRender() {
+    if (interactiveRenderActive) {
+      return
+    }
+    interactiveRenderActive = true
+    app.ticker.start()
+  }
+
+  function stopInteractiveRender() {
+    if (!interactiveRenderActive) {
+      return
+    }
+    interactiveRenderActive = false
+    app.ticker.stop()
+  }
+
+  app.ticker.add(() => {
+    if (!interactiveRenderActive) {
+      return
+    }
+    viewport.update(app.ticker.elapsedMS)
+    renderFrame()
+  })
+
+  viewport.on('moved', renderFrame)
+  viewport.on('zoomed', renderFrame)
+  viewport.on('drag-start', startInteractiveRender)
+  viewport.on('pinch-start', startInteractiveRender)
+  viewport.on('wheel', () => {
+    startInteractiveRender()
+    renderFrame()
+    stopInteractiveRender()
+  })
+  viewport.on('drag-end', () => {
+    renderFrame()
+    stopInteractiveRender()
+  })
+  viewport.on('pinch-end', () => {
+    renderFrame()
+    stopInteractiveRender()
+  })
 
   syncViewportToHost(viewport, hostEl, gridWidth, gridHeight)
   fitMapToView(viewport, gridWidth, gridHeight)
+  renderFrame()
 
   const resizeObserver = new ResizeObserver(() => {
     syncViewportToHost(viewport, hostEl, viewport.worldWidth, viewport.worldHeight)
+    renderFrame()
   })
   resizeObserver.observe(hostEl)
 
@@ -182,6 +243,12 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       case 'population':
         population.visible = false
         break
+      case 'explorationFog':
+        explorationFog.visible = false
+        break
+      case 'roads':
+        roads.visible = false
+        break
       case 'rivers':
         rivers.visible = false
         break
@@ -212,6 +279,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       sail: () => refreshResourceRasterOverlay('sail', currentWorldDocument),
       freshwater: () => refreshResourceRasterOverlay('freshwater', currentWorldDocument),
       population: () => refreshResourceRasterOverlay('population', currentWorldDocument),
+      explorationFog: () => refreshResourceRasterOverlay('explorationFog', currentWorldDocument),
+      roads: () => refreshResourceRasterOverlay('roads', currentWorldDocument),
       rivers: () => refreshRiverOverlay(currentWorldDocument),
       lakes: () => refreshLakeOverlay(currentWorldDocument),
       coastalNodes: () => drawCoastalNodes(coastalOverlay, currentWorldDocument),
@@ -231,6 +300,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
    */
   function refreshMapLayers(changedLayers, options) {
     mapLayerRefresh.refresh(changedLayers, options)
+    renderFrame()
   }
 
   function refreshTerrain() {
@@ -351,10 +421,12 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     fitToWorld() {
       const { gridWidth, gridHeight } = currentWorldDocument
       fitMapToView(viewport, gridWidth, gridHeight)
+      renderFrame()
     },
 
     /** @param {import('../core/types.js').MapFocus} mapFocus */
     focusOn(mapFocus) {
+      startInteractiveRender()
       const { gridWidth: worldWidth } = currentWorldDocument
       if ('minX' in mapFocus) {
         const cx = (mapFocus.minX + mapFocus.maxX) / 2
@@ -365,15 +437,18 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
           position: { x: cx, y: cy },
           scale,
         })
-        return
+      } else {
+        const scale = mapFocus.zoom ?? 4
+        viewport.animate({
+          time: 400,
+          position: { x: mapFocus.x, y: mapFocus.y },
+          scale,
+        })
       }
-
-      const scale = mapFocus.zoom ?? 4
-      viewport.animate({
-        time: 400,
-        position: { x: mapFocus.x, y: mapFocus.y },
-        scale,
-      })
+      setTimeout(() => {
+        stopInteractiveRender()
+        renderFrame()
+      }, 450)
     },
 
     /**
@@ -395,6 +470,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         terrainBuildOptions = { elevationTint: true }
         refreshMapLayers(['terrain', 'contours'], { hideUnrefreshedLayers: true })
         onFrame?.(frame)
+        renderFrame()
         frame += 1
         if (frame >= snapshots.length) {
           stopReplay()
@@ -441,6 +517,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
 
     destroy() {
       stopReplay()
+      stopInteractiveRender()
       landingPlacement.clearCursor()
       resizeObserver.disconnect()
       terrainTexture.destroy(true)

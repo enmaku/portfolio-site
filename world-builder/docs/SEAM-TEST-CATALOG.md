@@ -55,6 +55,8 @@
 | `useWorldBuilderGeneration.test.js` | `generation-composable` | Pipeline cancellation semantics | None — runs under npm run test:world-builder |
 | `useWorldBuilderOverlayState.test.js` | `overlay-composable` | toggleVisibility updates owner state and syncs viewport; +5 additional cases | None — runs under npm run test:world-builder |
 | `useWorldBuilderPageController.test.js` | `page-controller` | Pipeline cancellation semantics; Seed determinism; colonization phase machine; epoch step wiring | None — runs under npm run test:world-builder |
+| `useWorldBuilderPageController.increment2.test.js` | `page-controller` | Sim status panel after epoch 0; epoch step updates status fields | None — runs under npm run test:world-builder |
+| `useWorldBuilderOverlayState.increment2.test.js` | `overlay-composable` | explorationFog and roads overlay toggle sync | None — runs under npm run test:world-builder |
 
 ### `world-builder/core/`
 
@@ -70,7 +72,12 @@
 | `coast/computeCoastNavigability.test.js` | `core-unit` | computeCoastNavigability is zero on interior land cells; +3 additional cases | None — runs under npm run test:world-builder |
 | `coast/computeCoastalProximity.test.js` | `core-unit` | computeCoastalProximityOnLand is zero on ocean cells; +3 additional cases | None — runs under npm run test:world-builder |
 | `coast/deriveCoastalNodes.test.js` | `core-unit` | deriveCoastalNodes excludes river mouths within the map edge margin | None — runs under npm run test:world-builder |
-| `colonization/applyColonizationEpoch.test.js` | `core-unit` | Annual tick order; surplus-driven population; ceiling clamp; no auto-stop | None — runs under npm run test:world-builder |
+| `colonization/applyColonizationEpoch.test.js` | `core-unit` | Annual tick order; surplus-driven population; ceiling clamp; network phase; no auto-stop | None — runs under npm run test:world-builder |
+| `colonization/buildColonizationSimStatus.test.js` | `core-unit` | Sim status view model; founding chronicle; panel visibility gates | None — runs under npm run test:world-builder |
+| `colonization/increment2Integration.test.js` | `core-unit` | Visit seeding; multi-settlement claims; road claim flip; expedition determinism; frontier exhaustion | None — runs under npm run test:world-builder |
+| `colonization/logisticsNodes/scoreLogisticsNodes.test.js` | `core-unit` | Multi-tag logistics scoring; primary type; drain city branch | None — runs under npm run test:world-builder |
+| `colonization/roads/roadNetwork.test.js` | `core-unit` | Road cell mask; segment append | None — runs under npm run test:world-builder |
+| `colonization/visitStatus/visitRaster.test.js` | `core-unit` | Visit raster seed; haul-shed; serialize round-trip | None — runs under npm run test:world-builder |
 | `colonization/applyEpochStep.test.js` | `core-unit` | Epoch batch advance; present-day tip retention; quiet intra-batch years omitted | None — runs under npm run test:world-builder |
 | `colonization/applyRuin.test.js` | `core-unit` | Population 0 → ruin; claim release; abandonment tip with claim map | None — runs under npm run test:world-builder |
 | `colonization/beginColonizationCommit.test.js` | `core-unit` | Commit resolve; founding tip; survival clamp; dynasty; claim map | None — runs under npm run test:world-builder |

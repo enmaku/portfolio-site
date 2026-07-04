@@ -293,11 +293,20 @@ export function shouldShowGenerationProgress(runPhase) {
 }
 
 /**
- * @param {GenerationRunPhase} runPhase
+ * @param {'idle' | 'running'} epochStepPhase
  * @returns {boolean}
  */
-export function shouldShowResourceOverlayBar(runPhase) {
-  return runPhase === 'success'
+export function shouldShowEpochStepProgress(epochStepPhase) {
+  return epochStepPhase === 'running'
+}
+
+/**
+ * @param {GenerationRunPhase} runPhase
+ * @param {'idle' | 'running'} epochStepPhase
+ * @returns {boolean}
+ */
+export function shouldShowResourceOverlayBar(runPhase, epochStepPhase = 'idle') {
+  return runPhase === 'success' && epochStepPhase !== 'running'
 }
 
 /**

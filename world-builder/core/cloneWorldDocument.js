@@ -2,6 +2,7 @@ import {
   cloneColonizationSlice,
   pickColonizationSliceFields,
 } from './colonization/createDefaultColonizationSlice.js'
+import { cloneGenerationReport } from './cloneGenerationReport.js'
 
 /**
  * Clone typed arrays so worker postMessage copies are independent on the main thread.
@@ -56,29 +57,8 @@ export function cloneWorldDocument(doc) {
     metalNodes: doc.metalNodes?.map((node) => ({ ...node })),
     arableRaster: doc.arableRaster ? new Float32Array(doc.arableRaster) : undefined,
     timberRaster: doc.timberRaster ? new Float32Array(doc.timberRaster) : undefined,
-    generationReport: doc.generationReport
-      ? {
-          ...doc.generationReport,
-          validationRows: doc.generationReport.validationRows.map((row) => ({ ...row })),
-          rejectionReasons: [...doc.generationReport.rejectionReasons],
-          structuredRejectionReasons: doc.generationReport.structuredRejectionReasons.map(
-            (row) => ({ ...row }),
-          ),
-          validationSignals: {
-            hydrology: { ...doc.generationReport.validationSignals.hydrology },
-            coast: { ...doc.generationReport.validationSignals.coast },
-            climate: { ...doc.generationReport.validationSignals.climate },
-            resources: { ...doc.generationReport.validationSignals.resources },
-            landmassPlausibility: {
-              ...doc.generationReport.validationSignals.landmassPlausibility,
-            },
-            movement: { ...doc.generationReport.validationSignals.movement },
-          },
-          hydrologySubstepTimings: doc.generationReport.hydrologySubstepTimings.map((row) => ({
-            ...row,
-          })),
-          hydrology: { ...doc.generationReport.hydrology },
-        }
-      : undefined,
+    generationReport: doc.generationReport ? cloneGenerationReport(doc.generationReport) : undefined,
+    visitedCells:
+      doc.visitedCells instanceof Uint8Array ? new Uint8Array(doc.visitedCells) : doc.visitedCells,
   }
 }

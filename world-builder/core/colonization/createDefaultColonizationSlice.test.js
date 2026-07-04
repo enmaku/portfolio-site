@@ -48,16 +48,63 @@ test('resolveColonistSettings clamps three-day haul distance to the scale calibr
   assert.strictEqual(settings.threeDayHaulDistance, MAX_THREE_DAY_HAUL_DISTANCE)
 })
 
-test('serializeColonizationSessionForStorage omits derived collapse raster', () => {
+test('serializeColonizationSessionForStorage omits derived collapse and visit rasters', () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_RUNNING
   slice.populationCollapseRaster = new Float32Array([0, 12, 3])
+  slice.visitedCells = Uint8Array.from([1, 0, 1])
+  slice.primaryClaim = { s1: [{ x: 1, y: 2 }] }
 
   const serialized = serializeColonizationSessionForStorage(slice)
   assert.strictEqual('populationCollapseRaster' in serialized, false)
+  assert.strictEqual('visitedCells' in serialized, false)
+  assert.strictEqual('primaryClaim' in serialized, false)
 
   const revived = resolveColonizationSlice(serialized)
   assert.strictEqual(revived.populationCollapseRaster, null)
+  assert.strictEqual(revived.visitedCells, null)
+  assert.deepStrictEqual(revived.primaryClaim, {})
+})
+
+test('serializeColonizationSessionForStorage keeps only logistics survey patches', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = COLONIZATION_PHASE_RUNNING
+  slice.logisticsNodeSurvey = [
+    {
+      x: 1,
+      y: 2,
+      primaryType: 'surplus_basin',
+      tags: { surplus_basin: 0.8 },
+      exhausted: false,
+      founded: false,
+    },
+    {
+      x: 3,
+      y: 4,
+      primaryType: 'refinery',
+      tags: { refinery: 0.6 },
+      exhausted: true,
+      founded: false,
+    },
+  ]
+
+  const serialized = serializeColonizationSessionForStorage(slice)
+
+  assert.deepStrictEqual(serialized.logisticsNodeSurvey, [
+    {
+      x: 3,
+      y: 4,
+      primaryType: 'refinery',
+      exhausted: true,
+    },
+  ])
+})
+
+test('resolveColonizationSlice ignores persisted visit raster payloads', () => {
+  const fromArray = resolveColonizationSlice({
+    visitedCells: Array.from({ length: 16 }, (_, i) => (i === 5 ? 1 : 0)),
+  })
+  assert.strictEqual(fromArray.visitedCells, null)
 })
 
 test('mergeColonizationSessions prefers running over setup', () => {

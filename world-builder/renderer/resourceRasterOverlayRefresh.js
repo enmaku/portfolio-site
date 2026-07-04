@@ -1,5 +1,7 @@
 import { buildArableOverlayRgba } from './buildArableOverlayCanvas.js'
+import { buildExplorationFogOverlayRgba } from './buildExplorationFogOverlayRgba.js'
 import { buildFreshwaterOverlayRgba } from './buildFreshwaterOverlayRgba.js'
+import { buildRoadOverlayRgba } from './buildRoadOverlayRgba.js'
 import { buildMetalsOverlayRgba } from './buildMetalsOverlayCanvas.js'
 import { buildPopulationOverlayRgba } from './buildPopulationOverlayRgba.js'
 import { buildSailOverlayRgba } from './buildSailOverlayRgba.js'
@@ -10,11 +12,13 @@ import {
   resolveArableRasterLayerVisible,
   resolveFreshwaterRasterLayerVisible,
   resolvePopulationRasterLayerVisible,
+  resolveExplorationFogRasterLayerVisible,
+  resolveRoadRasterLayerVisible,
   resolveResourceRasterLayerVisible,
   resolveSailRasterLayerVisible,
 } from './worldBuilderMapViewportModel.js'
 
-/** @typedef {'arable' | 'timber' | 'metals' | 'sail' | 'freshwater' | 'population'} ResourceRasterOverlayLayerId */
+/** @typedef {'arable' | 'timber' | 'metals' | 'sail' | 'freshwater' | 'population' | 'explorationFog' | 'roads'} ResourceRasterOverlayLayerId */
 
 /**
  * @typedef {Object} ResourceRasterOverlayRefreshContext
@@ -68,6 +72,18 @@ export const RESOURCE_RASTER_OVERLAY_REGISTRY = {
     resolveVisible: (visibility, worldDocument) =>
       resolvePopulationRasterLayerVisible(visibility, worldDocument),
     buildRgba: (worldDocument) => buildPopulationOverlayRgba(worldDocument),
+  },
+  explorationFog: {
+    id: 'explorationFog',
+    resolveVisible: (visibility, worldDocument) =>
+      resolveExplorationFogRasterLayerVisible(visibility, worldDocument),
+    buildRgba: (worldDocument) => buildExplorationFogOverlayRgba(worldDocument),
+  },
+  roads: {
+    id: 'roads',
+    resolveVisible: (visibility, worldDocument) =>
+      resolveRoadRasterLayerVisible(visibility, worldDocument),
+    buildRgba: (worldDocument) => buildRoadOverlayRgba(worldDocument),
   },
 }
 

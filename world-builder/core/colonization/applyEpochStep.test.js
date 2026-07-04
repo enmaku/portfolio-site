@@ -41,6 +41,10 @@ function commitRunningSlice(epochBatch = 1) {
 
 test('applyEpochStep advances epoch by epochBatch and retains present-day tip', () => {
   const running = commitRunningSlice(3)
+  running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
+    ...entry,
+    exhausted: true,
+  }))
   const next = applyEpochStep(running, richGeographyDoc())
 
   assert.strictEqual(next.epoch, 3)

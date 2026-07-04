@@ -67,6 +67,26 @@ function visibleRasterFixture(resourceId) {
     }
   }
 
+  if (resourceId === 'explorationFog') {
+    const visitedCells = new Uint8Array(16)
+    visitedCells[5] = 1
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      visitedCells,
+    }
+  }
+
+  if (resourceId === 'roads') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      roads: [{ cells: [{ x: 1, y: 1 }, { x: 2, y: 1 }] }],
+    }
+  }
+
   const raster = new Float32Array(16)
   raster[5] = 0.8
   return {

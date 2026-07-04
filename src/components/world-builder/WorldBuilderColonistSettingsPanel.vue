@@ -8,6 +8,7 @@
       class="full-width q-mb-md"
       data-testid="world-builder-colonist-reset-defaults"
       aria-label="Reset colonist settings to defaults"
+      :disable="runningPhase"
       @click="$emit('reset-defaults')"
     >
       Reset to defaults
@@ -21,14 +22,14 @@
       />
     </div>
     <q-slider
-      :model-value="colonistSettings.threeDayHaulDistance"
+      :model-value="displaySettings.threeDayHaulDistance"
       :min="1"
       :max="maxThreeDayHaulDistance"
       :step="1"
       label
       color="primary"
       data-testid="world-builder-colonist-three-day-haul-distance"
-      :disable="readOnlyExceptEpochBatch"
+      :disable="runningPhase"
       @update:model-value="(value) => emitSetting('threeDayHaulDistance', value)"
     />
 
@@ -40,14 +41,14 @@
       />
     </div>
     <q-slider
-      :model-value="colonistSettings.startingPopulation"
+      :model-value="displaySettings.startingPopulation"
       :min="10"
       :max="500"
       :step="10"
       label
       color="primary"
       data-testid="world-builder-colonist-starting-population"
-      :disable="readOnlyExceptEpochBatch"
+      :disable="runningPhase"
       @update:model-value="(value) => emitSetting('startingPopulation', value)"
     />
 
@@ -59,12 +60,12 @@
       />
     </div>
     <q-btn-toggle
-      :model-value="colonistSettings.yieldModifier"
+      :model-value="displaySettings.yieldModifier"
       spread
       no-caps
       toggle-color="primary"
       data-testid="world-builder-colonist-yield-modifier"
-      :disable="readOnlyExceptEpochBatch"
+      :disable="runningPhase"
       :options="yieldModifierOptions"
       @update:model-value="(value) => emitSetting('yieldModifier', value)"
     />
@@ -77,19 +78,20 @@
       />
     </div>
     <q-slider
-      :model-value="colonistSettings.epochBatch"
+      :model-value="runningPhase ? pendingEpochBatch : colonistSettings.epochBatch"
       :min="1"
       :max="100"
       :step="1"
       label
       color="primary"
       data-testid="world-builder-colonist-epoch-batch"
-      @update:model-value="(value) => emitSetting('epochBatch', value)"
+      @update:model-value="onEpochBatchInput"
     />
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import {
   EPOCH_BATCH_TOOLTIP,
   STARTING_POPULATION_TOOLTIP,
@@ -99,19 +101,31 @@ import {
 import { MAX_THREE_DAY_HAUL_DISTANCE } from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
 import WorldBuilderSettingHelp from './WorldBuilderSettingHelp.vue'
 
-defineProps({
+const props = defineProps({
   colonistSettings: {
     type: Object,
     required: true,
   },
-  readOnlyExceptEpochBatch: {
+  colonistSettingsSnapshot: {
+    type: Object,
+    required: true,
+  },
+  pendingEpochBatch: {
+    type: Number,
+    required: true,
+  },
+  runningPhase: {
     type: Boolean,
     default: false,
   },
 })
 
-const emit = defineEmits(['update-setting', 'reset-defaults'])
+const emit = defineEmits(['update-setting', 'update:pending-epoch-batch', 'reset-defaults'])
 const maxThreeDayHaulDistance = MAX_THREE_DAY_HAUL_DISTANCE
+
+const displaySettings = computed(() =>
+  props.runningPhase ? props.colonistSettingsSnapshot : props.colonistSettings,
+)
 
 const yieldModifierOptions = [
   { label: 'Marginal', value: 'marginal' },
@@ -125,5 +139,16 @@ const yieldModifierOptions = [
  */
 function emitSetting(key, value) {
   emit('update-setting', key, value)
+}
+
+/**
+ * @param {number} value
+ */
+function onEpochBatchInput(value) {
+  if (props.runningPhase) {
+    emit('update:pending-epoch-batch', value)
+    return
+  }
+  emitSetting('epochBatch', value)
 }
 </script>

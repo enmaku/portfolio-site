@@ -10,6 +10,8 @@ import { createFoundingDynasty } from './createFoundingDynasty.js'
 import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaimMap.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
 import { saltSpoilageMultiplier } from './saltSpoilageMultiplier.js'
+import { scoreLogisticsNodes } from './logisticsNodes/scoreLogisticsNodes.js'
+import { seedSettlementHaulShedVisited } from './expeditions/foundDaughterSettlement.js'
 
 /**
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
@@ -79,6 +81,13 @@ export function beginColonizationCommit(slice, doc) {
     worldDocument: doc,
   })
 
+  const logisticsNodeSurvey = scoreLogisticsNodes(doc)
+  const visitedCells = seedSettlementHaulShedVisited(
+    { ...current, colonistSettings: current.colonistSettings },
+    doc,
+    landing,
+  )
+
   const { slice: withCollapse } = applyPopulationCollapse(
     {
       ...current,
@@ -89,6 +98,11 @@ export function beginColonizationCommit(slice, doc) {
       primaryClaim: ruined.primaryClaim,
       notableFigures: [foundingDynasty],
       realmId: `realm-${doc.geographySeed ?? 0}-${landing.x}-${landing.y}`,
+      visitedCells,
+      expeditions: [],
+      frontierExhausted: false,
+      roads: [],
+      logisticsNodeSurvey,
     },
     doc,
   )

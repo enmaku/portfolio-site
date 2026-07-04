@@ -95,6 +95,26 @@ function createPopulationFixture() {
   }
 }
 
+function createExplorationFogFixture() {
+  const visitedCells = new Uint8Array(64)
+  visitedCells[36] = 1
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    colonizationPhase: 'running',
+    visitedCells,
+  }
+}
+
+function createRoadsFixture() {
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    colonizationPhase: 'running',
+    roads: [{ cells: [{ x: 1, y: 1 }, { x: 2, y: 1 }] }],
+  }
+}
+
 function createUnifiedRasterFixture() {
   const cellCount = 64
   const arableRaster = new Float32Array(cellCount)
@@ -133,6 +153,8 @@ test('RESOURCE_RASTER_OVERLAY_LAYER_IDS lists raster overlay layers from definit
     'sail',
     'freshwater',
     'population',
+    'explorationFog',
+    'roads',
   ])
 })
 
@@ -223,7 +245,11 @@ test('refreshResourceRasterOverlayCanvas performs at most one RGBA build per lay
               ? createFreshwaterFixture()
               : resourceId === 'population'
                 ? createPopulationFixture()
-                : createSailFixture()
+                : resourceId === 'explorationFog'
+                  ? createExplorationFogFixture()
+                  : resourceId === 'roads'
+                    ? createRoadsFixture()
+                    : createSailFixture()
     const visibility = applyResourceOverlayVisibility(
       createDefaultResourceOverlayVisibility(),
       resourceId,

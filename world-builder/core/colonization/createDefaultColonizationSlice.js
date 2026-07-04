@@ -28,7 +28,19 @@
  * @property {Record<string, Array<{ x: number, y: number }>>} primaryClaim
  * @property {Float32Array | null} populationCollapseRaster Derived in-memory overlay raster; never persisted.
  * @property {object[]} notableFigures
+ * @property {Uint8Array | null} visitedCells In-memory exploration fog raster; never persisted.
+ * @property {object[]} expeditions Active and completed expedition records.
+ * @property {boolean} frontierExhausted All logistics nodes founded or exhausted.
+ * @property {import('./roads/roadNetwork.js').RoadSegment[]} roads Persisted overland link geometry.
+ * @property {import('./logisticsNodes/scoreLogisticsNodes.js').LogisticsNodeSurveyEntry[]} logisticsNodeSurvey Scored founding candidates.
  */
+
+import { resolveExpeditions } from './expeditions/expeditionConstants.js'
+import {
+  logisticsNodeSurveyPatchesForStorage,
+  resolveLogisticsNodeSurvey,
+} from './logisticsNodes/scoreLogisticsNodes.js'
+import { resolveRoadSegments } from './roads/roadNetwork.js'
 
 export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
 export const COLONIZATION_PHASE_SETUP = /** @type {const} */ ('setup')
@@ -46,11 +58,22 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'realmId',
   'primaryClaim',
   'notableFigures',
+  'visitedCells',
+  'expeditions',
+  'frontierExhausted',
+  'roads',
+  'logisticsNodeSurvey',
 ])
 
-/** Derived world-document fields produced at runtime, not stored in session caches. */
+/** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
 export const COLONIZATION_DERIVED_WORLD_DOCUMENT_KEYS = /** @type {const} */ ([
   'populationCollapseRaster',
+  'visitedCells',
+])
+
+/** Present-day fields rebuilt from geography + settlements on hydrate; not stored in session caches. */
+export const COLONIZATION_RECOMPUTE_ON_HYDRATE_KEYS = /** @type {const} */ ([
+  'primaryClaim',
 ])
 
 export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 50
@@ -88,6 +111,11 @@ export function createDefaultColonizationSlice() {
     primaryClaim: {},
     populationCollapseRaster: null,
     notableFigures: [],
+    visitedCells: null,
+    expeditions: [],
+    frontierExhausted: false,
+    roads: [],
+    logisticsNodeSurvey: [],
   }
 }
 
@@ -127,6 +155,11 @@ export function resolveColonizationSlice(value) {
     notableFigures: Array.isArray(incoming.notableFigures)
       ? incoming.notableFigures.map((row) => ({ ...row }))
       : [],
+    visitedCells: null,
+    expeditions: resolveExpeditions(incoming.expeditions),
+    frontierExhausted: incoming.frontierExhausted === true,
+    roads: resolveRoadSegments(incoming.roads),
+    logisticsNodeSurvey: resolveLogisticsNodeSurvey(incoming.logisticsNodeSurvey),
   }
 }
 
@@ -262,20 +295,41 @@ export function cloneColonizationSlice(slice) {
   if (raster instanceof Float32Array) {
     resolved.populationCollapseRaster = new Float32Array(raster)
   }
+  const visited = slice?.visitedCells
+  if (visited instanceof Uint8Array) {
+    resolved.visitedCells = new Uint8Array(visited)
+  }
   return resolved
 }
 
 /**
- * Persistable colonization session (collapse raster is always derived on hydrate).
+ * Persistable colonization session: history + sim state only. Overlay rasters, present-day
+ * claim maps, and full logistics surveys are rebuilt on hydrate.
  *
  * @param {ColonizationSlice} slice
- * @returns {Omit<ColonizationSlice, 'populationCollapseRaster'>}
+ * @returns {Omit<ColonizationSlice, 'populationCollapseRaster' | 'visitedCells' | 'primaryClaim'>}
  */
 export function serializeColonizationSessionForStorage(slice) {
   const resolved = resolveColonizationSlice(slice)
-  const { populationCollapseRaster, ...persisted } = resolved
+  const {
+    populationCollapseRaster,
+    visitedCells,
+    primaryClaim,
+    logisticsNodeSurvey,
+    ...persistedCore
+  } = resolved
   void populationCollapseRaster
-  return persisted
+  void visitedCells
+  void primaryClaim
+
+  const persistable = {
+    ...persistedCore,
+    logisticsNodeSurvey: logisticsNodeSurveyPatchesForStorage(logisticsNodeSurvey),
+  }
+
+  return /** @type {Omit<ColonizationSlice, 'populationCollapseRaster' | 'visitedCells' | 'primaryClaim'>} */ (
+    JSON.parse(JSON.stringify(persistable))
+  )
 }
 
 /**

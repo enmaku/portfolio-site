@@ -1,7 +1,7 @@
 <template>
   <q-page class="world-builder-page column fit no-wrap">
     <div
-      v-if="showGenerationProgress || showResourceOverlayBar"
+      v-if="showGenerationProgress || showEpochStepProgress || showResourceOverlayBar"
       data-testid="world-builder-status-bar"
       class="generation-progress"
     >
@@ -38,6 +38,56 @@
                   :key="substep.id"
                   dense
                   :data-testid="`world-builder-hydrology-substep-${substep.id}`"
+                  :color="generationStepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
+            </template>
+          </div>
+        </div>
+        <div
+          v-else-if="showEpochStepProgress"
+          data-testid="world-builder-epoch-step-progress"
+          class="status-bar-panel status-bar-panel--generation"
+        >
+          <q-linear-progress
+            :value="epochStepProgress.percent / 100"
+            color="secondary"
+            track-color="grey-9"
+            rounded
+          />
+          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
+            <q-chip
+              dense
+              color="grey-7"
+              text-color="white"
+              data-testid="world-builder-epoch-step-batch-label"
+            >
+              {{ epochStepProgress.label }}
+            </q-chip>
+            <template
+              v-for="step in epochStepPhaseStatuses"
+              :key="step.id"
+            >
+              <q-chip
+                dense
+                :data-testid="`world-builder-epoch-step-phase-${step.id}`"
+                :color="generationStepStatusColor(step.status)"
+                text-color="white"
+                :outline="step.status === 'pending'"
+              >
+                {{ step.label }}
+              </q-chip>
+              <template v-if="step.id === 'network' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in epochStepNetworkSubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-epoch-step-network-substep-${substep.id}`"
                   :color="generationStepStatusColor(substep.status)"
                   text-color="white"
                   :outline="substep.status === 'pending'"
@@ -270,8 +320,11 @@
           />
           <WorldBuilderColonistSettingsPanel
             :colonist-settings="colonistSettings"
-            :read-only-except-epoch-batch="isColonistSettingsReadOnlyExceptEpochBatch"
+            :colonist-settings-snapshot="colonistSettingsSnapshot"
+            :pending-epoch-batch="pendingEpochBatch"
+            :running-phase="isColonistSettingsRunningPhase"
             @update-setting="setColonistSetting"
+            @update:pending-epoch-batch="setPendingEpochBatch"
             @reset-defaults="resetColonistSettings"
           />
         </div>
@@ -313,6 +366,8 @@
             class="full-width q-mb-md"
             data-testid="world-builder-epoch-step"
             label="Epoch step"
+            :loading="isEpochStepRunning"
+            :disable="isEpochStepRunning"
             @click="epochStep"
           />
           <q-banner
@@ -325,13 +380,13 @@
             Validation retries exhausted — map shows the last candidate.
           </q-banner>
           <q-list
-            v-if="validationRows.length > 0"
+            v-if="visibleValidationRows.length > 0"
             bordered
             separator
             class="q-mb-md validation-advisory-list"
           >
             <q-item
-              v-for="row in validationRows"
+              v-for="row in visibleValidationRows"
               :key="row.checkId"
               :data-testid="`world-builder-validation-row-${row.checkId}`"
               clickable
@@ -355,6 +410,11 @@
               </q-item-section>
             </q-item>
           </q-list>
+          <WorldBuilderSimStatusPanel
+            v-if="showSimStatusPanel"
+            :status="simStatus"
+            :chronicle="foundingChronicle"
+          />
           <div class="text-subtitle2 q-mb-sm">Generation report</div>
           <div class="text-caption q-mb-md">
             Erosion steps: {{ stageSummary.erosionStepCount }} · Sailable water cells:
@@ -456,6 +516,7 @@ import { useWorldBuilderPageController } from '../../composables/useWorldBuilder
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
 import PrevailingWindArrow from '../../components/world-builder/PrevailingWindArrow.vue'
 import WorldBuilderColonistSettingsPanel from '../../components/world-builder/WorldBuilderColonistSettingsPanel.vue'
+import WorldBuilderSimStatusPanel from '../../components/world-builder/WorldBuilderSimStatusPanel.vue'
 import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
 
 const $q = useQuasar()
@@ -470,14 +531,22 @@ const {
   runPhase,
   generationProgress,
   showGenerationProgress,
+  showEpochStepProgress,
   showResourceOverlayBar,
   showValidationFailureIndicator,
-  validationRows,
+  visibleValidationRows,
+  showSimStatusPanel,
+  simStatus,
+  foundingChronicle,
   stageSummary,
   hydrologyStats,
   generationStepStatuses,
   hydrologySubstepStatuses,
   hydrologySubstepTimings,
+  epochStepProgress,
+  isEpochStepRunning,
+  epochStepPhaseStatuses,
+  epochStepNetworkSubstepStatuses,
   resourceOverlayVisibility,
   overlayDisplaySetting,
   toggleResourceOverlayVisibility,
@@ -488,11 +557,14 @@ const {
   showTerrainAuthoringControls,
   showColonistSettingsPanel,
   colonistSettings,
+  colonistSettingsSnapshot,
+  pendingEpochBatch,
+  setPendingEpochBatch,
   hasLandmass,
   canBeginColonization,
   showResetColonization,
   timeControlsActive,
-  isColonistSettingsReadOnlyExceptEpochBatch,
+  isColonistSettingsRunningPhase,
   enterColonizationSetup,
   backToTerrain,
   beginColonization,

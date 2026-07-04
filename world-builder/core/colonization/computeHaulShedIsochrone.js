@@ -10,11 +10,20 @@
  *   gridHeight: number,
  *   movementCost?: Float32Array | null,
  *   roadMultiplier?: number,
+ *   roadCellMask?: Uint8Array | null,
  * }} params
  * @returns {Float32Array} travel time per cell; Infinity when unreachable within budget
  */
 export function computeHaulShedTravelTimes(params) {
-  const { origin, budget, gridWidth, gridHeight, movementCost, roadMultiplier = 1 } = params
+  const {
+    origin,
+    budget,
+    gridWidth,
+    gridHeight,
+    movementCost,
+    roadMultiplier = 1,
+    roadCellMask = null,
+  } = params
   const cellCount = gridWidth * gridHeight
   const travelTime = new Float32Array(cellCount).fill(Number.POSITIVE_INFINITY)
 
@@ -36,6 +45,7 @@ export function computeHaulShedTravelTimes(params) {
       gridHeight,
       movementCost,
       roadMultiplier,
+      roadCellMask,
       travelTime,
     })
     return travelTime
@@ -62,6 +72,7 @@ export function computeHaulShedTravelTimes(params) {
  *   gridHeight: number,
  *   movementCost?: Float32Array | null,
  *   roadMultiplier?: number,
+ *   roadCellMask?: Uint8Array | null,
  * }} params
  * @returns {GridCell[]}
  */
@@ -116,6 +127,7 @@ function fillCircleTravelTimes({ origin, radius, gridWidth, gridHeight, travelTi
  *   gridHeight: number,
  *   movementCost: Float32Array,
  *   roadMultiplier: number,
+ *   roadCellMask: Uint8Array | null,
  *   travelTime: Float32Array,
  * }} params
  */
@@ -126,6 +138,7 @@ function fillIsochroneTravelTimes({
   gridHeight,
   movementCost,
   roadMultiplier,
+  roadCellMask,
   travelTime,
 }) {
   const cellCount = gridWidth * gridHeight
@@ -134,7 +147,7 @@ function fillIsochroneTravelTimes({
     return
   }
 
-  const costScale = Number.isFinite(roadMultiplier) && roadMultiplier > 0 ? roadMultiplier : 1
+  const roadScale = Number.isFinite(roadMultiplier) && roadMultiplier > 0 ? roadMultiplier : 1
   travelTime[originIndex] = 0
   /** @type {Array<{ x: number, y: number, time: number }>} */
   const heap = [{ x: origin.x, y: origin.y, time: 0 }]
@@ -152,7 +165,8 @@ function fillIsochroneTravelTimes({
         const ny = current.y + dy
         if (nx < 0 || ny < 0 || nx >= gridWidth || ny >= gridHeight) continue
         const nextIndex = ny * gridWidth + nx
-        const stepCost = movementCost[nextIndex] * costScale
+        const cellRoadScale = roadCellMask?.[nextIndex] === 1 ? roadScale : 1
+        const stepCost = movementCost[nextIndex] * cellRoadScale
         if (!Number.isFinite(stepCost) || stepCost <= 0) continue
         const diagonalScale = dx !== 0 && dy !== 0 ? Math.SQRT2 : 1
         const nextTime = current.time + stepCost * diagonalScale

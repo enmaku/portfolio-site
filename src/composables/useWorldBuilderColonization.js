@@ -1,6 +1,7 @@
-import { computed, ref } from 'vue'
-import { applyEpochStep } from '../../world-builder/core/colonization/applyEpochStep.js'
-import { applyPopulationCollapse } from '../../world-builder/core/colonization/applyPopulationCollapse.js'
+import { computed, ref, shallowRef } from 'vue'
+import { createInitialEpochStepProgress } from '../../world-builder/core/colonization/colonizationEpochProgress.js'
+import { runColonizationEpochStep } from '../../world-builder/core/colonization/runColonizationEpochStep.js'
+import { rehydrateColonizationDerivedOverlays } from '../../world-builder/core/colonization/rehydrateColonizationDerivedOverlays.js'
 import { beginColonizationCommit } from '../../world-builder/core/colonization/beginColonizationCommit.js'
 import { computeHaulShedReachPreview } from '../../world-builder/core/colonization/computeHaulShedReachPreview.js'
 import {
@@ -35,14 +36,29 @@ import { snapFoundingLandingCell } from '../../world-builder/core/colonization/i
  *   } | null,
  *   getGeographyDocument?: () => import('../../world-builder/core/types.js').WorldDocument | null,
  *   onSliceChanged?: () => void,
+ *   onSessionPersistRequested?: () => void,
  * }} options
  */
 export function useWorldBuilderColonization(options) {
-  const { settingsStore, requestConfirm, getViewport, getGeographyDocument, onSliceChanged } =
-    options
+  const {
+    settingsStore,
+    requestConfirm,
+    getViewport,
+    getGeographyDocument,
+    onSliceChanged,
+    onSessionPersistRequested,
+  } = options
 
   /** @type {import('vue').Ref<import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice>} */
   const slice = ref(loadInitialSlice())
+  /** @type {import('vue').Ref<'idle' | 'running'>} */
+  const epochStepPhase = ref('idle')
+  /** @type {import('vue').ShallowRef<import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonistSettings>} */
+  const colonistSettingsSnapshot = shallowRef(createDefaultColonistSettings())
+  /** Batch size for the next epoch step only; never written into slice until epochStep runs. */
+  const pendingEpochBatch = ref(createDefaultColonistSettings().epochBatch)
+  /** @type {import('vue').Ref<import('../../world-builder/core/colonization/colonizationEpochProgress.js').EpochStepProgressState>} */
+  const epochStepProgress = ref(createInitialEpochStepProgress())
 
   const colonizationPhase = computed(() => slice.value.colonizationPhase)
   const isTerrainAuthoringEnabled = computed(
@@ -66,9 +82,16 @@ export function useWorldBuilderColonization(options) {
   const timeControlsActive = computed(
     () => slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING,
   )
-  const isColonistSettingsReadOnlyExceptEpochBatch = computed(
+  const isEpochStepRunning = computed(() => epochStepPhase.value === 'running')
+  const showEpochStepProgress = computed(() => epochStepPhase.value === 'running')
+  const isColonistSettingsRunningPhase = computed(
     () => slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING,
   )
+
+  function syncColonistSettingsSnapshot() {
+    colonistSettingsSnapshot.value = { ...slice.value.colonistSettings }
+    pendingEpochBatch.value = slice.value.colonistSettings.epochBatch
+  }
 
   function loadInitialSlice() {
     return resolveColonizationSlice(settingsStore.colonizationSession)
@@ -79,8 +102,16 @@ export function useWorldBuilderColonization(options) {
     onSliceChanged?.()
   }
 
+  function persistColonistSettingsOnly() {
+    settingsStore.setColonizationSession?.(slice.value)
+    onSessionPersistRequested?.()
+  }
+
   function hydrateFromPersistedSettings() {
     slice.value = resolveColonizationSlice(settingsStore.colonizationSession)
+    if (slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING) {
+      syncColonistSettingsSnapshot()
+    }
   }
 
   /**
@@ -166,30 +197,11 @@ export function useWorldBuilderColonization(options) {
    * @returns {import('../../world-builder/core/types.js').WorldDocument}
    */
   function applyToWorldDocument(doc) {
-    const resolvedSlice = recomputePopulationCollapseRaster(slice.value, doc)
+    const resolvedSlice = rehydrateColonizationDerivedOverlays(slice.value, doc)
     if (resolvedSlice !== slice.value) {
       slice.value = resolvedSlice
     }
     return applyColonizationSliceToWorldDocument(doc, resolvedSlice)
-  }
-
-  /**
-   * Derive collapse raster from settlements, claims, epoch, and geography (never loaded from storage).
-   *
-   * @param {import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice} current
-   * @param {import('../../world-builder/core/types.js').WorldDocument} doc
-   * @returns {import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice}
-   */
-  function recomputePopulationCollapseRaster(current, doc) {
-    if (current.colonizationPhase !== COLONIZATION_PHASE_RUNNING) {
-      return current
-    }
-    const raster = current.populationCollapseRaster
-    const expectedLength = doc.gridWidth * doc.gridHeight
-    if (raster instanceof Float32Array && raster.length === expectedLength) {
-      return current
-    }
-    return applyPopulationCollapse(current, doc).slice
   }
 
   /**
@@ -241,23 +253,51 @@ export function useWorldBuilderColonization(options) {
       return false
     }
     slice.value = beginColonizationCommit(slice.value, doc)
+    syncColonistSettingsSnapshot()
     persistSlice()
     syncLandingVisuals()
     return slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING
   }
 
-  function epochStep() {
-    if (!timeControlsActive.value) {
+  async function epochStep() {
+    if (!timeControlsActive.value || isEpochStepRunning.value) {
       return false
     }
     const doc = getGeographyDocument?.()
     if (!doc) {
       return false
     }
-    slice.value = applyEpochStep(slice.value, doc)
-    persistSlice()
-    syncLandingVisuals()
-    return true
+
+    const batch = Math.max(1, Math.floor(pendingEpochBatch.value || 1))
+    slice.value = {
+      ...slice.value,
+      colonistSettings: {
+        ...slice.value.colonistSettings,
+        epochBatch: batch,
+      },
+    }
+    epochStepPhase.value = 'running'
+    epochStepProgress.value = createInitialEpochStepProgress(batch)
+
+    try {
+      const result = await runColonizationEpochStep(slice.value, doc, {
+        handlers: {
+          onProgress(progress) {
+            epochStepProgress.value = progress
+          },
+        },
+      })
+      if (!result.ran) {
+        return false
+      }
+      slice.value = result.slice
+      persistSlice()
+      syncLandingVisuals()
+      return true
+    } finally {
+      epochStepPhase.value = 'idle'
+      epochStepProgress.value = createInitialEpochStepProgress(batch)
+    }
   }
 
   /**
@@ -288,10 +328,7 @@ export function useWorldBuilderColonization(options) {
    * @param {unknown} value
    */
   function setColonistSetting(key, value) {
-    if (
-      slice.value.colonizationPhase !== COLONIZATION_PHASE_SETUP &&
-      !(slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING && key === 'epochBatch')
-    ) {
+    if (slice.value.colonizationPhase !== COLONIZATION_PHASE_SETUP) {
       return
     }
     slice.value = {
@@ -301,31 +338,29 @@ export function useWorldBuilderColonization(options) {
         [key]: value,
       },
     }
-    persistSlice()
     if (key === 'threeDayHaulDistance') {
       syncLandingVisuals()
     }
+    persistColonistSettingsOnly()
+  }
+
+  /**
+   * @param {number} value
+   */
+  function setPendingEpochBatch(value) {
+    pendingEpochBatch.value = Math.max(1, Math.floor(Number(value) || 1))
   }
 
   function resetColonistSettings() {
-    if (slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING) {
-      slice.value = {
-        ...slice.value,
-        colonistSettings: {
-          ...slice.value.colonistSettings,
-          epochBatch: createDefaultColonistSettings().epochBatch,
-        },
-      }
-    } else if (slice.value.colonizationPhase === COLONIZATION_PHASE_SETUP) {
-      slice.value = {
-        ...slice.value,
-        colonistSettings: createDefaultColonistSettings(),
-      }
-      syncLandingVisuals()
-    } else {
+    if (slice.value.colonizationPhase !== COLONIZATION_PHASE_SETUP) {
       return
     }
-    persistSlice()
+    slice.value = {
+      ...slice.value,
+      colonistSettings: createDefaultColonistSettings(),
+    }
+    syncLandingVisuals()
+    persistColonistSettingsOnly()
   }
 
   return {
@@ -337,10 +372,16 @@ export function useWorldBuilderColonization(options) {
     showColonistSettingsPanel,
     foundingLanding: computed(() => slice.value.foundingLanding),
     colonistSettings: computed(() => slice.value.colonistSettings),
+    colonistSettingsSnapshot,
+    pendingEpochBatch,
+    setPendingEpochBatch,
     canBeginColonization,
     showResetColonization,
     timeControlsActive,
-    isColonistSettingsReadOnlyExceptEpochBatch,
+    isEpochStepRunning,
+    showEpochStepProgress,
+    epochStepProgress,
+    isColonistSettingsRunningPhase,
     hydrateFromPersistedSettings,
     enterColonizationSetup,
     backToTerrain,
