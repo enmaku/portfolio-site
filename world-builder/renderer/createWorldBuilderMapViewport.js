@@ -70,6 +70,10 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   let riverTexture = null
   const sail = new Sprite(Texture.EMPTY)
   sail.visible = false
+  const freshwater = new Sprite(Texture.EMPTY)
+  freshwater.visible = false
+  const population = new Sprite(Texture.EMPTY)
+  population.visible = false
   const coastalOverlay = new Graphics()
   const metalOverlay = new Graphics()
   const saltOverlay = new Graphics()
@@ -96,6 +100,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     timber: null,
     metals: null,
     sail: null,
+    freshwater: null,
+    population: null,
   }
 
   /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Sprite>} */
@@ -104,6 +110,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     timber,
     metals,
     sail,
+    freshwater,
+    population,
   }
 
   const viewport = new Viewport({
@@ -123,6 +131,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(lakes)
   viewport.addChild(rivers)
   viewport.addChild(sail)
+  viewport.addChild(freshwater)
+  viewport.addChild(population)
   viewport.addChild(coastalOverlay)
   viewport.addChild(metalOverlay)
   viewport.addChild(saltOverlay)
@@ -166,6 +176,12 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       case 'sail':
         sail.visible = false
         break
+      case 'freshwater':
+        freshwater.visible = false
+        break
+      case 'population':
+        population.visible = false
+        break
       case 'rivers':
         rivers.visible = false
         break
@@ -194,6 +210,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       timber: () => refreshResourceRasterOverlay('timber', currentWorldDocument),
       metals: () => refreshResourceRasterOverlay('metals', currentWorldDocument),
       sail: () => refreshResourceRasterOverlay('sail', currentWorldDocument),
+      freshwater: () => refreshResourceRasterOverlay('freshwater', currentWorldDocument),
+      population: () => refreshResourceRasterOverlay('population', currentWorldDocument),
       rivers: () => refreshRiverOverlay(currentWorldDocument),
       lakes: () => refreshLakeOverlay(currentWorldDocument),
       coastalNodes: () => drawCoastalNodes(coastalOverlay, currentWorldDocument),

@@ -25,6 +25,9 @@
  * @property {object[]} settlements
  * @property {object[]} committedTips
  * @property {string | null} realmId
+ * @property {Record<string, Array<{ x: number, y: number }>>} primaryClaim
+ * @property {Float32Array | null} populationCollapseRaster
+ * @property {object[]} notableFigures
  */
 
 export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
@@ -41,6 +44,9 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'settlements',
   'committedTips',
   'realmId',
+  'primaryClaim',
+  'populationCollapseRaster',
+  'notableFigures',
 ])
 
 export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 50
@@ -75,6 +81,9 @@ export function createDefaultColonizationSlice() {
     settlements: [],
     committedTips: [],
     realmId: null,
+    primaryClaim: {},
+    populationCollapseRaster: null,
+    notableFigures: [],
   }
 }
 
@@ -109,7 +118,70 @@ export function resolveColonizationSlice(value) {
       : [],
     realmId: typeof incoming.realmId === 'string' ? incoming.realmId : null,
     epoch: Number.isFinite(incoming.epoch) ? /** @type {number} */ (incoming.epoch) : 0,
+    primaryClaim: resolvePrimaryClaim(incoming.primaryClaim),
+    populationCollapseRaster: resolvePopulationCollapseRaster(incoming.populationCollapseRaster),
+    notableFigures: Array.isArray(incoming.notableFigures)
+      ? incoming.notableFigures.map((row) => ({ ...row }))
+      : [],
   }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, Array<{ x: number, y: number }>>}
+ */
+function resolvePrimaryClaim(value) {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+  /** @type {Record<string, Array<{ x: number, y: number }>>} */
+  const resolved = {}
+  for (const [settlementId, cells] of Object.entries(value)) {
+    if (!Array.isArray(cells)) continue
+    resolved[settlementId] = cells
+      .filter((cell) => cell && Number.isFinite(cell.x) && Number.isFinite(cell.y))
+      .map((cell) => ({ x: /** @type {number} */ (cell.x), y: /** @type {number} */ (cell.y) }))
+  }
+  return resolved
+}
+
+/**
+ * Revive collapse raster from memory or session JSON.
+ * Pinia persist JSON.stringifies Float32Array as an index map ({"0":n,...}), not an array.
+ *
+ * @param {unknown} value
+ * @returns {Float32Array | null}
+ */
+function resolvePopulationCollapseRaster(value) {
+  if (value instanceof Float32Array) {
+    return new Float32Array(value)
+  }
+  if (Array.isArray(value)) {
+    return Float32Array.from(value)
+  }
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  const record = /** @type {Record<string, unknown>} */ (value)
+  if (typeof record.length === 'number' && Number.isFinite(record.length) && record.length >= 0) {
+    return Float32Array.from({ length: record.length }, (_, i) => {
+      const entry = record[i]
+      return typeof entry === 'number' && Number.isFinite(entry) ? entry : 0
+    })
+  }
+  const indexes = Object.keys(record)
+    .map((key) => Number(key))
+    .filter((index) => Number.isInteger(index) && index >= 0)
+  if (indexes.length === 0) {
+    return null
+  }
+  const length = Math.max(...indexes) + 1
+  const raster = new Float32Array(length)
+  for (const index of indexes) {
+    const entry = record[index]
+    raster[index] = typeof entry === 'number' && Number.isFinite(entry) ? entry : 0
+  }
+  return raster
 }
 
 /**

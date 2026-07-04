@@ -74,6 +74,10 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
     'beginColonization commits founding settlement tip and locks terrain',
     'beginColonization is disabled without a founding landing',
   ],
+  epochStep: [
+    'epochStep advances epoch by epochBatch and updates settlements',
+    'epochStep is inactive outside running phase',
+  ],
   resetColonization: [
     'resetColonization clears tips and returns to terrain when confirmed',
     'resetColonization stays in running when confirm is declined',
@@ -83,15 +87,28 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
 function coastalLandmassDocument() {
   const width = 8
   const height = 8
-  const elevation = new Float32Array(width * height).fill(SEA_LEVEL + 0.2)
+  const cellCount = width * height
+  const elevation = new Float32Array(cellCount).fill(SEA_LEVEL + 0.2)
   for (let y = 2; y < 6; y += 1) {
     elevation[y * width + 2] = SEA_LEVEL - 0.2
   }
+  const riverCorridorMask = new Uint8Array(cellCount)
+  riverCorridorMask[3 * width + 3] = 1
   return fakeWorldDocument({
     gridWidth: width,
     gridHeight: height,
-    fields: { elevation },
-    lakeMask: new Uint8Array(width * height),
+    fields: {
+      elevation,
+      temperature: new Float32Array(cellCount).fill(0.5),
+      rainfall: new Float32Array(cellCount).fill(0.6),
+      drainage: new Float32Array(cellCount).fill(0.2),
+      salinity: new Float32Array(cellCount).fill(0.1),
+    },
+    biomes: new Uint8Array(cellCount).fill(2),
+    arableRaster: new Float32Array(cellCount).fill(1),
+    timberRaster: new Float32Array(cellCount).fill(1),
+    lakeMask: new Uint8Array(cellCount),
+    riverCorridorMask,
     generationReport: {
       validationRows: [],
       validationSignals: { movement: { largestSailComponentCellCount: 8 } },
@@ -1214,7 +1231,7 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
   const scope = effectScope(true)
   try {
     const landmass = coastalLandmassDocument()
-    const { ctx, settingsStore, appliedDocs } = mountController(scope, {
+    const { ctx, settingsStore, appliedDocs, viewport } = mountController(scope, {
       runDerivedGeographyInWorker: (_params, callbacks) => {
         callbacks.onStepComplete?.({
           stepId: 'validation',
@@ -1244,11 +1261,67 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
     assert.strictEqual(ctx.worldDocument.value?.historyLog?.[0]?.kind, 'founding')
     assert.ok(ctx.worldDocument.value?.realmId)
     assert.strictEqual(ctx.isTerrainLocked.value, true)
-    assert.strictEqual(ctx.timeControlsActive.value, false)
+    assert.strictEqual(ctx.timeControlsActive.value, true)
     assert.strictEqual(ctx.showResetColonization.value, true)
     assert.strictEqual(settingsStore.colonizationSession.colonizationPhase, COLONIZATION_PHASE_RUNNING)
     assert.strictEqual(appliedDocs.at(-1)?.colonizationPhase, COLONIZATION_PHASE_RUNNING)
     assert.strictEqual(appliedDocs.at(-1)?.settlements?.length, 1)
+    assert.ok(appliedDocs.at(-1)?.populationCollapseRaster instanceof Float32Array)
+    assert.ok(appliedDocs.at(-1)?.populationCollapseRaster.some((value) => value > 0))
+    assert.strictEqual(viewport.landingMarkers.at(-1), null)
+    assert.deepStrictEqual(viewport.haulShedPreviews.at(-1), [])
+  } finally {
+    scope.stop()
+  }
+})
+
+test('epochStep advances epoch by epochBatch and updates settlements', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const { ctx, settingsStore } = mountController(scope, {
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+    ctx.pickFoundingLanding(3, 3)
+    ctx.setColonistSetting('epochBatch', 2)
+    ctx.beginColonization()
+    const populationBefore = ctx.worldDocument.value?.settlements?.[0]?.population ?? 0
+
+    assert.strictEqual(ctx.epochStep(), true)
+    await nextTick()
+
+    assert.strictEqual(ctx.colonizationEpoch.value, 2)
+    assert.strictEqual(settingsStore.colonizationSession.epoch, 2)
+    assert.ok(ctx.worldDocument.value?.settlements?.[0]?.population >= populationBefore)
+    assert.strictEqual(ctx.worldDocument.value?.committedTips?.at(-1)?.epoch, 2)
+    assert.strictEqual(ctx.timeControlsActive.value, true)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('epochStep is inactive outside running phase', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx } = mountController(scope)
+    await ctx.start()
+    await nextTick()
+    assert.strictEqual(ctx.epochStep(), false)
+    assert.strictEqual(ctx.timeControlsActive.value, false)
   } finally {
     scope.stop()
   }

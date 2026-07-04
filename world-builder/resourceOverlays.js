@@ -21,6 +21,8 @@ export function createResourceOverlayDefinitions() {
     { id: 'metals', kind: 'rasterAndNodes', label: 'Metals', vectorLayerId: 'metalNodes' },
     { id: 'salt', kind: 'nodes', label: 'Salt', vectorLayerId: 'saltNodes' },
     { id: 'sail', kind: 'raster', label: 'Sail' },
+    { id: 'freshwater', kind: 'raster', label: 'Freshwater' },
+    { id: 'population', kind: 'raster', label: 'Population' },
   ]
 }
 

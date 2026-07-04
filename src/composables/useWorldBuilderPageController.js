@@ -429,10 +429,13 @@ export function useWorldBuilderPageController(options) {
     enterColonizationSetup,
     backToTerrain,
     beginColonization: colonization.beginColonization,
+    epochStep: colonization.epochStep,
     resetColonization,
     canBeginColonization: colonization.canBeginColonization,
     showResetColonization: colonization.showResetColonization,
     timeControlsActive: colonization.timeControlsActive,
+    colonizationEpoch: colonization.epoch,
+    colonizationSettlements: colonization.settlements,
     isColonistSettingsReadOnlyExceptEpochBatch:
       colonization.isColonistSettingsReadOnlyExceptEpochBatch,
     pickFoundingLanding: colonization.pickFoundingLanding,

@@ -35,6 +35,8 @@ test('createResourceOverlayPageState defaults visibility off and uses persisted 
     metals: false,
     salt: false,
     sail: false,
+    freshwater: false,
+    population: false,
   })
   assert.strictEqual(state.displaySettings.arableMinimumProductivity, 0.25)
 })
@@ -158,6 +160,8 @@ test('normalizeResourceOverlayVisibility coerces null and undefined to false', (
       metals: false,
       salt: false,
       sail: false,
+      freshwater: false,
+      population: false,
     },
   )
 })
@@ -169,6 +173,8 @@ test('normalizeResourceOverlayVisibility fills missing overlay ids with false', 
     metals: false,
     salt: false,
     sail: false,
+    freshwater: false,
+    population: false,
   })
 })
 
@@ -197,6 +203,8 @@ test('commitResourceOverlayState normalizes visibility before sync', () => {
     metals: false,
     salt: false,
     sail: false,
+    freshwater: false,
+    population: false,
   })
   assert.deepStrictEqual(viewport.syncedStates[0].visibility, committed.visibility)
 })

@@ -94,6 +94,21 @@ test('diffWorldDocumentMapLayers detects resource raster changes only for affect
   assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, nextTimber), ['timber'])
 })
 
+test('diffWorldDocumentMapLayers detects population collapse raster changes', () => {
+  const previous = baseDocument({
+    populationCollapseRaster: new Float32Array(16),
+  })
+  const next = baseDocument({
+    populationCollapseRaster: Float32Array.from({ length: 16 }, (_, i) => (i === 5 ? 12 : 0)),
+  })
+
+  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['population'])
+  assert.deepStrictEqual(
+    diffWorldDocumentMapLayers(previous, baseDocument({ populationCollapseRaster: null })),
+    ['population'],
+  )
+})
+
 test('diffWorldDocumentMapLayers detects hydrology and lake mask changes', () => {
   const previous = baseDocument()
   const nextLakes = baseDocument({

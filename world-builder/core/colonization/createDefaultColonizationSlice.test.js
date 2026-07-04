@@ -7,6 +7,7 @@ import {
   createDefaultColonistSettings,
   createDefaultColonizationSlice,
   resolveColonistSettings,
+  resolveColonizationSlice,
 } from './createDefaultColonizationSlice.js'
 
 test('createDefaultColonizationSlice starts in terrain with empty scaffolding', () => {
@@ -19,6 +20,9 @@ test('createDefaultColonizationSlice starts in terrain with empty scaffolding', 
   assert.deepStrictEqual(slice.settlements, [])
   assert.deepStrictEqual(slice.historyLog, [])
   assert.deepStrictEqual(slice.committedTips, [])
+  assert.deepStrictEqual(slice.primaryClaim, {})
+  assert.strictEqual(slice.populationCollapseRaster, null)
+  assert.deepStrictEqual(slice.notableFigures, [])
   assert.deepStrictEqual(slice.colonistSettings, createDefaultColonistSettings())
 })
 
@@ -37,6 +41,21 @@ test('createDefaultColonistSettings provides concrete defaults for every field',
 test('resolveColonistSettings clamps three-day haul distance to the scale calibration max', () => {
   const settings = resolveColonistSettings({ threeDayHaulDistance: MAX_THREE_DAY_HAUL_DISTANCE + 50 })
   assert.strictEqual(settings.threeDayHaulDistance, MAX_THREE_DAY_HAUL_DISTANCE)
+})
+
+test('resolveColonizationSlice revives populationCollapseRaster from session JSON forms', () => {
+  const fromArray = resolveColonizationSlice({
+    populationCollapseRaster: [0, 12, 3],
+  })
+  assert.ok(fromArray.populationCollapseRaster instanceof Float32Array)
+  assert.deepStrictEqual([...fromArray.populationCollapseRaster], [0, 12, 3])
+
+  // JSON.stringify(Float32Array) shape
+  const fromIndexMap = resolveColonizationSlice({
+    populationCollapseRaster: { 0: 0, 1: 12, 2: 3 },
+  })
+  assert.ok(fromIndexMap.populationCollapseRaster instanceof Float32Array)
+  assert.deepStrictEqual([...fromIndexMap.populationCollapseRaster], [0, 12, 3])
 })
 
 test('cloneWorldDocument copies colonization slice independently', () => {
