@@ -12,7 +12,9 @@ import {
   populationOverlayAlphaForValue,
 } from './buildPopulationOverlayRgba.js'
 
-test('populationOverlayAlphaForValue keeps hinterland cells readable vs core', () => {
+test('populationOverlayAlphaForValue only paints integer counts', () => {
+  assert.strictEqual(populationOverlayAlphaForValue(0, 10), 0)
+  assert.strictEqual(populationOverlayAlphaForValue(0.5, 10), 0)
   const coreAlpha = populationOverlayAlphaForValue(35, 35)
   const hinterlandAlpha = populationOverlayAlphaForValue(1, 35)
   assert.ok(coreAlpha >= POPULATION_OVERLAY_MIN_ALPHA)
@@ -21,11 +23,12 @@ test('populationOverlayAlphaForValue keeps hinterland cells readable vs core', (
   assert.ok(hinterlandAlpha < coreAlpha)
 })
 
-test('buildPopulationOverlayRgba paints low-density hinterland above the min alpha floor', () => {
+test('buildPopulationOverlayRgba paints only occupied cells as a scatter', () => {
   resetResourceRasterOverlayRgbaBuildCount()
   const populationCollapseRaster = new Float32Array(9)
   populationCollapseRaster[4] = 35
   populationCollapseRaster[5] = 1
+  populationCollapseRaster[0] = 0.4
 
   const rgba = buildPopulationOverlayRgba({
     gridWidth: 3,
@@ -43,11 +46,19 @@ test('buildPopulationOverlayRgba paints low-density hinterland above the min alp
   assert.strictEqual(rgba[0 + 3], 0)
 })
 
-test('buildPopulationOverlayRgba returns null without a collapse raster', () => {
+test('buildPopulationOverlayRgba returns null without occupied cells', () => {
   resetResourceRasterOverlayRgbaBuildCount()
   assert.strictEqual(
     buildPopulationOverlayRgba({ gridWidth: 2, gridHeight: 2 }),
     null,
   )
-  assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 1)
+  assert.strictEqual(
+    buildPopulationOverlayRgba({
+      gridWidth: 2,
+      gridHeight: 2,
+      populationCollapseRaster: new Float32Array(4),
+    }),
+    null,
+  )
+  assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 2)
 })

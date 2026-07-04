@@ -13,25 +13,44 @@ function landElevation(cellCount) {
   return new Float32Array(cellCount).fill(SEA_LEVEL + 0.2)
 }
 
-test('isHabitablePopulationCell rejects ocean elevation and water biomes', () => {
-  const elevation = Float32Array.from([SEA_LEVEL + 0.2, SEA_LEVEL - 0.1])
+/**
+ * @param {number} width
+ * @param {number} height
+ * @param {{ x: number, y: number }} pin
+ */
+function fullClaim(width, height, pin) {
+  /** @type {Array<{ x: number, y: number }>} */
+  const cells = []
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      cells.push({ x, y })
+    }
+  }
+  return { s1: cells, pin }
+}
+
+test('isHabitablePopulationCell is fail-closed without elevation', () => {
   assert.strictEqual(
     isHabitablePopulationCell({
       x: 0,
       y: 0,
-      gridWidth: 2,
-      elevation,
-      biomes: Uint8Array.from([BIOMES.GRASSLAND, BIOMES.OCEAN]),
+      gridWidth: 1,
+      elevation: null,
     }),
-    true,
+    false,
   )
+})
+
+test('isHabitablePopulationCell rejects ocean, lakes, and river channels', () => {
+  const elevation = landElevation(4)
+  elevation[1] = SEA_LEVEL - 0.1
   assert.strictEqual(
     isHabitablePopulationCell({
       x: 1,
       y: 0,
       gridWidth: 2,
       elevation,
-      biomes: Uint8Array.from([BIOMES.GRASSLAND, BIOMES.OCEAN]),
+      biomes: Uint8Array.from([BIOMES.GRASSLAND, BIOMES.GRASSLAND]),
     }),
     false,
   )
@@ -39,138 +58,222 @@ test('isHabitablePopulationCell rejects ocean elevation and water biomes', () =>
     isHabitablePopulationCell({
       x: 0,
       y: 0,
-      gridWidth: 1,
-      elevation: landElevation(1),
-      lakeMask: Uint8Array.from([1]),
+      gridWidth: 2,
+      elevation: landElevation(2),
+      lakeMask: Uint8Array.from([1, 0]),
     }),
     false,
   )
-})
-
-test('collapsePopulation places core fraction at the pin and spreads hinterland by arable', () => {
-  const raster = collapsePopulation({
-    settlements: [{ id: 's1', x: 1, y: 1, population: 100, status: 'living' }],
-    primaryClaim: {
-      s1: [
-        { x: 1, y: 1 },
-        { x: 0, y: 1 },
-        { x: 2, y: 1 },
-      ],
-    },
-    // (0,1)=1, (2,1)=3 so eastern hinterland gets more density
-    arableRaster: Float32Array.from([0, 0, 0, 1, 0, 3, 0, 0, 0]),
-    elevation: landElevation(9),
-    biomes: new Uint8Array(9).fill(BIOMES.GRASSLAND),
-    gridWidth: 3,
-    gridHeight: 3,
-  })
-
-  const core = Math.floor(100 * POPULATION_COLLAPSE_CORE_FRACTION)
-  assert.strictEqual(raster[1 * 3 + 1], core)
-  assert.ok(raster[1 * 3 + 2] > raster[1 * 3 + 0])
-  const total = raster.reduce((sum, value) => sum + value, 0)
-  assert.strictEqual(total, 100)
+  assert.strictEqual(
+    isHabitablePopulationCell({
+      x: 0,
+      y: 0,
+      gridWidth: 2,
+      elevation: landElevation(2),
+      riverCorridorMask: Uint8Array.from([1, 0]),
+    }),
+    false,
+  )
+  assert.strictEqual(
+    isHabitablePopulationCell({
+      x: 0,
+      y: 0,
+      gridWidth: 2,
+      elevation: landElevation(2),
+      biomes: Uint8Array.from([BIOMES.FRESHWATER_LAKE, BIOMES.GRASSLAND]),
+    }),
+    false,
+  )
+  assert.strictEqual(
+    isHabitablePopulationCell({
+      x: 1,
+      y: 0,
+      gridWidth: 2,
+      elevation: landElevation(2),
+      biomes: Uint8Array.from([BIOMES.FRESHWATER_LAKE, BIOMES.GRASSLAND]),
+    }),
+    true,
+  )
 })
 
 test('collapsePopulation never places people on water cells', () => {
-  const elevation = landElevation(9)
-  elevation[1 * 3 + 2] = SEA_LEVEL - 0.1
-  const biomes = new Uint8Array(9).fill(BIOMES.GRASSLAND)
-  biomes[1 * 3 + 0] = BIOMES.OCEAN
+  const width = 5
+  const height = 5
+  const cellCount = width * height
+  const elevation = landElevation(cellCount)
+  elevation[2 * width + 4] = SEA_LEVEL - 0.1
+  const biomes = new Uint8Array(cellCount).fill(BIOMES.GRASSLAND)
+  biomes[2 * width + 0] = BIOMES.OCEAN
+  const lakeMask = new Uint8Array(cellCount)
+  lakeMask[0 * width + 2] = 1
+  const riverCorridorMask = new Uint8Array(cellCount)
+  riverCorridorMask[4 * width + 2] = 1
+  const arableRaster = new Float32Array(cellCount).fill(1)
 
   const raster = collapsePopulation({
-    settlements: [{ id: 's1', x: 1, y: 1, population: 100, status: 'living' }],
-    primaryClaim: {
-      s1: [
-        { x: 1, y: 1 },
-        { x: 0, y: 1 },
-        { x: 2, y: 1 },
-        { x: 1, y: 0 },
-      ],
-    },
-    arableRaster: Float32Array.from([0, 5, 0, 5, 0, 5, 0, 0, 0]),
+    settlements: [{ id: 's1', x: 2, y: 2, population: 100, status: 'living' }],
+    primaryClaim: fullClaim(width, height, { x: 2, y: 2 }),
+    arableRaster,
     elevation,
     biomes,
-    lakeMask: Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 1, 0]),
-    gridWidth: 3,
-    gridHeight: 3,
+    lakeMask,
+    riverCorridorMask,
+    gridWidth: width,
+    gridHeight: height,
+    geographySeed: 7,
+    epoch: 0,
   })
 
-  assert.strictEqual(raster[1 * 3 + 0], 0)
-  assert.strictEqual(raster[1 * 3 + 2], 0)
-  assert.strictEqual(raster[2 * 3 + 1], 0)
-  assert.ok(raster[1 * 3 + 1] > 0)
+  assert.strictEqual(raster[2 * width + 4], 0)
+  assert.strictEqual(raster[2 * width + 0], 0)
+  assert.strictEqual(raster[0 * width + 2], 0)
+  assert.strictEqual(raster[4 * width + 2], 0)
   assert.strictEqual(raster.reduce((sum, value) => sum + value, 0), 100)
 })
 
-test('collapsePopulation keeps hinterland at the pin when no arable land exists', () => {
+test('collapsePopulation places urban majority in the core cluster', () => {
+  const width = 7
+  const height = 7
+  const cellCount = width * height
+  const pin = { x: 3, y: 3 }
   const raster = collapsePopulation({
-    settlements: [{ id: 's1', x: 0, y: 0, population: 20, status: 'living' }],
-    primaryClaim: {
-      s1: [
-        { x: 0, y: 0 },
-        { x: 1, y: 0 },
-      ],
-    },
-    arableRaster: Float32Array.from([0, 0]),
-    elevation: landElevation(2),
-    biomes: new Uint8Array(2).fill(BIOMES.GRASSLAND),
-    gridWidth: 2,
-    gridHeight: 1,
+    settlements: [{ id: 's1', ...pin, population: 100, status: 'living' }],
+    primaryClaim: fullClaim(width, height, pin),
+    arableRaster: new Float32Array(cellCount).fill(1),
+    elevation: landElevation(cellCount),
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    gridWidth: width,
+    gridHeight: height,
+    geographySeed: 11,
+    epoch: 0,
   })
 
-  assert.strictEqual(raster[0], 20)
-  assert.strictEqual(raster[1], 0)
+  let urban = 0
+  for (let dy = -1; dy <= 1; dy += 1) {
+    for (let dx = -1; dx <= 1; dx += 1) {
+      urban += raster[(pin.y + dy) * width + (pin.x + dx)]
+    }
+  }
+  assert.ok(urban >= Math.floor(100 * POPULATION_COLLAPSE_CORE_FRACTION))
+  assert.ok(urban / 100 >= 0.75)
+  assert.strictEqual(raster.reduce((sum, value) => sum + value, 0), 100)
 })
 
-test('collapsePopulation only writes claimed land cells', () => {
+test('collapsePopulation scatters hinterland instead of filling the claim', () => {
+  const width = 25
+  const height = 25
+  const cellCount = width * height
+  const pin = { x: 12, y: 12 }
+  const population = 100
   const raster = collapsePopulation({
-    settlements: [{ id: 's1', x: 0, y: 0, population: 10, status: 'living' }],
-    primaryClaim: {
-      s1: [
-        { x: 0, y: 0 },
-        { x: 1, y: 0 },
-      ],
-    },
-    arableRaster: Float32Array.from([1, 1, 1, 1]),
-    elevation: landElevation(4),
-    biomes: new Uint8Array(4).fill(BIOMES.GRASSLAND),
-    gridWidth: 2,
-    gridHeight: 2,
+    settlements: [{ id: 's1', ...pin, population, status: 'living' }],
+    primaryClaim: fullClaim(width, height, pin),
+    arableRaster: new Float32Array(cellCount).fill(1),
+    elevation: landElevation(cellCount),
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    gridWidth: width,
+    gridHeight: height,
+    geographySeed: 99,
+    epoch: 3,
   })
 
-  assert.strictEqual(raster[1 * 2 + 1], 0)
-  assert.strictEqual(raster.reduce((sum, value) => sum + value, 0), 10)
+  let occupied = 0
+  let domainArable = 0
+  for (let i = 0; i < cellCount; i += 1) {
+    if (raster[i] >= 1) occupied += 1
+    domainArable += 1
+  }
+  assert.ok(occupied < domainArable / 2)
+  assert.ok(occupied <= population)
+  assert.strictEqual(raster.reduce((sum, value) => sum + value, 0), population)
+})
+
+test('collapsePopulation totals match settlement population', () => {
+  const width = 5
+  const height = 5
+  const cellCount = width * height
+  const raster = collapsePopulation({
+    settlements: [{ id: 's1', x: 2, y: 2, population: 47, status: 'living' }],
+    primaryClaim: fullClaim(width, height, { x: 2, y: 2 }),
+    arableRaster: new Float32Array(cellCount).fill(0.5),
+    elevation: landElevation(cellCount),
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    gridWidth: width,
+    gridHeight: height,
+    geographySeed: 3,
+    epoch: 1,
+  })
+  assert.strictEqual(raster.reduce((sum, value) => sum + value, 0), 47)
+  assert.ok([...raster].every((value) => Number.isInteger(value)))
 })
 
 test('collapsePopulation is deterministic for identical inputs', () => {
+  const width = 6
+  const height = 6
+  const cellCount = width * height
   const params = {
-    settlements: [{ id: 's1', x: 0, y: 0, population: 40, status: 'living' }],
-    primaryClaim: {
-      s1: [
-        { x: 0, y: 0 },
-        { x: 1, y: 0 },
-        { x: 0, y: 1 },
-      ],
-    },
-    arableRaster: Float32Array.from([1, 2, 3, 4]),
-    elevation: landElevation(4),
-    biomes: new Uint8Array(4).fill(BIOMES.GRASSLAND),
-    gridWidth: 2,
-    gridHeight: 2,
+    settlements: [{ id: 's1', x: 2, y: 2, population: 80, status: 'living' }],
+    primaryClaim: fullClaim(width, height, { x: 2, y: 2 }),
+    arableRaster: new Float32Array(cellCount).fill(1),
+    elevation: landElevation(cellCount),
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    gridWidth: width,
+    gridHeight: height,
+    geographySeed: 42,
+    epoch: 5,
   }
   const a = collapsePopulation(params)
   const b = collapsePopulation(params)
   assert.strictEqual(hashPopulationCollapseRaster(a), hashPopulationCollapseRaster(b))
 })
 
-test('collapsePopulation skips ruins', () => {
-  const raster = collapsePopulation({
-    settlements: [{ id: 's1', x: 0, y: 0, population: 0, status: 'ruin' }],
+test('collapsePopulation skips ruins and empty domains', () => {
+  const empty = collapsePopulation({
+    settlements: [{ id: 's1', x: 0, y: 0, population: 10, status: 'ruin' }],
     primaryClaim: { s1: [{ x: 0, y: 0 }] },
     elevation: landElevation(1),
     gridWidth: 1,
     gridHeight: 1,
+    geographySeed: 1,
+    epoch: 0,
   })
-  assert.strictEqual(raster[0], 0)
+  assert.strictEqual(empty[0], 0)
+
+  const noLand = collapsePopulation({
+    settlements: [{ id: 's1', x: 0, y: 0, population: 10, status: 'living' }],
+    primaryClaim: { s1: [{ x: 0, y: 0 }] },
+    elevation: null,
+    gridWidth: 1,
+    gridHeight: 1,
+    geographySeed: 1,
+    epoch: 0,
+  })
+  assert.strictEqual(noLand[0], 0)
+})
+
+test('collapsePopulation parks hinterland in urban cluster when no arable hinterland exists', () => {
+  const width = 3
+  const height = 3
+  const cellCount = width * height
+  const arableRaster = new Float32Array(cellCount)
+  // Only pin has arable; neighbors are land but non-arable.
+  arableRaster[1 * width + 1] = 1
+  const raster = collapsePopulation({
+    settlements: [{ id: 's1', x: 1, y: 1, population: 50, status: 'living' }],
+    primaryClaim: fullClaim(width, height, { x: 1, y: 1 }),
+    arableRaster,
+    elevation: landElevation(cellCount),
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    gridWidth: width,
+    gridHeight: height,
+    geographySeed: 2,
+    epoch: 0,
+  })
+  let urban = 0
+  for (let dy = -1; dy <= 1; dy += 1) {
+    for (let dx = -1; dx <= 1; dx += 1) {
+      urban += raster[(1 + dy) * width + (1 + dx)]
+    }
+  }
+  assert.strictEqual(urban, 50)
 })

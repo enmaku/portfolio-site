@@ -6,11 +6,11 @@ import {
 /** Magenta population overlay tint. */
 export const POPULATION_OVERLAY_RGB = [255, 64, 160]
 
-/** Floor alpha for the sparsest occupied cell (still readable, not a solid disc). */
-export const POPULATION_OVERLAY_MIN_ALPHA = 0.14
+/** Alpha for the sparsest occupied cell (count >= 1). */
+export const POPULATION_OVERLAY_MIN_ALPHA = 0.35
 
 /** Max alpha for the densest population cell. */
-export const POPULATION_OVERLAY_MAX_ALPHA = 0.9
+export const POPULATION_OVERLAY_MAX_ALPHA = 0.95
 
 /**
  * @param {number} value
@@ -18,7 +18,7 @@ export const POPULATION_OVERLAY_MAX_ALPHA = 0.9
  * @returns {number} alpha in 0..1
  */
 export function populationOverlayAlphaForValue(value, maxValue) {
-  if (!(value > 0) || !(maxValue > 0)) {
+  if (!(value >= 1) || !(maxValue > 0)) {
     return 0
   }
   const t = Math.min(1, value / maxValue)
@@ -29,6 +29,8 @@ export function populationOverlayAlphaForValue(value, maxValue) {
 }
 
 /**
+ * Scatter paint: only cells with integer count >= 1.
+ *
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @returns {Uint8ClampedArray | null}
  */
@@ -45,14 +47,14 @@ export function buildPopulationOverlayRgba(worldDocument) {
       maxValue = populationCollapseRaster[i]
     }
   }
-  if (maxValue <= 0) {
+  if (maxValue < 1) {
     return null
   }
 
   const rgba = new Uint8ClampedArray(gridWidth * gridHeight * 4)
   for (let i = 0; i < populationCollapseRaster.length; i += 1) {
     const value = populationCollapseRaster[i]
-    if (value <= 0) continue
+    if (value < 1) continue
     const alphaByte = Math.round(populationOverlayAlphaForValue(value, maxValue) * 255)
     const base = i * 4
     rgba[base] = POPULATION_OVERLAY_RGB[0]
