@@ -101,6 +101,12 @@ export function useWorldBuilderPageController(options) {
   /** @type {ReturnType<typeof useWorldBuilderColonization>} */
   let colonization
 
+  function syncColonizationRunningOverlays() {
+    if (colonization.colonizationPhase.value === COLONIZATION_PHASE_RUNNING) {
+      overlay.toggleVisibility('population', true)
+    }
+  }
+
   function syncColonizationDocumentToMap() {
     const doc = generation?.worldDocument.value
     if (!doc || !mapLifecycle) {
@@ -108,6 +114,7 @@ export function useWorldBuilderPageController(options) {
     }
     void mapLifecycle.applyWorldDocument(colonization.applyToWorldDocument(doc))
     colonization.syncLandingVisuals()
+    syncColonizationRunningOverlays()
   }
 
   colonization = useWorldBuilderColonization({
@@ -271,14 +278,6 @@ export function useWorldBuilderPageController(options) {
     return result
   }
 
-  function beginColonization() {
-    const started = colonization.beginColonization()
-    if (started) {
-      overlay.toggleVisibility('population', true)
-    }
-    return started
-  }
-
   /**
    * @param {string} key
    * @returns {number | boolean | undefined}
@@ -391,9 +390,7 @@ export function useWorldBuilderPageController(options) {
         const cached = await loadLockedTerrain(currentTerrainFingerprint())
         if (cached) {
           await generation.applyCachedWorldDocument(cached)
-          if (phase === COLONIZATION_PHASE_RUNNING) {
-            overlay.toggleVisibility('population', true)
-          }
+          syncColonizationRunningOverlays()
           return
         }
       } catch {
@@ -402,9 +399,7 @@ export function useWorldBuilderPageController(options) {
     }
 
     regenerate({ force: true })
-    if (colonization.colonizationPhase.value === COLONIZATION_PHASE_RUNNING) {
-      overlay.toggleVisibility('population', true)
-    }
+    syncColonizationRunningOverlays()
   }
 
   function destroy() {
@@ -442,7 +437,7 @@ export function useWorldBuilderPageController(options) {
     hasLandmass,
     enterColonizationSetup,
     backToTerrain,
-    beginColonization,
+    beginColonization: colonization.beginColonization,
     epochStep: colonization.epochStep,
     resetColonization,
     canBeginColonization: colonization.canBeginColonization,

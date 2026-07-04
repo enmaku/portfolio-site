@@ -155,6 +155,8 @@ export function refreshAllResourceRasterOverlayCanvases(context) {
     timber: null,
     metals: null,
     sail: null,
+    freshwater: null,
+    population: null,
   }
 
   for (const resourceId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {

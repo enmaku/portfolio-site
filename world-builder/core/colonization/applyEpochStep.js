@@ -1,4 +1,5 @@
 import { applyColonizationEpoch } from './applyColonizationEpoch.js'
+import { createCommittedTip } from './createCommittedTip.js'
 
 /**
  * Advance epochBatch annual ticks. Retains committed tips at post-step present day
@@ -35,35 +36,5 @@ export function applyEpochStep(slice, worldDocument, options = {}) {
   return {
     ...current,
     committedTips,
-  }
-}
-
-/**
- * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
- * @param {object} [event]
- */
-function createCommittedTip(slice, event) {
-  const claimMap = event?.claimMap
-    ? Object.fromEntries(
-        Object.entries(event.claimMap).map(([settlementId, cells]) => [
-          settlementId,
-          cells.map((cell) => ({ x: cell.x, y: cell.y })),
-        ]),
-      )
-    : Object.fromEntries(
-        Object.entries(slice.primaryClaim).map(([settlementId, cells]) => [
-          settlementId,
-          cells.map((cell) => ({ x: cell.x, y: cell.y })),
-        ]),
-      )
-
-  return {
-    epoch: slice.epoch,
-    settlements: slice.settlements.map((row) => ({ ...row })),
-    foundingLanding: slice.foundingLanding ? { ...slice.foundingLanding } : null,
-    colonistSettings: { ...slice.colonistSettings },
-    historyLog: slice.historyLog.map((row) => ({ ...row })),
-    claimMap,
-    ...(event?.kind ? { eventKind: event.kind } : {}),
   }
 }

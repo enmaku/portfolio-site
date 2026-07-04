@@ -5,6 +5,7 @@ import {
 } from './createDefaultColonizationSlice.js'
 import { applyPopulationCollapse } from './applyPopulationCollapse.js'
 import { applyRuinTransitions } from './applyRuin.js'
+import { createCommittedTip } from './createCommittedTip.js'
 import { createFoundingDynasty } from './createFoundingDynasty.js'
 import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaimMap.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
@@ -78,7 +79,7 @@ export function beginColonizationCommit(slice, doc) {
     worldDocument: doc,
   })
 
-  const withCollapse = applyPopulationCollapse(
+  const { slice: withCollapse } = applyPopulationCollapse(
     {
       ...current,
       colonizationPhase: COLONIZATION_PHASE_RUNNING,
@@ -92,29 +93,12 @@ export function beginColonizationCommit(slice, doc) {
     doc,
   )
 
-  /** @type {object[]} */
   const committedTips = [
-    {
-      epoch: 0,
-      settlements: ruined.settlements.map((row) => ({ ...row })),
-      foundingLanding: { ...landing },
-      colonistSettings: { ...current.colonistSettings },
-      historyLog: ruined.historyLog.map((row) => ({ ...row })),
-      claimMap: { ...primaryClaim },
-    },
+    createCommittedTip(withCollapse),
+    ...ruined.events
+      .filter((event) => event.retainTip)
+      .map((event) => createCommittedTip(withCollapse, event)),
   ]
-
-  for (const event of ruined.events) {
-    committedTips.push({
-      epoch: 0,
-      settlements: ruined.settlements.map((row) => ({ ...row })),
-      foundingLanding: { ...landing },
-      colonistSettings: { ...current.colonistSettings },
-      historyLog: ruined.historyLog.map((row) => ({ ...row })),
-      claimMap: event.claimMap,
-      eventKind: event.kind,
-    })
-  }
 
   return {
     ...withCollapse,

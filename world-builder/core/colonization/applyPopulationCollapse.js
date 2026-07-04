@@ -1,9 +1,15 @@
 import { collapsePopulation } from './collapsePopulation.js'
 
 /**
+ * Spatial population collapse seam: maps post-tick colonization slice + geography
+ * into an updated slice and the population overlay raster.
+ *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument
- * @returns {import('./createDefaultColonizationSlice.js').ColonizationSlice}
+ * @returns {{
+ *   slice: import('./createDefaultColonizationSlice.js').ColonizationSlice,
+ *   populationCollapseRaster: Float32Array,
+ * }}
  */
 export function applyPopulationCollapse(slice, worldDocument) {
   const populationCollapseRaster = collapsePopulation({
@@ -22,7 +28,10 @@ export function applyPopulationCollapse(slice, worldDocument) {
   })
 
   return {
-    ...slice,
+    slice: {
+      ...slice,
+      populationCollapseRaster,
+    },
     populationCollapseRaster,
   }
 }

@@ -90,8 +90,10 @@ export function applyColonizationEpoch(slice, worldDocument, options = {}) {
     historyLog: ruined.historyLog,
   }
 
+  const { slice: collapsed } = applyPopulationCollapse(withClaims, worldDocument)
+
   return {
-    slice: applyPopulationCollapse(withClaims, worldDocument),
+    slice: collapsed,
     events: ruined.events,
   }
 }
