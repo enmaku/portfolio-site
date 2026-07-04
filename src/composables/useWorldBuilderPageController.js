@@ -20,6 +20,7 @@ import {
 import {
   COLONIZATION_PHASE_RUNNING,
   COLONIZATION_PHASE_SETUP,
+  mergeColonizationSessions,
 } from '../../world-builder/core/colonization/createDefaultColonizationSlice.js'
 import {
   colonizationAdvisoryRequiresConfirm,
@@ -32,6 +33,11 @@ import {
   loadLockedTerrain as defaultLoadLockedTerrain,
   saveLockedTerrain as defaultSaveLockedTerrain,
 } from '../utils/worldBuilderTerrainCache.js'
+import {
+  clearColonizationSession as defaultClearColonizationSession,
+  loadColonizationSession as defaultLoadColonizationSession,
+  saveColonizationSession as defaultSaveColonizationSession,
+} from '../utils/worldBuilderColonizationCache.js'
 import { useWorldBuilderColonization } from './useWorldBuilderColonization.js'
 import { useWorldBuilderGeneration } from './useWorldBuilderGeneration.js'
 import { useWorldBuilderOverlayState } from './useWorldBuilderOverlayState.js'
@@ -69,6 +75,9 @@ async function loadWorldBuilderViewportFactory() {
  *   loadLockedTerrain?: typeof defaultLoadLockedTerrain,
  *   saveLockedTerrain?: typeof defaultSaveLockedTerrain,
  *   clearLockedTerrain?: typeof defaultClearLockedTerrain,
+ *   loadColonizationSession?: typeof defaultLoadColonizationSession,
+ *   saveColonizationSession?: typeof defaultSaveColonizationSession,
+ *   clearColonizationSession?: typeof defaultClearColonizationSession,
  * }} options
  */
 export function useWorldBuilderPageController(options) {
@@ -83,6 +92,9 @@ export function useWorldBuilderPageController(options) {
     loadLockedTerrain = defaultLoadLockedTerrain,
     saveLockedTerrain = defaultSaveLockedTerrain,
     clearLockedTerrain = defaultClearLockedTerrain,
+    loadColonizationSession = defaultLoadColonizationSession,
+    saveColonizationSession = defaultSaveColonizationSession,
+    clearColonizationSession = defaultClearColonizationSession,
   } = options
 
   const seedInput = ref(String(DEFAULT_GEOGRAPHY_SEED))
@@ -115,6 +127,7 @@ export function useWorldBuilderPageController(options) {
     void mapLifecycle.applyWorldDocument(colonization.applyToWorldDocument(doc))
     colonization.syncLandingVisuals()
     syncColonizationRunningOverlays()
+    void persistColonizationSessionIfNeeded()
   }
 
   colonization = useWorldBuilderColonization({
@@ -153,6 +166,17 @@ export function useWorldBuilderPageController(options) {
     })
   }
 
+  async function persistColonizationSessionIfNeeded() {
+    if (!colonization.isTerrainLocked.value) {
+      return
+    }
+    try {
+      await saveColonizationSession(currentTerrainFingerprint(), colonization.slice.value)
+    } catch {
+      // Cache is best-effort; regen remains the fallback.
+    }
+  }
+
   async function persistLockedTerrainIfNeeded() {
     if (!colonization.isTerrainLocked.value) {
       return
@@ -169,14 +193,30 @@ export function useWorldBuilderPageController(options) {
     } catch {
       // Cache is best-effort; regen remains the fallback.
     }
+    await persistColonizationSessionIfNeeded()
   }
 
   async function discardLockedTerrain() {
     try {
       await clearLockedTerrain()
+      await clearColonizationSession()
     } catch {
       // ignore
     }
+  }
+
+  async function restoreColonizationSessionFromCaches(fingerprint) {
+    const fromStore = settingsStore.colonizationSession
+    let fromColonizationCache = null
+    try {
+      fromColonizationCache = await loadColonizationSession(fingerprint)
+    } catch {
+      // Fall through with store-only session.
+    }
+    const merged = mergeColonizationSessions(fromStore, fromColonizationCache)
+    settingsStore.setColonizationSession?.(merged)
+    colonization.hydrateFromPersistedSettings()
+    return merged
   }
 
   generation = useWorldBuilderGeneration({
@@ -368,8 +408,25 @@ export function useWorldBuilderPageController(options) {
     overlay.resetVisibility()
   }
 
+  async function beginColonization() {
+    const started = colonization.beginColonization()
+    if (started) {
+      await persistColonizationSessionIfNeeded()
+    }
+    return started
+  }
+
+  async function epochStep() {
+    const stepped = colonization.epochStep()
+    if (stepped) {
+      await persistColonizationSessionIfNeeded()
+    }
+    return stepped
+  }
+
   async function start() {
     settingsStore.ensureInitialized()
+    settingsStore.$hydrate?.()
     seedInput.value = String(settingsStore.geographySeed)
     overlay.hydrateFromPersistedSettings()
     colonization.hydrateFromPersistedSettings()
@@ -384,12 +441,15 @@ export function useWorldBuilderPageController(options) {
       },
     })
 
+    const fingerprint = currentTerrainFingerprint()
+    await restoreColonizationSessionFromCaches(fingerprint)
+
     const phase = colonization.colonizationPhase.value
     if (phase === COLONIZATION_PHASE_SETUP || phase === COLONIZATION_PHASE_RUNNING) {
       try {
-        const cached = await loadLockedTerrain(currentTerrainFingerprint())
+        const cached = await loadLockedTerrain(fingerprint)
         if (cached) {
-          await generation.applyCachedWorldDocument(cached)
+          await generation.applyCachedWorldDocument(cached.worldDocument, { skipPersist: true })
           syncColonizationRunningOverlays()
           return
         }
@@ -437,8 +497,8 @@ export function useWorldBuilderPageController(options) {
     hasLandmass,
     enterColonizationSetup,
     backToTerrain,
-    beginColonization: colonization.beginColonization,
-    epochStep: colonization.epochStep,
+    beginColonization,
+    epochStep: epochStep,
     resetColonization,
     canBeginColonization: colonization.canBeginColonization,
     showResetColonization: colonization.showResetColonization,

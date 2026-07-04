@@ -23,6 +23,7 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
   start: [
     'start runs initial generation and applies the world document to the map',
     'start syncs overlay state when the viewport becomes ready',
+    'start restores running colonization from colonization cache after beginColonization refresh',
   ],
   destroy: ['destroy cancels the active run and tears down the map lifecycle'],
   regenerate: [
@@ -55,6 +56,7 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
     'enterColonizationSetup is a no-op without a landmass',
     'enterColonizationSetup requires confirm when advisory has fail rows',
     'enterColonizationSetup skips confirm when advisory is warn-only',
+    'enterColonizationSetup persists locked terrain and colonization session',
   ],
   backToTerrain: [
     'backToTerrain returns to terrain and discards setup progress',
@@ -73,6 +75,7 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
   beginColonization: [
     'beginColonization commits founding settlement tip and locks terrain',
     'beginColonization is disabled without a founding landing',
+    'start restores running colonization from colonization cache after beginColonization refresh',
   ],
   epochStep: [
     'epochStep advances epoch by epochBatch and updates settlements',
@@ -231,9 +234,33 @@ function createMemoryTerrainCache() {
       if (!record || record.fingerprint !== fingerprint) {
         return null
       }
-      return record.worldDocument
+      return {
+        worldDocument: record.worldDocument,
+      }
     },
     async clearLockedTerrain() {
+      record = null
+    },
+    getRecord() {
+      return record
+    },
+  }
+}
+
+function createMemoryColonizationCache() {
+  /** @type {{ fingerprint: string, session: import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice } | null} */
+  let record = null
+  return {
+    async saveColonizationSession(fingerprint, session) {
+      record = { fingerprint, session }
+    },
+    async loadColonizationSession(fingerprint) {
+      if (!record || record.fingerprint !== fingerprint) {
+        return null
+      }
+      return record.session
+    },
+    async clearColonizationSession() {
       record = null
     },
     getRecord() {
@@ -251,6 +278,7 @@ function mountController(scope, overrides = {}) {
   const confirmCalls = []
   const viewport = overrides.viewport ?? createFakeViewport()
   const terrainCache = overrides.terrainCache ?? createMemoryTerrainCache()
+  const colonizationCache = overrides.colonizationCache ?? createMemoryColonizationCache()
   let lifecycleDestroyed = false
   let workerRunCount = 0
 
@@ -281,6 +309,9 @@ function mountController(scope, overrides = {}) {
       loadLockedTerrain: terrainCache.loadLockedTerrain,
       saveLockedTerrain: terrainCache.saveLockedTerrain,
       clearLockedTerrain: terrainCache.clearLockedTerrain,
+      loadColonizationSession: colonizationCache.loadColonizationSession,
+      saveColonizationSession: colonizationCache.saveColonizationSession,
+      clearColonizationSession: colonizationCache.clearColonizationSession,
       runDerivedGeographyInWorker:
         overrides.runDerivedGeographyInWorker ??
         ((_params, callbacks) => {
@@ -306,6 +337,7 @@ function mountController(scope, overrides = {}) {
     errors,
     confirmCalls,
     terrainCache,
+    colonizationCache,
     workerRunCount: () => workerRunCount,
     isLifecycleDestroyed: () => lifecycleDestroyed,
   }
@@ -1252,7 +1284,7 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
     ctx.pickFoundingLanding(3, 3)
     assert.strictEqual(ctx.canBeginColonization.value, true)
 
-    assert.strictEqual(ctx.beginColonization(), true)
+    assert.strictEqual(await ctx.beginColonization(), true)
     await nextTick()
 
     assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
@@ -1299,10 +1331,10 @@ test('epochStep advances epoch by epochBatch and updates settlements', async () 
     await ctx.enterColonizationSetup()
     ctx.pickFoundingLanding(3, 3)
     ctx.setColonistSetting('epochBatch', 2)
-    ctx.beginColonization()
+    await ctx.beginColonization()
     const populationBefore = ctx.worldDocument.value?.settlements?.[0]?.population ?? 0
 
-    assert.strictEqual(ctx.epochStep(), true)
+    assert.strictEqual(await ctx.epochStep(), true)
     await nextTick()
 
     assert.strictEqual(ctx.colonizationEpoch.value, 2)
@@ -1321,7 +1353,7 @@ test('epochStep is inactive outside running phase', async () => {
     const { ctx } = mountController(scope)
     await ctx.start()
     await nextTick()
-    assert.strictEqual(ctx.epochStep(), false)
+    assert.strictEqual(await ctx.epochStep(), false)
     assert.strictEqual(ctx.timeControlsActive.value, false)
   } finally {
     scope.stop()
@@ -1337,7 +1369,7 @@ test('beginColonization is disabled without a founding landing', async () => {
     await nextTick()
     await ctx.enterColonizationSetup()
 
-    assert.strictEqual(ctx.beginColonization(), false)
+    assert.strictEqual(await ctx.beginColonization(), false)
     assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_SETUP)
   } finally {
     scope.stop()
@@ -1371,7 +1403,7 @@ test('resetColonization clears tips and returns to terrain when confirmed', asyn
     await nextTick()
     await ctx.enterColonizationSetup()
     ctx.pickFoundingLanding(3, 3)
-    ctx.beginColonization()
+    await ctx.beginColonization()
 
     assert.strictEqual(await ctx.resetColonization(), true)
     await nextTick()
@@ -1408,7 +1440,7 @@ test('resetColonization stays in running when confirm is declined', async () => 
     await nextTick()
     await ctx.enterColonizationSetup()
     ctx.pickFoundingLanding(3, 3)
-    ctx.beginColonization()
+    await ctx.beginColonization()
 
     assert.strictEqual(await ctx.resetColonization(), false)
     await nextTick()
@@ -1497,13 +1529,15 @@ test('start restores locked terrain from cache without running the worker', asyn
   }
 })
 
-test('enterColonizationSetup persists locked terrain and backToTerrain clears it', async () => {
+test('enterColonizationSetup persists locked terrain and colonization session', async () => {
   const scope = effectScope(true)
   try {
     const landmass = coastalLandmassDocument()
     const terrainCache = createMemoryTerrainCache()
+    const colonizationCache = createMemoryColonizationCache()
     const { ctx } = mountController(scope, {
       terrainCache,
+      colonizationCache,
       runDerivedGeographyInWorker: (_params, callbacks) => {
         callbacks.onStepComplete?.({
           stepId: 'validation',
@@ -1524,10 +1558,15 @@ test('enterColonizationSetup persists locked terrain and backToTerrain clears it
 
     assert.ok(terrainCache.getRecord())
     assert.strictEqual(terrainCache.getRecord()?.worldDocument.gridWidth, landmass.gridWidth)
+    assert.strictEqual(
+      colonizationCache.getRecord()?.session.colonizationPhase,
+      COLONIZATION_PHASE_SETUP,
+    )
 
     await ctx.backToTerrain()
     await nextTick()
     assert.strictEqual(terrainCache.getRecord(), null)
+    assert.strictEqual(colonizationCache.getRecord(), null)
   } finally {
     scope.stop()
   }
@@ -1555,6 +1594,77 @@ test('start restores running colonization tips from session after landmass regen
     assert.strictEqual(ctx.worldDocument.value?.settlements?.length, 1)
     assert.strictEqual(ctx.worldDocument.value?.realmId, 'realm-test')
     assert.strictEqual(ctx.isTerrainLocked.value, true)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('start restores running colonization from colonization cache after beginColonization refresh', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const terrainCache = createMemoryTerrainCache()
+    const colonizationCache = createMemoryColonizationCache()
+    const settingsStore = createFakeSettingsStore()
+    let workerRuns = 0
+    const { ctx } = mountController(scope, {
+      settingsStore,
+      terrainCache,
+      colonizationCache,
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        workerRuns += 1
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+    ctx.pickFoundingLanding(3, 3)
+    await ctx.beginColonization()
+    await nextTick()
+
+    assert.strictEqual(
+      colonizationCache.getRecord()?.session.colonizationPhase,
+      COLONIZATION_PHASE_RUNNING,
+    )
+
+    // Simulate stale localStorage that never received the running commit.
+    settingsStore.colonizationSession = createDefaultColonizationSlice()
+    settingsStore.colonizationSession.colonizationPhase = COLONIZATION_PHASE_SETUP
+    settingsStore.colonizationSession.foundingLanding = { x: 3, y: 3 }
+
+    ctx.destroy()
+    await nextTick()
+
+    const { ctx: refreshed } = mountController(scope, {
+      settingsStore,
+      terrainCache,
+      colonizationCache,
+      runDerivedGeographyInWorker: () => {
+        workerRuns += 1
+        return { cancel() {} }
+      },
+    })
+
+    await refreshed.start()
+    await nextTick()
+
+    assert.strictEqual(workerRuns, 1)
+    assert.strictEqual(refreshed.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+    assert.strictEqual(refreshed.colonizationEpoch.value, 0)
+    assert.strictEqual(refreshed.worldDocument.value?.settlements?.length, 1)
+    assert.strictEqual(refreshed.worldDocument.value?.committedTips?.length, 1)
+    assert.strictEqual(refreshed.timeControlsActive.value, true)
+    assert.ok(refreshed.worldDocument.value?.populationCollapseRaster instanceof Float32Array)
   } finally {
     scope.stop()
   }

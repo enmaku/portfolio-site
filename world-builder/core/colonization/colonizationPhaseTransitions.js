@@ -37,9 +37,11 @@ export function backToTerrain() {
  */
 export function applyColonizationSliceToWorldDocument(doc, slice) {
   const colonization = cloneColonizationSlice(slice)
+  const raster = slice.populationCollapseRaster
   return {
     ...doc,
     ...colonization,
+    ...(raster instanceof Float32Array ? { populationCollapseRaster: raster } : {}),
   }
 }
 

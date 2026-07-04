@@ -1,4 +1,7 @@
-import { omitColonizationSliceFields } from './colonization/createDefaultColonizationSlice.js'
+import {
+  COLONIZATION_DERIVED_WORLD_DOCUMENT_KEYS,
+  omitColonizationSliceFields,
+} from './colonization/createDefaultColonizationSlice.js'
 
 /**
  * Stable identity for a generated landmass (seed + generation controls).
@@ -23,5 +26,9 @@ export function buildTerrainCacheFingerprint(input) {
  * @returns {import('./types.js').WorldDocument}
  */
 export function stripColonizationFromWorldDocument(doc) {
-  return omitColonizationSliceFields(doc)
+  const stripped = omitColonizationSliceFields(doc)
+  for (const key of COLONIZATION_DERIVED_WORLD_DOCUMENT_KEYS) {
+    delete stripped[key]
+  }
+  return stripped
 }

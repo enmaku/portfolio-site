@@ -7,6 +7,17 @@ const STORE_NAME = 'terrainCache'
 const RECORD_KEY = 'lockedTerrain'
 
 /**
+ * @typedef {Object} LockedTerrainCachePayload
+ * @property {string} fingerprint
+ * @property {import('../../world-builder/core/types.js').WorldDocument} worldDocument
+ */
+
+/**
+ * @typedef {Object} LockedTerrainCacheRecord
+ * @property {import('../../world-builder/core/types.js').WorldDocument} worldDocument
+ */
+
+/**
  * @returns {Promise<IDBDatabase>}
  */
 function openTerrainCacheDb() {
@@ -33,7 +44,7 @@ function store(db, mode) {
 }
 
 /**
- * @param {{ fingerprint: string, worldDocument: import('../../world-builder/core/types.js').WorldDocument }} payload
+ * @param {LockedTerrainCachePayload} payload
  * @returns {Promise<void>}
  */
 export async function saveLockedTerrain(payload) {
@@ -56,12 +67,12 @@ export async function saveLockedTerrain(payload) {
 
 /**
  * @param {string} fingerprint
- * @returns {Promise<import('../../world-builder/core/types.js').WorldDocument | null>}
+ * @returns {Promise<LockedTerrainCacheRecord | null>}
  */
 export async function loadLockedTerrain(fingerprint) {
   const db = await openTerrainCacheDb()
   try {
-    /** @type {{ fingerprint: string, worldDocument: import('../../world-builder/core/types.js').WorldDocument } | undefined} */
+    /** @type {{ fingerprint: string, worldDocument: import('../../world-builder/core/types.js').WorldDocument, savedAt?: number } | undefined} */
     const record = await new Promise((resolve, reject) => {
       const request = store(db, 'readonly').get(RECORD_KEY)
       request.onsuccess = () => resolve(request.result)
@@ -70,7 +81,9 @@ export async function loadLockedTerrain(fingerprint) {
     if (!record || record.fingerprint !== fingerprint || !record.worldDocument) {
       return null
     }
-    return cloneWorldDocument(stripColonizationFromWorldDocument(record.worldDocument))
+    return {
+      worldDocument: cloneWorldDocument(stripColonizationFromWorldDocument(record.worldDocument)),
+    }
   } finally {
     db.close()
   }

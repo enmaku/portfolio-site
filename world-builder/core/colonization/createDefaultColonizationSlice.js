@@ -26,7 +26,7 @@
  * @property {object[]} committedTips
  * @property {string | null} realmId
  * @property {Record<string, Array<{ x: number, y: number }>>} primaryClaim
- * @property {Float32Array | null} populationCollapseRaster
+ * @property {Float32Array | null} populationCollapseRaster Derived in-memory overlay raster; never persisted.
  * @property {object[]} notableFigures
  */
 
@@ -34,7 +34,7 @@ export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
 export const COLONIZATION_PHASE_SETUP = /** @type {const} */ ('setup')
 export const COLONIZATION_PHASE_RUNNING = /** @type {const} */ ('running')
 
-/** Document / session field names owned by the colonization slice. */
+/** Persisted colonization slice fields (excludes derived collapse raster). */
 export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'colonizationPhase',
   'epoch',
@@ -45,8 +45,12 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'committedTips',
   'realmId',
   'primaryClaim',
-  'populationCollapseRaster',
   'notableFigures',
+])
+
+/** Derived world-document fields produced at runtime, not stored in session caches. */
+export const COLONIZATION_DERIVED_WORLD_DOCUMENT_KEYS = /** @type {const} */ ([
+  'populationCollapseRaster',
 ])
 
 export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 50
@@ -119,7 +123,7 @@ export function resolveColonizationSlice(value) {
     realmId: typeof incoming.realmId === 'string' ? incoming.realmId : null,
     epoch: Number.isFinite(incoming.epoch) ? /** @type {number} */ (incoming.epoch) : 0,
     primaryClaim: resolvePrimaryClaim(incoming.primaryClaim),
-    populationCollapseRaster: resolvePopulationCollapseRaster(incoming.populationCollapseRaster),
+    populationCollapseRaster: null,
     notableFigures: Array.isArray(incoming.notableFigures)
       ? incoming.notableFigures.map((row) => ({ ...row }))
       : [],
@@ -143,45 +147,6 @@ function resolvePrimaryClaim(value) {
       .map((cell) => ({ x: /** @type {number} */ (cell.x), y: /** @type {number} */ (cell.y) }))
   }
   return resolved
-}
-
-/**
- * Revive collapse raster from memory or session JSON.
- * Pinia persist JSON.stringifies Float32Array as an index map ({"0":n,...}), not an array.
- *
- * @param {unknown} value
- * @returns {Float32Array | null}
- */
-function resolvePopulationCollapseRaster(value) {
-  if (value instanceof Float32Array) {
-    return new Float32Array(value)
-  }
-  if (Array.isArray(value)) {
-    return Float32Array.from(value)
-  }
-  if (!value || typeof value !== 'object') {
-    return null
-  }
-  const record = /** @type {Record<string, unknown>} */ (value)
-  if (typeof record.length === 'number' && Number.isFinite(record.length) && record.length >= 0) {
-    return Float32Array.from({ length: record.length }, (_, i) => {
-      const entry = record[i]
-      return typeof entry === 'number' && Number.isFinite(entry) ? entry : 0
-    })
-  }
-  const indexes = Object.keys(record)
-    .map((key) => Number(key))
-    .filter((index) => Number.isInteger(index) && index >= 0)
-  if (indexes.length === 0) {
-    return null
-  }
-  const length = Math.max(...indexes) + 1
-  const raster = new Float32Array(length)
-  for (const index of indexes) {
-    const entry = record[index]
-    raster[index] = typeof entry === 'number' && Number.isFinite(entry) ? entry : 0
-  }
-  return raster
 }
 
 /**
@@ -252,11 +217,65 @@ function clampPositiveNumber(value, fallback, max) {
 }
 
 /**
+ * @param {ColonizationPhase} phase
+ * @returns {number}
+ */
+function colonizationPhaseRank(phase) {
+  if (phase === COLONIZATION_PHASE_RUNNING) {
+    return 2
+  }
+  if (phase === COLONIZATION_PHASE_SETUP) {
+    return 1
+  }
+  return 0
+}
+
+/**
+ * Pick the furthest-along colonization session among candidates (running beats setup).
+ *
+ * @param {...(ColonizationSlice | null | undefined)} candidates
+ * @returns {ColonizationSlice}
+ */
+export function mergeColonizationSessions(...candidates) {
+  let best = createDefaultColonizationSlice()
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue
+    }
+    const resolved = resolveColonizationSlice(candidate)
+    const resolvedRank = colonizationPhaseRank(resolved.colonizationPhase)
+    const bestRank = colonizationPhaseRank(best.colonizationPhase)
+    if (resolvedRank > bestRank || (resolvedRank === bestRank && resolved.epoch > best.epoch)) {
+      best = resolved
+    }
+  }
+  return best
+}
+
+/**
  * @param {ColonizationSlice} slice
  * @returns {ColonizationSlice}
  */
 export function cloneColonizationSlice(slice) {
-  return resolveColonizationSlice(slice)
+  const resolved = resolveColonizationSlice(slice)
+  const raster = slice?.populationCollapseRaster
+  if (raster instanceof Float32Array) {
+    resolved.populationCollapseRaster = new Float32Array(raster)
+  }
+  return resolved
+}
+
+/**
+ * Persistable colonization session (collapse raster is always derived on hydrate).
+ *
+ * @param {ColonizationSlice} slice
+ * @returns {Omit<ColonizationSlice, 'populationCollapseRaster'>}
+ */
+export function serializeColonizationSessionForStorage(slice) {
+  const resolved = resolveColonizationSlice(slice)
+  const { populationCollapseRaster, ...persisted } = resolved
+  void populationCollapseRaster
+  return persisted
 }
 
 /**

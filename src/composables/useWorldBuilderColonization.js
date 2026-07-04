@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { applyEpochStep } from '../../world-builder/core/colonization/applyEpochStep.js'
+import { applyPopulationCollapse } from '../../world-builder/core/colonization/applyPopulationCollapse.js'
 import { beginColonizationCommit } from '../../world-builder/core/colonization/beginColonizationCommit.js'
 import { computeHaulShedReachPreview } from '../../world-builder/core/colonization/computeHaulShedReachPreview.js'
 import {
@@ -165,7 +166,30 @@ export function useWorldBuilderColonization(options) {
    * @returns {import('../../world-builder/core/types.js').WorldDocument}
    */
   function applyToWorldDocument(doc) {
-    return applyColonizationSliceToWorldDocument(doc, slice.value)
+    const resolvedSlice = recomputePopulationCollapseRaster(slice.value, doc)
+    if (resolvedSlice !== slice.value) {
+      slice.value = resolvedSlice
+    }
+    return applyColonizationSliceToWorldDocument(doc, resolvedSlice)
+  }
+
+  /**
+   * Derive collapse raster from settlements, claims, epoch, and geography (never loaded from storage).
+   *
+   * @param {import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice} current
+   * @param {import('../../world-builder/core/types.js').WorldDocument} doc
+   * @returns {import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice}
+   */
+  function recomputePopulationCollapseRaster(current, doc) {
+    if (current.colonizationPhase !== COLONIZATION_PHASE_RUNNING) {
+      return current
+    }
+    const raster = current.populationCollapseRaster
+    const expectedLength = doc.gridWidth * doc.gridHeight
+    if (raster instanceof Float32Array && raster.length === expectedLength) {
+      return current
+    }
+    return applyPopulationCollapse(current, doc).slice
   }
 
   /**

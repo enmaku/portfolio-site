@@ -57,6 +57,7 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
       'overlayDisplaySettings',
       'colonizationSession',
     ],
+    omit: ['colonizationSession.populationCollapseRaster'],
     afterHydrate: ({ store }) => {
       store.geographySeed = parseStoredGeographySeed(store.geographySeed)
       store.prevailingWindDegrees = normalizeWindDegrees(store.prevailingWindDegrees)
