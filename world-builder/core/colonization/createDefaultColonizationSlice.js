@@ -25,7 +25,6 @@
  * @property {FoundingLanding | null} foundingLanding
  * @property {object[]} historyLog
  * @property {object[]} settlements
- * @property {object[]} committedTips
  * @property {string | null} realmId
  * @property {Record<string, Array<{ x: number, y: number }>>} primaryClaim
  * @property {Float32Array | null} populationCollapseRaster Derived in-memory overlay raster; never persisted.
@@ -56,7 +55,6 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'foundingLanding',
   'historyLog',
   'settlements',
-  'committedTips',
   'realmId',
   'primaryClaim',
   'notableFigures',
@@ -116,7 +114,6 @@ export function createDefaultColonizationSlice() {
     foundingLanding: null,
     historyLog: [],
     settlements: [],
-    committedTips: [],
     realmId: null,
     primaryClaim: {},
     populationCollapseRaster: null,
@@ -154,9 +151,6 @@ export function resolveColonizationSlice(value) {
     historyLog: Array.isArray(incoming.historyLog) ? incoming.historyLog.map((row) => ({ ...row })) : [],
     settlements: Array.isArray(incoming.settlements)
       ? incoming.settlements.map((row) => ({ ...row }))
-      : [],
-    committedTips: Array.isArray(incoming.committedTips)
-      ? incoming.committedTips.map((row) => ({ ...row }))
       : [],
     realmId: typeof incoming.realmId === 'string' ? incoming.realmId : null,
     epoch: Number.isFinite(incoming.epoch) ? /** @type {number} */ (incoming.epoch) : 0,

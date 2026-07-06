@@ -44,7 +44,6 @@ test('backToTerrain discards setup progress and returns defaults in terrain', ()
   assert.deepStrictEqual(next.colonistSettings, createDefaultColonizationSlice().colonistSettings)
   assert.deepStrictEqual(next.settlements, [])
   assert.deepStrictEqual(next.historyLog, [])
-  assert.deepStrictEqual(next.committedTips, [])
 })
 
 test('apply and extract colonization slice round-trip on a world document', () => {

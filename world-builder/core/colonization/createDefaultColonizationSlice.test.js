@@ -28,7 +28,6 @@ test('createDefaultColonizationSlice starts in terrain with empty scaffolding', 
   assert.strictEqual(slice.realmId, null)
   assert.deepStrictEqual(slice.settlements, [])
   assert.deepStrictEqual(slice.historyLog, [])
-  assert.deepStrictEqual(slice.committedTips, [])
   assert.deepStrictEqual(slice.primaryClaim, {})
   assert.strictEqual(slice.populationCollapseRaster, null)
   assert.deepStrictEqual(slice.notableFigures, [])
@@ -178,6 +177,23 @@ test('resolveColonizationSlice ignores persisted collapse raster payloads', () =
   assert.strictEqual(fromIndexMap.populationCollapseRaster, null)
 })
 
+test('resolveColonizationSlice strips legacy committedTips payloads', () => {
+  const revived = resolveColonizationSlice({
+    committedTips: [{ epoch: 0, settlements: [{ id: 's1' }] }],
+    colonizationPhase: COLONIZATION_PHASE_RUNNING,
+  })
+  assert.strictEqual('committedTips' in revived, false)
+})
+
+test('serializeColonizationSessionForStorage omits legacy committedTips from output', () => {
+  const slice = resolveColonizationSlice({
+    colonizationPhase: COLONIZATION_PHASE_RUNNING,
+    committedTips: [{ epoch: 0, claimMap: { s1: [{ x: 0, y: 0 }] } }],
+  })
+  const serialized = serializeColonizationSessionForStorage(slice)
+  assert.strictEqual('committedTips' in serialized, false)
+})
+
 test('cloneWorldDocument copies colonization slice independently', () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = 'setup'
@@ -185,7 +201,6 @@ test('cloneWorldDocument copies colonization slice independently', () => {
   slice.colonistSettings.threeDayHaulDistance = 12
   slice.settlements = [{ id: 's1', x: 3, y: 4, tier: 'outpost', population: 50 }]
   slice.historyLog = [{ kind: 'founding', epoch: 0 }]
-  slice.committedTips = [{ epoch: 0, settlements: [{ id: 's1' }] }]
   slice.realmId = 'realm-1'
 
   const doc = {
@@ -217,17 +232,14 @@ test('cloneWorldDocument copies colonization slice independently', () => {
   assert.notStrictEqual(cloned.foundingLanding, doc.foundingLanding)
   assert.notStrictEqual(cloned.settlements, doc.settlements)
   assert.notStrictEqual(cloned.historyLog, doc.historyLog)
-  assert.notStrictEqual(cloned.committedTips, doc.committedTips)
 
   cloned.foundingLanding.x = 99
   cloned.settlements[0].population = 0
   cloned.historyLog.push({ kind: 'other', epoch: 1 })
-  cloned.committedTips[0].epoch = 2
   cloned.colonistSettings.threeDayHaulDistance = 1
 
   assert.strictEqual(doc.foundingLanding.x, 3)
   assert.strictEqual(doc.settlements[0].population, 50)
   assert.strictEqual(doc.historyLog.length, 1)
-  assert.strictEqual(doc.committedTips[0].epoch, 0)
   assert.strictEqual(doc.colonistSettings.threeDayHaulDistance, 12)
 })

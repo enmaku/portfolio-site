@@ -22,8 +22,8 @@ test('applyRuinTransitions converts population 0 to ruin and releases claims', (
   assert.deepStrictEqual(result.primaryClaim, {})
   assert.strictEqual(result.historyLog.at(-1)?.kind, 'settlement_abandoned')
   assert.strictEqual(result.historyLog.at(-1)?.epoch, 3)
-  assert.strictEqual(result.events[0].retainTip, true)
-  assert.ok(result.events[0].claimMap.s1.length > 0)
+  assert.strictEqual(result.events[0].kind, 'settlement_abandoned')
+  assert.strictEqual(result.events[0].settlementId, 's1')
 })
 
 function dryGeographyDoc() {
@@ -73,29 +73,4 @@ test('applyColonizationEpoch ruins waterless settlements and keeps epoch step av
   const stepped = applyEpochStep(next, dry)
   assert.strictEqual(stepped.colonizationPhase, 'running')
   assert.ok(stepped.epoch > next.epoch)
-})
-
-test('applyEpochStep retains abandonment tip with claim map and omits quiet intra-batch years', () => {
-  const slice = createDefaultColonizationSlice()
-  slice.colonizationPhase = COLONIZATION_PHASE_SETUP
-  slice.foundingLanding = { x: 1, y: 1 }
-  slice.colonistSettings.startingPopulation = 50
-  slice.colonistSettings.threeDayHaulDistance = 1
-  slice.colonistSettings.epochBatch = 3
-
-  const wet = dryGeographyDoc()
-  wet.riverCorridorMask[1 * 4 + 1] = 1
-  wet.biomes.fill(BIOMES.GRASSLAND)
-  wet.fields.rainfall.fill(0.6)
-  const running = beginColonizationCommit(slice, wet)
-
-  const dry = dryGeographyDoc()
-  const next = applyEpochStep(running, dry)
-  const tipEpochs = next.committedTips.map((tip) => tip.epoch)
-  assert.ok(tipEpochs.includes(0))
-  assert.ok(next.committedTips.some((tip) => tip.eventKind === 'settlement_abandoned'))
-  const abandonmentTip = next.committedTips.find((tip) => tip.eventKind === 'settlement_abandoned')
-  assert.ok(abandonmentTip.claimMap[running.settlements[0].id]?.length > 0)
-  // Quiet years inside the batch are not tipped.
-  assert.ok(!tipEpochs.includes(2) || abandonmentTip.epoch === 2 || tipEpochs.at(-1) === 3)
 })

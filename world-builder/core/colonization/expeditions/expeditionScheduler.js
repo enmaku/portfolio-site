@@ -389,8 +389,6 @@ function advanceActiveExpeditions(params) {
       currentDoc = founded.worldDocument
       foundingEvents.push({
         kind: 'settlement_founded',
-        retainTip: true,
-        historyEntry: founded.historyEntry,
         epoch,
       })
       nextExpeditions.push({

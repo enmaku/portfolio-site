@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from '../biomeIds.js'
 import { applyColonizationEpoch } from './applyColonizationEpoch.js'
-import { applyEpochStep } from './applyEpochStep.js'
 import { beginColonizationCommit } from './beginColonizationCommit.js'
 import {
   COLONIZATION_PHASE_SETUP,
@@ -396,11 +395,4 @@ test('session round-trip restores bearing expeditions and visit raster', () => {
   assert.strictEqual(typeof rehydrated.expeditions[0].bearing, 'number')
   assert.ok(rehydrated.visitedCells instanceof Uint8Array)
   assert.deepStrictEqual([...rehydrated.visitedCells], [...expectedVisit])
-})
-test('applyEpochStep retains settlement_founded committed tips', () => {
-  const doc = colonizationFixtureDoc()
-  let slice = commitOnDoc(doc)
-  slice = applyEpochStep(slice, doc)
-  const foundedTips = slice.committedTips.filter((tip) => tip.eventKind === 'settlement_founded')
-  assert.ok(foundedTips.length >= 0)
 })

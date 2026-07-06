@@ -270,7 +270,6 @@
  * @property {import('./colonization/createDefaultColonizationSlice.js').FoundingLanding | null=} foundingLanding
  * @property {object[]=} historyLog
  * @property {object[]=} settlements
- * @property {object[]=} committedTips
  * @property {string | null=} realmId
  */
 

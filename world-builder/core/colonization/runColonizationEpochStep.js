@@ -8,7 +8,6 @@ import {
   runColonizationEpochRuinPhase,
   runColonizationEpochSurvivalPhase,
 } from './applyColonizationEpoch.js'
-import { createCommittedTip } from './createCommittedTip.js'
 import {
   createInitialEpochStepProgress,
   reduceEpochStepProgressOnEpochComplete,
@@ -66,8 +65,6 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
 
   let current = slice
   let currentDoc = worldDocument
-  /** @type {Array<{ slice: import('./createDefaultColonizationSlice.js').ColonizationSlice, event: object }>} */
-  const retainedEventTips = []
 
   for (let epochIndex = 0; epochIndex < batch; epochIndex += 1) {
     progress = reduceEpochStepProgressOnEpochStart(progress, { epochIndex, epochBatch: batch })
@@ -146,11 +143,6 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
 
     current = ctx.slice
     currentDoc = ctx.worldDocument
-    for (const event of ctx.events) {
-      if (event?.retainTip) {
-        retainedEventTips.push({ slice: current, event })
-      }
-    }
 
     progress = reduceEpochStepProgressOnEpochComplete(progress, { epochIndex, epochBatch: batch })
     handlers.onProgress?.(progress)
@@ -161,23 +153,12 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
   handlers.onProgress?.(progress)
   await yieldToUi()
 
-  const committedTips = [...current.committedTips]
-  for (const row of retainedEventTips) {
-    committedTips.push(createCommittedTip(row.slice, row.event))
-  }
-  committedTips.push(createCommittedTip(current))
-
-  const nextSlice = {
-    ...current,
-    committedTips,
-  }
-
   progress = reduceEpochStepProgressOnFinalizeStepComplete(progress, { stepIndex: 0 })
   handlers.onProgress?.(progress)
   await yieldToUi()
 
   return {
-    slice: nextSlice,
+    slice: current,
     ran: true,
   }
 }
@@ -198,8 +179,6 @@ export function applyEpochStepSyncFromPhases(slice, worldDocument, options = {})
   const batch = Math.max(1, Math.floor(slice.colonistSettings.epochBatch || 1))
   let current = slice
   let currentDoc = worldDocument
-  /** @type {object[]} */
-  const eventTips = []
 
   for (let i = 0; i < batch; i += 1) {
     const ctx = createColonizationEpochContext(current, currentDoc)
@@ -211,16 +190,7 @@ export function applyEpochStepSyncFromPhases(slice, worldDocument, options = {})
 
     current = ctx.slice
     currentDoc = ctx.worldDocument
-    for (const event of ctx.events) {
-      if (event?.retainTip) {
-        eventTips.push(createCommittedTip(current, event))
-      }
-    }
   }
 
-  const presentDayTip = createCommittedTip(current)
-  return {
-    ...current,
-    committedTips: [...current.committedTips, ...eventTips, presentDayTip],
-  }
+  return current
 }

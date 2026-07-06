@@ -1,6 +1,5 @@
 import { applyPopulationCollapse } from './applyPopulationCollapse.js'
 import { applyRuinTransitions } from './applyRuin.js'
-import { createCommittedTip } from './createCommittedTip.js'
 import { createFoundingDynasty } from './createFoundingDynasty.js'
 import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaimMap.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
@@ -113,17 +112,7 @@ export function executeBeginColonizationCommitStepsSync(current, doc) {
     doc,
   )
 
-  const committedTips = [
-    createCommittedTip(withCollapse),
-    ...ruined.events
-      .filter((event) => event.retainTip)
-      .map((event) => createCommittedTip(withCollapse, event)),
-  ]
-
-  return {
-    ...withCollapse,
-    committedTips,
-  }
+  return withCollapse
 }
 
 /**
@@ -252,19 +241,7 @@ async function executeBeginColonizationCommitStepsAsync(current, doc, hooks) {
     ),
   )
 
-  return runStep(7, () => {
-    const committedTips = [
-      createCommittedTip(withCollapse),
-      ...ruined.events
-        .filter((event) => event.retainTip)
-        .map((event) => createCommittedTip(withCollapse, event)),
-    ]
-
-    return {
-      ...withCollapse,
-      committedTips,
-    }
-  })
+  return runStep(7, () => withCollapse)
 }
 
 /**

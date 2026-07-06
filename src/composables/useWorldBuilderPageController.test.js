@@ -1336,7 +1336,6 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
     assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
     assert.strictEqual(ctx.resourceOverlayVisibility.value.population, true)
     assert.strictEqual(ctx.worldDocument.value?.settlements?.length, 1)
-    assert.strictEqual(ctx.worldDocument.value?.committedTips?.length, 1)
     assert.strictEqual(ctx.worldDocument.value?.historyLog?.[0]?.kind, 'founding')
     assert.ok(ctx.worldDocument.value?.realmId)
     assert.strictEqual(ctx.isTerrainLocked.value, true)
@@ -1386,7 +1385,6 @@ test('epochStep advances epoch by epochBatch and updates settlements', async () 
     assert.strictEqual(ctx.colonizationEpoch.value, 2)
     assert.strictEqual(settingsStore.colonizationSession.epoch, 2)
     assert.ok(ctx.worldDocument.value?.settlements?.[0]?.population >= populationBefore)
-    assert.strictEqual(ctx.worldDocument.value?.committedTips?.at(-1)?.epoch, 2)
     assert.strictEqual(ctx.timeControlsActive.value, true)
   } finally {
     scope.stop()
@@ -1618,14 +1616,13 @@ test('enterColonizationSetup persists locked terrain and colonization session', 
   }
 })
 
-test('start restores running colonization tips from session after landmass regen', async () => {
+test('start restores running colonization session after landmass regen', async () => {
   const scope = effectScope(true)
   try {
     const persisted = createDefaultColonizationSlice()
     persisted.colonizationPhase = COLONIZATION_PHASE_RUNNING
     persisted.foundingLanding = { x: 3, y: 3 }
     persisted.settlements = [{ id: 's1', x: 3, y: 3, population: 100 }]
-    persisted.committedTips = [{ epoch: 0, settlements: [{ id: 's1' }] }]
     persisted.historyLog = [{ kind: 'founding', epoch: 0 }]
     persisted.realmId = 'realm-test'
     const { ctx } = mountController(scope, {
@@ -1636,7 +1633,7 @@ test('start restores running colonization tips from session after landmass regen
     await waitUntil(() => ctx.worldDocument.value != null, 'colonization world document')
 
     assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
-    assert.strictEqual(ctx.worldDocument.value?.committedTips?.length, 1)
+    assert.strictEqual(ctx.worldDocument.value?.historyLog?.length, 1)
     assert.strictEqual(ctx.worldDocument.value?.settlements?.length, 1)
     assert.strictEqual(ctx.worldDocument.value?.realmId, 'realm-test')
     assert.strictEqual(ctx.isTerrainLocked.value, true)
@@ -1708,7 +1705,7 @@ test('start restores running colonization from colonization cache after beginCol
     assert.strictEqual(refreshed.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
     assert.strictEqual(refreshed.colonizationEpoch.value, 0)
     assert.strictEqual(refreshed.worldDocument.value?.settlements?.length, 1)
-    assert.strictEqual(refreshed.worldDocument.value?.committedTips?.length, 1)
+    assert.strictEqual(refreshed.worldDocument.value?.historyLog?.length, 1)
     assert.strictEqual(refreshed.timeControlsActive.value, true)
     assert.ok(refreshed.worldDocument.value?.populationCollapseRaster instanceof Float32Array)
   } finally {
