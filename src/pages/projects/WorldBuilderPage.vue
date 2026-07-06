@@ -128,6 +128,34 @@
                 </q-chip>
               </template>
             </template>
+            <template
+              v-for="step in epochStepFinalizeStepStatuses"
+              :key="step.id"
+            >
+              <q-chip
+                dense
+                :data-testid="`world-builder-epoch-step-finalize-${step.id}`"
+                :color="generationStepStatusColor(step.status)"
+                text-color="white"
+                :outline="step.status === 'pending'"
+              >
+                {{ step.label }}
+              </q-chip>
+              <template v-if="step.id === 'map' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in epochStepMapSubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-epoch-step-map-substep-${substep.id}`"
+                  :color="generationStepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
+            </template>
           </div>
         </div>
         <div
@@ -647,6 +675,8 @@ const {
   epochStepPhaseStatuses,
   epochStepNetworkSubstepStatuses,
   epochStepCollapseSubstepStatuses,
+  epochStepFinalizeStepStatuses,
+  epochStepMapSubstepStatuses,
   resourceOverlayVisibility,
   overlayDisplaySetting,
   toggleResourceOverlayVisibility,

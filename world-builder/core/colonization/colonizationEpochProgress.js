@@ -1,5 +1,8 @@
 import {
   COLONIZATION_COLLAPSE_SUBSTEPS,
+  COLONIZATION_EPOCH_FINALIZE_STEPS,
+  COLONIZATION_EPOCH_FINALIZE_STEP_COUNT,
+  COLONIZATION_EPOCH_MAP_SUBSTEPS,
   COLONIZATION_EPOCH_PHASE_COUNT,
   COLONIZATION_EPOCH_PHASES,
   COLONIZATION_NETWORK_SUBSTEPS,
@@ -18,6 +21,10 @@ import {
  * @property {number} completedNetworkSubstepIndex
  * @property {number} activeCollapseSubstepIndex
  * @property {number} completedCollapseSubstepIndex
+ * @property {number} activeFinalizeStepIndex
+ * @property {number} completedFinalizeStepIndex
+ * @property {number} activeMapSubstepIndex
+ * @property {number} completedMapSubstepIndex
  */
 
 /**
@@ -37,11 +44,15 @@ export function createInitialEpochStepProgress(epochBatch = 1) {
     completedNetworkSubstepIndex: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeFinalizeStepIndex: -1,
+    completedFinalizeStepIndex: -1,
+    activeMapSubstepIndex: -1,
+    completedMapSubstepIndex: -1,
   }
 }
 
 /**
- * @param {number} unitIndex zero-based completed-or-active unit across batch × phases
+ * @param {number} unitIndex zero-based completed-or-active unit across batch × phases + finalize
  * @param {number} unitCount epochBatch × phaseCount
  * @returns {number}
  */
@@ -65,7 +76,19 @@ export function epochStepUnitIndex(epochIndex, epochBatch, phaseIndex) {
  * @returns {number}
  */
 export function epochStepUnitCount(epochBatch) {
-  return Math.max(1, Math.floor(epochBatch || 1)) * COLONIZATION_EPOCH_PHASE_COUNT
+  return (
+    Math.max(1, Math.floor(epochBatch || 1)) * COLONIZATION_EPOCH_PHASE_COUNT +
+    COLONIZATION_EPOCH_FINALIZE_STEP_COUNT
+  )
+}
+
+/**
+ * @param {number} finalizeStepIndex
+ * @param {number} epochBatch
+ * @returns {number}
+ */
+export function epochStepFinalizeUnitIndex(finalizeStepIndex, epochBatch) {
+  return Math.max(1, Math.floor(epochBatch || 1)) * COLONIZATION_EPOCH_PHASE_COUNT + finalizeStepIndex
 }
 
 /**
@@ -96,6 +119,10 @@ export function reduceEpochStepProgressOnEpochStart(progress, payload) {
     completedNetworkSubstepIndex: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeFinalizeStepIndex: -1,
+    completedFinalizeStepIndex: -1,
+    activeMapSubstepIndex: -1,
+    completedMapSubstepIndex: -1,
   }
 }
 
@@ -119,6 +146,10 @@ export function reduceEpochStepProgressOnEpochComplete(progress, payload) {
     completedNetworkSubstepIndex: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeFinalizeStepIndex: -1,
+    completedFinalizeStepIndex: -1,
+    activeMapSubstepIndex: -1,
+    completedMapSubstepIndex: -1,
   }
 }
 
@@ -228,6 +259,83 @@ export function reduceEpochStepProgressOnCollapseSubstepComplete(progress, paylo
 
 /**
  * @param {EpochStepProgressState} progress
+ * @param {{ stepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnFinalizeStepStart(progress, payload) {
+  const step = COLONIZATION_EPOCH_FINALIZE_STEPS[payload.stepIndex]
+  const unitCount = epochStepUnitCount(progress.epochBatch)
+  const unitIndex = epochStepFinalizeUnitIndex(payload.stepIndex, progress.epochBatch)
+  return {
+    ...progress,
+    percent: epochStepProgressValue(unitIndex, unitCount),
+    activeEpochIndex: progress.completedEpochIndex,
+    activePhaseIndex: -1,
+    completedPhaseIndex: COLONIZATION_EPOCH_PHASE_COUNT - 1,
+    label: step?.label ?? '',
+    activeNetworkSubstepIndex: -1,
+    completedNetworkSubstepIndex: -1,
+    activeCollapseSubstepIndex: -1,
+    completedCollapseSubstepIndex: -1,
+    activeFinalizeStepIndex: payload.stepIndex,
+    activeMapSubstepIndex: payload.stepIndex === 1 ? -1 : progress.activeMapSubstepIndex,
+    completedMapSubstepIndex: payload.stepIndex === 1 ? -1 : progress.completedMapSubstepIndex,
+  }
+}
+
+/**
+ * @param {EpochStepProgressState} progress
+ * @param {{ stepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnFinalizeStepComplete(progress, payload) {
+  const unitCount = epochStepUnitCount(progress.epochBatch)
+  const unitIndex = epochStepFinalizeUnitIndex(payload.stepIndex, progress.epochBatch)
+  return {
+    ...progress,
+    percent: epochStepProgressValue(unitIndex, unitCount),
+    activeFinalizeStepIndex: payload.stepIndex,
+    completedFinalizeStepIndex: payload.stepIndex,
+    activeNetworkSubstepIndex: -1,
+    completedNetworkSubstepIndex: -1,
+    activeCollapseSubstepIndex: -1,
+    completedCollapseSubstepIndex: -1,
+    activeMapSubstepIndex: -1,
+    completedMapSubstepIndex: -1,
+  }
+}
+
+/**
+ * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnMapSubstepStart(progress, payload) {
+  const substep = COLONIZATION_EPOCH_MAP_SUBSTEPS[payload.substepIndex]
+  return {
+    ...progress,
+    activeMapSubstepIndex: payload.substepIndex,
+    label: progress.label.startsWith('Map')
+      ? `Map · ${substep?.label ?? ''}`
+      : progress.label,
+  }
+}
+
+/**
+ * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnMapSubstepComplete(progress, payload) {
+  return {
+    ...progress,
+    activeMapSubstepIndex: payload.substepIndex,
+    completedMapSubstepIndex: payload.substepIndex,
+  }
+}
+
+/**
+ * @param {EpochStepProgressState} progress
  * @returns {EpochStepProgressState}
  */
 export function reduceEpochStepProgressOnRunComplete(progress) {
@@ -238,6 +346,8 @@ export function reduceEpochStepProgressOnRunComplete(progress) {
     activePhaseIndex: -1,
     activeNetworkSubstepIndex: -1,
     activeCollapseSubstepIndex: -1,
+    activeFinalizeStepIndex: -1,
+    activeMapSubstepIndex: -1,
   }
 }
 

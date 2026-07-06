@@ -15,11 +15,12 @@ import {
   reduceEpochStepProgressOnEpochStart,
   reduceEpochStepProgressOnCollapseSubstepComplete,
   reduceEpochStepProgressOnCollapseSubstepStart,
+  reduceEpochStepProgressOnFinalizeStepComplete,
+  reduceEpochStepProgressOnFinalizeStepStart,
   reduceEpochStepProgressOnNetworkSubstepComplete,
   reduceEpochStepProgressOnNetworkSubstepStart,
   reduceEpochStepProgressOnPhaseComplete,
   reduceEpochStepProgressOnPhaseStart,
-  reduceEpochStepProgressOnRunComplete,
   yieldEpochStepProgressToUi,
 } from './colonizationEpochProgress.js'
 import { COLONIZATION_EPOCH_PHASES } from './colonizationEpochSteps.js'
@@ -65,8 +66,8 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
 
   let current = slice
   let currentDoc = worldDocument
-  /** @type {object[]} */
-  const eventTips = []
+  /** @type {Array<{ slice: import('./createDefaultColonizationSlice.js').ColonizationSlice, event: object }>} */
+  const retainedEventTips = []
 
   for (let epochIndex = 0; epochIndex < batch; epochIndex += 1) {
     progress = reduceEpochStepProgressOnEpochStart(progress, { epochIndex, epochBatch: batch })
@@ -147,7 +148,7 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
     currentDoc = ctx.worldDocument
     for (const event of ctx.events) {
       if (event?.retainTip) {
-        eventTips.push(createCommittedTip(current, event))
+        retainedEventTips.push({ slice: current, event })
       }
     }
 
@@ -156,15 +157,24 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
     await yieldToUi()
   }
 
-  const presentDayTip = createCommittedTip(current)
-  const committedTips = [...current.committedTips, ...eventTips, presentDayTip]
+  progress = reduceEpochStepProgressOnFinalizeStepStart(progress, { stepIndex: 0 })
+  handlers.onProgress?.(progress)
+  await yieldToUi()
+
+  const committedTips = [...current.committedTips]
+  for (const row of retainedEventTips) {
+    committedTips.push(createCommittedTip(row.slice, row.event))
+  }
+  committedTips.push(createCommittedTip(current))
+
   const nextSlice = {
     ...current,
     committedTips,
   }
 
-  progress = reduceEpochStepProgressOnRunComplete(progress)
+  progress = reduceEpochStepProgressOnFinalizeStepComplete(progress, { stepIndex: 0 })
   handlers.onProgress?.(progress)
+  await yieldToUi()
 
   return {
     slice: nextSlice,

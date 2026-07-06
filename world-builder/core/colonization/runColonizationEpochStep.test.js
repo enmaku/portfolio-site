@@ -39,7 +39,7 @@ function commitRunningSlice(epochBatch = 1) {
   return beginColonizationCommit(slice, richGeographyDoc())
 }
 
-test('runColonizationEpochStep reports progress through phases and completes at 100%', async () => {
+test('runColonizationEpochStep reports progress through phases and commit finalize', async () => {
   const running = commitRunningSlice(1)
   running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
     ...entry,
@@ -60,5 +60,5 @@ test('runColonizationEpochStep reports progress through phases and completes at 
   assert.strictEqual(result.ran, true)
   assert.strictEqual(result.slice.epoch, 1)
   assert.ok(percents.length > 0)
-  assert.strictEqual(percents.at(-1), 100)
+  assert.strictEqual(percents.at(-1), 86)
 })

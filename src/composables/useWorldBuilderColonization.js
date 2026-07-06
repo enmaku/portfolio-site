@@ -1,6 +1,12 @@
 import { computed, ref, shallowRef } from 'vue'
 import { createInitialBeginColonizationProgress } from '../../world-builder/core/colonization/beginColonizationProgress.js'
-import { createInitialEpochStepProgress } from '../../world-builder/core/colonization/colonizationEpochProgress.js'
+import {
+  createInitialEpochStepProgress,
+  reduceEpochStepProgressOnFinalizeStepComplete,
+  reduceEpochStepProgressOnFinalizeStepStart,
+  reduceEpochStepProgressOnRunComplete,
+  yieldEpochStepProgressToUi,
+} from '../../world-builder/core/colonization/colonizationEpochProgress.js'
 import { runColonizationEpochStep } from '../../world-builder/core/colonization/runColonizationEpochStep.js'
 import {
   needsColonizationDerivedOverlayRehydration,
@@ -43,6 +49,11 @@ import { snapFoundingLandingCell } from '../../world-builder/core/colonization/i
  *   } | null,
  *   getGeographyDocument?: () => import('../../world-builder/core/types.js').WorldDocument | null,
  *   onSliceChanged?: () => void,
+ *   finalizeEpochMapSync?: (handlers: {
+ *     getProgress: () => import('../../world-builder/core/colonization/colonizationEpochProgress.js').EpochStepProgressState,
+ *     onProgress: (progress: import('../../world-builder/core/colonization/colonizationEpochProgress.js').EpochStepProgressState) => void,
+ *     yieldToUi: () => Promise<void>,
+ *   }) => Promise<void>,
  *   onSessionPersistRequested?: () => void,
  * }} options
  */
@@ -53,6 +64,7 @@ export function useWorldBuilderColonization(options) {
     getViewport,
     getGeographyDocument,
     onSliceChanged,
+    finalizeEpochMapSync,
     onSessionPersistRequested,
   } = options
 
@@ -217,14 +229,29 @@ export function useWorldBuilderColonization(options) {
 
   /**
    * @param {import('../../world-builder/core/types.js').WorldDocument} doc
-   * @returns {import('../../world-builder/core/types.js').WorldDocument}
    */
-  function applyToWorldDocument(doc) {
+  function rehydrateDerivedOverlaysForWorldDocument(doc) {
     const resolvedSlice = rehydrateColonizationDerivedOverlays(slice.value, doc)
     if (resolvedSlice !== slice.value) {
       slice.value = resolvedSlice
     }
-    return applyColonizationSliceToWorldDocument(doc, resolvedSlice)
+  }
+
+  /**
+   * @param {import('../../world-builder/core/types.js').WorldDocument} doc
+   * @returns {import('../../world-builder/core/types.js').WorldDocument}
+   */
+  function mergeSliceIntoWorldDocument(doc) {
+    return applyColonizationSliceToWorldDocument(doc, slice.value)
+  }
+
+  /**
+   * @param {import('../../world-builder/core/types.js').WorldDocument} doc
+   * @returns {import('../../world-builder/core/types.js').WorldDocument}
+   */
+  function applyToWorldDocument(doc) {
+    rehydrateDerivedOverlaysForWorldDocument(doc)
+    return mergeSliceIntoWorldDocument(doc)
   }
 
   function beginSessionRestore() {
@@ -451,7 +478,32 @@ export function useWorldBuilderColonization(options) {
         return false
       }
       slice.value = result.slice
-      persistSlice()
+
+      let progress = reduceEpochStepProgressOnFinalizeStepStart(epochStepProgress.value, {
+        stepIndex: 1,
+      })
+      epochStepProgress.value = progress
+      await yieldEpochStepProgressToUi()
+
+      if (finalizeEpochMapSync) {
+        await finalizeEpochMapSync({
+          getProgress: () => epochStepProgress.value,
+          onProgress(next) {
+            epochStepProgress.value = next
+          },
+          yieldToUi: yieldEpochStepProgressToUi,
+        })
+      } else {
+        settingsStore.setColonizationSession?.(slice.value)
+        onSliceChanged?.()
+      }
+
+      progress = reduceEpochStepProgressOnFinalizeStepComplete(epochStepProgress.value, {
+        stepIndex: 1,
+      })
+      epochStepProgress.value = reduceEpochStepProgressOnRunComplete(progress)
+      await yieldEpochStepProgressToUi()
+
       syncLandingVisuals()
       return true
     } finally {
@@ -558,6 +610,8 @@ export function useWorldBuilderColonization(options) {
     settlements: computed(() => slice.value.settlements),
     applyToWorldDocument,
     applyToWorldDocumentAsync,
+    rehydrateDerivedOverlaysForWorldDocument,
+    mergeSliceIntoWorldDocument,
     beginSessionRestore,
     endSessionRestore,
     yieldSessionRestoreToUi,
