@@ -251,6 +251,52 @@ test('collapsePopulation skips ruins and empty domains', () => {
   assert.strictEqual(noLand[0], 0)
 })
 
+test('collapsePopulation spreads hinterland south of the pin, not only north', () => {
+  const width = 51
+  const height = 51
+  const cellCount = width * height
+  const pin = { x: 25, y: 25 }
+  /** @type {Array<{ x: number, y: number }>} */
+  const cells = []
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      cells.push({ x, y })
+    }
+  }
+
+  const raster = collapsePopulation({
+    settlements: [{ id: 's1', ...pin, population: 1000, status: 'living' }],
+    primaryClaim: { s1: cells },
+    arableRaster: new Float32Array(cellCount).fill(1),
+    elevation: landElevation(cellCount),
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    gridWidth: width,
+    gridHeight: height,
+    geographySeed: 1,
+    epoch: 0,
+  })
+
+  let peopleNorth = 0
+  let peopleSouth = 0
+  let maxSouthDy = 0
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const value = raster[y * width + x]
+      if (value < 1) continue
+      if (y < pin.y) {
+        peopleNorth += value
+      } else if (y > pin.y) {
+        peopleSouth += value
+        maxSouthDy = Math.max(maxSouthDy, y - pin.y)
+      }
+    }
+  }
+
+  assert.ok(peopleSouth > 0)
+  assert.ok(maxSouthDy > 1)
+  assert.ok(peopleSouth / peopleNorth > 0.25)
+})
+
 test('collapsePopulation parks hinterland in urban cluster when no arable hinterland exists', () => {
   const width = 3
   const height = 3
