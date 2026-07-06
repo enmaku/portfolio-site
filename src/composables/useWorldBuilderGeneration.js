@@ -16,7 +16,10 @@ import {
 /**
  * @param {{
  *   getDerivedGeographyParams: () => import('../../world-builder/core/types.js').DerivedGeographyParams | null,
- *   applyWorldDocument: (doc: import('../../world-builder/core/types.js').WorldDocument) => void | Promise<void>,
+ *   applyWorldDocument: (
+ *     doc: import('../../world-builder/core/types.js').WorldDocument,
+ *     applyOptions?: { preserveRestorePhase?: boolean },
+ *   ) => void | Promise<void>,
  *   onRunError?: (message: string) => void,
  *   onBeforeRun?: () => void,
  *   onRunCompleteSuccess?: () => void,
@@ -107,7 +110,7 @@ export function useWorldBuilderGeneration(options) {
   /**
    * Apply a previously generated landmass without running the worker (terrain cache restore).
    * @param {import('../../world-builder/core/types.js').WorldDocument} doc
-   * @param {{ skipPersist?: boolean }} [options]
+   * @param {{ skipPersist?: boolean, preserveRestorePhase?: boolean }} [applyOptions]
    * @returns {Promise<void>}
    */
   async function applyCachedWorldDocument(doc, applyOptions = {}) {
@@ -115,8 +118,11 @@ export function useWorldBuilderGeneration(options) {
     worldDocument.value = doc
     runPhase.value = 'success'
     generationProgress.value = createInitialGenerationProgress()
-    await Promise.resolve(options.applyWorldDocument(doc))
-    if (!applyOptions.skipPersist) {
+    const { skipPersist, preserveRestorePhase } = applyOptions
+    await Promise.resolve(
+      options.applyWorldDocument(doc, preserveRestorePhase ? { preserveRestorePhase: true } : undefined),
+    )
+    if (!skipPersist) {
       options.onRunCompleteSuccess?.()
     }
   }

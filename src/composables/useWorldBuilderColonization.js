@@ -2,7 +2,13 @@ import { computed, ref, shallowRef } from 'vue'
 import { createInitialBeginColonizationProgress } from '../../world-builder/core/colonization/beginColonizationProgress.js'
 import { createInitialEpochStepProgress } from '../../world-builder/core/colonization/colonizationEpochProgress.js'
 import { runColonizationEpochStep } from '../../world-builder/core/colonization/runColonizationEpochStep.js'
-import { rehydrateColonizationDerivedOverlays } from '../../world-builder/core/colonization/rehydrateColonizationDerivedOverlays.js'
+import {
+  needsColonizationDerivedOverlayRehydration,
+  rehydrateColonizationDerivedOverlays,
+  rehydrateColonizationDerivedOverlaysAsync,
+} from '../../world-builder/core/colonization/rehydrateColonizationDerivedOverlays.js'
+import { createInitialRehydrateColonizationProgress, reduceRehydrateColonizationProgressOnRunComplete, reduceRehydrateColonizationProgressOnSessionSubstepComplete, reduceRehydrateColonizationProgressOnSessionSubstepStart, reduceRehydrateColonizationProgressOnStepComplete, reduceRehydrateColonizationProgressOnStepStart, yieldRehydrateColonizationProgressToUi } from '../../world-builder/core/colonization/rehydrateColonizationProgress.js'
+import { COLONIZATION_SESSION_RESTORE_STEP_COUNT, COLONIZATION_SESSION_RESTORE_STEPS } from '../../world-builder/core/colonization/colonizationRehydrationSteps.js'
 import { runBeginColonizationCommit } from '../../world-builder/core/colonization/runBeginColonizationCommit.js'
 import { computeHaulShedReachPreview } from '../../world-builder/core/colonization/computeHaulShedReachPreview.js'
 import {
@@ -56,6 +62,8 @@ export function useWorldBuilderColonization(options) {
   const epochStepPhase = ref('idle')
   /** @type {import('vue').Ref<'idle' | 'running'>} */
   const beginColonizationPhase = ref('idle')
+  /** @type {import('vue').Ref<'idle' | 'running'>} */
+  const rehydrationPhase = ref('idle')
   /** @type {import('vue').ShallowRef<import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonistSettings>} */
   const colonistSettingsSnapshot = shallowRef(createDefaultColonistSettings())
   /** Batch size for the next epoch step only; never written into slice until epochStep runs. */
@@ -64,6 +72,8 @@ export function useWorldBuilderColonization(options) {
   const epochStepProgress = ref(createInitialEpochStepProgress())
   /** @type {import('vue').Ref<import('../../world-builder/core/colonization/beginColonizationProgress.js').BeginColonizationProgressState>} */
   const beginColonizationProgress = ref(createInitialBeginColonizationProgress())
+  /** @type {import('vue').Ref<import('../../world-builder/core/colonization/rehydrateColonizationProgress.js').RehydrateColonizationProgressState>} */
+  const rehydrationProgress = ref(createInitialRehydrateColonizationProgress())
 
   const colonizationPhase = computed(() => slice.value.colonizationPhase)
   const isTerrainAuthoringEnabled = computed(
@@ -94,6 +104,8 @@ export function useWorldBuilderColonization(options) {
   )
   const isEpochStepRunning = computed(() => epochStepPhase.value === 'running')
   const showEpochStepProgress = computed(() => epochStepPhase.value === 'running')
+  const isRehydrationRunning = computed(() => rehydrationPhase.value === 'running')
+  const showRehydrationProgress = computed(() => rehydrationPhase.value === 'running')
   const isColonistSettingsRunningPhase = computed(
     () => slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING,
   )
@@ -213,6 +225,119 @@ export function useWorldBuilderColonization(options) {
       slice.value = resolvedSlice
     }
     return applyColonizationSliceToWorldDocument(doc, resolvedSlice)
+  }
+
+  function beginSessionRestore() {
+    rehydrationPhase.value = 'running'
+    rehydrationProgress.value = createInitialRehydrateColonizationProgress()
+  }
+
+  function endSessionRestore() {
+    rehydrationPhase.value = 'idle'
+    rehydrationProgress.value = createInitialRehydrateColonizationProgress()
+  }
+
+  function yieldSessionRestoreToUi() {
+    return yieldRehydrateColonizationProgressToUi()
+  }
+
+  /**
+   * @template T
+   * @param {number} stepIndex
+   * @param {() => T | Promise<T>} work
+   * @returns {Promise<T>}
+   */
+  async function runSessionRestoreStep(stepIndex, work) {
+    const step = COLONIZATION_SESSION_RESTORE_STEPS[stepIndex]
+    rehydrationProgress.value = reduceRehydrateColonizationProgressOnStepStart(
+      rehydrationProgress.value,
+      {
+        stepIndex,
+        label: step?.label ?? '',
+      },
+    )
+    await yieldRehydrateColonizationProgressToUi()
+    const result = await work()
+    rehydrationProgress.value = reduceRehydrateColonizationProgressOnStepComplete(
+      rehydrationProgress.value,
+      { stepIndex },
+    )
+    await yieldRehydrateColonizationProgressToUi()
+    return result
+  }
+
+  /**
+   * @template T
+   * @param {number} substepIndex
+   * @param {() => T | Promise<T>} work
+   * @returns {Promise<T>}
+   */
+  async function runSessionRestoreSubstep(substepIndex, work) {
+    rehydrationProgress.value = reduceRehydrateColonizationProgressOnSessionSubstepStart(
+      rehydrationProgress.value,
+      { substepIndex },
+    )
+    await yieldRehydrateColonizationProgressToUi()
+    const result = await work()
+    rehydrationProgress.value = reduceRehydrateColonizationProgressOnSessionSubstepComplete(
+      rehydrationProgress.value,
+      { substepIndex },
+    )
+    await yieldRehydrateColonizationProgressToUi()
+    return result
+  }
+
+  async function finalizeSessionRestoreProgress() {
+    let progress = rehydrationProgress.value
+    const lastStep = COLONIZATION_SESSION_RESTORE_STEP_COUNT - 1
+    for (let stepIndex = progress.completedStepIndex + 1; stepIndex <= lastStep; stepIndex += 1) {
+      progress = reduceRehydrateColonizationProgressOnStepComplete(progress, { stepIndex })
+      rehydrationProgress.value = progress
+      await yieldRehydrateColonizationProgressToUi()
+    }
+    rehydrationProgress.value = reduceRehydrateColonizationProgressOnRunComplete(progress)
+    await yieldRehydrateColonizationProgressToUi()
+  }
+
+  /**
+   * @param {import('../../world-builder/core/types.js').WorldDocument} doc
+   * @param {{ preserveRestorePhase?: boolean }} [options]
+   * @returns {Promise<import('../../world-builder/core/types.js').WorldDocument>}
+   */
+  async function applyToWorldDocumentAsync(doc, options = {}) {
+    const preserveRestorePhase = options.preserveRestorePhase === true
+    const restoring = rehydrationPhase.value === 'running'
+
+    if (!needsColonizationDerivedOverlayRehydration(slice.value, doc)) {
+      if (restoring) {
+        await finalizeSessionRestoreProgress()
+      }
+      return applyToWorldDocument(doc)
+    }
+
+    if (!restoring) {
+      rehydrationPhase.value = 'running'
+      rehydrationProgress.value = createInitialRehydrateColonizationProgress()
+    }
+
+    try {
+      const resolvedSlice = await rehydrateColonizationDerivedOverlaysAsync(slice.value, doc, {
+        initialProgress: restoring ? rehydrationProgress.value : undefined,
+        skipInitialYield: restoring,
+        handlers: {
+          onProgress(progress) {
+            rehydrationProgress.value = progress
+          },
+        },
+      })
+      slice.value = resolvedSlice
+      return applyColonizationSliceToWorldDocument(doc, resolvedSlice)
+    } finally {
+      if (!preserveRestorePhase) {
+        rehydrationPhase.value = 'idle'
+        rehydrationProgress.value = createInitialRehydrateColonizationProgress()
+      }
+    }
   }
 
   /**
@@ -419,6 +544,9 @@ export function useWorldBuilderColonization(options) {
     beginColonizationProgress,
     showEpochStepProgress,
     epochStepProgress,
+    isRehydrationRunning,
+    showRehydrationProgress,
+    rehydrationProgress,
     isColonistSettingsRunningPhase,
     hydrateFromPersistedSettings,
     enterColonizationSetup,
@@ -429,6 +557,12 @@ export function useWorldBuilderColonization(options) {
     epoch: computed(() => slice.value.epoch),
     settlements: computed(() => slice.value.settlements),
     applyToWorldDocument,
+    applyToWorldDocumentAsync,
+    beginSessionRestore,
+    endSessionRestore,
+    yieldSessionRestoreToUi,
+    runSessionRestoreStep,
+    runSessionRestoreSubstep,
     setFoundingLanding,
     pickFoundingLanding,
     haulShedPreviewCells,

@@ -43,6 +43,12 @@ test('createResourceOverlayPageState defaults visibility off and uses persisted 
   assert.strictEqual(state.displaySettings.arableMinimumProductivity, 0.25)
 })
 
+test('createResourceOverlayPageState restores persisted visibility booleans', () => {
+  const state = createResourceOverlayPageState(undefined, { timber: true })
+  assert.strictEqual(state.visibility.timber, true)
+  assert.strictEqual(state.visibility.salt, false)
+})
+
 test('toggleResourceOverlayVisibility updates page state immutably', () => {
   const initial = createResourceOverlayPageState()
   const visible = toggleResourceOverlayVisibility(initial, 'timber', true)

@@ -1,7 +1,7 @@
 <template>
   <q-page class="world-builder-page column fit no-wrap">
     <div
-      v-if="showGenerationProgress || showBeginColonizationProgress || showEpochStepProgress || showResourceOverlayBar"
+      v-if="showGenerationProgress || showBeginColonizationProgress || showEpochStepProgress || showRehydrationProgress || showResourceOverlayBar"
       data-testid="world-builder-status-bar"
       class="generation-progress"
     >
@@ -62,14 +62,6 @@
           />
           <div class="row q-gutter-xs items-center no-wrap generation-step-row">
             <q-chip
-              dense
-              color="grey-7"
-              text-color="white"
-              data-testid="world-builder-begin-colonization-label"
-            >
-              {{ beginColonizationProgress.label }}
-            </q-chip>
-            <q-chip
               v-for="step in beginColonizationStepStatuses"
               :key="step.id"
               dense
@@ -94,14 +86,6 @@
             rounded
           />
           <div class="row q-gutter-xs items-center no-wrap generation-step-row">
-            <q-chip
-              dense
-              color="grey-7"
-              text-color="white"
-              data-testid="world-builder-epoch-step-batch-label"
-            >
-              {{ epochStepProgress.label }}
-            </q-chip>
             <template
               v-for="step in epochStepPhaseStatuses"
               :key="step.id"
@@ -135,6 +119,63 @@
                   :key="substep.id"
                   dense
                   :data-testid="`world-builder-epoch-step-collapse-substep-${substep.id}`"
+                  :color="generationStepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
+            </template>
+          </div>
+        </div>
+        <div
+          v-else-if="showRehydrationProgress"
+          data-testid="world-builder-rehydration-progress"
+          class="status-bar-panel status-bar-panel--generation"
+        >
+          <q-linear-progress
+            :value="rehydrationProgressIndeterminate ? undefined : rehydrationProgress.percent / 100"
+            :indeterminate="rehydrationProgressIndeterminate"
+            color="info"
+            track-color="grey-9"
+            rounded
+          />
+          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
+            <template
+              v-for="step in rehydrationStepStatuses"
+              :key="step.id"
+            >
+              <q-chip
+                dense
+                :data-testid="`world-builder-rehydration-step-${step.id}`"
+                :color="generationStepStatusColor(step.status)"
+                text-color="white"
+                :outline="step.status === 'pending'"
+              >
+                {{ step.label }}
+              </q-chip>
+              <template v-if="step.id === 'session' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in rehydrationSessionSubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-rehydration-session-substep-${substep.id}`"
+                  :color="generationStepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
+              <template v-if="step.id === 'collapse' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in rehydrationCollapseSubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-rehydration-collapse-substep-${substep.id}`"
                   :color="generationStepStatusColor(substep.status)"
                   text-color="white"
                   :outline="substep.status === 'pending'"
@@ -542,7 +583,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import {
   createResourceOverlayDefinitions,
@@ -581,6 +622,8 @@ const {
   showGenerationProgress,
   showBeginColonizationProgress,
   showEpochStepProgress,
+  showRehydrationProgress,
+  isSessionRestorePending,
   showResourceOverlayBar,
   showValidationFailureIndicator,
   visibleValidationRows,
@@ -595,6 +638,10 @@ const {
   epochStepProgress,
   beginColonizationProgress,
   beginColonizationStepStatuses,
+  rehydrationProgress,
+  rehydrationStepStatuses,
+  rehydrationSessionSubstepStatuses,
+  rehydrationCollapseSubstepStatuses,
   isEpochStepRunning,
   isBeginColonizationRunning,
   epochStepPhaseStatuses,
@@ -668,6 +715,12 @@ const {
     })
   },
 })
+
+const rehydrationProgressIndeterminate = computed(
+  () =>
+    isSessionRestorePending.value ||
+    (showRehydrationProgress.value && rehydrationProgress.value.activeStepIndex < 0),
+)
 
 onMounted(start)
 onUnmounted(destroy)

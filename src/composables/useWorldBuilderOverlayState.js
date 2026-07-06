@@ -6,6 +6,10 @@ import {
   toggleResourceOverlayVisibility,
   updateOverlayDisplaySetting,
 } from '../../world-builder/resourceOverlayState.js'
+import {
+  loadPersistedResourceOverlayVisibility,
+  persistResourceOverlayVisibility,
+} from '../../world-builder/resourceOverlayVisibilityStorage.js'
 
 /** @typedef {import('../../world-builder/resourceOverlayState.js').ResourceOverlayPageState} ResourceOverlayPageState */
 /** @typedef {import('../../world-builder/resourceOverlays.js').OverlayDisplaySettings} OverlayDisplaySettings */
@@ -33,31 +37,40 @@ function persistOverlayDisplaySettings(previousState, nextState, settingsStore) 
 
 /**
  * Single owner for World Builder overlay visibility and display settings.
- * Pinia persists display settings; the composable projects them and syncs the viewport render cache.
+ * Display settings persist via Pinia; visibility booleans persist in isolated localStorage.
  *
  * @param {{
  *   getViewport: () => {
  *     syncOverlayRenderCache?: (state: ResourceOverlayPageState) => void,
  *   } | null | undefined,
  *   settingsStore: WorldBuilderOverlaySettingsStore,
+ *   visibilityStorage?: Pick<Storage, 'getItem' | 'setItem'>,
  * }} options
  */
 export function useWorldBuilderOverlayState(options) {
-  const { getViewport, settingsStore } = options
+  const { getViewport, settingsStore, visibilityStorage } = options
   /** @type {import('vue').Ref<ResourceOverlayPageState>} */
-  const state = ref(createResourceOverlayPageState(settingsStore.overlayDisplaySettings))
+  const state = ref(
+    createResourceOverlayPageState(
+      settingsStore.overlayDisplaySettings,
+      loadPersistedResourceOverlayVisibility(visibilityStorage),
+    ),
+  )
 
   /** Destructure at setup top level so SFC templates auto-unwrap this ref. */
   const visibility = computed(() => state.value.visibility)
 
   /**
    * @param {ResourceOverlayPageState} nextState
-   * @param {{ persistDisplaySettings?: boolean }} [commitOptions]
+   * @param {{ persistDisplaySettings?: boolean, persistVisibility?: boolean }} [commitOptions]
    */
   function commit(nextState, commitOptions = {}) {
-    const { persistDisplaySettings = false } = commitOptions
+    const { persistDisplaySettings = false, persistVisibility = false } = commitOptions
     if (persistDisplaySettings) {
       persistOverlayDisplaySettings(state.value, nextState, settingsStore)
+    }
+    if (persistVisibility) {
+      persistResourceOverlayVisibility(nextState.visibility, visibilityStorage)
     }
     state.value = commitResourceOverlayState(getViewport(), nextState)
   }
@@ -67,7 +80,9 @@ export function useWorldBuilderOverlayState(options) {
    * @param {boolean | null | undefined} visible
    */
   function toggleVisibility(resourceId, visible) {
-    commit(toggleResourceOverlayVisibility(state.value, resourceId, visible === true))
+    commit(toggleResourceOverlayVisibility(state.value, resourceId, visible === true), {
+      persistVisibility: true,
+    })
   }
 
   /**
@@ -80,8 +95,12 @@ export function useWorldBuilderOverlayState(options) {
     })
   }
 
-  function resetVisibility() {
-    commit(resetResourceOverlayVisibilityState(state.value))
+  /**
+   * @param {{ persist?: boolean }} [options]
+   */
+  function resetVisibility(options = {}) {
+    const { persist = false } = options
+    commit(resetResourceOverlayVisibilityState(state.value), { persistVisibility: persist })
   }
 
   function syncToViewport() {
@@ -89,11 +108,19 @@ export function useWorldBuilderOverlayState(options) {
   }
 
   function hydrateFromPersistedSettings() {
-    state.value = createResourceOverlayPageState(settingsStore.overlayDisplaySettings)
+    state.value = createResourceOverlayPageState(
+      settingsStore.overlayDisplaySettings,
+      loadPersistedResourceOverlayVisibility(visibilityStorage),
+    )
   }
 
   function applyPersistedDefaults() {
-    commit(createResourceOverlayPageState(settingsStore.overlayDisplaySettings))
+    commit(
+      createResourceOverlayPageState(
+        settingsStore.overlayDisplaySettings,
+        loadPersistedResourceOverlayVisibility(visibilityStorage),
+      ),
+    )
   }
 
   /**

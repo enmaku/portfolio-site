@@ -24,7 +24,7 @@ Glossary: [`world-builder/CONTEXT.md`](../../world-builder/CONTEXT.md) (**Expedi
 
 A trek ends on: **founding** at a viable **logistics node**, **blocked** (no legal terrain-following step), **range cap** (**land expedition range** / **sail expedition range** multipliers in **colonist settings**, locked at **begin colonization**), or **survey complete** (legal steps exist but all enter visited cells).
 
-Successful founding persists the marched path as a **route segment** (**land route** or **sail route**). The **Routes overlay** shows founding paths only (ochre/tan land, cyan/teal sail)—not failed or completed-without-founding treks (**exploration fog** covers visit status). **Sail expedition** founding is limited to **Sail overlay**-reachable **logistics nodes**.
+Successful founding persists a **route segment** (**land route** or **sail route**) computed as a terrain-following A→B corridor between parent and daughter **settlements**—not the marched **expedition** trace (see [ADR 0013](0013-world-builder-founding-route-corridor-computation.md)). The **Routes overlay** shows founding segments only (gray cobblestone land, cyan/teal sail)—not failed or completed-without-founding treks (**exploration fog** covers visit status). **Sail expedition** founding is limited to **Sail overlay**-reachable **logistics nodes**.
 
 ## Considered options
 

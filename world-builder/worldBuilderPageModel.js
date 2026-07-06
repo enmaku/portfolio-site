@@ -309,6 +309,14 @@ export function shouldShowBeginColonizationProgress(beginColonizationPhase) {
 }
 
 /**
+ * @param {'idle' | 'running'} rehydrationPhase
+ * @returns {boolean}
+ */
+export function shouldShowRehydrationProgress(rehydrationPhase) {
+  return rehydrationPhase === 'running'
+}
+
+/**
  * @param {GenerationRunPhase} runPhase
  * @param {'idle' | 'running'} colonizationBusyPhase
  * @returns {boolean}

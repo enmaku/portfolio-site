@@ -301,6 +301,64 @@ export function routePositionAtProgress(routeCells, progressIndex) {
 }
 
 /**
+ * Integer grid line between two cells (8-connected Bresenham).
+ *
+ * @param {{ x: number, y: number }} from
+ * @param {{ x: number, y: number }} to
+ * @returns {Array<{ x: number, y: number }>}
+ */
+export function rasterizeGridLine(from, to) {
+  /** @type {Array<{ x: number, y: number }>} */
+  const cells = []
+  let x = from.x
+  let y = from.y
+  const dx = Math.abs(to.x - from.x)
+  const dy = Math.abs(to.y - from.y)
+  const sx = from.x < to.x ? 1 : -1
+  const sy = from.y < to.y ? 1 : -1
+  let err = dx - dy
+
+  while (true) {
+    cells.push({ x, y })
+    if (x === to.x && y === to.y) break
+    const e2 = 2 * err
+    if (e2 > -dy) {
+      err -= dy
+      x += sx
+    }
+    if (e2 < dx) {
+      err += dx
+      y += sy
+    }
+  }
+
+  return cells
+}
+
+/**
+ * Insert grid steps between sparse route waypoints so corridors stay connected.
+ *
+ * @param {Array<{ x: number, y: number }>} routeCells
+ * @returns {Array<{ x: number, y: number }>}
+ */
+export function densifyRouteCells(routeCells) {
+  if (!routeCells || routeCells.length <= 1) {
+    return routeCells ?? []
+  }
+
+  /** @type {Array<{ x: number, y: number }>} */
+  const dense = []
+  for (let i = 0; i < routeCells.length - 1; i += 1) {
+    const line = rasterizeGridLine(routeCells[i], routeCells[i + 1])
+    if (dense.length > 0) {
+      line.shift()
+    }
+    dense.push(...line)
+  }
+  return dense
+}
+
+/**
  * Corridor cells = routed cell plus immediate neighbors along traveled path.
  *
  * @param {Array<{ x: number, y: number }>} traveledCells
@@ -310,7 +368,7 @@ export function routePositionAtProgress(routeCells, progressIndex) {
 export function buildCorridorCells(traveledCells, gridWidth, gridHeight) {
   /** @type {Map<string, { x: number, y: number }>} */
   const corridor = new Map()
-  for (const cell of traveledCells) {
+  for (const cell of densifyRouteCells(traveledCells)) {
     for (let dy = -1; dy <= 1; dy += 1) {
       for (let dx = -1; dx <= 1; dx += 1) {
         const nx = cell.x + dx

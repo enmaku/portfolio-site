@@ -23,6 +23,7 @@ import {
   shouldShowGenerationProgress,
   shouldShowBeginColonizationProgress,
   shouldShowEpochStepProgress,
+  shouldShowRehydrationProgress,
   shouldShowResourceOverlayBar,
   shouldShowValidationFailureIndicator,
   isGenerationRunSuccess,
@@ -334,6 +335,11 @@ test('shouldShowBeginColonizationProgress is true only while running', () => {
   assert.strictEqual(shouldShowBeginColonizationProgress('idle'), false)
 })
 
+test('shouldShowRehydrationProgress is true only while running', () => {
+  assert.strictEqual(shouldShowRehydrationProgress('running'), true)
+  assert.strictEqual(shouldShowRehydrationProgress('idle'), false)
+})
+
 test('shouldShowResourceOverlayBar is true only after successful pipeline completion', () => {
   assert.strictEqual(shouldShowResourceOverlayBar('running'), false)
   assert.strictEqual(shouldShowResourceOverlayBar('exhausted'), false)
@@ -382,9 +388,11 @@ test('status bar helpers never show progress and overlay bar together', () => {
     const showGeneration = shouldShowGenerationProgress(runPhase)
     const showBegin = shouldShowBeginColonizationProgress('running')
     const showEpoch = shouldShowEpochStepProgress('running')
+    const showRehydration = shouldShowRehydrationProgress('running')
     const showOverlayBar = shouldShowResourceOverlayBar(runPhase, 'running')
     assert.strictEqual(showGeneration && showOverlayBar, false)
     assert.strictEqual(showBegin && showOverlayBar, false)
     assert.strictEqual(showEpoch && showOverlayBar, false)
+    assert.strictEqual(showRehydration && showOverlayBar, false)
   }
 })

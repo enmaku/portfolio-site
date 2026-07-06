@@ -1,7 +1,7 @@
 import { resolveExpeditions } from '../expeditions/expeditionConstants.js'
 import { LOGISTICS_NODE_VISIT_DISC_RADIUS } from '../expeditions/expeditionConstants.js'
-import { routeCellsUpToProgress } from '../expeditions/expeditionRouting.js'
-import { buildLandRouteCellMask } from '../roads/roadNetwork.js'
+import { buildCorridorCells, routeCellsUpToProgress } from '../expeditions/expeditionRouting.js'
+import { buildLandRouteCellMask, resolveRoadSegments } from '../roads/roadNetwork.js'
 import {
   createEmptyVisitRaster,
   markCellsVisited,
@@ -55,6 +55,15 @@ export function rebuildVisitRasterFromSession(slice, doc) {
         )
       }
     }
+  }
+
+  for (const segment of resolveRoadSegments(slice.roads)) {
+    if (!Array.isArray(segment.cells) || segment.cells.length === 0) continue
+    markCellsVisited(
+      raster,
+      buildCorridorCells(segment.cells, gridWidth, gridHeight),
+      gridWidth,
+    )
   }
 
   return raster

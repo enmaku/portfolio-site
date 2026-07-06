@@ -18,6 +18,9 @@ import { rebuildVisitRasterFromSession } from './visitStatus/rebuildVisitRasterF
 import { computePrimaryClaimMap, serializeClaimMap } from './computePrimaryClaimMap.js'
 import { appendRoadSegment, buildRoadCellMask, DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
 import { isCellVisited } from './visitStatus/visitRaster.js'
+import { computeFoundingRouteCorridor } from './expeditions/computeFoundingRouteCorridor.js'
+import { foundDaughterSettlement } from './expeditions/foundDaughterSettlement.js'
+import { SEA_LEVEL } from '../biomeIds.js'
 
 function colonizationFixtureDoc() {
   const width = 8
@@ -306,6 +309,75 @@ test('frontierExhausted stops new dispatch but epoch still advances', () => {
   slice = applyColonizationEpoch(slice, doc).slice
   assert.strictEqual(slice.frontierExhausted, true)
   assert.strictEqual(slice.epoch, 1)
+})
+
+test('founding stores computed A-to-B corridor between settlement pins', () => {
+  const width = 10
+  const height = 10
+  const cellCount = width * height
+  const elevation = new Float32Array(cellCount).fill(SEA_LEVEL + 0.08)
+  for (let x = 2; x <= 7; x += 1) {
+    elevation[5 * width + x] = SEA_LEVEL + 0.55
+  }
+
+  const doc = {
+    geographySeed: 9001,
+    gridWidth: width,
+    gridHeight: height,
+    arableRaster: new Float32Array(cellCount).fill(2),
+    timberRaster: new Float32Array(cellCount).fill(2),
+    movementCost: new Float32Array(cellCount).fill(1),
+    fields: {
+      elevation,
+      temperature: new Float32Array(cellCount).fill(0.5),
+      rainfall: new Float32Array(cellCount).fill(0.7),
+      drainage: new Float32Array(cellCount).fill(0.2),
+      salinity: new Float32Array(cellCount).fill(0.1),
+    },
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    lakeMask: new Uint8Array(cellCount),
+    riverCorridorMask: new Uint8Array(cellCount),
+    saltNodes: [],
+    metalNodes: [],
+    coastalNodes: [],
+    roads: [],
+  }
+
+  let slice = commitOnDoc(doc, { x: 2, y: 5 }, 3)
+  const founded = foundDaughterSettlement({
+    slice,
+    worldDocument: doc,
+    candidate: {
+      x: 7,
+      y: 5,
+      node: { x: 7, y: 5, primaryType: 'inland', exhausted: false, founded: false },
+    },
+    originSettlementId: slice.settlements[0].id,
+    epoch: 1,
+    expeditionRoute: [
+      { x: 2, y: 5 },
+      { x: 3, y: 5 },
+      { x: 4, y: 5 },
+      { x: 5, y: 5 },
+      { x: 6, y: 5 },
+      { x: 7, y: 5 },
+    ],
+    progressIndex: 5,
+    mode: 'land',
+  })
+
+  const segment = founded.slice.roads[0]
+  assert.ok(segment)
+  const expected = computeFoundingRouteCorridor({
+    doc,
+    from: { x: slice.settlements[0].x, y: slice.settlements[0].y },
+    to: { x: 7, y: 5 },
+    mode: 'land',
+    roadCellMask: buildRoadCellMask([], doc.gridWidth, doc.gridHeight),
+  })
+  assert.deepStrictEqual(segment.cells, expected?.cells)
+  const marchedThroughRidge = segment.cells.some((cell) => cell.y === 5 && cell.x >= 3 && cell.x <= 6)
+  assert.ok(!marchedThroughRidge)
 })
 
 test('session round-trip restores bearing expeditions and visit raster', () => {

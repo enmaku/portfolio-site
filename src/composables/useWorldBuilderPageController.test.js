@@ -15,6 +15,22 @@ import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../../world-builder/core/world
 import { useWorldBuilderPageController } from './useWorldBuilderPageController.js'
 
 /**
+ * @param {() => unknown} getValue
+ * @param {string} label
+ * @returns {Promise<void>}
+ */
+async function waitUntil(getValue, label) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (getValue()) {
+      return
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await nextTick()
+  }
+  throw new Error(`Timed out waiting for ${label}`)
+}
+
+/**
  * PAGE-CONTROLLER-INTERFACE.md § Returned actions — side-effect methods and their
  * covering test titles in this file (375.7 matrix).
  * @type {Record<string, string[]>}
@@ -1617,7 +1633,7 @@ test('start restores running colonization tips from session after landmass regen
     })
 
     await ctx.start()
-    await nextTick()
+    await waitUntil(() => ctx.worldDocument.value != null, 'colonization world document')
 
     assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
     assert.strictEqual(ctx.worldDocument.value?.committedTips?.length, 1)

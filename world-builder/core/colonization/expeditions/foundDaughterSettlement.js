@@ -1,10 +1,11 @@
 import { createFoundingDynasty } from '../createFoundingDynasty.js'
 import { computeHaulShedIsochrone } from '../computeHaulShedIsochrone.js'
-import { seedHaulShedVisited } from '../visitStatus/visitRaster.js'
+import { markCellsVisited, seedHaulShedVisited } from '../visitStatus/visitRaster.js'
 import { appendRoadSegment, buildLandRouteCellMask } from '../roads/roadNetwork.js'
 import { patchLogisticsNodeSurvey } from '../logisticsNodes/scoreLogisticsNodes.js'
 import { DAUGHTER_OUTPOST_HEADCOUNT } from './expeditionConstants.js'
-import { routeCellsUpToProgress } from './expeditionRouting.js'
+import { computeFoundingRouteCorridor } from './computeFoundingRouteCorridor.js'
+import { buildCorridorCells } from './expeditionRouting.js'
 
 /**
  * @param {{
@@ -30,8 +31,6 @@ export function foundDaughterSettlement(params) {
     candidate,
     originSettlementId,
     epoch,
-    expeditionRoute,
-    progressIndex,
     mode,
   } = params
 
@@ -86,9 +85,23 @@ export function foundDaughterSettlement(params) {
   })
 
   let roads = slice.roads ?? []
-  const traveled = routeCellsUpToProgress(expeditionRoute, progressIndex)
-  if (traveled.length > 1) {
-    roads = appendRoadSegment(roads, traveled, [originSettlementId, settlementId], mode)
+  const origin = slice.settlements.find((settlement) => settlement.id === originSettlementId)
+  if (origin) {
+    const corridor = computeFoundingRouteCorridor({
+      doc: worldDocument,
+      from: { x: origin.x, y: origin.y },
+      to: { x: candidate.x, y: candidate.y },
+      mode,
+      roadCellMask,
+    })
+    if (corridor && corridor.cells.length > 1) {
+      roads = appendRoadSegment(roads, corridor.cells, [originSettlementId, settlementId], mode)
+      markCellsVisited(
+        visitedCells,
+        buildCorridorCells(corridor.cells, worldDocument.gridWidth, worldDocument.gridHeight),
+        worldDocument.gridWidth,
+      )
+    }
   }
 
   const logisticsNodeSurvey = patchLogisticsNodeSurvey(
