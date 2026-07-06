@@ -5,6 +5,7 @@ import {
   epochStepProgressValue,
   epochStepUnitCount,
   epochStepUnitIndex,
+  reduceEpochStepProgressOnCollapseSubstepStart,
   reduceEpochStepProgressOnEpochStart,
   reduceEpochStepProgressOnNetworkSubstepStart,
   reduceEpochStepProgressOnPhaseStart,
@@ -22,6 +23,8 @@ test('createInitialEpochStepProgress starts idle before any epoch phase', () => 
     label: '',
     activeNetworkSubstepIndex: -1,
     completedNetworkSubstepIndex: -1,
+    activeCollapseSubstepIndex: -1,
+    completedCollapseSubstepIndex: -1,
   })
 })
 
@@ -72,4 +75,22 @@ test('reduceEpochStepProgressOnNetworkSubstepStart appends network substep label
   const next = reduceEpochStepProgressOnNetworkSubstepStart(progress, { substepIndex: 1 })
   assert.strictEqual(next.activeNetworkSubstepIndex, 1)
   assert.strictEqual(next.label, 'Epoch 1/1 · Network · Advance')
+})
+
+test('reduceEpochStepProgressOnCollapseSubstepStart appends collapse substep label', () => {
+  const progress = reduceEpochStepProgressOnPhaseStart(
+    reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(1), {
+      epochIndex: 0,
+      epochBatch: 1,
+    }),
+    {
+      epochIndex: 0,
+      epochBatch: 1,
+      phaseIndex: 4,
+      phaseId: 'collapse',
+    },
+  )
+  const next = reduceEpochStepProgressOnCollapseSubstepStart(progress, { substepIndex: 1 })
+  assert.strictEqual(next.activeCollapseSubstepIndex, 1)
+  assert.strictEqual(next.label, 'Epoch 1/1 · Collapse · Hinterland')
 })

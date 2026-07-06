@@ -4,6 +4,7 @@ import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
 import {
   POPULATION_COLLAPSE_CORE_FRACTION,
   collapsePopulation,
+  collapsePopulationAsync,
   hashPopulationCollapseRaster,
   isHabitablePopulationCell,
 } from './collapsePopulation.js'
@@ -225,6 +226,41 @@ test('collapsePopulation is deterministic for identical inputs', () => {
   const a = collapsePopulation(params)
   const b = collapsePopulation(params)
   assert.strictEqual(hashPopulationCollapseRaster(a), hashPopulationCollapseRaster(b))
+})
+
+test('collapsePopulationAsync matches sync output and emits collapse substeps', async () => {
+  const width = 6
+  const height = 6
+  const cellCount = width * height
+  const params = {
+    settlements: [{ id: 's1', x: 2, y: 2, population: 80, status: 'living' }],
+    primaryClaim: fullClaim(width, height, { x: 2, y: 2 }),
+    arableRaster: new Float32Array(cellCount).fill(1),
+    elevation: landElevation(cellCount),
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    gridWidth: width,
+    gridHeight: height,
+    geographySeed: 42,
+    epoch: 5,
+  }
+  /** @type {string[]} */
+  const substepEvents = []
+  const asyncRaster = await collapsePopulationAsync(params, {
+    yieldToUi: async () => {},
+    hooks: {
+      onCollapseSubstep(payload) {
+        substepEvents.push(`${payload.type}:${payload.substepId}`)
+      },
+    },
+  })
+  const syncRaster = collapsePopulation(params)
+  assert.strictEqual(hashPopulationCollapseRaster(asyncRaster), hashPopulationCollapseRaster(syncRaster))
+  assert.deepStrictEqual(substepEvents, [
+    'substep-start:urban',
+    'substep-complete:urban',
+    'substep-start:hinterland',
+    'substep-complete:hinterland',
+  ])
 })
 
 test('collapsePopulation skips ruins and empty domains', () => {

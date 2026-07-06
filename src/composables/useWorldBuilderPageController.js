@@ -5,6 +5,7 @@ import {
   runDerivedGeographyInWorker as defaultRunDerivedGeographyInWorker,
 } from '../../world-builder/runDerivedGeographyInWorker.js'
 import {
+  COLONIZATION_COLLAPSE_SUBSTEPS,
   COLONIZATION_EPOCH_PHASES,
   COLONIZATION_NETWORK_SUBSTEPS,
 } from '../../world-builder/core/colonization/colonizationEpochSteps.js'
@@ -357,6 +358,13 @@ export function useWorldBuilderPageController(options) {
       epochStepProgress.value.completedNetworkSubstepIndex,
     ),
   )
+  const epochStepCollapseSubstepStatuses = computed(() =>
+    createHydrologySubstepStatuses(
+      COLONIZATION_COLLAPSE_SUBSTEPS,
+      epochStepProgress.value.activeCollapseSubstepIndex,
+      epochStepProgress.value.completedCollapseSubstepIndex,
+    ),
+  )
   const beginColonizationStepStatuses = computed(() =>
     createGenerationStepStatuses(
       COLONIZATION_BEGIN_STEPS,
@@ -578,6 +586,7 @@ export function useWorldBuilderPageController(options) {
     isBeginColonizationRunning,
     epochStepPhaseStatuses,
     epochStepNetworkSubstepStatuses,
+    epochStepCollapseSubstepStatuses,
     beginColonizationStepStatuses,
     showValidationFailureIndicator: generation.showValidationFailureIndicator,
     validationRows,

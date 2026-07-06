@@ -1,4 +1,5 @@
 import {
+  COLONIZATION_COLLAPSE_SUBSTEPS,
   COLONIZATION_EPOCH_PHASE_COUNT,
   COLONIZATION_EPOCH_PHASES,
   COLONIZATION_NETWORK_SUBSTEPS,
@@ -15,6 +16,8 @@ import {
  * @property {string} label
  * @property {number} activeNetworkSubstepIndex
  * @property {number} completedNetworkSubstepIndex
+ * @property {number} activeCollapseSubstepIndex
+ * @property {number} completedCollapseSubstepIndex
  */
 
 /**
@@ -32,6 +35,8 @@ export function createInitialEpochStepProgress(epochBatch = 1) {
     label: '',
     activeNetworkSubstepIndex: -1,
     completedNetworkSubstepIndex: -1,
+    activeCollapseSubstepIndex: -1,
+    completedCollapseSubstepIndex: -1,
   }
 }
 
@@ -89,6 +94,8 @@ export function reduceEpochStepProgressOnEpochStart(progress, payload) {
     label: epochStepEpochLabel(payload.epochIndex, epochBatch),
     activeNetworkSubstepIndex: -1,
     completedNetworkSubstepIndex: -1,
+    activeCollapseSubstepIndex: -1,
+    completedCollapseSubstepIndex: -1,
   }
 }
 
@@ -110,6 +117,8 @@ export function reduceEpochStepProgressOnEpochComplete(progress, payload) {
     label: epochStepEpochLabel(payload.epochIndex, payload.epochBatch),
     activeNetworkSubstepIndex: -1,
     completedNetworkSubstepIndex: -1,
+    activeCollapseSubstepIndex: -1,
+    completedCollapseSubstepIndex: -1,
   }
 }
 
@@ -131,6 +140,10 @@ export function reduceEpochStepProgressOnPhaseStart(progress, payload) {
     activeNetworkSubstepIndex: payload.phaseId === 'network' ? -1 : progress.activeNetworkSubstepIndex,
     completedNetworkSubstepIndex:
       payload.phaseId === 'network' ? -1 : progress.completedNetworkSubstepIndex,
+    activeCollapseSubstepIndex:
+      payload.phaseId === 'collapse' ? -1 : progress.activeCollapseSubstepIndex,
+    completedCollapseSubstepIndex:
+      payload.phaseId === 'collapse' ? -1 : progress.completedCollapseSubstepIndex,
   }
 }
 
@@ -150,6 +163,8 @@ export function reduceEpochStepProgressOnPhaseComplete(progress, payload) {
     completedPhaseIndex: payload.phaseIndex,
     activeNetworkSubstepIndex: -1,
     completedNetworkSubstepIndex: -1,
+    activeCollapseSubstepIndex: -1,
+    completedCollapseSubstepIndex: -1,
   }
 }
 
@@ -184,6 +199,35 @@ export function reduceEpochStepProgressOnNetworkSubstepComplete(progress, payloa
 
 /**
  * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnCollapseSubstepStart(progress, payload) {
+  const substep = COLONIZATION_COLLAPSE_SUBSTEPS[payload.substepIndex]
+  return {
+    ...progress,
+    activeCollapseSubstepIndex: payload.substepIndex,
+    label: progress.label.includes('·')
+      ? `${progress.label.split(' · ')[0]} · Collapse · ${substep?.label ?? ''}`
+      : progress.label,
+  }
+}
+
+/**
+ * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnCollapseSubstepComplete(progress, payload) {
+  return {
+    ...progress,
+    activeCollapseSubstepIndex: payload.substepIndex,
+    completedCollapseSubstepIndex: payload.substepIndex,
+  }
+}
+
+/**
+ * @param {EpochStepProgressState} progress
  * @returns {EpochStepProgressState}
  */
 export function reduceEpochStepProgressOnRunComplete(progress) {
@@ -193,6 +237,7 @@ export function reduceEpochStepProgressOnRunComplete(progress) {
     activeEpochIndex: -1,
     activePhaseIndex: -1,
     activeNetworkSubstepIndex: -1,
+    activeCollapseSubstepIndex: -1,
   }
 }
 

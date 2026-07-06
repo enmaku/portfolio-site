@@ -129,6 +129,20 @@
                   {{ substep.label }}
                 </q-chip>
               </template>
+              <template v-if="step.id === 'collapse' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in epochStepCollapseSubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-epoch-step-collapse-substep-${substep.id}`"
+                  :color="generationStepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
             </template>
           </div>
         </div>
@@ -585,6 +599,7 @@ const {
   isBeginColonizationRunning,
   epochStepPhaseStatuses,
   epochStepNetworkSubstepStatuses,
+  epochStepCollapseSubstepStatuses,
   resourceOverlayVisibility,
   overlayDisplaySetting,
   toggleResourceOverlayVisibility,

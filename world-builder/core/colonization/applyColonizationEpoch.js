@@ -1,4 +1,4 @@
-import { applyPopulationCollapse } from './applyPopulationCollapse.js'
+import { applyPopulationCollapse, applyPopulationCollapseAsync } from './applyPopulationCollapse.js'
 import { applyNetworkPhase, applyNetworkPhaseAsync } from './applyNetworkPhase.js'
 import { applyRuinTransitions } from './applyRuin.js'
 import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaimMap.js'
@@ -158,6 +158,27 @@ export function runColonizationEpochCollapsePhase(ctx) {
     logisticsNodeSurvey: ctx.slice.logisticsNodeSurvey,
   }
   const { slice: collapsed } = applyPopulationCollapse(withClaims, ctx.worldDocument)
+  ctx.slice = collapsed
+}
+
+/**
+ * @param {ColonizationEpochContext} ctx
+ * @param {{ collapse?: { hooks?: import('./collapsePopulation.js').CollapsePopulationHooks, yieldToUi?: () => Promise<void> } }} [options]
+ * @returns {Promise<void>}
+ */
+export async function runColonizationEpochCollapsePhaseAsync(ctx, options = {}) {
+  const withClaims = {
+    ...ctx.slice,
+    visitedCells: ctx.slice.visitedCells,
+    expeditions: ctx.slice.expeditions,
+    frontierExhausted: ctx.slice.frontierExhausted,
+    roads: ctx.slice.roads,
+    logisticsNodeSurvey: ctx.slice.logisticsNodeSurvey,
+  }
+  const { slice: collapsed } = await applyPopulationCollapseAsync(withClaims, ctx.worldDocument, {
+    hooks: options.collapse?.hooks,
+    yieldToUi: options.collapse?.yieldToUi,
+  })
   ctx.slice = collapsed
 }
 

@@ -2,6 +2,7 @@ import {
   createColonizationEpochContext,
   runColonizationEpochClaimsPhase,
   runColonizationEpochCollapsePhase,
+  runColonizationEpochCollapsePhaseAsync,
   runColonizationEpochNetworkPhase,
   runColonizationEpochNetworkPhaseAsync,
   runColonizationEpochRuinPhase,
@@ -12,6 +13,8 @@ import {
   createInitialEpochStepProgress,
   reduceEpochStepProgressOnEpochComplete,
   reduceEpochStepProgressOnEpochStart,
+  reduceEpochStepProgressOnCollapseSubstepComplete,
+  reduceEpochStepProgressOnCollapseSubstepStart,
   reduceEpochStepProgressOnNetworkSubstepComplete,
   reduceEpochStepProgressOnNetworkSubstepStart,
   reduceEpochStepProgressOnPhaseComplete,
@@ -110,7 +113,25 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
       } else if (phase.id === 'ruin') {
         runColonizationEpochRuinPhase(ctx)
       } else if (phase.id === 'collapse') {
-        runColonizationEpochCollapsePhase(ctx)
+        await runColonizationEpochCollapsePhaseAsync(ctx, {
+          collapse: {
+            yieldToUi,
+            hooks: {
+              onCollapseSubstep(payload) {
+                if (payload.type === 'substep-start') {
+                  progress = reduceEpochStepProgressOnCollapseSubstepStart(progress, {
+                    substepIndex: payload.substepIndex,
+                  })
+                } else {
+                  progress = reduceEpochStepProgressOnCollapseSubstepComplete(progress, {
+                    substepIndex: payload.substepIndex,
+                  })
+                }
+                handlers.onProgress?.(progress)
+              },
+            },
+          },
+        })
       }
 
       progress = reduceEpochStepProgressOnPhaseComplete(progress, {
