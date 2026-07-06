@@ -398,6 +398,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     viewport,
     hostEl,
     getWorldDocument: () => currentWorldDocument,
+    requestRender: renderFrame,
   })
 
   return {

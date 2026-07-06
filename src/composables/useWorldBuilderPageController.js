@@ -163,7 +163,6 @@ export function useWorldBuilderPageController(options) {
       return
     }
     void mapLifecycle.applyWorldDocument(doc)
-    colonization.syncLandingVisuals()
     syncColonizationRunningOverlays()
     void persistColonizationSessionIfNeeded()
   }

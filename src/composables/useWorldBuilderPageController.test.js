@@ -1108,6 +1108,36 @@ test('pickFoundingLanding accepts a valid coastal cell and updates haul-shed pre
   }
 })
 
+test('pickFoundingLanding updates the pin without syncing the map document', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const { ctx, appliedDocs } = mountController(scope, {
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+    const appliedAfterSetup = appliedDocs.length
+
+    assert.strictEqual(ctx.pickFoundingLanding(3, 3), true)
+    assert.strictEqual(appliedDocs.length, appliedAfterSetup)
+  } finally {
+    scope.stop()
+  }
+})
+
 test('pickFoundingLanding snaps a nearby click to the nearest valid landing', async () => {
   const scope = effectScope(true)
   try {

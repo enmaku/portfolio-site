@@ -102,9 +102,14 @@ export function useWorldBuilderColonization(options) {
     onSliceChanged?.()
   }
 
-  function persistColonistSettingsOnly() {
+  /** Session + debounced cache only — no map document sync. */
+  function persistSessionOnly() {
     settingsStore.setColonizationSession?.(slice.value)
     onSessionPersistRequested?.()
+  }
+
+  function persistColonistSettingsOnly() {
+    persistSessionOnly()
   }
 
   function hydrateFromPersistedSettings() {
@@ -185,11 +190,7 @@ export function useWorldBuilderColonization(options) {
    * @returns {boolean}
    */
   function pickFoundingLanding(x, y) {
-    const accepted = setFoundingLanding(getGeographyDocument?.() ?? null, x, y)
-    if (accepted) {
-      syncLandingVisuals()
-    }
-    return accepted
+    return setFoundingLanding(getGeographyDocument?.() ?? null, x, y)
   }
 
   /**
@@ -222,7 +223,8 @@ export function useWorldBuilderColonization(options) {
       ...slice.value,
       foundingLanding: snapped,
     }
-    persistSlice()
+    persistSessionOnly()
+    syncLandingVisuals()
     return true
   }
 
