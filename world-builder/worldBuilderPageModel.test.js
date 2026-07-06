@@ -21,6 +21,8 @@ import {
   generationStepStatusColor,
   normalizeGeographySeed,
   shouldShowGenerationProgress,
+  shouldShowBeginColonizationProgress,
+  shouldShowEpochStepProgress,
   shouldShowResourceOverlayBar,
   shouldShowValidationFailureIndicator,
   isGenerationRunSuccess,
@@ -327,6 +329,11 @@ test('shouldShowGenerationProgress is true only while running', () => {
   assert.strictEqual(shouldShowGenerationProgress('success'), false)
 })
 
+test('shouldShowBeginColonizationProgress is true only while running', () => {
+  assert.strictEqual(shouldShowBeginColonizationProgress('running'), true)
+  assert.strictEqual(shouldShowBeginColonizationProgress('idle'), false)
+})
+
 test('shouldShowResourceOverlayBar is true only after successful pipeline completion', () => {
   assert.strictEqual(shouldShowResourceOverlayBar('running'), false)
   assert.strictEqual(shouldShowResourceOverlayBar('exhausted'), false)
@@ -372,8 +379,12 @@ test('exhausted run presentation hides clean-success chrome', () => {
 
 test('status bar helpers never show progress and overlay bar together', () => {
   for (const runPhase of ['idle', 'running', 'success', 'exhausted', 'cancelled', 'error']) {
-    const showProgress = shouldShowGenerationProgress(runPhase)
-    const showOverlayBar = shouldShowResourceOverlayBar(runPhase)
-    assert.strictEqual(showProgress && showOverlayBar, false)
+    const showGeneration = shouldShowGenerationProgress(runPhase)
+    const showBegin = shouldShowBeginColonizationProgress('running')
+    const showEpoch = shouldShowEpochStepProgress('running')
+    const showOverlayBar = shouldShowResourceOverlayBar(runPhase, 'running')
+    assert.strictEqual(showGeneration && showOverlayBar, false)
+    assert.strictEqual(showBegin && showOverlayBar, false)
+    assert.strictEqual(showEpoch && showOverlayBar, false)
   }
 })

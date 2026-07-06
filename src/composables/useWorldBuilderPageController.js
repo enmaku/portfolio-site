@@ -8,6 +8,7 @@ import {
   COLONIZATION_EPOCH_PHASES,
   COLONIZATION_NETWORK_SUBSTEPS,
 } from '../../world-builder/core/colonization/colonizationEpochSteps.js'
+import { COLONIZATION_BEGIN_STEPS } from '../../world-builder/core/colonization/colonizationBeginSteps.js'
 import { createGenerationMapLifecycle } from '../../world-builder/worldBuilderGenerationMapLifecycle.js'
 import {
   DEFAULT_GEOGRAPHY_SEED,
@@ -334,8 +335,14 @@ export function useWorldBuilderPageController(options) {
     createHydrologySubstepTimingsForDisplay(geographyWorldDocument.value?.generationReport),
   )
   const showEpochStepProgress = colonization.showEpochStepProgress
+  const showBeginColonizationProgress = colonization.showBeginColonizationProgress
   const epochStepProgress = colonization.epochStepProgress
+  const beginColonizationProgress = colonization.beginColonizationProgress
   const isEpochStepRunning = colonization.isEpochStepRunning
+  const isBeginColonizationRunning = colonization.isBeginColonizationRunning
+  const colonizationBusyPhase = computed(() =>
+    isEpochStepRunning.value || isBeginColonizationRunning.value ? 'running' : 'idle',
+  )
   const epochStepPhaseStatuses = computed(() =>
     createGenerationStepStatuses(
       COLONIZATION_EPOCH_PHASES,
@@ -350,11 +357,15 @@ export function useWorldBuilderPageController(options) {
       epochStepProgress.value.completedNetworkSubstepIndex,
     ),
   )
-  const showResourceOverlayBarComputed = computed(() =>
-    shouldShowResourceOverlayBar(
-      generation.runPhase.value,
-      colonization.isEpochStepRunning.value ? 'running' : 'idle',
+  const beginColonizationStepStatuses = computed(() =>
+    createGenerationStepStatuses(
+      COLONIZATION_BEGIN_STEPS,
+      beginColonizationProgress.value.activeStepIndex,
+      beginColonizationProgress.value.completedStepIndex,
     ),
+  )
+  const showResourceOverlayBarComputed = computed(() =>
+    shouldShowResourceOverlayBar(generation.runPhase.value, colonizationBusyPhase.value),
   )
   const generationOptions = computed(() => settingsStore.generationOptions)
 
@@ -489,7 +500,7 @@ export function useWorldBuilderPageController(options) {
   }
 
   async function beginColonization() {
-    const started = colonization.beginColonization()
+    const started = await colonization.beginColonization()
     if (started) {
       await persistColonizationSessionIfNeeded()
     }
@@ -560,10 +571,14 @@ export function useWorldBuilderPageController(options) {
     showGenerationProgress: generation.showGenerationProgress,
     showResourceOverlayBar: showResourceOverlayBarComputed,
     showEpochStepProgress,
+    showBeginColonizationProgress,
     epochStepProgress,
+    beginColonizationProgress,
     isEpochStepRunning,
+    isBeginColonizationRunning,
     epochStepPhaseStatuses,
     epochStepNetworkSubstepStatuses,
+    beginColonizationStepStatuses,
     showValidationFailureIndicator: generation.showValidationFailureIndicator,
     validationRows,
     visibleValidationRows,

@@ -1,8 +1,9 @@
 import { computed, ref, shallowRef } from 'vue'
+import { createInitialBeginColonizationProgress } from '../../world-builder/core/colonization/beginColonizationProgress.js'
 import { createInitialEpochStepProgress } from '../../world-builder/core/colonization/colonizationEpochProgress.js'
 import { runColonizationEpochStep } from '../../world-builder/core/colonization/runColonizationEpochStep.js'
 import { rehydrateColonizationDerivedOverlays } from '../../world-builder/core/colonization/rehydrateColonizationDerivedOverlays.js'
-import { beginColonizationCommit } from '../../world-builder/core/colonization/beginColonizationCommit.js'
+import { runBeginColonizationCommit } from '../../world-builder/core/colonization/runBeginColonizationCommit.js'
 import { computeHaulShedReachPreview } from '../../world-builder/core/colonization/computeHaulShedReachPreview.js'
 import {
   COLONIZATION_PHASE_RUNNING,
@@ -53,12 +54,16 @@ export function useWorldBuilderColonization(options) {
   const slice = ref(loadInitialSlice())
   /** @type {import('vue').Ref<'idle' | 'running'>} */
   const epochStepPhase = ref('idle')
+  /** @type {import('vue').Ref<'idle' | 'running'>} */
+  const beginColonizationPhase = ref('idle')
   /** @type {import('vue').ShallowRef<import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonistSettings>} */
   const colonistSettingsSnapshot = shallowRef(createDefaultColonistSettings())
   /** Batch size for the next epoch step only; never written into slice until epochStep runs. */
   const pendingEpochBatch = ref(createDefaultColonistSettings().epochBatch)
   /** @type {import('vue').Ref<import('../../world-builder/core/colonization/colonizationEpochProgress.js').EpochStepProgressState>} */
   const epochStepProgress = ref(createInitialEpochStepProgress())
+  /** @type {import('vue').Ref<import('../../world-builder/core/colonization/beginColonizationProgress.js').BeginColonizationProgressState>} */
+  const beginColonizationProgress = ref(createInitialBeginColonizationProgress())
 
   const colonizationPhase = computed(() => slice.value.colonizationPhase)
   const isTerrainAuthoringEnabled = computed(
@@ -71,10 +76,15 @@ export function useWorldBuilderColonization(options) {
       slice.value.colonizationPhase === COLONIZATION_PHASE_SETUP ||
       slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING,
   )
+  const isBeginColonizationRunning = computed(() => beginColonizationPhase.value === 'running')
+  const showBeginColonizationProgress = computed(
+    () => beginColonizationPhase.value === 'running',
+  )
   const canBeginColonization = computed(
     () =>
       slice.value.colonizationPhase === COLONIZATION_PHASE_SETUP &&
-      slice.value.foundingLanding != null,
+      slice.value.foundingLanding != null &&
+      !isBeginColonizationRunning.value,
   )
   const showResetColonization = computed(
     () => slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING,
@@ -246,19 +256,42 @@ export function useWorldBuilderColonization(options) {
     })
   }
 
-  function beginColonization() {
-    if (!canBeginColonization.value) {
+  async function beginColonization() {
+    if (
+      slice.value.colonizationPhase !== COLONIZATION_PHASE_SETUP ||
+      !slice.value.foundingLanding ||
+      isBeginColonizationRunning.value
+    ) {
       return false
     }
     const doc = getGeographyDocument?.()
     if (!doc) {
       return false
     }
-    slice.value = beginColonizationCommit(slice.value, doc)
-    syncColonistSettingsSnapshot()
-    persistSlice()
-    syncLandingVisuals()
-    return slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING
+
+    beginColonizationPhase.value = 'running'
+    beginColonizationProgress.value = createInitialBeginColonizationProgress()
+
+    try {
+      const result = await runBeginColonizationCommit(slice.value, doc, {
+        handlers: {
+          onProgress(progress) {
+            beginColonizationProgress.value = progress
+          },
+        },
+      })
+      if (!result.committed) {
+        return false
+      }
+      slice.value = result.slice
+      syncColonistSettingsSnapshot()
+      persistSlice()
+      syncLandingVisuals()
+      return true
+    } finally {
+      beginColonizationPhase.value = 'idle'
+      beginColonizationProgress.value = createInitialBeginColonizationProgress()
+    }
   }
 
   async function epochStep() {
@@ -381,6 +414,9 @@ export function useWorldBuilderColonization(options) {
     showResetColonization,
     timeControlsActive,
     isEpochStepRunning,
+    isBeginColonizationRunning,
+    showBeginColonizationProgress,
+    beginColonizationProgress,
     showEpochStepProgress,
     epochStepProgress,
     isColonistSettingsRunningPhase,

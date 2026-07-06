@@ -1,7 +1,7 @@
 <template>
   <q-page class="world-builder-page column fit no-wrap">
     <div
-      v-if="showGenerationProgress || showEpochStepProgress || showResourceOverlayBar"
+      v-if="showGenerationProgress || showBeginColonizationProgress || showEpochStepProgress || showResourceOverlayBar"
       data-testid="world-builder-status-bar"
       class="generation-progress"
     >
@@ -47,6 +47,39 @@
                 </q-chip>
               </template>
             </template>
+          </div>
+        </div>
+        <div
+          v-else-if="showBeginColonizationProgress"
+          data-testid="world-builder-begin-colonization-progress"
+          class="status-bar-panel status-bar-panel--generation"
+        >
+          <q-linear-progress
+            :value="beginColonizationProgress.percent / 100"
+            color="positive"
+            track-color="grey-9"
+            rounded
+          />
+          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
+            <q-chip
+              dense
+              color="grey-7"
+              text-color="white"
+              data-testid="world-builder-begin-colonization-label"
+            >
+              {{ beginColonizationProgress.label }}
+            </q-chip>
+            <q-chip
+              v-for="step in beginColonizationStepStatuses"
+              :key="step.id"
+              dense
+              :data-testid="`world-builder-begin-colonization-step-${step.id}`"
+              :color="generationStepStatusColor(step.status)"
+              text-color="white"
+              :outline="step.status === 'pending'"
+            >
+              {{ step.label }}
+            </q-chip>
           </div>
         </div>
         <div
@@ -356,7 +389,8 @@
             class="full-width q-mb-md"
             data-testid="world-builder-begin-colonization"
             label="Begin colonization"
-            :disable="!canBeginColonization"
+            :loading="isBeginColonizationRunning"
+            :disable="!canBeginColonization || isBeginColonizationRunning"
             @click="beginColonization"
           />
           <q-btn
@@ -531,6 +565,7 @@ const {
   runPhase,
   generationProgress,
   showGenerationProgress,
+  showBeginColonizationProgress,
   showEpochStepProgress,
   showResourceOverlayBar,
   showValidationFailureIndicator,
@@ -544,7 +579,10 @@ const {
   hydrologySubstepStatuses,
   hydrologySubstepTimings,
   epochStepProgress,
+  beginColonizationProgress,
+  beginColonizationStepStatuses,
   isEpochStepRunning,
+  isBeginColonizationRunning,
   epochStepPhaseStatuses,
   epochStepNetworkSubstepStatuses,
   resourceOverlayVisibility,

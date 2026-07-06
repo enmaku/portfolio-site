@@ -301,12 +301,20 @@ export function shouldShowEpochStepProgress(epochStepPhase) {
 }
 
 /**
- * @param {GenerationRunPhase} runPhase
- * @param {'idle' | 'running'} epochStepPhase
+ * @param {'idle' | 'running'} beginColonizationPhase
  * @returns {boolean}
  */
-export function shouldShowResourceOverlayBar(runPhase, epochStepPhase = 'idle') {
-  return runPhase === 'success' && epochStepPhase !== 'running'
+export function shouldShowBeginColonizationProgress(beginColonizationPhase) {
+  return beginColonizationPhase === 'running'
+}
+
+/**
+ * @param {GenerationRunPhase} runPhase
+ * @param {'idle' | 'running'} colonizationBusyPhase
+ * @returns {boolean}
+ */
+export function shouldShowResourceOverlayBar(runPhase, colonizationBusyPhase = 'idle') {
+  return runPhase === 'success' && colonizationBusyPhase !== 'running'
 }
 
 /**
