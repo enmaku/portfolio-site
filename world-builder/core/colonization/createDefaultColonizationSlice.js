@@ -7,6 +7,8 @@
  * @property {number} startingPopulation
  * @property {YieldModifier} yieldModifier
  * @property {number} epochBatch
+ * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap.
+ * @property {number} sailExpeditionRange Multiplier on three-day haul distance for sail expedition range cap.
  */
 
 /**
@@ -82,6 +84,12 @@ export const MAX_THREE_DAY_HAUL_DISTANCE = 100
 export const DEFAULT_STARTING_POPULATION = 100
 export const DEFAULT_YIELD_MODIFIER = /** @type {YieldModifier} */ ('typical')
 export const DEFAULT_EPOCH_BATCH = 50
+export const DEFAULT_LAND_EXPEDITION_RANGE = 2
+export const MIN_LAND_EXPEDITION_RANGE = 1
+export const MAX_LAND_EXPEDITION_RANGE = 4
+export const DEFAULT_SAIL_EXPEDITION_RANGE = 3
+export const MIN_SAIL_EXPEDITION_RANGE = 2
+export const MAX_SAIL_EXPEDITION_RANGE = 6
 
 /**
  * @returns {ColonistSettings}
@@ -92,6 +100,8 @@ export function createDefaultColonistSettings() {
     startingPopulation: DEFAULT_STARTING_POPULATION,
     yieldModifier: DEFAULT_YIELD_MODIFIER,
     epochBatch: DEFAULT_EPOCH_BATCH,
+    landExpeditionRange: DEFAULT_LAND_EXPEDITION_RANGE,
+    sailExpeditionRange: DEFAULT_SAIL_EXPEDITION_RANGE,
   }
 }
 
@@ -211,6 +221,18 @@ export function resolveColonistSettings(value) {
     ),
     yieldModifier,
     epochBatch: positiveNumberOr(incoming.epochBatch, defaults.epochBatch),
+    landExpeditionRange: clampIntegerRange(
+      incoming.landExpeditionRange,
+      defaults.landExpeditionRange,
+      MIN_LAND_EXPEDITION_RANGE,
+      MAX_LAND_EXPEDITION_RANGE,
+    ),
+    sailExpeditionRange: clampIntegerRange(
+      incoming.sailExpeditionRange,
+      defaults.sailExpeditionRange,
+      MIN_SAIL_EXPEDITION_RANGE,
+      MAX_SAIL_EXPEDITION_RANGE,
+    ),
   }
 }
 
@@ -247,6 +269,19 @@ function positiveNumberOr(value, fallback) {
 function clampPositiveNumber(value, fallback, max) {
   const resolved = positiveNumberOr(value, fallback)
   return Math.min(resolved, max)
+}
+
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @param {number} min
+ * @param {number} max
+ * @returns {number}
+ */
+function clampIntegerRange(value, fallback, min, max) {
+  const resolved =
+    typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : fallback
+  return Math.min(max, Math.max(min, resolved))
 }
 
 /**

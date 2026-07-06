@@ -106,7 +106,7 @@ function createExplorationFogFixture() {
   }
 }
 
-function createRoadsFixture() {
+function createRoutesFixture() {
   return {
     gridWidth: 8,
     gridHeight: 8,
@@ -154,7 +154,7 @@ test('RESOURCE_RASTER_OVERLAY_LAYER_IDS lists raster overlay layers from definit
     'freshwater',
     'population',
     'explorationFog',
-    'roads',
+    'routes',
   ])
 })
 
@@ -247,8 +247,8 @@ test('refreshResourceRasterOverlayCanvas performs at most one RGBA build per lay
                 ? createPopulationFixture()
                 : resourceId === 'explorationFog'
                   ? createExplorationFogFixture()
-                  : resourceId === 'roads'
-                    ? createRoadsFixture()
+                  : resourceId === 'routes'
+                    ? createRoutesFixture()
                     : createSailFixture()
     const visibility = applyResourceOverlayVisibility(
       createDefaultResourceOverlayVisibility(),

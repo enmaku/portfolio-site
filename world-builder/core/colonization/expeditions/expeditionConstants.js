@@ -15,10 +15,11 @@ export const LOGISTICS_NODE_VISIT_DISC_RADIUS = 1
  * @property {string} id
  * @property {string} settlementId
  * @property {'land' | 'sail'} mode
+ * @property {number} bearing Fixed radians at dispatch.
  * @property {Array<{ x: number, y: number }>} route
  * @property {number} progressIndex
- * @property {{ x: number, y: number }} target
  * @property {'active' | 'completed'} status
+ * @property {import('./bearingStepUtils.js').ExpeditionEndReason} [endReason]
  */
 
 /**
@@ -54,17 +55,21 @@ export function resolveExpeditions(value) {
       id: record.id,
       settlementId: record.settlementId,
       mode: record.mode === 'sail' ? 'sail' : 'land',
+      bearing: Number.isFinite(record.bearing) ? record.bearing : 0,
       route: Array.isArray(record.route)
         ? record.route
             .filter((cell) => cell && Number.isFinite(cell.x) && Number.isFinite(cell.y))
             .map((cell) => ({ x: cell.x, y: cell.y }))
         : [],
       progressIndex: Number.isFinite(record.progressIndex) ? record.progressIndex : 0,
-      target:
-        record.target && Number.isFinite(record.target.x) && Number.isFinite(record.target.y)
-          ? { x: record.target.x, y: record.target.y }
-          : { x: 0, y: 0 },
       status: record.status === 'completed' ? 'completed' : 'active',
+      endReason:
+        record.endReason === 'blocked' ||
+        record.endReason === 'range_cap' ||
+        record.endReason === 'survey_complete' ||
+        record.endReason === 'founded'
+          ? record.endReason
+          : undefined,
     })
   }
   return resolved

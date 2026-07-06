@@ -2,7 +2,8 @@ import { computePrimaryClaimMap, serializeClaimMap } from '../computePrimaryClai
 import { applySurvivalResolveToSettlement } from '../resolveSurvivalTriad.js'
 import { saltSpoilageMultiplier } from '../saltSpoilageMultiplier.js'
 import { findLogisticsNodeAt } from '../logisticsNodes/scoreLogisticsNodes.js'
-import { buildRoadCellMask } from '../roads/roadNetwork.js'
+import { buildLandRouteCellMask } from '../roads/roadNetwork.js'
+import { isSettlementSailReachable } from './selectSailExpeditionStep.js'
 
 /**
  * @typedef {Object} FoundingCandidate
@@ -56,7 +57,7 @@ export function isProvisionalClaimViable(params) {
       status: 'living',
     },
   ]
-  const roadCellMask = buildRoadCellMask(
+  const roadCellMask = buildLandRouteCellMask(
     roads ?? worldDocument.roads,
     worldDocument.gridWidth,
     worldDocument.gridHeight,
@@ -107,6 +108,7 @@ export function isDistinctSettlementPin(settlements, x, y) {
  * @param {import('../createDefaultColonizationSlice.js').ColonistSettings} colonistSettings
  * @param {import('../../types.js').WorldDocument} worldDocument
  * @param {import('../roads/roadNetwork.js').RoadSegment[]} [roads]
+ * @param {'land' | 'sail'} [expeditionMode]
  * @returns {{ candidate: FoundingCandidate } | { rejected: FoundingCandidate } | null}
  */
 export function evaluateFirstViableCorridorCandidate(
@@ -115,10 +117,17 @@ export function evaluateFirstViableCorridorCandidate(
   colonistSettings,
   worldDocument,
   roads,
+  expeditionMode = 'land',
 ) {
   let firstRejected = null
   for (const candidate of candidates) {
     if (!isDistinctSettlementPin(settlements, candidate.x, candidate.y)) {
+      continue
+    }
+    if (
+      expeditionMode === 'sail' &&
+      !isSettlementSailReachable(worldDocument, { x: candidate.x, y: candidate.y })
+    ) {
       continue
     }
     const viable = isProvisionalClaimViable({

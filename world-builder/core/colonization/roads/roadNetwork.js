@@ -5,21 +5,24 @@ export const DEFAULT_ROAD_MOVEMENT_MULTIPLIER = 0.5
  * @typedef {Object} RoadSegment
  * @property {Array<{ x: number, y: number }>} cells
  * @property {string[]} [settlementIds]
+ * @property {'land' | 'sail'} [mode] Missing mode resolves as land route for backward compatibility.
  */
 
 /**
  * @param {RoadSegment[] | null | undefined} roads
  * @param {number} gridWidth
  * @param {number} gridHeight
+ * @param {{ landOnly?: boolean }} [options]
  * @returns {Uint8Array}
  */
-export function buildRoadCellMask(roads, gridWidth, gridHeight) {
+function buildRouteCellMaskInternal(roads, gridWidth, gridHeight, options = {}) {
   const mask = new Uint8Array(gridWidth * gridHeight)
   if (!Array.isArray(roads)) {
     return mask
   }
   for (const segment of roads) {
     if (!Array.isArray(segment?.cells)) continue
+    if (options.landOnly && segment.mode === 'sail') continue
     for (const cell of segment.cells) {
       if (
         Number.isInteger(cell.x) &&
@@ -38,11 +41,34 @@ export function buildRoadCellMask(roads, gridWidth, gridHeight) {
 
 /**
  * @param {RoadSegment[] | null | undefined} roads
+ * @param {number} gridWidth
+ * @param {number} gridHeight
+ * @returns {Uint8Array}
+ */
+export function buildRoadCellMask(roads, gridWidth, gridHeight) {
+  return buildRouteCellMaskInternal(roads, gridWidth, gridHeight)
+}
+
+/**
+ * Land route cells only — used for movement cost, haul-shed, and primary claim bonuses.
+ *
+ * @param {RoadSegment[] | null | undefined} roads
+ * @param {number} gridWidth
+ * @param {number} gridHeight
+ * @returns {Uint8Array}
+ */
+export function buildLandRouteCellMask(roads, gridWidth, gridHeight) {
+  return buildRouteCellMaskInternal(roads, gridWidth, gridHeight, { landOnly: true })
+}
+
+/**
+ * @param {RoadSegment[] | null | undefined} roads
  * @param {Array<{ x: number, y: number }>} pathCells
  * @param {string[]} [settlementIds]
+ * @param {'land' | 'sail'} [mode]
  * @returns {RoadSegment[]}
  */
-export function appendRoadSegment(roads, pathCells, settlementIds = []) {
+export function appendRoadSegment(roads, pathCells, settlementIds = [], mode = 'land') {
   const next = Array.isArray(roads) ? [...roads] : []
   if (!Array.isArray(pathCells) || pathCells.length === 0) {
     return next
@@ -50,6 +76,7 @@ export function appendRoadSegment(roads, pathCells, settlementIds = []) {
   next.push({
     cells: pathCells.map((cell) => ({ x: cell.x, y: cell.y })),
     settlementIds: [...settlementIds],
+    mode: mode === 'sail' ? 'sail' : 'land',
   })
   return next
 }
@@ -73,6 +100,7 @@ export function resolveRoadSegments(value) {
         .filter((cell) => cell && Number.isFinite(cell.x) && Number.isFinite(cell.y))
         .map((cell) => ({ x: /** @type {number} */ (cell.x), y: /** @type {number} */ (cell.y) })),
       settlementIds: Array.isArray(record.settlementIds) ? [...record.settlementIds] : [],
+      mode: record.mode === 'sail' ? 'sail' : 'land',
     })
   }
   return resolved

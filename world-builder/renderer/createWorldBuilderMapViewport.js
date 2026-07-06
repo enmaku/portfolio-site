@@ -76,8 +76,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   population.visible = false
   const explorationFog = new Sprite(Texture.EMPTY)
   explorationFog.visible = false
-  const roads = new Sprite(Texture.EMPTY)
-  roads.visible = false
+  const routes = new Sprite(Texture.EMPTY)
+  routes.visible = false
   const coastalOverlay = new Graphics()
   const metalOverlay = new Graphics()
   const saltOverlay = new Graphics()
@@ -107,7 +107,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     freshwater: null,
     population: null,
     explorationFog: null,
-    roads: null,
+    routes: null,
   }
 
   /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Sprite>} */
@@ -119,7 +119,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     freshwater,
     population,
     explorationFog,
-    roads,
+    routes,
   }
 
   const viewport = new Viewport({
@@ -142,7 +142,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(freshwater)
   viewport.addChild(population)
   viewport.addChild(explorationFog)
-  viewport.addChild(roads)
+  viewport.addChild(routes)
   viewport.addChild(coastalOverlay)
   viewport.addChild(metalOverlay)
   viewport.addChild(saltOverlay)
@@ -246,8 +246,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       case 'explorationFog':
         explorationFog.visible = false
         break
-      case 'roads':
-        roads.visible = false
+      case 'routes':
+        routes.visible = false
         break
       case 'rivers':
         rivers.visible = false
@@ -280,7 +280,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       freshwater: () => refreshResourceRasterOverlay('freshwater', currentWorldDocument),
       population: () => refreshResourceRasterOverlay('population', currentWorldDocument),
       explorationFog: () => refreshResourceRasterOverlay('explorationFog', currentWorldDocument),
-      roads: () => refreshResourceRasterOverlay('roads', currentWorldDocument),
+      routes: () => refreshResourceRasterOverlay('routes', currentWorldDocument),
       rivers: () => refreshRiverOverlay(currentWorldDocument),
       lakes: () => refreshLakeOverlay(currentWorldDocument),
       coastalNodes: () => drawCoastalNodes(coastalOverlay, currentWorldDocument),

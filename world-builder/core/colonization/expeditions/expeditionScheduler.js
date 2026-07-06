@@ -1,6 +1,5 @@
-import { createSeededRandom, deriveFieldSeed } from '../../noise/seededRandom.js'
 import { isFrontierExhausted, patchLogisticsNodeSurvey, resolveLogisticsNodeSurvey } from '../logisticsNodes/scoreLogisticsNodes.js'
-import { buildRoadCellMask, resolveRoadSegments } from '../roads/roadNetwork.js'
+import { buildLandRouteCellMask, resolveRoadSegments } from '../roads/roadNetwork.js'
 import {
   markCellsVisited,
   markVisitDisc,
@@ -11,13 +10,11 @@ import {
   listCorridorFoundingCandidates,
 } from './evaluateCorridorFounding.js'
 import { LOGISTICS_NODE_VISIT_DISC_RADIUS } from './expeditionConstants.js'
-import {
-  advanceExplorationProgress,
-  buildSimpleExplorationRoute,
-  routeCellsEnteredSince,
-} from './buildSimpleExplorationRoute.js'
+import { advanceBearingExpedition } from './advanceBearingExpedition.js'
+import { buildDryLandTraversableMask } from './buildDryLandTraversableMask.js'
 import { foundDaughterSettlement } from './foundDaughterSettlement.js'
-import { pickExplorationTarget } from './pickExplorationTarget.js'
+import { planExpeditionDispatch } from './planExpeditionDispatch.js'
+import { resolveSailTraversableMask } from './expeditionRouting.js'
 import {
   getActiveExpeditionForSettlement,
   livingSettlements,
@@ -74,7 +71,7 @@ async function runExpeditionNetworkPhase(slice, worldDocument, options = {}) {
   }
   let currentDoc = { ...worldDocument }
 
-  const roadCellMask = buildRoadCellMask(
+  const roadCellMask = buildLandRouteCellMask(
     currentSlice.roads,
     currentDoc.gridWidth,
     currentDoc.gridHeight,
@@ -152,7 +149,7 @@ export function applyExpeditionNetworkPhase(slice, worldDocument, options = {}) 
   }
   let currentDoc = { ...worldDocument }
 
-  const roadCellMask = buildRoadCellMask(
+  const roadCellMask = buildLandRouteCellMask(
     currentSlice.roads,
     currentDoc.gridWidth,
     currentDoc.gridHeight,
@@ -214,47 +211,12 @@ export function applyExpeditionNetworkPhaseAsync(slice, worldDocument, options =
  *   visitRaster: Uint8Array,
  *   geographySeed: number,
  *   epoch: number,
- *   explorationHorizon: number,
+ *   roadCellMask: Uint8Array,
  * }} params
  * @returns {import('./expeditionConstants.js').ExpeditionRecord | null}
  */
 function planExpeditionForSettlement(params) {
-  const { settlement, doc, visitRaster, geographySeed, epoch, explorationHorizon } = params
-  const random = createSeededRandom(
-    deriveFieldSeed(geographySeed, `expedition-dispatch-${epoch}-${settlement.id}`),
-  )
-
-  const target = pickExplorationTarget({
-    doc,
-    visitRaster,
-    settlement,
-    random,
-    horizonCells: explorationHorizon,
-  })
-  if (!target) {
-    return null
-  }
-
-  const straightLine = Math.hypot(target.x - settlement.x, target.y - settlement.y)
-  const routeChoice = buildSimpleExplorationRoute(
-    doc,
-    { x: settlement.x, y: settlement.y },
-    target,
-    Math.ceil(straightLine + explorationHorizon),
-  )
-  if (!routeChoice || routeChoice.cells.length < 2) {
-    return null
-  }
-
-  return {
-    id: `expedition-${epoch}-${settlement.id}-${target.x}-${target.y}`,
-    settlementId: settlement.id,
-    mode: routeChoice.mode,
-    route: routeChoice.cells,
-    progressIndex: 0,
-    target,
-    status: 'active',
-  }
+  return planExpeditionDispatch(params)
 }
 
 /**
@@ -265,7 +227,7 @@ function planExpeditionForSettlement(params) {
  */
 function dispatchExpeditionsSync(slice, doc, geographySeed, epoch) {
   const visitRaster = slice.visitedCells
-  const explorationHorizon = slice.colonistSettings.threeDayHaulDistance
+  const roadCellMask = buildLandRouteCellMask(slice.roads, doc.gridWidth, doc.gridHeight)
   /** @type {import('./expeditionConstants.js').ExpeditionRecord[]} */
   const expeditions = [...resolveExpeditions(slice.expeditions)]
 
@@ -280,7 +242,7 @@ function dispatchExpeditionsSync(slice, doc, geographySeed, epoch) {
       visitRaster,
       geographySeed,
       epoch,
-      explorationHorizon,
+      roadCellMask,
     })
     if (planned) {
       expeditions.push(planned)
@@ -299,7 +261,7 @@ function dispatchExpeditionsSync(slice, doc, geographySeed, epoch) {
  */
 async function dispatchExpeditions(slice, doc, geographySeed, epoch, yieldToUi) {
   const visitRaster = slice.visitedCells
-  const explorationHorizon = slice.colonistSettings.threeDayHaulDistance
+  const roadCellMask = buildLandRouteCellMask(slice.roads, doc.gridWidth, doc.gridHeight)
   /** @type {import('./expeditionConstants.js').ExpeditionRecord[]} */
   const expeditions = [...resolveExpeditions(slice.expeditions)]
 
@@ -316,7 +278,7 @@ async function dispatchExpeditions(slice, doc, geographySeed, epoch, yieldToUi) 
       visitRaster,
       geographySeed,
       epoch,
-      explorationHorizon,
+      roadCellMask,
     })
     if (planned) {
       expeditions.push(planned)
@@ -336,7 +298,7 @@ async function dispatchExpeditions(slice, doc, geographySeed, epoch, yieldToUi) 
  * }} params
  */
 function advanceActiveExpeditions(params) {
-  const { slice, worldDocument, epoch } = params
+  const { slice, worldDocument, epoch, roadCellMask } = params
   let currentSlice = { ...slice }
   let currentDoc = { ...worldDocument }
   /** @type {object[]} */
@@ -344,23 +306,29 @@ function advanceActiveExpeditions(params) {
   /** @type {import('./expeditionConstants.js').ExpeditionRecord[]} */
   const nextExpeditions = []
 
+  const dryLandMask = buildDryLandTraversableMask(currentDoc)
+  const sailMask = resolveSailTraversableMask(currentDoc)
+
   for (const expedition of resolveExpeditions(slice.expeditions)) {
     if (expedition.status !== 'active') {
       nextExpeditions.push(expedition)
       continue
     }
 
-    const cellsPerEpoch = slice.colonistSettings.threeDayHaulDistance
-    const previousIndex = expedition.progressIndex
-    const progressIndex = advanceExplorationProgress(
-      expedition.route,
-      previousIndex,
-      cellsPerEpoch,
-    )
-    const traveled = routeCellsEnteredSince(expedition.route, previousIndex, progressIndex)
-    markCellsVisited(currentSlice.visitedCells, traveled, currentDoc.gridWidth)
+    const advanced = advanceBearingExpedition({
+      expedition,
+      doc: currentDoc,
+      colonistSettings: slice.colonistSettings,
+      dryLandMask,
+      sailMask,
+      visitRaster: currentSlice.visitedCells,
+      roadCellMask,
+    })
 
-    const tip = expedition.route[progressIndex]
+    markCellsVisited(currentSlice.visitedCells, advanced.traveledCells, currentDoc.gridWidth)
+
+    const updated = advanced.expedition
+    const tip = updated.route[updated.progressIndex]
     if (tip) {
       const node = (currentSlice.logisticsNodeSurvey ?? []).find(
         (entry) => entry.x === tip.x && entry.y === tip.y,
@@ -386,6 +354,7 @@ function advanceActiveExpeditions(params) {
       currentSlice.colonistSettings,
       currentDoc,
       currentSlice.roads,
+      expedition.mode,
     )
 
     if (evaluation && 'rejected' in evaluation) {
@@ -407,8 +376,8 @@ function advanceActiveExpeditions(params) {
         candidate: evaluation.candidate,
         originSettlementId: expedition.settlementId,
         epoch,
-        expeditionRoute: expedition.route,
-        progressIndex,
+        expeditionRoute: updated.route,
+        progressIndex: updated.progressIndex,
         mode: expedition.mode,
       })
       currentSlice = {
@@ -424,15 +393,15 @@ function advanceActiveExpeditions(params) {
         historyEntry: founded.historyEntry,
         epoch,
       })
-      nextExpeditions.push({ ...expedition, progressIndex, status: 'completed' })
+      nextExpeditions.push({
+        ...updated,
+        status: 'completed',
+        endReason: 'founded',
+      })
       continue
     }
 
-    if (progressIndex >= expedition.route.length - 1) {
-      nextExpeditions.push({ ...expedition, progressIndex, status: 'completed' })
-    } else {
-      nextExpeditions.push({ ...expedition, progressIndex, status: 'active' })
-    }
+    nextExpeditions.push(updated)
   }
 
   return {

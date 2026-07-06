@@ -36,7 +36,10 @@ test('evaluateFirstViableCorridorCandidate tries later corridor candidates after
 
   const result = evaluateFirstViableCorridorCandidate(
     candidates,
-    [{ id: 'origin', x: 0, y: 0, status: 'living' }],
+    [
+      { id: 'origin', x: 0, y: 0, status: 'living' },
+      { id: 'occupied', x: 1, y: 1, status: 'living' },
+    ],
     {
       threeDayHaulDistance: 2,
       startingPopulation: 50,

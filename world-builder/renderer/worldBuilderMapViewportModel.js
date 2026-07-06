@@ -164,8 +164,11 @@ export function resolveExplorationFogRasterLayerVisible(visibility, worldDocumen
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @returns {boolean}
  */
-export function resolveRoadRasterLayerVisible(visibility, worldDocument) {
-  if (!isResourceOverlayVisible(visibility, 'roads')) {
+export function resolveRoutesRasterLayerVisible(visibility, worldDocument) {
+  const routesVisible =
+    isResourceOverlayVisible(visibility, 'routes') ||
+    isResourceOverlayVisible(visibility, 'roads')
+  if (!routesVisible) {
     return false
   }
   if (worldDocument.colonizationPhase !== 'running') {
@@ -174,3 +177,6 @@ export function resolveRoadRasterLayerVisible(visibility, worldDocument) {
   const roads = worldDocument.roads
   return Array.isArray(roads) && roads.some((segment) => Array.isArray(segment.cells) && segment.cells.length > 0)
 }
+
+/** @deprecated Use resolveRoutesRasterLayerVisible */
+export const resolveRoadRasterLayerVisible = resolveRoutesRasterLayerVisible

@@ -34,8 +34,8 @@ test('toggleVisibility syncs explorationFog overlay state', () => {
     assert.strictEqual(ctx.visibility.value.explorationFog, true)
     assert.strictEqual(syncedStates.at(-1)?.visibility.explorationFog, true)
 
-    ctx.toggleVisibility('roads', true)
-    assert.strictEqual(ctx.visibility.value.roads, true)
+    ctx.toggleVisibility('routes', true)
+    assert.strictEqual(ctx.visibility.value.routes, true)
   } finally {
     scope.stop()
   }

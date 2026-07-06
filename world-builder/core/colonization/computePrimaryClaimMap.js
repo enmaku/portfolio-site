@@ -1,5 +1,5 @@
 import { computeHaulShedTravelTimes } from './computeHaulShedIsochrone.js'
-import { buildRoadCellMask } from './roads/roadNetwork.js'
+import { buildLandRouteCellMask } from './roads/roadNetwork.js'
 
 /**
  * @typedef {{ x: number, y: number }} GridCell
@@ -110,7 +110,7 @@ export function recomputePrimaryClaims(params) {
 
   let resolvedRoadMask = roadCellMask ?? null
   if (!resolvedRoadMask && roads) {
-    resolvedRoadMask = buildRoadCellMask(roads, gridWidth, gridHeight)
+    resolvedRoadMask = buildLandRouteCellMask(roads, gridWidth, gridHeight)
   }
 
   return computePrimaryClaimMap({

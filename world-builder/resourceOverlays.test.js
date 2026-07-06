@@ -31,7 +31,7 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'freshwater', kind: 'raster', vectorLayerId: undefined },
       { id: 'population', kind: 'raster', vectorLayerId: undefined },
       { id: 'explorationFog', kind: 'raster', vectorLayerId: undefined },
-      { id: 'roads', kind: 'raster', vectorLayerId: undefined },
+      { id: 'routes', kind: 'raster', vectorLayerId: undefined },
     ],
   )
 })
@@ -46,7 +46,7 @@ test('createResourceOverlayIds returns canonical overlay ids in order', () => {
     'freshwater',
     'population',
     'explorationFog',
-    'roads',
+    'routes',
   ])
 })
 
@@ -60,7 +60,7 @@ test('createDefaultResourceOverlayVisibility defaults every canonical overlay of
     freshwater: false,
     population: false,
     explorationFog: false,
-    roads: false,
+    routes: false,
   })
 })
 

@@ -78,12 +78,15 @@ function visibleRasterFixture(resourceId) {
     }
   }
 
-  if (resourceId === 'roads') {
+  if (resourceId === 'routes') {
     return {
       gridWidth: 4,
       gridHeight: 4,
       colonizationPhase: 'running',
-      roads: [{ cells: [{ x: 1, y: 1 }, { x: 2, y: 1 }] }],
+      roads: [
+        { cells: [{ x: 1, y: 1 }, { x: 2, y: 1 }], mode: 'land' },
+        { cells: [{ x: 0, y: 2 }], mode: 'sail' },
+      ],
     }
   }
 

@@ -24,7 +24,7 @@ export function createResourceOverlayDefinitions() {
     { id: 'freshwater', kind: 'raster', label: 'Freshwater' },
     { id: 'population', kind: 'raster', label: 'Population' },
     { id: 'explorationFog', kind: 'raster', label: 'Exploration fog' },
-    { id: 'roads', kind: 'raster', label: 'Roads' },
+    { id: 'routes', kind: 'raster', label: 'Routes overlay' },
   ]
 }
 

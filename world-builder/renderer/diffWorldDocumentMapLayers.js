@@ -217,7 +217,7 @@ export function diffWorldDocumentMapLayers(previous, next) {
     changedLayers.push('explorationFog')
   }
   if (roadSegmentsChanged(previous.roads, next.roads)) {
-    changedLayers.push('roads')
+    changedLayers.push('routes')
   }
   if (riverLayerInputsChanged(previous, next)) {
     changedLayers.push('rivers')

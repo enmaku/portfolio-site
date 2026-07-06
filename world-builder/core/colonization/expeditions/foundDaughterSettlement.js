@@ -1,7 +1,7 @@
 import { createFoundingDynasty } from '../createFoundingDynasty.js'
 import { computeHaulShedIsochrone } from '../computeHaulShedIsochrone.js'
 import { seedHaulShedVisited } from '../visitStatus/visitRaster.js'
-import { appendRoadSegment, buildRoadCellMask } from '../roads/roadNetwork.js'
+import { appendRoadSegment, buildLandRouteCellMask } from '../roads/roadNetwork.js'
 import { patchLogisticsNodeSurvey } from '../logisticsNodes/scoreLogisticsNodes.js'
 import { DAUGHTER_OUTPOST_HEADCOUNT } from './expeditionConstants.js'
 import { routeCellsUpToProgress } from './expeditionRouting.js'
@@ -64,7 +64,7 @@ export function foundDaughterSettlement(params) {
     logisticsNodePrimaryType: candidate.node.primaryType,
   }
 
-  const roadCellMask = buildRoadCellMask(
+  const roadCellMask = buildLandRouteCellMask(
     slice.roads,
     worldDocument.gridWidth,
     worldDocument.gridHeight,
@@ -86,11 +86,9 @@ export function foundDaughterSettlement(params) {
   })
 
   let roads = slice.roads ?? []
-  if (mode === 'land') {
-    const traveled = routeCellsUpToProgress(expeditionRoute, progressIndex)
-    if (traveled.length > 1) {
-      roads = appendRoadSegment(roads, traveled, [originSettlementId, settlementId])
-    }
+  const traveled = routeCellsUpToProgress(expeditionRoute, progressIndex)
+  if (traveled.length > 1) {
+    roads = appendRoadSegment(roads, traveled, [originSettlementId, settlementId], mode)
   }
 
   const logisticsNodeSurvey = patchLogisticsNodeSurvey(
@@ -133,7 +131,7 @@ export function seedSettlementHaulShedVisited(slice, worldDocument, origin) {
       ? slice.visitedCells
       : cellCount,
   )
-  const roadCellMask = buildRoadCellMask(
+  const roadCellMask = buildLandRouteCellMask(
     worldDocument.roads,
     worldDocument.gridWidth,
     worldDocument.gridHeight,

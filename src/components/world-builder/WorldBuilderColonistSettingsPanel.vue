@@ -87,6 +87,44 @@
       data-testid="world-builder-colonist-epoch-batch"
       @update:model-value="onEpochBatchInput"
     />
+
+    <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
+      <span class="text-caption">Land expedition range</span>
+      <WorldBuilderSettingHelp
+        :text="LAND_EXPEDITION_RANGE_TOOLTIP"
+        label="Land expedition range"
+      />
+    </div>
+    <q-slider
+      :model-value="displaySettings.landExpeditionRange"
+      :min="minLandExpeditionRange"
+      :max="maxLandExpeditionRange"
+      :step="1"
+      label
+      color="primary"
+      data-testid="world-builder-colonist-land-expedition-range"
+      :disable="runningPhase"
+      @update:model-value="(value) => emitSetting('landExpeditionRange', value)"
+    />
+
+    <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
+      <span class="text-caption">Sail expedition range</span>
+      <WorldBuilderSettingHelp
+        :text="SAIL_EXPEDITION_RANGE_TOOLTIP"
+        label="Sail expedition range"
+      />
+    </div>
+    <q-slider
+      :model-value="displaySettings.sailExpeditionRange"
+      :min="minSailExpeditionRange"
+      :max="maxSailExpeditionRange"
+      :step="1"
+      label
+      color="primary"
+      data-testid="world-builder-colonist-sail-expedition-range"
+      :disable="runningPhase"
+      @update:model-value="(value) => emitSetting('sailExpeditionRange', value)"
+    />
   </div>
 </template>
 
@@ -94,11 +132,19 @@
 import { computed } from 'vue'
 import {
   EPOCH_BATCH_TOOLTIP,
+  LAND_EXPEDITION_RANGE_TOOLTIP,
+  SAIL_EXPEDITION_RANGE_TOOLTIP,
   STARTING_POPULATION_TOOLTIP,
   THREE_DAY_HAUL_DISTANCE_TOOLTIP,
   YIELD_MODIFIER_TOOLTIP,
 } from '@world-builder/worldBuilderColonistSettingsControls.js'
-import { MAX_THREE_DAY_HAUL_DISTANCE } from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
+import {
+  MAX_LAND_EXPEDITION_RANGE,
+  MAX_SAIL_EXPEDITION_RANGE,
+  MAX_THREE_DAY_HAUL_DISTANCE,
+  MIN_LAND_EXPEDITION_RANGE,
+  MIN_SAIL_EXPEDITION_RANGE,
+} from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
 import WorldBuilderSettingHelp from './WorldBuilderSettingHelp.vue'
 
 const props = defineProps({
@@ -122,6 +168,10 @@ const props = defineProps({
 
 const emit = defineEmits(['update-setting', 'update:pending-epoch-batch', 'reset-defaults'])
 const maxThreeDayHaulDistance = MAX_THREE_DAY_HAUL_DISTANCE
+const minLandExpeditionRange = MIN_LAND_EXPEDITION_RANGE
+const maxLandExpeditionRange = MAX_LAND_EXPEDITION_RANGE
+const minSailExpeditionRange = MIN_SAIL_EXPEDITION_RANGE
+const maxSailExpeditionRange = MAX_SAIL_EXPEDITION_RANGE
 
 const displaySettings = computed(() =>
   props.runningPhase ? props.colonistSettingsSnapshot : props.colonistSettings,

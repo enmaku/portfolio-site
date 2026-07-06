@@ -143,7 +143,7 @@ test('diffWorldDocumentMapLayers detects road segment changes', () => {
     roads: [{ cells: [{ x: 1, y: 1 }, { x: 2, y: 1 }] }],
   })
 
-  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['roads'])
+  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['routes'])
 })
 
 test('diffWorldDocumentMapLayers detects metal node changes only in metalNodes layer', () => {

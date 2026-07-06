@@ -69,6 +69,8 @@ export function executeBeginColonizationCommitStepsSync(current, doc) {
       startingPopulation: current.colonistSettings.startingPopulation,
       yieldModifier: current.colonistSettings.yieldModifier,
       epochBatch: current.colonistSettings.epochBatch,
+      landExpeditionRange: current.colonistSettings.landExpeditionRange,
+      sailExpeditionRange: current.colonistSettings.sailExpeditionRange,
     },
   }
 
@@ -197,6 +199,8 @@ async function executeBeginColonizationCommitStepsAsync(current, doc, hooks) {
       startingPopulation: current.colonistSettings.startingPopulation,
       yieldModifier: current.colonistSettings.yieldModifier,
       epochBatch: current.colonistSettings.epochBatch,
+      landExpeditionRange: current.colonistSettings.landExpeditionRange,
+      sailExpeditionRange: current.colonistSettings.sailExpeditionRange,
     },
   }
 

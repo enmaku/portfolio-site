@@ -1,7 +1,7 @@
 import { resolveExpeditions } from '../expeditions/expeditionConstants.js'
 import { LOGISTICS_NODE_VISIT_DISC_RADIUS } from '../expeditions/expeditionConstants.js'
 import { routeCellsUpToProgress } from '../expeditions/expeditionRouting.js'
-import { buildRoadCellMask } from '../roads/roadNetwork.js'
+import { buildLandRouteCellMask } from '../roads/roadNetwork.js'
 import {
   createEmptyVisitRaster,
   markCellsVisited,
@@ -20,7 +20,7 @@ import {
 export function rebuildVisitRasterFromSession(slice, doc) {
   const { gridWidth, gridHeight } = doc
   const raster = createEmptyVisitRaster(gridWidth, gridHeight)
-  const roadCellMask = buildRoadCellMask(slice.roads ?? [], gridWidth, gridHeight)
+  const roadCellMask = buildLandRouteCellMask(slice.roads ?? [], gridWidth, gridHeight)
   const haulBudget = slice.colonistSettings.threeDayHaulDistance
 
   for (const settlement of slice.settlements ?? []) {

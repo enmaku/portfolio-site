@@ -304,7 +304,7 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'freshwater', kind: 'raster' },
       { id: 'population', kind: 'raster' },
       { id: 'explorationFog', kind: 'raster' },
-      { id: 'roads', kind: 'raster' },
+      { id: 'routes', kind: 'raster' },
     ],
   )
 })
@@ -319,7 +319,7 @@ test('createDefaultResourceOverlayVisibility defaults every overlay off', () => 
     freshwater: false,
     population: false,
     explorationFog: false,
-    roads: false,
+    routes: false,
   })
 })
 
