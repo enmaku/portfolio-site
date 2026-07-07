@@ -178,3 +178,14 @@ test('diffWorldDocumentMapLayers detects salt node changes only in saltNodes lay
 
   assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['saltNodes'])
 })
+
+test('diffWorldDocumentMapLayers detects settlement changes only in settlementNodes layer', () => {
+  const previous = baseDocument({
+    settlements: [{ id: 's1', x: 1, y: 2, population: 100 }],
+  })
+  const next = baseDocument({
+    settlements: [{ id: 's1', x: 2, y: 2, population: 100 }],
+  })
+
+  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['settlementNodes'])
+})

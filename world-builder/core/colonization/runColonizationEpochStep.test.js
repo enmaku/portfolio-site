@@ -29,18 +29,17 @@ function richGeographyDoc() {
   }
 }
 
-function commitRunningSlice(epochBatch = 1) {
+function commitRunningSlice() {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 1 }
   slice.colonistSettings.startingPopulation = 20
   slice.colonistSettings.threeDayHaulDistance = 2
-  slice.colonistSettings.epochBatch = epochBatch
   return beginColonizationCommit(slice, richGeographyDoc())
 }
 
 test('runColonizationEpochStep reports progress through phases and commit finalize', async () => {
-  const running = commitRunningSlice(1)
+  const running = commitRunningSlice()
   running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
     ...entry,
     exhausted: true,

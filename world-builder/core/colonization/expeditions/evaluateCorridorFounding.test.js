@@ -44,7 +44,6 @@ test('evaluateFirstViableCorridorCandidate tries later corridor candidates after
       threeDayHaulDistance: 2,
       startingPopulation: 50,
       yieldModifier: 'typical',
-      epochBatch: 1,
     },
     worldDocument,
     [],

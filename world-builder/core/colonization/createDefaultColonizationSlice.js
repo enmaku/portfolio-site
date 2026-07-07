@@ -6,7 +6,6 @@
  * @property {number} threeDayHaulDistance
  * @property {number} startingPopulation
  * @property {YieldModifier} yieldModifier
- * @property {number} epochBatch
  * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap.
  * @property {number} inlandSailExpeditionRange Multiplier on three-day haul distance for inland sail expedition range cap.
  * @property {number} openSeaExpeditionRange Multiplier on three-day haul distance for open-sea expedition range cap.
@@ -90,7 +89,6 @@ export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 50
 export const MAX_THREE_DAY_HAUL_DISTANCE = 100
 export const DEFAULT_STARTING_POPULATION = 100
 export const DEFAULT_YIELD_MODIFIER = /** @type {YieldModifier} */ ('typical')
-export const DEFAULT_EPOCH_BATCH = 50
 export const DEFAULT_LAND_EXPEDITION_RANGE = 2
 export const MIN_LAND_EXPEDITION_RANGE = 1
 export const MAX_LAND_EXPEDITION_RANGE = 4
@@ -109,7 +107,6 @@ export function createDefaultColonistSettings() {
     threeDayHaulDistance: DEFAULT_THREE_DAY_HAUL_DISTANCE,
     startingPopulation: DEFAULT_STARTING_POPULATION,
     yieldModifier: DEFAULT_YIELD_MODIFIER,
-    epochBatch: DEFAULT_EPOCH_BATCH,
     landExpeditionRange: DEFAULT_LAND_EXPEDITION_RANGE,
     inlandSailExpeditionRange: DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
     openSeaExpeditionRange: DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
@@ -229,7 +226,6 @@ export function resolveColonistSettings(value) {
       defaults.startingPopulation,
     ),
     yieldModifier,
-    epochBatch: positiveNumberOr(incoming.epochBatch, defaults.epochBatch),
     landExpeditionRange: clampIntegerRange(
       incoming.landExpeditionRange,
       defaults.landExpeditionRange,

@@ -9,9 +9,6 @@ export const STARTING_POPULATION_TOOLTIP =
 export const YIELD_MODIFIER_TOOLTIP =
   'How generously arable land is read for food production: marginal (poor yields), typical, or bountiful (rich yields). Affects population ceiling and growth once survival ticks run.'
 
-export const EPOCH_BATCH_TOOLTIP =
-  'In-world years advanced each time you step the simulation. 1 steps year by year; higher values jump decades or a century per click. Editable during a run. Time controls activate with the first colonization increment.'
-
 export const LAND_EXPEDITION_RANGE_TOOLTIP =
   'Multiplier on three-day haul distance for how far a land expedition may march before ending (1×–4×). Locked after begin colonization.'
 

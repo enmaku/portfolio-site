@@ -15,7 +15,7 @@ import {
 
 test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
   const definitions = createResourceOverlayDefinitions()
-  assert.strictEqual(definitions.length, 9)
+  assert.strictEqual(definitions.length, 10)
   assert.deepStrictEqual(
     definitions.map((definition) => ({
       id: definition.id,
@@ -30,6 +30,7 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'sail', kind: 'raster', vectorLayerId: undefined },
       { id: 'freshwater', kind: 'raster', vectorLayerId: undefined },
       { id: 'population', kind: 'raster', vectorLayerId: undefined },
+      { id: 'settlements', kind: 'nodes', vectorLayerId: 'settlementNodes' },
       { id: 'explorationFog', kind: 'raster', vectorLayerId: undefined },
       { id: 'routes', kind: 'raster', vectorLayerId: undefined },
     ],
@@ -45,6 +46,7 @@ test('createResourceOverlayIds returns canonical overlay ids in order', () => {
     'sail',
     'freshwater',
     'population',
+    'settlements',
     'explorationFog',
     'routes',
   ])
@@ -59,6 +61,7 @@ test('createDefaultResourceOverlayVisibility defaults every canonical overlay of
     sail: false,
     freshwater: false,
     population: false,
+    settlements: false,
     explorationFog: false,
     routes: false,
   })

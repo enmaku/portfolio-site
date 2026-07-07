@@ -40,7 +40,7 @@ import { COLONIZATION_EPOCH_PHASES } from './colonizationEpochSteps.js'
  */
 
 /**
- * Advance epochBatch annual ticks with UI progress reporting and yields between phases.
+ * Advance one annual epoch tick with UI progress reporting and yields between phases.
  *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument
@@ -55,102 +55,95 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
     return { slice, ran: false }
   }
 
-  const batch = Math.max(1, Math.floor(slice.colonistSettings.epochBatch || 1))
   const yieldToUi = options.yieldToUi ?? yieldEpochStepProgressToUi
   const handlers = options.handlers ?? {}
   const epochOptions = options.epochOptions ?? {}
 
-  let progress = createInitialEpochStepProgress(batch)
+  let progress = createInitialEpochStepProgress()
   handlers.onProgress?.(progress)
   await yieldToUi()
 
   let current = slice
   let currentDoc = worldDocument
+  const simulationEpoch = current.epoch
 
-  for (let epochIndex = 0; epochIndex < batch; epochIndex += 1) {
-    progress = reduceEpochStepProgressOnEpochStart(progress, { epochIndex, epochBatch: batch })
+  progress = reduceEpochStepProgressOnEpochStart(progress, { simulationEpoch })
+  handlers.onProgress?.(progress)
+  await yieldToUi()
+
+  const ctx = createColonizationEpochContext(current, currentDoc)
+
+  for (let phaseIndex = 0; phaseIndex < COLONIZATION_EPOCH_PHASES.length; phaseIndex += 1) {
+    const phase = COLONIZATION_EPOCH_PHASES[phaseIndex]
+    progress = reduceEpochStepProgressOnPhaseStart(progress, {
+      simulationEpoch,
+      phaseIndex,
+      phaseId: phase.id,
+    })
     handlers.onProgress?.(progress)
     await yieldToUi()
 
-    const ctx = createColonizationEpochContext(current, currentDoc)
-
-    for (let phaseIndex = 0; phaseIndex < COLONIZATION_EPOCH_PHASES.length; phaseIndex += 1) {
-      const phase = COLONIZATION_EPOCH_PHASES[phaseIndex]
-      progress = reduceEpochStepProgressOnPhaseStart(progress, {
-        epochIndex,
-        epochBatch: batch,
-        phaseIndex,
-        phaseId: phase.id,
-      })
-      handlers.onProgress?.(progress)
-      await yieldToUi()
-
-      if (phase.id === 'network') {
-        await runColonizationEpochNetworkPhaseAsync(ctx, {
-          network: {
-            yieldToUi,
-            hooks: {
-              onNetworkSubstep(payload) {
-                if (payload.type === 'substep-start') {
-                  progress = reduceEpochStepProgressOnNetworkSubstepStart(progress, {
-                    substepIndex: payload.substepIndex,
-                  })
-                } else {
-                  progress = reduceEpochStepProgressOnNetworkSubstepComplete(progress, {
-                    substepIndex: payload.substepIndex,
-                  })
-                }
-                handlers.onProgress?.(progress)
-              },
+    if (phase.id === 'network') {
+      await runColonizationEpochNetworkPhaseAsync(ctx, {
+        network: {
+          yieldToUi,
+          hooks: {
+            onNetworkSubstep(payload) {
+              if (payload.type === 'substep-start') {
+                progress = reduceEpochStepProgressOnNetworkSubstepStart(progress, {
+                  substepIndex: payload.substepIndex,
+                })
+              } else {
+                progress = reduceEpochStepProgressOnNetworkSubstepComplete(progress, {
+                  substepIndex: payload.substepIndex,
+                })
+              }
+              handlers.onProgress?.(progress)
             },
           },
-        })
-      } else if (phase.id === 'claims') {
-        runColonizationEpochClaimsPhase(ctx)
-      } else if (phase.id === 'survival') {
-        runColonizationEpochSurvivalPhase(ctx, epochOptions)
-      } else if (phase.id === 'merge') {
-        runColonizationEpochMergePhase(ctx)
-      } else if (phase.id === 'ruin') {
-        runColonizationEpochRuinPhase(ctx)
-      } else if (phase.id === 'collapse') {
-        await runColonizationEpochCollapsePhaseAsync(ctx, {
-          collapse: {
-            yieldToUi,
-            hooks: {
-              onCollapseSubstep(payload) {
-                if (payload.type === 'substep-start') {
-                  progress = reduceEpochStepProgressOnCollapseSubstepStart(progress, {
-                    substepIndex: payload.substepIndex,
-                  })
-                } else {
-                  progress = reduceEpochStepProgressOnCollapseSubstepComplete(progress, {
-                    substepIndex: payload.substepIndex,
-                  })
-                }
-                handlers.onProgress?.(progress)
-              },
+        },
+      })
+    } else if (phase.id === 'claims') {
+      runColonizationEpochClaimsPhase(ctx)
+    } else if (phase.id === 'survival') {
+      runColonizationEpochSurvivalPhase(ctx, epochOptions)
+    } else if (phase.id === 'merge') {
+      runColonizationEpochMergePhase(ctx)
+    } else if (phase.id === 'ruin') {
+      runColonizationEpochRuinPhase(ctx)
+    } else if (phase.id === 'collapse') {
+      await runColonizationEpochCollapsePhaseAsync(ctx, {
+        collapse: {
+          yieldToUi,
+          hooks: {
+            onCollapseSubstep(payload) {
+              if (payload.type === 'substep-start') {
+                progress = reduceEpochStepProgressOnCollapseSubstepStart(progress, {
+                  substepIndex: payload.substepIndex,
+                })
+              } else {
+                progress = reduceEpochStepProgressOnCollapseSubstepComplete(progress, {
+                  substepIndex: payload.substepIndex,
+                })
+              }
+              handlers.onProgress?.(progress)
             },
           },
-        })
-      }
-
-      progress = reduceEpochStepProgressOnPhaseComplete(progress, {
-        epochIndex,
-        epochBatch: batch,
-        phaseIndex,
+        },
       })
-      handlers.onProgress?.(progress)
-      await yieldToUi()
     }
 
-    current = ctx.slice
-    currentDoc = ctx.worldDocument
-
-    progress = reduceEpochStepProgressOnEpochComplete(progress, { epochIndex, epochBatch: batch })
+    progress = reduceEpochStepProgressOnPhaseComplete(progress, { phaseIndex })
     handlers.onProgress?.(progress)
     await yieldToUi()
   }
+
+  current = ctx.slice
+  currentDoc = ctx.worldDocument
+
+  progress = reduceEpochStepProgressOnEpochComplete(progress, { simulationEpoch })
+  handlers.onProgress?.(progress)
+  await yieldToUi()
 
   progress = reduceEpochStepProgressOnFinalizeStepStart(progress, { stepIndex: 0 })
   handlers.onProgress?.(progress)
@@ -179,21 +172,12 @@ export function applyEpochStepSyncFromPhases(slice, worldDocument, options = {})
     return slice
   }
 
-  const batch = Math.max(1, Math.floor(slice.colonistSettings.epochBatch || 1))
-  let current = slice
-  let currentDoc = worldDocument
+  const ctx = createColonizationEpochContext(slice, worldDocument)
+  runColonizationEpochNetworkPhase(ctx, options)
+  runColonizationEpochClaimsPhase(ctx)
+  runColonizationEpochSurvivalPhase(ctx, options)
+  runColonizationEpochRuinPhase(ctx)
+  runColonizationEpochCollapsePhase(ctx)
 
-  for (let i = 0; i < batch; i += 1) {
-    const ctx = createColonizationEpochContext(current, currentDoc)
-    runColonizationEpochNetworkPhase(ctx, options)
-    runColonizationEpochClaimsPhase(ctx)
-    runColonizationEpochSurvivalPhase(ctx, options)
-    runColonizationEpochRuinPhase(ctx)
-    runColonizationEpochCollapsePhase(ctx)
-
-    current = ctx.slice
-    currentDoc = ctx.worldDocument
-  }
-
-  return current
+  return ctx.slice
 }

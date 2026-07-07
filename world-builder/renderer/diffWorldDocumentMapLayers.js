@@ -234,6 +234,9 @@ export function diffWorldDocumentMapLayers(previous, next) {
   if (nodeListChanged(previous.saltNodes, next.saltNodes)) {
     changedLayers.push('saltNodes')
   }
+  if (nodeListChanged(previous.settlements, next.settlements)) {
+    changedLayers.push('settlementNodes')
+  }
 
   return changedLayers
 }

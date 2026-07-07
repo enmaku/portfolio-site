@@ -3,7 +3,7 @@ import { applyEpochStepSyncFromPhases } from './runColonizationEpochStep.js'
 export { runColonizationEpochStep } from './runColonizationEpochStep.js'
 
 /**
- * Advance epochBatch annual ticks. Present-day slice is authoritative; history log
+ * Advance one annual epoch tick. Present-day slice is authoritative; history log
  * entries record milestone events during the tick.
  *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice

@@ -36,7 +36,6 @@ function commitRunningSlice(startingPopulation = 20) {
   slice.foundingLanding = { x: 1, y: 1 }
   slice.colonistSettings.startingPopulation = startingPopulation
   slice.colonistSettings.threeDayHaulDistance = 2
-  slice.colonistSettings.epochBatch = 1
   return beginColonizationCommit(slice, richGeographyDoc())
 }
 

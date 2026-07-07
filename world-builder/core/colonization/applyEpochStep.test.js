@@ -29,30 +29,29 @@ function richGeographyDoc() {
   }
 }
 
-function commitRunningSlice(epochBatch = 1) {
+function commitRunningSlice() {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 1 }
   slice.colonistSettings.startingPopulation = 20
   slice.colonistSettings.threeDayHaulDistance = 2
-  slice.colonistSettings.epochBatch = epochBatch
   return beginColonizationCommit(slice, richGeographyDoc())
 }
 
-test('applyEpochStep advances epoch by epochBatch', () => {
-  const running = commitRunningSlice(3)
+test('applyEpochStep advances epoch by one', () => {
+  const running = commitRunningSlice()
   running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
     ...entry,
     exhausted: true,
   }))
   const next = applyEpochStep(running, richGeographyDoc())
 
-  assert.strictEqual(next.epoch, 3)
+  assert.strictEqual(next.epoch, 1)
   assert.ok(Object.keys(next.primaryClaim).length > 0)
 })
 
 test('applyEpochStep remains available indefinitely with no auto-stop', () => {
-  let current = commitRunningSlice(1)
+  let current = commitRunningSlice()
   const doc = richGeographyDoc()
   for (let i = 0; i < 5; i += 1) {
     current = applyEpochStep(current, doc)

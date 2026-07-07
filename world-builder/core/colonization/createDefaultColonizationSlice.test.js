@@ -44,7 +44,6 @@ test('createDefaultColonistSettings provides concrete defaults for every field',
   assert.strictEqual(typeof settings.startingPopulation, 'number')
   assert.ok(settings.startingPopulation > 0)
   assert.strictEqual(settings.yieldModifier, 'typical')
-  assert.strictEqual(settings.epochBatch, 50)
   assert.strictEqual(settings.landExpeditionRange, DEFAULT_LAND_EXPEDITION_RANGE)
   assert.strictEqual(settings.inlandSailExpeditionRange, DEFAULT_INLAND_SAIL_EXPEDITION_RANGE)
   assert.strictEqual(settings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)

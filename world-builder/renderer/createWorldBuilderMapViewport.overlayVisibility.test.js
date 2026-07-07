@@ -8,6 +8,7 @@ import {
   createMetalsFixture,
   createOverlayOwnerDriver,
   createSaltNodeFixture,
+  createSettlementFixture,
   createTimberRasterFixture,
   installViewportMocks,
   metalsSpriteLayer,
@@ -57,6 +58,37 @@ test(
     assert.strictEqual(
       viewportSpyState.drawnCircles.some((circle) => circle.color === SALT_NODE_OVERLAY_COLOR),
       resolveSaltNodeOverlayDrawn(HIDDEN_VISIBILITY, fixture),
+    )
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'overlay owner seam hides settlement pins by default and shows them when enabled',
+  viewportTestOptions,
+  async () => {
+    const { resolveSettlementNodeOverlayDrawn } = await import('./worldBuilderMapViewportModel.js')
+    const { SETTLEMENT_NODE_OVERLAY_COLOR } = await import('./createWorldBuilderMapViewport.js')
+    const fixture = createSettlementFixture()
+    const viewport = await createWorldBuilderMapViewport(createHostEl(), fixture)
+    const overlay = createOverlayOwnerDriver(viewport)
+
+    assert.strictEqual(
+      viewportSpyState.drawnCircles.some((circle) => circle.color === SETTLEMENT_NODE_OVERLAY_COLOR),
+      resolveSettlementNodeOverlayDrawn(HIDDEN_VISIBILITY, fixture),
+    )
+
+    overlay.setVisibility('settlements', true)
+    assert.strictEqual(
+      viewportSpyState.drawnCircles.some((circle) => circle.color === SETTLEMENT_NODE_OVERLAY_COLOR),
+      resolveSettlementNodeOverlayDrawn({ ...HIDDEN_VISIBILITY, settlements: true }, fixture),
+    )
+
+    overlay.setVisibility('settlements', false)
+    assert.strictEqual(
+      viewportSpyState.drawnCircles.some((circle) => circle.color === SETTLEMENT_NODE_OVERLAY_COLOR),
+      resolveSettlementNodeOverlayDrawn(HIDDEN_VISIBILITY, fixture),
     )
 
     viewport.destroy()

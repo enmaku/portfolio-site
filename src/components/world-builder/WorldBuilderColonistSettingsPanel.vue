@@ -71,24 +71,6 @@
     />
 
     <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
-      <span class="text-caption">Epoch batch</span>
-      <WorldBuilderSettingHelp
-        :text="EPOCH_BATCH_TOOLTIP"
-        label="Epoch batch"
-      />
-    </div>
-    <q-slider
-      :model-value="runningPhase ? pendingEpochBatch : colonistSettings.epochBatch"
-      :min="1"
-      :max="100"
-      :step="1"
-      label
-      color="primary"
-      data-testid="world-builder-colonist-epoch-batch"
-      @update:model-value="onEpochBatchInput"
-    />
-
-    <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
       <span class="text-caption">Land expedition range</span>
       <WorldBuilderSettingHelp
         :text="LAND_EXPEDITION_RANGE_TOOLTIP"
@@ -150,7 +132,6 @@
 <script setup>
 import { computed } from 'vue'
 import {
-  EPOCH_BATCH_TOOLTIP,
   INLAND_SAIL_EXPEDITION_RANGE_TOOLTIP,
   LAND_EXPEDITION_RANGE_TOOLTIP,
   OPEN_SEA_EXPEDITION_RANGE_TOOLTIP,
@@ -178,17 +159,13 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  pendingEpochBatch: {
-    type: Number,
-    required: true,
-  },
   runningPhase: {
     type: Boolean,
     default: false,
   },
 })
 
-const emit = defineEmits(['update-setting', 'update:pending-epoch-batch', 'reset-defaults'])
+const emit = defineEmits(['update-setting', 'reset-defaults'])
 const maxThreeDayHaulDistance = MAX_THREE_DAY_HAUL_DISTANCE
 const minLandExpeditionRange = MIN_LAND_EXPEDITION_RANGE
 const maxLandExpeditionRange = MAX_LAND_EXPEDITION_RANGE
@@ -213,16 +190,5 @@ const yieldModifierOptions = [
  */
 function emitSetting(key, value) {
   emit('update-setting', key, value)
-}
-
-/**
- * @param {number} value
- */
-function onEpochBatchInput(value) {
-  if (props.runningPhase) {
-    emit('update:pending-epoch-batch', value)
-    return
-  }
-  emitSetting('epochBatch', value)
 }
 </script>

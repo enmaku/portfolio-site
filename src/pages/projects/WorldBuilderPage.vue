@@ -437,10 +437,8 @@
           <WorldBuilderColonistSettingsPanel
             :colonist-settings="colonistSettings"
             :colonist-settings-snapshot="colonistSettingsSnapshot"
-            :pending-epoch-batch="pendingEpochBatch"
             :running-phase="isColonistSettingsRunningPhase"
             @update-setting="setColonistSetting"
-            @update:pending-epoch-batch="setPendingEpochBatch"
             @reset-defaults="resetColonistSettings"
           />
         </div>
@@ -482,7 +480,7 @@
             color="primary"
             class="full-width q-mb-md"
             data-testid="world-builder-epoch-step"
-            label="Epoch step"
+            label="Next epoch"
             :loading="isEpochStepRunning"
             :disable="isEpochStepRunning"
             @click="epochStep"
@@ -688,8 +686,6 @@ const {
   showColonistSettingsPanel,
   colonistSettings,
   colonistSettingsSnapshot,
-  pendingEpochBatch,
-  setPendingEpochBatch,
   hasLandmass,
   canBeginColonization,
   showResetColonization,

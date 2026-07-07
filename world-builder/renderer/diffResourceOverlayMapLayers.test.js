@@ -36,6 +36,13 @@ test('toggling salt visibility changes only the saltNodes layer', () => {
   )
 })
 
+test('toggling settlements visibility changes only the settlementNodes layer', () => {
+  assert.deepStrictEqual(
+    diffResourceOverlayMapLayers(overlayState({}), overlayState({ settlements: true })),
+    ['settlementNodes'],
+  )
+})
+
 test('toggling arable visibility changes only the arable raster layer', () => {
   assert.deepStrictEqual(
     diffResourceOverlayMapLayers(overlayState({}), overlayState({ arable: true })),

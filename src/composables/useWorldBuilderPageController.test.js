@@ -94,7 +94,7 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
     'start restores running colonization from colonization cache after beginColonization refresh',
   ],
   epochStep: [
-    'epochStep advances epoch by epochBatch and updates settlements',
+    'epochStep advances epoch by one and updates settlements',
     'epochStep is inactive outside running phase',
   ],
   resetColonization: [
@@ -1255,7 +1255,6 @@ test('resetColonistSettings restores colonist setting defaults in setup', async 
     ctx.setColonistSetting('threeDayHaulDistance', 1)
     ctx.setColonistSetting('startingPopulation', 50)
     ctx.setColonistSetting('yieldModifier', 'marginal')
-    ctx.setColonistSetting('epochBatch', 10)
 
     ctx.resetColonistSettings()
     await nextTick()
@@ -1353,7 +1352,7 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
   }
 })
 
-test('epochStep advances epoch by epochBatch and updates settlements', async () => {
+test('epochStep advances epoch by one and updates settlements', async () => {
   const scope = effectScope(true)
   try {
     const landmass = coastalLandmassDocument()
@@ -1375,15 +1374,14 @@ test('epochStep advances epoch by epochBatch and updates settlements', async () 
     await nextTick()
     await ctx.enterColonizationSetup()
     ctx.pickFoundingLanding(3, 3)
-    ctx.setColonistSetting('epochBatch', 2)
     await ctx.beginColonization()
     const populationBefore = ctx.worldDocument.value?.settlements?.[0]?.population ?? 0
 
     assert.strictEqual(await ctx.epochStep(), true)
     await nextTick()
 
-    assert.strictEqual(ctx.colonizationEpoch.value, 2)
-    assert.strictEqual(settingsStore.colonizationSession.epoch, 2)
+    assert.strictEqual(ctx.colonizationEpoch.value, 1)
+    assert.strictEqual(settingsStore.colonizationSession.epoch, 1)
     assert.ok(ctx.worldDocument.value?.settlements?.[0]?.population >= populationBefore)
     assert.strictEqual(ctx.timeControlsActive.value, true)
   } finally {

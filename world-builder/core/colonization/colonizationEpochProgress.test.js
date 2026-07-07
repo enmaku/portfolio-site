@@ -18,9 +18,8 @@ import {
 } from './colonizationEpochSteps.js'
 
 test('createInitialEpochStepProgress starts idle before any epoch phase', () => {
-  assert.deepStrictEqual(createInitialEpochStepProgress(50), {
+  assert.deepStrictEqual(createInitialEpochStepProgress(), {
     percent: 0,
-    epochBatch: 50,
     activeEpochIndex: -1,
     completedEpochIndex: -1,
     activePhaseIndex: -1,
@@ -37,80 +36,73 @@ test('createInitialEpochStepProgress starts idle before any epoch phase', () => 
   })
 })
 
-test('epochStepProgressValue scales by completed units across batch, phases, and finalize', () => {
-  const unitCount = epochStepUnitCount(2)
-  assert.strictEqual(unitCount, 2 * COLONIZATION_EPOCH_PHASE_COUNT + COLONIZATION_EPOCH_FINALIZE_STEP_COUNT)
-  assert.strictEqual(epochStepProgressValue(epochStepUnitIndex(0, 2, 0), unitCount), 7)
+test('epochStepProgressValue scales by completed units across phases and finalize', () => {
+  const unitCount = epochStepUnitCount()
+  assert.strictEqual(unitCount, COLONIZATION_EPOCH_PHASE_COUNT + COLONIZATION_EPOCH_FINALIZE_STEP_COUNT)
+  assert.strictEqual(epochStepProgressValue(epochStepUnitIndex(0), unitCount), 13)
   assert.strictEqual(
-    epochStepProgressValue(epochStepUnitIndex(1, 2, COLONIZATION_EPOCH_PHASE_COUNT - 1), unitCount),
-    86,
+    epochStepProgressValue(epochStepUnitIndex(COLONIZATION_EPOCH_PHASE_COUNT - 1), unitCount),
+    75,
   )
 })
 
 test('reduceEpochStepProgressOnEpochStart sets epoch label', () => {
-  const next = reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(50), {
-    epochIndex: 12,
-    epochBatch: 50,
+  const next = reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(), {
+    simulationEpoch: 12,
   })
-  assert.strictEqual(next.activeEpochIndex, 12)
-  assert.strictEqual(next.label, 'Epoch 13/50')
+  assert.strictEqual(next.activeEpochIndex, 0)
+  assert.strictEqual(next.label, 'Epoch 13')
 })
 
 test('reduceEpochStepProgressOnPhaseStart includes phase label', () => {
-  const progress = reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(10), {
-    epochIndex: 0,
-    epochBatch: 10,
+  const progress = reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(), {
+    simulationEpoch: 0,
   })
   const next = reduceEpochStepProgressOnPhaseStart(progress, {
-    epochIndex: 0,
-    epochBatch: 10,
+    simulationEpoch: 0,
     phaseIndex: 1,
     phaseId: 'claims',
   })
   assert.strictEqual(next.activePhaseIndex, 1)
-  assert.strictEqual(next.label, 'Epoch 1/10 · Claims')
+  assert.strictEqual(next.label, 'Epoch 1 · Claims')
 })
 
 test('reduceEpochStepProgressOnNetworkSubstepStart appends network substep label', () => {
   const progress = reduceEpochStepProgressOnPhaseStart(
-    reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(1), {
-      epochIndex: 0,
-      epochBatch: 1,
+    reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(), {
+      simulationEpoch: 0,
     }),
     {
-      epochIndex: 0,
-      epochBatch: 1,
+      simulationEpoch: 0,
       phaseIndex: 0,
       phaseId: 'network',
     },
   )
   const next = reduceEpochStepProgressOnNetworkSubstepStart(progress, { substepIndex: 1 })
   assert.strictEqual(next.activeNetworkSubstepIndex, 1)
-  assert.strictEqual(next.label, 'Epoch 1/1 · Network · Dispatch')
+  assert.strictEqual(next.label, 'Epoch 1 · Network · Dispatch')
 })
 
 test('reduceEpochStepProgressOnCollapseSubstepStart appends collapse substep label', () => {
   const progress = reduceEpochStepProgressOnPhaseStart(
-    reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(1), {
-      epochIndex: 0,
-      epochBatch: 1,
+    reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(), {
+      simulationEpoch: 0,
     }),
     {
-      epochIndex: 0,
-      epochBatch: 1,
+      simulationEpoch: 0,
       phaseIndex: 5,
       phaseId: 'collapse',
     },
   )
   const next = reduceEpochStepProgressOnCollapseSubstepStart(progress, { substepIndex: 1 })
   assert.strictEqual(next.activeCollapseSubstepIndex, 1)
-  assert.strictEqual(next.label, 'Epoch 1/1 · Collapse · Hinterland')
+  assert.strictEqual(next.label, 'Epoch 1 · Collapse · Hinterland')
 })
 
 test('reduceEpochStepProgressOnFinalizeStepStart marks commit after simulation phases', () => {
   const progress = reduceEpochStepProgressOnFinalizeStepStart(
     {
-      ...createInitialEpochStepProgress(1),
+      ...createInitialEpochStepProgress(),
       completedEpochIndex: 0,
       completedPhaseIndex: COLONIZATION_EPOCH_PHASE_COUNT - 1,
     },
@@ -123,7 +115,7 @@ test('reduceEpochStepProgressOnFinalizeStepStart marks commit after simulation p
 
 test('reduceEpochStepProgressOnMapSubstepStart appends map substep label', () => {
   const progress = reduceEpochStepProgressOnMapSubstepStart(
-    reduceEpochStepProgressOnFinalizeStepStart(createInitialEpochStepProgress(1), {
+    reduceEpochStepProgressOnFinalizeStepStart(createInitialEpochStepProgress(), {
       stepIndex: 1,
     }),
     { substepIndex: 3 },
@@ -134,7 +126,7 @@ test('reduceEpochStepProgressOnMapSubstepStart appends map substep label', () =>
 
 test('reduceEpochStepProgressOnMapSubstepStart labels session substep under map finalize', () => {
   const progress = reduceEpochStepProgressOnMapSubstepStart(
-    reduceEpochStepProgressOnFinalizeStepStart(createInitialEpochStepProgress(1), {
+    reduceEpochStepProgressOnFinalizeStepStart(createInitialEpochStepProgress(), {
       stepIndex: 1,
     }),
     { substepIndex: 0 },

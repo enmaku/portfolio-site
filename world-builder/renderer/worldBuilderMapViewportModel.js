@@ -89,6 +89,15 @@ export function resolveSaltNodeOverlayDrawn(visibility, worldDocument) {
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @returns {boolean}
  */
+export function resolveSettlementNodeOverlayDrawn(visibility, worldDocument) {
+  return shouldDrawResourceNodeOverlay(visibility, 'settlements', worldDocument.settlements)
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
 export function resolveSailRasterLayerVisible(visibility, worldDocument) {
   if (!isResourceOverlayVisible(visibility, 'sail')) {
     return false

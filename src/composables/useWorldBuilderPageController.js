@@ -799,8 +799,6 @@ export function useWorldBuilderPageController(options) {
     foundingLanding: colonization.foundingLanding,
     colonistSettings: colonization.colonistSettings,
     colonistSettingsSnapshot: colonization.colonistSettingsSnapshot,
-    pendingEpochBatch: colonization.pendingEpochBatch,
-    setPendingEpochBatch: colonization.setPendingEpochBatch,
     isColonistSettingsRunningPhase: colonization.isColonistSettingsRunningPhase,
     hasLandmass,
     enterColonizationSetup,

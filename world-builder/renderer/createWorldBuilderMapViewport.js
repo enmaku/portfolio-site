@@ -17,6 +17,7 @@ import {
   computeRegionFocusScale,
   resolveMetalsOverlayDrawn,
   resolveSaltNodeOverlayDrawn,
+  resolveSettlementNodeOverlayDrawn,
 } from './worldBuilderMapViewportModel.js'
 
 /** Black for discrete metal mine markers (matches metals raster hue). */
@@ -25,8 +26,14 @@ export const METAL_NODE_OVERLAY_COLOR = 0x000000
 /** Pure white for salt strategic-resource markers. */
 export const SALT_NODE_OVERLAY_COLOR = 0xffffff
 
+/** Yellow for settlement pins. */
+export const SETTLEMENT_NODE_OVERLAY_COLOR = 0xffd700
+
 /** Grid-cell radius for metal/salt strategic-resource node markers. */
 export const STRATEGIC_RESOURCE_NODE_MARKER_RADIUS = 7
+
+/** Grid-cell radius for settlement pins. */
+export const SETTLEMENT_NODE_MARKER_RADIUS = 3
 
 /**
  * @typedef {Object} UpdateWorldDocumentOptions
@@ -81,6 +88,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const coastalOverlay = new Graphics()
   const metalOverlay = new Graphics()
   const saltOverlay = new Graphics()
+  const settlementOverlay = new Graphics()
   let resourceOverlayVisibility = createDefaultResourceOverlayVisibility()
   let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
   /**
@@ -146,6 +154,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(coastalOverlay)
   viewport.addChild(metalOverlay)
   viewport.addChild(saltOverlay)
+  viewport.addChild(settlementOverlay)
   viewport
     .drag()
     .pinch()
@@ -264,6 +273,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       case 'saltNodes':
         saltOverlay.clear()
         break
+      case 'settlementNodes':
+        settlementOverlay.clear()
+        break
       default:
         break
     }
@@ -288,6 +300,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         drawMetalNodes(metalOverlay, currentWorldDocument, resourceOverlayVisibility),
       saltNodes: () =>
         drawSaltNodes(saltOverlay, currentWorldDocument, resourceOverlayVisibility),
+      settlementNodes: () =>
+        drawSettlementNodes(settlementOverlay, currentWorldDocument, resourceOverlayVisibility),
     },
     { hideLayer: hideMapLayer },
   )
@@ -642,6 +656,25 @@ function drawSaltNodes(overlay, worldDocument, resourceOverlayVisibility) {
     for (const node of worldDocument.saltNodes) {
       overlay.circle(node.x + 0.5, node.y + 0.5, STRATEGIC_RESOURCE_NODE_MARKER_RADIUS)
       overlay.fill({ color: SALT_NODE_OVERLAY_COLOR, alpha: 0.9 })
+    }
+  }
+}
+
+/**
+ * @param {import('pixi.js').Graphics} overlay
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @param {Record<string, boolean>} resourceOverlayVisibility
+ */
+function drawSettlementNodes(overlay, worldDocument, resourceOverlayVisibility) {
+  overlay.clear()
+
+  if (resolveSettlementNodeOverlayDrawn(resourceOverlayVisibility, worldDocument)) {
+    for (const settlement of worldDocument.settlements ?? []) {
+      if (typeof settlement.x !== 'number' || typeof settlement.y !== 'number') {
+        continue
+      }
+      overlay.circle(settlement.x + 0.5, settlement.y + 0.5, SETTLEMENT_NODE_MARKER_RADIUS)
+      overlay.fill({ color: SETTLEMENT_NODE_OVERLAY_COLOR, alpha: 0.9 })
     }
   }
 }

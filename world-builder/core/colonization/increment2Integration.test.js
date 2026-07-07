@@ -69,7 +69,6 @@ function commitOnDoc(doc, landing = { x: 1, y: 3 }, haulDistance = 4) {
   slice.foundingLanding = landing
   slice.colonistSettings.startingPopulation = 50
   slice.colonistSettings.threeDayHaulDistance = haulDistance
-  slice.colonistSettings.epochBatch = 1
   return beginColonizationCommit(slice, doc)
 }
 
@@ -78,7 +77,6 @@ function commitScenarioA(doc, landing = { x: 1, y: 3 }) {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = landing
-  slice.colonistSettings.epochBatch = 1
   return beginColonizationCommit(slice, doc)
 }
 

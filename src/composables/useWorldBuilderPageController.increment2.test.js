@@ -41,7 +41,6 @@ test('epoch step updates sim status fields after epoch 0', async () => {
     let colonizationSlice = createDefaultColonizationSlice()
     colonizationSlice.colonizationPhase = COLONIZATION_PHASE_SETUP
     colonizationSlice.foundingLanding = { x: 1, y: 1 }
-    colonizationSlice.colonistSettings.epochBatch = 1
     colonizationSlice = beginColonizationCommit(colonizationSlice, doc)
     colonizationSlice = applyEpochStep(colonizationSlice, doc)
 
