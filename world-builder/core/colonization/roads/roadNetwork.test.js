@@ -31,9 +31,9 @@ test('resolveRoadSegments treats missing mode as land route', () => {
   assert.strictEqual(resolved[0].mode, 'land')
 })
 
-test('resolveRoadSegments preserves sail mode', () => {
+test('resolveRoadSegments migrates legacy sail mode to inland_sail', () => {
   const resolved = resolveRoadSegments([{ cells: [{ x: 0, y: 0 }], mode: 'sail' }])
-  assert.strictEqual(resolved[0].mode, 'sail')
+  assert.strictEqual(resolved[0].mode, 'inland_sail')
 })
 
 test('appendRoadSegment preserves prior segments', () => {

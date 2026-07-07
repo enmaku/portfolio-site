@@ -1,8 +1,18 @@
 import { applyPopulationCollapse, applyPopulationCollapseAsync } from './applyPopulationCollapse.js'
 import { applyNetworkPhase, applyNetworkPhaseAsync } from './applyNetworkPhase.js'
 import { applyRuinTransitions } from './applyRuin.js'
+import {
+  applySettlementMergeTransitions,
+  resolveFoundingSettlementId,
+} from './applySettlementMerge.js'
 import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaimMap.js'
-import { DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
+import { buildLandRouteCellMask, DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
+import { evaluateLivingSphereConsolidation } from './evaluateLivingSphereConsolidation.js'
+import { evaluateOutpostReabsorption } from './evaluateOutpostReabsorption.js'
+import {
+  updateLivingSphereDeficitCounter,
+  updateOutpostStagnationCounter,
+} from './mergeCounters.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
 import { saltSpoilageMultiplierForSettlement as defaultSaltSpoilage } from './saltSpoilageMultiplier.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
@@ -14,6 +24,7 @@ import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
  * @property {object[]} events
  * @property {Record<string, Array<{ x: number, y: number }>>} primaryClaim
  * @property {(string | null)[] | undefined} ownerByCell
+ * @property {Record<string, import('./resolveSurvivalTriad.js').SurvivalTriadResult>} survivalBySettlementId
  */
 
 /**
@@ -28,6 +39,7 @@ export function createColonizationEpochContext(slice, worldDocument) {
     events: [],
     primaryClaim: {},
     ownerByCell: undefined,
+    survivalBySettlementId: {},
   }
 }
 
@@ -78,6 +90,9 @@ export function runColonizationEpochClaimsPhase(ctx) {
 export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
   /** @type {object[]} */
   const nextSettlements = []
+  /** @type {Record<string, import('./resolveSurvivalTriad.js').SurvivalTriadResult>} */
+  const survivalBySettlementId = {}
+  let mergeCounters = { ...(ctx.slice.mergeCounters ?? {}) }
 
   for (const settlement of ctx.slice.settlements) {
     if (settlement.status === 'ruin') {
@@ -95,6 +110,18 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
       colonistSettings: ctx.slice.colonistSettings,
       worldDocument: ctx.worldDocument,
       saltSpoilageMultiplier,
+    })
+
+    survivalBySettlementId[settlement.id] = survival
+    mergeCounters = updateOutpostStagnationCounter({
+      settlement: resolved,
+      survival,
+      counters: mergeCounters,
+    })
+    mergeCounters = updateLivingSphereDeficitCounter({
+      settlement: resolved,
+      survival,
+      counters: mergeCounters,
     })
 
     let population = resolved.population
@@ -115,10 +142,56 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
     })
   }
 
+  ctx.survivalBySettlementId = survivalBySettlementId
   ctx.slice = {
     ...ctx.slice,
     settlements: nextSettlements,
+    mergeCounters,
   }
+}
+
+/**
+ * @param {ColonizationEpochContext} ctx
+ */
+export function runColonizationEpochMergePhase(ctx) {
+  const foundingSettlementId = resolveFoundingSettlementId(ctx.slice)
+  const alreadyAbsorbedThisEpoch = new Set()
+  const alreadySurvivorThisEpoch = new Set()
+  const roadCellMask = buildLandRouteCellMask(
+    ctx.slice.roads,
+    ctx.worldDocument.gridWidth,
+    ctx.worldDocument.gridHeight,
+  )
+
+  const outpostCandidates = evaluateOutpostReabsorption({
+    settlements: ctx.slice.settlements,
+    mergeCounters: ctx.slice.mergeCounters ?? {},
+    foundingSettlementId,
+    alreadyAbsorbedThisEpoch,
+    alreadySurvivorThisEpoch,
+  })
+
+  const livingSphereCandidates = evaluateLivingSphereConsolidation({
+    settlements: ctx.slice.settlements,
+    survivalBySettlementId: ctx.survivalBySettlementId,
+    mergeCounters: ctx.slice.mergeCounters ?? {},
+    colonistSettings: ctx.slice.colonistSettings,
+    worldDocument: ctx.worldDocument,
+    roadCellMask,
+    foundingSettlementId,
+    alreadyAbsorbedThisEpoch,
+    alreadySurvivorThisEpoch,
+  })
+
+  const merged = applySettlementMergeTransitions({
+    slice: ctx.slice,
+    candidates: [...outpostCandidates, ...livingSphereCandidates],
+    survivalBySettlementId: ctx.survivalBySettlementId,
+    epoch: ctx.slice.epoch + 1,
+  })
+
+  ctx.slice = merged.slice
+  ctx.events.push(...merged.events)
 }
 
 /**
@@ -203,6 +276,7 @@ export function applyColonizationEpoch(slice, worldDocument, options = {}) {
   runColonizationEpochNetworkPhase(ctx, options)
   runColonizationEpochClaimsPhase(ctx)
   runColonizationEpochSurvivalPhase(ctx, options)
+  runColonizationEpochMergePhase(ctx)
   runColonizationEpochRuinPhase(ctx)
   runColonizationEpochCollapsePhase(ctx)
 

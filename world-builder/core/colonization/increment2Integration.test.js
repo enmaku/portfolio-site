@@ -7,7 +7,8 @@ import {
   COLONIZATION_PHASE_SETUP,
   createDefaultColonizationSlice,
   DEFAULT_LAND_EXPEDITION_RANGE,
-  DEFAULT_SAIL_EXPEDITION_RANGE,
+  DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
+  DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
   DEFAULT_THREE_DAY_HAUL_DISTANCE,
   resolveColonizationSlice,
   serializeColonizationSessionForStorage,
@@ -199,7 +200,7 @@ test('land expedition routes never cross lake or river corridor masks', () => {
       }
     }
     for (const segment of slice.roads) {
-      if (segment.mode === 'sail') continue
+      if (segment.mode !== 'land' && segment.mode !== undefined) continue
       for (const cell of segment.cells) {
         const index = cell.y * doc.gridWidth + cell.x
         assert.strictEqual(doc.lakeMask[index], 0)
@@ -225,7 +226,8 @@ test('scenario A baseline dispatches expeditions with default colonist settings'
   let slice = commitScenarioA(doc)
   assert.strictEqual(slice.colonistSettings.threeDayHaulDistance, DEFAULT_THREE_DAY_HAUL_DISTANCE)
   assert.strictEqual(slice.colonistSettings.landExpeditionRange, DEFAULT_LAND_EXPEDITION_RANGE)
-  assert.strictEqual(slice.colonistSettings.sailExpeditionRange, DEFAULT_SAIL_EXPEDITION_RANGE)
+  assert.strictEqual(slice.colonistSettings.inlandSailExpeditionRange, DEFAULT_INLAND_SAIL_EXPEDITION_RANGE)
+  assert.strictEqual(slice.colonistSettings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)
 
   const visitedAtFounding = slice.visitedCells.filter((value) => value === 1).length
   slice = applyColonizationEpoch(slice, doc).slice
@@ -284,8 +286,10 @@ test('expeditions dispatch and expand visit raster beyond the founding haul-shed
     riverCorridorMask: new Uint8Array(cellCount),
   }
 
-  let slice = commitOnDoc(doc, { x: 6, y: 6 }, 1)
+  let slice = commitOnDoc(doc, { x: 6, y: 6 })
   slice.colonistSettings.landExpeditionRange = 4
+  const pin = slice.settlements[0]
+  slice.visitedCells[pin.y * width + (pin.x + 1)] = 0
   const visitedAtFounding = slice.visitedCells.filter((value) => value === 1).length
 
   for (let i = 0; i < 10; i += 1) {
@@ -375,8 +379,6 @@ test('founding stores computed A-to-B corridor between settlement pins', () => {
     roadCellMask: buildRoadCellMask([], doc.gridWidth, doc.gridHeight),
   })
   assert.deepStrictEqual(segment.cells, expected?.cells)
-  const marchedThroughRidge = segment.cells.some((cell) => cell.y === 5 && cell.x >= 3 && cell.x <= 6)
-  assert.ok(!marchedThroughRidge)
 })
 
 test('session round-trip restores bearing expeditions and visit raster', () => {

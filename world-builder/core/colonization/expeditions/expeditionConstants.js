@@ -14,13 +14,33 @@ export const LOGISTICS_NODE_VISIT_DISC_RADIUS = 1
  * @typedef {Object} ExpeditionRecord
  * @property {string} id
  * @property {string} settlementId
- * @property {'land' | 'sail'} mode
+ * @property {'land' | 'inland_sail' | 'open_sea'} mode
  * @property {number} bearing Fixed radians at dispatch.
  * @property {Array<{ x: number, y: number }>} route
  * @property {number} progressIndex
  * @property {'active' | 'completed'} status
  * @property {import('./bearingStepUtils.js').ExpeditionEndReason} [endReason]
  */
+
+/** @typedef {'land' | 'inland_sail' | 'open_sea'} ExpeditionMode */
+
+/**
+ * @param {unknown} mode
+ * @returns {ExpeditionMode}
+ */
+export function resolveExpeditionMode(mode) {
+  if (mode === 'open_sea') return 'open_sea'
+  if (mode === 'inland_sail' || mode === 'sail') return 'inland_sail'
+  return 'land'
+}
+
+/**
+ * @param {ExpeditionMode} mode
+ * @returns {boolean}
+ */
+export function isMaritimeExpeditionMode(mode) {
+  return mode === 'inland_sail' || mode === 'open_sea'
+}
 
 /**
  * @param {import('../createDefaultColonizationSlice.js').ColonizationSlice} slice
@@ -54,7 +74,7 @@ export function resolveExpeditions(value) {
     resolved.push({
       id: record.id,
       settlementId: record.settlementId,
-      mode: record.mode === 'sail' ? 'sail' : 'land',
+      mode: resolveExpeditionMode(record.mode),
       bearing: Number.isFinite(record.bearing) ? record.bearing : 0,
       route: Array.isArray(record.route)
         ? record.route

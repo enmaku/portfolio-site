@@ -1,5 +1,7 @@
 # World Builder bearing-based expedition routing
 
+**Status:** Partially superseded by [ADR 0015](0015-world-builder-expedition-budget-and-settlement-merge.md) (realm **expedition budget**, three maritime/land modes, **open-sea expedition**). Local bearing-based step rules below still apply where not replaced.
+
 Colonization increment 2 **expeditions** advance **exploration fog**, survey **logistics nodes**, and may found daughter **settlements**. Early implementations picked a stochastic target cell in unscouted territory and pathfound toward it—first with global least-resistance / A* search, later with a greedy step-toward-target fallback when pathfinding proved too slow. Both approaches produced unrealistic behavior (routing through undiscovered terrain as if the party already knew the map; greedy paths cutting through lakes and rivers) and poor performance (grid-wide search per dispatch on a **1024×1024** landmass).
 
 Glossary: [`world-builder/CONTEXT.md`](../../world-builder/CONTEXT.md) (**Expedition**, **land expedition**, **sail expedition**, **land route**, **sail route**, **Routes overlay**, **Colonist settings**).

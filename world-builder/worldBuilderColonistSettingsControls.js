@@ -15,5 +15,8 @@ export const EPOCH_BATCH_TOOLTIP =
 export const LAND_EXPEDITION_RANGE_TOOLTIP =
   'Multiplier on three-day haul distance for how far a land expedition may march before ending (1×–4×). Locked after begin colonization.'
 
-export const SAIL_EXPEDITION_RANGE_TOOLTIP =
-  'Multiplier on three-day haul distance for how far a sail expedition may travel before ending (2×–6×). Locked after begin colonization.'
+export const INLAND_SAIL_EXPEDITION_RANGE_TOOLTIP =
+  'Multiplier on three-day haul distance for how far an inland sail expedition may travel before ending (2×–6×). Locked after begin colonization.'
+
+export const OPEN_SEA_EXPEDITION_RANGE_TOOLTIP =
+  'Multiplier on three-day haul distance for how far an open-sea expedition may sail before ending (4×–12×). Locked after begin colonization.'

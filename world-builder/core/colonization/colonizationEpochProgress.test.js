@@ -40,10 +40,10 @@ test('createInitialEpochStepProgress starts idle before any epoch phase', () => 
 test('epochStepProgressValue scales by completed units across batch, phases, and finalize', () => {
   const unitCount = epochStepUnitCount(2)
   assert.strictEqual(unitCount, 2 * COLONIZATION_EPOCH_PHASE_COUNT + COLONIZATION_EPOCH_FINALIZE_STEP_COUNT)
-  assert.strictEqual(epochStepProgressValue(epochStepUnitIndex(0, 2, 0), unitCount), 8)
+  assert.strictEqual(epochStepProgressValue(epochStepUnitIndex(0, 2, 0), unitCount), 7)
   assert.strictEqual(
     epochStepProgressValue(epochStepUnitIndex(1, 2, COLONIZATION_EPOCH_PHASE_COUNT - 1), unitCount),
-    83,
+    86,
   )
 })
 
@@ -86,7 +86,7 @@ test('reduceEpochStepProgressOnNetworkSubstepStart appends network substep label
   )
   const next = reduceEpochStepProgressOnNetworkSubstepStart(progress, { substepIndex: 1 })
   assert.strictEqual(next.activeNetworkSubstepIndex, 1)
-  assert.strictEqual(next.label, 'Epoch 1/1 · Network · Advance')
+  assert.strictEqual(next.label, 'Epoch 1/1 · Network · Dispatch')
 })
 
 test('reduceEpochStepProgressOnCollapseSubstepStart appends collapse substep label', () => {
@@ -98,7 +98,7 @@ test('reduceEpochStepProgressOnCollapseSubstepStart appends collapse substep lab
     {
       epochIndex: 0,
       epochBatch: 1,
-      phaseIndex: 4,
+      phaseIndex: 5,
       phaseId: 'collapse',
     },
   )

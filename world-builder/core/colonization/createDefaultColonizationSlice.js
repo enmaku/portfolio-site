@@ -8,7 +8,14 @@
  * @property {YieldModifier} yieldModifier
  * @property {number} epochBatch
  * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap.
- * @property {number} sailExpeditionRange Multiplier on three-day haul distance for sail expedition range cap.
+ * @property {number} inlandSailExpeditionRange Multiplier on three-day haul distance for inland sail expedition range cap.
+ * @property {number} openSeaExpeditionRange Multiplier on three-day haul distance for open-sea expedition range cap.
+ */
+
+/**
+ * @typedef {Object} MergeCounterEntry
+ * @property {number} [outpostStagnation]
+ * @property {number} [livingSphereDeficit]
  */
 
 /**
@@ -34,6 +41,7 @@
  * @property {boolean} frontierExhausted All logistics nodes founded or exhausted.
  * @property {import('./roads/roadNetwork.js').RoadSegment[]} roads Persisted overland link geometry.
  * @property {import('./logisticsNodes/scoreLogisticsNodes.js').LogisticsNodeSurveyEntry[]} logisticsNodeSurvey Scored founding candidates.
+ * @property {Record<string, MergeCounterEntry>} mergeCounters Consecutive-epoch merge trigger counters by settlement id.
  */
 
 import { resolveExpeditions } from './expeditions/expeditionConstants.js'
@@ -63,6 +71,7 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'frontierExhausted',
   'roads',
   'logisticsNodeSurvey',
+  'mergeCounters',
 ])
 
 /** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
@@ -85,9 +94,12 @@ export const DEFAULT_EPOCH_BATCH = 50
 export const DEFAULT_LAND_EXPEDITION_RANGE = 2
 export const MIN_LAND_EXPEDITION_RANGE = 1
 export const MAX_LAND_EXPEDITION_RANGE = 4
-export const DEFAULT_SAIL_EXPEDITION_RANGE = 3
-export const MIN_SAIL_EXPEDITION_RANGE = 2
-export const MAX_SAIL_EXPEDITION_RANGE = 6
+export const DEFAULT_INLAND_SAIL_EXPEDITION_RANGE = 3
+export const MIN_INLAND_SAIL_EXPEDITION_RANGE = 2
+export const MAX_INLAND_SAIL_EXPEDITION_RANGE = 6
+export const DEFAULT_OPEN_SEA_EXPEDITION_RANGE = 8
+export const MIN_OPEN_SEA_EXPEDITION_RANGE = 4
+export const MAX_OPEN_SEA_EXPEDITION_RANGE = 12
 
 /**
  * @returns {ColonistSettings}
@@ -99,7 +111,8 @@ export function createDefaultColonistSettings() {
     yieldModifier: DEFAULT_YIELD_MODIFIER,
     epochBatch: DEFAULT_EPOCH_BATCH,
     landExpeditionRange: DEFAULT_LAND_EXPEDITION_RANGE,
-    sailExpeditionRange: DEFAULT_SAIL_EXPEDITION_RANGE,
+    inlandSailExpeditionRange: DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
+    openSeaExpeditionRange: DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
   }
 }
 
@@ -123,6 +136,7 @@ export function createDefaultColonizationSlice() {
     frontierExhausted: false,
     roads: [],
     logisticsNodeSurvey: [],
+    mergeCounters: {},
   }
 }
 
@@ -164,6 +178,7 @@ export function resolveColonizationSlice(value) {
     frontierExhausted: incoming.frontierExhausted === true,
     roads: resolveRoadSegments(incoming.roads),
     logisticsNodeSurvey: resolveLogisticsNodeSurvey(incoming.logisticsNodeSurvey),
+    mergeCounters: resolveMergeCounters(incoming.mergeCounters),
   }
 }
 
@@ -221,13 +236,48 @@ export function resolveColonistSettings(value) {
       MIN_LAND_EXPEDITION_RANGE,
       MAX_LAND_EXPEDITION_RANGE,
     ),
-    sailExpeditionRange: clampIntegerRange(
-      incoming.sailExpeditionRange,
-      defaults.sailExpeditionRange,
-      MIN_SAIL_EXPEDITION_RANGE,
-      MAX_SAIL_EXPEDITION_RANGE,
+    inlandSailExpeditionRange: clampIntegerRange(
+      incoming.inlandSailExpeditionRange ??
+        /** @type {{ sailExpeditionRange?: number }} */ (incoming).sailExpeditionRange,
+      defaults.inlandSailExpeditionRange,
+      MIN_INLAND_SAIL_EXPEDITION_RANGE,
+      MAX_INLAND_SAIL_EXPEDITION_RANGE,
+    ),
+    openSeaExpeditionRange: clampIntegerRange(
+      incoming.openSeaExpeditionRange,
+      defaults.openSeaExpeditionRange,
+      MIN_OPEN_SEA_EXPEDITION_RANGE,
+      MAX_OPEN_SEA_EXPEDITION_RANGE,
     ),
   }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, MergeCounterEntry>}
+ */
+export function resolveMergeCounters(value) {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+  /** @type {Record<string, MergeCounterEntry>} */
+  const resolved = {}
+  for (const [settlementId, entry] of Object.entries(value)) {
+    if (!entry || typeof entry !== 'object') continue
+    const record = /** @type {MergeCounterEntry} */ (entry)
+    /** @type {MergeCounterEntry} */
+    const counter = {}
+    if (Number.isFinite(record.outpostStagnation) && record.outpostStagnation > 0) {
+      counter.outpostStagnation = Math.floor(record.outpostStagnation)
+    }
+    if (Number.isFinite(record.livingSphereDeficit) && record.livingSphereDeficit > 0) {
+      counter.livingSphereDeficit = Math.floor(record.livingSphereDeficit)
+    }
+    if (Object.keys(counter).length > 0) {
+      resolved[settlementId] = counter
+    }
+  }
+  return resolved
 }
 
 /**

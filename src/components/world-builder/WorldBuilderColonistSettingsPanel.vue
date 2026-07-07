@@ -108,22 +108,41 @@
     />
 
     <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
-      <span class="text-caption">Sail expedition range</span>
+      <span class="text-caption">Inland sail expedition range</span>
       <WorldBuilderSettingHelp
-        :text="SAIL_EXPEDITION_RANGE_TOOLTIP"
-        label="Sail expedition range"
+        :text="INLAND_SAIL_EXPEDITION_RANGE_TOOLTIP"
+        label="Inland sail expedition range"
       />
     </div>
     <q-slider
-      :model-value="displaySettings.sailExpeditionRange"
-      :min="minSailExpeditionRange"
-      :max="maxSailExpeditionRange"
+      :model-value="displaySettings.inlandSailExpeditionRange"
+      :min="minInlandSailExpeditionRange"
+      :max="maxInlandSailExpeditionRange"
       :step="1"
       label
       color="primary"
-      data-testid="world-builder-colonist-sail-expedition-range"
+      data-testid="world-builder-colonist-inland-sail-expedition-range"
       :disable="runningPhase"
-      @update:model-value="(value) => emitSetting('sailExpeditionRange', value)"
+      @update:model-value="(value) => emitSetting('inlandSailExpeditionRange', value)"
+    />
+
+    <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
+      <span class="text-caption">Open-sea expedition range</span>
+      <WorldBuilderSettingHelp
+        :text="OPEN_SEA_EXPEDITION_RANGE_TOOLTIP"
+        label="Open-sea expedition range"
+      />
+    </div>
+    <q-slider
+      :model-value="displaySettings.openSeaExpeditionRange"
+      :min="minOpenSeaExpeditionRange"
+      :max="maxOpenSeaExpeditionRange"
+      :step="1"
+      label
+      color="primary"
+      data-testid="world-builder-colonist-open-sea-expedition-range"
+      :disable="runningPhase"
+      @update:model-value="(value) => emitSetting('openSeaExpeditionRange', value)"
     />
   </div>
 </template>
@@ -132,18 +151,21 @@
 import { computed } from 'vue'
 import {
   EPOCH_BATCH_TOOLTIP,
+  INLAND_SAIL_EXPEDITION_RANGE_TOOLTIP,
   LAND_EXPEDITION_RANGE_TOOLTIP,
-  SAIL_EXPEDITION_RANGE_TOOLTIP,
+  OPEN_SEA_EXPEDITION_RANGE_TOOLTIP,
   STARTING_POPULATION_TOOLTIP,
   THREE_DAY_HAUL_DISTANCE_TOOLTIP,
   YIELD_MODIFIER_TOOLTIP,
 } from '@world-builder/worldBuilderColonistSettingsControls.js'
 import {
+  MAX_INLAND_SAIL_EXPEDITION_RANGE,
   MAX_LAND_EXPEDITION_RANGE,
-  MAX_SAIL_EXPEDITION_RANGE,
+  MAX_OPEN_SEA_EXPEDITION_RANGE,
   MAX_THREE_DAY_HAUL_DISTANCE,
+  MIN_INLAND_SAIL_EXPEDITION_RANGE,
   MIN_LAND_EXPEDITION_RANGE,
-  MIN_SAIL_EXPEDITION_RANGE,
+  MIN_OPEN_SEA_EXPEDITION_RANGE,
 } from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
 import WorldBuilderSettingHelp from './WorldBuilderSettingHelp.vue'
 
@@ -170,8 +192,10 @@ const emit = defineEmits(['update-setting', 'update:pending-epoch-batch', 'reset
 const maxThreeDayHaulDistance = MAX_THREE_DAY_HAUL_DISTANCE
 const minLandExpeditionRange = MIN_LAND_EXPEDITION_RANGE
 const maxLandExpeditionRange = MAX_LAND_EXPEDITION_RANGE
-const minSailExpeditionRange = MIN_SAIL_EXPEDITION_RANGE
-const maxSailExpeditionRange = MAX_SAIL_EXPEDITION_RANGE
+const minInlandSailExpeditionRange = MIN_INLAND_SAIL_EXPEDITION_RANGE
+const maxInlandSailExpeditionRange = MAX_INLAND_SAIL_EXPEDITION_RANGE
+const minOpenSeaExpeditionRange = MIN_OPEN_SEA_EXPEDITION_RANGE
+const maxOpenSeaExpeditionRange = MAX_OPEN_SEA_EXPEDITION_RANGE
 
 const displaySettings = computed(() =>
   props.runningPhase ? props.colonistSettingsSnapshot : props.colonistSettings,

@@ -3,13 +3,14 @@ import { isOceanCell } from '../../fields/applyClosedIslandRim.js'
 import { findLeastResistancePath } from '../../hydrology/riverPathfinding.js'
 import { deriveSailOverlayMask } from '../../sail/deriveSailOverlayMask.js'
 import { DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from '../roads/roadNetwork.js'
+import { isMaritimeExpeditionMode, resolveExpeditionMode } from './expeditionConstants.js'
 import {
   resolveExpeditionOceanMask,
   resolveExpeditionSailMask,
 } from './expeditionRouteContext.js'
 
 /**
- * @typedef {'land' | 'sail'} ExpeditionMode
+ * @typedef {import('./expeditionConstants.js').ExpeditionMode} ExpeditionMode
  */
 
 /**
@@ -96,7 +97,7 @@ export function computeSailRouteLeg(doc, from, to, routeContext = null) {
   const { gridWidth, gridHeight } = doc
   const path = findSailPath(sailMask, from, to, gridWidth, gridHeight)
   if (!path || path.length === 0) return null
-  return { mode: 'sail', cells: path }
+  return { mode: 'inland_sail', cells: path }
 }
 
 /**
@@ -182,7 +183,7 @@ export function chooseLowestTravelTimeRoute(doc, from, to, routeContext = null) 
 
   const sailLeg = computeSailRouteLeg(doc, from, to, routeContext)
   if (sailLeg) {
-    return { mode: 'sail', legs: [sailLeg], cells: sailLeg.cells }
+    return { mode: 'inland_sail', legs: [sailLeg], cells: sailLeg.cells }
   }
 
   return null
@@ -210,7 +211,7 @@ export function estimateRouteTravelTime(
     const next = cells[i]
     const index = next.y * gridWidth + next.x
     const step =
-      mode === 'sail'
+      isMaritimeExpeditionMode(resolveExpeditionMode(mode))
         ? 0.6
         : stepTravelCost(doc, index, roadCellMask, roadMultiplier)
     const diagonal = prev.x !== next.x && prev.y !== next.y ? Math.SQRT2 : 1
@@ -265,10 +266,9 @@ export function advanceRouteProgress(
     const prev = routeCells[index]
     const next = routeCells[nextIndex]
     const cellIndex = next.y * doc.gridWidth + next.x
-    const step =
-      mode === 'sail'
-        ? 0.6
-        : stepTravelCost(doc, cellIndex, roadCellMask, roadMultiplier)
+    const step = isMaritimeExpeditionMode(resolveExpeditionMode(mode))
+      ? 0.6
+      : stepTravelCost(doc, cellIndex, roadCellMask, roadMultiplier)
     const diagonal = prev.x !== next.x && prev.y !== next.y ? Math.SQRT2 : 1
     const cost = step * diagonal
     if (cost > remaining) break

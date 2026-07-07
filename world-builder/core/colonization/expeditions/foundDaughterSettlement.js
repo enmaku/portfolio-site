@@ -16,7 +16,7 @@ import { buildCorridorCells } from './expeditionRouting.js'
  *   epoch: number,
  *   expeditionRoute: Array<{ x: number, y: number }>,
  *   progressIndex: number,
- *   mode: 'land' | 'sail',
+ *   mode: import('./expeditionConstants.js').ExpeditionMode,
  * }} params
  * @returns {{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,

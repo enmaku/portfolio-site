@@ -60,5 +60,5 @@ test('runColonizationEpochStep reports progress through phases and commit finali
   assert.strictEqual(result.ran, true)
   assert.strictEqual(result.slice.epoch, 1)
   assert.ok(percents.length > 0)
-  assert.strictEqual(percents.at(-1), 86)
+  assert.strictEqual(percents.at(-1), 88)
 })

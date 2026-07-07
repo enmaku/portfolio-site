@@ -1,10 +1,7 @@
 import { createSeededRandom, deriveFieldSeed } from '../../noise/seededRandom.js'
-import { buildDryLandTraversableMask } from './buildDryLandTraversableMask.js'
 import { hasLegalFirstExpeditionStep } from './advanceBearingExpedition.js'
-import {
-  isSettlementSailReachable,
-  SAIL_EXPEDITION_DISPATCH_PROBABILITY,
-} from './selectSailExpeditionStep.js'
+import { buildDryLandTraversableMask } from './buildDryLandTraversableMask.js'
+import { resolveExpeditionModeForSender } from './resolveExpeditionModeForSender.js'
 import { resolveSailTraversableMask } from './expeditionRouting.js'
 
 /**
@@ -13,8 +10,10 @@ import { resolveSailTraversableMask } from './expeditionRouting.js'
  * @property {import('../../types.js').WorldDocument} doc
  * @property {Uint8Array} visitRaster
  * @property {number} geographySeed
+ * @property {number} geographySeed
  * @property {number} epoch
  * @property {Uint8Array | null} roadCellMask
+ * @property {import('./expeditionConstants.js').ExpeditionMode} mode
  */
 
 /**
@@ -22,21 +21,14 @@ import { resolveSailTraversableMask } from './expeditionRouting.js'
  * @returns {import('./expeditionConstants.js').ExpeditionRecord | null}
  */
 export function planExpeditionDispatch(params) {
-  const { settlement, doc, visitRaster, geographySeed, epoch, roadCellMask } = params
+  const { settlement, doc, visitRaster, geographySeed, epoch, roadCellMask, mode } = params
   const random = createSeededRandom(
-    deriveFieldSeed(geographySeed, `expedition-dispatch-${epoch}-${settlement.id}`),
+    deriveFieldSeed(geographySeed, `expedition-dispatch-${epoch}-${settlement.id}-${mode}`),
   )
+  const resolvedMode = mode
 
   const dryLandMask = buildDryLandTraversableMask(doc)
   const sailMask = resolveSailTraversableMask(doc)
-  const sailReachable = isSettlementSailReachable(doc, settlement)
-
-  /** @type {'land' | 'sail'} */
-  let mode = 'land'
-  if (sailReachable) {
-    mode = random() < SAIL_EXPEDITION_DISPATCH_PROBABILITY ? 'sail' : 'land'
-  }
-
   const bearing = random() * Math.PI * 2
   const origin = { x: settlement.x, y: settlement.y }
   const landContext = { doc, dryLandMask, visitRaster, roadCellMask }
@@ -49,35 +41,33 @@ export function planExpeditionDispatch(params) {
       sailMask,
       dryLandMask,
       doc,
-      mode,
+      resolvedMode,
     )
   ) {
-    if (
-      mode === 'sail' &&
-      hasLegalFirstExpeditionStep(
-        origin,
-        bearing,
-        landContext,
-        sailMask,
-        dryLandMask,
-        doc,
-        'land',
-      )
-    ) {
-      mode = 'land'
-    } else {
-      return null
-    }
+    return null
   }
 
   return {
     id: `expedition-${epoch}-${settlement.id}-${bearing.toFixed(6)}`,
     settlementId: settlement.id,
-    mode,
+    mode: resolvedMode,
     bearing,
     route: [origin],
     progressIndex: 0,
     status: 'active',
     endReason: undefined,
   }
+}
+
+/**
+ * @param {import('./allocateExpeditionSlots.js').ExpeditionSlotAssignment} assignment
+ * @param {PlanExpeditionDispatchInput} baseParams
+ * @returns {import('./expeditionConstants.js').ExpeditionRecord | null}
+ */
+export function planExpeditionDispatchForAssignment(assignment, baseParams) {
+  const mode = resolveExpeditionModeForSender(assignment, {
+    doc: baseParams.doc,
+    visitRaster: baseParams.visitRaster,
+  })
+  return planExpeditionDispatch({ ...baseParams, mode })
 }

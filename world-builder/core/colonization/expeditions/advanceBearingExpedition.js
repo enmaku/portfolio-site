@@ -1,11 +1,21 @@
 import { estimateRouteTravelTime } from './expeditionRouting.js'
 import { isVisitRasterCellVisited } from './bearingStepUtils.js'
+import { isMaritimeExpeditionMode } from './expeditionConstants.js'
 import {
   landStepTravelCost,
   listLegalLandExpeditionSteps,
   selectLandExpeditionStep,
 } from './selectLandExpeditionStep.js'
-import { selectSailExpeditionStep, listLegalSailExpeditionSteps, sailStepTravelCost } from './selectSailExpeditionStep.js'
+import {
+  listLegalSailExpeditionSteps,
+  sailStepTravelCost,
+  selectSailExpeditionStep,
+} from './selectSailExpeditionStep.js'
+import {
+  listLegalOpenSeaExpeditionSteps,
+  openSeaStepTravelCost,
+  selectOpenSeaExpeditionStep,
+} from './selectOpenSeaExpeditionStep.js'
 
 /** @typedef {import('./bearingStepUtils.js').ExpeditionEndReason} ExpeditionEndReason */
 
@@ -22,11 +32,13 @@ import { selectSailExpeditionStep, listLegalSailExpeditionSteps, sailStepTravelC
  * @returns {number}
  */
 function expeditionRangeBudget(expedition, colonistSettings) {
-  const multiplier =
-    expedition.mode === 'sail'
-      ? colonistSettings.sailExpeditionRange
-      : colonistSettings.landExpeditionRange
-  return multiplier * colonistSettings.threeDayHaulDistance
+  if (expedition.mode === 'open_sea') {
+    return colonistSettings.openSeaExpeditionRange * colonistSettings.threeDayHaulDistance
+  }
+  if (expedition.mode === 'inland_sail') {
+    return colonistSettings.inlandSailExpeditionRange * colonistSettings.threeDayHaulDistance
+  }
+  return colonistSettings.landExpeditionRange * colonistSettings.threeDayHaulDistance
 }
 
 /**
@@ -51,12 +63,12 @@ export function advanceBearingExpedition(params) {
   const traveledCells = []
   /** @type {Array<{ x: number, y: number }>} */
   const newlyDiscoveredCells = []
-  let endReason = /** @type {ExpeditionEndReason | null} */ (null)
+  /** @type {ExpeditionEndReason | null} */
+  let endReason = null
 
-  const epochBudget =
-    expedition.mode === 'sail'
-      ? colonistSettings.threeDayHaulDistance * 3
-      : colonistSettings.threeDayHaulDistance
+  const epochBudget = isMaritimeExpeditionMode(expedition.mode)
+    ? colonistSettings.threeDayHaulDistance * 3
+    : colonistSettings.threeDayHaulDistance
   const rangeBudget = expeditionRangeBudget(expedition, colonistSettings)
   let remainingEpochBudget = epochBudget
 
@@ -73,40 +85,34 @@ export function advanceBearingExpedition(params) {
       break
     }
 
-    const legalSteps =
-      expedition.mode === 'sail' && sailMask
-        ? listLegalSailExpeditionSteps(current, sailMask, dryLandMask, doc.gridWidth, doc.gridHeight)
-        : listLegalLandExpeditionSteps(current, {
-            doc,
-            dryLandMask,
-            visitRaster,
-            roadCellMask,
-          })
+    const legalSteps = listLegalStepsForMode(
+      expedition.mode,
+      current,
+      { doc, dryLandMask, visitRaster, roadCellMask },
+      sailMask,
+      dryLandMask,
+    )
 
     if (legalSteps.length === 0) {
       endReason = 'blocked'
       break
     }
 
-    const next =
-      expedition.mode === 'sail' && sailMask
-        ? selectSailExpeditionStep(current, expedition.bearing, sailMask, dryLandMask, doc)
-        : selectLandExpeditionStep(current, expedition.bearing, {
-            doc,
-            dryLandMask,
-            visitRaster,
-            roadCellMask,
-          })
+    const next = selectStepForMode(
+      expedition.mode,
+      current,
+      expedition.bearing,
+      { doc, dryLandMask, visitRaster, roadCellMask },
+      sailMask,
+      dryLandMask,
+    )
 
     if (!next) {
       endReason = 'blocked'
       break
     }
 
-    const stepCost =
-      expedition.mode === 'sail'
-        ? sailStepTravelCost(current, next)
-        : landStepTravelCost(doc, current, next, roadCellMask)
+    const stepCost = stepCostForMode(expedition.mode, current, next, doc, roadCellMask)
 
     if (stepCost > remainingEpochBudget) {
       break
@@ -154,17 +160,80 @@ export function advanceBearingExpedition(params) {
 }
 
 /**
+ * @param {import('./expeditionConstants.js').ExpeditionMode} mode
+ * @param {{ x: number, y: number }} current
+ * @param {import('./selectLandExpeditionStep.js').LandStepContext} landContext
+ * @param {Uint8Array | null} sailMask
+ * @param {Uint8Array} dryLandMask
+ * @returns {Array<{ x: number, y: number }>}
+ */
+function listLegalStepsForMode(mode, current, landContext, sailMask, dryLandMask) {
+  const { doc } = landContext
+  if (mode === 'open_sea' && sailMask) {
+    return listLegalOpenSeaExpeditionSteps(current, sailMask, doc.gridWidth, doc.gridHeight)
+  }
+  if (mode === 'inland_sail' && sailMask) {
+    return listLegalSailExpeditionSteps(current, sailMask, dryLandMask, doc.gridWidth, doc.gridHeight)
+  }
+  return listLegalLandExpeditionSteps(current, landContext)
+}
+
+/**
+ * @param {import('./expeditionConstants.js').ExpeditionMode} mode
+ * @param {{ x: number, y: number }} current
+ * @param {number} bearing
+ * @param {import('./selectLandExpeditionStep.js').LandStepContext} landContext
+ * @param {Uint8Array | null} sailMask
+ * @param {Uint8Array} dryLandMask
+ * @returns {{ x: number, y: number } | null}
+ */
+function selectStepForMode(mode, current, bearing, landContext, sailMask, dryLandMask) {
+  const { doc } = landContext
+  if (mode === 'open_sea' && sailMask) {
+    return selectOpenSeaExpeditionStep(current, bearing, sailMask, doc)
+  }
+  if (mode === 'inland_sail' && sailMask) {
+    return selectSailExpeditionStep(current, bearing, sailMask, dryLandMask, doc)
+  }
+  return selectLandExpeditionStep(current, bearing, landContext)
+}
+
+/**
+ * @param {import('./expeditionConstants.js').ExpeditionMode} mode
+ * @param {{ x: number, y: number }} current
+ * @param {{ x: number, y: number }} next
+ * @param {import('../../types.js').WorldDocument} doc
+ * @param {Uint8Array | null} roadCellMask
+ * @returns {number}
+ */
+function stepCostForMode(mode, current, next, doc, roadCellMask) {
+  if (mode === 'open_sea') {
+    return openSeaStepTravelCost(current, next)
+  }
+  if (mode === 'inland_sail') {
+    return sailStepTravelCost(current, next)
+  }
+  return landStepTravelCost(doc, current, next, roadCellMask)
+}
+
+/**
  * @param {{ x: number, y: number }} current
  * @param {number} bearing
  * @param {import('./selectLandExpeditionStep.js').LandStepContext} landContext
  * @param {Uint8Array | null} sailMask
  * @param {Uint8Array} dryLandMask
  * @param {import('../../types.js').WorldDocument} doc
+ * @param {import('./expeditionConstants.js').ExpeditionMode} mode
  * @returns {boolean}
  */
-export function hasLegalFirstExpeditionStep(current, bearing, landContext, sailMask, dryLandMask, doc, mode) {
-  if (mode === 'sail' && sailMask) {
-    return selectSailExpeditionStep(current, bearing, sailMask, dryLandMask, doc) !== null
-  }
-  return selectLandExpeditionStep(current, bearing, landContext) !== null
+export function hasLegalFirstExpeditionStep(
+  current,
+  bearing,
+  landContext,
+  sailMask,
+  dryLandMask,
+  doc,
+  mode,
+) {
+  return selectStepForMode(mode, current, bearing, landContext, sailMask, dryLandMask) !== null
 }

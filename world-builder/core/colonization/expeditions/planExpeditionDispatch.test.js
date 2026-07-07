@@ -1,17 +1,38 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createSeededRandom, deriveFieldSeed } from '../../noise/seededRandom.js'
-import { SAIL_EXPEDITION_DISPATCH_PROBABILITY } from './selectSailExpeditionStep.js'
+import { planExpeditionDispatch } from './planExpeditionDispatch.js'
 
-test('coastal dispatch uses ~60% sail split over seeded rolls', () => {
-  let sailCount = 0
-  const rolls = 200
-  for (let i = 0; i < rolls; i += 1) {
-    const random = createSeededRandom(deriveFieldSeed(4242, `dispatch-mode-${i}`))
-    if (random() < SAIL_EXPEDITION_DISPATCH_PROBABILITY) {
-      sailCount += 1
-    }
+function makeDoc() {
+  const gridWidth = 12
+  const gridHeight = 12
+  const cellCount = gridWidth * gridHeight
+  const elevation = new Float32Array(cellCount).fill(0.65)
+  return {
+    geographySeed: 42,
+    gridWidth,
+    gridHeight,
+    fields: { elevation },
+    lakeMask: new Uint8Array(cellCount),
+    riverCorridorMask: new Uint8Array(cellCount),
+    coastalNodes: [],
+    biomes: new Uint8Array(cellCount),
   }
-  const ratio = sailCount / rolls
-  assert.ok(ratio > 0.5 && ratio < 0.7, `expected ~60% sail, got ${ratio}`)
+}
+
+test('planExpeditionDispatch uses explicit mode without sail coin flip', () => {
+  const doc = makeDoc()
+  const visitRaster = new Uint8Array(doc.gridWidth * doc.gridHeight)
+  const settlement = { id: 's1', x: 4, y: 4 }
+
+  const land = planExpeditionDispatch({
+    settlement,
+    doc,
+    visitRaster,
+    geographySeed: 42,
+    epoch: 1,
+    roadCellMask: null,
+    mode: 'land',
+  })
+  assert.ok(land)
+  assert.strictEqual(land.mode, 'land')
 })

@@ -25,6 +25,17 @@ test('buildColonizationSimStatus reports epoch, settlements, expeditions, fronti
   assert.strictEqual(status.frontierExhausted, true)
 })
 
+test('buildFoundingChronicle includes settlement_merged history rows', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.historyLog = [
+    { kind: 'settlement_merged', epoch: 4, settlementId: 'survivor', absorbedSettlementId: 'absorbed' },
+    { kind: 'other', epoch: 1 },
+  ]
+  const chronicle = buildFoundingChronicle(slice)
+  assert.strictEqual(chronicle.length, 1)
+  assert.strictEqual(chronicle[0].kind, 'settlement_merged')
+})
+
 test('buildFoundingChronicle filters founding-related history kinds', () => {
   const slice = createDefaultColonizationSlice()
   slice.historyLog = [

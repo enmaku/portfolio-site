@@ -1,5 +1,7 @@
 # World Builder founding route corridor computation
 
+**Status:** Partially superseded by [ADR 0015](0015-world-builder-expedition-budget-and-settlement-merge.md) (**open-sea route** overlay presentation; three **route segment** modes). A→B corridor computation for land and sheltered sail remains below.
+
 Colonization increment 2 **expeditions** advance by bearing-based local steps (see [ADR 0012](0012-world-builder-bearing-based-expedition-routing.md)). The marched path records where the party traveled and drives in-trek **exploration fog** clearing—it is not the geometry persisted as a founding **route segment**.
 
 Glossary: [`world-builder/CONTEXT.md`](../../world-builder/CONTEXT.md) (**Route segment**, **land route**, **sail route**, **Routes overlay**, **exploration fog**).

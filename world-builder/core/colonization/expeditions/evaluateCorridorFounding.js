@@ -3,6 +3,7 @@ import { applySurvivalResolveToSettlement } from '../resolveSurvivalTriad.js'
 import { saltSpoilageMultiplier } from '../saltSpoilageMultiplier.js'
 import { findLogisticsNodeAt } from '../logisticsNodes/scoreLogisticsNodes.js'
 import { buildLandRouteCellMask } from '../roads/roadNetwork.js'
+import { isMaritimeExpeditionMode, resolveExpeditionMode } from './expeditionConstants.js'
 import { isSettlementSailReachable } from './selectSailExpeditionStep.js'
 
 /**
@@ -108,7 +109,7 @@ export function isDistinctSettlementPin(settlements, x, y) {
  * @param {import('../createDefaultColonizationSlice.js').ColonistSettings} colonistSettings
  * @param {import('../../types.js').WorldDocument} worldDocument
  * @param {import('../roads/roadNetwork.js').RoadSegment[]} [roads]
- * @param {'land' | 'sail'} [expeditionMode]
+ * @param {import('./expeditionConstants.js').ExpeditionMode} [expeditionMode]
  * @returns {{ candidate: FoundingCandidate } | { rejected: FoundingCandidate } | null}
  */
 export function evaluateFirstViableCorridorCandidate(
@@ -125,7 +126,7 @@ export function evaluateFirstViableCorridorCandidate(
       continue
     }
     if (
-      expeditionMode === 'sail' &&
+      isMaritimeExpeditionMode(resolveExpeditionMode(expeditionMode)) &&
       !isSettlementSailReachable(worldDocument, { x: candidate.x, y: candidate.y })
     ) {
       continue

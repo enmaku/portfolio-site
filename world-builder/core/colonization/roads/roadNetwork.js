@@ -5,8 +5,20 @@ export const DEFAULT_ROAD_MOVEMENT_MULTIPLIER = 0.5
  * @typedef {Object} RoadSegment
  * @property {Array<{ x: number, y: number }>} cells
  * @property {string[]} [settlementIds]
- * @property {'land' | 'sail'} [mode] Missing mode resolves as land route for backward compatibility.
+ * @property {'land' | 'inland_sail' | 'open_sea'} [mode] Missing mode resolves as land route for backward compatibility.
  */
+
+/** @typedef {'land' | 'inland_sail' | 'open_sea'} RouteSegmentMode */
+
+/**
+ * @param {unknown} mode
+ * @returns {RouteSegmentMode}
+ */
+export function resolveRouteSegmentMode(mode) {
+  if (mode === 'open_sea') return 'open_sea'
+  if (mode === 'inland_sail' || mode === 'sail') return 'inland_sail'
+  return 'land'
+}
 
 /**
  * @param {RoadSegment[] | null | undefined} roads
@@ -22,7 +34,7 @@ function buildRouteCellMaskInternal(roads, gridWidth, gridHeight, options = {}) 
   }
   for (const segment of roads) {
     if (!Array.isArray(segment?.cells)) continue
-    if (options.landOnly && segment.mode === 'sail') continue
+    if (options.landOnly && segment.mode !== undefined && segment.mode !== 'land') continue
     for (const cell of segment.cells) {
       if (
         Number.isInteger(cell.x) &&
@@ -65,7 +77,7 @@ export function buildLandRouteCellMask(roads, gridWidth, gridHeight) {
  * @param {RoadSegment[] | null | undefined} roads
  * @param {Array<{ x: number, y: number }>} pathCells
  * @param {string[]} [settlementIds]
- * @param {'land' | 'sail'} [mode]
+ * @param {'land' | 'inland_sail' | 'open_sea' | 'sail'} [mode]
  * @returns {RoadSegment[]}
  */
 export function appendRoadSegment(roads, pathCells, settlementIds = [], mode = 'land') {
@@ -76,7 +88,7 @@ export function appendRoadSegment(roads, pathCells, settlementIds = [], mode = '
   next.push({
     cells: pathCells.map((cell) => ({ x: cell.x, y: cell.y })),
     settlementIds: [...settlementIds],
-    mode: mode === 'sail' ? 'sail' : 'land',
+    mode: resolveRouteSegmentMode(mode),
   })
   return next
 }
@@ -100,7 +112,7 @@ export function resolveRoadSegments(value) {
         .filter((cell) => cell && Number.isFinite(cell.x) && Number.isFinite(cell.y))
         .map((cell) => ({ x: /** @type {number} */ (cell.x), y: /** @type {number} */ (cell.y) })),
       settlementIds: Array.isArray(record.settlementIds) ? [...record.settlementIds] : [],
-      mode: record.mode === 'sail' ? 'sail' : 'land',
+      mode: resolveRouteSegmentMode(record.mode),
     })
   }
   return resolved

@@ -6,6 +6,7 @@ import {
   computeRouteOutlineMask,
   LAND_ROUTE_OVERLAY_RGB,
   ROUTE_OVERLAY_HALF_WIDTH,
+  OPEN_SEA_ROUTE_OVERLAY_RGB,
   SAIL_ROUTE_OVERLAY_RGB,
 } from './buildRoadOverlayRgba.js'
 import { WATER_BODY_OUTLINE_RGBA } from './riverCorridorOverlayRgba.js'
@@ -45,6 +46,29 @@ test('buildRoutesOverlayRgba uses distinct colors for land and sail segments', (
   assert.strictEqual(rgba[landBase], LAND_ROUTE_OVERLAY_RGB[0])
   assert.strictEqual(rgba[sailBase], SAIL_ROUTE_OVERLAY_RGB[0])
   assert.notStrictEqual(rgba[landBase], rgba[sailBase])
+})
+
+test('buildRoutesOverlayRgba renders open_sea segments with spline presentation color', () => {
+  const roads = appendRoadSegment(
+    [],
+    [{ x: 1, y: 1 }, { x: 6, y: 5 }],
+    ['port-a', 'port-b'],
+    'open_sea',
+  )
+  const rgba = buildRoutesOverlayRgba({
+    gridWidth: 8,
+    gridHeight: 8,
+    roads,
+    settlements: [
+      { id: 'port-a', x: 1, y: 1 },
+      { id: 'port-b', x: 6, y: 5 },
+    ],
+  })
+  assert.ok(rgba)
+  const midBase = ((3 * 8) + 3) * 4
+  assert.strictEqual(rgba[midBase], OPEN_SEA_ROUTE_OVERLAY_RGB[0])
+  assert.notStrictEqual(rgba[midBase], LAND_ROUTE_OVERLAY_RGB[0])
+  assert.notStrictEqual(rgba[midBase], SAIL_ROUTE_OVERLAY_RGB[0])
 })
 
 test('buildRoutesOverlayRgba returns null without route segments', () => {

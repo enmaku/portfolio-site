@@ -6,10 +6,11 @@ import {
   COLONIZATION_PHASE_SETUP,
   COLONIZATION_PHASE_TERRAIN,
   DEFAULT_LAND_EXPEDITION_RANGE,
-  DEFAULT_SAIL_EXPEDITION_RANGE,
+  DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
+  DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
   MAX_LAND_EXPEDITION_RANGE,
   MAX_THREE_DAY_HAUL_DISTANCE,
-  MIN_SAIL_EXPEDITION_RANGE,
+  MIN_INLAND_SAIL_EXPEDITION_RANGE,
   cloneColonizationSlice,
   createDefaultColonistSettings,
   createDefaultColonizationSlice,
@@ -45,31 +46,42 @@ test('createDefaultColonistSettings provides concrete defaults for every field',
   assert.strictEqual(settings.yieldModifier, 'typical')
   assert.strictEqual(settings.epochBatch, 50)
   assert.strictEqual(settings.landExpeditionRange, DEFAULT_LAND_EXPEDITION_RANGE)
-  assert.strictEqual(settings.sailExpeditionRange, DEFAULT_SAIL_EXPEDITION_RANGE)
+  assert.strictEqual(settings.inlandSailExpeditionRange, DEFAULT_INLAND_SAIL_EXPEDITION_RANGE)
+  assert.strictEqual(settings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)
 })
 
 test('resolveColonistSettings clamps expedition range multipliers', () => {
   const settings = resolveColonistSettings({
     landExpeditionRange: 99,
-    sailExpeditionRange: 0,
+    inlandSailExpeditionRange: 0,
+    openSeaExpeditionRange: 99,
   })
   assert.strictEqual(settings.landExpeditionRange, MAX_LAND_EXPEDITION_RANGE)
-  assert.strictEqual(settings.sailExpeditionRange, MIN_SAIL_EXPEDITION_RANGE)
+  assert.strictEqual(settings.inlandSailExpeditionRange, MIN_INLAND_SAIL_EXPEDITION_RANGE)
+  assert.strictEqual(settings.openSeaExpeditionRange, 12)
+})
+
+test('resolveColonistSettings migrates legacy sailExpeditionRange to inland sail range', () => {
+  const settings = resolveColonistSettings({ sailExpeditionRange: 5 })
+  assert.strictEqual(settings.inlandSailExpeditionRange, 5)
+  assert.strictEqual(settings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)
 })
 
 test('serializeColonizationSessionForStorage preserves expedition range settings and route segment mode', () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_RUNNING
   slice.colonistSettings.landExpeditionRange = 3
-  slice.colonistSettings.sailExpeditionRange = 5
+  slice.colonistSettings.inlandSailExpeditionRange = 5
+  slice.colonistSettings.openSeaExpeditionRange = 10
   slice.roads = [{ cells: [{ x: 1, y: 1 }], mode: 'sail', settlementIds: ['a', 'b'] }]
 
   const serialized = serializeColonizationSessionForStorage(slice)
   const revived = resolveColonizationSlice(serialized)
 
   assert.strictEqual(revived.colonistSettings.landExpeditionRange, 3)
-  assert.strictEqual(revived.colonistSettings.sailExpeditionRange, 5)
-  assert.strictEqual(revived.roads[0].mode, 'sail')
+  assert.strictEqual(revived.colonistSettings.inlandSailExpeditionRange, 5)
+  assert.strictEqual(revived.colonistSettings.openSeaExpeditionRange, 10)
+  assert.strictEqual(revived.roads[0].mode, 'inland_sail')
 })
 
 test('resolveColonistSettings clamps three-day haul distance to the scale calibration max', () => {

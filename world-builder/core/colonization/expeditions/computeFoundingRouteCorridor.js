@@ -18,7 +18,7 @@ export const SAIL_SHORE_DISTANCE_PENALTY = 0.04
 
 /**
  * @typedef {Object} FoundingRouteCorridor
- * @property {'land' | 'sail'} mode
+ * @property {'land' | 'inland_sail' | 'open_sea'} mode
  * @property {Array<{ x: number, y: number }>} cells
  */
 
@@ -26,7 +26,7 @@ export const SAIL_SHORE_DISTANCE_PENALTY = 0.04
  * @param {import('../../types.js').WorldDocument} doc
  * @param {{ x: number, y: number }} from
  * @param {{ x: number, y: number }} to
- * @param {'land' | 'sail'} mode
+ * @param {'land' | 'inland_sail' | 'open_sea' | 'sail'} mode
  * @param {Uint8Array | null} [roadCellMask]
  * @param {number} [roadMultiplier]
  * @param {Uint8Array | null} [dryLandMask]
@@ -49,21 +49,31 @@ export function computeFoundingRouteCorridor(params) {
   const fromIdx = from.y * gridWidth + from.x
   const toIdx = to.y * gridWidth + to.x
 
-  if (mode === 'sail') {
+  if (mode === 'inland_sail' || mode === 'open_sea' || mode === 'sail') {
     const sailMask = sailMaskInput ?? resolveSailTraversableMask(doc)
     const dryLandMask = dryLandMaskInput ?? buildDryLandTraversableMask(doc)
     if (!sailMask) return null
-    const pathIndices = findFoundingSailPath({
-      fromIdx,
-      toIdx,
-      sailMask,
-      dryLandMask,
-      width: gridWidth,
-      height: gridHeight,
-    })
+    const resolvedMode = mode === 'open_sea' ? 'open_sea' : 'inland_sail'
+    const pathIndices =
+      resolvedMode === 'open_sea'
+        ? findFoundingOpenSeaPath({
+            fromIdx,
+            toIdx,
+            sailMask,
+            width: gridWidth,
+            height: gridHeight,
+          })
+        : findFoundingSailPath({
+            fromIdx,
+            toIdx,
+            sailMask,
+            dryLandMask,
+            width: gridWidth,
+            height: gridHeight,
+          })
     if (!pathIndices) return null
     return {
-      mode: 'sail',
+      mode: resolvedMode,
       cells: pathIndices.map((idx) => ({ x: idx % gridWidth, y: Math.floor(idx / gridWidth) })),
     }
   }
@@ -272,6 +282,54 @@ function findFoundingLandPath({
  * @param {number} params.height
  * @returns {number[] | null}
  */
+function findFoundingOpenSeaPath({ fromIdx, toIdx, sailMask, width, height }) {
+  if (sailMask[fromIdx] !== 1 || sailMask[toIdx] !== 1) {
+    return null
+  }
+
+  const cellCount = width * height
+  const gScore = new Float64Array(cellCount).fill(Number.POSITIVE_INFINITY)
+  const cameFrom = new Int32Array(cellCount).fill(-1)
+  const closed = new Uint8Array(cellCount)
+  /** @type {number[]} */
+  const open = []
+
+  gScore[fromIdx] = 0
+  open.push(fromIdx)
+
+  while (open.length > 0) {
+    open.sort((a, b) => gScore[a] - gScore[b])
+    const current = open.shift()
+    if (current === undefined) break
+    if (closed[current]) continue
+    closed[current] = 1
+    if (current === toIdx) {
+      return reconstructPath(cameFrom, toIdx)
+    }
+
+    const cx = current % width
+    const cy = Math.floor(current / width)
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        if (dx === 0 && dy === 0) continue
+        const nx = cx + dx
+        const ny = cy + dy
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+        const next = ny * width + nx
+        if (sailMask[next] !== 1 || closed[next]) continue
+        const stepLength = dx === 0 || dy === 0 ? 1 : Math.SQRT2
+        const tentative = gScore[current] + 0.6 * stepLength
+        if (tentative >= gScore[next]) continue
+        cameFrom[next] = current
+        gScore[next] = tentative
+        open.push(next)
+      }
+    }
+  }
+
+  return null
+}
+
 function findFoundingSailPath({ fromIdx, toIdx, sailMask, dryLandMask, width, height }) {
   if (sailMask[fromIdx] !== 1 || sailMask[toIdx] !== 1) {
     return null
