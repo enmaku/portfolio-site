@@ -1,7 +1,11 @@
 import { createSeededRandom, deriveFieldSeed } from '../../noise/seededRandom.js'
 import { hasLegalFirstExpeditionStep } from './advanceBearingExpedition.js'
 import { buildDryLandTraversableMask } from './buildDryLandTraversableMask.js'
-import { resolveExpeditionModeForSender } from './resolveExpeditionModeForSender.js'
+import { isMaritimeExpeditionMode } from './expeditionConstants.js'
+import {
+  listAvailableExpeditionModes,
+  resolveExpeditionModeForSender,
+} from './resolveExpeditionModeForSender.js'
 import { resolveSailTraversableMask } from './expeditionRouting.js'
 
 /**
@@ -34,6 +38,7 @@ export function planExpeditionDispatch(params) {
   const landContext = { doc, dryLandMask, visitRaster, roadCellMask }
 
   if (
+    !isMaritimeExpeditionMode(resolvedMode) &&
     !hasLegalFirstExpeditionStep(
       origin,
       bearing,
@@ -65,9 +70,25 @@ export function planExpeditionDispatch(params) {
  * @returns {import('./expeditionConstants.js').ExpeditionRecord | null}
  */
 export function planExpeditionDispatchForAssignment(assignment, baseParams) {
-  const mode = resolveExpeditionModeForSender(assignment, {
-    doc: baseParams.doc,
-    visitRaster: baseParams.visitRaster,
-  })
-  return planExpeditionDispatch({ ...baseParams, mode })
+  const modeRandom = createSeededRandom(
+    deriveFieldSeed(
+      baseParams.geographySeed,
+      `expedition-mode-${baseParams.epoch}-${assignment.settlementId}`,
+    ),
+  )
+  const primaryMode = resolveExpeditionModeForSender(assignment, modeRandom)
+  const modes = listAvailableExpeditionModes(assignment)
+  const orderedModes = [
+    primaryMode,
+    ...modes.filter((mode) => mode !== primaryMode),
+  ]
+
+  for (const mode of orderedModes) {
+    const planned = planExpeditionDispatch({ ...baseParams, mode })
+    if (planned) {
+      return planned
+    }
+  }
+
+  return null
 }

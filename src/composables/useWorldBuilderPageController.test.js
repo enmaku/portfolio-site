@@ -290,6 +290,8 @@ function createMemoryColonizationCache() {
  */
 function mountController(scope, overrides = {}) {
   const appliedDocs = []
+  /** @type {import('../../world-builder/renderer/mapLayerRefresh.js').MapLayerId[][]} */
+  const appliedChangedLayers = []
   const errors = []
   const confirmCalls = []
   const viewport = overrides.viewport ?? createFakeViewport()
@@ -313,8 +315,11 @@ function mountController(scope, overrides = {}) {
         }),
       loadViewportFactory: async () => async () => viewport.handle,
       createMapLifecycle: ({ onViewportReady }) => ({
-        async applyWorldDocument(doc) {
+        async applyWorldDocument(doc, options = {}) {
           appliedDocs.push(doc)
+          if (options.changedLayers) {
+            appliedChangedLayers.push([...options.changedLayers])
+          }
           onViewportReady?.()
         },
         getViewport: () => viewport.handle,
@@ -350,6 +355,7 @@ function mountController(scope, overrides = {}) {
     settingsStore,
     viewport,
     appliedDocs,
+    appliedChangedLayers,
     errors,
     confirmCalls,
     terrainCache,
@@ -1356,7 +1362,7 @@ test('epochStep advances epoch by one and updates settlements', async () => {
   const scope = effectScope(true)
   try {
     const landmass = coastalLandmassDocument()
-    const { ctx, settingsStore } = mountController(scope, {
+    const { ctx, settingsStore, appliedChangedLayers } = mountController(scope, {
       runDerivedGeographyInWorker: (_params, callbacks) => {
         callbacks.onStepComplete?.({
           stepId: 'validation',
@@ -1384,6 +1390,10 @@ test('epochStep advances epoch by one and updates settlements', async () => {
     assert.strictEqual(settingsStore.colonizationSession.epoch, 1)
     assert.ok(ctx.worldDocument.value?.settlements?.[0]?.population >= populationBefore)
     assert.strictEqual(ctx.timeControlsActive.value, true)
+    assert.ok(
+      appliedChangedLayers.some((layers) => layers.includes('settlementNodes')),
+      'epoch map sync should refresh settlement overlay pins',
+    )
   } finally {
     scope.stop()
   }

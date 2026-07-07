@@ -20,51 +20,108 @@ function makeLandFrontierDoc() {
   }
 }
 
-test('evaluateFrontierEligibility excludes interior settlement with fully visited haul-shed', () => {
-  const doc = makeLandFrontierDoc()
-  const visitRaster = new Uint8Array(doc.gridWidth * doc.gridHeight).fill(1)
-  const dryLandMask = buildDryLandTraversableMask(doc)
-  for (let i = 0; i < dryLandMask.length; i += 1) {
-    if (dryLandMask[i] === 1) visitRaster[i] = 1
-  }
-
-  const eligible = evaluateFrontierEligibility({
-    settlement: { id: 'interior', x: 3, y: 2, population: 100 },
+function baseParams(doc, settlement, overrides = {}) {
+  return {
+    settlement,
     doc,
-    visitRaster,
-    colonistSettings: {
-      threeDayHaulDistance: 50,
-      inlandSailExpeditionRange: 3,
-      openSeaExpeditionRange: 8,
-      landExpeditionRange: 2,
-    },
-    roadCellMask: null,
-  })
+    dryLandMask: buildDryLandTraversableMask(doc),
+    landFrontierEdges: 4,
+    maritimeFrontierEdges: 0,
+    ...overrides,
+  }
+}
 
-  assert.strictEqual(eligible.some((entry) => entry.pool === 'land'), false)
+test('evaluateFrontierEligibility allows land dispatch when realm has land frontier', () => {
+  const doc = makeLandFrontierDoc()
+  const eligible = evaluateFrontierEligibility(
+    baseParams(
+      doc,
+      { id: 'rim', x: 3, y: 2, population: 120 },
+      { maritimeRole: 'none' },
+    ),
+  )
+
+  assert.ok(eligible)
+  assert.strictEqual(eligible.canDispatchLand, true)
+  assert.strictEqual(eligible.canDispatchMaritime, false)
 })
 
-test('evaluateFrontierEligibility includes rim settlement with unvisited haul-shed cell', () => {
+test('evaluateFrontierEligibility excludes land dispatch when realm land frontier is exhausted', () => {
   const doc = makeLandFrontierDoc()
-  const visitRaster = new Uint8Array(doc.gridWidth * doc.gridHeight)
-  visitRaster[2 * doc.gridWidth + 3] = 1
-  visitRaster[2 * doc.gridWidth + 2] = 1
-  visitRaster[2 * doc.gridWidth + 4] = 1
-  visitRaster[1 * doc.gridWidth + 3] = 1
-  visitRaster[3 * doc.gridWidth + 3] = 1
+  const eligible = evaluateFrontierEligibility(
+    baseParams(
+      doc,
+      { id: 'rim', x: 3, y: 2, population: 120 },
+      { landFrontierEdges: 0, maritimeRole: 'none' },
+    ),
+  )
 
-  const eligible = evaluateFrontierEligibility({
-    settlement: { id: 'rim', x: 3, y: 2, population: 120 },
-    doc,
-    visitRaster,
-    colonistSettings: {
-      threeDayHaulDistance: 50,
-      inlandSailExpeditionRange: 3,
-      openSeaExpeditionRange: 8,
-      landExpeditionRange: 2,
-    },
-    roadCellMask: null,
-  })
+  assert.strictEqual(eligible, null)
+})
 
-  assert.strictEqual(eligible.some((entry) => entry.pool === 'land'), true)
+test('evaluateFrontierEligibility allows maritime dispatch when sail frontier remains', () => {
+  const doc = makeLandFrontierDoc()
+  const eligible = evaluateFrontierEligibility(
+    baseParams(
+      doc,
+      { id: 'port', x: 3, y: 2, population: 100 },
+      { maritimeFrontierEdges: 8, maritimeRole: 'port' },
+    ),
+  )
+
+  assert.ok(eligible)
+  assert.strictEqual(eligible.canDispatchMaritime, true)
+})
+
+test('evaluateFrontierEligibility excludes maritime dispatch when sail frontier is exhausted', () => {
+  const doc = makeLandFrontierDoc()
+  const eligible = evaluateFrontierEligibility(
+    baseParams(
+      doc,
+      { id: 'port', x: 3, y: 2, population: 100 },
+      { maritimeRole: 'port' },
+    ),
+  )
+
+  assert.ok(eligible)
+  assert.strictEqual(eligible.canDispatchMaritime, false)
+  assert.strictEqual(eligible.canDispatchLand, true)
+})
+
+test('evaluateFrontierEligibility allows maritime dispatch when unvisited sail remains but edge count is zero', () => {
+  const doc = makeLandFrontierDoc()
+  const eligible = evaluateFrontierEligibility(
+    baseParams(
+      doc,
+      { id: 'port', x: 3, y: 2, population: 100 },
+      { maritimeRole: 'port', maritimeFrontierOpen: true },
+    ),
+  )
+
+  assert.ok(eligible)
+  assert.strictEqual(eligible.canDispatchMaritime, true)
+})
+
+test('evaluateFrontierEligibility allows port settlements to dispatch land and maritime', () => {
+  const doc = makeLandFrontierDoc()
+  const eligible = evaluateFrontierEligibility(
+    baseParams(
+      doc,
+      { id: 'port', x: 3, y: 2, population: 100 },
+      { maritimeRole: 'port', maritimeFrontierEdges: 8 },
+    ),
+  )
+
+  assert.ok(eligible)
+  assert.strictEqual(eligible.canDispatchLand, true)
+  assert.strictEqual(eligible.canDispatchMaritime, true)
+})
+
+test('evaluateFrontierEligibility excludes zero population settlements', () => {
+  const doc = makeLandFrontierDoc()
+  const eligible = evaluateFrontierEligibility(
+    baseParams(doc, { id: 'empty', x: 3, y: 2, population: 0 }),
+  )
+
+  assert.strictEqual(eligible, null)
 })

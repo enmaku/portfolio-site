@@ -1,5 +1,7 @@
 import { isFrontierExhausted, patchLogisticsNodeSurvey, resolveLogisticsNodeSurvey } from '../logisticsNodes/scoreLogisticsNodes.js'
 import { computeFrontierBoundaryEdges } from '../frontier/computeFrontierBoundaryEdges.js'
+import { computeMaritimeExplorationFrontierEdges } from '../frontier/computeMaritimeExplorationFrontierEdges.js'
+import { hasUnvisitedSailCells } from '../frontier/hasUnvisitedSailCells.js'
 import { buildLandRouteCellMask, resolveRoadSegments } from '../roads/roadNetwork.js'
 import {
   markCellsVisited,
@@ -17,7 +19,6 @@ import { buildDryLandTraversableMask } from './buildDryLandTraversableMask.js'
 import { classifySettlementMaritimeRole, isPortSettlement } from './classifySettlementMaritimeRole.js'
 import { computeRealmExpeditionBudget } from './computeRealmExpeditionBudget.js'
 import { evaluateFrontierEligibility } from './evaluateFrontierEligibility.js'
-import { evaluateFrontierEligibilityWithDispatchProgress } from './evaluateFrontierEligibilityDispatchProgress.js'
 import { foundDaughterSettlement } from './foundDaughterSettlement.js'
 import { planExpeditionDispatchForAssignment } from './planExpeditionDispatch.js'
 import { resolveSailTraversableMask } from './expeditionRouting.js'
@@ -328,12 +329,14 @@ function dispatchExpeditionsWithBudget(slice, doc, geographySeed, epoch, frontie
     doc.gridWidth,
     doc.gridHeight,
   )
-  const maritimeFrontierEdges = computeFrontierBoundaryEdges(
+  const maritimeFrontierEdges = computeMaritimeExplorationFrontierEdges(
     visitRaster,
     sailMask,
     doc.gridWidth,
     doc.gridHeight,
   )
+  const unvisitedSailCellsRemain = hasUnvisitedSailCells(visitRaster, sailMask)
+  const maritimeFrontierOpen = maritimeFrontierEdges > 0 || unvisitedSailCellsRemain
 
   const living = livingSettlements(slice.settlements)
   const totalPopulation = living.reduce(
@@ -351,20 +354,20 @@ function dispatchExpeditionsWithBudget(slice, doc, geographySeed, epoch, frontie
     }
 
     const maritimeRole = classifySettlementMaritimeRole(doc, settlement)
-    const entries = evaluateFrontierEligibility({
+    const entry = evaluateFrontierEligibility({
       settlement,
       doc,
-      visitRaster,
-      colonistSettings: slice.colonistSettings,
-      roadCellMask,
+      dryLandMask,
+      landFrontierEdges,
+      maritimeFrontierEdges,
+      maritimeFrontierOpen: unvisitedSailCellsRemain,
+      maritimeRole,
     })
-    eligibleSenders.push(...entries)
+    if (entry) {
+      eligibleSenders.push(entry)
+    }
 
-    if (
-      isPortSettlement(maritimeRole) &&
-      entries.some((entry) => entry.pool === 'maritime') &&
-      maritimeFrontierEdges > 0
-    ) {
+    if (isPortSettlement(maritimeRole) && maritimeFrontierOpen) {
       eligiblePortCount += 1
     }
   }
@@ -375,6 +378,7 @@ function dispatchExpeditionsWithBudget(slice, doc, geographySeed, epoch, frontie
     maritimeFrontierEdges,
     frontierExhausted,
     eligiblePortCount,
+    hasUnvisitedSailCells: unvisitedSailCellsRemain,
   })
 
   const assignments = allocateExpeditionSlots({
@@ -436,12 +440,14 @@ async function dispatchExpeditionsWithBudgetAsync(
     doc.gridWidth,
     doc.gridHeight,
   )
-  const maritimeFrontierEdges = computeFrontierBoundaryEdges(
+  const maritimeFrontierEdges = computeMaritimeExplorationFrontierEdges(
     visitRaster,
     sailMask,
     doc.gridWidth,
     doc.gridHeight,
   )
+  const unvisitedSailCellsRemain = hasUnvisitedSailCells(visitRaster, sailMask)
+  const maritimeFrontierOpen = maritimeFrontierEdges > 0 || unvisitedSailCellsRemain
 
   const living = livingSettlements(slice.settlements)
   const totalPopulation = living.reduce(
@@ -465,38 +471,22 @@ async function dispatchExpeditionsWithBudgetAsync(
     }
 
     const maritimeRole = classifySettlementMaritimeRole(doc, settlement)
-    const entries = await evaluateFrontierEligibilityWithDispatchProgress({
+    const entry = evaluateFrontierEligibility({
       settlement,
       doc,
-      visitRaster,
-      colonistSettings: slice.colonistSettings,
-      roadCellMask,
+      dryLandMask,
+      landFrontierEdges,
+      maritimeFrontierEdges,
+      maritimeFrontierOpen: unvisitedSailCellsRemain,
       maritimeRole,
-      sailMask,
-      progressHooks: {
-        reportSync(phase, percent) {
-          emitNetworkSubstepItem(
-            hooks,
-            1,
-            'dispatch',
-            itemIndex,
-            settlementItemCount,
-            phase,
-            percent,
-          )
-        },
-        async yieldToUi() {
-          await yieldToUi?.()
-        },
-      },
     })
-    eligibleSenders.push(...entries)
+    if (entry) {
+      eligibleSenders.push(entry)
+    }
+    emitNetworkSubstepItem(hooks, 1, 'dispatch', itemIndex, settlementItemCount)
+    await yieldToUi?.()
 
-    if (
-      isPortSettlement(maritimeRole) &&
-      entries.some((entry) => entry.pool === 'maritime') &&
-      maritimeFrontierEdges > 0
-    ) {
+    if (isPortSettlement(maritimeRole) && maritimeFrontierOpen) {
       eligiblePortCount += 1
     }
   }
@@ -507,6 +497,7 @@ async function dispatchExpeditionsWithBudgetAsync(
     maritimeFrontierEdges,
     frontierExhausted,
     eligiblePortCount,
+    hasUnvisitedSailCells: unvisitedSailCellsRemain,
   })
 
   const assignments = allocateExpeditionSlots({

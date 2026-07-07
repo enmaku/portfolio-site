@@ -112,7 +112,33 @@ test('reduceEpochStepProgressOnNetworkSubstepItemProgress appends item counter',
   assert.strictEqual(next.label, 'Epoch 1 · Network · Advance 4/11')
 })
 
-test('reduceEpochStepProgressOnNetworkSubstepItemProgress appends phase percent', () => {
+test('reduceEpochStepProgressOnNetworkSubstepItemProgress appends item index without phase', () => {
+  const next = reduceEpochStepProgressOnNetworkSubstepItemProgress(
+    reduceEpochStepProgressOnNetworkSubstepStart(
+      reduceEpochStepProgressOnPhaseStart(
+        reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(), {
+          simulationEpoch: 0,
+        }),
+        {
+          simulationEpoch: 0,
+          phaseIndex: 0,
+          phaseId: 'network',
+        },
+      ),
+      { substepIndex: 1 },
+    ),
+    {
+      substepIndex: 1,
+      itemIndex: 3,
+      itemCount: 9,
+    },
+  )
+  assert.strictEqual(next.networkSubstepPhase, '')
+  assert.strictEqual(next.networkSubstepPhasePercent, -1)
+  assert.strictEqual(next.label, 'Epoch 1 · Network · Dispatch 3/9')
+})
+
+test('reduceEpochStepProgressOnNetworkSubstepItemProgress appends phase percent when provided', () => {
   const next = reduceEpochStepProgressOnNetworkSubstepItemProgress(
     reduceEpochStepProgressOnNetworkSubstepStart(
       reduceEpochStepProgressOnPhaseStart(

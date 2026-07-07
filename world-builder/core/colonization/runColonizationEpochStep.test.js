@@ -91,26 +91,3 @@ test('runColonizationEpochStep reports dispatch and advance network item progres
   assert.ok(dispatchProgress.length > 0)
   assert.ok(advanceProgress.length > 0)
 })
-
-test('runColonizationEpochStep reports dispatch land phase percent', async () => {
-  const running = commitRunningSlice()
-  /** @type {Array<{ phase: string, phasePercent: number }>} */
-  const landProgress = []
-
-  await runColonizationEpochStep(running, richGeographyDoc(), {
-    yieldToUi: async () => {},
-    handlers: {
-      onProgress(progress) {
-        if (progress.networkSubstepPhase === 'Land' && progress.networkSubstepPhasePercent >= 0) {
-          landProgress.push({
-            phase: progress.networkSubstepPhase,
-            phasePercent: progress.networkSubstepPhasePercent,
-          })
-        }
-      },
-    },
-  })
-
-  assert.ok(landProgress.some((entry) => entry.phasePercent === 0))
-  assert.ok(landProgress.some((entry) => entry.phasePercent === 100))
-})

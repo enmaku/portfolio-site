@@ -36,3 +36,23 @@ test('planExpeditionDispatch uses explicit mode without sail coin flip', () => {
   assert.ok(land)
   assert.strictEqual(land.mode, 'land')
 })
+
+test('planExpeditionDispatch creates maritime treks without a legal first step at dispatch', () => {
+  const doc = makeDoc()
+  const visitRaster = new Uint8Array(doc.gridWidth * doc.gridHeight)
+  const settlement = { id: 'port', x: 4, y: 4 }
+
+  const maritime = planExpeditionDispatch({
+    settlement,
+    doc,
+    visitRaster,
+    geographySeed: 42,
+    epoch: 1,
+    roadCellMask: null,
+    mode: 'open_sea',
+  })
+
+  assert.ok(maritime)
+  assert.strictEqual(maritime.mode, 'open_sea')
+  assert.deepStrictEqual(maritime.route, [{ x: 4, y: 4 }])
+})

@@ -1,71 +1,64 @@
-import { buildDryLandTraversableMask } from './buildDryLandTraversableMask.js'
-import { isVisitRasterCellVisited } from './bearingStepUtils.js'
-import { resolveSailTraversableMask } from './expeditionRouting.js'
+/** @typedef {import('./expeditionConstants.js').ExpeditionMode} ExpeditionMode */
+
+/** Port open-sea dispatch weight vs land and inland sail (each weight 1). */
+export const OPEN_SEA_EXPEDITION_MODE_WEIGHT = 4
+
+/** @type {Record<ExpeditionMode, number>} */
+const EXPEDITION_MODE_DISPATCH_WEIGHT = {
+  land: 1,
+  inland_sail: 1,
+  open_sea: OPEN_SEA_EXPEDITION_MODE_WEIGHT,
+}
 
 /**
- * @param {import('./allocateExpeditionSlots.js').ExpeditionSlotAssignment} assignment
- * @param {{
- *   doc: import('../../types.js').WorldDocument,
- *   visitRaster: Uint8Array,
- * }} context
- * @returns {import('./expeditionConstants.js').ExpeditionMode}
+ * @param {import('./evaluateFrontierEligibility.js').FrontierEligibleSender} assignment
+ * @returns {ExpeditionMode[]}
  */
-export function resolveExpeditionModeForSender(assignment, context) {
-  if (assignment.pool === 'land') {
+export function listAvailableExpeditionModes(assignment) {
+  const { canDispatchLand, canDispatchMaritime, maritimeRole } = assignment
+  /** @type {ExpeditionMode[]} */
+  const modes = []
+
+  if (canDispatchLand) {
+    modes.push('land')
+  }
+
+  if (canDispatchMaritime && maritimeRole !== 'none') {
+    modes.push('inland_sail')
+    if (maritimeRole === 'port') {
+      modes.push('open_sea')
+    }
+  }
+
+  return modes
+}
+
+/**
+ * @param {ExpeditionMode[]} modes
+ * @returns {number}
+ */
+function totalExpeditionModeDispatchWeight(modes) {
+  return modes.reduce((sum, mode) => sum + EXPEDITION_MODE_DISPATCH_WEIGHT[mode], 0)
+}
+
+/**
+ * @param {import('./evaluateFrontierEligibility.js').FrontierEligibleSender} assignment
+ * @param {{ (): number }} random
+ * @returns {ExpeditionMode}
+ */
+export function resolveExpeditionModeForSender(assignment, random) {
+  const modes = listAvailableExpeditionModes(assignment)
+  if (modes.length === 0) {
     return 'land'
   }
 
-  if (assignment.maritimeRole === 'port' && hasUnvisitedOpenOceanFrontier(context)) {
-    return 'open_sea'
-  }
-
-  return 'inland_sail'
-}
-
-/**
- * @param {{
- *   doc: import('../../types.js').WorldDocument,
- *   visitRaster: Uint8Array,
- * }} context
- * @returns {boolean}
- */
-function hasUnvisitedOpenOceanFrontier(context) {
-  const { doc, visitRaster } = context
-  const sailMask = resolveSailTraversableMask(doc)
-  const dryLandMask = buildDryLandTraversableMask(doc)
-  if (!sailMask) return false
-
-  const { gridWidth, gridHeight } = doc
-  for (let y = 0; y < gridHeight; y += 1) {
-    for (let x = 0; x < gridWidth; x += 1) {
-      const index = y * gridWidth + x
-      if (sailMask[index] !== 1) continue
-      if (isVisitRasterCellVisited(visitRaster, x, y, gridWidth)) continue
-      if (!isNearOcean(x, y, dryLandMask, gridWidth, gridHeight)) continue
-      return true
+  let pick = random() * totalExpeditionModeDispatchWeight(modes)
+  for (const mode of modes) {
+    pick -= EXPEDITION_MODE_DISPATCH_WEIGHT[mode]
+    if (pick <= 0) {
+      return mode
     }
   }
-  return false
-}
 
-/**
- * @param {number} x
- * @param {number} y
- * @param {Uint8Array} dryLandMask
- * @param {number} gridWidth
- * @param {number} gridHeight
- * @returns {boolean}
- */
-function isNearOcean(x, y, dryLandMask, gridWidth, gridHeight) {
-  for (let dy = -2; dy <= 2; dy += 1) {
-    for (let dx = -2; dx <= 2; dx += 1) {
-      const nx = x + dx
-      const ny = y + dy
-      if (nx < 0 || ny < 0 || nx >= gridWidth || ny >= gridHeight) continue
-      if (dryLandMask[ny * gridWidth + nx] !== 1) {
-        return true
-      }
-    }
-  }
-  return false
+  return modes[modes.length - 1]
 }

@@ -12,8 +12,8 @@ Glossary: [`world-builder/CONTEXT.md`](../../world-builder/CONTEXT.md) (**Realm 
 - **Independent pools:** **land expedition** and **maritime expedition** capacities do not steal from each other.
 - **Scaling:** each pool ∝ √population × √frontier boundary length (visited↔unvisited edge cell count on dry land or **Sail overlay**).
 - **Allocation:** among **frontier-eligible** idle senders, **seeded weighted lottery** by sender population when slots are scarce.
-- **Land-frontier-eligible:** unvisited dry-land cell within sender **haul-shed** isochrone.
-- **Maritime-frontier-eligible:** unvisited **Sail overlay** cell within sender maritime reach.
+- **Land-frontier-eligible:** living settlement on dry land while realm overland frontier edges remain (`landFrontierEdges > 0`); no per-sender haul-shed reach oracle at dispatch.
+- **Maritime-frontier-eligible:** settlement with maritime role while sail frontier edges remain (`maritimeFrontierEdges > 0`); no per-sender sail reach oracle at dispatch.
 - **`frontierExhausted` taper:** multiply **land expedition** pool by ~**0.15** when all scored **logistics nodes** are founded or rejected; **maritime expedition** pool ignores logistics-node exhaustion and follows sail-frontier edges only.
 
 ### Expedition modes and senders
@@ -28,7 +28,7 @@ Replace the single **sail expedition** + coastal 60/40 land/sail coin flip with 
 
 **Colonist settings** (locked at **begin colonization**): **land expedition range**, **inland sail expedition range**, **open-sea expedition range** (sliders per glossary).
 
-**Port settlements** always receive at least one **maritime expedition** slot per **epoch** when unvisited sail frontier exists—the maritime pool floor equals the count of maritime-frontier-eligible **port settlements**.
+**Port settlements** always receive at least one **maritime expedition** slot per **epoch** when unvisited sail frontier exists—the maritime pool floor equals the count of living **port settlements** (while `maritimeFrontierEdges > 0`).
 
 ### Routes overlay presentation
 
@@ -67,3 +67,7 @@ Two paths—no **road** or **route segment** requirement:
 - Amend expedition step, dispatch, and route renderer for three modes; open-sea route overlay splines.
 - Add `applySettlementMerge` phase; extend **history log** and **founding chronicle** with merge rows.
 - Update ADR 0012/0013 cross-links; refresh increment 2 flagged ambiguities in **CONTEXT.md**.
+
+## Amendment (2026)
+
+Dispatch **frontier-eligible** gating no longer runs per-sender isochrone or sail BFS to prove an unvisited cell is reachable. Eligibility uses realm frontier edge counts plus cheap sender checks (dry-land pin; maritime role). Whether a dispatched party finds new territory is resolved during **advance** (`blocked`, **survey complete**, range cap)—consistent with ADR 0012 random bearing and no destination oracle at dispatch.

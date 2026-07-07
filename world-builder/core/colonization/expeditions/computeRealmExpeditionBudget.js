@@ -13,6 +13,7 @@ import { FRONTIER_EXHAUSTED_DISPATCH_MULTIPLIER } from './expeditionConstants.js
  *   maritimeFrontierEdges: number,
  *   frontierExhausted: boolean,
  *   eligiblePortCount: number,
+ *   hasUnvisitedSailCells?: boolean,
  * }} params
  * @returns {RealmExpeditionBudget}
  */
@@ -23,6 +24,7 @@ export function computeRealmExpeditionBudget(params) {
     maritimeFrontierEdges,
     frontierExhausted,
     eligiblePortCount,
+    hasUnvisitedSailCells: unvisitedSailCellsRemain = false,
   } = params
 
   if (totalPopulation <= 0) {
@@ -37,7 +39,8 @@ export function computeRealmExpeditionBudget(params) {
     landSlots = Math.floor(landSlots * FRONTIER_EXHAUSTED_DISPATCH_MULTIPLIER)
   }
 
-  if (maritimeFrontierEdges > 0) {
+  const maritimeFrontierOpen = maritimeFrontierEdges > 0 || unvisitedSailCellsRemain
+  if (maritimeFrontierOpen && eligiblePortCount > 0) {
     maritimeSlots = Math.max(maritimeSlots, eligiblePortCount)
   }
 

@@ -234,6 +234,7 @@ export function useWorldBuilderPageController(options) {
       mapLifecycle.applyWorldDocument(doc, { changedLayers: ['routes'] }),
     )
     await runMapSubstep(6, async () => {
+      mapLifecycle.applyWorldDocument(doc, { changedLayers: ['settlementNodes'] })
       syncColonizationRunningOverlays()
       await persistColonizationSessionIfNeeded()
     })

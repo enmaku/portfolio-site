@@ -42,3 +42,15 @@ test('computeRealmExpeditionBudget floors maritime pool at eligible port count',
   })
   assert.ok(budget.maritimeSlots >= 3)
 })
+
+test('computeRealmExpeditionBudget floors maritime pool for ports when unvisited sail remains', () => {
+  const budget = computeRealmExpeditionBudget({
+    totalPopulation: 100,
+    landFrontierEdges: 0,
+    maritimeFrontierEdges: 0,
+    frontierExhausted: false,
+    eligiblePortCount: 2,
+    hasUnvisitedSailCells: true,
+  })
+  assert.ok(budget.maritimeSlots >= 2)
+})

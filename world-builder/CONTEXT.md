@@ -244,9 +244,9 @@ _Avoid_: “Scout cap” without population or frontier basis; per-**settlement*
 
 ### Frontier-eligible settlement
 
-A living **settlement** that may compete for **realm expedition budget** slots in a given pool. **Land-frontier-eligible:** at least one unvisited dry-land cell lies within the sender’s **haul-shed** isochrone—interior sites in fully explored blobs never qualify. **Maritime-frontier-eligible:** at least one unvisited **Sail overlay** cell lies within the sender’s maritime reach (implementation uses the same scale family as **haul-shed**, applied on sail traversability). **Port settlements** remain maritime-eligible under the port guarantee even when the computed maritime pool is zero.
+A living **settlement** that may compete for **realm expedition budget** slots in a given pool. **Land-frontier-eligible:** settlement pin on dry land while the realm still has overland frontier edges—dispatch does not oracle whether unvisited land lies within **haul-shed** reach; failed or empty treks resolve on **advance** (`blocked`, **survey complete**). **Maritime-frontier-eligible:** settlement with maritime role (**port settlement** or **inland sail settlement**) while sail frontier edges remain—same no-oracle rule at dispatch. **Port settlements** count toward the maritime pool floor when unvisited **Sail overlay** frontier still exists.
 
-_Avoid_: “Frontier town” as a permanent tier label; eligibility based on global map distance without sender-local reach; treating every **Sail overlay** pin as a **port settlement**; dispatching land **expeditions** from settlements with no unvisited land in **haul-shed** reach.
+_Avoid_: “Frontier town” as a permanent tier label; treating every **Sail overlay** pin as a **port settlement**; dispatching land **expeditions** from open-water pins.
 
 ### Inland sail expedition
 
