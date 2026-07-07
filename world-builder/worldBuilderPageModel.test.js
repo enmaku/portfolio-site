@@ -124,6 +124,20 @@ test('createHydrologySubstepStatuses marks active and completed substeps', () =>
   )
 })
 
+test('createHydrologySubstepStatuses appends item progress to active substep label', () => {
+  const substeps = [
+    { id: 'frontier', label: 'Frontier' },
+    { id: 'dispatch', label: 'Dispatch' },
+    { id: 'advance', label: 'Advance' },
+  ]
+  const statuses = createHydrologySubstepStatuses(substeps, 1, 0, new Set(), {
+    itemIndex: 3,
+    itemCount: 8,
+  })
+  assert.strictEqual(statuses[1].label, 'Dispatch 3/8')
+  assert.strictEqual(statuses[1].status, 'active')
+})
+
 test('createHydrologySubstepStatuses marks skipped substeps', () => {
   const substeps = [
     { id: 'hydrologyExtract', label: 'Extract river graph' },

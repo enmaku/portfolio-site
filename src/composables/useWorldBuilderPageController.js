@@ -455,13 +455,19 @@ export function useWorldBuilderPageController(options) {
       epochStepProgress.value.completedPhaseIndex,
     ),
   )
-  const epochStepNetworkSubstepStatuses = computed(() =>
-    createHydrologySubstepStatuses(
+  const epochStepNetworkSubstepStatuses = computed(() => {
+    const itemCount = epochStepProgress.value.networkSubstepItemCount
+    const itemIndex = epochStepProgress.value.networkSubstepItemIndex
+    const activeItemProgress =
+      itemCount > 0 && itemIndex > 0 ? { itemIndex, itemCount } : null
+    return createHydrologySubstepStatuses(
       COLONIZATION_NETWORK_SUBSTEPS,
       epochStepProgress.value.activeNetworkSubstepIndex,
       epochStepProgress.value.completedNetworkSubstepIndex,
-    ),
-  )
+      new Set(),
+      activeItemProgress,
+    )
+  })
   const epochStepCollapseSubstepStatuses = computed(() =>
     createHydrologySubstepStatuses(
       COLONIZATION_COLLAPSE_SUBSTEPS,

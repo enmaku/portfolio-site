@@ -61,3 +61,37 @@ test('runColonizationEpochStep reports progress through phases and commit finali
   assert.ok(percents.length > 0)
   assert.strictEqual(percents.at(-1), 88)
 })
+
+test('runColonizationEpochStep reports dispatch and advance network item progress', async () => {
+  const running = commitRunningSlice()
+  /** @type {Array<{ substepIndex: number, itemIndex: number, itemCount: number }>} */
+  const itemProgress = []
+
+  await runColonizationEpochStep(running, richGeographyDoc(), {
+    yieldToUi: async () => {},
+    handlers: {
+      onProgress(progress) {
+        if (
+          progress.networkSubstepItemCount > 0 &&
+          progress.networkSubstepItemIndex > 0 &&
+          progress.activeNetworkSubstepIndex >= 0
+        ) {
+          itemProgress.push({
+            substepIndex: progress.activeNetworkSubstepIndex,
+            itemIndex: progress.networkSubstepItemIndex,
+            itemCount: progress.networkSubstepItemCount,
+          })
+        }
+      },
+    },
+  })
+
+  const dispatchProgress = itemProgress.filter((entry) => entry.substepIndex === 1)
+  const advanceProgress = itemProgress.filter((entry) => entry.substepIndex === 2)
+  assert.ok(dispatchProgress.length > 0)
+  assert.ok(advanceProgress.length > 0)
+  assert.ok(dispatchProgress.some((entry) => entry.itemIndex === 1))
+  assert.ok(dispatchProgress.some((entry) => entry.itemIndex === entry.itemCount))
+  assert.ok(advanceProgress.some((entry) => entry.itemIndex === 1))
+  assert.ok(advanceProgress.some((entry) => entry.itemIndex === entry.itemCount))
+})

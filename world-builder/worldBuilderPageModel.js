@@ -364,6 +364,7 @@ export function createGenerationStepStatuses(steps, activeStepIndex, completedSt
  * @param {number} activeSubstepIndex
  * @param {number} completedSubstepIndex
  * @param {ReadonlySet<string>} [skippedSubstepIds]
+ * @param {{ itemIndex: number, itemCount: number } | null} [activeItemProgress]
  * @returns {Array<{ id: string, label: string, status: 'pending' | 'active' | 'complete' | 'skipped' }>}
  */
 export function createHydrologySubstepStatuses(
@@ -371,18 +372,28 @@ export function createHydrologySubstepStatuses(
   activeSubstepIndex,
   completedSubstepIndex,
   skippedSubstepIds = new Set(),
+  activeItemProgress = null,
 ) {
   return substeps.map((substep, index) => {
     if (skippedSubstepIds.has(substep.id)) {
       return { ...substep, status: 'skipped' }
     }
+    let label = substep.label
+    if (
+      index === activeSubstepIndex &&
+      activeItemProgress &&
+      activeItemProgress.itemCount > 0 &&
+      activeItemProgress.itemIndex > 0
+    ) {
+      label = `${substep.label} ${activeItemProgress.itemIndex}/${activeItemProgress.itemCount}`
+    }
     if (index <= completedSubstepIndex) {
-      return { ...substep, status: 'complete' }
+      return { id: substep.id, label, status: 'complete' }
     }
     if (index === activeSubstepIndex) {
-      return { ...substep, status: 'active' }
+      return { id: substep.id, label, status: 'active' }
     }
-    return { ...substep, status: 'pending' }
+    return { id: substep.id, label, status: 'pending' }
   })
 }
 

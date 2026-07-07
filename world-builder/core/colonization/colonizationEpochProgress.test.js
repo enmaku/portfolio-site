@@ -10,6 +10,7 @@ import {
   reduceEpochStepProgressOnFinalizeStepStart,
   reduceEpochStepProgressOnMapSubstepStart,
   reduceEpochStepProgressOnNetworkSubstepStart,
+  reduceEpochStepProgressOnNetworkSubstepItemProgress,
   reduceEpochStepProgressOnPhaseStart,
 } from './colonizationEpochProgress.js'
 import {
@@ -27,6 +28,8 @@ test('createInitialEpochStepProgress starts idle before any epoch phase', () => 
     label: '',
     activeNetworkSubstepIndex: -1,
     completedNetworkSubstepIndex: -1,
+    networkSubstepItemIndex: -1,
+    networkSubstepItemCount: 0,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
     activeFinalizeStepIndex: -1,
@@ -81,6 +84,30 @@ test('reduceEpochStepProgressOnNetworkSubstepStart appends network substep label
   const next = reduceEpochStepProgressOnNetworkSubstepStart(progress, { substepIndex: 1 })
   assert.strictEqual(next.activeNetworkSubstepIndex, 1)
   assert.strictEqual(next.label, 'Epoch 1 · Network · Dispatch')
+})
+
+test('reduceEpochStepProgressOnNetworkSubstepItemProgress appends item counter', () => {
+  const progress = reduceEpochStepProgressOnNetworkSubstepStart(
+    reduceEpochStepProgressOnPhaseStart(
+      reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(), {
+        simulationEpoch: 0,
+      }),
+      {
+        simulationEpoch: 0,
+        phaseIndex: 0,
+        phaseId: 'network',
+      },
+    ),
+    { substepIndex: 2 },
+  )
+  const next = reduceEpochStepProgressOnNetworkSubstepItemProgress(progress, {
+    substepIndex: 2,
+    itemIndex: 4,
+    itemCount: 11,
+  })
+  assert.strictEqual(next.networkSubstepItemIndex, 4)
+  assert.strictEqual(next.networkSubstepItemCount, 11)
+  assert.strictEqual(next.label, 'Epoch 1 · Network · Advance 4/11')
 })
 
 test('reduceEpochStepProgressOnCollapseSubstepStart appends collapse substep label', () => {
