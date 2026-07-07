@@ -30,6 +30,8 @@ test('createInitialEpochStepProgress starts idle before any epoch phase', () => 
     completedNetworkSubstepIndex: -1,
     networkSubstepItemIndex: -1,
     networkSubstepItemCount: 0,
+    networkSubstepPhase: '',
+    networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
     activeFinalizeStepIndex: -1,
@@ -108,6 +110,34 @@ test('reduceEpochStepProgressOnNetworkSubstepItemProgress appends item counter',
   assert.strictEqual(next.networkSubstepItemIndex, 4)
   assert.strictEqual(next.networkSubstepItemCount, 11)
   assert.strictEqual(next.label, 'Epoch 1 · Network · Advance 4/11')
+})
+
+test('reduceEpochStepProgressOnNetworkSubstepItemProgress appends phase percent', () => {
+  const next = reduceEpochStepProgressOnNetworkSubstepItemProgress(
+    reduceEpochStepProgressOnNetworkSubstepStart(
+      reduceEpochStepProgressOnPhaseStart(
+        reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(), {
+          simulationEpoch: 0,
+        }),
+        {
+          simulationEpoch: 0,
+          phaseIndex: 0,
+          phaseId: 'network',
+        },
+      ),
+      { substepIndex: 1 },
+    ),
+    {
+      substepIndex: 1,
+      itemIndex: 3,
+      itemCount: 9,
+      phase: 'Land',
+      phasePercent: 45,
+    },
+  )
+  assert.strictEqual(next.networkSubstepPhase, 'Land')
+  assert.strictEqual(next.networkSubstepPhasePercent, 45)
+  assert.strictEqual(next.label, 'Epoch 1 · Network · Dispatch 3/9 - Land 45%')
 })
 
 test('reduceEpochStepProgressOnCollapseSubstepStart appends collapse substep label', () => {

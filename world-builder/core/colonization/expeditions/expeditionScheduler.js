@@ -17,6 +17,7 @@ import { buildDryLandTraversableMask } from './buildDryLandTraversableMask.js'
 import { classifySettlementMaritimeRole, isPortSettlement } from './classifySettlementMaritimeRole.js'
 import { computeRealmExpeditionBudget } from './computeRealmExpeditionBudget.js'
 import { evaluateFrontierEligibility } from './evaluateFrontierEligibility.js'
+import { evaluateFrontierEligibilityWithDispatchProgress } from './evaluateFrontierEligibilityDispatchProgress.js'
 import { foundDaughterSettlement } from './foundDaughterSettlement.js'
 import { planExpeditionDispatchForAssignment } from './planExpeditionDispatch.js'
 import { resolveSailTraversableMask } from './expeditionRouting.js'
@@ -52,6 +53,8 @@ import {
  * @property {string} substepId
  * @property {number} itemIndex one-based position in the substep loop
  * @property {number} itemCount total items in the substep loop
+ * @property {string} [phase]
+ * @property {number} [phasePercent]
  */
 
 /** @typedef {NetworkSubstepLifecyclePayload | NetworkSubstepItemPayload} NetworkSubstepHookPayload */
@@ -72,14 +75,26 @@ function emitNetworkSubstep(hooks, type, substepIndex, substepId) {
  * @param {string} substepId
  * @param {number} itemIndex
  * @param {number} itemCount
+ * @param {string} [phase]
+ * @param {number} [phasePercent]
  */
-function emitNetworkSubstepItem(hooks, substepIndex, substepId, itemIndex, itemCount) {
+function emitNetworkSubstepItem(
+  hooks,
+  substepIndex,
+  substepId,
+  itemIndex,
+  itemCount,
+  phase,
+  phasePercent,
+) {
   hooks?.onNetworkSubstep?.({
     type: 'substep-item',
     substepIndex,
     substepId,
     itemIndex,
     itemCount,
+    phase,
+    phasePercent,
   })
 }
 
@@ -440,21 +455,40 @@ async function dispatchExpeditionsWithBudgetAsync(
   const settlementItemCount = living.length
 
   for (let settlementIndex = 0; settlementIndex < living.length; settlementIndex += 1) {
-    emitNetworkSubstepItem(hooks, 1, 'dispatch', settlementIndex + 1, settlementItemCount)
-    await yieldToUi?.()
+    const itemIndex = settlementIndex + 1
 
     const settlement = living[settlementIndex]
     if (getActiveExpeditionForSettlement({ expeditions }, settlement.id)) {
+      emitNetworkSubstepItem(hooks, 1, 'dispatch', itemIndex, settlementItemCount)
+      await yieldToUi?.()
       continue
     }
 
     const maritimeRole = classifySettlementMaritimeRole(doc, settlement)
-    const entries = evaluateFrontierEligibility({
+    const entries = await evaluateFrontierEligibilityWithDispatchProgress({
       settlement,
       doc,
       visitRaster,
       colonistSettings: slice.colonistSettings,
       roadCellMask,
+      maritimeRole,
+      sailMask,
+      progressHooks: {
+        reportSync(phase, percent) {
+          emitNetworkSubstepItem(
+            hooks,
+            1,
+            'dispatch',
+            itemIndex,
+            settlementItemCount,
+            phase,
+            percent,
+          )
+        },
+        async yieldToUi() {
+          await yieldToUi?.()
+        },
+      },
     })
     eligibleSenders.push(...entries)
 

@@ -99,6 +99,8 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
                   substepIndex: payload.substepIndex,
                   itemIndex: payload.itemIndex,
                   itemCount: payload.itemCount,
+                  phase: payload.phase,
+                  phasePercent: payload.phasePercent,
                 })
               } else {
                 progress = reduceEpochStepProgressOnNetworkSubstepComplete(progress, {

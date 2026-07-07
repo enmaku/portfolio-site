@@ -20,6 +20,8 @@ import {
  * @property {number} completedNetworkSubstepIndex
  * @property {number} networkSubstepItemIndex one-based item within active network substep; -1 when idle
  * @property {number} networkSubstepItemCount total items in active network substep loop; 0 when idle
+ * @property {string} networkSubstepPhase optional in-item phase label (e.g. Land)
+ * @property {number} networkSubstepPhasePercent optional 0-100 progress within the phase
  * @property {number} activeCollapseSubstepIndex
  * @property {number} completedCollapseSubstepIndex
  * @property {number} activeFinalizeStepIndex
@@ -43,6 +45,8 @@ export function createInitialEpochStepProgress() {
     completedNetworkSubstepIndex: -1,
     networkSubstepItemIndex: -1,
     networkSubstepItemCount: 0,
+    networkSubstepPhase: '',
+    networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
     activeFinalizeStepIndex: -1,
@@ -110,6 +114,8 @@ export function reduceEpochStepProgressOnEpochStart(progress, payload) {
     completedNetworkSubstepIndex: -1,
     networkSubstepItemIndex: -1,
     networkSubstepItemCount: 0,
+    networkSubstepPhase: '',
+    networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
     activeFinalizeStepIndex: -1,
@@ -139,6 +145,8 @@ export function reduceEpochStepProgressOnEpochComplete(progress, payload) {
     completedNetworkSubstepIndex: -1,
     networkSubstepItemIndex: -1,
     networkSubstepItemCount: 0,
+    networkSubstepPhase: '',
+    networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
     activeFinalizeStepIndex: -1,
@@ -191,6 +199,8 @@ export function reduceEpochStepProgressOnPhaseComplete(progress, payload) {
     completedNetworkSubstepIndex: -1,
     networkSubstepItemIndex: -1,
     networkSubstepItemCount: 0,
+    networkSubstepPhase: '',
+    networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
   }
@@ -208,6 +218,8 @@ export function reduceEpochStepProgressOnNetworkSubstepStart(progress, payload) 
     activeNetworkSubstepIndex: payload.substepIndex,
     networkSubstepItemIndex: -1,
     networkSubstepItemCount: 0,
+    networkSubstepPhase: '',
+    networkSubstepPhasePercent: -1,
     label: progress.label.includes('·')
       ? `${progress.label.split(' · ')[0]} · Network · ${substep?.label ?? ''}`
       : progress.label,
@@ -226,23 +238,61 @@ export function reduceEpochStepProgressOnNetworkSubstepComplete(progress, payloa
     completedNetworkSubstepIndex: payload.substepIndex,
     networkSubstepItemIndex: -1,
     networkSubstepItemCount: 0,
+    networkSubstepPhase: '',
+    networkSubstepPhasePercent: -1,
   }
 }
 
 /**
+ * @param {string} substepLabel
+ * @param {{ itemIndex: number, itemCount: number, phase?: string, phasePercent?: number }} itemProgress
+ * @returns {string}
+ */
+export function formatNetworkSubstepItemLabel(substepLabel, itemProgress) {
+  if (itemProgress.itemCount <= 0 || itemProgress.itemIndex <= 0) {
+    return substepLabel
+  }
+  let label = `${substepLabel} ${itemProgress.itemIndex}/${itemProgress.itemCount}`
+  if (
+    itemProgress.phase &&
+    Number.isFinite(itemProgress.phasePercent) &&
+    itemProgress.phasePercent >= 0
+  ) {
+    label += ` - ${itemProgress.phase} ${itemProgress.phasePercent}%`
+  }
+  return label
+}
+
+/**
  * @param {EpochStepProgressState} progress
- * @param {{ substepIndex: number, itemIndex: number, itemCount: number }} payload
+ * @param {{
+ *   substepIndex: number,
+ *   itemIndex: number,
+ *   itemCount: number,
+ *   phase?: string,
+ *   phasePercent?: number,
+ * }} payload
  * @returns {EpochStepProgressState}
  */
 export function reduceEpochStepProgressOnNetworkSubstepItemProgress(progress, payload) {
   const substep = COLONIZATION_NETWORK_SUBSTEPS[payload.substepIndex]
   const epochLabel = progress.label.includes('·') ? progress.label.split(' · ')[0] : progress.label
-  const itemLabel = `${substep?.label ?? ''} ${payload.itemIndex}/${payload.itemCount}`
+  const itemLabel = formatNetworkSubstepItemLabel(substep?.label ?? '', {
+    itemIndex: payload.itemIndex,
+    itemCount: payload.itemCount,
+    phase: payload.phase,
+    phasePercent: payload.phasePercent,
+  })
   return {
     ...progress,
     activeNetworkSubstepIndex: payload.substepIndex,
     networkSubstepItemIndex: payload.itemIndex,
     networkSubstepItemCount: payload.itemCount,
+    networkSubstepPhase: payload.phase ?? '',
+    networkSubstepPhasePercent:
+      Number.isFinite(payload.phasePercent) && payload.phasePercent >= 0
+        ? payload.phasePercent
+        : -1,
     label: `${epochLabel} · Network · ${itemLabel}`,
   }
 }
@@ -296,6 +346,8 @@ export function reduceEpochStepProgressOnFinalizeStepStart(progress, payload) {
     completedNetworkSubstepIndex: -1,
     networkSubstepItemIndex: -1,
     networkSubstepItemCount: 0,
+    networkSubstepPhase: '',
+    networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
     activeFinalizeStepIndex: payload.stepIndex,
@@ -321,6 +373,8 @@ export function reduceEpochStepProgressOnFinalizeStepComplete(progress, payload)
     completedNetworkSubstepIndex: -1,
     networkSubstepItemIndex: -1,
     networkSubstepItemCount: 0,
+    networkSubstepPhase: '',
+    networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
     activeMapSubstepIndex: -1,
@@ -370,6 +424,8 @@ export function reduceEpochStepProgressOnRunComplete(progress) {
     activeNetworkSubstepIndex: -1,
     networkSubstepItemIndex: -1,
     networkSubstepItemCount: 0,
+    networkSubstepPhase: '',
+    networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     activeFinalizeStepIndex: -1,
     activeMapSubstepIndex: -1,

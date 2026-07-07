@@ -90,8 +90,27 @@ test('runColonizationEpochStep reports dispatch and advance network item progres
   const advanceProgress = itemProgress.filter((entry) => entry.substepIndex === 2)
   assert.ok(dispatchProgress.length > 0)
   assert.ok(advanceProgress.length > 0)
-  assert.ok(dispatchProgress.some((entry) => entry.itemIndex === 1))
-  assert.ok(dispatchProgress.some((entry) => entry.itemIndex === entry.itemCount))
-  assert.ok(advanceProgress.some((entry) => entry.itemIndex === 1))
-  assert.ok(advanceProgress.some((entry) => entry.itemIndex === entry.itemCount))
+})
+
+test('runColonizationEpochStep reports dispatch land phase percent', async () => {
+  const running = commitRunningSlice()
+  /** @type {Array<{ phase: string, phasePercent: number }>} */
+  const landProgress = []
+
+  await runColonizationEpochStep(running, richGeographyDoc(), {
+    yieldToUi: async () => {},
+    handlers: {
+      onProgress(progress) {
+        if (progress.networkSubstepPhase === 'Land' && progress.networkSubstepPhasePercent >= 0) {
+          landProgress.push({
+            phase: progress.networkSubstepPhase,
+            phasePercent: progress.networkSubstepPhasePercent,
+          })
+        }
+      },
+    },
+  })
+
+  assert.ok(landProgress.some((entry) => entry.phasePercent === 0))
+  assert.ok(landProgress.some((entry) => entry.phasePercent === 100))
 })

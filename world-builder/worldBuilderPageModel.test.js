@@ -138,6 +138,17 @@ test('createHydrologySubstepStatuses appends item progress to active substep lab
   assert.strictEqual(statuses[1].status, 'active')
 })
 
+test('createHydrologySubstepStatuses appends phase percent to active substep label', () => {
+  const substeps = [{ id: 'dispatch', label: 'Dispatch' }]
+  const statuses = createHydrologySubstepStatuses(substeps, 0, -1, new Set(), {
+    itemIndex: 2,
+    itemCount: 9,
+    phase: 'Maritime',
+    phasePercent: 38,
+  })
+  assert.strictEqual(statuses[0].label, 'Dispatch 2/9 - Maritime 38%')
+})
+
 test('createHydrologySubstepStatuses marks skipped substeps', () => {
   const substeps = [
     { id: 'hydrologyExtract', label: 'Extract river graph' },

@@ -360,11 +360,36 @@ export function createGenerationStepStatuses(steps, activeStepIndex, completedSt
 }
 
 /**
+ * @param {string} baseLabel
+ * @param {{
+ *   itemIndex: number,
+ *   itemCount: number,
+ *   phase?: string,
+ *   phasePercent?: number,
+ * } | null} activeItemProgress
+ * @returns {string}
+ */
+export function formatHydrologySubstepItemLabel(baseLabel, activeItemProgress) {
+  if (!activeItemProgress || activeItemProgress.itemCount <= 0 || activeItemProgress.itemIndex <= 0) {
+    return baseLabel
+  }
+  let label = `${baseLabel} ${activeItemProgress.itemIndex}/${activeItemProgress.itemCount}`
+  if (
+    activeItemProgress.phase &&
+    Number.isFinite(activeItemProgress.phasePercent) &&
+    activeItemProgress.phasePercent >= 0
+  ) {
+    label += ` - ${activeItemProgress.phase} ${activeItemProgress.phasePercent}%`
+  }
+  return label
+}
+
+/**
  * @param {ReadonlyArray<{ id: string, label: string }>} substeps
  * @param {number} activeSubstepIndex
  * @param {number} completedSubstepIndex
  * @param {ReadonlySet<string>} [skippedSubstepIds]
- * @param {{ itemIndex: number, itemCount: number } | null} [activeItemProgress]
+ * @param {{ itemIndex: number, itemCount: number, phase?: string, phasePercent?: number } | null} [activeItemProgress]
  * @returns {Array<{ id: string, label: string, status: 'pending' | 'active' | 'complete' | 'skipped' }>}
  */
 export function createHydrologySubstepStatuses(
@@ -378,15 +403,10 @@ export function createHydrologySubstepStatuses(
     if (skippedSubstepIds.has(substep.id)) {
       return { ...substep, status: 'skipped' }
     }
-    let label = substep.label
-    if (
-      index === activeSubstepIndex &&
-      activeItemProgress &&
-      activeItemProgress.itemCount > 0 &&
-      activeItemProgress.itemIndex > 0
-    ) {
-      label = `${substep.label} ${activeItemProgress.itemIndex}/${activeItemProgress.itemCount}`
-    }
+    const label =
+      index === activeSubstepIndex
+        ? formatHydrologySubstepItemLabel(substep.label, activeItemProgress)
+        : substep.label
     if (index <= completedSubstepIndex) {
       return { id: substep.id, label, status: 'complete' }
     }

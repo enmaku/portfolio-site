@@ -11,6 +11,7 @@
  *   movementCost?: Float32Array | null,
  *   roadMultiplier?: number,
  *   roadCellMask?: Uint8Array | null,
+ *   onIsochroneProgress?: () => void,
  * }} params
  * @returns {Float32Array} travel time per cell; Infinity when unreachable within budget
  */
@@ -47,6 +48,7 @@ export function computeHaulShedTravelTimes(params) {
       roadMultiplier,
       roadCellMask,
       travelTime,
+      onIsochroneProgress: params.onIsochroneProgress,
     })
     return travelTime
   }
@@ -129,6 +131,7 @@ function fillCircleTravelTimes({ origin, radius, gridWidth, gridHeight, travelTi
  *   roadMultiplier: number,
  *   roadCellMask: Uint8Array | null,
  *   travelTime: Float32Array,
+ *   onIsochroneProgress?: () => void,
  * }} params
  */
 function fillIsochroneTravelTimes({
@@ -140,6 +143,7 @@ function fillIsochroneTravelTimes({
   roadMultiplier,
   roadCellMask,
   travelTime,
+  onIsochroneProgress,
 }) {
   const cellCount = gridWidth * gridHeight
   const originIndex = origin.y * gridWidth + origin.x
@@ -155,6 +159,7 @@ function fillIsochroneTravelTimes({
   while (heap.length > 0) {
     const current = popMinTravelTime(heap)
     if (!current) break
+    onIsochroneProgress?.()
     const currentIndex = current.y * gridWidth + current.x
     if (current.time > travelTime[currentIndex]) continue
 

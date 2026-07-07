@@ -458,8 +458,17 @@ export function useWorldBuilderPageController(options) {
   const epochStepNetworkSubstepStatuses = computed(() => {
     const itemCount = epochStepProgress.value.networkSubstepItemCount
     const itemIndex = epochStepProgress.value.networkSubstepItemIndex
+    const phase = epochStepProgress.value.networkSubstepPhase
+    const phasePercent = epochStepProgress.value.networkSubstepPhasePercent
     const activeItemProgress =
-      itemCount > 0 && itemIndex > 0 ? { itemIndex, itemCount } : null
+      itemCount > 0 && itemIndex > 0
+        ? {
+            itemIndex,
+            itemCount,
+            phase: phase || undefined,
+            phasePercent: phasePercent >= 0 ? phasePercent : undefined,
+          }
+        : null
     return createHydrologySubstepStatuses(
       COLONIZATION_NETWORK_SUBSTEPS,
       epochStepProgress.value.activeNetworkSubstepIndex,
