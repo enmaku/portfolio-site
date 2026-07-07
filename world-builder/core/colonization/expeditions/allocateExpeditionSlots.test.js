@@ -78,3 +78,17 @@ test('allocateExpeditionSlots can fill reserved port slots and population lotter
   assert.ok(assignments.some((entry) => entry.settlementId === 'port'))
   assert.ok(assignments.some((entry) => entry.settlementId === 'inland'))
 })
+
+test('allocateExpeditionSlots can assign multiple slots to one sender when capacity allows', () => {
+  const senders = [inlandSender('only', 100)]
+  const assignments = allocateExpeditionSlots({
+    landSlots: 4,
+    maritimeSlots: 0,
+    senders,
+    geographySeed: 42,
+    epoch: 2,
+    remainingDispatchCapacity: new Map([['only', 3]]),
+  })
+  assert.strictEqual(assignments.length, 3)
+  assert.ok(assignments.every((entry) => entry.settlementId === 'only'))
+})

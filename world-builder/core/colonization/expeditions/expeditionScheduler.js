@@ -23,7 +23,8 @@ import { foundDaughterSettlement } from './foundDaughterSettlement.js'
 import { planExpeditionDispatchForAssignment } from './planExpeditionDispatch.js'
 import { resolveSailTraversableMask } from './expeditionRouting.js'
 import {
-  getActiveExpeditionForSettlement,
+  computeMaxActiveExpeditionsPerSettlement,
+  countActiveExpeditionsForSettlement,
   livingSettlements,
   resolveExpeditions,
 } from './expeditionConstants.js'
@@ -339,6 +340,9 @@ function dispatchExpeditionsWithBudget(slice, doc, geographySeed, epoch, frontie
   const maritimeFrontierOpen = maritimeFrontierEdges > 0 || unvisitedSailCellsRemain
 
   const living = livingSettlements(slice.settlements)
+  const maxActiveExpeditionsPerSettlement = computeMaxActiveExpeditionsPerSettlement(
+    living.length,
+  )
   const totalPopulation = living.reduce(
     (sum, settlement) => sum + (Number.isFinite(settlement.population) ? settlement.population : 0),
     0,
@@ -346,10 +350,17 @@ function dispatchExpeditionsWithBudget(slice, doc, geographySeed, epoch, frontie
 
   /** @type {import('./evaluateFrontierEligibility.js').FrontierEligibleSender[]} */
   const eligibleSenders = []
+  /** @type {Map<string, number>} */
+  const remainingDispatchCapacity = new Map()
   let eligiblePortCount = 0
 
   for (const settlement of living) {
-    if (getActiveExpeditionForSettlement({ expeditions }, settlement.id)) {
+    const activeExpeditionCount = countActiveExpeditionsForSettlement(
+      { expeditions },
+      settlement.id,
+    )
+    const remainingCapacity = maxActiveExpeditionsPerSettlement - activeExpeditionCount
+    if (remainingCapacity <= 0) {
       continue
     }
 
@@ -365,6 +376,7 @@ function dispatchExpeditionsWithBudget(slice, doc, geographySeed, epoch, frontie
     })
     if (entry) {
       eligibleSenders.push(entry)
+      remainingDispatchCapacity.set(settlement.id, remainingCapacity)
     }
 
     if (isPortSettlement(maritimeRole) && maritimeFrontierOpen) {
@@ -387,9 +399,11 @@ function dispatchExpeditionsWithBudget(slice, doc, geographySeed, epoch, frontie
     senders: eligibleSenders,
     geographySeed,
     epoch,
+    remainingDispatchCapacity,
   })
 
-  for (const assignment of assignments) {
+  for (let assignmentIndex = 0; assignmentIndex < assignments.length; assignmentIndex += 1) {
+    const assignment = assignments[assignmentIndex]
     const settlement = living.find((entry) => entry.id === assignment.settlementId)
     if (!settlement) continue
 
@@ -399,6 +413,7 @@ function dispatchExpeditionsWithBudget(slice, doc, geographySeed, epoch, frontie
       visitRaster,
       geographySeed,
       epoch,
+      assignmentIndex,
       roadCellMask,
     })
     if (planned) {
@@ -450,6 +465,9 @@ async function dispatchExpeditionsWithBudgetAsync(
   const maritimeFrontierOpen = maritimeFrontierEdges > 0 || unvisitedSailCellsRemain
 
   const living = livingSettlements(slice.settlements)
+  const maxActiveExpeditionsPerSettlement = computeMaxActiveExpeditionsPerSettlement(
+    living.length,
+  )
   const totalPopulation = living.reduce(
     (sum, settlement) => sum + (Number.isFinite(settlement.population) ? settlement.population : 0),
     0,
@@ -457,6 +475,8 @@ async function dispatchExpeditionsWithBudgetAsync(
 
   /** @type {import('./evaluateFrontierEligibility.js').FrontierEligibleSender[]} */
   const eligibleSenders = []
+  /** @type {Map<string, number>} */
+  const remainingDispatchCapacity = new Map()
   let eligiblePortCount = 0
   const settlementItemCount = living.length
 
@@ -464,7 +484,12 @@ async function dispatchExpeditionsWithBudgetAsync(
     const itemIndex = settlementIndex + 1
 
     const settlement = living[settlementIndex]
-    if (getActiveExpeditionForSettlement({ expeditions }, settlement.id)) {
+    const activeExpeditionCount = countActiveExpeditionsForSettlement(
+      { expeditions },
+      settlement.id,
+    )
+    const remainingCapacity = maxActiveExpeditionsPerSettlement - activeExpeditionCount
+    if (remainingCapacity <= 0) {
       emitNetworkSubstepItem(hooks, 1, 'dispatch', itemIndex, settlementItemCount)
       await yieldToUi?.()
       continue
@@ -482,6 +507,7 @@ async function dispatchExpeditionsWithBudgetAsync(
     })
     if (entry) {
       eligibleSenders.push(entry)
+      remainingDispatchCapacity.set(settlement.id, remainingCapacity)
     }
     emitNetworkSubstepItem(hooks, 1, 'dispatch', itemIndex, settlementItemCount)
     await yieldToUi?.()
@@ -506,6 +532,7 @@ async function dispatchExpeditionsWithBudgetAsync(
     senders: eligibleSenders,
     geographySeed,
     epoch,
+    remainingDispatchCapacity,
   })
 
   for (let assignmentIndex = 0; assignmentIndex < assignments.length; assignmentIndex += 1) {
@@ -522,6 +549,7 @@ async function dispatchExpeditionsWithBudgetAsync(
       visitRaster,
       geographySeed,
       epoch,
+      assignmentIndex,
       roadCellMask,
     })
     if (planned) {

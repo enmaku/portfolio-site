@@ -10,6 +10,9 @@ export const FRONTIER_EXHAUSTED_DISPATCH_MULTIPLIER = 0.15
 /** Local disc radius when clearing visit status at a reached logistics node. */
 export const LOGISTICS_NODE_VISIT_DISC_RADIUS = 1
 
+/** Scale for per-settlement concurrent expedition cap: max(1, floor(this / living settlements)). */
+export const EXPEDITION_CONCURRENCY_SETTLEMENT_SCALE = 80
+
 /**
  * @typedef {Object} ExpeditionRecord
  * @property {string} id
@@ -48,6 +51,29 @@ export function isMaritimeExpeditionMode(mode) {
  */
 export function getActiveExpeditions(slice) {
   return (slice.expeditions ?? []).filter((expedition) => expedition.status === 'active')
+}
+
+/**
+ * @param {number} livingSettlementCount
+ * @returns {number}
+ */
+export function computeMaxActiveExpeditionsPerSettlement(livingSettlementCount) {
+  const livingCount = Math.max(1, livingSettlementCount)
+  return Math.max(
+    1,
+    Math.floor(EXPEDITION_CONCURRENCY_SETTLEMENT_SCALE / livingCount),
+  )
+}
+
+/**
+ * @param {import('../createDefaultColonizationSlice.js').ColonizationSlice} slice
+ * @param {string} settlementId
+ * @returns {number}
+ */
+export function countActiveExpeditionsForSettlement(slice, settlementId) {
+  return getActiveExpeditions(slice).filter(
+    (expedition) => expedition.settlementId === settlementId,
+  ).length
 }
 
 /**

@@ -30,6 +30,7 @@ test('planExpeditionDispatch uses explicit mode without sail coin flip', () => {
     visitRaster,
     geographySeed: 42,
     epoch: 1,
+    assignmentIndex: 0,
     roadCellMask: null,
     mode: 'land',
   })
@@ -48,6 +49,7 @@ test('planExpeditionDispatch creates maritime treks without a legal first step a
     visitRaster,
     geographySeed: 42,
     epoch: 1,
+    assignmentIndex: 0,
     roadCellMask: null,
     mode: 'open_sea',
   })
@@ -55,4 +57,27 @@ test('planExpeditionDispatch creates maritime treks without a legal first step a
   assert.ok(maritime)
   assert.strictEqual(maritime.mode, 'open_sea')
   assert.deepStrictEqual(maritime.route, [{ x: 4, y: 4 }])
+})
+
+test('planExpeditionDispatch varies bearing by assignment index within the same epoch', () => {
+  const doc = makeDoc()
+  const visitRaster = new Uint8Array(doc.gridWidth * doc.gridHeight)
+  const settlement = { id: 's1', x: 4, y: 4 }
+  const baseParams = {
+    settlement,
+    doc,
+    visitRaster,
+    geographySeed: 42,
+    epoch: 3,
+    roadCellMask: null,
+    mode: 'land',
+  }
+
+  const first = planExpeditionDispatch({ ...baseParams, assignmentIndex: 0 })
+  const second = planExpeditionDispatch({ ...baseParams, assignmentIndex: 1 })
+
+  assert.ok(first)
+  assert.ok(second)
+  assert.notStrictEqual(first.bearing, second.bearing)
+  assert.notStrictEqual(first.id, second.id)
 })

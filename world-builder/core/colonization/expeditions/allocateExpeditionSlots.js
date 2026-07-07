@@ -32,11 +32,13 @@ function removeSender(remaining, settlementId) {
  *   senders: FrontierEligibleSender[],
  *   geographySeed: number,
  *   epoch: number,
+ *   remainingDispatchCapacity?: Map<string, number>,
  * }} params
  * @returns {ExpeditionSlotAssignment[]}
  */
 export function allocateExpeditionSlots(params) {
-  const { landSlots, maritimeSlots, senders, geographySeed, epoch } = params
+  const { landSlots, maritimeSlots, senders, geographySeed, epoch, remainingDispatchCapacity } =
+    params
   if (senders.length === 0) {
     return []
   }
@@ -59,13 +61,32 @@ export function allocateExpeditionSlots(params) {
   const assignments = []
   /** @type {FrontierEligibleSender[]} */
   const remaining = [...senders]
+  /** @type {Map<string, number>} */
+  const capacityBySender = new Map(
+    remainingDispatchCapacity
+      ? [...remainingDispatchCapacity]
+      : senders.map((sender) => [sender.settlementId, 1]),
+  )
+
+  function consumeSenderCapacity(settlementId) {
+    const slotsLeft = capacityBySender.get(settlementId) ?? 0
+    if (slotsLeft <= 1) {
+      capacityBySender.delete(settlementId)
+      removeSender(remaining, settlementId)
+    } else {
+      capacityBySender.set(settlementId, slotsLeft - 1)
+    }
+  }
 
   for (const port of portSenders) {
     if (assignments.length >= totalSlots) {
       break
     }
+    if ((capacityBySender.get(port.settlementId) ?? 0) <= 0) {
+      continue
+    }
     assignments.push({ ...port })
-    removeSender(remaining, port.settlementId)
+    consumeSenderCapacity(port.settlementId)
   }
 
   const random = createSeededRandom(
@@ -86,7 +107,7 @@ export function allocateExpeditionSlots(params) {
 
     const winner = remaining[winnerIndex]
     assignments.push({ ...winner })
-    remaining.splice(winnerIndex, 1)
+    consumeSenderCapacity(winner.settlementId)
   }
 
   return assignments

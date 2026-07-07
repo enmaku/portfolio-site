@@ -36,6 +36,7 @@ test('planExpeditionDispatchForAssignment falls back to maritime when land dispa
     visitRaster,
     geographySeed: 42,
     epoch: 1,
+    assignmentIndex: 0,
     roadCellMask: null,
   })
 

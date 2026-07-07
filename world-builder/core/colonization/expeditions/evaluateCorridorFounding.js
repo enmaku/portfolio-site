@@ -1,3 +1,4 @@
+import { computeHaulShedTravelTimes } from '../computeHaulShedIsochrone.js'
 import { computePrimaryClaimMap, serializeClaimMap } from '../computePrimaryClaimMap.js'
 import { applySurvivalResolveToSettlement } from '../resolveSurvivalTriad.js'
 import { saltSpoilageMultiplier } from '../saltSpoilageMultiplier.js'
@@ -5,6 +6,9 @@ import { findLogisticsNodeAt } from '../logisticsNodes/scoreLogisticsNodes.js'
 import { buildLandRouteCellMask } from '../roads/roadNetwork.js'
 import { isMaritimeExpeditionMode, resolveExpeditionMode } from './expeditionConstants.js'
 import { isSettlementSailReachable } from './selectSailExpeditionStep.js'
+
+/** Minimum travel-time separation for a new pin: one day of the three-day haul budget. */
+export const SETTLEMENT_FOUNDING_MIN_HAUL_DAY_FRACTION = 1 / 3
 
 /**
  * @typedef {Object} FoundingCandidate
@@ -94,13 +98,70 @@ export function isProvisionalClaimViable(params) {
 }
 
 /**
- * @param {object[]} settlements
- * @param {number} x
- * @param {number} y
+ * @param {number} threeDayHaulDistance
+ * @returns {number}
+ */
+export function computeOneDayHaulDistance(threeDayHaulDistance) {
+  return threeDayHaulDistance * SETTLEMENT_FOUNDING_MIN_HAUL_DAY_FRACTION
+}
+
+/**
+ * @param {{
+ *   settlements: object[],
+ *   x: number,
+ *   y: number,
+ *   colonistSettings: { threeDayHaulDistance: number },
+ *   worldDocument: import('../../types.js').WorldDocument,
+ *   roads?: import('../roads/roadNetwork.js').RoadSegment[],
+ *   roadMultiplier?: number,
+ * }} params
  * @returns {boolean}
  */
-export function isDistinctSettlementPin(settlements, x, y) {
-  return !settlements.some((settlement) => settlement.x === x && settlement.y === y)
+export function isSettlementFoundingSpacingSatisfied(params) {
+  const { settlements, x, y, colonistSettings, worldDocument, roads, roadMultiplier } = params
+
+  if (settlements.some((settlement) => settlement.x === x && settlement.y === y)) {
+    return false
+  }
+
+  const livingSettlements = settlements.filter((settlement) => settlement.status !== 'ruin')
+  if (livingSettlements.length === 0) {
+    return true
+  }
+
+  const oneDayHaulDistance = computeOneDayHaulDistance(colonistSettings.threeDayHaulDistance)
+  if (!Number.isFinite(oneDayHaulDistance) || oneDayHaulDistance <= 0) {
+    return true
+  }
+
+  const roadCellMask = buildLandRouteCellMask(
+    roads ?? worldDocument.roads,
+    worldDocument.gridWidth,
+    worldDocument.gridHeight,
+  )
+  const travelTime = computeHaulShedTravelTimes({
+    origin: { x, y },
+    budget: colonistSettings.threeDayHaulDistance,
+    gridWidth: worldDocument.gridWidth,
+    gridHeight: worldDocument.gridHeight,
+    movementCost: worldDocument.movementCost,
+    roadCellMask,
+    roadMultiplier,
+  })
+
+  const gridWidth = worldDocument.gridWidth
+  for (const settlement of livingSettlements) {
+    const index = settlement.y * gridWidth + settlement.x
+    const time = travelTime[index]
+    if (!Number.isFinite(time)) {
+      continue
+    }
+    if (time < oneDayHaulDistance) {
+      return false
+    }
+  }
+
+  return true
 }
 
 /**
@@ -122,7 +183,16 @@ export function evaluateFirstViableCorridorCandidate(
 ) {
   let firstRejected = null
   for (const candidate of candidates) {
-    if (!isDistinctSettlementPin(settlements, candidate.x, candidate.y)) {
+    if (
+      !isSettlementFoundingSpacingSatisfied({
+        settlements,
+        x: candidate.x,
+        y: candidate.y,
+        colonistSettings,
+        worldDocument,
+        roads,
+      })
+    ) {
       continue
     }
     if (

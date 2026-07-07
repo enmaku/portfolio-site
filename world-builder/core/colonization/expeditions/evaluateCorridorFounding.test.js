@@ -1,21 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { evaluateFirstViableCorridorCandidate } from './evaluateCorridorFounding.js'
+import {
+  evaluateFirstViableCorridorCandidate,
+  isSettlementFoundingSpacingSatisfied,
+} from './evaluateCorridorFounding.js'
 
-test('evaluateFirstViableCorridorCandidate tries later corridor candidates after an earlier rejection', () => {
-  const candidates = [
-    {
-      x: 1,
-      y: 1,
-      node: { x: 1, y: 1, primaryType: 'surplus_basin', tags: {}, exhausted: false },
-    },
-    {
-      x: 2,
-      y: 1,
-      node: { x: 2, y: 1, primaryType: 'haul_junction', tags: {}, exhausted: false },
-    },
-  ]
-  const worldDocument = {
+function makeWorldDocument() {
+  return {
     gridWidth: 4,
     gridHeight: 4,
     arableRaster: Float32Array.from([0, 0, 0, 0, 0, 2, 2, 0, 0, 2, 2, 0, 0, 0, 0, 0]),
@@ -33,6 +24,22 @@ test('evaluateFirstViableCorridorCandidate tries later corridor candidates after
     riverCorridorMask: Uint8Array.from({ length: 16 }, (_, index) => (index === 6 ? 1 : 0)),
     saltNodes: [],
   }
+}
+
+test('evaluateFirstViableCorridorCandidate tries later corridor candidates after an earlier rejection', () => {
+  const candidates = [
+    {
+      x: 1,
+      y: 1,
+      node: { x: 1, y: 1, primaryType: 'surplus_basin', tags: {}, exhausted: false },
+    },
+    {
+      x: 2,
+      y: 1,
+      node: { x: 2, y: 1, primaryType: 'haul_junction', tags: {}, exhausted: false },
+    },
+  ]
+  const worldDocument = makeWorldDocument()
 
   const result = evaluateFirstViableCorridorCandidate(
     candidates,
@@ -41,7 +48,7 @@ test('evaluateFirstViableCorridorCandidate tries later corridor candidates after
       { id: 'occupied', x: 1, y: 1, status: 'living' },
     ],
     {
-      threeDayHaulDistance: 2,
+      threeDayHaulDistance: 3,
       startingPopulation: 50,
       yieldModifier: 'typical',
     },
@@ -52,4 +59,46 @@ test('evaluateFirstViableCorridorCandidate tries later corridor candidates after
   assert.ok(result && 'candidate' in result)
   assert.strictEqual(result.candidate.x, 2)
   assert.strictEqual(result.candidate.y, 1)
+})
+
+test('isSettlementFoundingSpacingSatisfied rejects pins within one day of an existing settlement', () => {
+  const worldDocument = makeWorldDocument()
+  const colonistSettings = { threeDayHaulDistance: 6 }
+
+  assert.strictEqual(
+    isSettlementFoundingSpacingSatisfied({
+      settlements: [{ id: 'origin', x: 1, y: 1, status: 'living' }],
+      x: 2,
+      y: 1,
+      colonistSettings,
+      worldDocument,
+    }),
+    false,
+  )
+
+  assert.strictEqual(
+    isSettlementFoundingSpacingSatisfied({
+      settlements: [{ id: 'origin', x: 1, y: 1, status: 'living' }],
+      x: 3,
+      y: 1,
+      colonistSettings,
+      worldDocument,
+    }),
+    true,
+  )
+})
+
+test('isSettlementFoundingSpacingSatisfied ignores ruins for travel-time spacing', () => {
+  const worldDocument = makeWorldDocument()
+
+  assert.strictEqual(
+    isSettlementFoundingSpacingSatisfied({
+      settlements: [{ id: 'ruin', x: 2, y: 1, status: 'ruin' }],
+      x: 2,
+      y: 1,
+      colonistSettings: { threeDayHaulDistance: 6 },
+      worldDocument,
+    }),
+    false,
+  )
 })

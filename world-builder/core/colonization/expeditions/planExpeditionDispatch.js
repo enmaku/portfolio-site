@@ -14,8 +14,8 @@ import { resolveSailTraversableMask } from './expeditionRouting.js'
  * @property {import('../../types.js').WorldDocument} doc
  * @property {Uint8Array} visitRaster
  * @property {number} geographySeed
- * @property {number} geographySeed
  * @property {number} epoch
+ * @property {number} assignmentIndex zero-based dispatch order within the epoch
  * @property {Uint8Array | null} roadCellMask
  * @property {import('./expeditionConstants.js').ExpeditionMode} mode
  */
@@ -25,9 +25,21 @@ import { resolveSailTraversableMask } from './expeditionRouting.js'
  * @returns {import('./expeditionConstants.js').ExpeditionRecord | null}
  */
 export function planExpeditionDispatch(params) {
-  const { settlement, doc, visitRaster, geographySeed, epoch, roadCellMask, mode } = params
+  const {
+    settlement,
+    doc,
+    visitRaster,
+    geographySeed,
+    epoch,
+    assignmentIndex,
+    roadCellMask,
+    mode,
+  } = params
   const random = createSeededRandom(
-    deriveFieldSeed(geographySeed, `expedition-dispatch-${epoch}-${settlement.id}-${mode}`),
+    deriveFieldSeed(
+      geographySeed,
+      `expedition-dispatch-${epoch}-${settlement.id}-${mode}-${assignmentIndex}`,
+    ),
   )
   const resolvedMode = mode
 
@@ -53,7 +65,7 @@ export function planExpeditionDispatch(params) {
   }
 
   return {
-    id: `expedition-${epoch}-${settlement.id}-${bearing.toFixed(6)}`,
+    id: `expedition-${epoch}-${settlement.id}-${assignmentIndex}-${bearing.toFixed(6)}`,
     settlementId: settlement.id,
     mode: resolvedMode,
     bearing,
@@ -73,7 +85,7 @@ export function planExpeditionDispatchForAssignment(assignment, baseParams) {
   const modeRandom = createSeededRandom(
     deriveFieldSeed(
       baseParams.geographySeed,
-      `expedition-mode-${baseParams.epoch}-${assignment.settlementId}`,
+      `expedition-mode-${baseParams.epoch}-${assignment.settlementId}-${baseParams.assignmentIndex}`,
     ),
   )
   const primaryMode = resolveExpeditionModeForSender(assignment, modeRandom)
