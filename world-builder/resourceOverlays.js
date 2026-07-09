@@ -23,6 +23,9 @@ export function createResourceOverlayDefinitions() {
     { id: 'sail', kind: 'raster', label: 'Sail' },
     { id: 'freshwater', kind: 'raster', label: 'Freshwater' },
     { id: 'population', kind: 'raster', label: 'Population' },
+    { id: 'settlements', kind: 'nodes', label: 'Settlements', vectorLayerId: 'settlementNodes' },
+    { id: 'explorationFog', kind: 'raster', label: 'Exploration fog' },
+    { id: 'routes', kind: 'raster', label: 'Routes' },
   ]
 }
 

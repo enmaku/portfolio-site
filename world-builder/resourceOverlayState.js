@@ -15,13 +15,15 @@ import {
 
 /**
  * @param {OverlayDisplaySettings} [overlayDisplaySettings]
+ * @param {Record<string, boolean | null | undefined>} [visibility]
  * @returns {ResourceOverlayPageState}
  */
 export function createResourceOverlayPageState(
   overlayDisplaySettings = createDefaultOverlayDisplaySettings(),
+  visibility = createDefaultResourceOverlayVisibility(),
 ) {
   return {
-    visibility: createDefaultResourceOverlayVisibility(),
+    visibility: normalizeResourceOverlayVisibility(visibility),
     displaySettings: { ...overlayDisplaySettings },
   }
 }

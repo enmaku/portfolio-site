@@ -6,7 +6,15 @@
  * @property {number} threeDayHaulDistance
  * @property {number} startingPopulation
  * @property {YieldModifier} yieldModifier
- * @property {number} epochBatch
+ * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap.
+ * @property {number} inlandSailExpeditionRange Multiplier on three-day haul distance for inland sail expedition range cap.
+ * @property {number} openSeaExpeditionRange Multiplier on three-day haul distance for open-sea expedition range cap.
+ */
+
+/**
+ * @typedef {Object} MergeCounterEntry
+ * @property {number} [outpostStagnation]
+ * @property {number} [livingSphereDeficit]
  */
 
 /**
@@ -23,12 +31,24 @@
  * @property {FoundingLanding | null} foundingLanding
  * @property {object[]} historyLog
  * @property {object[]} settlements
- * @property {object[]} committedTips
  * @property {string | null} realmId
  * @property {Record<string, Array<{ x: number, y: number }>>} primaryClaim
  * @property {Float32Array | null} populationCollapseRaster Derived in-memory overlay raster; never persisted.
  * @property {object[]} notableFigures
+ * @property {Uint8Array | null} visitedCells In-memory exploration fog raster; never persisted.
+ * @property {object[]} expeditions Active and completed expedition records.
+ * @property {boolean} frontierExhausted All logistics nodes founded or exhausted.
+ * @property {import('./roads/roadNetwork.js').RoadSegment[]} roads Persisted overland link geometry.
+ * @property {import('./logisticsNodes/scoreLogisticsNodes.js').LogisticsNodeSurveyEntry[]} logisticsNodeSurvey Scored founding candidates.
+ * @property {Record<string, MergeCounterEntry>} mergeCounters Consecutive-epoch merge trigger counters by settlement id.
  */
+
+import { resolveExpeditions } from './expeditions/expeditionConstants.js'
+import {
+  logisticsNodeSurveyPatchesForStorage,
+  resolveLogisticsNodeSurvey,
+} from './logisticsNodes/scoreLogisticsNodes.js'
+import { resolveRoadSegments } from './roads/roadNetwork.js'
 
 export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
 export const COLONIZATION_PHASE_SETUP = /** @type {const} */ ('setup')
@@ -42,15 +62,26 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'foundingLanding',
   'historyLog',
   'settlements',
-  'committedTips',
   'realmId',
   'primaryClaim',
   'notableFigures',
+  'visitedCells',
+  'expeditions',
+  'frontierExhausted',
+  'roads',
+  'logisticsNodeSurvey',
+  'mergeCounters',
 ])
 
-/** Derived world-document fields produced at runtime, not stored in session caches. */
+/** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
 export const COLONIZATION_DERIVED_WORLD_DOCUMENT_KEYS = /** @type {const} */ ([
   'populationCollapseRaster',
+  'visitedCells',
+])
+
+/** Present-day fields rebuilt from geography + settlements on hydrate; not stored in session caches. */
+export const COLONIZATION_RECOMPUTE_ON_HYDRATE_KEYS = /** @type {const} */ ([
+  'primaryClaim',
 ])
 
 export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 50
@@ -58,7 +89,15 @@ export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 50
 export const MAX_THREE_DAY_HAUL_DISTANCE = 100
 export const DEFAULT_STARTING_POPULATION = 100
 export const DEFAULT_YIELD_MODIFIER = /** @type {YieldModifier} */ ('typical')
-export const DEFAULT_EPOCH_BATCH = 50
+export const DEFAULT_LAND_EXPEDITION_RANGE = 2
+export const MIN_LAND_EXPEDITION_RANGE = 1
+export const MAX_LAND_EXPEDITION_RANGE = 4
+export const DEFAULT_INLAND_SAIL_EXPEDITION_RANGE = 3
+export const MIN_INLAND_SAIL_EXPEDITION_RANGE = 2
+export const MAX_INLAND_SAIL_EXPEDITION_RANGE = 6
+export const DEFAULT_OPEN_SEA_EXPEDITION_RANGE = 8
+export const MIN_OPEN_SEA_EXPEDITION_RANGE = 4
+export const MAX_OPEN_SEA_EXPEDITION_RANGE = 12
 
 /**
  * @returns {ColonistSettings}
@@ -68,7 +107,9 @@ export function createDefaultColonistSettings() {
     threeDayHaulDistance: DEFAULT_THREE_DAY_HAUL_DISTANCE,
     startingPopulation: DEFAULT_STARTING_POPULATION,
     yieldModifier: DEFAULT_YIELD_MODIFIER,
-    epochBatch: DEFAULT_EPOCH_BATCH,
+    landExpeditionRange: DEFAULT_LAND_EXPEDITION_RANGE,
+    inlandSailExpeditionRange: DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
+    openSeaExpeditionRange: DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
   }
 }
 
@@ -83,11 +124,16 @@ export function createDefaultColonizationSlice() {
     foundingLanding: null,
     historyLog: [],
     settlements: [],
-    committedTips: [],
     realmId: null,
     primaryClaim: {},
     populationCollapseRaster: null,
     notableFigures: [],
+    visitedCells: null,
+    expeditions: [],
+    frontierExhausted: false,
+    roads: [],
+    logisticsNodeSurvey: [],
+    mergeCounters: {},
   }
 }
 
@@ -117,9 +163,6 @@ export function resolveColonizationSlice(value) {
     settlements: Array.isArray(incoming.settlements)
       ? incoming.settlements.map((row) => ({ ...row }))
       : [],
-    committedTips: Array.isArray(incoming.committedTips)
-      ? incoming.committedTips.map((row) => ({ ...row }))
-      : [],
     realmId: typeof incoming.realmId === 'string' ? incoming.realmId : null,
     epoch: Number.isFinite(incoming.epoch) ? /** @type {number} */ (incoming.epoch) : 0,
     primaryClaim: resolvePrimaryClaim(incoming.primaryClaim),
@@ -127,6 +170,12 @@ export function resolveColonizationSlice(value) {
     notableFigures: Array.isArray(incoming.notableFigures)
       ? incoming.notableFigures.map((row) => ({ ...row }))
       : [],
+    visitedCells: null,
+    expeditions: resolveExpeditions(incoming.expeditions),
+    frontierExhausted: incoming.frontierExhausted === true,
+    roads: resolveRoadSegments(incoming.roads),
+    logisticsNodeSurvey: resolveLogisticsNodeSurvey(incoming.logisticsNodeSurvey),
+    mergeCounters: resolveMergeCounters(incoming.mergeCounters),
   }
 }
 
@@ -177,8 +226,54 @@ export function resolveColonistSettings(value) {
       defaults.startingPopulation,
     ),
     yieldModifier,
-    epochBatch: positiveNumberOr(incoming.epochBatch, defaults.epochBatch),
+    landExpeditionRange: clampIntegerRange(
+      incoming.landExpeditionRange,
+      defaults.landExpeditionRange,
+      MIN_LAND_EXPEDITION_RANGE,
+      MAX_LAND_EXPEDITION_RANGE,
+    ),
+    inlandSailExpeditionRange: clampIntegerRange(
+      incoming.inlandSailExpeditionRange ??
+        /** @type {{ sailExpeditionRange?: number }} */ (incoming).sailExpeditionRange,
+      defaults.inlandSailExpeditionRange,
+      MIN_INLAND_SAIL_EXPEDITION_RANGE,
+      MAX_INLAND_SAIL_EXPEDITION_RANGE,
+    ),
+    openSeaExpeditionRange: clampIntegerRange(
+      incoming.openSeaExpeditionRange,
+      defaults.openSeaExpeditionRange,
+      MIN_OPEN_SEA_EXPEDITION_RANGE,
+      MAX_OPEN_SEA_EXPEDITION_RANGE,
+    ),
   }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, MergeCounterEntry>}
+ */
+export function resolveMergeCounters(value) {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+  /** @type {Record<string, MergeCounterEntry>} */
+  const resolved = {}
+  for (const [settlementId, entry] of Object.entries(value)) {
+    if (!entry || typeof entry !== 'object') continue
+    const record = /** @type {MergeCounterEntry} */ (entry)
+    /** @type {MergeCounterEntry} */
+    const counter = {}
+    if (Number.isFinite(record.outpostStagnation) && record.outpostStagnation > 0) {
+      counter.outpostStagnation = Math.floor(record.outpostStagnation)
+    }
+    if (Number.isFinite(record.livingSphereDeficit) && record.livingSphereDeficit > 0) {
+      counter.livingSphereDeficit = Math.floor(record.livingSphereDeficit)
+    }
+    if (Object.keys(counter).length > 0) {
+      resolved[settlementId] = counter
+    }
+  }
+  return resolved
 }
 
 /**
@@ -214,6 +309,19 @@ function positiveNumberOr(value, fallback) {
 function clampPositiveNumber(value, fallback, max) {
   const resolved = positiveNumberOr(value, fallback)
   return Math.min(resolved, max)
+}
+
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @param {number} min
+ * @param {number} max
+ * @returns {number}
+ */
+function clampIntegerRange(value, fallback, min, max) {
+  const resolved =
+    typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : fallback
+  return Math.min(max, Math.max(min, resolved))
 }
 
 /**
@@ -262,20 +370,41 @@ export function cloneColonizationSlice(slice) {
   if (raster instanceof Float32Array) {
     resolved.populationCollapseRaster = new Float32Array(raster)
   }
+  const visited = slice?.visitedCells
+  if (visited instanceof Uint8Array) {
+    resolved.visitedCells = new Uint8Array(visited)
+  }
   return resolved
 }
 
 /**
- * Persistable colonization session (collapse raster is always derived on hydrate).
+ * Persistable colonization session: history + sim state only. Overlay rasters, present-day
+ * claim maps, and full logistics surveys are rebuilt on hydrate.
  *
  * @param {ColonizationSlice} slice
- * @returns {Omit<ColonizationSlice, 'populationCollapseRaster'>}
+ * @returns {Omit<ColonizationSlice, 'populationCollapseRaster' | 'visitedCells' | 'primaryClaim'>}
  */
 export function serializeColonizationSessionForStorage(slice) {
   const resolved = resolveColonizationSlice(slice)
-  const { populationCollapseRaster, ...persisted } = resolved
+  const {
+    populationCollapseRaster,
+    visitedCells,
+    primaryClaim,
+    logisticsNodeSurvey,
+    ...persistedCore
+  } = resolved
   void populationCollapseRaster
-  return persisted
+  void visitedCells
+  void primaryClaim
+
+  const persistable = {
+    ...persistedCore,
+    logisticsNodeSurvey: logisticsNodeSurveyPatchesForStorage(logisticsNodeSurvey),
+  }
+
+  return /** @type {Omit<ColonizationSlice, 'populationCollapseRaster' | 'visitedCells' | 'primaryClaim'>} */ (
+    JSON.parse(JSON.stringify(persistable))
+  )
 }
 
 /**

@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import {
   DERIVED_GEOGRAPHY_STEPS,
   HYDROLOGY_SUBSTEPS,
@@ -16,6 +16,7 @@ import {
   createStageSummaryForDisplay,
   createValidationRowsForDisplay,
   parseGeographySeedInput,
+  shouldShowResourceOverlayBar,
 } from '../../world-builder/worldBuilderPageModel.js'
 import {
   COLONIZATION_PHASE_RUNNING,
@@ -27,6 +28,12 @@ import {
   filterColonizationValidationRows,
   resolveColonizationGeographyGaps,
 } from '../../world-builder/core/colonization/filterColonizationValidationRows.js'
+import {
+  buildColonizationSimStatus,
+  buildFoundingChronicle,
+  shouldShowSimStatusPanel,
+  shouldShowValidationAdvisory,
+} from '../../world-builder/core/colonization/buildColonizationSimStatus.js'
 import { buildTerrainCacheFingerprint } from '../../world-builder/core/terrainCacheFingerprint.js'
 import {
   clearLockedTerrain as defaultClearLockedTerrain,
@@ -41,6 +48,7 @@ import {
 import { useWorldBuilderColonization } from './useWorldBuilderColonization.js'
 import { useWorldBuilderGeneration } from './useWorldBuilderGeneration.js'
 import { useWorldBuilderOverlayState } from './useWorldBuilderOverlayState.js'
+import { reportWorldBuilderError } from '../utils/worldBuilderErrorReporting.js'
 
 /** Lazy-load the renderer viewport factory; deferred so Vue never owns renderer logic. */
 async function loadWorldBuilderViewportFactory() {
@@ -112,6 +120,18 @@ export function useWorldBuilderPageController(options) {
   let generation = null
   /** @type {ReturnType<typeof useWorldBuilderColonization>} */
   let colonization
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let colonizationSessionPersistTimer = null
+
+  function scheduleColonizationSessionPersist() {
+    if (colonizationSessionPersistTimer !== null) {
+      clearTimeout(colonizationSessionPersistTimer)
+    }
+    colonizationSessionPersistTimer = setTimeout(() => {
+      colonizationSessionPersistTimer = null
+      void persistColonizationSessionIfNeeded()
+    }, 400)
+  }
 
   function syncColonizationRunningOverlays() {
     if (colonization.colonizationPhase.value === COLONIZATION_PHASE_RUNNING) {
@@ -119,13 +139,27 @@ export function useWorldBuilderPageController(options) {
     }
   }
 
+  /** Merged geography + colonization; refreshed only on explicit map sync, not on every slice tick. */
+  const colonizationWorldDocument = shallowRef(null)
+
+  function refreshColonizationWorldDocument() {
+    const base = generation?.worldDocument.value
+    if (!base) {
+      colonizationWorldDocument.value = null
+      return null
+    }
+    colonization.rehydrateDerivedOverlaysForWorldDocument(base)
+    const merged = colonization.mergeSliceIntoWorldDocument(base)
+    colonizationWorldDocument.value = merged
+    return merged
+  }
+
   function syncColonizationDocumentToMap() {
-    const doc = generation?.worldDocument.value
+    const doc = refreshColonizationWorldDocument()
     if (!doc || !mapLifecycle) {
       return
     }
-    void mapLifecycle.applyWorldDocument(colonization.applyToWorldDocument(doc))
-    colonization.syncLandingVisuals()
+    void mapLifecycle.applyWorldDocument(doc)
     syncColonizationRunningOverlays()
     void persistColonizationSessionIfNeeded()
   }
@@ -136,6 +170,36 @@ export function useWorldBuilderPageController(options) {
     getViewport: () => mapLifecycle?.getViewport() ?? null,
     getGeographyDocument: () => generation?.worldDocument.value ?? null,
     onSliceChanged: syncColonizationDocumentToMap,
+    colonizationMapPorts: {
+      persistSession: () => {
+        settingsStore.setColonizationSession?.(colonization.slice.value)
+      },
+      getBaseDocument: () => generation?.worldDocument.value ?? null,
+      rehydrate: () => {
+        const base = generation?.worldDocument.value
+        if (base) {
+          colonization.rehydrateDerivedOverlaysForWorldDocument(base)
+        }
+      },
+      mergeDocument: () => {
+        const base = generation?.worldDocument.value
+        if (!base) {
+          colonizationWorldDocument.value = null
+          return null
+        }
+        const merged = colonization.mergeSliceIntoWorldDocument(base)
+        colonizationWorldDocument.value = merged
+        return merged
+      },
+      applyLayer: (doc, layerId) => {
+        void mapLifecycle?.applyWorldDocument(doc, { changedLayers: [layerId] })
+      },
+      onComplete: async () => {
+        syncColonizationRunningOverlays()
+        await persistColonizationSessionIfNeeded()
+      },
+    },
+    onSessionPersistRequested: scheduleColonizationSessionPersist,
   })
 
   function getDerivedGeographyParams() {
@@ -152,9 +216,12 @@ export function useWorldBuilderPageController(options) {
 
   /**
    * @param {import('../../world-builder/core/types.js').WorldDocument} doc
+   * @param {{ preserveRestorePhase?: boolean }} [applyOptions]
    */
-  async function applyWorldDocumentToMap(doc) {
-    await mapLifecycle?.applyWorldDocument(colonization.applyToWorldDocument(doc))
+  async function applyWorldDocumentToMap(doc, applyOptions = {}) {
+    const merged = await colonization.applyToWorldDocumentAsync(doc, applyOptions)
+    colonizationWorldDocument.value = merged
+    await mapLifecycle?.applyWorldDocument(merged)
     colonization.syncLandingVisuals()
   }
 
@@ -166,14 +233,18 @@ export function useWorldBuilderPageController(options) {
     })
   }
 
+  function reportCacheError(context, error) {
+    reportWorldBuilderError(context, error, onGenerationError)
+  }
+
   async function persistColonizationSessionIfNeeded() {
     if (!colonization.isTerrainLocked.value) {
       return
     }
     try {
       await saveColonizationSession(currentTerrainFingerprint(), colonization.slice.value)
-    } catch {
-      // Cache is best-effort; regen remains the fallback.
+    } catch (error) {
+      reportCacheError('Failed to save colonization session cache', error)
     }
   }
 
@@ -190,8 +261,8 @@ export function useWorldBuilderPageController(options) {
         fingerprint: currentTerrainFingerprint(),
         worldDocument: doc,
       })
-    } catch {
-      // Cache is best-effort; regen remains the fallback.
+    } catch (error) {
+      reportCacheError('Failed to save locked terrain cache', error)
     }
     await persistColonizationSessionIfNeeded()
   }
@@ -200,28 +271,40 @@ export function useWorldBuilderPageController(options) {
     try {
       await clearLockedTerrain()
       await clearColonizationSession()
-    } catch {
-      // ignore
+    } catch (error) {
+      reportCacheError('Failed to clear world builder terrain caches', error)
     }
   }
 
-  async function restoreColonizationSessionFromCaches(fingerprint) {
-    const fromStore = settingsStore.colonizationSession
+  async function restoreColonizationSessionFromCaches(fingerprint, options = {}) {
+    const runSubstep = options.runSubstep ?? (async (_substepIndex, work) => work())
+
+    const fromStore = await runSubstep(0, () => settingsStore.colonizationSession)
+
     let fromColonizationCache = null
-    try {
-      fromColonizationCache = await loadColonizationSession(fingerprint)
-    } catch {
-      // Fall through with store-only session.
-    }
-    const merged = mergeColonizationSessions(fromStore, fromColonizationCache)
-    settingsStore.setColonizationSession?.(merged)
-    colonization.hydrateFromPersistedSettings()
+    await runSubstep(1, async () => {
+      try {
+        fromColonizationCache = await loadColonizationSession(fingerprint)
+      } catch (error) {
+        reportCacheError('Failed to load colonization session cache', error)
+      }
+    })
+
+    const merged = await runSubstep(2, () =>
+      mergeColonizationSessions(fromStore, fromColonizationCache),
+    )
+
+    await runSubstep(3, () => {
+      settingsStore.setColonizationSession?.(merged)
+      colonization.hydrateFromPersistedSettings()
+    })
+
     return merged
   }
 
   generation = useWorldBuilderGeneration({
     getDerivedGeographyParams,
-    applyWorldDocument: applyWorldDocumentToMap,
+    applyWorldDocument: (doc, applyOptions) => applyWorldDocumentToMap(doc, applyOptions),
     onBeforeRun: () => overlay.resetVisibility(),
     onRunCompleteSuccess: () => {
       overlay.resetVisibility()
@@ -232,31 +315,44 @@ export function useWorldBuilderPageController(options) {
     runDerivedGeographyInWorker,
   })
 
-  const worldDocument = computed(() => {
-    const doc = generation.worldDocument.value
-    if (!doc) {
-      return null
-    }
-    return colonization.applyToWorldDocument(doc)
-  })
-  const hasLandmass = computed(() => worldDocument.value != null)
+  const geographyWorldDocument = computed(() => generation.worldDocument.value)
+  const hasLandmass = computed(() => geographyWorldDocument.value != null)
 
   const validationRows = computed(() => {
     const runPhase = generation.runPhase.value
     if (runPhase !== 'success' && runPhase !== 'exhausted') {
       return []
     }
-    const displayRows = createValidationRowsForDisplay(worldDocument.value?.generationReport)
+    const displayRows = createValidationRowsForDisplay(
+      geographyWorldDocument.value?.generationReport,
+    )
     return filterColonizationValidationRows(
       displayRows,
-      resolveColonizationGeographyGaps(worldDocument.value),
+      resolveColonizationGeographyGaps(geographyWorldDocument.value),
     )
   })
+  const visibleValidationRows = computed(() => {
+    if (
+      !shouldShowValidationAdvisory(
+        colonization.colonizationPhase.value,
+        colonization.epoch.value,
+        validationRows.value.length,
+      )
+    ) {
+      return []
+    }
+    return validationRows.value
+  })
+  const showSimStatusPanel = computed(() =>
+    shouldShowSimStatusPanel(colonization.colonizationPhase.value, colonization.epoch.value),
+  )
+  const simStatus = computed(() => buildColonizationSimStatus(colonization.slice.value))
+  const foundingChronicle = computed(() => buildFoundingChronicle(colonization.slice.value))
   const stageSummary = computed(() =>
-    createStageSummaryForDisplay(worldDocument.value?.generationReport),
+    createStageSummaryForDisplay(geographyWorldDocument.value?.generationReport),
   )
   const hydrologyStats = computed(() =>
-    createHydrologyStatsForDisplay(worldDocument.value?.generationReport),
+    createHydrologyStatsForDisplay(geographyWorldDocument.value?.generationReport),
   )
   const generationStepStatuses = computed(() =>
     createGenerationStepStatuses(
@@ -274,7 +370,39 @@ export function useWorldBuilderPageController(options) {
     ),
   )
   const hydrologySubstepTimings = computed(() =>
-    createHydrologySubstepTimingsForDisplay(worldDocument.value?.generationReport),
+    createHydrologySubstepTimingsForDisplay(geographyWorldDocument.value?.generationReport),
+  )
+  const showEpochStepProgress = colonization.showEpochStepProgress
+  const showBeginColonizationProgress = colonization.showBeginColonizationProgress
+  const epochStepProgress = colonization.epochStepProgress
+  const beginColonizationProgress = colonization.beginColonizationProgress
+  const rehydrationProgress = colonization.rehydrationProgress
+  const isEpochStepRunning = colonization.isEpochStepRunning
+  const isBeginColonizationRunning = colonization.isBeginColonizationRunning
+  const isRehydrationRunning = colonization.isRehydrationRunning
+  const isSessionRestorePending = computed(() => {
+    if (colonizationWorldDocument.value) {
+      return false
+    }
+    if (generation.runPhase.value === 'running') {
+      return false
+    }
+    const phase = colonization.colonizationPhase.value
+    return phase === COLONIZATION_PHASE_SETUP || phase === COLONIZATION_PHASE_RUNNING
+  })
+  const showRehydrationProgressEffective = computed(
+    () => colonization.showRehydrationProgress.value || isSessionRestorePending.value,
+  )
+  const colonizationBusyPhase = computed(() =>
+    isEpochStepRunning.value ||
+    isBeginColonizationRunning.value ||
+    isRehydrationRunning.value ||
+    isSessionRestorePending.value
+      ? 'running'
+      : 'idle',
+  )
+  const showResourceOverlayBarComputed = computed(() =>
+    shouldShowResourceOverlayBar(generation.runPhase.value, colonizationBusyPhase.value),
   )
   const generationOptions = computed(() => settingsStore.generationOptions)
 
@@ -405,11 +533,11 @@ export function useWorldBuilderPageController(options) {
   }
 
   function resetOverlays() {
-    overlay.resetVisibility()
+    overlay.resetVisibility({ persist: true })
   }
 
   async function beginColonization() {
-    const started = colonization.beginColonization()
+    const started = await colonization.beginColonization()
     if (started) {
       await persistColonizationSessionIfNeeded()
     }
@@ -417,7 +545,7 @@ export function useWorldBuilderPageController(options) {
   }
 
   async function epochStep() {
-    const stepped = colonization.epochStep()
+    const stepped = await colonization.epochStep()
     if (stepped) {
       await persistColonizationSessionIfNeeded()
     }
@@ -431,38 +559,81 @@ export function useWorldBuilderPageController(options) {
     overlay.hydrateFromPersistedSettings()
     colonization.hydrateFromPersistedSettings()
 
-    createViewport = /** @type {typeof createViewport} */ (await loadViewportFactory())
-    mapLifecycle = createMapLifecycle({
-      getMapHost,
-      getCreateViewport: () => createViewport,
-      onViewportReady: () => {
-        overlay.syncToViewport()
-        colonization.syncLandingVisuals()
-      },
-    })
+    const willRestoreSession =
+      colonization.colonizationPhase.value === COLONIZATION_PHASE_SETUP ||
+      colonization.colonizationPhase.value === COLONIZATION_PHASE_RUNNING
 
-    const fingerprint = currentTerrainFingerprint()
-    await restoreColonizationSessionFromCaches(fingerprint)
-
-    const phase = colonization.colonizationPhase.value
-    if (phase === COLONIZATION_PHASE_SETUP || phase === COLONIZATION_PHASE_RUNNING) {
-      try {
-        const cached = await loadLockedTerrain(fingerprint)
-        if (cached) {
-          await generation.applyCachedWorldDocument(cached.worldDocument, { skipPersist: true })
-          syncColonizationRunningOverlays()
-          return
-        }
-      } catch {
-        // Fall through to regen.
-      }
+    if (willRestoreSession) {
+      colonization.beginSessionRestore()
+      await colonization.yieldSessionRestoreToUi()
     }
 
-    regenerate({ force: true })
-    syncColonizationRunningOverlays()
+    try {
+      if (willRestoreSession) {
+        await colonization.runSessionRestoreStep(0, async () => {
+          createViewport = /** @type {typeof createViewport} */ (await loadViewportFactory())
+        })
+      } else {
+        createViewport = /** @type {typeof createViewport} */ (await loadViewportFactory())
+      }
+
+      mapLifecycle = createMapLifecycle({
+        getMapHost,
+        getCreateViewport: () => createViewport,
+        onViewportReady: () => {
+          overlay.syncToViewport()
+          colonization.syncLandingVisuals()
+        },
+      })
+
+      const fingerprint = currentTerrainFingerprint()
+      if (willRestoreSession) {
+        await colonization.runSessionRestoreStep(1, async () => {
+          await restoreColonizationSessionFromCaches(fingerprint, {
+            runSubstep: (substepIndex, work) =>
+              colonization.runSessionRestoreSubstep(substepIndex, work),
+          })
+        })
+      } else {
+        await restoreColonizationSessionFromCaches(fingerprint)
+      }
+
+      const phase = colonization.colonizationPhase.value
+      if (phase === COLONIZATION_PHASE_SETUP || phase === COLONIZATION_PHASE_RUNNING) {
+        try {
+          const cached = willRestoreSession
+            ? await colonization.runSessionRestoreStep(2, async () => loadLockedTerrain(fingerprint))
+            : await loadLockedTerrain(fingerprint)
+          if (cached) {
+            await generation.applyCachedWorldDocument(cached.worldDocument, {
+              skipPersist: true,
+              preserveRestorePhase: willRestoreSession,
+            })
+            syncColonizationRunningOverlays()
+            return
+          }
+        } catch (error) {
+          reportCacheError('Failed to load locked terrain cache', error)
+        }
+      }
+
+      if (willRestoreSession) {
+        colonization.endSessionRestore()
+      }
+      regenerate({ force: true })
+      syncColonizationRunningOverlays()
+    } finally {
+      if (willRestoreSession && colonization.isRehydrationRunning.value) {
+        colonization.endSessionRestore()
+      }
+    }
   }
 
   function destroy() {
+    if (colonizationSessionPersistTimer !== null) {
+      clearTimeout(colonizationSessionPersistTimer)
+      colonizationSessionPersistTimer = null
+    }
     generation.dispose()
     mapLifecycle?.destroy()
     mapLifecycle = null
@@ -471,12 +642,35 @@ export function useWorldBuilderPageController(options) {
   return {
     seedInput,
     runPhase: generation.runPhase,
-    worldDocument,
+    worldDocument: colonizationWorldDocument,
     generationProgress: generation.generationProgress,
     showGenerationProgress: generation.showGenerationProgress,
-    showResourceOverlayBar: generation.showResourceOverlayBar,
+    showResourceOverlayBar: showResourceOverlayBarComputed,
+    showEpochStepProgress,
+    showBeginColonizationProgress,
+    showRehydrationProgress: showRehydrationProgressEffective,
+    isSessionRestorePending,
+    epochStepProgress,
+    beginColonizationProgress,
+    rehydrationProgress,
+    isEpochStepRunning,
+    isBeginColonizationRunning,
+    isRehydrationRunning,
+    epochStepPhaseStatuses: colonization.epochStepPhaseStatuses,
+    epochStepNetworkSubstepStatuses: colonization.epochStepNetworkSubstepStatuses,
+    epochStepCollapseSubstepStatuses: colonization.epochStepCollapseSubstepStatuses,
+    epochStepFinalizeStepStatuses: colonization.epochStepFinalizeStepStatuses,
+    epochStepMapSubstepStatuses: colonization.epochStepMapSubstepStatuses,
+    beginColonizationStepStatuses: colonization.beginColonizationStepStatuses,
+    rehydrationStepStatuses: colonization.rehydrationStepStatuses,
+    rehydrationSessionSubstepStatuses: colonization.rehydrationSessionSubstepStatuses,
+    rehydrationCollapseSubstepStatuses: colonization.rehydrationCollapseSubstepStatuses,
     showValidationFailureIndicator: generation.showValidationFailureIndicator,
     validationRows,
+    visibleValidationRows,
+    showSimStatusPanel,
+    simStatus,
+    foundingChronicle,
     stageSummary,
     hydrologyStats,
     generationStepStatuses,
@@ -494,6 +688,8 @@ export function useWorldBuilderPageController(options) {
     showColonistSettingsPanel: colonization.showColonistSettingsPanel,
     foundingLanding: colonization.foundingLanding,
     colonistSettings: colonization.colonistSettings,
+    colonistSettingsSnapshot: colonization.colonistSettingsSnapshot,
+    isColonistSettingsRunningPhase: colonization.isColonistSettingsRunningPhase,
     hasLandmass,
     enterColonizationSetup,
     backToTerrain,
@@ -505,8 +701,6 @@ export function useWorldBuilderPageController(options) {
     timeControlsActive: colonization.timeControlsActive,
     colonizationEpoch: colonization.epoch,
     colonizationSettlements: colonization.settlements,
-    isColonistSettingsReadOnlyExceptEpochBatch:
-      colonization.isColonistSettingsReadOnlyExceptEpochBatch,
     pickFoundingLanding: colonization.pickFoundingLanding,
     setColonistSetting: colonization.setColonistSetting,
     resetColonistSettings: colonization.resetColonistSettings,

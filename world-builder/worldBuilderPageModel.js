@@ -293,11 +293,36 @@ export function shouldShowGenerationProgress(runPhase) {
 }
 
 /**
- * @param {GenerationRunPhase} runPhase
+ * @param {'idle' | 'running'} epochStepPhase
  * @returns {boolean}
  */
-export function shouldShowResourceOverlayBar(runPhase) {
-  return runPhase === 'success'
+export function shouldShowEpochStepProgress(epochStepPhase) {
+  return epochStepPhase === 'running'
+}
+
+/**
+ * @param {'idle' | 'running'} beginColonizationPhase
+ * @returns {boolean}
+ */
+export function shouldShowBeginColonizationProgress(beginColonizationPhase) {
+  return beginColonizationPhase === 'running'
+}
+
+/**
+ * @param {'idle' | 'running'} rehydrationPhase
+ * @returns {boolean}
+ */
+export function shouldShowRehydrationProgress(rehydrationPhase) {
+  return rehydrationPhase === 'running'
+}
+
+/**
+ * @param {GenerationRunPhase} runPhase
+ * @param {'idle' | 'running'} colonizationBusyPhase
+ * @returns {boolean}
+ */
+export function shouldShowResourceOverlayBar(runPhase, colonizationBusyPhase = 'idle') {
+  return runPhase === 'success' && colonizationBusyPhase !== 'running'
 }
 
 /**
@@ -335,10 +360,36 @@ export function createGenerationStepStatuses(steps, activeStepIndex, completedSt
 }
 
 /**
+ * @param {string} baseLabel
+ * @param {{
+ *   itemIndex: number,
+ *   itemCount: number,
+ *   phase?: string,
+ *   phasePercent?: number,
+ * } | null} activeItemProgress
+ * @returns {string}
+ */
+export function formatHydrologySubstepItemLabel(baseLabel, activeItemProgress) {
+  if (!activeItemProgress || activeItemProgress.itemCount <= 0 || activeItemProgress.itemIndex <= 0) {
+    return baseLabel
+  }
+  let label = `${baseLabel} ${activeItemProgress.itemIndex}/${activeItemProgress.itemCount}`
+  if (
+    activeItemProgress.phase &&
+    Number.isFinite(activeItemProgress.phasePercent) &&
+    activeItemProgress.phasePercent >= 0
+  ) {
+    label += ` - ${activeItemProgress.phase} ${activeItemProgress.phasePercent}%`
+  }
+  return label
+}
+
+/**
  * @param {ReadonlyArray<{ id: string, label: string }>} substeps
  * @param {number} activeSubstepIndex
  * @param {number} completedSubstepIndex
  * @param {ReadonlySet<string>} [skippedSubstepIds]
+ * @param {{ itemIndex: number, itemCount: number, phase?: string, phasePercent?: number } | null} [activeItemProgress]
  * @returns {Array<{ id: string, label: string, status: 'pending' | 'active' | 'complete' | 'skipped' }>}
  */
 export function createHydrologySubstepStatuses(
@@ -346,18 +397,23 @@ export function createHydrologySubstepStatuses(
   activeSubstepIndex,
   completedSubstepIndex,
   skippedSubstepIds = new Set(),
+  activeItemProgress = null,
 ) {
   return substeps.map((substep, index) => {
     if (skippedSubstepIds.has(substep.id)) {
       return { ...substep, status: 'skipped' }
     }
+    const label =
+      index === activeSubstepIndex
+        ? formatHydrologySubstepItemLabel(substep.label, activeItemProgress)
+        : substep.label
     if (index <= completedSubstepIndex) {
-      return { ...substep, status: 'complete' }
+      return { id: substep.id, label, status: 'complete' }
     }
     if (index === activeSubstepIndex) {
-      return { ...substep, status: 'active' }
+      return { id: substep.id, label, status: 'active' }
     }
-    return { ...substep, status: 'pending' }
+    return { id: substep.id, label, status: 'pending' }
   })
 }
 

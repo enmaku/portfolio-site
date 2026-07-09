@@ -15,7 +15,7 @@ Three naive approaches all fail for different reasons:
 | Approach | What goes wrong |
 | --- | --- |
 | **Simulate every person** | Thousands of agents planting, harvesting, hauling, and eating each **epoch** is DF-scale simulation. v1 aggregates calories and stress through **survival triad** and **population ceiling** at **settlement** scale instead. |
-| **Store a full-grid population raster** | A 1024×1024 density field is ~1M cells per snapshot. Persisting it for every **epoch** and every **committed tip** duplicates information already implied by headcounts, **primary claim**, and arable weights—and balloons session storage. |
+| **Store a full-grid population raster** | A 1024×1024 density field is ~1M cells per snapshot. Persisting it for every **epoch** duplicates information already implied by headcounts, **primary claim**, and arable weights—and balloons session storage (historical epoch snapshots rejected in [ADR 0014](../../docs/adr/0014-world-builder-present-day-session-no-committed-tips.md)). |
 | **Settlement pins only** | Pin population totals are correct but invisible rural spread inside a **haul-shed** misleads inspection; the **population overlay** exists because GMs need spatial scatter, not a single urban dot. |
 
 World Builder needs compact authoritative state, **epoch**-scale aggregate survival math, and a believable map overlay—at the same time.

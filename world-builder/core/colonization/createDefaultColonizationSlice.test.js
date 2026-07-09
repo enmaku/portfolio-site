@@ -5,7 +5,12 @@ import {
   COLONIZATION_PHASE_RUNNING,
   COLONIZATION_PHASE_SETUP,
   COLONIZATION_PHASE_TERRAIN,
+  DEFAULT_LAND_EXPEDITION_RANGE,
+  DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
+  DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
+  MAX_LAND_EXPEDITION_RANGE,
   MAX_THREE_DAY_HAUL_DISTANCE,
+  MIN_INLAND_SAIL_EXPEDITION_RANGE,
   cloneColonizationSlice,
   createDefaultColonistSettings,
   createDefaultColonizationSlice,
@@ -24,7 +29,6 @@ test('createDefaultColonizationSlice starts in terrain with empty scaffolding', 
   assert.strictEqual(slice.realmId, null)
   assert.deepStrictEqual(slice.settlements, [])
   assert.deepStrictEqual(slice.historyLog, [])
-  assert.deepStrictEqual(slice.committedTips, [])
   assert.deepStrictEqual(slice.primaryClaim, {})
   assert.strictEqual(slice.populationCollapseRaster, null)
   assert.deepStrictEqual(slice.notableFigures, [])
@@ -40,7 +44,43 @@ test('createDefaultColonistSettings provides concrete defaults for every field',
   assert.strictEqual(typeof settings.startingPopulation, 'number')
   assert.ok(settings.startingPopulation > 0)
   assert.strictEqual(settings.yieldModifier, 'typical')
-  assert.strictEqual(settings.epochBatch, 50)
+  assert.strictEqual(settings.landExpeditionRange, DEFAULT_LAND_EXPEDITION_RANGE)
+  assert.strictEqual(settings.inlandSailExpeditionRange, DEFAULT_INLAND_SAIL_EXPEDITION_RANGE)
+  assert.strictEqual(settings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)
+})
+
+test('resolveColonistSettings clamps expedition range multipliers', () => {
+  const settings = resolveColonistSettings({
+    landExpeditionRange: 99,
+    inlandSailExpeditionRange: 0,
+    openSeaExpeditionRange: 99,
+  })
+  assert.strictEqual(settings.landExpeditionRange, MAX_LAND_EXPEDITION_RANGE)
+  assert.strictEqual(settings.inlandSailExpeditionRange, MIN_INLAND_SAIL_EXPEDITION_RANGE)
+  assert.strictEqual(settings.openSeaExpeditionRange, 12)
+})
+
+test('resolveColonistSettings migrates legacy sailExpeditionRange to inland sail range', () => {
+  const settings = resolveColonistSettings({ sailExpeditionRange: 5 })
+  assert.strictEqual(settings.inlandSailExpeditionRange, 5)
+  assert.strictEqual(settings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)
+})
+
+test('serializeColonizationSessionForStorage preserves expedition range settings and route segment mode', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = COLONIZATION_PHASE_RUNNING
+  slice.colonistSettings.landExpeditionRange = 3
+  slice.colonistSettings.inlandSailExpeditionRange = 5
+  slice.colonistSettings.openSeaExpeditionRange = 10
+  slice.roads = [{ cells: [{ x: 1, y: 1 }], mode: 'sail', settlementIds: ['a', 'b'] }]
+
+  const serialized = serializeColonizationSessionForStorage(slice)
+  const revived = resolveColonizationSlice(serialized)
+
+  assert.strictEqual(revived.colonistSettings.landExpeditionRange, 3)
+  assert.strictEqual(revived.colonistSettings.inlandSailExpeditionRange, 5)
+  assert.strictEqual(revived.colonistSettings.openSeaExpeditionRange, 10)
+  assert.strictEqual(revived.roads[0].mode, 'inland_sail')
 })
 
 test('resolveColonistSettings clamps three-day haul distance to the scale calibration max', () => {
@@ -48,16 +88,63 @@ test('resolveColonistSettings clamps three-day haul distance to the scale calibr
   assert.strictEqual(settings.threeDayHaulDistance, MAX_THREE_DAY_HAUL_DISTANCE)
 })
 
-test('serializeColonizationSessionForStorage omits derived collapse raster', () => {
+test('serializeColonizationSessionForStorage omits derived collapse and visit rasters', () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_RUNNING
   slice.populationCollapseRaster = new Float32Array([0, 12, 3])
+  slice.visitedCells = Uint8Array.from([1, 0, 1])
+  slice.primaryClaim = { s1: [{ x: 1, y: 2 }] }
 
   const serialized = serializeColonizationSessionForStorage(slice)
   assert.strictEqual('populationCollapseRaster' in serialized, false)
+  assert.strictEqual('visitedCells' in serialized, false)
+  assert.strictEqual('primaryClaim' in serialized, false)
 
   const revived = resolveColonizationSlice(serialized)
   assert.strictEqual(revived.populationCollapseRaster, null)
+  assert.strictEqual(revived.visitedCells, null)
+  assert.deepStrictEqual(revived.primaryClaim, {})
+})
+
+test('serializeColonizationSessionForStorage keeps only logistics survey patches', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = COLONIZATION_PHASE_RUNNING
+  slice.logisticsNodeSurvey = [
+    {
+      x: 1,
+      y: 2,
+      primaryType: 'surplus_basin',
+      tags: { surplus_basin: 0.8 },
+      exhausted: false,
+      founded: false,
+    },
+    {
+      x: 3,
+      y: 4,
+      primaryType: 'refinery',
+      tags: { refinery: 0.6 },
+      exhausted: true,
+      founded: false,
+    },
+  ]
+
+  const serialized = serializeColonizationSessionForStorage(slice)
+
+  assert.deepStrictEqual(serialized.logisticsNodeSurvey, [
+    {
+      x: 3,
+      y: 4,
+      primaryType: 'refinery',
+      exhausted: true,
+    },
+  ])
+})
+
+test('resolveColonizationSlice ignores persisted visit raster payloads', () => {
+  const fromArray = resolveColonizationSlice({
+    visitedCells: Array.from({ length: 16 }, (_, i) => (i === 5 ? 1 : 0)),
+  })
+  assert.strictEqual(fromArray.visitedCells, null)
 })
 
 test('mergeColonizationSessions prefers running over setup', () => {
@@ -101,6 +188,23 @@ test('resolveColonizationSlice ignores persisted collapse raster payloads', () =
   assert.strictEqual(fromIndexMap.populationCollapseRaster, null)
 })
 
+test('resolveColonizationSlice strips legacy committedTips payloads', () => {
+  const revived = resolveColonizationSlice({
+    committedTips: [{ epoch: 0, settlements: [{ id: 's1' }] }],
+    colonizationPhase: COLONIZATION_PHASE_RUNNING,
+  })
+  assert.strictEqual('committedTips' in revived, false)
+})
+
+test('serializeColonizationSessionForStorage omits legacy committedTips from output', () => {
+  const slice = resolveColonizationSlice({
+    colonizationPhase: COLONIZATION_PHASE_RUNNING,
+    committedTips: [{ epoch: 0, claimMap: { s1: [{ x: 0, y: 0 }] } }],
+  })
+  const serialized = serializeColonizationSessionForStorage(slice)
+  assert.strictEqual('committedTips' in serialized, false)
+})
+
 test('cloneWorldDocument copies colonization slice independently', () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = 'setup'
@@ -108,7 +212,6 @@ test('cloneWorldDocument copies colonization slice independently', () => {
   slice.colonistSettings.threeDayHaulDistance = 12
   slice.settlements = [{ id: 's1', x: 3, y: 4, tier: 'outpost', population: 50 }]
   slice.historyLog = [{ kind: 'founding', epoch: 0 }]
-  slice.committedTips = [{ epoch: 0, settlements: [{ id: 's1' }] }]
   slice.realmId = 'realm-1'
 
   const doc = {
@@ -140,17 +243,14 @@ test('cloneWorldDocument copies colonization slice independently', () => {
   assert.notStrictEqual(cloned.foundingLanding, doc.foundingLanding)
   assert.notStrictEqual(cloned.settlements, doc.settlements)
   assert.notStrictEqual(cloned.historyLog, doc.historyLog)
-  assert.notStrictEqual(cloned.committedTips, doc.committedTips)
 
   cloned.foundingLanding.x = 99
   cloned.settlements[0].population = 0
   cloned.historyLog.push({ kind: 'other', epoch: 1 })
-  cloned.committedTips[0].epoch = 2
   cloned.colonistSettings.threeDayHaulDistance = 1
 
   assert.strictEqual(doc.foundingLanding.x, 3)
   assert.strictEqual(doc.settlements[0].population, 50)
   assert.strictEqual(doc.historyLog.length, 1)
-  assert.strictEqual(doc.committedTips[0].epoch, 0)
   assert.strictEqual(doc.colonistSettings.threeDayHaulDistance, 12)
 })

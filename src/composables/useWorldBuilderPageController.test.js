@@ -15,6 +15,22 @@ import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../../world-builder/core/world
 import { useWorldBuilderPageController } from './useWorldBuilderPageController.js'
 
 /**
+ * @param {() => unknown} getValue
+ * @param {string} label
+ * @returns {Promise<void>}
+ */
+async function waitUntil(getValue, label) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (getValue()) {
+      return
+    }
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await nextTick()
+  }
+  throw new Error(`Timed out waiting for ${label}`)
+}
+
+/**
  * PAGE-CONTROLLER-INTERFACE.md § Returned actions — side-effect methods and their
  * covering test titles in this file (375.7 matrix).
  * @type {Record<string, string[]>}
@@ -78,7 +94,7 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
     'start restores running colonization from colonization cache after beginColonization refresh',
   ],
   epochStep: [
-    'epochStep advances epoch by epochBatch and updates settlements',
+    'epochStep advances epoch by one and updates settlements',
     'epochStep is inactive outside running phase',
   ],
   resetColonization: [
@@ -274,6 +290,8 @@ function createMemoryColonizationCache() {
  */
 function mountController(scope, overrides = {}) {
   const appliedDocs = []
+  /** @type {import('../../world-builder/renderer/mapLayerRefresh.js').MapLayerId[][]} */
+  const appliedChangedLayers = []
   const errors = []
   const confirmCalls = []
   const viewport = overrides.viewport ?? createFakeViewport()
@@ -297,8 +315,11 @@ function mountController(scope, overrides = {}) {
         }),
       loadViewportFactory: async () => async () => viewport.handle,
       createMapLifecycle: ({ onViewportReady }) => ({
-        async applyWorldDocument(doc) {
+        async applyWorldDocument(doc, options = {}) {
           appliedDocs.push(doc)
+          if (options.changedLayers) {
+            appliedChangedLayers.push([...options.changedLayers])
+          }
           onViewportReady?.()
         },
         getViewport: () => viewport.handle,
@@ -334,6 +355,7 @@ function mountController(scope, overrides = {}) {
     settingsStore,
     viewport,
     appliedDocs,
+    appliedChangedLayers,
     errors,
     confirmCalls,
     terrainCache,
@@ -1108,6 +1130,36 @@ test('pickFoundingLanding accepts a valid coastal cell and updates haul-shed pre
   }
 })
 
+test('pickFoundingLanding updates the pin without syncing the map document', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const { ctx, appliedDocs } = mountController(scope, {
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.enterColonizationSetup()
+    const appliedAfterSetup = appliedDocs.length
+
+    assert.strictEqual(ctx.pickFoundingLanding(3, 3), true)
+    assert.strictEqual(appliedDocs.length, appliedAfterSetup)
+  } finally {
+    scope.stop()
+  }
+})
+
 test('pickFoundingLanding snaps a nearby click to the nearest valid landing', async () => {
   const scope = effectScope(true)
   try {
@@ -1209,7 +1261,6 @@ test('resetColonistSettings restores colonist setting defaults in setup', async 
     ctx.setColonistSetting('threeDayHaulDistance', 1)
     ctx.setColonistSetting('startingPopulation', 50)
     ctx.setColonistSetting('yieldModifier', 'marginal')
-    ctx.setColonistSetting('epochBatch', 10)
 
     ctx.resetColonistSettings()
     await nextTick()
@@ -1290,7 +1341,6 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
     assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
     assert.strictEqual(ctx.resourceOverlayVisibility.value.population, true)
     assert.strictEqual(ctx.worldDocument.value?.settlements?.length, 1)
-    assert.strictEqual(ctx.worldDocument.value?.committedTips?.length, 1)
     assert.strictEqual(ctx.worldDocument.value?.historyLog?.[0]?.kind, 'founding')
     assert.ok(ctx.worldDocument.value?.realmId)
     assert.strictEqual(ctx.isTerrainLocked.value, true)
@@ -1308,11 +1358,11 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
   }
 })
 
-test('epochStep advances epoch by epochBatch and updates settlements', async () => {
+test('epochStep advances epoch by one and updates settlements', async () => {
   const scope = effectScope(true)
   try {
     const landmass = coastalLandmassDocument()
-    const { ctx, settingsStore } = mountController(scope, {
+    const { ctx, settingsStore, appliedChangedLayers } = mountController(scope, {
       runDerivedGeographyInWorker: (_params, callbacks) => {
         callbacks.onStepComplete?.({
           stepId: 'validation',
@@ -1330,18 +1380,20 @@ test('epochStep advances epoch by epochBatch and updates settlements', async () 
     await nextTick()
     await ctx.enterColonizationSetup()
     ctx.pickFoundingLanding(3, 3)
-    ctx.setColonistSetting('epochBatch', 2)
     await ctx.beginColonization()
     const populationBefore = ctx.worldDocument.value?.settlements?.[0]?.population ?? 0
 
     assert.strictEqual(await ctx.epochStep(), true)
     await nextTick()
 
-    assert.strictEqual(ctx.colonizationEpoch.value, 2)
-    assert.strictEqual(settingsStore.colonizationSession.epoch, 2)
+    assert.strictEqual(ctx.colonizationEpoch.value, 1)
+    assert.strictEqual(settingsStore.colonizationSession.epoch, 1)
     assert.ok(ctx.worldDocument.value?.settlements?.[0]?.population >= populationBefore)
-    assert.strictEqual(ctx.worldDocument.value?.committedTips?.at(-1)?.epoch, 2)
     assert.strictEqual(ctx.timeControlsActive.value, true)
+    assert.ok(
+      appliedChangedLayers.some((layers) => layers.includes('settlementNodes')),
+      'epoch map sync should refresh settlement overlay pins',
+    )
   } finally {
     scope.stop()
   }
@@ -1572,14 +1624,13 @@ test('enterColonizationSetup persists locked terrain and colonization session', 
   }
 })
 
-test('start restores running colonization tips from session after landmass regen', async () => {
+test('start restores running colonization session after landmass regen', async () => {
   const scope = effectScope(true)
   try {
     const persisted = createDefaultColonizationSlice()
     persisted.colonizationPhase = COLONIZATION_PHASE_RUNNING
     persisted.foundingLanding = { x: 3, y: 3 }
     persisted.settlements = [{ id: 's1', x: 3, y: 3, population: 100 }]
-    persisted.committedTips = [{ epoch: 0, settlements: [{ id: 's1' }] }]
     persisted.historyLog = [{ kind: 'founding', epoch: 0 }]
     persisted.realmId = 'realm-test'
     const { ctx } = mountController(scope, {
@@ -1587,10 +1638,10 @@ test('start restores running colonization tips from session after landmass regen
     })
 
     await ctx.start()
-    await nextTick()
+    await waitUntil(() => ctx.worldDocument.value != null, 'colonization world document')
 
     assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
-    assert.strictEqual(ctx.worldDocument.value?.committedTips?.length, 1)
+    assert.strictEqual(ctx.worldDocument.value?.historyLog?.length, 1)
     assert.strictEqual(ctx.worldDocument.value?.settlements?.length, 1)
     assert.strictEqual(ctx.worldDocument.value?.realmId, 'realm-test')
     assert.strictEqual(ctx.isTerrainLocked.value, true)
@@ -1662,7 +1713,7 @@ test('start restores running colonization from colonization cache after beginCol
     assert.strictEqual(refreshed.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
     assert.strictEqual(refreshed.colonizationEpoch.value, 0)
     assert.strictEqual(refreshed.worldDocument.value?.settlements?.length, 1)
-    assert.strictEqual(refreshed.worldDocument.value?.committedTips?.length, 1)
+    assert.strictEqual(refreshed.worldDocument.value?.historyLog?.length, 1)
     assert.strictEqual(refreshed.timeControlsActive.value, true)
     assert.ok(refreshed.worldDocument.value?.populationCollapseRaster instanceof Float32Array)
   } finally {

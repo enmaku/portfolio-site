@@ -89,6 +89,15 @@ export function resolveSaltNodeOverlayDrawn(visibility, worldDocument) {
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @returns {boolean}
  */
+export function resolveSettlementNodeOverlayDrawn(visibility, worldDocument) {
+  return shouldDrawResourceNodeOverlay(visibility, 'settlements', worldDocument.settlements)
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
 export function resolveSailRasterLayerVisible(visibility, worldDocument) {
   if (!isResourceOverlayVisible(visibility, 'sail')) {
     return false
@@ -139,3 +148,44 @@ export function resolvePopulationRasterLayerVisible(visibility, worldDocument) {
   }
   return raster.some((value) => value > 0)
 }
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolveExplorationFogRasterLayerVisible(visibility, worldDocument) {
+  if (!isResourceOverlayVisible(visibility, 'explorationFog')) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  const visited = worldDocument.visitedCells
+  if (!(visited instanceof Uint8Array) || visited.length !== worldDocument.gridWidth * worldDocument.gridHeight) {
+    return visited != null && Array.isArray(visited) && visited.some((value) => value === 0)
+  }
+  return visited.some((value) => value === 0)
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolveRoutesRasterLayerVisible(visibility, worldDocument) {
+  const routesVisible =
+    isResourceOverlayVisible(visibility, 'routes') ||
+    isResourceOverlayVisible(visibility, 'roads')
+  if (!routesVisible) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  const roads = worldDocument.roads
+  return Array.isArray(roads) && roads.some((segment) => Array.isArray(segment.cells) && segment.cells.length > 0)
+}
+
+/** @deprecated Use resolveRoutesRasterLayerVisible */
+export const resolveRoadRasterLayerVisible = resolveRoutesRasterLayerVisible

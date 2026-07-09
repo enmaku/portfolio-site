@@ -1,4 +1,5 @@
 import { computeHaulShedTravelTimes } from './computeHaulShedIsochrone.js'
+import { buildLandRouteCellMask } from './roads/roadNetwork.js'
 
 /**
  * @typedef {{ x: number, y: number }} GridCell
@@ -29,11 +30,13 @@ import { computeHaulShedTravelTimes } from './computeHaulShedIsochrone.js'
  *   gridHeight: number,
  *   movementCost?: Float32Array | null,
  *   roadMultiplier?: number,
+ *   roadCellMask?: Uint8Array | null,
  * }} params
  * @returns {PrimaryClaimMap}
  */
 export function computePrimaryClaimMap(params) {
-  const { pins, budget, gridWidth, gridHeight, movementCost, roadMultiplier } = params
+  const { pins, budget, gridWidth, gridHeight, movementCost, roadMultiplier, roadCellMask } =
+    params
   const cellCount = gridWidth * gridHeight
   /** @type {(string | null)[]} */
   const ownerByCell = Array.from({ length: cellCount }, () => null)
@@ -51,6 +54,7 @@ export function computePrimaryClaimMap(params) {
       gridHeight,
       movementCost,
       roadMultiplier,
+      roadCellMask,
     })
 
     for (let i = 0; i < cellCount; i += 1) {
@@ -87,6 +91,8 @@ export function computePrimaryClaimMap(params) {
  *   gridHeight: number,
  *   movementCost?: Float32Array | null,
  *   roadMultiplier?: number,
+ *   roadCellMask?: Uint8Array | null,
+ *   roads?: import('./roads/roadNetwork.js').RoadSegment[] | null,
  * }} params
  * @returns {PrimaryClaimMap}
  */
@@ -98,7 +104,14 @@ export function recomputePrimaryClaims(params) {
     gridHeight,
     movementCost,
     roadMultiplier,
+    roadCellMask,
+    roads,
   } = params
+
+  let resolvedRoadMask = roadCellMask ?? null
+  if (!resolvedRoadMask && roads) {
+    resolvedRoadMask = buildLandRouteCellMask(roads, gridWidth, gridHeight)
+  }
 
   return computePrimaryClaimMap({
     pins: settlements,
@@ -107,6 +120,7 @@ export function recomputePrimaryClaims(params) {
     gridHeight,
     movementCost,
     roadMultiplier,
+    roadCellMask: resolvedRoadMask,
   })
 }
 
@@ -123,4 +137,46 @@ export function serializeClaimMap(claimMap) {
     serialized[settlementId] = cells.map((cell) => ({ x: cell.x, y: cell.y }))
   }
   return serialized
+}
+
+/**
+ * @param {Record<string, GridCell[]> | null | undefined} primaryClaim
+ * @param {Array<{ id?: string, status?: string }>} settlements
+ * @returns {boolean}
+ */
+export function hasPersistedPrimaryClaim(primaryClaim, settlements) {
+  const living = (settlements ?? []).filter((settlement) => settlement.status !== 'ruin')
+  if (living.length === 0) {
+    return true
+  }
+  if (!primaryClaim || typeof primaryClaim !== 'object') {
+    return false
+  }
+  return living.every(
+    (settlement) =>
+      typeof settlement.id === 'string' &&
+      Array.isArray(primaryClaim[settlement.id]) &&
+      primaryClaim[settlement.id].length > 0,
+  )
+}
+
+/**
+ * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
+ * @param {import('../types.js').WorldDocument} doc
+ * @returns {Record<string, GridCell[]>}
+ */
+export function rehydratePrimaryClaimForSlice(slice, doc) {
+  if (!slice.settlements?.length) {
+    return {}
+  }
+  return serializeClaimMap(
+    recomputePrimaryClaims({
+      settlements: slice.settlements,
+      colonistSettings: slice.colonistSettings,
+      gridWidth: doc.gridWidth,
+      gridHeight: doc.gridHeight,
+      movementCost: doc.movementCost,
+      roads: slice.roads,
+    }),
+  )
 }

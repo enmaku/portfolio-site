@@ -8,6 +8,7 @@
       class="full-width q-mb-md"
       data-testid="world-builder-colonist-reset-defaults"
       aria-label="Reset colonist settings to defaults"
+      :disable="runningPhase"
       @click="$emit('reset-defaults')"
     >
       Reset to defaults
@@ -21,14 +22,14 @@
       />
     </div>
     <q-slider
-      :model-value="colonistSettings.threeDayHaulDistance"
+      :model-value="displaySettings.threeDayHaulDistance"
       :min="1"
       :max="maxThreeDayHaulDistance"
       :step="1"
       label
       color="primary"
       data-testid="world-builder-colonist-three-day-haul-distance"
-      :disable="readOnlyExceptEpochBatch"
+      :disable="runningPhase"
       @update:model-value="(value) => emitSetting('threeDayHaulDistance', value)"
     />
 
@@ -40,14 +41,14 @@
       />
     </div>
     <q-slider
-      :model-value="colonistSettings.startingPopulation"
+      :model-value="displaySettings.startingPopulation"
       :min="10"
       :max="500"
       :step="10"
       label
       color="primary"
       data-testid="world-builder-colonist-starting-population"
-      :disable="readOnlyExceptEpochBatch"
+      :disable="runningPhase"
       @update:model-value="(value) => emitSetting('startingPopulation', value)"
     />
 
@@ -59,52 +60,106 @@
       />
     </div>
     <q-btn-toggle
-      :model-value="colonistSettings.yieldModifier"
+      :model-value="displaySettings.yieldModifier"
       spread
       no-caps
       toggle-color="primary"
       data-testid="world-builder-colonist-yield-modifier"
-      :disable="readOnlyExceptEpochBatch"
+      :disable="runningPhase"
       :options="yieldModifierOptions"
       @update:model-value="(value) => emitSetting('yieldModifier', value)"
     />
 
     <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
-      <span class="text-caption">Epoch batch</span>
+      <span class="text-caption">Land expedition range</span>
       <WorldBuilderSettingHelp
-        :text="EPOCH_BATCH_TOOLTIP"
-        label="Epoch batch"
+        :text="LAND_EXPEDITION_RANGE_TOOLTIP"
+        label="Land expedition range"
       />
     </div>
     <q-slider
-      :model-value="colonistSettings.epochBatch"
-      :min="1"
-      :max="100"
+      :model-value="displaySettings.landExpeditionRange"
+      :min="minLandExpeditionRange"
+      :max="maxLandExpeditionRange"
       :step="1"
       label
       color="primary"
-      data-testid="world-builder-colonist-epoch-batch"
-      @update:model-value="(value) => emitSetting('epochBatch', value)"
+      data-testid="world-builder-colonist-land-expedition-range"
+      :disable="runningPhase"
+      @update:model-value="(value) => emitSetting('landExpeditionRange', value)"
+    />
+
+    <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
+      <span class="text-caption">Inland sail expedition range</span>
+      <WorldBuilderSettingHelp
+        :text="INLAND_SAIL_EXPEDITION_RANGE_TOOLTIP"
+        label="Inland sail expedition range"
+      />
+    </div>
+    <q-slider
+      :model-value="displaySettings.inlandSailExpeditionRange"
+      :min="minInlandSailExpeditionRange"
+      :max="maxInlandSailExpeditionRange"
+      :step="1"
+      label
+      color="primary"
+      data-testid="world-builder-colonist-inland-sail-expedition-range"
+      :disable="runningPhase"
+      @update:model-value="(value) => emitSetting('inlandSailExpeditionRange', value)"
+    />
+
+    <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
+      <span class="text-caption">Open-sea expedition range</span>
+      <WorldBuilderSettingHelp
+        :text="OPEN_SEA_EXPEDITION_RANGE_TOOLTIP"
+        label="Open-sea expedition range"
+      />
+    </div>
+    <q-slider
+      :model-value="displaySettings.openSeaExpeditionRange"
+      :min="minOpenSeaExpeditionRange"
+      :max="maxOpenSeaExpeditionRange"
+      :step="1"
+      label
+      color="primary"
+      data-testid="world-builder-colonist-open-sea-expedition-range"
+      :disable="runningPhase"
+      @update:model-value="(value) => emitSetting('openSeaExpeditionRange', value)"
     />
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import {
-  EPOCH_BATCH_TOOLTIP,
+  INLAND_SAIL_EXPEDITION_RANGE_TOOLTIP,
+  LAND_EXPEDITION_RANGE_TOOLTIP,
+  OPEN_SEA_EXPEDITION_RANGE_TOOLTIP,
   STARTING_POPULATION_TOOLTIP,
   THREE_DAY_HAUL_DISTANCE_TOOLTIP,
   YIELD_MODIFIER_TOOLTIP,
 } from '@world-builder/worldBuilderColonistSettingsControls.js'
-import { MAX_THREE_DAY_HAUL_DISTANCE } from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
+import {
+  MAX_INLAND_SAIL_EXPEDITION_RANGE,
+  MAX_LAND_EXPEDITION_RANGE,
+  MAX_OPEN_SEA_EXPEDITION_RANGE,
+  MAX_THREE_DAY_HAUL_DISTANCE,
+  MIN_INLAND_SAIL_EXPEDITION_RANGE,
+  MIN_LAND_EXPEDITION_RANGE,
+  MIN_OPEN_SEA_EXPEDITION_RANGE,
+} from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
 import WorldBuilderSettingHelp from './WorldBuilderSettingHelp.vue'
 
-defineProps({
+const props = defineProps({
   colonistSettings: {
     type: Object,
     required: true,
   },
-  readOnlyExceptEpochBatch: {
+  colonistSettingsSnapshot: {
+    type: Object,
+    required: true,
+  },
+  runningPhase: {
     type: Boolean,
     default: false,
   },
@@ -112,6 +167,16 @@ defineProps({
 
 const emit = defineEmits(['update-setting', 'reset-defaults'])
 const maxThreeDayHaulDistance = MAX_THREE_DAY_HAUL_DISTANCE
+const minLandExpeditionRange = MIN_LAND_EXPEDITION_RANGE
+const maxLandExpeditionRange = MAX_LAND_EXPEDITION_RANGE
+const minInlandSailExpeditionRange = MIN_INLAND_SAIL_EXPEDITION_RANGE
+const maxInlandSailExpeditionRange = MAX_INLAND_SAIL_EXPEDITION_RANGE
+const minOpenSeaExpeditionRange = MIN_OPEN_SEA_EXPEDITION_RANGE
+const maxOpenSeaExpeditionRange = MAX_OPEN_SEA_EXPEDITION_RANGE
+
+const displaySettings = computed(() =>
+  props.runningPhase ? props.colonistSettingsSnapshot : props.colonistSettings,
+)
 
 const yieldModifierOptions = [
   { label: 'Marginal', value: 'marginal' },

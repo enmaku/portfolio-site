@@ -2,11 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from '../biomeIds.js'
 import { applyEpochStep } from './applyEpochStep.js'
+import { applyColonizationEpoch } from './applyColonizationEpoch.js'
 import { beginColonizationCommit } from './beginColonizationCommit.js'
 import {
   COLONIZATION_PHASE_SETUP,
   createDefaultColonizationSlice,
 } from './createDefaultColonizationSlice.js'
+import { OUTPOST_REABSORPTION_STAGNATION_EPOCHS } from './mergeCounters.js'
 
 function richGeographyDoc() {
   const cellCount = 16
@@ -29,30 +31,73 @@ function richGeographyDoc() {
   }
 }
 
-function commitRunningSlice(epochBatch = 1) {
+function commitRunningSlice() {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 1 }
   slice.colonistSettings.startingPopulation = 20
   slice.colonistSettings.threeDayHaulDistance = 2
-  slice.colonistSettings.epochBatch = epochBatch
   return beginColonizationCommit(slice, richGeographyDoc())
 }
 
-test('applyEpochStep advances epoch by epochBatch and retains present-day tip', () => {
-  const running = commitRunningSlice(3)
+test('applyEpochStep advances epoch by one', () => {
+  const running = commitRunningSlice()
+  running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
+    ...entry,
+    exhausted: true,
+  }))
   const next = applyEpochStep(running, richGeographyDoc())
 
-  assert.strictEqual(next.epoch, 3)
-  assert.strictEqual(next.committedTips.at(-1)?.epoch, 3)
-  assert.ok(next.committedTips.at(-1)?.claimMap)
-  // Quiet intra-batch years (1, 2) are not tipped — only epoch 0 and present day.
-  const tipEpochs = next.committedTips.map((tip) => tip.epoch)
-  assert.deepStrictEqual(tipEpochs, [0, 3])
+  assert.strictEqual(next.epoch, 1)
+  assert.ok(Object.keys(next.primaryClaim).length > 0)
+})
+
+test('applyEpochStep matches applyColonizationEpoch including merge phase', () => {
+  const running = commitRunningSlice()
+  running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
+    ...entry,
+    exhausted: true,
+  }))
+  const origin = running.settlements.find((settlement) => settlement.status === 'living')
+  assert.ok(origin)
+  running.settlements.push({
+    id: 'daughter',
+    status: 'living',
+    tier: 'outpost',
+    population: 25,
+    originSettlementId: origin.id,
+    x: 3,
+    y: 3,
+  })
+  running.mergeCounters = {
+    daughter: { outpostStagnation: OUTPOST_REABSORPTION_STAGNATION_EPOCHS },
+  }
+
+  const doc = richGeographyDoc()
+  const fromEpoch = applyColonizationEpoch(running, doc)
+  const fromStep = applyEpochStep(running, doc)
+
+  assert.strictEqual(fromStep.epoch, fromEpoch.slice.epoch)
+  assert.deepEqual(
+    fromStep.settlements.map((settlement) => ({
+      id: settlement.id,
+      status: settlement.status,
+      population: settlement.population,
+    })),
+    fromEpoch.slice.settlements.map((settlement) => ({
+      id: settlement.id,
+      status: settlement.status,
+      population: settlement.population,
+    })),
+  )
+  assert.deepEqual(
+    fromStep.historyLog.map((entry) => entry.kind),
+    fromEpoch.slice.historyLog.map((entry) => entry.kind),
+  )
 })
 
 test('applyEpochStep remains available indefinitely with no auto-stop', () => {
-  let current = commitRunningSlice(1)
+  let current = commitRunningSlice()
   const doc = richGeographyDoc()
   for (let i = 0; i < 5; i += 1) {
     current = applyEpochStep(current, doc)

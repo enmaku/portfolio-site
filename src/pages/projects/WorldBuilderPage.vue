@@ -1,7 +1,7 @@
 <template>
   <q-page class="world-builder-page column fit no-wrap">
     <div
-      v-if="showGenerationProgress || showResourceOverlayBar"
+      v-if="showGenerationProgress || showBeginColonizationProgress || showEpochStepProgress || showRehydrationProgress || showResourceOverlayBar"
       data-testid="world-builder-status-bar"
       class="generation-progress"
     >
@@ -38,6 +38,172 @@
                   :key="substep.id"
                   dense
                   :data-testid="`world-builder-hydrology-substep-${substep.id}`"
+                  :color="generationStepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
+            </template>
+          </div>
+        </div>
+        <div
+          v-else-if="showBeginColonizationProgress"
+          data-testid="world-builder-begin-colonization-progress"
+          class="status-bar-panel status-bar-panel--generation"
+        >
+          <q-linear-progress
+            :value="beginColonizationProgress.percent / 100"
+            color="positive"
+            track-color="grey-9"
+            rounded
+          />
+          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
+            <q-chip
+              v-for="step in beginColonizationStepStatuses"
+              :key="step.id"
+              dense
+              :data-testid="`world-builder-begin-colonization-step-${step.id}`"
+              :color="generationStepStatusColor(step.status)"
+              text-color="white"
+              :outline="step.status === 'pending'"
+            >
+              {{ step.label }}
+            </q-chip>
+          </div>
+        </div>
+        <div
+          v-else-if="showEpochStepProgress"
+          data-testid="world-builder-epoch-step-progress"
+          class="status-bar-panel status-bar-panel--generation"
+        >
+          <q-linear-progress
+            :value="epochStepProgress.percent / 100"
+            color="secondary"
+            track-color="grey-9"
+            rounded
+          />
+          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
+            <template
+              v-for="step in epochStepPhaseStatuses"
+              :key="step.id"
+            >
+              <q-chip
+                dense
+                :data-testid="`world-builder-epoch-step-phase-${step.id}`"
+                :color="generationStepStatusColor(step.status)"
+                text-color="white"
+                :outline="step.status === 'pending'"
+              >
+                {{ step.label }}
+              </q-chip>
+              <template v-if="step.id === 'network' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in epochStepNetworkSubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-epoch-step-network-substep-${substep.id}`"
+                  :color="generationStepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
+              <template v-if="step.id === 'collapse' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in epochStepCollapseSubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-epoch-step-collapse-substep-${substep.id}`"
+                  :color="generationStepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
+            </template>
+            <template
+              v-for="step in epochStepFinalizeStepStatuses"
+              :key="step.id"
+            >
+              <q-chip
+                dense
+                :data-testid="`world-builder-epoch-step-finalize-${step.id}`"
+                :color="generationStepStatusColor(step.status)"
+                text-color="white"
+                :outline="step.status === 'pending'"
+              >
+                {{ step.label }}
+              </q-chip>
+              <template v-if="step.id === 'map' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in epochStepMapSubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-epoch-step-map-substep-${substep.id}`"
+                  :color="generationStepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
+            </template>
+          </div>
+        </div>
+        <div
+          v-else-if="showRehydrationProgress"
+          data-testid="world-builder-rehydration-progress"
+          class="status-bar-panel status-bar-panel--generation"
+        >
+          <q-linear-progress
+            :value="rehydrationProgressIndeterminate ? undefined : rehydrationProgress.percent / 100"
+            :indeterminate="rehydrationProgressIndeterminate"
+            color="info"
+            track-color="grey-9"
+            rounded
+          />
+          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
+            <template
+              v-for="step in rehydrationStepStatuses"
+              :key="step.id"
+            >
+              <q-chip
+                dense
+                :data-testid="`world-builder-rehydration-step-${step.id}`"
+                :color="generationStepStatusColor(step.status)"
+                text-color="white"
+                :outline="step.status === 'pending'"
+              >
+                {{ step.label }}
+              </q-chip>
+              <template v-if="step.id === 'session' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in rehydrationSessionSubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-rehydration-session-substep-${substep.id}`"
+                  :color="generationStepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
+              <template v-if="step.id === 'collapse' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in rehydrationCollapseSubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-rehydration-collapse-substep-${substep.id}`"
                   :color="generationStepStatusColor(substep.status)"
                   text-color="white"
                   :outline="substep.status === 'pending'"
@@ -270,7 +436,8 @@
           />
           <WorldBuilderColonistSettingsPanel
             :colonist-settings="colonistSettings"
-            :read-only-except-epoch-batch="isColonistSettingsReadOnlyExceptEpochBatch"
+            :colonist-settings-snapshot="colonistSettingsSnapshot"
+            :running-phase="isColonistSettingsRunningPhase"
             @update-setting="setColonistSetting"
             @reset-defaults="resetColonistSettings"
           />
@@ -303,7 +470,8 @@
             class="full-width q-mb-md"
             data-testid="world-builder-begin-colonization"
             label="Begin colonization"
-            :disable="!canBeginColonization"
+            :loading="isBeginColonizationRunning"
+            :disable="!canBeginColonization || isBeginColonizationRunning"
             @click="beginColonization"
           />
           <q-btn
@@ -312,7 +480,9 @@
             color="primary"
             class="full-width q-mb-md"
             data-testid="world-builder-epoch-step"
-            label="Epoch step"
+            label="Next epoch"
+            :loading="isEpochStepRunning"
+            :disable="isEpochStepRunning"
             @click="epochStep"
           />
           <q-banner
@@ -325,13 +495,13 @@
             Validation retries exhausted — map shows the last candidate.
           </q-banner>
           <q-list
-            v-if="validationRows.length > 0"
+            v-if="visibleValidationRows.length > 0"
             bordered
             separator
             class="q-mb-md validation-advisory-list"
           >
             <q-item
-              v-for="row in validationRows"
+              v-for="row in visibleValidationRows"
               :key="row.checkId"
               :data-testid="`world-builder-validation-row-${row.checkId}`"
               clickable
@@ -355,6 +525,11 @@
               </q-item-section>
             </q-item>
           </q-list>
+          <WorldBuilderSimStatusPanel
+            v-if="showSimStatusPanel"
+            :status="simStatus"
+            :chronicle="foundingChronicle"
+          />
           <div class="text-subtitle2 q-mb-sm">Generation report</div>
           <div class="text-caption q-mb-md">
             Erosion steps: {{ stageSummary.erosionStepCount }} · Sailable water cells:
@@ -434,7 +609,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import {
   createResourceOverlayDefinitions,
@@ -456,6 +631,7 @@ import { useWorldBuilderPageController } from '../../composables/useWorldBuilder
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
 import PrevailingWindArrow from '../../components/world-builder/PrevailingWindArrow.vue'
 import WorldBuilderColonistSettingsPanel from '../../components/world-builder/WorldBuilderColonistSettingsPanel.vue'
+import WorldBuilderSimStatusPanel from '../../components/world-builder/WorldBuilderSimStatusPanel.vue'
 import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
 
 const $q = useQuasar()
@@ -470,14 +646,35 @@ const {
   runPhase,
   generationProgress,
   showGenerationProgress,
+  showBeginColonizationProgress,
+  showEpochStepProgress,
+  showRehydrationProgress,
+  isSessionRestorePending,
   showResourceOverlayBar,
   showValidationFailureIndicator,
-  validationRows,
+  visibleValidationRows,
+  showSimStatusPanel,
+  simStatus,
+  foundingChronicle,
   stageSummary,
   hydrologyStats,
   generationStepStatuses,
   hydrologySubstepStatuses,
   hydrologySubstepTimings,
+  epochStepProgress,
+  beginColonizationProgress,
+  beginColonizationStepStatuses,
+  rehydrationProgress,
+  rehydrationStepStatuses,
+  rehydrationSessionSubstepStatuses,
+  rehydrationCollapseSubstepStatuses,
+  isEpochStepRunning,
+  isBeginColonizationRunning,
+  epochStepPhaseStatuses,
+  epochStepNetworkSubstepStatuses,
+  epochStepCollapseSubstepStatuses,
+  epochStepFinalizeStepStatuses,
+  epochStepMapSubstepStatuses,
   resourceOverlayVisibility,
   overlayDisplaySetting,
   toggleResourceOverlayVisibility,
@@ -488,11 +685,12 @@ const {
   showTerrainAuthoringControls,
   showColonistSettingsPanel,
   colonistSettings,
+  colonistSettingsSnapshot,
   hasLandmass,
   canBeginColonization,
   showResetColonization,
   timeControlsActive,
-  isColonistSettingsReadOnlyExceptEpochBatch,
+  isColonistSettingsRunningPhase,
   enterColonizationSetup,
   backToTerrain,
   beginColonization,
@@ -543,6 +741,12 @@ const {
     })
   },
 })
+
+const rehydrationProgressIndeterminate = computed(
+  () =>
+    isSessionRestorePending.value ||
+    (showRehydrationProgress.value && rehydrationProgress.value.activeStepIndex < 0),
+)
 
 onMounted(start)
 onUnmounted(destroy)

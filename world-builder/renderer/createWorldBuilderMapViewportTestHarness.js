@@ -17,7 +17,7 @@ import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays
  * @property {number} moveCenterCallCount
  * @property {(() => void) | null} resizeObserverCallback
  * @property {{ scale: { x: number, y: number }, center: { x: number, y: number } } | null} lastViewportInstance
- * @property {Record<'coastalNodes' | 'metalNodes' | 'saltNodes', Array<{ x: number, y: number, color: number | null }>>} drawnCirclesByLayer
+ * @property {Record<'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes', Array<{ x: number, y: number, color: number | null }>>} drawnCirclesByLayer
  */
 
 /** @type {ViewportSpyState} */
@@ -35,6 +35,7 @@ export const viewportSpyState = {
     coastalNodes: [],
     metalNodes: [],
     saltNodes: [],
+    settlementNodes: [],
   },
 }
 
@@ -55,11 +56,17 @@ export function resetViewportSpyState() {
     coastalNodes: [],
     metalNodes: [],
     saltNodes: [],
+    settlementNodes: [],
   }
 }
 
-/** Vector overlay Graphics are always created coastal → metal → salt per viewport. */
-const VECTOR_LAYER_IDS = /** @type {const} */ (['coastalNodes', 'metalNodes', 'saltNodes'])
+/** Vector overlay Graphics are always created coastal → metal → salt → settlement per viewport. */
+const VECTOR_LAYER_IDS = /** @type {const} */ ([
+  'coastalNodes',
+  'metalNodes',
+  'saltNodes',
+  'settlementNodes',
+])
 
 function syncDrawnCirclesByLayer() {
   const vectorLayers = viewportSpyState.graphicsLayers.slice(-VECTOR_LAYER_IDS.length)
@@ -306,6 +313,17 @@ export function createSaltNodeFixture() {
     gridWidth: 4,
     gridHeight: 4,
     saltNodes: [{ x: 1, y: 2 }],
+  })
+}
+
+/**
+ * @returns {import('../core/types.js').WorldDocument}
+ */
+export function createSettlementFixture() {
+  return worldDocFixture({
+    gridWidth: 4,
+    gridHeight: 4,
+    settlements: [{ id: 's1', x: 1, y: 2, population: 100 }],
   })
 }
 

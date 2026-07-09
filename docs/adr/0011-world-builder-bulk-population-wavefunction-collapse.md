@@ -10,7 +10,7 @@ A default **world document** grid is **1024×1024** (`DEFAULT_GRID_SIZE`). The v
 
 Modeling everyone explicitly is unwieldy in three ways:
 
-1. **Storage** — A per-cell population state for the full grid is a **1024×1024** raster (~1M cells). Persisting that raster every **epoch** (and for every **committed tip** the **epoch scrubber** can reach) multiplies session size and sync cost for data that is almost entirely redundant with **settlement** headcounts, hinterland **primary claim**, and arable weights.
+1. **Storage** — A per-cell population state for the full grid is a **1024×1024** raster (~1M cells). Persisting that raster every **epoch** for historical epoch snapshots multiplies session size and sync cost for data that is almost entirely redundant with **settlement** headcounts, hinterland **primary claim**, and arable weights (see [ADR 0014](0014-world-builder-present-day-session-no-committed-tips.md)).
 2. **Simulation** — Running thousands of agents who plant, harvest, haul, and eat grain each in-world year is Dwarf Fortress depth, not v1 World Builder scope. **Survival triad** and **population ceiling** already aggregate food, freshwater, and shelter at **settlement** scale.
 3. **Presentation** — The **population overlay** needs a believable spatial scatter (urban cluster + arable hinterland), not a census table. Pin dots alone misread rural spread inside a **haul-shed**.
 
@@ -55,7 +55,7 @@ Everyone else—farmers, laborers, anonymous townsfolk—lives only through **bu
 ## Considered options
 
 - **Full agent simulation (Dwarf Fortress–style):** richest causality; explains every belly and granary. Rejected for v1: cost, scope, and mismatch with **epoch**-scale **history log** delivery.
-- **Persist `populationCollapseRaster` every epoch / tip:** simple reads for **epoch scrubber** and overlay. Rejected: ~4 MB per float raster per snapshot on a 1024² grid, mostly redundant with recomputable inputs; bloats IndexedDB / Tauri session files.
+- **Persist `populationCollapseRaster` every epoch / historical snapshot:** simple reads for past-year overlay. Rejected: ~4 MB per float raster per snapshot on a 1024² grid, mostly redundant with recomputable inputs; bloats IndexedDB / Tauri session files (historical snapshots cut in [ADR 0014](0014-world-builder-present-day-session-no-committed-tips.md)).
 - **Settlement pins only (no overlay):** minimal state. Rejected: misrepresents rural population spread inside **haul-shed**; breaks GM-facing “where do people actually live?” inspection.
 - **Continuous per-cell density field updated every tick:** still a full-grid raster in authoritative state. Rejected: same storage and simulation problems as persisting collapse output; collapse-on-observation keeps one canonical raster per **epoch** derived from compact parameters.
 

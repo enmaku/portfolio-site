@@ -27,10 +27,11 @@ const PIN_MIN_WORLD_RADIUS = 0.75
  *   },
  *   hostEl: HTMLElement,
  *   getWorldDocument: () => import('../core/types.js').WorldDocument,
+ *   requestRender?: () => void,
  * }} options
  */
 export function attachLandingPlacementControls(options) {
-  const { Graphics, viewport, hostEl, getWorldDocument } = options
+  const { Graphics, viewport, hostEl, getWorldDocument, requestRender } = options
   const haulShedPreview = new Graphics()
   const landingPin = new Graphics()
   viewport.addChild(haulShedPreview)
@@ -74,9 +75,11 @@ export function attachLandingPlacementControls(options) {
   })
   viewport.on('zoomed', () => {
     redrawLandingPin()
+    requestRender?.()
   })
   viewport.on('moved', () => {
     redrawLandingPin()
+    requestRender?.()
   })
 
   function clearValidityContext() {
@@ -134,6 +137,10 @@ export function attachLandingPlacementControls(options) {
     landingPin.stroke({ width: stroke * 0.85, color: 0x111111, alpha: 0.9 })
   }
 
+  function commitLandingOverlay() {
+    requestRender?.()
+  }
+
   return {
     /**
      * @param {boolean} enabled
@@ -154,6 +161,7 @@ export function attachLandingPlacementControls(options) {
     setFoundingLandingMarker(marker) {
       currentMarker = marker ? { x: marker.x, y: marker.y } : null
       redrawLandingPin()
+      commitLandingOverlay()
     },
 
     /**
@@ -161,14 +169,14 @@ export function attachLandingPlacementControls(options) {
      */
     setHaulShedPreviewCells(cells) {
       haulShedPreview.clear()
-      if (!cells?.length) {
-        return
+      if (cells?.length) {
+        haulShedPreview.setFillStyle({ color: 0x66ccff, alpha: 0.28 })
+        for (const cell of cells) {
+          haulShedPreview.rect(cell.x, cell.y, 1, 1)
+          haulShedPreview.fill()
+        }
       }
-      haulShedPreview.setFillStyle({ color: 0x66ccff, alpha: 0.28 })
-      for (const cell of cells) {
-        haulShedPreview.rect(cell.x, cell.y, 1, 1)
-        haulShedPreview.fill()
-      }
+      commitLandingOverlay()
     },
 
     /**

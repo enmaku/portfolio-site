@@ -1,57 +1,128 @@
-import { applyPopulationCollapse } from './applyPopulationCollapse.js'
+import { applyPopulationCollapse, applyPopulationCollapseAsync } from './applyPopulationCollapse.js'
+import { applyNetworkPhase, applyNetworkPhaseAsync } from './applyNetworkPhase.js'
 import { applyRuinTransitions } from './applyRuin.js'
+import {
+  applySettlementMergeTransitions,
+  resolveFoundingSettlementId,
+} from './applySettlementMerge.js'
 import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaimMap.js'
+import { buildLandRouteCellMask, DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
+import { evaluateLivingSphereConsolidation } from './evaluateLivingSphereConsolidation.js'
+import { evaluateOutpostReabsorption } from './evaluateOutpostReabsorption.js'
+import {
+  updateLivingSphereDeficitCounter,
+  updateOutpostStagnationCounter,
+} from './mergeCounters.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
 import { saltSpoilageMultiplierForSettlement as defaultSaltSpoilage } from './saltSpoilageMultiplier.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
+import { runColonizationEpochPhasesSync } from './runColonizationEpochPhases.js'
 
 /**
- * Annual colonization tick order:
- * network (no-op in increment 1) → claims → survival → politics (no-op until #394).
- *
+ * @typedef {Object} ColonizationEpochContext
+ * @property {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
+ * @property {import('../types.js').WorldDocument} worldDocument
+ * @property {object[]} events
+ * @property {Record<string, Array<{ x: number, y: number }>>} primaryClaim
+ * @property {(string | null)[] | undefined} ownerByCell
+ * @property {Record<string, import('./resolveSurvivalTriad.js').SurvivalTriadResult>} survivalBySettlementId
+ */
+
+/**
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument
- * @param {{ saltSpoilageMultiplierForSettlement?: (settlement: object, claimedCells: Array<{x:number,y:number}>, worldDocument: import('../types.js').WorldDocument) => number }} [options]
- * @returns {{
- *   slice: import('./createDefaultColonizationSlice.js').ColonizationSlice,
- *   events: object[],
- * }}
+ * @returns {ColonizationEpochContext}
  */
-export function applyColonizationEpoch(slice, worldDocument, options = {}) {
-  if (slice.colonizationPhase !== 'running') {
-    return { slice, events: [] }
+export function createColonizationEpochContext(slice, worldDocument) {
+  return {
+    slice,
+    worldDocument,
+    events: [],
+    primaryClaim: {},
+    ownerByCell: undefined,
+    survivalBySettlementId: {},
   }
+}
 
-  applyNetworkPhaseNoop()
+/**
+ * @param {ColonizationEpochContext} ctx
+ * @param {{ network?: import('./applyNetworkPhase.js').ApplyNetworkPhaseOptions }} [options]
+ */
+export function runColonizationEpochNetworkPhase(ctx, options = {}) {
+  const network = applyNetworkPhase(ctx.slice, ctx.worldDocument, options.network)
+  ctx.slice = network.slice
+  ctx.worldDocument = network.worldDocument
+  ctx.events.push(...network.events)
+}
 
+/**
+ * @param {ColonizationEpochContext} ctx
+ * @param {{ network?: import('./applyNetworkPhase.js').ApplyNetworkPhaseOptions & { yieldToUi?: () => Promise<void> } }} [options]
+ * @returns {Promise<void>}
+ */
+export async function runColonizationEpochNetworkPhaseAsync(ctx, options = {}) {
+  const network = await applyNetworkPhaseAsync(ctx.slice, ctx.worldDocument, options.network)
+  ctx.slice = network.slice
+  ctx.worldDocument = network.worldDocument
+  ctx.events.push(...network.events)
+}
+
+/**
+ * @param {ColonizationEpochContext} ctx
+ */
+export function runColonizationEpochClaimsPhase(ctx) {
   const claimMap = recomputePrimaryClaims({
-    settlements: slice.settlements,
-    colonistSettings: slice.colonistSettings,
-    gridWidth: worldDocument.gridWidth,
-    gridHeight: worldDocument.gridHeight,
-    movementCost: worldDocument.movementCost,
+    settlements: ctx.slice.settlements,
+    colonistSettings: ctx.slice.colonistSettings,
+    gridWidth: ctx.worldDocument.gridWidth,
+    gridHeight: ctx.worldDocument.gridHeight,
+    movementCost: ctx.worldDocument.movementCost,
+    roadMultiplier: DEFAULT_ROAD_MOVEMENT_MULTIPLIER,
+    roads: ctx.worldDocument.roads,
   })
-  const primaryClaim = serializeClaimMap(claimMap)
+  ctx.ownerByCell = claimMap.ownerByCell
+  ctx.primaryClaim = serializeClaimMap(claimMap)
+}
 
+/**
+ * @param {ColonizationEpochContext} ctx
+ * @param {{ saltSpoilageMultiplierForSettlement?: Function }} [options]
+ */
+export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
   /** @type {object[]} */
   const nextSettlements = []
+  /** @type {Record<string, import('./resolveSurvivalTriad.js').SurvivalTriadResult>} */
+  const survivalBySettlementId = {}
+  let mergeCounters = { ...(ctx.slice.mergeCounters ?? {}) }
 
-  for (const settlement of slice.settlements) {
+  for (const settlement of ctx.slice.settlements) {
     if (settlement.status === 'ruin') {
       nextSettlements.push({ ...settlement })
       continue
     }
 
-    const claimedCells = primaryClaim[settlement.id] ?? []
+    const claimedCells = ctx.primaryClaim[settlement.id] ?? []
     const saltResolver = options.saltSpoilageMultiplierForSettlement ?? defaultSaltSpoilage
-    const saltSpoilageMultiplier = saltResolver(settlement, claimedCells, worldDocument)
+    const saltSpoilageMultiplier = saltResolver(settlement, claimedCells, ctx.worldDocument)
 
     const { settlement: resolved, survival } = applySurvivalResolveToSettlement({
       settlement,
       claimedCells,
-      colonistSettings: slice.colonistSettings,
-      worldDocument,
+      colonistSettings: ctx.slice.colonistSettings,
+      worldDocument: ctx.worldDocument,
       saltSpoilageMultiplier,
+    })
+
+    survivalBySettlementId[settlement.id] = survival
+    mergeCounters = updateOutpostStagnationCounter({
+      settlement: resolved,
+      survival,
+      counters: mergeCounters,
+    })
+    mergeCounters = updateLivingSphereDeficitCounter({
+      settlement: resolved,
+      survival,
+      counters: mergeCounters,
     })
 
     let population = resolved.population
@@ -72,29 +143,142 @@ export function applyColonizationEpoch(slice, worldDocument, options = {}) {
     })
   }
 
-  const nextEpoch = slice.epoch + 1
-  const ruined = applyRuinTransitions({
+  ctx.survivalBySettlementId = survivalBySettlementId
+  ctx.slice = {
+    ...ctx.slice,
     settlements: nextSettlements,
-    primaryClaim,
-    historyLog: slice.historyLog,
+    mergeCounters,
+  }
+}
+
+/**
+ * @param {ColonizationEpochContext} ctx
+ */
+export function runColonizationEpochMergePhase(ctx) {
+  const foundingSettlementId = resolveFoundingSettlementId(ctx.slice)
+  const alreadyAbsorbedThisEpoch = new Set()
+  const alreadySurvivorThisEpoch = new Set()
+  const roadCellMask = buildLandRouteCellMask(
+    ctx.slice.roads,
+    ctx.worldDocument.gridWidth,
+    ctx.worldDocument.gridHeight,
+  )
+
+  const outpostCandidates = evaluateOutpostReabsorption({
+    settlements: ctx.slice.settlements,
+    mergeCounters: ctx.slice.mergeCounters ?? {},
+    foundingSettlementId,
+    alreadyAbsorbedThisEpoch,
+    alreadySurvivorThisEpoch,
+  })
+
+  const livingSphereCandidates = evaluateLivingSphereConsolidation({
+    settlements: ctx.slice.settlements,
+    survivalBySettlementId: ctx.survivalBySettlementId,
+    mergeCounters: ctx.slice.mergeCounters ?? {},
+    colonistSettings: ctx.slice.colonistSettings,
+    worldDocument: ctx.worldDocument,
+    roadCellMask,
+    foundingSettlementId,
+    alreadyAbsorbedThisEpoch,
+    alreadySurvivorThisEpoch,
+  })
+
+  const merged = applySettlementMergeTransitions({
+    slice: ctx.slice,
+    candidates: [...outpostCandidates, ...livingSphereCandidates],
+    survivalBySettlementId: ctx.survivalBySettlementId,
+    epoch: ctx.slice.epoch + 1,
+  })
+
+  ctx.slice = merged.slice
+  ctx.events.push(...merged.events)
+}
+
+/**
+ * @param {ColonizationEpochContext} ctx
+ */
+export function runColonizationEpochRuinPhase(ctx) {
+  const nextEpoch = ctx.slice.epoch + 1
+  const ruined = applyRuinTransitions({
+    settlements: ctx.slice.settlements,
+    primaryClaim: ctx.primaryClaim,
+    historyLog: ctx.slice.historyLog,
     epoch: nextEpoch,
   })
 
   applyPoliticsPhaseNoop()
 
-  const withClaims = {
-    ...slice,
+  ctx.slice = {
+    ...ctx.slice,
     epoch: nextEpoch,
     settlements: ruined.settlements,
     primaryClaim: ruined.primaryClaim,
     historyLog: ruined.historyLog,
   }
+  ctx.events.push(...ruined.events)
+}
 
-  const { slice: collapsed } = applyPopulationCollapse(withClaims, worldDocument)
+/**
+ * @param {ColonizationEpochContext} ctx
+ */
+export function runColonizationEpochCollapsePhase(ctx) {
+  const withClaims = {
+    ...ctx.slice,
+    visitedCells: ctx.slice.visitedCells,
+    expeditions: ctx.slice.expeditions,
+    frontierExhausted: ctx.slice.frontierExhausted,
+    roads: ctx.slice.roads,
+    logisticsNodeSurvey: ctx.slice.logisticsNodeSurvey,
+  }
+  const { slice: collapsed } = applyPopulationCollapse(withClaims, ctx.worldDocument)
+  ctx.slice = collapsed
+}
+
+/**
+ * @param {ColonizationEpochContext} ctx
+ * @param {{ collapse?: { hooks?: import('./collapsePopulation.js').CollapsePopulationHooks, yieldToUi?: () => Promise<void> } }} [options]
+ * @returns {Promise<void>}
+ */
+export async function runColonizationEpochCollapsePhaseAsync(ctx, options = {}) {
+  const withClaims = {
+    ...ctx.slice,
+    visitedCells: ctx.slice.visitedCells,
+    expeditions: ctx.slice.expeditions,
+    frontierExhausted: ctx.slice.frontierExhausted,
+    roads: ctx.slice.roads,
+    logisticsNodeSurvey: ctx.slice.logisticsNodeSurvey,
+  }
+  const { slice: collapsed } = await applyPopulationCollapseAsync(withClaims, ctx.worldDocument, {
+    hooks: options.collapse?.hooks,
+    yieldToUi: options.collapse?.yieldToUi,
+  })
+  ctx.slice = collapsed
+}
+
+/**
+ * Annual colonization tick order:
+ * network → claims → survival → merge → ruin → collapse.
+ *
+ * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
+ * @param {import('../types.js').WorldDocument} worldDocument
+ * @param {{ saltSpoilageMultiplierForSettlement?: Function, network?: import('./applyNetworkPhase.js').ApplyNetworkPhaseOptions }} [options]
+ * @returns {{
+ *   slice: import('./createDefaultColonizationSlice.js').ColonizationSlice,
+ *   events: object[],
+ * }}
+ */
+export function applyColonizationEpoch(slice, worldDocument, options = {}) {
+  if (slice.colonizationPhase !== 'running') {
+    return { slice, events: [] }
+  }
+
+  const ctx = createColonizationEpochContext(slice, worldDocument)
+  runColonizationEpochPhasesSync(ctx, options)
 
   return {
-    slice: collapsed,
-    events: ruined.events,
+    slice: ctx.slice,
+    events: ctx.events,
   }
 }
 
@@ -115,7 +299,5 @@ export function applySurplusPopulationDelta(population, foodSurplus, populationC
   }
   return Math.max(0, Math.min(Math.floor(next), populationCeiling))
 }
-
-function applyNetworkPhaseNoop() {}
 
 function applyPoliticsPhaseNoop() {}

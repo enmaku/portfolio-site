@@ -124,6 +124,28 @@ test('diffWorldDocumentMapLayers detects hydrology and lake mask changes', () =>
   assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, nextRivers), ['rivers'])
 })
 
+test('diffWorldDocumentMapLayers detects exploration fog visit raster changes', () => {
+  const previous = baseDocument({
+    colonizationPhase: 'running',
+    visitedCells: new Uint8Array(16),
+  })
+  const next = baseDocument({
+    colonizationPhase: 'running',
+    visitedCells: Uint8Array.from({ length: 16 }, (_, index) => (index === 3 ? 1 : 0)),
+  })
+
+  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['explorationFog'])
+})
+
+test('diffWorldDocumentMapLayers detects road segment changes', () => {
+  const previous = baseDocument({ roads: [] })
+  const next = baseDocument({
+    roads: [{ cells: [{ x: 1, y: 1 }, { x: 2, y: 1 }] }],
+  })
+
+  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['routes'])
+})
+
 test('diffWorldDocumentMapLayers detects metal node changes only in metalNodes layer', () => {
   const previous = baseDocument({
     metalNodes: [{ id: 'm1', x: 1, y: 2, score: 0.5 }],
@@ -155,4 +177,15 @@ test('diffWorldDocumentMapLayers detects salt node changes only in saltNodes lay
   })
 
   assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['saltNodes'])
+})
+
+test('diffWorldDocumentMapLayers detects settlement changes only in settlementNodes layer', () => {
+  const previous = baseDocument({
+    settlements: [{ id: 's1', x: 1, y: 2, population: 100 }],
+  })
+  const next = baseDocument({
+    settlements: [{ id: 's1', x: 2, y: 2, population: 100 }],
+  })
+
+  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['settlementNodes'])
 })

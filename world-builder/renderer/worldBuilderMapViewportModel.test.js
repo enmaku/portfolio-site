@@ -10,6 +10,7 @@ import {
   resolveMetalsOverlayDrawn,
   resolveResourceRasterLayerVisible,
   resolveSaltNodeOverlayDrawn,
+  resolveSettlementNodeOverlayDrawn,
 } from './worldBuilderMapViewportModel.js'
 import { applyResourceOverlayVisibility, createDefaultResourceOverlayVisibility } from '../resourceOverlays.js'
 
@@ -135,4 +136,13 @@ test('resolveSaltNodeOverlayDrawn hides salt markers until overlay is enabled', 
 
   assert.strictEqual(resolveSaltNodeOverlayDrawn(hidden, { saltNodes }), false)
   assert.strictEqual(resolveSaltNodeOverlayDrawn(visible, { saltNodes }), true)
+})
+
+test('resolveSettlementNodeOverlayDrawn hides settlement pins until overlay is enabled', () => {
+  const settlements = [{ id: 's1', x: 1, y: 2 }]
+  const hidden = createDefaultResourceOverlayVisibility()
+  const visible = applyResourceOverlayVisibility(hidden, 'settlements', true)
+
+  assert.strictEqual(resolveSettlementNodeOverlayDrawn(hidden, { settlements }), false)
+  assert.strictEqual(resolveSettlementNodeOverlayDrawn(visible, { settlements }), true)
 })

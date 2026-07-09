@@ -46,7 +46,7 @@ function geographyDoc(options = {}) {
   }
 }
 
-test('beginColonizationCommit enters running with founding settlement and tip', () => {
+test('beginColonizationCommit enters running with founding settlement and history log', () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 2 }
@@ -66,13 +66,10 @@ test('beginColonizationCommit enters running with founding settlement and tip', 
   assert.strictEqual(next.historyLog.length, 1)
   assert.strictEqual(next.historyLog[0].kind, 'founding')
   assert.strictEqual(next.historyLog[0].epoch, 0)
-  assert.strictEqual(next.committedTips.length, 1)
-  assert.strictEqual(next.committedTips[0].epoch, 0)
   assert.ok(typeof next.realmId === 'string' && next.realmId.length > 0)
   const settlementId = next.settlements[0].id
   assert.ok(Array.isArray(next.primaryClaim[settlementId]))
   assert.ok(next.primaryClaim[settlementId].some((cell) => cell.x === 1 && cell.y === 2))
-  assert.deepStrictEqual(next.committedTips[0].claimMap, next.primaryClaim)
   assert.ok(next.populationCollapseRaster instanceof Float32Array)
   assert.strictEqual(next.populationCollapseRaster.length, 16)
   assert.ok(next.populationCollapseRaster.some((value) => value > 0))

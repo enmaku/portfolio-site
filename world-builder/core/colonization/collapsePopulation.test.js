@@ -4,6 +4,7 @@ import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
 import {
   POPULATION_COLLAPSE_CORE_FRACTION,
   collapsePopulation,
+  collapsePopulationAsync,
   hashPopulationCollapseRaster,
   isHabitablePopulationCell,
 } from './collapsePopulation.js'
@@ -227,6 +228,41 @@ test('collapsePopulation is deterministic for identical inputs', () => {
   assert.strictEqual(hashPopulationCollapseRaster(a), hashPopulationCollapseRaster(b))
 })
 
+test('collapsePopulationAsync matches sync output and emits collapse substeps', async () => {
+  const width = 6
+  const height = 6
+  const cellCount = width * height
+  const params = {
+    settlements: [{ id: 's1', x: 2, y: 2, population: 80, status: 'living' }],
+    primaryClaim: fullClaim(width, height, { x: 2, y: 2 }),
+    arableRaster: new Float32Array(cellCount).fill(1),
+    elevation: landElevation(cellCount),
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    gridWidth: width,
+    gridHeight: height,
+    geographySeed: 42,
+    epoch: 5,
+  }
+  /** @type {string[]} */
+  const substepEvents = []
+  const asyncRaster = await collapsePopulationAsync(params, {
+    yieldToUi: async () => {},
+    hooks: {
+      onCollapseSubstep(payload) {
+        substepEvents.push(`${payload.type}:${payload.substepId}`)
+      },
+    },
+  })
+  const syncRaster = collapsePopulation(params)
+  assert.strictEqual(hashPopulationCollapseRaster(asyncRaster), hashPopulationCollapseRaster(syncRaster))
+  assert.deepStrictEqual(substepEvents, [
+    'substep-start:urban',
+    'substep-complete:urban',
+    'substep-start:hinterland',
+    'substep-complete:hinterland',
+  ])
+})
+
 test('collapsePopulation skips ruins and empty domains', () => {
   const empty = collapsePopulation({
     settlements: [{ id: 's1', x: 0, y: 0, population: 10, status: 'ruin' }],
@@ -249,6 +285,52 @@ test('collapsePopulation skips ruins and empty domains', () => {
     epoch: 0,
   })
   assert.strictEqual(noLand[0], 0)
+})
+
+test('collapsePopulation spreads hinterland south of the pin, not only north', () => {
+  const width = 51
+  const height = 51
+  const cellCount = width * height
+  const pin = { x: 25, y: 25 }
+  /** @type {Array<{ x: number, y: number }>} */
+  const cells = []
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      cells.push({ x, y })
+    }
+  }
+
+  const raster = collapsePopulation({
+    settlements: [{ id: 's1', ...pin, population: 1000, status: 'living' }],
+    primaryClaim: { s1: cells },
+    arableRaster: new Float32Array(cellCount).fill(1),
+    elevation: landElevation(cellCount),
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    gridWidth: width,
+    gridHeight: height,
+    geographySeed: 1,
+    epoch: 0,
+  })
+
+  let peopleNorth = 0
+  let peopleSouth = 0
+  let maxSouthDy = 0
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const value = raster[y * width + x]
+      if (value < 1) continue
+      if (y < pin.y) {
+        peopleNorth += value
+      } else if (y > pin.y) {
+        peopleSouth += value
+        maxSouthDy = Math.max(maxSouthDy, y - pin.y)
+      }
+    }
+  }
+
+  assert.ok(peopleSouth > 0)
+  assert.ok(maxSouthDy > 1)
+  assert.ok(peopleSouth / peopleNorth > 0.25)
 })
 
 test('collapsePopulation parks hinterland in urban cluster when no arable hinterland exists', () => {

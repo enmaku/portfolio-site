@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 import {
   createDefaultColonizationSlice,
   resolveColonizationSlice,
+  serializeColonizationSessionForStorage,
 } from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
 import { resolveWorldGenerationOptions } from '@world-builder/core/worldGenerationOptions.js'
 import {
@@ -57,7 +58,10 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
       'overlayDisplaySettings',
       'colonizationSession',
     ],
-    omit: ['colonizationSession.populationCollapseRaster'],
+    omit: [
+      'colonizationSession.populationCollapseRaster',
+      'colonizationSession.visitedCells',
+    ],
     afterHydrate: ({ store }) => {
       store.geographySeed = parseStoredGeographySeed(store.geographySeed)
       store.prevailingWindDegrees = normalizeWindDegrees(store.prevailingWindDegrees)
@@ -105,7 +109,8 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
     },
 
     setColonizationSession(slice) {
-      this.colonizationSession = resolveColonizationSlice(slice)
+      const persistable = serializeColonizationSessionForStorage(slice)
+      this.colonizationSession = resolveColonizationSlice(persistable)
     },
 
     resetToDefaults() {

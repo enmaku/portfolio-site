@@ -34,10 +34,6 @@ export function applyRuinTransitions(state) {
       continue
     }
 
-    const claimSnapshot = (primaryClaim[settlement.id] ?? []).map((cell) => ({
-      x: cell.x,
-      y: cell.y,
-    }))
     delete primaryClaim[settlement.id]
 
     const abandoned = {
@@ -48,18 +44,14 @@ export function applyRuinTransitions(state) {
     }
     settlements.push(abandoned)
 
-    const historyEntry = {
+    historyLog.push({
       kind: 'settlement_abandoned',
       epoch: state.epoch,
       settlementId: settlement.id,
-    }
-    historyLog.push(historyEntry)
+    })
     events.push({
       kind: 'settlement_abandoned',
-      retainTip: true,
       settlementId: settlement.id,
-      claimMap: { [settlement.id]: claimSnapshot },
-      historyEntry,
     })
   }
 
