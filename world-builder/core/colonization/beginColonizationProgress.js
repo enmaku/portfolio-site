@@ -68,5 +68,3 @@ export function reduceBeginColonizationProgressOnRunComplete(progress) {
     activeStepIndex: -1,
   }
 }
-
-export { yieldEpochStepProgressToUi as yieldBeginColonizationProgressToUi } from './colonizationEpochProgress.js'

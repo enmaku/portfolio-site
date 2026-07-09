@@ -16,6 +16,7 @@ import {
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
 import { saltSpoilageMultiplierForSettlement as defaultSaltSpoilage } from './saltSpoilageMultiplier.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
+import { runColonizationEpochPhasesSync } from './runColonizationEpochPhases.js'
 
 /**
  * @typedef {Object} ColonizationEpochContext
@@ -257,7 +258,7 @@ export async function runColonizationEpochCollapsePhaseAsync(ctx, options = {}) 
 
 /**
  * Annual colonization tick order:
- * network → claims → survival → politics (no-op until #394) → collapse.
+ * network → claims → survival → merge → ruin → collapse.
  *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument
@@ -273,12 +274,7 @@ export function applyColonizationEpoch(slice, worldDocument, options = {}) {
   }
 
   const ctx = createColonizationEpochContext(slice, worldDocument)
-  runColonizationEpochNetworkPhase(ctx, options)
-  runColonizationEpochClaimsPhase(ctx)
-  runColonizationEpochSurvivalPhase(ctx, options)
-  runColonizationEpochMergePhase(ctx)
-  runColonizationEpochRuinPhase(ctx)
-  runColonizationEpochCollapsePhase(ctx)
+  runColonizationEpochPhasesSync(ctx, options)
 
   return {
     slice: ctx.slice,

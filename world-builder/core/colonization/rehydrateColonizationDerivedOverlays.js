@@ -12,7 +12,6 @@ import {
   reduceRehydrateColonizationProgressOnRunComplete,
   reduceRehydrateColonizationProgressOnStepComplete,
   reduceRehydrateColonizationProgressOnStepStart,
-  yieldRehydrateColonizationProgressToUi,
 } from './rehydrateColonizationProgress.js'
 import {
   hasFullLogisticsNodeSurvey,
@@ -125,7 +124,7 @@ export async function rehydrateColonizationDerivedOverlaysAsync(slice, doc, opti
     return rehydrateColonizationDerivedOverlays(slice, doc)
   }
 
-  const yieldToUi = options.yieldToUi ?? yieldRehydrateColonizationProgressToUi
+  const yieldToUi = options.yieldToUi ?? (async () => {})
   const handlers = options.handlers ?? {}
   const derivedStart = COLONIZATION_SESSION_RESTORE_DERIVED_STEP_START
 

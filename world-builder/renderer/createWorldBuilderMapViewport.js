@@ -26,8 +26,11 @@ export const METAL_NODE_OVERLAY_COLOR = 0x000000
 /** Pure white for salt strategic-resource markers. */
 export const SALT_NODE_OVERLAY_COLOR = 0xffffff
 
-/** Yellow for settlement pins. */
+/** Yellow for living settlement pins. */
 export const SETTLEMENT_NODE_OVERLAY_COLOR = 0xffd700
+
+/** Gray for abandoned/ruined settlement pins (matches land route cobblestone). */
+export const SETTLEMENT_NODE_RUIN_OVERLAY_COLOR = 0x8e9094
 
 /** Grid-cell radius for metal/salt strategic-resource node markers. */
 export const STRATEGIC_RESOURCE_NODE_MARKER_RADIUS = 7
@@ -674,9 +677,14 @@ function drawSettlementNodes(overlay, worldDocument, resourceOverlayVisibility) 
         continue
       }
       overlay.circle(settlement.x + 0.5, settlement.y + 0.5, SETTLEMENT_NODE_MARKER_RADIUS)
-      overlay.fill({ color: SETTLEMENT_NODE_OVERLAY_COLOR, alpha: 0.9 })
+      overlay.fill({ color: settlementNodeColor(settlement.status), alpha: 0.9 })
     }
   }
+}
+
+/** @param {string | undefined} status */
+function settlementNodeColor(status) {
+  return status === 'ruin' ? SETTLEMENT_NODE_RUIN_OVERLAY_COLOR : SETTLEMENT_NODE_OVERLAY_COLOR
 }
 
 /** @param {import('../core/types.js').CoastalNodeKind} kind */

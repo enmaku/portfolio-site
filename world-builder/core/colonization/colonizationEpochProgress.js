@@ -431,18 +431,3 @@ export function reduceEpochStepProgressOnRunComplete(progress) {
     activeMapSubstepIndex: -1,
   }
 }
-
-/**
- * Yield to the browser so progress UI can paint between synchronous sim phases.
- *
- * @returns {Promise<void>}
- */
-export function yieldEpochStepProgressToUi() {
-  return new Promise((resolve) => {
-    if (typeof requestAnimationFrame === 'function') {
-      requestAnimationFrame(() => resolve())
-      return
-    }
-    setTimeout(resolve, 0)
-  })
-}

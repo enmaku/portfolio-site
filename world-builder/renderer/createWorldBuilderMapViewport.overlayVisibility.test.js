@@ -96,6 +96,40 @@ test(
 )
 
 test(
+  'overlay owner seam draws ruined settlements in gray and living settlements in yellow',
+  viewportTestOptions,
+  async () => {
+    const {
+      SETTLEMENT_NODE_OVERLAY_COLOR,
+      SETTLEMENT_NODE_RUIN_OVERLAY_COLOR,
+    } = await import('./createWorldBuilderMapViewport.js')
+    const fixture = {
+      ...createSettlementFixture(),
+      settlements: [
+        { id: 'living', x: 1, y: 1, population: 100, status: 'living' },
+        { id: 'ruin', x: 2, y: 2, population: 0, status: 'ruin' },
+      ],
+    }
+    const viewport = await createWorldBuilderMapViewport(createHostEl(), fixture)
+    const overlay = createOverlayOwnerDriver(viewport)
+
+    overlay.setVisibility('settlements', true)
+
+    const settlementCircles = viewportSpyState.drawnCirclesByLayer.settlementNodes
+    assert.strictEqual(
+      settlementCircles.some((circle) => circle.color === SETTLEMENT_NODE_OVERLAY_COLOR),
+      true,
+    )
+    assert.strictEqual(
+      settlementCircles.some((circle) => circle.color === SETTLEMENT_NODE_RUIN_OVERLAY_COLOR),
+      true,
+    )
+
+    viewport.destroy()
+  },
+)
+
+test(
   'overlay owner seam hides arable raster by default and shows it when enabled',
   viewportTestOptions,
   async () => {

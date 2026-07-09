@@ -1,20 +1,29 @@
 import { computed, ref, shallowRef } from 'vue'
+import { yieldColonizationProgressToUi } from './colonizationUiYield.js'
 import { createInitialBeginColonizationProgress } from '../../world-builder/core/colonization/beginColonizationProgress.js'
 import {
   createInitialEpochStepProgress,
   reduceEpochStepProgressOnFinalizeStepComplete,
   reduceEpochStepProgressOnFinalizeStepStart,
   reduceEpochStepProgressOnRunComplete,
-  yieldEpochStepProgressToUi,
 } from '../../world-builder/core/colonization/colonizationEpochProgress.js'
 import { runColonizationEpochStep } from '../../world-builder/core/colonization/runColonizationEpochStep.js'
+import { runColonizationEpochMapFinalize } from '../../world-builder/core/colonization/runColonizationEpochMapFinalize.js'
+import { COLONIZATION_BEGIN_STEPS } from '../../world-builder/core/colonization/colonizationBeginSteps.js'
+import {
+  COLONIZATION_COLLAPSE_SUBSTEPS,
+  COLONIZATION_EPOCH_FINALIZE_STEPS,
+  COLONIZATION_EPOCH_MAP_SUBSTEPS,
+  COLONIZATION_EPOCH_PHASES,
+  COLONIZATION_NETWORK_SUBSTEPS,
+} from '../../world-builder/core/colonization/colonizationEpochSteps.js'
 import {
   needsColonizationDerivedOverlayRehydration,
   rehydrateColonizationDerivedOverlays,
   rehydrateColonizationDerivedOverlaysAsync,
 } from '../../world-builder/core/colonization/rehydrateColonizationDerivedOverlays.js'
-import { createInitialRehydrateColonizationProgress, reduceRehydrateColonizationProgressOnRunComplete, reduceRehydrateColonizationProgressOnSessionSubstepComplete, reduceRehydrateColonizationProgressOnSessionSubstepStart, reduceRehydrateColonizationProgressOnStepComplete, reduceRehydrateColonizationProgressOnStepStart, yieldRehydrateColonizationProgressToUi } from '../../world-builder/core/colonization/rehydrateColonizationProgress.js'
-import { COLONIZATION_SESSION_RESTORE_STEP_COUNT, COLONIZATION_SESSION_RESTORE_STEPS } from '../../world-builder/core/colonization/colonizationRehydrationSteps.js'
+import { createInitialRehydrateColonizationProgress, reduceRehydrateColonizationProgressOnRunComplete, reduceRehydrateColonizationProgressOnSessionSubstepComplete, reduceRehydrateColonizationProgressOnSessionSubstepStart, reduceRehydrateColonizationProgressOnStepComplete, reduceRehydrateColonizationProgressOnStepStart } from '../../world-builder/core/colonization/rehydrateColonizationProgress.js'
+import { COLONIZATION_SESSION_RESTORE_SESSION_SUBSTEPS, COLONIZATION_SESSION_RESTORE_STEP_COUNT, COLONIZATION_SESSION_RESTORE_STEPS } from '../../world-builder/core/colonization/colonizationRehydrationSteps.js'
 import { runBeginColonizationCommit } from '../../world-builder/core/colonization/runBeginColonizationCommit.js'
 import { computeHaulShedReachPreview } from '../../world-builder/core/colonization/computeHaulShedReachPreview.js'
 import {
@@ -31,6 +40,10 @@ import {
   enterColonizationSetup as enterColonizationSetupTransition,
 } from '../../world-builder/core/colonization/colonizationPhaseTransitions.js'
 import { snapFoundingLandingCell } from '../../world-builder/core/colonization/isValidFoundingLandingCell.js'
+import {
+  createGenerationStepStatuses,
+  createHydrologySubstepStatuses,
+} from '../../world-builder/worldBuilderPageModel.js'
 
 /**
  * Product colonization phase owner (terrain / setup / running). Distinct from generation runPhase.
@@ -49,11 +62,7 @@ import { snapFoundingLandingCell } from '../../world-builder/core/colonization/i
  *   } | null,
  *   getGeographyDocument?: () => import('../../world-builder/core/types.js').WorldDocument | null,
  *   onSliceChanged?: () => void,
- *   finalizeEpochMapSync?: (handlers: {
- *     getProgress: () => import('../../world-builder/core/colonization/colonizationEpochProgress.js').EpochStepProgressState,
- *     onProgress: (progress: import('../../world-builder/core/colonization/colonizationEpochProgress.js').EpochStepProgressState) => void,
- *     yieldToUi: () => Promise<void>,
- *   }) => Promise<void>,
+ *   colonizationMapPorts?: import('../../world-builder/core/colonization/runColonizationEpochMapFinalize.js').ColonizationEpochMapPorts,
  *   onSessionPersistRequested?: () => void,
  * }} options
  */
@@ -64,7 +73,7 @@ export function useWorldBuilderColonization(options) {
     getViewport,
     getGeographyDocument,
     onSliceChanged,
-    finalizeEpochMapSync,
+    colonizationMapPorts,
     onSessionPersistRequested,
   } = options
 
@@ -262,7 +271,7 @@ export function useWorldBuilderColonization(options) {
   }
 
   function yieldSessionRestoreToUi() {
-    return yieldRehydrateColonizationProgressToUi()
+    return yieldColonizationProgressToUi()
   }
 
   /**
@@ -280,13 +289,13 @@ export function useWorldBuilderColonization(options) {
         label: step?.label ?? '',
       },
     )
-    await yieldRehydrateColonizationProgressToUi()
+    await yieldColonizationProgressToUi()
     const result = await work()
     rehydrationProgress.value = reduceRehydrateColonizationProgressOnStepComplete(
       rehydrationProgress.value,
       { stepIndex },
     )
-    await yieldRehydrateColonizationProgressToUi()
+    await yieldColonizationProgressToUi()
     return result
   }
 
@@ -301,13 +310,13 @@ export function useWorldBuilderColonization(options) {
       rehydrationProgress.value,
       { substepIndex },
     )
-    await yieldRehydrateColonizationProgressToUi()
+    await yieldColonizationProgressToUi()
     const result = await work()
     rehydrationProgress.value = reduceRehydrateColonizationProgressOnSessionSubstepComplete(
       rehydrationProgress.value,
       { substepIndex },
     )
-    await yieldRehydrateColonizationProgressToUi()
+    await yieldColonizationProgressToUi()
     return result
   }
 
@@ -317,10 +326,10 @@ export function useWorldBuilderColonization(options) {
     for (let stepIndex = progress.completedStepIndex + 1; stepIndex <= lastStep; stepIndex += 1) {
       progress = reduceRehydrateColonizationProgressOnStepComplete(progress, { stepIndex })
       rehydrationProgress.value = progress
-      await yieldRehydrateColonizationProgressToUi()
+      await yieldColonizationProgressToUi()
     }
     rehydrationProgress.value = reduceRehydrateColonizationProgressOnRunComplete(progress)
-    await yieldRehydrateColonizationProgressToUi()
+    await yieldColonizationProgressToUi()
   }
 
   /**
@@ -346,6 +355,7 @@ export function useWorldBuilderColonization(options) {
 
     try {
       const resolvedSlice = await rehydrateColonizationDerivedOverlaysAsync(slice.value, doc, {
+        yieldToUi: yieldColonizationProgressToUi,
         initialProgress: restoring ? rehydrationProgress.value : undefined,
         skipInitialYield: restoring,
         handlers: {
@@ -423,6 +433,7 @@ export function useWorldBuilderColonization(options) {
 
     try {
       const result = await runBeginColonizationCommit(slice.value, doc, {
+        yieldToUi: yieldColonizationProgressToUi,
         handlers: {
           onProgress(progress) {
             beginColonizationProgress.value = progress
@@ -457,6 +468,7 @@ export function useWorldBuilderColonization(options) {
 
     try {
       const result = await runColonizationEpochStep(slice.value, doc, {
+        yieldToUi: yieldColonizationProgressToUi,
         handlers: {
           onProgress(progress) {
             epochStepProgress.value = progress
@@ -472,15 +484,15 @@ export function useWorldBuilderColonization(options) {
         stepIndex: 1,
       })
       epochStepProgress.value = progress
-      await yieldEpochStepProgressToUi()
+      await yieldColonizationProgressToUi()
 
-      if (finalizeEpochMapSync) {
-        await finalizeEpochMapSync({
+      if (colonizationMapPorts) {
+        await runColonizationEpochMapFinalize(colonizationMapPorts, {
           getProgress: () => epochStepProgress.value,
           onProgress(next) {
             epochStepProgress.value = next
           },
-          yieldToUi: yieldEpochStepProgressToUi,
+          yieldToUi: yieldColonizationProgressToUi,
         })
       } else {
         settingsStore.setColonizationSession?.(slice.value)
@@ -491,7 +503,7 @@ export function useWorldBuilderColonization(options) {
         stepIndex: 1,
       })
       epochStepProgress.value = reduceEpochStepProgressOnRunComplete(progress)
-      await yieldEpochStepProgressToUi()
+      await yieldColonizationProgressToUi()
 
       syncLandingVisuals()
       return true
@@ -557,6 +569,85 @@ export function useWorldBuilderColonization(options) {
     persistColonistSettingsOnly()
   }
 
+  const epochStepPhaseStatuses = computed(() =>
+    createGenerationStepStatuses(
+      COLONIZATION_EPOCH_PHASES,
+      epochStepProgress.value.activePhaseIndex,
+      epochStepProgress.value.completedPhaseIndex,
+    ),
+  )
+  const epochStepNetworkSubstepStatuses = computed(() => {
+    const itemCount = epochStepProgress.value.networkSubstepItemCount
+    const itemIndex = epochStepProgress.value.networkSubstepItemIndex
+    const phase = epochStepProgress.value.networkSubstepPhase
+    const phasePercent = epochStepProgress.value.networkSubstepPhasePercent
+    const activeItemProgress =
+      itemCount > 0 && itemIndex > 0
+        ? {
+            itemIndex,
+            itemCount,
+            phase: phase || undefined,
+            phasePercent: phasePercent >= 0 ? phasePercent : undefined,
+          }
+        : null
+    return createHydrologySubstepStatuses(
+      COLONIZATION_NETWORK_SUBSTEPS,
+      epochStepProgress.value.activeNetworkSubstepIndex,
+      epochStepProgress.value.completedNetworkSubstepIndex,
+      new Set(),
+      activeItemProgress,
+    )
+  })
+  const epochStepCollapseSubstepStatuses = computed(() =>
+    createHydrologySubstepStatuses(
+      COLONIZATION_COLLAPSE_SUBSTEPS,
+      epochStepProgress.value.activeCollapseSubstepIndex,
+      epochStepProgress.value.completedCollapseSubstepIndex,
+    ),
+  )
+  const epochStepFinalizeStepStatuses = computed(() =>
+    createGenerationStepStatuses(
+      COLONIZATION_EPOCH_FINALIZE_STEPS,
+      epochStepProgress.value.activeFinalizeStepIndex,
+      epochStepProgress.value.completedFinalizeStepIndex,
+    ),
+  )
+  const epochStepMapSubstepStatuses = computed(() =>
+    createHydrologySubstepStatuses(
+      COLONIZATION_EPOCH_MAP_SUBSTEPS,
+      epochStepProgress.value.activeMapSubstepIndex,
+      epochStepProgress.value.completedMapSubstepIndex,
+    ),
+  )
+  const beginColonizationStepStatuses = computed(() =>
+    createGenerationStepStatuses(
+      COLONIZATION_BEGIN_STEPS,
+      beginColonizationProgress.value.activeStepIndex,
+      beginColonizationProgress.value.completedStepIndex,
+    ),
+  )
+  const rehydrationStepStatuses = computed(() =>
+    createGenerationStepStatuses(
+      COLONIZATION_SESSION_RESTORE_STEPS,
+      rehydrationProgress.value.activeStepIndex,
+      rehydrationProgress.value.completedStepIndex,
+    ),
+  )
+  const rehydrationSessionSubstepStatuses = computed(() =>
+    createHydrologySubstepStatuses(
+      COLONIZATION_SESSION_RESTORE_SESSION_SUBSTEPS,
+      rehydrationProgress.value.activeSessionSubstepIndex,
+      rehydrationProgress.value.completedSessionSubstepIndex,
+    ),
+  )
+  const rehydrationCollapseSubstepStatuses = computed(() =>
+    createHydrologySubstepStatuses(
+      COLONIZATION_COLLAPSE_SUBSTEPS,
+      rehydrationProgress.value.activeCollapseSubstepIndex,
+      rehydrationProgress.value.completedCollapseSubstepIndex,
+    ),
+  )
+
   return {
     slice,
     colonizationPhase,
@@ -576,9 +667,18 @@ export function useWorldBuilderColonization(options) {
     beginColonizationProgress,
     showEpochStepProgress,
     epochStepProgress,
+    epochStepPhaseStatuses,
+    epochStepNetworkSubstepStatuses,
+    epochStepCollapseSubstepStatuses,
+    epochStepFinalizeStepStatuses,
+    epochStepMapSubstepStatuses,
+    beginColonizationStepStatuses,
     isRehydrationRunning,
     showRehydrationProgress,
     rehydrationProgress,
+    rehydrationStepStatuses,
+    rehydrationSessionSubstepStatuses,
+    rehydrationCollapseSubstepStatuses,
     isColonistSettingsRunningPhase,
     hydrateFromPersistedSettings,
     enterColonizationSetup,

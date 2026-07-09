@@ -160,5 +160,3 @@ export function reduceRehydrateColonizationProgressOnRunComplete(progress) {
     activeCollapseSubstepIndex: -1,
   }
 }
-
-export { yieldEpochStepProgressToUi as yieldRehydrateColonizationProgressToUi } from './colonizationEpochProgress.js'

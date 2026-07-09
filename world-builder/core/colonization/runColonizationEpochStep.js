@@ -1,14 +1,13 @@
 import {
   createColonizationEpochContext,
   runColonizationEpochClaimsPhase,
-  runColonizationEpochCollapsePhase,
   runColonizationEpochCollapsePhaseAsync,
-  runColonizationEpochNetworkPhase,
   runColonizationEpochMergePhase,
   runColonizationEpochNetworkPhaseAsync,
   runColonizationEpochRuinPhase,
   runColonizationEpochSurvivalPhase,
 } from './applyColonizationEpoch.js'
+import { runColonizationEpochPhasesSync } from './runColonizationEpochPhases.js'
 import {
   createInitialEpochStepProgress,
   reduceEpochStepProgressOnEpochComplete,
@@ -22,7 +21,6 @@ import {
   reduceEpochStepProgressOnNetworkSubstepStart,
   reduceEpochStepProgressOnPhaseComplete,
   reduceEpochStepProgressOnPhaseStart,
-  yieldEpochStepProgressToUi,
 } from './colonizationEpochProgress.js'
 import { COLONIZATION_EPOCH_PHASES } from './colonizationEpochSteps.js'
 
@@ -56,7 +54,7 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
     return { slice, ran: false }
   }
 
-  const yieldToUi = options.yieldToUi ?? yieldEpochStepProgressToUi
+  const yieldToUi = options.yieldToUi ?? (async () => {})
   const handlers = options.handlers ?? {}
   const epochOptions = options.epochOptions ?? {}
 
@@ -182,11 +180,7 @@ export function applyEpochStepSyncFromPhases(slice, worldDocument, options = {})
   }
 
   const ctx = createColonizationEpochContext(slice, worldDocument)
-  runColonizationEpochNetworkPhase(ctx, options)
-  runColonizationEpochClaimsPhase(ctx)
-  runColonizationEpochSurvivalPhase(ctx, options)
-  runColonizationEpochRuinPhase(ctx)
-  runColonizationEpochCollapsePhase(ctx)
+  runColonizationEpochPhasesSync(ctx, options)
 
   return ctx.slice
 }

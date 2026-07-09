@@ -2,11 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from '../biomeIds.js'
 import { applyEpochStep } from './applyEpochStep.js'
+import { applyColonizationEpoch } from './applyColonizationEpoch.js'
 import { beginColonizationCommit } from './beginColonizationCommit.js'
 import {
   COLONIZATION_PHASE_SETUP,
   createDefaultColonizationSlice,
 } from './createDefaultColonizationSlice.js'
+import { OUTPOST_REABSORPTION_STAGNATION_EPOCHS } from './mergeCounters.js'
 
 function richGeographyDoc() {
   const cellCount = 16
@@ -48,6 +50,50 @@ test('applyEpochStep advances epoch by one', () => {
 
   assert.strictEqual(next.epoch, 1)
   assert.ok(Object.keys(next.primaryClaim).length > 0)
+})
+
+test('applyEpochStep matches applyColonizationEpoch including merge phase', () => {
+  const running = commitRunningSlice()
+  running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
+    ...entry,
+    exhausted: true,
+  }))
+  const origin = running.settlements.find((settlement) => settlement.status === 'living')
+  assert.ok(origin)
+  running.settlements.push({
+    id: 'daughter',
+    status: 'living',
+    tier: 'outpost',
+    population: 25,
+    originSettlementId: origin.id,
+    x: 3,
+    y: 3,
+  })
+  running.mergeCounters = {
+    daughter: { outpostStagnation: OUTPOST_REABSORPTION_STAGNATION_EPOCHS },
+  }
+
+  const doc = richGeographyDoc()
+  const fromEpoch = applyColonizationEpoch(running, doc)
+  const fromStep = applyEpochStep(running, doc)
+
+  assert.strictEqual(fromStep.epoch, fromEpoch.slice.epoch)
+  assert.deepEqual(
+    fromStep.settlements.map((settlement) => ({
+      id: settlement.id,
+      status: settlement.status,
+      population: settlement.population,
+    })),
+    fromEpoch.slice.settlements.map((settlement) => ({
+      id: settlement.id,
+      status: settlement.status,
+      population: settlement.population,
+    })),
+  )
+  assert.deepEqual(
+    fromStep.historyLog.map((entry) => entry.kind),
+    fromEpoch.slice.historyLog.map((entry) => entry.kind),
+  )
 })
 
 test('applyEpochStep remains available indefinitely with no auto-stop', () => {

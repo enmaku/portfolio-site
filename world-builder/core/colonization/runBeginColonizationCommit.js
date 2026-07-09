@@ -16,7 +16,6 @@ import {
   reduceBeginColonizationProgressOnRunComplete,
   reduceBeginColonizationProgressOnStepComplete,
   reduceBeginColonizationProgressOnStepStart,
-  yieldBeginColonizationProgressToUi,
 } from './beginColonizationProgress.js'
 
 /** @typedef {import('./beginColonizationProgress.js').BeginColonizationProgressState} BeginColonizationProgressState */
@@ -258,7 +257,7 @@ export async function runBeginColonizationCommit(slice, doc, options = {}) {
     return { slice, committed: false }
   }
 
-  const yieldToUi = options.yieldToUi ?? yieldBeginColonizationProgressToUi
+  const yieldToUi = options.yieldToUi ?? (async () => {})
   const handlers = options.handlers ?? {}
 
   let progress = createInitialBeginColonizationProgress()
