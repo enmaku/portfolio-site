@@ -12,14 +12,12 @@ export const COLONIZATION_RELEVANT_CHECK_IDS = new Set([
 ])
 
 export const COLONIZATION_GAP_CHECK_IDS = {
-  missingMovementCost: 'colonizationMissingMovementCost',
   weakSailOverlayForLanding: 'colonizationWeakSailOverlayForLanding',
   noFreshwaterBands: 'colonizationNoFreshwaterBands',
 }
 
 /**
  * @typedef {Object} ColonizationGeographyGaps
- * @property {boolean=} hasMovementCost
  * @property {number=} sailLandingCellCount
  * @property {boolean=} hasFreshwaterBands
  */
@@ -48,15 +46,6 @@ export function filterColonizationValidationRows(rows, gaps = {}) {
 function buildColonizationGapRows(gaps) {
   /** @type {Array<{ checkId: string, status: 'warn' | 'fail', summary: string, label: string }>} */
   const gapRows = []
-
-  if (gaps.hasMovementCost === false) {
-    gapRows.push({
-      checkId: COLONIZATION_GAP_CHECK_IDS.missingMovementCost,
-      status: 'warn',
-      label: 'Movement cost',
-      summary: 'Terrain-aware haul costs are missing; colonization uses heuristics.',
-    })
-  }
 
   if (typeof gaps.sailLandingCellCount === 'number' && gaps.sailLandingCellCount <= 0) {
     gapRows.push({
@@ -108,7 +97,6 @@ export function resolveColonizationGeographyGaps(doc) {
   )
 
   return {
-    hasMovementCost: doc.movementCost != null,
     sailLandingCellCount,
     hasFreshwaterBands,
   }

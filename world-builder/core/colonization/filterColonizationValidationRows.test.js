@@ -28,13 +28,11 @@ test('filterColonizationValidationRows keeps colonization-relevant non-pass rows
 
 test('filterColonizationValidationRows adds gap rows for missing colonization geography', () => {
   const filtered = filterColonizationValidationRows([], {
-    hasMovementCost: false,
     sailLandingCellCount: 0,
     hasFreshwaterBands: false,
   })
 
   const ids = filtered.map((row) => row.checkId)
-  assert.ok(ids.includes(COLONIZATION_GAP_CHECK_IDS.missingMovementCost))
   assert.ok(ids.includes(COLONIZATION_GAP_CHECK_IDS.weakSailOverlayForLanding))
   assert.ok(ids.includes(COLONIZATION_GAP_CHECK_IDS.noFreshwaterBands))
   assert.ok(filtered.every((row) => row.status === 'warn' || row.status === 'fail'))
@@ -42,13 +40,11 @@ test('filterColonizationValidationRows adds gap rows for missing colonization ge
 
 test('filterColonizationValidationRows omits gap rows when geography inputs exist', () => {
   const filtered = filterColonizationValidationRows([], {
-    hasMovementCost: true,
     sailLandingCellCount: 12,
     hasFreshwaterBands: true,
   })
 
   const ids = filtered.map((row) => row.checkId)
-  assert.ok(!ids.includes(COLONIZATION_GAP_CHECK_IDS.missingMovementCost))
   assert.ok(!ids.includes(COLONIZATION_GAP_CHECK_IDS.weakSailOverlayForLanding))
   assert.ok(!ids.includes(COLONIZATION_GAP_CHECK_IDS.noFreshwaterBands))
 })
