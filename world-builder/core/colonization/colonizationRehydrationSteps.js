@@ -31,6 +31,10 @@ export const COLONIZATION_REHYDRATION_STEP_COUNT = COLONIZATION_REHYDRATION_STEP
 export const COLONIZATION_SESSION_RESTORE_COLLAPSE_STEP_INDEX =
   COLONIZATION_SESSION_RESTORE_STEP_COUNT - 1
 
+/** @type {number} */
+export const COLONIZATION_SESSION_RESTORE_VISITED_STEP_INDEX =
+  COLONIZATION_SESSION_RESTORE_DERIVED_STEP_START + 2
+
 /** @typedef {'store' | 'cache' | 'merge' | 'apply'} ColonizationSessionRestoreSessionSubstepId */
 
 /** @type {number} */
@@ -42,4 +46,13 @@ export const COLONIZATION_SESSION_RESTORE_SESSION_SUBSTEPS = Object.freeze([
   { id: 'cache', label: 'Cache' },
   { id: 'merge', label: 'Merge' },
   { id: 'apply', label: 'Apply' },
+])
+
+/** @typedef {'settlements' | 'expeditions' | 'roads'} ColonizationVisitedRehydrationSubstepId */
+
+/** @type {ReadonlyArray<{ id: ColonizationVisitedRehydrationSubstepId, label: string }>} */
+export const COLONIZATION_VISITED_REHYDRATION_SUBSTEPS = Object.freeze([
+  { id: 'settlements', label: 'Settlements' },
+  { id: 'expeditions', label: 'Expeditions' },
+  { id: 'roads', label: 'Roads' },
 ])

@@ -198,6 +198,20 @@
                   {{ substep.label }}
                 </q-chip>
               </template>
+              <template v-if="step.id === 'visited' && step.status === 'active'">
+                <q-chip
+                  v-for="substep in rehydrationVisitedSubstepStatuses"
+                  :key="substep.id"
+                  dense
+                  :data-testid="`world-builder-rehydration-visited-substep-${substep.id}`"
+                  :color="generationStepStatusColor(substep.status)"
+                  text-color="white"
+                  :outline="substep.status === 'pending'"
+                  size="sm"
+                >
+                  {{ substep.label }}
+                </q-chip>
+              </template>
               <template v-if="step.id === 'collapse' && step.status === 'active'">
                 <q-chip
                   v-for="substep in rehydrationCollapseSubstepStatuses"
@@ -667,6 +681,7 @@ const {
   rehydrationProgress,
   rehydrationStepStatuses,
   rehydrationSessionSubstepStatuses,
+  rehydrationVisitedSubstepStatuses,
   rehydrationCollapseSubstepStatuses,
   isEpochStepRunning,
   isBeginColonizationRunning,

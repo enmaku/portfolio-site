@@ -170,11 +170,40 @@ test('rehydrateColonizationDerivedOverlaysAsync reports progress through steps',
   }
 
   const percents = []
+  /** @type {number[]} */
+  const visitedSubstepStarts = []
+  /** @type {number[]} */
+  const visitedSubstepCompletes = []
+  let lastActiveVisitedSubstep = -1
+  let lastCompletedVisitedSubstep = -1
+  /** @type {Array<{ itemIndex: number, itemCount: number, activeVisitedSubstepIndex: number }>} */
+  const visitedItemProgress = []
   const rehydrated = await rehydrateColonizationDerivedOverlaysAsync(slice, doc, {
     yieldToUi: async () => {},
     handlers: {
       onProgress(progress) {
         percents.push(progress.percent)
+        if (
+          progress.activeVisitedSubstepIndex >= 0 &&
+          progress.activeVisitedSubstepIndex !== lastActiveVisitedSubstep
+        ) {
+          lastActiveVisitedSubstep = progress.activeVisitedSubstepIndex
+          visitedSubstepStarts.push(progress.activeVisitedSubstepIndex)
+        }
+        if (
+          progress.completedVisitedSubstepIndex >= 0 &&
+          progress.completedVisitedSubstepIndex !== lastCompletedVisitedSubstep
+        ) {
+          lastCompletedVisitedSubstep = progress.completedVisitedSubstepIndex
+          visitedSubstepCompletes.push(progress.completedVisitedSubstepIndex)
+        }
+        if (progress.visitedSubstepItemCount > 0) {
+          visitedItemProgress.push({
+            itemIndex: progress.visitedSubstepItemIndex,
+            itemCount: progress.visitedSubstepItemCount,
+            activeVisitedSubstepIndex: progress.activeVisitedSubstepIndex,
+          })
+        }
       },
     },
   })
@@ -183,4 +212,11 @@ test('rehydrateColonizationDerivedOverlaysAsync reports progress through steps',
   assert.ok(rehydrated.populationCollapseRaster instanceof Float32Array)
   assert.ok(percents.some((percent) => percent > 0))
   assert.strictEqual(percents.at(-1), 100)
+  assert.deepStrictEqual(visitedSubstepStarts, [0, 1, 2])
+  assert.deepStrictEqual(visitedSubstepCompletes, [0, 1, 2])
+  assert.ok(
+    visitedItemProgress.some(
+      (row) => row.activeVisitedSubstepIndex === 0 && row.itemIndex === 1 && row.itemCount === 1,
+    ),
+  )
 })

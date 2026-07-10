@@ -23,7 +23,7 @@ import {
   rehydrateColonizationDerivedOverlaysAsync,
 } from '../../world-builder/core/colonization/rehydrateColonizationDerivedOverlays.js'
 import { createInitialRehydrateColonizationProgress, reduceRehydrateColonizationProgressOnRunComplete, reduceRehydrateColonizationProgressOnSessionSubstepComplete, reduceRehydrateColonizationProgressOnSessionSubstepStart, reduceRehydrateColonizationProgressOnStepComplete, reduceRehydrateColonizationProgressOnStepStart } from '../../world-builder/core/colonization/rehydrateColonizationProgress.js'
-import { COLONIZATION_SESSION_RESTORE_SESSION_SUBSTEPS, COLONIZATION_SESSION_RESTORE_STEP_COUNT, COLONIZATION_SESSION_RESTORE_STEPS } from '../../world-builder/core/colonization/colonizationRehydrationSteps.js'
+import { COLONIZATION_SESSION_RESTORE_SESSION_SUBSTEPS, COLONIZATION_SESSION_RESTORE_STEP_COUNT, COLONIZATION_SESSION_RESTORE_STEPS, COLONIZATION_VISITED_REHYDRATION_SUBSTEPS } from '../../world-builder/core/colonization/colonizationRehydrationSteps.js'
 import { runBeginColonizationCommit } from '../../world-builder/core/colonization/runBeginColonizationCommit.js'
 import { computeHaulShedReachPreview } from '../../world-builder/core/colonization/computeHaulShedReachPreview.js'
 import {
@@ -640,6 +640,28 @@ export function useWorldBuilderColonization(options) {
       rehydrationProgress.value.completedSessionSubstepIndex,
     ),
   )
+  const rehydrationVisitedSubstepStatuses = computed(() => {
+    const {
+      activeVisitedSubstepIndex,
+      completedVisitedSubstepIndex,
+      visitedSubstepItemIndex,
+      visitedSubstepItemCount,
+    } = rehydrationProgress.value
+    const activeItemProgress =
+      visitedSubstepItemCount > 0 && visitedSubstepItemIndex > 0
+        ? {
+            itemIndex: visitedSubstepItemIndex,
+            itemCount: visitedSubstepItemCount,
+          }
+        : null
+    return createHydrologySubstepStatuses(
+      COLONIZATION_VISITED_REHYDRATION_SUBSTEPS,
+      activeVisitedSubstepIndex,
+      completedVisitedSubstepIndex,
+      new Set(),
+      activeItemProgress,
+    )
+  })
   const rehydrationCollapseSubstepStatuses = computed(() =>
     createHydrologySubstepStatuses(
       COLONIZATION_COLLAPSE_SUBSTEPS,
@@ -678,6 +700,7 @@ export function useWorldBuilderColonization(options) {
     rehydrationProgress,
     rehydrationStepStatuses,
     rehydrationSessionSubstepStatuses,
+    rehydrationVisitedSubstepStatuses,
     rehydrationCollapseSubstepStatuses,
     isColonistSettingsRunningPhase,
     hydrateFromPersistedSettings,

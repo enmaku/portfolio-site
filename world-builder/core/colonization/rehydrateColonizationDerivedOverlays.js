@@ -4,7 +4,7 @@ import {
   rehydratePrimaryClaimForSlice,
 } from './computePrimaryClaimMap.js'
 import { COLONIZATION_PHASE_RUNNING } from './createDefaultColonizationSlice.js'
-import { COLONIZATION_SESSION_RESTORE_DERIVED_STEP_START, COLONIZATION_SESSION_RESTORE_COLLAPSE_STEP_INDEX, COLONIZATION_SESSION_RESTORE_STEPS } from './colonizationRehydrationSteps.js'
+import { COLONIZATION_SESSION_RESTORE_DERIVED_STEP_START, COLONIZATION_SESSION_RESTORE_COLLAPSE_STEP_INDEX, COLONIZATION_SESSION_RESTORE_STEPS, COLONIZATION_SESSION_RESTORE_VISITED_STEP_INDEX } from './colonizationRehydrationSteps.js'
 import {
   createInitialRehydrateColonizationProgress,
   reduceRehydrateColonizationProgressOnCollapseSubstepComplete,
@@ -12,12 +12,15 @@ import {
   reduceRehydrateColonizationProgressOnRunComplete,
   reduceRehydrateColonizationProgressOnStepComplete,
   reduceRehydrateColonizationProgressOnStepStart,
+  reduceRehydrateColonizationProgressOnVisitedSubstepComplete,
+  reduceRehydrateColonizationProgressOnVisitedSubstepItemProgress,
+  reduceRehydrateColonizationProgressOnVisitedSubstepStart,
 } from './rehydrateColonizationProgress.js'
 import {
   hasFullLogisticsNodeSurvey,
   mergeLogisticsNodeSurveyFromStorage,
 } from './logisticsNodes/scoreLogisticsNodes.js'
-import { rebuildVisitRasterFromSession } from './visitStatus/rebuildVisitRasterFromSession.js'
+import { rebuildVisitRasterFromSession, rebuildVisitRasterFromSessionAsync } from './visitStatus/rebuildVisitRasterFromSession.js'
 
 /** @typedef {import('./rehydrateColonizationProgress.js').RehydrateColonizationProgressState} RehydrateColonizationProgressState */
 
@@ -180,14 +183,53 @@ export async function rehydrateColonizationDerivedOverlaysAsync(slice, doc, opti
     next.populationCollapseRaster instanceof Float32Array &&
     next.populationCollapseRaster.length === cellCount
 
-  next = await runStep(
-    derivedStart + 2,
-    !hasVisitRaster,
-    async () => ({
+  const visitedStepIndex = COLONIZATION_SESSION_RESTORE_VISITED_STEP_INDEX
+  if (!hasVisitRaster) {
+    progress = reduceRehydrateColonizationProgressOnStepStart(progress, {
+      stepIndex: visitedStepIndex,
+      label: COLONIZATION_SESSION_RESTORE_STEPS[visitedStepIndex]?.label ?? 'Visited',
+    })
+    handlers.onProgress?.(progress)
+    await yieldToUi()
+
+    const visitedCells = await rebuildVisitRasterFromSessionAsync(next, doc, {
+      yieldToUi,
+      onVisitedSubstep(payload) {
+        if (payload.type === 'substep-start') {
+          progress = reduceRehydrateColonizationProgressOnVisitedSubstepStart(progress, {
+            substepIndex: payload.substepIndex,
+          })
+        } else if (payload.type === 'substep-complete') {
+          progress = reduceRehydrateColonizationProgressOnVisitedSubstepComplete(progress, {
+            substepIndex: payload.substepIndex,
+          })
+        } else {
+          progress = reduceRehydrateColonizationProgressOnVisitedSubstepItemProgress(progress, {
+            itemIndex: payload.itemIndex,
+            itemCount: payload.itemCount,
+          })
+        }
+        handlers.onProgress?.(progress)
+      },
+    })
+
+    next = {
       ...next,
-      visitedCells: rebuildVisitRasterFromSession(next, doc),
-    }),
-  ).then((result) => result ?? next)
+      visitedCells,
+    }
+
+    progress = reduceRehydrateColonizationProgressOnStepComplete(progress, {
+      stepIndex: visitedStepIndex,
+    })
+    handlers.onProgress?.(progress)
+    await yieldToUi()
+  } else {
+    progress = reduceRehydrateColonizationProgressOnStepComplete(progress, {
+      stepIndex: visitedStepIndex,
+    })
+    handlers.onProgress?.(progress)
+    await yieldToUi()
+  }
 
   const collapseStepIndex = COLONIZATION_SESSION_RESTORE_COLLAPSE_STEP_INDEX
   if (!hasCollapseRaster) {

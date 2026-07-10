@@ -8,6 +8,9 @@ import {
   reduceRehydrateColonizationProgressOnSessionSubstepStart,
   reduceRehydrateColonizationProgressOnStepComplete,
   reduceRehydrateColonizationProgressOnStepStart,
+  reduceRehydrateColonizationProgressOnVisitedSubstepComplete,
+  reduceRehydrateColonizationProgressOnVisitedSubstepItemProgress,
+  reduceRehydrateColonizationProgressOnVisitedSubstepStart,
 } from './rehydrateColonizationProgress.js'
 
 test('reduceRehydrateColonizationProgressOnStepStart sets active step and label', () => {
@@ -70,10 +73,63 @@ test('reduceRehydrateColonizationProgressOnCollapseSubstepStart updates collapse
   assert.match(next.label, /Hinterland/)
 })
 
+test('reduceRehydrateColonizationProgressOnVisitedSubstepStart sets active visited substep', () => {
+  const started = reduceRehydrateColonizationProgressOnStepStart(
+    createInitialRehydrateColonizationProgress(),
+    {
+      stepIndex: 5,
+      label: 'Visited',
+    },
+  )
+  const next = reduceRehydrateColonizationProgressOnVisitedSubstepStart(started, {
+    substepIndex: 1,
+  })
+  assert.strictEqual(next.activeVisitedSubstepIndex, 1)
+  assert.match(next.label, /Expeditions/)
+})
+
+test('reduceRehydrateColonizationProgressOnVisitedSubstepItemProgress tracks item progress', () => {
+  const started = reduceRehydrateColonizationProgressOnVisitedSubstepStart(
+    createInitialRehydrateColonizationProgress(),
+    { substepIndex: 0 },
+  )
+  const next = reduceRehydrateColonizationProgressOnVisitedSubstepItemProgress(started, {
+    itemIndex: 3,
+    itemCount: 49,
+  })
+  assert.strictEqual(next.visitedSubstepItemIndex, 3)
+  assert.strictEqual(next.visitedSubstepItemCount, 49)
+})
+
+test('reduceRehydrateColonizationProgressOnVisitedSubstepComplete advances completed visited substep', () => {
+  const next = reduceRehydrateColonizationProgressOnVisitedSubstepComplete(
+    createInitialRehydrateColonizationProgress(),
+    { substepIndex: 2 },
+  )
+  assert.strictEqual(next.completedVisitedSubstepIndex, 2)
+  assert.strictEqual(next.visitedSubstepItemIndex, -1)
+  assert.strictEqual(next.visitedSubstepItemCount, 0)
+})
+
+test('reduceRehydrateColonizationProgressOnStepComplete clears visited substep progress', () => {
+  const progressed = reduceRehydrateColonizationProgressOnVisitedSubstepItemProgress(
+    createInitialRehydrateColonizationProgress(),
+    { itemIndex: 3, itemCount: 49 },
+  )
+  const next = reduceRehydrateColonizationProgressOnStepComplete(progressed, {
+    stepIndex: 5,
+  })
+  assert.strictEqual(next.activeVisitedSubstepIndex, -1)
+  assert.strictEqual(next.completedVisitedSubstepIndex, -1)
+  assert.strictEqual(next.visitedSubstepItemIndex, -1)
+  assert.strictEqual(next.visitedSubstepItemCount, 0)
+})
+
 test('reduceRehydrateColonizationProgressOnRunComplete finishes at 100%', () => {
   const next = reduceRehydrateColonizationProgressOnRunComplete(
     createInitialRehydrateColonizationProgress(),
   )
   assert.strictEqual(next.percent, 100)
   assert.strictEqual(next.activeStepIndex, -1)
+  assert.strictEqual(next.activeVisitedSubstepIndex, -1)
 })

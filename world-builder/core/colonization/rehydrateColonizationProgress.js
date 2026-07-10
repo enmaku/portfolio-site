@@ -2,6 +2,8 @@ import {
   COLONIZATION_SESSION_RESTORE_COLLAPSE_STEP_INDEX,
   COLONIZATION_SESSION_RESTORE_SESSION_STEP_INDEX,
   COLONIZATION_SESSION_RESTORE_STEP_COUNT,
+  COLONIZATION_SESSION_RESTORE_VISITED_STEP_INDEX,
+  COLONIZATION_VISITED_REHYDRATION_SUBSTEPS,
 } from './colonizationRehydrationSteps.js'
 import { COLONIZATION_COLLAPSE_SUBSTEPS } from './colonizationEpochSteps.js'
 
@@ -15,6 +17,10 @@ import { COLONIZATION_COLLAPSE_SUBSTEPS } from './colonizationEpochSteps.js'
  * @property {number} completedSessionSubstepIndex
  * @property {number} activeCollapseSubstepIndex
  * @property {number} completedCollapseSubstepIndex
+ * @property {number} activeVisitedSubstepIndex
+ * @property {number} completedVisitedSubstepIndex
+ * @property {number} visitedSubstepItemIndex
+ * @property {number} visitedSubstepItemCount
  */
 
 /**
@@ -30,6 +36,10 @@ export function createInitialRehydrateColonizationProgress() {
     completedSessionSubstepIndex: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeVisitedSubstepIndex: -1,
+    completedVisitedSubstepIndex: -1,
+    visitedSubstepItemIndex: -1,
+    visitedSubstepItemCount: 0,
   }
 }
 
@@ -72,6 +82,16 @@ export function reduceRehydrateColonizationProgressOnStepStart(progress, payload
       payload.stepIndex === COLONIZATION_SESSION_RESTORE_COLLAPSE_STEP_INDEX
         ? -1
         : progress.completedCollapseSubstepIndex,
+    activeVisitedSubstepIndex:
+      payload.stepIndex === COLONIZATION_SESSION_RESTORE_VISITED_STEP_INDEX
+        ? -1
+        : progress.activeVisitedSubstepIndex,
+    completedVisitedSubstepIndex:
+      payload.stepIndex === COLONIZATION_SESSION_RESTORE_VISITED_STEP_INDEX
+        ? -1
+        : progress.completedVisitedSubstepIndex,
+    visitedSubstepItemIndex: -1,
+    visitedSubstepItemCount: 0,
   }
 }
 
@@ -90,6 +110,56 @@ export function reduceRehydrateColonizationProgressOnStepComplete(progress, payl
     completedSessionSubstepIndex: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeVisitedSubstepIndex: -1,
+    completedVisitedSubstepIndex: -1,
+    visitedSubstepItemIndex: -1,
+    visitedSubstepItemCount: 0,
+  }
+}
+
+/**
+ * @param {RehydrateColonizationProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {RehydrateColonizationProgressState}
+ */
+export function reduceRehydrateColonizationProgressOnVisitedSubstepStart(progress, payload) {
+  const substep = COLONIZATION_VISITED_REHYDRATION_SUBSTEPS[payload.substepIndex]
+  return {
+    ...progress,
+    activeVisitedSubstepIndex: payload.substepIndex,
+    visitedSubstepItemIndex: -1,
+    visitedSubstepItemCount: 0,
+    label: progress.label.includes('·')
+      ? `${progress.label.split(' · ')[0]} · Visited · ${substep?.label ?? ''}`
+      : `Visited · ${substep?.label ?? ''}`,
+  }
+}
+
+/**
+ * @param {RehydrateColonizationProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {RehydrateColonizationProgressState}
+ */
+export function reduceRehydrateColonizationProgressOnVisitedSubstepComplete(progress, payload) {
+  return {
+    ...progress,
+    activeVisitedSubstepIndex: payload.substepIndex,
+    completedVisitedSubstepIndex: payload.substepIndex,
+    visitedSubstepItemIndex: -1,
+    visitedSubstepItemCount: 0,
+  }
+}
+
+/**
+ * @param {RehydrateColonizationProgressState} progress
+ * @param {{ itemIndex: number, itemCount: number }} payload
+ * @returns {RehydrateColonizationProgressState}
+ */
+export function reduceRehydrateColonizationProgressOnVisitedSubstepItemProgress(progress, payload) {
+  return {
+    ...progress,
+    visitedSubstepItemIndex: payload.itemIndex,
+    visitedSubstepItemCount: payload.itemCount,
   }
 }
 
@@ -158,5 +228,8 @@ export function reduceRehydrateColonizationProgressOnRunComplete(progress) {
     activeStepIndex: -1,
     activeSessionSubstepIndex: -1,
     activeCollapseSubstepIndex: -1,
+    activeVisitedSubstepIndex: -1,
+    visitedSubstepItemIndex: -1,
+    visitedSubstepItemCount: 0,
   }
 }

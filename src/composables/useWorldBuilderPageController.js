@@ -664,6 +664,7 @@ export function useWorldBuilderPageController(options) {
     beginColonizationStepStatuses: colonization.beginColonizationStepStatuses,
     rehydrationStepStatuses: colonization.rehydrationStepStatuses,
     rehydrationSessionSubstepStatuses: colonization.rehydrationSessionSubstepStatuses,
+    rehydrationVisitedSubstepStatuses: colonization.rehydrationVisitedSubstepStatuses,
     rehydrationCollapseSubstepStatuses: colonization.rehydrationCollapseSubstepStatuses,
     showValidationFailureIndicator: generation.showValidationFailureIndicator,
     validationRows,
