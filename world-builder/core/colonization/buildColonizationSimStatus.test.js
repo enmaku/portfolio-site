@@ -25,27 +25,19 @@ test('buildColonizationSimStatus reports epoch, settlements, expeditions, fronti
   assert.strictEqual(status.frontierExhausted, true)
 })
 
-test('buildFoundingChronicle includes settlement_merged history rows', () => {
-  const slice = createDefaultColonizationSlice()
-  slice.historyLog = [
-    { kind: 'settlement_merged', epoch: 4, settlementId: 'survivor', absorbedSettlementId: 'absorbed' },
-    { kind: 'other', epoch: 1 },
-  ]
-  const chronicle = buildFoundingChronicle(slice)
-  assert.strictEqual(chronicle.length, 1)
-  assert.strictEqual(chronicle[0].kind, 'settlement_merged')
-})
-
 test('buildFoundingChronicle filters founding-related history kinds', () => {
   const slice = createDefaultColonizationSlice()
   slice.historyLog = [
     { kind: 'founding', epoch: 0 },
     { kind: 'settlement_founded', epoch: 2, settlementId: 's2' },
+    { kind: 'settlement_abandoned', epoch: 3, settlementId: 's3' },
+    { kind: 'settlement_merged', epoch: 4, settlementId: 'survivor' },
     { kind: 'other', epoch: 1 },
   ]
   const chronicle = buildFoundingChronicle(slice)
-  assert.strictEqual(chronicle.length, 2)
+  assert.strictEqual(chronicle.length, 3)
   assert.strictEqual(chronicle[1].settlementId, 's2')
+  assert.strictEqual(chronicle[2].kind, 'settlement_abandoned')
 })
 
 test('shouldShowSimStatusPanel after epoch 0 only in running phase', () => {

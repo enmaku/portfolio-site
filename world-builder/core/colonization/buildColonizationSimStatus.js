@@ -39,7 +39,6 @@ export function buildFoundingChronicle(slice) {
     'founding',
     'settlement_founded',
     'settlement_abandoned',
-    'settlement_merged',
   ])
   return (slice.historyLog ?? [])
     .filter((entry) => allowedKinds.has(entry.kind))

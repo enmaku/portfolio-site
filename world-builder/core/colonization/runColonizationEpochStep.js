@@ -2,7 +2,6 @@ import {
   createColonizationEpochContext,
   runColonizationEpochClaimsPhase,
   runColonizationEpochCollapsePhaseAsync,
-  runColonizationEpochMergePhase,
   runColonizationEpochNetworkPhaseAsync,
   runColonizationEpochRuinPhase,
   runColonizationEpochSurvivalPhase,
@@ -114,8 +113,6 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
       runColonizationEpochClaimsPhase(ctx)
     } else if (phase.id === 'survival') {
       runColonizationEpochSurvivalPhase(ctx, epochOptions)
-    } else if (phase.id === 'merge') {
-      runColonizationEpochMergePhase(ctx)
     } else if (phase.id === 'ruin') {
       runColonizationEpochRuinPhase(ctx)
     } else if (phase.id === 'collapse') {

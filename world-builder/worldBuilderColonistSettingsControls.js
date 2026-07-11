@@ -1,7 +1,7 @@
 /** Help copy for colonization colonist settings (matches terrain-control tooltip pattern). */
 
 export const THREE_DAY_HAUL_DISTANCE_TOOLTIP =
-  'How far a settlement can haul bulk goods in about three days of travel (1–100 cells). Calibrates map scale: larger values mean each cell covers more ground and the haul-shed reach preview (a circle around the pin) grows.'
+  'How far a settlement can haul bulk goods in about three days of travel (1–300 cells). Calibrates map scale: larger values mean each cell covers more ground and the haul-shed reach preview (a circle around the pin) grows.'
 
 export const STARTING_POPULATION_TOOLTIP =
   'Headcount of the founding wave at begin colonization. Later survival accounting may clamp this to what local food, water, and shelter can support.'

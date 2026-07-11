@@ -72,7 +72,7 @@ function commitOnDoc(doc, landing = { x: 1, y: 3 }, haulDistance = 4) {
   return beginColonizationCommit(slice, doc)
 }
 
-/** Scenario A: default colonist settings (haul 50, land range 2×, sail range 3×). */
+/** Scenario A: default colonist settings (haul 100, land range 2×, sail range 3×). */
 function commitScenarioA(doc, landing = { x: 1, y: 3 }) {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP

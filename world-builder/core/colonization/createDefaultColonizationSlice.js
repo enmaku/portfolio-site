@@ -12,12 +12,6 @@
  */
 
 /**
- * @typedef {Object} MergeCounterEntry
- * @property {number} [outpostStagnation]
- * @property {number} [livingSphereDeficit]
- */
-
-/**
  * @typedef {Object} FoundingLanding
  * @property {number} x
  * @property {number} y
@@ -40,7 +34,6 @@
  * @property {boolean} frontierExhausted All logistics nodes founded or exhausted.
  * @property {import('./roads/roadNetwork.js').RoadSegment[]} roads Persisted overland link geometry.
  * @property {import('./logisticsNodes/scoreLogisticsNodes.js').LogisticsNodeSurveyEntry[]} logisticsNodeSurvey Scored founding candidates.
- * @property {Record<string, MergeCounterEntry>} mergeCounters Consecutive-epoch merge trigger counters by settlement id.
  */
 
 import { resolveExpeditions } from './expeditions/expeditionConstants.js'
@@ -70,7 +63,6 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'frontierExhausted',
   'roads',
   'logisticsNodeSurvey',
-  'mergeCounters',
 ])
 
 /** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
@@ -84,9 +76,9 @@ export const COLONIZATION_RECOMPUTE_ON_HYDRATE_KEYS = /** @type {const} */ ([
   'primaryClaim',
 ])
 
-export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 50
+export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 100
 /** Upper bound for author scale calibration. */
-export const MAX_THREE_DAY_HAUL_DISTANCE = 100
+export const MAX_THREE_DAY_HAUL_DISTANCE = 300
 export const DEFAULT_STARTING_POPULATION = 100
 export const DEFAULT_YIELD_MODIFIER = /** @type {YieldModifier} */ ('typical')
 export const DEFAULT_LAND_EXPEDITION_RANGE = 2
@@ -133,7 +125,6 @@ export function createDefaultColonizationSlice() {
     frontierExhausted: false,
     roads: [],
     logisticsNodeSurvey: [],
-    mergeCounters: {},
   }
 }
 
@@ -175,7 +166,6 @@ export function resolveColonizationSlice(value) {
     frontierExhausted: incoming.frontierExhausted === true,
     roads: resolveRoadSegments(incoming.roads),
     logisticsNodeSurvey: resolveLogisticsNodeSurvey(incoming.logisticsNodeSurvey),
-    mergeCounters: resolveMergeCounters(incoming.mergeCounters),
   }
 }
 
@@ -246,34 +236,6 @@ export function resolveColonistSettings(value) {
       MAX_OPEN_SEA_EXPEDITION_RANGE,
     ),
   }
-}
-
-/**
- * @param {unknown} value
- * @returns {Record<string, MergeCounterEntry>}
- */
-export function resolveMergeCounters(value) {
-  if (!value || typeof value !== 'object') {
-    return {}
-  }
-  /** @type {Record<string, MergeCounterEntry>} */
-  const resolved = {}
-  for (const [settlementId, entry] of Object.entries(value)) {
-    if (!entry || typeof entry !== 'object') continue
-    const record = /** @type {MergeCounterEntry} */ (entry)
-    /** @type {MergeCounterEntry} */
-    const counter = {}
-    if (Number.isFinite(record.outpostStagnation) && record.outpostStagnation > 0) {
-      counter.outpostStagnation = Math.floor(record.outpostStagnation)
-    }
-    if (Number.isFinite(record.livingSphereDeficit) && record.livingSphereDeficit > 0) {
-      counter.livingSphereDeficit = Math.floor(record.livingSphereDeficit)
-    }
-    if (Object.keys(counter).length > 0) {
-      resolved[settlementId] = counter
-    }
-  }
-  return resolved
 }
 
 /**

@@ -1,18 +1,8 @@
 import { applyPopulationCollapse, applyPopulationCollapseAsync } from './applyPopulationCollapse.js'
 import { applyNetworkPhase, applyNetworkPhaseAsync } from './applyNetworkPhase.js'
 import { applyRuinTransitions } from './applyRuin.js'
-import {
-  applySettlementMergeTransitions,
-  resolveFoundingSettlementId,
-} from './applySettlementMerge.js'
 import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaimMap.js'
-import { buildLandRouteCellMask, DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
-import { evaluateLivingSphereConsolidation } from './evaluateLivingSphereConsolidation.js'
-import { evaluateOutpostReabsorption } from './evaluateOutpostReabsorption.js'
-import {
-  updateLivingSphereDeficitCounter,
-  updateOutpostStagnationCounter,
-} from './mergeCounters.js'
+import { DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
 import { saltSpoilageMultiplierForSettlement as defaultSaltSpoilage } from './saltSpoilageMultiplier.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
@@ -93,7 +83,6 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
   const nextSettlements = []
   /** @type {Record<string, import('./resolveSurvivalTriad.js').SurvivalTriadResult>} */
   const survivalBySettlementId = {}
-  let mergeCounters = { ...(ctx.slice.mergeCounters ?? {}) }
 
   for (const settlement of ctx.slice.settlements) {
     if (settlement.status === 'ruin') {
@@ -114,16 +103,6 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
     })
 
     survivalBySettlementId[settlement.id] = survival
-    mergeCounters = updateOutpostStagnationCounter({
-      settlement: resolved,
-      survival,
-      counters: mergeCounters,
-    })
-    mergeCounters = updateLivingSphereDeficitCounter({
-      settlement: resolved,
-      survival,
-      counters: mergeCounters,
-    })
 
     let population = resolved.population
     if (survival.hasFreshwater) {
@@ -147,52 +126,7 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
   ctx.slice = {
     ...ctx.slice,
     settlements: nextSettlements,
-    mergeCounters,
   }
-}
-
-/**
- * @param {ColonizationEpochContext} ctx
- */
-export function runColonizationEpochMergePhase(ctx) {
-  const foundingSettlementId = resolveFoundingSettlementId(ctx.slice)
-  const alreadyAbsorbedThisEpoch = new Set()
-  const alreadySurvivorThisEpoch = new Set()
-  const roadCellMask = buildLandRouteCellMask(
-    ctx.slice.roads,
-    ctx.worldDocument.gridWidth,
-    ctx.worldDocument.gridHeight,
-  )
-
-  const outpostCandidates = evaluateOutpostReabsorption({
-    settlements: ctx.slice.settlements,
-    mergeCounters: ctx.slice.mergeCounters ?? {},
-    foundingSettlementId,
-    alreadyAbsorbedThisEpoch,
-    alreadySurvivorThisEpoch,
-  })
-
-  const livingSphereCandidates = evaluateLivingSphereConsolidation({
-    settlements: ctx.slice.settlements,
-    survivalBySettlementId: ctx.survivalBySettlementId,
-    mergeCounters: ctx.slice.mergeCounters ?? {},
-    colonistSettings: ctx.slice.colonistSettings,
-    worldDocument: ctx.worldDocument,
-    roadCellMask,
-    foundingSettlementId,
-    alreadyAbsorbedThisEpoch,
-    alreadySurvivorThisEpoch,
-  })
-
-  const merged = applySettlementMergeTransitions({
-    slice: ctx.slice,
-    candidates: [...outpostCandidates, ...livingSphereCandidates],
-    survivalBySettlementId: ctx.survivalBySettlementId,
-    epoch: ctx.slice.epoch + 1,
-  })
-
-  ctx.slice = merged.slice
-  ctx.events.push(...merged.events)
 }
 
 /**
@@ -258,7 +192,7 @@ export async function runColonizationEpochCollapsePhaseAsync(ctx, options = {}) 
 
 /**
  * Annual colonization tick order:
- * network → claims → survival → merge → ruin → collapse.
+ * network → claims → survival → ruin → collapse.
  *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument

@@ -8,7 +8,6 @@ import {
   COLONIZATION_PHASE_SETUP,
   createDefaultColonizationSlice,
 } from './createDefaultColonizationSlice.js'
-import { OUTPOST_REABSORPTION_STAGNATION_EPOCHS } from './mergeCounters.js'
 
 function richGeographyDoc() {
   const cellCount = 16
@@ -52,7 +51,7 @@ test('applyEpochStep advances epoch by one', () => {
   assert.ok(Object.keys(next.primaryClaim).length > 0)
 })
 
-test('applyEpochStep matches applyColonizationEpoch including merge phase', () => {
+test('applyEpochStep matches applyColonizationEpoch settlement outcomes', () => {
   const running = commitRunningSlice()
   running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
     ...entry,
@@ -69,9 +68,6 @@ test('applyEpochStep matches applyColonizationEpoch including merge phase', () =
     x: 3,
     y: 3,
   })
-  running.mergeCounters = {
-    daughter: { outpostStagnation: OUTPOST_REABSORPTION_STAGNATION_EPOCHS },
-  }
 
   const doc = richGeographyDoc()
   const fromEpoch = applyColonizationEpoch(running, doc)

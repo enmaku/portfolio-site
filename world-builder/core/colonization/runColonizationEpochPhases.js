@@ -1,7 +1,6 @@
 import {
   runColonizationEpochClaimsPhase,
   runColonizationEpochCollapsePhase,
-  runColonizationEpochMergePhase,
   runColonizationEpochNetworkPhase,
   runColonizationEpochRuinPhase,
   runColonizationEpochSurvivalPhase,
@@ -12,7 +11,7 @@ import {
  */
 
 /**
- * Canonical synchronous annual epoch tick: network → claims → survival → merge → ruin → collapse.
+ * Canonical synchronous annual epoch tick: network → claims → survival → ruin → collapse.
  *
  * @param {ColonizationEpochContext} ctx
  * @param {{ saltSpoilageMultiplierForSettlement?: Function, network?: import('./applyNetworkPhase.js').ApplyNetworkPhaseOptions }} [options]
@@ -21,7 +20,6 @@ export function runColonizationEpochPhasesSync(ctx, options = {}) {
   runColonizationEpochNetworkPhase(ctx, options)
   runColonizationEpochClaimsPhase(ctx)
   runColonizationEpochSurvivalPhase(ctx, options)
-  runColonizationEpochMergePhase(ctx)
   runColonizationEpochRuinPhase(ctx)
   runColonizationEpochCollapsePhase(ctx)
 }
