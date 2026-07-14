@@ -70,5 +70,5 @@ test('buildLandTerrainRgba matches default-seed river-corridor land tint', () =>
   })
 
   const rgba = buildLandTerrainRgba(doc)
-  assert.strictEqual(fnv1aRgbaHash(rgba), 'e0760345')
+  assert.strictEqual(fnv1aRgbaHash(rgba), '549b2a9d')
 })

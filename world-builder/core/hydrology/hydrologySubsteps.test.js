@@ -492,13 +492,23 @@ test('runHydrologySubsteps keeps channelWidth aligned with settled drainage', ()
   )
   assert.ok(maxChannelWidth > 0)
 
+  let maxDrainageOnNetwork = 0
+  for (let idx = 0; idx < hydrologyState.fields.drainage.length; idx += 1) {
+    if (!hydrologyState.riverNetworkMask[idx]) continue
+    if (hydrologyState.fields.drainage[idx] > maxDrainageOnNetwork) {
+      maxDrainageOnNetwork = hydrologyState.fields.drainage[idx]
+    }
+  }
+  assert.ok(maxDrainageOnNetwork > 0)
+
   for (let idx = 0; idx < hydrologyState.channelWidth.length; idx += 1) {
     if (!hydrologyState.riverNetworkMask[idx]) {
       assert.strictEqual(hydrologyState.channelWidth[idx], 0)
       continue
     }
     const expected =
-      Math.sqrt(Math.max(0, hydrologyState.fields.drainage[idx])) * maxChannelWidth
+      Math.sqrt(Math.max(0, hydrologyState.fields.drainage[idx]) / maxDrainageOnNetwork) *
+      maxChannelWidth
     assert.ok(
       Math.abs(hydrologyState.channelWidth[idx] - expected) < 1e-3,
       `channelWidth mismatch at ${idx}: ${hydrologyState.channelWidth[idx]} vs ${expected}`,

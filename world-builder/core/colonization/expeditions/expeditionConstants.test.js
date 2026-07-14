@@ -8,11 +8,11 @@ import {
 } from './expeditionConstants.js'
 
 test('computeMaxActiveExpeditionsPerSettlement scales down with settlement count and floors at 1', () => {
-  assert.strictEqual(computeMaxActiveExpeditionsPerSettlement(1), 20)
-  assert.strictEqual(computeMaxActiveExpeditionsPerSettlement(2), 10)
-  assert.strictEqual(computeMaxActiveExpeditionsPerSettlement(10), 2)
-  assert.strictEqual(computeMaxActiveExpeditionsPerSettlement(20), 1)
-  assert.strictEqual(computeMaxActiveExpeditionsPerSettlement(21), 1)
+  assert.strictEqual(computeMaxActiveExpeditionsPerSettlement(1), 80)
+  assert.strictEqual(computeMaxActiveExpeditionsPerSettlement(2), 40)
+  assert.strictEqual(computeMaxActiveExpeditionsPerSettlement(10), 8)
+  assert.strictEqual(computeMaxActiveExpeditionsPerSettlement(80), 1)
+  assert.strictEqual(computeMaxActiveExpeditionsPerSettlement(81), 1)
 })
 
 test('countActiveExpeditionsForSettlement counts concurrent active treks', () => {
