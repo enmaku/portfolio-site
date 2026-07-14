@@ -54,7 +54,7 @@ function setupSlice() {
 test('runBeginColonizationCommit matches beginColonizationCommit output', async () => {
   const slice = setupSlice()
   const doc = geographyDoc()
-  const sync = beginColonizationCommit(slice, doc)
+  const sync = await beginColonizationCommit(slice, doc)
   const asyncResult = await runBeginColonizationCommit(slice, doc, {
     yieldToUi: async () => {},
   })

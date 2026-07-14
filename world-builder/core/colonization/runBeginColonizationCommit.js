@@ -21,97 +21,174 @@ import {
 /** @typedef {import('./beginColonizationProgress.js').BeginColonizationProgressState} BeginColonizationProgressState */
 
 /**
+ * @typedef {Object} BeginCommitContext
+ * @property {import('./createDefaultColonizationSlice.js').ColonizationSlice} current
+ * @property {import('../types.js').WorldDocument} doc
+ * @property {{ x: number, y: number }} landing
+ * @property {object} [seedSettlement]
+ * @property {ReturnType<typeof serializeClaimMap>} [primaryClaim]
+ * @property {Array<{ x: number, y: number }>} [claimedCells]
+ * @property {object} [settlement]
+ * @property {object} [historyEntry]
+ * @property {{ settlements: object[], historyLog: object[], primaryClaim: ReturnType<typeof serializeClaimMap>, events?: object[] }} [ruined]
+ * @property {object} [foundingDynasty]
+ * @property {object} [logisticsNodeSurvey]
+ * @property {Uint8Array} [visitedCells]
+ * @property {import('./createDefaultColonizationSlice.js').ColonizationSlice} [result]
+ */
+
+/**
+ * @typedef {Object} BeginCommitStep
+ * @property {import('./colonizationBeginSteps.js').ColonizationBeginStepId} id
+ * @property {(ctx: BeginCommitContext) => void | Promise<void>} run
+ */
+
+/** @type {ReadonlyArray<BeginCommitStep>} */
+const BEGIN_COMMIT_PIPELINE = Object.freeze([
+  {
+    id: 'claims',
+    run(ctx) {
+      ctx.seedSettlement = {
+        id: `settlement-founding-${ctx.landing.x}-${ctx.landing.y}`,
+        x: ctx.landing.x,
+        y: ctx.landing.y,
+        tier: /** @type {string | null} */ ('outpost'),
+        population: ctx.current.colonistSettings.startingPopulation,
+        status: 'living',
+      }
+      const claimMap = recomputePrimaryClaims({
+        settlements: [ctx.seedSettlement],
+        colonistSettings: ctx.current.colonistSettings,
+        gridWidth: ctx.doc.gridWidth,
+        gridHeight: ctx.doc.gridHeight,
+        movementCost: ctx.doc.movementCost,
+      })
+      ctx.primaryClaim = serializeClaimMap(claimMap)
+      ctx.claimedCells =
+        ctx.primaryClaim[ctx.seedSettlement.id] ?? [{ x: ctx.landing.x, y: ctx.landing.y }]
+    },
+  },
+  {
+    id: 'survival',
+    run(ctx) {
+      const { settlement } = applySurvivalResolveToSettlement({
+        settlement: ctx.seedSettlement,
+        claimedCells: ctx.claimedCells,
+        colonistSettings: ctx.current.colonistSettings,
+        worldDocument: ctx.doc,
+        saltSpoilageMultiplier: saltSpoilageMultiplier(ctx.claimedCells, ctx.doc.saltNodes),
+      })
+      ctx.settlement = settlement
+      ctx.historyEntry = {
+        kind: 'founding',
+        epoch: 0,
+        foundingLanding: { ...ctx.landing },
+        colonistSettings: {
+          threeDayHaulDistance: ctx.current.colonistSettings.threeDayHaulDistance,
+          startingPopulation: ctx.current.colonistSettings.startingPopulation,
+          yieldModifier: ctx.current.colonistSettings.yieldModifier,
+          landExpeditionRange: ctx.current.colonistSettings.landExpeditionRange,
+          inlandSailExpeditionRange: ctx.current.colonistSettings.inlandSailExpeditionRange,
+          openSeaExpeditionRange: ctx.current.colonistSettings.openSeaExpeditionRange,
+        },
+      }
+    },
+  },
+  {
+    id: 'ruin',
+    run(ctx) {
+      ctx.ruined = applyRuinTransitions({
+        settlements: [ctx.settlement],
+        primaryClaim: ctx.primaryClaim,
+        historyLog: [ctx.historyEntry],
+        epoch: 0,
+      })
+    },
+  },
+  {
+    id: 'dynasty',
+    run(ctx) {
+      ctx.foundingDynasty = createFoundingDynasty({
+        settlementId: ctx.settlement.id,
+        landing: ctx.landing,
+        worldDocument: ctx.doc,
+      })
+    },
+  },
+  {
+    id: 'logistics',
+    run(ctx) {
+      ctx.logisticsNodeSurvey = scoreLogisticsNodes(ctx.doc)
+    },
+  },
+  {
+    id: 'visited',
+    run(ctx) {
+      ctx.visitedCells = seedSettlementHaulShedVisited(
+        { ...ctx.current, colonistSettings: ctx.current.colonistSettings },
+        ctx.doc,
+        ctx.landing,
+      )
+    },
+  },
+  {
+    id: 'collapse',
+    async run(ctx) {
+      const { slice } = await applyPopulationCollapse(
+        {
+          ...ctx.current,
+          colonizationPhase: COLONIZATION_PHASE_RUNNING,
+          epoch: 0,
+          settlements: ctx.ruined.settlements,
+          historyLog: ctx.ruined.historyLog,
+          primaryClaim: ctx.ruined.primaryClaim,
+          notableFigures: [ctx.foundingDynasty],
+          realmId: `realm-${ctx.doc.geographySeed ?? 0}-${ctx.landing.x}-${ctx.landing.y}`,
+          visitedCells: ctx.visitedCells,
+          expeditions: [],
+          frontierExhausted: false,
+          roads: [],
+          logisticsNodeSurvey: ctx.logisticsNodeSurvey,
+        },
+        ctx.doc,
+      )
+      ctx.result = slice
+    },
+  },
+  {
+    id: 'commit',
+    run() {
+      // result already assigned in collapse; commit is the progress chip for "done"
+    },
+  },
+])
+
+/**
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} current
  * @param {import('../types.js').WorldDocument} doc
- * @returns {import('./createDefaultColonizationSlice.js').ColonizationSlice}
+ * @param {{
+ *   onStepStart?: (stepIndex: number) => void | Promise<void>,
+ *   onStepComplete?: (stepIndex: number) => void | Promise<void>,
+ * }} [hooks]
+ * @returns {Promise<import('./createDefaultColonizationSlice.js').ColonizationSlice>}
  */
-export function executeBeginColonizationCommitStepsSync(current, doc) {
+export async function executeBeginColonizationCommitSteps(current, doc, hooks = {}) {
   const landing = current.foundingLanding
   if (!landing) {
     return current
   }
 
-  const seedSettlement = {
-    id: `settlement-founding-${landing.x}-${landing.y}`,
-    x: landing.x,
-    y: landing.y,
-    tier: /** @type {string | null} */ ('outpost'),
-    population: current.colonistSettings.startingPopulation,
-    status: 'living',
+  /** @type {BeginCommitContext} */
+  const ctx = { current, doc, landing }
+
+  for (let stepIndex = 0; stepIndex < BEGIN_COMMIT_PIPELINE.length; stepIndex += 1) {
+    const step = BEGIN_COMMIT_PIPELINE[stepIndex]
+    await hooks.onStepStart?.(stepIndex)
+    await step.run(ctx)
+    await hooks.onStepComplete?.(stepIndex)
   }
 
-  const claimMap = recomputePrimaryClaims({
-    settlements: [seedSettlement],
-    colonistSettings: current.colonistSettings,
-    gridWidth: doc.gridWidth,
-    gridHeight: doc.gridHeight,
-    movementCost: doc.movementCost,
-  })
-  const primaryClaim = serializeClaimMap(claimMap)
-  const claimedCells = primaryClaim[seedSettlement.id] ?? [{ x: landing.x, y: landing.y }]
-
-  const { settlement } = applySurvivalResolveToSettlement({
-    settlement: seedSettlement,
-    claimedCells,
-    colonistSettings: current.colonistSettings,
-    worldDocument: doc,
-    saltSpoilageMultiplier: saltSpoilageMultiplier(claimedCells, doc.saltNodes),
-  })
-
-  const historyEntry = {
-    kind: 'founding',
-    epoch: 0,
-    foundingLanding: { ...landing },
-    colonistSettings: {
-      threeDayHaulDistance: current.colonistSettings.threeDayHaulDistance,
-      startingPopulation: current.colonistSettings.startingPopulation,
-      yieldModifier: current.colonistSettings.yieldModifier,
-      landExpeditionRange: current.colonistSettings.landExpeditionRange,
-      inlandSailExpeditionRange: current.colonistSettings.inlandSailExpeditionRange,
-      openSeaExpeditionRange: current.colonistSettings.openSeaExpeditionRange,
-    },
-  }
-
-  const ruined = applyRuinTransitions({
-    settlements: [settlement],
-    primaryClaim,
-    historyLog: [historyEntry],
-    epoch: 0,
-  })
-
-  const foundingDynasty = createFoundingDynasty({
-    settlementId: settlement.id,
-    landing,
-    worldDocument: doc,
-  })
-
-  const logisticsNodeSurvey = scoreLogisticsNodes(doc)
-  const visitedCells = seedSettlementHaulShedVisited(
-    { ...current, colonistSettings: current.colonistSettings },
-    doc,
-    landing,
-  )
-
-  const { slice: withCollapse } = applyPopulationCollapse(
-    {
-      ...current,
-      colonizationPhase: COLONIZATION_PHASE_RUNNING,
-      epoch: 0,
-      settlements: ruined.settlements,
-      historyLog: ruined.historyLog,
-      primaryClaim: ruined.primaryClaim,
-      notableFigures: [foundingDynasty],
-      realmId: `realm-${doc.geographySeed ?? 0}-${landing.x}-${landing.y}`,
-      visitedCells,
-      expeditions: [],
-      frontierExhausted: false,
-      roads: [],
-      logisticsNodeSurvey,
-    },
-    doc,
-  )
-
-  return withCollapse
+  return ctx.result ?? current
 }
 
 /**
@@ -124,124 +201,6 @@ export function executeBeginColonizationCommitStepsSync(current, doc) {
  * @property {RunBeginColonizationCommitHandlers} [handlers]
  * @property {() => Promise<void>} [yieldToUi]
  */
-
-/**
- * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} current
- * @param {import('../types.js').WorldDocument} doc
- * @param {{
- *   onStepStart?: (stepIndex: number) => void | Promise<void>,
- *   onStepComplete?: (stepIndex: number) => void | Promise<void>,
- * }} hooks
- * @returns {Promise<import('./createDefaultColonizationSlice.js').ColonizationSlice>}
- */
-async function executeBeginColonizationCommitStepsAsync(current, doc, hooks) {
-  const landing = current.foundingLanding
-  if (!landing) {
-    return current
-  }
-
-  const runStep = async (stepIndex, fn) => {
-    await hooks.onStepStart?.(stepIndex)
-    const result = fn()
-    await hooks.onStepComplete?.(stepIndex)
-    return result
-  }
-
-  const seedSettlement = {
-    id: `settlement-founding-${landing.x}-${landing.y}`,
-    x: landing.x,
-    y: landing.y,
-    tier: /** @type {string | null} */ ('outpost'),
-    population: current.colonistSettings.startingPopulation,
-    status: 'living',
-  }
-
-  const claimMap = await runStep(0, () =>
-    recomputePrimaryClaims({
-      settlements: [seedSettlement],
-      colonistSettings: current.colonistSettings,
-      gridWidth: doc.gridWidth,
-      gridHeight: doc.gridHeight,
-      movementCost: doc.movementCost,
-    }),
-  )
-  const primaryClaim = serializeClaimMap(claimMap)
-  const claimedCells = primaryClaim[seedSettlement.id] ?? [{ x: landing.x, y: landing.y }]
-
-  const { settlement } = await runStep(1, () =>
-    applySurvivalResolveToSettlement({
-      settlement: seedSettlement,
-      claimedCells,
-      colonistSettings: current.colonistSettings,
-      worldDocument: doc,
-      saltSpoilageMultiplier: saltSpoilageMultiplier(claimedCells, doc.saltNodes),
-    }),
-  )
-
-  const historyEntry = {
-    kind: 'founding',
-    epoch: 0,
-    foundingLanding: { ...landing },
-    colonistSettings: {
-      threeDayHaulDistance: current.colonistSettings.threeDayHaulDistance,
-      startingPopulation: current.colonistSettings.startingPopulation,
-      yieldModifier: current.colonistSettings.yieldModifier,
-      landExpeditionRange: current.colonistSettings.landExpeditionRange,
-      inlandSailExpeditionRange: current.colonistSettings.inlandSailExpeditionRange,
-      openSeaExpeditionRange: current.colonistSettings.openSeaExpeditionRange,
-    },
-  }
-
-  const ruined = await runStep(2, () =>
-    applyRuinTransitions({
-      settlements: [settlement],
-      primaryClaim,
-      historyLog: [historyEntry],
-      epoch: 0,
-    }),
-  )
-
-  const foundingDynasty = await runStep(3, () =>
-    createFoundingDynasty({
-      settlementId: settlement.id,
-      landing,
-      worldDocument: doc,
-    }),
-  )
-
-  const logisticsNodeSurvey = await runStep(4, () => scoreLogisticsNodes(doc))
-
-  const visitedCells = await runStep(5, () =>
-    seedSettlementHaulShedVisited(
-      { ...current, colonistSettings: current.colonistSettings },
-      doc,
-      landing,
-    ),
-  )
-
-  const { slice: withCollapse } = await runStep(6, () =>
-    applyPopulationCollapse(
-      {
-        ...current,
-        colonizationPhase: COLONIZATION_PHASE_RUNNING,
-        epoch: 0,
-        settlements: ruined.settlements,
-        historyLog: ruined.historyLog,
-        primaryClaim: ruined.primaryClaim,
-        notableFigures: [foundingDynasty],
-        realmId: `realm-${doc.geographySeed ?? 0}-${landing.x}-${landing.y}`,
-        visitedCells,
-        expeditions: [],
-        frontierExhausted: false,
-        roads: [],
-        logisticsNodeSurvey,
-      },
-      doc,
-    ),
-  )
-
-  return runStep(7, () => withCollapse)
-}
 
 /**
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
@@ -264,7 +223,7 @@ export async function runBeginColonizationCommit(slice, doc, options = {}) {
   handlers.onProgress?.(progress)
   await yieldToUi()
 
-  const next = await executeBeginColonizationCommitStepsAsync(cloneColonizationSlice(slice), doc, {
+  const next = await executeBeginColonizationCommitSteps(cloneColonizationSlice(slice), doc, {
     async onStepStart(stepIndex) {
       const step = COLONIZATION_BEGIN_STEPS[stepIndex]
       progress = reduceBeginColonizationProgressOnStepStart(progress, {

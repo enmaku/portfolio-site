@@ -31,7 +31,7 @@ function geographyDoc() {
   }
 }
 
-test('applyPopulationCollapse returns slice and raster with shared reference', () => {
+test('applyPopulationCollapse returns slice and raster with shared reference', async () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_RUNNING
   slice.epoch = 0
@@ -50,7 +50,7 @@ test('applyPopulationCollapse returns slice and raster with shared reference', (
   }
 
   const doc = geographyDoc()
-  const result = applyPopulationCollapse(slice, doc)
+  const result = await applyPopulationCollapse(slice, doc)
 
   assert.ok(result.slice)
   assert.ok(result.populationCollapseRaster instanceof Float32Array)

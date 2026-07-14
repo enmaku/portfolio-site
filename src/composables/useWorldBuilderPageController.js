@@ -18,6 +18,12 @@ import {
   parseGeographySeedInput,
   shouldShowResourceOverlayBar,
 } from '../../world-builder/worldBuilderPageModel.js'
+import { createResourceOverlayDefinitions } from '../../world-builder/resourceOverlays.js'
+import {
+  buildGenerationStatusSection,
+  buildOverlaysStatusSection,
+  buildWorldBuilderStatusBar,
+} from '../../world-builder/buildWorldBuilderStatusBar.js'
 import {
   COLONIZATION_PHASE_RUNNING,
   COLONIZATION_PHASE_SETUP,
@@ -200,6 +206,7 @@ export function useWorldBuilderPageController(options) {
       },
     },
     onSessionPersistRequested: scheduleColonizationSessionPersist,
+    getSessionRestorePending: () => isSessionRestorePending.value,
   })
 
   function getDerivedGeographyParams() {
@@ -372,11 +379,6 @@ export function useWorldBuilderPageController(options) {
   const hydrologySubstepTimings = computed(() =>
     createHydrologySubstepTimingsForDisplay(geographyWorldDocument.value?.generationReport),
   )
-  const showEpochStepProgress = colonization.showEpochStepProgress
-  const showBeginColonizationProgress = colonization.showBeginColonizationProgress
-  const epochStepProgress = colonization.epochStepProgress
-  const beginColonizationProgress = colonization.beginColonizationProgress
-  const rehydrationProgress = colonization.rehydrationProgress
   const isEpochStepRunning = colonization.isEpochStepRunning
   const isBeginColonizationRunning = colonization.isBeginColonizationRunning
   const isRehydrationRunning = colonization.isRehydrationRunning
@@ -390,9 +392,6 @@ export function useWorldBuilderPageController(options) {
     const phase = colonization.colonizationPhase.value
     return phase === COLONIZATION_PHASE_SETUP || phase === COLONIZATION_PHASE_RUNNING
   })
-  const showRehydrationProgressEffective = computed(
-    () => colonization.showRehydrationProgress.value || isSessionRestorePending.value,
-  )
   const colonizationBusyPhase = computed(() =>
     isEpochStepRunning.value ||
     isBeginColonizationRunning.value ||
@@ -404,6 +403,24 @@ export function useWorldBuilderPageController(options) {
   const showResourceOverlayBarComputed = computed(() =>
     shouldShowResourceOverlayBar(generation.runPhase.value, colonizationBusyPhase.value),
   )
+  const resourceOverlayDefinitions = createResourceOverlayDefinitions()
+  const statusBar = computed(() => {
+    const generationSection = generation.showGenerationProgress.value
+      ? buildGenerationStatusSection({
+          percent: generation.generationProgress.value.percent,
+          steps: generationStepStatuses.value,
+          hydrologySubsteps: hydrologySubstepStatuses.value,
+        })
+      : null
+    const overlaysSection = showResourceOverlayBarComputed.value
+      ? buildOverlaysStatusSection({ definitions: resourceOverlayDefinitions })
+      : null
+    return buildWorldBuilderStatusBar({
+      generation: generationSection,
+      colonization: colonization.colonizationStatusSection.value,
+      overlays: overlaysSection,
+    })
+  })
   const generationOptions = computed(() => settingsStore.generationOptions)
 
   /**
@@ -536,22 +553,6 @@ export function useWorldBuilderPageController(options) {
     overlay.resetVisibility({ persist: true })
   }
 
-  async function beginColonization() {
-    const started = await colonization.beginColonization()
-    if (started) {
-      await persistColonizationSessionIfNeeded()
-    }
-    return started
-  }
-
-  async function epochStep() {
-    const stepped = await colonization.epochStep()
-    if (stepped) {
-      await persistColonizationSessionIfNeeded()
-    }
-    return stepped
-  }
-
   async function start() {
     settingsStore.ensureInitialized()
     settingsStore.$hydrate?.()
@@ -641,32 +642,46 @@ export function useWorldBuilderPageController(options) {
 
   return {
     seedInput,
-    runPhase: generation.runPhase,
     worldDocument: colonizationWorldDocument,
-    generationProgress: generation.generationProgress,
-    showGenerationProgress: generation.showGenerationProgress,
-    showResourceOverlayBar: showResourceOverlayBarComputed,
-    showEpochStepProgress,
-    showBeginColonizationProgress,
-    showRehydrationProgress: showRehydrationProgressEffective,
-    isSessionRestorePending,
-    epochStepProgress,
-    beginColonizationProgress,
-    rehydrationProgress,
-    isEpochStepRunning,
-    isBeginColonizationRunning,
-    isRehydrationRunning,
-    epochStepPhaseStatuses: colonization.epochStepPhaseStatuses,
-    epochStepNetworkSubstepStatuses: colonization.epochStepNetworkSubstepStatuses,
-    epochStepCollapseSubstepStatuses: colonization.epochStepCollapseSubstepStatuses,
-    epochStepFinalizeStepStatuses: colonization.epochStepFinalizeStepStatuses,
-    epochStepMapSubstepStatuses: colonization.epochStepMapSubstepStatuses,
-    beginColonizationStepStatuses: colonization.beginColonizationStepStatuses,
-    rehydrationStepStatuses: colonization.rehydrationStepStatuses,
-    rehydrationSessionSubstepStatuses: colonization.rehydrationSessionSubstepStatuses,
-    rehydrationVisitedSubstepStatuses: colonization.rehydrationVisitedSubstepStatuses,
-    rehydrationCollapseSubstepStatuses: colonization.rehydrationCollapseSubstepStatuses,
-    showValidationFailureIndicator: generation.showValidationFailureIndicator,
+    statusBar,
+    generation: {
+      runPhase: generation.runPhase,
+      generationProgress: generation.generationProgress,
+      showValidationFailureIndicator: generation.showValidationFailureIndicator,
+    },
+    overlays: {
+      resourceOverlayVisibility: overlay.visibility,
+      overlayDisplaySetting: overlay.overlayDisplaySetting,
+      toggleResourceOverlayVisibility: overlay.toggleVisibility,
+      setResourceOverlayDisplaySetting: overlay.setDisplaySetting,
+    },
+    colonization: {
+      colonizationPhase: colonization.colonizationPhase,
+      isTerrainLocked: colonization.isTerrainLocked,
+      showTerrainAuthoringControls: colonization.showTerrainAuthoringControls,
+      showColonistSettingsPanel: colonization.showColonistSettingsPanel,
+      foundingLanding: colonization.foundingLanding,
+      colonistSettings: colonization.colonistSettings,
+      colonistSettingsSnapshot: colonization.colonistSettingsSnapshot,
+      isColonistSettingsRunningPhase: colonization.isColonistSettingsRunningPhase,
+      canBeginColonization: colonization.canBeginColonization,
+      showResetColonization: colonization.showResetColonization,
+      timeControlsActive: colonization.timeControlsActive,
+      colonizationEpoch: colonization.epoch,
+      colonizationSettlements: colonization.settlements,
+      isEpochStepRunning,
+      isBeginColonizationRunning,
+      isRehydrationRunning,
+      isSessionRestorePending,
+      enterColonizationSetup,
+      backToTerrain,
+      beginColonization: colonization.beginColonization,
+      epochStep: colonization.epochStep,
+      resetColonization,
+      pickFoundingLanding: colonization.pickFoundingLanding,
+      setColonistSetting: colonization.setColonistSetting,
+      resetColonistSettings: colonization.resetColonistSettings,
+    },
     validationRows,
     visibleValidationRows,
     showSimStatusPanel,
@@ -674,37 +689,10 @@ export function useWorldBuilderPageController(options) {
     foundingChronicle,
     stageSummary,
     hydrologyStats,
-    generationStepStatuses,
-    hydrologySubstepStatuses,
     hydrologySubstepTimings,
-    resourceOverlayVisibility: overlay.visibility,
-    overlayDisplaySetting: overlay.overlayDisplaySetting,
-    toggleResourceOverlayVisibility: overlay.toggleVisibility,
-    setResourceOverlayDisplaySetting: overlay.setDisplaySetting,
     controlValue,
     generationOptions,
-    colonizationPhase: colonization.colonizationPhase,
-    isTerrainLocked: colonization.isTerrainLocked,
-    showTerrainAuthoringControls: colonization.showTerrainAuthoringControls,
-    showColonistSettingsPanel: colonization.showColonistSettingsPanel,
-    foundingLanding: colonization.foundingLanding,
-    colonistSettings: colonization.colonistSettings,
-    colonistSettingsSnapshot: colonization.colonistSettingsSnapshot,
-    isColonistSettingsRunningPhase: colonization.isColonistSettingsRunningPhase,
     hasLandmass,
-    enterColonizationSetup,
-    backToTerrain,
-    beginColonization,
-    epochStep: epochStep,
-    resetColonization,
-    canBeginColonization: colonization.canBeginColonization,
-    showResetColonization: colonization.showResetColonization,
-    timeControlsActive: colonization.timeControlsActive,
-    colonizationEpoch: colonization.epoch,
-    colonizationSettlements: colonization.settlements,
-    pickFoundingLanding: colonization.pickFoundingLanding,
-    setColonistSetting: colonization.setColonistSetting,
-    resetColonistSettings: colonization.resetColonistSettings,
     onToggleChange,
     onSliderInput,
     onSliderCommit,

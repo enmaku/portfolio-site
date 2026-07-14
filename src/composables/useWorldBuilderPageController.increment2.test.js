@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { effectScope } from 'vue'
-import { applyEpochStep } from '../../world-builder/core/colonization/applyEpochStep.js'
+import { applyEpochStep } from '../../world-builder/core/colonization/runColonizationEpochStep.js'
 import { beginColonizationCommit } from '../../world-builder/core/colonization/beginColonizationCommit.js'
 import {
   COLONIZATION_PHASE_SETUP,
@@ -41,8 +41,8 @@ test('epoch step updates sim status fields after epoch 0', async () => {
     let colonizationSlice = createDefaultColonizationSlice()
     colonizationSlice.colonizationPhase = COLONIZATION_PHASE_SETUP
     colonizationSlice.foundingLanding = { x: 1, y: 1 }
-    colonizationSlice = beginColonizationCommit(colonizationSlice, doc)
-    colonizationSlice = applyEpochStep(colonizationSlice, doc)
+    colonizationSlice = await beginColonizationCommit(colonizationSlice, doc)
+    colonizationSlice = await applyEpochStep(colonizationSlice, doc)
 
     const controller = scope.run(() =>
       useWorldBuilderPageController({

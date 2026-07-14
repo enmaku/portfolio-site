@@ -44,10 +44,10 @@ test('createInitialEpochStepProgress starts idle before any epoch phase', () => 
 test('epochStepProgressValue scales by completed units across phases and finalize', () => {
   const unitCount = epochStepUnitCount()
   assert.strictEqual(unitCount, COLONIZATION_EPOCH_PHASE_COUNT + COLONIZATION_EPOCH_FINALIZE_STEP_COUNT)
-  assert.strictEqual(epochStepProgressValue(epochStepUnitIndex(0), unitCount), 14)
+  assert.strictEqual(epochStepProgressValue(epochStepUnitIndex(0), unitCount), 17)
   assert.strictEqual(
     epochStepProgressValue(epochStepUnitIndex(COLONIZATION_EPOCH_PHASE_COUNT - 1), unitCount),
-    71,
+    83,
   )
 })
 
@@ -182,7 +182,7 @@ test('reduceEpochStepProgressOnCollapseSubstepStart appends collapse substep lab
   assert.strictEqual(next.label, 'Epoch 1 · Collapse · Hinterland')
 })
 
-test('reduceEpochStepProgressOnFinalizeStepStart marks commit after simulation phases', () => {
+test('reduceEpochStepProgressOnFinalizeStepStart marks map finalize after simulation phases', () => {
   const progress = reduceEpochStepProgressOnFinalizeStepStart(
     {
       ...createInitialEpochStepProgress(),
@@ -192,14 +192,14 @@ test('reduceEpochStepProgressOnFinalizeStepStart marks commit after simulation p
     { stepIndex: 0 },
   )
   assert.strictEqual(progress.activeFinalizeStepIndex, 0)
-  assert.strictEqual(progress.label, 'Commit')
+  assert.strictEqual(progress.label, 'Map')
   assert.strictEqual(progress.completedPhaseIndex, COLONIZATION_EPOCH_PHASE_COUNT - 1)
 })
 
 test('reduceEpochStepProgressOnMapSubstepStart appends map substep label', () => {
   const progress = reduceEpochStepProgressOnMapSubstepStart(
     reduceEpochStepProgressOnFinalizeStepStart(createInitialEpochStepProgress(), {
-      stepIndex: 1,
+      stepIndex: 0,
     }),
     { substepIndex: 3 },
   )
@@ -210,7 +210,7 @@ test('reduceEpochStepProgressOnMapSubstepStart appends map substep label', () =>
 test('reduceEpochStepProgressOnMapSubstepStart labels session substep under map finalize', () => {
   const progress = reduceEpochStepProgressOnMapSubstepStart(
     reduceEpochStepProgressOnFinalizeStepStart(createInitialEpochStepProgress(), {
-      stepIndex: 1,
+      stepIndex: 0,
     }),
     { substepIndex: 0 },
   )

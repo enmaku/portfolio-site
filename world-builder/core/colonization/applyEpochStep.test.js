@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from '../biomeIds.js'
-import { applyEpochStep } from './applyEpochStep.js'
+import { applyEpochStep } from './runColonizationEpochStep.js'
 import { applyColonizationEpoch } from './applyColonizationEpoch.js'
 import { beginColonizationCommit } from './beginColonizationCommit.js'
 import {
@@ -30,7 +30,7 @@ function richGeographyDoc() {
   }
 }
 
-function commitRunningSlice() {
+async function commitRunningSlice() {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 1 }
@@ -39,20 +39,20 @@ function commitRunningSlice() {
   return beginColonizationCommit(slice, richGeographyDoc())
 }
 
-test('applyEpochStep advances epoch by one', () => {
-  const running = commitRunningSlice()
+test('applyEpochStep advances epoch by one', async () => {
+  const running = await commitRunningSlice()
   running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
     ...entry,
     exhausted: true,
   }))
-  const next = applyEpochStep(running, richGeographyDoc())
+  const next = await applyEpochStep(running, richGeographyDoc())
 
   assert.strictEqual(next.epoch, 1)
   assert.ok(Object.keys(next.primaryClaim).length > 0)
 })
 
-test('applyEpochStep matches applyColonizationEpoch settlement outcomes', () => {
-  const running = commitRunningSlice()
+test('applyEpochStep matches applyColonizationEpoch settlement outcomes', async () => {
+  const running = await commitRunningSlice()
   running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
     ...entry,
     exhausted: true,
@@ -70,8 +70,8 @@ test('applyEpochStep matches applyColonizationEpoch settlement outcomes', () => 
   })
 
   const doc = richGeographyDoc()
-  const fromEpoch = applyColonizationEpoch(running, doc)
-  const fromStep = applyEpochStep(running, doc)
+  const fromEpoch = await applyColonizationEpoch(running, doc)
+  const fromStep = await applyEpochStep(running, doc)
 
   assert.strictEqual(fromStep.epoch, fromEpoch.slice.epoch)
   assert.deepEqual(
@@ -92,11 +92,11 @@ test('applyEpochStep matches applyColonizationEpoch settlement outcomes', () => 
   )
 })
 
-test('applyEpochStep remains available indefinitely with no auto-stop', () => {
-  let current = commitRunningSlice()
+test('applyEpochStep remains available indefinitely with no auto-stop', async () => {
+  let current = await commitRunningSlice()
   const doc = richGeographyDoc()
   for (let i = 0; i < 5; i += 1) {
-    current = applyEpochStep(current, doc)
+    current = await applyEpochStep(current, doc)
   }
   assert.strictEqual(current.epoch, 5)
   assert.strictEqual(current.colonizationPhase, 'running')

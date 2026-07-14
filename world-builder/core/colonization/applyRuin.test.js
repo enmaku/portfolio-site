@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from '../biomeIds.js'
 import { applyColonizationEpoch } from './applyColonizationEpoch.js'
-import { applyEpochStep } from './applyEpochStep.js'
+import { applyEpochStep } from './runColonizationEpochStep.js'
 import { applyRuinTransitions } from './applyRuin.js'
 import { beginColonizationCommit } from './beginColonizationCommit.js'
 import {
@@ -47,7 +47,7 @@ function dryGeographyDoc() {
   }
 }
 
-test('applyColonizationEpoch ruins waterless settlements and keeps epoch step available', () => {
+test('applyColonizationEpoch ruins waterless settlements and keeps epoch step available', async () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 1 }
@@ -59,18 +59,18 @@ test('applyColonizationEpoch ruins waterless settlements and keeps epoch step av
   wet.riverCorridorMask[1 * 4 + 1] = 1
   wet.biomes.fill(BIOMES.GRASSLAND)
   wet.fields.rainfall.fill(0.6)
-  let running = beginColonizationCommit(slice, wet)
+  let running = await beginColonizationCommit(slice, wet)
   assert.strictEqual(running.settlements[0].status, 'living')
 
   const dry = dryGeographyDoc()
-  const { slice: next, events } = applyColonizationEpoch(running, dry)
+  const { slice: next, events } = await applyColonizationEpoch(running, dry)
   assert.strictEqual(next.settlements[0].status, 'ruin')
   assert.strictEqual(next.settlements[0].population, 0)
   assert.deepStrictEqual(next.primaryClaim, {})
   assert.ok(events.some((event) => event.kind === 'settlement_abandoned'))
   assert.ok(next.historyLog.some((entry) => entry.kind === 'settlement_abandoned'))
 
-  const stepped = applyEpochStep(next, dry)
+  const stepped = await applyEpochStep(next, dry)
   assert.strictEqual(stepped.colonizationPhase, 'running')
   assert.ok(stepped.epoch > next.epoch)
 })

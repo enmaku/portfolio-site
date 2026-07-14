@@ -27,13 +27,10 @@ export const COLONIZATION_COLLAPSE_SUBSTEPS = Object.freeze([
 /** @type {number} */
 export const COLONIZATION_EPOCH_PHASE_COUNT = COLONIZATION_EPOCH_PHASES.length
 
-/** @typedef {'commit' | 'map'} ColonizationEpochFinalizeStepId */
+/** @typedef {'map'} ColonizationEpochFinalizeStepId */
 
 /** @type {ReadonlyArray<{ id: ColonizationEpochFinalizeStepId, label: string }>} */
-export const COLONIZATION_EPOCH_FINALIZE_STEPS = Object.freeze([
-  { id: 'commit', label: 'Commit' },
-  { id: 'map', label: 'Map' },
-])
+export const COLONIZATION_EPOCH_FINALIZE_STEPS = Object.freeze([{ id: 'map', label: 'Map' }])
 
 /** @type {number} */
 export const COLONIZATION_EPOCH_FINALIZE_STEP_COUNT = COLONIZATION_EPOCH_FINALIZE_STEPS.length

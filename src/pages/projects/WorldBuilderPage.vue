@@ -1,252 +1,17 @@
 <template>
   <q-page class="world-builder-page column fit no-wrap">
     <div
-      v-if="showGenerationProgress || showBeginColonizationProgress || showEpochStepProgress || showRehydrationProgress || showResourceOverlayBar"
+      v-if="statusBar.mode !== 'hidden'"
       data-testid="world-builder-status-bar"
       class="generation-progress"
     >
       <q-separator />
       <div class="q-px-sm status-bar-content">
-        <div
-          v-if="showGenerationProgress"
-          data-testid="world-builder-generation-progress"
-          class="status-bar-panel status-bar-panel--generation"
-        >
-          <q-linear-progress
-            :value="generationProgress.percent / 100"
-            color="primary"
-            track-color="grey-9"
-            rounded
-          />
-          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
-            <template
-              v-for="step in generationStepStatuses"
-              :key="step.id"
-            >
-              <q-chip
-                dense
-                :data-testid="`world-builder-generation-step-${step.id}`"
-                :color="generationStepStatusColor(step.status)"
-                text-color="white"
-                :outline="step.status === 'pending'"
-              >
-                {{ step.label }}
-              </q-chip>
-              <template v-if="step.id === 'hydrology' && step.status === 'active'">
-                <q-chip
-                  v-for="substep in hydrologySubstepStatuses"
-                  :key="substep.id"
-                  dense
-                  :data-testid="`world-builder-hydrology-substep-${substep.id}`"
-                  :color="generationStepStatusColor(substep.status)"
-                  text-color="white"
-                  :outline="substep.status === 'pending'"
-                  size="sm"
-                >
-                  {{ substep.label }}
-                </q-chip>
-              </template>
-            </template>
-          </div>
-        </div>
-        <div
-          v-else-if="showBeginColonizationProgress"
-          data-testid="world-builder-begin-colonization-progress"
-          class="status-bar-panel status-bar-panel--generation"
-        >
-          <q-linear-progress
-            :value="beginColonizationProgress.percent / 100"
-            color="positive"
-            track-color="grey-9"
-            rounded
-          />
-          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
-            <q-chip
-              v-for="step in beginColonizationStepStatuses"
-              :key="step.id"
-              dense
-              :data-testid="`world-builder-begin-colonization-step-${step.id}`"
-              :color="generationStepStatusColor(step.status)"
-              text-color="white"
-              :outline="step.status === 'pending'"
-            >
-              {{ step.label }}
-            </q-chip>
-          </div>
-        </div>
-        <div
-          v-else-if="showEpochStepProgress"
-          data-testid="world-builder-epoch-step-progress"
-          class="status-bar-panel status-bar-panel--generation"
-        >
-          <q-linear-progress
-            :value="epochStepProgress.percent / 100"
-            color="secondary"
-            track-color="grey-9"
-            rounded
-          />
-          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
-            <template
-              v-for="step in epochStepPhaseStatuses"
-              :key="step.id"
-            >
-              <q-chip
-                dense
-                :data-testid="`world-builder-epoch-step-phase-${step.id}`"
-                :color="generationStepStatusColor(step.status)"
-                text-color="white"
-                :outline="step.status === 'pending'"
-              >
-                {{ step.label }}
-              </q-chip>
-              <template v-if="step.id === 'network' && step.status === 'active'">
-                <q-chip
-                  v-for="substep in epochStepNetworkSubstepStatuses"
-                  :key="substep.id"
-                  dense
-                  :data-testid="`world-builder-epoch-step-network-substep-${substep.id}`"
-                  :color="generationStepStatusColor(substep.status)"
-                  text-color="white"
-                  :outline="substep.status === 'pending'"
-                  size="sm"
-                >
-                  {{ substep.label }}
-                </q-chip>
-              </template>
-              <template v-if="step.id === 'collapse' && step.status === 'active'">
-                <q-chip
-                  v-for="substep in epochStepCollapseSubstepStatuses"
-                  :key="substep.id"
-                  dense
-                  :data-testid="`world-builder-epoch-step-collapse-substep-${substep.id}`"
-                  :color="generationStepStatusColor(substep.status)"
-                  text-color="white"
-                  :outline="substep.status === 'pending'"
-                  size="sm"
-                >
-                  {{ substep.label }}
-                </q-chip>
-              </template>
-            </template>
-            <template
-              v-for="step in epochStepFinalizeStepStatuses"
-              :key="step.id"
-            >
-              <q-chip
-                dense
-                :data-testid="`world-builder-epoch-step-finalize-${step.id}`"
-                :color="generationStepStatusColor(step.status)"
-                text-color="white"
-                :outline="step.status === 'pending'"
-              >
-                {{ step.label }}
-              </q-chip>
-              <template v-if="step.id === 'map' && step.status === 'active'">
-                <q-chip
-                  v-for="substep in epochStepMapSubstepStatuses"
-                  :key="substep.id"
-                  dense
-                  :data-testid="`world-builder-epoch-step-map-substep-${substep.id}`"
-                  :color="generationStepStatusColor(substep.status)"
-                  text-color="white"
-                  :outline="substep.status === 'pending'"
-                  size="sm"
-                >
-                  {{ substep.label }}
-                </q-chip>
-              </template>
-            </template>
-          </div>
-        </div>
-        <div
-          v-else-if="showRehydrationProgress"
-          data-testid="world-builder-rehydration-progress"
-          class="status-bar-panel status-bar-panel--generation"
-        >
-          <q-linear-progress
-            :value="rehydrationProgressIndeterminate ? undefined : rehydrationProgress.percent / 100"
-            :indeterminate="rehydrationProgressIndeterminate"
-            color="info"
-            track-color="grey-9"
-            rounded
-          />
-          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
-            <template
-              v-for="step in rehydrationStepStatuses"
-              :key="step.id"
-            >
-              <q-chip
-                dense
-                :data-testid="`world-builder-rehydration-step-${step.id}`"
-                :color="generationStepStatusColor(step.status)"
-                text-color="white"
-                :outline="step.status === 'pending'"
-              >
-                {{ step.label }}
-              </q-chip>
-              <template v-if="step.id === 'session' && step.status === 'active'">
-                <q-chip
-                  v-for="substep in rehydrationSessionSubstepStatuses"
-                  :key="substep.id"
-                  dense
-                  :data-testid="`world-builder-rehydration-session-substep-${substep.id}`"
-                  :color="generationStepStatusColor(substep.status)"
-                  text-color="white"
-                  :outline="substep.status === 'pending'"
-                  size="sm"
-                >
-                  {{ substep.label }}
-                </q-chip>
-              </template>
-              <template v-if="step.id === 'visited' && step.status === 'active'">
-                <q-chip
-                  v-for="substep in rehydrationVisitedSubstepStatuses"
-                  :key="substep.id"
-                  dense
-                  :data-testid="`world-builder-rehydration-visited-substep-${substep.id}`"
-                  :color="generationStepStatusColor(substep.status)"
-                  text-color="white"
-                  :outline="substep.status === 'pending'"
-                  size="sm"
-                >
-                  {{ substep.label }}
-                </q-chip>
-              </template>
-              <template v-if="step.id === 'collapse' && step.status === 'active'">
-                <q-chip
-                  v-for="substep in rehydrationCollapseSubstepStatuses"
-                  :key="substep.id"
-                  dense
-                  :data-testid="`world-builder-rehydration-collapse-substep-${substep.id}`"
-                  :color="generationStepStatusColor(substep.status)"
-                  text-color="white"
-                  :outline="substep.status === 'pending'"
-                  size="sm"
-                >
-                  {{ substep.label }}
-                </q-chip>
-              </template>
-            </template>
-          </div>
-        </div>
-        <div
-          v-else-if="showResourceOverlayBar"
-          data-testid="world-builder-resource-overlay-bar"
-          class="status-bar-panel status-bar-panel--overlays resource-overlay-row"
-        >
-          <q-checkbox
-            v-for="overlay in resourceOverlayDefinitions"
-            :key="overlay.id"
-            dense
-            :toggle-indeterminate="false"
-            :model-value="resourceOverlayVisibility[overlay.id] === true"
-            :data-testid="`world-builder-overlay-toggle-${overlay.id}`"
-            :label="overlay.label"
-            @update:model-value="
-              (value) => toggleResourceOverlayVisibility(overlay.id, value === true)
-            "
-          />
-        </div>
+        <WorldBuilderStatusPanel
+          :status-bar="statusBar"
+          :resource-overlay-visibility="resourceOverlayVisibility"
+          :toggle-resource-overlay-visibility="toggleResourceOverlayVisibility"
+        />
       </div>
       <q-separator />
     </div>
@@ -623,16 +388,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import {
-  createResourceOverlayDefinitions,
   formatGenerationControlValue,
   formatHydrologyMetricValue,
   formatHydrologySubstepTimingForDisplay,
   formatOverlayControlValue,
   formatSlopeAreaConcavityForDisplay,
-  generationStepStatusColor,
   GEOGRAPHY_SEED_TOOLTIP,
   validationStatusColor,
   validationStatusIcon,
@@ -647,72 +410,30 @@ import PrevailingWindArrow from '../../components/world-builder/PrevailingWindAr
 import WorldBuilderColonistSettingsPanel from '../../components/world-builder/WorldBuilderColonistSettingsPanel.vue'
 import WorldBuilderSimStatusPanel from '../../components/world-builder/WorldBuilderSimStatusPanel.vue'
 import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
+import WorldBuilderStatusPanel from '../../components/world-builder/WorldBuilderStatusPanel.vue'
 
 const $q = useQuasar()
 
 const mapHostRef = ref(null)
 const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
 const overlayControlDefinitions = WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS
-const resourceOverlayDefinitions = createResourceOverlayDefinitions()
 
 const {
   seedInput,
-  runPhase,
-  generationProgress,
-  showGenerationProgress,
-  showBeginColonizationProgress,
-  showEpochStepProgress,
-  showRehydrationProgress,
-  isSessionRestorePending,
-  showResourceOverlayBar,
-  showValidationFailureIndicator,
+  statusBar,
+  generation,
+  overlays,
+  colonization,
   visibleValidationRows,
   showSimStatusPanel,
   simStatus,
   foundingChronicle,
   stageSummary,
   hydrologyStats,
-  generationStepStatuses,
-  hydrologySubstepStatuses,
   hydrologySubstepTimings,
-  epochStepProgress,
-  beginColonizationProgress,
-  beginColonizationStepStatuses,
-  rehydrationProgress,
-  rehydrationStepStatuses,
-  rehydrationSessionSubstepStatuses,
-  rehydrationVisitedSubstepStatuses,
-  rehydrationCollapseSubstepStatuses,
-  isEpochStepRunning,
-  isBeginColonizationRunning,
-  epochStepPhaseStatuses,
-  epochStepNetworkSubstepStatuses,
-  epochStepCollapseSubstepStatuses,
-  epochStepFinalizeStepStatuses,
-  epochStepMapSubstepStatuses,
-  resourceOverlayVisibility,
-  overlayDisplaySetting,
-  toggleResourceOverlayVisibility,
-  setResourceOverlayDisplaySetting,
   controlValue,
   generationOptions,
-  colonizationPhase,
-  showTerrainAuthoringControls,
-  showColonistSettingsPanel,
-  colonistSettings,
-  colonistSettingsSnapshot,
   hasLandmass,
-  canBeginColonization,
-  showResetColonization,
-  timeControlsActive,
-  isColonistSettingsRunningPhase,
-  enterColonizationSetup,
-  backToTerrain,
-  beginColonization,
-  epochStep,
-  resetColonization,
-  setColonistSetting,
-  resetColonistSettings,
   onToggleChange,
   onSliderInput,
   onSliderCommit,
@@ -757,11 +478,33 @@ const {
   },
 })
 
-const rehydrationProgressIndeterminate = computed(
-  () =>
-    isSessionRestorePending.value ||
-    (showRehydrationProgress.value && rehydrationProgress.value.activeStepIndex < 0),
-)
+const { runPhase, showValidationFailureIndicator } = generation
+const {
+  resourceOverlayVisibility,
+  overlayDisplaySetting,
+  toggleResourceOverlayVisibility,
+  setResourceOverlayDisplaySetting,
+} = overlays
+const {
+  colonizationPhase,
+  showTerrainAuthoringControls,
+  showColonistSettingsPanel,
+  colonistSettings,
+  colonistSettingsSnapshot,
+  isColonistSettingsRunningPhase,
+  canBeginColonization,
+  showResetColonization,
+  timeControlsActive,
+  isEpochStepRunning,
+  isBeginColonizationRunning,
+  enterColonizationSetup,
+  backToTerrain,
+  beginColonization,
+  epochStep,
+  resetColonization,
+  setColonistSetting,
+  resetColonistSettings,
+} = colonization
 
 onMounted(start)
 onUnmounted(destroy)
@@ -784,33 +527,6 @@ onUnmounted(destroy)
   height: 40px;
   flex: 0 0 40px;
   overflow: hidden;
-}
-
-.status-bar-panel {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-}
-
-.status-bar-panel--generation {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-}
-
-.status-bar-panel--overlays {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  overflow-x: hidden;
-}
-
-.generation-step-row {
-  overflow-x: hidden;
-  height: 28px;
-  flex: 0 0 28px;
 }
 
 .map-row {

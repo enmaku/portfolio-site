@@ -29,7 +29,7 @@ function richGeographyDoc() {
   }
 }
 
-function commitRunningSlice() {
+async function commitRunningSlice() {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 1 }
@@ -38,8 +38,8 @@ function commitRunningSlice() {
   return beginColonizationCommit(slice, richGeographyDoc())
 }
 
-test('runColonizationEpochStep reports progress through phases and commit finalize', async () => {
-  const running = commitRunningSlice()
+test('runColonizationEpochStep reports progress through phases and epoch completion', async () => {
+  const running = await commitRunningSlice()
   running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
     ...entry,
     exhausted: true,
@@ -59,11 +59,11 @@ test('runColonizationEpochStep reports progress through phases and commit finali
   assert.strictEqual(result.ran, true)
   assert.strictEqual(result.slice.epoch, 1)
   assert.ok(percents.length > 0)
-  assert.strictEqual(percents.at(-1), 86)
+  assert.strictEqual(percents.at(-1), 83)
 })
 
 test('runColonizationEpochStep reports dispatch and advance network item progress', async () => {
-  const running = commitRunningSlice()
+  const running = await commitRunningSlice()
   /** @type {Array<{ substepIndex: number, itemIndex: number, itemCount: number }>} */
   const itemProgress = []
 

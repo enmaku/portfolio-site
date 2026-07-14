@@ -30,7 +30,7 @@ function richGeographyDoc() {
   }
 }
 
-function commitRunningSlice(startingPopulation = 20) {
+async function commitRunningSlice(startingPopulation = 20) {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 1 }
@@ -46,21 +46,21 @@ test('applySurplusPopulationDelta grows, stalls, and declines by surplus sign', 
   assert.strictEqual(applySurplusPopulationDelta(10, 1000, 12), 12)
 })
 
-test('applyColonizationEpoch advances epoch and updates population from surplus', () => {
-  const running = commitRunningSlice(20)
+test('applyColonizationEpoch advances epoch and updates population from surplus', async () => {
+  const running = await commitRunningSlice(20)
   const doc = richGeographyDoc()
-  const { slice: next } = applyColonizationEpoch(running, doc)
+  const { slice: next } = await applyColonizationEpoch(running, doc)
 
   assert.strictEqual(next.epoch, 1)
   assert.ok(next.settlements[0].population >= running.settlements[0].population)
   assert.ok(Object.keys(next.primaryClaim).length > 0)
 })
 
-test('applyColonizationEpoch clamps population to ceiling across many epochs', () => {
-  let current = commitRunningSlice(20)
+test('applyColonizationEpoch clamps population to ceiling across many epochs', async () => {
+  let current = await commitRunningSlice(20)
   const doc = richGeographyDoc()
   for (let i = 0; i < 40; i += 1) {
-    current = applyColonizationEpoch(current, doc).slice
+    current = (await applyColonizationEpoch(current, doc)).slice
   }
   const settlement = current.settlements[0]
   assert.ok(settlement.population > 20)
@@ -68,16 +68,16 @@ test('applyColonizationEpoch clamps population to ceiling across many epochs', (
   assert.ok(SETTLEMENT_TIER_THRESHOLDS.some((band) => band.tier === tier))
 })
 
-test('applyColonizationEpoch declines without freshwater and does not auto-stop', () => {
-  let current = commitRunningSlice(20)
+test('applyColonizationEpoch declines without freshwater and does not auto-stop', async () => {
+  let current = await commitRunningSlice(20)
   const doc = richGeographyDoc()
   doc.riverCorridorMask.fill(0)
   doc.fields.rainfall.fill(0)
   doc.biomes.fill(BIOMES.DESERT)
 
-  const first = applyColonizationEpoch(current, doc).slice
+  const first = (await applyColonizationEpoch(current, doc)).slice
   assert.strictEqual(first.settlements[0].population, 0)
-  const second = applyColonizationEpoch(first, doc).slice
+  const second = (await applyColonizationEpoch(first, doc)).slice
   assert.strictEqual(second.epoch, first.epoch + 1)
   assert.strictEqual(second.settlements[0].population, 0)
 })

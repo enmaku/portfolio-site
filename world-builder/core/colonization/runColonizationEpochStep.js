@@ -1,20 +1,18 @@
 import {
   createColonizationEpochContext,
   runColonizationEpochClaimsPhase,
-  runColonizationEpochCollapsePhaseAsync,
-  runColonizationEpochNetworkPhaseAsync,
+  runColonizationEpochCollapsePhase,
+  runColonizationEpochNetworkPhase,
   runColonizationEpochRuinPhase,
   runColonizationEpochSurvivalPhase,
 } from './applyColonizationEpoch.js'
-import { runColonizationEpochPhasesSync } from './runColonizationEpochPhases.js'
+import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
 import {
   createInitialEpochStepProgress,
   reduceEpochStepProgressOnEpochComplete,
   reduceEpochStepProgressOnEpochStart,
   reduceEpochStepProgressOnCollapseSubstepComplete,
   reduceEpochStepProgressOnCollapseSubstepStart,
-  reduceEpochStepProgressOnFinalizeStepComplete,
-  reduceEpochStepProgressOnFinalizeStepStart,
   reduceEpochStepProgressOnNetworkSubstepComplete,
   reduceEpochStepProgressOnNetworkSubstepItemProgress,
   reduceEpochStepProgressOnNetworkSubstepStart,
@@ -82,7 +80,7 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
     await yieldToUi()
 
     if (phase.id === 'network') {
-      await runColonizationEpochNetworkPhaseAsync(ctx, {
+      await runColonizationEpochNetworkPhase(ctx, {
         network: {
           yieldToUi,
           hooks: {
@@ -116,7 +114,7 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
     } else if (phase.id === 'ruin') {
       runColonizationEpochRuinPhase(ctx)
     } else if (phase.id === 'collapse') {
-      await runColonizationEpochCollapsePhaseAsync(ctx, {
+      await runColonizationEpochCollapsePhase(ctx, {
         collapse: {
           yieldToUi,
           hooks: {
@@ -149,14 +147,6 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
   handlers.onProgress?.(progress)
   await yieldToUi()
 
-  progress = reduceEpochStepProgressOnFinalizeStepStart(progress, { stepIndex: 0 })
-  handlers.onProgress?.(progress)
-  await yieldToUi()
-
-  progress = reduceEpochStepProgressOnFinalizeStepComplete(progress, { stepIndex: 0 })
-  handlers.onProgress?.(progress)
-  await yieldToUi()
-
   return {
     slice: current,
     ran: true,
@@ -164,20 +154,20 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
 }
 
 /**
- * Synchronous epoch step without progress reporting. Prefer {@link runColonizationEpochStep} in UI.
+ * Epoch step without progress reporting. Prefer {@link runColonizationEpochStep} in UI.
  *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument
  * @param {{ saltSpoilageMultiplierForSettlement?: Function }} [options]
- * @returns {import('./createDefaultColonizationSlice.js').ColonizationSlice}
+ * @returns {Promise<import('./createDefaultColonizationSlice.js').ColonizationSlice>}
  */
-export function applyEpochStepSyncFromPhases(slice, worldDocument, options = {}) {
+export async function applyEpochStep(slice, worldDocument, options = {}) {
   if (slice.colonizationPhase !== 'running') {
     return slice
   }
 
   const ctx = createColonizationEpochContext(slice, worldDocument)
-  runColonizationEpochPhasesSync(ctx, options)
+  await runColonizationEpochPhases(ctx, options)
 
   return ctx.slice
 }

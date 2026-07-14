@@ -352,24 +352,10 @@ function applyUrbanCollapseForAllSettlements(params, workItems, raster) {
  * @param {CollapsePopulationParams} params
  * @param {Array<SettlementCollapseWork | null>} workItems
  * @param {Float32Array} raster
- */
-function applyHinterlandCollapseForAllSettlements(params, workItems, raster) {
-  for (let i = 0; i < params.settlements.length; i += 1) {
-    const work = workItems[i]
-    if (work) {
-      applyHinterlandCollapseForSettlement(work, raster, params.gridWidth)
-    }
-  }
-}
-
-/**
- * @param {CollapsePopulationParams} params
- * @param {Array<SettlementCollapseWork | null>} workItems
- * @param {Float32Array} raster
  * @param {() => Promise<void>} [yieldToUi]
  * @param {number} [yieldInterval]
  */
-async function applyHinterlandCollapseForAllSettlementsAsync(
+async function applyHinterlandCollapseForAllSettlements(
   params,
   workItems,
   raster,
@@ -414,6 +400,8 @@ async function applyHinterlandCollapseForAllSettlementsAsync(
 
 /**
  * Seeded constraint-satisfaction placement: urban cluster + arable hinterland sample.
+ * Optional hooks/yieldToUi report progress and yield between substeps; both are
+ * no-ops when omitted.
  *
  * @param {{
  *   settlements: Array<{ id: string, x: number, y: number, population: number, status?: string }>,
@@ -430,25 +418,10 @@ async function applyHinterlandCollapseForAllSettlementsAsync(
  *   geographySeed?: number,
  *   epoch?: number,
  * }} params
- * @returns {Float32Array}
- */
-export function collapsePopulation(params) {
-  const { settlements, gridWidth, gridHeight } = params
-  const raster = new Float32Array(gridWidth * gridHeight)
-  const workItems = settlements.map((settlement) => prepareSettlementCollapseWork(params, settlement))
-  applyUrbanCollapseForAllSettlements(params, workItems, raster)
-  applyHinterlandCollapseForAllSettlements(params, workItems, raster)
-  return raster
-}
-
-/**
- * Async population collapse with UI yields between urban/hinterland substeps.
- *
- * @param {CollapsePopulationParams} params
  * @param {{ hooks?: CollapsePopulationHooks, yieldToUi?: () => Promise<void> }} [options]
  * @returns {Promise<Float32Array>}
  */
-export async function collapsePopulationAsync(params, options = {}) {
+export async function collapsePopulation(params, options = {}) {
   const { hooks, yieldToUi } = options
   const { settlements, gridWidth, gridHeight } = params
   const raster = new Float32Array(gridWidth * gridHeight)
@@ -462,10 +435,32 @@ export async function collapsePopulationAsync(params, options = {}) {
 
   emitCollapseSubstep(hooks, 'substep-start', 1, 'hinterland')
   await yieldToUi?.()
-  await applyHinterlandCollapseForAllSettlementsAsync(params, workItems, raster, yieldToUi)
+  await applyHinterlandCollapseForAllSettlements(params, workItems, raster, yieldToUi)
   emitCollapseSubstep(hooks, 'substep-complete', 1, 'hinterland')
   await yieldToUi?.()
 
+  return raster
+}
+
+/**
+ * Synchronous variant for the handful of production call sites that cannot
+ * await (founding commit, legacy session rehydration without a progress
+ * model). Prefer {@link collapsePopulation} everywhere else.
+ *
+ * @param {CollapsePopulationParams} params
+ * @returns {Float32Array}
+ */
+export function collapsePopulationSync(params) {
+  const { settlements, gridWidth, gridHeight } = params
+  const raster = new Float32Array(gridWidth * gridHeight)
+  const workItems = settlements.map((settlement) => prepareSettlementCollapseWork(params, settlement))
+  applyUrbanCollapseForAllSettlements(params, workItems, raster)
+  for (let i = 0; i < workItems.length; i += 1) {
+    const work = workItems[i]
+    if (work) {
+      applyHinterlandCollapseForSettlement(work, raster, gridWidth)
+    }
+  }
   return raster
 }
 

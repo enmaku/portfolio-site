@@ -42,6 +42,12 @@ import {
  */
 
 /**
+ * @typedef {Object} ExpeditionNetworkPhaseOptions
+ * @property {ExpeditionNetworkPhaseHooks} [hooks]
+ * @property {() => Promise<void>} [yieldToUi]
+ */
+
+/**
  * @typedef {Object} NetworkSubstepLifecyclePayload
  * @property {'substep-start' | 'substep-complete'} type
  * @property {number} substepIndex
@@ -169,9 +175,9 @@ function finalizeNetworkPhaseResult(slice, worldDocument, frontierExhausted, fou
  * @param {number} epoch
  * @param {boolean} frontierExhausted
  * @param {{ hooks?: ExpeditionNetworkPhaseHooks, yieldToUi?: () => Promise<void> }} [options]
- * @returns {import('../createDefaultColonizationSlice.js').ColonizationSlice}
+ * @returns {Promise<import('../createDefaultColonizationSlice.js').ColonizationSlice>}
  */
-function dispatchExpeditionsWithBudget(
+async function dispatchExpeditionsWithBudget(
   slice,
   doc,
   geographySeed,
@@ -179,7 +185,7 @@ function dispatchExpeditionsWithBudget(
   frontierExhausted,
   options = {},
 ) {
-  const { hooks } = options
+  const { hooks, yieldToUi } = options
   const visitRaster = slice.visitedCells
   const roadCellMask = buildLandRouteCellMask(slice.roads, doc.gridWidth, doc.gridHeight)
   /** @type {import('./expeditionConstants.js').ExpeditionRecord[]} */
@@ -222,9 +228,8 @@ function dispatchExpeditionsWithBudget(
     const activeExpeditionCount = countActiveExpeditionsForSettlement({ expeditions }, settlement.id)
     const remainingCapacity = maxActiveExpeditionsPerSettlement - activeExpeditionCount
     if (remainingCapacity <= 0) {
-      if (hooks) {
-        emitNetworkSubstepItem(hooks, 1, 'dispatch', itemIndex, settlementItemCount)
-      }
+      emitNetworkSubstepItem(hooks, 1, 'dispatch', itemIndex, settlementItemCount)
+      await yieldToUi?.()
       continue
     }
 
@@ -242,10 +247,8 @@ function dispatchExpeditionsWithBudget(
       eligibleSenders.push(entry)
       remainingDispatchCapacity.set(settlement.id, remainingCapacity)
     }
-
-    if (hooks) {
-      emitNetworkSubstepItem(hooks, 1, 'dispatch', itemIndex, settlementItemCount)
-    }
+    emitNetworkSubstepItem(hooks, 1, 'dispatch', itemIndex, settlementItemCount)
+    await yieldToUi?.()
 
     if (isPortSettlement(maritimeRole) && maritimeFrontierOpen) {
       eligiblePortCount += 1
@@ -271,9 +274,8 @@ function dispatchExpeditionsWithBudget(
   })
 
   for (let assignmentIndex = 0; assignmentIndex < assignments.length; assignmentIndex += 1) {
-    if (hooks) {
-      emitNetworkSubstepItem(hooks, 1, 'dispatch', assignmentIndex + 1, assignments.length)
-    }
+    emitNetworkSubstepItem(hooks, 1, 'dispatch', assignmentIndex + 1, assignments.length)
+    await yieldToUi?.()
 
     const assignment = assignments[assignmentIndex]
     const settlement = living.find((entry) => entry.id === assignment.settlementId)
@@ -406,187 +408,9 @@ function processExpeditionAdvance(state, expedition, epoch, roadCellMask, dryLan
  *   hooks?: ExpeditionNetworkPhaseHooks,
  *   yieldToUi?: () => Promise<void>,
  * }} params
- * @returns {Pick<ExpeditionAdvanceState, 'slice' | 'worldDocument' | 'foundingEvents'>}
- */
-function advanceActiveExpeditions(params) {
-  const { slice, worldDocument, epoch, roadCellMask, hooks } = params
-  /** @type {ExpeditionAdvanceState} */
-  const state = {
-    slice: { ...slice },
-    worldDocument: { ...worldDocument },
-    foundingEvents: [],
-    nextExpeditions: [],
-  }
-
-  const dryLandMask = buildDryLandTraversableMask(state.worldDocument)
-  const sailMask = resolveSailTraversableMask(state.worldDocument)
-  const expeditions = resolveExpeditions(slice.expeditions)
-  const expeditionItemCount = expeditions.length
-
-  for (let expeditionIndex = 0; expeditionIndex < expeditions.length; expeditionIndex += 1) {
-    if (hooks) {
-      emitNetworkSubstepItem(hooks, 2, 'advance', expeditionIndex + 1, expeditionItemCount)
-    }
-
-    processExpeditionAdvance(
-      state,
-      expeditions[expeditionIndex],
-      epoch,
-      roadCellMask,
-      dryLandMask,
-      sailMask,
-    )
-  }
-
-  return {
-    slice: { ...state.slice, expeditions: state.nextExpeditions },
-    worldDocument: state.worldDocument,
-    foundingEvents: state.foundingEvents,
-  }
-}
-
-/**
- * @param {import('../createDefaultColonizationSlice.js').ColonizationSlice} slice
- * @param {import('../../types.js').WorldDocument} doc
- * @param {number} geographySeed
- * @param {number} epoch
- * @param {boolean} frontierExhausted
- * @param {{ hooks?: ExpeditionNetworkPhaseHooks, yieldToUi?: () => Promise<void> }} options
- * @returns {Promise<import('../createDefaultColonizationSlice.js').ColonizationSlice>}
- */
-async function dispatchExpeditionsWithBudgetAsync(
-  slice,
-  doc,
-  geographySeed,
-  epoch,
-  frontierExhausted,
-  options,
-) {
-  const { hooks, yieldToUi } = options
-  const visitRaster = slice.visitedCells
-  const roadCellMask = buildLandRouteCellMask(slice.roads, doc.gridWidth, doc.gridHeight)
-  /** @type {import('./expeditionConstants.js').ExpeditionRecord[]} */
-  const expeditions = [...resolveExpeditions(slice.expeditions)]
-
-  const dryLandMask = buildDryLandTraversableMask(doc)
-  const sailMask = resolveSailTraversableMask(doc)
-  const landFrontierEdges = computeFrontierBoundaryEdges(
-    visitRaster,
-    dryLandMask,
-    doc.gridWidth,
-    doc.gridHeight,
-  )
-  const maritimeFrontierEdges = computeMaritimeExplorationFrontierEdges(
-    visitRaster,
-    sailMask,
-    doc.gridWidth,
-    doc.gridHeight,
-  )
-  const unvisitedSailCellsRemain = hasUnvisitedSailCells(visitRaster, sailMask)
-  const maritimeFrontierOpen = maritimeFrontierEdges > 0 || unvisitedSailCellsRemain
-
-  const living = livingSettlements(slice.settlements)
-  const maxActiveExpeditionsPerSettlement = computeMaxActiveExpeditionsPerSettlement(living.length)
-  const totalPopulation = living.reduce(
-    (sum, settlement) => sum + (Number.isFinite(settlement.population) ? settlement.population : 0),
-    0,
-  )
-
-  /** @type {import('./evaluateFrontierEligibility.js').FrontierEligibleSender[]} */
-  const eligibleSenders = []
-  /** @type {Map<string, number>} */
-  const remainingDispatchCapacity = new Map()
-  let eligiblePortCount = 0
-  const settlementItemCount = living.length
-
-  for (let settlementIndex = 0; settlementIndex < living.length; settlementIndex += 1) {
-    const itemIndex = settlementIndex + 1
-    const settlement = living[settlementIndex]
-    const activeExpeditionCount = countActiveExpeditionsForSettlement({ expeditions }, settlement.id)
-    const remainingCapacity = maxActiveExpeditionsPerSettlement - activeExpeditionCount
-    if (remainingCapacity <= 0) {
-      emitNetworkSubstepItem(hooks, 1, 'dispatch', itemIndex, settlementItemCount)
-      await yieldToUi?.()
-      continue
-    }
-
-    const maritimeRole = classifySettlementMaritimeRole(doc, settlement)
-    const entry = evaluateFrontierEligibility({
-      settlement,
-      doc,
-      dryLandMask,
-      landFrontierEdges,
-      maritimeFrontierEdges,
-      maritimeFrontierOpen: unvisitedSailCellsRemain,
-      maritimeRole,
-    })
-    if (entry) {
-      eligibleSenders.push(entry)
-      remainingDispatchCapacity.set(settlement.id, remainingCapacity)
-    }
-    emitNetworkSubstepItem(hooks, 1, 'dispatch', itemIndex, settlementItemCount)
-    await yieldToUi?.()
-
-    if (isPortSettlement(maritimeRole) && maritimeFrontierOpen) {
-      eligiblePortCount += 1
-    }
-  }
-
-  const budget = computeRealmExpeditionBudget({
-    totalPopulation,
-    landFrontierEdges,
-    maritimeFrontierEdges,
-    frontierExhausted,
-    eligiblePortCount,
-    hasUnvisitedSailCells: unvisitedSailCellsRemain,
-  })
-
-  const assignments = allocateExpeditionSlots({
-    landSlots: budget.landSlots,
-    maritimeSlots: budget.maritimeSlots,
-    senders: eligibleSenders,
-    geographySeed,
-    epoch,
-    remainingDispatchCapacity,
-  })
-
-  for (let assignmentIndex = 0; assignmentIndex < assignments.length; assignmentIndex += 1) {
-    emitNetworkSubstepItem(hooks, 1, 'dispatch', assignmentIndex + 1, assignments.length)
-    await yieldToUi?.()
-
-    const assignment = assignments[assignmentIndex]
-    const settlement = living.find((entry) => entry.id === assignment.settlementId)
-    if (!settlement) continue
-
-    const planned = planExpeditionDispatchForAssignment(assignment, {
-      settlement,
-      doc,
-      visitRaster,
-      geographySeed,
-      epoch,
-      assignmentIndex,
-      roadCellMask,
-    })
-    if (planned) {
-      expeditions.push(planned)
-    }
-  }
-
-  return { ...slice, expeditions, frontierExhausted }
-}
-
-/**
- * @param {{
- *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
- *   worldDocument: import('../../types.js').WorldDocument,
- *   epoch: number,
- *   roadCellMask: Uint8Array,
- *   hooks?: ExpeditionNetworkPhaseHooks,
- *   yieldToUi?: () => Promise<void>,
- * }} params
  * @returns {Promise<Pick<ExpeditionAdvanceState, 'slice' | 'worldDocument' | 'foundingEvents'>>}
  */
-async function advanceActiveExpeditionsAsync(params) {
+async function advanceActiveExpeditions(params) {
   const { slice, worldDocument, epoch, roadCellMask, hooks, yieldToUi } = params
   /** @type {ExpeditionAdvanceState} */
   const state = {
@@ -628,7 +452,7 @@ async function advanceActiveExpeditionsAsync(params) {
  * @param {{ hooks?: ExpeditionNetworkPhaseHooks, yieldToUi?: () => Promise<void> }} [options]
  * @returns {Promise<NetworkPhaseResult>}
  */
-async function runExpeditionNetworkPhase(slice, worldDocument, options = {}) {
+export async function applyExpeditionNetworkPhase(slice, worldDocument, options = {}) {
   if (slice.colonizationPhase !== 'running') {
     return { slice, worldDocument, foundingEvents: [] }
   }
@@ -653,7 +477,7 @@ async function runExpeditionNetworkPhase(slice, worldDocument, options = {}) {
 
   emitNetworkSubstep(hooks, 'substep-start', 1, 'dispatch')
   await yieldToUi?.()
-  currentSlice = await dispatchExpeditionsWithBudgetAsync(
+  currentSlice = await dispatchExpeditionsWithBudget(
     currentSlice,
     currentDoc,
     geographySeed,
@@ -666,7 +490,7 @@ async function runExpeditionNetworkPhase(slice, worldDocument, options = {}) {
 
   emitNetworkSubstep(hooks, 'substep-start', 2, 'advance')
   await yieldToUi?.()
-  const advanced = await advanceActiveExpeditionsAsync({
+  const advanced = await advanceActiveExpeditions({
     slice: currentSlice,
     worldDocument: currentDoc,
     epoch: nextEpoch,
@@ -681,65 +505,4 @@ async function runExpeditionNetworkPhase(slice, worldDocument, options = {}) {
   await yieldToUi?.()
 
   return finalizeNetworkPhaseResult(currentSlice, currentDoc, frontierExhausted, foundingEvents)
-}
-
-/**
- * @param {import('../createDefaultColonizationSlice.js').ColonizationSlice} slice
- * @param {import('../../types.js').WorldDocument} worldDocument
- * @param {{ hooks?: ExpeditionNetworkPhaseHooks }} [options]
- * @returns {NetworkPhaseResult}
- */
-export function applyExpeditionNetworkPhase(slice, worldDocument, options = {}) {
-  if (slice.colonizationPhase !== 'running') {
-    return { slice, worldDocument, foundingEvents: [] }
-  }
-
-  const hooks = options.hooks
-  const geographySeed = worldDocument.geographySeed ?? 0
-  const nextEpoch = slice.epoch + 1
-  const prepared = prepareNetworkPhaseState(slice, worldDocument)
-  let currentSlice = prepared.slice
-  let currentDoc = prepared.worldDocument
-  const roadCellMask = prepared.roadCellMask
-
-  /** @type {object[]} */
-  const foundingEvents = []
-
-  emitNetworkSubstep(hooks, 'substep-start', 0, 'frontier')
-  const frontierExhausted = isFrontierExhausted(currentSlice.logisticsNodeSurvey ?? [])
-  emitNetworkSubstep(hooks, 'substep-complete', 0, 'frontier')
-
-  emitNetworkSubstep(hooks, 'substep-start', 1, 'dispatch')
-  currentSlice = dispatchExpeditionsWithBudget(
-    currentSlice,
-    currentDoc,
-    geographySeed,
-    nextEpoch,
-    frontierExhausted,
-  )
-  emitNetworkSubstep(hooks, 'substep-complete', 1, 'dispatch')
-
-  emitNetworkSubstep(hooks, 'substep-start', 2, 'advance')
-  const advanced = advanceActiveExpeditions({
-    slice: currentSlice,
-    worldDocument: currentDoc,
-    epoch: nextEpoch,
-    roadCellMask,
-  })
-  currentSlice = advanced.slice
-  currentDoc = advanced.worldDocument
-  foundingEvents.push(...advanced.foundingEvents)
-  emitNetworkSubstep(hooks, 'substep-complete', 2, 'advance')
-
-  return finalizeNetworkPhaseResult(currentSlice, currentDoc, frontierExhausted, foundingEvents)
-}
-
-/**
- * @param {import('../createDefaultColonizationSlice.js').ColonizationSlice} slice
- * @param {import('../../types.js').WorldDocument} worldDocument
- * @param {{ hooks?: ExpeditionNetworkPhaseHooks, yieldToUi?: () => Promise<void> }} [options]
- * @returns {Promise<NetworkPhaseResult>}
- */
-export function applyExpeditionNetworkPhaseAsync(slice, worldDocument, options = {}) {
-  return runExpeditionNetworkPhase(slice, worldDocument, options)
 }

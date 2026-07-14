@@ -63,7 +63,7 @@ function colonizationFixtureDoc() {
   }
 }
 
-function commitOnDoc(doc, landing = { x: 1, y: 3 }, haulDistance = 4) {
+async function commitOnDoc(doc, landing = { x: 1, y: 3 }, haulDistance = 4) {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = landing
@@ -73,16 +73,16 @@ function commitOnDoc(doc, landing = { x: 1, y: 3 }, haulDistance = 4) {
 }
 
 /** Scenario A: default colonist settings (haul 100, land range 2×, sail range 3×). */
-function commitScenarioA(doc, landing = { x: 1, y: 3 }) {
+async function commitScenarioA(doc, landing = { x: 1, y: 3 }) {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = landing
   return beginColonizationCommit(slice, doc)
 }
 
-test('beginColonizationCommit seeds founding haul-shed as visited', () => {
+test('beginColonizationCommit seeds founding haul-shed as visited', async () => {
   const doc = colonizationFixtureDoc()
-  const committed = commitOnDoc(doc)
+  const committed = await commitOnDoc(doc)
   assert.ok(committed.visitedCells instanceof Uint8Array)
   assert.strictEqual(isCellVisited(committed.visitedCells, 1, 3, doc.gridWidth), true)
 })
@@ -141,11 +141,11 @@ test('roads can flip primary claim ownership between settlements', () => {
   assert.notStrictEqual(ownerWithoutRoad, ownerWithRoad)
 })
 
-test('expedition dispatch is deterministic for same seed and landing', () => {
+test('expedition dispatch is deterministic for same seed and landing', async () => {
   const doc = colonizationFixtureDoc()
-  let first = commitOnDoc(doc)
+  let first = await commitOnDoc(doc)
   for (let i = 0; i < 5; i += 1) {
-    first = applyColonizationEpoch(first, doc).slice
+    first = (await applyColonizationEpoch(first, doc)).slice
   }
   const firstExpeditions = JSON.stringify(
     first.expeditions.map(({ id, settlementId, mode, bearing, route, progressIndex, status, endReason }) => ({
@@ -160,9 +160,9 @@ test('expedition dispatch is deterministic for same seed and landing', () => {
     })),
   )
 
-  let second = commitOnDoc(doc)
+  let second = await commitOnDoc(doc)
   for (let i = 0; i < 5; i += 1) {
-    second = applyColonizationEpoch(second, doc).slice
+    second = (await applyColonizationEpoch(second, doc)).slice
   }
   assert.strictEqual(
     JSON.stringify(
@@ -181,14 +181,14 @@ test('expedition dispatch is deterministic for same seed and landing', () => {
   )
 })
 
-test('land expedition routes never cross lake or river corridor masks', () => {
+test('land expedition routes never cross lake or river corridor masks', async () => {
   const doc = colonizationFixtureDoc()
-  let slice = commitOnDoc(doc)
+  let slice = await commitOnDoc(doc)
   slice.colonistSettings.threeDayHaulDistance = 3
   slice.colonistSettings.landExpeditionRange = 4
 
   for (let i = 0; i < 15; i += 1) {
-    slice = applyColonizationEpoch(slice, doc).slice
+    slice = (await applyColonizationEpoch(slice, doc)).slice
     for (const expedition of slice.expeditions) {
       if (expedition.mode !== 'land') continue
       for (const cell of expedition.route) {
@@ -208,10 +208,10 @@ test('land expedition routes never cross lake or river corridor masks', () => {
   }
 })
 
-test('bearing-based expeditions include bearing and omit target field', () => {
+test('bearing-based expeditions include bearing and omit target field', async () => {
   const doc = colonizationFixtureDoc()
-  let slice = commitOnDoc(doc)
-  slice = applyColonizationEpoch(slice, doc).slice
+  let slice = await commitOnDoc(doc)
+  slice = (await applyColonizationEpoch(slice, doc)).slice
   const active = slice.expeditions.find((entry) => entry.status === 'active')
   if (active) {
     assert.strictEqual(typeof active.bearing, 'number')
@@ -219,16 +219,16 @@ test('bearing-based expeditions include bearing and omit target field', () => {
   }
 })
 
-test('scenario A baseline dispatches expeditions with default colonist settings', () => {
+test('scenario A baseline dispatches expeditions with default colonist settings', async () => {
   const doc = colonizationFixtureDoc()
-  let slice = commitScenarioA(doc)
+  let slice = await commitScenarioA(doc)
   assert.strictEqual(slice.colonistSettings.threeDayHaulDistance, DEFAULT_THREE_DAY_HAUL_DISTANCE)
   assert.strictEqual(slice.colonistSettings.landExpeditionRange, DEFAULT_LAND_EXPEDITION_RANGE)
   assert.strictEqual(slice.colonistSettings.inlandSailExpeditionRange, DEFAULT_INLAND_SAIL_EXPEDITION_RANGE)
   assert.strictEqual(slice.colonistSettings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)
 
   const visitedAtFounding = slice.visitedCells.filter((value) => value === 1).length
-  slice = applyColonizationEpoch(slice, doc).slice
+  slice = (await applyColonizationEpoch(slice, doc)).slice
 
   assert.ok(slice.expeditions.length > 0)
   const marched = slice.expeditions.some((entry) => entry.route.length > 1)
@@ -236,15 +236,15 @@ test('scenario A baseline dispatches expeditions with default colonist settings'
   assert.ok(marched || active)
 
   for (let i = 0; i < 9; i += 1) {
-    slice = applyColonizationEpoch(slice, doc).slice
+    slice = (await applyColonizationEpoch(slice, doc)).slice
   }
   const visitedAfter = slice.visitedCells.filter((value) => value === 1).length
   assert.ok(visitedAfter >= visitedAtFounding)
 })
 
-test('expeditions dispatch when founding haul-shed already visited immediate neighbors', () => {
+test('expeditions dispatch when founding haul-shed already visited immediate neighbors', async () => {
   const doc = colonizationFixtureDoc()
-  const slice = commitOnDoc(doc)
+  const slice = await commitOnDoc(doc)
   const pin = slice.settlements[0]
   const neighborsVisited = [
     { x: pin.x - 1, y: pin.y },
@@ -254,14 +254,14 @@ test('expeditions dispatch when founding haul-shed already visited immediate nei
   ].every((cell) => isCellVisited(slice.visitedCells, cell.x, cell.y, doc.gridWidth))
   assert.ok(neighborsVisited, 'fixture should seed haul-shed over pin neighbors')
 
-  const afterEpoch = applyColonizationEpoch(slice, doc).slice
+  const afterEpoch = (await applyColonizationEpoch(slice, doc)).slice
   assert.ok(
     afterEpoch.expeditions.some((entry) => entry.status === 'active' || entry.route.length > 1),
     'expected expedition dispatch despite visited haul-shed neighbors',
   )
 })
 
-test('expeditions dispatch and expand visit raster beyond the founding haul-shed', () => {
+test('expeditions dispatch and expand visit raster beyond the founding haul-shed', async () => {
   const width = 12
   const height = 12
   const cellCount = width * height
@@ -284,14 +284,14 @@ test('expeditions dispatch and expand visit raster beyond the founding haul-shed
     riverCorridorMask: new Uint8Array(cellCount),
   }
 
-  let slice = commitOnDoc(doc, { x: 6, y: 6 })
+  let slice = await commitOnDoc(doc, { x: 6, y: 6 })
   slice.colonistSettings.landExpeditionRange = 4
   const pin = slice.settlements[0]
   slice.visitedCells[pin.y * width + (pin.x + 1)] = 0
   const visitedAtFounding = slice.visitedCells.filter((value) => value === 1).length
 
   for (let i = 0; i < 10; i += 1) {
-    slice = applyColonizationEpoch(slice, doc).slice
+    slice = (await applyColonizationEpoch(slice, doc)).slice
   }
 
   const visitedAfter = slice.visitedCells.filter((value) => value === 1).length
@@ -299,20 +299,20 @@ test('expeditions dispatch and expand visit raster beyond the founding haul-shed
   assert.ok(visitedAfter > visitedAtFounding, 'expected exploration to clear fog beyond haul-shed')
 })
 
-test('frontierExhausted stops new dispatch but epoch still advances', () => {
+test('frontierExhausted stops new dispatch but epoch still advances', async () => {
   const doc = colonizationFixtureDoc()
-  let slice = commitOnDoc(doc)
+  let slice = await commitOnDoc(doc)
   slice.logisticsNodeSurvey = (slice.logisticsNodeSurvey ?? []).map((entry) => ({
     ...entry,
     exhausted: true,
     founded: false,
   }))
-  slice = applyColonizationEpoch(slice, doc).slice
+  slice = (await applyColonizationEpoch(slice, doc)).slice
   assert.strictEqual(slice.frontierExhausted, true)
   assert.strictEqual(slice.epoch, 1)
 })
 
-test('founding stores computed A-to-B corridor between settlement pins', () => {
+test('founding stores computed A-to-B corridor between settlement pins', async () => {
   const width = 10
   const height = 10
   const cellCount = width * height
@@ -344,7 +344,7 @@ test('founding stores computed A-to-B corridor between settlement pins', () => {
     roads: [],
   }
 
-  let slice = commitOnDoc(doc, { x: 2, y: 5 }, 3)
+  let slice = await commitOnDoc(doc, { x: 2, y: 5 }, 3)
   const founded = foundDaughterSettlement({
     slice,
     worldDocument: doc,
@@ -379,11 +379,11 @@ test('founding stores computed A-to-B corridor between settlement pins', () => {
   assert.deepStrictEqual(segment.cells, expected?.cells)
 })
 
-test('session round-trip restores bearing expeditions and visit raster', () => {
+test('session round-trip restores bearing expeditions and visit raster', async () => {
   const doc = colonizationFixtureDoc()
-  let slice = commitOnDoc(doc, { x: 6, y: 6 }, 1)
+  let slice = await commitOnDoc(doc, { x: 6, y: 6 }, 1)
   for (let i = 0; i < 3; i += 1) {
-    slice = applyColonizationEpoch(slice, doc).slice
+    slice = (await applyColonizationEpoch(slice, doc)).slice
   }
 
   const serialized = serializeColonizationSessionForStorage(slice)

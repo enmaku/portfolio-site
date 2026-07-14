@@ -40,7 +40,7 @@ test('createFoundingDynasty records dynasty seat with geography-derived label ke
   assert.ok(dynasty.labelKey.startsWith('grassland'))
 })
 
-test('beginColonizationCommit seeds founding dynasty on the world document slice', () => {
+test('beginColonizationCommit seeds founding dynasty on the world document slice', async () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 2 }
@@ -65,7 +65,7 @@ test('beginColonizationCommit seeds founding dynasty on the world document slice
     riverCorridorMask: Uint8Array.from({ length: cellCount }, (_, i) => (i === 9 ? 1 : 0)),
   }
 
-  const next = beginColonizationCommit(slice, doc)
+  const next = await beginColonizationCommit(slice, doc)
   assert.strictEqual(next.notableFigures.length, 1)
   assert.strictEqual(next.notableFigures[0].kind, 'dynasty')
   assert.strictEqual(next.notableFigures[0].role, 'founder')

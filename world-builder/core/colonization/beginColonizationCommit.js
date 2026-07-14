@@ -2,17 +2,17 @@ import {
   COLONIZATION_PHASE_SETUP,
   cloneColonizationSlice,
 } from './createDefaultColonizationSlice.js'
-import { executeBeginColonizationCommitStepsSync } from './runBeginColonizationCommit.js'
+import { executeBeginColonizationCommitSteps } from './runBeginColonizationCommit.js'
 
 /**
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} doc
- * @returns {import('./createDefaultColonizationSlice.js').ColonizationSlice}
+ * @returns {Promise<import('./createDefaultColonizationSlice.js').ColonizationSlice>}
  */
-export function beginColonizationCommit(slice, doc) {
+export async function beginColonizationCommit(slice, doc) {
   if (slice.colonizationPhase !== COLONIZATION_PHASE_SETUP || !slice.foundingLanding) {
     return slice
   }
 
-  return executeBeginColonizationCommitStepsSync(cloneColonizationSlice(slice), doc)
+  return executeBeginColonizationCommitSteps(cloneColonizationSlice(slice), doc)
 }

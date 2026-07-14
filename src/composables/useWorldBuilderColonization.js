@@ -3,12 +3,10 @@ import { yieldColonizationProgressToUi } from './colonizationUiYield.js'
 import { createInitialBeginColonizationProgress } from '../../world-builder/core/colonization/beginColonizationProgress.js'
 import {
   createInitialEpochStepProgress,
-  reduceEpochStepProgressOnFinalizeStepComplete,
-  reduceEpochStepProgressOnFinalizeStepStart,
   reduceEpochStepProgressOnRunComplete,
 } from '../../world-builder/core/colonization/colonizationEpochProgress.js'
 import { runColonizationEpochStep } from '../../world-builder/core/colonization/runColonizationEpochStep.js'
-import { runColonizationEpochMapFinalize } from '../../world-builder/core/colonization/runColonizationEpochMapFinalize.js'
+import { finalizeColonizationMutation } from '../../world-builder/core/colonization/finalizeColonizationMutation.js'
 import { COLONIZATION_BEGIN_STEPS } from '../../world-builder/core/colonization/colonizationBeginSteps.js'
 import {
   COLONIZATION_COLLAPSE_SUBSTEPS,
@@ -44,6 +42,11 @@ import {
   createGenerationStepStatuses,
   createHydrologySubstepStatuses,
 } from '../../world-builder/worldBuilderPageModel.js'
+import {
+  buildBeginStatusSection,
+  buildEpochStatusSection,
+  buildRehydrationStatusSection,
+} from '../../world-builder/buildWorldBuilderStatusBar.js'
 
 /**
  * Product colonization phase owner (terrain / setup / running). Distinct from generation runPhase.
@@ -62,8 +65,9 @@ import {
  *   } | null,
  *   getGeographyDocument?: () => import('../../world-builder/core/types.js').WorldDocument | null,
  *   onSliceChanged?: () => void,
- *   colonizationMapPorts?: import('../../world-builder/core/colonization/runColonizationEpochMapFinalize.js').ColonizationEpochMapPorts,
+ *   colonizationMapPorts?: import('../../world-builder/core/colonization/finalizeColonizationMutation.js').ColonizationEpochMapPorts,
  *   onSessionPersistRequested?: () => void,
+ *   getSessionRestorePending?: () => boolean,
  * }} options
  */
 export function useWorldBuilderColonization(options) {
@@ -75,6 +79,7 @@ export function useWorldBuilderColonization(options) {
     onSliceChanged,
     colonizationMapPorts,
     onSessionPersistRequested,
+    getSessionRestorePending,
   } = options
 
   /** @type {import('vue').Ref<import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice>} */
@@ -445,7 +450,13 @@ export function useWorldBuilderColonization(options) {
       }
       slice.value = result.slice
       syncColonistSettingsSnapshot()
-      persistSlice()
+
+      await finalizeColonizationMutation({
+        ports: colonizationMapPorts,
+        fallbackPersist: persistSlice,
+        reportFinalizeProgress: false,
+      })
+
       syncLandingVisuals()
       return true
     } finally {
@@ -480,29 +491,22 @@ export function useWorldBuilderColonization(options) {
       }
       slice.value = result.slice
 
-      let progress = reduceEpochStepProgressOnFinalizeStepStart(epochStepProgress.value, {
-        stepIndex: 1,
-      })
-      epochStepProgress.value = progress
-      await yieldColonizationProgressToUi()
-
-      if (colonizationMapPorts) {
-        await runColonizationEpochMapFinalize(colonizationMapPorts, {
+      await finalizeColonizationMutation({
+        ports: colonizationMapPorts,
+        fallbackPersist: () => {
+          settingsStore.setColonizationSession?.(slice.value)
+          onSliceChanged?.()
+        },
+        handlers: {
           getProgress: () => epochStepProgress.value,
           onProgress(next) {
             epochStepProgress.value = next
           },
           yieldToUi: yieldColonizationProgressToUi,
-        })
-      } else {
-        settingsStore.setColonizationSession?.(slice.value)
-        onSliceChanged?.()
-      }
-
-      progress = reduceEpochStepProgressOnFinalizeStepComplete(epochStepProgress.value, {
-        stepIndex: 1,
+        },
       })
-      epochStepProgress.value = reduceEpochStepProgressOnRunComplete(progress)
+
+      epochStepProgress.value = reduceEpochStepProgressOnRunComplete(epochStepProgress.value)
       await yieldColonizationProgressToUi()
 
       syncLandingVisuals()
@@ -670,6 +674,44 @@ export function useWorldBuilderColonization(options) {
     ),
   )
 
+  /**
+   * Colonization-owned status-bar section (begin > epoch > rehydration), or null when idle.
+   * The page controller merges this with generation + overlays under the global priority.
+   * @type {import('vue').ComputedRef<import('../../world-builder/buildWorldBuilderStatusBar.js').StatusBarViewModel | null>}
+   */
+  const colonizationStatusSection = computed(() => {
+    if (showBeginColonizationProgress.value) {
+      return buildBeginStatusSection({
+        percent: beginColonizationProgress.value.percent,
+        steps: beginColonizationStepStatuses.value,
+      })
+    }
+    if (showEpochStepProgress.value) {
+      return buildEpochStatusSection({
+        percent: epochStepProgress.value.percent,
+        phaseSteps: epochStepPhaseStatuses.value,
+        finalizeSteps: epochStepFinalizeStepStatuses.value,
+        networkSubsteps: epochStepNetworkSubstepStatuses.value,
+        collapseSubsteps: epochStepCollapseSubstepStatuses.value,
+        mapSubsteps: epochStepMapSubstepStatuses.value,
+      })
+    }
+    const sessionRestorePending = getSessionRestorePending?.() ?? false
+    if (showRehydrationProgress.value || sessionRestorePending) {
+      return buildRehydrationStatusSection({
+        percent: rehydrationProgress.value.percent,
+        indeterminate:
+          sessionRestorePending ||
+          (showRehydrationProgress.value && rehydrationProgress.value.activeStepIndex < 0),
+        steps: rehydrationStepStatuses.value,
+        sessionSubsteps: rehydrationSessionSubstepStatuses.value,
+        visitedSubsteps: rehydrationVisitedSubstepStatuses.value,
+        collapseSubsteps: rehydrationCollapseSubstepStatuses.value,
+      })
+    }
+    return null
+  })
+
   return {
     slice,
     colonizationPhase,
@@ -702,6 +744,7 @@ export function useWorldBuilderColonization(options) {
     rehydrationSessionSubstepStatuses,
     rehydrationVisitedSubstepStatuses,
     rehydrationCollapseSubstepStatuses,
+    colonizationStatusSection,
     isColonistSettingsRunningPhase,
     hydrateFromPersistedSettings,
     enterColonizationSetup,

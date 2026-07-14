@@ -1,12 +1,12 @@
-import { applyPopulationCollapse, applyPopulationCollapseAsync } from './applyPopulationCollapse.js'
-import { applyNetworkPhase, applyNetworkPhaseAsync } from './applyNetworkPhase.js'
+import { applyPopulationCollapse } from './applyPopulationCollapse.js'
+import { applyExpeditionNetworkPhase } from './expeditions/expeditionScheduler.js'
 import { applyRuinTransitions } from './applyRuin.js'
 import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaimMap.js'
 import { DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
 import { saltSpoilageMultiplierForSettlement as defaultSaltSpoilage } from './saltSpoilageMultiplier.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
-import { runColonizationEpochPhasesSync } from './runColonizationEpochPhases.js'
+import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
 
 /**
  * @typedef {Object} ColonizationEpochContext
@@ -36,25 +36,14 @@ export function createColonizationEpochContext(slice, worldDocument) {
 
 /**
  * @param {ColonizationEpochContext} ctx
- * @param {{ network?: import('./applyNetworkPhase.js').ApplyNetworkPhaseOptions }} [options]
- */
-export function runColonizationEpochNetworkPhase(ctx, options = {}) {
-  const network = applyNetworkPhase(ctx.slice, ctx.worldDocument, options.network)
-  ctx.slice = network.slice
-  ctx.worldDocument = network.worldDocument
-  ctx.events.push(...network.events)
-}
-
-/**
- * @param {ColonizationEpochContext} ctx
- * @param {{ network?: import('./applyNetworkPhase.js').ApplyNetworkPhaseOptions & { yieldToUi?: () => Promise<void> } }} [options]
+ * @param {{ network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions }} [options]
  * @returns {Promise<void>}
  */
-export async function runColonizationEpochNetworkPhaseAsync(ctx, options = {}) {
-  const network = await applyNetworkPhaseAsync(ctx.slice, ctx.worldDocument, options.network)
+export async function runColonizationEpochNetworkPhase(ctx, options = {}) {
+  const network = await applyExpeditionNetworkPhase(ctx.slice, ctx.worldDocument, options.network)
   ctx.slice = network.slice
   ctx.worldDocument = network.worldDocument
-  ctx.events.push(...network.events)
+  ctx.events.push(...network.foundingEvents)
 }
 
 /**
@@ -155,26 +144,10 @@ export function runColonizationEpochRuinPhase(ctx) {
 
 /**
  * @param {ColonizationEpochContext} ctx
- */
-export function runColonizationEpochCollapsePhase(ctx) {
-  const withClaims = {
-    ...ctx.slice,
-    visitedCells: ctx.slice.visitedCells,
-    expeditions: ctx.slice.expeditions,
-    frontierExhausted: ctx.slice.frontierExhausted,
-    roads: ctx.slice.roads,
-    logisticsNodeSurvey: ctx.slice.logisticsNodeSurvey,
-  }
-  const { slice: collapsed } = applyPopulationCollapse(withClaims, ctx.worldDocument)
-  ctx.slice = collapsed
-}
-
-/**
- * @param {ColonizationEpochContext} ctx
  * @param {{ collapse?: { hooks?: import('./collapsePopulation.js').CollapsePopulationHooks, yieldToUi?: () => Promise<void> } }} [options]
  * @returns {Promise<void>}
  */
-export async function runColonizationEpochCollapsePhaseAsync(ctx, options = {}) {
+export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
   const withClaims = {
     ...ctx.slice,
     visitedCells: ctx.slice.visitedCells,
@@ -183,7 +156,7 @@ export async function runColonizationEpochCollapsePhaseAsync(ctx, options = {}) 
     roads: ctx.slice.roads,
     logisticsNodeSurvey: ctx.slice.logisticsNodeSurvey,
   }
-  const { slice: collapsed } = await applyPopulationCollapseAsync(withClaims, ctx.worldDocument, {
+  const { slice: collapsed } = await applyPopulationCollapse(withClaims, ctx.worldDocument, {
     hooks: options.collapse?.hooks,
     yieldToUi: options.collapse?.yieldToUi,
   })
@@ -196,19 +169,19 @@ export async function runColonizationEpochCollapsePhaseAsync(ctx, options = {}) 
  *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument
- * @param {{ saltSpoilageMultiplierForSettlement?: Function, network?: import('./applyNetworkPhase.js').ApplyNetworkPhaseOptions }} [options]
- * @returns {{
+ * @param {{ saltSpoilageMultiplierForSettlement?: Function, network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions }} [options]
+ * @returns {Promise<{
  *   slice: import('./createDefaultColonizationSlice.js').ColonizationSlice,
  *   events: object[],
- * }}
+ * }>}
  */
-export function applyColonizationEpoch(slice, worldDocument, options = {}) {
+export async function applyColonizationEpoch(slice, worldDocument, options = {}) {
   if (slice.colonizationPhase !== 'running') {
     return { slice, events: [] }
   }
 
   const ctx = createColonizationEpochContext(slice, worldDocument)
-  runColonizationEpochPhasesSync(ctx, options)
+  await runColonizationEpochPhases(ctx, options)
 
   return {
     slice: ctx.slice,

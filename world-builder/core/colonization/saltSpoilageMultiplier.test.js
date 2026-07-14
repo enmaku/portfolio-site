@@ -66,22 +66,22 @@ function geographyWithSalt(saltNodes) {
   }
 }
 
-test('salt-poor fixture grows slower than salt-rich control', () => {
-  const build = (saltNodes) => {
+test('salt-poor fixture grows slower than salt-rich control', async () => {
+  const build = async (saltNodes) => {
     const slice = createDefaultColonizationSlice()
     slice.colonizationPhase = COLONIZATION_PHASE_SETUP
     slice.foundingLanding = { x: 1, y: 1 }
     slice.colonistSettings.startingPopulation = 40
     slice.colonistSettings.threeDayHaulDistance = 2
     const doc = geographyWithSalt(saltNodes)
-    let running = beginColonizationCommit(slice, doc)
+    let running = await beginColonizationCommit(slice, doc)
     for (let i = 0; i < 5; i += 1) {
-      running = applyColonizationEpoch(running, doc).slice
+      running = (await applyColonizationEpoch(running, doc)).slice
     }
     return running.settlements[0].population
   }
 
-  const poorPop = build([])
-  const richPop = build([{ id: 'salt-0', x: 1, y: 1, score: 1 }])
+  const poorPop = await build([])
+  const richPop = await build([{ id: 'salt-0', x: 1, y: 1, score: 1 }])
   assert.ok(richPop > poorPop)
 })

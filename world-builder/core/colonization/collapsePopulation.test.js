@@ -4,7 +4,6 @@ import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
 import {
   POPULATION_COLLAPSE_CORE_FRACTION,
   collapsePopulation,
-  collapsePopulationAsync,
   hashPopulationCollapseRaster,
   isHabitablePopulationCell,
 } from './collapsePopulation.js'
@@ -97,7 +96,7 @@ test('isHabitablePopulationCell rejects ocean, lakes, and river channels', () =>
   )
 })
 
-test('collapsePopulation never places people on water cells', () => {
+test('collapsePopulation never places people on water cells', async () => {
   const width = 5
   const height = 5
   const cellCount = width * height
@@ -111,7 +110,7 @@ test('collapsePopulation never places people on water cells', () => {
   riverCorridorMask[4 * width + 2] = 1
   const arableRaster = new Float32Array(cellCount).fill(1)
 
-  const raster = collapsePopulation({
+  const raster = await collapsePopulation({
     settlements: [{ id: 's1', x: 2, y: 2, population: 100, status: 'living' }],
     primaryClaim: fullClaim(width, height, { x: 2, y: 2 }),
     arableRaster,
@@ -132,12 +131,12 @@ test('collapsePopulation never places people on water cells', () => {
   assert.strictEqual(raster.reduce((sum, value) => sum + value, 0), 100)
 })
 
-test('collapsePopulation places urban majority in the core cluster', () => {
+test('collapsePopulation places urban majority in the core cluster', async () => {
   const width = 7
   const height = 7
   const cellCount = width * height
   const pin = { x: 3, y: 3 }
-  const raster = collapsePopulation({
+  const raster = await collapsePopulation({
     settlements: [{ id: 's1', ...pin, population: 100, status: 'living' }],
     primaryClaim: fullClaim(width, height, pin),
     arableRaster: new Float32Array(cellCount).fill(1),
@@ -160,13 +159,13 @@ test('collapsePopulation places urban majority in the core cluster', () => {
   assert.strictEqual(raster.reduce((sum, value) => sum + value, 0), 100)
 })
 
-test('collapsePopulation scatters hinterland instead of filling the claim', () => {
+test('collapsePopulation scatters hinterland instead of filling the claim', async () => {
   const width = 25
   const height = 25
   const cellCount = width * height
   const pin = { x: 12, y: 12 }
   const population = 100
-  const raster = collapsePopulation({
+  const raster = await collapsePopulation({
     settlements: [{ id: 's1', ...pin, population, status: 'living' }],
     primaryClaim: fullClaim(width, height, pin),
     arableRaster: new Float32Array(cellCount).fill(1),
@@ -189,11 +188,11 @@ test('collapsePopulation scatters hinterland instead of filling the claim', () =
   assert.strictEqual(raster.reduce((sum, value) => sum + value, 0), population)
 })
 
-test('collapsePopulation totals match settlement population', () => {
+test('collapsePopulation totals match settlement population', async () => {
   const width = 5
   const height = 5
   const cellCount = width * height
-  const raster = collapsePopulation({
+  const raster = await collapsePopulation({
     settlements: [{ id: 's1', x: 2, y: 2, population: 47, status: 'living' }],
     primaryClaim: fullClaim(width, height, { x: 2, y: 2 }),
     arableRaster: new Float32Array(cellCount).fill(0.5),
@@ -208,7 +207,7 @@ test('collapsePopulation totals match settlement population', () => {
   assert.ok([...raster].every((value) => Number.isInteger(value)))
 })
 
-test('collapsePopulation is deterministic for identical inputs', () => {
+test('collapsePopulation is deterministic for identical inputs', async () => {
   const width = 6
   const height = 6
   const cellCount = width * height
@@ -223,12 +222,12 @@ test('collapsePopulation is deterministic for identical inputs', () => {
     geographySeed: 42,
     epoch: 5,
   }
-  const a = collapsePopulation(params)
-  const b = collapsePopulation(params)
+  const a = await collapsePopulation(params)
+  const b = await collapsePopulation(params)
   assert.strictEqual(hashPopulationCollapseRaster(a), hashPopulationCollapseRaster(b))
 })
 
-test('collapsePopulationAsync matches sync output and emits collapse substeps', async () => {
+test('collapsePopulation emits collapse substeps and matches output with or without yieldToUi', async () => {
   const width = 6
   const height = 6
   const cellCount = width * height
@@ -245,7 +244,7 @@ test('collapsePopulationAsync matches sync output and emits collapse substeps', 
   }
   /** @type {string[]} */
   const substepEvents = []
-  const asyncRaster = await collapsePopulationAsync(params, {
+  const withHooksRaster = await collapsePopulation(params, {
     yieldToUi: async () => {},
     hooks: {
       onCollapseSubstep(payload) {
@@ -253,8 +252,11 @@ test('collapsePopulationAsync matches sync output and emits collapse substeps', 
       },
     },
   })
-  const syncRaster = collapsePopulation(params)
-  assert.strictEqual(hashPopulationCollapseRaster(asyncRaster), hashPopulationCollapseRaster(syncRaster))
+  const bareRaster = await collapsePopulation(params)
+  assert.strictEqual(
+    hashPopulationCollapseRaster(withHooksRaster),
+    hashPopulationCollapseRaster(bareRaster),
+  )
   assert.deepStrictEqual(substepEvents, [
     'substep-start:urban',
     'substep-complete:urban',
@@ -263,8 +265,8 @@ test('collapsePopulationAsync matches sync output and emits collapse substeps', 
   ])
 })
 
-test('collapsePopulation skips ruins and empty domains', () => {
-  const empty = collapsePopulation({
+test('collapsePopulation skips ruins and empty domains', async () => {
+  const empty = await collapsePopulation({
     settlements: [{ id: 's1', x: 0, y: 0, population: 10, status: 'ruin' }],
     primaryClaim: { s1: [{ x: 0, y: 0 }] },
     elevation: landElevation(1),
@@ -275,7 +277,7 @@ test('collapsePopulation skips ruins and empty domains', () => {
   })
   assert.strictEqual(empty[0], 0)
 
-  const noLand = collapsePopulation({
+  const noLand = await collapsePopulation({
     settlements: [{ id: 's1', x: 0, y: 0, population: 10, status: 'living' }],
     primaryClaim: { s1: [{ x: 0, y: 0 }] },
     elevation: null,
@@ -287,7 +289,7 @@ test('collapsePopulation skips ruins and empty domains', () => {
   assert.strictEqual(noLand[0], 0)
 })
 
-test('collapsePopulation spreads hinterland south of the pin, not only north', () => {
+test('collapsePopulation spreads hinterland south of the pin, not only north', async () => {
   const width = 51
   const height = 51
   const cellCount = width * height
@@ -300,7 +302,7 @@ test('collapsePopulation spreads hinterland south of the pin, not only north', (
     }
   }
 
-  const raster = collapsePopulation({
+  const raster = await collapsePopulation({
     settlements: [{ id: 's1', ...pin, population: 1000, status: 'living' }],
     primaryClaim: { s1: cells },
     arableRaster: new Float32Array(cellCount).fill(1),
@@ -333,14 +335,14 @@ test('collapsePopulation spreads hinterland south of the pin, not only north', (
   assert.ok(peopleSouth / peopleNorth > 0.25)
 })
 
-test('collapsePopulation parks hinterland in urban cluster when no arable hinterland exists', () => {
+test('collapsePopulation parks hinterland in urban cluster when no arable hinterland exists', async () => {
   const width = 3
   const height = 3
   const cellCount = width * height
   const arableRaster = new Float32Array(cellCount)
   // Only pin has arable; neighbors are land but non-arable.
   arableRaster[1 * width + 1] = 1
-  const raster = collapsePopulation({
+  const raster = await collapsePopulation({
     settlements: [{ id: 's1', x: 1, y: 1, population: 50, status: 'living' }],
     primaryClaim: fullClaim(width, height, { x: 1, y: 1 }),
     arableRaster,

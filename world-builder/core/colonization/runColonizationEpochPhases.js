@@ -11,15 +11,22 @@ import {
  */
 
 /**
- * Canonical synchronous annual epoch tick: network → claims → survival → ruin → collapse.
+ * Canonical annual epoch tick: network → claims → survival → ruin → collapse.
+ * Network and collapse phases yield to the UI between substeps when
+ * `options.network.yieldToUi` / `options.collapse.yieldToUi` are provided.
  *
  * @param {ColonizationEpochContext} ctx
- * @param {{ saltSpoilageMultiplierForSettlement?: Function, network?: import('./applyNetworkPhase.js').ApplyNetworkPhaseOptions }} [options]
+ * @param {{
+ *   saltSpoilageMultiplierForSettlement?: Function,
+ *   network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions,
+ *   collapse?: { hooks?: import('./collapsePopulation.js').CollapsePopulationHooks, yieldToUi?: () => Promise<void> },
+ * }} [options]
+ * @returns {Promise<void>}
  */
-export function runColonizationEpochPhasesSync(ctx, options = {}) {
-  runColonizationEpochNetworkPhase(ctx, options)
+export async function runColonizationEpochPhases(ctx, options = {}) {
+  await runColonizationEpochNetworkPhase(ctx, options)
   runColonizationEpochClaimsPhase(ctx)
   runColonizationEpochSurvivalPhase(ctx, options)
   runColonizationEpochRuinPhase(ctx)
-  runColonizationEpochCollapsePhase(ctx)
+  await runColonizationEpochCollapsePhase(ctx, options)
 }

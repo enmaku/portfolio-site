@@ -1,4 +1,4 @@
-import { applyPopulationCollapse, applyPopulationCollapseAsync } from './applyPopulationCollapse.js'
+import { applyPopulationCollapse, applyPopulationCollapseSync } from './applyPopulationCollapse.js'
 import {
   hasPersistedPrimaryClaim,
   rehydratePrimaryClaimForSlice,
@@ -100,7 +100,7 @@ export function rehydrateColonizationDerivedOverlays(slice, doc) {
     return withVisit
   }
 
-  return applyPopulationCollapse(withVisit, doc).slice
+  return applyPopulationCollapseSync(withVisit, doc).slice
 }
 
 /**
@@ -283,7 +283,7 @@ export async function rehydrateColonizationDerivedOverlaysAsync(slice, doc, opti
 async function collapsePopulationForRehydration(slice, doc, context) {
   let { progress } = context
 
-  return applyPopulationCollapseAsync(slice, doc, {
+  return applyPopulationCollapse(slice, doc, {
     yieldToUi: context.yieldToUi,
     hooks: {
       onCollapseSubstep(payload) {

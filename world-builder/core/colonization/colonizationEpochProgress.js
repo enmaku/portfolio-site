@@ -351,8 +351,8 @@ export function reduceEpochStepProgressOnFinalizeStepStart(progress, payload) {
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
     activeFinalizeStepIndex: payload.stepIndex,
-    activeMapSubstepIndex: payload.stepIndex === 1 ? -1 : progress.activeMapSubstepIndex,
-    completedMapSubstepIndex: payload.stepIndex === 1 ? -1 : progress.completedMapSubstepIndex,
+    activeMapSubstepIndex: step?.id === 'map' ? -1 : progress.activeMapSubstepIndex,
+    completedMapSubstepIndex: step?.id === 'map' ? -1 : progress.completedMapSubstepIndex,
   }
 }
 

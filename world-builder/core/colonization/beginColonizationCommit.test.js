@@ -46,14 +46,14 @@ function geographyDoc(options = {}) {
   }
 }
 
-test('beginColonizationCommit enters running with founding settlement and history log', () => {
+test('beginColonizationCommit enters running with founding settlement and history log', async () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 2 }
   slice.colonistSettings.startingPopulation = 120
   slice.colonistSettings.threeDayHaulDistance = 2
 
-  const next = beginColonizationCommit(slice, geographyDoc())
+  const next = await beginColonizationCommit(slice, geographyDoc())
 
   assert.strictEqual(next.colonizationPhase, COLONIZATION_PHASE_RUNNING)
   assert.strictEqual(next.epoch, 0)
@@ -75,14 +75,14 @@ test('beginColonizationCommit enters running with founding settlement and histor
   assert.ok(next.populationCollapseRaster.some((value) => value > 0))
 })
 
-test('beginColonizationCommit clamps starting population and keeps founding history as epoch 0 anchor', () => {
+test('beginColonizationCommit clamps starting population and keeps founding history as epoch 0 anchor', async () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 2 }
   slice.colonistSettings.startingPopulation = 50_000
   slice.colonistSettings.threeDayHaulDistance = 1
 
-  const next = beginColonizationCommit(slice, geographyDoc({ arable: 0.1, timber: 0.1 }))
+  const next = await beginColonizationCommit(slice, geographyDoc({ arable: 0.1, timber: 0.1 }))
 
   assert.ok(next.settlements[0].population < 50_000)
   assert.strictEqual(next.historyLog[0].kind, 'founding')
@@ -90,7 +90,7 @@ test('beginColonizationCommit clamps starting population and keeps founding hist
   assert.strictEqual(next.historyLog[0].colonistSettings.startingPopulation, 50_000)
 })
 
-test('beginColonizationCommit non-sustain path when freshwater fails', () => {
+test('beginColonizationCommit non-sustain path when freshwater fails', async () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP
   slice.foundingLanding = { x: 1, y: 2 }
@@ -101,7 +101,7 @@ test('beginColonizationCommit non-sustain path when freshwater fails', () => {
   doc.fields.rainfall.fill(0)
   doc.biomes.fill(BIOMES.DESERT)
 
-  const next = beginColonizationCommit(slice, doc)
+  const next = await beginColonizationCommit(slice, doc)
 
   assert.strictEqual(next.settlements[0].population, 0)
   assert.strictEqual(next.settlements[0].tier, null)
@@ -110,8 +110,8 @@ test('beginColonizationCommit non-sustain path when freshwater fails', () => {
   assert.ok(next.historyLog.some((entry) => entry.kind === 'settlement_abandoned'))
 })
 
-test('beginColonizationCommit is deterministic for same geography and colonist inputs', () => {
-  const build = () => {
+test('beginColonizationCommit is deterministic for same geography and colonist inputs', async () => {
+  const build = async () => {
     const slice = createDefaultColonizationSlice()
     slice.colonizationPhase = COLONIZATION_PHASE_SETUP
     slice.foundingLanding = { x: 1, y: 2 }
@@ -120,19 +120,19 @@ test('beginColonizationCommit is deterministic for same geography and colonist i
     return beginColonizationCommit(slice, geographyDoc())
   }
 
-  const a = build()
-  const b = build()
+  const a = await build()
+  const b = await build()
   assert.strictEqual(a.settlements[0].population, b.settlements[0].population)
   assert.strictEqual(a.settlements[0].tier, b.settlements[0].tier)
   assert.deepStrictEqual(a.primaryClaim, b.primaryClaim)
 })
 
-test('beginColonizationCommit is a no-op without landing or outside setup', () => {
+test('beginColonizationCommit is a no-op without landing or outside setup', async () => {
   const noLanding = createDefaultColonizationSlice()
   noLanding.colonizationPhase = COLONIZATION_PHASE_SETUP
-  assert.strictEqual(beginColonizationCommit(noLanding, geographyDoc()), noLanding)
+  assert.strictEqual(await beginColonizationCommit(noLanding, geographyDoc()), noLanding)
 
   const terrain = createDefaultColonizationSlice()
   terrain.foundingLanding = { x: 0, y: 0 }
-  assert.strictEqual(beginColonizationCommit(terrain, geographyDoc()), terrain)
+  assert.strictEqual(await beginColonizationCommit(terrain, geographyDoc()), terrain)
 })
