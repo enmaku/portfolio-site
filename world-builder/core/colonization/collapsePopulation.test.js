@@ -361,3 +361,40 @@ test('collapsePopulation parks hinterland in urban cluster when no arable hinter
   }
   assert.strictEqual(urban, 50)
 })
+
+test('collapsePopulation scatters hinterland onto zero-arable fish-access shore cells', async () => {
+  const width = 5
+  const height = 3
+  const cellCount = width * height
+  const elevation = landElevation(cellCount)
+  // Ocean along left column; land everywhere else.
+  for (let y = 0; y < height; y += 1) {
+    elevation[y * width + 0] = SEA_LEVEL - 0.05
+  }
+  const arableRaster = new Float32Array(cellCount)
+  const claimCells = []
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 1; x < width; x += 1) {
+      claimCells.push({ x, y })
+    }
+  }
+  const raster = await collapsePopulation({
+    settlements: [{ id: 's1', x: 3, y: 1, population: 100, status: 'living' }],
+    primaryClaim: { s1: claimCells },
+    arableRaster,
+    elevation,
+    lakeMask: new Uint8Array(cellCount),
+    riverCorridorMask: new Uint8Array(cellCount),
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    gridWidth: width,
+    gridHeight: height,
+    geographySeed: 9,
+    epoch: 0,
+  })
+
+  let shorePeople = 0
+  for (let y = 0; y < height; y += 1) {
+    shorePeople += raster[y * width + 1]
+  }
+  assert.ok(shorePeople > 0)
+})

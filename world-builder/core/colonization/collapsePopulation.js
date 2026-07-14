@@ -1,5 +1,9 @@
 import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
 import { createSeededRandom, deriveFieldSeed } from '../noise/seededRandom.js'
+import {
+  fishProductivityForCell,
+  hinterlandFoodWeight,
+} from './fish/sumFishProductionOnCells.js'
 
 /** Share of settlement population in the urban cluster (implementation tuning). */
 export const POPULATION_COLLAPSE_CORE_FRACTION = 0.8
@@ -201,6 +205,7 @@ function prepareSettlementCollapseWork(params, settlement) {
     simulationRiverMask,
     biomes,
     gridWidth,
+    gridHeight,
     seaLevel = SEA_LEVEL,
     geographySeed = 0,
     epoch = 0,
@@ -264,10 +269,21 @@ function prepareSettlementCollapseWork(params, settlement) {
       continue
     }
     const arable = arableRaster?.[cellIndex(cell, gridWidth)] ?? 0
-    if (!(arable > 0)) {
+    const fishProductivity = fishProductivityForCell({
+      x: cell.x,
+      y: cell.y,
+      gridWidth,
+      gridHeight,
+      elevation,
+      lakeMask,
+      riverCorridorMask,
+      seaLevel,
+    })
+    const foodWeight = hinterlandFoodWeight(arable, fishProductivity)
+    if (!(foodWeight > 0)) {
       continue
     }
-    const weight = arable * distanceDecay(euclideanDistance(cell, urbanAnchor))
+    const weight = foodWeight * distanceDecay(euclideanDistance(cell, urbanAnchor))
     if (weight > 0) {
       hinterlandWeighted.push({ cell, weight })
     }

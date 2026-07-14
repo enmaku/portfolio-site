@@ -1,10 +1,12 @@
+import { SEA_LEVEL } from '../biomeIds.js'
 import {
   claimedCellsHaveFreshwater,
   deriveFreshwaterAvailabilityFromDocument,
 } from './freshwater/deriveFreshwaterAvailability.js'
+import { sumFishProductionOnCells } from './fish/sumFishProductionOnCells.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
 
-/** People supported per unit of arable productivity (implementation tuning). */
+/** People supported per unit of arable / fish productivity (implementation tuning). */
 export const PEOPLE_PER_ARABLE_UNIT = 100
 /** People supported per unit of timber productivity when timber binds (implementation tuning). */
 export const PEOPLE_PER_TIMBER_UNIT = 80
@@ -18,6 +20,8 @@ export const YIELD_MODIFIER_MULTIPLIERS = Object.freeze({
 
 /**
  * @typedef {Object} SurvivalTriadResult
+ * @property {number} cropProduction
+ * @property {number} fishProduction
  * @property {number} foodProduction
  * @property {number} timberSum
  * @property {boolean} hasFreshwater
@@ -60,8 +64,13 @@ export function sumRasterOnCells(raster, cells, gridWidth) {
  * @param {{
  *   claimedCells: ReadonlyArray<{ x: number, y: number }>,
  *   gridWidth: number,
+ *   gridHeight?: number,
  *   arableRaster?: Float32Array | null,
  *   timberRaster?: Float32Array | null,
+ *   elevation?: Float32Array | null,
+ *   lakeMask?: Uint8Array | null,
+ *   riverCorridorMask?: Uint8Array | null,
+ *   seaLevel?: number,
  *   yieldModifier: string,
  *   freshwaterClassification: Uint8Array | null,
  *   population: number,
@@ -73,8 +82,13 @@ export function resolveSurvivalTriad(params) {
   const {
     claimedCells,
     gridWidth,
+    gridHeight = 0,
     arableRaster,
     timberRaster,
+    elevation,
+    lakeMask,
+    riverCorridorMask,
+    seaLevel = SEA_LEVEL,
     yieldModifier,
     freshwaterClassification,
     population,
@@ -83,7 +97,26 @@ export function resolveSurvivalTriad(params) {
 
   const yieldMult = yieldModifierMultiplier(yieldModifier)
   const arableSum = sumRasterOnCells(arableRaster, claimedCells, gridWidth)
-  const foodProduction = arableSum * yieldMult
+  const cropProduction = arableSum * yieldMult
+  const resolvedHeight =
+    gridHeight > 0
+      ? gridHeight
+      : elevation
+        ? Math.floor(elevation.length / gridWidth)
+        : 0
+  const fishProduction =
+    resolvedHeight > 0
+      ? sumFishProductionOnCells({
+          claimedCells,
+          gridWidth,
+          gridHeight: resolvedHeight,
+          elevation,
+          lakeMask,
+          riverCorridorMask,
+          seaLevel,
+        })
+      : 0
+  const foodProduction = cropProduction + fishProduction
   const timberSum = sumRasterOnCells(timberRaster, claimedCells, gridWidth)
 
   const hasFreshwater =
@@ -105,6 +138,8 @@ export function resolveSurvivalTriad(params) {
   const foodSurplus = effectiveFoodCapacity - foodConsumption
 
   return {
+    cropProduction,
+    fishProduction,
     foodProduction,
     timberSum,
     hasFreshwater,
@@ -136,8 +171,12 @@ export function applySurvivalResolveToSettlement(params) {
   const survival = resolveSurvivalTriad({
     claimedCells,
     gridWidth: worldDocument.gridWidth,
+    gridHeight: worldDocument.gridHeight,
     arableRaster: worldDocument.arableRaster,
     timberRaster: worldDocument.timberRaster,
+    elevation: worldDocument.fields?.elevation,
+    lakeMask: worldDocument.lakeMask,
+    riverCorridorMask: worldDocument.riverCorridorMask,
     yieldModifier: colonistSettings.yieldModifier,
     freshwaterClassification,
     population: settlement.population,

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { BIOMES } from '../biomeIds.js'
+import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
 import {
   PEOPLE_PER_ARABLE_UNIT,
   PEOPLE_PER_TIMBER_UNIT,
@@ -52,17 +52,20 @@ test('sumRasterOnCells sums only claimed cells', () => {
 
 test('resolveSurvivalTriad food production equals arable sum times yield modifier', () => {
   const result = resolveSurvivalTriad(triadParams({ arable: [2, 1, 0], yieldModifier: 'typical' }))
+  assert.strictEqual(result.cropProduction, 3)
+  assert.strictEqual(result.fishProduction, 0)
   assert.strictEqual(result.foodProduction, 3)
   assert.strictEqual(result.populationCeiling, Math.min(3 * PEOPLE_PER_ARABLE_UNIT, 2 * PEOPLE_PER_TIMBER_UNIT))
 })
 
-test('resolveSurvivalTriad applies yield modifier to food production and ceiling input', () => {
+test('resolveSurvivalTriad applies yield modifier to crop production only', () => {
   const typical = resolveSurvivalTriad(
     triadParams({ arable: [2, 0, 0], timber: [10, 0, 0], yieldModifier: 'typical' }),
   )
   const bountiful = resolveSurvivalTriad(
     triadParams({ arable: [2, 0, 0], timber: [10, 0, 0], yieldModifier: 'bountiful' }),
   )
+  assert.ok(bountiful.cropProduction > typical.cropProduction)
   assert.ok(bountiful.foodProduction > typical.foodProduction)
   assert.ok(bountiful.populationCeiling > typical.populationCeiling)
 })
@@ -112,6 +115,104 @@ test('resolveSurvivalTriad is deterministic for identical inputs', () => {
   assert.deepStrictEqual(a, b)
 })
 
+test('resolveSurvivalTriad sustains zero-arable ocean shore claims from fish', () => {
+  const elevation = Float32Array.from([
+    SEA_LEVEL - 0.05,
+    SEA_LEVEL + 0.1,
+    SEA_LEVEL + 0.1,
+    SEA_LEVEL + 0.1,
+    SEA_LEVEL + 0.1,
+    SEA_LEVEL + 0.1,
+  ])
+  const result = resolveSurvivalTriad({
+    claimedCells: [
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+    ],
+    gridWidth: 3,
+    gridHeight: 2,
+    arableRaster: new Float32Array(6),
+    timberRaster: Float32Array.from([1, 1, 1, 1, 1, 1]),
+    elevation,
+    lakeMask: new Uint8Array(6),
+    riverCorridorMask: new Uint8Array(6),
+    yieldModifier: 'typical',
+    freshwaterClassification: Uint8Array.from([
+      FRESHWATER_NONE,
+      FRESHWATER_SURFACE,
+      FRESHWATER_NONE,
+      FRESHWATER_NONE,
+      FRESHWATER_SURFACE,
+      FRESHWATER_NONE,
+    ]),
+    population: 200,
+  })
+  assert.strictEqual(result.cropProduction, 0)
+  assert.ok(result.fishProduction > 0)
+  assert.strictEqual(result.foodProduction, result.fishProduction)
+  assert.ok(result.populationCeiling > 0)
+  assert.strictEqual(result.canSustain, true)
+  assert.ok(result.population > 0)
+})
+
+test('resolveSurvivalTriad adds fish to crop food production', () => {
+  const elevation = Float32Array.from([
+    SEA_LEVEL - 0.05,
+    SEA_LEVEL + 0.1,
+    SEA_LEVEL + 0.1,
+  ])
+  const withFish = resolveSurvivalTriad({
+    claimedCells: [{ x: 1, y: 0 }],
+    gridWidth: 3,
+    gridHeight: 1,
+    arableRaster: Float32Array.from([0, 1, 0]),
+    timberRaster: Float32Array.from([0, 10, 0]),
+    elevation,
+    lakeMask: new Uint8Array(3),
+    riverCorridorMask: new Uint8Array(3),
+    yieldModifier: 'typical',
+    freshwaterClassification: Uint8Array.from([
+      FRESHWATER_NONE,
+      FRESHWATER_SURFACE,
+      FRESHWATER_NONE,
+    ]),
+    population: 50,
+  })
+  const cropsOnly = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 1, y: 0 }],
+      arable: [0, 1, 0],
+      timber: [0, 10, 0],
+      freshwater: [FRESHWATER_NONE, FRESHWATER_SURFACE, FRESHWATER_NONE],
+      population: 50,
+    }),
+  )
+  assert.strictEqual(withFish.cropProduction, cropsOnly.cropProduction)
+  assert.ok(withFish.fishProduction > 0)
+  assert.strictEqual(withFish.foodProduction, cropsOnly.foodProduction + withFish.fishProduction)
+})
+
+test('resolveSurvivalTriad salt spoilage taxes total food including fish for surplus only', () => {
+  const elevation = Float32Array.from([SEA_LEVEL - 0.05, SEA_LEVEL + 0.1])
+  const base = {
+    claimedCells: [{ x: 1, y: 0 }],
+    gridWidth: 2,
+    gridHeight: 1,
+    arableRaster: Float32Array.from([0, 1]),
+    timberRaster: Float32Array.from([0, 10]),
+    elevation,
+    lakeMask: new Uint8Array(2),
+    riverCorridorMask: new Uint8Array(2),
+    yieldModifier: 'typical',
+    freshwaterClassification: Uint8Array.from([FRESHWATER_NONE, FRESHWATER_SURFACE]),
+    population: 10,
+  }
+  const fullSalt = resolveSurvivalTriad({ ...base, saltSpoilageMultiplier: 1 })
+  const weakSalt = resolveSurvivalTriad({ ...base, saltSpoilageMultiplier: 0.35 })
+  assert.strictEqual(fullSalt.populationCeiling, weakSalt.populationCeiling)
+  assert.ok(weakSalt.foodSurplus < fullSalt.foodSurplus)
+})
+
 test('applySurvivalResolveToSettlement uses document rasters and freshwater derive', () => {
   const cellCount = 4
   const worldDocument = {
@@ -141,6 +242,7 @@ test('applySurvivalResolveToSettlement uses document rasters and freshwater deri
   })
 
   assert.strictEqual(survival.hasFreshwater, true)
+  assert.ok(survival.fishProduction > 0)
   assert.ok(settlement.population <= survival.populationCeiling)
   assert.ok(settlement.tier != null)
 })

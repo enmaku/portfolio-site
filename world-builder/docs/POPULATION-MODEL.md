@@ -49,7 +49,7 @@ Implementation seam: [`../core/colonization/createDefaultColonizationSlice.js`](
 
 **Population collapse** is the once-per-**epoch** observation step. After **survival triad** adjusts headcounts, collapse turns parameters into a concrete spatial assignment:
 
-1. Split each **settlement**’s integer population into urban **core** (pin cluster) and **hinterland** (claimed arable-weighted scatter)
+1. Split each **settlement**’s integer population into urban **core** (pin cluster) and **hinterland** (claimed food-weighted scatter—arable, with a small floor on shore **fish** cells)
 2. Place integer people on legal land only (no water, lakes, rivers, ruins)
 3. Use seeded weighted sampling so the same inputs always yield the same raster
 
