@@ -1,0 +1,57 @@
+import {
+  COLONIZATION_PHASE_SETUP,
+  COLONIZATION_PHASE_TERRAIN,
+  cloneColonizationSlice,
+  createDefaultColonizationSlice,
+  pickColonizationSliceFields,
+  resolveColonizationSlice,
+} from './createDefaultColonizationSlice.js'
+
+/**
+ * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
+ * @returns {import('./createDefaultColonizationSlice.js').ColonizationSlice}
+ */
+export function enterColonizationSetup(slice) {
+  const current = cloneColonizationSlice(slice)
+  if (current.colonizationPhase !== COLONIZATION_PHASE_TERRAIN) {
+    return current
+  }
+  return {
+    ...current,
+    colonizationPhase: COLONIZATION_PHASE_SETUP,
+  }
+}
+
+/**
+ * Discards in-progress setup and returns a fresh terrain slice.
+ * @returns {import('./createDefaultColonizationSlice.js').ColonizationSlice}
+ */
+export function backToTerrain() {
+  return createDefaultColonizationSlice()
+}
+
+/**
+ * @param {import('../types.js').WorldDocument} doc
+ * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
+ * @returns {import('../types.js').WorldDocument}
+ */
+export function applyColonizationSliceToWorldDocument(doc, slice) {
+  const colonization = cloneColonizationSlice(slice)
+  const raster = slice.populationCollapseRaster
+  return {
+    ...doc,
+    ...colonization,
+    ...(raster instanceof Float32Array ? { populationCollapseRaster: raster } : {}),
+  }
+}
+
+/**
+ * @param {import('../types.js').WorldDocument | null | undefined} doc
+ * @returns {import('./createDefaultColonizationSlice.js').ColonizationSlice}
+ */
+export function extractColonizationSliceFromWorldDocument(doc) {
+  if (!doc) {
+    return createDefaultColonizationSlice()
+  }
+  return resolveColonizationSlice(pickColonizationSliceFields(doc))
+}

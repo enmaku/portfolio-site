@@ -1,3 +1,4 @@
+import { attachLandingPlacementControls } from './attachLandingPlacementControls.js'
 import { buildLandTerrainRgba } from './buildLandTerrainRgba.js'
 import { buildLakeOverlayCanvas } from './buildLakeOverlayCanvas.js'
 import { buildRiverOverlayCanvas } from './buildRiverOverlayCanvas.js'
@@ -16,6 +17,7 @@ import {
   computeRegionFocusScale,
   resolveMetalsOverlayDrawn,
   resolveSaltNodeOverlayDrawn,
+  resolveSettlementNodeOverlayDrawn,
 } from './worldBuilderMapViewportModel.js'
 
 /** Black for discrete metal mine markers (matches metals raster hue). */
@@ -24,8 +26,17 @@ export const METAL_NODE_OVERLAY_COLOR = 0x000000
 /** Pure white for salt strategic-resource markers. */
 export const SALT_NODE_OVERLAY_COLOR = 0xffffff
 
+/** Yellow for living settlement pins. */
+export const SETTLEMENT_NODE_OVERLAY_COLOR = 0xffd700
+
+/** Gray for abandoned/ruined settlement pins (matches land route cobblestone). */
+export const SETTLEMENT_NODE_RUIN_OVERLAY_COLOR = 0x8e9094
+
 /** Grid-cell radius for metal/salt strategic-resource node markers. */
 export const STRATEGIC_RESOURCE_NODE_MARKER_RADIUS = 7
+
+/** Grid-cell radius for settlement pins. */
+export const SETTLEMENT_NODE_MARKER_RADIUS = 3
 
 /**
  * @typedef {Object} UpdateWorldDocumentOptions
@@ -69,9 +80,18 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   let riverTexture = null
   const sail = new Sprite(Texture.EMPTY)
   sail.visible = false
+  const freshwater = new Sprite(Texture.EMPTY)
+  freshwater.visible = false
+  const population = new Sprite(Texture.EMPTY)
+  population.visible = false
+  const explorationFog = new Sprite(Texture.EMPTY)
+  explorationFog.visible = false
+  const routes = new Sprite(Texture.EMPTY)
+  routes.visible = false
   const coastalOverlay = new Graphics()
   const metalOverlay = new Graphics()
   const saltOverlay = new Graphics()
+  const settlementOverlay = new Graphics()
   let resourceOverlayVisibility = createDefaultResourceOverlayVisibility()
   let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
   /**
@@ -95,6 +115,10 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     timber: null,
     metals: null,
     sail: null,
+    freshwater: null,
+    population: null,
+    explorationFog: null,
+    routes: null,
   }
 
   /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Sprite>} */
@@ -103,6 +127,10 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     timber,
     metals,
     sail,
+    freshwater,
+    population,
+    explorationFog,
+    routes,
   }
 
   const viewport = new Viewport({
@@ -122,21 +150,77 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(lakes)
   viewport.addChild(rivers)
   viewport.addChild(sail)
+  viewport.addChild(freshwater)
+  viewport.addChild(population)
+  viewport.addChild(explorationFog)
+  viewport.addChild(routes)
   viewport.addChild(coastalOverlay)
   viewport.addChild(metalOverlay)
   viewport.addChild(saltOverlay)
+  viewport.addChild(settlementOverlay)
   viewport
     .drag()
     .pinch()
-    .wheel({ smooth: 3 })
-    .decelerate()
+    .wheel({ smooth: false })
     .clampZoom({ maxScale: 24 })
+
+  app.ticker.stop()
+
+  let interactiveRenderActive = false
+
+  function renderFrame() {
+    app.renderer.render(app.stage)
+  }
+
+  function startInteractiveRender() {
+    if (interactiveRenderActive) {
+      return
+    }
+    interactiveRenderActive = true
+    app.ticker.start()
+  }
+
+  function stopInteractiveRender() {
+    if (!interactiveRenderActive) {
+      return
+    }
+    interactiveRenderActive = false
+    app.ticker.stop()
+  }
+
+  app.ticker.add(() => {
+    if (!interactiveRenderActive) {
+      return
+    }
+    viewport.update(app.ticker.elapsedMS)
+    renderFrame()
+  })
+
+  viewport.on('moved', renderFrame)
+  viewport.on('zoomed', renderFrame)
+  viewport.on('drag-start', startInteractiveRender)
+  viewport.on('pinch-start', startInteractiveRender)
+  viewport.on('wheel', () => {
+    startInteractiveRender()
+    renderFrame()
+    stopInteractiveRender()
+  })
+  viewport.on('drag-end', () => {
+    renderFrame()
+    stopInteractiveRender()
+  })
+  viewport.on('pinch-end', () => {
+    renderFrame()
+    stopInteractiveRender()
+  })
 
   syncViewportToHost(viewport, hostEl, gridWidth, gridHeight)
   fitMapToView(viewport, gridWidth, gridHeight)
+  renderFrame()
 
   const resizeObserver = new ResizeObserver(() => {
     syncViewportToHost(viewport, hostEl, viewport.worldWidth, viewport.worldHeight)
+    renderFrame()
   })
   resizeObserver.observe(hostEl)
 
@@ -165,6 +249,18 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       case 'sail':
         sail.visible = false
         break
+      case 'freshwater':
+        freshwater.visible = false
+        break
+      case 'population':
+        population.visible = false
+        break
+      case 'explorationFog':
+        explorationFog.visible = false
+        break
+      case 'routes':
+        routes.visible = false
+        break
       case 'rivers':
         rivers.visible = false
         break
@@ -180,6 +276,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       case 'saltNodes':
         saltOverlay.clear()
         break
+      case 'settlementNodes':
+        settlementOverlay.clear()
+        break
       default:
         break
     }
@@ -193,6 +292,10 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       timber: () => refreshResourceRasterOverlay('timber', currentWorldDocument),
       metals: () => refreshResourceRasterOverlay('metals', currentWorldDocument),
       sail: () => refreshResourceRasterOverlay('sail', currentWorldDocument),
+      freshwater: () => refreshResourceRasterOverlay('freshwater', currentWorldDocument),
+      population: () => refreshResourceRasterOverlay('population', currentWorldDocument),
+      explorationFog: () => refreshResourceRasterOverlay('explorationFog', currentWorldDocument),
+      routes: () => refreshResourceRasterOverlay('routes', currentWorldDocument),
       rivers: () => refreshRiverOverlay(currentWorldDocument),
       lakes: () => refreshLakeOverlay(currentWorldDocument),
       coastalNodes: () => drawCoastalNodes(coastalOverlay, currentWorldDocument),
@@ -200,6 +303,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         drawMetalNodes(metalOverlay, currentWorldDocument, resourceOverlayVisibility),
       saltNodes: () =>
         drawSaltNodes(saltOverlay, currentWorldDocument, resourceOverlayVisibility),
+      settlementNodes: () =>
+        drawSettlementNodes(settlementOverlay, currentWorldDocument, resourceOverlayVisibility),
     },
     { hideLayer: hideMapLayer },
   )
@@ -212,6 +317,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
    */
   function refreshMapLayers(changedLayers, options) {
     mapLayerRefresh.refresh(changedLayers, options)
+    renderFrame()
   }
 
   function refreshTerrain() {
@@ -304,6 +410,14 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     lakes.visible = true
   }
 
+  const landingPlacement = attachLandingPlacementControls({
+    Graphics,
+    viewport,
+    hostEl,
+    getWorldDocument: () => currentWorldDocument,
+    requestRender: renderFrame,
+  })
+
   return {
     /**
      * @param {import('../core/types.js').WorldDocument} nextDocument
@@ -325,10 +439,12 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     fitToWorld() {
       const { gridWidth, gridHeight } = currentWorldDocument
       fitMapToView(viewport, gridWidth, gridHeight)
+      renderFrame()
     },
 
     /** @param {import('../core/types.js').MapFocus} mapFocus */
     focusOn(mapFocus) {
+      startInteractiveRender()
       const { gridWidth: worldWidth } = currentWorldDocument
       if ('minX' in mapFocus) {
         const cx = (mapFocus.minX + mapFocus.maxX) / 2
@@ -339,15 +455,18 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
           position: { x: cx, y: cy },
           scale,
         })
-        return
+      } else {
+        const scale = mapFocus.zoom ?? 4
+        viewport.animate({
+          time: 400,
+          position: { x: mapFocus.x, y: mapFocus.y },
+          scale,
+        })
       }
-
-      const scale = mapFocus.zoom ?? 4
-      viewport.animate({
-        time: 400,
-        position: { x: mapFocus.x, y: mapFocus.y },
-        scale,
-      })
+      setTimeout(() => {
+        stopInteractiveRender()
+        renderFrame()
+      }, 450)
     },
 
     /**
@@ -369,6 +488,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         terrainBuildOptions = { elevationTint: true }
         refreshMapLayers(['terrain', 'contours'], { hideUnrefreshedLayers: true })
         onFrame?.(frame)
+        renderFrame()
         frame += 1
         if (frame >= snapshots.length) {
           stopReplay()
@@ -408,8 +528,15 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       refreshMapLayers(changedLayers)
     },
 
+    setLandingPlacementMode: landingPlacement.setLandingPlacementMode,
+    setFoundingLandingMarker: landingPlacement.setFoundingLandingMarker,
+    setHaulShedPreviewCells: landingPlacement.setHaulShedPreviewCells,
+    onCellPick: landingPlacement.onCellPick,
+
     destroy() {
       stopReplay()
+      stopInteractiveRender()
+      landingPlacement.clearCursor()
       resizeObserver.disconnect()
       terrainTexture.destroy(true)
       contourTexture?.destroy(true)
@@ -534,6 +661,30 @@ function drawSaltNodes(overlay, worldDocument, resourceOverlayVisibility) {
       overlay.fill({ color: SALT_NODE_OVERLAY_COLOR, alpha: 0.9 })
     }
   }
+}
+
+/**
+ * @param {import('pixi.js').Graphics} overlay
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @param {Record<string, boolean>} resourceOverlayVisibility
+ */
+function drawSettlementNodes(overlay, worldDocument, resourceOverlayVisibility) {
+  overlay.clear()
+
+  if (resolveSettlementNodeOverlayDrawn(resourceOverlayVisibility, worldDocument)) {
+    for (const settlement of worldDocument.settlements ?? []) {
+      if (typeof settlement.x !== 'number' || typeof settlement.y !== 'number') {
+        continue
+      }
+      overlay.circle(settlement.x + 0.5, settlement.y + 0.5, SETTLEMENT_NODE_MARKER_RADIUS)
+      overlay.fill({ color: settlementNodeColor(settlement.status), alpha: 0.9 })
+    }
+  }
+}
+
+/** @param {string | undefined} status */
+function settlementNodeColor(status) {
+  return status === 'ruin' ? SETTLEMENT_NODE_RUIN_OVERLAY_COLOR : SETTLEMENT_NODE_OVERLAY_COLOR
 }
 
 /** @param {import('../core/types.js').CoastalNodeKind} kind */

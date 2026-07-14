@@ -67,6 +67,54 @@ function createSailFixture() {
   }
 }
 
+function createFreshwaterFixture() {
+  const cellCount = 64
+  const rainfall = new Float32Array(cellCount).fill(0.6)
+  const drainage = new Float32Array(cellCount).fill(0.2)
+  const salinity = new Float32Array(cellCount).fill(0.1)
+  const elevation = new Float32Array(cellCount).fill(0.5)
+  const biomes = new Uint8Array(cellCount).fill(2)
+  const riverCorridorMask = new Uint8Array(cellCount)
+  riverCorridorMask[36] = 1
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    fields: { rainfall, drainage, salinity, elevation },
+    biomes,
+    riverCorridorMask,
+  }
+}
+
+function createPopulationFixture() {
+  const populationCollapseRaster = new Float32Array(64)
+  populationCollapseRaster[36] = 20
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    populationCollapseRaster,
+  }
+}
+
+function createExplorationFogFixture() {
+  const visitedCells = new Uint8Array(64)
+  visitedCells[36] = 1
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    colonizationPhase: 'running',
+    visitedCells,
+  }
+}
+
+function createRoutesFixture() {
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    colonizationPhase: 'running',
+    roads: [{ cells: [{ x: 1, y: 1 }, { x: 2, y: 1 }] }],
+  }
+}
+
 function createUnifiedRasterFixture() {
   const cellCount = 64
   const arableRaster = new Float32Array(cellCount)
@@ -76,21 +124,38 @@ function createUnifiedRasterFixture() {
   const metalsRaster = new Float32Array(cellCount)
   metalsRaster[36] = 0.85
   const elevation = new Float32Array(cellCount).fill(0.5)
+  const rainfall = new Float32Array(cellCount).fill(0.6)
+  const drainage = new Float32Array(cellCount).fill(0.2)
+  const salinity = new Float32Array(cellCount).fill(0.1)
+  const biomes = new Uint8Array(cellCount).fill(2)
   const riverCorridorMask = new Uint8Array(cellCount)
   riverCorridorMask[36] = 1
+  const populationCollapseRaster = new Float32Array(cellCount)
+  populationCollapseRaster[36] = 20
   return {
     gridWidth: 8,
     gridHeight: 8,
     arableRaster,
     timberRaster,
     metalsRaster,
-    fields: { elevation },
+    fields: { elevation, rainfall, drainage, salinity },
+    biomes,
     riverCorridorMask,
+    populationCollapseRaster,
   }
 }
 
 test('RESOURCE_RASTER_OVERLAY_LAYER_IDS lists raster overlay layers from definitions', () => {
-  assert.deepStrictEqual(RESOURCE_RASTER_OVERLAY_LAYER_IDS, ['arable', 'timber', 'metals', 'sail'])
+  assert.deepStrictEqual(RESOURCE_RASTER_OVERLAY_LAYER_IDS, [
+    'arable',
+    'timber',
+    'metals',
+    'sail',
+    'freshwater',
+    'population',
+    'explorationFog',
+    'routes',
+  ])
 })
 
 test('isResourceRasterOverlayLayerId identifies raster layers only', () => {
@@ -98,6 +163,8 @@ test('isResourceRasterOverlayLayerId identifies raster layers only', () => {
   assert.strictEqual(isResourceRasterOverlayLayerId('timber'), true)
   assert.strictEqual(isResourceRasterOverlayLayerId('metals'), true)
   assert.strictEqual(isResourceRasterOverlayLayerId('sail'), true)
+  assert.strictEqual(isResourceRasterOverlayLayerId('freshwater'), true)
+  assert.strictEqual(isResourceRasterOverlayLayerId('population'), true)
   assert.strictEqual(isResourceRasterOverlayLayerId('salt'), false)
 })
 
@@ -174,7 +241,15 @@ test('refreshResourceRasterOverlayCanvas performs at most one RGBA build per lay
           ? createTimberFixture()
           : resourceId === 'metals'
             ? createMetalsFixture()
-            : createSailFixture()
+            : resourceId === 'freshwater'
+              ? createFreshwaterFixture()
+              : resourceId === 'population'
+                ? createPopulationFixture()
+                : resourceId === 'explorationFog'
+                  ? createExplorationFogFixture()
+                  : resourceId === 'routes'
+                    ? createRoutesFixture()
+                    : createSailFixture()
     const visibility = applyResourceOverlayVisibility(
       createDefaultResourceOverlayVisibility(),
       resourceId,
@@ -232,6 +307,8 @@ test('refreshAllResourceRasterOverlayCanvases rasterizes only visible layers onc
   assert.strictEqual(hiddenCanvases.timber, null)
   assert.strictEqual(hiddenCanvases.metals, null)
   assert.strictEqual(hiddenCanvases.sail, null)
+  assert.strictEqual(hiddenCanvases.freshwater, null)
+  assert.strictEqual(hiddenCanvases.population, null)
   assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 0)
 
   let visibility = createDefaultResourceOverlayVisibility()
@@ -239,6 +316,8 @@ test('refreshAllResourceRasterOverlayCanvases rasterizes only visible layers onc
   visibility = applyResourceOverlayVisibility(visibility, 'timber', true)
   visibility = applyResourceOverlayVisibility(visibility, 'metals', true)
   visibility = applyResourceOverlayVisibility(visibility, 'sail', true)
+  visibility = applyResourceOverlayVisibility(visibility, 'freshwater', true)
+  visibility = applyResourceOverlayVisibility(visibility, 'population', true)
 
   resetResourceRasterOverlayRgbaBuildCount()
   const visibleCanvases = refreshAllResourceRasterOverlayCanvases({
@@ -250,7 +329,9 @@ test('refreshAllResourceRasterOverlayCanvases rasterizes only visible layers onc
   assert.ok(visibleCanvases.timber)
   assert.ok(visibleCanvases.metals)
   assert.ok(visibleCanvases.sail)
-  assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 4)
+  assert.ok(visibleCanvases.freshwater)
+  assert.ok(visibleCanvases.population)
+  assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 6)
 
   delete globalThis.document
   delete globalThis.ImageData

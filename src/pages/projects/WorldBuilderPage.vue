@@ -1,77 +1,23 @@
 <template>
   <q-page class="world-builder-page column fit no-wrap">
     <div
-      v-if="showGenerationProgress || showResourceOverlayBar"
+      v-if="statusBar.mode !== 'hidden'"
       data-testid="world-builder-status-bar"
       class="generation-progress"
     >
       <q-separator />
       <div class="q-px-sm status-bar-content">
-        <div
-          v-if="showGenerationProgress"
-          data-testid="world-builder-generation-progress"
-          class="status-bar-panel status-bar-panel--generation"
-        >
-          <q-linear-progress
-            :value="generationProgress.percent / 100"
-            color="primary"
-            track-color="grey-9"
-            rounded
-          />
-          <div class="row q-gutter-xs items-center no-wrap generation-step-row">
-            <template
-              v-for="step in generationStepStatuses"
-              :key="step.id"
-            >
-              <q-chip
-                dense
-                :data-testid="`world-builder-generation-step-${step.id}`"
-                :color="generationStepStatusColor(step.status)"
-                text-color="white"
-                :outline="step.status === 'pending'"
-              >
-                {{ step.label }}
-              </q-chip>
-              <template v-if="step.id === 'hydrology' && step.status === 'active'">
-                <q-chip
-                  v-for="substep in hydrologySubstepStatuses"
-                  :key="substep.id"
-                  dense
-                  :data-testid="`world-builder-hydrology-substep-${substep.id}`"
-                  :color="generationStepStatusColor(substep.status)"
-                  text-color="white"
-                  :outline="substep.status === 'pending'"
-                  size="sm"
-                >
-                  {{ substep.label }}
-                </q-chip>
-              </template>
-            </template>
-          </div>
-        </div>
-        <div
-          v-else-if="showResourceOverlayBar"
-          data-testid="world-builder-resource-overlay-bar"
-          class="status-bar-panel status-bar-panel--overlays resource-overlay-row"
-        >
-          <q-checkbox
-            v-for="overlay in resourceOverlayDefinitions"
-            :key="overlay.id"
-            dense
-            :toggle-indeterminate="false"
-            :model-value="resourceOverlayVisibility[overlay.id] === true"
-            :data-testid="`world-builder-overlay-toggle-${overlay.id}`"
-            :label="overlay.label"
-            @update:model-value="
-              (value) => toggleResourceOverlayVisibility(overlay.id, value === true)
-            "
-          />
-        </div>
+        <WorldBuilderStatusPanel
+          :status-bar="statusBar"
+          :resource-overlay-visibility="resourceOverlayVisibility"
+          :toggle-resource-overlay-visibility="toggleResourceOverlayVisibility"
+        />
       </div>
       <q-separator />
     </div>
     <div class="row col map-row">
       <aside
+        v-if="showTerrainAuthoringControls"
         data-testid="world-builder-generation-controls"
         class="generation-controls-panel bg-grey-10"
       >
@@ -243,6 +189,39 @@
           />
         </div>
       </aside>
+      <aside
+        v-else-if="showColonistSettingsPanel"
+        data-testid="world-builder-colonist-settings"
+        class="generation-controls-panel bg-grey-10"
+      >
+        <div class="panel-scroll q-pa-md">
+          <q-btn
+            v-if="colonizationPhase === 'setup'"
+            unelevated
+            color="negative"
+            class="full-width q-mb-md"
+            data-testid="world-builder-back-to-terrain"
+            label="Back to terrain"
+            @click="backToTerrain"
+          />
+          <q-btn
+            v-else-if="showResetColonization"
+            unelevated
+            color="negative"
+            class="full-width q-mb-md"
+            data-testid="world-builder-reset-colonization"
+            label="Reset colonization"
+            @click="resetColonization"
+          />
+          <WorldBuilderColonistSettingsPanel
+            :colonist-settings="colonistSettings"
+            :colonist-settings-snapshot="colonistSettingsSnapshot"
+            :running-phase="isColonistSettingsRunningPhase"
+            @update-setting="setColonistSetting"
+            @reset-defaults="resetColonistSettings"
+          />
+        </div>
+      </aside>
       <div
         ref="mapHostRef"
         data-testid="world-builder-map-host"
@@ -253,6 +232,38 @@
         class="generation-report-panel bg-grey-10"
       >
         <div class="panel-scroll q-pa-md">
+          <q-btn
+            v-if="colonizationPhase === 'terrain'"
+            unelevated
+            color="positive"
+            class="full-width q-mb-md"
+            data-testid="world-builder-colonize"
+            label="Colonize"
+            :disable="!hasLandmass"
+            @click="enterColonizationSetup"
+          />
+          <q-btn
+            v-else-if="colonizationPhase === 'setup'"
+            unelevated
+            color="positive"
+            class="full-width q-mb-md"
+            data-testid="world-builder-begin-colonization"
+            label="Begin colonization"
+            :loading="isBeginColonizationRunning"
+            :disable="!canBeginColonization || isBeginColonizationRunning"
+            @click="beginColonization"
+          />
+          <q-btn
+            v-else-if="timeControlsActive"
+            unelevated
+            color="primary"
+            class="full-width q-mb-md"
+            data-testid="world-builder-epoch-step"
+            label="Next epoch"
+            :loading="isEpochStepRunning"
+            :disable="isEpochStepRunning"
+            @click="epochStep"
+          />
           <q-banner
             v-if="showValidationFailureIndicator"
             :data-testid="WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID"
@@ -263,12 +274,13 @@
             Validation retries exhausted — map shows the last candidate.
           </q-banner>
           <q-list
+            v-if="visibleValidationRows.length > 0"
             bordered
             separator
-            class="q-mb-md"
+            class="q-mb-md validation-advisory-list"
           >
             <q-item
-              v-for="row in validationRows"
+              v-for="row in visibleValidationRows"
               :key="row.checkId"
               :data-testid="`world-builder-validation-row-${row.checkId}`"
               clickable
@@ -280,12 +292,23 @@
                   :color="validationStatusColor(row.status)"
                 />
               </q-item-section>
-              <q-item-section>
-                <q-item-label>{{ row.label ?? row.checkId }}</q-item-label>
-                <q-item-label caption>{{ row.summary }}</q-item-label>
+              <q-item-section class="validation-advisory-item__body">
+                <q-item-label class="validation-advisory-item__label">{{
+                  row.label ?? row.checkId
+                }}</q-item-label>
+                <q-item-label
+                  caption
+                  class="validation-advisory-item__summary"
+                  >{{ row.summary }}</q-item-label
+                >
               </q-item-section>
             </q-item>
           </q-list>
+          <WorldBuilderSimStatusPanel
+            v-if="showSimStatusPanel"
+            :status="simStatus"
+            :chronicle="foundingChronicle"
+          />
           <div class="text-subtitle2 q-mb-sm">Generation report</div>
           <div class="text-caption q-mb-md">
             Erosion steps: {{ stageSummary.erosionStepCount }} · Sailable water cells:
@@ -368,13 +391,11 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import {
-  createResourceOverlayDefinitions,
   formatGenerationControlValue,
   formatHydrologyMetricValue,
   formatHydrologySubstepTimingForDisplay,
   formatOverlayControlValue,
   formatSlopeAreaConcavityForDisplay,
-  generationStepStatusColor,
   GEOGRAPHY_SEED_TOOLTIP,
   validationStatusColor,
   validationStatusIcon,
@@ -386,34 +407,33 @@ import {
 import { useWorldBuilderPageController } from '../../composables/useWorldBuilderPageController.js'
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
 import PrevailingWindArrow from '../../components/world-builder/PrevailingWindArrow.vue'
+import WorldBuilderColonistSettingsPanel from '../../components/world-builder/WorldBuilderColonistSettingsPanel.vue'
+import WorldBuilderSimStatusPanel from '../../components/world-builder/WorldBuilderSimStatusPanel.vue'
 import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
+import WorldBuilderStatusPanel from '../../components/world-builder/WorldBuilderStatusPanel.vue'
 
 const $q = useQuasar()
 
 const mapHostRef = ref(null)
 const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
 const overlayControlDefinitions = WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS
-const resourceOverlayDefinitions = createResourceOverlayDefinitions()
 
 const {
   seedInput,
-  runPhase,
-  generationProgress,
-  showGenerationProgress,
-  showResourceOverlayBar,
-  showValidationFailureIndicator,
-  validationRows,
+  statusBar,
+  generation,
+  overlays,
+  colonization,
+  visibleValidationRows,
+  showSimStatusPanel,
+  simStatus,
+  foundingChronicle,
   stageSummary,
   hydrologyStats,
-  generationStepStatuses,
-  hydrologySubstepStatuses,
   hydrologySubstepTimings,
-  resourceOverlayVisibility,
-  overlayDisplaySetting,
-  toggleResourceOverlayVisibility,
-  setResourceOverlayDisplaySetting,
   controlValue,
   generationOptions,
+  hasLandmass,
   onToggleChange,
   onSliderInput,
   onSliderCommit,
@@ -435,7 +455,56 @@ const {
       actions: [{ label: 'Dismiss', color: 'white' }],
     })
   },
+  requestConfirm(options = {}) {
+    return new Promise((resolve) => {
+      let settled = false
+      const finish = (value) => {
+        if (settled) {
+          return
+        }
+        settled = true
+        resolve(value)
+      }
+      $q.dialog({
+        title: options.title ?? 'Confirm',
+        message: options.message ?? 'Continue?',
+        cancel: true,
+        persistent: true,
+      })
+        .onOk(() => finish(true))
+        .onCancel(() => finish(false))
+        .onDismiss(() => finish(false))
+    })
+  },
 })
+
+const { runPhase, showValidationFailureIndicator } = generation
+const {
+  resourceOverlayVisibility,
+  overlayDisplaySetting,
+  toggleResourceOverlayVisibility,
+  setResourceOverlayDisplaySetting,
+} = overlays
+const {
+  colonizationPhase,
+  showTerrainAuthoringControls,
+  showColonistSettingsPanel,
+  colonistSettings,
+  colonistSettingsSnapshot,
+  isColonistSettingsRunningPhase,
+  canBeginColonization,
+  showResetColonization,
+  timeControlsActive,
+  isEpochStepRunning,
+  isBeginColonizationRunning,
+  enterColonizationSetup,
+  backToTerrain,
+  beginColonization,
+  epochStep,
+  resetColonization,
+  setColonistSetting,
+  resetColonistSettings,
+} = colonization
 
 onMounted(start)
 onUnmounted(destroy)
@@ -458,33 +527,6 @@ onUnmounted(destroy)
   height: 40px;
   flex: 0 0 40px;
   overflow: hidden;
-}
-
-.status-bar-panel {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-}
-
-.status-bar-panel--generation {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-}
-
-.status-bar-panel--overlays {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  overflow-x: hidden;
-}
-
-.generation-step-row {
-  overflow-x: hidden;
-  height: 28px;
-  flex: 0 0 28px;
 }
 
 .map-row {
@@ -538,6 +580,22 @@ onUnmounted(destroy)
 .generation-report-panel {
   width: 320px;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.validation-advisory-list {
+  min-width: 0;
+}
+
+.validation-advisory-item__body {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.validation-advisory-item__label,
+.validation-advisory-item__summary {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .panel-scroll {

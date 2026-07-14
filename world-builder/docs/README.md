@@ -8,6 +8,7 @@ Durable design notes for the **landmass pipeline**, hydrology seams, renderer lo
 | --- | --- |
 | [ARCHITECTURE-SEAMS.md](./ARCHITECTURE-SEAMS.md) | Package seams and forbidden imports |
 | [ADR-0009-COMPLIANCE-CHECKLIST.md](./ADR-0009-COMPLIANCE-CHECKLIST.md) | Behavioral ADR audit |
+| [POPULATION-MODEL.md](./POPULATION-MODEL.md) | Why **bulk population** uses collapse-on-observation (not full agent sim) |
 | [SIMULATION-VS-PRESENTATION-HYDROLOGY.md](./SIMULATION-VS-PRESENTATION-HYDROLOGY.md) | River mask field map |
 | [FILE-SIZE-BUDGET.md](./FILE-SIZE-BUDGET.md) | Production file line limits (CI-enforced) |
 

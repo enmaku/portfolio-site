@@ -35,8 +35,19 @@ test('createResourceOverlayPageState defaults visibility off and uses persisted 
     metals: false,
     salt: false,
     sail: false,
+    freshwater: false,
+    population: false,
+    settlements: false,
+    explorationFog: false,
+    routes: false,
   })
   assert.strictEqual(state.displaySettings.arableMinimumProductivity, 0.25)
+})
+
+test('createResourceOverlayPageState restores persisted visibility booleans', () => {
+  const state = createResourceOverlayPageState(undefined, { timber: true })
+  assert.strictEqual(state.visibility.timber, true)
+  assert.strictEqual(state.visibility.salt, false)
 })
 
 test('toggleResourceOverlayVisibility updates page state immutably', () => {
@@ -158,6 +169,11 @@ test('normalizeResourceOverlayVisibility coerces null and undefined to false', (
       metals: false,
       salt: false,
       sail: false,
+      freshwater: false,
+      population: false,
+      settlements: false,
+      explorationFog: false,
+      routes: false,
     },
   )
 })
@@ -169,6 +185,11 @@ test('normalizeResourceOverlayVisibility fills missing overlay ids with false', 
     metals: false,
     salt: false,
     sail: false,
+    freshwater: false,
+    population: false,
+    settlements: false,
+    explorationFog: false,
+    routes: false,
   })
 })
 
@@ -197,6 +218,11 @@ test('commitResourceOverlayState normalizes visibility before sync', () => {
     metals: false,
     salt: false,
     sail: false,
+    freshwater: false,
+    population: false,
+    settlements: false,
+    explorationFog: false,
+    routes: false,
   })
   assert.deepStrictEqual(viewport.syncedStates[0].visibility, committed.visibility)
 })

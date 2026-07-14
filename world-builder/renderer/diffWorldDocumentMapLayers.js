@@ -123,6 +123,38 @@ function riverGraphChanged(a, b) {
 }
 
 /**
+ * @param {readonly { cells?: Array<{ x: number, y: number }> }>[] | undefined} a
+ * @param {readonly { cells?: Array<{ x: number, y: number }> }>[] | undefined} b
+ * @returns {boolean}
+ */
+function roadSegmentsChanged(a, b) {
+  if (a === b) {
+    return false
+  }
+  if (!a?.length && !b?.length) {
+    return false
+  }
+  if (!a || !b || a.length !== b.length) {
+    return true
+  }
+  for (let i = 0; i < a.length; i += 1) {
+    const segmentA = a[i]
+    const segmentB = b[i]
+    const cellsA = segmentA.cells ?? []
+    const cellsB = segmentB.cells ?? []
+    if (cellsA.length !== cellsB.length) {
+      return true
+    }
+    for (let j = 0; j < cellsA.length; j += 1) {
+      if (cellsA[j].x !== cellsB[j].x || cellsA[j].y !== cellsB[j].y) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/**
  * @param {import('../core/types.js').WorldDocument} previous
  * @param {import('../core/types.js').WorldDocument} next
  * @returns {boolean}
@@ -173,6 +205,20 @@ export function diffWorldDocumentMapLayers(previous, next) {
   if (typedArrayContentChanged(previous.metalsRaster, next.metalsRaster)) {
     changedLayers.push('metals')
   }
+  if (
+    typedArrayContentChanged(
+      previous.populationCollapseRaster,
+      next.populationCollapseRaster,
+    )
+  ) {
+    changedLayers.push('population')
+  }
+  if (typedArrayContentChanged(previous.visitedCells, next.visitedCells)) {
+    changedLayers.push('explorationFog')
+  }
+  if (roadSegmentsChanged(previous.roads, next.roads)) {
+    changedLayers.push('routes')
+  }
   if (riverLayerInputsChanged(previous, next)) {
     changedLayers.push('rivers')
   }
@@ -187,6 +233,9 @@ export function diffWorldDocumentMapLayers(previous, next) {
   }
   if (nodeListChanged(previous.saltNodes, next.saltNodes)) {
     changedLayers.push('saltNodes')
+  }
+  if (nodeListChanged(previous.settlements, next.settlements)) {
+    changedLayers.push('settlementNodes')
   }
 
   return changedLayers

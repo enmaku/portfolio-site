@@ -1,8 +1,22 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { effectScope, nextTick } from 'vue'
-import { DEFAULT_WORLD_GENERATION_OPTIONS } from '../../world-builder/core/worldGenerationOptions.js'
-import { useWorldBuilderPageController } from './useWorldBuilderPageController.js'
+import {
+  COLONIZATION_PHASE_RUNNING,
+  COLONIZATION_PHASE_SETUP,
+  createDefaultColonizationSlice,
+} from '../../world-builder/core/colonization/createDefaultColonizationSlice.js'
+import { buildTerrainCacheFingerprint } from '../../world-builder/core/terrainCacheFingerprint.js'
+import { coastalLandmassDocument, fakeWorldDocument } from './worldBuilderColonizationTestFixtures.js'
+import {
+  createMemoryColonizationCache,
+  createMemoryTerrainCache,
+  createPendingWorker,
+  createFakeSettingsStore,
+  createFakeViewport,
+  mountController,
+  waitUntil,
+} from './useWorldBuilderPageControllerTestFixtures.js'
 
 /**
  * PAGE-CONTROLLER-INTERFACE.md § Returned actions — side-effect methods and their
@@ -13,6 +27,7 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
   start: [
     'start runs initial generation and applies the world document to the map',
     'start syncs overlay state when the viewport becomes ready',
+    'start restores running colonization from colonization cache after beginColonization refresh',
   ],
   destroy: ['destroy cancels the active run and tears down the map lifecycle'],
   regenerate: [
@@ -40,153 +55,30 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
   focusValidationRow: [
     'focusValidationRow focuses the viewport only when the row has a map focus',
   ],
-}
-
-/**
- * @param {Object} [overrides]
- * @returns {import('../../world-builder/core/types.js').WorldDocument}
- */
-function fakeWorldDocument(overrides = {}) {
-  return {
-    gridWidth: 2,
-    gridHeight: 2,
-    biomes: new Uint8Array(4),
-    fields: { elevation: new Float32Array(4) },
-    ...overrides,
-  }
-}
-
-function createFakeSettingsStore(initial = {}) {
-  const store = {
-    geographySeed: 7,
-    prevailingWindDegrees: 90,
-    generationOptions: { ...DEFAULT_WORLD_GENERATION_OPTIONS },
-    overlayDisplaySettings: { arableMinimumProductivity: 0.1 },
-    ensureInitializedCount: 0,
-    resetToDefaultsCount: 0,
-    ensureInitialized() {
-      this.ensureInitializedCount += 1
-    },
-    applySeed(rawSeed) {
-      const parsed = Number.parseInt(String(rawSeed), 10)
-      if (Number.isFinite(parsed)) {
-        this.geographySeed = parsed
-      }
-    },
-    setControl(key, value) {
-      if (key === 'prevailingWindDegrees') {
-        this.prevailingWindDegrees = value
-        return
-      }
-      this.generationOptions = { ...this.generationOptions, [key]: value }
-    },
-    setOverlayDisplaySetting(key, value) {
-      this.overlayDisplaySettings = { ...this.overlayDisplaySettings, [key]: value }
-    },
-    resetToDefaults() {
-      this.resetToDefaultsCount += 1
-      this.overlayDisplaySettings = { arableMinimumProductivity: 0.1 }
-    },
-    ...initial,
-  }
-  return store
-}
-
-/**
- * Captures viewport interactions so tests can assert map wiring without a real renderer.
- */
-function createFakeViewport() {
-  const focusCalls = []
-  const overlaySyncs = []
-  return {
-    focusCalls,
-    overlaySyncs,
-    handle: {
-      focusOn(focus) {
-        focusCalls.push(focus)
-      },
-      syncOverlayRenderCache(state) {
-        overlaySyncs.push(state)
-      },
-      updateWorldDocument() {},
-      fitToWorld() {},
-      destroy() {},
-    },
-  }
-}
-
-/**
- * @param {import('vue').EffectScope} scope
- */
-function mountController(scope, overrides = {}) {
-  const appliedDocs = []
-  const errors = []
-  const viewport = overrides.viewport ?? createFakeViewport()
-  let lifecycleDestroyed = false
-
-  const settingsStore = overrides.settingsStore ?? createFakeSettingsStore()
-
-  const ctx = scope.run(() =>
-    useWorldBuilderPageController({
-      getMapHost: () => ({}),
-      settingsStore,
-      onGenerationError: (message) => errors.push(message),
-      loadViewportFactory: async () => async () => viewport.handle,
-      createMapLifecycle: ({ onViewportReady }) => ({
-        async applyWorldDocument(doc) {
-          appliedDocs.push(doc)
-          onViewportReady?.()
-        },
-        getViewport: () => viewport.handle,
-        destroy() {
-          lifecycleDestroyed = true
-        },
-      }),
-      runDerivedGeographyInWorker:
-        overrides.runDerivedGeographyInWorker ??
-        ((_params, callbacks) => {
-          callbacks.onStepComplete?.({
-            stepId: 'validation',
-            stepIndex: 5,
-            stepCount: 6,
-            label: 'Validation',
-            worldDocument: fakeWorldDocument(),
-          })
-          callbacks.onComplete?.()
-          return { cancel() {} }
-        }),
-    }),
-  )
-
-  return {
-    ctx,
-    settingsStore,
-    viewport,
-    appliedDocs,
-    errors,
-    isLifecycleDestroyed: () => lifecycleDestroyed,
-  }
-}
-
-/** Worker stub that stays running until its captured callbacks are driven manually. */
-function createPendingWorker() {
-  let runCount = 0
-  /** @type {import('../../world-builder/runDerivedGeographyInWorker.js').DerivedGeographyWorkerCallbacks} */
-  let lastCallbacks = {}
-  return {
-    runCount: () => runCount,
-    lastCallbacks: () => lastCallbacks,
-    run(_params, callbacks) {
-      runCount += 1
-      lastCallbacks = callbacks
-      callbacks.onStepStart?.({ stepId: 'baseline', stepIndex: 0, stepCount: 6, label: 'Baseline' })
-      return {
-        cancel() {
-          callbacks.onCancelled?.()
-        },
-      }
-    },
-  }
+  // Core enterColonizationSetup/backToTerrain/pickFoundingLanding/setColonistSetting/
+  // resetColonistSettings/beginColonization/epochStep/resetColonization behavior is
+  // covered in useWorldBuilderColonization.test.js — these entries list only the
+  // wiring-level tests still exercised through the full page controller.
+  enterColonizationSetup: [
+    'enterColonizationSetup persists locked terrain and colonization session',
+    'see useWorldBuilderColonization.test.js for behavior coverage',
+  ],
+  backToTerrain: [
+    'enterColonizationSetup persists locked terrain and colonization session',
+    'see useWorldBuilderColonization.test.js for behavior coverage',
+  ],
+  pickFoundingLanding: [
+    'start restores colonization phase from session after landmass regen',
+    'see useWorldBuilderColonization.test.js for behavior coverage',
+  ],
+  setColonistSetting: ['see useWorldBuilderColonization.test.js for behavior coverage'],
+  resetColonistSettings: ['see useWorldBuilderColonization.test.js for behavior coverage'],
+  beginColonization: [
+    'start restores running colonization from colonization cache after beginColonization refresh',
+    'see useWorldBuilderColonization.test.js for behavior coverage',
+  ],
+  epochStep: ['see useWorldBuilderColonization.test.js for behavior coverage'],
+  resetColonization: ['see useWorldBuilderColonization.test.js for behavior coverage'],
 }
 
 test('start runs initial generation and applies the world document to the map', async () => {
@@ -197,7 +89,7 @@ test('start runs initial generation and applies the world document to the map', 
     await ctx.start()
     await nextTick()
 
-    assert.strictEqual(ctx.runPhase.value, 'success')
+    assert.strictEqual(ctx.generation.runPhase.value, 'success')
     assert.ok(ctx.worldDocument.value)
     assert.strictEqual(appliedDocs.length, 1)
   } finally {
@@ -215,12 +107,12 @@ test('destroy cancels the active run and tears down the map lifecycle', async ()
 
     await ctx.start()
     await nextTick()
-    assert.strictEqual(ctx.runPhase.value, 'running')
+    assert.strictEqual(ctx.generation.runPhase.value, 'running')
 
     ctx.destroy()
     await nextTick()
 
-    assert.strictEqual(ctx.runPhase.value, 'cancelled')
+    assert.strictEqual(ctx.generation.runPhase.value, 'cancelled')
     assert.strictEqual(isLifecycleDestroyed(), true)
   } finally {
     scope.stop()
@@ -242,7 +134,7 @@ test('regenerate starts a fresh generation run', async () => {
     ctx.regenerate()
     await nextTick()
 
-    assert.strictEqual(ctx.runPhase.value, 'running')
+    assert.strictEqual(ctx.generation.runPhase.value, 'running')
     assert.strictEqual(worker.runCount(), runsAfterStart + 1)
   } finally {
     scope.stop()
@@ -274,7 +166,7 @@ test('superseding regenerate ignores stale terminal callbacks from prior run', a
     firstRunCallbacks.onComplete?.()
     await nextTick()
 
-    assert.strictEqual(ctx.runPhase.value, 'running')
+    assert.strictEqual(ctx.generation.runPhase.value, 'running')
     assert.strictEqual(appliedDocs.length, appliedBeforeStale)
   } finally {
     scope.stop()
@@ -310,7 +202,7 @@ test('supersede ignores stale step-complete world document from prior run', asyn
     })
     await nextTick()
 
-    assert.strictEqual(ctx.runPhase.value, 'running')
+    assert.strictEqual(ctx.generation.runPhase.value, 'running')
     assert.strictEqual(appliedDocs.length, 0)
   } finally {
     scope.stop()
@@ -365,9 +257,9 @@ test('rapid regenerate does not duplicate world document apply from stale worker
     ctx.regenerate()
     await nextTick()
 
-    assert.strictEqual(ctx.runPhase.value, 'success')
+    assert.strictEqual(ctx.generation.runPhase.value, 'success')
     assert.strictEqual(appliedDocs.length, appliedAfterStart + 1)
-    assert.strictEqual(appliedDocs.at(-1), currentDoc)
+    assert.strictEqual(appliedDocs.at(-1)?.geographySeed, currentDoc.geographySeed)
 
     firstRunCallbacks.onStepComplete?.({
       stepId: 'validation',
@@ -379,7 +271,7 @@ test('rapid regenerate does not duplicate world document apply from stale worker
     await nextTick()
 
     assert.strictEqual(appliedDocs.length, appliedAfterStart + 1)
-    assert.strictEqual(appliedDocs.at(-1), currentDoc)
+    assert.strictEqual(appliedDocs.at(-1)?.geographySeed, currentDoc.geographySeed)
   } finally {
     scope.stop()
   }
@@ -516,14 +408,14 @@ test('resetDefaults resets settings, restores overlay display settings, and rege
 
     await ctx.start()
     await nextTick()
-    ctx.setResourceOverlayDisplaySetting('arableMinimumProductivity', 0.9)
+    ctx.overlays.setResourceOverlayDisplaySetting('arableMinimumProductivity', 0.9)
     const runsBeforeReset = worker.runCount()
 
     ctx.resetDefaults()
     await nextTick()
 
     assert.strictEqual(settingsStore.resetToDefaultsCount, 1)
-    assert.strictEqual(ctx.overlayDisplaySetting('arableMinimumProductivity'), 0.1)
+    assert.strictEqual(ctx.overlays.overlayDisplaySetting('arableMinimumProductivity'), 0.1)
     assert.strictEqual(worker.runCount(), runsBeforeReset + 1)
   } finally {
     scope.stop()
@@ -558,13 +450,13 @@ test('a completed run resets overlay visibility', async () => {
 
     await ctx.start()
     await nextTick()
-    ctx.toggleResourceOverlayVisibility('salt', true)
-    assert.strictEqual(ctx.resourceOverlayVisibility.value.salt, true)
+    ctx.overlays.toggleResourceOverlayVisibility('salt', true)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.salt, true)
 
     ctx.regenerate()
     await nextTick()
 
-    assert.strictEqual(ctx.resourceOverlayVisibility.value.salt, false)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.salt, false)
   } finally {
     scope.stop()
   }
@@ -580,13 +472,13 @@ test('resetOverlays clears overlay visibility and syncs viewport', async () => {
 
     await ctx.start()
     await nextTick()
-    ctx.toggleResourceOverlayVisibility('timber', true)
+    ctx.overlays.toggleResourceOverlayVisibility('timber', true)
     const runsBefore = worker.runCount()
     const syncsBeforeReset = viewport.overlaySyncs.length
 
     ctx.resetOverlays()
 
-    assert.strictEqual(ctx.resourceOverlayVisibility.value.timber, false)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.timber, false)
     assert.strictEqual(worker.runCount(), runsBefore)
     assert.ok(viewport.overlaySyncs.length > syncsBeforeReset)
     assert.strictEqual(viewport.overlaySyncs.at(-1).visibility.timber, false)
@@ -622,9 +514,9 @@ test('toggleResourceOverlayVisibility syncs visibility to the viewport', async (
     await nextTick()
     const syncsBefore = viewport.overlaySyncs.length
 
-    ctx.toggleResourceOverlayVisibility('salt', true)
+    ctx.overlays.toggleResourceOverlayVisibility('salt', true)
 
-    assert.strictEqual(ctx.resourceOverlayVisibility.value.salt, true)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.salt, true)
     assert.ok(viewport.overlaySyncs.length > syncsBefore)
     assert.strictEqual(viewport.overlaySyncs.at(-1).visibility.salt, true)
   } finally {
@@ -641,10 +533,10 @@ test('setResourceOverlayDisplaySetting persists to settings and syncs viewport',
     await nextTick()
     const syncsBefore = viewport.overlaySyncs.length
 
-    ctx.setResourceOverlayDisplaySetting('arableMinimumProductivity', 0.22)
+    ctx.overlays.setResourceOverlayDisplaySetting('arableMinimumProductivity', 0.22)
 
     assert.strictEqual(settingsStore.overlayDisplaySettings.arableMinimumProductivity, 0.22)
-    assert.strictEqual(ctx.overlayDisplaySetting('arableMinimumProductivity'), 0.22)
+    assert.strictEqual(ctx.overlays.overlayDisplaySetting('arableMinimumProductivity'), 0.22)
     assert.ok(viewport.overlaySyncs.length > syncsBefore)
     assert.strictEqual(
       viewport.overlaySyncs.at(-1).displaySettings.arableMinimumProductivity,
@@ -668,8 +560,294 @@ test('generation errors are forwarded to the error handler', async () => {
     await ctx.start()
     await nextTick()
 
-    assert.strictEqual(ctx.runPhase.value, 'error')
+    assert.strictEqual(ctx.generation.runPhase.value, 'error')
     assert.deepStrictEqual(errors, ['worker failed'])
+  } finally {
+    scope.stop()
+  }
+})
+
+test('validationRows stay empty before generation completes', async () => {
+  const scope = effectScope(true)
+  try {
+    const worker = createPendingWorker()
+    const { ctx } = mountController(scope, {
+      runDerivedGeographyInWorker: (params, callbacks) => worker.run(params, callbacks),
+    })
+
+    assert.deepStrictEqual(ctx.validationRows.value, [])
+
+    await ctx.start()
+    await nextTick()
+
+    assert.strictEqual(ctx.generation.runPhase.value, 'running')
+    assert.deepStrictEqual(ctx.validationRows.value, [])
+
+    worker.lastCallbacks().onStepComplete?.({
+      stepId: 'validation',
+      stepIndex: 5,
+      stepCount: 6,
+      label: 'Validation',
+      worldDocument: fakeWorldDocument({
+        generationReport: {
+          validationRows: [{ checkId: 'coastMouth', status: 'fail', summary: 'x' }],
+          validationSignals: { movement: { largestSailComponentCellCount: 0 } },
+        },
+      }),
+    })
+    await nextTick()
+    assert.deepStrictEqual(ctx.validationRows.value, [])
+
+    worker.lastCallbacks().onComplete?.()
+    await nextTick()
+    assert.ok(ctx.validationRows.value.length > 0)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('regenerate is blocked while colonization setup locks terrain', async () => {
+  const scope = effectScope(true)
+  try {
+    const worker = createPendingWorker()
+    const { ctx } = mountController(scope, {
+      runDerivedGeographyInWorker: (params, callbacks) => worker.run(params, callbacks),
+    })
+
+    await ctx.start()
+    worker.lastCallbacks().onStepComplete?.({
+      stepId: 'validation',
+      stepIndex: 5,
+      stepCount: 6,
+      label: 'Validation',
+      worldDocument: fakeWorldDocument(),
+    })
+    worker.lastCallbacks().onComplete?.()
+    await nextTick()
+
+    const runsAfterStart = worker.runCount()
+    await ctx.colonization.enterColonizationSetup()
+    ctx.regenerate()
+    await nextTick()
+
+    assert.strictEqual(worker.runCount(), runsAfterStart)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('start restores colonization phase from session after landmass regen', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const persisted = createDefaultColonizationSlice()
+    persisted.colonizationPhase = COLONIZATION_PHASE_SETUP
+    const { ctx, appliedDocs, viewport } = mountController(scope, {
+      settingsStore: createFakeSettingsStore({ colonizationSession: persisted }),
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+
+    assert.strictEqual(ctx.colonization.colonizationPhase.value, COLONIZATION_PHASE_SETUP)
+    assert.strictEqual(ctx.worldDocument.value?.colonizationPhase, COLONIZATION_PHASE_SETUP)
+    assert.strictEqual(ctx.colonization.isTerrainLocked.value, true)
+    assert.strictEqual(appliedDocs.at(-1)?.colonizationPhase, COLONIZATION_PHASE_SETUP)
+    assert.ok(viewport.placementModes.includes(true))
+    viewport.triggerCellPick({ x: 3, y: 3 })
+    await nextTick()
+    assert.deepStrictEqual(ctx.colonization.foundingLanding.value, { x: 3, y: 3 })
+  } finally {
+    scope.stop()
+  }
+})
+
+test('start restores locked terrain from cache without running the worker', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const persisted = createDefaultColonizationSlice()
+    persisted.colonizationPhase = COLONIZATION_PHASE_SETUP
+    const settingsStore = createFakeSettingsStore({ colonizationSession: persisted })
+    const terrainCache = createMemoryTerrainCache()
+    await terrainCache.saveLockedTerrain({
+      fingerprint: buildTerrainCacheFingerprint({
+        geographySeed: settingsStore.geographySeed,
+        prevailingWindDegrees: settingsStore.prevailingWindDegrees,
+        generationOptions: settingsStore.generationOptions,
+      }),
+      worldDocument: landmass,
+    })
+
+    let workerRuns = 0
+    const { ctx, appliedDocs } = mountController(scope, {
+      settingsStore,
+      terrainCache,
+      runDerivedGeographyInWorker: () => {
+        workerRuns += 1
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+
+    assert.strictEqual(workerRuns, 0)
+    assert.strictEqual(ctx.generation.runPhase.value, 'success')
+    assert.strictEqual(ctx.colonization.colonizationPhase.value, COLONIZATION_PHASE_SETUP)
+    assert.strictEqual(appliedDocs.at(-1)?.gridWidth, landmass.gridWidth)
+    assert.strictEqual(ctx.worldDocument.value?.colonizationPhase, COLONIZATION_PHASE_SETUP)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('enterColonizationSetup persists locked terrain and colonization session', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const terrainCache = createMemoryTerrainCache()
+    const colonizationCache = createMemoryColonizationCache()
+    const { ctx } = mountController(scope, {
+      terrainCache,
+      colonizationCache,
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.colonization.enterColonizationSetup()
+    await nextTick()
+
+    assert.ok(terrainCache.getRecord())
+    assert.strictEqual(terrainCache.getRecord()?.worldDocument.gridWidth, landmass.gridWidth)
+    assert.strictEqual(
+      colonizationCache.getRecord()?.session.colonizationPhase,
+      COLONIZATION_PHASE_SETUP,
+    )
+
+    await ctx.colonization.backToTerrain()
+    await nextTick()
+    assert.strictEqual(terrainCache.getRecord(), null)
+    assert.strictEqual(colonizationCache.getRecord(), null)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('start restores running colonization session after landmass regen', async () => {
+  const scope = effectScope(true)
+  try {
+    const persisted = createDefaultColonizationSlice()
+    persisted.colonizationPhase = COLONIZATION_PHASE_RUNNING
+    persisted.foundingLanding = { x: 3, y: 3 }
+    persisted.settlements = [{ id: 's1', x: 3, y: 3, population: 100 }]
+    persisted.historyLog = [{ kind: 'founding', epoch: 0 }]
+    persisted.realmId = 'realm-test'
+    const { ctx } = mountController(scope, {
+      settingsStore: createFakeSettingsStore({ colonizationSession: persisted }),
+    })
+
+    await ctx.start()
+    await waitUntil(() => ctx.worldDocument.value != null, 'colonization world document')
+
+    assert.strictEqual(ctx.colonization.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+    assert.strictEqual(ctx.worldDocument.value?.historyLog?.length, 1)
+    assert.strictEqual(ctx.worldDocument.value?.settlements?.length, 1)
+    assert.strictEqual(ctx.worldDocument.value?.realmId, 'realm-test')
+    assert.strictEqual(ctx.colonization.isTerrainLocked.value, true)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('start restores running colonization from colonization cache after beginColonization refresh', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const terrainCache = createMemoryTerrainCache()
+    const colonizationCache = createMemoryColonizationCache()
+    const settingsStore = createFakeSettingsStore()
+    let workerRuns = 0
+    const { ctx } = mountController(scope, {
+      settingsStore,
+      terrainCache,
+      colonizationCache,
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        workerRuns += 1
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+
+    await ctx.start()
+    await nextTick()
+    await ctx.colonization.enterColonizationSetup()
+    ctx.colonization.pickFoundingLanding(3, 3)
+    await ctx.colonization.beginColonization()
+    await nextTick()
+
+    assert.strictEqual(
+      colonizationCache.getRecord()?.session.colonizationPhase,
+      COLONIZATION_PHASE_RUNNING,
+    )
+
+    // Simulate stale localStorage that never received the running commit.
+    settingsStore.colonizationSession = createDefaultColonizationSlice()
+    settingsStore.colonizationSession.colonizationPhase = COLONIZATION_PHASE_SETUP
+    settingsStore.colonizationSession.foundingLanding = { x: 3, y: 3 }
+
+    ctx.destroy()
+    await nextTick()
+
+    const { ctx: refreshed } = mountController(scope, {
+      settingsStore,
+      terrainCache,
+      colonizationCache,
+      runDerivedGeographyInWorker: () => {
+        workerRuns += 1
+        return { cancel() {} }
+      },
+    })
+
+    await refreshed.start()
+    await nextTick()
+
+    assert.strictEqual(workerRuns, 1)
+    assert.strictEqual(refreshed.colonization.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+    assert.strictEqual(refreshed.colonization.colonizationEpoch.value, 0)
+    assert.strictEqual(refreshed.worldDocument.value?.settlements?.length, 1)
+    assert.strictEqual(refreshed.worldDocument.value?.historyLog?.length, 1)
+    assert.strictEqual(refreshed.colonization.timeControlsActive.value, true)
+    assert.ok(refreshed.worldDocument.value?.populationCollapseRaster instanceof Float32Array)
   } finally {
     scope.stop()
   }
@@ -679,8 +857,10 @@ test('every documented side-effect method is registered in the coverage matrix',
   const scope = effectScope(true)
   try {
     const { ctx } = mountController(scope)
+    const resolveMethod = (method) =>
+      ctx[method] ?? ctx.colonization?.[method] ?? ctx.overlays?.[method] ?? ctx.generation?.[method]
     for (const method of Object.keys(SIDE_EFFECT_METHOD_COVERAGE)) {
-      assert.equal(typeof ctx[method], 'function', `missing controller method: ${method}`)
+      assert.equal(typeof resolveMethod(method), 'function', `missing controller method: ${method}`)
     }
     assert.ok(
       Object.keys(SIDE_EFFECT_METHOD_COVERAGE).length >= 12,

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { effectScope, nextTick } from 'vue'
 import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../../world-builder/resourceOverlays.js'
+import { RESOURCE_OVERLAY_VISIBILITY_STORAGE_KEY } from '../../world-builder/resourceOverlayVisibilityStorage.js'
 import { useWorldBuilderOverlayState } from './useWorldBuilderOverlayState.js'
 
 /**
@@ -24,10 +25,41 @@ function createMockSettingsStore(initial = {}) {
 }
 
 /**
+ * @returns {Storage}
+ */
+function createMemoryVisibilityStorage(initial = {}) {
+  /** @type {Record<string, string>} */
+  const store = { ...initial }
+  return {
+    get length() {
+      return Object.keys(store).length
+    },
+    clear() {
+      for (const key of Object.keys(store)) {
+        delete store[key]
+      }
+    },
+    getItem(key) {
+      return Object.hasOwn(store, key) ? store[key] : null
+    },
+    key(index) {
+      return Object.keys(store)[index] ?? null
+    },
+    removeItem(key) {
+      delete store[key]
+    },
+    setItem(key, value) {
+      store[key] = value
+    },
+  }
+}
+
+/**
  * @param {import('vue').EffectScope} scope
  * @param {{
  *   getViewport?: () => { syncOverlayRenderCache: (state: import('../../world-builder/resourceOverlayState.js').ResourceOverlayPageState) => void } | null,
  *   settingsStore?: ReturnType<typeof createMockSettingsStore>,
+ *   visibilityStorage?: Storage,
  * }} [overrides]
  */
 function mountOverlayState(scope, overrides = {}) {
@@ -48,6 +80,7 @@ function mountOverlayState(scope, overrides = {}) {
       useWorldBuilderOverlayState({
         getViewport: overrides.getViewport ?? (() => viewport),
         settingsStore: overrides.settingsStore ?? createMockSettingsStore(),
+        visibilityStorage: overrides.visibilityStorage,
       }),
     ),
   }
@@ -199,6 +232,52 @@ test('hydrateFromPersistedSettings loads store display settings without viewport
 
     assert.strictEqual(ctx.overlayDisplaySetting('arableMinimumProductivity'), 0.25)
     assert.strictEqual(syncedStates.length, 0)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('toggleVisibility persists only overlay booleans to isolated storage', () => {
+  const scope = effectScope(true)
+  try {
+    const visibilityStorage = createMemoryVisibilityStorage({
+      'portfolio-world-builder-settings': JSON.stringify({ colonizationSession: { epoch: 3 } }),
+    })
+    const { ctx } = mountOverlayState(scope, { visibilityStorage })
+
+    ctx.toggleVisibility('explorationFog', true)
+
+    const dedicated = JSON.parse(
+      visibilityStorage.getItem(RESOURCE_OVERLAY_VISIBILITY_STORAGE_KEY) ?? '{}',
+    )
+    assert.strictEqual(dedicated.explorationFog, true)
+    assert.strictEqual(
+      JSON.parse(visibilityStorage.getItem('portfolio-world-builder-settings') ?? '{}').epoch,
+      undefined,
+    )
+  } finally {
+    scope.stop()
+  }
+})
+
+test('hydrateFromPersistedSettings restores stored overlay booleans', async () => {
+  const scope = effectScope(true)
+  try {
+    const visibilityStorage = createMemoryVisibilityStorage({
+      [RESOURCE_OVERLAY_VISIBILITY_STORAGE_KEY]: JSON.stringify({ salt: true }),
+    })
+    const { ctx } = mountOverlayState(scope, { visibilityStorage })
+
+    ctx.toggleVisibility('timber', true)
+    visibilityStorage.setItem(
+      RESOURCE_OVERLAY_VISIBILITY_STORAGE_KEY,
+      JSON.stringify({ salt: true }),
+    )
+    ctx.hydrateFromPersistedSettings()
+    await nextTick()
+
+    assert.strictEqual(ctx.visibility.value.salt, true)
+    assert.strictEqual(ctx.visibility.value.timber, false)
   } finally {
     scope.stop()
   }

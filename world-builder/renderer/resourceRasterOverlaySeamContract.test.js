@@ -39,6 +39,57 @@ function visibleRasterFixture(resourceId) {
     }
   }
 
+  if (resourceId === 'freshwater') {
+    const cellCount = 16
+    const rainfall = new Float32Array(cellCount).fill(0.6)
+    const drainage = new Float32Array(cellCount).fill(0.2)
+    const salinity = new Float32Array(cellCount).fill(0.1)
+    const elevation = new Float32Array(cellCount).fill(0.5)
+    const biomes = new Uint8Array(cellCount).fill(2)
+    const riverCorridorMask = new Uint8Array(cellCount)
+    riverCorridorMask[5] = 1
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      fields: { rainfall, drainage, salinity, elevation },
+      biomes,
+      riverCorridorMask,
+    }
+  }
+
+  if (resourceId === 'population') {
+    const populationCollapseRaster = new Float32Array(16)
+    populationCollapseRaster[5] = 12
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      populationCollapseRaster,
+    }
+  }
+
+  if (resourceId === 'explorationFog') {
+    const visitedCells = new Uint8Array(16)
+    visitedCells[5] = 1
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      visitedCells,
+    }
+  }
+
+  if (resourceId === 'routes') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      roads: [
+        { cells: [{ x: 1, y: 1 }, { x: 2, y: 1 }], mode: 'land' },
+        { cells: [{ x: 0, y: 2 }], mode: 'sail' },
+      ],
+    }
+  }
+
   const raster = new Float32Array(16)
   raster[5] = 0.8
   return {

@@ -16,7 +16,10 @@ import {
 /**
  * @param {{
  *   getDerivedGeographyParams: () => import('../../world-builder/core/types.js').DerivedGeographyParams | null,
- *   applyWorldDocument: (doc: import('../../world-builder/core/types.js').WorldDocument) => void | Promise<void>,
+ *   applyWorldDocument: (
+ *     doc: import('../../world-builder/core/types.js').WorldDocument,
+ *     applyOptions?: { preserveRestorePhase?: boolean },
+ *   ) => void | Promise<void>,
  *   onRunError?: (message: string) => void,
  *   onBeforeRun?: () => void,
  *   onRunCompleteSuccess?: () => void,
@@ -104,6 +107,26 @@ export function useWorldBuilderGeneration(options) {
     })
   }
 
+  /**
+   * Apply a previously generated landmass without running the worker (terrain cache restore).
+   * @param {import('../../world-builder/core/types.js').WorldDocument} doc
+   * @param {{ skipPersist?: boolean, preserveRestorePhase?: boolean }} [applyOptions]
+   * @returns {Promise<void>}
+   */
+  async function applyCachedWorldDocument(doc, applyOptions = {}) {
+    generationRunController.value?.cancelActive()
+    worldDocument.value = doc
+    runPhase.value = 'success'
+    generationProgress.value = createInitialGenerationProgress()
+    const { skipPersist, preserveRestorePhase } = applyOptions
+    await Promise.resolve(
+      options.applyWorldDocument(doc, preserveRestorePhase ? { preserveRestorePhase: true } : undefined),
+    )
+    if (!skipPersist) {
+      options.onRunCompleteSuccess?.()
+    }
+  }
+
   function dispose() {
     generationRunController.value?.cancelActive()
     generationRunController.value = null
@@ -118,6 +141,7 @@ export function useWorldBuilderGeneration(options) {
     showResourceOverlayBar,
     showValidationFailureIndicator,
     regenerate,
+    applyCachedWorldDocument,
     dispose,
   }
 }

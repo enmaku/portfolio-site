@@ -21,6 +21,9 @@ import {
   generationStepStatusColor,
   normalizeGeographySeed,
   shouldShowGenerationProgress,
+  shouldShowBeginColonizationProgress,
+  shouldShowEpochStepProgress,
+  shouldShowRehydrationProgress,
   shouldShowResourceOverlayBar,
   shouldShowValidationFailureIndicator,
   isGenerationRunSuccess,
@@ -119,6 +122,31 @@ test('createHydrologySubstepStatuses marks active and completed substeps', () =>
     statuses.map((row) => row.status),
     ['complete', 'active'],
   )
+})
+
+test('createHydrologySubstepStatuses appends item progress to active substep label', () => {
+  const substeps = [
+    { id: 'frontier', label: 'Frontier' },
+    { id: 'dispatch', label: 'Dispatch' },
+    { id: 'advance', label: 'Advance' },
+  ]
+  const statuses = createHydrologySubstepStatuses(substeps, 1, 0, new Set(), {
+    itemIndex: 3,
+    itemCount: 8,
+  })
+  assert.strictEqual(statuses[1].label, 'Dispatch 3/8')
+  assert.strictEqual(statuses[1].status, 'active')
+})
+
+test('createHydrologySubstepStatuses appends phase percent to active substep label', () => {
+  const substeps = [{ id: 'dispatch', label: 'Dispatch' }]
+  const statuses = createHydrologySubstepStatuses(substeps, 0, -1, new Set(), {
+    itemIndex: 2,
+    itemCount: 9,
+    phase: 'Maritime',
+    phasePercent: 38,
+  })
+  assert.strictEqual(statuses[0].label, 'Dispatch 2/9 - Maritime 38%')
 })
 
 test('createHydrologySubstepStatuses marks skipped substeps', () => {
@@ -290,7 +318,7 @@ test('formatHydrologyMetricValue renders null as n/a', () => {
 
 test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
   const definitions = createResourceOverlayDefinitions()
-  assert.strictEqual(definitions.length, 5)
+  assert.strictEqual(definitions.length, 10)
   assert.deepStrictEqual(
     definitions.map((definition) => ({ id: definition.id, kind: definition.kind })),
     [
@@ -299,6 +327,11 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'metals', kind: 'rasterAndNodes' },
       { id: 'salt', kind: 'nodes' },
       { id: 'sail', kind: 'raster' },
+      { id: 'freshwater', kind: 'raster' },
+      { id: 'population', kind: 'raster' },
+      { id: 'settlements', kind: 'nodes' },
+      { id: 'explorationFog', kind: 'raster' },
+      { id: 'routes', kind: 'raster' },
     ],
   )
 })
@@ -310,6 +343,11 @@ test('createDefaultResourceOverlayVisibility defaults every overlay off', () => 
     metals: false,
     salt: false,
     sail: false,
+    freshwater: false,
+    population: false,
+    settlements: false,
+    explorationFog: false,
+    routes: false,
   })
 })
 
@@ -317,6 +355,16 @@ test('shouldShowGenerationProgress is true only while running', () => {
   assert.strictEqual(shouldShowGenerationProgress('running'), true)
   assert.strictEqual(shouldShowGenerationProgress('idle'), false)
   assert.strictEqual(shouldShowGenerationProgress('success'), false)
+})
+
+test('shouldShowBeginColonizationProgress is true only while running', () => {
+  assert.strictEqual(shouldShowBeginColonizationProgress('running'), true)
+  assert.strictEqual(shouldShowBeginColonizationProgress('idle'), false)
+})
+
+test('shouldShowRehydrationProgress is true only while running', () => {
+  assert.strictEqual(shouldShowRehydrationProgress('running'), true)
+  assert.strictEqual(shouldShowRehydrationProgress('idle'), false)
 })
 
 test('shouldShowResourceOverlayBar is true only after successful pipeline completion', () => {
@@ -364,8 +412,14 @@ test('exhausted run presentation hides clean-success chrome', () => {
 
 test('status bar helpers never show progress and overlay bar together', () => {
   for (const runPhase of ['idle', 'running', 'success', 'exhausted', 'cancelled', 'error']) {
-    const showProgress = shouldShowGenerationProgress(runPhase)
-    const showOverlayBar = shouldShowResourceOverlayBar(runPhase)
-    assert.strictEqual(showProgress && showOverlayBar, false)
+    const showGeneration = shouldShowGenerationProgress(runPhase)
+    const showBegin = shouldShowBeginColonizationProgress('running')
+    const showEpoch = shouldShowEpochStepProgress('running')
+    const showRehydration = shouldShowRehydrationProgress('running')
+    const showOverlayBar = shouldShowResourceOverlayBar(runPhase, 'running')
+    assert.strictEqual(showGeneration && showOverlayBar, false)
+    assert.strictEqual(showBegin && showOverlayBar, false)
+    assert.strictEqual(showEpoch && showOverlayBar, false)
+    assert.strictEqual(showRehydration && showOverlayBar, false)
   }
 })

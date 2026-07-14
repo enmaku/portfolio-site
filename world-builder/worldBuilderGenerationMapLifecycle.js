@@ -11,7 +11,10 @@ import { diffWorldDocumentMapLayers } from './renderer/diffWorldDocumentMapLayer
 
 /**
  * @typedef {Object} GenerationMapLifecycle
- * @property {(doc: import('./core/types.js').WorldDocument) => Promise<void>} applyWorldDocument
+ * @property {(
+ *   doc: import('./core/types.js').WorldDocument,
+ *   options?: { changedLayers?: import('./renderer/mapLayerRefresh.js').MapLayerId[] | null },
+ * ) => Promise<void>} applyWorldDocument
  * @property {() => GenerationMapViewportHandle | null} getViewport
  * @property {() => void} destroy
  */
@@ -37,9 +40,13 @@ export function createGenerationMapLifecycle({ getMapHost, getCreateViewport, on
 
   /**
    * @param {import('./core/types.js').WorldDocument} doc
+   * @param {{ changedLayers?: import('./renderer/mapLayerRefresh.js').MapLayerId[] | null }} [options]
    */
-  function updateViewportWorldDocument(doc) {
-    const changedLayers = diffWorldDocumentMapLayers(lastAppliedWorldDocument, doc)
+  function updateViewportWorldDocument(doc, options = {}) {
+    const changedLayers =
+      options.changedLayers !== undefined
+        ? options.changedLayers
+        : diffWorldDocumentMapLayers(lastAppliedWorldDocument, doc)
     mapViewport?.updateWorldDocument(
       doc,
       changedLayers == null ? undefined : { changedLayers },
@@ -48,13 +55,13 @@ export function createGenerationMapLifecycle({ getMapHost, getCreateViewport, on
   }
 
   return {
-    async applyWorldDocument(doc) {
+    async applyWorldDocument(doc, options = {}) {
       if (destroyed) {
         return
       }
 
       if (mapViewport) {
-        updateViewportWorldDocument(doc)
+        updateViewportWorldDocument(doc, options)
         return
       }
 
@@ -64,7 +71,7 @@ export function createGenerationMapLifecycle({ getMapHost, getCreateViewport, on
           return
         }
         if (mapViewport) {
-          updateViewportWorldDocument(doc)
+          updateViewportWorldDocument(doc, options)
         }
         return
       }
