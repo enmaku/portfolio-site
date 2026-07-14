@@ -69,7 +69,8 @@ const VECTOR_LAYER_IDS = /** @type {const} */ ([
 ])
 
 function syncDrawnCirclesByLayer() {
-  const vectorLayers = viewportSpyState.graphicsLayers.slice(-VECTOR_LAYER_IDS.length)
+  // Final two Graphics are landing-placement overlays (haul shed + pin).
+  const vectorLayers = viewportSpyState.graphicsLayers.slice(-6, -2)
   for (let i = 0; i < VECTOR_LAYER_IDS.length; i += 1) {
     viewportSpyState.drawnCirclesByLayer[VECTOR_LAYER_IDS[i]] = vectorLayers[i]?.circles ?? []
   }
@@ -120,7 +121,16 @@ export async function installViewportMocks() {
         constructor() {
           this.canvas = { tagName: 'CANVAS' }
           this.stage = { addChild() {} }
-          this.renderer = { events: {} }
+          this.renderer = {
+            events: {},
+            render() {},
+          }
+          this.ticker = {
+            elapsedMS: 16,
+            start() {},
+            stop() {},
+            add() {},
+          }
         }
         async init() {}
         destroy() {}
@@ -164,6 +174,10 @@ export async function installViewportMocks() {
           this.syncDrawnCircles()
         }
         rect() {}
+        moveTo() {}
+        lineTo() {}
+        stroke() {}
+        setFillStyle() {}
       },
     },
   })
@@ -196,6 +210,10 @@ export async function installViewportMocks() {
         clampZoom() {
           return this
         }
+        on() {
+          return this
+        }
+        update() {}
         resize(screenWidth, screenHeight, worldWidth, worldHeight) {
           this.worldWidth = worldWidth
           this.worldHeight = worldHeight
@@ -239,6 +257,7 @@ export function createHostEl() {
   return {
     clientWidth: 400,
     clientHeight: 300,
+    style: { cursor: '' },
     replaceChildren() {},
   }
 }
@@ -384,9 +403,13 @@ export function createMetalsFixture() {
   })
 }
 
-/** Sprites from the most recently created viewport (eight raster layers). */
+/**
+ * Sprites from the most recently created viewport.
+ * Order: terrain, contours, arable, timber, metals, lakes, rivers, sail,
+ * freshwater, population, explorationFog, routes.
+ */
 export function recentSpriteLayers() {
-  return viewportSpyState.spriteLayers.slice(-8)
+  return viewportSpyState.spriteLayers.slice(-12)
 }
 
 /** Contours sprite sits above terrain in the layer stack. */
