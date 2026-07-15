@@ -27,6 +27,7 @@ import {
 import {
   COLONIZATION_PHASE_RUNNING,
   COLONIZATION_PHASE_SETUP,
+  COLONIZATION_PHASE_TERRAIN,
   mergeColonizationSessions,
 } from '../../world-builder/core/colonization/createDefaultColonizationSlice.js'
 import {
@@ -56,12 +57,12 @@ import { useWorldBuilderGeneration } from './useWorldBuilderGeneration.js'
 import { useWorldBuilderOverlayState } from './useWorldBuilderOverlayState.js'
 import { reportWorldBuilderError } from '../utils/worldBuilderErrorReporting.js'
 
-const COLONIZATION_RUNNING_OVERLAY_IDS = [
+const COLONIZATION_OVERLAY_IDS = new Set([
   'population',
   'settlements',
   'explorationFog',
   'routes',
-]
+])
 
 /** Lazy-load the renderer viewport factory; deferred so Vue never owns renderer logic. */
 async function loadWorldBuilderViewportFactory() {
@@ -147,15 +148,25 @@ export function useWorldBuilderPageController(options) {
     }, 400)
   }
 
-  function syncColonizationRunningOverlays() {
-    if (colonization.colonizationPhase.value !== COLONIZATION_PHASE_RUNNING) {
+  function syncColonizationOverlayVisibility() {
+    const phase = colonization.colonizationPhase.value
+    if (phase === COLONIZATION_PHASE_TERRAIN) {
+      for (const overlayId of COLONIZATION_OVERLAY_IDS) {
+        if (overlay.visibility.value[overlayId]) {
+          overlay.toggleVisibility(overlayId, false)
+        }
+      }
+      colonizationRunningOverlaysEnabled = false
+      return
+    }
+    if (phase !== COLONIZATION_PHASE_RUNNING) {
       colonizationRunningOverlaysEnabled = false
       return
     }
     if (colonizationRunningOverlaysEnabled) {
       return
     }
-    for (const overlayId of COLONIZATION_RUNNING_OVERLAY_IDS) {
+    for (const overlayId of COLONIZATION_OVERLAY_IDS) {
       overlay.toggleVisibility(overlayId, true)
     }
     colonizationRunningOverlaysEnabled = true
@@ -182,7 +193,7 @@ export function useWorldBuilderPageController(options) {
       return
     }
     void mapLifecycle.applyWorldDocument(doc)
-    syncColonizationRunningOverlays()
+    syncColonizationOverlayVisibility()
     void persistColonizationSessionIfNeeded()
   }
 
@@ -217,7 +228,7 @@ export function useWorldBuilderPageController(options) {
         void mapLifecycle?.applyWorldDocument(doc, { changedLayers: [layerId] })
       },
       onComplete: async () => {
-        syncColonizationRunningOverlays()
+        syncColonizationOverlayVisibility()
         await persistColonizationSessionIfNeeded()
       },
     },
@@ -245,6 +256,7 @@ export function useWorldBuilderPageController(options) {
     const merged = await colonization.applyToWorldDocumentAsync(doc, applyOptions)
     colonizationWorldDocument.value = merged
     await mapLifecycle?.applyWorldDocument(merged)
+    syncColonizationOverlayVisibility()
     colonization.syncLandingVisuals()
   }
 
@@ -420,6 +432,13 @@ export function useWorldBuilderPageController(options) {
     shouldShowResourceOverlayBar(generation.runPhase.value, colonizationBusyPhase.value),
   )
   const resourceOverlayDefinitions = createResourceOverlayDefinitions()
+  const visibleResourceOverlayDefinitions = computed(() =>
+    colonization.colonizationPhase.value === COLONIZATION_PHASE_TERRAIN
+      ? resourceOverlayDefinitions.filter(
+          (definition) => !COLONIZATION_OVERLAY_IDS.has(definition.id),
+        )
+      : resourceOverlayDefinitions,
+  )
   const statusBar = computed(() => {
     const generationSection = generation.showGenerationProgress.value
       ? buildGenerationStatusSection({
@@ -429,7 +448,7 @@ export function useWorldBuilderPageController(options) {
         })
       : null
     const overlaysSection = showResourceOverlayBarComputed.value
-      ? buildOverlaysStatusSection({ definitions: resourceOverlayDefinitions })
+      ? buildOverlaysStatusSection({ definitions: visibleResourceOverlayDefinitions.value })
       : null
     return buildWorldBuilderStatusBar({
       generation: generationSection,
@@ -450,6 +469,17 @@ export function useWorldBuilderPageController(options) {
       void discardLockedTerrain()
     }
     generation.regenerate()
+  }
+
+  function toggleResourceOverlayVisibility(overlayId, visible) {
+    if (
+      colonization.colonizationPhase.value === COLONIZATION_PHASE_TERRAIN &&
+      COLONIZATION_OVERLAY_IDS.has(overlayId)
+    ) {
+      overlay.toggleVisibility(overlayId, false)
+      return
+    }
+    overlay.toggleVisibility(overlayId, visible)
   }
 
   async function enterColonizationSetup() {
@@ -626,7 +656,7 @@ export function useWorldBuilderPageController(options) {
               skipPersist: true,
               preserveRestorePhase: willRestoreSession,
             })
-            syncColonizationRunningOverlays()
+            syncColonizationOverlayVisibility()
             return
           }
         } catch (error) {
@@ -638,7 +668,7 @@ export function useWorldBuilderPageController(options) {
         colonization.endSessionRestore()
       }
       regenerate({ force: true })
-      syncColonizationRunningOverlays()
+      syncColonizationOverlayVisibility()
     } finally {
       if (willRestoreSession && colonization.isRehydrationRunning.value) {
         colonization.endSessionRestore()
@@ -668,7 +698,7 @@ export function useWorldBuilderPageController(options) {
     overlays: {
       resourceOverlayVisibility: overlay.visibility,
       overlayDisplaySetting: overlay.overlayDisplaySetting,
-      toggleResourceOverlayVisibility: overlay.toggleVisibility,
+      toggleResourceOverlayVisibility,
       setResourceOverlayDisplaySetting: overlay.setDisplaySetting,
     },
     colonization: {

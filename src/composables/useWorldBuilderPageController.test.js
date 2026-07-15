@@ -756,6 +756,56 @@ test('enterColonizationSetup persists locked terrain and colonization session', 
   }
 })
 
+test('terrain authoring hides and disables colonization overlays', async () => {
+  const scope = effectScope(true)
+  try {
+    const landmass = coastalLandmassDocument()
+    const { ctx } = mountController(scope, {
+      runDerivedGeographyInWorker: (_params, callbacks) => {
+        callbacks.onStepComplete?.({
+          stepId: 'validation',
+          stepIndex: 5,
+          stepCount: 6,
+          label: 'Validation',
+          worldDocument: landmass,
+        })
+        callbacks.onComplete?.()
+        return { cancel() {} }
+      },
+    })
+    const colonizationOverlayIds = ['population', 'settlements', 'explorationFog', 'routes']
+
+    await ctx.start()
+    await nextTick()
+
+    for (const overlayId of colonizationOverlayIds) {
+      assert.ok(!ctx.statusBar.value.overlayDefs.some((definition) => definition.id === overlayId))
+      ctx.overlays.toggleResourceOverlayVisibility(overlayId, true)
+      assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], false)
+    }
+
+    await ctx.colonization.enterColonizationSetup()
+    ctx.colonization.pickFoundingLanding(3, 3)
+    await ctx.colonization.beginColonization()
+    await nextTick()
+
+    for (const overlayId of colonizationOverlayIds) {
+      assert.ok(ctx.statusBar.value.overlayDefs.some((definition) => definition.id === overlayId))
+      assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
+    }
+
+    await ctx.colonization.resetColonization()
+    await nextTick()
+
+    for (const overlayId of colonizationOverlayIds) {
+      assert.ok(!ctx.statusBar.value.overlayDefs.some((definition) => definition.id === overlayId))
+      assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], false)
+    }
+  } finally {
+    scope.stop()
+  }
+})
+
 test('start restores running colonization session after landmass regen', async () => {
   const scope = effectScope(true)
   try {
