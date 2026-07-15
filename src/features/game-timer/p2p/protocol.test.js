@@ -5,6 +5,7 @@ import {
   coerceRoundIdMap,
   coerceStringIdList,
   encodeGuestUpdate,
+  encodeHostPlayerOrderShuffle,
   encodeHostSnapshot,
   GUEST_INTENT_KINDS_TIMESTAMP_ONLY,
   GUEST_INTENT_KINDS_WITH_PLAYER_ID,
@@ -187,4 +188,25 @@ test('parseHostMessage accepts RTDB state envelope without type discriminator', 
   assert.equal(parsed.seq, 3)
   assert.equal(parsed.snapshot.activePlayerId, 'p1')
   assert.equal(parsed.snapshot.players.length, 2)
+})
+
+test('host player-order shuffle round-trips a uint32 seed and snapshot', () => {
+  const snapshot = baseSnapshot()
+  const parsed = parseHostMessage(encodeHostPlayerOrderShuffle(snapshot, 0xffffffff, 4))
+
+  assert.ok(parsed)
+  assert.equal(parsed.type, 'gt-r')
+  assert.equal(parsed.seed, 0xffffffff)
+  assert.equal(parsed.seq, 4)
+  assert.deepEqual(parsed.snapshot, snapshot)
+})
+
+test('host player-order shuffle rejects malformed seeds', () => {
+  const snapshot = baseSnapshot()
+  for (const seed of [-1, 1.5, 0x1_0000_0000, '1']) {
+    assert.equal(
+      parseHostMessage({ type: 'gt-r', snapshot, seed, seq: 1 }),
+      null,
+    )
+  }
 })

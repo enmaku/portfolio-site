@@ -27,12 +27,14 @@ import { deriveStableHostSuffix, getStableClientId } from '../../p2p/identity.js
 import {
   encodeGuestHello,
   encodeGuestUpdate,
+  encodeHostPlayerOrderShuffle,
   encodeHostSnapshot,
   encodeHostVisibility,
   isHostEndedNotice,
   isHostPing,
   isRecord,
   MSG_GUEST_UPDATE,
+  MSG_HOST_PLAYER_ORDER_SHUFFLE,
   parseGuestHello,
   parseGuestMessage,
   parseHostMessage,
@@ -60,6 +62,8 @@ let hostScopedActionCooldown = createHostScopedActionCooldown()
  * @typedef {object} GameTimerP2PHandlers
  * @property {() => GameTimerSyncPayload} getSnapshot
  * @property {(snapshot: GameTimerSyncPayload) => void} applySnapshot
+ * @property {(snapshot: GameTimerSyncPayload, seed: number) => void} startPlayerOrderShuffle
+ * @property {() => void} finishPlayerOrderShuffle
  */
 
 /** @type {GameTimerP2PHandlers} */
@@ -73,6 +77,8 @@ let handlers = {
     playerOrderByRound: {},
   }),
   applySnapshot: () => {},
+  startPlayerOrderShuffle: () => {},
+  finishPlayerOrderShuffle: () => {},
 }
 
 let nextSeq = 0
@@ -81,6 +87,7 @@ let lastSeenSeq = 0
 
 /** While true, replayed guest inbox updates must not merge into host state during reclaim. */
 let suppressGuestInboxMergeOnHostReclaim = false
+let hostPlayerOrderShuffleActive = false
 
 /** Reactive session UI state for multiplayer (Vue ref; safe to use outside components). */
 export const sessionPhase = ref(/** @type {GameTimerSessionPhase} */ ('idle'))
@@ -205,6 +212,8 @@ function resetHostGuestWireState() {
   nextSeq = 0
   lastSeenSeq = 0
   hostScopedActionCooldown = createHostScopedActionCooldown()
+  hostPlayerOrderShuffleActive = false
+  handlers.finishPlayerOrderShuffle?.()
 }
 
 function destroyWireOnly() {
@@ -224,6 +233,7 @@ function hostPublishSnapshot(snapshot) {
 function onGuestHello(stableId) {
   if (!core.isHostRole() || !sessionSuffix.value) return
   void stableId
+  if (hostPlayerOrderShuffleActive) return
   try {
     hostPublishSnapshot(handlers.getSnapshot())
   } catch {
@@ -246,6 +256,8 @@ function handleHostInboxMessage(stableId, raw) {
   if (suppressGuestInboxMergeOnHostReclaim) {
     return
   }
+
+  if (hostPlayerOrderShuffleActive) return
 
   const msg = parseGuestMessage(raw)
   if (!msg) {
@@ -384,6 +396,11 @@ export function handleGuestInbound(raw) {
   lastSeenSeq = msg.seq
   try {
     handlers.applySnapshot(msg.snapshot)
+    if (msg.type === MSG_HOST_PLAYER_ORDER_SHUFFLE) {
+      handlers.startPlayerOrderShuffle?.(msg.snapshot, msg.seed)
+    } else {
+      handlers.finishPlayerOrderShuffle?.()
+    }
   } catch {
     return
   }
@@ -585,6 +602,10 @@ export function broadcastGameTimerSnapshot(snapshot, intent) {
   if (!suffix) return
 
   if (core.isHostRole()) {
+    if (hostPlayerOrderShuffleActive) {
+      hostPlayerOrderShuffleActive = false
+      handlers.finishPlayerOrderShuffle?.()
+    }
     honorScopedGuestAction(hostScopedActionCooldown, intent, Date.now())
     hostPublishSnapshot(snapshot)
     return
@@ -594,6 +615,36 @@ export function broadcastGameTimerSnapshot(snapshot, intent) {
   if (guestId) {
     core.writeGuestInbox(encodeGuestUpdate(snapshot, intent))
   }
+}
+
+/**
+ * Publishes one deterministic shuffle seed while retaining a joinable authoritative snapshot.
+ * @param {number} seed
+ * @returns {Promise<boolean>}
+ */
+export async function broadcastPlayerOrderShuffle(seed) {
+  if (!core.isHostRole() || !sessionSuffix.value || hostPlayerOrderShuffleActive) return false
+  hostPlayerOrderShuffleActive = true
+  const msg = encodeHostPlayerOrderShuffle(handlers.getSnapshot(), seed, ++nextSeq)
+  try {
+    await setRtdb(roomChild(sessionSuffix.value, 'state'), msg)
+    return true
+  } catch {
+    hostPlayerOrderShuffleActive = false
+    return false
+  }
+}
+
+/**
+ * Publishes the settled shuffle order and releases deferred room traffic.
+ * @param {GameTimerSyncPayload} snapshot
+ * @returns {boolean}
+ */
+export function finalizePlayerOrderShuffle(snapshot) {
+  if (!core.isHostRole() || !hostPlayerOrderShuffleActive) return false
+  hostPlayerOrderShuffleActive = false
+  hostPublishSnapshot(snapshot)
+  return true
 }
 
 /**
@@ -631,6 +682,8 @@ registerGameTimerTestWireAccess(GAME_TIMER_SESSION_TEST_MODULE_KEY, () => ({
   emptyHandlers: () => ({
     getSnapshot: () => emptyGameTimerSnapshot(),
     applySnapshot: () => {},
+    startPlayerOrderShuffle: () => {},
+    finishPlayerOrderShuffle: () => {},
   }),
   setHandlers: (h) => {
     handlers = h
