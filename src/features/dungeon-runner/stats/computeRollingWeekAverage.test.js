@@ -26,10 +26,10 @@ test('computeRollingWeekAverage caps lookback at three weeks', () => {
   ])
 })
 
-test('computeRollingWeekAverage returns null for weeks with no matches', () => {
+test('computeRollingWeekAverage includes weeks with no matches', () => {
   const result = computeRollingWeekAverage([2, 0, 6, 3])
   assert.equal(result.status, 'ok')
-  assert.deepEqual(result.values, [2, null, (2 + 0 + 6) / 3, (0 + 6 + 3) / 3])
+  assert.deepEqual(result.values, [2, (2 + 0) / 2, (2 + 0 + 6) / 3, (0 + 6 + 3) / 3])
 })
 
 test('computeRollingWeekAverage returns error for empty or invalid series', () => {

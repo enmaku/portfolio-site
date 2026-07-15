@@ -5,6 +5,7 @@ import {
 } from './computeRollingWeekAverage.js'
 
 export const MATCHES_PER_WEEK_MAX_WEEKS = 52
+export const MATCHES_PER_WEEK_TREND_START_AT = '2026-05-17T03:48:12.672Z'
 
 /**
  * @typedef {import('./buildUtcWeekBuckets.js').UtcWeekBucket} UtcWeekBucket
@@ -50,7 +51,9 @@ export function buildMatchesPerWeekChart(
   if (rolling.status === 'error') {
     return { status: 'error' }
   }
-  const rollingAverageValues = rolling.values
+  const rollingAverageValues = rolling.values.map((value, index) =>
+    buckets[index].endExclusive <= MATCHES_PER_WEEK_TREND_START_AT ? null : value,
+  )
 
   return {
     status: 'ok',
