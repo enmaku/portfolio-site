@@ -815,6 +815,9 @@ test('start restores running colonization from colonization cache after beginCol
     await ctx.colonization.beginColonization()
     await nextTick()
 
+    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
+      assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
+    }
     assert.strictEqual(
       colonizationCache.getRecord()?.session.colonizationPhase,
       COLONIZATION_PHASE_RUNNING,

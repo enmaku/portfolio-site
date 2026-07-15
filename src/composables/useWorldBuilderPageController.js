@@ -56,6 +56,13 @@ import { useWorldBuilderGeneration } from './useWorldBuilderGeneration.js'
 import { useWorldBuilderOverlayState } from './useWorldBuilderOverlayState.js'
 import { reportWorldBuilderError } from '../utils/worldBuilderErrorReporting.js'
 
+const COLONIZATION_RUNNING_OVERLAY_IDS = [
+  'population',
+  'settlements',
+  'explorationFog',
+  'routes',
+]
+
 /** Lazy-load the renderer viewport factory; deferred so Vue never owns renderer logic. */
 async function loadWorldBuilderViewportFactory() {
   const module = await import('@world-builder/renderer/createWorldBuilderMapViewport.js')
@@ -128,6 +135,7 @@ export function useWorldBuilderPageController(options) {
   let colonization
   /** @type {ReturnType<typeof setTimeout> | null} */
   let colonizationSessionPersistTimer = null
+  let colonizationRunningOverlaysEnabled = false
 
   function scheduleColonizationSessionPersist() {
     if (colonizationSessionPersistTimer !== null) {
@@ -140,9 +148,17 @@ export function useWorldBuilderPageController(options) {
   }
 
   function syncColonizationRunningOverlays() {
-    if (colonization.colonizationPhase.value === COLONIZATION_PHASE_RUNNING) {
-      overlay.toggleVisibility('population', true)
+    if (colonization.colonizationPhase.value !== COLONIZATION_PHASE_RUNNING) {
+      colonizationRunningOverlaysEnabled = false
+      return
     }
+    if (colonizationRunningOverlaysEnabled) {
+      return
+    }
+    for (const overlayId of COLONIZATION_RUNNING_OVERLAY_IDS) {
+      overlay.toggleVisibility(overlayId, true)
+    }
+    colonizationRunningOverlaysEnabled = true
   }
 
   /** Merged geography + colonization; refreshed only on explicit map sync, not on every slice tick. */
