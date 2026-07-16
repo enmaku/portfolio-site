@@ -8,8 +8,6 @@ import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
 
 /** People supported per unit of arable / fish productivity (implementation tuning). */
 export const PEOPLE_PER_ARABLE_UNIT = 100
-/** People supported per unit of timber productivity when timber binds (implementation tuning). */
-export const PEOPLE_PER_TIMBER_UNIT = 80
 
 /** @type {Readonly<Record<string, number>>} */
 export const YIELD_MODIFIER_MULTIPLIERS = Object.freeze({
@@ -123,9 +121,7 @@ export function resolveSurvivalTriad(params) {
     freshwaterClassification != null &&
     claimedCellsHaveFreshwater(freshwaterClassification, claimedCells, gridWidth)
 
-  const foodCap = Math.floor(foodProduction * PEOPLE_PER_ARABLE_UNIT)
-  const timberCap = Math.floor(timberSum * PEOPLE_PER_TIMBER_UNIT)
-  let populationCeiling = Math.min(foodCap, timberCap)
+  let populationCeiling = Math.floor(foodProduction * PEOPLE_PER_ARABLE_UNIT)
   if (!hasFreshwater) {
     populationCeiling = 0
   }

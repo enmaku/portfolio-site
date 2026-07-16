@@ -3,7 +3,6 @@ import test from 'node:test'
 import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
 import {
   PEOPLE_PER_ARABLE_UNIT,
-  PEOPLE_PER_TIMBER_UNIT,
   applySurvivalResolveToSettlement,
   resolveSurvivalTriad,
   sumRasterOnCells,
@@ -55,7 +54,7 @@ test('resolveSurvivalTriad food production equals arable sum times yield modifie
   assert.strictEqual(result.cropProduction, 3)
   assert.strictEqual(result.fishProduction, 0)
   assert.strictEqual(result.foodProduction, 3)
-  assert.strictEqual(result.populationCeiling, Math.min(3 * PEOPLE_PER_ARABLE_UNIT, 2 * PEOPLE_PER_TIMBER_UNIT))
+  assert.strictEqual(result.populationCeiling, 3 * PEOPLE_PER_ARABLE_UNIT)
 })
 
 test('resolveSurvivalTriad applies yield modifier to crop production only', () => {
@@ -84,19 +83,26 @@ test('resolveSurvivalTriad freshwater gate uses shared classification', () => {
   assert.strictEqual(dry.population, 0)
 })
 
-test('resolveSurvivalTriad timber scarcity binds ceiling below food', () => {
-  const result = resolveSurvivalTriad(
+test('resolveSurvivalTriad timber scarcity no longer binds the population ceiling', () => {
+  const scarceTimber = resolveSurvivalTriad(
     triadParams({
       arable: [10, 10, 0],
       timber: [0.1, 0, 0],
       population: 1000,
     }),
   )
+  const abundantTimber = resolveSurvivalTriad(
+    triadParams({
+      arable: [10, 10, 0],
+      timber: [1000, 1000, 0],
+      population: 1000,
+    }),
+  )
   const foodCap = 20 * PEOPLE_PER_ARABLE_UNIT
-  const timberCap = 0.1 * PEOPLE_PER_TIMBER_UNIT
-  assert.ok(timberCap < foodCap)
-  assert.strictEqual(result.populationCeiling, Math.floor(timberCap))
-  assert.strictEqual(result.population, Math.floor(timberCap))
+  assert.strictEqual(scarceTimber.populationCeiling, foodCap)
+  assert.strictEqual(scarceTimber.populationCeiling, abundantTimber.populationCeiling)
+  assert.strictEqual(scarceTimber.population, 1000)
+  assert.ok(scarceTimber.timberSum > 0)
 })
 
 test('resolveSurvivalTriad clamps starting population and sets tier from absolute bands', () => {

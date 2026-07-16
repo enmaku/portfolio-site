@@ -3,6 +3,8 @@
  * Domain: world-builder/CONTEXT.md — annual commodity flow, mineral deposit.
  */
 
+import { yieldModifierMultiplier } from '../colonization/resolveSurvivalTriad.js'
+
 /** Food productivity unit → edible lb per epoch (100 people × 365 lb). */
 export const FOOD_LB_PER_PRODUCTIVITY_UNIT = 36500
 /** Salt pin: score × this many lb per claimed pin per epoch. */
@@ -88,22 +90,90 @@ export function extractClaimedMineralDeposits(deposits, isClaimed) {
 }
 
 /**
- * Placeholder seam — full conversion lands with #430.
+ * Sum positive raster values over an exclusive set of claimed cell indices.
+ *
+ * @param {Float32Array | null | undefined} raster
+ * @param {Set<number>} claimedIndices
+ * @returns {number}
+ */
+function sumRasterOnClaimedIndices(raster, claimedIndices) {
+  if (!raster) {
+    return 0
+  }
+  let sum = 0
+  for (const index of claimedIndices) {
+    const value = raster[index]
+    if (Number.isFinite(value) && value > 0) {
+      sum += value
+    }
+  }
+  return sum
+}
+
+/**
+ * Convert a settlement's primary-claim rasters and pins into per-epoch commodity
+ * amounts. Only cells and pins inside `claimedCells` contribute, keeping
+ * production exclusive to the primary claim. Fish is derived elsewhere (no
+ * persisted raster), so its productivity arrives precomputed and converts on the
+ * same food scale as grain.
  *
  * @param {{
  *   settlementId: string,
- *   amounts?: Partial<Record<CommodityId, number>>,
+ *   claimedCells?: ReadonlyArray<{ x: number, y: number }>,
+ *   gridWidth: number,
+ *   arableRaster?: Float32Array | null,
+ *   timberRaster?: Float32Array | null,
+ *   metalsRaster?: Float32Array | null,
+ *   yieldModifier?: string,
+ *   fishProductivity?: number,
+ *   saltNodes?: ReadonlyArray<import('../types.js').SaltNode>,
+ *   metalNodes?: ReadonlyArray<import('../types.js').MetalNode>,
  * }} params
  * @returns {SettlementProduction}
  */
 export function computeSettlementProduction(params) {
+  const {
+    settlementId,
+    claimedCells = [],
+    gridWidth,
+    arableRaster = null,
+    timberRaster = null,
+    metalsRaster = null,
+    yieldModifier = 'typical',
+    fishProductivity = 0,
+    saltNodes = [],
+    metalNodes = [],
+  } = params
+
   const amounts = emptyCommodityAmounts()
-  if (params.amounts) {
-    for (const [key, value] of Object.entries(params.amounts)) {
-      if (key in amounts && typeof value === 'number' && Number.isFinite(value)) {
-        amounts[/** @type {CommodityId} */ (key)] = value
-      }
+  const yieldMult = yieldModifierMultiplier(yieldModifier)
+
+  const claimedIndices = new Set()
+  for (const cell of claimedCells) {
+    claimedIndices.add(cell.y * gridWidth + cell.x)
+  }
+
+  const cropProductivity = sumRasterOnClaimedIndices(arableRaster, claimedIndices) * yieldMult
+  amounts.grain = cropProductivity * FOOD_LB_PER_PRODUCTIVITY_UNIT
+  amounts.fish = Math.max(0, fishProductivity) * FOOD_LB_PER_PRODUCTIVITY_UNIT
+  amounts.timber =
+    sumRasterOnClaimedIndices(timberRaster, claimedIndices) * TIMBER_LB_PER_PRODUCTIVITY_UNIT
+  amounts.baseMetals =
+    sumRasterOnClaimedIndices(metalsRaster, claimedIndices) * BASE_METALS_LB_PER_PRODUCTIVITY_UNIT
+
+  for (const pin of saltNodes) {
+    if (claimedIndices.has(pin.y * gridWidth + pin.x)) {
+      amounts.salt += Math.max(0, pin.score) * SALT_LB_PER_SCORE
     }
   }
-  return { settlementId: params.settlementId, amounts }
+
+  const minerals = extractClaimedMineralDeposits(metalNodes, (deposit) =>
+    claimedIndices.has(deposit.y * gridWidth + deposit.x),
+  )
+  amounts.copper += minerals.copper
+  amounts.silver += minerals.silver
+  amounts.gold += minerals.gold
+  amounts.diamonds += minerals.diamonds
+
+  return { settlementId, amounts }
 }
