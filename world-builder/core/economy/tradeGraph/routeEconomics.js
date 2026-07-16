@@ -27,6 +27,56 @@ export const TRANSPORT_MODE_MULTIPLIER = Object.freeze({
   openSea: 0.1,
 })
 
+/** Directional haul friction endpoints: downhill/downriver → neutral → uphill/upriver. */
+export const DIRECTIONAL_FRICTION_DOWNHILL = 0.75
+export const DIRECTIONAL_FRICTION_NEUTRAL = 1
+export const DIRECTIONAL_FRICTION_UPHILL = 1.5
+
+/** Elevation delta (normalized units) that saturates directional friction to its extremes. */
+export const DIRECTIONAL_FRICTION_ELEVATION_SCALE = 0.25
+
+/**
+ * Directional cost asymmetry for one traversal direction. Prefers flow direction along
+ * inland water when a downstream sign is supplied; otherwise reads elevation delta on
+ * land/road links (downhill = downriver = easier). Open-sea links are always neutral.
+ *
+ * @param {{
+ *   mode: TradeRouteMode,
+ *   fromElevation?: number,
+ *   toElevation?: number,
+ *   downstreamSign?: number,
+ * }} params
+ * @returns {number}
+ */
+export function directionalHaulFriction(params) {
+  if (params.mode === 'openSea') {
+    return DIRECTIONAL_FRICTION_NEUTRAL
+  }
+  const gradient = resolveDirectionalGradient(params)
+  const t = Math.max(-1, Math.min(1, gradient))
+  if (t >= 0) {
+    return DIRECTIONAL_FRICTION_NEUTRAL + t * (DIRECTIONAL_FRICTION_UPHILL - DIRECTIONAL_FRICTION_NEUTRAL)
+  }
+  return DIRECTIONAL_FRICTION_NEUTRAL + t * (DIRECTIONAL_FRICTION_NEUTRAL - DIRECTIONAL_FRICTION_DOWNHILL)
+}
+
+/**
+ * Positive = uphill/upriver (harder), negative = downhill/downriver (easier).
+ *
+ * @param {{ fromElevation?: number, toElevation?: number, downstreamSign?: number }} params
+ * @returns {number}
+ */
+function resolveDirectionalGradient(params) {
+  if (Number.isFinite(params.downstreamSign) && params.downstreamSign !== 0) {
+    return params.downstreamSign > 0 ? -1 : 1
+  }
+  if (Number.isFinite(params.fromElevation) && Number.isFinite(params.toElevation)) {
+    const delta = /** @type {number} */ (params.toElevation) - /** @type {number} */ (params.fromElevation)
+    return delta / DIRECTIONAL_FRICTION_ELEVATION_SCALE
+  }
+  return 0
+}
+
 /**
  * @param {{
  *   populationA: number,
