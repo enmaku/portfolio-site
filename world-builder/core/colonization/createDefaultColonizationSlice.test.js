@@ -8,9 +8,12 @@ import {
   DEFAULT_LAND_EXPEDITION_RANGE,
   DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
   DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
+  DEFAULT_OFF_MAP_SHIPPING_COST,
   MAX_LAND_EXPEDITION_RANGE,
+  MAX_OFF_MAP_SHIPPING_COST,
   MAX_THREE_DAY_HAUL_DISTANCE,
   MIN_INLAND_SAIL_EXPEDITION_RANGE,
+  MIN_OFF_MAP_SHIPPING_COST,
   cloneColonizationSlice,
   createDefaultColonistSettings,
   createDefaultColonizationSlice,
@@ -47,6 +50,58 @@ test('createDefaultColonistSettings provides concrete defaults for every field',
   assert.strictEqual(settings.landExpeditionRange, DEFAULT_LAND_EXPEDITION_RANGE)
   assert.strictEqual(settings.inlandSailExpeditionRange, DEFAULT_INLAND_SAIL_EXPEDITION_RANGE)
   assert.strictEqual(settings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)
+  assert.strictEqual(settings.offMapShippingCost, DEFAULT_OFF_MAP_SHIPPING_COST)
+})
+
+test('resolveColonistSettings clamps off-map shipping cost', () => {
+  assert.strictEqual(
+    resolveColonistSettings({ offMapShippingCost: 99 }).offMapShippingCost,
+    MAX_OFF_MAP_SHIPPING_COST,
+  )
+  assert.strictEqual(
+    resolveColonistSettings({ offMapShippingCost: 0 }).offMapShippingCost,
+    MIN_OFF_MAP_SHIPPING_COST,
+  )
+})
+
+test('createDefaultColonizationSlice includes empty trade accounts and route state', () => {
+  const slice = createDefaultColonizationSlice()
+  assert.deepStrictEqual(slice.tradeAccounts, { obligations: [], balancesBySettlementId: {} })
+  assert.deepStrictEqual(slice.externalTradeAccounts, {})
+  assert.deepStrictEqual(slice.tradeRouteState, { candidates: [], activeFlows: [] })
+  assert.strictEqual(slice.lastTradeEpochResult, null)
+})
+
+test('serializeColonizationSessionForStorage round-trips trade accounts', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = COLONIZATION_PHASE_RUNNING
+  slice.tradeAccounts = {
+    obligations: [
+      { creditorSettlementId: 'a', debtorSettlementId: 'b', amountCp: 12 },
+    ],
+    balancesBySettlementId: { a: 12, b: -12 },
+  }
+  slice.externalTradeAccounts = { a: 5 }
+  slice.tradeRouteState = {
+    candidates: [
+      {
+        id: 'e1',
+        fromSettlementId: 'a',
+        toSettlementId: 'b',
+        mode: 'overland',
+        haulDistanceFraction: 0.5,
+        capacityLb: 100,
+        transportCostCpPerLb: 0.5,
+      },
+    ],
+    activeFlows: [],
+  }
+
+  const revived = resolveColonizationSlice(serializeColonizationSessionForStorage(slice))
+  assert.deepStrictEqual(revived.tradeAccounts.obligations, slice.tradeAccounts.obligations)
+  assert.strictEqual(revived.externalTradeAccounts.a, 5)
+  assert.strictEqual(revived.tradeRouteState.candidates.length, 1)
+  assert.strictEqual(revived.colonistSettings.offMapShippingCost, DEFAULT_OFF_MAP_SHIPPING_COST)
 })
 
 test('resolveColonistSettings clamps expedition range multipliers', () => {

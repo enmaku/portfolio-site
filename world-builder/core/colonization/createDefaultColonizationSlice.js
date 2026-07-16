@@ -9,6 +9,19 @@
  * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap.
  * @property {number} inlandSailExpeditionRange Multiplier on three-day haul distance for inland sail expedition range cap.
  * @property {number} openSeaExpeditionRange Multiplier on three-day haul distance for open-sea expedition range cap.
+ * @property {number} offMapShippingCost Symmetric external import/export price multiplier (default 2).
+ */
+
+/**
+ * @typedef {Object} TradeRouteState
+ * @property {import('../economy/tradeGraph/buildCandidateRoutes.js').TradeRouteEdge[]} candidates
+ * @property {import('../economy/tradeClearing/runTradeClearing.js').TradeFlow[]} activeFlows
+ */
+
+/**
+ * @typedef {Object} TradeAccountsSlice
+ * @property {import('../economy/ledgers/bilateralObligations.js').BilateralObligation[]} obligations
+ * @property {Record<string, number>} balancesBySettlementId
  */
 
 /**
@@ -34,6 +47,10 @@
  * @property {boolean} frontierExhausted All logistics nodes founded or exhausted.
  * @property {import('./roads/roadNetwork.js').RoadSegment[]} roads Persisted overland link geometry.
  * @property {import('./logisticsNodes/scoreLogisticsNodes.js').LogisticsNodeSurveyEntry[]} logisticsNodeSurvey Scored founding candidates.
+ * @property {TradeAccountsSlice} tradeAccounts Mutual-credit realm ledgers.
+ * @property {Record<string, number>} externalTradeAccounts Port off-map credit (≥ 0).
+ * @property {TradeRouteState} tradeRouteState Candidate edges and current-epoch flows.
+ * @property {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null} lastTradeEpochResult Inspect payload from last clearing.
  */
 
 import { resolveExpeditions } from './expeditions/expeditionConstants.js'
@@ -63,6 +80,10 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'frontierExhausted',
   'roads',
   'logisticsNodeSurvey',
+  'tradeAccounts',
+  'externalTradeAccounts',
+  'tradeRouteState',
+  'lastTradeEpochResult',
 ])
 
 /** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
@@ -90,6 +111,23 @@ export const MAX_INLAND_SAIL_EXPEDITION_RANGE = 6
 export const DEFAULT_OPEN_SEA_EXPEDITION_RANGE = 8
 export const MIN_OPEN_SEA_EXPEDITION_RANGE = 4
 export const MAX_OPEN_SEA_EXPEDITION_RANGE = 12
+export const DEFAULT_OFF_MAP_SHIPPING_COST = 2
+export const MIN_OFF_MAP_SHIPPING_COST = 1
+export const MAX_OFF_MAP_SHIPPING_COST = 4
+
+/**
+ * @returns {TradeAccountsSlice}
+ */
+export function createEmptyTradeAccountsSlice() {
+  return { obligations: [], balancesBySettlementId: {} }
+}
+
+/**
+ * @returns {TradeRouteState}
+ */
+export function createEmptyTradeRouteState() {
+  return { candidates: [], activeFlows: [] }
+}
 
 /**
  * @returns {ColonistSettings}
@@ -102,6 +140,7 @@ export function createDefaultColonistSettings() {
     landExpeditionRange: DEFAULT_LAND_EXPEDITION_RANGE,
     inlandSailExpeditionRange: DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
     openSeaExpeditionRange: DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
+    offMapShippingCost: DEFAULT_OFF_MAP_SHIPPING_COST,
   }
 }
 
@@ -125,6 +164,10 @@ export function createDefaultColonizationSlice() {
     frontierExhausted: false,
     roads: [],
     logisticsNodeSurvey: [],
+    tradeAccounts: createEmptyTradeAccountsSlice(),
+    externalTradeAccounts: {},
+    tradeRouteState: createEmptyTradeRouteState(),
+    lastTradeEpochResult: null,
   }
 }
 
@@ -166,6 +209,10 @@ export function resolveColonizationSlice(value) {
     frontierExhausted: incoming.frontierExhausted === true,
     roads: resolveRoadSegments(incoming.roads),
     logisticsNodeSurvey: resolveLogisticsNodeSurvey(incoming.logisticsNodeSurvey),
+    tradeAccounts: resolveTradeAccounts(incoming.tradeAccounts),
+    externalTradeAccounts: resolveExternalTradeAccounts(incoming.externalTradeAccounts),
+    tradeRouteState: resolveTradeRouteState(incoming.tradeRouteState),
+    lastTradeEpochResult: resolveLastTradeEpochResult(incoming.lastTradeEpochResult),
   }
 }
 
@@ -235,7 +282,102 @@ export function resolveColonistSettings(value) {
       MIN_OPEN_SEA_EXPEDITION_RANGE,
       MAX_OPEN_SEA_EXPEDITION_RANGE,
     ),
+    offMapShippingCost: clampNumberRange(
+      incoming.offMapShippingCost,
+      defaults.offMapShippingCost,
+      MIN_OFF_MAP_SHIPPING_COST,
+      MAX_OFF_MAP_SHIPPING_COST,
+    ),
   }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {TradeAccountsSlice}
+ */
+function resolveTradeAccounts(value) {
+  const empty = createEmptyTradeAccountsSlice()
+  if (!value || typeof value !== 'object') {
+    return empty
+  }
+  const incoming = /** @type {Partial<TradeAccountsSlice>} */ (value)
+  const obligations = Array.isArray(incoming.obligations)
+    ? incoming.obligations
+        .filter(
+          (row) =>
+            row &&
+            typeof row.creditorSettlementId === 'string' &&
+            typeof row.debtorSettlementId === 'string' &&
+            typeof row.amountCp === 'number' &&
+            Number.isFinite(row.amountCp),
+        )
+        .map((row) => ({
+          creditorSettlementId: row.creditorSettlementId,
+          debtorSettlementId: row.debtorSettlementId,
+          amountCp: row.amountCp,
+        }))
+    : []
+  /** @type {Record<string, number>} */
+  const balancesBySettlementId = {}
+  if (incoming.balancesBySettlementId && typeof incoming.balancesBySettlementId === 'object') {
+    for (const [id, amount] of Object.entries(incoming.balancesBySettlementId)) {
+      if (typeof amount === 'number' && Number.isFinite(amount)) {
+        balancesBySettlementId[id] = amount
+      }
+    }
+  }
+  return { obligations, balancesBySettlementId }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, number>}
+ */
+function resolveExternalTradeAccounts(value) {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+  /** @type {Record<string, number>} */
+  const resolved = {}
+  for (const [id, amount] of Object.entries(value)) {
+    if (typeof amount === 'number' && Number.isFinite(amount) && amount >= 0) {
+      resolved[id] = amount
+    }
+  }
+  return resolved
+}
+
+/**
+ * @param {unknown} value
+ * @returns {TradeRouteState}
+ */
+function resolveTradeRouteState(value) {
+  const empty = createEmptyTradeRouteState()
+  if (!value || typeof value !== 'object') {
+    return empty
+  }
+  const incoming = /** @type {Partial<TradeRouteState>} */ (value)
+  return {
+    candidates: Array.isArray(incoming.candidates)
+      ? incoming.candidates.map((edge) => ({ ...edge }))
+      : [],
+    activeFlows: Array.isArray(incoming.activeFlows)
+      ? incoming.activeFlows.map((flow) => ({ ...flow }))
+      : [],
+  }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null}
+ */
+function resolveLastTradeEpochResult(value) {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  return /** @type {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult} */ (
+    value
+  )
 }
 
 /**
@@ -283,6 +425,18 @@ function clampPositiveNumber(value, fallback, max) {
 function clampIntegerRange(value, fallback, min, max) {
   const resolved =
     typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : fallback
+  return Math.min(max, Math.max(min, resolved))
+}
+
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @param {number} min
+ * @param {number} max
+ * @returns {number}
+ */
+function clampNumberRange(value, fallback, min, max) {
+  const resolved = typeof value === 'number' && Number.isFinite(value) ? value : fallback
   return Math.min(max, Math.max(min, resolved))
 }
 
