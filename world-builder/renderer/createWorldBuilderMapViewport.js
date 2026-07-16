@@ -89,6 +89,10 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   explorationFog.visible = false
   const routes = new Sprite(Texture.EMPTY)
   routes.visible = false
+  const wealth = new Sprite(Texture.EMPTY)
+  wealth.visible = false
+  const tradeRoutes = new Sprite(Texture.EMPTY)
+  tradeRoutes.visible = false
   const coastalOverlay = new Graphics()
   const metalOverlay = new Graphics()
   const saltOverlay = new Graphics()
@@ -120,6 +124,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     population: null,
     explorationFog: null,
     routes: null,
+    wealth: null,
+    tradeRoutes: null,
   }
 
   /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Sprite>} */
@@ -132,6 +138,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     population,
     explorationFog,
     routes,
+    wealth,
+    tradeRoutes,
   }
 
   const viewport = new Viewport({
@@ -155,6 +163,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(population)
   viewport.addChild(explorationFog)
   viewport.addChild(routes)
+  viewport.addChild(tradeRoutes)
+  viewport.addChild(wealth)
   viewport.addChild(coastalOverlay)
   viewport.addChild(metalOverlay)
   viewport.addChild(saltOverlay)
@@ -262,6 +272,12 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       case 'routes':
         routes.visible = false
         break
+      case 'wealth':
+        wealth.visible = false
+        break
+      case 'tradeRoutes':
+        tradeRoutes.visible = false
+        break
       case 'rivers':
         rivers.visible = false
         break
@@ -297,6 +313,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       population: () => refreshResourceRasterOverlay('population', currentWorldDocument),
       explorationFog: () => refreshResourceRasterOverlay('explorationFog', currentWorldDocument),
       routes: () => refreshResourceRasterOverlay('routes', currentWorldDocument),
+      wealth: () => refreshResourceRasterOverlay('wealth', currentWorldDocument),
+      tradeRoutes: () => refreshResourceRasterOverlay('tradeRoutes', currentWorldDocument),
       rivers: () => refreshRiverOverlay(currentWorldDocument),
       lakes: () => refreshLakeOverlay(currentWorldDocument),
       coastalNodes: () => drawCoastalNodes(coastalOverlay, currentWorldDocument),

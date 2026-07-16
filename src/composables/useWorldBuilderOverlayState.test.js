@@ -123,6 +123,23 @@ test('toggleVisibility updates owner state and syncs viewport', () => {
   }
 })
 
+test('toggleVisibility exposes the economy inspect layer ids', () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, syncedStates } = mountOverlayState(scope)
+
+    ctx.toggleVisibility('wealth', true)
+    ctx.toggleVisibility('tradeRoutes', true)
+
+    assert.strictEqual(ctx.visibility.value.wealth, true)
+    assert.strictEqual(ctx.visibility.value.tradeRoutes, true)
+    assert.strictEqual(syncedStates.at(-1).visibility.wealth, true)
+    assert.strictEqual(syncedStates.at(-1).visibility.tradeRoutes, true)
+  } finally {
+    scope.stop()
+  }
+})
+
 test('setDisplaySetting persists to settings store once and syncs viewport', () => {
   const scope = effectScope(true)
   try {

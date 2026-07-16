@@ -26,6 +26,8 @@ export function createResourceOverlayDefinitions() {
     { id: 'settlements', kind: 'nodes', label: 'Settlements', vectorLayerId: 'settlementNodes' },
     { id: 'explorationFog', kind: 'raster', label: 'Exploration fog' },
     { id: 'routes', kind: 'raster', label: 'Routes' },
+    { id: 'wealth', kind: 'raster', label: 'Wealth' },
+    { id: 'tradeRoutes', kind: 'raster', label: 'Trade routes' },
   ]
 }
 

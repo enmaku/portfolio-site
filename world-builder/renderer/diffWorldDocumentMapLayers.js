@@ -219,6 +219,15 @@ export function diffWorldDocumentMapLayers(previous, next) {
   if (roadSegmentsChanged(previous.roads, next.roads)) {
     changedLayers.push('routes')
   }
+  if (
+    previous.lastTradeEpochResult !== next.lastTradeEpochResult ||
+    previous.externalTradeAccounts !== next.externalTradeAccounts
+  ) {
+    changedLayers.push('wealth')
+  }
+  if (previous.tradeRouteState !== next.tradeRouteState) {
+    changedLayers.push('tradeRoutes')
+  }
   if (riverLayerInputsChanged(previous, next)) {
     changedLayers.push('rivers')
   }
