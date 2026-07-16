@@ -126,6 +126,25 @@
       :disable="runningPhase"
       @update:model-value="(value) => emitSetting('openSeaExpeditionRange', value)"
     />
+
+    <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
+      <span class="text-caption">Off-map shipping cost</span>
+      <WorldBuilderSettingHelp
+        :text="OFF_MAP_SHIPPING_COST_TOOLTIP"
+        label="Off-map shipping cost"
+      />
+    </div>
+    <q-slider
+      :model-value="displaySettings.offMapShippingCost"
+      :min="minOffMapShippingCost"
+      :max="maxOffMapShippingCost"
+      :step="0.5"
+      label
+      color="primary"
+      data-testid="world-builder-colonist-off-map-shipping-cost"
+      :disable="runningPhase"
+      @update:model-value="(value) => emitSetting('offMapShippingCost', value)"
+    />
   </div>
 </template>
 
@@ -134,6 +153,7 @@ import { computed } from 'vue'
 import {
   INLAND_SAIL_EXPEDITION_RANGE_TOOLTIP,
   LAND_EXPEDITION_RANGE_TOOLTIP,
+  OFF_MAP_SHIPPING_COST_TOOLTIP,
   OPEN_SEA_EXPEDITION_RANGE_TOOLTIP,
   STARTING_POPULATION_TOOLTIP,
   THREE_DAY_HAUL_DISTANCE_TOOLTIP,
@@ -142,10 +162,12 @@ import {
 import {
   MAX_INLAND_SAIL_EXPEDITION_RANGE,
   MAX_LAND_EXPEDITION_RANGE,
+  MAX_OFF_MAP_SHIPPING_COST,
   MAX_OPEN_SEA_EXPEDITION_RANGE,
   MAX_THREE_DAY_HAUL_DISTANCE,
   MIN_INLAND_SAIL_EXPEDITION_RANGE,
   MIN_LAND_EXPEDITION_RANGE,
+  MIN_OFF_MAP_SHIPPING_COST,
   MIN_OPEN_SEA_EXPEDITION_RANGE,
 } from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
 import WorldBuilderSettingHelp from './WorldBuilderSettingHelp.vue'
@@ -173,6 +195,8 @@ const minInlandSailExpeditionRange = MIN_INLAND_SAIL_EXPEDITION_RANGE
 const maxInlandSailExpeditionRange = MAX_INLAND_SAIL_EXPEDITION_RANGE
 const minOpenSeaExpeditionRange = MIN_OPEN_SEA_EXPEDITION_RANGE
 const maxOpenSeaExpeditionRange = MAX_OPEN_SEA_EXPEDITION_RANGE
+const minOffMapShippingCost = MIN_OFF_MAP_SHIPPING_COST
+const maxOffMapShippingCost = MAX_OFF_MAP_SHIPPING_COST
 
 const displaySettings = computed(() =>
   props.runningPhase ? props.colonistSettingsSnapshot : props.colonistSettings,

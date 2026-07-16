@@ -294,6 +294,27 @@ test('setColonistSetting updates three-day haul distance and rescales preview', 
   }
 })
 
+test('setColonistSetting locks off-map shipping cost after begin colonization', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, settingsStore, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.setColonistSetting('offMapShippingCost', 3)
+    ctx.pickFoundingLanding(3, 3)
+
+    assert.strictEqual(await ctx.beginColonization(), true)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+
+    ctx.setColonistSetting('offMapShippingCost', 1)
+
+    assert.strictEqual(ctx.colonistSettings.value.offMapShippingCost, 3)
+    assert.strictEqual(settingsStore.colonizationSession.colonistSettings.offMapShippingCost, 3)
+  } finally {
+    scope.stop()
+  }
+})
+
 test('beginColonization commits founding settlement tip and locks terrain', async () => {
   const scope = effectScope(true)
   try {
