@@ -10,6 +10,7 @@ import { computeConnectedMarketPrices } from '../localPrices.js'
 import {
   PROSPERITY_COMMODITIES,
   comfortFoodDemandLb,
+  exportableSurplusValueCp,
   prosperityDemandUnits,
   survivalFoodDemandLb,
   survivalSaltDemandLb,
@@ -141,11 +142,11 @@ function createClearingState(params = {}) {
       s.id,
       creditLimitCp({
         priorRealizedNetExportTollIncomeCp: params.priorRealizedIncomeCp?.[s.id] ?? 0,
-        exportableSurplusAfterSurvivalReservationCp: exportableSurplusValueCp(
-          s,
-          production[s.id] ?? {},
-          localPrices[s.id] ?? {},
-        ),
+        exportableSurplusAfterSurvivalReservationCp: exportableSurplusValueCp({
+          population: s.population,
+          production: production[s.id] ?? {},
+          prices: localPrices[s.id] ?? {},
+        }),
       }),
     ]),
   )
@@ -194,32 +195,6 @@ function neutralRoles() {
     gold: 'neither',
     diamonds: 'neither',
   })
-}
-
-/**
- * Physically exportable surplus valued at local prices, after survival reservation.
- *
- * @param {{ population: number }} settlement
- * @param {Partial<Record<CommodityId, number>>} production
- * @param {Partial<Record<CommodityId, number>>} prices
- * @returns {number}
- */
-function exportableSurplusValueCp(settlement, production, prices) {
-  const foodFloor = survivalFoodDemandLb(settlement.population)
-  const saltFloor = survivalSaltDemandLb(settlement.population)
-  const grain = Math.max(0, production.grain ?? 0)
-  const fish = Math.max(0, production.fish ?? 0)
-  const salt = Math.max(0, production.salt ?? 0)
-
-  const grainReserve = Math.min(grain, foodFloor)
-  const fishReserve = Math.min(fish, Math.max(0, foodFloor - grainReserve))
-  let value = Math.max(0, grain - grainReserve) * (prices.grain ?? 0)
-  value += Math.max(0, fish - fishReserve) * (prices.fish ?? 0)
-  value += Math.max(0, salt - saltFloor) * (prices.salt ?? 0)
-  for (const id of PROSPERITY_COMMODITIES) {
-    value += Math.max(0, production[id] ?? 0) * (prices[id] ?? 0)
-  }
-  return value
 }
 
 /**

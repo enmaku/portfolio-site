@@ -352,6 +352,7 @@ function processExpeditionAdvance(state, expedition, epoch, roadCellMask, dryLan
     state.worldDocument,
     state.slice.roads,
     expedition.mode,
+    expedition.settlementId,
   )
 
   if (evaluation && 'rejected' in evaluation) {

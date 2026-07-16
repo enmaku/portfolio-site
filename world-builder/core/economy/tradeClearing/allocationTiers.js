@@ -63,3 +63,34 @@ export function prosperityDemandUnits(commodityId, population) {
   if (!(ref > 0)) return 0
   return (Math.max(0, population) * PROSPERITY_GP_PER_PERSON * CP_PER_GP) / ref
 }
+
+/**
+ * Physically exportable surplus valued at the given local prices, after reserving
+ * local survival floors (food from grain then fish, household salt). Comfort and
+ * material prosperity demand do not reserve against this collateral term.
+ *
+ * @param {{
+ *   population: number,
+ *   production?: Partial<Record<CommodityId, number>>,
+ *   prices?: Partial<Record<CommodityId, number>>,
+ * }} params
+ * @returns {number}
+ */
+export function exportableSurplusValueCp(params) {
+  const { population, production = {}, prices = {} } = params
+  const foodFloor = survivalFoodDemandLb(population)
+  const saltFloor = survivalSaltDemandLb(population)
+  const grain = Math.max(0, production.grain ?? 0)
+  const fish = Math.max(0, production.fish ?? 0)
+  const salt = Math.max(0, production.salt ?? 0)
+
+  const grainReserve = Math.min(grain, foodFloor)
+  const fishReserve = Math.min(fish, Math.max(0, foodFloor - grainReserve))
+  let value = Math.max(0, grain - grainReserve) * (prices.grain ?? 0)
+  value += Math.max(0, fish - fishReserve) * (prices.fish ?? 0)
+  value += Math.max(0, salt - saltFloor) * (prices.salt ?? 0)
+  for (const id of PROSPERITY_COMMODITIES) {
+    value += Math.max(0, production[id] ?? 0) * (prices[id] ?? 0)
+  }
+  return value
+}
