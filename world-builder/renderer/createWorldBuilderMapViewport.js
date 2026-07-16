@@ -15,12 +15,13 @@ import { createMapLayerRefreshRunner } from './mapLayerRefresh.js'
 import { diffResourceOverlayMapLayers } from './diffResourceOverlayMapLayers.js'
 import {
   computeRegionFocusScale,
+  mineralNodeOverlayColor,
   resolveMetalsOverlayDrawn,
   resolveSaltNodeOverlayDrawn,
   resolveSettlementNodeOverlayDrawn,
 } from './worldBuilderMapViewportModel.js'
 
-/** Black for discrete metal mine markers (matches metals raster hue). */
+/** Fallback color for discrete metal mine markers (matches metals raster hue). */
 export const METAL_NODE_OVERLAY_COLOR = 0x000000
 
 /** Pure white for salt strategic-resource markers. */
@@ -642,7 +643,7 @@ function drawMetalNodes(overlay, worldDocument, resourceOverlayVisibility) {
   if (resolveMetalsOverlayDrawn(resourceOverlayVisibility, worldDocument).nodesVisible) {
     for (const node of worldDocument.metalNodes) {
       overlay.circle(node.x + 0.5, node.y + 0.5, STRATEGIC_RESOURCE_NODE_MARKER_RADIUS)
-      overlay.fill({ color: METAL_NODE_OVERLAY_COLOR, alpha: 0.9 })
+      overlay.fill({ color: mineralNodeOverlayColor(node.kind), alpha: 0.9 })
     }
   }
 }

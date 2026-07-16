@@ -399,7 +399,7 @@ export function createMetalsFixture() {
       elevation: new Float32Array(16).fill(0.7),
     },
     metalsRaster,
-    metalNodes: [{ id: 'metal-0', x: 2, y: 1, score: 0.9 }],
+    metalNodes: [{ id: 'metal-0', x: 2, y: 1, score: 0.9, kind: 'copper' }],
   })
 }
 

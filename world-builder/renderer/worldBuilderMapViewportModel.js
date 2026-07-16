@@ -76,6 +76,32 @@ export function resolveMetalsOverlayDrawn(visibility, worldDocument) {
 }
 
 /**
+ * Distinct marker colors per typed mineral deposit so the overlay separates
+ * copper/silver/gold/diamond pins from each other and the metals-potential raster.
+ * @type {Readonly<Record<import('../core/types.js').MineralKind, number>>}
+ */
+export const MINERAL_NODE_OVERLAY_COLORS = Object.freeze({
+  copper: 0xb87333,
+  silver: 0xc0c0c0,
+  gold: 0xffd700,
+  diamond: 0x7fdfff,
+})
+
+/** Fallback marker color for an unknown or missing deposit kind. */
+export const DEFAULT_MINERAL_NODE_OVERLAY_COLOR = 0x000000
+
+/**
+ * @param {import('../core/types.js').MineralKind | undefined} kind
+ * @returns {number}
+ */
+export function mineralNodeOverlayColor(kind) {
+  if (kind && kind in MINERAL_NODE_OVERLAY_COLORS) {
+    return MINERAL_NODE_OVERLAY_COLORS[kind]
+  }
+  return DEFAULT_MINERAL_NODE_OVERLAY_COLOR
+}
+
+/**
  * @param {Record<string, boolean>} visibility
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @returns {boolean}

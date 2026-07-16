@@ -1,5 +1,6 @@
 import { SEA_LEVEL } from './biomeIds.js'
 import { EROSION_STEP_COUNT } from './types.js'
+import { DEFAULT_MINERAL_OCCURRENCE_WEIGHTS } from './resources/mineralOccurrence.js'
 
 /** @typedef {import('./types.js').WorldGenerationOptions} WorldGenerationOptions */
 
@@ -53,6 +54,10 @@ export const DEFAULT_WORLD_GENERATION_OPTIONS = {
   soilDrainageScale: 1.25,
   maxSaltNodes: 12,
   maxMetalNodes: 12,
+  mineralOccurrenceCopper: DEFAULT_MINERAL_OCCURRENCE_WEIGHTS.copper,
+  mineralOccurrenceSilver: DEFAULT_MINERAL_OCCURRENCE_WEIGHTS.silver,
+  mineralOccurrenceGold: DEFAULT_MINERAL_OCCURRENCE_WEIGHTS.gold,
+  mineralOccurrenceDiamond: DEFAULT_MINERAL_OCCURRENCE_WEIGHTS.diamond,
   /** Cells below this arable score are treated as non-arable (0). */
   arableMinimumProductivity: 0.25,
   /**

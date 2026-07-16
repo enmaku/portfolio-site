@@ -131,6 +131,12 @@ export const coastAndResourcesStage = {
       geographySeed,
       maxNodes: options.maxMetalNodes,
       seaLevel: options.seaLevel,
+      occurrenceWeights: {
+        copper: options.mineralOccurrenceCopper,
+        silver: options.mineralOccurrenceSilver,
+        gold: options.mineralOccurrenceGold,
+        diamond: options.mineralOccurrenceDiamond,
+      },
     })
     const timberRaster = generateTimberProductivity({
       fields,

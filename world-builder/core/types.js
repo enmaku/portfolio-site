@@ -122,11 +122,16 @@
  */
 
 /**
+ * @typedef {import('./resources/mineralOccurrence.js').MineralKind} MineralKind
+ */
+
+/**
  * @typedef {Object} MetalNode
  * @property {string} id
  * @property {number} x
  * @property {number} y
  * @property {number} score
+ * @property {MineralKind} kind
  */
 
 /**
@@ -309,6 +314,10 @@
  * @property {number} soilDrainageScale
  * @property {number} maxSaltNodes
  * @property {number} maxMetalNodes
+ * @property {number} mineralOccurrenceCopper Relative copper weight within the fixed deposit count.
+ * @property {number} mineralOccurrenceSilver Relative silver weight within the fixed deposit count.
+ * @property {number} mineralOccurrenceGold Relative gold weight within the fixed deposit count.
+ * @property {number} mineralOccurrenceDiamond Relative diamond weight (0 disables diamonds).
  * @property {number} arableMinimumProductivity
  * @property {number} breachThreshold
  * @property {boolean} enforceNavigableRiverQuota

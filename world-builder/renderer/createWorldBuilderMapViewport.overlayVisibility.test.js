@@ -295,9 +295,11 @@ test(
   'overlay owner seam toggles metals hatch raster and mine markers together',
   viewportTestOptions,
   async () => {
-    const { resolveMetalsOverlayDrawn } = await import('./worldBuilderMapViewportModel.js')
-    const { METAL_NODE_OVERLAY_COLOR } = await import('./createWorldBuilderMapViewport.js')
+    const { resolveMetalsOverlayDrawn, mineralNodeOverlayColor } = await import(
+      './worldBuilderMapViewportModel.js'
+    )
     const fixture = createMetalsFixture()
+    const copperColor = mineralNodeOverlayColor('copper')
     const viewport = await createWorldBuilderMapViewport(createHostEl(), fixture)
     const overlay = createOverlayOwnerDriver(viewport)
 
@@ -306,7 +308,7 @@ test(
       resolveMetalsOverlayDrawn(HIDDEN_VISIBILITY, fixture).rasterVisible,
     )
     assert.strictEqual(
-      viewportSpyState.drawnCircles.some((circle) => circle.color === METAL_NODE_OVERLAY_COLOR),
+      viewportSpyState.drawnCircles.some((circle) => circle.color === copperColor),
       resolveMetalsOverlayDrawn(HIDDEN_VISIBILITY, fixture).nodesVisible,
     )
 
@@ -314,7 +316,7 @@ test(
     const visibleDrawn = resolveMetalsOverlayDrawn({ ...HIDDEN_VISIBILITY, metals: true }, fixture)
     assert.strictEqual(metalsSpriteLayer().visible, visibleDrawn.rasterVisible)
     assert.strictEqual(
-      viewportSpyState.drawnCircles.some((circle) => circle.color === METAL_NODE_OVERLAY_COLOR),
+      viewportSpyState.drawnCircles.some((circle) => circle.color === copperColor),
       visibleDrawn.nodesVisible,
     )
 
@@ -324,7 +326,7 @@ test(
       resolveMetalsOverlayDrawn(HIDDEN_VISIBILITY, fixture).rasterVisible,
     )
     assert.strictEqual(
-      viewportSpyState.drawnCircles.some((circle) => circle.color === METAL_NODE_OVERLAY_COLOR),
+      viewportSpyState.drawnCircles.some((circle) => circle.color === copperColor),
       resolveMetalsOverlayDrawn(HIDDEN_VISIBILITY, fixture).nodesVisible,
     )
 

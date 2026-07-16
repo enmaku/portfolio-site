@@ -46,6 +46,47 @@ export function emptyCommodityAmounts() {
   }
 }
 
+/** Map a typed mineral deposit kind to its extracted commodity and per-epoch amount. */
+const MINERAL_EXTRACTION_BY_KIND = Object.freeze({
+  copper: Object.freeze({ commodity: 'copper', amount: PRECIOUS_METAL_LB_PER_EXTRACTION }),
+  silver: Object.freeze({ commodity: 'silver', amount: PRECIOUS_METAL_LB_PER_EXTRACTION }),
+  gold: Object.freeze({ commodity: 'gold', amount: PRECIOUS_METAL_LB_PER_EXTRACTION }),
+  diamond: Object.freeze({ commodity: 'diamonds', amount: DIAMOND_GEMS_PER_EXTRACTION }),
+})
+
+/**
+ * @param {import('../types.js').MineralKind} kind
+ * @returns {{ commodity: CommodityId, amount: number }}
+ */
+export function mineralDepositExtraction(kind) {
+  return MINERAL_EXTRACTION_BY_KIND[kind]
+}
+
+/**
+ * Sum one extraction unit per claimed deposit per epoch; unclaimed deposits
+ * yield nothing. Copper/silver/gold contribute 1 lb each; diamonds 1 gem.
+ *
+ * @param {ReadonlyArray<import('../types.js').MetalNode>} deposits
+ * @param {(deposit: import('../types.js').MetalNode) => boolean} isClaimed
+ * @returns {Record<CommodityId, number>}
+ */
+export function extractClaimedMineralDeposits(deposits, isClaimed) {
+  const amounts = emptyCommodityAmounts()
+  if (!deposits) {
+    return amounts
+  }
+  for (const deposit of deposits) {
+    if (!isClaimed(deposit)) {
+      continue
+    }
+    const extraction = MINERAL_EXTRACTION_BY_KIND[deposit.kind]
+    if (extraction) {
+      amounts[extraction.commodity] += extraction.amount
+    }
+  }
+  return amounts
+}
+
 /**
  * Placeholder seam — full conversion lands with #430.
  *
