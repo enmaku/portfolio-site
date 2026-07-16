@@ -44,10 +44,10 @@ test('createInitialEpochStepProgress starts idle before any epoch phase', () => 
 test('epochStepProgressValue scales by completed units across phases and finalize', () => {
   const unitCount = epochStepUnitCount()
   assert.strictEqual(unitCount, COLONIZATION_EPOCH_PHASE_COUNT + COLONIZATION_EPOCH_FINALIZE_STEP_COUNT)
-  assert.strictEqual(epochStepProgressValue(epochStepUnitIndex(0), unitCount), 17)
+  assert.strictEqual(epochStepProgressValue(epochStepUnitIndex(0), unitCount), 14)
   assert.strictEqual(
     epochStepProgressValue(epochStepUnitIndex(COLONIZATION_EPOCH_PHASE_COUNT - 1), unitCount),
-    83,
+    86,
   )
 })
 

@@ -5,6 +5,7 @@ import {
   runColonizationEpochNetworkPhase,
   runColonizationEpochRuinPhase,
   runColonizationEpochSurvivalPhase,
+  runColonizationEpochTradePhase,
 } from './applyColonizationEpoch.js'
 import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
 import {
@@ -109,6 +110,8 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
       })
     } else if (phase.id === 'claims') {
       runColonizationEpochClaimsPhase(ctx)
+    } else if (phase.id === 'trade') {
+      runColonizationEpochTradePhase(ctx)
     } else if (phase.id === 'survival') {
       runColonizationEpochSurvivalPhase(ctx, epochOptions)
     } else if (phase.id === 'ruin') {

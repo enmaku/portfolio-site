@@ -1,4 +1,4 @@
-/** @typedef {'network' | 'claims' | 'survival' | 'ruin' | 'collapse'} ColonizationEpochPhaseId */
+/** @typedef {'network' | 'claims' | 'trade' | 'survival' | 'ruin' | 'collapse'} ColonizationEpochPhaseId */
 /** @typedef {'dispatch' | 'advance' | 'frontier'} ColonizationNetworkSubstepId */
 /** @typedef {'urban' | 'hinterland'} ColonizationCollapseSubstepId */
 
@@ -6,6 +6,7 @@
 export const COLONIZATION_EPOCH_PHASES = Object.freeze([
   { id: 'network', label: 'Network' },
   { id: 'claims', label: 'Claims' },
+  { id: 'trade', label: 'Trade' },
   { id: 'survival', label: 'Survival' },
   { id: 'ruin', label: 'Ruin' },
   { id: 'collapse', label: 'Collapse' },

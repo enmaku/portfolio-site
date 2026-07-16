@@ -1,17 +1,28 @@
+import {
+  cancelObligationsForSettlement,
+  recomputeBalances,
+} from '../economy/ledgers/bilateralObligations.js'
+
 /**
  * Convert zero-population living settlements to ruins and release their claims.
+ * Incident bilateral obligations are cancelled and external credit is zeroed for each
+ * newly ruined settlement.
  *
  * @param {{
  *   settlements: object[],
  *   primaryClaim: Record<string, Array<{ x: number, y: number }>>,
  *   historyLog: object[],
  *   epoch: number,
+ *   tradeAccounts?: import('../economy/ledgers/bilateralObligations.js').TradeAccountsState,
+ *   externalTradeAccounts?: Record<string, number>,
  * }} state
  * @returns {{
  *   settlements: object[],
  *   primaryClaim: Record<string, Array<{ x: number, y: number }>>,
  *   historyLog: object[],
  *   events: object[],
+ *   tradeAccounts: import('../economy/ledgers/bilateralObligations.js').TradeAccountsState,
+ *   externalTradeAccounts: Record<string, number>,
  * }}
  */
 export function applyRuinTransitions(state) {
@@ -22,6 +33,14 @@ export function applyRuinTransitions(state) {
   const historyLog = [...state.historyLog]
   /** @type {object[]} */
   const settlements = []
+
+  let tradeAccounts = state.tradeAccounts
+    ? {
+        obligations: state.tradeAccounts.obligations.map((row) => ({ ...row })),
+        balancesBySettlementId: { ...state.tradeAccounts.balancesBySettlementId },
+      }
+    : { obligations: [], balancesBySettlementId: {} }
+  const externalTradeAccounts = { ...(state.externalTradeAccounts ?? {}) }
 
   for (const settlement of state.settlements) {
     if (settlement.status === 'ruin') {
@@ -35,6 +54,8 @@ export function applyRuinTransitions(state) {
     }
 
     delete primaryClaim[settlement.id]
+    tradeAccounts = cancelObligationsForSettlement(tradeAccounts, settlement.id)
+    delete externalTradeAccounts[settlement.id]
 
     const abandoned = {
       ...settlement,
@@ -55,5 +76,7 @@ export function applyRuinTransitions(state) {
     })
   }
 
-  return { settlements, primaryClaim, historyLog, events }
+  recomputeBalances(tradeAccounts)
+
+  return { settlements, primaryClaim, historyLog, events, tradeAccounts, externalTradeAccounts }
 }

@@ -4,8 +4,8 @@ import { applyRuinTransitions } from './applyRuin.js'
 import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaimMap.js'
 import { DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
-import { saltSpoilageMultiplierForSettlement as defaultSaltSpoilage } from './saltSpoilageMultiplier.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
+import { clearRealmTrade } from '../economy/tradeClearing/clearRealmTrade.js'
 import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
 
 /**
@@ -16,6 +16,7 @@ import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
  * @property {Record<string, Array<{ x: number, y: number }>>} primaryClaim
  * @property {(string | null)[] | undefined} ownerByCell
  * @property {Record<string, import('./resolveSurvivalTriad.js').SurvivalTriadResult>} survivalBySettlementId
+ * @property {Record<string, { foodLb: number, saltLb: number }>} effectiveDeliveredBySettlementId
  */
 
 /**
@@ -31,6 +32,7 @@ export function createColonizationEpochContext(slice, worldDocument) {
     primaryClaim: {},
     ownerByCell: undefined,
     survivalBySettlementId: {},
+    effectiveDeliveredBySettlementId: {},
   }
 }
 
@@ -64,10 +66,35 @@ export function runColonizationEpochClaimsPhase(ctx) {
 }
 
 /**
+ * Trade phase: clear pairwise + off-map trade (when ≥ 2 living settlements) and persist
+ * the ledgers, route flows, and inspect payload. The food/salt each settlement holds after
+ * trade is stashed on the context for the survival phase.
+ *
  * @param {ColonizationEpochContext} ctx
- * @param {{ saltSpoilageMultiplierForSettlement?: Function }} [options]
+ */
+export function runColonizationEpochTradePhase(ctx) {
+  const trade = clearRealmTrade({
+    slice: ctx.slice,
+    worldDocument: ctx.worldDocument,
+    primaryClaim: ctx.primaryClaim,
+  })
+
+  ctx.effectiveDeliveredBySettlementId = trade.effectiveDeliveredBySettlementId
+  ctx.slice = {
+    ...ctx.slice,
+    tradeAccounts: trade.tradeAccounts,
+    externalTradeAccounts: trade.externalTradeAccounts,
+    tradeRouteState: trade.tradeRouteState,
+    lastTradeEpochResult: trade.lastTradeEpochResult,
+  }
+}
+
+/**
+ * @param {ColonizationEpochContext} ctx
+ * @param {object} [options]
  */
 export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
+  void options
   /** @type {object[]} */
   const nextSettlements = []
   /** @type {Record<string, import('./resolveSurvivalTriad.js').SurvivalTriadResult>} */
@@ -80,15 +107,18 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
     }
 
     const claimedCells = ctx.primaryClaim[settlement.id] ?? []
-    const saltResolver = options.saltSpoilageMultiplierForSettlement ?? defaultSaltSpoilage
-    const saltSpoilageMultiplier = saltResolver(settlement, claimedCells, ctx.worldDocument)
+    const delivered = ctx.effectiveDeliveredBySettlementId[settlement.id] ?? {
+      foodLb: 0,
+      saltLb: 0,
+    }
 
     const { settlement: resolved, survival } = applySurvivalResolveToSettlement({
       settlement,
       claimedCells,
       colonistSettings: ctx.slice.colonistSettings,
       worldDocument: ctx.worldDocument,
-      saltSpoilageMultiplier,
+      deliveredFoodLb: delivered.foodLb,
+      deliveredSaltLb: delivered.saltLb,
     })
 
     survivalBySettlementId[settlement.id] = survival
@@ -128,6 +158,8 @@ export function runColonizationEpochRuinPhase(ctx) {
     primaryClaim: ctx.primaryClaim,
     historyLog: ctx.slice.historyLog,
     epoch: nextEpoch,
+    tradeAccounts: ctx.slice.tradeAccounts,
+    externalTradeAccounts: ctx.slice.externalTradeAccounts,
   })
 
   applyPoliticsPhaseNoop()
@@ -138,6 +170,8 @@ export function runColonizationEpochRuinPhase(ctx) {
     settlements: ruined.settlements,
     primaryClaim: ruined.primaryClaim,
     historyLog: ruined.historyLog,
+    tradeAccounts: ruined.tradeAccounts,
+    externalTradeAccounts: ruined.externalTradeAccounts,
   }
   ctx.events.push(...ruined.events)
 }
@@ -165,11 +199,11 @@ export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
 
 /**
  * Annual colonization tick order:
- * network → claims → survival → ruin → collapse.
+ * network → claims → trade → survival → ruin → collapse.
  *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument
- * @param {{ saltSpoilageMultiplierForSettlement?: Function, network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions }} [options]
+ * @param {{ network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions }} [options]
  * @returns {Promise<{
  *   slice: import('./createDefaultColonizationSlice.js').ColonizationSlice,
  *   events: object[],

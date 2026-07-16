@@ -1,9 +1,11 @@
 import { SEA_LEVEL } from '../biomeIds.js'
+import { FOOD_LB_PER_PERSON, SALT_LB_PER_PERSON } from '../economy/tradeClearing/allocationTiers.js'
 import {
   claimedCellsHaveFreshwater,
   deriveFreshwaterAvailabilityFromDocument,
 } from './freshwater/deriveFreshwaterAvailability.js'
 import { sumFishProductionOnCells } from './fish/sumFishProductionOnCells.js'
+import { MIN_SALT_SPOILAGE_MULTIPLIER } from './saltSpoilageMultiplier.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
 
 /** People supported per unit of arable / fish productivity (implementation tuning). */
@@ -73,6 +75,8 @@ export function sumRasterOnCells(raster, cells, gridWidth) {
  *   freshwaterClassification: Uint8Array | null,
  *   population: number,
  *   saltSpoilageMultiplier?: number,
+ *   deliveredFoodLb?: number,
+ *   deliveredSaltLb?: number,
  * }} params
  * @returns {SurvivalTriadResult}
  */
@@ -91,6 +95,8 @@ export function resolveSurvivalTriad(params) {
     freshwaterClassification,
     population,
     saltSpoilageMultiplier = 1,
+    deliveredFoodLb,
+    deliveredSaltLb = 0,
   } = params
 
   const yieldMult = yieldModifierMultiplier(yieldModifier)
@@ -121,15 +127,24 @@ export function resolveSurvivalTriad(params) {
     freshwaterClassification != null &&
     claimedCellsHaveFreshwater(freshwaterClassification, claimedCells, gridWidth)
 
-  let populationCeiling = Math.floor(foodProduction * PEOPLE_PER_ARABLE_UNIT)
+  const tradeDelivered = deliveredFoodLb !== undefined
+  const effectiveFoodCapacityUngated = tradeDelivered
+    ? postTradeEffectiveFoodCapacity(deliveredFoodLb, deliveredSaltLb, population)
+    : foodProduction * PEOPLE_PER_ARABLE_UNIT
+  const ceilingFoodCapacity = tradeDelivered
+    ? effectiveFoodCapacityUngated
+    : foodProduction * PEOPLE_PER_ARABLE_UNIT
+
+  let populationCeiling = Math.floor(ceilingFoodCapacity)
   if (!hasFreshwater) {
     populationCeiling = 0
   }
 
   const canSustain = hasFreshwater && populationCeiling > 0
   const clampedPopulation = Math.max(0, Math.min(Math.floor(population), populationCeiling))
-  const effectiveFoodCapacity =
-    foodProduction * PEOPLE_PER_ARABLE_UNIT * clampSpoilage(saltSpoilageMultiplier)
+  const effectiveFoodCapacity = tradeDelivered
+    ? effectiveFoodCapacityUngated
+    : foodProduction * PEOPLE_PER_ARABLE_UNIT * clampSpoilage(saltSpoilageMultiplier)
   const foodConsumption = clampedPopulation
   const foodSurplus = effectiveFoodCapacity - foodConsumption
 
@@ -149,6 +164,25 @@ export function resolveSurvivalTriad(params) {
 }
 
 /**
+ * Post-trade effective food capacity in people-units: delivered food converted to
+ * people, then scaled by salt preservation `0.35 + 0.65 × fulfillment`.
+ *
+ * @param {number} deliveredFoodLb Food held after trade (local + imports − exports).
+ * @param {number} deliveredSaltLb Household salt held after trade (local + imports).
+ * @param {number} population Demand basis for household salt fulfillment.
+ * @returns {number}
+ */
+export function postTradeEffectiveFoodCapacity(deliveredFoodLb, deliveredSaltLb, population) {
+  const foodPeople = Math.max(0, deliveredFoodLb) / FOOD_LB_PER_PERSON
+  const saltDemandLb = SALT_LB_PER_PERSON * Math.max(0, population)
+  const saltFulfillment =
+    saltDemandLb > 0 ? Math.min(1, Math.max(0, deliveredSaltLb) / saltDemandLb) : 1
+  const saltMultiplier =
+    MIN_SALT_SPOILAGE_MULTIPLIER + (1 - MIN_SALT_SPOILAGE_MULTIPLIER) * saltFulfillment
+  return foodPeople * saltMultiplier
+}
+
+/**
  * Apply one survival triad resolve to a living settlement using claim cells.
  *
  * @param {{
@@ -157,12 +191,21 @@ export function resolveSurvivalTriad(params) {
  *   colonistSettings: { yieldModifier: string },
  *   worldDocument: import('../types.js').WorldDocument,
  *   saltSpoilageMultiplier?: number,
+ *   deliveredFoodLb?: number,
+ *   deliveredSaltLb?: number,
  * }} params
  * @returns {{ settlement: object, survival: SurvivalTriadResult }}
  */
 export function applySurvivalResolveToSettlement(params) {
-  const { settlement, claimedCells, colonistSettings, worldDocument, saltSpoilageMultiplier } =
-    params
+  const {
+    settlement,
+    claimedCells,
+    colonistSettings,
+    worldDocument,
+    saltSpoilageMultiplier,
+    deliveredFoodLb,
+    deliveredSaltLb,
+  } = params
   const freshwaterClassification = deriveFreshwaterAvailabilityFromDocument(worldDocument)
   const survival = resolveSurvivalTriad({
     claimedCells,
@@ -177,6 +220,8 @@ export function applySurvivalResolveToSettlement(params) {
     freshwaterClassification,
     population: settlement.population,
     saltSpoilageMultiplier,
+    deliveredFoodLb,
+    deliveredSaltLb,
   })
 
   return {

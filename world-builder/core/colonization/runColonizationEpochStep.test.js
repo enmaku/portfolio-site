@@ -59,7 +59,7 @@ test('runColonizationEpochStep reports progress through phases and epoch complet
   assert.strictEqual(result.ran, true)
   assert.strictEqual(result.slice.epoch, 1)
   assert.ok(percents.length > 0)
-  assert.strictEqual(percents.at(-1), 83)
+  assert.strictEqual(percents.at(-1), 86)
 })
 
 test('runColonizationEpochStep reports dispatch and advance network item progress', async () => {
