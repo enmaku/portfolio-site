@@ -102,6 +102,7 @@ export function createFakeViewport() {
       onCellPick(handler) {
         cellPickHandler = handler
       },
+      onSettlementHover() {},
       updateWorldDocument() {},
       fitToWorld() {},
       destroy() {},

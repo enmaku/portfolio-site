@@ -1,4 +1,5 @@
 import { attachLandingPlacementControls } from './attachLandingPlacementControls.js'
+import { attachSettlementHoverControls } from './attachSettlementHoverControls.js'
 import { buildLandTerrainRgba } from './buildLandTerrainRgba.js'
 import { buildLakeOverlayCanvas } from './buildLakeOverlayCanvas.js'
 import { buildRiverOverlayCanvas } from './buildRiverOverlayCanvas.js'
@@ -14,6 +15,11 @@ import {
 import { createMapLayerRefreshRunner } from './mapLayerRefresh.js'
 import { diffResourceOverlayMapLayers } from './diffResourceOverlayMapLayers.js'
 import {
+  SETTLEMENT_NODE_MARKER_RADIUS,
+  SETTLEMENT_NODE_OVERLAY_COLOR,
+  SETTLEMENT_NODE_RUIN_OVERLAY_COLOR,
+} from './settlementNodeMarkers.js'
+import {
   computeRegionFocusScale,
   mineralNodeOverlayColor,
   resolveMetalsOverlayDrawn,
@@ -21,23 +27,20 @@ import {
   resolveSettlementNodeOverlayDrawn,
 } from './worldBuilderMapViewportModel.js'
 
+export {
+  SETTLEMENT_NODE_MARKER_RADIUS,
+  SETTLEMENT_NODE_OVERLAY_COLOR,
+  SETTLEMENT_NODE_RUIN_OVERLAY_COLOR,
+} from './settlementNodeMarkers.js'
+
 /** Fallback color for discrete metal mine markers (matches metals raster hue). */
 export const METAL_NODE_OVERLAY_COLOR = 0x000000
 
 /** Pure white for salt strategic-resource markers. */
 export const SALT_NODE_OVERLAY_COLOR = 0xffffff
 
-/** Yellow for living settlement pins. */
-export const SETTLEMENT_NODE_OVERLAY_COLOR = 0xffd700
-
-/** Gray for abandoned/ruined settlement pins (matches land route cobblestone). */
-export const SETTLEMENT_NODE_RUIN_OVERLAY_COLOR = 0x8e9094
-
 /** Grid-cell radius for metal/salt strategic-resource node markers. */
 export const STRATEGIC_RESOURCE_NODE_MARKER_RADIUS = 7
-
-/** Grid-cell radius for settlement pins. */
-export const SETTLEMENT_NODE_MARKER_RADIUS = 3
 
 /**
  * @typedef {Object} UpdateWorldDocumentOptions
@@ -91,8 +94,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   routes.visible = false
   const wealth = new Sprite(Texture.EMPTY)
   wealth.visible = false
-  const tradeRoutes = new Sprite(Texture.EMPTY)
-  tradeRoutes.visible = false
   const coastalOverlay = new Graphics()
   const metalOverlay = new Graphics()
   const saltOverlay = new Graphics()
@@ -125,7 +126,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     explorationFog: null,
     routes: null,
     wealth: null,
-    tradeRoutes: null,
   }
 
   /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Sprite>} */
@@ -139,7 +139,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     explorationFog,
     routes,
     wealth,
-    tradeRoutes,
   }
 
   const viewport = new Viewport({
@@ -163,7 +162,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(population)
   viewport.addChild(explorationFog)
   viewport.addChild(routes)
-  viewport.addChild(tradeRoutes)
   viewport.addChild(wealth)
   viewport.addChild(coastalOverlay)
   viewport.addChild(metalOverlay)
@@ -275,9 +273,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       case 'wealth':
         wealth.visible = false
         break
-      case 'tradeRoutes':
-        tradeRoutes.visible = false
-        break
       case 'rivers':
         rivers.visible = false
         break
@@ -314,7 +309,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       explorationFog: () => refreshResourceRasterOverlay('explorationFog', currentWorldDocument),
       routes: () => refreshResourceRasterOverlay('routes', currentWorldDocument),
       wealth: () => refreshResourceRasterOverlay('wealth', currentWorldDocument),
-      tradeRoutes: () => refreshResourceRasterOverlay('tradeRoutes', currentWorldDocument),
       rivers: () => refreshRiverOverlay(currentWorldDocument),
       lakes: () => refreshLakeOverlay(currentWorldDocument),
       coastalNodes: () => drawCoastalNodes(coastalOverlay, currentWorldDocument),
@@ -436,6 +430,10 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     getWorldDocument: () => currentWorldDocument,
     requestRender: renderFrame,
   })
+  const settlementHover = attachSettlementHoverControls({
+    viewport,
+    getWorldDocument: () => currentWorldDocument,
+  })
 
   return {
     /**
@@ -551,6 +549,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     setFoundingLandingMarker: landingPlacement.setFoundingLandingMarker,
     setHaulShedPreviewCells: landingPlacement.setHaulShedPreviewCells,
     onCellPick: landingPlacement.onCellPick,
+    onSettlementHover: settlementHover.onSettlementHover,
 
     destroy() {
       stopReplay()

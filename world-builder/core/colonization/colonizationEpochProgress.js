@@ -6,6 +6,7 @@ import {
   COLONIZATION_EPOCH_PHASE_COUNT,
   COLONIZATION_EPOCH_PHASES,
   COLONIZATION_NETWORK_SUBSTEPS,
+  COLONIZATION_TRADE_SUBSTEPS,
 } from './colonizationEpochSteps.js'
 
 /**
@@ -24,6 +25,10 @@ import {
  * @property {number} networkSubstepPhasePercent optional 0-100 progress within the phase
  * @property {number} activeCollapseSubstepIndex
  * @property {number} completedCollapseSubstepIndex
+ * @property {number} activeTradeSubstepIndex
+ * @property {number} completedTradeSubstepIndex
+ * @property {number} tradeSubstepItemIndex one-based item within active trade substep; -1 when idle
+ * @property {number} tradeSubstepItemCount total items in active trade substep loop; 0 when idle
  * @property {number} activeFinalizeStepIndex
  * @property {number} completedFinalizeStepIndex
  * @property {number} activeMapSubstepIndex
@@ -49,6 +54,10 @@ export function createInitialEpochStepProgress() {
     networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeTradeSubstepIndex: -1,
+    completedTradeSubstepIndex: -1,
+    tradeSubstepItemIndex: -1,
+    tradeSubstepItemCount: 0,
     activeFinalizeStepIndex: -1,
     completedFinalizeStepIndex: -1,
     activeMapSubstepIndex: -1,
@@ -118,6 +127,10 @@ export function reduceEpochStepProgressOnEpochStart(progress, payload) {
     networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeTradeSubstepIndex: -1,
+    completedTradeSubstepIndex: -1,
+    tradeSubstepItemIndex: -1,
+    tradeSubstepItemCount: 0,
     activeFinalizeStepIndex: -1,
     completedFinalizeStepIndex: -1,
     activeMapSubstepIndex: -1,
@@ -149,6 +162,10 @@ export function reduceEpochStepProgressOnEpochComplete(progress, payload) {
     networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeTradeSubstepIndex: -1,
+    completedTradeSubstepIndex: -1,
+    tradeSubstepItemIndex: -1,
+    tradeSubstepItemCount: 0,
     activeFinalizeStepIndex: -1,
     completedFinalizeStepIndex: -1,
     activeMapSubstepIndex: -1,
@@ -178,6 +195,11 @@ export function reduceEpochStepProgressOnPhaseStart(progress, payload) {
       payload.phaseId === 'collapse' ? -1 : progress.activeCollapseSubstepIndex,
     completedCollapseSubstepIndex:
       payload.phaseId === 'collapse' ? -1 : progress.completedCollapseSubstepIndex,
+    activeTradeSubstepIndex: payload.phaseId === 'trade' ? -1 : progress.activeTradeSubstepIndex,
+    completedTradeSubstepIndex:
+      payload.phaseId === 'trade' ? -1 : progress.completedTradeSubstepIndex,
+    tradeSubstepItemIndex: payload.phaseId === 'trade' ? -1 : progress.tradeSubstepItemIndex,
+    tradeSubstepItemCount: payload.phaseId === 'trade' ? 0 : progress.tradeSubstepItemCount,
   }
 }
 
@@ -203,6 +225,10 @@ export function reduceEpochStepProgressOnPhaseComplete(progress, payload) {
     networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeTradeSubstepIndex: -1,
+    completedTradeSubstepIndex: -1,
+    tradeSubstepItemIndex: -1,
+    tradeSubstepItemCount: 0,
   }
 }
 
@@ -328,6 +354,72 @@ export function reduceEpochStepProgressOnCollapseSubstepComplete(progress, paylo
 
 /**
  * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnTradeSubstepStart(progress, payload) {
+  const substep = COLONIZATION_TRADE_SUBSTEPS[payload.substepIndex]
+  return {
+    ...progress,
+    activeTradeSubstepIndex: payload.substepIndex,
+    tradeSubstepItemIndex: -1,
+    tradeSubstepItemCount: 0,
+    label: progress.label.includes('·')
+      ? `${progress.label.split(' · ')[0]} · Trade · ${substep?.label ?? ''}`
+      : progress.label,
+  }
+}
+
+/**
+ * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnTradeSubstepComplete(progress, payload) {
+  return {
+    ...progress,
+    activeTradeSubstepIndex: payload.substepIndex,
+    completedTradeSubstepIndex: payload.substepIndex,
+    tradeSubstepItemIndex: -1,
+    tradeSubstepItemCount: 0,
+  }
+}
+
+/**
+ * @param {string} substepLabel
+ * @param {{ itemIndex: number, itemCount: number }} itemProgress
+ * @returns {string}
+ */
+export function formatTradeSubstepItemLabel(substepLabel, itemProgress) {
+  if (itemProgress.itemCount <= 0 || itemProgress.itemIndex <= 0) {
+    return substepLabel
+  }
+  return `${substepLabel} ${itemProgress.itemIndex}/${itemProgress.itemCount}`
+}
+
+/**
+ * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number, itemIndex: number, itemCount: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnTradeSubstepItemProgress(progress, payload) {
+  const substep = COLONIZATION_TRADE_SUBSTEPS[payload.substepIndex]
+  const epochLabel = progress.label.includes('·') ? progress.label.split(' · ')[0] : progress.label
+  const itemLabel = formatTradeSubstepItemLabel(substep?.label ?? '', {
+    itemIndex: payload.itemIndex,
+    itemCount: payload.itemCount,
+  })
+  return {
+    ...progress,
+    activeTradeSubstepIndex: payload.substepIndex,
+    tradeSubstepItemIndex: payload.itemIndex,
+    tradeSubstepItemCount: payload.itemCount,
+    label: `${epochLabel} · Trade · ${itemLabel}`,
+  }
+}
+
+/**
+ * @param {EpochStepProgressState} progress
  * @param {{ stepIndex: number }} payload
  * @returns {EpochStepProgressState}
  */
@@ -350,6 +442,10 @@ export function reduceEpochStepProgressOnFinalizeStepStart(progress, payload) {
     networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeTradeSubstepIndex: -1,
+    completedTradeSubstepIndex: -1,
+    tradeSubstepItemIndex: -1,
+    tradeSubstepItemCount: 0,
     activeFinalizeStepIndex: payload.stepIndex,
     activeMapSubstepIndex: step?.id === 'map' ? -1 : progress.activeMapSubstepIndex,
     completedMapSubstepIndex: step?.id === 'map' ? -1 : progress.completedMapSubstepIndex,
@@ -377,6 +473,10 @@ export function reduceEpochStepProgressOnFinalizeStepComplete(progress, payload)
     networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeTradeSubstepIndex: -1,
+    completedTradeSubstepIndex: -1,
+    tradeSubstepItemIndex: -1,
+    tradeSubstepItemCount: 0,
     activeMapSubstepIndex: -1,
     completedMapSubstepIndex: -1,
   }
@@ -427,6 +527,9 @@ export function reduceEpochStepProgressOnRunComplete(progress) {
     networkSubstepPhase: '',
     networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
+    activeTradeSubstepIndex: -1,
+    tradeSubstepItemIndex: -1,
+    tradeSubstepItemCount: 0,
     activeFinalizeStepIndex: -1,
     activeMapSubstepIndex: -1,
   }

@@ -37,7 +37,7 @@ test(
     const viewport = await createWorldBuilderMapViewport(createHostEl(), createArableRasterFixture())
     const layers = recentSpriteLayers()
 
-    assert.strictEqual(layers.length, 14)
+    assert.strictEqual(layers.length, 13)
     assert.strictEqual(contoursSpriteLayer(), layers[1])
     assert.strictEqual(arableSpriteLayer(), layers[2])
     assert.strictEqual(timberSpriteLayer(), layers[3])

@@ -97,6 +97,7 @@ export function buildBeginStatusSection({ percent, steps }) {
  *   phaseSteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   finalizeSteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   networkSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
+ *   tradeSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   collapseSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   mapSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  * }} input
@@ -107,6 +108,7 @@ export function buildEpochStatusSection({
   phaseSteps,
   finalizeSteps,
   networkSubsteps,
+  tradeSubsteps = [],
   collapseSubsteps,
   mapSubsteps,
 }) {
@@ -122,6 +124,7 @@ export function buildEpochStatusSection({
     ],
     nestedByParentId: {
       network: withTestIds(networkSubsteps, 'world-builder-epoch-step-network-substep-'),
+      trade: withTestIds(tradeSubsteps, 'world-builder-epoch-step-trade-substep-'),
       collapse: withTestIds(collapseSubsteps, 'world-builder-epoch-step-collapse-substep-'),
       map: withTestIds(mapSubsteps, 'world-builder-epoch-step-map-substep-'),
     },

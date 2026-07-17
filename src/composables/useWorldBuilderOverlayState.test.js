@@ -129,12 +129,9 @@ test('toggleVisibility exposes the economy inspect layer ids', () => {
     const { ctx, syncedStates } = mountOverlayState(scope)
 
     ctx.toggleVisibility('wealth', true)
-    ctx.toggleVisibility('tradeRoutes', true)
 
     assert.strictEqual(ctx.visibility.value.wealth, true)
-    assert.strictEqual(ctx.visibility.value.tradeRoutes, true)
     assert.strictEqual(syncedStates.at(-1).visibility.wealth, true)
-    assert.strictEqual(syncedStates.at(-1).visibility.tradeRoutes, true)
   } finally {
     scope.stop()
   }

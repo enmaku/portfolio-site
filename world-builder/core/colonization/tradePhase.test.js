@@ -83,10 +83,10 @@ const FOOD_RICH_SETTLEMENT = { id: 'a', x: 1, y: 1, population: 50, status: 'liv
  * @param {object[]} settlements
  * @param {object} [doc]
  */
-function runTradeSurvivalRuin(settlements, doc = tradeFixtureDoc()) {
+async function runTradeSurvivalRuin(settlements, doc = tradeFixtureDoc()) {
   const ctx = createColonizationEpochContext(runningSlice(settlements, 5), doc)
   runColonizationEpochClaimsPhase(ctx)
-  runColonizationEpochTradePhase(ctx)
+  await runColonizationEpochTradePhase(ctx)
   runColonizationEpochSurvivalPhase(ctx)
   runColonizationEpochRuinPhase(ctx)
   return ctx
@@ -99,9 +99,9 @@ test('epoch phases run trade after claims and before survival', () => {
   assert.ok(ids.indexOf('trade') < ids.indexOf('survival'))
 })
 
-test('same-epoch imports keep a food-less settlement alive that would otherwise ruin', () => {
+test('same-epoch imports keep a food-less settlement alive that would otherwise ruin', async () => {
   // Connected: A's food surplus reaches B's barren claim over the candidate route this epoch.
-  const withTrade = runTradeSurvivalRuin([{ ...FOOD_RICH_SETTLEMENT }, { ...FOOD_LESS_SETTLEMENT }])
+  const withTrade = await runTradeSurvivalRuin([{ ...FOOD_RICH_SETTLEMENT }, { ...FOOD_LESS_SETTLEMENT }])
   const tradedB = withTrade.slice.settlements.find((s) => s.id === 'b')
   assert.strictEqual(tradedB.status, 'living')
   assert.ok(tradedB.population > 0)
@@ -110,7 +110,7 @@ test('same-epoch imports keep a food-less settlement alive that would otherwise 
 
   // Counterfactual: identical barren claim, but B has nothing to trade for credit, so it
   // imports nothing and ruins.
-  const strapped = runTradeSurvivalRuin(
+  const strapped = await runTradeSurvivalRuin(
     [{ ...FOOD_RICH_SETTLEMENT }, { ...FOOD_LESS_SETTLEMENT }],
     creditlessFixtureDoc(),
   )
@@ -119,13 +119,13 @@ test('same-epoch imports keep a food-less settlement alive that would otherwise 
   assert.strictEqual(strappedB.population, 0)
 })
 
-test('a single living settlement skips pairwise trade and leaves route state empty', () => {
+test('a single living settlement skips pairwise trade and leaves route state empty', async () => {
   const ctx = createColonizationEpochContext(
     runningSlice([{ ...FOOD_RICH_SETTLEMENT }]),
     tradeFixtureDoc(),
   )
   runColonizationEpochClaimsPhase(ctx)
-  runColonizationEpochTradePhase(ctx)
+  await runColonizationEpochTradePhase(ctx)
 
   assert.strictEqual(ctx.slice.lastTradeEpochResult, null)
   assert.strictEqual(ctx.slice.tradeRouteState.activeFlows.length, 0)
@@ -133,8 +133,8 @@ test('a single living settlement skips pairwise trade and leaves route state emp
   assert.deepStrictEqual(ctx.slice.tradeAccounts.obligations, [])
 })
 
-test('two living settlements activate pairwise clearing with route flows', () => {
-  const ctx = runTradeSurvivalRuin([{ ...FOOD_RICH_SETTLEMENT }, { ...FOOD_LESS_SETTLEMENT }])
+test('two living settlements activate pairwise clearing with route flows', async () => {
+  const ctx = await runTradeSurvivalRuin([{ ...FOOD_RICH_SETTLEMENT }, { ...FOOD_LESS_SETTLEMENT }])
   assert.ok(ctx.slice.lastTradeEpochResult)
   assert.ok(ctx.slice.tradeRouteState.candidates.length > 0)
   assert.ok(ctx.slice.tradeRouteState.activeFlows.length > 0)

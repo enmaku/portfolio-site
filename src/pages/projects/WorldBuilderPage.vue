@@ -227,6 +227,10 @@
         data-testid="world-builder-map-host"
         class="map-host col"
       />
+      <WorldBuilderSettlementTradeTooltip
+        :tooltip="settlementTradeTooltip"
+        :position="hoveredSettlementScreenPosition"
+      />
       <aside
         data-testid="world-builder-generation-report"
         class="generation-report-panel bg-grey-10"
@@ -408,6 +412,7 @@ import { useWorldBuilderPageController } from '../../composables/useWorldBuilder
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
 import PrevailingWindArrow from '../../components/world-builder/PrevailingWindArrow.vue'
 import WorldBuilderColonistSettingsPanel from '../../components/world-builder/WorldBuilderColonistSettingsPanel.vue'
+import WorldBuilderSettlementTradeTooltip from '../../components/world-builder/WorldBuilderSettlementTradeTooltip.js'
 import WorldBuilderSimStatusPanel from '../../components/world-builder/WorldBuilderSimStatusPanel.vue'
 import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
 import WorldBuilderStatusPanel from '../../components/world-builder/WorldBuilderStatusPanel.vue'
@@ -504,6 +509,8 @@ const {
   resetColonization,
   setColonistSetting,
   resetColonistSettings,
+  settlementTradeTooltip,
+  hoveredSettlementScreenPosition,
 } = colonization
 
 onMounted(start)

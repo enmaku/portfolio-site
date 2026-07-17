@@ -96,27 +96,10 @@ function visibleRasterFixture(resourceId) {
       gridHeight: 4,
       colonizationPhase: 'running',
       settlements: [{ id: 'a', x: 1, y: 1 }],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
       lastTradeEpochResult: {
         realmBalancesCp: { a: 100 },
         obligationDeltas: [{ toSettlementId: 'a', amountCp: 200, kind: 'goods' }],
-      },
-    }
-  }
-
-  if (resourceId === 'tradeRoutes') {
-    return {
-      gridWidth: 4,
-      gridHeight: 4,
-      colonizationPhase: 'running',
-      settlements: [
-        { id: 'a', x: 0, y: 1 },
-        { id: 'b', x: 3, y: 1 },
-      ],
-      tradeRouteState: {
-        candidates: [
-          { id: 'a::b::road', fromSettlementId: 'a', toSettlementId: 'b', mode: 'road' },
-        ],
-        activeFlows: [],
       },
     }
   }

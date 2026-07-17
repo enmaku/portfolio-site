@@ -773,7 +773,7 @@ test('terrain authoring hides and disables colonization overlays', async () => {
         return { cancel() {} }
       },
     })
-    const colonizationOverlayIds = ['population', 'settlements', 'explorationFog', 'routes']
+    const colonizationOverlayIds = ['population', 'settlements', 'explorationFog', 'routes', 'wealth']
 
     await ctx.start()
     await nextTick()
@@ -865,7 +865,7 @@ test('start restores running colonization from colonization cache after beginCol
     await ctx.colonization.beginColonization()
     await nextTick()
 
-    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
+    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes', 'wealth']) {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
     assert.strictEqual(

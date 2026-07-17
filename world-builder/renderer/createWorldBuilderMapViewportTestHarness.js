@@ -406,10 +406,10 @@ export function createMetalsFixture() {
 /**
  * Sprites from the most recently created viewport.
  * Order: terrain, contours, arable, timber, metals, lakes, rivers, sail,
- * freshwater, population, explorationFog, routes, wealth, tradeRoutes.
+ * freshwater, population, explorationFog, routes, wealth.
  */
 export function recentSpriteLayers() {
-  return viewportSpyState.spriteLayers.slice(-14)
+  return viewportSpyState.spriteLayers.slice(-13)
 }
 
 /** Contours sprite sits above terrain in the layer stack. */

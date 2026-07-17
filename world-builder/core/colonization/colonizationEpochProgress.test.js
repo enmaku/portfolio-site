@@ -12,6 +12,7 @@ import {
   reduceEpochStepProgressOnNetworkSubstepStart,
   reduceEpochStepProgressOnNetworkSubstepItemProgress,
   reduceEpochStepProgressOnPhaseStart,
+  reduceEpochStepProgressOnTradeSubstepStart,
 } from './colonizationEpochProgress.js'
 import {
   COLONIZATION_EPOCH_FINALIZE_STEP_COUNT,
@@ -34,6 +35,10 @@ test('createInitialEpochStepProgress starts idle before any epoch phase', () => 
     networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    activeTradeSubstepIndex: -1,
+    completedTradeSubstepIndex: -1,
+    tradeSubstepItemIndex: -1,
+    tradeSubstepItemCount: 0,
     activeFinalizeStepIndex: -1,
     completedFinalizeStepIndex: -1,
     activeMapSubstepIndex: -1,
@@ -180,6 +185,22 @@ test('reduceEpochStepProgressOnCollapseSubstepStart appends collapse substep lab
   const next = reduceEpochStepProgressOnCollapseSubstepStart(progress, { substepIndex: 1 })
   assert.strictEqual(next.activeCollapseSubstepIndex, 1)
   assert.strictEqual(next.label, 'Epoch 1 · Collapse · Hinterland')
+})
+
+test('reduceEpochStepProgressOnTradeSubstepStart appends trade substep label', () => {
+  const progress = reduceEpochStepProgressOnPhaseStart(
+    reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(), {
+      simulationEpoch: 0,
+    }),
+    {
+      simulationEpoch: 0,
+      phaseIndex: 2,
+      phaseId: 'trade',
+    },
+  )
+  const next = reduceEpochStepProgressOnTradeSubstepStart(progress, { substepIndex: 1 })
+  assert.strictEqual(next.activeTradeSubstepIndex, 1)
+  assert.strictEqual(next.label, 'Epoch 1 · Trade · Survival')
 })
 
 test('reduceEpochStepProgressOnFinalizeStepStart marks map finalize after simulation phases', () => {

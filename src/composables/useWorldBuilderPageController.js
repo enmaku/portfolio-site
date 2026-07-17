@@ -62,6 +62,7 @@ const COLONIZATION_OVERLAY_IDS = new Set([
   'settlements',
   'explorationFog',
   'routes',
+  'wealth',
 ])
 
 /** Lazy-load the renderer viewport factory; deferred so Vue never owns renderer logic. */
@@ -727,6 +728,9 @@ export function useWorldBuilderPageController(options) {
       pickFoundingLanding: colonization.pickFoundingLanding,
       setColonistSetting: colonization.setColonistSetting,
       resetColonistSettings: colonization.resetColonistSettings,
+      hoveredSettlementId: colonization.hoveredSettlementId,
+      hoveredSettlementScreenPosition: colonization.hoveredSettlementScreenPosition,
+      settlementTradeTooltip: colonization.settlementTradeTooltip,
     },
     validationRows,
     visibleValidationRows,

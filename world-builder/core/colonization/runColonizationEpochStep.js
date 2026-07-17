@@ -19,6 +19,9 @@ import {
   reduceEpochStepProgressOnNetworkSubstepStart,
   reduceEpochStepProgressOnPhaseComplete,
   reduceEpochStepProgressOnPhaseStart,
+  reduceEpochStepProgressOnTradeSubstepComplete,
+  reduceEpochStepProgressOnTradeSubstepItemProgress,
+  reduceEpochStepProgressOnTradeSubstepStart,
 } from './colonizationEpochProgress.js'
 import { COLONIZATION_EPOCH_PHASES } from './colonizationEpochSteps.js'
 
@@ -111,7 +114,31 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
     } else if (phase.id === 'claims') {
       runColonizationEpochClaimsPhase(ctx)
     } else if (phase.id === 'trade') {
-      runColonizationEpochTradePhase(ctx)
+      await runColonizationEpochTradePhase(ctx, {
+        trade: {
+          yieldToUi,
+          hooks: {
+            onTradeSubstep(payload) {
+              if (payload.type === 'substep-start') {
+                progress = reduceEpochStepProgressOnTradeSubstepStart(progress, {
+                  substepIndex: payload.substepIndex,
+                })
+              } else if (payload.type === 'substep-item') {
+                progress = reduceEpochStepProgressOnTradeSubstepItemProgress(progress, {
+                  substepIndex: payload.substepIndex,
+                  itemIndex: payload.itemIndex ?? 0,
+                  itemCount: payload.itemCount ?? 0,
+                })
+              } else {
+                progress = reduceEpochStepProgressOnTradeSubstepComplete(progress, {
+                  substepIndex: payload.substepIndex,
+                })
+              }
+              handlers.onProgress?.(progress)
+            },
+          },
+        },
+      })
     } else if (phase.id === 'survival') {
       runColonizationEpochSurvivalPhase(ctx, epochOptions)
     } else if (phase.id === 'ruin') {

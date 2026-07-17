@@ -234,19 +234,3 @@ export function resolveWealthRasterLayerVisible(visibility, worldDocument) {
   const settlements = worldDocument.settlements
   return Array.isArray(settlements) && settlements.length > 0
 }
-
-/**
- * @param {Record<string, boolean>} visibility
- * @param {import('../core/types.js').WorldDocument} worldDocument
- * @returns {boolean}
- */
-export function resolveTradeRoutesRasterLayerVisible(visibility, worldDocument) {
-  if (!isResourceOverlayVisible(visibility, 'tradeRoutes')) {
-    return false
-  }
-  if (worldDocument.colonizationPhase !== 'running') {
-    return false
-  }
-  const candidates = worldDocument.tradeRouteState?.candidates
-  return Array.isArray(candidates) && candidates.length > 0
-}

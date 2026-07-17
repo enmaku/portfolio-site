@@ -30,12 +30,17 @@ function createFakeViewport() {
   const placementModes = []
   /** @type {((cell: { x: number, y: number }) => void) | null} */
   let cellPickHandler = null
+  /** @type {((payload: { settlementId: string, clientX: number, clientY: number } | null) => void) | null} */
+  let settlementHoverHandler = null
   return {
     landingMarkers,
     haulShedPreviews,
     placementModes,
     triggerCellPick(cell) {
       cellPickHandler?.(cell)
+    },
+    triggerSettlementHover(payload) {
+      settlementHoverHandler?.(payload)
     },
     handle: {
       setLandingPlacementMode(enabled) {
@@ -49,6 +54,9 @@ function createFakeViewport() {
       },
       onCellPick(handler) {
         cellPickHandler = handler
+      },
+      onSettlementHover(handler) {
+        settlementHoverHandler = handler
       },
     },
   }
@@ -428,6 +436,37 @@ test('resetColonization stays in running when confirm is declined', async () => 
 
     assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
     assert.strictEqual(settingsStore.colonizationSession.colonizationPhase, COLONIZATION_PHASE_RUNNING)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('settlement trade tooltip model is null when no settlement is hovered', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, viewport, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.pickFoundingLanding(3, 3)
+    await ctx.beginColonization()
+
+    assert.strictEqual(ctx.hoveredSettlementId.value, null)
+    assert.strictEqual(ctx.settlementTradeTooltip.value, null)
+
+    const settlementId = ctx.settlements.value?.[0]?.id
+    assert.ok(settlementId)
+    viewport.triggerSettlementHover({
+      settlementId,
+      clientX: 40,
+      clientY: 80,
+    })
+    assert.strictEqual(ctx.hoveredSettlementId.value, settlementId)
+    assert.ok(ctx.settlementTradeTooltip.value)
+    assert.strictEqual(ctx.settlementTradeTooltip.value.settlementId, settlementId)
+
+    viewport.triggerSettlementHover(null)
+    assert.strictEqual(ctx.hoveredSettlementId.value, null)
+    assert.strictEqual(ctx.settlementTradeTooltip.value, null)
   } finally {
     scope.stop()
   }

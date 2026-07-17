@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { runTradeClearing } from './runTradeClearing.js'
+import { runTradeClearing, runTradeClearingSync } from './runTradeClearing.js'
 import { emptyCommodityAmounts } from '../productionAccounting.js'
 import { computeConnectedMarketPrices } from '../localPrices.js'
 
@@ -45,7 +45,7 @@ test('survival: grain surplus flows over a single overland edge to a starving ne
     edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.1 })],
   }
 
-  const result = runTradeClearing({
+  const result = runTradeClearingSync({
     settlements,
     graph,
     production: prod,
@@ -83,7 +83,7 @@ test('comfort raises food to 120% of survival while salt stays at 100%', () => {
     edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.01 })],
   }
 
-  const result = runTradeClearing({
+  const result = runTradeClearingSync({
     settlements,
     graph,
     production: prod,
@@ -109,7 +109,7 @@ test('prosperity fills each commodity to the 1 gp/person reference target at loc
     edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.01 })],
   }
 
-  const result = runTradeClearing({
+  const result = runTradeClearingSync({
     settlements,
     graph,
     production: prod,
@@ -142,7 +142,7 @@ test('a haul costlier than the delivered value carries nothing', () => {
     edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 5 })],
   }
 
-  const result = runTradeClearing({
+  const result = runTradeClearingSync({
     settlements,
     graph,
     production: prod,
@@ -162,7 +162,7 @@ test('mode choice follows the cheaper delivered cost between parallel road and w
   const prod = production({ a: { grain: 73000 }, b: {} })
 
   const runWith = (roadCost, waterCost) =>
-    runTradeClearing({
+    runTradeClearingSync({
       settlements,
       production: prod,
       priorRealizedIncomeCp: { b: 1_000_000_000 },
@@ -211,7 +211,7 @@ test('overflow spills onto the next paying mode when the cheaper edge saturates'
     ],
   }
 
-  const result = runTradeClearing({
+  const result = runTradeClearingSync({
     settlements,
     graph,
     production: prod,
@@ -243,7 +243,7 @@ test('transshipment moves goods through an intermediate that neither buys nor re
     ],
   }
 
-  const result = runTradeClearing({
+  const result = runTradeClearingSync({
     settlements,
     graph,
     production: prod,
@@ -284,7 +284,7 @@ test('sea shipment tolls the importer at the loading port; the unload self-toll 
     ],
   }
 
-  const result = runTradeClearing({
+  const result = runTradeClearingSync({
     settlements,
     graph,
     production: prod,
@@ -317,7 +317,7 @@ test('credit limit caps imports at a settlement without collateral or income', (
   const prices = computeConnectedMarketPrices({ settlements, edges: graph.edges, production: prod })
   const netUnit = prices.a.grain - 0.1
 
-  const capped = runTradeClearing({
+  const capped = runTradeClearingSync({
     settlements,
     graph,
     production: prod,
@@ -332,7 +332,7 @@ test('credit limit caps imports at a settlement without collateral or income', (
   assert.ok(Math.abs(bDebt - 18000) < 1e-3)
   assert.ok(Math.abs(capped.effectiveDelivered.b.foodLb - 18000 / netUnit) < 1e-6)
 
-  const funded = runTradeClearing({
+  const funded = runTradeClearingSync({
     settlements,
     graph,
     production: prod,
@@ -348,7 +348,7 @@ test('off-map exports clear before imports so earnings fund the purchase', () =>
     p: { grain: 200000, salt: 500, baseMetals: 1000, copper: 200, silver: 20, gold: 2, diamonds: 0.02 },
   })
 
-  const result = runTradeClearing({ settlements, graph: { edges: [] }, production: prod })
+  const result = runTradeClearingSync({ settlements, graph: { edges: [] }, production: prod })
 
   const grainExport = result.offMapTrades.find(
     (t) => t.commodityId === 'grain' && t.direction === 'export',
@@ -375,7 +375,7 @@ test('off-map imports cannot drive the external account negative', () => {
   // Only a tiny grain surplus, so timber imports are throttled by external earnings.
   const prod = production({ p: { grain: 44800, salt: 500 } })
 
-  const result = runTradeClearing({ settlements, graph: { edges: [] }, production: prod })
+  const result = runTradeClearingSync({ settlements, graph: { edges: [] }, production: prod })
 
   const earnings = 1000 * 0.5 + 0.05 * 0.5 * 1000
   const timberImport = result.offMapTrades.find(
@@ -401,7 +401,7 @@ test('mutual credit nets opposing pair obligations and realm balances sum to zer
     edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.01 })],
   }
 
-  const result = runTradeClearing({
+  const result = runTradeClearingSync({
     settlements,
     graph,
     production: prod,
@@ -455,8 +455,8 @@ test('a fixed three-settlement fixture clears deterministically', () => {
     priorRealizedIncomeCp: { harbor: 5_000_000, vale: 5_000_000, ridge: 5_000_000 },
   }
 
-  const first = runTradeClearing(args)
-  const second = runTradeClearing(args)
+  const first = runTradeClearingSync(args)
+  const second = runTradeClearingSync(args)
   assert.deepStrictEqual(first, second)
 
   // Zero-sum mutual credit and no self-obligations hold on the fixture.
@@ -468,4 +468,62 @@ test('a fixed three-settlement fixture clears deterministically', () => {
   for (const s of settlements) {
     assert.ok(first.effectiveDelivered[s.id].foodLb >= 365 * s.population - 1e-6)
   }
+})
+
+test('runTradeClearing reports trade substep indices in order and matches sync without yields', async () => {
+  const settlements = [
+    { id: 'a', population: 100 },
+    { id: 'b', population: 100 },
+  ]
+  const prod = production({ a: { grain: 73000 }, b: {} })
+  const graph = {
+    edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.1 })],
+  }
+  const params = {
+    settlements,
+    graph,
+    production: prod,
+    priorRealizedIncomeCp: { b: 1_000_000 },
+  }
+
+  /** @type {Array<{ type: string, substepIndex: number, substepId: string }>} */
+  const events = []
+  const withYields = await runTradeClearing(params, {
+    yieldToUi: async () => {},
+    hooks: {
+      onTradeSubstep(payload) {
+        events.push({
+          type: payload.type,
+          substepIndex: payload.substepIndex,
+          substepId: payload.substepId,
+        })
+      },
+    },
+  })
+  const bare = await runTradeClearing(params)
+  const sync = runTradeClearingSync(params)
+
+  assert.deepStrictEqual(withYields, bare)
+  assert.deepStrictEqual(withYields, sync)
+  assert.deepStrictEqual(
+    events.map((e) => `${e.type}:${e.substepIndex}:${e.substepId}`),
+    [
+      'substep-start:0:localPrices',
+      'substep-complete:0:localPrices',
+      'substep-start:1:survival',
+      'substep-complete:1:survival',
+      'substep-start:2:comfort',
+      'substep-complete:2:comfort',
+      'substep-start:3:prosperity',
+      'substep-item:3:prosperity',
+      'substep-item:3:prosperity',
+      'substep-item:3:prosperity',
+      'substep-item:3:prosperity',
+      'substep-item:3:prosperity',
+      'substep-item:3:prosperity',
+      'substep-complete:3:prosperity',
+      'substep-start:4:offMap',
+      'substep-complete:4:offMap',
+    ],
+  )
 })

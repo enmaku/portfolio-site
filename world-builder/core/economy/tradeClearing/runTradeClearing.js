@@ -79,6 +79,23 @@ const EPSILON = 1e-6
  */
 
 /**
+ * @typedef {Object} TradeClearingHooks
+ * @property {(payload: {
+ *   type: 'substep-start' | 'substep-complete' | 'substep-item',
+ *   substepIndex: number,
+ *   substepId: string,
+ *   itemIndex?: number,
+ *   itemCount?: number,
+ * }) => void} [onTradeSubstep]
+ */
+
+/**
+ * @typedef {Object} TradeClearingOptions
+ * @property {TradeClearingHooks} [hooks]
+ * @property {() => Promise<void>} [yieldToUi]
+ */
+
+/**
  * @param {{
  *   settlements?: Array<{ id: string, population?: number, maritimeRole?: string }>,
  *   graph?: CandidateTradeGraph,
@@ -87,9 +104,59 @@ const EPSILON = 1e-6
  *   priorRealizedIncomeCp?: Record<string, number>,
  *   externalAccountsCp?: Record<string, number>,
  * }} [params]
+ * @param {TradeClearingOptions} [options]
+ * @returns {Promise<TradeClearingResult>}
+ */
+export async function runTradeClearing(params = {}, options = {}) {
+  const { hooks, yieldToUi } = options
+
+  emitTradeSubstep(hooks, 'substep-start', 0, 'localPrices')
+  await yieldToUi?.()
+  const state = createClearingState(params)
+  emitTradeSubstep(hooks, 'substep-complete', 0, 'localPrices')
+  await yieldToUi?.()
+
+  emitTradeSubstep(hooks, 'substep-start', 1, 'survival')
+  await yieldToUi?.()
+  clearFoodTier(state, survivalFoodDemandLb)
+  clearSaltTier(state, survivalSaltDemandLb)
+  emitTradeSubstep(hooks, 'substep-complete', 1, 'survival')
+  await yieldToUi?.()
+
+  emitTradeSubstep(hooks, 'substep-start', 2, 'comfort')
+  await yieldToUi?.()
+  clearFoodTier(state, comfortFoodDemandLb)
+  emitTradeSubstep(hooks, 'substep-complete', 2, 'comfort')
+  await yieldToUi?.()
+
+  emitTradeSubstep(hooks, 'substep-start', 3, 'prosperity')
+  await yieldToUi?.()
+  const prosperityCount = PROSPERITY_COMMODITIES.length
+  for (let index = 0; index < prosperityCount; index += 1) {
+    emitTradeSubstep(hooks, 'substep-item', 3, 'prosperity', index + 1, prosperityCount)
+    await yieldToUi?.()
+    clearProsperityCommodity(state, PROSPERITY_COMMODITIES[index])
+  }
+  emitTradeSubstep(hooks, 'substep-complete', 3, 'prosperity')
+  await yieldToUi?.()
+
+  emitTradeSubstep(hooks, 'substep-start', 4, 'offMap')
+  await yieldToUi?.()
+  clearOffMapTrade(state)
+  emitTradeSubstep(hooks, 'substep-complete', 4, 'offMap')
+  await yieldToUi?.()
+
+  return buildResult(state)
+}
+
+/**
+ * Synchronous clearing for call sites that cannot await (founding commit).
+ * Prefer {@link runTradeClearing} everywhere else.
+ *
+ * @param {Parameters<typeof runTradeClearing>[0]} [params]
  * @returns {TradeClearingResult}
  */
-export function runTradeClearing(params = {}) {
+export function runTradeClearingSync(params = {}) {
   const state = createClearingState(params)
 
   clearFoodTier(state, survivalFoodDemandLb)
@@ -101,6 +168,24 @@ export function runTradeClearing(params = {}) {
   clearOffMapTrade(state)
 
   return buildResult(state)
+}
+
+/**
+ * @param {TradeClearingHooks | undefined} hooks
+ * @param {'substep-start' | 'substep-complete' | 'substep-item'} type
+ * @param {number} substepIndex
+ * @param {string} substepId
+ * @param {number} [itemIndex]
+ * @param {number} [itemCount]
+ */
+function emitTradeSubstep(hooks, type, substepIndex, substepId, itemIndex, itemCount) {
+  hooks?.onTradeSubstep?.({
+    type,
+    substepIndex,
+    substepId,
+    ...(typeof itemIndex === 'number' ? { itemIndex } : {}),
+    ...(typeof itemCount === 'number' ? { itemCount } : {}),
+  })
 }
 
 /**

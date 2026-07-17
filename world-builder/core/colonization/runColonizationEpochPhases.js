@@ -13,12 +13,14 @@ import {
 
 /**
  * Canonical annual epoch tick: network → claims → trade → survival → ruin → collapse.
- * Network and collapse phases yield to the UI between substeps when
- * `options.network.yieldToUi` / `options.collapse.yieldToUi` are provided.
+ * Network, trade, and collapse phases yield to the UI between substeps when
+ * `options.network.yieldToUi` / `options.trade.yieldToUi` / `options.collapse.yieldToUi`
+ * are provided.
  *
  * @param {ColonizationEpochContext} ctx
  * @param {{
  *   network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions,
+ *   trade?: { hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks, yieldToUi?: () => Promise<void> },
  *   collapse?: { hooks?: import('./collapsePopulation.js').CollapsePopulationHooks, yieldToUi?: () => Promise<void> },
  * }} [options]
  * @returns {Promise<void>}
@@ -26,7 +28,7 @@ import {
 export async function runColonizationEpochPhases(ctx, options = {}) {
   await runColonizationEpochNetworkPhase(ctx, options)
   runColonizationEpochClaimsPhase(ctx)
-  runColonizationEpochTradePhase(ctx)
+  await runColonizationEpochTradePhase(ctx, options)
   runColonizationEpochSurvivalPhase(ctx, options)
   runColonizationEpochRuinPhase(ctx)
   await runColonizationEpochCollapsePhase(ctx, options)

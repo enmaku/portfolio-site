@@ -225,9 +225,6 @@ export function diffWorldDocumentMapLayers(previous, next) {
   ) {
     changedLayers.push('wealth')
   }
-  if (previous.tradeRouteState !== next.tradeRouteState) {
-    changedLayers.push('tradeRoutes')
-  }
   if (riverLayerInputsChanged(previous, next)) {
     changedLayers.push('rivers')
   }

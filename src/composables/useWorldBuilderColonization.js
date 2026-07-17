@@ -14,6 +14,7 @@ import {
   COLONIZATION_EPOCH_MAP_SUBSTEPS,
   COLONIZATION_EPOCH_PHASES,
   COLONIZATION_NETWORK_SUBSTEPS,
+  COLONIZATION_TRADE_SUBSTEPS,
 } from '../../world-builder/core/colonization/colonizationEpochSteps.js'
 import {
   needsColonizationDerivedOverlayRehydration,
@@ -38,6 +39,7 @@ import {
   enterColonizationSetup as enterColonizationSetupTransition,
 } from '../../world-builder/core/colonization/colonizationPhaseTransitions.js'
 import { snapFoundingLandingCell } from '../../world-builder/core/colonization/isValidFoundingLandingCell.js'
+import { buildSettlementTradeTooltip } from '../../world-builder/core/economy/settlementTradeTooltip.js'
 import {
   createGenerationStepStatuses,
   createHydrologySubstepStatuses,
@@ -62,6 +64,9 @@ import {
  *     setFoundingLandingMarker?: (marker: { x: number, y: number } | null) => void,
  *     setHaulShedPreviewCells?: (cells: Array<{ x: number, y: number }>) => void,
  *     onCellPick?: (handler: ((cell: { x: number, y: number }) => void) | null) => void,
+ *     onSettlementHover?: (
+ *       handler: ((payload: { settlementId: string, clientX: number, clientY: number } | null) => void) | null,
+ *     ) => void,
  *   } | null,
  *   getGeographyDocument?: () => import('../../world-builder/core/types.js').WorldDocument | null,
  *   onSliceChanged?: () => void,
@@ -98,6 +103,10 @@ export function useWorldBuilderColonization(options) {
   const beginColonizationProgress = ref(createInitialBeginColonizationProgress())
   /** @type {import('vue').Ref<import('../../world-builder/core/colonization/rehydrateColonizationProgress.js').RehydrateColonizationProgressState>} */
   const rehydrationProgress = ref(createInitialRehydrateColonizationProgress())
+  /** @type {import('vue').Ref<string | null>} */
+  const hoveredSettlementId = ref(null)
+  /** @type {import('vue').Ref<{ x: number, y: number } | null>} */
+  const hoveredSettlementScreenPosition = ref(null)
 
   const colonizationPhase = computed(() => slice.value.colonizationPhase)
   const isTerrainAuthoringEnabled = computed(
@@ -200,6 +209,7 @@ export function useWorldBuilderColonization(options) {
     }
     slice.value = backToTerrainTransition(slice.value)
     persistSlice()
+    clearSettlementHover()
     syncLandingVisuals()
     return true
   }
@@ -227,7 +237,38 @@ export function useWorldBuilderColonization(options) {
     } else {
       viewport.onCellPick?.(null)
     }
+    viewport.onSettlementHover?.((payload) => {
+      if (!payload?.settlementId) {
+        clearSettlementHover()
+        return
+      }
+      hoveredSettlementId.value = payload.settlementId
+      hoveredSettlementScreenPosition.value = {
+        x: payload.clientX,
+        y: payload.clientY,
+      }
+    })
   }
+
+  function clearSettlementHover() {
+    hoveredSettlementId.value = null
+    hoveredSettlementScreenPosition.value = null
+  }
+
+  const settlementTradeTooltip = computed(() => {
+    const id = hoveredSettlementId.value
+    if (!id) {
+      return null
+    }
+    return buildSettlementTradeTooltip(
+      {
+        settlements: slice.value.settlements,
+        lastTradeEpochResult: slice.value.lastTradeEpochResult,
+        externalTradeAccounts: slice.value.externalTradeAccounts,
+      },
+      id,
+    )
+  })
 
   /**
    * @param {number} x
@@ -536,6 +577,7 @@ export function useWorldBuilderColonization(options) {
     }
     slice.value = createDefaultColonizationSlice()
     persistSlice()
+    clearSettlementHover()
     syncLandingVisuals()
     return true
   }
@@ -598,6 +640,24 @@ export function useWorldBuilderColonization(options) {
       COLONIZATION_NETWORK_SUBSTEPS,
       epochStepProgress.value.activeNetworkSubstepIndex,
       epochStepProgress.value.completedNetworkSubstepIndex,
+      new Set(),
+      activeItemProgress,
+    )
+  })
+  const epochStepTradeSubstepStatuses = computed(() => {
+    const itemCount = epochStepProgress.value.tradeSubstepItemCount
+    const itemIndex = epochStepProgress.value.tradeSubstepItemIndex
+    const activeItemProgress =
+      itemCount > 0 && itemIndex > 0
+        ? {
+            itemIndex,
+            itemCount,
+          }
+        : null
+    return createHydrologySubstepStatuses(
+      COLONIZATION_TRADE_SUBSTEPS,
+      epochStepProgress.value.activeTradeSubstepIndex,
+      epochStepProgress.value.completedTradeSubstepIndex,
       new Set(),
       activeItemProgress,
     )
@@ -692,6 +752,7 @@ export function useWorldBuilderColonization(options) {
         phaseSteps: epochStepPhaseStatuses.value,
         finalizeSteps: epochStepFinalizeStepStatuses.value,
         networkSubsteps: epochStepNetworkSubstepStatuses.value,
+        tradeSubsteps: epochStepTradeSubstepStatuses.value,
         collapseSubsteps: epochStepCollapseSubstepStatuses.value,
         mapSubsteps: epochStepMapSubstepStatuses.value,
       })
@@ -746,6 +807,9 @@ export function useWorldBuilderColonization(options) {
     rehydrationCollapseSubstepStatuses,
     colonizationStatusSection,
     isColonistSettingsRunningPhase,
+    hoveredSettlementId,
+    hoveredSettlementScreenPosition,
+    settlementTradeTooltip,
     hydrateFromPersistedSettings,
     enterColonizationSetup,
     backToTerrain,

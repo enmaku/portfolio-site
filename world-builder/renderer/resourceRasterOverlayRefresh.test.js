@@ -121,25 +121,10 @@ function createWealthFixture() {
     gridHeight: 8,
     colonizationPhase: 'running',
     settlements: [{ id: 'a', x: 2, y: 2 }],
+    primaryClaim: { a: [{ x: 2, y: 2 }] },
     lastTradeEpochResult: {
       realmBalancesCp: { a: 500 },
       obligationDeltas: [{ toSettlementId: 'a', amountCp: 1000, kind: 'goods' }],
-    },
-  }
-}
-
-function createTradeRoutesFixture() {
-  return {
-    gridWidth: 8,
-    gridHeight: 8,
-    colonizationPhase: 'running',
-    settlements: [
-      { id: 'a', x: 1, y: 1 },
-      { id: 'b', x: 6, y: 1 },
-    ],
-    tradeRouteState: {
-      candidates: [{ id: 'a::b::road', fromSettlementId: 'a', toSettlementId: 'b', mode: 'road' }],
-      activeFlows: [],
     },
   }
 }
@@ -185,7 +170,6 @@ test('RESOURCE_RASTER_OVERLAY_LAYER_IDS lists raster overlay layers from definit
     'explorationFog',
     'routes',
     'wealth',
-    'tradeRoutes',
   ])
 })
 
@@ -282,9 +266,7 @@ test('refreshResourceRasterOverlayCanvas performs at most one RGBA build per lay
                     ? createRoutesFixture()
                     : resourceId === 'wealth'
                       ? createWealthFixture()
-                      : resourceId === 'tradeRoutes'
-                        ? createTradeRoutesFixture()
-                        : createSailFixture()
+                      : createSailFixture()
     const visibility = applyResourceOverlayVisibility(
       createDefaultResourceOverlayVisibility(),
       resourceId,

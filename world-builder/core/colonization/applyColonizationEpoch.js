@@ -71,13 +71,18 @@ export function runColonizationEpochClaimsPhase(ctx) {
  * trade is stashed on the context for the survival phase.
  *
  * @param {ColonizationEpochContext} ctx
+ * @param {{ trade?: { hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks, yieldToUi?: () => Promise<void> } }} [options]
+ * @returns {Promise<void>}
  */
-export function runColonizationEpochTradePhase(ctx) {
-  const trade = clearRealmTrade({
-    slice: ctx.slice,
-    worldDocument: ctx.worldDocument,
-    primaryClaim: ctx.primaryClaim,
-  })
+export async function runColonizationEpochTradePhase(ctx, options = {}) {
+  const trade = await clearRealmTrade(
+    {
+      slice: ctx.slice,
+      worldDocument: ctx.worldDocument,
+      primaryClaim: ctx.primaryClaim,
+    },
+    options.trade,
+  )
 
   ctx.effectiveDeliveredBySettlementId = trade.effectiveDeliveredBySettlementId
   ctx.slice = {
@@ -203,7 +208,11 @@ export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
  *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument
- * @param {{ network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions }} [options]
+ * @param {{
+ *   network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions,
+ *   trade?: { hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks, yieldToUi?: () => Promise<void> },
+ *   collapse?: { hooks?: import('./collapsePopulation.js').CollapsePopulationHooks, yieldToUi?: () => Promise<void> },
+ * }} [options]
  * @returns {Promise<{
  *   slice: import('./createDefaultColonizationSlice.js').ColonizationSlice,
  *   events: object[],

@@ -39,10 +39,15 @@ export const TRADE_ACTIVATION_MIN_SETTLEMENTS = 2
  *   worldDocument: import('../../types.js').WorldDocument,
  *   primaryClaim: Record<string, Array<{ x: number, y: number }>>,
  * }} params
- * @returns {RealmTradeResult}
+ * @param {{
+ *   hooks?: import('./runTradeClearing.js').TradeClearingHooks,
+ *   yieldToUi?: () => Promise<void>,
+ * }} [options]
+ * @returns {Promise<RealmTradeResult>}
  */
-export function clearRealmTrade(params) {
+export async function clearRealmTrade(params, options = {}) {
   const { slice, worldDocument, primaryClaim } = params
+  const { hooks, yieldToUi } = options
   const living = livingSettlements(slice.settlements)
   const gridWidth = worldDocument.gridWidth
   const gridHeight = worldDocument.gridHeight
@@ -55,7 +60,17 @@ export function clearRealmTrade(params) {
   /** @type {Array<{ id: string, population: number, maritimeRole: string }>} */
   const clearingSettlements = []
 
-  for (const settlement of living) {
+  if (living.length >= TRADE_ACTIVATION_MIN_SETTLEMENTS) {
+    hooks?.onTradeSubstep?.({
+      type: 'substep-start',
+      substepIndex: 0,
+      substepId: 'localPrices',
+    })
+    await yieldToUi?.()
+  }
+
+  for (let index = 0; index < living.length; index += 1) {
+    const settlement = living[index]
     const claimedCells = primaryClaim[settlement.id] ?? []
     const fishProductivity = sumFishProductionOnCells({
       claimedCells,
@@ -92,6 +107,17 @@ export function clearRealmTrade(params) {
       maritimeRole,
     })
     clearingSettlements.push({ id: settlement.id, population: settlement.population, maritimeRole })
+
+    if (living.length >= TRADE_ACTIVATION_MIN_SETTLEMENTS && (index + 1) % 4 === 0) {
+      hooks?.onTradeSubstep?.({
+        type: 'substep-item',
+        substepIndex: 0,
+        substepId: 'localPrices',
+        itemIndex: index + 1,
+        itemCount: living.length,
+      })
+      await yieldToUi?.()
+    }
   }
 
   if (living.length < TRADE_ACTIVATION_MIN_SETTLEMENTS) {
@@ -118,15 +144,18 @@ export function clearRealmTrade(params) {
     lakeMask: worldDocument.lakeMask,
     riverCorridorMask: worldDocument.riverCorridorMask,
   })
+  await yieldToUi?.()
 
-  const result = runTradeClearing({
-    settlements: clearingSettlements,
-    graph,
-    production,
-    offMapShippingCost: slice.colonistSettings.offMapShippingCost,
-    externalAccountsCp: slice.externalTradeAccounts,
-  })
-
+  const result = await runTradeClearing(
+    {
+      settlements: clearingSettlements,
+      graph,
+      production,
+      offMapShippingCost: slice.colonistSettings.offMapShippingCost,
+      externalAccountsCp: slice.externalTradeAccounts,
+    },
+    options,
+  )
   /** @type {Record<string, number>} */
   const externalTradeAccounts = { ...slice.externalTradeAccounts }
   for (const [id, delta] of Object.entries(result.externalAccountDeltas)) {

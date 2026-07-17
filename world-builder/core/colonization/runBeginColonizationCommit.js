@@ -7,7 +7,7 @@ import { saltSpoilageMultiplier } from './saltSpoilageMultiplier.js'
 import { scoreLogisticsNodes } from './logisticsNodes/scoreLogisticsNodes.js'
 import { classifySettlementMaritimeRole } from './expeditions/classifySettlementMaritimeRole.js'
 import { computeClaimProduction } from '../economy/founding/computeClaimProduction.js'
-import { runTradeClearing } from '../economy/tradeClearing/runTradeClearing.js'
+import { runTradeClearingSync } from '../economy/tradeClearing/runTradeClearing.js'
 import { seedSettlementHaulShedVisited } from './expeditions/foundDaughterSettlement.js'
 import {
   COLONIZATION_PHASE_RUNNING,
@@ -207,7 +207,7 @@ function resolveFoundingPortOffMapDelivery(ctx) {
     worldDocument: ctx.doc,
     yieldModifier: ctx.current.colonistSettings.yieldModifier,
   })
-  const result = runTradeClearing({
+  const result = runTradeClearingSync({
     settlements: [{ id: seedSettlement.id, population: seedSettlement.population, maritimeRole }],
     graph: { edges: [] },
     production: { [seedSettlement.id]: production },

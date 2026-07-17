@@ -1,4 +1,4 @@
-/** @typedef {'terrain' | 'contours' | 'arable' | 'timber' | 'metals' | 'sail' | 'freshwater' | 'population' | 'explorationFog' | 'routes' | 'wealth' | 'tradeRoutes' | 'rivers' | 'lakes' | 'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes'} MapLayerId */
+/** @typedef {'terrain' | 'contours' | 'arable' | 'timber' | 'metals' | 'sail' | 'freshwater' | 'population' | 'explorationFog' | 'routes' | 'wealth' | 'rivers' | 'lakes' | 'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes'} MapLayerId */
 
 /** @type {readonly MapLayerId[]} */
 export const ALL_MAP_LAYER_IDS = [
@@ -13,7 +13,6 @@ export const ALL_MAP_LAYER_IDS = [
   'explorationFog',
   'routes',
   'wealth',
-  'tradeRoutes',
   'rivers',
   'lakes',
   'coastalNodes',
