@@ -12,9 +12,6 @@ export const LAND_ROUTE_OVERLAY_RGB = [142, 144, 148]
 /** Inland sail route overlay tint (cool cyan/teal). */
 export const SAIL_ROUTE_OVERLAY_RGB = [40, 180, 190]
 
-/** Open-sea route overlay tint (deep ocean blue). */
-export const OPEN_SEA_ROUTE_OVERLAY_RGB = [20, 90, 180]
-
 /** @deprecated Use LAND_ROUTE_OVERLAY_RGB */
 export const ROAD_OVERLAY_RGB = LAND_ROUTE_OVERLAY_RGB
 
@@ -148,61 +145,10 @@ function stampRouteSegmentFill(fill, fillMode, gridWidth, gridHeight, cells, hal
 }
 
 /**
- * @param {{ x: number, y: number }} from
- * @param {{ x: number, y: number }} to
- * @param {number} sampleCount
- * @returns {Array<{ x: number, y: number }>}
- */
-export function sampleOpenSeaRouteSpline(from, to, sampleCount = 24) {
-  const midX = (from.x + to.x) / 2
-  const midY = (from.y + to.y) / 2
-  const dx = to.x - from.x
-  const dy = to.y - from.y
-  const length = Math.hypot(dx, dy) || 1
-  const normalX = -dy / length
-  const normalY = dx / length
-  const control = {
-    x: midX + normalX * length * 0.35,
-    y: midY + normalY * length * 0.35,
-  }
-
-  /** @type {Array<{ x: number, y: number }>} */
-  const samples = []
-  for (let i = 0; i <= sampleCount; i += 1) {
-    const t = i / sampleCount
-    const inv = 1 - t
-    samples.push({
-      x: Math.round(inv * inv * from.x + 2 * inv * t * control.x + t * t * to.x),
-      y: Math.round(inv * inv * from.y + 2 * inv * t * control.y + t * t * to.y),
-    })
-  }
-  return samples
-}
-
-/**
- * @param {import('../core/colonization/roads/roadNetwork.js').RoadSegment} segment
- * @param {object[]} settlements
- * @returns {Array<{ x: number, y: number }> | null}
- */
-function resolveOpenSeaSplineCells(segment, settlements) {
-  const ids = segment.settlementIds ?? []
-  if (ids.length < 2) {
-    return segment.cells?.length ? segment.cells : null
-  }
-  const from = settlements.find((entry) => entry.id === ids[0])
-  const to = settlements.find((entry) => entry.id === ids[1])
-  if (!from || !to) {
-    return segment.cells?.length ? segment.cells : null
-  }
-  return sampleOpenSeaRouteSpline(from, to)
-}
-
-/**
  * @param {string | undefined} mode
  * @returns {number}
  */
 function routeOverlayModeValue(mode) {
-  if (mode === 'open_sea') return 3
   if (mode === 'inland_sail' || mode === 'sail') return 2
   return 1
 }
@@ -225,17 +171,14 @@ export function buildRoutesOverlayRgba(worldDocument) {
 
   const cellCount = gridWidth * gridHeight
   const fill = new Uint8Array(cellCount)
-  /** @type {Uint8Array} 0 = none, 1 = land, 2 = inland sail, 3 = open sea */
+  /** @type {Uint8Array} 0 = none, 1 = land, 2 = inland sail */
   const fillMode = new Uint8Array(cellCount)
   let hasRoute = false
-  const settlements = worldDocument.settlements ?? []
 
   for (const segment of segments) {
+    if (segment.mode === 'open_sea') continue
     const modeValue = routeOverlayModeValue(segment.mode)
-    const cells =
-      segment.mode === 'open_sea'
-        ? resolveOpenSeaSplineCells(segment, settlements)
-        : segment.cells
+    const cells = segment.cells
     if (!Array.isArray(cells) || cells.length === 0) continue
     stampRouteSegmentFill(
       fill,
@@ -268,12 +211,7 @@ export function buildRoutesOverlayRgba(worldDocument) {
       continue
     }
     if (!fill[i]) continue
-    const rgb =
-      fillMode[i] === 3
-        ? OPEN_SEA_ROUTE_OVERLAY_RGB
-        : fillMode[i] === 2
-          ? SAIL_ROUTE_OVERLAY_RGB
-          : LAND_ROUTE_OVERLAY_RGB
+    const rgb = fillMode[i] === 2 ? SAIL_ROUTE_OVERLAY_RGB : LAND_ROUTE_OVERLAY_RGB
     rgba[offset] = rgb[0]
     rgba[offset + 1] = rgb[1]
     rgba[offset + 2] = rgb[2]

@@ -6,7 +6,6 @@ import {
   computeRouteOutlineMask,
   LAND_ROUTE_OVERLAY_RGB,
   ROUTE_OVERLAY_HALF_WIDTH,
-  OPEN_SEA_ROUTE_OVERLAY_RGB,
   SAIL_ROUTE_OVERLAY_RGB,
 } from './buildRoadOverlayRgba.js'
 import { WATER_BODY_OUTLINE_RGBA } from './riverCorridorOverlayRgba.js'
@@ -48,13 +47,11 @@ test('buildRoutesOverlayRgba uses distinct colors for land and sail segments', (
   assert.notStrictEqual(rgba[landBase], rgba[sailBase])
 })
 
-test('buildRoutesOverlayRgba renders open_sea segments with spline presentation color', () => {
-  const roads = appendRoadSegment(
-    [],
-    [{ x: 1, y: 1 }, { x: 6, y: 5 }],
-    ['port-a', 'port-b'],
-    'open_sea',
-  )
+test('buildRoutesOverlayRgba omits open_sea segments', () => {
+  const roads = [
+    ...appendRoadSegment([], [{ x: 1, y: 1 }, { x: 6, y: 5 }], ['port-a', 'port-b'], 'open_sea'),
+    ...appendRoadSegment([], [{ x: 7, y: 0 }], [], 'inland_sail'),
+  ]
   const rgba = buildRoutesOverlayRgba({
     gridWidth: 8,
     gridHeight: 8,
@@ -65,10 +62,36 @@ test('buildRoutesOverlayRgba renders open_sea segments with spline presentation 
     ],
   })
   assert.ok(rgba)
-  const midBase = ((3 * 8) + 3) * 4
-  assert.strictEqual(rgba[midBase], OPEN_SEA_ROUTE_OVERLAY_RGB[0])
-  assert.notStrictEqual(rgba[midBase], LAND_ROUTE_OVERLAY_RGB[0])
-  assert.notStrictEqual(rgba[midBase], SAIL_ROUTE_OVERLAY_RGB[0])
+  const openSeaFromBase = ((1 * 8) + 1) * 4
+  const openSeaMidBase = ((3 * 8) + 3) * 4
+  const openSeaToBase = ((5 * 8) + 6) * 4
+  const inlandBase = ((0 * 8) + 7) * 4
+  assert.strictEqual(rgba[openSeaFromBase + 3], 0)
+  assert.strictEqual(rgba[openSeaMidBase + 3], 0)
+  assert.strictEqual(rgba[openSeaToBase + 3], 0)
+  assert.strictEqual(rgba[inlandBase], SAIL_ROUTE_OVERLAY_RGB[0])
+  assert.ok(rgba[inlandBase + 3] > 0)
+})
+
+test('buildRoutesOverlayRgba returns null when only open_sea segments exist', () => {
+  const roads = appendRoadSegment(
+    [],
+    [{ x: 1, y: 1 }, { x: 6, y: 5 }],
+    ['port-a', 'port-b'],
+    'open_sea',
+  )
+  assert.strictEqual(
+    buildRoutesOverlayRgba({
+      gridWidth: 8,
+      gridHeight: 8,
+      roads,
+      settlements: [
+        { id: 'port-a', x: 1, y: 1 },
+        { id: 'port-b', x: 6, y: 5 },
+      ],
+    }),
+    null,
+  )
 })
 
 test('buildRoutesOverlayRgba returns null without route segments', () => {
