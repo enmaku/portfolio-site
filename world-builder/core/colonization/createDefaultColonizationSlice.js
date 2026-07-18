@@ -5,6 +5,7 @@
  * @typedef {Object} ColonistSettings
  * @property {number} threeDayHaulDistance
  * @property {number} startingPopulation
+ * @property {number} peoplePerHabitableCell Landscape packing density for the land leg of population ceiling.
  * @property {YieldModifier} yieldModifier
  * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap.
  * @property {number} inlandSailExpeditionRange Multiplier on three-day haul distance for inland sail expedition range cap.
@@ -101,6 +102,9 @@ export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 100
 /** Upper bound for author scale calibration. */
 export const MAX_THREE_DAY_HAUL_DISTANCE = 300
 export const DEFAULT_STARTING_POPULATION = 100
+export const DEFAULT_PEOPLE_PER_HABITABLE_CELL = 100
+export const MIN_PEOPLE_PER_HABITABLE_CELL = 25
+export const MAX_PEOPLE_PER_HABITABLE_CELL = 200
 export const DEFAULT_YIELD_MODIFIER = /** @type {YieldModifier} */ ('typical')
 export const DEFAULT_LAND_EXPEDITION_RANGE = 2
 export const MIN_LAND_EXPEDITION_RANGE = 1
@@ -136,6 +140,7 @@ export function createDefaultColonistSettings() {
   return {
     threeDayHaulDistance: DEFAULT_THREE_DAY_HAUL_DISTANCE,
     startingPopulation: DEFAULT_STARTING_POPULATION,
+    peoplePerHabitableCell: DEFAULT_PEOPLE_PER_HABITABLE_CELL,
     yieldModifier: DEFAULT_YIELD_MODIFIER,
     landExpeditionRange: DEFAULT_LAND_EXPEDITION_RANGE,
     inlandSailExpeditionRange: DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
@@ -261,6 +266,12 @@ export function resolveColonistSettings(value) {
     startingPopulation: positiveNumberOr(
       incoming.startingPopulation,
       defaults.startingPopulation,
+    ),
+    peoplePerHabitableCell: clampIntegerRange(
+      incoming.peoplePerHabitableCell,
+      defaults.peoplePerHabitableCell,
+      MIN_PEOPLE_PER_HABITABLE_CELL,
+      MAX_PEOPLE_PER_HABITABLE_CELL,
     ),
     yieldModifier,
     landExpeditionRange: clampIntegerRange(

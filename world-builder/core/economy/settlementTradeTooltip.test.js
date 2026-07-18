@@ -5,7 +5,7 @@ import { buildSettlementTradeTooltip } from './settlementTradeTooltip.js'
 
 function docWith(overrides = {}) {
   return {
-    settlements: [{ id: 'a', maritimeRole: 'none' }],
+    settlements: [{ id: 'a', maritimeRole: 'none', population: 100 }],
     lastTradeEpochResult: null,
     externalTradeAccounts: {},
     ...overrides,
@@ -19,10 +19,21 @@ test('returns null for an unknown settlement', () => {
 test('lists every catalog commodity in catalog order', () => {
   const tooltip = buildSettlementTradeTooltip(docWith(), 'a')
   assert.ok(tooltip)
+  assert.strictEqual(tooltip.population, 100)
   assert.deepStrictEqual(
     tooltip.commodities.map((entry) => entry.commodityId),
     [...COMMODITY_IDS],
   )
+})
+
+test('reads population from the settlement record', () => {
+  const tooltip = buildSettlementTradeTooltip(
+    docWith({
+      settlements: [{ id: 'a', population: 12345.7 }],
+    }),
+    'a',
+  )
+  assert.strictEqual(tooltip.population, 12345)
 })
 
 test('reads realm balance and roles from the last clearing result', () => {

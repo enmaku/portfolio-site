@@ -5,6 +5,7 @@ import {
   COMMODITY_ACCESSIBLE_NAMES,
   COMMODITY_ICONS,
   moneyBagIcon,
+  personIcon,
 } from './settlementTradeTooltipIcons.js'
 
 /**
@@ -99,11 +100,19 @@ export default defineComponent({
           },
         },
         [
-          accountRow({
+          iconValueRow({
+            testId: 'world-builder-settlement-trade-tooltip-population',
+            accessibleName: 'Population',
+            icon: personIcon(),
+            valueText: formatPopulation(tooltip.population),
+            valueClass: 'text-grey-5',
+          }),
+          iconValueRow({
             testId: 'world-builder-settlement-trade-tooltip-balance',
             accessibleName: 'Balance',
             icon: moneyBagIcon(),
-            valueCp: tooltip.balanceCp,
+            valueText: formatCp(tooltip.balanceCp),
+            valueClass: signedAmountClass(tooltip.balanceCp),
           }),
           h(
             'div',
@@ -124,10 +133,11 @@ export default defineComponent({
  *   testId: string,
  *   accessibleName: string,
  *   icon: ReturnType<typeof h>,
- *   valueCp: number,
+ *   valueText: string,
+ *   valueClass: string,
  * }} params
  */
-function accountRow({ testId, accessibleName, icon, valueCp }) {
+function iconValueRow({ testId, accessibleName, icon, valueText, valueClass }) {
   return h(
     'div',
     {
@@ -149,12 +159,24 @@ function accountRow({ testId, accessibleName, icon, valueCp }) {
         'span',
         {
           'data-testid': `${testId}-value`,
-          class: ['text-right', signedAmountClass(valueCp)],
+          class: ['text-right', valueClass],
         },
-        formatCp(valueCp),
+        valueText,
       ),
     ],
   )
+}
+
+/**
+ * @param {number | undefined} population
+ * @returns {string}
+ */
+function formatPopulation(population) {
+  const value =
+    typeof population === 'number' && Number.isFinite(population)
+      ? Math.max(0, Math.floor(population))
+      : 0
+  return value.toLocaleString('en-US')
 }
 
 /**

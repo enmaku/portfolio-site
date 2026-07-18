@@ -323,6 +323,30 @@ test('setColonistSetting locks off-map shipping cost after begin colonization', 
   }
 })
 
+test('setColonistSetting locks people per habitable cell after begin colonization', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, settingsStore, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.setColonistSetting('peoplePerHabitableCell', 150)
+    ctx.pickFoundingLanding(3, 3)
+
+    assert.strictEqual(await ctx.beginColonization(), true)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+
+    ctx.setColonistSetting('peoplePerHabitableCell', 50)
+
+    assert.strictEqual(ctx.colonistSettings.value.peoplePerHabitableCell, 150)
+    assert.strictEqual(
+      settingsStore.colonizationSession.colonistSettings.peoplePerHabitableCell,
+      150,
+    )
+  } finally {
+    scope.stop()
+  }
+})
+
 test('beginColonization commits founding settlement tip and locks terrain', async () => {
   const scope = effectScope(true)
   try {

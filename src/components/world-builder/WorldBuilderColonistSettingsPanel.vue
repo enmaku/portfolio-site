@@ -53,6 +53,25 @@
     />
 
     <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
+      <span class="text-caption">People per habitable cell</span>
+      <WorldBuilderSettingHelp
+        :text="PEOPLE_PER_HABITABLE_CELL_TOOLTIP"
+        label="People per habitable cell"
+      />
+    </div>
+    <q-slider
+      :model-value="displaySettings.peoplePerHabitableCell"
+      :min="minPeoplePerHabitableCell"
+      :max="maxPeoplePerHabitableCell"
+      :step="5"
+      label
+      color="primary"
+      data-testid="world-builder-colonist-people-per-habitable-cell"
+      :disable="runningPhase"
+      @update:model-value="(value) => emitSetting('peoplePerHabitableCell', value)"
+    />
+
+    <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
       <span class="text-caption">Yield modifier</span>
       <WorldBuilderSettingHelp
         :text="YIELD_MODIFIER_TOOLTIP"
@@ -155,6 +174,7 @@ import {
   LAND_EXPEDITION_RANGE_TOOLTIP,
   OFF_MAP_SHIPPING_COST_TOOLTIP,
   OPEN_SEA_EXPEDITION_RANGE_TOOLTIP,
+  PEOPLE_PER_HABITABLE_CELL_TOOLTIP,
   STARTING_POPULATION_TOOLTIP,
   THREE_DAY_HAUL_DISTANCE_TOOLTIP,
   YIELD_MODIFIER_TOOLTIP,
@@ -164,11 +184,13 @@ import {
   MAX_LAND_EXPEDITION_RANGE,
   MAX_OFF_MAP_SHIPPING_COST,
   MAX_OPEN_SEA_EXPEDITION_RANGE,
+  MAX_PEOPLE_PER_HABITABLE_CELL,
   MAX_THREE_DAY_HAUL_DISTANCE,
   MIN_INLAND_SAIL_EXPEDITION_RANGE,
   MIN_LAND_EXPEDITION_RANGE,
   MIN_OFF_MAP_SHIPPING_COST,
   MIN_OPEN_SEA_EXPEDITION_RANGE,
+  MIN_PEOPLE_PER_HABITABLE_CELL,
 } from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
 import WorldBuilderSettingHelp from './WorldBuilderSettingHelp.vue'
 
@@ -189,6 +211,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update-setting', 'reset-defaults'])
 const maxThreeDayHaulDistance = MAX_THREE_DAY_HAUL_DISTANCE
+const minPeoplePerHabitableCell = MIN_PEOPLE_PER_HABITABLE_CELL
+const maxPeoplePerHabitableCell = MAX_PEOPLE_PER_HABITABLE_CELL
 const minLandExpeditionRange = MIN_LAND_EXPEDITION_RANGE
 const maxLandExpeditionRange = MAX_LAND_EXPEDITION_RANGE
 const minInlandSailExpeditionRange = MIN_INLAND_SAIL_EXPEDITION_RANGE

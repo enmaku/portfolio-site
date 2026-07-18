@@ -6,6 +6,9 @@ export const THREE_DAY_HAUL_DISTANCE_TOOLTIP =
 export const STARTING_POPULATION_TOOLTIP =
   'Headcount of the founding wave at begin colonization. Later survival accounting may clamp this to what local food, water, and shelter can support.'
 
+export const PEOPLE_PER_HABITABLE_CELL_TOOLTIP =
+  'How many people can live on one dry claimed cell (25–200). Caps settlement size by habitable land mass even when food or imports could feed more. Locked after begin colonization.'
+
 export const YIELD_MODIFIER_TOOLTIP =
   'How generously arable land is read for food production: marginal (poor yields), typical, or bountiful (rich yields). Affects population ceiling and growth once survival ticks run.'
 

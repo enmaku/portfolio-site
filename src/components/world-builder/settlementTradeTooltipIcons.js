@@ -1,5 +1,6 @@
 import { h } from 'vue'
 import {
+  mdiAccount,
   mdiBarley,
   mdiDiamondStone,
   mdiFish,
@@ -31,6 +32,10 @@ function mdiIcon(accessibleName, pathData, fill) {
     },
     [h('path', { d: pathData, fill })],
   )
+}
+
+export function personIcon() {
+  return mdiIcon('Population', mdiAccount, '#B0BEC5')
 }
 
 export function moneyBagIcon() {

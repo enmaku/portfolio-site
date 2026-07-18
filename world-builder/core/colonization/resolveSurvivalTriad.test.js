@@ -21,6 +21,7 @@ import {
  *   freshwater: number[],
  *   yieldModifier: string,
  *   population: number,
+ *   peoplePerHabitableCell: number,
  *   saltSpoilageMultiplier: number,
  * }>} overrides
  */
@@ -35,11 +36,17 @@ function triadParams(overrides = {}) {
     gridWidth,
     arableRaster: Float32Array.from(overrides.arable ?? [1, 1, 0]),
     timberRaster: Float32Array.from(overrides.timber ?? [1, 1, 0]),
+    elevation: new Float32Array(3).fill(SEA_LEVEL + 0.1),
+    lakeMask: new Uint8Array(3),
+    riverCorridorMask: new Uint8Array(3),
+    biomes: new Uint8Array([BIOMES.GRASSLAND, BIOMES.GRASSLAND, BIOMES.GRASSLAND]),
     yieldModifier: overrides.yieldModifier ?? 'typical',
     freshwaterClassification: Uint8Array.from(
       overrides.freshwater ?? [FRESHWATER_SURFACE, FRESHWATER_NONE, FRESHWATER_NONE],
     ),
     population: overrides.population ?? 50,
+    // High default so food-ceiling tests are not accidentally land-bound.
+    peoplePerHabitableCell: overrides.peoplePerHabitableCell ?? 100_000,
     saltSpoilageMultiplier: overrides.saltSpoilageMultiplier ?? 1,
   }
 }
@@ -142,7 +149,9 @@ test('resolveSurvivalTriad sustains zero-arable ocean shore claims from fish', (
     elevation,
     lakeMask: new Uint8Array(6),
     riverCorridorMask: new Uint8Array(6),
+    biomes: new Uint8Array(6).fill(BIOMES.GRASSLAND),
     yieldModifier: 'typical',
+    peoplePerHabitableCell: 100_000,
     freshwaterClassification: Uint8Array.from([
       FRESHWATER_NONE,
       FRESHWATER_SURFACE,
@@ -176,7 +185,9 @@ test('resolveSurvivalTriad adds fish to crop food production', () => {
     elevation,
     lakeMask: new Uint8Array(3),
     riverCorridorMask: new Uint8Array(3),
+    biomes: new Uint8Array(3).fill(BIOMES.GRASSLAND),
     yieldModifier: 'typical',
+    peoplePerHabitableCell: 100_000,
     freshwaterClassification: Uint8Array.from([
       FRESHWATER_NONE,
       FRESHWATER_SURFACE,
@@ -209,7 +220,9 @@ test('resolveSurvivalTriad salt spoilage taxes total food including fish for sur
     elevation,
     lakeMask: new Uint8Array(2),
     riverCorridorMask: new Uint8Array(2),
+    biomes: new Uint8Array(2).fill(BIOMES.GRASSLAND),
     yieldModifier: 'typical',
+    peoplePerHabitableCell: 100_000,
     freshwaterClassification: Uint8Array.from([FRESHWATER_NONE, FRESHWATER_SURFACE]),
     population: 10,
   }
@@ -217,6 +230,42 @@ test('resolveSurvivalTriad salt spoilage taxes total food including fish for sur
   const weakSalt = resolveSurvivalTriad({ ...base, saltSpoilageMultiplier: 0.35 })
   assert.strictEqual(fullSalt.populationCeiling, weakSalt.populationCeiling)
   assert.ok(weakSalt.foodSurplus < fullSalt.foodSurplus)
+})
+
+test('resolveSurvivalTriad land ceiling binds below food on tiny claims', () => {
+  const result = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [50, 0, 0],
+      timber: [1, 0, 0],
+      peoplePerHabitableCell: 100,
+      population: 10_000,
+    }),
+  )
+  assert.strictEqual(result.foodProduction, 50)
+  assert.ok(50 * PEOPLE_PER_ARABLE_UNIT > 100)
+  assert.strictEqual(result.populationCeiling, 100)
+  assert.strictEqual(result.population, 100)
+})
+
+test('resolveSurvivalTriad food ceiling still binds when land is ample', () => {
+  const ampleLand = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 2, y: 0 },
+      ],
+      arable: [1, 0, 0],
+      timber: [1, 0, 0],
+      freshwater: [FRESHWATER_SURFACE, FRESHWATER_NONE, FRESHWATER_NONE],
+      peoplePerHabitableCell: 100,
+      population: 10_000,
+    }),
+  )
+  // Three habitable cells × 100 = 300; food = 1 × 100 = 100 → food binds.
+  assert.strictEqual(ampleLand.foodProduction, 1)
+  assert.strictEqual(ampleLand.populationCeiling, PEOPLE_PER_ARABLE_UNIT)
 })
 
 test('applySurvivalResolveToSettlement uses document rasters and freshwater derive', () => {
@@ -243,7 +292,7 @@ test('applySurvivalResolveToSettlement uses document rasters and freshwater deri
       { x: 0, y: 0 },
       { x: 1, y: 0 },
     ],
-    colonistSettings: { yieldModifier: 'typical' },
+    colonistSettings: { yieldModifier: 'typical', peoplePerHabitableCell: 100 },
     worldDocument,
   })
 

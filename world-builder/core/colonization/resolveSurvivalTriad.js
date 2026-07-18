@@ -1,5 +1,7 @@
 import { SEA_LEVEL } from '../biomeIds.js'
 import { FOOD_LB_PER_PERSON, SALT_LB_PER_PERSON } from '../economy/tradeClearing/allocationTiers.js'
+import { DEFAULT_PEOPLE_PER_HABITABLE_CELL } from './createDefaultColonizationSlice.js'
+import { isHabitablePopulationCell } from './collapsePopulation.js'
 import {
   claimedCellsHaveFreshwater,
   deriveFreshwaterAvailabilityFromDocument,
@@ -61,6 +63,53 @@ export function sumRasterOnCells(raster, cells, gridWidth) {
 }
 
 /**
+ * Count dry claimed cells that can host people (same filters as population collapse).
+ *
+ * @param {{
+ *   claimedCells: ReadonlyArray<{ x: number, y: number }>,
+ *   gridWidth: number,
+ *   elevation?: Float32Array | null,
+ *   lakeMask?: Uint8Array | null,
+ *   riverCorridorMask?: Uint8Array | null,
+ *   simulationRiverMask?: Uint8Array | null,
+ *   biomes?: Uint8Array | null,
+ *   seaLevel?: number,
+ * }} params
+ * @returns {number}
+ */
+export function countHabitableClaimCells(params) {
+  const {
+    claimedCells,
+    gridWidth,
+    elevation,
+    lakeMask,
+    riverCorridorMask,
+    simulationRiverMask,
+    biomes,
+    seaLevel = SEA_LEVEL,
+  } = params
+  let count = 0
+  for (const cell of claimedCells) {
+    if (
+      isHabitablePopulationCell({
+        x: cell.x,
+        y: cell.y,
+        gridWidth,
+        elevation,
+        lakeMask,
+        riverCorridorMask,
+        simulationRiverMask,
+        biomes,
+        seaLevel,
+      })
+    ) {
+      count += 1
+    }
+  }
+  return count
+}
+
+/**
  * @param {{
  *   claimedCells: ReadonlyArray<{ x: number, y: number }>,
  *   gridWidth: number,
@@ -70,10 +119,13 @@ export function sumRasterOnCells(raster, cells, gridWidth) {
  *   elevation?: Float32Array | null,
  *   lakeMask?: Uint8Array | null,
  *   riverCorridorMask?: Uint8Array | null,
+ *   simulationRiverMask?: Uint8Array | null,
+ *   biomes?: Uint8Array | null,
  *   seaLevel?: number,
  *   yieldModifier: string,
  *   freshwaterClassification: Uint8Array | null,
  *   population: number,
+ *   peoplePerHabitableCell?: number,
  *   saltSpoilageMultiplier?: number,
  *   deliveredFoodLb?: number,
  *   deliveredSaltLb?: number,
@@ -90,10 +142,13 @@ export function resolveSurvivalTriad(params) {
     elevation,
     lakeMask,
     riverCorridorMask,
+    simulationRiverMask,
+    biomes,
     seaLevel = SEA_LEVEL,
     yieldModifier,
     freshwaterClassification,
     population,
+    peoplePerHabitableCell = DEFAULT_PEOPLE_PER_HABITABLE_CELL,
     saltSpoilageMultiplier = 1,
     deliveredFoodLb,
     deliveredSaltLb = 0,
@@ -135,7 +190,24 @@ export function resolveSurvivalTriad(params) {
     ? effectiveFoodCapacityUngated
     : foodProduction * PEOPLE_PER_ARABLE_UNIT
 
-  let populationCeiling = Math.floor(ceilingFoodCapacity)
+  const density =
+    Number.isFinite(peoplePerHabitableCell) && peoplePerHabitableCell > 0
+      ? Math.floor(peoplePerHabitableCell)
+      : DEFAULT_PEOPLE_PER_HABITABLE_CELL
+  const habitableCount = countHabitableClaimCells({
+    claimedCells,
+    gridWidth,
+    elevation,
+    lakeMask,
+    riverCorridorMask,
+    simulationRiverMask,
+    biomes,
+    seaLevel,
+  })
+  const landCeiling = habitableCount * density
+  const foodCeiling = Math.floor(ceilingFoodCapacity)
+
+  let populationCeiling = Math.min(foodCeiling, landCeiling)
   if (!hasFreshwater) {
     populationCeiling = 0
   }
@@ -188,7 +260,7 @@ export function postTradeEffectiveFoodCapacity(deliveredFoodLb, deliveredSaltLb,
  * @param {{
  *   settlement: { id: string, x: number, y: number, population: number, status?: string },
  *   claimedCells: ReadonlyArray<{ x: number, y: number }>,
- *   colonistSettings: { yieldModifier: string },
+ *   colonistSettings: { yieldModifier: string, peoplePerHabitableCell?: number },
  *   worldDocument: import('../types.js').WorldDocument,
  *   saltSpoilageMultiplier?: number,
  *   deliveredFoodLb?: number,
@@ -216,7 +288,10 @@ export function applySurvivalResolveToSettlement(params) {
     elevation: worldDocument.fields?.elevation,
     lakeMask: worldDocument.lakeMask,
     riverCorridorMask: worldDocument.riverCorridorMask,
+    simulationRiverMask: worldDocument.simulationRiverMask,
+    biomes: worldDocument.biomes,
     yieldModifier: colonistSettings.yieldModifier,
+    peoplePerHabitableCell: colonistSettings.peoplePerHabitableCell,
     freshwaterClassification,
     population: settlement.population,
     saltSpoilageMultiplier,

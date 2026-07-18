@@ -18,7 +18,7 @@ test('settlement trade tooltip host is absent when tooltip model is null', async
 test('settlement trade tooltip host is present when tooltip model is set', async () => {
   const tooltip = buildSettlementTradeTooltip(
     {
-      settlements: [{ id: 's1', maritimeRole: 'port' }],
+      settlements: [{ id: 's1', maritimeRole: 'port', population: 2500 }],
       lastTradeEpochResult: {
         realmBalancesCp: { s1: 42 },
         settlementCommodityRoles: { s1: { grain: 'export', fish: 'import', salt: 'both' } },
@@ -38,6 +38,14 @@ test('settlement trade tooltip host is present when tooltip model is set', async
   )
 
   assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip"'), true)
+  assert.equal(
+    html.includes('data-testid="world-builder-settlement-trade-tooltip-population"'),
+    true,
+  )
+  assert.equal(
+    html.includes('data-testid="world-builder-settlement-trade-tooltip-population-value"'),
+    true,
+  )
   assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-balance"'), true)
   assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-balance-label"'), true)
   assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-balance-value"'), true)

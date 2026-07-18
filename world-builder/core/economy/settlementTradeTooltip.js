@@ -31,6 +31,7 @@ import { COMMODITY_IDS, referencePriceCp } from './commodityCatalog.js'
 /**
  * @typedef {Object} SettlementTradeTooltip
  * @property {string} settlementId
+ * @property {number} population Living headcount at this settlement.
  * @property {number} balanceCp Combined realm mutual-credit balance plus any external
  *   trade-account credit for display. Simulation ledgers stay separate.
  * @property {SettlementTradeTooltipCommodity[]} commodities Every catalog commodity, in catalog order.
@@ -68,7 +69,7 @@ export function comparePriceToReference(localPriceCp, referenceCp) {
 
 /**
  * @param {{
- *   settlements?: Array<{ id: string }>,
+ *   settlements?: Array<{ id: string, population?: number }>,
  *   lastTradeEpochResult?: TradeClearingResult | null,
  *   externalTradeAccounts?: Record<string, number>,
  * }} worldDocument
@@ -107,9 +108,15 @@ export function buildSettlementTradeTooltip(worldDocument, settlementId) {
   const externalRaw = worldDocument.externalTradeAccounts?.[settlementId]
   const externalCreditCp =
     typeof externalRaw === 'number' && Number.isFinite(externalRaw) ? externalRaw : 0
+  const populationRaw = settlement.population
+  const population =
+    typeof populationRaw === 'number' && Number.isFinite(populationRaw)
+      ? Math.max(0, Math.floor(populationRaw))
+      : 0
 
   return {
     settlementId,
+    population,
     balanceCp: realmBalanceCp + externalCreditCp,
     commodities,
   }

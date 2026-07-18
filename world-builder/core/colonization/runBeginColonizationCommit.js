@@ -103,6 +103,7 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
         colonistSettings: {
           threeDayHaulDistance: ctx.current.colonistSettings.threeDayHaulDistance,
           startingPopulation: ctx.current.colonistSettings.startingPopulation,
+          peoplePerHabitableCell: ctx.current.colonistSettings.peoplePerHabitableCell,
           yieldModifier: ctx.current.colonistSettings.yieldModifier,
           landExpeditionRange: ctx.current.colonistSettings.landExpeditionRange,
           inlandSailExpeditionRange: ctx.current.colonistSettings.inlandSailExpeditionRange,
