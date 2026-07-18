@@ -16,7 +16,7 @@ const URBAN_NEIGHBOR_WEIGHT = 1
 const HINTERLAND_DECAY_CELLS = 8
 
 /** Yield to UI after this many hinterland people placed (async path only). */
-export const COLLAPSE_HINTERLAND_YIELD_INTERVAL = 512
+export const COLLAPSE_HINTERLAND_YIELD_INTERVAL = 10000
 
 /**
  * @typedef {Object} CollapsePopulationParams
@@ -45,8 +45,17 @@ export const COLLAPSE_HINTERLAND_YIELD_INTERVAL = 512
  */
 
 /**
+ * @typedef {Object} CollapseSubstepPayload
+ * @property {'substep-start' | 'substep-complete' | 'item-progress'} type
+ * @property {number} substepIndex
+ * @property {string} substepId
+ * @property {number} [itemIndex]
+ * @property {number} [itemCount]
+ */
+
+/**
  * @typedef {Object} CollapsePopulationHooks
- * @property {(payload: { substepIndex: number, substepId: string, type: 'substep-start' | 'substep-complete' }) => void} [onCollapseSubstep]
+ * @property {(payload: CollapseSubstepPayload) => void} [onCollapseSubstep]
  */
 
 /**
@@ -342,12 +351,27 @@ function applyHinterlandCollapseForSettlement(work, raster, gridWidth) {
 
 /**
  * @param {CollapsePopulationHooks | undefined} hooks
- * @param {'substep-start' | 'substep-complete'} type
+ * @param {CollapseSubstepPayload} payload
+ */
+function emitCollapseSubstep(hooks, payload) {
+  hooks?.onCollapseSubstep?.(payload)
+}
+
+/**
+ * @param {CollapsePopulationHooks | undefined} hooks
  * @param {number} substepIndex
  * @param {string} substepId
+ * @param {number} itemIndex
+ * @param {number} itemCount
  */
-function emitCollapseSubstep(hooks, type, substepIndex, substepId) {
-  hooks?.onCollapseSubstep?.({ type, substepIndex, substepId })
+function emitCollapseItemProgress(hooks, substepIndex, substepId, itemIndex, itemCount) {
+  emitCollapseSubstep(hooks, {
+    type: 'item-progress',
+    substepIndex,
+    substepId,
+    itemIndex,
+    itemCount,
+  })
 }
 
 /**
@@ -365,20 +389,110 @@ function applyUrbanCollapseForAllSettlements(params, workItems, raster) {
 }
 
 /**
+ * @param {Array<SettlementCollapseWork | null>} workItems
+ * @returns {number}
+ */
+function countPreparedSettlements(workItems) {
+  let count = 0
+  for (const work of workItems) {
+    if (work) count += 1
+  }
+  return count
+}
+
+/**
+ * @param {Array<SettlementCollapseWork | null>} workItems
+ * @returns {number}
+ */
+function totalHinterlandPopulation(workItems) {
+  let total = 0
+  for (const work of workItems) {
+    if (work) total += work.hinterlandPopulation
+  }
+  return total
+}
+
+/**
+ * @param {CollapsePopulationParams} params
+ * @param {CollapsePopulationHooks | undefined} hooks
+ * @param {() => Promise<void>} [yieldToUi]
+ * @returns {Promise<Array<SettlementCollapseWork | null>>}
+ */
+async function prepareAllSettlementsAsync(params, hooks, yieldToUi) {
+  const { settlements } = params
+  const itemCount = settlements.length
+  /** @type {Array<SettlementCollapseWork | null>} */
+  const workItems = new Array(settlements.length)
+
+  emitCollapseSubstep(hooks, { type: 'substep-start', substepIndex: 0, substepId: 'prepare' })
+  emitCollapseItemProgress(hooks, 0, 'prepare', 0, itemCount)
+  await yieldToUi?.()
+
+  for (let i = 0; i < settlements.length; i += 1) {
+    workItems[i] = prepareSettlementCollapseWork(params, settlements[i])
+    emitCollapseItemProgress(hooks, 0, 'prepare', i + 1, itemCount)
+    await yieldToUi?.()
+  }
+
+  emitCollapseSubstep(hooks, { type: 'substep-complete', substepIndex: 0, substepId: 'prepare' })
+  await yieldToUi?.()
+  return workItems
+}
+
+/**
  * @param {CollapsePopulationParams} params
  * @param {Array<SettlementCollapseWork | null>} workItems
  * @param {Float32Array} raster
+ * @param {CollapsePopulationHooks | undefined} hooks
+ * @param {() => Promise<void>} [yieldToUi]
+ */
+async function applyUrbanCollapseAsync(params, workItems, raster, hooks, yieldToUi) {
+  const itemCount = countPreparedSettlements(workItems)
+  let completed = 0
+
+  emitCollapseSubstep(hooks, { type: 'substep-start', substepIndex: 1, substepId: 'urban' })
+  emitCollapseItemProgress(hooks, 1, 'urban', 0, itemCount)
+  await yieldToUi?.()
+
+  for (let i = 0; i < params.settlements.length; i += 1) {
+    const work = workItems[i]
+    if (!work) {
+      continue
+    }
+    applyUrbanCollapseForSettlement(work, raster, params.gridWidth)
+    completed += 1
+    emitCollapseItemProgress(hooks, 1, 'urban', completed, itemCount)
+    await yieldToUi?.()
+  }
+
+  emitCollapseSubstep(hooks, { type: 'substep-complete', substepIndex: 1, substepId: 'urban' })
+  await yieldToUi?.()
+}
+
+/**
+ * @param {CollapsePopulationParams} params
+ * @param {Array<SettlementCollapseWork | null>} workItems
+ * @param {Float32Array} raster
+ * @param {CollapsePopulationHooks | undefined} hooks
  * @param {() => Promise<void>} [yieldToUi]
  * @param {number} [yieldInterval]
  */
-async function applyHinterlandCollapseForAllSettlements(
+async function applyHinterlandCollapseAsync(
   params,
   workItems,
   raster,
+  hooks,
   yieldToUi,
   yieldInterval = COLLAPSE_HINTERLAND_YIELD_INTERVAL,
 ) {
+  const itemCount = totalHinterlandPopulation(workItems)
+  let placed = 0
   let placedSinceYield = 0
+
+  emitCollapseSubstep(hooks, { type: 'substep-start', substepIndex: 2, substepId: 'hinterland' })
+  emitCollapseItemProgress(hooks, 2, 'hinterland', 0, itemCount)
+  await yieldToUi?.()
+
   for (let i = 0; i < params.settlements.length; i += 1) {
     const work = workItems[i]
     if (!work || work.hinterlandPopulation <= 0) {
@@ -387,6 +501,8 @@ async function applyHinterlandCollapseForAllSettlements(
     const { hinterlandPopulation, urbanWeighted, hinterlandWeighted, random } = work
     if (hinterlandWeighted.length === 0) {
       distributeIntegerByWeight(hinterlandPopulation, urbanWeighted, raster, params.gridWidth)
+      placed += hinterlandPopulation
+      emitCollapseItemProgress(hooks, 2, 'hinterland', placed, itemCount)
       await yieldToUi?.()
       continue
     }
@@ -396,22 +512,31 @@ async function applyHinterlandCollapseForAllSettlements(
     for (let personIndex = 0; personIndex < hinterlandPopulation; personIndex += 1) {
       const chosen = sampleWeightedCell(hinterlandWeighted, random)
       if (!chosen) {
-        distributeIntegerByWeight(
-          hinterlandPopulation - personIndex,
-          urbanWeighted,
-          raster,
-          params.gridWidth,
-        )
+        const remaining = hinterlandPopulation - personIndex
+        distributeIntegerByWeight(remaining, urbanWeighted, raster, params.gridWidth)
+        placed += remaining
+        emitCollapseItemProgress(hooks, 2, 'hinterland', placed, itemCount)
+        await yieldToUi?.()
         break
       }
       addPeople(raster, cellIndex(chosen, params.gridWidth), 1)
+      placed += 1
       placedSinceYield += 1
       if (placedSinceYield >= yieldInterval) {
         placedSinceYield = 0
+        emitCollapseItemProgress(hooks, 2, 'hinterland', placed, itemCount)
         await yieldToUi?.()
       }
     }
+    if (placedSinceYield > 0) {
+      placedSinceYield = 0
+      emitCollapseItemProgress(hooks, 2, 'hinterland', placed, itemCount)
+      await yieldToUi?.()
+    }
   }
+
+  emitCollapseSubstep(hooks, { type: 'substep-complete', substepIndex: 2, substepId: 'hinterland' })
+  await yieldToUi?.()
 }
 
 /**
@@ -439,22 +564,11 @@ async function applyHinterlandCollapseForAllSettlements(
  */
 export async function collapsePopulation(params, options = {}) {
   const { hooks, yieldToUi } = options
-  const { settlements, gridWidth, gridHeight } = params
+  const { gridWidth, gridHeight } = params
   const raster = new Float32Array(gridWidth * gridHeight)
-  const workItems = settlements.map((settlement) => prepareSettlementCollapseWork(params, settlement))
-
-  emitCollapseSubstep(hooks, 'substep-start', 0, 'urban')
-  await yieldToUi?.()
-  applyUrbanCollapseForAllSettlements(params, workItems, raster)
-  emitCollapseSubstep(hooks, 'substep-complete', 0, 'urban')
-  await yieldToUi?.()
-
-  emitCollapseSubstep(hooks, 'substep-start', 1, 'hinterland')
-  await yieldToUi?.()
-  await applyHinterlandCollapseForAllSettlements(params, workItems, raster, yieldToUi)
-  emitCollapseSubstep(hooks, 'substep-complete', 1, 'hinterland')
-  await yieldToUi?.()
-
+  const workItems = await prepareAllSettlementsAsync(params, hooks, yieldToUi)
+  await applyUrbanCollapseAsync(params, workItems, raster, hooks, yieldToUi)
+  await applyHinterlandCollapseAsync(params, workItems, raster, hooks, yieldToUi)
   return raster
 }
 

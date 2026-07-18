@@ -5,6 +5,7 @@ import {
   epochStepProgressValue,
   epochStepUnitCount,
   epochStepUnitIndex,
+  reduceEpochStepProgressOnCollapseSubstepItemProgress,
   reduceEpochStepProgressOnCollapseSubstepStart,
   reduceEpochStepProgressOnEpochStart,
   reduceEpochStepProgressOnFinalizeStepStart,
@@ -35,6 +36,8 @@ test('createInitialEpochStepProgress starts idle before any epoch phase', () => 
     networkSubstepPhasePercent: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    collapseSubstepItemIndex: -1,
+    collapseSubstepItemCount: 0,
     activeTradeSubstepIndex: -1,
     completedTradeSubstepIndex: -1,
     tradeSubstepItemIndex: -1,
@@ -182,9 +185,33 @@ test('reduceEpochStepProgressOnCollapseSubstepStart appends collapse substep lab
       phaseId: 'collapse',
     },
   )
-  const next = reduceEpochStepProgressOnCollapseSubstepStart(progress, { substepIndex: 1 })
-  assert.strictEqual(next.activeCollapseSubstepIndex, 1)
+  const next = reduceEpochStepProgressOnCollapseSubstepStart(progress, { substepIndex: 2 })
+  assert.strictEqual(next.activeCollapseSubstepIndex, 2)
   assert.strictEqual(next.label, 'Epoch 1 · Collapse · Hinterland')
+})
+
+test('reduceEpochStepProgressOnCollapseSubstepItemProgress appends item counter', () => {
+  const progress = reduceEpochStepProgressOnCollapseSubstepStart(
+    reduceEpochStepProgressOnPhaseStart(
+      reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(), {
+        simulationEpoch: 0,
+      }),
+      {
+        simulationEpoch: 0,
+        phaseIndex: 5,
+        phaseId: 'collapse',
+      },
+    ),
+    { substepIndex: 2 },
+  )
+  const next = reduceEpochStepProgressOnCollapseSubstepItemProgress(progress, {
+    substepIndex: 2,
+    itemIndex: 128,
+    itemCount: 400,
+  })
+  assert.strictEqual(next.collapseSubstepItemIndex, 128)
+  assert.strictEqual(next.collapseSubstepItemCount, 400)
+  assert.strictEqual(next.label, 'Epoch 1 · Collapse · Hinterland 128/400')
 })
 
 test('reduceEpochStepProgressOnTradeSubstepStart appends trade substep label', () => {

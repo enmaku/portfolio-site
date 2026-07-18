@@ -39,6 +39,7 @@ import {
  * @property {object} [foundingDynasty]
  * @property {object} [logisticsNodeSurvey]
  * @property {Uint8Array} [visitedCells]
+ * @property {() => Promise<void>} [yieldToUi]
  * @property {import('./createDefaultColonizationSlice.js').ColonizationSlice} [result]
  */
 
@@ -169,6 +170,7 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
             ctx.foundingExternalTradeAccounts ?? ctx.current.externalTradeAccounts,
         },
         ctx.doc,
+        { yieldToUi: ctx.yieldToUi },
       )
       ctx.result = slice
     },
@@ -233,6 +235,7 @@ function resolveFoundingPortOffMapDelivery(ctx) {
  * @param {{
  *   onStepStart?: (stepIndex: number) => void | Promise<void>,
  *   onStepComplete?: (stepIndex: number) => void | Promise<void>,
+ *   yieldToUi?: () => Promise<void>,
  * }} [hooks]
  * @returns {Promise<import('./createDefaultColonizationSlice.js').ColonizationSlice>}
  */
@@ -243,7 +246,7 @@ export async function executeBeginColonizationCommitSteps(current, doc, hooks = 
   }
 
   /** @type {BeginCommitContext} */
-  const ctx = { current, doc, landing }
+  const ctx = { current, doc, landing, yieldToUi: hooks.yieldToUi }
 
   for (let stepIndex = 0; stepIndex < BEGIN_COMMIT_PIPELINE.length; stepIndex += 1) {
     const step = BEGIN_COMMIT_PIPELINE[stepIndex]
@@ -288,6 +291,7 @@ export async function runBeginColonizationCommit(slice, doc, options = {}) {
   await yieldToUi()
 
   const next = await executeBeginColonizationCommitSteps(cloneColonizationSlice(slice), doc, {
+    yieldToUi,
     async onStepStart(stepIndex) {
       const step = COLONIZATION_BEGIN_STEPS[stepIndex]
       progress = reduceBeginColonizationProgressOnStepStart(progress, {

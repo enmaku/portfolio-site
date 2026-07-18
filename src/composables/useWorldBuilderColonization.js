@@ -662,13 +662,24 @@ export function useWorldBuilderColonization(options) {
       activeItemProgress,
     )
   })
-  const epochStepCollapseSubstepStatuses = computed(() =>
-    createHydrologySubstepStatuses(
+  const epochStepCollapseSubstepStatuses = computed(() => {
+    const itemCount = epochStepProgress.value.collapseSubstepItemCount
+    const itemIndex = epochStepProgress.value.collapseSubstepItemIndex
+    const activeItemProgress =
+      itemCount > 0 && itemIndex > 0
+        ? {
+            itemIndex,
+            itemCount,
+          }
+        : null
+    return createHydrologySubstepStatuses(
       COLONIZATION_COLLAPSE_SUBSTEPS,
       epochStepProgress.value.activeCollapseSubstepIndex,
       epochStepProgress.value.completedCollapseSubstepIndex,
-    ),
-  )
+      new Set(),
+      activeItemProgress,
+    )
+  })
   const epochStepFinalizeStepStatuses = computed(() =>
     createGenerationStepStatuses(
       COLONIZATION_EPOCH_FINALIZE_STEPS,
@@ -726,13 +737,24 @@ export function useWorldBuilderColonization(options) {
       activeItemProgress,
     )
   })
-  const rehydrationCollapseSubstepStatuses = computed(() =>
-    createHydrologySubstepStatuses(
+  const rehydrationCollapseSubstepStatuses = computed(() => {
+    const itemCount = rehydrationProgress.value.collapseSubstepItemCount
+    const itemIndex = rehydrationProgress.value.collapseSubstepItemIndex
+    const activeItemProgress =
+      itemCount > 0 && itemIndex > 0
+        ? {
+            itemIndex,
+            itemCount,
+          }
+        : null
+    return createHydrologySubstepStatuses(
       COLONIZATION_COLLAPSE_SUBSTEPS,
       rehydrationProgress.value.activeCollapseSubstepIndex,
       rehydrationProgress.value.completedCollapseSubstepIndex,
-    ),
-  )
+      new Set(),
+      activeItemProgress,
+    )
+  })
 
   /**
    * Colonization-owned status-bar section (begin > epoch > rehydration), or null when idle.

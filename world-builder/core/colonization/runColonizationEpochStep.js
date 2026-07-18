@@ -13,6 +13,7 @@ import {
   reduceEpochStepProgressOnEpochComplete,
   reduceEpochStepProgressOnEpochStart,
   reduceEpochStepProgressOnCollapseSubstepComplete,
+  reduceEpochStepProgressOnCollapseSubstepItemProgress,
   reduceEpochStepProgressOnCollapseSubstepStart,
   reduceEpochStepProgressOnNetworkSubstepComplete,
   reduceEpochStepProgressOnNetworkSubstepItemProgress,
@@ -152,6 +153,12 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
               if (payload.type === 'substep-start') {
                 progress = reduceEpochStepProgressOnCollapseSubstepStart(progress, {
                   substepIndex: payload.substepIndex,
+                })
+              } else if (payload.type === 'item-progress') {
+                progress = reduceEpochStepProgressOnCollapseSubstepItemProgress(progress, {
+                  substepIndex: payload.substepIndex,
+                  itemIndex: payload.itemIndex ?? 0,
+                  itemCount: payload.itemCount ?? 0,
                 })
               } else {
                 progress = reduceEpochStepProgressOnCollapseSubstepComplete(progress, {

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   createInitialRehydrateColonizationProgress,
+  reduceRehydrateColonizationProgressOnCollapseSubstepItemProgress,
   reduceRehydrateColonizationProgressOnCollapseSubstepStart,
   reduceRehydrateColonizationProgressOnRunComplete,
   reduceRehydrateColonizationProgressOnSessionSubstepComplete,
@@ -67,10 +68,28 @@ test('reduceRehydrateColonizationProgressOnCollapseSubstepStart updates collapse
     },
   )
   const next = reduceRehydrateColonizationProgressOnCollapseSubstepStart(started, {
-    substepIndex: 1,
+    substepIndex: 2,
   })
-  assert.strictEqual(next.activeCollapseSubstepIndex, 1)
+  assert.strictEqual(next.activeCollapseSubstepIndex, 2)
   assert.match(next.label, /Hinterland/)
+})
+
+test('reduceRehydrateColonizationProgressOnCollapseSubstepItemProgress tracks item progress', () => {
+  const started = reduceRehydrateColonizationProgressOnCollapseSubstepStart(
+    reduceRehydrateColonizationProgressOnStepStart(createInitialRehydrateColonizationProgress(), {
+      stepIndex: 3,
+      label: 'Collapse',
+    }),
+    { substepIndex: 0 },
+  )
+  const next = reduceRehydrateColonizationProgressOnCollapseSubstepItemProgress(started, {
+    substepIndex: 0,
+    itemIndex: 2,
+    itemCount: 5,
+  })
+  assert.strictEqual(next.collapseSubstepItemIndex, 2)
+  assert.strictEqual(next.collapseSubstepItemCount, 5)
+  assert.match(next.label, /Prepare 2\/5/)
 })
 
 test('reduceRehydrateColonizationProgressOnVisitedSubstepStart sets active visited substep', () => {
