@@ -4,6 +4,7 @@
  */
 
 import { yieldModifierMultiplier } from '../colonization/resolveSurvivalTriad.js'
+import { prosperityDemandUnits } from './tradeClearing/allocationTiers.js'
 
 /** Food productivity unit → edible lb per epoch (100 people × 365 lb). */
 export const FOOD_LB_PER_PRODUCTIVITY_UNIT = 36500
@@ -13,10 +14,34 @@ export const SALT_LB_PER_SCORE = 10000
 export const TIMBER_LB_PER_PRODUCTIVITY_UNIT = 16000
 /** Metals potential unit → base metals lb per epoch. */
 export const BASE_METALS_LB_PER_PRODUCTIVITY_UNIT = 800
-/** Typed Cu/Ag/Au claimed deposit → lb per epoch. */
-export const PRECIOUS_METAL_LB_PER_EXTRACTION = 1
-/** Typed diamond claimed deposit → gems (0.1 lb cargo each) per epoch. */
-export const DIAMOND_GEMS_PER_EXTRACTION = 1
+/**
+ * One claimed mineral deposit supplies about this many people of prosperity demand
+ * for its commodity each epoch (same order as a working mine town, not 1 lb).
+ */
+export const MINERAL_DEPOSIT_PROSPERITY_POPULATION = 1000
+/** Typed copper claimed deposit → lb per epoch. */
+export const COPPER_LB_PER_EXTRACTION = prosperityDemandUnits(
+  'copper',
+  MINERAL_DEPOSIT_PROSPERITY_POPULATION,
+)
+/** Typed silver claimed deposit → lb per epoch. */
+export const SILVER_LB_PER_EXTRACTION = prosperityDemandUnits(
+  'silver',
+  MINERAL_DEPOSIT_PROSPERITY_POPULATION,
+)
+/** Typed gold claimed deposit → lb per epoch. */
+export const GOLD_LB_PER_EXTRACTION = prosperityDemandUnits(
+  'gold',
+  MINERAL_DEPOSIT_PROSPERITY_POPULATION,
+)
+/**
+ * Typed diamond claimed deposit → whole gems per epoch (floor of at least one gem;
+ * matches integer gem flows while staying near prosperity demand for the reference pop).
+ */
+export const DIAMOND_GEMS_PER_EXTRACTION = Math.max(
+  1,
+  Math.round(prosperityDemandUnits('diamonds', MINERAL_DEPOSIT_PROSPERITY_POPULATION)),
+)
 /** Salt lb consumed per lb of fish exported (curing at origin). */
 export const FISH_CURING_SALT_PER_FISH_LB = 3
 
@@ -50,9 +75,9 @@ export function emptyCommodityAmounts() {
 
 /** Map a typed mineral deposit kind to its extracted commodity and per-epoch amount. */
 const MINERAL_EXTRACTION_BY_KIND = Object.freeze({
-  copper: Object.freeze({ commodity: 'copper', amount: PRECIOUS_METAL_LB_PER_EXTRACTION }),
-  silver: Object.freeze({ commodity: 'silver', amount: PRECIOUS_METAL_LB_PER_EXTRACTION }),
-  gold: Object.freeze({ commodity: 'gold', amount: PRECIOUS_METAL_LB_PER_EXTRACTION }),
+  copper: Object.freeze({ commodity: 'copper', amount: COPPER_LB_PER_EXTRACTION }),
+  silver: Object.freeze({ commodity: 'silver', amount: SILVER_LB_PER_EXTRACTION }),
+  gold: Object.freeze({ commodity: 'gold', amount: GOLD_LB_PER_EXTRACTION }),
   diamond: Object.freeze({ commodity: 'diamonds', amount: DIAMOND_GEMS_PER_EXTRACTION }),
 })
 
@@ -65,8 +90,9 @@ export function mineralDepositExtraction(kind) {
 }
 
 /**
- * Sum one extraction unit per claimed deposit per epoch; unclaimed deposits
- * yield nothing. Copper/silver/gold contribute 1 lb each; diamonds 1 gem.
+ * Sum one claimed deposit's annual haul per epoch; unclaimed deposits yield nothing.
+ * Copper/silver/gold amounts match prosperity demand for
+ * {@link MINERAL_DEPOSIT_PROSPERITY_POPULATION}; diamonds yield whole gems.
  *
  * @param {ReadonlyArray<import('../types.js').MetalNode>} deposits
  * @param {(deposit: import('../types.js').MetalNode) => boolean} isClaimed

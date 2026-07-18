@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   BASE_METALS_LB_PER_PRODUCTIVITY_UNIT,
+  COPPER_LB_PER_EXTRACTION,
   DIAMOND_GEMS_PER_EXTRACTION,
   FOOD_LB_PER_PRODUCTIVITY_UNIT,
-  PRECIOUS_METAL_LB_PER_EXTRACTION,
   SALT_LB_PER_SCORE,
   TIMBER_LB_PER_PRODUCTIVITY_UNIT,
   computeSettlementProduction,
@@ -85,7 +85,7 @@ test('typed deposits extract one unit per claimed pin; unclaimed pins contribute
       { id: 'm-gold-out', x: 2, y: 0, score: 1, kind: 'gold' },
     ],
   })
-  assert.strictEqual(production.amounts.copper, PRECIOUS_METAL_LB_PER_EXTRACTION)
+  assert.strictEqual(production.amounts.copper, COPPER_LB_PER_EXTRACTION)
   assert.strictEqual(production.amounts.diamonds, DIAMOND_GEMS_PER_EXTRACTION)
   assert.strictEqual(production.amounts.gold, 0)
 })
