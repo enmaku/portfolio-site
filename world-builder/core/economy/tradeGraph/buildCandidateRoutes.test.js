@@ -74,13 +74,8 @@ test('inland-water candidate requires a sail-overlay path within inland range', 
   const height = 6
   const cellCount = width * height
   const elevation = new Float32Array(cellCount).fill(SEA_LEVEL - 0.1)
-  const dryLandMask = new Uint8Array(cellCount)
   const sailMask = new Uint8Array(cellCount)
 
-  for (let x = 0; x < width; x += 1) {
-    dryLandMask[2 * width + x] = 1
-    elevation[2 * width + x] = LAND_ELEVATION
-  }
   for (let y = 1; y <= 4; y += 1) {
     for (let x = 0; x < width; x += 1) {
       sailMask[y * width + x] = 1
@@ -100,7 +95,6 @@ test('inland-water candidate requires a sail-overlay path within inland range', 
     inlandSailExpeditionRange: 30,
     elevation,
     sailMask,
-    dryLandMask,
   })
   const tooFar = buildCandidateTradeGraph({
     settlements,
@@ -110,11 +104,33 @@ test('inland-water candidate requires a sail-overlay path within inland range', 
     inlandSailExpeditionRange: 2,
     elevation,
     sailMask,
-    dryLandMask,
   })
 
   assert.strictEqual(edgesForPair(reachable, 'a', 'b').filter((e) => e.mode === 'inlandWater').length, 1)
   assert.strictEqual(edgesForPair(tooFar, 'a', 'b').filter((e) => e.mode === 'inlandWater').length, 0)
+})
+
+test('inland-water candidates do not cross disconnected sail basins', () => {
+  const width = 12
+  const height = 4
+  const cellCount = width * height
+  const sailMask = new Uint8Array(cellCount)
+  for (let x = 0; x <= 3; x += 1) sailMask[1 * width + x] = 1
+  for (let x = 8; x <= 11; x += 1) sailMask[1 * width + x] = 1
+
+  const graph = buildCandidateTradeGraph({
+    settlements: [
+      { id: 'a', x: 1, y: 1, population: 100, maritimeRole: 'inland_sail' },
+      { id: 'b', x: 10, y: 1, population: 100, maritimeRole: 'inland_sail' },
+    ],
+    gridWidth: width,
+    gridHeight: height,
+    threeDayHaulDistance: 20,
+    inlandSailExpeditionRange: 40,
+    sailMask,
+  })
+
+  assert.strictEqual(edgesForPair(graph, 'a', 'b').filter((e) => e.mode === 'inlandWater').length, 0)
 })
 
 test('every pair of living port settlements gets an open-sea candidate', () => {
@@ -136,6 +152,38 @@ test('every pair of living port settlements gets an open-sea candidate', () => {
   assert.strictEqual(edgesForPair(graph, 'p1', 'p3').filter((e) => e.mode === 'openSea').length, 1)
   assert.strictEqual(edgesForPair(graph, 'p2', 'p3').filter((e) => e.mode === 'openSea').length, 1)
   assert.strictEqual(edgesForPair(graph, 'p1', 'inland').length, 0)
+})
+
+test('open-sea candidate length follows sail overlay around blocked chords', () => {
+  const width = 20
+  const height = 20
+  const sailMask = new Uint8Array(width * height)
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < 8; x += 1) sailMask[y * width + x] = 1
+  }
+  // Land bar blocks the vertical chord at x=3 between the ports.
+  for (let x = 0; x <= 5; x += 1) {
+    for (let y = 8; y <= 11; y += 1) sailMask[y * width + x] = 0
+  }
+
+  const graph = buildCandidateTradeGraph({
+    settlements: [
+      { id: 'n', x: 3, y: 2, population: 100, maritimeRole: 'port' },
+      { id: 's', x: 3, y: 17, population: 100, maritimeRole: 'port' },
+    ],
+    gridWidth: width,
+    gridHeight: height,
+    threeDayHaulDistance: 10,
+    sailMask,
+  })
+
+  const openSea = edgesForPair(graph, 'n', 's').find((e) => e.mode === 'openSea')
+  assert.ok(openSea)
+  const chordFraction = 15 / 10
+  assert.ok(
+    openSea.haulDistanceFraction > chordFraction + 0.1,
+    `expected detour longer than chord ${chordFraction}, got ${openSea.haulDistanceFraction}`,
+  )
 })
 
 test('capacity and transport cost apply mode multipliers and directional friction', () => {

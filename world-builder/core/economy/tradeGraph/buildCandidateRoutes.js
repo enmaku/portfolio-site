@@ -7,7 +7,6 @@ import { computeHaulShedTravelTimes } from '../../colonization/computeHaulShedIs
 import { buildLandRouteCellMask, resolveRoadSegments } from '../../colonization/roads/roadNetwork.js'
 import { buildDryLandTraversableMask } from '../../colonization/expeditions/buildDryLandTraversableMask.js'
 import { resolveSailTraversableMask } from '../../colonization/expeditions/expeditionRouting.js'
-import { computeFoundingRouteCorridor } from '../../colonization/expeditions/computeFoundingRouteCorridor.js'
 import {
   directionalHaulFriction,
   routeCargoCapacityLb,
@@ -112,6 +111,7 @@ export function buildCandidateTradeGraph(params) {
   collectInlandWaterCandidates({
     settlements,
     gridWidth,
+    gridHeight,
     budget,
     inlandSailExpeditionRange: Number(params?.inlandSailExpeditionRange) || 0,
     elevation,
@@ -122,6 +122,7 @@ export function buildCandidateTradeGraph(params) {
   collectOpenSeaCandidates({
     settlements,
     gridWidth,
+    gridHeight,
     budget,
     sailMasks,
     edgesById,
@@ -279,9 +280,12 @@ function collectOverlandCandidates({
 }
 
 /**
+ * Sail-overlay connectivity within inland range (shortest path on sail mask, capped by range).
+ *
  * @param {{
  *   settlements: ReturnType<typeof resolveLivingSettlements>,
  *   gridWidth: number,
+ *   gridHeight: number,
  *   budget: number,
  *   inlandSailExpeditionRange: number,
  *   elevation: Float32Array | null,
@@ -292,31 +296,32 @@ function collectOverlandCandidates({
 function collectInlandWaterCandidates({
   settlements,
   gridWidth,
+  gridHeight,
   budget,
   inlandSailExpeditionRange,
   elevation,
   sailMasks,
   edgesById,
 }) {
-  const { sailMask, dryLandMask, doc } = sailMasks
-  if (!sailMask || !dryLandMask || !doc || inlandSailExpeditionRange <= 0) return
+  const { sailMask } = sailMasks
+  if (!sailMask || inlandSailExpeditionRange <= 0 || gridWidth <= 0 || gridHeight <= 0) return
 
   const onSail = settlements.filter((s) => sailMask[s.y * gridWidth + s.x] === 1)
+  if (onSail.length < 2) return
+
   for (let i = 0; i < onSail.length; i += 1) {
+    const from = onSail[i]
+    const distances = computeSailPathDistances(
+      from.y * gridWidth + from.x,
+      sailMask,
+      gridWidth,
+      gridHeight,
+      inlandSailExpeditionRange,
+    )
     for (let j = i + 1; j < onSail.length; j += 1) {
-      const from = onSail[i]
       const to = onSail[j]
-      const corridor = computeFoundingRouteCorridor({
-        doc,
-        from: { x: from.x, y: from.y },
-        to: { x: to.x, y: to.y },
-        mode: 'inland_sail',
-        sailMask,
-        dryLandMask,
-      })
-      if (!corridor) continue
-      const length = pathLengthCells(corridor.cells)
-      if (length > inlandSailExpeditionRange) continue
+      const length = distances[to.y * gridWidth + to.x]
+      if (!Number.isFinite(length) || length > inlandSailExpeditionRange) continue
       const edge = makeEdge({
         from,
         to,
@@ -331,36 +336,86 @@ function collectInlandWaterCandidates({
 }
 
 /**
+ * Geometric shortest-path distance over sail-overlay cells (8-connected), capped by maxRange.
+ *
+ * @param {number} originIndex
+ * @param {Uint8Array} sailMask
+ * @param {number} width
+ * @param {number} height
+ * @param {number} maxRange
+ * @returns {Float64Array} distance per cell; Infinity when off-sail or unreachable within range
+ */
+function computeSailPathDistances(originIndex, sailMask, width, height, maxRange) {
+  const cellCount = width * height
+  const distance = new Float64Array(cellCount).fill(Number.POSITIVE_INFINITY)
+  if (sailMask[originIndex] !== 1 || !(maxRange > 0)) return distance
+
+  distance[originIndex] = 0
+  /** @type {Array<{ index: number, dist: number }>} */
+  const heap = [{ index: originIndex, dist: 0 }]
+
+  while (heap.length > 0) {
+    const current = popMinDistance(heap)
+    if (!current) break
+    if (current.dist > distance[current.index]) continue
+    if (current.dist >= maxRange) continue
+    const cx = current.index % width
+    const cy = Math.floor(current.index / width)
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        if (dx === 0 && dy === 0) continue
+        const nx = cx + dx
+        const ny = cy + dy
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+        const nextIndex = ny * width + nx
+        if (sailMask[nextIndex] !== 1) continue
+        const step = dx !== 0 && dy !== 0 ? Math.SQRT2 : 1
+        const nextDist = current.dist + step
+        if (nextDist > maxRange || nextDist >= distance[nextIndex]) continue
+        distance[nextIndex] = nextDist
+        pushMinDistance(heap, { index: nextIndex, dist: nextDist })
+      }
+    }
+  }
+  return distance
+}
+
+/**
+ * Every living port pair gets an open-sea candidate. Length is sail-overlay shortest path
+ * when both pins are sail-connected; otherwise Euclidean (same fallback as before).
+ *
  * @param {{
  *   settlements: ReturnType<typeof resolveLivingSettlements>,
  *   gridWidth: number,
+ *   gridHeight: number,
  *   budget: number,
  *   sailMasks: ReturnType<typeof resolveSailContext>,
  *   edgesById: Map<string, TradeRouteEdge>,
  * }} params
  */
-function collectOpenSeaCandidates({ settlements, gridWidth, budget, sailMasks, edgesById }) {
+function collectOpenSeaCandidates({ settlements, gridWidth, gridHeight, budget, sailMasks, edgesById }) {
   const ports = settlements.filter((s) => s.maritimeRole === 'port')
   if (ports.length < 2) return
-  const { sailMask, doc } = sailMasks
+  const { sailMask } = sailMasks
+  const useSailPaths = Boolean(sailMask) && gridWidth > 0 && gridHeight > 0
 
   for (let i = 0; i < ports.length; i += 1) {
+    const from = ports[i]
+    const distances = useSailPaths
+      ? computeSailPathDistances(
+          from.y * gridWidth + from.x,
+          /** @type {Uint8Array} */ (sailMask),
+          gridWidth,
+          gridHeight,
+          Number.POSITIVE_INFINITY,
+        )
+      : null
     for (let j = i + 1; j < ports.length; j += 1) {
-      const from = ports[i]
       const to = ports[j]
-      let length = Math.hypot(to.x - from.x, to.y - from.y)
-      if (sailMask && doc) {
-        const corridor = computeFoundingRouteCorridor({
-          doc,
-          from: { x: from.x, y: from.y },
-          to: { x: to.x, y: to.y },
-          mode: 'open_sea',
-          sailMask,
-        })
-        if (corridor) {
-          length = pathLengthCells(corridor.cells)
-        }
-      }
+      const sailDist = distances ? distances[to.y * gridWidth + to.x] : Number.POSITIVE_INFINITY
+      const length = Number.isFinite(sailDist)
+        ? sailDist
+        : Math.hypot(to.x - from.x, to.y - from.y)
       const edge = makeEdge({
         from,
         to,
@@ -419,21 +474,6 @@ function makeEdge({ from, to, mode, haulDistanceFraction, elevation, gridWidth }
  */
 function pairKey(a, b) {
   return a <= b ? `${a}::${b}` : `${b}::${a}`
-}
-
-/**
- * @param {Array<{ x: number, y: number }>} cells
- * @returns {number}
- */
-function pathLengthCells(cells) {
-  if (!Array.isArray(cells) || cells.length < 2) return 0
-  let total = 0
-  for (let i = 1; i < cells.length; i += 1) {
-    const dx = cells[i].x - cells[i - 1].x
-    const dy = cells[i].y - cells[i - 1].y
-    total += dx !== 0 && dy !== 0 ? Math.SQRT2 : 1
-  }
-  return total
 }
 
 /**
