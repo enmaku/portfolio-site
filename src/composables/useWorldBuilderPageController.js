@@ -65,6 +65,14 @@ const COLONIZATION_OVERLAY_IDS = new Set([
   'wealth',
 ])
 
+/** Auto-enabled once when `running` begins; wealth stays off until the user opts in. */
+const COLONIZATION_OVERLAYS_AUTO_ENABLED_ON_RUNNING = new Set([
+  'population',
+  'settlements',
+  'explorationFog',
+  'routes',
+])
+
 /** Lazy-load the renderer viewport factory; deferred so Vue never owns renderer logic. */
 async function loadWorldBuilderViewportFactory() {
   const module = await import('@world-builder/renderer/createWorldBuilderMapViewport.js')
@@ -167,7 +175,7 @@ export function useWorldBuilderPageController(options) {
     if (colonizationRunningOverlaysEnabled) {
       return
     }
-    for (const overlayId of COLONIZATION_OVERLAY_IDS) {
+    for (const overlayId of COLONIZATION_OVERLAYS_AUTO_ENABLED_ON_RUNNING) {
       overlay.toggleVisibility(overlayId, true)
     }
     colonizationRunningOverlaysEnabled = true

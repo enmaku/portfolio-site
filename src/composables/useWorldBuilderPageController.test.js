@@ -791,8 +791,11 @@ test('terrain authoring hides and disables colonization overlays', async () => {
 
     for (const overlayId of colonizationOverlayIds) {
       assert.ok(ctx.statusBar.value.overlayDefs.some((definition) => definition.id === overlayId))
+    }
+    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
 
     await ctx.colonization.resetColonization()
     await nextTick()
@@ -865,9 +868,10 @@ test('start restores running colonization from colonization cache after beginCol
     await ctx.colonization.beginColonization()
     await nextTick()
 
-    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes', 'wealth']) {
+    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
     assert.strictEqual(
       colonizationCache.getRecord()?.session.colonizationPhase,
       COLONIZATION_PHASE_RUNNING,

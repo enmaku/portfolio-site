@@ -33,7 +33,7 @@ function createProgressHandlers() {
   }
 }
 
-test('finalizeColonizationMutation persists session and completes exactly once when ports are present', async () => {
+test('finalizeColonizationMutation applies map layers including wealth before settlement pins', async () => {
   const ports = createFakePorts()
 
   await finalizeColonizationMutation({
@@ -41,8 +41,17 @@ test('finalizeColonizationMutation persists session and completes exactly once w
     reportFinalizeProgress: false,
   })
 
-  assert.strictEqual(ports.calls.filter((call) => call === 'persistSession').length, 1)
-  assert.strictEqual(ports.calls.filter((call) => call === 'onComplete').length, 1)
+  assert.deepStrictEqual(ports.calls, [
+    'persistSession',
+    'rehydrate',
+    'mergeDocument',
+    'applyLayer:population',
+    'applyLayer:explorationFog',
+    'applyLayer:routes',
+    'applyLayer:wealth',
+    'applyLayer:settlementNodes',
+    'onComplete',
+  ])
 })
 
 test('finalizeColonizationMutation does not double-persist when both ports and a fallback are supplied', async () => {
