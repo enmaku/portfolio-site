@@ -1,6 +1,6 @@
 /**
- * Settlement inspect tooltip view-model: realm balance, port off-map credit, and
- * per-commodity local price with directional trade marks. Roles come only from the
+ * Settlement inspect tooltip view-model: combined display balance (realm + off-map)
+ * and per-commodity local price with directional trade marks. Roles come only from the
  * last clearing's realized flows, never from local production alone, so a settlement
  * that merely produces a commodity is not shown as an exporter without movement.
  * Domain: world-builder/CONTEXT.md — settlement trade tooltip, local price, realm balance.
@@ -31,9 +31,8 @@ import { COMMODITY_IDS, referencePriceCp } from './commodityCatalog.js'
 /**
  * @typedef {Object} SettlementTradeTooltip
  * @property {string} settlementId
- * @property {number} realmBalanceCp
- * @property {boolean} isPort
- * @property {number | null} portOffMapCreditCp Off-map credit for ports; null for inland.
+ * @property {number} balanceCp Combined realm mutual-credit balance plus any external
+ *   trade-account credit for display. Simulation ledgers stay separate.
  * @property {SettlementTradeTooltipCommodity[]} commodities Every catalog commodity, in catalog order.
  */
 
@@ -45,16 +44,23 @@ function normalizeRole(role) {
   return role === 'import' || role === 'export' || role === 'both' ? role : 'neither'
 }
 
+/** Relative band around reference where local price stays display-neutral. */
+export const PRICE_VS_REFERENCE_DEADZONE = 0.1
+
 /**
  * @param {number} localPriceCp
  * @param {number} referenceCp
  * @returns {PriceVsReference}
  */
 export function comparePriceToReference(localPriceCp, referenceCp) {
-  if (localPriceCp > referenceCp) {
+  if (!(referenceCp > 0) || !Number.isFinite(localPriceCp) || !Number.isFinite(referenceCp)) {
+    return 'equal'
+  }
+  const ratio = localPriceCp / referenceCp
+  if (ratio > 1 + PRICE_VS_REFERENCE_DEADZONE) {
     return 'above'
   }
-  if (localPriceCp < referenceCp) {
+  if (ratio < 1 - PRICE_VS_REFERENCE_DEADZONE) {
     return 'below'
   }
   return 'equal'
@@ -62,7 +68,7 @@ export function comparePriceToReference(localPriceCp, referenceCp) {
 
 /**
  * @param {{
- *   settlements?: Array<{ id: string, maritimeRole?: string }>,
+ *   settlements?: Array<{ id: string }>,
  *   lastTradeEpochResult?: TradeClearingResult | null,
  *   externalTradeAccounts?: Record<string, number>,
  * }} worldDocument
@@ -76,7 +82,6 @@ export function buildSettlementTradeTooltip(worldDocument, settlementId) {
   }
 
   const result = worldDocument.lastTradeEpochResult ?? null
-  const isPort = settlement.maritimeRole === 'port'
   const roles = result?.settlementCommodityRoles?.[settlementId]
   const prices = result?.localPricesBySettlementId?.[settlementId]
 
@@ -98,17 +103,14 @@ export function buildSettlementTradeTooltip(worldDocument, settlementId) {
     }
   })
 
-  const externalCredit = worldDocument.externalTradeAccounts?.[settlementId]
+  const realmBalanceCp = result?.realmBalancesCp?.[settlementId] ?? 0
+  const externalRaw = worldDocument.externalTradeAccounts?.[settlementId]
+  const externalCreditCp =
+    typeof externalRaw === 'number' && Number.isFinite(externalRaw) ? externalRaw : 0
 
   return {
     settlementId,
-    realmBalanceCp: result?.realmBalancesCp?.[settlementId] ?? 0,
-    isPort,
-    portOffMapCreditCp: isPort
-      ? typeof externalCredit === 'number' && Number.isFinite(externalCredit)
-        ? externalCredit
-        : 0
-      : null,
+    balanceCp: realmBalanceCp + externalCreditCp,
     commodities,
   }
 }

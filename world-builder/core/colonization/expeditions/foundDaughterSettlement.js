@@ -6,6 +6,7 @@ import { patchLogisticsNodeSurvey } from '../logisticsNodes/scoreLogisticsNodes.
 import { DAUGHTER_OUTPOST_HEADCOUNT } from './expeditionConstants.js'
 import { computeFoundingRouteCorridor } from './computeFoundingRouteCorridor.js'
 import { buildCorridorCells } from './expeditionRouting.js'
+import { classifySettlementMaritimeRole } from './classifySettlementMaritimeRole.js'
 
 /**
  * @param {{
@@ -45,6 +46,10 @@ export function foundDaughterSettlement(params) {
     foundedEpoch: epoch,
     originSettlementId,
     logisticsNodePrimaryType: candidate.node.primaryType,
+    maritimeRole: classifySettlementMaritimeRole(worldDocument, {
+      x: candidate.x,
+      y: candidate.y,
+    }),
   }
 
   const dynasty = createFoundingDynasty({

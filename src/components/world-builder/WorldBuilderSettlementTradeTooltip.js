@@ -5,7 +5,6 @@ import {
   COMMODITY_ACCESSIBLE_NAMES,
   COMMODITY_ICONS,
   moneyBagIcon,
-  shipIcon,
 } from './settlementTradeTooltipIcons.js'
 
 /**
@@ -104,16 +103,8 @@ export default defineComponent({
             testId: 'world-builder-settlement-trade-tooltip-balance',
             accessibleName: 'Balance',
             icon: moneyBagIcon(),
-            valueCp: tooltip.realmBalanceCp,
+            valueCp: tooltip.balanceCp,
           }),
-          tooltip.isPort
-            ? accountRow({
-                testId: 'world-builder-settlement-trade-tooltip-port-credit',
-                accessibleName: 'Off-map credit',
-                icon: shipIcon(),
-                valueCp: tooltip.portOffMapCreditCp ?? 0,
-              })
-            : null,
           h(
             'div',
             {
@@ -232,12 +223,12 @@ function formatCp(amountCp) {
   const abs = Math.abs(value)
   const sign = value < 0 ? '-' : ''
   if (abs >= CP_PER_GP) {
-    return `${sign}${trimTrailingZeros(abs / CP_PER_GP)} gp`
+    return `${sign}${formatGroupedAmount(abs / CP_PER_GP)} gp`
   }
   if (abs >= CP_PER_SP) {
-    return `${sign}${trimTrailingZeros(abs / CP_PER_SP)} sp`
+    return `${sign}${formatGroupedAmount(abs / CP_PER_SP)} sp`
   }
-  return `${sign}${trimTrailingZeros(abs)} cp`
+  return `${sign}${formatGroupedAmount(abs)} cp`
 }
 
 /**
@@ -248,6 +239,19 @@ function trimTrailingZeros(value) {
   return value
     .toFixed(2)
     .replace(/\.?0+$/, '')
+}
+
+/**
+ * @param {number} value
+ * @returns {string}
+ */
+function formatGroupedAmount(value) {
+  const trimmed = trimTrailingZeros(value)
+  const dot = trimmed.indexOf('.')
+  const intPart = dot === -1 ? trimmed : trimmed.slice(0, dot)
+  const fracPart = dot === -1 ? null : trimmed.slice(dot + 1)
+  const grouped = Number(intPart).toLocaleString('en-US')
+  return fracPart != null ? `${grouped}.${fracPart}` : grouped
 }
 
 /**

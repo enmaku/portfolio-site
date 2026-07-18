@@ -6,7 +6,6 @@ import {
   mdiGold,
   mdiPineTree,
   mdiSack,
-  mdiSailBoat,
   mdiShaker,
 } from '@quasar/extras/mdi-v7'
 
@@ -36,10 +35,6 @@ function mdiIcon(accessibleName, pathData, fill) {
 
 export function moneyBagIcon() {
   return mdiIcon('Balance', mdiSack, '#C9A227')
-}
-
-export function shipIcon() {
-  return mdiIcon('Off-map credit', mdiSailBoat, '#6BA3C9')
 }
 
 export function wheatIcon() {

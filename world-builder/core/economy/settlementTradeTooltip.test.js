@@ -37,7 +37,7 @@ test('reads realm balance and roles from the last clearing result', () => {
     'a',
   )
   assert.ok(tooltip)
-  assert.strictEqual(tooltip.realmBalanceCp, 1234)
+  assert.strictEqual(tooltip.balanceCp, 1234)
 
   const grain = tooltip.commodities.find((entry) => entry.commodityId === 'grain')
   const salt = tooltip.commodities.find((entry) => entry.commodityId === 'salt')
@@ -85,8 +85,11 @@ test('defaults roles to neither and prices to reference when no clearing result'
   }
 })
 
-test('priceVsReference compares local price to catalog reference', () => {
+test('priceVsReference uses a ±10% deadzone around catalog reference', () => {
   const grainRef = referencePriceCp('grain')
+  const fishRef = referencePriceCp('fish')
+  const saltRef = referencePriceCp('salt')
+  const timberRef = referencePriceCp('timber')
   const tooltip = buildSettlementTradeTooltip(
     docWith({
       lastTradeEpochResult: {
@@ -95,8 +98,12 @@ test('priceVsReference compares local price to catalog reference', () => {
         localPricesBySettlementId: {
           a: {
             grain: grainRef * 2,
-            fish: referencePriceCp('fish') * 0.5,
-            salt: referencePriceCp('salt'),
+            fish: fishRef * 0.5,
+            salt: saltRef,
+            timber: timberRef * 1.1,
+            copper: referencePriceCp('copper') * 0.9,
+            silver: referencePriceCp('silver') * 1.11,
+            gold: referencePriceCp('gold') * 0.89,
           },
         },
       },
@@ -115,20 +122,48 @@ test('priceVsReference compares local price to catalog reference', () => {
     tooltip.commodities.find((entry) => entry.commodityId === 'salt').priceVsReference,
     'equal',
   )
+  assert.strictEqual(
+    tooltip.commodities.find((entry) => entry.commodityId === 'timber').priceVsReference,
+    'equal',
+  )
+  assert.strictEqual(
+    tooltip.commodities.find((entry) => entry.commodityId === 'copper').priceVsReference,
+    'equal',
+  )
+  assert.strictEqual(
+    tooltip.commodities.find((entry) => entry.commodityId === 'silver').priceVsReference,
+    'above',
+  )
+  assert.strictEqual(
+    tooltip.commodities.find((entry) => entry.commodityId === 'gold').priceVsReference,
+    'below',
+  )
 })
 
-test('port off-map credit is present for ports and null for inland settlements', () => {
+test('display balance combines realm mutual credit and external trade credit', () => {
   const port = buildSettlementTradeTooltip(
     docWith({
       settlements: [{ id: 'a', maritimeRole: 'port' }],
+      lastTradeEpochResult: {
+        realmBalancesCp: { a: -200 },
+        settlementCommodityRoles: {},
+        localPricesBySettlementId: {},
+      },
       externalTradeAccounts: { a: 500 },
     }),
     'a',
   )
-  assert.strictEqual(port.isPort, true)
-  assert.strictEqual(port.portOffMapCreditCp, 500)
+  assert.strictEqual(port.balanceCp, 300)
 
-  const inland = buildSettlementTradeTooltip(docWith(), 'a')
-  assert.strictEqual(inland.isPort, false)
-  assert.strictEqual(inland.portOffMapCreditCp, null)
+  const inland = buildSettlementTradeTooltip(
+    docWith({
+      lastTradeEpochResult: {
+        realmBalancesCp: { a: 40 },
+        settlementCommodityRoles: {},
+        localPricesBySettlementId: {},
+      },
+    }),
+    'a',
+  )
+  assert.strictEqual(inland.balanceCp, 40)
 })

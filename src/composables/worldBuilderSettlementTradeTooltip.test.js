@@ -41,10 +41,9 @@ test('settlement trade tooltip host is present when tooltip model is set', async
   assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-balance"'), true)
   assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-balance-label"'), true)
   assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-balance-value"'), true)
-  assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-port-credit"'), true)
   assert.equal(
-    html.includes('data-testid="world-builder-settlement-trade-tooltip-port-credit-label"'),
-    true,
+    html.includes('data-testid="world-builder-settlement-trade-tooltip-port-credit"'),
+    false,
   )
   assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-commodities"'), true)
   assert.equal(
