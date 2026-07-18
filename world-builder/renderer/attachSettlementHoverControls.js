@@ -1,5 +1,5 @@
 import { livingSettlements } from '../core/colonization/expeditions/expeditionConstants.js'
-import { SETTLEMENT_NODE_MARKER_RADIUS } from './settlementNodeMarkers.js'
+import { SETTLEMENT_NODE_HOVER_RADIUS } from './settlementNodeMarkers.js'
 
 /**
  * @typedef {{ settlementId: string, clientX: number, clientY: number }} SettlementHoverPayload
@@ -61,7 +61,7 @@ export function attachSettlementHoverControls(options) {
 export function hitTestLivingSettlement(worldDocument, worldX, worldY) {
   const settlements = livingSettlements(worldDocument?.settlements ?? [])
   let bestId = null
-  let bestDistSq = SETTLEMENT_NODE_MARKER_RADIUS * SETTLEMENT_NODE_MARKER_RADIUS
+  let bestDistSq = SETTLEMENT_NODE_HOVER_RADIUS * SETTLEMENT_NODE_HOVER_RADIUS
   for (const settlement of settlements) {
     if (typeof settlement.x !== 'number' || typeof settlement.y !== 'number') {
       continue

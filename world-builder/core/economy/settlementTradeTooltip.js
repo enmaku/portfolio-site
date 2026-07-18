@@ -15,9 +15,14 @@ import { COMMODITY_IDS, referencePriceCp } from './commodityCatalog.js'
  */
 
 /**
+ * @typedef {'above' | 'below' | 'equal'} PriceVsReference
+ */
+
+/**
  * @typedef {Object} SettlementTradeTooltipCommodity
  * @property {CommodityId} commodityId
  * @property {number} localPriceCp
+ * @property {PriceVsReference} priceVsReference
  * @property {CommodityTradeRole} role
  * @property {boolean} imports
  * @property {boolean} exports
@@ -38,6 +43,21 @@ import { COMMODITY_IDS, referencePriceCp } from './commodityCatalog.js'
  */
 function normalizeRole(role) {
   return role === 'import' || role === 'export' || role === 'both' ? role : 'neither'
+}
+
+/**
+ * @param {number} localPriceCp
+ * @param {number} referenceCp
+ * @returns {PriceVsReference}
+ */
+export function comparePriceToReference(localPriceCp, referenceCp) {
+  if (localPriceCp > referenceCp) {
+    return 'above'
+  }
+  if (localPriceCp < referenceCp) {
+    return 'below'
+  }
+  return 'equal'
 }
 
 /**
@@ -63,12 +83,15 @@ export function buildSettlementTradeTooltip(worldDocument, settlementId) {
   const commodities = COMMODITY_IDS.map((commodityId) => {
     const role = normalizeRole(roles?.[commodityId])
     const priceCp = prices?.[commodityId]
+    const localPriceCp =
+      typeof priceCp === 'number' && Number.isFinite(priceCp)
+        ? priceCp
+        : referencePriceCp(commodityId)
+    const referenceCp = referencePriceCp(commodityId)
     return {
       commodityId,
-      localPriceCp:
-        typeof priceCp === 'number' && Number.isFinite(priceCp)
-          ? priceCp
-          : referencePriceCp(commodityId),
+      localPriceCp,
+      priceVsReference: comparePriceToReference(localPriceCp, referenceCp),
       role,
       imports: role === 'import' || role === 'both',
       exports: role === 'export' || role === 'both',

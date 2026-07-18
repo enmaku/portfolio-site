@@ -81,7 +81,40 @@ test('defaults roles to neither and prices to reference when no clearing result'
   for (const entry of tooltip.commodities) {
     assert.strictEqual(entry.role, 'neither')
     assert.strictEqual(entry.localPriceCp, referencePriceCp(entry.commodityId))
+    assert.strictEqual(entry.priceVsReference, 'equal')
   }
+})
+
+test('priceVsReference compares local price to catalog reference', () => {
+  const grainRef = referencePriceCp('grain')
+  const tooltip = buildSettlementTradeTooltip(
+    docWith({
+      lastTradeEpochResult: {
+        realmBalancesCp: { a: 0 },
+        settlementCommodityRoles: {},
+        localPricesBySettlementId: {
+          a: {
+            grain: grainRef * 2,
+            fish: referencePriceCp('fish') * 0.5,
+            salt: referencePriceCp('salt'),
+          },
+        },
+      },
+    }),
+    'a',
+  )
+  assert.strictEqual(
+    tooltip.commodities.find((entry) => entry.commodityId === 'grain').priceVsReference,
+    'above',
+  )
+  assert.strictEqual(
+    tooltip.commodities.find((entry) => entry.commodityId === 'fish').priceVsReference,
+    'below',
+  )
+  assert.strictEqual(
+    tooltip.commodities.find((entry) => entry.commodityId === 'salt').priceVsReference,
+    'equal',
+  )
 })
 
 test('port off-map credit is present for ports and null for inland settlements', () => {

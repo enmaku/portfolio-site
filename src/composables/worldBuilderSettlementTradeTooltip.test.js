@@ -21,7 +21,7 @@ test('settlement trade tooltip host is present when tooltip model is set', async
       settlements: [{ id: 's1', maritimeRole: 'port' }],
       lastTradeEpochResult: {
         realmBalancesCp: { s1: 42 },
-        settlementCommodityRoles: { s1: { grain: 'export' } },
+        settlementCommodityRoles: { s1: { grain: 'export', fish: 'import', salt: 'both' } },
         localPricesBySettlementId: { s1: { grain: 5 } },
       },
       externalTradeAccounts: { s1: 10 },
@@ -63,4 +63,9 @@ test('settlement trade tooltip host is present when tooltip model is set', async
     html.includes('data-testid="world-builder-settlement-trade-tooltip-commodity-grain-price"'),
     true,
   )
+  assert.equal(html.includes('data-trade-role="export"'), true)
+  assert.equal(html.includes('data-trade-role="import"'), true)
+  assert.equal(html.includes('data-trade-role="both"'), true)
+  assert.equal(html.includes('data-price-vs-reference="above"'), true)
+  assert.equal(html.includes('<svg'), true)
 })

@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { attachSettlementHoverControls } from './attachSettlementHoverControls.js'
-import { SETTLEMENT_NODE_MARKER_RADIUS } from './settlementNodeMarkers.js'
+import {
+  attachSettlementHoverControls,
+  hitTestLivingSettlement,
+} from './attachSettlementHoverControls.js'
+import {
+  SETTLEMENT_NODE_HOVER_RADIUS,
+  SETTLEMENT_NODE_MARKER_RADIUS,
+} from './settlementNodeMarkers.js'
 
 /**
  * @param {{
@@ -62,6 +68,7 @@ test('pointermove over a living settlement emits its id to onSettlementHover', (
     clientY: 340,
   })
   assert.ok(SETTLEMENT_NODE_MARKER_RADIUS > 0)
+  assert.ok(SETTLEMENT_NODE_HOVER_RADIUS > SETTLEMENT_NODE_MARKER_RADIUS)
 })
 
 test('pointermove over a ruin does not emit a settlement hover id', () => {
@@ -84,4 +91,15 @@ test('pointermove over a ruin does not emit a settlement hover id', () => {
   )
 
   assert.equal(emissions.at(-1), null)
+})
+
+test('hover radius is larger than the drawn pin radius', () => {
+  const doc = {
+    settlements: [{ id: 'living-1', x: 10, y: 20, status: 'active' }],
+  }
+  const outsidePin = SETTLEMENT_NODE_MARKER_RADIUS + 0.5
+  const outsideHover = SETTLEMENT_NODE_HOVER_RADIUS + 0.5
+
+  assert.equal(hitTestLivingSettlement(doc, 10.5 + outsidePin, 20.5), 'living-1')
+  assert.equal(hitTestLivingSettlement(doc, 10.5 + outsideHover, 20.5), null)
 })
