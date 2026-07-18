@@ -104,6 +104,7 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
           threeDayHaulDistance: ctx.current.colonistSettings.threeDayHaulDistance,
           startingPopulation: ctx.current.colonistSettings.startingPopulation,
           peoplePerHabitableCell: ctx.current.colonistSettings.peoplePerHabitableCell,
+          populationDensity: ctx.current.colonistSettings.populationDensity,
           yieldModifier: ctx.current.colonistSettings.yieldModifier,
           landExpeditionRange: ctx.current.colonistSettings.landExpeditionRange,
           inlandSailExpeditionRange: ctx.current.colonistSettings.inlandSailExpeditionRange,
@@ -210,6 +211,7 @@ function resolveFoundingPortOffMapDelivery(ctx) {
     claimedCells: ctx.claimedCells ?? [],
     worldDocument: ctx.doc,
     yieldModifier: ctx.current.colonistSettings.yieldModifier,
+    populationDensity: ctx.current.colonistSettings.populationDensity,
   })
   const result = runTradeClearingSync({
     settlements: [{ id: seedSettlement.id, population: seedSettlement.population, maritimeRole }],

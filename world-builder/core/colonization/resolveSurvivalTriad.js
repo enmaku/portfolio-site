@@ -1,6 +1,9 @@
 import { SEA_LEVEL } from '../biomeIds.js'
 import { FOOD_LB_PER_PERSON, SALT_LB_PER_PERSON } from '../economy/tradeClearing/allocationTiers.js'
-import { DEFAULT_PEOPLE_PER_HABITABLE_CELL } from './createDefaultColonizationSlice.js'
+import {
+  DEFAULT_PEOPLE_PER_HABITABLE_CELL,
+  DEFAULT_POPULATION_DENSITY,
+} from './createDefaultColonizationSlice.js'
 import { isHabitablePopulationCell } from './collapsePopulation.js'
 import {
   claimedCellsHaveFreshwater,
@@ -11,7 +14,7 @@ import { MIN_SALT_SPOILAGE_MULTIPLIER } from './saltSpoilageMultiplier.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
 
 /** People supported per unit of arable / fish productivity (implementation tuning). */
-export const PEOPLE_PER_ARABLE_UNIT = 100
+export const PEOPLE_PER_ARABLE_UNIT = 10
 
 /** @type {Readonly<Record<string, number>>} */
 export const YIELD_MODIFIER_MULTIPLIERS = Object.freeze({
@@ -126,6 +129,7 @@ export function countHabitableClaimCells(params) {
  *   freshwaterClassification: Uint8Array | null,
  *   population: number,
  *   peoplePerHabitableCell?: number,
+ *   populationDensity?: number,
  *   saltSpoilageMultiplier?: number,
  *   deliveredFoodLb?: number,
  *   deliveredSaltLb?: number,
@@ -149,12 +153,15 @@ export function resolveSurvivalTriad(params) {
     freshwaterClassification,
     population,
     peoplePerHabitableCell = DEFAULT_PEOPLE_PER_HABITABLE_CELL,
+    populationDensity = DEFAULT_POPULATION_DENSITY,
     saltSpoilageMultiplier = 1,
     deliveredFoodLb,
     deliveredSaltLb = 0,
   } = params
 
   const yieldMult = yieldModifierMultiplier(yieldModifier)
+  const densityScale = resolvePopulationDensityScale(populationDensity)
+  const peoplePerArable = PEOPLE_PER_ARABLE_UNIT * densityScale
   const arableSum = sumRasterOnCells(arableRaster, claimedCells, gridWidth)
   const cropProduction = arableSum * yieldMult
   const resolvedHeight =
@@ -185,14 +192,14 @@ export function resolveSurvivalTriad(params) {
   const tradeDelivered = deliveredFoodLb !== undefined
   const effectiveFoodCapacityUngated = tradeDelivered
     ? postTradeEffectiveFoodCapacity(deliveredFoodLb, deliveredSaltLb, population)
-    : foodProduction * PEOPLE_PER_ARABLE_UNIT
+    : foodProduction * peoplePerArable
   const ceilingFoodCapacity = tradeDelivered
     ? effectiveFoodCapacityUngated
-    : foodProduction * PEOPLE_PER_ARABLE_UNIT
+    : foodProduction * peoplePerArable
 
-  const density =
+  const packingPerCell =
     Number.isFinite(peoplePerHabitableCell) && peoplePerHabitableCell > 0
-      ? Math.floor(peoplePerHabitableCell)
+      ? peoplePerHabitableCell
       : DEFAULT_PEOPLE_PER_HABITABLE_CELL
   const habitableCount = countHabitableClaimCells({
     claimedCells,
@@ -204,7 +211,7 @@ export function resolveSurvivalTriad(params) {
     biomes,
     seaLevel,
   })
-  const landCeiling = habitableCount * density
+  const landCeiling = Math.floor(habitableCount * packingPerCell * densityScale)
   const foodCeiling = Math.floor(ceilingFoodCapacity)
 
   let populationCeiling = Math.min(foodCeiling, landCeiling)
@@ -216,7 +223,7 @@ export function resolveSurvivalTriad(params) {
   const clampedPopulation = Math.max(0, Math.min(Math.floor(population), populationCeiling))
   const effectiveFoodCapacity = tradeDelivered
     ? effectiveFoodCapacityUngated
-    : foodProduction * PEOPLE_PER_ARABLE_UNIT * clampSpoilage(saltSpoilageMultiplier)
+    : foodProduction * peoplePerArable * clampSpoilage(saltSpoilageMultiplier)
   const foodConsumption = clampedPopulation
   const foodSurplus = effectiveFoodCapacity - foodConsumption
 
@@ -260,7 +267,11 @@ export function postTradeEffectiveFoodCapacity(deliveredFoodLb, deliveredSaltLb,
  * @param {{
  *   settlement: { id: string, x: number, y: number, population: number, status?: string },
  *   claimedCells: ReadonlyArray<{ x: number, y: number }>,
- *   colonistSettings: { yieldModifier: string, peoplePerHabitableCell?: number },
+ *   colonistSettings: {
+ *     yieldModifier: string,
+ *     peoplePerHabitableCell?: number,
+ *     populationDensity?: number,
+ *   },
  *   worldDocument: import('../types.js').WorldDocument,
  *   saltSpoilageMultiplier?: number,
  *   deliveredFoodLb?: number,
@@ -292,6 +303,7 @@ export function applySurvivalResolveToSettlement(params) {
     biomes: worldDocument.biomes,
     yieldModifier: colonistSettings.yieldModifier,
     peoplePerHabitableCell: colonistSettings.peoplePerHabitableCell,
+    populationDensity: colonistSettings.populationDensity,
     freshwaterClassification,
     population: settlement.population,
     saltSpoilageMultiplier,
@@ -316,4 +328,14 @@ export function applySurvivalResolveToSettlement(params) {
 function clampSpoilage(multiplier) {
   if (!Number.isFinite(multiplier)) return 1
   return Math.max(0, Math.min(1, multiplier))
+}
+
+/**
+ * @param {number | undefined} populationDensity
+ * @returns {number}
+ */
+function resolvePopulationDensityScale(populationDensity) {
+  return Number.isFinite(populationDensity) && /** @type {number} */ (populationDensity) > 0
+    ? /** @type {number} */ (populationDensity)
+    : DEFAULT_POPULATION_DENSITY
 }

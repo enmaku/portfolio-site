@@ -110,6 +110,7 @@ export function isProvisionalClaimViable(params) {
     claimedCells,
     worldDocument,
     yieldModifier: colonistSettings.yieldModifier,
+    populationDensity: colonistSettings.populationDensity,
   })
 
   const parent = params.originSettlementId
@@ -142,7 +143,7 @@ export function isProvisionalClaimViable(params) {
  * @param {ReadonlyArray<{ x: number, y: number }>} parentCells
  * @param {{ population?: number }} parent
  * @param {import('../../types.js').WorldDocument} worldDocument
- * @param {{ yieldModifier: string }} colonistSettings
+ * @param {{ yieldModifier: string, populationDensity?: number }} colonistSettings
  * @returns {Record<import('../../economy/commodityCatalog.js').CommodityId, number>}
  */
 function parentMarketPrices(parentCells, parent, worldDocument, colonistSettings) {
@@ -150,6 +151,7 @@ function parentMarketPrices(parentCells, parent, worldDocument, colonistSettings
     claimedCells: parentCells,
     worldDocument,
     yieldModifier: colonistSettings.yieldModifier,
+    populationDensity: colonistSettings.populationDensity,
   })
   return computeLocalPrices({
     supplyByCommodity: production,

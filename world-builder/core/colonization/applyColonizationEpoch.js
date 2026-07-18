@@ -233,6 +233,13 @@ export async function applyColonizationEpoch(slice, worldDocument, options = {})
 }
 
 /**
+ * Fraction of food surplus (people-units) converted to headcount change per epoch.
+ * 0.1 filled large haul-shed ceilings in a handful of years; 0.02 keeps early epochs
+ * in village/town bands under calibrated packing constants.
+ */
+export const SURPLUS_POPULATION_GROWTH_FRACTION = 0.02
+
+/**
  * Surplus-driven population change in people-units, clamped by ceiling.
  *
  * @param {number} population
@@ -243,9 +250,10 @@ export async function applyColonizationEpoch(slice, worldDocument, options = {})
 export function applySurplusPopulationDelta(population, foodSurplus, populationCeiling) {
   let next = population
   if (foodSurplus > 0) {
-    next = population + Math.max(1, Math.floor(foodSurplus * 0.1))
+    next = population + Math.max(1, Math.floor(foodSurplus * SURPLUS_POPULATION_GROWTH_FRACTION))
   } else if (foodSurplus < 0) {
-    next = population - Math.max(1, Math.floor(Math.abs(foodSurplus) * 0.1))
+    next =
+      population - Math.max(1, Math.floor(Math.abs(foodSurplus) * SURPLUS_POPULATION_GROWTH_FRACTION))
   }
   return Math.max(0, Math.min(Math.floor(next), populationCeiling))
 }

@@ -88,6 +88,7 @@ export async function clearRealmTrade(params, options = {}) {
       timberRaster: worldDocument.timberRaster,
       metalsRaster: worldDocument.metalsRaster,
       yieldModifier: slice.colonistSettings.yieldModifier,
+      populationDensity: slice.colonistSettings.populationDensity,
       fishProductivity,
       saltNodes: worldDocument.saltNodes,
       metalNodes: worldDocument.metalNodes,

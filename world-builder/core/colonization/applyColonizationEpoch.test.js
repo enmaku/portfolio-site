@@ -26,7 +26,7 @@ function richGeographyDoc() {
     },
     biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
     lakeMask: new Uint8Array(cellCount),
-    riverCorridorMask: Uint8Array.from({ length: cellCount }, (_, i) => (i === 5 ? 1 : 0)),
+    riverCorridorMask: Uint8Array.from({ length: cellCount }, (_, i) => (i === 15 ? 1 : 0)),
   }
 }
 
@@ -49,10 +49,14 @@ test('applySurplusPopulationDelta grows, stalls, and declines by surplus sign', 
 test('applyColonizationEpoch advances epoch and updates population from surplus', async () => {
   const running = await commitRunningSlice(20)
   const doc = richGeographyDoc()
+  const before = running.settlements.reduce((sum, s) => sum + (s.population || 0), 0)
   const { slice: next } = await applyColonizationEpoch(running, doc)
 
   assert.strictEqual(next.epoch, 1)
-  assert.ok(next.settlements[0].population >= running.settlements[0].population)
+  const after = next.settlements
+    .filter((s) => s.status !== 'ruin')
+    .reduce((sum, s) => sum + (s.population || 0), 0)
+  assert.ok(after >= before)
   assert.ok(Object.keys(next.primaryClaim).length > 0)
 })
 

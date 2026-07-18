@@ -10,13 +10,16 @@ import {
   DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
   DEFAULT_OFF_MAP_SHIPPING_COST,
   DEFAULT_PEOPLE_PER_HABITABLE_CELL,
+  DEFAULT_POPULATION_DENSITY,
   MAX_LAND_EXPEDITION_RANGE,
   MAX_OFF_MAP_SHIPPING_COST,
   MAX_PEOPLE_PER_HABITABLE_CELL,
+  MAX_POPULATION_DENSITY,
   MAX_THREE_DAY_HAUL_DISTANCE,
   MIN_INLAND_SAIL_EXPEDITION_RANGE,
   MIN_OFF_MAP_SHIPPING_COST,
   MIN_PEOPLE_PER_HABITABLE_CELL,
+  MIN_POPULATION_DENSITY,
   cloneColonizationSlice,
   createDefaultColonistSettings,
   createDefaultColonizationSlice,
@@ -50,6 +53,7 @@ test('createDefaultColonistSettings provides concrete defaults for every field',
   assert.strictEqual(typeof settings.startingPopulation, 'number')
   assert.ok(settings.startingPopulation > 0)
   assert.strictEqual(settings.peoplePerHabitableCell, DEFAULT_PEOPLE_PER_HABITABLE_CELL)
+  assert.strictEqual(settings.populationDensity, DEFAULT_POPULATION_DENSITY)
   assert.strictEqual(settings.yieldModifier, 'typical')
   assert.strictEqual(settings.landExpeditionRange, DEFAULT_LAND_EXPEDITION_RANGE)
   assert.strictEqual(settings.inlandSailExpeditionRange, DEFAULT_INLAND_SAIL_EXPEDITION_RANGE)
@@ -65,6 +69,17 @@ test('resolveColonistSettings clamps people per habitable cell', () => {
   assert.strictEqual(
     resolveColonistSettings({ peoplePerHabitableCell: 1 }).peoplePerHabitableCell,
     MIN_PEOPLE_PER_HABITABLE_CELL,
+  )
+})
+
+test('resolveColonistSettings clamps population density', () => {
+  assert.strictEqual(
+    resolveColonistSettings({ populationDensity: 99 }).populationDensity,
+    MAX_POPULATION_DENSITY,
+  )
+  assert.strictEqual(
+    resolveColonistSettings({ populationDensity: 0.1 }).populationDensity,
+    MIN_POPULATION_DENSITY,
   )
 })
 

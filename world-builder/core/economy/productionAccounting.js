@@ -6,8 +6,8 @@
 import { yieldModifierMultiplier } from '../colonization/resolveSurvivalTriad.js'
 import { prosperityDemandUnits } from './tradeClearing/allocationTiers.js'
 
-/** Food productivity unit → edible lb per epoch (100 people × 365 lb). */
-export const FOOD_LB_PER_PRODUCTIVITY_UNIT = 36500
+/** Food productivity unit → edible lb per epoch (10 people × 365 lb). */
+export const FOOD_LB_PER_PRODUCTIVITY_UNIT = 3650
 /** Salt pin: score × this many lb per claimed pin per epoch. */
 export const SALT_LB_PER_SCORE = 10000
 /** Timber productivity unit → lb per epoch. */
@@ -151,6 +151,7 @@ function sumRasterOnClaimedIndices(raster, claimedIndices) {
  *   timberRaster?: Float32Array | null,
  *   metalsRaster?: Float32Array | null,
  *   yieldModifier?: string,
+ *   populationDensity?: number,
  *   fishProductivity?: number,
  *   saltNodes?: ReadonlyArray<import('../types.js').SaltNode>,
  *   metalNodes?: ReadonlyArray<import('../types.js').MetalNode>,
@@ -166,6 +167,7 @@ export function computeSettlementProduction(params) {
     timberRaster = null,
     metalsRaster = null,
     yieldModifier = 'typical',
+    populationDensity = 1,
     fishProductivity = 0,
     saltNodes = [],
     metalNodes = [],
@@ -173,6 +175,9 @@ export function computeSettlementProduction(params) {
 
   const amounts = emptyCommodityAmounts()
   const yieldMult = yieldModifierMultiplier(yieldModifier)
+  const densityScale =
+    Number.isFinite(populationDensity) && populationDensity > 0 ? populationDensity : 1
+  const foodLbPerUnit = FOOD_LB_PER_PRODUCTIVITY_UNIT * densityScale
 
   const claimedIndices = new Set()
   for (const cell of claimedCells) {
@@ -180,8 +185,8 @@ export function computeSettlementProduction(params) {
   }
 
   const cropProductivity = sumRasterOnClaimedIndices(arableRaster, claimedIndices) * yieldMult
-  amounts.grain = cropProductivity * FOOD_LB_PER_PRODUCTIVITY_UNIT
-  amounts.fish = Math.max(0, fishProductivity) * FOOD_LB_PER_PRODUCTIVITY_UNIT
+  amounts.grain = cropProductivity * foodLbPerUnit
+  amounts.fish = Math.max(0, fishProductivity) * foodLbPerUnit
   amounts.timber =
     sumRasterOnClaimedIndices(timberRaster, claimedIndices) * TIMBER_LB_PER_PRODUCTIVITY_UNIT
   amounts.baseMetals =

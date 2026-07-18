@@ -6,6 +6,7 @@
  * @property {number} threeDayHaulDistance
  * @property {number} startingPopulation
  * @property {number} peoplePerHabitableCell Landscape packing density for the land leg of population ceiling.
+ * @property {number} populationDensity Scalar on feeding and land packing (and matching food lb yields).
  * @property {YieldModifier} yieldModifier
  * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap.
  * @property {number} inlandSailExpeditionRange Multiplier on three-day haul distance for inland sail expedition range cap.
@@ -102,9 +103,12 @@ export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 100
 /** Upper bound for author scale calibration. */
 export const MAX_THREE_DAY_HAUL_DISTANCE = 300
 export const DEFAULT_STARTING_POPULATION = 100
-export const DEFAULT_PEOPLE_PER_HABITABLE_CELL = 100
-export const MIN_PEOPLE_PER_HABITABLE_CELL = 25
-export const MAX_PEOPLE_PER_HABITABLE_CELL = 200
+export const DEFAULT_PEOPLE_PER_HABITABLE_CELL = 10
+export const MIN_PEOPLE_PER_HABITABLE_CELL = 1
+export const MAX_PEOPLE_PER_HABITABLE_CELL = 50
+export const DEFAULT_POPULATION_DENSITY = 1
+export const MIN_POPULATION_DENSITY = 0.5
+export const MAX_POPULATION_DENSITY = 2
 export const DEFAULT_YIELD_MODIFIER = /** @type {YieldModifier} */ ('typical')
 export const DEFAULT_LAND_EXPEDITION_RANGE = 2
 export const MIN_LAND_EXPEDITION_RANGE = 1
@@ -141,6 +145,7 @@ export function createDefaultColonistSettings() {
     threeDayHaulDistance: DEFAULT_THREE_DAY_HAUL_DISTANCE,
     startingPopulation: DEFAULT_STARTING_POPULATION,
     peoplePerHabitableCell: DEFAULT_PEOPLE_PER_HABITABLE_CELL,
+    populationDensity: DEFAULT_POPULATION_DENSITY,
     yieldModifier: DEFAULT_YIELD_MODIFIER,
     landExpeditionRange: DEFAULT_LAND_EXPEDITION_RANGE,
     inlandSailExpeditionRange: DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
@@ -272,6 +277,12 @@ export function resolveColonistSettings(value) {
       defaults.peoplePerHabitableCell,
       MIN_PEOPLE_PER_HABITABLE_CELL,
       MAX_PEOPLE_PER_HABITABLE_CELL,
+    ),
+    populationDensity: clampNumberRange(
+      incoming.populationDensity,
+      defaults.populationDensity,
+      MIN_POPULATION_DENSITY,
+      MAX_POPULATION_DENSITY,
     ),
     yieldModifier,
     landExpeditionRange: clampIntegerRange(

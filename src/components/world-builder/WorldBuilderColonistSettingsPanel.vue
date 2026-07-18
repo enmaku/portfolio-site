@@ -53,6 +53,25 @@
     />
 
     <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
+      <span class="text-caption">Population density</span>
+      <WorldBuilderSettingHelp
+        :text="POPULATION_DENSITY_TOOLTIP"
+        label="Population density"
+      />
+    </div>
+    <q-slider
+      :model-value="displaySettings.populationDensity"
+      :min="minPopulationDensity"
+      :max="maxPopulationDensity"
+      :step="0.1"
+      label
+      color="primary"
+      data-testid="world-builder-colonist-population-density"
+      :disable="runningPhase"
+      @update:model-value="(value) => emitSetting('populationDensity', value)"
+    />
+
+    <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
       <span class="text-caption">People per habitable cell</span>
       <WorldBuilderSettingHelp
         :text="PEOPLE_PER_HABITABLE_CELL_TOOLTIP"
@@ -63,7 +82,7 @@
       :model-value="displaySettings.peoplePerHabitableCell"
       :min="minPeoplePerHabitableCell"
       :max="maxPeoplePerHabitableCell"
-      :step="5"
+      :step="1"
       label
       color="primary"
       data-testid="world-builder-colonist-people-per-habitable-cell"
@@ -175,6 +194,7 @@ import {
   OFF_MAP_SHIPPING_COST_TOOLTIP,
   OPEN_SEA_EXPEDITION_RANGE_TOOLTIP,
   PEOPLE_PER_HABITABLE_CELL_TOOLTIP,
+  POPULATION_DENSITY_TOOLTIP,
   STARTING_POPULATION_TOOLTIP,
   THREE_DAY_HAUL_DISTANCE_TOOLTIP,
   YIELD_MODIFIER_TOOLTIP,
@@ -185,12 +205,14 @@ import {
   MAX_OFF_MAP_SHIPPING_COST,
   MAX_OPEN_SEA_EXPEDITION_RANGE,
   MAX_PEOPLE_PER_HABITABLE_CELL,
+  MAX_POPULATION_DENSITY,
   MAX_THREE_DAY_HAUL_DISTANCE,
   MIN_INLAND_SAIL_EXPEDITION_RANGE,
   MIN_LAND_EXPEDITION_RANGE,
   MIN_OFF_MAP_SHIPPING_COST,
   MIN_OPEN_SEA_EXPEDITION_RANGE,
   MIN_PEOPLE_PER_HABITABLE_CELL,
+  MIN_POPULATION_DENSITY,
 } from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
 import WorldBuilderSettingHelp from './WorldBuilderSettingHelp.vue'
 
@@ -211,6 +233,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update-setting', 'reset-defaults'])
 const maxThreeDayHaulDistance = MAX_THREE_DAY_HAUL_DISTANCE
+const minPopulationDensity = MIN_POPULATION_DENSITY
+const maxPopulationDensity = MAX_POPULATION_DENSITY
 const minPeoplePerHabitableCell = MIN_PEOPLE_PER_HABITABLE_CELL
 const maxPeoplePerHabitableCell = MAX_PEOPLE_PER_HABITABLE_CELL
 const minLandExpeditionRange = MIN_LAND_EXPEDITION_RANGE

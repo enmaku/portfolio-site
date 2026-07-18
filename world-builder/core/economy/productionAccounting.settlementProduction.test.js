@@ -44,6 +44,25 @@ test('fish converts precomputed productivity on the same food scale', () => {
   assert.strictEqual(production.amounts.fish, 2.5 * FOOD_LB_PER_PRODUCTIVITY_UNIT)
 })
 
+test('population density scales grain and fish lb yields only', () => {
+  const arable = new Float32Array(9)
+  arable[indexOf(0, 0)] = 2
+  const timber = new Float32Array(9)
+  timber[indexOf(0, 0)] = 1
+  const dense = computeSettlementProduction({
+    settlementId: 's1',
+    claimedCells: CLAIMED,
+    gridWidth: GRID_WIDTH,
+    arableRaster: arable,
+    timberRaster: timber,
+    fishProductivity: 1,
+    populationDensity: 2,
+  })
+  assert.strictEqual(dense.amounts.grain, 2 * FOOD_LB_PER_PRODUCTIVITY_UNIT * 2)
+  assert.strictEqual(dense.amounts.fish, 1 * FOOD_LB_PER_PRODUCTIVITY_UNIT * 2)
+  assert.strictEqual(dense.amounts.timber, 1 * TIMBER_LB_PER_PRODUCTIVITY_UNIT)
+})
+
 test('timber and base metals convert with their catalog constants, no yield modifier', () => {
   const timber = new Float32Array(9)
   timber[indexOf(0, 0)] = 3

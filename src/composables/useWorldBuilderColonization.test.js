@@ -329,19 +329,40 @@ test('setColonistSetting locks people per habitable cell after begin colonizatio
     const { ctx, settingsStore, setGeographyDocument } = mountColonization(scope)
     setGeographyDocument(coastalLandmassDocument())
     await ctx.enterColonizationSetup(true)
-    ctx.setColonistSetting('peoplePerHabitableCell', 150)
+    ctx.setColonistSetting('peoplePerHabitableCell', 40)
     ctx.pickFoundingLanding(3, 3)
 
     assert.strictEqual(await ctx.beginColonization(), true)
     assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
 
-    ctx.setColonistSetting('peoplePerHabitableCell', 50)
+    ctx.setColonistSetting('peoplePerHabitableCell', 5)
 
-    assert.strictEqual(ctx.colonistSettings.value.peoplePerHabitableCell, 150)
+    assert.strictEqual(ctx.colonistSettings.value.peoplePerHabitableCell, 40)
     assert.strictEqual(
       settingsStore.colonizationSession.colonistSettings.peoplePerHabitableCell,
-      150,
+      40,
     )
+  } finally {
+    scope.stop()
+  }
+})
+
+test('setColonistSetting locks population density after begin colonization', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, settingsStore, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.setColonistSetting('populationDensity', 1.5)
+    ctx.pickFoundingLanding(3, 3)
+
+    assert.strictEqual(await ctx.beginColonization(), true)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+
+    ctx.setColonistSetting('populationDensity', 0.5)
+
+    assert.strictEqual(ctx.colonistSettings.value.populationDensity, 1.5)
+    assert.strictEqual(settingsStore.colonizationSession.colonistSettings.populationDensity, 1.5)
   } finally {
     scope.stop()
   }

@@ -15,11 +15,18 @@ import { sumFishProductionOnCells } from '../../colonization/fish/sumFishProduct
  *   claimedCells: ReadonlyArray<{ x: number, y: number }>,
  *   worldDocument: import('../../types.js').WorldDocument,
  *   yieldModifier: string,
+ *   populationDensity?: number,
  * }} params
  * @returns {Record<CommodityId, number>}
  */
 export function computeClaimProduction(params) {
-  const { settlementId = 'claim', claimedCells, worldDocument, yieldModifier } = params
+  const {
+    settlementId = 'claim',
+    claimedCells,
+    worldDocument,
+    yieldModifier,
+    populationDensity,
+  } = params
   const fishProductivity = sumFishProductionOnCells({
     claimedCells,
     gridWidth: worldDocument.gridWidth,
@@ -36,6 +43,7 @@ export function computeClaimProduction(params) {
     timberRaster: worldDocument.timberRaster,
     metalsRaster: worldDocument.metalsRaster,
     yieldModifier,
+    populationDensity,
     fishProductivity,
     saltNodes: worldDocument.saltNodes,
     metalNodes: worldDocument.metalNodes,

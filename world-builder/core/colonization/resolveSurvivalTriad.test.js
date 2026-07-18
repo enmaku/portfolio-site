@@ -22,6 +22,7 @@ import {
  *   yieldModifier: string,
  *   population: number,
  *   peoplePerHabitableCell: number,
+ *   populationDensity: number,
  *   saltSpoilageMultiplier: number,
  * }>} overrides
  */
@@ -47,6 +48,7 @@ function triadParams(overrides = {}) {
     population: overrides.population ?? 50,
     // High default so food-ceiling tests are not accidentally land-bound.
     peoplePerHabitableCell: overrides.peoplePerHabitableCell ?? 100_000,
+    populationDensity: overrides.populationDensity ?? 1,
     saltSpoilageMultiplier: overrides.saltSpoilageMultiplier ?? 1,
   }
 }
@@ -108,7 +110,7 @@ test('resolveSurvivalTriad timber scarcity no longer binds the population ceilin
   const foodCap = 20 * PEOPLE_PER_ARABLE_UNIT
   assert.strictEqual(scarceTimber.populationCeiling, foodCap)
   assert.strictEqual(scarceTimber.populationCeiling, abundantTimber.populationCeiling)
-  assert.strictEqual(scarceTimber.population, 1000)
+  assert.strictEqual(scarceTimber.population, foodCap)
   assert.ok(scarceTimber.timberSum > 0)
 })
 
@@ -266,6 +268,40 @@ test('resolveSurvivalTriad food ceiling still binds when land is ample', () => {
   // Three habitable cells × 100 = 300; food = 1 × 100 = 100 → food binds.
   assert.strictEqual(ampleLand.foodProduction, 1)
   assert.strictEqual(ampleLand.populationCeiling, PEOPLE_PER_ARABLE_UNIT)
+})
+
+test('resolveSurvivalTriad population density scales food and land ceilings', () => {
+  const landBound = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [50, 0, 0],
+      peoplePerHabitableCell: 40,
+      populationDensity: 1,
+      population: 10_000,
+    }),
+  )
+  const landBoundDense = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [50, 0, 0],
+      peoplePerHabitableCell: 40,
+      populationDensity: 2,
+      population: 10_000,
+    }),
+  )
+  assert.strictEqual(landBound.populationCeiling, 40)
+  assert.strictEqual(landBoundDense.populationCeiling, 80)
+
+  const foodBound = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [2, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      populationDensity: 1.5,
+      population: 10_000,
+    }),
+  )
+  assert.strictEqual(foodBound.populationCeiling, Math.floor(2 * PEOPLE_PER_ARABLE_UNIT * 1.5))
 })
 
 test('applySurvivalResolveToSettlement uses document rasters and freshwater derive', () => {
