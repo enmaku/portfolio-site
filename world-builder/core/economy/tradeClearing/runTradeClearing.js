@@ -394,31 +394,48 @@ function planBestMove(state, params) {
   const { targetId, commodities } = params
   let best = null
   for (const commodityId of commodities) {
-    const sourceIds = state.settlements
-      .filter((s) => s.id !== targetId && exportableUnits(state, s, params.spec, commodityId) > EPSILON)
-      .map((s) => s.id)
-    if (sourceIds.length === 0) continue
+    const priceAtDest = state.localPrices[targetId]?.[commodityId] ?? 0
+    const unitTollCp = PORT_TOLL_RATE * priceAtDest
+    const sources = state.settlements.filter(
+      (s) => s.id !== targetId && exportableUnits(state, s, params.spec, commodityId) > EPSILON,
+    )
+    for (const source of sources) {
+      const path = findMinCostPath({
+        edges: state.edges,
+        remainingCapLbByEdgeId: state.remainingCapLbByEdgeId,
+        sourceIds: [source.id],
+        targetId,
+        commodityId,
+        isPort: state.isPort,
+        unitTollCp,
+      })
+      if (!path) continue
 
-    const unitTollCp = PORT_TOLL_RATE * (state.localPrices[targetId]?.[commodityId] ?? 0)
-    const path = findMinCostPath({
-      edges: state.edges,
-      remainingCapLbByEdgeId: state.remainingCapLbByEdgeId,
-      sourceIds,
-      targetId,
-      commodityId,
-      isPort: state.isPort,
-      unitTollCp,
-    })
-    if (!path) continue
+      const priceAtOrigin = state.localPrices[path.originId]?.[commodityId] ?? 0
+      const tollUnitCp = path.tollEvents.reduce((sum, e) => sum + e.unitTollCp, 0)
+      const arbitrageGapCp = priceAtDest - priceAtOrigin - path.transportUnitCp - tollUnitCp
+      if (arbitrageGapCp <= EPSILON) continue
 
-    const priceAtOrigin = state.localPrices[path.originId]?.[commodityId] ?? 0
-    const netUnitValueCp = priceAtOrigin - path.transportUnitCp
-    if (netUnitValueCp <= EPSILON) continue
+      const netUnitValueCp = priceAtDest - path.transportUnitCp
+      if (netUnitValueCp <= EPSILON) continue
 
-    const tollUnitCp = path.tollEvents.reduce((sum, e) => sum + e.unitTollCp, 0)
-    const importerUnitCostCp = netUnitValueCp + tollUnitCp
-    const candidate = { commodityId, path, netUnitValueCp, importerUnitCostCp }
-    if (!best || candidate.path.totalUnitCp < best.path.totalUnitCp - 1e-9) best = candidate
+      const importerUnitCostCp = netUnitValueCp + tollUnitCp
+      const candidate = {
+        commodityId,
+        path,
+        netUnitValueCp,
+        importerUnitCostCp,
+        arbitrageGapCp,
+      }
+      if (
+        !best ||
+        candidate.arbitrageGapCp > best.arbitrageGapCp + 1e-9 ||
+        (Math.abs(candidate.arbitrageGapCp - best.arbitrageGapCp) <= 1e-9 &&
+          candidate.path.totalUnitCp < best.path.totalUnitCp - 1e-9)
+      ) {
+        best = candidate
+      }
+    }
   }
   return best
 }

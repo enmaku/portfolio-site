@@ -1,5 +1,5 @@
 /**
- * Pre-trade local prices on candidate-route connected markets.
+ * Pre-trade per-settlement local prices from each site's own supply and demand.
  * Domain: world-builder/CONTEXT.md — local price.
  */
 
@@ -81,8 +81,8 @@ export function priceFormationDemand(population) {
 }
 
 /**
- * Partition settlement ids into connected-market components over candidate edges.
- * Dormant candidates still connect a market.
+ * Partition settlement ids into connected components over candidate edges.
+ * Kept for graph diagnostics; local prices no longer pool across components.
  *
  * @param {ReadonlyArray<string>} settlementIds
  * @param {ReadonlyArray<{ fromSettlementId: string, toSettlementId: string }>} edges
@@ -129,44 +129,32 @@ export function connectedMarketComponents(settlementIds, edges) {
 }
 
 /**
- * Local prices per settlement computed once pre-clearing on candidate-route
- * connected markets. Every settlement in a component shares identical prices.
+ * Local prices per settlement from that settlement's own pre-trade production and
+ * population-scaled demand. Candidate edges do not pool markets — regional scarcity
+ * and surplus must differ so trade can arbitrage the gap after transport and tolls.
  *
  * @param {{
  *   settlements: ReadonlyArray<{ id: string, population: number }>,
- *   edges: ReadonlyArray<{ fromSettlementId: string, toSettlementId: string }>,
+ *   edges?: ReadonlyArray<{ fromSettlementId: string, toSettlementId: string }>,
  *   production: Record<string, Partial<Record<CommodityId, number>>>,
  * }} params
  * @returns {Record<string, Record<CommodityId, number>>}
  */
 export function computeConnectedMarketPrices(params) {
-  const populationById = new Map(params.settlements.map((s) => [s.id, Math.max(0, s.population || 0)]))
-  const settlementIds = params.settlements.map((s) => s.id)
-  const components = connectedMarketComponents(settlementIds, params.edges)
-
   /** @type {Record<string, Record<CommodityId, number>>} */
   const pricesById = {}
-  for (const component of components) {
+  for (const settlement of params.settlements) {
+    const population = Math.max(0, settlement.population || 0)
+    const prod = params.production[settlement.id] ?? {}
     /** @type {Record<CommodityId, number>} */
     const supply = /** @type {Record<CommodityId, number>} */ ({})
-    /** @type {Record<CommodityId, number>} */
-    const demand = /** @type {Record<CommodityId, number>} */ ({})
     for (const id of COMMODITY_IDS) {
-      supply[id] = 0
-      demand[id] = 0
+      supply[id] = Math.max(0, prod[id] ?? 0)
     }
-    for (const settlementId of component) {
-      const prod = params.production[settlementId] ?? {}
-      const demandTargets = priceFormationDemand(populationById.get(settlementId) ?? 0)
-      for (const id of COMMODITY_IDS) {
-        supply[id] += Math.max(0, prod[id] ?? 0)
-        demand[id] += demandTargets[id]
-      }
-    }
-    const prices = computeLocalPrices({ supplyByCommodity: supply, demandByCommodity: demand })
-    for (const settlementId of component) {
-      pricesById[settlementId] = { ...prices }
-    }
+    pricesById[settlement.id] = computeLocalPrices({
+      supplyByCommodity: supply,
+      demandByCommodity: priceFormationDemand(population),
+    })
   }
   return pricesById
 }

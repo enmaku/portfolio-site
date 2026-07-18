@@ -21,7 +21,7 @@ test('local price multiplier clamps sqrt(demand / supply) to bounds', () => {
   assert.ok(Math.abs(localPriceMultiplier(100, 400) - 2) < 1e-9)
 })
 
-test('connected market aggregates supply and demand across candidate edges', () => {
+test('linked settlements keep independent local prices from own supply and demand', () => {
   const settlements = [
     { id: 'a', population: 100 },
     { id: 'b', population: 100 },
@@ -34,13 +34,13 @@ test('connected market aggregates supply and demand across candidate edges', () 
 
   const prices = computeConnectedMarketPrices({ settlements, edges, production })
 
-  // Both settlements share the same market, so identical prices.
-  assert.deepStrictEqual(prices.a, prices.b)
-  // Salt has demand but zero supply market-wide → upper clamp.
+  assert.notDeepStrictEqual(prices.a, prices.b)
+  assert.ok(prices.a.grain < prices.b.grain)
   assert.strictEqual(prices.a.salt, referencePriceCp('salt') * LOCAL_PRICE_MULTIPLIER_MAX)
+  assert.strictEqual(prices.b.salt, referencePriceCp('salt') * LOCAL_PRICE_MULTIPLIER_MAX)
 })
 
-test('disconnected settlements price their own markets independently', () => {
+test('surplus and deficit settlements clamp grain to opposite bounds', () => {
   const settlements = [
     { id: 'a', population: 100 },
     { id: 'b', population: 100 },
@@ -52,7 +52,6 @@ test('disconnected settlements price their own markets independently', () => {
 
   const prices = computeConnectedMarketPrices({ settlements, edges: [], production })
 
-  // a is flooded with grain → lower clamp; b has demand but no supply → upper clamp.
   assert.strictEqual(prices.a.grain, referencePriceCp('grain') * LOCAL_PRICE_MULTIPLIER_MIN)
   assert.strictEqual(prices.b.grain, referencePriceCp('grain') * LOCAL_PRICE_MULTIPLIER_MAX)
 })

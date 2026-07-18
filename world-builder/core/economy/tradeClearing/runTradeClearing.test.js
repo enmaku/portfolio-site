@@ -62,7 +62,7 @@ test('survival: grain surplus flows over a single overland edge to a starving ne
   assert.strictEqual(result.effectiveDelivered.b.foodLb, 36500)
 
   const prices = computeConnectedMarketPrices({ settlements, edges: graph.edges, production: prod })
-  const expectedCp = (prices.a.grain - 0.1) * 36500
+  const expectedCp = (prices.b.grain - 0.1) * 36500
   const obligation = result.obligationDeltas.find(
     (o) => o.fromSettlementId === 'b' && o.toSettlementId === 'a',
   )
@@ -123,7 +123,7 @@ test('prosperity fills each commodity to the 1 gp/person reference target at loc
   assert.strictEqual(timberFlow.amount, timberTarget)
 
   const prices = computeConnectedMarketPrices({ settlements, edges: graph.edges, production: prod })
-  const expectedCp = (prices.a.timber - 0.01) * timberTarget
+  const expectedCp = (prices.b.timber - 0.01) * timberTarget
   const obligation = result.obligationDeltas.find(
     (o) => o.fromSettlementId === 'b' && o.toSettlementId === 'a' && o.kind === 'goods',
   )
@@ -131,13 +131,13 @@ test('prosperity fills each commodity to the 1 gp/person reference target at loc
   assert.ok(Math.abs(obligation.amountCp - expectedCp) < 1e-6)
 })
 
-test('a haul costlier than the delivered value carries nothing', () => {
+test('a haul costlier than the arbitrage gap carries nothing', () => {
   const settlements = [
     { id: 'a', population: 100 },
     { id: 'b', population: 100 },
   ]
   const prod = production({ a: { grain: 200000 }, b: {} })
-  // Grain local price caps at 2 cp/lb; a 5 cp/lb haul can never pay.
+  // Max price gap is 1.5 cp/lb (2 − 0.5); a 5 cp/lb haul cannot pay.
   const graph = {
     edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 5 })],
   }
@@ -152,6 +152,33 @@ test('a haul costlier than the delivered value carries nothing', () => {
   assert.strictEqual(result.flows.length, 0)
   assert.strictEqual(result.effectiveDelivered.b.foodLb, 0)
   assert.strictEqual(result.obligationDeltas.length, 0)
+})
+
+test('goods move only when importer local price exceeds exporter price by more than haul', () => {
+  const settlements = [
+    { id: 'a', population: 100 },
+    { id: 'b', population: 100 },
+  ]
+  // Matched grain so both sit near the same local price; a small haul still has no wedge.
+  const prod = production({
+    a: { grain: 43800, salt: 500 },
+    b: { grain: 43800, salt: 500 },
+  })
+  const graph = {
+    edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.1 })],
+  }
+
+  const result = runTradeClearingSync({
+    settlements,
+    graph,
+    production: prod,
+    priorRealizedIncomeCp: { a: 1_000_000, b: 1_000_000 },
+  })
+
+  assert.strictEqual(
+    result.flows.filter((f) => f.commodityId === 'grain').length,
+    0,
+  )
 })
 
 test('mode choice follows the cheaper delivered cost between parallel road and water edges', () => {
@@ -269,7 +296,8 @@ test('transshipment moves goods through an intermediate that neither buys nor re
   const goodsCp = result.obligationDeltas
     .filter((o) => o.fromSettlementId === 'b' && o.toSettlementId === 'a' && o.kind === 'goods')
     .reduce((s, o) => s + o.amountCp, 0)
-  assert.ok(Math.abs(goodsCp - (0.5 - 0.1) * 43800) < 1e-6)
+  const prices = computeConnectedMarketPrices({ settlements, edges: graph.edges, production: prod })
+  assert.ok(Math.abs(goodsCp - (prices.b.grain - 0.1) * 43800) < 1e-6)
 })
 
 test('sea shipment tolls the importer at the loading port; the unload self-toll nets to zero', () => {
@@ -298,7 +326,7 @@ test('sea shipment tolls the importer at the loading port; the unload self-toll 
   assert.strictEqual(tolls[0].toSettlementId, 'a')
 
   const prices = computeConnectedMarketPrices({ settlements, edges: graph.edges, production: prod })
-  const expectedTollCp = 0.05 * prices.a.grain * 36500
+  const expectedTollCp = 0.05 * prices.b.grain * 36500
   assert.ok(Math.abs(tolls[0].amountCp - expectedTollCp) < 1e-6)
 
   // No obligation is ever a settlement owing itself.
@@ -315,7 +343,7 @@ test('credit limit caps imports at a settlement without collateral or income', (
     edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.1 })],
   }
   const prices = computeConnectedMarketPrices({ settlements, edges: graph.edges, production: prod })
-  const netUnit = prices.a.grain - 0.1
+  const netUnit = prices.b.grain - 0.1
 
   const capped = runTradeClearingSync({
     settlements,
