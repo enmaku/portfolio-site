@@ -6,7 +6,6 @@ import {
   computeRouteOutlineMask,
   LAND_ROUTE_OVERLAY_RGB,
   ROUTE_OVERLAY_HALF_WIDTH,
-  SAIL_ROUTE_OVERLAY_RGB,
 } from './buildRoadOverlayRgba.js'
 import { WATER_BODY_OUTLINE_RGBA } from './riverCorridorOverlayRgba.js'
 
@@ -33,53 +32,39 @@ test('buildRoutesOverlayRgba half-width constant matches painted neighborhood', 
   assert.strictEqual(rgba[beyondBase + 3], 0)
 })
 
-test('buildRoutesOverlayRgba uses distinct colors for land and sail segments', () => {
+test('buildRoutesOverlayRgba omits maritime segments and keeps land', () => {
   const roads = [
     ...appendRoadSegment([], [{ x: 1, y: 1 }], [], 'land'),
     ...appendRoadSegment([], [{ x: 6, y: 1 }], [], 'sail'),
-  ]
-  const rgba = buildRoutesOverlayRgba({ gridWidth: 8, gridHeight: 8, roads })
-  assert.ok(rgba)
-  const landBase = ((1 * 8) + 1) * 4
-  const sailBase = ((1 * 8) + 6) * 4
-  assert.strictEqual(rgba[landBase], LAND_ROUTE_OVERLAY_RGB[0])
-  assert.strictEqual(rgba[sailBase], SAIL_ROUTE_OVERLAY_RGB[0])
-  assert.notStrictEqual(rgba[landBase], rgba[sailBase])
-})
-
-test('buildRoutesOverlayRgba omits open_sea segments', () => {
-  const roads = [
-    ...appendRoadSegment([], [{ x: 1, y: 1 }, { x: 6, y: 5 }], ['port-a', 'port-b'], 'open_sea'),
     ...appendRoadSegment([], [{ x: 7, y: 0 }], [], 'inland_sail'),
+    ...appendRoadSegment([], [{ x: 1, y: 6 }, { x: 6, y: 6 }], ['port-a', 'port-b'], 'open_sea'),
   ]
   const rgba = buildRoutesOverlayRgba({
     gridWidth: 8,
     gridHeight: 8,
     roads,
     settlements: [
-      { id: 'port-a', x: 1, y: 1 },
-      { id: 'port-b', x: 6, y: 5 },
+      { id: 'port-a', x: 1, y: 6 },
+      { id: 'port-b', x: 6, y: 6 },
     ],
   })
   assert.ok(rgba)
-  const openSeaFromBase = ((1 * 8) + 1) * 4
-  const openSeaMidBase = ((3 * 8) + 3) * 4
-  const openSeaToBase = ((5 * 8) + 6) * 4
+  const landBase = ((1 * 8) + 1) * 4
+  const sailBase = ((1 * 8) + 6) * 4
   const inlandBase = ((0 * 8) + 7) * 4
-  assert.strictEqual(rgba[openSeaFromBase + 3], 0)
-  assert.strictEqual(rgba[openSeaMidBase + 3], 0)
-  assert.strictEqual(rgba[openSeaToBase + 3], 0)
-  assert.strictEqual(rgba[inlandBase], SAIL_ROUTE_OVERLAY_RGB[0])
-  assert.ok(rgba[inlandBase + 3] > 0)
+  const openSeaBase = ((6 * 8) + 3) * 4
+  assert.strictEqual(rgba[landBase], LAND_ROUTE_OVERLAY_RGB[0])
+  assert.ok(rgba[landBase + 3] > 0)
+  assert.strictEqual(rgba[sailBase + 3], 0)
+  assert.strictEqual(rgba[inlandBase + 3], 0)
+  assert.strictEqual(rgba[openSeaBase + 3], 0)
 })
 
-test('buildRoutesOverlayRgba returns null when only open_sea segments exist', () => {
-  const roads = appendRoadSegment(
-    [],
-    [{ x: 1, y: 1 }, { x: 6, y: 5 }],
-    ['port-a', 'port-b'],
-    'open_sea',
-  )
+test('buildRoutesOverlayRgba returns null when only maritime segments exist', () => {
+  const roads = [
+    ...appendRoadSegment([], [{ x: 6, y: 1 }], [], 'inland_sail'),
+    ...appendRoadSegment([], [{ x: 1, y: 1 }, { x: 6, y: 5 }], ['port-a', 'port-b'], 'open_sea'),
+  ]
   assert.strictEqual(
     buildRoutesOverlayRgba({
       gridWidth: 8,
