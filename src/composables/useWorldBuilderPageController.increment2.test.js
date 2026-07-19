@@ -69,7 +69,7 @@ test('epoch step updates sim status fields after epoch 0', async () => {
     assert.strictEqual(controller.showSimStatusPanel.value, true)
     assert.ok(controller.simStatus.value.epoch >= 1)
     assert.ok(controller.simStatus.value.livingSettlementCount >= 1)
-    assert.ok(Array.isArray(controller.foundingChronicle.value))
+    assert.ok(controller.realmEconomy.value.commodities.length > 0)
   } finally {
     scope.stop()
   }

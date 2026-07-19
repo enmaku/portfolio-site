@@ -26,18 +26,25 @@ function createFakeSettingsStore(initial = {}) {
 /** Captures viewport interactions so tests can assert map wiring without a real renderer. */
 function createFakeViewport() {
   const landingMarkers = []
+  const focusMarkers = []
   const haulShedPreviews = []
   const placementModes = []
   /** @type {((cell: { x: number, y: number }) => void) | null} */
   let cellPickHandler = null
+  /** @type {(() => void) | null} */
+  let settlementFocusClearHandler = null
   /** @type {((payload: { settlementId: string, clientX: number, clientY: number } | null) => void) | null} */
   let settlementHoverHandler = null
   return {
     landingMarkers,
+    focusMarkers,
     haulShedPreviews,
     placementModes,
     triggerCellPick(cell) {
       cellPickHandler?.(cell)
+    },
+    triggerSettlementFocusClear() {
+      settlementFocusClearHandler?.()
     },
     triggerSettlementHover(payload) {
       settlementHoverHandler?.(payload)
@@ -49,11 +56,17 @@ function createFakeViewport() {
       setFoundingLandingMarker(marker) {
         landingMarkers.push(marker)
       },
+      setSettlementFocusMarker(marker) {
+        focusMarkers.push(marker)
+      },
       setHaulShedPreviewCells(cells) {
         haulShedPreviews.push(cells)
       },
       onCellPick(handler) {
         cellPickHandler = handler
+      },
+      onSettlementFocusClear(handler) {
+        settlementFocusClearHandler = handler
       },
       onSettlementHover(handler) {
         settlementHoverHandler = handler
@@ -387,6 +400,8 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
     assert.strictEqual(ctx.isTerrainLocked.value, true)
     assert.strictEqual(ctx.timeControlsActive.value, true)
     assert.strictEqual(ctx.showResetColonization.value, true)
+    assert.strictEqual(ctx.showColonistSettingsPanel.value, false)
+    assert.strictEqual(ctx.showRealmEconomyPanel.value, true)
     assert.strictEqual(settingsStore.colonizationSession.colonizationPhase, COLONIZATION_PHASE_RUNNING)
   } finally {
     scope.stop()
@@ -512,6 +527,43 @@ test('settlement trade tooltip model is null when no settlement is hovered', asy
     viewport.triggerSettlementHover(null)
     assert.strictEqual(ctx.hoveredSettlementId.value, null)
     assert.strictEqual(ctx.settlementTradeTooltip.value, null)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('settlement focus toggles by extreme key, not settlement id', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, viewport, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.pickFoundingLanding(3, 3)
+    await ctx.beginColonization()
+
+    const settlementId = ctx.settlements.value?.[0]?.id
+    assert.ok(settlementId)
+
+    ctx.setSettlementFocus({
+      settlementId,
+      focusKey: 'commodity:copper:highest',
+    })
+    assert.strictEqual(ctx.focusedSettlementId.value, settlementId)
+    assert.deepEqual(viewport.focusMarkers.at(-1), { x: 3, y: 3 })
+
+    ctx.setSettlementFocus({
+      settlementId,
+      focusKey: 'commodity:gold:highest',
+    })
+    assert.strictEqual(ctx.focusedSettlementId.value, settlementId)
+    assert.deepEqual(viewport.focusMarkers.at(-1), { x: 3, y: 3 })
+
+    ctx.setSettlementFocus({
+      settlementId,
+      focusKey: 'commodity:gold:highest',
+    })
+    assert.strictEqual(ctx.focusedSettlementId.value, null)
+    assert.strictEqual(viewport.focusMarkers.at(-1), null)
   } finally {
     scope.stop()
   }

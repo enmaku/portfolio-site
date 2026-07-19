@@ -22,7 +22,7 @@ const PIN_MIN_WORLD_RADIUS = 0.75
  *   viewport: {
  *     addChild: (child: unknown) => void,
  *     eventMode: string,
- *     scale: { x: number, y: number },
+ *     scale: { x: number },
  *     on: (event: string, handler: (...args: unknown[]) => void) => void,
  *   },
  *   hostEl: HTMLElement,
@@ -34,14 +34,20 @@ export function attachLandingPlacementControls(options) {
   const { Graphics, viewport, hostEl, getWorldDocument, requestRender } = options
   const haulShedPreview = new Graphics()
   const landingPin = new Graphics()
+  const focusPin = new Graphics()
   viewport.addChild(haulShedPreview)
   viewport.addChild(landingPin)
+  viewport.addChild(focusPin)
 
   /** @type {((cell: { x: number, y: number }) => void) | null} */
   let cellPickHandler = null
+  /** @type {(() => void) | null} */
+  let settlementFocusClearHandler = null
   let landingPlacementEnabled = false
   /** @type {{ x: number, y: number } | null} */
   let currentMarker = null
+  /** @type {{ x: number, y: number } | null} */
+  let focusMarker = null
   /** @type {import('../core/types.js').WorldDocument | null} */
   let validityContextDoc = null
   /** @type {import('../core/colonization/isValidFoundingLandingCell.js').FoundingLandingValidityContext | null} */
@@ -65,20 +71,26 @@ export function attachLandingPlacementControls(options) {
       : 'not-allowed'
   })
   viewport.on('pointertap', (event) => {
-    if (!landingPlacementEnabled || !cellPickHandler) {
+    if (landingPlacementEnabled) {
+      if (!cellPickHandler) {
+        return
+      }
+      const world = /** @type {{ getLocalPosition: (target: unknown) => { x: number, y: number } }} */ (
+        event
+      ).getLocalPosition(viewport)
+      cellPickHandler({ x: Math.floor(world.x), y: Math.floor(world.y) })
       return
     }
-    const world = /** @type {{ getLocalPosition: (target: unknown) => { x: number, y: number } }} */ (
-      event
-    ).getLocalPosition(viewport)
-    cellPickHandler({ x: Math.floor(world.x), y: Math.floor(world.y) })
+    settlementFocusClearHandler?.()
   })
   viewport.on('zoomed', () => {
     redrawLandingPin()
+    redrawFocusPin()
     requestRender?.()
   })
   viewport.on('moved', () => {
     redrawLandingPin()
+    redrawFocusPin()
     requestRender?.()
   })
 
@@ -137,6 +149,31 @@ export function attachLandingPlacementControls(options) {
     landingPin.stroke({ width: stroke * 0.85, color: 0x111111, alpha: 0.9 })
   }
 
+  function redrawFocusPin() {
+    focusPin.clear()
+    if (!focusMarker) {
+      return
+    }
+    const radius = Math.max(PIN_MIN_WORLD_RADIUS, worldUnitsForScreenPx(PIN_SCREEN_RADIUS_PX))
+    const stroke = Math.max(0.12, worldUnitsForScreenPx(PIN_STROKE_SCREEN_PX))
+    const cx = focusMarker.x + 0.5
+    const cy = focusMarker.y + 0.5
+    const arm = radius * 1.8
+
+    focusPin.circle(cx, cy, radius * 1.55)
+    focusPin.stroke({ width: stroke * 0.7, color: 0xffffff, alpha: 0.95 })
+    focusPin.circle(cx, cy, radius)
+    focusPin.stroke({ width: stroke * 1.15, color: 0x33ddff, alpha: 0.95 })
+    focusPin.circle(cx, cy, radius * 0.55)
+    focusPin.stroke({ width: stroke * 0.85, color: 0x33ddff, alpha: 0.9 })
+
+    focusPin.moveTo(cx - arm, cy)
+    focusPin.lineTo(cx + arm, cy)
+    focusPin.moveTo(cx, cy - arm)
+    focusPin.lineTo(cx, cy + arm)
+    focusPin.stroke({ width: stroke * 0.85, color: 0x33ddff, alpha: 0.85 })
+  }
+
   function commitLandingOverlay() {
     requestRender?.()
   }
@@ -165,6 +202,15 @@ export function attachLandingPlacementControls(options) {
     },
 
     /**
+     * @param {{ x: number, y: number } | null | undefined} marker
+     */
+    setSettlementFocusMarker(marker) {
+      focusMarker = marker ? { x: marker.x, y: marker.y } : null
+      redrawFocusPin()
+      commitLandingOverlay()
+    },
+
+    /**
      * @param {Array<{ x: number, y: number }> | null | undefined} cells
      */
     setHaulShedPreviewCells(cells) {
@@ -184,6 +230,13 @@ export function attachLandingPlacementControls(options) {
      */
     onCellPick(handler) {
       cellPickHandler = handler
+    },
+
+    /**
+     * @param {(() => void) | null} handler
+     */
+    onSettlementFocusClear(handler) {
+      settlementFocusClearHandler = handler
     },
 
     clearCursor() {

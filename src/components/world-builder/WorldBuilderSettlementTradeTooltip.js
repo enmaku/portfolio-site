@@ -1,5 +1,5 @@
 import { defineComponent, h, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { CP_PER_GP, CP_PER_SP } from '../../../world-builder/core/economy/commodityCatalog.js'
+import { formatMoneyCp } from '../../../world-builder/core/economy/formatMoneyCp.js'
 import { clampSettlementTradeTooltipPosition } from '../../composables/clampSettlementTradeTooltipPosition.js'
 import {
   COMMODITY_ACCESSIBLE_NAMES,
@@ -111,7 +111,7 @@ export default defineComponent({
             testId: 'world-builder-settlement-trade-tooltip-balance',
             accessibleName: 'Balance',
             icon: moneyBagIcon(),
-            valueText: formatCp(tooltip.balanceCp),
+            valueText: formatMoneyCp(tooltip.balanceCp),
             valueClass: signedAmountClass(tooltip.balanceCp),
           }),
           h(
@@ -230,50 +230,10 @@ function commodityRow(entry) {
           class: ['text-right', priceVsReferenceClass(entry.priceVsReference)],
           style: { minWidth: '4rem' },
         },
-        formatCp(entry.localPriceCp),
+        formatMoneyCp(entry.localPriceCp),
       ),
     ],
   )
-}
-
-/**
- * @param {number} amountCp
- * @returns {string}
- */
-function formatCp(amountCp) {
-  const value = Number.isFinite(amountCp) ? amountCp : 0
-  const abs = Math.abs(value)
-  const sign = value < 0 ? '-' : ''
-  if (abs >= CP_PER_GP) {
-    return `${sign}${formatGroupedAmount(abs / CP_PER_GP)} gp`
-  }
-  if (abs >= CP_PER_SP) {
-    return `${sign}${formatGroupedAmount(abs / CP_PER_SP)} sp`
-  }
-  return `${sign}${formatGroupedAmount(abs)} cp`
-}
-
-/**
- * @param {number} value
- * @returns {string}
- */
-function trimTrailingZeros(value) {
-  return value
-    .toFixed(2)
-    .replace(/\.?0+$/, '')
-}
-
-/**
- * @param {number} value
- * @returns {string}
- */
-function formatGroupedAmount(value) {
-  const trimmed = trimTrailingZeros(value)
-  const dot = trimmed.indexOf('.')
-  const intPart = dot === -1 ? trimmed : trimmed.slice(0, dot)
-  const fracPart = dot === -1 ? null : trimmed.slice(dot + 1)
-  const grouped = Number(intPart).toLocaleString('en-US')
-  return fracPart != null ? `${grouped}.${fracPart}` : grouped
 }
 
 /**

@@ -37,10 +37,10 @@ import {
 } from '../../world-builder/core/colonization/filterColonizationValidationRows.js'
 import {
   buildColonizationSimStatus,
-  buildFoundingChronicle,
   shouldShowSimStatusPanel,
   shouldShowValidationAdvisory,
 } from '../../world-builder/core/colonization/buildColonizationSimStatus.js'
+import { buildRealmEconomyStatus } from '../../world-builder/core/colonization/buildRealmEconomyStatus.js'
 import { buildTerrainCacheFingerprint } from '../../world-builder/core/terrainCacheFingerprint.js'
 import {
   clearLockedTerrain as defaultClearLockedTerrain,
@@ -388,10 +388,15 @@ export function useWorldBuilderPageController(options) {
     return validationRows.value
   })
   const showSimStatusPanel = computed(() =>
-    shouldShowSimStatusPanel(colonization.colonizationPhase.value, colonization.epoch.value),
+    shouldShowSimStatusPanel(colonization.colonizationPhase.value),
   )
-  const simStatus = computed(() => buildColonizationSimStatus(colonization.slice.value))
-  const foundingChronicle = computed(() => buildFoundingChronicle(colonization.slice.value))
+  const simStatus = computed(() =>
+    buildColonizationSimStatus(
+      colonization.slice.value,
+      colonizationWorldDocument.value ?? geographyWorldDocument.value,
+    ),
+  )
+  const realmEconomy = computed(() => buildRealmEconomyStatus(colonization.slice.value))
   const stageSummary = computed(() =>
     createStageSummaryForDisplay(geographyWorldDocument.value?.generationReport),
   )
@@ -715,6 +720,7 @@ export function useWorldBuilderPageController(options) {
       isTerrainLocked: colonization.isTerrainLocked,
       showTerrainAuthoringControls: colonization.showTerrainAuthoringControls,
       showColonistSettingsPanel: colonization.showColonistSettingsPanel,
+      showRealmEconomyPanel: colonization.showRealmEconomyPanel,
       foundingLanding: colonization.foundingLanding,
       colonistSettings: colonization.colonistSettings,
       colonistSettingsSnapshot: colonization.colonistSettingsSnapshot,
@@ -739,12 +745,13 @@ export function useWorldBuilderPageController(options) {
       hoveredSettlementId: colonization.hoveredSettlementId,
       hoveredSettlementScreenPosition: colonization.hoveredSettlementScreenPosition,
       settlementTradeTooltip: colonization.settlementTradeTooltip,
+      setSettlementFocus: colonization.setSettlementFocus,
     },
     validationRows,
     visibleValidationRows,
     showSimStatusPanel,
     simStatus,
-    foundingChronicle,
+    realmEconomy,
     stageSummary,
     hydrologyStats,
     hydrologySubstepTimings,

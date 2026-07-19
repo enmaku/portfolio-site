@@ -547,8 +547,10 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
 
     setLandingPlacementMode: landingPlacement.setLandingPlacementMode,
     setFoundingLandingMarker: landingPlacement.setFoundingLandingMarker,
+    setSettlementFocusMarker: landingPlacement.setSettlementFocusMarker,
     setHaulShedPreviewCells: landingPlacement.setHaulShedPreviewCells,
     onCellPick: landingPlacement.onCellPick,
+    onSettlementFocusClear: landingPlacement.onSettlementFocusClear,
     onSettlementHover: settlementHover.onSettlementHover,
 
     destroy() {

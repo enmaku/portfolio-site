@@ -39,6 +39,7 @@ import {
   enterColonizationSetup as enterColonizationSetupTransition,
 } from '../../world-builder/core/colonization/colonizationPhaseTransitions.js'
 import { snapFoundingLandingCell } from '../../world-builder/core/colonization/isValidFoundingLandingCell.js'
+import { livingSettlements } from '../../world-builder/core/colonization/expeditions/expeditionConstants.js'
 import { buildSettlementTradeTooltip } from '../../world-builder/core/economy/settlementTradeTooltip.js'
 import {
   createGenerationStepStatuses,
@@ -107,6 +108,10 @@ export function useWorldBuilderColonization(options) {
   const hoveredSettlementId = ref(null)
   /** @type {import('vue').Ref<{ x: number, y: number } | null>} */
   const hoveredSettlementScreenPosition = ref(null)
+  /** @type {import('vue').Ref<string | null>} */
+  const focusedSettlementId = ref(null)
+  /** @type {import('vue').Ref<string | null>} */
+  const focusedExtremeKey = ref(null)
 
   const colonizationPhase = computed(() => slice.value.colonizationPhase)
   const isTerrainAuthoringEnabled = computed(
@@ -115,9 +120,10 @@ export function useWorldBuilderColonization(options) {
   const isTerrainLocked = computed(() => !isTerrainAuthoringEnabled.value)
   const showTerrainAuthoringControls = computed(() => isTerrainAuthoringEnabled.value)
   const showColonistSettingsPanel = computed(
-    () =>
-      slice.value.colonizationPhase === COLONIZATION_PHASE_SETUP ||
-      slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING,
+    () => slice.value.colonizationPhase === COLONIZATION_PHASE_SETUP,
+  )
+  const showRealmEconomyPanel = computed(
+    () => slice.value.colonizationPhase === COLONIZATION_PHASE_RUNNING,
   )
   const isBeginColonizationRunning = computed(() => beginColonizationPhase.value === 'running')
   const showBeginColonizationProgress = computed(
@@ -210,6 +216,7 @@ export function useWorldBuilderColonization(options) {
     slice.value = backToTerrainTransition(slice.value)
     persistSlice()
     clearSettlementHover()
+    clearSettlementFocus()
     syncLandingVisuals()
     return true
   }
@@ -234,9 +241,15 @@ export function useWorldBuilderColonization(options) {
       viewport.onCellPick?.((cell) => {
         pickFoundingLanding(cell.x, cell.y)
       })
+      viewport.onSettlementFocusClear?.(null)
+      clearSettlementFocus()
     } else {
       viewport.onCellPick?.(null)
+      viewport.onSettlementFocusClear?.(() => {
+        clearSettlementFocus()
+      })
     }
+    syncSettlementFocusMarker()
     viewport.onSettlementHover?.((payload) => {
       if (!payload?.settlementId) {
         clearSettlementHover()
@@ -253,6 +266,70 @@ export function useWorldBuilderColonization(options) {
   function clearSettlementHover() {
     hoveredSettlementId.value = null
     hoveredSettlementScreenPosition.value = null
+  }
+
+  function clearSettlementFocus() {
+    focusedSettlementId.value = null
+    focusedExtremeKey.value = null
+    syncSettlementFocusMarker()
+  }
+
+  function syncSettlementFocusMarker() {
+    const viewport = getViewport?.()
+    if (!viewport?.setSettlementFocusMarker) {
+      return
+    }
+    const id = focusedSettlementId.value
+    if (!id || slice.value.colonizationPhase !== COLONIZATION_PHASE_RUNNING) {
+      viewport.setSettlementFocusMarker(null)
+      return
+    }
+    const settlement = livingSettlements(slice.value.settlements ?? []).find(
+      (entry) => entry.id === id,
+    )
+    if (!settlement || !Number.isFinite(settlement.x) || !Number.isFinite(settlement.y)) {
+      focusedSettlementId.value = null
+      focusedExtremeKey.value = null
+      viewport.setSettlementFocusMarker(null)
+      return
+    }
+    viewport.setSettlementFocusMarker({ x: settlement.x, y: settlement.y })
+  }
+
+  /**
+   * Toggle or move settlement focus from a sidebar extreme control.
+   * Clears only when the same extreme key is activated again (not when another
+   * extreme happens to name the same settlement).
+   *
+   * @param {{ settlementId?: string | null, focusKey?: string | null } | string | null | undefined} target
+   */
+  function setSettlementFocus(target) {
+    if (slice.value.colonizationPhase !== COLONIZATION_PHASE_RUNNING) {
+      return
+    }
+    const settlementId =
+      typeof target === 'string'
+        ? target
+        : target && typeof target === 'object'
+          ? target.settlementId
+          : null
+    const focusKey =
+      typeof target === 'string'
+        ? settlementId
+        : target && typeof target === 'object'
+          ? target.focusKey ?? settlementId
+          : null
+    if (!settlementId || !focusKey) {
+      clearSettlementFocus()
+      return
+    }
+    if (focusedExtremeKey.value === focusKey) {
+      clearSettlementFocus()
+      return
+    }
+    focusedSettlementId.value = settlementId
+    focusedExtremeKey.value = focusKey
+    syncSettlementFocusMarker()
   }
 
   const settlementTradeTooltip = computed(() => {
@@ -578,6 +655,7 @@ export function useWorldBuilderColonization(options) {
     slice.value = createDefaultColonizationSlice()
     persistSlice()
     clearSettlementHover()
+    clearSettlementFocus()
     syncLandingVisuals()
     return true
   }
@@ -802,6 +880,7 @@ export function useWorldBuilderColonization(options) {
     isTerrainLocked,
     showTerrainAuthoringControls,
     showColonistSettingsPanel,
+    showRealmEconomyPanel,
     foundingLanding: computed(() => slice.value.foundingLanding),
     colonistSettings: computed(() => slice.value.colonistSettings),
     colonistSettingsSnapshot,
@@ -831,7 +910,10 @@ export function useWorldBuilderColonization(options) {
     isColonistSettingsRunningPhase,
     hoveredSettlementId,
     hoveredSettlementScreenPosition,
+    focusedSettlementId,
     settlementTradeTooltip,
+    setSettlementFocus,
+    clearSettlementFocus,
     hydrateFromPersistedSettings,
     enterColonizationSetup,
     backToTerrain,
