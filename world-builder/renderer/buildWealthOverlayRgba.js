@@ -33,7 +33,7 @@ export const WEALTH_SAT_MAX = 0.96
 export const WEALTH_VALUE_MAX = 0.94
 
 /** Brightness at full magnitude (mix-in-black hunter / deep red). */
-export const WEALTH_VALUE_MIN = 0.38
+export const WEALTH_VALUE_MIN = 0.26
 
 /** Neutral (zero net wealth) tint. */
 export const WEALTH_NEUTRAL_RGB = [148, 150, 154]
