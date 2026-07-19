@@ -792,10 +792,12 @@ test('terrain authoring hides and disables colonization overlays', async () => {
     for (const overlayId of colonizationOverlayIds) {
       assert.ok(ctx.statusBar.value.overlayDefs.some((definition) => definition.id === overlayId))
     }
+    assert.ok(!ctx.statusBar.value.overlayDefs.some((definition) => definition.id === 'settlementIds'))
     for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.settlementIds, undefined)
 
     await ctx.colonization.resetColonization()
     await nextTick()

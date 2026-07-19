@@ -18,6 +18,7 @@ import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays
  * @property {(() => void) | null} resizeObserverCallback
  * @property {{ scale: { x: number, y: number }, center: { x: number, y: number } } | null} lastViewportInstance
  * @property {Record<'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes', Array<{ x: number, y: number, color: number | null }>>} drawnCirclesByLayer
+ * @property {Array<{ text: string, x: number, y: number, fill: number | null }>} drawnTexts
  */
 
 /** @type {ViewportSpyState} */
@@ -37,6 +38,7 @@ export const viewportSpyState = {
     saltNodes: [],
     settlementNodes: [],
   },
+  drawnTexts: [],
 }
 
 /** Skip viewport suites when the runtime lacks module mocking support. */
@@ -58,6 +60,7 @@ export function resetViewportSpyState() {
     saltNodes: [],
     settlementNodes: [],
   }
+  viewportSpyState.drawnTexts = []
 }
 
 /** Vector overlay Graphics are always created coastal → metal → salt → settlement per viewport. */
@@ -178,6 +181,58 @@ export async function installViewportMocks() {
         lineTo() {}
         stroke() {}
         setFillStyle() {}
+      },
+      Container: class {
+        constructor() {
+          /** @type {unknown[]} */
+          this.children = []
+        }
+        addChild(child) {
+          this.children.push(child)
+          return child
+        }
+        removeChildren() {
+          const removed = this.children
+          this.children = []
+          viewportSpyState.drawnTexts = []
+          return removed
+        }
+      },
+      Text: class {
+        /**
+         * @param {{ text?: string, style?: { fill?: number } }} [options]
+         */
+        constructor(options = {}) {
+          this.text = options.text ?? ''
+          this.style = options.style ?? {}
+          this.x = 0
+          this.y = 0
+          this.anchor = { set() {} }
+          viewportSpyState.drawnTexts.push({
+            text: this.text,
+            x: 0,
+            y: 0,
+            fill: typeof this.style.fill === 'number' ? this.style.fill : null,
+          })
+          const record = viewportSpyState.drawnTexts.at(-1)
+          Object.defineProperty(this, 'x', {
+            get() {
+              return record.x
+            },
+            set(value) {
+              record.x = value
+            },
+          })
+          Object.defineProperty(this, 'y', {
+            get() {
+              return record.y
+            },
+            set(value) {
+              record.y = value
+            },
+          })
+        }
+        destroy() {}
       },
     },
   })
@@ -342,7 +397,7 @@ export function createSettlementFixture() {
   return worldDocFixture({
     gridWidth: 4,
     gridHeight: 4,
-    settlements: [{ id: 's1', x: 1, y: 2, population: 100 }],
+    settlements: [{ id: 's1', x: 1, y: 2, population: 100, mapNumber: 1 }],
   })
 }
 

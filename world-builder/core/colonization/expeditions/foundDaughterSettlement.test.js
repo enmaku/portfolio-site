@@ -29,7 +29,7 @@ test('foundDaughterSettlement persists computed corridor instead of expedition m
 
   const slice = {
     ...createDefaultColonizationSlice(),
-    settlements: [{ id: 'origin', x: 1, y: 4, status: 'living', tier: 'capital' }],
+    settlements: [{ id: 'origin', x: 1, y: 4, status: 'living', tier: 'capital', mapNumber: 1 }],
     roads: [],
     logisticsNodeSurvey: [{ x: 6, y: 4, primaryType: 'inland', exhausted: false, founded: false }],
   }
@@ -63,6 +63,8 @@ test('foundDaughterSettlement persists computed corridor instead of expedition m
   assert.ok(segment.cells.length > 1)
   const crossesRidge = segment.cells.some((cell) => cell.y === 4 && cell.x >= 2 && cell.x <= 5)
   assert.ok(!crossesRidge, 'computed corridor should avoid steep ridge on marched row')
+  const daughter = result.slice.settlements.find((settlement) => settlement.id !== 'origin')
+  assert.equal(daughter?.mapNumber, 2)
 })
 
 test('foundDaughterSettlement clears exploration fog along route corridor', () => {
@@ -87,7 +89,7 @@ test('foundDaughterSettlement clears exploration fog along route corridor', () =
 
   const slice = {
     ...createDefaultColonizationSlice(),
-    settlements: [{ id: 'origin', x: 1, y: 4, status: 'living', tier: 'capital' }],
+    settlements: [{ id: 'origin', x: 1, y: 4, status: 'living', tier: 'capital', mapNumber: 1 }],
     roads: [],
     logisticsNodeSurvey: [{ x: 6, y: 4, primaryType: 'inland', exhausted: false, founded: false }],
   }

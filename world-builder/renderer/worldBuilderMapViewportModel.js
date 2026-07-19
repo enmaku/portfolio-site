@@ -120,6 +120,17 @@ export function resolveSettlementNodeOverlayDrawn(visibility, worldDocument) {
 }
 
 /**
+ * Campaign-kit-only settlement map-number labels. Never driven by the overlay bar.
+ *
+ * @param {boolean} kitEnabled
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolveSettlementIdLabelsDrawn(kitEnabled, worldDocument) {
+  return kitEnabled === true && Boolean(worldDocument.settlements?.length)
+}
+
+/**
  * @param {Record<string, boolean>} visibility
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @returns {boolean}

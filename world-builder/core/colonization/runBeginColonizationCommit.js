@@ -61,6 +61,7 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
         tier: /** @type {string | null} */ ('outpost'),
         population: ctx.current.colonistSettings.startingPopulation,
         status: 'living',
+        mapNumber: 1,
         maritimeRole: classifySettlementMaritimeRole(ctx.doc, ctx.landing),
       }
       const claimMap = recomputePrimaryClaims({

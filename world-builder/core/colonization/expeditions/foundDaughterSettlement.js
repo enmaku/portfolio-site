@@ -7,6 +7,7 @@ import { DAUGHTER_OUTPOST_HEADCOUNT } from './expeditionConstants.js'
 import { computeFoundingRouteCorridor } from './computeFoundingRouteCorridor.js'
 import { buildCorridorCells } from './expeditionRouting.js'
 import { classifySettlementMaritimeRole } from './classifySettlementMaritimeRole.js'
+import { allocateNextSettlementMapNumber } from '../settlementMapNumber.js'
 
 /**
  * @param {{
@@ -45,6 +46,7 @@ export function foundDaughterSettlement(params) {
     status: 'living',
     foundedEpoch: epoch,
     originSettlementId,
+    mapNumber: allocateNextSettlementMapNumber(slice.settlements),
     logisticsNodePrimaryType: candidate.node.primaryType,
     maritimeRole: classifySettlementMaritimeRole(worldDocument, {
       x: candidate.x,

@@ -61,6 +61,7 @@ import {
   resolveLogisticsNodeSurvey,
 } from './logisticsNodes/scoreLogisticsNodes.js'
 import { resolveRoadSegments } from './roads/roadNetwork.js'
+import { ensureSettlementMapNumbers } from './settlementMapNumber.js'
 
 export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
 export const COLONIZATION_PHASE_SETUP = /** @type {const} */ ('setup')
@@ -204,9 +205,9 @@ export function resolveColonizationSlice(value) {
     colonistSettings: resolveColonistSettings(incoming.colonistSettings),
     foundingLanding: resolveFoundingLanding(incoming.foundingLanding),
     historyLog: Array.isArray(incoming.historyLog) ? incoming.historyLog.map((row) => ({ ...row })) : [],
-    settlements: Array.isArray(incoming.settlements)
-      ? incoming.settlements.map((row) => ({ ...row }))
-      : [],
+    settlements: ensureSettlementMapNumbers(
+      Array.isArray(incoming.settlements) ? incoming.settlements : [],
+    ),
     realmId: typeof incoming.realmId === 'string' ? incoming.realmId : null,
     epoch: Number.isFinite(incoming.epoch) ? /** @type {number} */ (incoming.epoch) : 0,
     primaryClaim: resolvePrimaryClaim(incoming.primaryClaim),

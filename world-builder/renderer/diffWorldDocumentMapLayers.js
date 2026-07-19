@@ -242,6 +242,7 @@ export function diffWorldDocumentMapLayers(previous, next) {
   }
   if (nodeListChanged(previous.settlements, next.settlements)) {
     changedLayers.push('settlementNodes')
+    changedLayers.push('settlementIdLabels')
   }
 
   return changedLayers

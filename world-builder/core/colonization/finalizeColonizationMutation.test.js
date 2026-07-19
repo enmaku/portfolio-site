@@ -50,6 +50,7 @@ test('finalizeColonizationMutation applies map layers including wealth before se
     'applyLayer:routes',
     'applyLayer:wealth',
     'applyLayer:settlementNodes',
+    'applyLayer:settlementIdLabels',
     'onComplete',
   ])
 })

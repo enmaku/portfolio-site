@@ -106,8 +106,8 @@ test(
     const fixture = {
       ...createSettlementFixture(),
       settlements: [
-        { id: 'living', x: 1, y: 1, population: 100, status: 'living' },
-        { id: 'ruin', x: 2, y: 2, population: 0, status: 'ruin' },
+        { id: 'living', x: 1, y: 1, population: 100, status: 'living', mapNumber: 1 },
+        { id: 'ruin', x: 2, y: 2, population: 0, status: 'ruin', mapNumber: 2 },
       ],
     }
     const viewport = await createWorldBuilderMapViewport(createHostEl(), fixture)
@@ -124,6 +124,40 @@ test(
       settlementCircles.some((circle) => circle.color === SETTLEMENT_NODE_RUIN_OVERLAY_COLOR),
       true,
     )
+
+    viewport.destroy()
+  },
+)
+
+test(
+  'campaign kit seam draws settlement map numbers only when kit labels are enabled',
+  viewportTestOptions,
+  async () => {
+    const { SETTLEMENT_ID_LABEL_COLOR } = await import('./createWorldBuilderMapViewport.js')
+    const fixture = {
+      ...createSettlementFixture(),
+      settlements: [
+        { id: 'living', x: 1, y: 1, population: 100, status: 'living', mapNumber: 1 },
+        { id: 'ruin', x: 2, y: 2, population: 0, status: 'ruin', mapNumber: 2 },
+      ],
+    }
+    const viewport = await createWorldBuilderMapViewport(createHostEl(), fixture)
+    const overlay = createOverlayOwnerDriver(viewport)
+
+    overlay.setVisibility('settlements', true)
+    assert.strictEqual(viewportSpyState.drawnTexts.length, 0)
+
+    viewport.setSettlementIdLabelsVisible(true)
+    assert.deepStrictEqual(
+      viewportSpyState.drawnTexts.map((label) => ({ text: label.text, fill: label.fill })),
+      [
+        { text: '1', fill: SETTLEMENT_ID_LABEL_COLOR },
+        { text: '2', fill: SETTLEMENT_ID_LABEL_COLOR },
+      ],
+    )
+
+    viewport.setSettlementIdLabelsVisible(false)
+    assert.strictEqual(viewportSpyState.drawnTexts.length, 0)
 
     viewport.destroy()
   },

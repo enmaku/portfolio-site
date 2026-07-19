@@ -281,6 +281,23 @@ test('resolveColonizationSlice strips legacy committedTips payloads', () => {
   assert.strictEqual('committedTips' in revived, false)
 })
 
+test('resolveColonizationSlice backfills settlement map numbers for legacy sessions', () => {
+  const revived = resolveColonizationSlice({
+    colonizationPhase: COLONIZATION_PHASE_RUNNING,
+    settlements: [
+      { id: 'later', x: 2, y: 2, foundedEpoch: 3 },
+      { id: 'founding', x: 1, y: 1, foundedEpoch: 0 },
+    ],
+  })
+  assert.deepEqual(
+    revived.settlements.map((row) => ({ id: row.id, mapNumber: row.mapNumber })),
+    [
+      { id: 'later', mapNumber: 2 },
+      { id: 'founding', mapNumber: 1 },
+    ],
+  )
+})
+
 test('serializeColonizationSessionForStorage omits legacy committedTips from output', () => {
   const slice = resolveColonizationSlice({
     colonizationPhase: COLONIZATION_PHASE_RUNNING,
