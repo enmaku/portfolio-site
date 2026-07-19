@@ -31,7 +31,7 @@ test('mineral deposit yields match prosperity demand for the reference mine-town
   )
   assert.ok(COPPER_LB_PER_EXTRACTION > SILVER_LB_PER_EXTRACTION)
   assert.ok(SILVER_LB_PER_EXTRACTION > GOLD_LB_PER_EXTRACTION)
-  assert.ok(DIAMOND_GEMS_PER_EXTRACTION >= 1)
+  assert.equal(DIAMOND_GEMS_PER_EXTRACTION, 2)
   assert.equal(DIAMOND_GEMS_PER_EXTRACTION, Math.trunc(DIAMOND_GEMS_PER_EXTRACTION))
 })
 

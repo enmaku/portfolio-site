@@ -13,6 +13,11 @@ export const SALT_LB_PER_PERSON = 5
 export const SURVIVAL_COMFORT_FOOD_MULTIPLIER = 1.2
 /** Prosperity target in gp per person per commodity (reference price). */
 export const PROSPERITY_GP_PER_PERSON = 1
+/**
+ * Diamonds use a thinner prosperity slice so claimed mines export more often
+ * instead of local demand absorbing the whole haul.
+ */
+export const DIAMOND_PROSPERITY_GP_PER_PERSON = 0.5
 
 /**
  * @typedef {import('../commodityCatalog.js').CommodityId} CommodityId
@@ -27,6 +32,14 @@ export const PROSPERITY_COMMODITIES = Object.freeze([
   'gold',
   'diamonds',
 ])
+
+/**
+ * @param {CommodityId} commodityId
+ * @returns {number}
+ */
+export function prosperityGpPerPerson(commodityId) {
+  return commodityId === 'diamonds' ? DIAMOND_PROSPERITY_GP_PER_PERSON : PROSPERITY_GP_PER_PERSON
+}
 
 /**
  * @param {number} population
@@ -53,7 +66,7 @@ export function comfortFoodDemandLb(population) {
 }
 
 /**
- * Catalog units for one prosperity commodity at hard 1 gp/person @ reference.
+ * Catalog units for one prosperity commodity at its per-person gp target @ reference.
  * @param {CommodityId} commodityId
  * @param {number} population
  * @returns {number}
@@ -61,7 +74,7 @@ export function comfortFoodDemandLb(population) {
 export function prosperityDemandUnits(commodityId, population) {
   const ref = referencePriceCp(commodityId)
   if (!(ref > 0)) return 0
-  return (Math.max(0, population) * PROSPERITY_GP_PER_PERSON * CP_PER_GP) / ref
+  return (Math.max(0, population) * prosperityGpPerPerson(commodityId) * CP_PER_GP) / ref
 }
 
 /**

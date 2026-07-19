@@ -373,7 +373,7 @@ test('off-map exports clear before imports so earnings fund the purchase', () =>
   const settlements = [{ id: 'p', population: 100, maritimeRole: 'port' }]
   // Grain surplus to export; every prosperity good but timber met locally at its target.
   const prod = production({
-    p: { grain: 200000, salt: 500, baseMetals: 1000, copper: 200, silver: 20, gold: 2, diamonds: 0.02 },
+    p: { grain: 200000, salt: 500, baseMetals: 1000, copper: 200, silver: 20, gold: 2, diamonds: 0.01 },
   })
 
   const result = runTradeClearingSync({ settlements, graph: { edges: [] }, production: prod })
