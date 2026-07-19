@@ -4,6 +4,7 @@ import { buildLandTerrainRgba } from './buildLandTerrainRgba.js'
 import { buildLakeOverlayCanvas } from './buildLakeOverlayCanvas.js'
 import { buildRiverOverlayCanvas } from './buildRiverOverlayCanvas.js'
 import { buildTopographyContourCanvas } from './buildTopographyContourCanvas.js'
+import { captureWorldMapPng } from './captureWorldMapPng.js'
 import {
   createDefaultResourceOverlayVisibility,
   DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
@@ -583,6 +584,38 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       }
       settlementIdLabelsEnabled = next
       refreshMapLayers(['settlementIdLabels'])
+    },
+
+    /**
+     * Full-landmass PNG at native grid resolution for campaign kit export.
+     * Restores host resize and the author's pan/zoom afterward.
+     *
+     * @returns {Promise<Blob>}
+     */
+    captureWorldPng() {
+      let hostResizeSuspended = false
+      return captureWorldMapPng({
+        app,
+        viewport,
+        hostEl,
+        worldWidth: currentWorldDocument.gridWidth,
+        worldHeight: currentWorldDocument.gridHeight,
+        renderFrame,
+        suspendHostResize() {
+          if (hostResizeSuspended) {
+            return
+          }
+          hostResizeSuspended = true
+          resizeObserver.disconnect()
+        },
+        resumeHostResize() {
+          if (!hostResizeSuspended) {
+            return
+          }
+          hostResizeSuspended = false
+          resizeObserver.observe(hostEl)
+        },
+      })
     },
 
     setLandingPlacementMode: landingPlacement.setLandingPlacementMode,

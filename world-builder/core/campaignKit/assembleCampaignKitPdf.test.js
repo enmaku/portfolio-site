@@ -1,0 +1,80 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { assembleCampaignKitPdf, downloadBlob } from './assembleCampaignKitPdf.js'
+import { buildCampaignKitModel } from './buildCampaignKitModel.js'
+import { createDefaultColonizationSlice } from '../colonization/createDefaultColonizationSlice.js'
+
+/** 1×1 transparent PNG */
+const TINY_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
+
+test('assembleCampaignKitPdf returns a non-empty pdf blob', async () => {
+  const slice = createDefaultColonizationSlice()
+  slice.epoch = 1
+  slice.settlements = [
+    {
+      id: 'a',
+      x: 0,
+      y: 0,
+      mapNumber: 1,
+      status: 'living',
+      population: 10,
+      tier: 'outpost',
+      maritimeRole: 'none',
+    },
+  ]
+  const worldDocument = {
+    gridWidth: 1,
+    gridHeight: 1,
+    geographySeed: 1,
+    biomes: new Uint8Array([2]),
+    saltNodes: [],
+    metalNodes: [],
+    fields: { elevation: new Float32Array(1) },
+  }
+  const model = buildCampaignKitModel(slice, worldDocument)
+  const png = new Blob([TINY_PNG], { type: 'image/png' })
+  const pdf = await assembleCampaignKitPdf({
+    model,
+    settlementsMapPng: png,
+    resourcesMapPng: png,
+  })
+  assert.equal(pdf.type, 'application/pdf')
+  assert.ok(pdf.size > 100)
+})
+
+test('downloadBlob creates an anchor with the given filename', () => {
+  const clicks = []
+  const removed = []
+  const appended = []
+  const dom = {
+    createElement(tag) {
+      assert.equal(tag, 'a')
+      return {
+        href: '',
+        download: '',
+        click() {
+          clicks.push(this.download)
+        },
+      }
+    },
+    body: {
+      appendChild(node) {
+        appended.push(node)
+      },
+      removeChild(node) {
+        removed.push(node)
+      },
+    },
+  }
+  globalThis.URL.createObjectURL = () => 'blob:test'
+  globalThis.URL.revokeObjectURL = () => {}
+
+  downloadBlob(new Blob(['x'], { type: 'application/pdf' }), 'campaign-kit-seed-1-epoch-0.pdf', dom)
+
+  assert.equal(clicks[0], 'campaign-kit-seed-1-epoch-0.pdf')
+  assert.equal(appended.length, 1)
+  assert.equal(removed.length, 1)
+})

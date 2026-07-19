@@ -71,9 +71,14 @@ const VECTOR_LAYER_IDS = /** @type {const} */ ([
   'settlementNodes',
 ])
 
+/** Landing-placement overlays appended after vector layers: haul shed, landing pin, focus pin. */
+const LANDING_PLACEMENT_GRAPHICS_COUNT = 3
+
 function syncDrawnCirclesByLayer() {
-  // Final two Graphics are landing-placement overlays (haul shed + pin).
-  const vectorLayers = viewportSpyState.graphicsLayers.slice(-6, -2)
+  const vectorLayers = viewportSpyState.graphicsLayers.slice(
+    -(VECTOR_LAYER_IDS.length + LANDING_PLACEMENT_GRAPHICS_COUNT),
+    -LANDING_PLACEMENT_GRAPHICS_COUNT,
+  )
   for (let i = 0; i < VECTOR_LAYER_IDS.length; i += 1) {
     viewportSpyState.drawnCirclesByLayer[VECTOR_LAYER_IDS[i]] = vectorLayers[i]?.circles ?? []
   }
@@ -122,12 +127,19 @@ export async function installViewportMocks() {
     namedExports: {
       Application: class {
         constructor() {
-          this.canvas = { tagName: 'CANVAS' }
+          this.canvas = {
+            tagName: 'CANVAS',
+            toBlob(callback, type) {
+              callback(new Blob(['png'], { type: type || 'image/png' }))
+            },
+          }
           this.stage = { addChild() {} }
           this.renderer = {
             events: {},
             render() {},
+            resize() {},
           }
+          this.resizeTo = null
           this.ticker = {
             elapsedMS: 16,
             start() {},
@@ -135,7 +147,10 @@ export async function installViewportMocks() {
             add() {},
           }
         }
-        async init() {}
+        async init(options = {}) {
+          this.resizeTo = options.resizeTo ?? null
+        }
+        resize() {}
         destroy() {}
       },
       Sprite: class {

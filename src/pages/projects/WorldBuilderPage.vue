@@ -29,8 +29,9 @@
             type="number"
             dense
             outlined
-            class="q-mb-md"
+            class="q-mb-md seed-input"
             min="0"
+            step="1"
             @change="commitSeed"
             @keyup.enter="commitSeed"
           >
@@ -268,17 +269,33 @@
             :disable="!canBeginColonization || isBeginColonizationRunning"
             @click="beginColonization"
           />
-          <q-btn
+          <div
             v-else-if="timeControlsActive"
-            unelevated
-            color="primary"
-            class="full-width q-mb-md"
-            data-testid="world-builder-epoch-step"
-            label="Next epoch"
-            :loading="isEpochStepRunning"
-            :disable="isEpochStepRunning"
-            @click="epochStep"
-          />
+            class="row q-gutter-sm q-mb-md items-stretch"
+          >
+            <q-btn
+              unelevated
+              color="primary"
+              class="col"
+              data-testid="world-builder-epoch-step"
+              label="Next epoch"
+              :loading="isEpochStepRunning"
+              :disable="isEpochStepRunning || isCampaignKitExportRunning"
+              @click="epochStep"
+            />
+            <q-btn
+              unelevated
+              color="positive"
+              icon="download"
+              data-testid="world-builder-campaign-kit-export"
+              aria-label="Download campaign kit"
+              :loading="isCampaignKitExportRunning"
+              :disable="isEpochStepRunning || isCampaignKitExportRunning"
+              @click="exportCampaignKit"
+            >
+              <q-tooltip>Download campaign kit</q-tooltip>
+            </q-btn>
+          </div>
           <q-banner
             v-if="showValidationFailureIndicator"
             :data-testid="WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID"
@@ -516,10 +533,12 @@ const {
   timeControlsActive,
   isEpochStepRunning,
   isBeginColonizationRunning,
+  isCampaignKitExportRunning,
   enterColonizationSetup,
   backToTerrain,
   beginColonization,
   epochStep,
+  exportCampaignKit,
   resetColonization,
   setColonistSetting,
   resetColonistSettings,
@@ -636,5 +655,16 @@ onUnmounted(destroy)
 
 .generation-control__slider {
   padding: 0 4px;
+}
+
+.seed-input :deep(input[type='number']) {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.seed-input :deep(input[type='number']::-webkit-inner-spin-button),
+.seed-input :deep(input[type='number']::-webkit-outer-spin-button) {
+  appearance: none;
+  margin: 0;
 }
 </style>

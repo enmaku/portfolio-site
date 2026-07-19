@@ -6,6 +6,8 @@ import { diffWorldDocumentMapLayers } from './renderer/diffWorldDocumentMapLayer
  * @property {() => void} fitToWorld
  * @property {(focus: import('./core/types.js').MapFocus) => void} [focusOn]
  * @property {(state: import('./resourceOverlayState.js').ResourceOverlayPageState) => void} [syncOverlayRenderCache]
+ * @property {(visible: boolean) => void} [setSettlementIdLabelsVisible]
+ * @property {() => Promise<Blob>} [captureWorldPng]
  * @property {() => void} destroy
  */
 

@@ -53,6 +53,7 @@ import {
   saveColonizationSession as defaultSaveColonizationSession,
 } from '../utils/worldBuilderColonizationCache.js'
 import { useWorldBuilderColonization } from './useWorldBuilderColonization.js'
+import { useWorldBuilderCampaignKitExport } from './useWorldBuilderCampaignKitExport.js'
 import { useWorldBuilderGeneration } from './useWorldBuilderGeneration.js'
 import { useWorldBuilderOverlayState } from './useWorldBuilderOverlayState.js'
 import { reportWorldBuilderError } from '../utils/worldBuilderErrorReporting.js'
@@ -349,9 +350,7 @@ export function useWorldBuilderPageController(options) {
   generation = useWorldBuilderGeneration({
     getDerivedGeographyParams,
     applyWorldDocument: (doc, applyOptions) => applyWorldDocumentToMap(doc, applyOptions),
-    onBeforeRun: () => overlay.resetVisibility(),
     onRunCompleteSuccess: () => {
-      overlay.resetVisibility()
       colonization.syncLandingVisuals()
       void persistLockedTerrainIfNeeded()
     },
@@ -439,11 +438,29 @@ export function useWorldBuilderPageController(options) {
     const phase = colonization.colonizationPhase.value
     return phase === COLONIZATION_PHASE_SETUP || phase === COLONIZATION_PHASE_RUNNING
   })
+
+  const campaignKit = useWorldBuilderCampaignKitExport({
+    getViewport: () => mapLifecycle?.getViewport() ?? null,
+    getOverlayDisplaySettings: () => ({
+      arableMinimumProductivity: overlay.overlayDisplaySetting('arableMinimumProductivity'),
+    }),
+    syncOverlayToViewport: () => overlay.syncToViewport(),
+    getSlice: () => colonization.slice.value,
+    getWorldDocument: () => colonizationWorldDocument.value ?? geographyWorldDocument.value,
+    canExport: () => colonization.timeControlsActive.value === true,
+    isOtherWorkBusy: () =>
+      colonization.isEpochStepRunning.value ||
+      colonization.isBeginColonizationRunning.value ||
+      colonization.isRehydrationRunning.value ||
+      isSessionRestorePending.value,
+  })
+
   const colonizationBusyPhase = computed(() =>
     isEpochStepRunning.value ||
     isBeginColonizationRunning.value ||
     isRehydrationRunning.value ||
-    isSessionRestorePending.value
+    isSessionRestorePending.value ||
+    campaignKit.isCampaignKitExportRunning.value
       ? 'running'
       : 'idle',
   )
@@ -472,6 +489,7 @@ export function useWorldBuilderPageController(options) {
     return buildWorldBuilderStatusBar({
       generation: generationSection,
       colonization: colonization.colonizationStatusSection.value,
+      campaignKit: campaignKit.statusSection.value,
       overlays: overlaysSection,
     })
   })
@@ -739,6 +757,8 @@ export function useWorldBuilderPageController(options) {
       isBeginColonizationRunning,
       isRehydrationRunning,
       isSessionRestorePending,
+      isCampaignKitExportRunning: campaignKit.isCampaignKitExportRunning,
+      exportCampaignKit: campaignKit.exportCampaignKit,
       enterColonizationSetup,
       backToTerrain,
       beginColonization: colonization.beginColonization,

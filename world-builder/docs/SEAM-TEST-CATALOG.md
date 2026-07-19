@@ -342,9 +342,11 @@ Each file lists individual `test(...)` titles for reviewer grep and #375 control
   - regenerate starts a fresh generation run
   - committing a slider value persists to settings and regenerates
   - committing a seed applies it to settings and regenerates
+  - commitSeed preserves overlay visibility across regeneration
+  - randomizeSeed preserves overlay visibility across regeneration
   - resetDefaults resets settings, restores overlay display settings, and regenerates
   - focusValidationRow focuses the viewport only when the row has a map focus
-  - a completed run resets overlay visibility
+  - a completed run preserves overlay visibility
   - resetOverlays clears overlay visibility without regenerating
   - generation errors are forwarded to the error handler
 
@@ -2241,7 +2243,7 @@ Each file lists individual `test(...)` titles for reviewer grep and #375 control
   - generation policy decides previews and progress as a renderer-free pure function
   - generation composable runs to success and applies validation preview without a renderer
   - useWorldBuilderGeneration composable resets progress on cancel without page model helpers
-  - generation run hooks reset overlay visibility before run and after success
+  - generation run hooks fire without clearing overlay visibility
 
 ### `world-builder/worldBuilderOverlayControls.test.js`
 
