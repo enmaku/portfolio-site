@@ -26,7 +26,7 @@ import { pickSettlementExtremes } from './pickSettlementExtreme.js'
  * @property {number} activeExpeditionCount
  * @property {number} roadSegmentCount
  * @property {number} activeTradeFlowCount
- * @property {number} offMapTradeCount
+ * @property {number} offMapTradeVolumeCp Gross off-map trade value this epoch (amount × unit price).
  * @property {number} totalPopulation
  * @property {SettlementExtreme | null} highestPopulation
  * @property {SettlementExtreme | null} lowestPopulation
@@ -74,9 +74,7 @@ export function buildColonizationSimStatus(slice, worldDocument) {
     activeExpeditionCount: getActiveExpeditions(slice).length,
     roadSegmentCount: Array.isArray(slice.roads) ? slice.roads.length : 0,
     activeTradeFlowCount: Array.isArray(activeFlows) ? activeFlows.length : 0,
-    offMapTradeCount: Array.isArray(tradeResult?.offMapTrades)
-      ? tradeResult.offMapTrades.length
-      : 0,
+    offMapTradeVolumeCp: sumOffMapTradeVolumeCp(tradeResult?.offMapTrades),
     totalPopulation,
     highestPopulation: populationExtremes
       ? {
@@ -92,6 +90,21 @@ export function buildColonizationSimStatus(slice, worldDocument) {
       : null,
     resourceClaims: buildResourceClaimRows(slice, worldDocument),
   }
+}
+
+/**
+ * @param {ReadonlyArray<{ amount?: number, unitPriceCp?: number }> | null | undefined} trades
+ * @returns {number}
+ */
+function sumOffMapTradeVolumeCp(trades) {
+  if (!Array.isArray(trades)) return 0
+  let total = 0
+  for (const trade of trades) {
+    const amount = Number(trade?.amount) || 0
+    const unitPriceCp = Number(trade?.unitPriceCp) || 0
+    total += amount * unitPriceCp
+  }
+  return total
 }
 
 /**

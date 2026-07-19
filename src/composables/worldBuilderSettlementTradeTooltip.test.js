@@ -19,6 +19,7 @@ test('settlement trade tooltip host is present when tooltip model is set', async
   const tooltip = buildSettlementTradeTooltip(
     {
       settlements: [{ id: 's1', maritimeRole: 'port', population: 2500 }],
+      saltNodes: [{ id: 'salt1', x: 0, y: 0, score: 1 }],
       lastTradeEpochResult: {
         realmBalancesCp: { s1: 42 },
         settlementCommodityRoles: { s1: { grain: 'export', fish: 'import', salt: 'both' } },

@@ -1,111 +1,133 @@
 <template>
   <div data-testid="world-builder-realm-economy">
-    <div class="text-subtitle2 q-mb-sm">Realm economy</div>
     <q-list
       dense
-      bordered
-      separator
-      class="q-mb-md"
+      class="realm-economy-sections"
     >
-      <q-item
-        v-if="economy.wealthiest && economy.poorest"
-        data-testid="world-builder-realm-economy-wealth"
+      <q-expansion-item
+        label="Realm economy"
+        dense
+        default-opened
+        header-class="text-caption text-weight-medium"
       >
-        <q-item-section>
-          <q-item-label caption>Wealth</q-item-label>
-          <div class="row items-center q-gutter-xs q-mt-xs">
-            <q-btn
-              dense
-              flat
-              no-caps
-              color="primary"
-              data-testid="world-builder-realm-economy-wealthiest"
-              :label="`Wealthiest: ${formatMoneyCp(economy.wealthiest.valueCp)}`"
-              @click="
-                $emit('focus-settlement', {
-                  settlementId: economy.wealthiest.settlementId,
-                  focusKey: 'wealth:wealthiest',
-                })
-              "
-            />
-            <q-btn
-              dense
-              flat
-              no-caps
-              color="primary"
-              data-testid="world-builder-realm-economy-poorest"
-              :label="`Poorest: ${formatMoneyCp(economy.poorest.valueCp)}`"
-              @click="
-                $emit('focus-settlement', {
-                  settlementId: economy.poorest.settlementId,
-                  focusKey: 'wealth:poorest',
-                })
-              "
-            />
-          </div>
-        </q-item-section>
-      </q-item>
-    </q-list>
-    <q-list
-      dense
-      bordered
-      separator
-      data-testid="world-builder-realm-economy-commodities"
-    >
-      <q-item
-        v-for="row in economy.commodities"
-        :key="row.commodityId"
-        :data-testid="`world-builder-realm-economy-commodity-${row.commodityId}`"
-      >
-        <q-item-section avatar>
-          <CommodityIcon :commodity-id="row.commodityId" />
-        </q-item-section>
-        <q-item-section>
-          <q-item-label>{{ commodityName(row.commodityId) }}</q-item-label>
+        <div class="realm-economy-rows">
           <div
-            v-if="row.highest && row.lowest"
-            class="row items-center q-gutter-xs q-mt-xs"
+            v-if="economy.wealthiest && economy.poorest"
+            class="realm-economy-row"
+            data-testid="world-builder-realm-economy-wealth"
           >
-            <q-btn
-              dense
-              flat
-              no-caps
-              color="primary"
-              :data-testid="`world-builder-realm-economy-${row.commodityId}-highest`"
-              :label="`Highest: ${formatMoneyCp(row.highest.valueCp)}`"
-              @click="
-                $emit('focus-settlement', {
-                  settlementId: row.highest.settlementId,
-                  focusKey: `commodity:${row.commodityId}:highest`,
-                })
-              "
-            />
-            <q-btn
-              dense
-              flat
-              no-caps
-              color="primary"
-              :data-testid="`world-builder-realm-economy-${row.commodityId}-lowest`"
-              :label="`Lowest: ${formatMoneyCp(row.lowest.valueCp)}`"
-              @click="
-                $emit('focus-settlement', {
-                  settlementId: row.lowest.settlementId,
-                  focusKey: `commodity:${row.commodityId}:lowest`,
-                })
-              "
-            />
+            <div class="row items-center no-wrap q-gutter-xs">
+              <MoneyBagIcon />
+              <span class="text-body2">Wealth</span>
+            </div>
+            <div class="row items-center q-col-gutter-xs q-mt-xs">
+              <div class="col-6">
+                <q-btn
+                  class="full-width realm-economy-extreme-btn"
+                  dense
+                  outline
+                  no-caps
+                  color="white"
+                  size="sm"
+                  data-testid="world-builder-realm-economy-wealthiest"
+                  :label="`Highest: ${formatMoneyCp(economy.wealthiest.valueCp, { compact: true })}`"
+                  @click="
+                    $emit('focus-settlement', {
+                      settlementId: economy.wealthiest.settlementId,
+                      focusKey: 'wealth:wealthiest',
+                    })
+                  "
+                />
+              </div>
+              <div class="col-6">
+                <q-btn
+                  class="full-width realm-economy-extreme-btn"
+                  dense
+                  outline
+                  no-caps
+                  color="white"
+                  size="sm"
+                  data-testid="world-builder-realm-economy-poorest"
+                  :label="`Lowest: ${formatMoneyCp(economy.poorest.valueCp, { compact: true })}`"
+                  @click="
+                    $emit('focus-settlement', {
+                      settlementId: economy.poorest.settlementId,
+                      focusKey: 'wealth:poorest',
+                    })
+                  "
+                />
+              </div>
+            </div>
           </div>
-        </q-item-section>
-      </q-item>
+          <div
+            class="realm-economy-commodity-list"
+            data-testid="world-builder-realm-economy-commodities"
+          >
+            <div
+              v-for="row in economy.commodities"
+              :key="row.commodityId"
+              class="realm-economy-row"
+              :data-testid="`world-builder-realm-economy-commodity-${row.commodityId}`"
+            >
+              <div class="row items-center no-wrap q-gutter-xs">
+                <CommodityIcon :commodity-id="row.commodityId" />
+                <span class="text-body2">{{ commodityName(row.commodityId) }}</span>
+              </div>
+              <div
+                v-if="row.highest && row.lowest"
+                class="row items-center q-col-gutter-xs q-mt-xs"
+              >
+                <div class="col-6">
+                  <q-btn
+                    class="full-width realm-economy-extreme-btn"
+                    dense
+                    outline
+                    no-caps
+                    color="white"
+                    size="sm"
+                    :data-testid="`world-builder-realm-economy-${row.commodityId}-highest`"
+                    :label="`Highest: ${formatCommodityPriceCp(row.highest.valueCp, row.commodityId, { compact: true })}`"
+                    @click="
+                      $emit('focus-settlement', {
+                        settlementId: row.highest.settlementId,
+                        focusKey: `commodity:${row.commodityId}:highest`,
+                      })
+                    "
+                  />
+                </div>
+                <div class="col-6">
+                  <q-btn
+                    class="full-width realm-economy-extreme-btn"
+                    dense
+                    outline
+                    no-caps
+                    color="white"
+                    size="sm"
+                    :data-testid="`world-builder-realm-economy-${row.commodityId}-lowest`"
+                    :label="`Lowest: ${formatCommodityPriceCp(row.lowest.valueCp, row.commodityId, { compact: true })}`"
+                    @click="
+                      $emit('focus-settlement', {
+                        settlementId: row.lowest.settlementId,
+                        focusKey: `commodity:${row.commodityId}:lowest`,
+                      })
+                    "
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </q-expansion-item>
     </q-list>
   </div>
 </template>
 
 <script setup>
-import { formatMoneyCp } from '../../../world-builder/core/economy/formatMoneyCp.js'
+import { formatCommodityPriceCp, formatMoneyCp } from '../../../world-builder/core/economy/formatMoneyCp.js'
 import {
   COMMODITY_ACCESSIBLE_NAMES,
   COMMODITY_ICONS,
+  moneyBagIcon,
 } from './settlementTradeTooltipIcons.js'
 
 defineProps({
@@ -116,6 +138,12 @@ defineProps({
 })
 
 defineEmits(['focus-settlement'])
+
+const MoneyBagIcon = {
+  setup() {
+    return () => moneyBagIcon()
+  },
+}
 
 const CommodityIcon = {
   props: {
@@ -137,3 +165,20 @@ function commodityName(commodityId) {
   return COMMODITY_ACCESSIBLE_NAMES[commodityId] ?? commodityId
 }
 </script>
+
+<style scoped>
+.realm-economy-sections :deep(.q-expansion-item__content) {
+  padding: 0 16px 4px;
+}
+
+.realm-economy-rows,
+.realm-economy-commodity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.realm-economy-extreme-btn {
+  white-space: nowrap;
+}
+</style>

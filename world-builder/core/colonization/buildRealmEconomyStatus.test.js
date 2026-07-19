@@ -32,9 +32,20 @@ test('buildRealmEconomyStatus ranks local prices and combined wealth', () => {
   assert.ok(fish)
   assert.deepEqual(fish.highest, { settlementId: 'a', valueCp: 3 })
   assert.deepEqual(fish.lowest, { settlementId: 'b', valueCp: 1.5 })
+  assert.ok(!status.commodities.some((row) => row.commodityId === 'gold'))
 
   assert.deepEqual(status.wealthiest, { settlementId: 'a', valueCp: 150 })
   assert.deepEqual(status.poorest, { settlementId: 'b', valueCp: -20 })
+})
+
+test('buildRealmEconomyStatus includes pin commodities when world has pins', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.settlements = [{ id: 'a', status: 'living', population: 10, x: 0, y: 0 }]
+  const status = buildRealmEconomyStatus(slice, {
+    metalNodes: [{ id: 'g1', x: 0, y: 0, score: 1, kind: 'gold' }],
+  })
+  assert.ok(status.commodities.some((row) => row.commodityId === 'gold'))
+  assert.ok(!status.commodities.some((row) => row.commodityId === 'diamonds'))
 })
 
 test('buildRealmEconomyStatus falls back to reference prices and zero balances', () => {

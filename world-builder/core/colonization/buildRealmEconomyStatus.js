@@ -3,7 +3,8 @@
  * Domain: world-builder/CONTEXT.md — realm economy.
  */
 
-import { COMMODITY_IDS, referencePriceCp } from '../economy/commodityCatalog.js'
+import { referencePriceCp } from '../economy/commodityCatalog.js'
+import { presentMapCommodityIds } from '../economy/presentMapCommodities.js'
 import { livingSettlements } from './expeditions/expeditionConstants.js'
 import { pickSettlementExtremes } from './pickSettlementExtreme.js'
 
@@ -33,9 +34,13 @@ import { pickSettlementExtremes } from './pickSettlementExtreme.js'
 
 /**
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
+ * @param {{
+ *   saltNodes?: ReadonlyArray<unknown>,
+ *   metalNodes?: ReadonlyArray<{ kind?: string }>,
+ * } | null | undefined} [worldDocument]
  * @returns {RealmEconomyStatus}
  */
-export function buildRealmEconomyStatus(slice) {
+export function buildRealmEconomyStatus(slice, worldDocument) {
   const living = livingSettlements(slice.settlements ?? [])
   const tradeResult = slice.lastTradeEpochResult ?? null
   const pricesById = tradeResult?.localPricesBySettlementId ?? {}
@@ -44,7 +49,7 @@ export function buildRealmEconomyStatus(slice) {
   const externalAccounts = slice.externalTradeAccounts ?? {}
 
   /** @type {CommodityPriceExtremes[]} */
-  const commodities = COMMODITY_IDS.map((commodityId) => {
+  const commodities = presentMapCommodityIds(worldDocument).map((commodityId) => {
     const priced = living.map((settlement) => {
       const priceCp = pricesById[settlement.id]?.[commodityId]
       return {

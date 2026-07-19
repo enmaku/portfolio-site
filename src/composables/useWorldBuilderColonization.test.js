@@ -568,3 +568,28 @@ test('settlement focus toggles by extreme key, not settlement id', async () => {
     scope.stop()
   }
 })
+
+test('epochStep clears settlement focus', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, viewport, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.pickFoundingLanding(3, 3)
+    await ctx.beginColonization()
+
+    const settlementId = ctx.settlements.value?.[0]?.id
+    assert.ok(settlementId)
+    ctx.setSettlementFocus({
+      settlementId,
+      focusKey: 'population:highest',
+    })
+    assert.strictEqual(ctx.focusedSettlementId.value, settlementId)
+
+    assert.strictEqual(await ctx.epochStep(), true)
+    assert.strictEqual(ctx.focusedSettlementId.value, null)
+    assert.strictEqual(viewport.focusMarkers.at(-1), null)
+  } finally {
+    scope.stop()
+  }
+})

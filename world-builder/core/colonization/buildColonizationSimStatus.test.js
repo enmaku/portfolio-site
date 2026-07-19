@@ -34,7 +34,10 @@ test('buildColonizationSimStatus reports census counters and population extremes
   }
   slice.lastTradeEpochResult = {
     flows: slice.tradeRouteState.activeFlows,
-    offMapTrades: [{ settlementId: 'a', commodityId: 'salt', direction: 'import', amount: 1, unitPriceCp: 5 }],
+    offMapTrades: [
+      { settlementId: 'a', commodityId: 'salt', direction: 'import', amount: 10, unitPriceCp: 5 },
+      { settlementId: 'a', commodityId: 'grain', direction: 'export', amount: 100, unitPriceCp: 0.5 },
+    ],
     settlementCommodityRoles: {},
     localPricesBySettlementId: {},
     obligationDeltas: [],
@@ -52,7 +55,7 @@ test('buildColonizationSimStatus reports census counters and population extremes
   assert.strictEqual(status.activeExpeditionCount, 1)
   assert.strictEqual(status.roadSegmentCount, 1)
   assert.strictEqual(status.activeTradeFlowCount, 1)
-  assert.strictEqual(status.offMapTradeCount, 1)
+  assert.strictEqual(status.offMapTradeVolumeCp, 100)
   assert.strictEqual(status.totalPopulation, 50)
   assert.deepEqual(status.highestPopulation, { settlementId: 'c', value: 40 })
   assert.deepEqual(status.lowestPopulation, { settlementId: 'a', value: 10 })

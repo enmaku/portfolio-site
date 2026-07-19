@@ -396,7 +396,12 @@ export function useWorldBuilderPageController(options) {
       colonizationWorldDocument.value ?? geographyWorldDocument.value,
     ),
   )
-  const realmEconomy = computed(() => buildRealmEconomyStatus(colonization.slice.value))
+  const realmEconomy = computed(() =>
+    buildRealmEconomyStatus(
+      colonization.slice.value,
+      colonizationWorldDocument.value ?? geographyWorldDocument.value,
+    ),
+  )
   const stageSummary = computed(() =>
     createStageSummaryForDisplay(geographyWorldDocument.value?.generationReport),
   )

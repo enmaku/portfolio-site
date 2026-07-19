@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { COMMODITY_IDS, referencePriceCp } from './commodityCatalog.js'
+import { referencePriceCp } from './commodityCatalog.js'
 import { buildSettlementTradeTooltip } from './settlementTradeTooltip.js'
 
 function docWith(overrides = {}) {
@@ -16,13 +16,30 @@ test('returns null for an unknown settlement', () => {
   assert.strictEqual(buildSettlementTradeTooltip(docWith(), 'missing'), null)
 })
 
-test('lists every catalog commodity in catalog order', () => {
+test('lists always-present commodities and omits absent pin commodities', () => {
   const tooltip = buildSettlementTradeTooltip(docWith(), 'a')
   assert.ok(tooltip)
   assert.strictEqual(tooltip.population, 100)
   assert.deepStrictEqual(
     tooltip.commodities.map((entry) => entry.commodityId),
-    [...COMMODITY_IDS],
+    ['grain', 'fish', 'timber', 'baseMetals'],
+  )
+})
+
+test('includes salt and mineral pin commodities when pins exist', () => {
+  const tooltip = buildSettlementTradeTooltip(
+    docWith({
+      saltNodes: [{ id: 's1', x: 0, y: 0, score: 1 }],
+      metalNodes: [
+        { id: 'c1', x: 1, y: 0, score: 1, kind: 'copper' },
+        { id: 'g1', x: 2, y: 0, score: 1, kind: 'gold' },
+      ],
+    }),
+    'a',
+  )
+  assert.deepStrictEqual(
+    tooltip.commodities.map((entry) => entry.commodityId),
+    ['grain', 'fish', 'salt', 'timber', 'baseMetals', 'copper', 'gold'],
   )
 })
 
@@ -39,6 +56,7 @@ test('reads population from the settlement record', () => {
 test('reads realm balance and roles from the last clearing result', () => {
   const tooltip = buildSettlementTradeTooltip(
     docWith({
+      saltNodes: [{ id: 's1', x: 0, y: 0, score: 1 }],
       lastTradeEpochResult: {
         realmBalancesCp: { a: 1234 },
         settlementCommodityRoles: { a: { grain: 'export', salt: 'import', fish: 'both' } },
@@ -103,6 +121,12 @@ test('priceVsReference uses a ±10% deadzone around catalog reference', () => {
   const timberRef = referencePriceCp('timber')
   const tooltip = buildSettlementTradeTooltip(
     docWith({
+      saltNodes: [{ id: 's1', x: 0, y: 0, score: 1 }],
+      metalNodes: [
+        { id: 'c1', x: 0, y: 0, score: 1, kind: 'copper' },
+        { id: 's1', x: 1, y: 0, score: 1, kind: 'silver' },
+        { id: 'g1', x: 2, y: 0, score: 1, kind: 'gold' },
+      ],
       lastTradeEpochResult: {
         realmBalancesCp: { a: 0 },
         settlementCommodityRoles: {},

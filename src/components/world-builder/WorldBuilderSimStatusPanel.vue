@@ -57,9 +57,9 @@
       </q-item>
       <q-item>
         <q-item-section>
-          <q-item-label caption>Off-map trades</q-item-label>
-          <q-item-label data-testid="world-builder-sim-status-off-map-trades">{{
-            status.offMapTradeCount
+          <q-item-label caption>Off-map trade</q-item-label>
+          <q-item-label data-testid="world-builder-sim-status-off-map-trade">{{
+            formatMoneyCp(status.offMapTradeVolumeCp, { compact: true })
           }}</q-item-label>
         </q-item-section>
       </q-item>
@@ -73,36 +73,44 @@
       </q-item>
       <q-item v-if="status.highestPopulation && status.lowestPopulation">
         <q-item-section>
-          <q-item-label caption>Population</q-item-label>
-          <div class="row items-center q-gutter-xs q-mt-xs">
-            <q-btn
-              dense
-              flat
-              no-caps
-              color="primary"
-              data-testid="world-builder-sim-status-pop-highest"
-              :label="`Highest: ${formatPopulation(status.highestPopulation.value)}`"
-              @click="
-                $emit('focus-settlement', {
-                  settlementId: status.highestPopulation.settlementId,
-                  focusKey: 'population:highest',
-                })
-              "
-            />
-            <q-btn
-              dense
-              flat
-              no-caps
-              color="primary"
-              data-testid="world-builder-sim-status-pop-lowest"
-              :label="`Lowest: ${formatPopulation(status.lowestPopulation.value)}`"
-              @click="
-                $emit('focus-settlement', {
-                  settlementId: status.lowestPopulation.settlementId,
-                  focusKey: 'population:lowest',
-                })
-              "
-            />
+          <q-item-label caption>Settlement Population</q-item-label>
+          <div class="row items-center q-col-gutter-xs q-mt-xs">
+            <div class="col-6">
+              <q-btn
+                class="full-width sim-status-extreme-btn"
+                dense
+                outline
+                no-caps
+                color="white"
+                size="sm"
+                data-testid="world-builder-sim-status-pop-highest"
+                :label="`Highest: ${formatPopulation(status.highestPopulation.value)}`"
+                @click="
+                  $emit('focus-settlement', {
+                    settlementId: status.highestPopulation.settlementId,
+                    focusKey: 'population:highest',
+                  })
+                "
+              />
+            </div>
+            <div class="col-6">
+              <q-btn
+                class="full-width sim-status-extreme-btn"
+                dense
+                outline
+                no-caps
+                color="white"
+                size="sm"
+                data-testid="world-builder-sim-status-pop-lowest"
+                :label="`Lowest: ${formatPopulation(status.lowestPopulation.value)}`"
+                @click="
+                  $emit('focus-settlement', {
+                    settlementId: status.lowestPopulation.settlementId,
+                    focusKey: 'population:lowest',
+                  })
+                "
+              />
+            </div>
           </div>
         </q-item-section>
       </q-item>
@@ -143,6 +151,8 @@
 </template>
 
 <script setup>
+import { formatMoneyCp } from '../../../world-builder/core/economy/formatMoneyCp.js'
+
 defineProps({
   status: {
     type: Object,
@@ -173,3 +183,9 @@ function resourceLabel(key) {
   return key
 }
 </script>
+
+<style scoped>
+.sim-status-extreme-btn {
+  white-space: nowrap;
+}
+</style>

@@ -337,11 +337,14 @@ export function useWorldBuilderColonization(options) {
     if (!id) {
       return null
     }
+    const geography = getGeographyDocument?.() ?? null
     return buildSettlementTradeTooltip(
       {
         settlements: slice.value.settlements,
         lastTradeEpochResult: slice.value.lastTradeEpochResult,
         externalTradeAccounts: slice.value.externalTradeAccounts,
+        saltNodes: geography?.saltNodes,
+        metalNodes: geography?.metalNodes,
       },
       id,
     )
@@ -608,6 +611,7 @@ export function useWorldBuilderColonization(options) {
         return false
       }
       slice.value = result.slice
+      clearSettlementFocus()
 
       await finalizeColonizationMutation({
         ports: colonizationMapPorts,

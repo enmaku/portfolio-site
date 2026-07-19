@@ -6,7 +6,8 @@
  * Domain: world-builder/CONTEXT.md — settlement trade tooltip, local price, realm balance.
  */
 
-import { COMMODITY_IDS, referencePriceCp } from './commodityCatalog.js'
+import { referencePriceCp } from './commodityCatalog.js'
+import { presentMapCommodityIds } from './presentMapCommodities.js'
 
 /**
  * @typedef {import('./commodityCatalog.js').CommodityId} CommodityId
@@ -34,7 +35,8 @@ import { COMMODITY_IDS, referencePriceCp } from './commodityCatalog.js'
  * @property {number} population Living headcount at this settlement.
  * @property {number} balanceCp Combined realm mutual-credit balance plus any external
  *   trade-account credit for display. Simulation ledgers stay separate.
- * @property {SettlementTradeTooltipCommodity[]} commodities Every catalog commodity, in catalog order.
+ * @property {SettlementTradeTooltipCommodity[]} commodities Present-on-map catalog
+ *   commodities in catalog order (absent geography sources omitted).
  */
 
 /**
@@ -72,6 +74,8 @@ export function comparePriceToReference(localPriceCp, referenceCp) {
  *   settlements?: Array<{ id: string, population?: number }>,
  *   lastTradeEpochResult?: TradeClearingResult | null,
  *   externalTradeAccounts?: Record<string, number>,
+ *   saltNodes?: ReadonlyArray<unknown>,
+ *   metalNodes?: ReadonlyArray<{ kind?: string }>,
  * }} worldDocument
  * @param {string} settlementId
  * @returns {SettlementTradeTooltip | null}
@@ -86,7 +90,7 @@ export function buildSettlementTradeTooltip(worldDocument, settlementId) {
   const roles = result?.settlementCommodityRoles?.[settlementId]
   const prices = result?.localPricesBySettlementId?.[settlementId]
 
-  const commodities = COMMODITY_IDS.map((commodityId) => {
+  const commodities = presentMapCommodityIds(worldDocument).map((commodityId) => {
     const role = normalizeRole(roles?.[commodityId])
     const priceCp = prices?.[commodityId]
     const localPriceCp =
