@@ -16,7 +16,7 @@ import {
   survivalSaltDemandLb,
 } from './allocationTiers.js'
 import { findMinCostPath } from './pathSearch.js'
-import { clearOffMapTrade } from './offMapTrade.js'
+import { clearOffMapTrade, clearOffMapTradeSync } from './offMapTrade.js'
 import { creditLimitCp } from '../ledgers/creditLimit.js'
 import { createEmptyTradeAccounts, applyObligation } from '../ledgers/bilateralObligations.js'
 
@@ -54,7 +54,8 @@ const EPSILON = 1e-6
 
 /**
  * @typedef {Object} OffMapTrade
- * @property {string} settlementId Port trading off-map.
+ * @property {string} settlementId Mediating / exit port.
+ * @property {string} originSettlementId Origin exporter or inland importer (may equal settlementId).
  * @property {CommodityId} commodityId
  * @property {'import' | 'export'} direction
  * @property {number} amount Catalog units.
@@ -100,7 +101,6 @@ const EPSILON = 1e-6
  *   settlements?: Array<{ id: string, population?: number, maritimeRole?: string }>,
  *   graph?: CandidateTradeGraph,
  *   production?: Record<string, Partial<Record<CommodityId, number>>>,
- *   offMapShippingCost?: number,
  *   priorRealizedIncomeCp?: Record<string, number>,
  *   externalAccountsCp?: Record<string, number>,
  * }} [params]
@@ -142,7 +142,12 @@ export async function runTradeClearing(params = {}, options = {}) {
 
   emitTradeSubstep(hooks, 'substep-start', 4, 'offMap')
   await yieldToUi?.()
-  clearOffMapTrade(state)
+  await clearOffMapTrade(state, {
+    onItem: (itemIndex, itemCount) => {
+      emitTradeSubstep(hooks, 'substep-item', 4, 'offMap', itemIndex, itemCount)
+    },
+    yieldToUi,
+  })
   emitTradeSubstep(hooks, 'substep-complete', 4, 'offMap')
   await yieldToUi?.()
 
@@ -165,7 +170,7 @@ export function runTradeClearingSync(params = {}) {
   for (const commodityId of PROSPERITY_COMMODITIES) {
     clearProsperityCommodity(state, commodityId)
   }
-  clearOffMapTrade(state)
+  clearOffMapTradeSync(state)
 
   return buildResult(state)
 }
@@ -199,7 +204,6 @@ function createClearingState(params = {}) {
   }))
   const edges = params.graph?.edges ?? []
   const production = params.production ?? {}
-  const offMapShippingCost = Math.max(1, Number(params.offMapShippingCost) || 2)
 
   const localPrices = computeConnectedMarketPrices({
     settlements: settlements.map((s) => ({ id: s.id, population: s.population })),
@@ -251,7 +255,6 @@ function createClearingState(params = {}) {
     held,
     roles,
     localPrices,
-    offMapShippingCost,
     remainingCapLbByEdgeId,
     creditLimit,
     netOwed,

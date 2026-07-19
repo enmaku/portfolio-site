@@ -390,11 +390,12 @@ test('off-map exports clear before imports so earnings fund the purchase', () =>
   )
   assert.ok(timberImport)
   assert.strictEqual(timberImport.amount, 20000)
-  assert.strictEqual(timberImport.unitPriceCp, 1)
+  assert.strictEqual(timberImport.unitPriceCp, 1.25)
 
   // Export earnings + loading toll minus the import spend, staying positive.
   const earnings = 156200 * 0.5 + 0.05 * 0.5 * 156200
-  assert.ok(Math.abs(result.externalAccountDeltas.p - (earnings - 20000)) < 1e-6)
+  const timberSpend = 20000 * 1.25
+  assert.ok(Math.abs(result.externalAccountDeltas.p - (earnings - timberSpend)) < 1e-6)
   assert.ok(result.externalAccountDeltas.p > 0)
 })
 
@@ -410,8 +411,8 @@ test('off-map imports cannot drive the external account negative', () => {
     (t) => t.commodityId === 'timber' && t.direction === 'import',
   )
   assert.ok(timberImport)
-  // Import is capped at what earnings can buy (earnings / 1 cp per lb), never more.
-  assert.ok(Math.abs(timberImport.amount - earnings) < 1e-6)
+  // Import is capped at what earnings can buy (earnings / 1.25 cp per lb), never more.
+  assert.ok(Math.abs(timberImport.amount - earnings / 1.25) < 1e-6)
   assert.ok((result.externalAccountDeltas.p ?? 0) >= -1e-9)
 })
 
@@ -479,7 +480,6 @@ test('a fixed three-settlement fixture clears deterministically', () => {
     settlements,
     graph,
     production: prod,
-    offMapShippingCost: 2,
     priorRealizedIncomeCp: { harbor: 5_000_000, vale: 5_000_000, ridge: 5_000_000 },
   }
 
@@ -551,6 +551,10 @@ test('runTradeClearing reports trade substep indices in order and matches sync w
       'substep-item:3:prosperity',
       'substep-complete:3:prosperity',
       'substep-start:4:offMap',
+      'substep-item:4:offMap',
+      'substep-item:4:offMap',
+      'substep-item:4:offMap',
+      'substep-item:4:offMap',
       'substep-complete:4:offMap',
     ],
   )

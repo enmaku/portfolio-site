@@ -196,7 +196,10 @@ function offMapTradesForSettlement(slice, settlementId) {
   /** @type {CampaignKitOffMapTradeRow[]} */
   const rows = []
   for (const trade of trades) {
-    if (!trade || trade.settlementId !== settlementId) {
+    if (!trade) continue
+    const mediatingId = trade.settlementId
+    const originId = trade.originSettlementId ?? trade.settlementId
+    if (mediatingId !== settlementId && originId !== settlementId) {
       continue
     }
     if (trade.direction !== 'import' && trade.direction !== 'export') {
@@ -337,7 +340,6 @@ export function buildCampaignKitModel(slice, worldDocument) {
         landExpeditionRange: settings.landExpeditionRange,
         inlandSailExpeditionRange: settings.inlandSailExpeditionRange,
         openSeaExpeditionRange: settings.openSeaExpeditionRange,
-        offMapShippingCost: settings.offMapShippingCost,
       },
     },
     mapPageKeys: CAMPAIGN_KIT_MAP_PAGE_KEYS,

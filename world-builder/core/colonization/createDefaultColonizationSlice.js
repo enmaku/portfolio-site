@@ -11,7 +11,6 @@
  * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap.
  * @property {number} inlandSailExpeditionRange Multiplier on three-day haul distance for inland sail expedition range cap.
  * @property {number} openSeaExpeditionRange Multiplier on three-day haul distance for open-sea expedition range cap.
- * @property {number} offMapShippingCost Symmetric external import/export price multiplier (default 2).
  */
 
 /**
@@ -120,9 +119,6 @@ export const MAX_INLAND_SAIL_EXPEDITION_RANGE = 6
 export const DEFAULT_OPEN_SEA_EXPEDITION_RANGE = 8
 export const MIN_OPEN_SEA_EXPEDITION_RANGE = 4
 export const MAX_OPEN_SEA_EXPEDITION_RANGE = 12
-export const DEFAULT_OFF_MAP_SHIPPING_COST = 2
-export const MIN_OFF_MAP_SHIPPING_COST = 1
-export const MAX_OFF_MAP_SHIPPING_COST = 4
 
 /**
  * @returns {TradeAccountsSlice}
@@ -151,7 +147,6 @@ export function createDefaultColonistSettings() {
     landExpeditionRange: DEFAULT_LAND_EXPEDITION_RANGE,
     inlandSailExpeditionRange: DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
     openSeaExpeditionRange: DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
-    offMapShippingCost: DEFAULT_OFF_MAP_SHIPPING_COST,
   }
 }
 
@@ -304,12 +299,6 @@ export function resolveColonistSettings(value) {
       defaults.openSeaExpeditionRange,
       MIN_OPEN_SEA_EXPEDITION_RANGE,
       MAX_OPEN_SEA_EXPEDITION_RANGE,
-    ),
-    offMapShippingCost: clampNumberRange(
-      incoming.offMapShippingCost,
-      defaults.offMapShippingCost,
-      MIN_OFF_MAP_SHIPPING_COST,
-      MAX_OFF_MAP_SHIPPING_COST,
     ),
   }
 }

@@ -1,0 +1,3 @@
+# Off-map trade as port-mediated dump and last-line import
+
+Residual overseas exchange is no longer a port-only bag dump under shared import/export cargo capacity. Exports are an unlimited pier dump (still half reference) once surplus can reach a **port settlement**—including inland surplus via **transshipment**—but only when dump price covers inland **transport cost**; imports stay capacity-gated at **2.5×** reference (above the **local price** ceiling) and may relay inland after the port’s own unmet demand, with pass-through pricing so ports enrich through **port tolls** rather than goods markup. Rejected alternatives: unlimited imports, export-only inland access, symmetric shipping-cost slider, and ports buying residual export cargo into local demand.

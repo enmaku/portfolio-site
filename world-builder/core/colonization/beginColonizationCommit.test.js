@@ -96,7 +96,8 @@ test('beginColonizationCommit off-map import lets a food-poor founding port surv
 
   assert.ok(next.settlements[0].population > 0)
   assert.strictEqual(next.settlements[0].status, 'living')
-  assert.ok(next.externalTradeAccounts[next.settlements[0].id] > 0)
+  // External may be spent down to zero funding last-line food imports at 2.5×.
+  assert.ok((next.externalTradeAccounts[next.settlements[0].id] ?? 0) >= 0)
 })
 
 test('beginColonizationCommit enters running with founding settlement and history log', async () => {

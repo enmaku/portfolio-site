@@ -218,7 +218,6 @@ function resolveFoundingPortOffMapDelivery(ctx) {
     settlements: [{ id: seedSettlement.id, population: seedSettlement.population, maritimeRole }],
     graph: { edges: [] },
     production: { [seedSettlement.id]: production },
-    offMapShippingCost: ctx.current.colonistSettings.offMapShippingCost,
     externalAccountsCp: {},
   })
   const delivered = result.effectiveDelivered[seedSettlement.id]

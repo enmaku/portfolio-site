@@ -164,25 +164,6 @@
       :disable="runningPhase"
       @update:model-value="(value) => emitSetting('openSeaExpeditionRange', value)"
     />
-
-    <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
-      <span class="text-caption">Off-map shipping cost</span>
-      <WorldBuilderSettingHelp
-        :text="OFF_MAP_SHIPPING_COST_TOOLTIP"
-        label="Off-map shipping cost"
-      />
-    </div>
-    <q-slider
-      :model-value="displaySettings.offMapShippingCost"
-      :min="minOffMapShippingCost"
-      :max="maxOffMapShippingCost"
-      :step="0.5"
-      label
-      color="primary"
-      data-testid="world-builder-colonist-off-map-shipping-cost"
-      :disable="runningPhase"
-      @update:model-value="(value) => emitSetting('offMapShippingCost', value)"
-    />
   </div>
 </template>
 
@@ -191,7 +172,6 @@ import { computed } from 'vue'
 import {
   INLAND_SAIL_EXPEDITION_RANGE_TOOLTIP,
   LAND_EXPEDITION_RANGE_TOOLTIP,
-  OFF_MAP_SHIPPING_COST_TOOLTIP,
   OPEN_SEA_EXPEDITION_RANGE_TOOLTIP,
   PEOPLE_PER_HABITABLE_CELL_TOOLTIP,
   POPULATION_DENSITY_TOOLTIP,
@@ -202,14 +182,12 @@ import {
 import {
   MAX_INLAND_SAIL_EXPEDITION_RANGE,
   MAX_LAND_EXPEDITION_RANGE,
-  MAX_OFF_MAP_SHIPPING_COST,
   MAX_OPEN_SEA_EXPEDITION_RANGE,
   MAX_PEOPLE_PER_HABITABLE_CELL,
   MAX_POPULATION_DENSITY,
   MAX_THREE_DAY_HAUL_DISTANCE,
   MIN_INLAND_SAIL_EXPEDITION_RANGE,
   MIN_LAND_EXPEDITION_RANGE,
-  MIN_OFF_MAP_SHIPPING_COST,
   MIN_OPEN_SEA_EXPEDITION_RANGE,
   MIN_PEOPLE_PER_HABITABLE_CELL,
   MIN_POPULATION_DENSITY,
@@ -243,8 +221,6 @@ const minInlandSailExpeditionRange = MIN_INLAND_SAIL_EXPEDITION_RANGE
 const maxInlandSailExpeditionRange = MAX_INLAND_SAIL_EXPEDITION_RANGE
 const minOpenSeaExpeditionRange = MIN_OPEN_SEA_EXPEDITION_RANGE
 const maxOpenSeaExpeditionRange = MAX_OPEN_SEA_EXPEDITION_RANGE
-const minOffMapShippingCost = MIN_OFF_MAP_SHIPPING_COST
-const maxOffMapShippingCost = MAX_OFF_MAP_SHIPPING_COST
 
 const displaySettings = computed(() =>
   props.runningPhase ? props.colonistSettingsSnapshot : props.colonistSettings,

@@ -23,6 +23,3 @@ export const INLAND_SAIL_EXPEDITION_RANGE_TOOLTIP =
 
 export const OPEN_SEA_EXPEDITION_RANGE_TOOLTIP =
   'Multiplier on three-day haul distance for how far an open-sea expedition may sail before ending (4×–12×). Locked after begin colonization.'
-
-export const OFF_MAP_SHIPPING_COST_TOOLTIP =
-  'How much distance to the unseen world inflates off-map trade (1×–4×). Ports pay this multiple of reference price on imports and receive the reciprocal fraction on exports. Locked after begin colonization.'

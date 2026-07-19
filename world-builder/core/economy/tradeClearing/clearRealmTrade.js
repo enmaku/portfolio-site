@@ -152,7 +152,6 @@ export async function clearRealmTrade(params, options = {}) {
       settlements: clearingSettlements,
       graph,
       production,
-      offMapShippingCost: slice.colonistSettings.offMapShippingCost,
       externalAccountsCp: slice.externalTradeAccounts,
     },
     options,
