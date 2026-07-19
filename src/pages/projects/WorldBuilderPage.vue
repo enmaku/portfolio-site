@@ -226,6 +226,7 @@
             class="full-width q-mb-md"
             data-testid="world-builder-reset-colonization"
             label="Reset colonization"
+            :disable="isEpochStepRunning || isCampaignKitExportRunning"
             @click="resetColonization"
           />
           <WorldBuilderRealmEconomyPanel
