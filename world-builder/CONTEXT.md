@@ -194,9 +194,9 @@ _Avoid_: “Navigable river graph” as a stand-in for **Sail overlay**; using u
 
 ### Port settlement
 
-Living **settlement** whose pin lies on **Sail overlay** and within sail reach of open ocean—ocean-adjacent sail cells in the same class as a valid **founding landing** shore. May dispatch **open-sea expedition** and **inland sail expedition**; always retains the maritime slot guarantee when unvisited sail frontier remains. Distinct from economic **drain city** or **settlement tier**—dispatch class is geographic, not political.
+Living **settlement** whose pin lies on **Sail overlay** (or adjacent to it) and is sail-connected to open ocean—including river or lake cells a short way inland from a mouth in the same **8-connected** sail component. Also includes ocean-adjacent cells in the same class as a valid **founding landing** shore. May dispatch **open-sea expedition** and **inland sail expedition**; always retains the maritime slot guarantee when unvisited sail frontier remains. Distinct from economic **drain city** or **settlement tier**—dispatch class is geographic, not political.
 
-_Avoid_: “Port city” as a tier label before simulation backs it; treating every **Sail overlay** pin as a **port settlement**; requiring **drain city** logistics type for open-sea dispatch; inland river towns with open-sea guarantees.
+_Avoid_: “Port city” as a tier label before simulation backs it; treating every **Sail overlay** pin as a **port settlement** (landlocked sail pockets stay inland); requiring **drain city** logistics type for open-sea dispatch; denying port status to river-mouth towns that sail-connect to the sea merely because the pin is a few cells upstream.
 
 ### Port toll
 
@@ -206,9 +206,9 @@ _Avoid_: Physical coins or goods retained by implication; taxing ships merely vi
 
 ### Inland sail settlement
 
-Living **settlement** whose pin lies on **Sail overlay** but is **not** a **port settlement**—river, lake, or sheltered water only, without open-ocean adjacency. May dispatch **inland sail expedition** only; no open-sea guarantee.
+Living **settlement** whose pin lies on **Sail overlay** but is **not** a **port settlement**—river, lake, or sheltered water with no sail path to open ocean (endoreic / landlocked). May dispatch **inland sail expedition** only; no open-sea guarantee.
 
-_Avoid_: “River town” as schema keys; conflating with **port settlement**; open-sea range multipliers on sheltered-water-only senders.
+_Avoid_: “River town” as schema keys; conflating with **port settlement**; open-sea range multipliers on landlocked-water-only senders; treating ocean-connected river pins as inland sail.
 
 **Derivation:** not persisted—computed on demand from final water inputs and **fixed pipeline constants** (blur radius, high-pass threshold); validation and renderer share one deterministic function. Not user-adjustable in v1. **Meander refine** is optional—checks describe the generated map as shown, not a counterfactual with refine enabled.
 

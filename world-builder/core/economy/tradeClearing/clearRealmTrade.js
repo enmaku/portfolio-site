@@ -102,6 +102,7 @@ export async function clearRealmTrade(params, options = {}) {
       x: settlement.x,
       y: settlement.y,
     })
+    settlement.maritimeRole = maritimeRole
     graphSettlements.push({
       id: settlement.id,
       x: settlement.x,
