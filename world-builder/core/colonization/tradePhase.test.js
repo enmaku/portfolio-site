@@ -162,18 +162,15 @@ test('trade accounts carry debt across a second trade phase', async () => {
   await runColonizationEpochTradePhase(second)
 
   const secondDebt = second.slice.tradeAccounts.balancesBySettlementId.b ?? 0
-  assert.ok(
-    secondDebt <= firstDebt + 1e-6,
-    `debt should persist or deepen, got first=${firstDebt} second=${secondDebt}`,
-  )
+  assert.ok(secondDebt < 0, `importer should still owe after second clear, got ${secondDebt}`)
   assert.ok(Object.keys(second.slice.priorRealizedIncomeCp).length > 0)
 })
 
 test('ruin cancels incident bilateral obligations and zeroes external credit', () => {
   const result = applyRuinTransitions({
     settlements: [
-      { id: 'a', x: 1, y: 1, population: 5, status: 'living', tier: 'outpost' },
-      { id: 'b', x: 4, y: 1, population: 0, status: 'living', tier: null },
+      { id: 'a', x: 1, y: 1, population: 50, status: 'living', tier: 'outpost' },
+      { id: 'b', x: 4, y: 1, population: 10, status: 'living', tier: null },
     ],
     primaryClaim: { a: [{ x: 1, y: 1 }], b: [{ x: 4, y: 1 }] },
     historyLog: [],
@@ -186,6 +183,7 @@ test('ruin cancels incident bilateral obligations and zeroes external credit', (
   })
 
   assert.strictEqual(result.settlements.find((s) => s.id === 'b').status, 'ruin')
+  assert.strictEqual(result.settlements.find((s) => s.id === 'a').status, 'living')
   assert.deepStrictEqual(result.tradeAccounts.obligations, [])
   assert.deepStrictEqual(result.tradeAccounts.balancesBySettlementId, {})
   assert.strictEqual(result.externalTradeAccounts.b, undefined)

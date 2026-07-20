@@ -251,6 +251,9 @@ export const SURPLUS_POPULATION_GROWTH_FRACTION = 0.02
 /** Fraction of headcount that leaves the map each epoch when combined wealth ≤ 0. */
 export const MARGINAL_WEALTH_ATTRITION_RATE = 0.5
 
+/** Floor on leavers per marginal-wealth attrition pass (avoids endless half-rounding residue). */
+export const MARGINAL_WEALTH_ATTRITION_MIN_LEAVERS = 5
+
 /**
  * Surplus-driven population change in people-units, clamped by ceiling.
  *
@@ -273,6 +276,8 @@ export function applySurplusPopulationDelta(population, foodSurplus, populationC
 /**
  * Off-map attrition for marginal/broke settlements (wealth overlay orange/red: ≤ 0 cp).
  * Leavers exit the realm entirely — not transferred to another pin.
+ * Each pass removes the larger of half the headcount or
+ * {@link MARGINAL_WEALTH_ATTRITION_MIN_LEAVERS} people (capped by headcount).
  *
  * @param {number} population
  * @param {number} realmWealthCp Combined realm + external wealth (tooltip / overlay figure).
@@ -282,8 +287,14 @@ export function applyMarginalWealthAttrition(population, realmWealthCp) {
   const headcount = Math.max(0, Math.floor(Number(population) || 0))
   if (!(headcount > 0)) return 0
   if (!(Number.isFinite(realmWealthCp) && realmWealthCp <= 0)) return headcount
-  const leavers = Math.floor(headcount * MARGINAL_WEALTH_ATTRITION_RATE)
-  return Math.max(0, headcount - leavers)
+  const leavers = Math.min(
+    headcount,
+    Math.max(
+      Math.floor(headcount * MARGINAL_WEALTH_ATTRITION_RATE),
+      MARGINAL_WEALTH_ATTRITION_MIN_LEAVERS,
+    ),
+  )
+  return headcount - leavers
 }
 
 function applyPoliticsPhaseNoop() {}

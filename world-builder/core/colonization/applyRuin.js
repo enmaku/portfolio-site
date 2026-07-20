@@ -4,9 +4,16 @@ import {
 } from '../economy/ledgers/bilateralObligations.js'
 
 /**
- * Convert zero-population living settlements to ruins and release their claims.
- * Incident bilateral obligations are cancelled and external credit is zeroed for each
- * newly ruined settlement.
+ * Living settlements at or below this headcount abandon: remaining people leave the map
+ * and the pin becomes a ruin.
+ */
+export const SETTLEMENT_ABANDONMENT_POPULATION_FLOOR = 10
+
+/**
+ * Convert failed living settlements to ruins and release their claims.
+ * Failure is headcount at or below {@link SETTLEMENT_ABANDONMENT_POPULATION_FLOOR}
+ * (remaining people leave the map). Incident bilateral obligations are cancelled and
+ * external credit is zeroed for each newly ruined settlement.
  *
  * @param {{
  *   settlements: object[],
@@ -48,7 +55,8 @@ export function applyRuinTransitions(state) {
       continue
     }
 
-    if (settlement.population > 0) {
+    const headcount = Math.max(0, Math.floor(Number(settlement.population) || 0))
+    if (headcount > SETTLEMENT_ABANDONMENT_POPULATION_FLOOR) {
       settlements.push({ ...settlement })
       continue
     }

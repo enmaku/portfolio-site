@@ -20,12 +20,19 @@ export function classifySettlementMaritimeRole(doc, pin) {
     return 'port'
   }
 
-  const sailIndex = resolveNearbySailCellIndex(ctx, pin.x, pin.y)
+  const sailIndex = resolveNearbyMaskCellIndex(ctx.sailMask, ctx.width, ctx.height, pin.x, pin.y)
   if (sailIndex === null) {
     return 'none'
   }
 
-  if (ctx.sailReachesOcean[sailIndex] === 1) {
+  const waterIndex = resolveNearbyMaskCellIndex(
+    ctx.waterUnion,
+    ctx.width,
+    ctx.height,
+    pin.x,
+    pin.y,
+  )
+  if (waterIndex !== null && ctx.waterReachesOcean[waterIndex] === 1) {
     return 'port'
   }
 
@@ -41,14 +48,16 @@ export function isPortSettlement(role) {
 }
 
 /**
- * @param {import('../isValidFoundingLandingCell.js').FoundingLandingValidityContext} ctx
+ * @param {Uint8Array} mask
+ * @param {number} width
+ * @param {number} height
  * @param {number} x
  * @param {number} y
  * @returns {number | null}
  */
-function resolveNearbySailCellIndex(ctx, x, y) {
-  const index = y * ctx.width + x
-  if (ctx.sailMask[index] === 1) {
+function resolveNearbyMaskCellIndex(mask, width, height, x, y) {
+  const index = y * width + x
+  if (mask[index] === 1) {
     return index
   }
 
@@ -57,9 +66,9 @@ function resolveNearbySailCellIndex(ctx, x, y) {
       if (dx === 0 && dy === 0) continue
       const nx = x + dx
       const ny = y + dy
-      if (nx < 0 || ny < 0 || nx >= ctx.width || ny >= ctx.height) continue
-      const neighborIndex = ny * ctx.width + nx
-      if (ctx.sailMask[neighborIndex] === 1) {
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+      const neighborIndex = ny * width + nx
+      if (mask[neighborIndex] === 1) {
         return neighborIndex
       }
     }

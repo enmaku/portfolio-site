@@ -83,3 +83,33 @@ test('classifySettlementMaritimeRole marks ocean-connected river pin as port', (
   assert.strictEqual(role, 'port')
   assert.strictEqual(isPortSettlement(role), true)
 })
+
+test('classifySettlementMaritimeRole marks near-coast landlocked lake as inland sail not port', () => {
+  const gridWidth = 64
+  const gridHeight = 64
+  const cellCount = gridWidth * gridHeight
+  const elevation = new Float32Array(cellCount).fill(0.65)
+  for (let x = 0; x < gridWidth; x += 1) {
+    elevation[(gridHeight - 1) * gridWidth + x] = 0.2
+  }
+  const lakeMask = new Uint8Array(cellCount)
+  for (let y = 58; y <= 60; y += 1) {
+    for (let x = 30; x <= 34; x += 1) {
+      lakeMask[y * gridWidth + x] = 1
+    }
+  }
+  const doc = {
+    geographySeed: 4,
+    gridWidth,
+    gridHeight,
+    fields: { elevation },
+    lakeMask,
+    riverCorridorMask: new Uint8Array(cellCount),
+    coastalNodes: [],
+    biomes: new Uint8Array(cellCount),
+  }
+
+  const role = classifySettlementMaritimeRole(doc, { x: 32, y: 59 })
+  assert.strictEqual(role, 'inland_sail')
+  assert.strictEqual(isPortSettlement(role), false)
+})

@@ -10,20 +10,42 @@ import {
   createDefaultColonizationSlice,
 } from './createDefaultColonizationSlice.js'
 
-test('applyRuinTransitions converts population 0 to ruin and releases claims', () => {
-  const result = applyRuinTransitions({
+test('applyRuinTransitions converts population at or below floor to ruin and releases claims', () => {
+  const zero = applyRuinTransitions({
     settlements: [{ id: 's1', x: 1, y: 1, population: 0, status: 'living', tier: null }],
     primaryClaim: { s1: [{ x: 1, y: 1 }, { x: 2, y: 1 }] },
     historyLog: [{ kind: 'founding', epoch: 0 }],
     epoch: 3,
   })
 
-  assert.strictEqual(result.settlements[0].status, 'ruin')
-  assert.deepStrictEqual(result.primaryClaim, {})
-  assert.strictEqual(result.historyLog.at(-1)?.kind, 'settlement_abandoned')
-  assert.strictEqual(result.historyLog.at(-1)?.epoch, 3)
-  assert.strictEqual(result.events[0].kind, 'settlement_abandoned')
-  assert.strictEqual(result.events[0].settlementId, 's1')
+  assert.strictEqual(zero.settlements[0].status, 'ruin')
+  assert.strictEqual(zero.settlements[0].population, 0)
+  assert.deepStrictEqual(zero.primaryClaim, {})
+  assert.strictEqual(zero.historyLog.at(-1)?.kind, 'settlement_abandoned')
+  assert.strictEqual(zero.historyLog.at(-1)?.epoch, 3)
+  assert.strictEqual(zero.events[0].kind, 'settlement_abandoned')
+  assert.strictEqual(zero.events[0].settlementId, 's1')
+
+  const atFloor = applyRuinTransitions({
+    settlements: [{ id: 's2', x: 2, y: 2, population: 10, status: 'living', tier: 'hamlet' }],
+    primaryClaim: { s2: [{ x: 2, y: 2 }] },
+    historyLog: [],
+    epoch: 4,
+  })
+  assert.strictEqual(atFloor.settlements[0].status, 'ruin')
+  assert.strictEqual(atFloor.settlements[0].population, 0)
+  assert.deepStrictEqual(atFloor.primaryClaim, {})
+
+  const aboveFloor = applyRuinTransitions({
+    settlements: [{ id: 's3', x: 3, y: 3, population: 11, status: 'living', tier: 'hamlet' }],
+    primaryClaim: { s3: [{ x: 3, y: 3 }] },
+    historyLog: [],
+    epoch: 5,
+  })
+  assert.strictEqual(aboveFloor.settlements[0].status, 'living')
+  assert.strictEqual(aboveFloor.settlements[0].population, 11)
+  assert.deepStrictEqual(aboveFloor.primaryClaim, { s3: [{ x: 3, y: 3 }] })
+  assert.strictEqual(aboveFloor.events.length, 0)
 })
 
 function dryGeographyDoc() {

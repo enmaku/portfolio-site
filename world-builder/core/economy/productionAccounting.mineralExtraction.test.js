@@ -25,13 +25,10 @@ test('mineral deposit yields match prosperity demand for the reference mine-town
     SILVER_LB_PER_EXTRACTION,
     prosperityDemandUnits('silver', MINERAL_DEPOSIT_PROSPERITY_POPULATION),
   )
-  assert.strictEqual(
-    GOLD_LB_PER_EXTRACTION,
-    prosperityDemandUnits('gold', MINERAL_DEPOSIT_PROSPERITY_POPULATION),
-  )
+  assert.equal(GOLD_LB_PER_EXTRACTION, 50)
   assert.ok(COPPER_LB_PER_EXTRACTION > SILVER_LB_PER_EXTRACTION)
   assert.ok(SILVER_LB_PER_EXTRACTION > GOLD_LB_PER_EXTRACTION)
-  assert.equal(DIAMOND_GEMS_PER_EXTRACTION, 2)
+  assert.equal(DIAMOND_GEMS_PER_EXTRACTION, 5)
   assert.equal(DIAMOND_GEMS_PER_EXTRACTION, Math.trunc(DIAMOND_GEMS_PER_EXTRACTION))
 })
 

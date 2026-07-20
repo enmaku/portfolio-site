@@ -29,17 +29,14 @@ export const SILVER_LB_PER_EXTRACTION = prosperityDemandUnits(
   'silver',
   MINERAL_DEPOSIT_PROSPERITY_POPULATION,
 )
-/** Typed gold claimed deposit → lb per epoch. */
-export const GOLD_LB_PER_EXTRACTION = prosperityDemandUnits(
-  'gold',
-  MINERAL_DEPOSIT_PROSPERITY_POPULATION,
-)
+/** Typed gold claimed deposit → lb per epoch (tuned above prosperity-demand baseline). */
+export const GOLD_LB_PER_EXTRACTION = 50
 /**
- * Typed diamond claimed deposit → whole gems per epoch (floor of at least two gems;
+ * Typed diamond claimed deposit → whole gems per epoch (floor of at least five gems;
  * matches integer gem flows while staying near prosperity demand for the reference pop).
  */
 export const DIAMOND_GEMS_PER_EXTRACTION = Math.max(
-  2,
+  5,
   Math.round(prosperityDemandUnits('diamonds', MINERAL_DEPOSIT_PROSPERITY_POPULATION)),
 )
 /** Salt lb consumed per lb of fish exported (curing at origin). */

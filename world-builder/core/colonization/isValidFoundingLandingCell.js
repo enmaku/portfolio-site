@@ -18,7 +18,8 @@ export const MIN_COLONIZABLE_LANDMASS_CELLS = 32
  * @property {number} height
  * @property {boolean[]} ocean
  * @property {Uint8Array} sailMask
- * @property {Uint8Array} sailReachesOcean 1 where sail cell is 8-connected to ocean via sail
+ * @property {Uint8Array} waterUnion ocean + lake + river corridor (pre-blur)
+ * @property {Uint8Array} waterReachesOcean 1 where water-union cell is 8-connected to ocean
  * @property {Set<string>} mouthKeys
  * @property {Uint32Array} landmassSizeByCell
  */
@@ -52,12 +53,14 @@ export function createFoundingLandingValidityContext(doc) {
     gridHeight: height,
     seaLevel: SEA_LEVEL,
   })
+  const waterUnion = buildWaterUnionMask(ocean, doc.lakeMask, doc.riverCorridorMask, width * height)
   return {
     width,
     height,
     ocean,
     sailMask,
-    sailReachesOcean: buildSailReachesOceanMask(sailMask, ocean, width, height),
+    waterUnion,
+    waterReachesOcean: buildWaterReachesOceanMask(waterUnion, ocean, width, height),
     mouthKeys,
     landmassSizeByCell: buildLandmassSizeByCell(ocean, width, height),
   }
@@ -170,22 +173,40 @@ export function snapFoundingLandingCell(
 }
 
 /**
- * @param {Uint8Array} sailMask
+ * @param {boolean[]} ocean
+ * @param {Uint8Array | null | undefined} lakeMask
+ * @param {Uint8Array | null | undefined} riverCorridorMask
+ * @param {number} cellCount
+ * @returns {Uint8Array}
+ */
+function buildWaterUnionMask(ocean, lakeMask, riverCorridorMask, cellCount) {
+  const waterUnion = new Uint8Array(cellCount)
+  for (let i = 0; i < cellCount; i += 1) {
+    if (ocean[i] || lakeMask?.[i] || riverCorridorMask?.[i]) {
+      waterUnion[i] = 1
+    }
+  }
+  return waterUnion
+}
+
+/**
+ * Ocean reach through real water cells only — not Sail overlay blur bridges.
+ * @param {Uint8Array} waterUnion
  * @param {boolean[]} ocean
  * @param {number} width
  * @param {number} height
  * @returns {Uint8Array}
  */
-function buildSailReachesOceanMask(sailMask, ocean, width, height) {
-  const { labels, componentCount } = labelConnectedComponents(sailMask, width, height, 8)
+function buildWaterReachesOceanMask(waterUnion, ocean, width, height) {
+  const { labels, componentCount } = labelConnectedComponents(waterUnion, width, height, 8)
   const componentTouchesOcean = new Uint8Array(componentCount)
-  for (let i = 0; i < sailMask.length; i += 1) {
+  for (let i = 0; i < waterUnion.length; i += 1) {
     const label = labels[i]
     if (label < 0 || !ocean[i]) continue
     componentTouchesOcean[label] = 1
   }
-  const reaches = new Uint8Array(sailMask.length)
-  for (let i = 0; i < sailMask.length; i += 1) {
+  const reaches = new Uint8Array(waterUnion.length)
+  for (let i = 0; i < waterUnion.length; i += 1) {
     const label = labels[i]
     if (label >= 0 && componentTouchesOcean[label]) {
       reaches[i] = 1

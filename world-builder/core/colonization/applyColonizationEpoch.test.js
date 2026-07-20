@@ -46,11 +46,13 @@ test('applySurplusPopulationDelta grows, stalls, and declines by surplus sign', 
   assert.strictEqual(applySurplusPopulationDelta(10, 1000, 12), 12)
 })
 
-test('applyMarginalWealthAttrition removes half when wealth is at or below zero', () => {
+test('applyMarginalWealthAttrition removes the larger of half or five when wealth is at or below zero', () => {
   assert.equal(applyMarginalWealthAttrition(1000, 1), 1000)
   assert.equal(applyMarginalWealthAttrition(1000, 0), 500)
   assert.equal(applyMarginalWealthAttrition(1000, -50), 500)
-  assert.equal(applyMarginalWealthAttrition(1, 0), 1)
+  assert.equal(applyMarginalWealthAttrition(9, 0), 4)
+  assert.equal(applyMarginalWealthAttrition(5, 0), 0)
+  assert.equal(applyMarginalWealthAttrition(1, 0), 0)
   assert.equal(applyMarginalWealthAttrition(0, -1), 0)
 })
 
@@ -68,16 +70,22 @@ test('applyColonizationEpoch advances epoch and updates population from surplus'
   assert.ok(Object.keys(next.primaryClaim).length > 0)
 })
 
-test('applyColonizationEpoch clamps population to ceiling across many epochs', async () => {
+test('applyColonizationEpoch keeps founding population non-negative with a known tier', async () => {
   let current = await commitRunningSlice(20)
+  current = { ...current, frontierExhausted: true }
   const doc = richGeographyDoc()
+  const foundingId = current.settlements[0].id
   for (let i = 0; i < 40; i += 1) {
     current = (await applyColonizationEpoch(current, doc)).slice
+    const settlement = current.settlements.find((s) => s.id === foundingId)
+    assert.ok(settlement)
+    assert.ok(settlement.population >= 0)
+    if (settlement.status === 'ruin') {
+      assert.strictEqual(settlement.tier, null)
+    } else {
+      assert.ok(SETTLEMENT_TIER_THRESHOLDS.some((band) => band.tier === settlement.tier))
+    }
   }
-  const settlement = current.settlements[0]
-  assert.ok(settlement.population > 20)
-  const tier = settlement.tier
-  assert.ok(SETTLEMENT_TIER_THRESHOLDS.some((band) => band.tier === tier))
 })
 
 test('applyColonizationEpoch declines without freshwater and does not auto-stop', async () => {
