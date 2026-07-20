@@ -57,4 +57,5 @@ export const PRODUCTION_SCAN_ROOTS = [
   'src/composables/useWorldBuilderGeneration.js',
   'src/composables/useWorldBuilderOverlayState.js',
   'src/composables/useWorldBuilderPageController.js',
+  'src/composables/useWorldBuilderColonization.js',
 ]

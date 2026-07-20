@@ -13,11 +13,9 @@ import {
   survivalFoodDemandLb,
   survivalSaltDemandLb,
 } from '../tradeClearing/allocationTiers.js'
+import { PORT_TOLL_RATE } from '../tradeClearing/tradeConstants.js'
 
 /** @typedef {import('../commodityCatalog.js').CommodityId} CommodityId */
-
-/** Baseline port toll: 5% of local price (mirrors runTradeClearing.PORT_TOLL_RATE). */
-export const FOUNDING_PORT_TOLL_RATE = 0.05
 
 const EPSILON = 1e-6
 
@@ -145,6 +143,6 @@ function importUnitCostCp(commodityId, prices, link) {
   if (!(netUnitValueCp > 0)) {
     return null
   }
-  const tollUnitCp = link.importToll ? FOUNDING_PORT_TOLL_RATE * price : 0
+  const tollUnitCp = link.importToll ? PORT_TOLL_RATE * price : 0
   return netUnitValueCp + tollUnitCp
 }

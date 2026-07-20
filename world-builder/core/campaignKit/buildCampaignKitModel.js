@@ -6,7 +6,12 @@ import { BIOMES_CATALOG } from '../biomeCatalog.js'
 import { buildColonizationSimStatus } from '../colonization/buildColonizationSimStatus.js'
 import { isValidSettlementMapNumber } from '../colonization/settlementMapNumber.js'
 import { computeClaimProduction } from '../economy/founding/computeClaimProduction.js'
-import { buildSettlementTradeTooltip } from '../economy/settlementTradeTooltip.js'
+import { buildSettlementEconomyInspect } from '../economy/settlementEconomyInspect.js'
+import {
+  computeSettlementTradeProfile,
+  tradeProfileWantsAndSupplies,
+} from '../economy/settlementTradeProfile.js'
+import { presentMapCommodityIds } from '../economy/presentMapCommodities.js'
 import {
   campaignKitCommodityLabel,
   campaignKitInteger,
@@ -61,6 +66,14 @@ import { CAMPAIGN_KIT_MAP_PAGE_KEYS } from './campaignKitOverlayPresets.js'
  */
 
 /**
+ * @typedef {Object} CampaignKitTradeProfileRow
+ * @property {CommodityId} commodityId
+ * @property {string} label
+ * @property {number} amount
+ * @property {string} amountDisplay
+ */
+
+/**
  * @typedef {Object} CampaignKitSettlementDossier
  * @property {number} mapNumber
  * @property {string} settlementId
@@ -74,6 +87,8 @@ import { CAMPAIGN_KIT_MAP_PAGE_KEYS } from './campaignKitOverlayPresets.js'
  * @property {number | null} originMapNumber
  * @property {CampaignKitHistoryNote[]} historyNotes
  * @property {CampaignKitProductionRow[] | null} production
+ * @property {CampaignKitTradeProfileRow[] | null} supplies
+ * @property {CampaignKitTradeProfileRow[] | null} wants
  * @property {string | null} balance
  * @property {CampaignKitCommodityRow[] | null} commodities
  * @property {CampaignKitOffMapTradeRow[] | null} offMapTrades
@@ -168,22 +183,77 @@ function historyNotesForSettlement(slice, settlementId, mapNumber) {
  * @param {ColonizationSlice} slice
  * @param {WorldDocument} worldDocument
  * @param {{ id: string }} settlement
- * @returns {CampaignKitProductionRow[] | null}
+ * @returns {Record<CommodityId, number> | null}
  */
-function productionForSettlement(slice, worldDocument, settlement) {
+function claimProductionAmounts(slice, worldDocument, settlement) {
   const claimedCells = slice.primaryClaim?.[settlement.id]
   if (!Array.isArray(claimedCells) || claimedCells.length === 0) {
     return null
   }
-  const raw = computeClaimProduction({
+  return computeClaimProduction({
     settlementId: settlement.id,
     claimedCells,
     worldDocument,
     yieldModifier: slice.colonistSettings?.yieldModifier ?? 'typical',
     populationDensity: slice.colonistSettings?.populationDensity,
   })
+}
+
+/**
+ * @param {ColonizationSlice} slice
+ * @param {WorldDocument} worldDocument
+ * @param {{ id: string }} settlement
+ * @returns {CampaignKitProductionRow[] | null}
+ */
+function productionForSettlement(slice, worldDocument, settlement) {
+  const raw = claimProductionAmounts(slice, worldDocument, settlement)
+  if (!raw) return null
   const rows = presentCampaignKitProduction(raw)
   return rows.length > 0 ? rows : null
+}
+
+/**
+ * @param {{ commodityId: CommodityId, amount: number }} entry
+ * @returns {CampaignKitTradeProfileRow}
+ */
+function formatTradeProfileRow(entry) {
+  const amountFormatted = formatCampaignKitCommodityAmount(entry.amount, entry.commodityId)
+  return {
+    commodityId: entry.commodityId,
+    label: campaignKitCommodityLabel(entry.commodityId),
+    amount: entry.amount,
+    amountDisplay: amountFormatted.display,
+  }
+}
+
+/**
+ * @param {ColonizationSlice} slice
+ * @param {WorldDocument} worldDocument
+ * @param {{ id: string, population?: number }} settlement
+ * @returns {{ supplies: CampaignKitTradeProfileRow[] | null, wants: CampaignKitTradeProfileRow[] | null }}
+ */
+function tradeProfileForSettlement(slice, worldDocument, settlement) {
+  const raw = claimProductionAmounts(slice, worldDocument, settlement)
+  if (!raw) {
+    return { supplies: null, wants: null }
+  }
+  const population =
+    typeof settlement.population === 'number' && Number.isFinite(settlement.population)
+      ? Math.max(0, Math.floor(settlement.population))
+      : 0
+  const profile = computeSettlementTradeProfile({
+    settlementId: settlement.id,
+    production: raw,
+    population,
+  })
+  const { supplies, wants } = tradeProfileWantsAndSupplies(
+    profile,
+    presentMapCommodityIds(worldDocument),
+  )
+  return {
+    supplies: supplies.length > 0 ? supplies.map(formatTradeProfileRow) : null,
+    wants: wants.length > 0 ? wants.map(formatTradeProfileRow) : null,
+  }
 }
 
 /**
@@ -265,6 +335,8 @@ function buildSettlementDossier(slice, worldDocument, settlement, mapNumbers) {
     originMapNumber,
     historyNotes: historyNotesForSettlement(slice, settlementId, mapNumber),
     production: null,
+    supplies: null,
+    wants: null,
     balance: null,
     commodities: null,
     offMapTrades: null,
@@ -275,8 +347,11 @@ function buildSettlementDossier(slice, worldDocument, settlement, mapNumbers) {
   }
 
   dossier.production = productionForSettlement(slice, worldDocument, settlement)
+  const tradeProfile = tradeProfileForSettlement(slice, worldDocument, settlement)
+  dossier.supplies = tradeProfile.supplies
+  dossier.wants = tradeProfile.wants
 
-  const tooltip = buildSettlementTradeTooltip(
+  const inspect = buildSettlementEconomyInspect(
     {
       settlements: slice.settlements,
       lastTradeEpochResult: slice.lastTradeEpochResult,
@@ -286,9 +361,9 @@ function buildSettlementDossier(slice, worldDocument, settlement, mapNumbers) {
     },
     settlementId,
   )
-  if (tooltip) {
-    dossier.balance = formatCampaignKitMoneyCp(tooltip.balanceCp)
-    dossier.commodities = tooltip.commodities.map((row) => ({
+  if (inspect) {
+    dossier.balance = formatCampaignKitMoneyCp(inspect.balanceCp)
+    dossier.commodities = inspect.commodities.map((row) => ({
       commodityId: row.commodityId,
       label: campaignKitCommodityLabel(row.commodityId),
       localPrice: formatCampaignKitCommodityPriceCp(row.localPriceCp, row.commodityId),

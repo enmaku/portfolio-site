@@ -5,6 +5,7 @@
 
 import { referencePriceCp } from '../economy/commodityCatalog.js'
 import { realizedPortTollIncomeCpBySettlementId } from '../economy/ledgers/realizedIncome.js'
+import { combinedSettlementWealthCp } from '../economy/ledgers/combinedSettlementWealthCp.js'
 import { presentMapCommodityIds } from '../economy/presentMapCommodities.js'
 import { livingSettlements } from './expeditions/expeditionConstants.js'
 import { pickSettlementExtremes } from './pickSettlementExtreme.js'
@@ -62,8 +63,6 @@ export function buildRealmEconomyStatus(slice, worldDocument) {
   const living = livingSettlements(slice.settlements ?? [])
   const tradeResult = slice.lastTradeEpochResult ?? null
   const pricesById = tradeResult?.localPricesBySettlementId ?? {}
-  const realmBalances =
-    tradeResult?.realmBalancesCp ?? slice.tradeAccounts?.balancesBySettlementId ?? {}
   const externalAccounts = slice.externalTradeAccounts ?? {}
 
   /** @type {CommodityPriceExtremes[]} */
@@ -90,14 +89,15 @@ export function buildRealmEconomyStatus(slice, worldDocument) {
     }
   })
 
-  const wealthEntries = living.map((settlement) => {
-    const realmCp = Number(realmBalances[settlement.id]) || 0
-    const externalCp = Math.max(0, Number(externalAccounts[settlement.id]) || 0)
-    return {
-      id: settlement.id,
-      valueCp: realmCp + externalCp,
-    }
-  })
+  const wealthEntries = living.map((settlement) => ({
+    id: settlement.id,
+    valueCp: combinedSettlementWealthCp({
+      settlementId: settlement.id,
+      realmBalancesCp: tradeResult?.realmBalancesCp,
+      balancesBySettlementId: slice.tradeAccounts?.balancesBySettlementId,
+      externalTradeAccounts: externalAccounts,
+    }),
+  }))
   const wealthExtremes = pickSettlementExtremes(wealthEntries, (entry) => entry.valueCp)
 
   const livingPorts = living.filter((settlement) => settlement.maritimeRole === 'port')

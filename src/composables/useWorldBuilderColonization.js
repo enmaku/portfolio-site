@@ -7,22 +7,23 @@ import {
 } from '../../world-builder/core/colonization/colonizationEpochProgress.js'
 import { runColonizationEpochStep } from '../../world-builder/core/colonization/runColonizationEpochStep.js'
 import { finalizeColonizationMutation } from '../../world-builder/core/colonization/finalizeColonizationMutation.js'
-import { COLONIZATION_BEGIN_STEPS } from '../../world-builder/core/colonization/colonizationBeginSteps.js'
-import {
-  COLONIZATION_COLLAPSE_SUBSTEPS,
-  COLONIZATION_EPOCH_FINALIZE_STEPS,
-  COLONIZATION_EPOCH_MAP_SUBSTEPS,
-  COLONIZATION_EPOCH_PHASES,
-  COLONIZATION_NETWORK_SUBSTEPS,
-  COLONIZATION_TRADE_SUBSTEPS,
-} from '../../world-builder/core/colonization/colonizationEpochSteps.js'
 import {
   needsColonizationDerivedOverlayRehydration,
   rehydrateColonizationDerivedOverlays,
   rehydrateColonizationDerivedOverlaysAsync,
 } from '../../world-builder/core/colonization/rehydrateColonizationDerivedOverlays.js'
-import { createInitialRehydrateColonizationProgress, reduceRehydrateColonizationProgressOnRunComplete, reduceRehydrateColonizationProgressOnSessionSubstepComplete, reduceRehydrateColonizationProgressOnSessionSubstepStart, reduceRehydrateColonizationProgressOnStepComplete, reduceRehydrateColonizationProgressOnStepStart } from '../../world-builder/core/colonization/rehydrateColonizationProgress.js'
-import { COLONIZATION_SESSION_RESTORE_SESSION_SUBSTEPS, COLONIZATION_SESSION_RESTORE_STEP_COUNT, COLONIZATION_SESSION_RESTORE_STEPS, COLONIZATION_VISITED_REHYDRATION_SUBSTEPS } from '../../world-builder/core/colonization/colonizationRehydrationSteps.js'
+import {
+  createInitialRehydrateColonizationProgress,
+  reduceRehydrateColonizationProgressOnRunComplete,
+  reduceRehydrateColonizationProgressOnSessionSubstepComplete,
+  reduceRehydrateColonizationProgressOnSessionSubstepStart,
+  reduceRehydrateColonizationProgressOnStepComplete,
+  reduceRehydrateColonizationProgressOnStepStart,
+} from '../../world-builder/core/colonization/rehydrateColonizationProgress.js'
+import {
+  COLONIZATION_SESSION_RESTORE_STEP_COUNT,
+  COLONIZATION_SESSION_RESTORE_STEPS,
+} from '../../world-builder/core/colonization/colonizationRehydrationSteps.js'
 import { runBeginColonizationCommit } from '../../world-builder/core/colonization/runBeginColonizationCommit.js'
 import { computeHaulShedReachPreview } from '../../world-builder/core/colonization/computeHaulShedReachPreview.js'
 import {
@@ -39,17 +40,8 @@ import {
   enterColonizationSetup as enterColonizationSetupTransition,
 } from '../../world-builder/core/colonization/colonizationPhaseTransitions.js'
 import { snapFoundingLandingCell } from '../../world-builder/core/colonization/isValidFoundingLandingCell.js'
-import { livingSettlements } from '../../world-builder/core/colonization/expeditions/expeditionConstants.js'
-import { buildSettlementTradeTooltip } from '../../world-builder/core/economy/settlementTradeTooltip.js'
-import {
-  createGenerationStepStatuses,
-  createHydrologySubstepStatuses,
-} from '../../world-builder/worldBuilderPageModel.js'
-import {
-  buildBeginStatusSection,
-  buildEpochStatusSection,
-  buildRehydrationStatusSection,
-} from '../../world-builder/buildWorldBuilderStatusBar.js'
+import { useWorldBuilderSettlementInspect } from './useWorldBuilderSettlementInspect.js'
+import { useWorldBuilderColonizationProgressStatus } from './useWorldBuilderColonizationProgressStatus.js'
 
 /**
  * Product colonization phase owner (terrain / setup / running). Distinct from generation runPhase.
@@ -104,14 +96,23 @@ export function useWorldBuilderColonization(options) {
   const beginColonizationProgress = ref(createInitialBeginColonizationProgress())
   /** @type {import('vue').Ref<import('../../world-builder/core/colonization/rehydrateColonizationProgress.js').RehydrateColonizationProgressState>} */
   const rehydrationProgress = ref(createInitialRehydrateColonizationProgress())
-  /** @type {import('vue').Ref<string | null>} */
-  const hoveredSettlementId = ref(null)
-  /** @type {import('vue').Ref<{ x: number, y: number } | null>} */
-  const hoveredSettlementScreenPosition = ref(null)
-  /** @type {import('vue').Ref<string | null>} */
-  const focusedSettlementId = ref(null)
-  /** @type {import('vue').Ref<string | null>} */
-  const focusedExtremeKey = ref(null)
+
+  const {
+    hoveredSettlementId,
+    hoveredSettlementScreenPosition,
+    focusedSettlementId,
+    settlementTradeTooltip,
+    clearSettlementHover,
+    clearSettlementFocus,
+    syncSettlementFocusMarker,
+    setSettlementFocus,
+    wireSettlementHover,
+    wireSettlementFocusClear,
+  } = useWorldBuilderSettlementInspect({
+    getViewport,
+    slice,
+    getGeographyDocument,
+  })
 
   const colonizationPhase = computed(() => slice.value.colonizationPhase)
   const isTerrainAuthoringEnabled = computed(
@@ -241,114 +242,13 @@ export function useWorldBuilderColonization(options) {
       viewport.onCellPick?.((cell) => {
         pickFoundingLanding(cell.x, cell.y)
       })
-      viewport.onSettlementFocusClear?.(null)
-      clearSettlementFocus()
     } else {
       viewport.onCellPick?.(null)
-      viewport.onSettlementFocusClear?.(() => {
-        clearSettlementFocus()
-      })
     }
+    wireSettlementFocusClear(viewport, { placementEnabled })
     syncSettlementFocusMarker()
-    viewport.onSettlementHover?.((payload) => {
-      if (!payload?.settlementId) {
-        clearSettlementHover()
-        return
-      }
-      hoveredSettlementId.value = payload.settlementId
-      hoveredSettlementScreenPosition.value = {
-        x: payload.clientX,
-        y: payload.clientY,
-      }
-    })
+    wireSettlementHover(viewport)
   }
-
-  function clearSettlementHover() {
-    hoveredSettlementId.value = null
-    hoveredSettlementScreenPosition.value = null
-  }
-
-  function clearSettlementFocus() {
-    focusedSettlementId.value = null
-    focusedExtremeKey.value = null
-    syncSettlementFocusMarker()
-  }
-
-  function syncSettlementFocusMarker() {
-    const viewport = getViewport?.()
-    if (!viewport?.setSettlementFocusMarker) {
-      return
-    }
-    const id = focusedSettlementId.value
-    if (!id || slice.value.colonizationPhase !== COLONIZATION_PHASE_RUNNING) {
-      viewport.setSettlementFocusMarker(null)
-      return
-    }
-    const settlement = livingSettlements(slice.value.settlements ?? []).find(
-      (entry) => entry.id === id,
-    )
-    if (!settlement || !Number.isFinite(settlement.x) || !Number.isFinite(settlement.y)) {
-      focusedSettlementId.value = null
-      focusedExtremeKey.value = null
-      viewport.setSettlementFocusMarker(null)
-      return
-    }
-    viewport.setSettlementFocusMarker({ x: settlement.x, y: settlement.y })
-  }
-
-  /**
-   * Toggle or move settlement focus from a sidebar extreme control.
-   * Clears only when the same extreme key is activated again (not when another
-   * extreme happens to name the same settlement).
-   *
-   * @param {{ settlementId?: string | null, focusKey?: string | null } | string | null | undefined} target
-   */
-  function setSettlementFocus(target) {
-    if (slice.value.colonizationPhase !== COLONIZATION_PHASE_RUNNING) {
-      return
-    }
-    const settlementId =
-      typeof target === 'string'
-        ? target
-        : target && typeof target === 'object'
-          ? target.settlementId
-          : null
-    const focusKey =
-      typeof target === 'string'
-        ? settlementId
-        : target && typeof target === 'object'
-          ? target.focusKey ?? settlementId
-          : null
-    if (!settlementId || !focusKey) {
-      clearSettlementFocus()
-      return
-    }
-    if (focusedExtremeKey.value === focusKey) {
-      clearSettlementFocus()
-      return
-    }
-    focusedSettlementId.value = settlementId
-    focusedExtremeKey.value = focusKey
-    syncSettlementFocusMarker()
-  }
-
-  const settlementTradeTooltip = computed(() => {
-    const id = hoveredSettlementId.value
-    if (!id) {
-      return null
-    }
-    const geography = getGeographyDocument?.() ?? null
-    return buildSettlementTradeTooltip(
-      {
-        settlements: slice.value.settlements,
-        lastTradeEpochResult: slice.value.lastTradeEpochResult,
-        externalTradeAccounts: slice.value.externalTradeAccounts,
-        saltNodes: geography?.saltNodes,
-        metalNodes: geography?.metalNodes,
-      },
-      id,
-    )
-  })
 
   /**
    * @param {number} x
@@ -708,184 +608,26 @@ export function useWorldBuilderColonization(options) {
     persistColonistSettingsOnly()
   }
 
-  const epochStepPhaseStatuses = computed(() =>
-    createGenerationStepStatuses(
-      COLONIZATION_EPOCH_PHASES,
-      epochStepProgress.value.activePhaseIndex,
-      epochStepProgress.value.completedPhaseIndex,
-    ),
-  )
-  const epochStepNetworkSubstepStatuses = computed(() => {
-    const itemCount = epochStepProgress.value.networkSubstepItemCount
-    const itemIndex = epochStepProgress.value.networkSubstepItemIndex
-    const phase = epochStepProgress.value.networkSubstepPhase
-    const phasePercent = epochStepProgress.value.networkSubstepPhasePercent
-    const activeItemProgress =
-      itemCount > 0 && itemIndex > 0
-        ? {
-            itemIndex,
-            itemCount,
-            phase: phase || undefined,
-            phasePercent: phasePercent >= 0 ? phasePercent : undefined,
-          }
-        : null
-    return createHydrologySubstepStatuses(
-      COLONIZATION_NETWORK_SUBSTEPS,
-      epochStepProgress.value.activeNetworkSubstepIndex,
-      epochStepProgress.value.completedNetworkSubstepIndex,
-      new Set(),
-      activeItemProgress,
-    )
-  })
-  const epochStepTradeSubstepStatuses = computed(() => {
-    const itemCount = epochStepProgress.value.tradeSubstepItemCount
-    const itemIndex = epochStepProgress.value.tradeSubstepItemIndex
-    const activeItemProgress =
-      itemCount > 0 && itemIndex > 0
-        ? {
-            itemIndex,
-            itemCount,
-          }
-        : null
-    return createHydrologySubstepStatuses(
-      COLONIZATION_TRADE_SUBSTEPS,
-      epochStepProgress.value.activeTradeSubstepIndex,
-      epochStepProgress.value.completedTradeSubstepIndex,
-      new Set(),
-      activeItemProgress,
-    )
-  })
-  const epochStepCollapseSubstepStatuses = computed(() => {
-    const itemCount = epochStepProgress.value.collapseSubstepItemCount
-    const itemIndex = epochStepProgress.value.collapseSubstepItemIndex
-    const activeItemProgress =
-      itemCount > 0 && itemIndex > 0
-        ? {
-            itemIndex,
-            itemCount,
-          }
-        : null
-    return createHydrologySubstepStatuses(
-      COLONIZATION_COLLAPSE_SUBSTEPS,
-      epochStepProgress.value.activeCollapseSubstepIndex,
-      epochStepProgress.value.completedCollapseSubstepIndex,
-      new Set(),
-      activeItemProgress,
-    )
-  })
-  const epochStepFinalizeStepStatuses = computed(() =>
-    createGenerationStepStatuses(
-      COLONIZATION_EPOCH_FINALIZE_STEPS,
-      epochStepProgress.value.activeFinalizeStepIndex,
-      epochStepProgress.value.completedFinalizeStepIndex,
-    ),
-  )
-  const epochStepMapSubstepStatuses = computed(() =>
-    createHydrologySubstepStatuses(
-      COLONIZATION_EPOCH_MAP_SUBSTEPS,
-      epochStepProgress.value.activeMapSubstepIndex,
-      epochStepProgress.value.completedMapSubstepIndex,
-    ),
-  )
-  const beginColonizationStepStatuses = computed(() =>
-    createGenerationStepStatuses(
-      COLONIZATION_BEGIN_STEPS,
-      beginColonizationProgress.value.activeStepIndex,
-      beginColonizationProgress.value.completedStepIndex,
-    ),
-  )
-  const rehydrationStepStatuses = computed(() =>
-    createGenerationStepStatuses(
-      COLONIZATION_SESSION_RESTORE_STEPS,
-      rehydrationProgress.value.activeStepIndex,
-      rehydrationProgress.value.completedStepIndex,
-    ),
-  )
-  const rehydrationSessionSubstepStatuses = computed(() =>
-    createHydrologySubstepStatuses(
-      COLONIZATION_SESSION_RESTORE_SESSION_SUBSTEPS,
-      rehydrationProgress.value.activeSessionSubstepIndex,
-      rehydrationProgress.value.completedSessionSubstepIndex,
-    ),
-  )
-  const rehydrationVisitedSubstepStatuses = computed(() => {
-    const {
-      activeVisitedSubstepIndex,
-      completedVisitedSubstepIndex,
-      visitedSubstepItemIndex,
-      visitedSubstepItemCount,
-    } = rehydrationProgress.value
-    const activeItemProgress =
-      visitedSubstepItemCount > 0 && visitedSubstepItemIndex > 0
-        ? {
-            itemIndex: visitedSubstepItemIndex,
-            itemCount: visitedSubstepItemCount,
-          }
-        : null
-    return createHydrologySubstepStatuses(
-      COLONIZATION_VISITED_REHYDRATION_SUBSTEPS,
-      activeVisitedSubstepIndex,
-      completedVisitedSubstepIndex,
-      new Set(),
-      activeItemProgress,
-    )
-  })
-  const rehydrationCollapseSubstepStatuses = computed(() => {
-    const itemCount = rehydrationProgress.value.collapseSubstepItemCount
-    const itemIndex = rehydrationProgress.value.collapseSubstepItemIndex
-    const activeItemProgress =
-      itemCount > 0 && itemIndex > 0
-        ? {
-            itemIndex,
-            itemCount,
-          }
-        : null
-    return createHydrologySubstepStatuses(
-      COLONIZATION_COLLAPSE_SUBSTEPS,
-      rehydrationProgress.value.activeCollapseSubstepIndex,
-      rehydrationProgress.value.completedCollapseSubstepIndex,
-      new Set(),
-      activeItemProgress,
-    )
-  })
-
-  /**
-   * Colonization-owned status-bar section (begin > epoch > rehydration), or null when idle.
-   * The page controller merges this with generation + overlays under the global priority.
-   * @type {import('vue').ComputedRef<import('../../world-builder/buildWorldBuilderStatusBar.js').StatusBarViewModel | null>}
-   */
-  const colonizationStatusSection = computed(() => {
-    if (showBeginColonizationProgress.value) {
-      return buildBeginStatusSection({
-        percent: beginColonizationProgress.value.percent,
-        steps: beginColonizationStepStatuses.value,
-      })
-    }
-    if (showEpochStepProgress.value) {
-      return buildEpochStatusSection({
-        percent: epochStepProgress.value.percent,
-        phaseSteps: epochStepPhaseStatuses.value,
-        finalizeSteps: epochStepFinalizeStepStatuses.value,
-        networkSubsteps: epochStepNetworkSubstepStatuses.value,
-        tradeSubsteps: epochStepTradeSubstepStatuses.value,
-        collapseSubsteps: epochStepCollapseSubstepStatuses.value,
-        mapSubsteps: epochStepMapSubstepStatuses.value,
-      })
-    }
-    const sessionRestorePending = getSessionRestorePending?.() ?? false
-    if (showRehydrationProgress.value || sessionRestorePending) {
-      return buildRehydrationStatusSection({
-        percent: rehydrationProgress.value.percent,
-        indeterminate:
-          sessionRestorePending ||
-          (showRehydrationProgress.value && rehydrationProgress.value.activeStepIndex < 0),
-        steps: rehydrationStepStatuses.value,
-        sessionSubsteps: rehydrationSessionSubstepStatuses.value,
-        visitedSubsteps: rehydrationVisitedSubstepStatuses.value,
-        collapseSubsteps: rehydrationCollapseSubstepStatuses.value,
-      })
-    }
-    return null
+  const {
+    epochStepPhaseStatuses,
+    epochStepNetworkSubstepStatuses,
+    epochStepCollapseSubstepStatuses,
+    epochStepFinalizeStepStatuses,
+    epochStepMapSubstepStatuses,
+    beginColonizationStepStatuses,
+    rehydrationStepStatuses,
+    rehydrationSessionSubstepStatuses,
+    rehydrationVisitedSubstepStatuses,
+    rehydrationCollapseSubstepStatuses,
+    colonizationStatusSection,
+  } = useWorldBuilderColonizationProgressStatus({
+    epochStepProgress,
+    beginColonizationProgress,
+    rehydrationProgress,
+    showBeginColonizationProgress,
+    showEpochStepProgress,
+    showRehydrationProgress,
+    getSessionRestorePending,
   })
 
   return {

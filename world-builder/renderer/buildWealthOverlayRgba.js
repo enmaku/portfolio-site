@@ -13,6 +13,7 @@ import {
   resourceRasterOverlayCanvasFromRgba,
 } from './buildResourceRasterOverlayRgba.js'
 import { SEA_LEVEL } from '../core/biomeIds.js'
+import { combinedSettlementWealthCp } from '../core/economy/ledgers/combinedSettlementWealthCp.js'
 
 /** Surplus hue (°): lime → hunter green family. */
 export const WEALTH_SURPLUS_HUE = 118
@@ -140,8 +141,12 @@ export function computeSettlementWealthSignals(worldDocument) {
   for (const settlement of settlements) {
     if (!settlement || !Number.isFinite(settlement.x) || !Number.isFinite(settlement.y)) continue
     const balanceCp = result?.realmBalancesCp?.[settlement.id] ?? 0
-    const externalClaimCp = external[settlement.id] ?? 0
-    const netWealthCp = balanceCp + externalClaimCp
+    const externalClaimCp = Math.max(0, Number(external[settlement.id]) || 0)
+    const netWealthCp = combinedSettlementWealthCp({
+      settlementId: settlement.id,
+      realmBalancesCp: result?.realmBalancesCp,
+      externalTradeAccounts: external,
+    })
     maxAbsNet = Math.max(maxAbsNet, Math.abs(netWealthCp))
     drafts.push({
       id: settlement.id,

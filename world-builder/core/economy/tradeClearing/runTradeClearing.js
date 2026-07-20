@@ -4,7 +4,6 @@
  * comfort, material prosperity, off-map trade, mutual credit, port toll, credit limit.
  */
 
-import { cargoLbPerUnit } from '../commodityCatalog.js'
 import { emptyCommodityAmounts, FISH_CURING_SALT_PER_FISH_LB } from '../productionAccounting.js'
 import { computeConnectedMarketPrices } from '../localPrices.js'
 import {
@@ -22,6 +21,13 @@ import { creditRoomCpForImport, annualSurvivalBasketCp } from '../ledgers/credit
 import { roundMoneyCp } from '../formatMoneyCp.js'
 import { realizedPortTollIncomeCpBySettlementId } from '../ledgers/realizedIncome.js'
 import { applyObligation } from '../ledgers/bilateralObligations.js'
+import { PORT_TOLL_RATE } from './tradeConstants.js'
+import { addObligation, markRole } from './clearingMutators.js'
+import { applyPathCapacityFlows } from './applyPathCapacityFlows.js'
+
+export { PORT_TOLL_RATE } from './tradeConstants.js'
+export { addObligation, markRole } from './clearingMutators.js'
+export { creditRoomCpForImport } from '../ledgers/creditRoom.js'
 
 /**
  * @typedef {import('../commodityCatalog.js').CommodityId} CommodityId
@@ -31,9 +37,6 @@ import { applyObligation } from '../ledgers/bilateralObligations.js'
  */
 
 /** @typedef {'neither' | 'import' | 'export' | 'both'} CommodityTradeRole */
-
-/** Baseline port toll: 5% of full local price. */
-export const PORT_TOLL_RATE = 0.05
 
 const EPSILON = 1e-6
 
@@ -127,8 +130,7 @@ export async function runTradeClearing(params = {}, options = {}) {
 
   emitTradeSubstep(hooks, 'substep-start', 1, 'survival')
   await yieldToUi?.()
-  clearSurvivalFoodTier(state)
-  clearSaltTier(state, survivalSaltDemandLb)
+  clearSurvivalFoodTiersCore(state)
   emitTradeSubstep(hooks, 'substep-complete', 1, 'survival')
   await yieldToUi?.()
 
@@ -172,17 +174,32 @@ export async function runTradeClearing(params = {}, options = {}) {
  */
 export function runTradeClearingSync(params = {}) {
   const state = createClearingState(params)
+  runOnMapClearingTiers(state)
+  clearOffMapTradeSync(state)
+  return buildResult(state)
+}
 
-  clearSurvivalFoodTier(state)
-  clearSaltTier(state, survivalSaltDemandLb)
+/**
+ * On-map allocation tiers only (no off-map). Shared by sync orchestrator.
+ *
+ * @param {ReturnType<typeof createClearingState>} state
+ */
+function runOnMapClearingTiers(state) {
+  clearSurvivalFoodTiersCore(state)
   clearComfortFoodTier(state)
   for (const commodityId of PROSPERITY_COMMODITIES) {
     clearProsperityCommodity(state, commodityId)
   }
-  clearOffMapTradeSync(state)
-
-  return buildResult(state)
 }
+
+/**
+ * @param {ReturnType<typeof createClearingState>} state
+ */
+function clearSurvivalFoodTiersCore(state) {
+  clearSurvivalFoodTier(state)
+  clearSaltTier(state, survivalSaltDemandLb)
+}
+
 
 /**
  * @param {TradeClearingHooks | undefined} hooks
@@ -554,21 +571,11 @@ function applyMove(state, params) {
     originBag.salt -= limit / FISH_CURING_SALT_PER_FISH_LB
   }
 
-  const cargoLb = cargoLbPerUnit(commodityId)
-  for (const leg of path.legs) {
-    state.remainingCapLbByEdgeId.set(
-      leg.edgeId,
-      (state.remainingCapLbByEdgeId.get(leg.edgeId) ?? 0) - limit * cargoLb,
-    )
-    state.flows.push({
-      edgeId: leg.edgeId,
-      fromSettlementId: leg.from,
-      toSettlementId: leg.to,
-      commodityId,
-      amount: limit,
-      mode: leg.mode,
-    })
-  }
+  applyPathCapacityFlows(state, {
+    legs: path.legs,
+    commodityId,
+    amount: limit,
+  })
 
   addObligation(state, {
     fromSettlementId: importerId,
@@ -588,51 +595,6 @@ function applyMove(state, params) {
   markRole(state, originId, commodityId, 'export')
   markRole(state, importerId, commodityId, 'import')
   return limit
-}
-
-/**
- * Import purchasing-power room in cp for a settlement and demand tier.
- * Over-limit-at-open freezes comfort/prosperity for the epoch; survival/salt may
- * spend only same-epoch earnings without deepening past opening debt.
- *
- * @param {ReturnType<typeof createClearingState>} state
- * @param {string} importerId
- * @param {'survival' | 'comfort' | 'salt' | 'prosperity'} resourceKind
- * @returns {number}
- */
-export { creditRoomCpForImport }
-
-/**
- * @param {ReturnType<typeof createClearingState>} state
- * @param {import('./runTradeClearing.js').ObligationDelta} delta
- */
-export function addObligation(state, delta) {
-  if (delta.fromSettlementId === delta.toSettlementId) return
-  const amountCp = roundMoneyCp(delta.amountCp)
-  if (!(amountCp > 0)) return
-  const rounded = { ...delta, amountCp }
-  state.obligationDeltas.push(rounded)
-  state.netOwed.set(
-    delta.fromSettlementId,
-    roundMoneyCp((state.netOwed.get(delta.fromSettlementId) ?? 0) + amountCp),
-  )
-  state.netOwed.set(
-    delta.toSettlementId,
-    roundMoneyCp((state.netOwed.get(delta.toSettlementId) ?? 0) - amountCp),
-  )
-}
-
-/**
- * @param {ReturnType<typeof createClearingState>} state
- * @param {string} id
- * @param {CommodityId} commodityId
- * @param {'import' | 'export'} direction
- */
-export function markRole(state, id, commodityId, direction) {
-  const current = state.roles[id]?.[commodityId]
-  if (!current) return
-  if (current === 'neither') state.roles[id][commodityId] = direction
-  else if (current !== direction) state.roles[id][commodityId] = 'both'
 }
 
 /**

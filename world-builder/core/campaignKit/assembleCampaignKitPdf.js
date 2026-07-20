@@ -193,6 +193,20 @@ function writeSettlementDossier(doc, settlement, margin, pageWidth, pageHeight, 
     }
   }
 
+  if (settlement.supplies?.length) {
+    line('Structural supplies:')
+    for (const row of settlement.supplies) {
+      line(`  ${row.label}: ${row.amountDisplay}`)
+    }
+  }
+
+  if (settlement.wants?.length) {
+    line('Structural wants:')
+    for (const row of settlement.wants) {
+      line(`  ${row.label}: ${row.amountDisplay}`)
+    }
+  }
+
   if (settlement.commodities?.length) {
     line('Commodities (local price / trade role):')
     for (const row of settlement.commodities) {

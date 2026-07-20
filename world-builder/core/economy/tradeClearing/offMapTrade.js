@@ -16,11 +16,16 @@ import {
 } from './allocationTiers.js'
 import { findMinCostPath } from './pathSearch.js'
 import { creditRoomCpForImport, offMapImportResourceKind } from '../ledgers/creditRoom.js'
-import { roundMoneyCp } from '../formatMoneyCp.js'
+import { PORT_TOLL_RATE } from './tradeConstants.js'
+import {
+  addObligation,
+  creditExternal,
+  creditExternalPortToll,
+  recordOffMap,
+} from './clearingMutators.js'
+import { applyPathCapacityFlows } from './applyPathCapacityFlows.js'
 
 const EPSILON = 1e-6
-/** Baseline port toll: 5% (mirrors runTradeClearing.PORT_TOLL_RATE without a cycle). */
-const PORT_TOLL_RATE = 0.05
 
 /** Residual overseas dump earns this fraction of reference price. */
 export const OFF_MAP_EXPORT_PRICE_FACTOR = 0.5
@@ -48,27 +53,33 @@ export function offMapUnitPriceCp(params) {
  */
 
 /**
- * Residual off-map clearing: export dump (ports + inland relays), then capacity-gated
- * imports (port needs first, then hinterland pass-through).
- *
  * @param {import('./runTradeClearing.js').ClearingState} state
- * @param {OffMapProgressHooks} [options]
+ * @returns {{
+ *   living: Array<{ id: string, population: number, isPort: boolean }>,
+ *   ports: Array<{ id: string, population: number, isPort: boolean }>,
+ *   inland: Array<{ id: string, population: number, isPort: boolean }>,
+ * }}
  */
-export async function clearOffMapTrade(state, options = {}) {
-  const { onItem, yieldToUi } = options
+function partitionLivingSettlements(state) {
   const living = state.settlements
     .slice()
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   const ports = living.filter((s) => s.isPort)
   const inland = living.filter((s) => !s.isPort)
-  const itemCount = living.length + ports.length + inland.length
-  let itemIndex = 0
+  return { living, ports, inland }
+}
+
+/**
+ * Ordered mutator steps for residual off-map clearing (single control-flow body).
+ *
+ * @param {import('./runTradeClearing.js').ClearingState} state
+ * @returns {Generator<() => void>}
+ */
+function* offMapTradeSteps(state) {
+  const { living, ports, inland } = partitionLivingSettlements(state)
 
   for (const origin of living) {
-    itemIndex += 1
-    onItem?.(itemIndex, itemCount)
-    await yieldToUi?.()
-    exportSettlementResidual(state, origin, ports)
+    yield () => exportSettlementResidual(state, origin, ports)
   }
 
   /** @type {Map<string, number>} */
@@ -77,17 +88,10 @@ export async function clearOffMapTrade(state, options = {}) {
   )
 
   for (const port of ports) {
-    itemIndex += 1
-    onItem?.(itemIndex, itemCount)
-    await yieldToUi?.()
-    importPortOwnNeeds(state, port, importBudgetLbByPortId)
+    yield () => importPortOwnNeeds(state, port, importBudgetLbByPortId)
   }
-
   for (const claimant of inland) {
-    itemIndex += 1
-    onItem?.(itemIndex, itemCount)
-    await yieldToUi?.()
-    importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId)
+    yield () => importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId)
   }
 }
 
@@ -96,26 +100,27 @@ export async function clearOffMapTrade(state, options = {}) {
  * @param {import('./runTradeClearing.js').ClearingState} state
  */
 export function clearOffMapTradeSync(state) {
-  const living = state.settlements
-    .slice()
-    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-  const ports = living.filter((s) => s.isPort)
-  const inland = living.filter((s) => !s.isPort)
-
-  for (const origin of living) {
-    exportSettlementResidual(state, origin, ports)
+  for (const step of offMapTradeSteps(state)) {
+    step()
   }
+}
 
-  /** @type {Map<string, number>} */
-  const importBudgetLbByPortId = new Map(
-    ports.map((port) => [port.id, offMapCargoCapacityLb(port.population)]),
-  )
-
-  for (const port of ports) {
-    importPortOwnNeeds(state, port, importBudgetLbByPortId)
-  }
-  for (const claimant of inland) {
-    importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId)
+/**
+ * Residual off-map clearing with optional UI progress / yield hooks.
+ *
+ * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {OffMapProgressHooks} [options]
+ */
+export async function clearOffMapTrade(state, options = {}) {
+  const { onItem, yieldToUi } = options
+  const { living, ports, inland } = partitionLivingSettlements(state)
+  const itemCount = living.length + ports.length + inland.length
+  let itemIndex = 0
+  for (const step of offMapTradeSteps(state)) {
+    itemIndex += 1
+    onItem?.(itemIndex, itemCount)
+    await yieldToUi?.()
+    step()
   }
 }
 
@@ -230,21 +235,11 @@ function dumpFromPort(state, params) {
   }
 
   if (path) {
-    const cargoLb = cargoLbPerUnit(commodityId)
-    for (const leg of path.legs) {
-      state.remainingCapLbByEdgeId.set(
-        leg.edgeId,
-        (state.remainingCapLbByEdgeId.get(leg.edgeId) ?? 0) - qty * cargoLb,
-      )
-      state.flows.push({
-        edgeId: leg.edgeId,
-        fromSettlementId: leg.from,
-        toSettlementId: leg.to,
-        commodityId,
-        amount: qty,
-        mode: leg.mode,
-      })
-    }
+    applyPathCapacityFlows(state, {
+      legs: path.legs,
+      commodityId,
+      amount: qty,
+    })
     for (const event of path.tollEvents) {
       creditExternalPortToll(state, event.portId, event.unitTollCp * qty)
     }
@@ -254,7 +249,7 @@ function dumpFromPort(state, params) {
   const loadingTollCp = PORT_TOLL_RATE * saleCp
   creditExternal(state, exitPortId, saleCp)
   creditExternalPortToll(state, exitPortId, loadingTollCp)
-  addObligationLocal(state, {
+  addObligation(state, {
     fromSettlementId: exitPortId,
     toSettlementId: originId,
     amountCp: saleCp,
@@ -269,7 +264,6 @@ function dumpFromPort(state, params) {
     amount: qty,
     unitPriceCp,
   })
-  markRoleLocal(state, originId, commodityId, 'export')
 }
 
 /**
@@ -282,7 +276,6 @@ function importPortOwnNeeds(state, port, importBudgetLbByPortId) {
   if (!bag) return
   let remaining = importBudgetLbByPortId.get(port.id) ?? 0
   const shortfall = importShortfallByCommodity(bag, port.population)
-  const roomFn = state.creditRoomFn ?? creditRoomCpForImport
 
   for (const commodityId of COMMODITY_IDS) {
     let need = shortfall[commodityId]
@@ -298,7 +291,7 @@ function importPortOwnNeeds(state, port, importBudgetLbByPortId) {
     // External purse pays the pier, but comfort/prosperity still need realm credit room
     // (no-borrow / open-debt freeze). Survival/salt may use external without that gate.
     if (resourceKind === 'comfort' || resourceKind === 'prosperity') {
-      const room = roomFn(state, port.id, resourceKind)
+      const room = creditRoomCpForImport(state, port.id, resourceKind)
       if (!(room > EPSILON)) continue
     }
 
@@ -322,7 +315,6 @@ function importPortOwnNeeds(state, port, importBudgetLbByPortId) {
       amount: qty,
       unitPriceCp,
     })
-    markRoleLocal(state, port.id, commodityId, 'import')
   }
   importBudgetLbByPortId.set(port.id, remaining)
 }
@@ -384,20 +376,11 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
       const qty = Math.min(need, best.path.bottleneckUnits, pierRemaining / cargoLb, affordable, creditCap)
       if (!(qty > EPSILON)) break
 
-      for (const leg of best.path.legs) {
-        state.remainingCapLbByEdgeId.set(
-          leg.edgeId,
-          (state.remainingCapLbByEdgeId.get(leg.edgeId) ?? 0) - qty * cargoLb,
-        )
-        state.flows.push({
-          edgeId: leg.edgeId,
-          fromSettlementId: leg.from,
-          toSettlementId: leg.to,
-          commodityId,
-          amount: qty,
-          mode: leg.mode,
-        })
-      }
+      applyPathCapacityFlows(state, {
+        legs: best.path.legs,
+        commodityId,
+        amount: qty,
+      })
       for (const event of best.path.tollEvents) {
         creditExternalPortToll(state, event.portId, event.unitTollCp * qty)
       }
@@ -406,7 +389,7 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
       bag[commodityId] += qty
       importBudgetLbByPortId.set(best.portId, pierRemaining - qty * cargoLb)
 
-      addObligationLocal(state, {
+      addObligation(state, {
         fromSettlementId: claimant.id,
         toSettlementId: best.portId,
         amountCp: netUnitCp * qty,
@@ -421,7 +404,6 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
         amount: qty,
         unitPriceCp,
       })
-      markRoleLocal(state, claimant.id, commodityId, 'import')
 
       need -= qty
     }
@@ -511,84 +493,4 @@ export function importShortfallByCommodity(bag, population) {
     shortfall[id] = Math.max(0, prosperityDemandUnits(id, population) - (bag[id] ?? 0))
   }
   return shortfall
-}
-
-/**
- * @param {import('./runTradeClearing.js').ClearingState} state
- * @param {string} id
- * @param {number} deltaCp
- */
-function creditExternal(state, id, deltaCp) {
-  const next = Math.max(0, roundMoneyCp((state.externalAccounts.get(id) ?? 0) + deltaCp))
-  state.externalAccounts.set(id, next)
-}
-
-/**
- * Credit an external account with a port toll and record it for inspect totals.
- *
- * @param {import('./runTradeClearing.js').ClearingState} state
- * @param {string} id
- * @param {number} tollCp
- */
-function creditExternalPortToll(state, id, tollCp) {
-  const roundedToll = roundMoneyCp(tollCp)
-  if (!(roundedToll > 0)) return
-  creditExternal(state, id, roundedToll)
-  state.offMapPortTollIncomeCp.set(
-    id,
-    roundMoneyCp((state.offMapPortTollIncomeCp.get(id) ?? 0) + roundedToll),
-  )
-}
-
-/**
- * @param {import('./runTradeClearing.js').ClearingState} state
- * @param {import('./runTradeClearing.js').ObligationDelta} delta
- */
-function addObligationLocal(state, delta) {
-  if (delta.fromSettlementId === delta.toSettlementId) return
-  const amountCp = roundMoneyCp(delta.amountCp)
-  if (!(amountCp > 0)) return
-  const rounded = { ...delta, amountCp }
-  state.obligationDeltas.push(rounded)
-  state.netOwed.set(
-    delta.fromSettlementId,
-    roundMoneyCp((state.netOwed.get(delta.fromSettlementId) ?? 0) + amountCp),
-  )
-  state.netOwed.set(
-    delta.toSettlementId,
-    roundMoneyCp((state.netOwed.get(delta.toSettlementId) ?? 0) - amountCp),
-  )
-}
-
-/**
- * @param {import('./runTradeClearing.js').ClearingState} state
- * @param {string} id
- * @param {import('../commodityCatalog.js').CommodityId} commodityId
- * @param {'import' | 'export'} direction
- */
-function markRoleLocal(state, id, commodityId, direction) {
-  const current = state.roles[id]?.[commodityId]
-  if (!current) return
-  if (current === 'neither') state.roles[id][commodityId] = direction
-  else if (current !== direction) state.roles[id][commodityId] = 'both'
-}
-
-/**
- * @param {import('./runTradeClearing.js').ClearingState} state
- * @param {{
- *   settlementId: string,
- *   originSettlementId: string,
- *   commodityId: import('../commodityCatalog.js').CommodityId,
- *   direction: 'import' | 'export',
- *   amount: number,
- *   unitPriceCp: number,
- * }} row
- */
-function recordOffMap(state, row) {
-  state.offMapTrades.push(row)
-  const roles = state.roles[row.originSettlementId]
-  if (!roles) return
-  const current = roles[row.commodityId]
-  if (current === 'neither') roles[row.commodityId] = row.direction
-  else if (current !== row.direction) roles[row.commodityId] = 'both'
 }

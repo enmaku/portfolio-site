@@ -6,6 +6,7 @@ import { DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
 import { clearRealmTrade } from '../economy/tradeClearing/clearRealmTrade.js'
+import { combinedSettlementWealthCp } from '../economy/ledgers/combinedSettlementWealthCp.js'
 import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
 
 /**
@@ -117,12 +118,12 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
       foodLb: 0,
       saltLb: 0,
     }
-    const realmCp =
-      Number(
-        ctx.slice.lastTradeEpochResult?.realmBalancesCp?.[settlement.id] ??
-          ctx.slice.tradeAccounts?.balancesBySettlementId?.[settlement.id],
-      ) || 0
-    const externalCp = Math.max(0, Number(ctx.slice.externalTradeAccounts?.[settlement.id]) || 0)
+    const realmWealthCp = combinedSettlementWealthCp({
+      settlementId: settlement.id,
+      realmBalancesCp: ctx.slice.lastTradeEpochResult?.realmBalancesCp,
+      balancesBySettlementId: ctx.slice.tradeAccounts?.balancesBySettlementId,
+      externalTradeAccounts: ctx.slice.externalTradeAccounts,
+    })
 
     const { settlement: resolved, survival } = applySurvivalResolveToSettlement({
       settlement,
@@ -131,7 +132,7 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
       worldDocument: ctx.worldDocument,
       deliveredFoodLb: delivered.foodLb,
       deliveredSaltLb: delivered.saltLb,
-      realmWealthCp: realmCp + externalCp,
+      realmWealthCp,
     })
 
     survivalBySettlementId[settlement.id] = survival
@@ -146,7 +147,7 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
     } else {
       population = 0
     }
-    population = applyMarginalWealthAttrition(population, realmCp + externalCp)
+    population = applyMarginalWealthAttrition(population, realmWealthCp)
 
     nextSettlements.push({
       ...resolved,
