@@ -133,6 +133,7 @@ export function countHabitableClaimCells(params) {
  *   saltSpoilageMultiplier?: number,
  *   deliveredFoodLb?: number,
  *   deliveredSaltLb?: number,
+ *   realmWealthCp?: number,
  * }} params
  * @returns {SurvivalTriadResult}
  */
@@ -157,6 +158,7 @@ export function resolveSurvivalTriad(params) {
     saltSpoilageMultiplier = 1,
     deliveredFoodLb,
     deliveredSaltLb = 0,
+    realmWealthCp,
   } = params
 
   const yieldMult = yieldModifierMultiplier(yieldModifier)
@@ -189,14 +191,6 @@ export function resolveSurvivalTriad(params) {
     freshwaterClassification != null &&
     claimedCellsHaveFreshwater(freshwaterClassification, claimedCells, gridWidth)
 
-  const tradeDelivered = deliveredFoodLb !== undefined
-  const effectiveFoodCapacityUngated = tradeDelivered
-    ? postTradeEffectiveFoodCapacity(deliveredFoodLb, deliveredSaltLb, population)
-    : foodProduction * peoplePerArable
-  const ceilingFoodCapacity = tradeDelivered
-    ? effectiveFoodCapacityUngated
-    : foodProduction * peoplePerArable
-
   const packingPerCell =
     Number.isFinite(peoplePerHabitableCell) && peoplePerHabitableCell > 0
       ? peoplePerHabitableCell
@@ -212,20 +206,49 @@ export function resolveSurvivalTriad(params) {
     seaLevel,
   })
   const landCeiling = Math.floor(habitableCount * packingPerCell * densityScale)
-  const foodCeiling = Math.floor(ceilingFoodCapacity)
 
-  let populationCeiling = Math.min(foodCeiling, landCeiling)
+  const tradeDelivered = deliveredFoodLb !== undefined
+  const localFoodPeople = foodProduction * peoplePerArable
+  const saltMult = tradeDelivered
+    ? saltFulfillmentMultiplier(deliveredSaltLb, population)
+    : clampSpoilage(saltSpoilageMultiplier)
+  const localSurplusCapacity = localFoodPeople * saltMult
+  const deliveredCapacity = tradeDelivered
+    ? postTradeEffectiveFoodCapacity(deliveredFoodLb, deliveredSaltLb, population)
+    : localSurplusCapacity
+
+  // Imports (incl. credit) may hold people alive; growth is capped by local production.
+  // Without trade, hold ceiling stays ungated so salt spoilage can drive gradual die-off.
+  const holdFoodPeople = tradeDelivered ? deliveredCapacity : localFoodPeople
+  let holdCeiling = Math.min(Math.floor(holdFoodPeople), landCeiling)
+  let growthCeiling = Math.min(Math.floor(localFoodPeople), landCeiling)
   if (!hasFreshwater) {
-    populationCeiling = 0
+    holdCeiling = 0
+    growthCeiling = 0
   }
 
-  const canSustain = hasFreshwater && populationCeiling > 0
-  const clampedPopulation = Math.max(0, Math.min(Math.floor(population), populationCeiling))
-  const effectiveFoodCapacity = tradeDelivered
-    ? effectiveFoodCapacityUngated
-    : foodProduction * peoplePerArable * clampSpoilage(saltSpoilageMultiplier)
-  const foodConsumption = clampedPopulation
-  const foodSurplus = effectiveFoodCapacity - foodConsumption
+  const canSustain = hasFreshwater && holdCeiling > 0
+  const clampedPopulation = Math.max(0, Math.min(Math.floor(population), holdCeiling))
+  const deliveredSurplus =
+    (tradeDelivered ? deliveredCapacity : localSurplusCapacity) - clampedPopulation
+  const localSurplus = localSurplusCapacity - clampedPopulation
+  const inDebt = Number.isFinite(realmWealthCp) && realmWealthCp < 0
+
+  /** @type {number} */
+  let foodSurplus
+  /** @type {number} */
+  let populationCeiling
+  if (deliveredSurplus < 0) {
+    foodSurplus = deliveredSurplus
+    populationCeiling = holdCeiling
+  } else if (localSurplus > 0 && !inDebt) {
+    // Local surplus grows only while the settlement trade account is nonnegative.
+    foodSurplus = localSurplus
+    populationCeiling = growthCeiling
+  } else {
+    foodSurplus = 0
+    populationCeiling = holdCeiling
+  }
 
   return {
     cropProduction,
@@ -234,12 +257,26 @@ export function resolveSurvivalTriad(params) {
     timberSum,
     hasFreshwater,
     populationCeiling,
-    foodConsumption,
+    foodConsumption: clampedPopulation,
     foodSurplus,
     population: clampedPopulation,
     tier: settlementTierFromPopulation(clampedPopulation),
     canSustain,
   }
+}
+
+/**
+ * Salt preservation multiplier from household salt fulfillment.
+ *
+ * @param {number} deliveredSaltLb
+ * @param {number} population
+ * @returns {number}
+ */
+function saltFulfillmentMultiplier(deliveredSaltLb, population) {
+  const saltDemandLb = SALT_LB_PER_PERSON * Math.max(0, population)
+  const saltFulfillment =
+    saltDemandLb > 0 ? Math.min(1, Math.max(0, deliveredSaltLb) / saltDemandLb) : 1
+  return MIN_SALT_SPOILAGE_MULTIPLIER + (1 - MIN_SALT_SPOILAGE_MULTIPLIER) * saltFulfillment
 }
 
 /**
@@ -253,12 +290,7 @@ export function resolveSurvivalTriad(params) {
  */
 export function postTradeEffectiveFoodCapacity(deliveredFoodLb, deliveredSaltLb, population) {
   const foodPeople = Math.max(0, deliveredFoodLb) / FOOD_LB_PER_PERSON
-  const saltDemandLb = SALT_LB_PER_PERSON * Math.max(0, population)
-  const saltFulfillment =
-    saltDemandLb > 0 ? Math.min(1, Math.max(0, deliveredSaltLb) / saltDemandLb) : 1
-  const saltMultiplier =
-    MIN_SALT_SPOILAGE_MULTIPLIER + (1 - MIN_SALT_SPOILAGE_MULTIPLIER) * saltFulfillment
-  return foodPeople * saltMultiplier
+  return foodPeople * saltFulfillmentMultiplier(deliveredSaltLb, population)
 }
 
 /**
@@ -276,6 +308,7 @@ export function postTradeEffectiveFoodCapacity(deliveredFoodLb, deliveredSaltLb,
  *   saltSpoilageMultiplier?: number,
  *   deliveredFoodLb?: number,
  *   deliveredSaltLb?: number,
+ *   realmWealthCp?: number,
  * }} params
  * @returns {{ settlement: object, survival: SurvivalTriadResult }}
  */
@@ -288,6 +321,7 @@ export function applySurvivalResolveToSettlement(params) {
     saltSpoilageMultiplier,
     deliveredFoodLb,
     deliveredSaltLb,
+    realmWealthCp,
   } = params
   const freshwaterClassification = deriveFreshwaterAvailabilityFromDocument(worldDocument)
   const survival = resolveSurvivalTriad({
@@ -309,6 +343,7 @@ export function applySurvivalResolveToSettlement(params) {
     saltSpoilageMultiplier,
     deliveredFoodLb,
     deliveredSaltLb,
+    realmWealthCp,
   })
 
   return {

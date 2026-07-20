@@ -117,6 +117,12 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
       foodLb: 0,
       saltLb: 0,
     }
+    const realmCp =
+      Number(
+        ctx.slice.lastTradeEpochResult?.realmBalancesCp?.[settlement.id] ??
+          ctx.slice.tradeAccounts?.balancesBySettlementId?.[settlement.id],
+      ) || 0
+    const externalCp = Math.max(0, Number(ctx.slice.externalTradeAccounts?.[settlement.id]) || 0)
 
     const { settlement: resolved, survival } = applySurvivalResolveToSettlement({
       settlement,
@@ -125,6 +131,7 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
       worldDocument: ctx.worldDocument,
       deliveredFoodLb: delivered.foodLb,
       deliveredSaltLb: delivered.saltLb,
+      realmWealthCp: realmCp + externalCp,
     })
 
     survivalBySettlementId[settlement.id] = survival
@@ -139,6 +146,7 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
     } else {
       population = 0
     }
+    population = applyMarginalWealthAttrition(population, realmCp + externalCp)
 
     nextSettlements.push({
       ...resolved,
@@ -240,6 +248,9 @@ export async function applyColonizationEpoch(slice, worldDocument, options = {})
  */
 export const SURPLUS_POPULATION_GROWTH_FRACTION = 0.02
 
+/** Fraction of headcount that leaves the map each epoch when combined wealth ≤ 0. */
+export const MARGINAL_WEALTH_ATTRITION_RATE = 0.5
+
 /**
  * Surplus-driven population change in people-units, clamped by ceiling.
  *
@@ -257,6 +268,22 @@ export function applySurplusPopulationDelta(population, foodSurplus, populationC
       population - Math.max(1, Math.floor(Math.abs(foodSurplus) * SURPLUS_POPULATION_GROWTH_FRACTION))
   }
   return Math.max(0, Math.min(Math.floor(next), populationCeiling))
+}
+
+/**
+ * Off-map attrition for marginal/broke settlements (wealth overlay orange/red: ≤ 0 cp).
+ * Leavers exit the realm entirely — not transferred to another pin.
+ *
+ * @param {number} population
+ * @param {number} realmWealthCp Combined realm + external wealth (tooltip / overlay figure).
+ * @returns {number}
+ */
+export function applyMarginalWealthAttrition(population, realmWealthCp) {
+  const headcount = Math.max(0, Math.floor(Number(population) || 0))
+  if (!(headcount > 0)) return 0
+  if (!(Number.isFinite(realmWealthCp) && realmWealthCp <= 0)) return headcount
+  const leavers = Math.floor(headcount * MARGINAL_WEALTH_ATTRITION_RATE)
+  return Math.max(0, headcount - leavers)
 }
 
 function applyPoliticsPhaseNoop() {}

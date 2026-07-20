@@ -18,7 +18,7 @@ import {
 import { findMinCostPath } from './pathSearch.js'
 import { clearOffMapTrade, clearOffMapTradeSync } from './offMapTrade.js'
 import { creditLimitCp } from '../ledgers/creditLimit.js'
-import { creditRoomCpForImport } from '../ledgers/creditRoom.js'
+import { creditRoomCpForImport, annualSurvivalBasketCp } from '../ledgers/creditRoom.js'
 import { roundMoneyCp } from '../formatMoneyCp.js'
 import { realizedPortTollIncomeCpBySettlementId } from '../ledgers/realizedIncome.js'
 import { applyObligation } from '../ledgers/bilateralObligations.js'
@@ -248,6 +248,9 @@ function createClearingState(params = {}) {
       }),
     ]),
   )
+  const survivalBasketCp = new Map(
+    settlements.map((s) => [s.id, annualSurvivalBasketCp(s.population)]),
+  )
 
   const priorBalances = params.priorTradeAccounts?.balancesBySettlementId ?? {}
   /** @type {Map<string, number>} netOwed: debits − credits (positive = owes) */
@@ -289,6 +292,7 @@ function createClearingState(params = {}) {
     localPrices,
     remainingCapLbByEdgeId,
     creditLimit,
+    survivalBasketCp,
     netOwed,
     openingNetOwed,
     overLimitAtOpen,

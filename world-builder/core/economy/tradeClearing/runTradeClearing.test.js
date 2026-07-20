@@ -370,14 +370,15 @@ test('credit limit caps imports at a settlement without collateral or income', (
     production: prod,
     priorRealizedIncomeCp: { b: 18000 },
   })
-  // Import stops once b's 18000 cp credit is spent, short of the 36500 survival floor.
+  // Harvest hard-stop allows up to 2× collateral (36000 cp), still short of full survival.
+  const survivalDebtCap = 36_000
   assert.ok(capped.effectiveDelivered.b.foodLb > 0)
   assert.ok(capped.effectiveDelivered.b.foodLb < 36500)
   const bDebt = capped.obligationDeltas
     .filter((o) => o.fromSettlementId === 'b')
     .reduce((s, o) => s + o.amountCp, 0)
-  assert.ok(Math.abs(bDebt - 18000) < 1e-3)
-  assert.ok(Math.abs(capped.effectiveDelivered.b.foodLb - 18000 / netUnit) < 1e-6)
+  assert.ok(Math.abs(bDebt - survivalDebtCap) < 1e-3)
+  assert.ok(Math.abs(capped.effectiveDelivered.b.foodLb - survivalDebtCap / netUnit) < 1e-6)
 
   const funded = runTradeClearingSync({
     settlements,
