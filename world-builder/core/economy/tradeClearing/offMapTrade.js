@@ -11,9 +11,11 @@ import {
   PROSPERITY_COMMODITIES,
   comfortFoodDemandLb,
   prosperityDemandUnits,
+  survivalFoodDemandLb,
   survivalSaltDemandLb,
 } from './allocationTiers.js'
 import { findMinCostPath } from './pathSearch.js'
+import { creditRoomCpForImport, offMapImportResourceKind } from '../ledgers/creditRoom.js'
 
 const EPSILON = 1e-6
 /** Baseline port toll: 5% (mirrors runTradeClearing.PORT_TOLL_RATE without a cycle). */
@@ -322,6 +324,16 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
     let need = shortfall[commodityId]
     if (!(need > EPSILON)) continue
 
+    const resourceKind = offMapImportResourceKind(commodityId)
+    if (state.overLimitAtOpen.get(claimant.id) === true) {
+      if (resourceKind === 'prosperity') continue
+      if (commodityId === 'grain' || commodityId === 'fish') {
+        const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
+        need = Math.min(need, Math.max(0, survivalFoodDemandLb(claimant.population) - foodHeld))
+        if (!(need > EPSILON)) continue
+      }
+    }
+
     while (need > EPSILON) {
       const unitPriceCp = offMapUnitPriceCp({
         referencePriceCp: referencePriceCp(commodityId),
@@ -344,7 +356,7 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
       const netUnitCp = unitPriceCp - best.path.transportUnitCp
       if (!(netUnitCp > EPSILON)) break
 
-      const room = (state.creditLimit.get(claimant.id) ?? 0) - (state.netOwed.get(claimant.id) ?? 0)
+      const room = creditRoomCpForImport(state, claimant.id, resourceKind)
       const creditCap = Math.max(0, room) / netUnitCp
       const qty = Math.min(need, best.path.bottleneckUnits, pierRemaining / cargoLb, affordable, creditCap)
       if (!(qty > EPSILON)) break

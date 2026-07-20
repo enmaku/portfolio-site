@@ -50,6 +50,7 @@
  * @property {import('./logisticsNodes/scoreLogisticsNodes.js').LogisticsNodeSurveyEntry[]} logisticsNodeSurvey Scored founding candidates.
  * @property {TradeAccountsSlice} tradeAccounts Mutual-credit realm ledgers.
  * @property {Record<string, number>} externalTradeAccounts Port off-map credit (≥ 0).
+ * @property {Record<string, number>} priorRealizedIncomeCp Last active clear's on-map export+toll income by settlement.
  * @property {TradeRouteState} tradeRouteState Candidate edges and current-epoch flows.
  * @property {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null} lastTradeEpochResult Inspect payload from last clearing.
  */
@@ -84,6 +85,7 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'logisticsNodeSurvey',
   'tradeAccounts',
   'externalTradeAccounts',
+  'priorRealizedIncomeCp',
   'tradeRouteState',
   'lastTradeEpochResult',
 ])
@@ -172,6 +174,7 @@ export function createDefaultColonizationSlice() {
     logisticsNodeSurvey: [],
     tradeAccounts: createEmptyTradeAccountsSlice(),
     externalTradeAccounts: {},
+    priorRealizedIncomeCp: {},
     tradeRouteState: createEmptyTradeRouteState(),
     lastTradeEpochResult: null,
   }
@@ -217,6 +220,7 @@ export function resolveColonizationSlice(value) {
     logisticsNodeSurvey: resolveLogisticsNodeSurvey(incoming.logisticsNodeSurvey),
     tradeAccounts: resolveTradeAccounts(incoming.tradeAccounts),
     externalTradeAccounts: resolveExternalTradeAccounts(incoming.externalTradeAccounts),
+    priorRealizedIncomeCp: resolvePriorRealizedIncomeCp(incoming.priorRealizedIncomeCp),
     tradeRouteState: resolveTradeRouteState(incoming.tradeRouteState),
     lastTradeEpochResult: resolveLastTradeEpochResult(incoming.lastTradeEpochResult),
   }
@@ -346,6 +350,24 @@ function resolveTradeAccounts(value) {
  * @returns {Record<string, number>}
  */
 function resolveExternalTradeAccounts(value) {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+  /** @type {Record<string, number>} */
+  const resolved = {}
+  for (const [id, amount] of Object.entries(value)) {
+    if (typeof amount === 'number' && Number.isFinite(amount) && amount >= 0) {
+      resolved[id] = amount
+    }
+  }
+  return resolved
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, number>}
+ */
+function resolvePriorRealizedIncomeCp(value) {
   if (!value || typeof value !== 'object') {
     return {}
   }

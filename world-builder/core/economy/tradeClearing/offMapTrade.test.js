@@ -261,3 +261,42 @@ test('off-map substep emits per-settlement item progress across export and impor
   )
   assert.ok(offMapItems.every((row) => row.itemCount === 4))
 })
+
+test('over-limit inland buyer cannot take last-line prosperity off-map imports', () => {
+  const settlements = [
+    { id: 'port', population: 100, maritimeRole: 'port' },
+    { id: 'inland', population: 100 },
+  ]
+  const prod = production({
+    port: { grain: 200000, salt: 5000, timber: 20000 },
+    inland: { grain: 43800, salt: 500 },
+  })
+  const graph = {
+    edges: [
+      edge({
+        fromSettlementId: 'port',
+        toSettlementId: 'inland',
+        transportCostCpPerLb: 0.01,
+        capacityLb: 1e12,
+      }),
+    ],
+  }
+
+  const result = runTradeClearingSync({
+    settlements,
+    graph,
+    production: prod,
+    priorRealizedIncomeCp: { inland: 100 },
+    externalAccountsCp: { port: 1_000_000 },
+    priorTradeAccounts: {
+      obligations: [{ creditorSettlementId: 'port', debtorSettlementId: 'inland', amountCp: 500_000 }],
+      balancesBySettlementId: { port: 500_000, inland: -500_000 },
+    },
+  })
+
+  const inlandTimber = result.offMapTrades.find(
+    (t) => t.commodityId === 'timber' && t.direction === 'import' && t.originSettlementId === 'inland',
+  )
+  assert.equal(inlandTimber, undefined)
+  assert.ok((result.realmBalancesCp.inland ?? 0) >= -500_000 - 1e-3)
+})

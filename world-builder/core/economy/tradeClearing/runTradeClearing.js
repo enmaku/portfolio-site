@@ -18,7 +18,8 @@ import {
 import { findMinCostPath } from './pathSearch.js'
 import { clearOffMapTrade, clearOffMapTradeSync } from './offMapTrade.js'
 import { creditLimitCp } from '../ledgers/creditLimit.js'
-import { createEmptyTradeAccounts, applyObligation } from '../ledgers/bilateralObligations.js'
+import { creditRoomCpForImport } from '../ledgers/creditRoom.js'
+import { applyObligation } from '../ledgers/bilateralObligations.js'
 
 /**
  * @typedef {import('../commodityCatalog.js').CommodityId} CommodityId
@@ -102,6 +103,10 @@ const EPSILON = 1e-6
  *   graph?: CandidateTradeGraph,
  *   production?: Record<string, Partial<Record<CommodityId, number>>>,
  *   priorRealizedIncomeCp?: Record<string, number>,
+ *   priorTradeAccounts?: {
+ *     obligations?: import('../ledgers/bilateralObligations.js').BilateralObligation[],
+ *     balancesBySettlementId?: Record<string, number>,
+ *   },
  *   externalAccountsCp?: Record<string, number>,
  * }} [params]
  * @param {TradeClearingOptions} [options]
@@ -118,14 +123,14 @@ export async function runTradeClearing(params = {}, options = {}) {
 
   emitTradeSubstep(hooks, 'substep-start', 1, 'survival')
   await yieldToUi?.()
-  clearFoodTier(state, survivalFoodDemandLb)
+  clearSurvivalFoodTier(state)
   clearSaltTier(state, survivalSaltDemandLb)
   emitTradeSubstep(hooks, 'substep-complete', 1, 'survival')
   await yieldToUi?.()
 
   emitTradeSubstep(hooks, 'substep-start', 2, 'comfort')
   await yieldToUi?.()
-  clearFoodTier(state, comfortFoodDemandLb)
+  clearComfortFoodTier(state)
   emitTradeSubstep(hooks, 'substep-complete', 2, 'comfort')
   await yieldToUi?.()
 
@@ -164,9 +169,9 @@ export async function runTradeClearing(params = {}, options = {}) {
 export function runTradeClearingSync(params = {}) {
   const state = createClearingState(params)
 
-  clearFoodTier(state, survivalFoodDemandLb)
+  clearSurvivalFoodTier(state)
   clearSaltTier(state, survivalSaltDemandLb)
-  clearFoodTier(state, comfortFoodDemandLb)
+  clearComfortFoodTier(state)
   for (const commodityId of PROSPERITY_COMMODITIES) {
     clearProsperityCommodity(state, commodityId)
   }
@@ -240,13 +245,31 @@ function createClearingState(params = {}) {
     ]),
   )
 
+  const priorBalances = params.priorTradeAccounts?.balancesBySettlementId ?? {}
   /** @type {Map<string, number>} netOwed: debits − credits (positive = owes) */
-  const netOwed = new Map(settlements.map((s) => [s.id, 0]))
+  const netOwed = new Map(
+    settlements.map((s) => [s.id, -(priorBalances[s.id] ?? 0)]),
+  )
+  /** @type {Map<string, number>} */
+  const openingNetOwed = new Map(netOwed)
+  /** @type {Map<string, boolean>} */
+  const overLimitAtOpen = new Map(
+    settlements.map((s) => {
+      const owed = netOwed.get(s.id) ?? 0
+      const limit = creditLimit.get(s.id) ?? 0
+      return [s.id, owed > limit + EPSILON]
+    }),
+  )
+
   /** @type {Map<string, number>} absolute external balances (cannot go negative) */
   const externalAccounts = new Map(
     settlements.map((s) => [s.id, Math.max(0, params.externalAccountsCp?.[s.id] ?? 0)]),
   )
   const externalInitial = new Map(externalAccounts)
+
+  const priorObligations = Array.isArray(params.priorTradeAccounts?.obligations)
+    ? params.priorTradeAccounts.obligations.map((row) => ({ ...row }))
+    : []
 
   return {
     settlements,
@@ -258,6 +281,9 @@ function createClearingState(params = {}) {
     remainingCapLbByEdgeId,
     creditLimit,
     netOwed,
+    openingNetOwed,
+    overLimitAtOpen,
+    priorObligations,
     externalAccounts,
     externalInitial,
     /** @type {TradeFlow[]} */
@@ -290,8 +316,9 @@ function neutralRoles() {
  *
  * @param {ReturnType<typeof createClearingState>} state
  * @param {(pop: number) => number} targetFn
+ * @param {'survival' | 'comfort'} resourceKind
  */
-function clearFoodTier(state, targetFn) {
+function clearFoodTier(state, targetFn, resourceKind) {
   clearResource(state, {
     commodities: ['grain', 'fish'],
     targetOf: (s) => targetFn(s.population),
@@ -299,8 +326,18 @@ function clearFoodTier(state, targetFn) {
       const bag = state.held.get(id)
       return (bag?.grain ?? 0) + (bag?.fish ?? 0)
     },
-    resourceKind: 'food',
+    resourceKind,
   })
+}
+
+/** @param {ReturnType<typeof createClearingState>} state */
+function clearSurvivalFoodTier(state) {
+  clearFoodTier(state, survivalFoodDemandLb, 'survival')
+}
+
+/** @param {ReturnType<typeof createClearingState>} state */
+function clearComfortFoodTier(state) {
+  clearFoodTier(state, comfortFoodDemandLb, 'comfort')
 }
 
 /**
@@ -339,7 +376,7 @@ function clearProsperityCommodity(state, commodityId) {
  *   commodities: CommodityId[],
  *   targetOf: (s: { population: number }) => number,
  *   heldResource: (id: string) => number,
- *   resourceKind: 'food' | 'salt' | 'prosperity',
+ *   resourceKind: 'survival' | 'comfort' | 'salt' | 'prosperity',
  * }} spec
  */
 function clearResource(state, spec) {
@@ -469,12 +506,12 @@ function exportableUnits(state, source, spec, commodityId) {
  * @param {{
  *   move: NonNullable<ReturnType<typeof planBestMove>>,
  *   maxUnits: number,
- *   resourceKind: 'food' | 'salt' | 'prosperity',
+ *   resourceKind: 'survival' | 'comfort' | 'salt' | 'prosperity',
  * }} params
  * @returns {number} units actually moved
  */
 function applyMove(state, params) {
-  const { move, maxUnits } = params
+  const { move, maxUnits, resourceKind } = params
   const { commodityId, path, netUnitValueCp, importerUnitCostCp } = move
   const importerId = path.legs.length > 0 ? path.legs[path.legs.length - 1].to : move.path.originId
   const originId = path.originId
@@ -485,7 +522,7 @@ function applyMove(state, params) {
 
   let limit = Math.min(maxUnits, path.bottleneckUnits, Math.max(0, originBag[commodityId] ?? 0))
 
-  const room = (state.creditLimit.get(importerId) ?? 0) - (state.netOwed.get(importerId) ?? 0)
+  const room = creditRoomCpForImport(state, importerId, resourceKind)
   if (importerUnitCostCp > EPSILON) limit = Math.min(limit, Math.max(0, room) / importerUnitCostCp)
 
   if (commodityId === 'fish') {
@@ -539,6 +576,18 @@ function applyMove(state, params) {
 }
 
 /**
+ * Import purchasing-power room in cp for a settlement and demand tier.
+ * Over-limit-at-open freezes comfort/prosperity for the epoch; survival/salt may
+ * spend only same-epoch earnings without deepening past opening debt.
+ *
+ * @param {ReturnType<typeof createClearingState>} state
+ * @param {string} importerId
+ * @param {'survival' | 'comfort' | 'salt' | 'prosperity'} resourceKind
+ * @returns {number}
+ */
+export { creditRoomCpForImport }
+
+/**
  * @param {ReturnType<typeof createClearingState>} state
  * @param {import('./runTradeClearing.js').ObligationDelta} delta
  */
@@ -588,7 +637,10 @@ function buildResult(state) {
     if (Math.abs(delta) > EPSILON) externalAccountDeltas[s.id] = delta
   }
 
-  let accounts = createEmptyTradeAccounts()
+  let accounts = {
+    obligations: state.priorObligations.map((row) => ({ ...row })),
+    balancesBySettlementId: {},
+  }
   for (const delta of state.obligationDeltas) accounts = applyObligation(accounts, delta)
 
   return {

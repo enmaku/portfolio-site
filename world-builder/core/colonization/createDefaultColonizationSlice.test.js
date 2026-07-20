@@ -83,6 +83,7 @@ test('createDefaultColonizationSlice includes empty trade accounts and route sta
   const slice = createDefaultColonizationSlice()
   assert.deepStrictEqual(slice.tradeAccounts, { obligations: [], balancesBySettlementId: {} })
   assert.deepStrictEqual(slice.externalTradeAccounts, {})
+  assert.deepStrictEqual(slice.priorRealizedIncomeCp, {})
   assert.deepStrictEqual(slice.tradeRouteState, { candidates: [], activeFlows: [] })
   assert.strictEqual(slice.lastTradeEpochResult, null)
 })
@@ -96,6 +97,7 @@ test('serializeColonizationSessionForStorage round-trips trade accounts', () => 
     ],
     balancesBySettlementId: { a: 12, b: -12 },
   }
+  slice.priorRealizedIncomeCp = { a: 40, b: 0 }
   slice.externalTradeAccounts = { a: 5 }
   slice.tradeRouteState = {
     candidates: [
@@ -114,6 +116,7 @@ test('serializeColonizationSessionForStorage round-trips trade accounts', () => 
 
   const revived = resolveColonizationSlice(serializeColonizationSessionForStorage(slice))
   assert.deepStrictEqual(revived.tradeAccounts.obligations, slice.tradeAccounts.obligations)
+  assert.deepStrictEqual(revived.priorRealizedIncomeCp, { a: 40, b: 0 })
   assert.strictEqual(revived.externalTradeAccounts.a, 5)
   assert.strictEqual(revived.tradeRouteState.candidates.length, 1)
   assert.strictEqual(revived.colonistSettings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)

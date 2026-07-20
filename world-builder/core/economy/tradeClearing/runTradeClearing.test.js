@@ -559,3 +559,74 @@ test('runTradeClearing reports trade substep indices in order and matches sync w
     ],
   )
 })
+
+test('prior trade accounts seed net owed so debt carries into the next clear', () => {
+  const settlements = [
+    { id: 'a', population: 100 },
+    { id: 'b', population: 100 },
+  ]
+  const prod = production({
+    a: { grain: 200000, salt: 200000, timber: 5_000_000 },
+    b: { grain: 200000, salt: 200000 },
+  })
+  const graph = {
+    edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.01 })],
+  }
+
+  const first = runTradeClearingSync({
+    settlements,
+    graph,
+    production: prod,
+    priorRealizedIncomeCp: { a: 1_000_000, b: 1_000_000 },
+  })
+  assert.ok((first.realmBalancesCp.b ?? 0) < 0)
+
+  const second = runTradeClearingSync({
+    settlements,
+    graph,
+    production: prod,
+    priorRealizedIncomeCp: { a: 1_000_000, b: 1_000_000 },
+    priorTradeAccounts: {
+      obligations: first.nettedObligations,
+      balancesBySettlementId: first.realmBalancesCp,
+    },
+  })
+
+  assert.ok(
+    (second.realmBalancesCp.b ?? 0) <= (first.realmBalancesCp.b ?? 0) + 1e-6,
+    'carried debt should not reset',
+  )
+  assert.ok(second.nettedObligations.some((o) => o.debtorSettlementId === 'b' && o.amountCp > 0))
+})
+
+test('opening over the credit limit freezes prosperity even after same-epoch earnings', () => {
+  const settlements = [
+    { id: 'a', population: 100 },
+    { id: 'b', population: 100 },
+  ]
+  const prod = production({
+    a: { grain: 500000, salt: 500000, timber: 5_000_000 },
+    b: { grain: 0, salt: 0, timber: 0 },
+  })
+  const graph = {
+    edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.01 })],
+  }
+
+  const result = runTradeClearingSync({
+    settlements,
+    graph,
+    production: prod,
+    priorRealizedIncomeCp: { b: 1000 },
+    priorTradeAccounts: {
+      obligations: [{ creditorSettlementId: 'a', debtorSettlementId: 'b', amountCp: 500_000 }],
+      balancesBySettlementId: { a: 500_000, b: -500_000 },
+    },
+  })
+
+  assert.equal(
+    result.flows.some((f) => f.commodityId === 'timber' && f.toSettlementId === 'b'),
+    false,
+    'prosperity imports should stay frozen',
+  )
+  assert.ok((result.realmBalancesCp.b ?? 0) >= -500_000 - 1e-3, 'debt must not deepen past opening')
+})
