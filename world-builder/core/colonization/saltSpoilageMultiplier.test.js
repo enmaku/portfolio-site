@@ -80,10 +80,18 @@ test('salt-poor fixture grows slower than salt-rich control', async () => {
     slice.foundingLanding = { x: 1, y: 1 }
     slice.colonistSettings.startingPopulation = 40
     slice.colonistSettings.threeDayHaulDistance = 2
-    // Keep land packing from binding so salt spoilage alone explains the growth gap.
+    // Keep land packing from binding; isolate to one settlement so daughter founding
+    // and trade clearing cannot wipe the salt-access growth signal.
     slice.colonistSettings.peoplePerHabitableCell = MAX_PEOPLE_PER_HABITABLE_CELL
     const doc = geographyWithSalt(saltNodes)
     let running = await beginColonizationCommit(slice, doc)
+    running.visitedCells = new Uint8Array(doc.gridWidth * doc.gridHeight).fill(1)
+    running.expeditions = []
+    running.frontierExhausted = true
+    running.logisticsNodeSurvey = running.logisticsNodeSurvey.map((entry) => ({
+      ...entry,
+      exhausted: true,
+    }))
     for (let i = 0; i < 5; i += 1) {
       running = (await applyColonizationEpoch(running, doc)).slice
     }

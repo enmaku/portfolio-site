@@ -29,7 +29,6 @@ import {
   COLONIZATION_PHASE_RUNNING,
   COLONIZATION_PHASE_SETUP,
   COLONIZATION_PHASE_TERRAIN,
-  mergeColonizationSessions,
 } from '../../world-builder/core/colonization/createDefaultColonizationSlice.js'
 import {
   colonizationAdvisoryRequiresConfirm,
@@ -42,7 +41,6 @@ import {
   shouldShowValidationAdvisory,
 } from '../../world-builder/core/colonization/buildColonizationSimStatus.js'
 import { buildRealmEconomyStatus } from '../../world-builder/core/colonization/buildRealmEconomyStatus.js'
-import { buildTerrainCacheFingerprint } from '../../world-builder/core/terrainCacheFingerprint.js'
 import {
   clearLockedTerrain as defaultClearLockedTerrain,
   loadLockedTerrain as defaultLoadLockedTerrain,
@@ -53,11 +51,11 @@ import {
   loadColonizationSession as defaultLoadColonizationSession,
   saveColonizationSession as defaultSaveColonizationSession,
 } from '../utils/worldBuilderColonizationCache.js'
+import { createWorldBuilderTerrainSessionCache } from './createWorldBuilderTerrainSessionCache.js'
 import { useWorldBuilderColonization } from './useWorldBuilderColonization.js'
 import { useWorldBuilderCampaignKitExport } from './useWorldBuilderCampaignKitExport.js'
 import { useWorldBuilderGeneration } from './useWorldBuilderGeneration.js'
 import { useWorldBuilderOverlayState } from './useWorldBuilderOverlayState.js'
-import { reportWorldBuilderError } from '../utils/worldBuilderErrorReporting.js'
 
 const COLONIZATION_OVERLAY_IDS = new Set([
   'population',
@@ -148,6 +146,25 @@ export function useWorldBuilderPageController(options) {
   /** @type {ReturnType<typeof setTimeout> | null} */
   let colonizationSessionPersistTimer = null
   let colonizationRunningOverlaysEnabled = false
+
+  const {
+    currentTerrainFingerprint,
+    reportCacheError,
+    persistColonizationSessionIfNeeded,
+    persistLockedTerrainIfNeeded,
+    discardLockedTerrain,
+    restoreColonizationSessionFromCaches,
+  } = createWorldBuilderTerrainSessionCache({
+    settingsStore,
+    onGenerationError,
+    getColonization: () => colonization,
+    getGeneration: () => generation,
+    saveLockedTerrain,
+    clearLockedTerrain,
+    loadColonizationSession,
+    saveColonizationSession,
+    clearColonizationSession,
+  })
 
   function scheduleColonizationSessionPersist() {
     if (colonizationSessionPersistTimer !== null) {
@@ -269,83 +286,6 @@ export function useWorldBuilderPageController(options) {
     await mapLifecycle?.applyWorldDocument(merged)
     syncColonizationOverlayVisibility()
     colonization.syncLandingVisuals()
-  }
-
-  function currentTerrainFingerprint() {
-    return buildTerrainCacheFingerprint({
-      geographySeed: settingsStore.geographySeed ?? 0,
-      prevailingWindDegrees: settingsStore.prevailingWindDegrees,
-      generationOptions: settingsStore.generationOptions,
-    })
-  }
-
-  function reportCacheError(context, error) {
-    reportWorldBuilderError(context, error, onGenerationError)
-  }
-
-  async function persistColonizationSessionIfNeeded() {
-    if (!colonization.isTerrainLocked.value) {
-      return
-    }
-    try {
-      await saveColonizationSession(currentTerrainFingerprint(), colonization.slice.value)
-    } catch (error) {
-      reportCacheError('Failed to save colonization session cache', error)
-    }
-  }
-
-  async function persistLockedTerrainIfNeeded() {
-    if (!colonization.isTerrainLocked.value) {
-      return
-    }
-    const doc = generation?.worldDocument.value
-    if (!doc) {
-      return
-    }
-    try {
-      await saveLockedTerrain({
-        fingerprint: currentTerrainFingerprint(),
-        worldDocument: doc,
-      })
-    } catch (error) {
-      reportCacheError('Failed to save locked terrain cache', error)
-    }
-    await persistColonizationSessionIfNeeded()
-  }
-
-  async function discardLockedTerrain() {
-    try {
-      await clearLockedTerrain()
-      await clearColonizationSession()
-    } catch (error) {
-      reportCacheError('Failed to clear world builder terrain caches', error)
-    }
-  }
-
-  async function restoreColonizationSessionFromCaches(fingerprint, options = {}) {
-    const runSubstep = options.runSubstep ?? (async (_substepIndex, work) => work())
-
-    const fromStore = await runSubstep(0, () => settingsStore.colonizationSession)
-
-    let fromColonizationCache = null
-    await runSubstep(1, async () => {
-      try {
-        fromColonizationCache = await loadColonizationSession(fingerprint)
-      } catch (error) {
-        reportCacheError('Failed to load colonization session cache', error)
-      }
-    })
-
-    const merged = await runSubstep(2, () =>
-      mergeColonizationSessions(fromStore, fromColonizationCache),
-    )
-
-    await runSubstep(3, () => {
-      settingsStore.setColonizationSession?.(merged)
-      colonization.hydrateFromPersistedSettings()
-    })
-
-    return merged
   }
 
   generation = useWorldBuilderGeneration({
