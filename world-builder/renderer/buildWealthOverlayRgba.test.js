@@ -66,39 +66,38 @@ test('paints claimed cells with surplus green and deficit red', () => {
   assert.ok(deficitTint[0] > deficitTint[1])
 })
 
-test('zero-income wealth uses realm income fallback and outranks a milder normalizable peer', () => {
+test('higher tooltip balances paint darker than lower peers', () => {
   const rgba = buildWealthOverlayRgba({
     gridWidth: 8,
     gridHeight: 8,
     settlements: [
-      { id: 'normalizable', x: 1, y: 1 },
-      { id: 'zeroIncome', x: 6, y: 6 },
+      { id: 'mild', x: 1, y: 1 },
+      { id: 'rich', x: 6, y: 6 },
     ],
     primaryClaim: {
-      normalizable: [{ x: 1, y: 1 }],
-      zeroIncome: [{ x: 6, y: 6 }],
+      mild: [{ x: 1, y: 1 }],
+      rich: [{ x: 6, y: 6 }],
     },
     lastTradeEpochResult: {
-      realmBalancesCp: { normalizable: 300, zeroIncome: 5000 },
-      obligationDeltas: [{ toSettlementId: 'normalizable', amountCp: 1000, kind: 'goods' }],
+      realmBalancesCp: { mild: 300, rich: 5000 },
     },
   })
   assert.ok(rgba)
-  const normalizable = [
+  const mild = [
     rgba[cellOffset(1, 1, 8)],
     rgba[cellOffset(1, 1, 8) + 1],
     rgba[cellOffset(1, 1, 8) + 2],
   ]
-  const zeroIncome = [
+  const rich = [
     rgba[cellOffset(6, 6, 8)],
     rgba[cellOffset(6, 6, 8) + 1],
     rgba[cellOffset(6, 6, 8) + 2],
   ]
-  assert.ok(luminance(zeroIncome) < luminance(normalizable))
+  assert.ok(luminance(rich) < luminance(mild))
   assert.strictEqual(rgba[cellOffset(6, 6, 8) + 3], MAX_ALPHA_BYTE)
 })
 
-test('large absolute balances past one year of income stay visually separable', () => {
+test('overlay magnitude tracks the tooltip combined balance directly', () => {
   const worldDocument = {
     settlements: [
       { id: 'small', x: 0, y: 0 },
@@ -107,20 +106,16 @@ test('large absolute balances past one year of income stay visually separable', 
     ],
     lastTradeEpochResult: {
       realmBalancesCp: { small: 14_000, mid: 55_000, huge: 380_000 },
-      obligationDeltas: [
-        { toSettlementId: 'small', amountCp: 10_000, kind: 'goods' },
-        { toSettlementId: 'mid', amountCp: 10_000, kind: 'goods' },
-        { toSettlementId: 'huge', amountCp: 10_000, kind: 'goods' },
-      ],
     },
   }
   const signals = computeSettlementWealthSignals(worldDocument)
   const byId = Object.fromEntries(signals.map((s) => [s.id, s]))
-  assert.ok(byId.small.yearsOfIncome > 1)
-  assert.ok(byId.mid.yearsOfIncome > 1)
-  assert.ok(byId.huge.yearsOfIncome > 1)
-  assert.ok(Math.abs(byId.huge.normalized) > Math.abs(byId.mid.normalized))
-  assert.ok(Math.abs(byId.mid.normalized) > Math.abs(byId.small.normalized))
+  assert.strictEqual(byId.small.netWealthCp, 14_000)
+  assert.strictEqual(byId.mid.netWealthCp, 55_000)
+  assert.strictEqual(byId.huge.netWealthCp, 380_000)
+  assert.strictEqual(byId.huge.normalized, 1)
+  assert.strictEqual(byId.mid.normalized, 55_000 / 380_000)
+  assert.strictEqual(byId.small.normalized, 14_000 / 380_000)
   assert.ok(luminance(wealthTintRgb(byId.huge.normalized)) < luminance(wealthTintRgb(byId.mid.normalized)))
   assert.ok(luminance(wealthTintRgb(byId.mid.normalized)) < luminance(wealthTintRgb(byId.small.normalized)))
 })

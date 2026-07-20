@@ -1,10 +1,10 @@
 /**
- * Credit limit and projected annual income (shared with wealth overlay).
- * Domain: world-builder/CONTEXT.md — credit limit, wealth overlay.
+ * Credit limit and projected annual income.
+ * Domain: world-builder/CONTEXT.md — credit limit.
  */
 
 /**
- * Projected annual income used for credit limit and wealth normalization.
+ * Projected annual income used for the credit limit.
  *
  * @param {{
  *   priorRealizedNetExportTollIncomeCp?: number,

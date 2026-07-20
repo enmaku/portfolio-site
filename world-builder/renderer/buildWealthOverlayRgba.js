@@ -1,20 +1,17 @@
 /**
- * Wealth inspect overlay: paints each living settlement's primary-claim hinterland by
- * net wealth (realm balance plus port off-map credit) normalized against the shared
- * projected-income denominator that also sets the credit limit. Settlements with zero
- * projected income cannot be normalized, so any standing wealth reads at full saturation.
- * Tint uses an HSB mix-in-black ramp (bright lime/scarlet → deep hunter/deep red) with a
- * high stained-glass alpha floor. Magnitude is log years-of-income, rescaled so the living
- * extreme on the map hits full tint — balances past one year of income stay separable.
+ * Wealth inspect overlay: paints each living settlement's primary-claim hinterland by the
+ * same combined balance as the settlement trade tooltip (realm balance plus port off-map
+ * credit). Tint uses an HSB mix-in-black ramp (bright lime/scarlet → deep hunter/deep red)
+ * with a high stained-glass alpha floor. Magnitude scales with that balance, rescaled so
+ * the living extreme on the map hits full tint.
  * Paint is masked to dry land (not ocean, lake, or river).
- * Domain: world-builder/CONTEXT.md — wealth overlay, credit limit, realm balance.
+ * Domain: world-builder/CONTEXT.md — wealth overlay, realm balance.
  */
 
 import {
   incrementResourceRasterOverlayRgbaBuildCount,
   resourceRasterOverlayCanvasFromRgba,
 } from './buildResourceRasterOverlayRgba.js'
-import { projectedAnnualIncomeCp } from '../core/economy/ledgers/creditLimit.js'
 import { SEA_LEVEL } from '../core/biomeIds.js'
 
 /** Surplus hue (°): lime → hunter green family. */
@@ -108,41 +105,11 @@ export const WEALTH_DEFICIT_RGB = wealthTintRgb(-1)
  * @property {string} id
  * @property {number} x
  * @property {number} y
- * @property {number} balanceCp
- * @property {number} externalClaimCp
- * @property {number} netWealthCp
- * @property {number} projectedIncomeCp Shared credit-limit denominator.
- * @property {boolean} zeroIncome
- * @property {number} yearsOfIncome netWealth / denom (fallback denom when income is 0).
- * @property {number} normalized Realm-relative log years-of-income in [-1, 1]; full |1| is the living extreme this paint.
+ * @property {number} balanceCp Realm mutual-credit balance.
+ * @property {number} externalClaimCp Off-map credit (ports).
+ * @property {number} netWealthCp Same combined figure as the settlement trade tooltip.
+ * @property {number} normalized Realm-relative netWealthCp in [-1, 1]; full |1| is the living extreme this paint.
  */
-
-/**
- * Gross realized export + toll receipts per settlement from the last clearing, used as
- * the prior-income component of the shared projected-income denominator.
- *
- * @param {import('../core/economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null | undefined} result
- * @returns {Record<string, number>}
- */
-function realizedIncomeBySettlement(result) {
-  /** @type {Record<string, number>} */
-  const income = {}
-  for (const delta of result?.obligationDeltas ?? []) {
-    if (!delta || typeof delta.toSettlementId !== 'string') continue
-    income[delta.toSettlementId] = (income[delta.toSettlementId] ?? 0) + Math.max(0, delta.amountCp ?? 0)
-  }
-  return income
-}
-
-/**
- * Soft years→magnitude so multi-year piles keep separating past the old ±1 clamp.
- *
- * @param {number} yearsAbs
- * @returns {number}
- */
-function softYearsMagnitude(yearsAbs) {
-  return Math.log1p(Math.max(0, yearsAbs))
-}
 
 /**
  * @param {{
@@ -156,7 +123,6 @@ export function computeSettlementWealthSignals(worldDocument) {
   const settlements = worldDocument?.settlements ?? []
   const result = worldDocument?.lastTradeEpochResult ?? null
   const external = worldDocument?.externalTradeAccounts ?? {}
-  const incomeById = realizedIncomeBySettlement(result)
 
   /** @type {Array<{
    *   id: string,
@@ -165,21 +131,15 @@ export function computeSettlementWealthSignals(worldDocument) {
    *   balanceCp: number,
    *   externalClaimCp: number,
    *   netWealthCp: number,
-   *   projectedIncomeCp: number,
-   *   zeroIncome: boolean,
    * }>} */
   const drafts = []
-  let maxProjectedIncomeCp = 0
+  let maxAbsNet = 0
   for (const settlement of settlements) {
     if (!settlement || !Number.isFinite(settlement.x) || !Number.isFinite(settlement.y)) continue
     const balanceCp = result?.realmBalancesCp?.[settlement.id] ?? 0
     const externalClaimCp = external[settlement.id] ?? 0
     const netWealthCp = balanceCp + externalClaimCp
-    const projectedIncomeCp = projectedAnnualIncomeCp({
-      priorRealizedNetExportTollIncomeCp: incomeById[settlement.id] ?? 0,
-      exportableSurplusAfterSurvivalReservationCp: 0,
-    })
-    maxProjectedIncomeCp = Math.max(maxProjectedIncomeCp, projectedIncomeCp)
+    maxAbsNet = Math.max(maxAbsNet, Math.abs(netWealthCp))
     drafts.push({
       id: settlement.id,
       x: Math.trunc(settlement.x),
@@ -187,28 +147,14 @@ export function computeSettlementWealthSignals(worldDocument) {
       balanceCp,
       externalClaimCp,
       netWealthCp,
-      projectedIncomeCp,
-      zeroIncome: !(projectedIncomeCp > 0),
     })
   }
 
-  const fallbackIncomeCp = maxProjectedIncomeCp > 0 ? maxProjectedIncomeCp : 1
-  /** @type {Array<{ draft: (typeof drafts)[number], yearsOfIncome: number, soft: number }>} */
-  const scored = []
-  let maxSoft = 0
-  for (const draft of drafts) {
-    const denom = draft.projectedIncomeCp > 0 ? draft.projectedIncomeCp : fallbackIncomeCp
-    const yearsOfIncome = draft.netWealthCp / denom
-    const soft = Math.sign(yearsOfIncome) * softYearsMagnitude(Math.abs(yearsOfIncome))
-    maxSoft = Math.max(maxSoft, Math.abs(soft))
-    scored.push({ draft, yearsOfIncome, soft })
-  }
-  const scale = maxSoft > 0 ? maxSoft : 1
+  const scale = maxAbsNet > 0 ? maxAbsNet : 1
 
   /** @type {SettlementWealthSignal[]} */
   const signals = []
-  for (const entry of scored) {
-    const { draft, yearsOfIncome, soft } = entry
+  for (const draft of drafts) {
     signals.push({
       id: draft.id,
       x: draft.x,
@@ -216,10 +162,7 @@ export function computeSettlementWealthSignals(worldDocument) {
       balanceCp: draft.balanceCp,
       externalClaimCp: draft.externalClaimCp,
       netWealthCp: draft.netWealthCp,
-      projectedIncomeCp: draft.projectedIncomeCp,
-      zeroIncome: draft.zeroIncome,
-      yearsOfIncome,
-      normalized: soft / scale,
+      normalized: draft.netWealthCp / scale,
     })
   }
   return signals
