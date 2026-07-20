@@ -569,9 +569,10 @@ test('prior trade accounts seed net owed so debt carries into the next clear', (
     { id: 'a', population: 100 },
     { id: 'b', population: 100 },
   ]
+  // b must borrow for survival grain — discretionary prosperity is blocked while indebted.
   const prod = production({
-    a: { grain: 200000, salt: 200000, timber: 5_000_000 },
-    b: { grain: 200000, salt: 200000 },
+    a: { grain: 200000, salt: 200000 },
+    b: { grain: 0, salt: 0 },
   })
   const graph = {
     edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.01 })],
@@ -633,4 +634,73 @@ test('opening over the credit limit freezes prosperity even after same-epoch ear
     'prosperity imports should stay frozen',
   )
   assert.ok((result.realmBalancesCp.b ?? 0) >= -500_000 - 1e-3, 'debt must not deepen past opening')
+})
+
+test('debtors cannot import prosperity even when under the credit limit', () => {
+  const settlements = [
+    { id: 'a', population: 100 },
+    { id: 'b', population: 100 },
+  ]
+  const prod = production({
+    a: { grain: 500000, salt: 500000, timber: 5_000_000, silver: 10_000 },
+    b: { grain: 200000, salt: 500 },
+  })
+  const graph = {
+    edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.01 })],
+  }
+
+  const result = runTradeClearingSync({
+    settlements,
+    graph,
+    production: prod,
+    priorRealizedIncomeCp: { b: 1_000_000 },
+    priorTradeAccounts: {
+      obligations: [{ creditorSettlementId: 'a', debtorSettlementId: 'b', amountCp: 10_000 }],
+      balancesBySettlementId: { a: 10_000, b: -10_000 },
+    },
+  })
+
+  assert.equal(
+    result.flows.some(
+      (f) =>
+        f.toSettlementId === 'b' &&
+        (f.commodityId === 'timber' || f.commodityId === 'silver'),
+    ),
+    false,
+  )
+  assert.ok((result.realmBalancesCp.b ?? 0) <= 0)
+})
+
+test('grain-export floor churn does not unlock timber while opening in debt', () => {
+  const settlements = [
+    { id: 'farm', population: 200 },
+    { id: 'mine', population: 200 },
+  ]
+  const prod = production({
+    farm: { grain: 500000, salt: 5000 },
+    mine: { grain: 20000, salt: 1000, timber: 5_000_000 },
+  })
+  const graph = {
+    edges: [
+      edge({ fromSettlementId: 'farm', toSettlementId: 'mine', transportCostCpPerLb: 0.01 }),
+      edge({ fromSettlementId: 'mine', toSettlementId: 'farm', transportCostCpPerLb: 0.01 }),
+    ],
+  }
+
+  const result = runTradeClearingSync({
+    settlements,
+    graph,
+    production: prod,
+    priorRealizedIncomeCp: { farm: 50_000, mine: 50_000 },
+    priorTradeAccounts: {
+      obligations: [{ creditorSettlementId: 'mine', debtorSettlementId: 'farm', amountCp: 40_000 }],
+      balancesBySettlementId: { mine: 40_000, farm: -40_000 },
+    },
+  })
+
+  assert.ok(result.flows.some((f) => f.fromSettlementId === 'farm' && f.commodityId === 'grain'))
+  assert.equal(
+    result.flows.some((f) => f.toSettlementId === 'farm' && f.commodityId === 'timber'),
+    false,
+  )
 })

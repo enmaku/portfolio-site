@@ -15,16 +15,25 @@
  * @returns {number}
  */
 export function creditRoomCpForImport(state, importerId, resourceKind) {
+  const netOwed = state.netOwed?.get(importerId) ?? 0
+  const openingNetOwed = state.openingNetOwed?.get(importerId) ?? 0
+  const creditLimit = state.creditLimit?.get(importerId) ?? 0
+
+  // Debtor at epoch open: comfort/prosperity frozen all epoch. Staple exports may
+  // pay debt down or fund survival, but do not reopen luxuries mid-pass.
+  if (
+    (resourceKind === 'comfort' || resourceKind === 'prosperity') &&
+    openingNetOwed > 0
+  ) {
+    return 0
+  }
+
   const overLimit = state.overLimitAtOpen?.get(importerId) === true
   if (overLimit) {
-    if (resourceKind === 'comfort' || resourceKind === 'prosperity') {
-      return 0
-    }
-    const opening = state.openingNetOwed?.get(importerId) ?? 0
-    const current = state.netOwed?.get(importerId) ?? 0
-    return Math.max(0, opening - current)
+    // Survival/salt only: spend same-epoch earnings without deepening past open.
+    return Math.max(0, openingNetOwed - netOwed)
   }
-  return Math.max(0, (state.creditLimit?.get(importerId) ?? 0) - (state.netOwed?.get(importerId) ?? 0))
+  return Math.max(0, creditLimit - netOwed)
 }
 
 /**

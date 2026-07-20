@@ -325,13 +325,18 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
     let need = shortfall[commodityId]
     if (!(need > EPSILON)) continue
 
-    const resourceKind = offMapImportResourceKind(commodityId)
+    let resourceKind = offMapImportResourceKind(commodityId)
     if (state.overLimitAtOpen.get(claimant.id) === true) {
       if (resourceKind === 'prosperity') continue
       if (commodityId === 'grain' || commodityId === 'fish') {
         const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
         need = Math.min(need, Math.max(0, survivalFoodDemandLb(claimant.population) - foodHeld))
         if (!(need > EPSILON)) continue
+      }
+    } else if (commodityId === 'grain' || commodityId === 'fish') {
+      const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
+      if (foodHeld >= survivalFoodDemandLb(claimant.population) - EPSILON) {
+        resourceKind = 'comfort'
       }
     }
 
