@@ -226,7 +226,7 @@
             class="full-width q-mb-md"
             data-testid="world-builder-reset-colonization"
             label="Reset colonization"
-            :disable="isEpochStepRunning || isCampaignKitExportRunning"
+            :disable="colonizationTimeControlsDisabled"
             @click="resetColonization"
           />
           <WorldBuilderRealmEconomyPanel
@@ -281,7 +281,7 @@
               data-testid="world-builder-epoch-step"
               label="Next epoch"
               :loading="isEpochStepRunning"
-              :disable="isEpochStepRunning || isCampaignKitExportRunning"
+              :disable="colonizationTimeControlsDisabled"
               @click="epochStep"
             />
             <q-btn
@@ -291,7 +291,7 @@
               data-testid="world-builder-campaign-kit-export"
               aria-label="Download campaign kit"
               :loading="isCampaignKitExportRunning"
-              :disable="isEpochStepRunning || isCampaignKitExportRunning"
+              :disable="colonizationTimeControlsDisabled"
               @click="exportCampaignKit"
             >
               <q-tooltip>Download campaign kit</q-tooltip>
@@ -535,6 +535,7 @@ const {
   isEpochStepRunning,
   isBeginColonizationRunning,
   isCampaignKitExportRunning,
+  colonizationTimeControlsDisabled,
   enterColonizationSetup,
   backToTerrain,
   beginColonization,

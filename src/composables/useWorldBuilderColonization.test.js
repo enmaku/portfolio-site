@@ -455,6 +455,58 @@ test('epochStep is inactive outside running phase', async () => {
   }
 })
 
+test('epochStep and resetColonization are blocked while rehydration progress is running', async () => {
+  const scope = effectScope(true)
+  try {
+    const confirmCalls = []
+    const { ctx, setGeographyDocument } = mountColonization(scope, {
+      requestConfirm: async () => {
+        confirmCalls.push(true)
+        return true
+      },
+    })
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.pickFoundingLanding(3, 3)
+    await ctx.beginColonization()
+    ctx.beginSessionRestore()
+
+    assert.strictEqual(ctx.isRehydrationRunning.value, true)
+    assert.strictEqual(await ctx.epochStep(), false)
+    assert.strictEqual(await ctx.resetColonization(), false)
+    assert.strictEqual(confirmCalls.length, 0)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+    assert.strictEqual(ctx.epoch.value, 0)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('epochStep and resetColonization are blocked while session restore is pending', async () => {
+  const scope = effectScope(true)
+  try {
+    const confirmCalls = []
+    const { ctx, setGeographyDocument } = mountColonization(scope, {
+      getSessionRestorePending: () => true,
+      requestConfirm: async () => {
+        confirmCalls.push(true)
+        return true
+      },
+    })
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.pickFoundingLanding(3, 3)
+    await ctx.beginColonization()
+
+    assert.strictEqual(await ctx.epochStep(), false)
+    assert.strictEqual(await ctx.resetColonization(), false)
+    assert.strictEqual(confirmCalls.length, 0)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+  } finally {
+    scope.stop()
+  }
+})
+
 test('resetColonization clears tips and returns to terrain when confirmed', async () => {
   const scope = effectScope(true)
   try {

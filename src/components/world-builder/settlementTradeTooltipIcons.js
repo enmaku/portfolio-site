@@ -2,7 +2,7 @@ import { h } from 'vue'
 import {
   mdiAccount,
   mdiBarley,
-  mdiCircleSlice4,
+  mdiCircleSlice1,
   mdiDiamondStone,
   mdiFish,
   mdiGold,
@@ -44,7 +44,7 @@ export function moneyBagIcon() {
 }
 
 export function portTollsIcon() {
-  return mdiIcon('Port tolls', mdiCircleSlice4, '#6BA3B8')
+  return mdiIcon('Port tolls', mdiCircleSlice1, '#6BA3B8')
 }
 
 export function wheatIcon() {

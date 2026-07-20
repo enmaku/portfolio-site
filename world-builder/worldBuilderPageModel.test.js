@@ -24,6 +24,7 @@ import {
   shouldShowBeginColonizationProgress,
   shouldShowEpochStepProgress,
   shouldShowRehydrationProgress,
+  areColonizationTimeControlsDisabled,
   shouldShowResourceOverlayBar,
   shouldShowValidationFailureIndicator,
   isGenerationRunSuccess,
@@ -367,6 +368,23 @@ test('shouldShowBeginColonizationProgress is true only while running', () => {
 test('shouldShowRehydrationProgress is true only while running', () => {
   assert.strictEqual(shouldShowRehydrationProgress('running'), true)
   assert.strictEqual(shouldShowRehydrationProgress('idle'), false)
+})
+
+test('areColonizationTimeControlsDisabled matches epoch, rehydration, restore, and export busy flags', () => {
+  assert.strictEqual(areColonizationTimeControlsDisabled(), false)
+  assert.strictEqual(areColonizationTimeControlsDisabled({ epochStepRunning: true }), true)
+  assert.strictEqual(areColonizationTimeControlsDisabled({ rehydrationRunning: true }), true)
+  assert.strictEqual(areColonizationTimeControlsDisabled({ sessionRestorePending: true }), true)
+  assert.strictEqual(areColonizationTimeControlsDisabled({ campaignKitExportRunning: true }), true)
+  assert.strictEqual(
+    areColonizationTimeControlsDisabled({
+      epochStepRunning: false,
+      rehydrationRunning: false,
+      sessionRestorePending: false,
+      campaignKitExportRunning: false,
+    }),
+    false,
+  )
 })
 
 test('shouldShowResourceOverlayBar is true only after successful pipeline completion', () => {

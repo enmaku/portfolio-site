@@ -130,7 +130,11 @@ export default defineComponent({
             'div',
             {
               'data-testid': 'world-builder-settlement-trade-tooltip-commodities',
-              style: { marginTop: '2px' },
+              style: {
+                marginTop: '2px',
+                paddingTop: '2px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.22)',
+              },
             },
             (tooltip.commodities ?? []).map((entry) => commodityRow(entry)),
           ),

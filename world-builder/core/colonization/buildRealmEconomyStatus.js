@@ -4,6 +4,7 @@
  */
 
 import { referencePriceCp } from '../economy/commodityCatalog.js'
+import { realizedPortTollIncomeCpBySettlementId } from '../economy/ledgers/realizedIncome.js'
 import { presentMapCommodityIds } from '../economy/presentMapCommodities.js'
 import { livingSettlements } from './expeditions/expeditionConstants.js'
 import { pickSettlementExtremes } from './pickSettlementExtreme.js'
@@ -30,7 +31,24 @@ import { pickSettlementExtremes } from './pickSettlementExtreme.js'
  * @property {CommodityPriceExtremes[]} commodities
  * @property {SettlementValueExtreme | null} wealthiest
  * @property {SettlementValueExtreme | null} poorest
+ * @property {SettlementValueExtreme | null} highestTolls
+ * @property {SettlementValueExtreme | null} lowestTolls
  */
+
+/**
+ * @param {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null} result
+ * @param {string} settlementId
+ * @returns {number}
+ */
+function portTollIncomeCp(result, settlementId) {
+  const mapped = result?.portTollIncomeCpBySettlementId?.[settlementId]
+  if (typeof mapped === 'number' && Number.isFinite(mapped)) {
+    return Math.max(0, mapped)
+  }
+  const recovered = realizedPortTollIncomeCpBySettlementId(result?.obligationDeltas, null)
+  const amount = recovered[settlementId]
+  return typeof amount === 'number' && Number.isFinite(amount) ? Math.max(0, amount) : 0
+}
 
 /**
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
@@ -82,6 +100,13 @@ export function buildRealmEconomyStatus(slice, worldDocument) {
   })
   const wealthExtremes = pickSettlementExtremes(wealthEntries, (entry) => entry.valueCp)
 
+  const livingPorts = living.filter((settlement) => settlement.maritimeRole === 'port')
+  const tollEntries = livingPorts.map((settlement) => ({
+    id: settlement.id,
+    valueCp: portTollIncomeCp(tradeResult, settlement.id),
+  }))
+  const tollExtremes = pickSettlementExtremes(tollEntries, (entry) => entry.valueCp)
+
   return {
     commodities,
     wealthiest: wealthExtremes
@@ -89,6 +114,12 @@ export function buildRealmEconomyStatus(slice, worldDocument) {
       : null,
     poorest: wealthExtremes
       ? { settlementId: wealthExtremes.low.id, valueCp: wealthExtremes.low.valueCp }
+      : null,
+    highestTolls: tollExtremes
+      ? { settlementId: tollExtremes.high.id, valueCp: tollExtremes.high.valueCp }
+      : null,
+    lowestTolls: tollExtremes
+      ? { settlementId: tollExtremes.low.id, valueCp: tollExtremes.low.valueCp }
       : null,
   }
 }

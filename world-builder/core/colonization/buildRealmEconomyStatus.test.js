@@ -7,9 +7,9 @@ import { createDefaultColonizationSlice } from './createDefaultColonizationSlice
 test('buildRealmEconomyStatus ranks local prices and combined wealth', () => {
   const slice = createDefaultColonizationSlice()
   slice.settlements = [
-    { id: 'a', status: 'living', population: 10, x: 0, y: 0 },
-    { id: 'b', status: 'living', population: 20, x: 1, y: 0 },
-    { id: 'c', status: 'ruin', population: 0, x: 2, y: 0 },
+    { id: 'a', status: 'living', population: 10, x: 0, y: 0, maritimeRole: 'port' },
+    { id: 'b', status: 'living', population: 20, x: 1, y: 0, maritimeRole: 'none' },
+    { id: 'c', status: 'ruin', population: 0, x: 2, y: 0, maritimeRole: 'port' },
   ]
   slice.externalTradeAccounts = { a: 50, b: 0 }
   slice.lastTradeEpochResult = {
@@ -25,6 +25,7 @@ test('buildRealmEconomyStatus ranks local prices and combined wealth', () => {
     effectiveDelivered: {},
     realmBalancesCp: { a: 100, b: -20 },
     nettedObligations: [],
+    portTollIncomeCpBySettlementId: { a: 40, b: 99 },
   }
 
   const status = buildRealmEconomyStatus(slice)
@@ -36,6 +37,54 @@ test('buildRealmEconomyStatus ranks local prices and combined wealth', () => {
 
   assert.deepEqual(status.wealthiest, { settlementId: 'a', valueCp: 150 })
   assert.deepEqual(status.poorest, { settlementId: 'b', valueCp: -20 })
+  assert.deepEqual(status.highestTolls, { settlementId: 'a', valueCp: 40 })
+  assert.deepEqual(status.lowestTolls, { settlementId: 'a', valueCp: 40 })
+})
+
+test('buildRealmEconomyStatus ranks living port toll income and ignores inland', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.settlements = [
+    { id: 'a', status: 'living', population: 10, x: 0, y: 0, maritimeRole: 'port' },
+    { id: 'b', status: 'living', population: 20, x: 1, y: 0, maritimeRole: 'port' },
+    { id: 'c', status: 'living', population: 15, x: 2, y: 0, maritimeRole: 'none' },
+  ]
+  slice.lastTradeEpochResult = {
+    flows: [],
+    offMapTrades: [],
+    settlementCommodityRoles: {},
+    localPricesBySettlementId: {},
+    obligationDeltas: [],
+    externalAccountDeltas: {},
+    effectiveDelivered: {},
+    realmBalancesCp: {},
+    nettedObligations: [],
+    portTollIncomeCpBySettlementId: { a: 10, b: 80, c: 999 },
+  }
+
+  const status = buildRealmEconomyStatus(slice)
+  assert.deepEqual(status.highestTolls, { settlementId: 'b', valueCp: 80 })
+  assert.deepEqual(status.lowestTolls, { settlementId: 'a', valueCp: 10 })
+})
+
+test('buildRealmEconomyStatus omits toll extremes when no living ports', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.settlements = [{ id: 'a', status: 'living', population: 10, x: 0, y: 0, maritimeRole: 'none' }]
+  slice.lastTradeEpochResult = {
+    flows: [],
+    offMapTrades: [],
+    settlementCommodityRoles: {},
+    localPricesBySettlementId: {},
+    obligationDeltas: [],
+    externalAccountDeltas: {},
+    effectiveDelivered: {},
+    realmBalancesCp: {},
+    nettedObligations: [],
+    portTollIncomeCpBySettlementId: { a: 50 },
+  }
+
+  const status = buildRealmEconomyStatus(slice)
+  assert.equal(status.highestTolls, null)
+  assert.equal(status.lowestTolls, null)
 })
 
 test('buildRealmEconomyStatus includes pin commodities when world has pins', () => {
@@ -66,4 +115,6 @@ test('buildRealmEconomyStatus falls back to reference prices and zero balances',
   })
   assert.deepEqual(status.wealthiest, { settlementId: 'a', valueCp: 0 })
   assert.deepEqual(status.poorest, { settlementId: 'a', valueCp: 0 })
+  assert.equal(status.highestTolls, null)
+  assert.equal(status.lowestTolls, null)
 })

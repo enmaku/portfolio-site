@@ -586,8 +586,16 @@ export function useWorldBuilderColonization(options) {
     }
   }
 
+  function isColonizationProgressBlocking() {
+    return isRehydrationRunning.value || (getSessionRestorePending?.() ?? false)
+  }
+
   async function epochStep() {
-    if (!timeControlsActive.value || isEpochStepRunning.value) {
+    if (
+      !timeControlsActive.value ||
+      isEpochStepRunning.value ||
+      isColonizationProgressBlocking()
+    ) {
       return false
     }
     const doc = getGeographyDocument?.()
@@ -644,6 +652,9 @@ export function useWorldBuilderColonization(options) {
    */
   async function resetColonization() {
     if (slice.value.colonizationPhase !== COLONIZATION_PHASE_RUNNING) {
+      return false
+    }
+    if (isEpochStepRunning.value || isColonizationProgressBlocking()) {
       return false
     }
     const confirmed = requestConfirm

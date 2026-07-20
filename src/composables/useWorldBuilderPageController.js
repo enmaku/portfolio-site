@@ -17,6 +17,7 @@ import {
   createValidationRowsForDisplay,
   parseGeographySeedInput,
   shouldShowResourceOverlayBar,
+  areColonizationTimeControlsDisabled,
 } from '../../world-builder/worldBuilderPageModel.js'
 import { createResourceOverlayDefinitions } from '../../world-builder/resourceOverlays.js'
 import {
@@ -464,6 +465,14 @@ export function useWorldBuilderPageController(options) {
       ? 'running'
       : 'idle',
   )
+  const colonizationTimeControlsDisabled = computed(() =>
+    areColonizationTimeControlsDisabled({
+      epochStepRunning: isEpochStepRunning.value,
+      rehydrationRunning: isRehydrationRunning.value,
+      sessionRestorePending: isSessionRestorePending.value,
+      campaignKitExportRunning: campaignKit.isCampaignKitExportRunning.value,
+    }),
+  )
   const showResourceOverlayBarComputed = computed(() =>
     shouldShowResourceOverlayBar(generation.runPhase.value, colonizationBusyPhase.value),
   )
@@ -757,6 +766,7 @@ export function useWorldBuilderPageController(options) {
       isBeginColonizationRunning,
       isRehydrationRunning,
       isSessionRestorePending,
+      colonizationTimeControlsDisabled,
       isCampaignKitExportRunning: campaignKit.isCampaignKitExportRunning,
       exportCampaignKit: campaignKit.exportCampaignKit,
       enterColonizationSetup,

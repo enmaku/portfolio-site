@@ -60,6 +60,54 @@
             </div>
           </div>
           <div
+            v-if="economy.highestTolls && economy.lowestTolls"
+            class="realm-economy-row"
+            data-testid="world-builder-realm-economy-tolls"
+          >
+            <div class="row items-center no-wrap q-gutter-xs">
+              <PortTollsIcon />
+              <span class="text-body2">Tolls</span>
+            </div>
+            <div class="row items-center q-col-gutter-xs q-mt-xs">
+              <div class="col-6">
+                <q-btn
+                  class="full-width realm-economy-extreme-btn"
+                  dense
+                  outline
+                  no-caps
+                  color="white"
+                  size="sm"
+                  data-testid="world-builder-realm-economy-tolls-highest"
+                  :label="`Highest: ${formatMoneyCp(economy.highestTolls.valueCp, { compact: true })}`"
+                  @click="
+                    $emit('focus-settlement', {
+                      settlementId: economy.highestTolls.settlementId,
+                      focusKey: 'tolls:highest',
+                    })
+                  "
+                />
+              </div>
+              <div class="col-6">
+                <q-btn
+                  class="full-width realm-economy-extreme-btn"
+                  dense
+                  outline
+                  no-caps
+                  color="white"
+                  size="sm"
+                  data-testid="world-builder-realm-economy-tolls-lowest"
+                  :label="`Lowest: ${formatMoneyCp(economy.lowestTolls.valueCp, { compact: true })}`"
+                  @click="
+                    $emit('focus-settlement', {
+                      settlementId: economy.lowestTolls.settlementId,
+                      focusKey: 'tolls:lowest',
+                    })
+                  "
+                />
+              </div>
+            </div>
+          </div>
+          <div
             class="realm-economy-commodity-list"
             data-testid="world-builder-realm-economy-commodities"
           >
@@ -128,6 +176,7 @@ import {
   COMMODITY_ACCESSIBLE_NAMES,
   COMMODITY_ICONS,
   moneyBagIcon,
+  portTollsIcon,
 } from './settlementTradeTooltipIcons.js'
 
 defineProps({
@@ -142,6 +191,12 @@ defineEmits(['focus-settlement'])
 const MoneyBagIcon = {
   setup() {
     return () => moneyBagIcon()
+  },
+}
+
+const PortTollsIcon = {
+  setup() {
+    return () => portTollsIcon()
   },
 }
 
