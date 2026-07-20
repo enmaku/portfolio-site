@@ -11,9 +11,12 @@ import {
   PROSPERITY_COMMODITIES,
   comfortFoodDemandLb,
   prosperityDemandUnits,
+  survivalFoodDemandLb,
   survivalSaltDemandLb,
 } from './allocationTiers.js'
 import { findMinCostPath } from './pathSearch.js'
+import { creditRoomCpForImport, offMapImportResourceKind } from '../ledgers/creditRoom.js'
+import { roundMoneyCp } from '../formatMoneyCp.js'
 
 const EPSILON = 1e-6
 /** Baseline port toll: 5% (mirrors runTradeClearing.PORT_TOLL_RATE without a cycle). */
@@ -243,13 +246,14 @@ function dumpFromPort(state, params) {
       })
     }
     for (const event of path.tollEvents) {
-      creditExternal(state, event.portId, event.unitTollCp * qty)
+      creditExternalPortToll(state, event.portId, event.unitTollCp * qty)
     }
   }
 
   const saleCp = unitPriceCp * qty
   const loadingTollCp = PORT_TOLL_RATE * saleCp
-  creditExternal(state, exitPortId, saleCp + loadingTollCp)
+  creditExternal(state, exitPortId, saleCp)
+  creditExternalPortToll(state, exitPortId, loadingTollCp)
   addObligationLocal(state, {
     fromSettlementId: exitPortId,
     toSettlementId: originId,
@@ -278,10 +282,26 @@ function importPortOwnNeeds(state, port, importBudgetLbByPortId) {
   if (!bag) return
   let remaining = importBudgetLbByPortId.get(port.id) ?? 0
   const shortfall = importShortfallByCommodity(bag, port.population)
+  const roomFn = state.creditRoomFn ?? creditRoomCpForImport
 
   for (const commodityId of COMMODITY_IDS) {
-    const need = shortfall[commodityId]
+    let need = shortfall[commodityId]
     if (!(need > EPSILON)) continue
+
+    let resourceKind = offMapImportResourceKind(commodityId)
+    if (commodityId === 'grain' || commodityId === 'fish') {
+      const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
+      if (foodHeld >= survivalFoodDemandLb(port.population) - EPSILON) {
+        resourceKind = 'comfort'
+      }
+    }
+    // External purse pays the pier, but comfort/prosperity still need realm credit room
+    // (no-borrow / open-debt freeze). Survival/salt may use external without that gate.
+    if (resourceKind === 'comfort' || resourceKind === 'prosperity') {
+      const room = roomFn(state, port.id, resourceKind)
+      if (!(room > EPSILON)) continue
+    }
+
     const unitPriceCp = offMapUnitPriceCp({
       referencePriceCp: referencePriceCp(commodityId),
       direction: 'import',
@@ -322,6 +342,21 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
     let need = shortfall[commodityId]
     if (!(need > EPSILON)) continue
 
+    let resourceKind = offMapImportResourceKind(commodityId)
+    if (state.overLimitAtOpen.get(claimant.id) === true) {
+      if (resourceKind === 'prosperity') continue
+      if (commodityId === 'grain' || commodityId === 'fish') {
+        const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
+        need = Math.min(need, Math.max(0, survivalFoodDemandLb(claimant.population) - foodHeld))
+        if (!(need > EPSILON)) continue
+      }
+    } else if (commodityId === 'grain' || commodityId === 'fish') {
+      const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
+      if (foodHeld >= survivalFoodDemandLb(claimant.population) - EPSILON) {
+        resourceKind = 'comfort'
+      }
+    }
+
     while (need > EPSILON) {
       const unitPriceCp = offMapUnitPriceCp({
         referencePriceCp: referencePriceCp(commodityId),
@@ -344,7 +379,7 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
       const netUnitCp = unitPriceCp - best.path.transportUnitCp
       if (!(netUnitCp > EPSILON)) break
 
-      const room = (state.creditLimit.get(claimant.id) ?? 0) - (state.netOwed.get(claimant.id) ?? 0)
+      const room = creditRoomCpForImport(state, claimant.id, resourceKind)
       const creditCap = Math.max(0, room) / netUnitCp
       const qty = Math.min(need, best.path.bottleneckUnits, pierRemaining / cargoLb, affordable, creditCap)
       if (!(qty > EPSILON)) break
@@ -364,7 +399,7 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
         })
       }
       for (const event of best.path.tollEvents) {
-        creditExternal(state, event.portId, event.unitTollCp * qty)
+        creditExternalPortToll(state, event.portId, event.unitTollCp * qty)
       }
 
       creditExternal(state, best.portId, -unitPriceCp * qty)
@@ -484,8 +519,25 @@ export function importShortfallByCommodity(bag, population) {
  * @param {number} deltaCp
  */
 function creditExternal(state, id, deltaCp) {
-  const next = Math.max(0, (state.externalAccounts.get(id) ?? 0) + deltaCp)
+  const next = Math.max(0, roundMoneyCp((state.externalAccounts.get(id) ?? 0) + deltaCp))
   state.externalAccounts.set(id, next)
+}
+
+/**
+ * Credit an external account with a port toll and record it for inspect totals.
+ *
+ * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {string} id
+ * @param {number} tollCp
+ */
+function creditExternalPortToll(state, id, tollCp) {
+  const roundedToll = roundMoneyCp(tollCp)
+  if (!(roundedToll > 0)) return
+  creditExternal(state, id, roundedToll)
+  state.offMapPortTollIncomeCp.set(
+    id,
+    roundMoneyCp((state.offMapPortTollIncomeCp.get(id) ?? 0) + roundedToll),
+  )
 }
 
 /**
@@ -494,10 +546,18 @@ function creditExternal(state, id, deltaCp) {
  */
 function addObligationLocal(state, delta) {
   if (delta.fromSettlementId === delta.toSettlementId) return
-  if (!(delta.amountCp > EPSILON)) return
-  state.obligationDeltas.push(delta)
-  state.netOwed.set(delta.fromSettlementId, (state.netOwed.get(delta.fromSettlementId) ?? 0) + delta.amountCp)
-  state.netOwed.set(delta.toSettlementId, (state.netOwed.get(delta.toSettlementId) ?? 0) - delta.amountCp)
+  const amountCp = roundMoneyCp(delta.amountCp)
+  if (!(amountCp > 0)) return
+  const rounded = { ...delta, amountCp }
+  state.obligationDeltas.push(rounded)
+  state.netOwed.set(
+    delta.fromSettlementId,
+    roundMoneyCp((state.netOwed.get(delta.fromSettlementId) ?? 0) + amountCp),
+  )
+  state.netOwed.set(
+    delta.toSettlementId,
+    roundMoneyCp((state.netOwed.get(delta.toSettlementId) ?? 0) - amountCp),
+  )
 }
 
 /**

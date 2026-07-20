@@ -1,13 +1,16 @@
 /**
- * Settlement inspect tooltip view-model: combined display balance (realm + off-map)
- * and per-commodity local price with directional trade marks. Roles come only from the
- * last clearing's realized flows, never from local production alone, so a settlement
- * that merely produces a commodity is not shown as an exporter without movement.
- * Domain: world-builder/CONTEXT.md — settlement trade tooltip, local price, realm balance.
+ * Settlement inspect tooltip view-model: combined display balance (realm + off-map),
+ * last-epoch port toll income for port settlements, and per-commodity local price with
+ * directional trade marks. Roles come only from the last clearing's realized flows,
+ * never from local production alone, so a settlement that merely produces a commodity
+ * is not shown as an exporter without movement.
+ * Domain: world-builder/CONTEXT.md — settlement trade tooltip, local price, realm balance,
+ * port toll.
  */
 
 import { referencePriceCp } from './commodityCatalog.js'
 import { presentMapCommodityIds } from './presentMapCommodities.js'
+import { realizedPortTollIncomeCpBySettlementId } from './ledgers/realizedIncome.js'
 
 /**
  * @typedef {import('./commodityCatalog.js').CommodityId} CommodityId
@@ -35,6 +38,8 @@ import { presentMapCommodityIds } from './presentMapCommodities.js'
  * @property {number} population Living headcount at this settlement.
  * @property {number} balanceCp Combined realm mutual-credit balance plus any external
  *   trade-account credit for display. Simulation ledgers stay separate.
+ * @property {number | null} portTollsCp Last-epoch collected port tolls for port
+ *   settlements (on-map + off-map); null for non-ports (row omitted).
  * @property {SettlementTradeTooltipCommodity[]} commodities Present-on-map catalog
  *   commodities in catalog order (absent geography sources omitted).
  */
@@ -70,8 +75,24 @@ export function comparePriceToReference(localPriceCp, referenceCp) {
 }
 
 /**
+ * @param {TradeClearingResult | null | undefined} result
+ * @param {string} settlementId
+ * @returns {number}
+ */
+function portTollsCpFromResult(result, settlementId) {
+  const mapped = result?.portTollIncomeCpBySettlementId?.[settlementId]
+  if (typeof mapped === 'number' && Number.isFinite(mapped)) {
+    return Math.max(0, mapped)
+  }
+  // Older clears may lack the aggregated field; recover on-map tolls at least.
+  const recovered = realizedPortTollIncomeCpBySettlementId(result?.obligationDeltas, null)
+  const amount = recovered[settlementId]
+  return typeof amount === 'number' && Number.isFinite(amount) ? Math.max(0, amount) : 0
+}
+
+/**
  * @param {{
- *   settlements?: Array<{ id: string, population?: number }>,
+ *   settlements?: Array<{ id: string, population?: number, maritimeRole?: string }>,
  *   lastTradeEpochResult?: TradeClearingResult | null,
  *   externalTradeAccounts?: Record<string, number>,
  *   saltNodes?: ReadonlyArray<unknown>,
@@ -118,10 +139,13 @@ export function buildSettlementTradeTooltip(worldDocument, settlementId) {
       ? Math.max(0, Math.floor(populationRaw))
       : 0
 
+  const isPort = settlement.maritimeRole === 'port'
+
   return {
     settlementId,
     population,
     balanceCp: realmBalanceCp + externalCreditCp,
+    portTollsCp: isPort ? portTollsCpFromResult(result, settlementId) : null,
     commodities,
   }
 }

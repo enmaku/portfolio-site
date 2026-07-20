@@ -6,6 +6,7 @@ import {
   COMMODITY_ICONS,
   moneyBagIcon,
   personIcon,
+  portTollsIcon,
 } from './settlementTradeTooltipIcons.js'
 
 /**
@@ -114,6 +115,17 @@ export default defineComponent({
             valueText: formatMoneyCp(tooltip.balanceCp),
             valueClass: signedAmountClass(tooltip.balanceCp),
           }),
+          ...(typeof tooltip.portTollsCp === 'number'
+            ? [
+                iconValueRow({
+                  testId: 'world-builder-settlement-trade-tooltip-port-tolls',
+                  accessibleName: 'Port tolls',
+                  icon: portTollsIcon(),
+                  valueText: formatMoneyCp(tooltip.portTollsCp),
+                  valueClass: signedAmountClass(tooltip.portTollsCp),
+                }),
+              ]
+            : []),
           h(
             'div',
             {

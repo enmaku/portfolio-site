@@ -24,6 +24,9 @@ import {
  *   peoplePerHabitableCell: number,
  *   populationDensity: number,
  *   saltSpoilageMultiplier: number,
+ *   deliveredFoodLb: number,
+ *   deliveredSaltLb: number,
+ *   realmWealthCp: number,
  * }>} overrides
  */
 function triadParams(overrides = {}) {
@@ -50,6 +53,13 @@ function triadParams(overrides = {}) {
     peoplePerHabitableCell: overrides.peoplePerHabitableCell ?? 100_000,
     populationDensity: overrides.populationDensity ?? 1,
     saltSpoilageMultiplier: overrides.saltSpoilageMultiplier ?? 1,
+    ...(overrides.deliveredFoodLb !== undefined
+      ? { deliveredFoodLb: overrides.deliveredFoodLb }
+      : {}),
+    ...(overrides.deliveredSaltLb !== undefined
+      ? { deliveredSaltLb: overrides.deliveredSaltLb }
+      : {}),
+    ...(overrides.realmWealthCp !== undefined ? { realmWealthCp: overrides.realmWealthCp } : {}),
   }
 }
 
@@ -336,4 +346,68 @@ test('applySurvivalResolveToSettlement uses document rasters and freshwater deri
   assert.ok(survival.fishProduction > 0)
   assert.ok(settlement.population <= survival.populationCeiling)
   assert.ok(settlement.tier != null)
+})
+
+test('credit-financed food can hold population but does not create growth surplus', () => {
+  const localOnly = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [1, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 50,
+    }),
+  )
+  // Local food supports 10 people; imports deliver enough for 50.
+  const importFed = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [1, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 50,
+      deliveredFoodLb: 50 * 365,
+      deliveredSaltLb: 50 * 5,
+    }),
+  )
+  assert.ok(localOnly.population < 50)
+  assert.strictEqual(importFed.population, 50)
+  assert.ok(importFed.foodSurplus <= 0, 'imports must not fund surplus growth')
+  assert.ok(localOnly.foodSurplus <= 0 || localOnly.populationCeiling <= PEOPLE_PER_ARABLE_UNIT)
+})
+
+test('delivered shortfall still produces negative surplus for die-off', () => {
+  // Ceiling uses ungated local food; weak salt taxes surplus only (existing spoilage rule).
+  const result = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [10, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 100,
+      saltSpoilageMultiplier: 0.35,
+    }),
+  )
+  assert.strictEqual(result.population, 100)
+  assert.ok(result.foodSurplus < 0)
+})
+
+test('local food surplus does not grow population while settlement is in debt', () => {
+  const solvent = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [20, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 50,
+      realmWealthCp: 100,
+    }),
+  )
+  const indebted = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [20, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 50,
+      realmWealthCp: -31_813.93 * 100,
+    }),
+  )
+  assert.ok(solvent.foodSurplus > 0)
+  assert.equal(indebted.foodSurplus, 0)
 })

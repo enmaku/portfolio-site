@@ -51,6 +51,10 @@ test('settlement trade tooltip host is present when tooltip model is set', async
   assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-balance-label"'), true)
   assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-balance-value"'), true)
   assert.equal(
+    html.includes('data-testid="world-builder-settlement-trade-tooltip-port-tolls"'),
+    true,
+  )
+  assert.equal(
     html.includes('data-testid="world-builder-settlement-trade-tooltip-port-credit"'),
     false,
   )
@@ -76,4 +80,32 @@ test('settlement trade tooltip host is present when tooltip model is set', async
   assert.equal(html.includes('data-trade-role="both"'), true)
   assert.equal(html.includes('data-price-vs-reference="above"'), true)
   assert.equal(html.includes('<svg'), true)
+})
+
+test('settlement trade tooltip omits port tolls row for inland settlements', async () => {
+  const tooltip = buildSettlementTradeTooltip(
+    {
+      settlements: [{ id: 's1', maritimeRole: 'none', population: 100 }],
+      lastTradeEpochResult: {
+        realmBalancesCp: { s1: 0 },
+        settlementCommodityRoles: {},
+        localPricesBySettlementId: {},
+      },
+      externalTradeAccounts: {},
+    },
+    's1',
+  )
+  assert.ok(tooltip)
+  assert.strictEqual(tooltip.portTollsCp, null)
+
+  const html = await renderToString(
+    createSSRApp(WorldBuilderSettlementTradeTooltip, {
+      tooltip,
+      position: { x: 16, y: 24 },
+    }),
+  )
+  assert.equal(
+    html.includes('data-testid="world-builder-settlement-trade-tooltip-port-tolls"'),
+    false,
+  )
 })

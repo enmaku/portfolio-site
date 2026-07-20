@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { BIOMES } from '../biomeIds.js'
-import { applyColonizationEpoch, applySurplusPopulationDelta } from './applyColonizationEpoch.js'
+import { applyColonizationEpoch, applyMarginalWealthAttrition, applySurplusPopulationDelta } from './applyColonizationEpoch.js'
 import { beginColonizationCommit } from './beginColonizationCommit.js'
 import {
   COLONIZATION_PHASE_SETUP,
@@ -44,6 +44,14 @@ test('applySurplusPopulationDelta grows, stalls, and declines by surplus sign', 
   assert.strictEqual(applySurplusPopulationDelta(10, 0, 100), 10)
   assert.ok(applySurplusPopulationDelta(10, -20, 100) < 10)
   assert.strictEqual(applySurplusPopulationDelta(10, 1000, 12), 12)
+})
+
+test('applyMarginalWealthAttrition removes half when wealth is at or below zero', () => {
+  assert.equal(applyMarginalWealthAttrition(1000, 1), 1000)
+  assert.equal(applyMarginalWealthAttrition(1000, 0), 500)
+  assert.equal(applyMarginalWealthAttrition(1000, -50), 500)
+  assert.equal(applyMarginalWealthAttrition(1, 0), 1)
+  assert.equal(applyMarginalWealthAttrition(0, -1), 0)
 })
 
 test('applyColonizationEpoch advances epoch and updates population from surplus', async () => {

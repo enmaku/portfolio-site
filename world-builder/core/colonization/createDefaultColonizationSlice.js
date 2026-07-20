@@ -50,6 +50,7 @@
  * @property {import('./logisticsNodes/scoreLogisticsNodes.js').LogisticsNodeSurveyEntry[]} logisticsNodeSurvey Scored founding candidates.
  * @property {TradeAccountsSlice} tradeAccounts Mutual-credit realm ledgers.
  * @property {Record<string, number>} externalTradeAccounts Port off-map credit (≥ 0).
+ * @property {Record<string, number>} priorRealizedIncomeCp Last active clear's on-map export+toll income by settlement.
  * @property {TradeRouteState} tradeRouteState Candidate edges and current-epoch flows.
  * @property {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null} lastTradeEpochResult Inspect payload from last clearing.
  */
@@ -84,6 +85,7 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'logisticsNodeSurvey',
   'tradeAccounts',
   'externalTradeAccounts',
+  'priorRealizedIncomeCp',
   'tradeRouteState',
   'lastTradeEpochResult',
 ])
@@ -172,6 +174,7 @@ export function createDefaultColonizationSlice() {
     logisticsNodeSurvey: [],
     tradeAccounts: createEmptyTradeAccountsSlice(),
     externalTradeAccounts: {},
+    priorRealizedIncomeCp: {},
     tradeRouteState: createEmptyTradeRouteState(),
     lastTradeEpochResult: null,
   }
@@ -217,6 +220,7 @@ export function resolveColonizationSlice(value) {
     logisticsNodeSurvey: resolveLogisticsNodeSurvey(incoming.logisticsNodeSurvey),
     tradeAccounts: resolveTradeAccounts(incoming.tradeAccounts),
     externalTradeAccounts: resolveExternalTradeAccounts(incoming.externalTradeAccounts),
+    priorRealizedIncomeCp: resolvePriorRealizedIncomeCp(incoming.priorRealizedIncomeCp),
     tradeRouteState: resolveTradeRouteState(incoming.tradeRouteState),
     lastTradeEpochResult: resolveLastTradeEpochResult(incoming.lastTradeEpochResult),
   }
@@ -326,15 +330,17 @@ function resolveTradeAccounts(value) {
         .map((row) => ({
           creditorSettlementId: row.creditorSettlementId,
           debtorSettlementId: row.debtorSettlementId,
-          amountCp: row.amountCp,
+          amountCp: Math.round(row.amountCp) || 0,
         }))
+        .filter((row) => row.amountCp > 0)
     : []
   /** @type {Record<string, number>} */
   const balancesBySettlementId = {}
   if (incoming.balancesBySettlementId && typeof incoming.balancesBySettlementId === 'object') {
     for (const [id, amount] of Object.entries(incoming.balancesBySettlementId)) {
       if (typeof amount === 'number' && Number.isFinite(amount)) {
-        balancesBySettlementId[id] = amount
+        const rounded = Math.round(amount) || 0
+        if (rounded !== 0) balancesBySettlementId[id] = rounded
       }
     }
   }
@@ -346,6 +352,25 @@ function resolveTradeAccounts(value) {
  * @returns {Record<string, number>}
  */
 function resolveExternalTradeAccounts(value) {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+  /** @type {Record<string, number>} */
+  const resolved = {}
+  for (const [id, amount] of Object.entries(value)) {
+    if (typeof amount === 'number' && Number.isFinite(amount) && amount >= 0) {
+      const rounded = Math.round(amount) || 0
+      if (rounded > 0) resolved[id] = rounded
+    }
+  }
+  return resolved
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, number>}
+ */
+function resolvePriorRealizedIncomeCp(value) {
   if (!value || typeof value !== 'object') {
     return {}
   }

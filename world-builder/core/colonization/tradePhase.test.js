@@ -119,18 +119,30 @@ test('same-epoch imports keep a food-less settlement alive that would otherwise 
   assert.strictEqual(strappedB.population, 0)
 })
 
-test('a single living settlement skips pairwise trade and leaves route state empty', async () => {
-  const ctx = createColonizationEpochContext(
-    runningSlice([{ ...FOOD_RICH_SETTLEMENT }]),
-    tradeFixtureDoc(),
-  )
+test('a single living settlement skips pairwise trade and preserves prior ledgers', async () => {
+  const slice = runningSlice([{ ...FOOD_RICH_SETTLEMENT }])
+  slice.tradeAccounts = {
+    obligations: [{ creditorSettlementId: 'a', debtorSettlementId: 'ghost', amountCp: 77 }],
+    balancesBySettlementId: { a: 77, ghost: -77 },
+  }
+  slice.priorRealizedIncomeCp = { a: 12 }
+  slice.lastTradeEpochResult = /** @type {any} */ ({ obligationDeltas: [], realmBalancesCp: { a: 77 } })
+  slice.tradeRouteState = {
+    candidates: [{ id: 'kept', fromSettlementId: 'a', toSettlementId: 'b', mode: 'overland' }],
+    activeFlows: [{ edgeId: 'old', amount: 1 }],
+  }
+
+  const ctx = createColonizationEpochContext(slice, tradeFixtureDoc())
   runColonizationEpochClaimsPhase(ctx)
   await runColonizationEpochTradePhase(ctx)
 
-  assert.strictEqual(ctx.slice.lastTradeEpochResult, null)
+  assert.ok(ctx.slice.lastTradeEpochResult)
+  assert.strictEqual(ctx.slice.priorRealizedIncomeCp.a, 12)
+  assert.deepStrictEqual(ctx.slice.tradeAccounts.obligations, [
+    { creditorSettlementId: 'a', debtorSettlementId: 'ghost', amountCp: 77 },
+  ])
   assert.strictEqual(ctx.slice.tradeRouteState.activeFlows.length, 0)
-  assert.strictEqual(ctx.slice.tradeRouteState.candidates.length, 0)
-  assert.deepStrictEqual(ctx.slice.tradeAccounts.obligations, [])
+  assert.strictEqual(ctx.slice.tradeRouteState.candidates.length, 1)
 })
 
 test('two living settlements activate pairwise clearing with route flows', async () => {
@@ -138,6 +150,23 @@ test('two living settlements activate pairwise clearing with route flows', async
   assert.ok(ctx.slice.lastTradeEpochResult)
   assert.ok(ctx.slice.tradeRouteState.candidates.length > 0)
   assert.ok(ctx.slice.tradeRouteState.activeFlows.length > 0)
+})
+
+test('trade accounts carry debt across a second trade phase', async () => {
+  const first = await runTradeSurvivalRuin([{ ...FOOD_RICH_SETTLEMENT }, { ...FOOD_LESS_SETTLEMENT }])
+  const firstDebt = first.slice.tradeAccounts.balancesBySettlementId.b ?? 0
+  assert.ok(firstDebt < 0, 'importer should owe after first clear')
+
+  const second = createColonizationEpochContext(first.slice, tradeFixtureDoc())
+  runColonizationEpochClaimsPhase(second)
+  await runColonizationEpochTradePhase(second)
+
+  const secondDebt = second.slice.tradeAccounts.balancesBySettlementId.b ?? 0
+  assert.ok(
+    secondDebt <= firstDebt + 1e-6,
+    `debt should persist or deepen, got first=${firstDebt} second=${secondDebt}`,
+  )
+  assert.ok(Object.keys(second.slice.priorRealizedIncomeCp).length > 0)
 })
 
 test('ruin cancels incident bilateral obligations and zeroes external credit', () => {

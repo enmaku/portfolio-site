@@ -32,8 +32,11 @@ export const WEALTH_VALUE_MAX = 0.94
 /** Brightness at full magnitude (mix-in-black hunter / deep red). */
 export const WEALTH_VALUE_MIN = 0.26
 
-/** Neutral (zero net wealth) tint. */
-export const WEALTH_NEUTRAL_RGB = [148, 150, 154]
+/**
+ * Zero net wealth tint — amber/orange for marginal settlements barely clearing,
+ * not a calm gray “neutral.”
+ */
+export const WEALTH_NEUTRAL_RGB = [236, 148, 52]
 
 /** Stained-glass fill: high floor so shade, not wash, carries magnitude. */
 export const WEALTH_OVERLAY_MIN_ALPHA = 0.58

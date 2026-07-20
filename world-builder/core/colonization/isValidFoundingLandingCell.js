@@ -1,6 +1,6 @@
 import { SEA_LEVEL } from '../biomeIds.js'
 import { isOceanCell } from '../fields/applyClosedIslandRim.js'
-import { collectConnectedComponents } from '../grid/gridTopology.js'
+import { collectConnectedComponents, labelConnectedComponents } from '../grid/gridTopology.js'
 import { deriveSailOverlayMask } from '../sail/deriveSailOverlayMask.js'
 
 /** Grid cells within this Chebyshev radius of a click may snap to a valid landing. */
@@ -18,6 +18,7 @@ export const MIN_COLONIZABLE_LANDMASS_CELLS = 32
  * @property {number} height
  * @property {boolean[]} ocean
  * @property {Uint8Array} sailMask
+ * @property {Uint8Array} sailReachesOcean 1 where sail cell is 8-connected to ocean via sail
  * @property {Set<string>} mouthKeys
  * @property {Uint32Array} landmassSizeByCell
  */
@@ -43,18 +44,20 @@ export function createFoundingLandingValidityContext(doc) {
   }
 
   const ocean = isOceanCell(elevation, width, height, SEA_LEVEL)
+  const sailMask = deriveSailOverlayMask({
+    elevation,
+    lakeMask: doc.lakeMask,
+    riverCorridorMask: doc.riverCorridorMask,
+    gridWidth: width,
+    gridHeight: height,
+    seaLevel: SEA_LEVEL,
+  })
   return {
     width,
     height,
     ocean,
-    sailMask: deriveSailOverlayMask({
-      elevation,
-      lakeMask: doc.lakeMask,
-      riverCorridorMask: doc.riverCorridorMask,
-      gridWidth: width,
-      gridHeight: height,
-      seaLevel: SEA_LEVEL,
-    }),
+    sailMask,
+    sailReachesOcean: buildSailReachesOceanMask(sailMask, ocean, width, height),
     mouthKeys,
     landmassSizeByCell: buildLandmassSizeByCell(ocean, width, height),
   }
@@ -164,6 +167,31 @@ export function snapFoundingLandingCell(
 ) {
   const ctx = createFoundingLandingValidityContext(doc)
   return snapFoundingLandingCellInContext(ctx, x, y, maxDistance)
+}
+
+/**
+ * @param {Uint8Array} sailMask
+ * @param {boolean[]} ocean
+ * @param {number} width
+ * @param {number} height
+ * @returns {Uint8Array}
+ */
+function buildSailReachesOceanMask(sailMask, ocean, width, height) {
+  const { labels, componentCount } = labelConnectedComponents(sailMask, width, height, 8)
+  const componentTouchesOcean = new Uint8Array(componentCount)
+  for (let i = 0; i < sailMask.length; i += 1) {
+    const label = labels[i]
+    if (label < 0 || !ocean[i]) continue
+    componentTouchesOcean[label] = 1
+  }
+  const reaches = new Uint8Array(sailMask.length)
+  for (let i = 0; i < sailMask.length; i += 1) {
+    const label = labels[i]
+    if (label >= 0 && componentTouchesOcean[label]) {
+      reaches[i] = 1
+    }
+  }
+  return reaches
 }
 
 /**

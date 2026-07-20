@@ -11,6 +11,8 @@ import { sumFishProductionOnCells } from '../../colonization/fish/sumFishProduct
 import { classifySettlementMaritimeRole } from '../../colonization/expeditions/classifySettlementMaritimeRole.js'
 import { livingSettlements } from '../../colonization/expeditions/expeditionConstants.js'
 import { recomputeBalances } from '../ledgers/bilateralObligations.js'
+import { realizedOnMapIncomeCpBySettlementId } from '../ledgers/realizedIncome.js'
+import { roundMoneyCp } from '../formatMoneyCp.js'
 import { buildCandidateTradeGraph } from '../tradeGraph/buildCandidateRoutes.js'
 import { runTradeClearing } from './runTradeClearing.js'
 
@@ -29,6 +31,7 @@ export const TRADE_ACTIVATION_MIN_SETTLEMENTS = 2
  * @property {Record<string, { foodLb: number, saltLb: number }>} effectiveDeliveredBySettlementId
  * @property {TradeAccountsState} tradeAccounts Netted realm obligations + balances.
  * @property {Record<string, number>} externalTradeAccounts Port off-map credit (≥ 0).
+ * @property {Record<string, number>} priorRealizedIncomeCp On-map export+toll income from this clear (or preserved).
  * @property {{ candidates: TradeRouteEdge[], activeFlows: import('./runTradeClearing.js').TradeFlow[] }} tradeRouteState
  * @property {import('./runTradeClearing.js').TradeClearingResult | null} lastTradeEpochResult
  */
@@ -99,6 +102,7 @@ export async function clearRealmTrade(params, options = {}) {
       x: settlement.x,
       y: settlement.y,
     })
+    settlement.maritimeRole = maritimeRole
     graphSettlements.push({
       id: settlement.id,
       x: settlement.x,
@@ -125,10 +129,17 @@ export async function clearRealmTrade(params, options = {}) {
     return {
       active: false,
       effectiveDeliveredBySettlementId: localDelivered(production),
-      tradeAccounts: { obligations: [], balancesBySettlementId: {} },
+      tradeAccounts: {
+        obligations: (slice.tradeAccounts?.obligations ?? []).map((row) => ({ ...row })),
+        balancesBySettlementId: { ...(slice.tradeAccounts?.balancesBySettlementId ?? {}) },
+      },
       externalTradeAccounts: { ...slice.externalTradeAccounts },
-      tradeRouteState: { candidates: [], activeFlows: [] },
-      lastTradeEpochResult: null,
+      priorRealizedIncomeCp: { ...(slice.priorRealizedIncomeCp ?? {}) },
+      tradeRouteState: {
+        candidates: [...(slice.tradeRouteState?.candidates ?? [])],
+        activeFlows: [],
+      },
+      lastTradeEpochResult: slice.lastTradeEpochResult ?? null,
     }
   }
 
@@ -147,19 +158,29 @@ export async function clearRealmTrade(params, options = {}) {
   })
   await yieldToUi?.()
 
+  const priorRealizedIncomeCp =
+    slice.priorRealizedIncomeCp && Object.keys(slice.priorRealizedIncomeCp).length > 0
+      ? slice.priorRealizedIncomeCp
+      : realizedOnMapIncomeCpBySettlementId(slice.lastTradeEpochResult?.obligationDeltas)
+
   const result = await runTradeClearing(
     {
       settlements: clearingSettlements,
       graph,
       production,
       externalAccountsCp: slice.externalTradeAccounts,
+      priorTradeAccounts: slice.tradeAccounts,
+      priorRealizedIncomeCp,
     },
     options,
   )
   /** @type {Record<string, number>} */
   const externalTradeAccounts = { ...slice.externalTradeAccounts }
   for (const [id, delta] of Object.entries(result.externalAccountDeltas)) {
-    externalTradeAccounts[id] = Math.max(0, (externalTradeAccounts[id] ?? 0) + delta)
+    externalTradeAccounts[id] = Math.max(
+      0,
+      roundMoneyCp((externalTradeAccounts[id] ?? 0) + delta),
+    )
   }
 
   /** @type {TradeAccountsState} */
@@ -174,6 +195,7 @@ export async function clearRealmTrade(params, options = {}) {
     effectiveDeliveredBySettlementId: result.effectiveDelivered,
     tradeAccounts,
     externalTradeAccounts,
+    priorRealizedIncomeCp: realizedOnMapIncomeCpBySettlementId(result.obligationDeltas),
     tradeRouteState: { candidates: graph.edges, activeFlows: result.flows },
     lastTradeEpochResult: result,
   }
