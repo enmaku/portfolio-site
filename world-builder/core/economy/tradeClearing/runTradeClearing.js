@@ -19,6 +19,7 @@ import { findMinCostPath } from './pathSearch.js'
 import { clearOffMapTrade, clearOffMapTradeSync } from './offMapTrade.js'
 import { creditLimitCp } from '../ledgers/creditLimit.js'
 import { creditRoomCpForImport } from '../ledgers/creditRoom.js'
+import { roundMoneyCp } from '../formatMoneyCp.js'
 import { realizedPortTollIncomeCpBySettlementId } from '../ledgers/realizedIncome.js'
 import { applyObligation } from '../ledgers/bilateralObligations.js'
 
@@ -251,7 +252,7 @@ function createClearingState(params = {}) {
   const priorBalances = params.priorTradeAccounts?.balancesBySettlementId ?? {}
   /** @type {Map<string, number>} netOwed: debits − credits (positive = owes) */
   const netOwed = new Map(
-    settlements.map((s) => [s.id, -(priorBalances[s.id] ?? 0)]),
+    settlements.map((s) => [s.id, -roundMoneyCp(priorBalances[s.id] ?? 0)]),
   )
   /** @type {Map<string, number>} */
   const openingNetOwed = new Map(netOwed)
@@ -266,12 +267,17 @@ function createClearingState(params = {}) {
 
   /** @type {Map<string, number>} absolute external balances (cannot go negative) */
   const externalAccounts = new Map(
-    settlements.map((s) => [s.id, Math.max(0, params.externalAccountsCp?.[s.id] ?? 0)]),
+    settlements.map((s) => [
+      s.id,
+      Math.max(0, roundMoneyCp(params.externalAccountsCp?.[s.id] ?? 0)),
+    ]),
   )
   const externalInitial = new Map(externalAccounts)
 
   const priorObligations = Array.isArray(params.priorTradeAccounts?.obligations)
-    ? params.priorTradeAccounts.obligations.map((row) => ({ ...row }))
+    ? params.priorTradeAccounts.obligations
+        .map((row) => ({ ...row, amountCp: roundMoneyCp(row.amountCp) }))
+        .filter((row) => row.amountCp > 0)
     : []
 
   return {
@@ -598,10 +604,18 @@ export { creditRoomCpForImport }
  */
 export function addObligation(state, delta) {
   if (delta.fromSettlementId === delta.toSettlementId) return
-  if (!(delta.amountCp > EPSILON)) return
-  state.obligationDeltas.push(delta)
-  state.netOwed.set(delta.fromSettlementId, (state.netOwed.get(delta.fromSettlementId) ?? 0) + delta.amountCp)
-  state.netOwed.set(delta.toSettlementId, (state.netOwed.get(delta.toSettlementId) ?? 0) - delta.amountCp)
+  const amountCp = roundMoneyCp(delta.amountCp)
+  if (!(amountCp > 0)) return
+  const rounded = { ...delta, amountCp }
+  state.obligationDeltas.push(rounded)
+  state.netOwed.set(
+    delta.fromSettlementId,
+    roundMoneyCp((state.netOwed.get(delta.fromSettlementId) ?? 0) + amountCp),
+  )
+  state.netOwed.set(
+    delta.toSettlementId,
+    roundMoneyCp((state.netOwed.get(delta.toSettlementId) ?? 0) - amountCp),
+  )
 }
 
 /**
@@ -632,14 +646,16 @@ function buildResult(state) {
       foodLb: (bag?.grain ?? 0) + (bag?.fish ?? 0),
       saltLb: bag?.salt ?? 0,
     }
-    realmBalancesCp[s.id] = -(state.netOwed.get(s.id) ?? 0)
+    realmBalancesCp[s.id] = roundMoneyCp(-(state.netOwed.get(s.id) ?? 0))
   }
 
   /** @type {Record<string, number>} */
   const externalAccountDeltas = {}
   for (const s of state.settlements) {
-    const delta = (state.externalAccounts.get(s.id) ?? 0) - (state.externalInitial.get(s.id) ?? 0)
-    if (Math.abs(delta) > EPSILON) externalAccountDeltas[s.id] = delta
+    const delta = roundMoneyCp(
+      (state.externalAccounts.get(s.id) ?? 0) - (state.externalInitial.get(s.id) ?? 0),
+    )
+    if (delta !== 0) externalAccountDeltas[s.id] = delta
   }
 
   let accounts = {

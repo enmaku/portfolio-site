@@ -12,6 +12,7 @@ import { classifySettlementMaritimeRole } from '../../colonization/expeditions/c
 import { livingSettlements } from '../../colonization/expeditions/expeditionConstants.js'
 import { recomputeBalances } from '../ledgers/bilateralObligations.js'
 import { realizedOnMapIncomeCpBySettlementId } from '../ledgers/realizedIncome.js'
+import { roundMoneyCp } from '../formatMoneyCp.js'
 import { buildCandidateTradeGraph } from '../tradeGraph/buildCandidateRoutes.js'
 import { runTradeClearing } from './runTradeClearing.js'
 
@@ -175,7 +176,10 @@ export async function clearRealmTrade(params, options = {}) {
   /** @type {Record<string, number>} */
   const externalTradeAccounts = { ...slice.externalTradeAccounts }
   for (const [id, delta] of Object.entries(result.externalAccountDeltas)) {
-    externalTradeAccounts[id] = Math.max(0, (externalTradeAccounts[id] ?? 0) + delta)
+    externalTradeAccounts[id] = Math.max(
+      0,
+      roundMoneyCp((externalTradeAccounts[id] ?? 0) + delta),
+    )
   }
 
   /** @type {TradeAccountsState} */

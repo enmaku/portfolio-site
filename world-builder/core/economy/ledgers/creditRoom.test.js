@@ -13,34 +13,31 @@ test('survival under limit uses creditLimit minus netOwed', () => {
   assert.equal(creditRoomCpForImport(state, 'a', 'salt'), 60)
 })
 
-test('opening in debt freezes comfort and prosperity for the whole epoch', () => {
-  const stillInDebt = {
-    overLimitAtOpen: new Map([['a', false]]),
-    openingNetOwed: new Map([['a', 40]]),
-    netOwed: new Map([['a', 40]]),
-    creditLimit: new Map([['a', 100]]),
-  }
-  assert.equal(creditRoomCpForImport(stillInDebt, 'a', 'comfort'), 0)
-  assert.equal(creditRoomCpForImport(stillInDebt, 'a', 'prosperity'), 0)
-
-  const clearedMidEpoch = {
-    overLimitAtOpen: new Map([['a', false]]),
-    openingNetOwed: new Map([['a', 200]]),
-    netOwed: new Map([['a', -30]]),
-    creditLimit: new Map([['a', 500]]),
-  }
-  assert.equal(creditRoomCpForImport(clearedMidEpoch, 'a', 'prosperity'), 0)
-})
-
-test('zero-balance settlements may use the credit line for prosperity', () => {
-  const state = {
+test('comfort and prosperity never borrow and freeze when opening in debt', () => {
+  const zeroOpen = {
     overLimitAtOpen: new Map([['a', false]]),
     openingNetOwed: new Map([['a', 0]]),
     netOwed: new Map([['a', 0]]),
     creditLimit: new Map([['a', 100]]),
   }
-  assert.equal(creditRoomCpForImport(state, 'a', 'prosperity'), 100)
-  assert.equal(creditRoomCpForImport(state, 'a', 'comfort'), 100)
+  assert.equal(creditRoomCpForImport(zeroOpen, 'a', 'prosperity'), 0)
+  assert.equal(creditRoomCpForImport(zeroOpen, 'a', 'comfort'), 0)
+
+  const creditor = {
+    overLimitAtOpen: new Map([['a', false]]),
+    openingNetOwed: new Map([['a', -50]]),
+    netOwed: new Map([['a', -50]]),
+    creditLimit: new Map([['a', 100]]),
+  }
+  assert.equal(creditRoomCpForImport(creditor, 'a', 'prosperity'), 50)
+
+  const openedInDebt = {
+    overLimitAtOpen: new Map([['a', false]]),
+    openingNetOwed: new Map([['a', 200]]),
+    netOwed: new Map([['a', -30]]),
+    creditLimit: new Map([['a', 500]]),
+  }
+  assert.equal(creditRoomCpForImport(openedInDebt, 'a', 'prosperity'), 0)
 })
 
 test('over limit survival uses earnings only', () => {

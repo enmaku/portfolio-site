@@ -330,15 +330,17 @@ function resolveTradeAccounts(value) {
         .map((row) => ({
           creditorSettlementId: row.creditorSettlementId,
           debtorSettlementId: row.debtorSettlementId,
-          amountCp: row.amountCp,
+          amountCp: Math.round(row.amountCp) || 0,
         }))
+        .filter((row) => row.amountCp > 0)
     : []
   /** @type {Record<string, number>} */
   const balancesBySettlementId = {}
   if (incoming.balancesBySettlementId && typeof incoming.balancesBySettlementId === 'object') {
     for (const [id, amount] of Object.entries(incoming.balancesBySettlementId)) {
       if (typeof amount === 'number' && Number.isFinite(amount)) {
-        balancesBySettlementId[id] = amount
+        const rounded = Math.round(amount) || 0
+        if (rounded !== 0) balancesBySettlementId[id] = rounded
       }
     }
   }
@@ -357,7 +359,8 @@ function resolveExternalTradeAccounts(value) {
   const resolved = {}
   for (const [id, amount] of Object.entries(value)) {
     if (typeof amount === 'number' && Number.isFinite(amount) && amount >= 0) {
-      resolved[id] = amount
+      const rounded = Math.round(amount) || 0
+      if (rounded > 0) resolved[id] = rounded
     }
   }
   return resolved

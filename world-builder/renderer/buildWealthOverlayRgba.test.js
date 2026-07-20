@@ -4,6 +4,7 @@ import {
   buildWealthOverlayRgba,
   computeSettlementWealthSignals,
   WEALTH_CLAIM_OUTLINE_RGBA,
+  WEALTH_NEUTRAL_RGB,
   WEALTH_OVERLAY_MAX_ALPHA,
   WEALTH_OVERLAY_MIN_ALPHA,
   wealthTintRgb,
@@ -303,6 +304,14 @@ test('mild surplus stays bright lime while full surplus reaches dark hunter', ()
   assert.ok(mild[1] > mild[0], 'mild surplus should be green-dominant')
   assert.ok(full[1] > full[0], 'full surplus should stay green-dominant')
   assert.ok(mild[1] > full[1], 'full surplus green channel drops as brightness mixes toward black')
+})
+
+test('zero net wealth paints amber orange, not gray', () => {
+  const zero = wealthTintRgb(0)
+  assert.deepEqual(zero, WEALTH_NEUTRAL_RGB)
+  assert.ok(zero[0] > zero[2], 'orange should be red-dominant over blue')
+  assert.ok(zero[0] > zero[1], 'orange should be red-dominant over green')
+  assert.ok(zero[1] > zero[2], 'amber orange keeps green above blue')
 })
 
 test('paints a thin black outline between abutting primary claims', () => {

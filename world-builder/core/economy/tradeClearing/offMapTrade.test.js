@@ -82,10 +82,10 @@ test('port dumps own diamond surplus to external account without self-obligation
   let expectedLoadingTollsCp = 0
   for (const trade of result.offMapTrades) {
     if (trade.direction !== 'export' || trade.settlementId !== 'port') continue
-    expectedLoadingTollsCp += 0.05 * trade.unitPriceCp * trade.amount
+    expectedLoadingTollsCp += Math.round(0.05 * trade.unitPriceCp * trade.amount)
   }
   assert.ok(
-    Math.abs((result.portTollIncomeCpBySettlementId.port ?? 0) - expectedLoadingTollsCp) < 1e-3,
+    Math.abs((result.portTollIncomeCpBySettlementId.port ?? 0) - expectedLoadingTollsCp) < 1e-9,
     `toll income ${result.portTollIncomeCpBySettlementId.port} vs ${expectedLoadingTollsCp}`,
   )
 })
@@ -141,7 +141,7 @@ test('inland diamonds dump through cheapest reachable port when worth-it', () =>
     (o) => o.fromSettlementId === 'near' && o.toSettlementId === 'mine' && o.kind === 'goods',
   )
   assert.ok(portOwesMine)
-  assert.ok(Math.abs(portOwesMine.amountCp - saleCp) < 1e-3, `owed ${portOwesMine.amountCp} vs sale ${saleCp}`)
+  assert.ok(Math.abs(portOwesMine.amountCp - Math.round(saleCp)) < 1e-9, `owed ${portOwesMine.amountCp} vs sale ${saleCp}`)
   assert.ok((result.externalAccountDeltas.near ?? 0) > 0)
 })
 
@@ -214,6 +214,10 @@ test('port fills own import needs before mediating hinterland last-line imports'
     graph,
     production: prod,
     priorRealizedIncomeCp: { inland: 1_000_000 },
+    // Prosperity never borrows; both need saved realm credit to shop luxuries offshore.
+    priorTradeAccounts: {
+      balancesBySettlementId: { port: 1_000_000, inland: 1_000_000 },
+    },
   })
 
   const portTimber = result.offMapTrades.filter(
@@ -228,6 +232,35 @@ test('port fills own import needs before mediating hinterland last-line imports'
   if (inlandTimber.length > 0) {
     assert.ok(portTimber[0].amount + inlandTimber[0].amount > portTimber[0].amount - 1e-9)
   }
+})
+
+test('indebted port cannot off-map-import luxuries despite external credit', () => {
+  const settlements = [{ id: 'port', population: 100, maritimeRole: 'port' }]
+  const prod = production({
+    port: { grain: 43800, salt: 500 },
+  })
+
+  const result = runTradeClearingSync({
+    settlements,
+    graph: { edges: [] },
+    production: prod,
+    externalAccountsCp: { port: 1_000_000 },
+    priorTradeAccounts: {
+      balancesBySettlementId: { port: -50_000 },
+    },
+  })
+
+  assert.equal(
+    result.offMapTrades.some(
+      (t) =>
+        t.direction === 'import' &&
+        (t.commodityId === 'timber' ||
+          t.commodityId === 'copper' ||
+          t.commodityId === 'silver' ||
+          t.commodityId === 'gold'),
+    ),
+    false,
+  )
 })
 
 test('off-map substep emits per-settlement item progress across export and import sweeps', async () => {

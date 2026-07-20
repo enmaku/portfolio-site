@@ -3,6 +3,8 @@
  * Domain: world-builder/CONTEXT.md — mutual credit, bilateral obligation.
  */
 
+import { roundMoneyCp } from '../formatMoneyCp.js'
+
 /**
  * @typedef {Object} BilateralObligation
  * @property {string} creditorSettlementId Settlement owed value (positive balance contributor).
@@ -31,8 +33,14 @@ export function recomputeBalances(state) {
   /** @type {Record<string, number>} */
   const balances = {}
   for (const edge of state.obligations) {
-    balances[edge.creditorSettlementId] = (balances[edge.creditorSettlementId] ?? 0) + edge.amountCp
-    balances[edge.debtorSettlementId] = (balances[edge.debtorSettlementId] ?? 0) - edge.amountCp
+    const amountCp = roundMoneyCp(edge.amountCp)
+    if (!(amountCp > 0)) continue
+    balances[edge.creditorSettlementId] =
+      (balances[edge.creditorSettlementId] ?? 0) + amountCp
+    balances[edge.debtorSettlementId] = (balances[edge.debtorSettlementId] ?? 0) - amountCp
+  }
+  for (const id of Object.keys(balances)) {
+    balances[id] = roundMoneyCp(balances[id])
   }
   state.balancesBySettlementId = balances
   return balances
@@ -47,7 +55,8 @@ export function recomputeBalances(state) {
  * @returns {TradeAccountsState}
  */
 export function applyObligation(state, delta) {
-  if (!(delta.amountCp > 0) || delta.fromSettlementId === delta.toSettlementId) {
+  const amountCp = roundMoneyCp(delta.amountCp)
+  if (!(amountCp > 0) || delta.fromSettlementId === delta.toSettlementId) {
     return state
   }
   const next = {
@@ -57,7 +66,7 @@ export function applyObligation(state, delta) {
   next.obligations.push({
     creditorSettlementId: delta.toSettlementId,
     debtorSettlementId: delta.fromSettlementId,
-    amountCp: delta.amountCp,
+    amountCp,
   })
   return netPairwiseObligations(next)
 }
@@ -70,6 +79,8 @@ export function netPairwiseObligations(state) {
   /** @type {Map<string, number>} */
   const net = new Map()
   for (const edge of state.obligations) {
+    const amountCp = roundMoneyCp(edge.amountCp)
+    if (!(amountCp > 0)) continue
     const lo =
       edge.creditorSettlementId < edge.debtorSettlementId
         ? edge.creditorSettlementId
@@ -80,12 +91,13 @@ export function netPairwiseObligations(state) {
         : edge.creditorSettlementId
     const key = `${lo}|${hi}`
     const sign = edge.creditorSettlementId === lo ? 1 : -1
-    net.set(key, (net.get(key) ?? 0) + sign * edge.amountCp)
+    net.set(key, (net.get(key) ?? 0) + sign * amountCp)
   }
   /** @type {BilateralObligation[]} */
   const obligations = []
-  for (const [key, amount] of net) {
-    if (!(amount !== 0) || !Number.isFinite(amount)) continue
+  for (const [key, rawAmount] of net) {
+    const amount = roundMoneyCp(rawAmount)
+    if (amount === 0) continue
     const [lo, hi] = key.split('|')
     if (amount > 0) {
       obligations.push({ creditorSettlementId: lo, debtorSettlementId: hi, amountCp: amount })
@@ -144,11 +156,14 @@ export function transferObligationsOnMerge(state, params) {
     return {
       creditorSettlementId: creditor,
       debtorSettlementId: debtor,
-      amountCp: edge.amountCp,
+      amountCp: roundMoneyCp(edge.amountCp),
     }
   })
   return netPairwiseObligations({
-    obligations: remapped.filter((edge) => edge.creditorSettlementId !== edge.debtorSettlementId),
+    obligations: remapped.filter(
+      (edge) =>
+        edge.creditorSettlementId !== edge.debtorSettlementId && edge.amountCp > 0,
+    ),
     balancesBySettlementId: {},
   })
 }

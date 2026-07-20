@@ -67,7 +67,7 @@ test('survival: grain surplus flows over a single overland edge to a starving ne
     (o) => o.fromSettlementId === 'b' && o.toSettlementId === 'a',
   )
   assert.ok(obligation, 'expected b to owe a')
-  assert.ok(Math.abs(obligation.amountCp - expectedCp) < 1e-6)
+  assert.ok(Math.abs(obligation.amountCp - Math.round(expectedCp)) < 1e-9)
 
   assert.strictEqual(result.settlementCommodityRoles.a.grain, 'export')
   assert.strictEqual(result.settlementCommodityRoles.b.grain, 'import')
@@ -88,6 +88,11 @@ test('comfort raises food to 120% of survival while salt stays at 100%', () => {
     graph,
     production: prod,
     priorRealizedIncomeCp: { b: 1_000_000_000 },
+    // Comfort never borrows; b needs saved credit to climb past the survival floor.
+    priorTradeAccounts: {
+      obligations: [{ creditorSettlementId: 'b', debtorSettlementId: 'a', amountCp: 1_000_000_000 }],
+      balancesBySettlementId: { a: -1_000_000_000, b: 1_000_000_000 },
+    },
   })
 
   // Food climbs to 120% of the 36500 survival floor; salt holds at the 100% floor.
@@ -114,6 +119,10 @@ test('prosperity fills each commodity to the 1 gp/person reference target at loc
     graph,
     production: prod,
     priorRealizedIncomeCp: { b: 1_000_000_000 },
+    priorTradeAccounts: {
+      obligations: [{ creditorSettlementId: 'b', debtorSettlementId: 'a', amountCp: 1_000_000_000 }],
+      balancesBySettlementId: { a: -1_000_000_000, b: 1_000_000_000 },
+    },
   })
 
   // 1 gp/person at 0.5 cp/lb reference = (100 × 100) / 0.5 = 20000 lb timber.
@@ -128,7 +137,7 @@ test('prosperity fills each commodity to the 1 gp/person reference target at loc
     (o) => o.fromSettlementId === 'b' && o.toSettlementId === 'a' && o.kind === 'goods',
   )
   assert.ok(obligation)
-  assert.ok(Math.abs(obligation.amountCp - expectedCp) < 1e-6)
+  assert.ok(Math.abs(obligation.amountCp - Math.round(expectedCp)) < 1e-9)
 })
 
 test('a haul costlier than the arbitrage gap carries nothing', () => {
@@ -243,6 +252,10 @@ test('overflow spills onto the next paying mode when the cheaper edge saturates'
     graph,
     production: prod,
     priorRealizedIncomeCp: { b: 1_000_000_000 },
+    priorTradeAccounts: {
+      obligations: [{ creditorSettlementId: 'b', debtorSettlementId: 'a', amountCp: 1_000_000_000 }],
+      balancesBySettlementId: { a: -1_000_000_000, b: 1_000_000_000 },
+    },
   })
 
   const sumByMode = (mode) =>
@@ -275,6 +288,10 @@ test('transshipment moves goods through an intermediate that neither buys nor re
     graph,
     production: prod,
     priorRealizedIncomeCp: { b: 1_000_000_000 },
+    priorTradeAccounts: {
+      obligations: [{ creditorSettlementId: 'b', debtorSettlementId: 'a', amountCp: 1_000_000_000 }],
+      balancesBySettlementId: { a: -1_000_000_000, b: 1_000_000_000 },
+    },
   })
 
   const legAM = result.flows
@@ -297,7 +314,7 @@ test('transshipment moves goods through an intermediate that neither buys nor re
     .filter((o) => o.fromSettlementId === 'b' && o.toSettlementId === 'a' && o.kind === 'goods')
     .reduce((s, o) => s + o.amountCp, 0)
   const prices = computeConnectedMarketPrices({ settlements, edges: graph.edges, production: prod })
-  assert.ok(Math.abs(goodsCp - (prices.b.grain - 0.1) * 43800) < 1e-6)
+  assert.ok(Math.abs(goodsCp - Math.round((prices.b.grain - 0.1) * 43800)) < 1e-9)
 })
 
 test('sea shipment tolls the importer at the loading port; the unload self-toll nets to zero', () => {
@@ -326,9 +343,9 @@ test('sea shipment tolls the importer at the loading port; the unload self-toll 
   assert.strictEqual(tolls[0].toSettlementId, 'a')
 
   const prices = computeConnectedMarketPrices({ settlements, edges: graph.edges, production: prod })
-  const expectedTollCp = 0.05 * prices.b.grain * 36500
-  assert.ok(Math.abs(tolls[0].amountCp - expectedTollCp) < 1e-6)
-  assert.ok(Math.abs((result.portTollIncomeCpBySettlementId.a ?? 0) - expectedTollCp) < 1e-6)
+  const expectedTollCp = Math.round(0.05 * prices.b.grain * 36500)
+  assert.ok(Math.abs(tolls[0].amountCp - expectedTollCp) < 1e-9)
+  assert.ok(Math.abs((result.portTollIncomeCpBySettlementId.a ?? 0) - expectedTollCp) < 1e-9)
   assert.strictEqual(result.portTollIncomeCpBySettlementId.b, undefined)
 
   // No obligation is ever a settlement owing itself.
@@ -378,7 +395,15 @@ test('off-map exports clear before imports so earnings fund the purchase', () =>
     p: { grain: 200000, salt: 500, baseMetals: 1000, copper: 200, silver: 20, gold: 2, diamonds: 0.01 },
   })
 
-  const result = runTradeClearingSync({ settlements, graph: { edges: [] }, production: prod })
+  const result = runTradeClearingSync({
+    settlements,
+    graph: { edges: [] },
+    production: prod,
+    // Prosperity own-needs also need realm credit room; external earnings alone are not enough.
+    priorTradeAccounts: {
+      balancesBySettlementId: { p: 1_000_000_000 },
+    },
+  })
 
   const grainExport = result.offMapTrades.find(
     (t) => t.commodityId === 'grain' && t.direction === 'export',
@@ -395,12 +420,12 @@ test('off-map exports clear before imports so earnings fund the purchase', () =>
   assert.strictEqual(timberImport.unitPriceCp, 1.25)
 
   // Export earnings + loading toll minus the import spend, staying positive.
-  const loadingToll = 0.05 * 0.5 * 156200
-  const earnings = 156200 * 0.5 + loadingToll
-  const timberSpend = 20000 * 1.25
-  assert.ok(Math.abs(result.externalAccountDeltas.p - (earnings - timberSpend)) < 1e-6)
+  const loadingToll = Math.round(0.05 * 0.5 * 156200)
+  const earnings = Math.round(156200 * 0.5) + loadingToll
+  const timberSpend = Math.round(20000 * 1.25)
+  assert.ok(Math.abs(result.externalAccountDeltas.p - (earnings - timberSpend)) < 1e-9)
   assert.ok(result.externalAccountDeltas.p > 0)
-  assert.ok(Math.abs((result.portTollIncomeCpBySettlementId.p ?? 0) - loadingToll) < 1e-6)
+  assert.ok(Math.abs((result.portTollIncomeCpBySettlementId.p ?? 0) - loadingToll) < 1e-9)
 })
 
 test('off-map imports cannot drive the external account negative', () => {
@@ -408,9 +433,16 @@ test('off-map imports cannot drive the external account negative', () => {
   // Only a tiny grain surplus, so timber imports are throttled by external earnings.
   const prod = production({ p: { grain: 44800, salt: 500 } })
 
-  const result = runTradeClearingSync({ settlements, graph: { edges: [] }, production: prod })
+  const result = runTradeClearingSync({
+    settlements,
+    graph: { edges: [] },
+    production: prod,
+    priorTradeAccounts: {
+      balancesBySettlementId: { p: 1_000_000_000 },
+    },
+  })
 
-  const earnings = 1000 * 0.5 + 0.05 * 0.5 * 1000
+  const earnings = Math.round(1000 * 0.5) + Math.round(0.05 * 0.5 * 1000)
   const timberImport = result.offMapTrades.find(
     (t) => t.commodityId === 'timber' && t.direction === 'import',
   )
@@ -424,11 +456,14 @@ test('mutual credit nets opposing pair obligations and realm balances sum to zer
   const settlements = [
     { id: 'a', population: 100 },
     { id: 'b', population: 100 },
+    { id: 'bank', population: 0 },
   ]
   // a sells copper to b; b sells timber to a — opposing obligations on the same pair.
+  // Both need saved credit (prosperity never borrows); bank holds the matching debt.
   const prod = production({
     a: { grain: 200000, salt: 200000, copper: 5000 },
     b: { grain: 200000, salt: 200000, timber: 5_000_000 },
+    bank: {},
   })
   const graph = {
     edges: [edge({ fromSettlementId: 'a', toSettlementId: 'b', transportCostCpPerLb: 0.01 })],
@@ -439,6 +474,13 @@ test('mutual credit nets opposing pair obligations and realm balances sum to zer
     graph,
     production: prod,
     priorRealizedIncomeCp: { a: 1_000_000_000, b: 1_000_000_000 },
+    priorTradeAccounts: {
+      obligations: [
+        { creditorSettlementId: 'a', debtorSettlementId: 'bank', amountCp: 1_000_000_000 },
+        { creditorSettlementId: 'b', debtorSettlementId: 'bank', amountCp: 1_000_000_000 },
+      ],
+      balancesBySettlementId: { a: 1_000_000_000, b: 1_000_000_000, bank: -2_000_000_000 },
+    },
   })
 
   // Both directions traded.
