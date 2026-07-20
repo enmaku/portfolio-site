@@ -79,6 +79,15 @@ test('port dumps own diamond surplus to external account without self-obligation
     ),
   )
   assert.ok((result.externalAccountDeltas.port ?? 0) > 0)
+  let expectedLoadingTollsCp = 0
+  for (const trade of result.offMapTrades) {
+    if (trade.direction !== 'export' || trade.settlementId !== 'port') continue
+    expectedLoadingTollsCp += 0.05 * trade.unitPriceCp * trade.amount
+  }
+  assert.ok(
+    Math.abs((result.portTollIncomeCpBySettlementId.port ?? 0) - expectedLoadingTollsCp) < 1e-3,
+    `toll income ${result.portTollIncomeCpBySettlementId.port} vs ${expectedLoadingTollsCp}`,
+  )
 })
 
 test('inland diamonds dump through cheapest reachable port when worth-it', () => {

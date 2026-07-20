@@ -328,6 +328,8 @@ test('sea shipment tolls the importer at the loading port; the unload self-toll 
   const prices = computeConnectedMarketPrices({ settlements, edges: graph.edges, production: prod })
   const expectedTollCp = 0.05 * prices.b.grain * 36500
   assert.ok(Math.abs(tolls[0].amountCp - expectedTollCp) < 1e-6)
+  assert.ok(Math.abs((result.portTollIncomeCpBySettlementId.a ?? 0) - expectedTollCp) < 1e-6)
+  assert.strictEqual(result.portTollIncomeCpBySettlementId.b, undefined)
 
   // No obligation is ever a settlement owing itself.
   assert.ok(result.obligationDeltas.every((o) => o.fromSettlementId !== o.toSettlementId))
@@ -393,10 +395,12 @@ test('off-map exports clear before imports so earnings fund the purchase', () =>
   assert.strictEqual(timberImport.unitPriceCp, 1.25)
 
   // Export earnings + loading toll minus the import spend, staying positive.
-  const earnings = 156200 * 0.5 + 0.05 * 0.5 * 156200
+  const loadingToll = 0.05 * 0.5 * 156200
+  const earnings = 156200 * 0.5 + loadingToll
   const timberSpend = 20000 * 1.25
   assert.ok(Math.abs(result.externalAccountDeltas.p - (earnings - timberSpend)) < 1e-6)
   assert.ok(result.externalAccountDeltas.p > 0)
+  assert.ok(Math.abs((result.portTollIncomeCpBySettlementId.p ?? 0) - loadingToll) < 1e-6)
 })
 
 test('off-map imports cannot drive the external account negative', () => {

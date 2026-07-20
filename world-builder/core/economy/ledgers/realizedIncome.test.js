@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { realizedOnMapIncomeCpBySettlementId } from './realizedIncome.js'
+import {
+  realizedOnMapIncomeCpBySettlementId,
+  realizedPortTollIncomeCpBySettlementId,
+} from './realizedIncome.js'
 
 test('sums creditor goods and toll amounts per settlement', () => {
   const income = realizedOnMapIncomeCpBySettlementId([
@@ -25,4 +28,27 @@ test('returns empty object for missing or empty deltas', () => {
   assert.deepStrictEqual(realizedOnMapIncomeCpBySettlementId(null), {})
   assert.deepStrictEqual(realizedOnMapIncomeCpBySettlementId(undefined), {})
   assert.deepStrictEqual(realizedOnMapIncomeCpBySettlementId([]), {})
+})
+
+test('sums on-map toll obligations and off-map toll credits', () => {
+  const income = realizedPortTollIncomeCpBySettlementId(
+    [
+      { fromSettlementId: 'b', toSettlementId: 'a', amountCp: 12, kind: 'toll' },
+      { fromSettlementId: 'b', toSettlementId: 'a', amountCp: 100, kind: 'goods' },
+      { fromSettlementId: 'c', toSettlementId: 'a', amountCp: 3, kind: 'toll' },
+    ],
+    { a: 7, d: 20 },
+  )
+  assert.deepStrictEqual(income, { a: 22, d: 20 })
+})
+
+test('port toll helper ignores non-positive and empty inputs', () => {
+  assert.deepStrictEqual(realizedPortTollIncomeCpBySettlementId(null, null), {})
+  assert.deepStrictEqual(
+    realizedPortTollIncomeCpBySettlementId(
+      [{ toSettlementId: 'a', amountCp: 0, kind: 'toll' }],
+      { a: -1, b: 0 },
+    ),
+    {},
+  )
 })

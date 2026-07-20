@@ -19,6 +19,7 @@ import { findMinCostPath } from './pathSearch.js'
 import { clearOffMapTrade, clearOffMapTradeSync } from './offMapTrade.js'
 import { creditLimitCp } from '../ledgers/creditLimit.js'
 import { creditRoomCpForImport } from '../ledgers/creditRoom.js'
+import { realizedPortTollIncomeCpBySettlementId } from '../ledgers/realizedIncome.js'
 import { applyObligation } from '../ledgers/bilateralObligations.js'
 
 /**
@@ -73,6 +74,8 @@ const EPSILON = 1e-6
  * @property {Record<string, { foodLb: number, saltLb: number }>} effectiveDelivered
  * @property {Record<string, number>} realmBalancesCp Net mutual-credit balance per realm (sum ≈ 0).
  * @property {OffMapTrade[]} offMapTrades
+ * @property {Record<string, number>} portTollIncomeCpBySettlementId Last-epoch collected
+ *   port tolls (on-map obligations + off-map external credits) per collecting settlement.
  * @property {import('../ledgers/bilateralObligations.js').BilateralObligation[]} nettedObligations
  */
 
@@ -292,6 +295,8 @@ function createClearingState(params = {}) {
     obligationDeltas: [],
     /** @type {OffMapTrade[]} */
     offMapTrades: [],
+    /** @type {Map<string, number>} Off-map path + loading toll credits this clear. */
+    offMapPortTollIncomeCp: new Map(),
     isPort: (/** @type {string} */ id) => byId.get(id)?.isPort === true,
   }
 }
@@ -643,6 +648,12 @@ function buildResult(state) {
   }
   for (const delta of state.obligationDeltas) accounts = applyObligation(accounts, delta)
 
+  /** @type {Record<string, number>} */
+  const offMapPortTollIncomeCp = {}
+  for (const [id, amount] of state.offMapPortTollIncomeCp) {
+    if (amount > EPSILON) offMapPortTollIncomeCp[id] = amount
+  }
+
   return {
     flows: state.flows,
     settlementCommodityRoles: state.roles,
@@ -652,6 +663,10 @@ function buildResult(state) {
     effectiveDelivered,
     realmBalancesCp,
     offMapTrades: state.offMapTrades,
+    portTollIncomeCpBySettlementId: realizedPortTollIncomeCpBySettlementId(
+      state.obligationDeltas,
+      offMapPortTollIncomeCp,
+    ),
     nettedObligations: accounts.obligations,
   }
 }

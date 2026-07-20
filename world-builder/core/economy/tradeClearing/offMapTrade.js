@@ -245,13 +245,14 @@ function dumpFromPort(state, params) {
       })
     }
     for (const event of path.tollEvents) {
-      creditExternal(state, event.portId, event.unitTollCp * qty)
+      creditExternalPortToll(state, event.portId, event.unitTollCp * qty)
     }
   }
 
   const saleCp = unitPriceCp * qty
   const loadingTollCp = PORT_TOLL_RATE * saleCp
-  creditExternal(state, exitPortId, saleCp + loadingTollCp)
+  creditExternal(state, exitPortId, saleCp)
+  creditExternalPortToll(state, exitPortId, loadingTollCp)
   addObligationLocal(state, {
     fromSettlementId: exitPortId,
     toSettlementId: originId,
@@ -376,7 +377,7 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
         })
       }
       for (const event of best.path.tollEvents) {
-        creditExternal(state, event.portId, event.unitTollCp * qty)
+        creditExternalPortToll(state, event.portId, event.unitTollCp * qty)
       }
 
       creditExternal(state, best.portId, -unitPriceCp * qty)
@@ -498,6 +499,19 @@ export function importShortfallByCommodity(bag, population) {
 function creditExternal(state, id, deltaCp) {
   const next = Math.max(0, (state.externalAccounts.get(id) ?? 0) + deltaCp)
   state.externalAccounts.set(id, next)
+}
+
+/**
+ * Credit an external account with a port toll and record it for inspect totals.
+ *
+ * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {string} id
+ * @param {number} tollCp
+ */
+function creditExternalPortToll(state, id, tollCp) {
+  if (!(tollCp > EPSILON)) return
+  creditExternal(state, id, tollCp)
+  state.offMapPortTollIncomeCp.set(id, (state.offMapPortTollIncomeCp.get(id) ?? 0) + tollCp)
 }
 
 /**
