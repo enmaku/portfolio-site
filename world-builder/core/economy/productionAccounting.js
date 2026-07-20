@@ -4,7 +4,6 @@
  */
 
 import { yieldModifierMultiplier } from '../colonization/resolveSurvivalTriad.js'
-import { prosperityDemandUnits } from './tradeClearing/allocationTiers.js'
 
 /** Food productivity unit → edible lb per epoch (10 people × 365 lb). */
 export const FOOD_LB_PER_PRODUCTIVITY_UNIT = 3650
@@ -15,30 +14,25 @@ export const TIMBER_LB_PER_PRODUCTIVITY_UNIT = 16000
 /** Metals potential unit → base metals lb per epoch. */
 export const BASE_METALS_LB_PER_PRODUCTIVITY_UNIT = 800
 /**
- * One claimed mineral deposit supplies about this many people of prosperity demand
- * for its commodity each epoch (same order as a working mine town, not 1 lb).
+ * Typed copper claimed deposit → lb per epoch.
+ * Tuned so one mine’s off-map dump value matches ~median (p50) grain hinterland export.
  */
-export const MINERAL_DEPOSIT_PROSPERITY_POPULATION = 1000
-/** Typed copper claimed deposit → lb per epoch. */
-export const COPPER_LB_PER_EXTRACTION = prosperityDemandUnits(
-  'copper',
-  MINERAL_DEPOSIT_PROSPERITY_POPULATION,
-)
-/** Typed silver claimed deposit → lb per epoch. */
-export const SILVER_LB_PER_EXTRACTION = prosperityDemandUnits(
-  'silver',
-  MINERAL_DEPOSIT_PROSPERITY_POPULATION,
-)
-/** Typed gold claimed deposit → lb per epoch (tuned above prosperity-demand baseline). */
-export const GOLD_LB_PER_EXTRACTION = 50
+export const COPPER_LB_PER_EXTRACTION = 85000
 /**
- * Typed diamond claimed deposit → whole gems per epoch (floor of at least five gems;
- * matches integer gem flows while staying near prosperity demand for the reference pop).
+ * Typed silver claimed deposit → lb per epoch.
+ * Tuned between median and top-quartile grain export (~p60), below gold.
  */
-export const DIAMOND_GEMS_PER_EXTRACTION = Math.max(
-  5,
-  Math.round(prosperityDemandUnits('diamonds', MINERAL_DEPOSIT_PROSPERITY_POPULATION)),
-)
+export const SILVER_LB_PER_EXTRACTION = 12500
+/**
+ * Typed gold claimed deposit → lb per epoch.
+ * Tuned so one mine’s off-map dump value matches ~top-quartile grain hinterland export.
+ */
+export const GOLD_LB_PER_EXTRACTION = 1500
+/**
+ * Typed diamond claimed deposit → whole gems per epoch.
+ * Tuned to ~1.5× a gold mine’s dump value at catalog reference prices.
+ */
+export const DIAMOND_GEMS_PER_EXTRACTION = 25
 /** Salt lb consumed per lb of fish exported (curing at origin). */
 export const FISH_CURING_SALT_PER_FISH_LB = 3
 
@@ -88,8 +82,8 @@ export function mineralDepositExtraction(kind) {
 
 /**
  * Sum one claimed deposit's annual haul per epoch; unclaimed deposits yield nothing.
- * Copper/silver/gold amounts match prosperity demand for
- * {@link MINERAL_DEPOSIT_PROSPERITY_POPULATION}; diamonds yield whole gems.
+ * Typed mineral hauls are fixed constants tuned against grain hinterland export value
+ * (copper ~p50, silver ~p60, gold ~p75, diamonds ~1.5× gold dump).
  *
  * @param {ReadonlyArray<import('../types.js').MetalNode>} deposits
  * @param {(deposit: import('../types.js').MetalNode) => boolean} isClaimed

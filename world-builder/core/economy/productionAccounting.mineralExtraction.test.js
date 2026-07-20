@@ -4,31 +4,23 @@ import {
   COPPER_LB_PER_EXTRACTION,
   DIAMOND_GEMS_PER_EXTRACTION,
   GOLD_LB_PER_EXTRACTION,
-  MINERAL_DEPOSIT_PROSPERITY_POPULATION,
   SILVER_LB_PER_EXTRACTION,
   emptyCommodityAmounts,
   extractClaimedMineralDeposits,
   mineralDepositExtraction,
 } from './productionAccounting.js'
-import { prosperityDemandUnits } from './tradeClearing/allocationTiers.js'
 
 function makeDeposit(id, kind) {
   return { id, x: 0, y: 0, score: 1, kind }
 }
 
-test('mineral deposit yields match prosperity demand for the reference mine-town population', () => {
-  assert.strictEqual(
-    COPPER_LB_PER_EXTRACTION,
-    prosperityDemandUnits('copper', MINERAL_DEPOSIT_PROSPERITY_POPULATION),
-  )
-  assert.strictEqual(
-    SILVER_LB_PER_EXTRACTION,
-    prosperityDemandUnits('silver', MINERAL_DEPOSIT_PROSPERITY_POPULATION),
-  )
-  assert.equal(GOLD_LB_PER_EXTRACTION, 50)
+test('mineral deposit yields follow the grain-export rarity ladder', () => {
+  assert.equal(COPPER_LB_PER_EXTRACTION, 85000)
+  assert.equal(SILVER_LB_PER_EXTRACTION, 12500)
+  assert.equal(GOLD_LB_PER_EXTRACTION, 1500)
+  assert.equal(DIAMOND_GEMS_PER_EXTRACTION, 25)
   assert.ok(COPPER_LB_PER_EXTRACTION > SILVER_LB_PER_EXTRACTION)
   assert.ok(SILVER_LB_PER_EXTRACTION > GOLD_LB_PER_EXTRACTION)
-  assert.equal(DIAMOND_GEMS_PER_EXTRACTION, 5)
   assert.equal(DIAMOND_GEMS_PER_EXTRACTION, Math.trunc(DIAMOND_GEMS_PER_EXTRACTION))
 })
 
