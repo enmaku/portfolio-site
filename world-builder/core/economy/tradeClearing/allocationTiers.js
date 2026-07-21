@@ -4,13 +4,24 @@
  */
 
 import { CP_PER_GP, referencePriceCp } from '../commodityCatalog.js'
+import {
+  FOOD_LB_PER_PERSON,
+  SALT_LB_PER_PERSON,
+  SURVIVAL_COMFORT_FOOD_MULTIPLIER,
+  survivalFoodDemandLb,
+  survivalSaltDemandLb,
+  comfortFoodDemandLb,
+} from '../survivalDemand.js'
 
-/** Edible lb per person per epoch. */
-export const FOOD_LB_PER_PERSON = 365
-/** Household salt lb per person per epoch. */
-export const SALT_LB_PER_PERSON = 5
-/** Survival comfort food multiple of baseline demand. */
-export const SURVIVAL_COMFORT_FOOD_MULTIPLIER = 1.2
+export {
+  FOOD_LB_PER_PERSON,
+  SALT_LB_PER_PERSON,
+  SURVIVAL_COMFORT_FOOD_MULTIPLIER,
+  survivalFoodDemandLb,
+  survivalSaltDemandLb,
+  comfortFoodDemandLb,
+}
+
 /** Prosperity target in gp per person per commodity (reference price). */
 export const PROSPERITY_GP_PER_PERSON = 1
 /**
@@ -39,30 +50,6 @@ export const PROSPERITY_COMMODITIES = Object.freeze([
  */
 export function prosperityGpPerPerson(commodityId) {
   return commodityId === 'diamonds' ? DIAMOND_PROSPERITY_GP_PER_PERSON : PROSPERITY_GP_PER_PERSON
-}
-
-/**
- * @param {number} population
- * @returns {number}
- */
-export function survivalFoodDemandLb(population) {
-  return Math.max(0, population) * FOOD_LB_PER_PERSON
-}
-
-/**
- * @param {number} population
- * @returns {number}
- */
-export function survivalSaltDemandLb(population) {
-  return Math.max(0, population) * SALT_LB_PER_PERSON
-}
-
-/**
- * @param {number} population
- * @returns {number}
- */
-export function comfortFoodDemandLb(population) {
-  return survivalFoodDemandLb(population) * SURVIVAL_COMFORT_FOOD_MULTIPLIER
 }
 
 /**

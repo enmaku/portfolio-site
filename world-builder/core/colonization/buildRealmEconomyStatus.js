@@ -78,7 +78,6 @@ export function buildRealmEconomyStatus(slice, worldDocument) {
     id: settlement.id,
     valueCp: combinedSettlementWealthCp({
       settlementId: settlement.id,
-      realmBalancesCp: tradeResult?.realmBalancesCp,
       balancesBySettlementId: slice.tradeAccounts?.balancesBySettlementId,
       externalTradeAccounts: externalAccounts,
     }),

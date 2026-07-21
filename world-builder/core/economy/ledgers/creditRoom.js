@@ -4,7 +4,7 @@
  */
 
 import { referencePriceCp } from '../commodityCatalog.js'
-import { survivalFoodDemandLb, survivalSaltDemandLb } from '../tradeClearing/allocationTiers.js'
+import { survivalFoodDemandLb, survivalSaltDemandLb } from '../survivalDemand.js'
 import { roundMoneyCp } from '../formatMoneyCp.js'
 
 /** Harvest-horizon bridge: survival debt may deepen up to one annual staple basket. */

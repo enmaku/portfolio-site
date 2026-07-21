@@ -74,7 +74,7 @@ test('buildCampaignKitModel sorts dossiers by map number and stubs ruins', () =>
   ]
   slice.externalTradeAccounts = { a: 50 }
   slice.lastTradeEpochResult = {
-    realmBalancesCp: { a: 10 },
+    tradeAccounts: { balancesBySettlementId: { a: 10 } },
     settlementCommodityRoles: { a: { grain: 'export' } },
     localPricesBySettlementId: { a: { grain: 1 } },
     offMapTrades: [

@@ -545,6 +545,116 @@ test('a fixed three-settlement fixture clears deterministically', () => {
   }
 })
 
+test('three-settlement deterministic fixture matches async and sync clearing', async () => {
+  const settlements = [
+    { id: 'harbor', population: 200, maritimeRole: 'port' },
+    { id: 'vale', population: 100 },
+    { id: 'ridge', population: 150 },
+  ]
+  const prod = production({
+    harbor: { grain: 400000, fish: 200000, salt: 400000 },
+    vale: { timber: 3_000_000, grain: 20000 },
+    ridge: { baseMetals: 100000, copper: 4000, grain: 30000 },
+  })
+  const graph = {
+    edges: [
+      edge({ fromSettlementId: 'harbor', toSettlementId: 'vale', transportCostCpPerLb: 0.05 }),
+      edge({ fromSettlementId: 'vale', toSettlementId: 'ridge', transportCostCpPerLb: 0.05 }),
+      edge({
+        fromSettlementId: 'harbor',
+        toSettlementId: 'ridge',
+        mode: 'road',
+        transportCostCpPerLb: 0.08,
+      }),
+    ],
+  }
+  const args = {
+    settlements,
+    graph,
+    production: prod,
+    priorRealizedIncomeCp: { harbor: 5_000_000, vale: 5_000_000, ridge: 5_000_000 },
+  }
+
+  const sync = runTradeClearingSync(args)
+  const asyncResult = await runTradeClearing(args, { yieldToUi: async () => {} })
+  assert.deepStrictEqual(asyncResult, sync)
+})
+
+test('uncurable fish surplus does not block grain from another exporter', () => {
+  const settlements = [
+    { id: 'fishTown', population: 100 },
+    { id: 'grainTown', population: 100 },
+    { id: 'hungry', population: 100 },
+  ]
+  const prod = production({
+    fishTown: { fish: 200000, salt: 0, grain: 36500 },
+    grainTown: { grain: 200000, salt: 50000 },
+    hungry: { grain: 0, fish: 0, salt: 0 },
+  })
+  const graph = {
+    edges: [
+      edge({
+        fromSettlementId: 'fishTown',
+        toSettlementId: 'hungry',
+        transportCostCpPerLb: 0.01,
+      }),
+      edge({
+        fromSettlementId: 'hungry',
+        toSettlementId: 'fishTown',
+        transportCostCpPerLb: 0.01,
+      }),
+      edge({
+        fromSettlementId: 'grainTown',
+        toSettlementId: 'hungry',
+        transportCostCpPerLb: 0.02,
+      }),
+      edge({
+        fromSettlementId: 'hungry',
+        toSettlementId: 'grainTown',
+        transportCostCpPerLb: 0.02,
+      }),
+    ],
+  }
+
+  const result = runTradeClearingSync({
+    settlements,
+    graph,
+    production: prod,
+    priorRealizedIncomeCp: {
+      fishTown: 1_000_000,
+      grainTown: 1_000_000,
+      hungry: 1_000_000,
+    },
+  })
+
+  assert.ok(
+    result.effectiveDelivered.hungry.foodLb >= 36500 - 1e-6,
+    'hungry settlement must receive survival food',
+  )
+  assert.ok(
+    result.flows.some((f) => f.commodityId === 'grain' && f.toSettlementId === 'hungry'),
+    'grain must flow when fish cannot cure',
+  )
+  assert.ok(
+    !result.flows.some((f) => f.commodityId === 'fish' && f.fromSettlementId === 'fishTown'),
+    'fishTown must not export fish without curing salt',
+  )
+})
+
+test('TRADE_SUBSTEP indices match COLONIZATION_TRADE_SUBSTEPS', async () => {
+  const { TRADE_SUBSTEP } = await import('./runTradeClearing.js')
+  const { COLONIZATION_TRADE_SUBSTEPS } = await import(
+    '../../colonization/colonizationEpochSteps.js'
+  )
+  for (const [id, index] of Object.entries(TRADE_SUBSTEP)) {
+    assert.equal(
+      index,
+      COLONIZATION_TRADE_SUBSTEPS.findIndex((step) => step.id === id),
+      id,
+    )
+  }
+})
+
 test('runTradeClearing reports trade substep indices in order and matches sync without yields', async () => {
   const settlements = [
     { id: 'a', population: 100 },

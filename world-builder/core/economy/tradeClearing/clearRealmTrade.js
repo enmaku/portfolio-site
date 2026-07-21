@@ -1,15 +1,13 @@
 /**
  * Realm-wide annual trade clearing wired into the colonization epoch.
- * Builds per-settlement production, clears pairwise + off-map trade when the realm
- * has enough living settlements, and reports the food/salt each settlement effectively
- * holds after trade for the survival triad.
+ * Clears pairwise + off-map trade when the realm has enough living settlements, and
+ * reports the food/salt each settlement effectively holds after trade for the survival
+ * triad. Takes a pre-built clearing DTO — callers own colonization-specific inputs
+ * (living-settlement filtering, maritime roles, fish production) and build the DTO via
+ * `buildRealmTradeClearingInput` before calling in.
  * Domain: world-builder/CONTEXT.md — trade clearing, population ceiling, salt fulfillment.
  */
 
-import { computeSettlementProduction } from '../productionAccounting.js'
-import { sumFishProductionOnCells } from '../../colonization/fish/sumFishProductionOnCells.js'
-import { livingSettlements } from '../../colonization/expeditions/expeditionConstants.js'
-import { refreshSettlementMaritimeRoles } from '../../colonization/refreshSettlementMaritimeRoles.js'
 import { recomputeBalances } from '../ledgers/bilateralObligations.js'
 import { realizedOnMapIncomeCpBySettlementId } from '../ledgers/realizedIncome.js'
 import { roundMoneyCp } from '../formatMoneyCp.js'
@@ -26,6 +24,28 @@ import { runTradeClearing } from './runTradeClearing.js'
 export const TRADE_ACTIVATION_MIN_SETTLEMENTS = 2
 
 /**
+ * @typedef {Object} RealmTradeClearingInput
+ * @property {Array<{ id: string, x: number, y: number, population: number, maritimeRole: string }>} settlements
+ *   Living settlements only, with `maritimeRole` already refreshed.
+ * @property {Record<string, Record<CommodityId, number>>} production Per-settlement production (fish included).
+ * @property {number} gridWidth
+ * @property {number} gridHeight
+ * @property {Float32Array | null} elevation
+ * @property {Uint8Array | null} lakeMask
+ * @property {Uint8Array | null} riverCorridorMask
+ * @property {Float32Array | null} movementCost
+ * @property {import('../tradeGraph/buildCandidateRoutes.js').BuildCandidateTradeGraphParams['roads']} roads
+ * @property {number} threeDayHaulDistance
+ * @property {number} inlandSailExpeditionRange Multiple of `threeDayHaulDistance`.
+ * @property {TradeAccountsState} tradeAccounts Prior realm obligations + balances.
+ * @property {Record<string, number>} externalTradeAccounts Prior port off-map credit.
+ * @property {Record<string, number>} priorRealizedIncomeCp Prior on-map export+toll income (or empty to derive).
+ * @property {{ candidates: TradeRouteEdge[], activeFlows: import('./clearingState.js').TradeFlow[] }} [tradeRouteState]
+ *   Prior route state, preserved verbatim when pairwise trade does not activate this epoch.
+ * @property {import('./runTradeClearing.js').TradeClearingResult | null} [lastTradeEpochResult]
+ */
+
+/**
  * @typedef {Object} RealmTradeResult
  * @property {boolean} active Whether pairwise clearing ran this epoch.
  * @property {Record<string, { foodLb: number, saltLb: number }>} effectiveDeliveredBySettlementId
@@ -37,151 +57,97 @@ export const TRADE_ACTIVATION_MIN_SETTLEMENTS = 2
  */
 
 /**
- * @param {{
- *   slice: import('../../colonization/createDefaultColonizationSlice.js').ColonizationSlice,
- *   worldDocument: import('../../types.js').WorldDocument,
- *   primaryClaim: Record<string, Array<{ x: number, y: number }>>,
- * }} params
+ * @param {RealmTradeClearingInput} input
  * @param {{
  *   hooks?: import('./runTradeClearing.js').TradeClearingHooks,
  *   yieldToUi?: () => Promise<void>,
  * }} [options]
  * @returns {Promise<RealmTradeResult>}
  */
-export async function clearRealmTrade(params, options = {}) {
-  const { slice, worldDocument, primaryClaim } = params
-  const { hooks, yieldToUi } = options
-  refreshSettlementMaritimeRoles(slice, worldDocument)
-  const living = livingSettlements(slice.settlements)
-  const gridWidth = worldDocument.gridWidth
-  const gridHeight = worldDocument.gridHeight
-  const elevation = worldDocument.fields?.elevation ?? null
+export async function clearRealmTrade(input, options = {}) {
+  const {
+    settlements,
+    production,
+    gridWidth,
+    gridHeight,
+    elevation,
+    lakeMask,
+    riverCorridorMask,
+    movementCost,
+    roads,
+    threeDayHaulDistance,
+    inlandSailExpeditionRange,
+    tradeAccounts: priorTradeAccounts,
+    externalTradeAccounts: priorExternalTradeAccounts,
+    priorRealizedIncomeCp: priorRealizedIncomeCpInput,
+    tradeRouteState: priorTradeRouteState,
+    lastTradeEpochResult: priorTradeEpochResult,
+  } = input
 
-  /** @type {Record<string, Record<CommodityId, number>>} */
-  const production = {}
-  /** @type {Array<{ id: string, x: number, y: number, population: number, status: 'living', maritimeRole: string }>} */
-  const graphSettlements = []
-  /** @type {Array<{ id: string, population: number, maritimeRole: string }>} */
-  const clearingSettlements = []
-
-  if (living.length >= TRADE_ACTIVATION_MIN_SETTLEMENTS) {
-    hooks?.onTradeSubstep?.({
-      type: 'substep-start',
-      substepIndex: 0,
-      substepId: 'production',
-    })
-    await yieldToUi?.()
-  }
-
-  for (let index = 0; index < living.length; index += 1) {
-    const settlement = living[index]
-    const claimedCells = primaryClaim[settlement.id] ?? []
-    const fishProductivity = sumFishProductionOnCells({
-      claimedCells,
-      gridWidth,
-      gridHeight,
-      elevation,
-      lakeMask: worldDocument.lakeMask,
-      riverCorridorMask: worldDocument.riverCorridorMask,
-    })
-    const { amounts } = computeSettlementProduction({
-      settlementId: settlement.id,
-      claimedCells,
-      gridWidth,
-      arableRaster: worldDocument.arableRaster,
-      timberRaster: worldDocument.timberRaster,
-      metalsRaster: worldDocument.metalsRaster,
-      yieldModifier: slice.colonistSettings.yieldModifier,
-      populationDensity: slice.colonistSettings.populationDensity,
-      fishProductivity,
-      saltNodes: worldDocument.saltNodes,
-      metalNodes: worldDocument.metalNodes,
-    })
-    production[settlement.id] = amounts
-
-    const maritimeRole = settlement.maritimeRole ?? 'none'
-    graphSettlements.push({
-      id: settlement.id,
-      x: settlement.x,
-      y: settlement.y,
-      population: settlement.population,
-      status: 'living',
-      maritimeRole,
-    })
-    clearingSettlements.push({ id: settlement.id, population: settlement.population, maritimeRole })
-
-    if (living.length >= TRADE_ACTIVATION_MIN_SETTLEMENTS && (index + 1) % 4 === 0) {
-      hooks?.onTradeSubstep?.({
-        type: 'substep-item',
-        substepIndex: 0,
-        substepId: 'production',
-        itemIndex: index + 1,
-        itemCount: living.length,
-      })
-      await yieldToUi?.()
-    }
-  }
-
-  if (living.length >= TRADE_ACTIVATION_MIN_SETTLEMENTS) {
-    hooks?.onTradeSubstep?.({
-      type: 'substep-complete',
-      substepIndex: 0,
-      substepId: 'production',
-    })
-    await yieldToUi?.()
-  }
-
-  if (living.length < TRADE_ACTIVATION_MIN_SETTLEMENTS) {
+  if (settlements.length < TRADE_ACTIVATION_MIN_SETTLEMENTS) {
     return {
       active: false,
       effectiveDeliveredBySettlementId: localDelivered(production),
       tradeAccounts: {
-        obligations: (slice.tradeAccounts?.obligations ?? []).map((row) => ({ ...row })),
-        balancesBySettlementId: { ...(slice.tradeAccounts?.balancesBySettlementId ?? {}) },
+        obligations: (priorTradeAccounts?.obligations ?? []).map((row) => ({ ...row })),
+        balancesBySettlementId: { ...(priorTradeAccounts?.balancesBySettlementId ?? {}) },
       },
-      externalTradeAccounts: { ...slice.externalTradeAccounts },
-      priorRealizedIncomeCp: { ...(slice.priorRealizedIncomeCp ?? {}) },
+      externalTradeAccounts: { ...priorExternalTradeAccounts },
+      priorRealizedIncomeCp: { ...(priorRealizedIncomeCpInput ?? {}) },
       tradeRouteState: {
-        candidates: [...(slice.tradeRouteState?.candidates ?? [])],
+        candidates: [...(priorTradeRouteState?.candidates ?? [])],
         activeFlows: [],
       },
-      lastTradeEpochResult: slice.lastTradeEpochResult ?? null,
+      lastTradeEpochResult: priorTradeEpochResult ?? null,
     }
   }
 
-  const haulDistance = slice.colonistSettings.threeDayHaulDistance
+  const graphSettlements = settlements.map((settlement) => ({
+    id: settlement.id,
+    x: settlement.x,
+    y: settlement.y,
+    population: settlement.population,
+    status: 'living',
+    maritimeRole: settlement.maritimeRole ?? 'none',
+  }))
+  const clearingSettlements = settlements.map((settlement) => ({
+    id: settlement.id,
+    population: settlement.population,
+    maritimeRole: settlement.maritimeRole ?? 'none',
+  }))
+
   const graph = buildCandidateTradeGraph({
     settlements: graphSettlements,
     gridWidth,
     gridHeight,
-    threeDayHaulDistance: haulDistance,
-    inlandSailExpeditionRange: slice.colonistSettings.inlandSailExpeditionRange * haulDistance,
-    movementCost: worldDocument.movementCost,
+    threeDayHaulDistance,
+    inlandSailExpeditionRange: inlandSailExpeditionRange * threeDayHaulDistance,
+    movementCost,
     elevation,
-    roads: slice.roads,
-    lakeMask: worldDocument.lakeMask,
-    riverCorridorMask: worldDocument.riverCorridorMask,
+    roads,
+    lakeMask,
+    riverCorridorMask,
   })
-  await yieldToUi?.()
+  await options.yieldToUi?.()
 
   const priorRealizedIncomeCp =
-    slice.priorRealizedIncomeCp && Object.keys(slice.priorRealizedIncomeCp).length > 0
-      ? slice.priorRealizedIncomeCp
-      : realizedOnMapIncomeCpBySettlementId(slice.lastTradeEpochResult?.obligationDeltas)
+    priorRealizedIncomeCpInput && Object.keys(priorRealizedIncomeCpInput).length > 0
+      ? priorRealizedIncomeCpInput
+      : realizedOnMapIncomeCpBySettlementId(priorTradeEpochResult?.obligationDeltas)
 
   const result = await runTradeClearing(
     {
       settlements: clearingSettlements,
       graph,
       production,
-      externalAccountsCp: slice.externalTradeAccounts,
-      priorTradeAccounts: slice.tradeAccounts,
+      externalAccountsCp: priorExternalTradeAccounts,
+      priorTradeAccounts,
       priorRealizedIncomeCp,
     },
     options,
   )
   /** @type {Record<string, number>} */
-  const externalTradeAccounts = { ...slice.externalTradeAccounts }
+  const externalTradeAccounts = { ...priorExternalTradeAccounts }
   for (const [id, delta] of Object.entries(result.externalAccountDeltas)) {
     externalTradeAccounts[id] = Math.max(
       0,

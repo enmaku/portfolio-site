@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { referencePriceCp } from './commodityCatalog.js'
-import { buildSettlementTradeTooltip } from './settlementTradeTooltip.js'
+import { buildSettlementEconomyInspect } from './settlementEconomyInspect.js'
 
 function docWith(overrides = {}) {
   return {
@@ -13,11 +13,11 @@ function docWith(overrides = {}) {
 }
 
 test('returns null for an unknown settlement', () => {
-  assert.strictEqual(buildSettlementTradeTooltip(docWith(), 'missing'), null)
+  assert.strictEqual(buildSettlementEconomyInspect(docWith(), 'missing'), null)
 })
 
 test('lists always-present commodities and omits absent pin commodities', () => {
-  const tooltip = buildSettlementTradeTooltip(docWith(), 'a')
+  const tooltip = buildSettlementEconomyInspect(docWith(), 'a')
   assert.ok(tooltip)
   assert.strictEqual(tooltip.population, 100)
   assert.deepStrictEqual(
@@ -27,7 +27,7 @@ test('lists always-present commodities and omits absent pin commodities', () => 
 })
 
 test('includes salt and mineral pin commodities when pins exist', () => {
-  const tooltip = buildSettlementTradeTooltip(
+  const tooltip = buildSettlementEconomyInspect(
     docWith({
       saltNodes: [{ id: 's1', x: 0, y: 0, score: 1 }],
       metalNodes: [
@@ -44,7 +44,7 @@ test('includes salt and mineral pin commodities when pins exist', () => {
 })
 
 test('reads population from the settlement record', () => {
-  const tooltip = buildSettlementTradeTooltip(
+  const tooltip = buildSettlementEconomyInspect(
     docWith({
       settlements: [{ id: 'a', population: 12345.7 }],
     }),
@@ -54,11 +54,11 @@ test('reads population from the settlement record', () => {
 })
 
 test('reads realm balance and roles from the last clearing result', () => {
-  const tooltip = buildSettlementTradeTooltip(
+  const tooltip = buildSettlementEconomyInspect(
     docWith({
       saltNodes: [{ id: 's1', x: 0, y: 0, score: 1 }],
+      tradeAccounts: { balancesBySettlementId: { a: 1234 } },
       lastTradeEpochResult: {
-        realmBalancesCp: { a: 1234 },
         settlementCommodityRoles: { a: { grain: 'export', salt: 'import', fish: 'both' } },
         localPricesBySettlementId: { a: { grain: 3 } },
       },
@@ -89,11 +89,11 @@ test('reads realm balance and roles from the last clearing result', () => {
 })
 
 test('does not present local production as export without realized movement', () => {
-  const tooltip = buildSettlementTradeTooltip(
+  const tooltip = buildSettlementEconomyInspect(
     docWith({
       settlements: [{ id: 'a', maritimeRole: 'none', production: { grain: 999999 } }],
+      tradeAccounts: { balancesBySettlementId: { a: 0 } },
       lastTradeEpochResult: {
-        realmBalancesCp: { a: 0 },
         settlementCommodityRoles: { a: { grain: 'neither' } },
         localPricesBySettlementId: { a: {} },
       },
@@ -106,7 +106,7 @@ test('does not present local production as export without realized movement', ()
 })
 
 test('defaults roles to neither and prices to reference when no clearing result', () => {
-  const tooltip = buildSettlementTradeTooltip(docWith(), 'a')
+  const tooltip = buildSettlementEconomyInspect(docWith(), 'a')
   for (const entry of tooltip.commodities) {
     assert.strictEqual(entry.role, 'neither')
     assert.strictEqual(entry.localPriceCp, referencePriceCp(entry.commodityId))
@@ -119,7 +119,7 @@ test('priceVsReference uses a ±10% deadzone around catalog reference', () => {
   const fishRef = referencePriceCp('fish')
   const saltRef = referencePriceCp('salt')
   const timberRef = referencePriceCp('timber')
-  const tooltip = buildSettlementTradeTooltip(
+  const tooltip = buildSettlementEconomyInspect(
     docWith({
       saltNodes: [{ id: 's1', x: 0, y: 0, score: 1 }],
       metalNodes: [
@@ -127,8 +127,8 @@ test('priceVsReference uses a ±10% deadzone around catalog reference', () => {
         { id: 's1', x: 1, y: 0, score: 1, kind: 'silver' },
         { id: 'g1', x: 2, y: 0, score: 1, kind: 'gold' },
       ],
+      tradeAccounts: { balancesBySettlementId: { a: 0 } },
       lastTradeEpochResult: {
-        realmBalancesCp: { a: 0 },
         settlementCommodityRoles: {},
         localPricesBySettlementId: {
           a: {
@@ -176,11 +176,11 @@ test('priceVsReference uses a ±10% deadzone around catalog reference', () => {
 })
 
 test('display balance combines realm mutual credit and external trade credit', () => {
-  const port = buildSettlementTradeTooltip(
+  const port = buildSettlementEconomyInspect(
     docWith({
       settlements: [{ id: 'a', maritimeRole: 'port' }],
+      tradeAccounts: { balancesBySettlementId: { a: -200 } },
       lastTradeEpochResult: {
-        realmBalancesCp: { a: -200 },
         settlementCommodityRoles: {},
         localPricesBySettlementId: {},
       },
@@ -190,10 +190,10 @@ test('display balance combines realm mutual credit and external trade credit', (
   )
   assert.strictEqual(port.balanceCp, 300)
 
-  const inland = buildSettlementTradeTooltip(
+  const inland = buildSettlementEconomyInspect(
     docWith({
+      tradeAccounts: { balancesBySettlementId: { a: 40 } },
       lastTradeEpochResult: {
-        realmBalancesCp: { a: 40 },
         settlementCommodityRoles: {},
         localPricesBySettlementId: {},
       },
@@ -204,11 +204,11 @@ test('display balance combines realm mutual credit and external trade credit', (
 })
 
 test('port settlements always expose last-epoch port tolls; inland omits the field', () => {
-  const port = buildSettlementTradeTooltip(
+  const port = buildSettlementEconomyInspect(
     docWith({
       settlements: [{ id: 'a', maritimeRole: 'port', population: 100 }],
+      tradeAccounts: { balancesBySettlementId: { a: 0 } },
       lastTradeEpochResult: {
-        realmBalancesCp: { a: 0 },
         settlementCommodityRoles: {},
         localPricesBySettlementId: {},
         portTollIncomeCpBySettlementId: { a: 250 },
@@ -218,7 +218,7 @@ test('port settlements always expose last-epoch port tolls; inland omits the fie
   )
   assert.strictEqual(port.portTollsCp, 250)
 
-  const idlePort = buildSettlementTradeTooltip(
+  const idlePort = buildSettlementEconomyInspect(
     docWith({
       settlements: [{ id: 'a', maritimeRole: 'port', population: 100 }],
     }),
@@ -226,11 +226,11 @@ test('port settlements always expose last-epoch port tolls; inland omits the fie
   )
   assert.strictEqual(idlePort.portTollsCp, 0)
 
-  const inland = buildSettlementTradeTooltip(
+  const inland = buildSettlementEconomyInspect(
     docWith({
       settlements: [{ id: 'a', maritimeRole: 'none', population: 100 }],
+      tradeAccounts: { balancesBySettlementId: { a: 0 } },
       lastTradeEpochResult: {
-        realmBalancesCp: { a: 0 },
         settlementCommodityRoles: {},
         localPricesBySettlementId: {},
         portTollIncomeCpBySettlementId: { a: 99 },
@@ -241,18 +241,34 @@ test('port settlements always expose last-epoch port tolls; inland omits the fie
   assert.strictEqual(inland.portTollsCp, null)
 })
 
-test('recovers on-map tolls from obligation deltas when aggregated field is missing', () => {
-  const tooltip = buildSettlementTradeTooltip(
+test('missing portTollIncomeCpBySettlementId is honest zero', () => {
+  const tooltip = buildSettlementEconomyInspect(
     docWith({
       settlements: [{ id: 'a', maritimeRole: 'port', population: 100 }],
+      tradeAccounts: { balancesBySettlementId: { a: 0 } },
       lastTradeEpochResult: {
-        realmBalancesCp: { a: 0 },
         settlementCommodityRoles: {},
         localPricesBySettlementId: {},
         obligationDeltas: [
           { fromSettlementId: 'b', toSettlementId: 'a', amountCp: 40, kind: 'toll' },
           { fromSettlementId: 'b', toSettlementId: 'a', amountCp: 10, kind: 'goods' },
         ],
+      },
+    }),
+    'a',
+  )
+  assert.strictEqual(tooltip.portTollsCp, 0)
+})
+
+test('reads mapped port toll income when present', () => {
+  const tooltip = buildSettlementEconomyInspect(
+    docWith({
+      settlements: [{ id: 'a', maritimeRole: 'port', population: 100 }],
+      tradeAccounts: { balancesBySettlementId: { a: 0 } },
+      lastTradeEpochResult: {
+        settlementCommodityRoles: {},
+        localPricesBySettlementId: {},
+        portTollIncomeCpBySettlementId: { a: 40 },
       },
     }),
     'a',

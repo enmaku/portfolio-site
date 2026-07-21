@@ -113,8 +113,12 @@ function writeMapPage(doc, dataUrl, caption, margin, pageWidth, pageHeight, opti
   }
   const maxWidth = pageWidth - margin * 2
   const maxHeight = pageHeight - contentTop - margin
-  const size = Math.min(maxWidth, maxHeight)
-  doc.addImage(dataUrl, 'PNG', margin, contentTop, size, size)
+  const { width: imageWidth, height: imageHeight } = doc.getImageProperties(dataUrl)
+  const scale = Math.min(maxWidth / imageWidth, maxHeight / imageHeight)
+  const width = imageWidth * scale
+  const height = imageHeight * scale
+  const x = margin + (maxWidth - width) / 2
+  doc.addImage(dataUrl, 'PNG', x, contentTop, width, height)
 }
 
 /**

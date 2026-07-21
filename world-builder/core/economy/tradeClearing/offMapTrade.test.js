@@ -214,9 +214,9 @@ test('port fills own import needs before mediating hinterland last-line imports'
     graph,
     production: prod,
     priorRealizedIncomeCp: { inland: 1_000_000 },
-    // Prosperity never borrows; both need saved realm credit to shop luxuries offshore.
+    // Inland prosperity still needs realm credit (obligations). Port own-needs use open-debt gate.
     priorTradeAccounts: {
-      balancesBySettlementId: { port: 1_000_000, inland: 1_000_000 },
+      balancesBySettlementId: { inland: 1_000_000 },
     },
   })
 
@@ -232,6 +232,75 @@ test('port fills own import needs before mediating hinterland last-line imports'
   if (inlandTimber.length > 0) {
     assert.ok(portTimber[0].amount + inlandTimber[0].amount > portTimber[0].amount - 1e-9)
   }
+})
+
+test('debt-free port at zero realm balance can spend external earnings on comfort', () => {
+  const settlements = [{ id: 'port', population: 100, maritimeRole: 'port' }]
+  // Below comfort food (43800) but above survival (36500); external funds the comfort slice.
+  const prod = production({
+    port: { grain: 36500, salt: 500 },
+  })
+
+  const result = runTradeClearingSync({
+    settlements,
+    graph: { edges: [] },
+    production: prod,
+    externalAccountsCp: { port: 1_000_000 },
+    priorTradeAccounts: {
+      balancesBySettlementId: { port: 0 },
+    },
+  })
+
+  assert.ok(
+    result.effectiveDelivered.port.foodLb >= 43800 - 1e-6,
+    'comfort food should fill from off-map using external purse',
+  )
+  assert.ok(
+    result.offMapTrades.some(
+      (t) => t.direction === 'import' && (t.commodityId === 'grain' || t.commodityId === 'fish'),
+    ),
+  )
+})
+
+test('inland off-map comfort slice uses comfort credit after survival floor is met', () => {
+  const settlements = [
+    { id: 'port', population: 50, maritimeRole: 'port' },
+    { id: 'inland', population: 100 },
+  ]
+  // Inland starts below survival; port has external for mediation. Inland has realm credit.
+  const prod = production({
+    port: { grain: 43800, salt: 500 },
+    inland: { grain: 0, salt: 0 },
+  })
+  const graph = {
+    edges: [
+      edge({
+        fromSettlementId: 'port',
+        toSettlementId: 'inland',
+        transportCostCpPerLb: 0.01,
+      }),
+    ],
+  }
+
+  const result = runTradeClearingSync({
+    settlements,
+    graph,
+    production: prod,
+    externalAccountsCp: { port: 5_000_000 },
+    priorTradeAccounts: {
+      balancesBySettlementId: { inland: 1_000_000, port: 0 },
+    },
+  })
+
+  assert.ok(
+    result.effectiveDelivered.inland.foodLb >= 36500 - 1e-6,
+    'survival food must clear first',
+  )
+  // Comfort (43800) should also be reachable with recomputed kind + comfort room.
+  assert.ok(
+    result.effectiveDelivered.inland.foodLb >= 43800 - 1e-6,
+    'comfort slice must not stay on survival-only financing forever',
+  )
 })
 
 test('indebted port cannot off-map-import luxuries despite external credit', () => {

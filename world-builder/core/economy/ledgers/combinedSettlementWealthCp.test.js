@@ -6,7 +6,7 @@ test('sums realm balance and nonnegative external claim', () => {
   assert.equal(
     combinedSettlementWealthCp({
       settlementId: 'a',
-      realmBalancesCp: { a: -100 },
+      balancesBySettlementId: { a: -100 },
       externalTradeAccounts: { a: 400 },
     }),
     300,
@@ -17,14 +17,14 @@ test('floors negative external to zero', () => {
   assert.equal(
     combinedSettlementWealthCp({
       settlementId: 'a',
-      realmBalancesCp: { a: 50 },
+      balancesBySettlementId: { a: 50 },
       externalTradeAccounts: { a: -20 },
     }),
     50,
   )
 })
 
-test('falls back to trade-account balances when realmBalancesCp missing', () => {
+test('uses live trade-account balances only', () => {
   assert.equal(
     combinedSettlementWealthCp({
       settlementId: 'a',

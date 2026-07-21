@@ -3,19 +3,12 @@
  * Domain: world-builder/CONTEXT.md — port toll.
  */
 
-import { realizedPortTollIncomeCpBySettlementId } from './realizedIncome.js'
-
 /**
- * Prefer `portTollIncomeCpBySettlementId` on the result; recover from obligation
- * deltas (+ off-map credits) when the map is missing.
+ * Read `portTollIncomeCpBySettlementId` only. A missing map is explicit 0 — do not
+ * reconstruct from obligation deltas (off-map tolls never appear there).
  *
  * @param {{
  *   portTollIncomeCpBySettlementId?: Record<string, number>,
- *   obligationDeltas?: ReadonlyArray<{
- *     toSettlementId?: string,
- *     amountCp?: number,
- *     kind?: string,
- *   }>,
  * } | null | undefined} result
  * @param {string} settlementId
  * @returns {number}
@@ -25,7 +18,5 @@ export function portTollIncomeCpForSettlement(result, settlementId) {
   if (typeof mapped === 'number' && Number.isFinite(mapped)) {
     return Math.max(0, mapped)
   }
-  const recovered = realizedPortTollIncomeCpBySettlementId(result?.obligationDeltas, null)
-  const amount = recovered[settlementId]
-  return typeof amount === 'number' && Number.isFinite(amount) ? Math.max(0, amount) : 0
+  return 0
 }

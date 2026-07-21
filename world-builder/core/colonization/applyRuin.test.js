@@ -9,6 +9,8 @@ import {
   COLONIZATION_PHASE_SETUP,
   createDefaultColonizationSlice,
 } from './createDefaultColonizationSlice.js'
+import { buildSettlementEconomyInspect } from '../economy/settlementEconomyInspect.js'
+import { recomputeBalances } from '../economy/ledgers/bilateralObligations.js'
 
 test('applyRuinTransitions converts population at or below floor to ruin and releases claims', () => {
   const zero = applyRuinTransitions({
@@ -46,6 +48,43 @@ test('applyRuinTransitions converts population at or below floor to ruin and rel
   assert.strictEqual(aboveFloor.settlements[0].population, 11)
   assert.deepStrictEqual(aboveFloor.primaryClaim, { s3: [{ x: 3, y: 3 }] })
   assert.strictEqual(aboveFloor.events.length, 0)
+})
+
+test('living counterparty inspect balance reflects cancelled obligations after ruin, not the stale clearing snapshot', () => {
+  const tradeAccounts = { obligations: [], balancesBySettlementId: {} }
+  tradeAccounts.obligations.push({
+    creditorSettlementId: 'creditor',
+    debtorSettlementId: 'debtor',
+    amountCp: 300,
+  })
+  recomputeBalances(tradeAccounts)
+  assert.deepStrictEqual(tradeAccounts.balancesBySettlementId, { creditor: 300, debtor: -300 })
+
+  const ruined = applyRuinTransitions({
+    settlements: [
+      { id: 'creditor', x: 1, y: 1, population: 200, status: 'living', tier: 'town' },
+      { id: 'debtor', x: 2, y: 2, population: 0, status: 'living', tier: null },
+    ],
+    primaryClaim: { creditor: [{ x: 1, y: 1 }], debtor: [{ x: 2, y: 2 }] },
+    historyLog: [],
+    epoch: 7,
+    tradeAccounts,
+    externalTradeAccounts: {},
+  })
+
+  assert.strictEqual(ruined.settlements[1].status, 'ruin')
+  assert.strictEqual(ruined.tradeAccounts.balancesBySettlementId.creditor ?? 0, 0)
+
+  const inspect = buildSettlementEconomyInspect(
+    {
+      settlements: ruined.settlements,
+      tradeAccounts: ruined.tradeAccounts,
+      externalTradeAccounts: ruined.externalTradeAccounts,
+      lastTradeEpochResult: { realmBalancesCp: { creditor: 300, debtor: -300 } },
+    },
+    'creditor',
+  )
+  assert.strictEqual(inspect.balanceCp, 0)
 })
 
 function dryGeographyDoc() {

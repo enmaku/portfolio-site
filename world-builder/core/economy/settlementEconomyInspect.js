@@ -6,6 +6,9 @@
 
 import { referencePriceCp } from './commodityCatalog.js'
 import { presentMapCommodityIds } from './presentMapCommodities.js'
+import {
+  balancesFromEconomyInspectSource,
+} from './computeSettlementWealthSignals.js'
 import { combinedSettlementWealthCp } from './ledgers/combinedSettlementWealthCp.js'
 import { portTollIncomeCpForSettlement } from './ledgers/portTollIncomeCpForSettlement.js'
 
@@ -13,6 +16,7 @@ import { portTollIncomeCpForSettlement } from './ledgers/portTollIncomeCpForSett
  * @typedef {import('./commodityCatalog.js').CommodityId} CommodityId
  * @typedef {import('./tradeClearing/clearingState.js').CommodityTradeRole} CommodityTradeRole
  * @typedef {import('./tradeClearing/runTradeClearing.js').TradeClearingResult} TradeClearingResult
+ * @typedef {import('./computeSettlementWealthSignals.js').EconomyInspectSource} EconomyInspectSource
  */
 
 /**
@@ -69,27 +73,24 @@ export function comparePriceToReference(localPriceCp, referenceCp) {
 }
 
 /**
- * @param {{
- *   settlements?: Array<{ id: string, population?: number, maritimeRole?: string }>,
- *   lastTradeEpochResult?: TradeClearingResult | null,
- *   externalTradeAccounts?: Record<string, number>,
+ * @param {EconomyInspectSource & {
  *   saltNodes?: ReadonlyArray<unknown>,
  *   metalNodes?: ReadonlyArray<{ kind?: string }>,
- * }} worldDocument
+ * }} economyInspectSource
  * @param {string} settlementId
  * @returns {SettlementEconomyInspect | null}
  */
-export function buildSettlementEconomyInspect(worldDocument, settlementId) {
-  const settlement = (worldDocument?.settlements ?? []).find((s) => s?.id === settlementId)
+export function buildSettlementEconomyInspect(economyInspectSource, settlementId) {
+  const settlement = (economyInspectSource?.settlements ?? []).find((s) => s?.id === settlementId)
   if (!settlement) {
     return null
   }
 
-  const result = worldDocument.lastTradeEpochResult ?? null
+  const result = economyInspectSource.lastTradeEpochResult ?? null
   const roles = result?.settlementCommodityRoles?.[settlementId]
   const prices = result?.localPricesBySettlementId?.[settlementId]
 
-  const commodities = presentMapCommodityIds(worldDocument).map((commodityId) => {
+  const commodities = presentMapCommodityIds(economyInspectSource).map((commodityId) => {
     const role = normalizeRole(roles?.[commodityId])
     const priceCp = prices?.[commodityId]
     const localPriceCp =
@@ -114,14 +115,15 @@ export function buildSettlementEconomyInspect(worldDocument, settlementId) {
       : 0
 
   const isPort = settlement.maritimeRole === 'port'
+  const balancesBySettlementId = balancesFromEconomyInspectSource(economyInspectSource)
 
   return {
     settlementId,
     population,
     balanceCp: combinedSettlementWealthCp({
       settlementId,
-      realmBalancesCp: result?.realmBalancesCp,
-      externalTradeAccounts: worldDocument.externalTradeAccounts,
+      balancesBySettlementId,
+      externalTradeAccounts: economyInspectSource.externalTradeAccounts,
     }),
     portTollsCp: isPort ? portTollIncomeCpForSettlement(result, settlementId) : null,
     commodities,

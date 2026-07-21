@@ -6,6 +6,7 @@ import { DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
 import { clearRealmTrade } from '../economy/tradeClearing/clearRealmTrade.js'
+import { buildRealmTradeClearingInput } from './buildRealmTradeClearingInput.js'
 import { combinedSettlementWealthCp } from '../economy/ledgers/combinedSettlementWealthCp.js'
 import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
 
@@ -76,7 +77,7 @@ export function runColonizationEpochClaimsPhase(ctx) {
  * @returns {Promise<void>}
  */
 export async function runColonizationEpochTradePhase(ctx, options = {}) {
-  const trade = await clearRealmTrade(
+  const input = await buildRealmTradeClearingInput(
     {
       slice: ctx.slice,
       worldDocument: ctx.worldDocument,
@@ -84,6 +85,7 @@ export async function runColonizationEpochTradePhase(ctx, options = {}) {
     },
     options.trade,
   )
+  const trade = await clearRealmTrade(input, options.trade)
 
   ctx.effectiveDeliveredBySettlementId = trade.effectiveDeliveredBySettlementId
   ctx.slice = {
@@ -120,7 +122,6 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
     }
     const realmWealthCp = combinedSettlementWealthCp({
       settlementId: settlement.id,
-      realmBalancesCp: ctx.slice.lastTradeEpochResult?.realmBalancesCp,
       balancesBySettlementId: ctx.slice.tradeAccounts?.balancesBySettlementId,
       externalTradeAccounts: ctx.slice.externalTradeAccounts,
     })

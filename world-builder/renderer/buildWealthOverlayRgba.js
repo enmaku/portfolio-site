@@ -108,8 +108,6 @@ export const WEALTH_DEFICIT_RGB = wealthTintRgb(-1)
  * @typedef {import('../core/economy/computeSettlementWealthSignals.js').SettlementWealthSignal} SettlementWealthSignal
  */
 
-export { computeSettlementWealthSignals } from '../core/economy/computeSettlementWealthSignals.js'
-
 /**
  * @param {SettlementWealthSignal} signal
  * @returns {number}
@@ -238,6 +236,8 @@ function isWealthOverlayLandCell(worldDocument, x, y) {
  *   lakeMask?: Uint8Array,
  *   riverCorridorMask?: Uint8Array,
  *   lastTradeEpochResult?: import('../core/economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null,
+ *   tradeAccounts?: import('../core/economy/ledgers/bilateralObligations.js').TradeAccountsState,
+ *   balancesBySettlementId?: Record<string, number>,
  *   externalTradeAccounts?: Record<string, number>,
  * }} worldDocument
  * @returns {Uint8ClampedArray | null}

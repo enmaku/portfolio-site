@@ -221,7 +221,8 @@ export function diffWorldDocumentMapLayers(previous, next) {
   }
   if (
     previous.lastTradeEpochResult !== next.lastTradeEpochResult ||
-    previous.externalTradeAccounts !== next.externalTradeAccounts
+    previous.externalTradeAccounts !== next.externalTradeAccounts ||
+    previous.tradeAccounts !== next.tradeAccounts
   ) {
     changedLayers.push('wealth')
   }

@@ -9,17 +9,13 @@
 /**
  * @param {{
  *   settlementId: string,
- *   realmBalancesCp?: Record<string, number> | null,
  *   balancesBySettlementId?: Record<string, number> | null,
  *   externalTradeAccounts?: Record<string, number> | null,
  * }} params
  * @returns {number}
  */
 export function combinedSettlementWealthCp(params) {
-  const realmRaw =
-    params.realmBalancesCp?.[params.settlementId] ??
-    params.balancesBySettlementId?.[params.settlementId]
-  const realmCp = Number(realmRaw) || 0
+  const realmCp = Number(params.balancesBySettlementId?.[params.settlementId]) || 0
   const externalCp = Math.max(0, Number(params.externalTradeAccounts?.[params.settlementId]) || 0)
   return realmCp + externalCp
 }

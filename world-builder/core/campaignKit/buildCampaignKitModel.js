@@ -354,6 +354,7 @@ function buildSettlementDossier(slice, worldDocument, settlement, mapNumbers) {
   const inspect = buildSettlementEconomyInspect(
     {
       settlements: slice.settlements,
+      tradeAccounts: slice.tradeAccounts,
       lastTradeEpochResult: slice.lastTradeEpochResult,
       externalTradeAccounts: slice.externalTradeAccounts,
       saltNodes: worldDocument.saltNodes,

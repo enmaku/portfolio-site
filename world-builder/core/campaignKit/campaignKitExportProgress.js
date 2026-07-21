@@ -7,6 +7,7 @@ export const CAMPAIGN_KIT_EXPORT_STEPS = Object.freeze([
   { id: 'prepare', label: 'Prepare' },
   { id: 'settlementsMap', label: 'Settlements map' },
   { id: 'resourcesMap', label: 'Resources map' },
+  { id: 'model', label: 'Build kit model' },
   { id: 'pdf', label: 'Assemble PDF' },
 ])
 

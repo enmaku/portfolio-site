@@ -128,6 +128,9 @@ export function useWorldBuilderCampaignKitExport(options) {
       await enterStep(3)
       const slice = options.getSlice()
       const model = buildCampaignKitModel(slice, worldDocument)
+
+      await completeActiveStep()
+      await enterStep(4)
       const pdf = await assembleCampaignKitPdf({
         model,
         settlementsMapPng,

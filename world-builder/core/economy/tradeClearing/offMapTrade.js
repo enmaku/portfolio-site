@@ -276,45 +276,57 @@ function importPortOwnNeeds(state, port, importBudgetLbByPortId) {
   if (!bag) return
   let remaining = importBudgetLbByPortId.get(port.id) ?? 0
   const shortfall = importShortfallByCommodity(bag, port.population)
+  const openingNetOwed = state.openingNetOwed?.get(port.id) ?? 0
 
   for (const commodityId of COMMODITY_IDS) {
     let need = shortfall[commodityId]
     if (!(need > EPSILON)) continue
 
-    let resourceKind = offMapImportResourceKind(commodityId)
-    if (commodityId === 'grain' || commodityId === 'fish') {
-      const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
-      if (foodHeld >= survivalFoodDemandLb(port.population) - EPSILON) {
-        resourceKind = 'comfort'
+    while (need > EPSILON) {
+      let resourceKind = offMapImportResourceKind(commodityId)
+      if (commodityId === 'grain' || commodityId === 'fish') {
+        const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
+        if (foodHeld >= survivalFoodDemandLb(port.population) - EPSILON) {
+          resourceKind = 'comfort'
+        }
       }
-    }
-    // External purse pays the pier, but comfort/prosperity still need realm credit room
-    // (no-borrow / open-debt freeze). Survival/salt may use external without that gate.
-    if (resourceKind === 'comfort' || resourceKind === 'prosperity') {
-      const room = creditRoomCpForImport(state, port.id, resourceKind)
-      if (!(room > EPSILON)) continue
-    }
+      // Own-needs create no realm obligation; freeze luxuries only while opening in debt.
+      if (
+        (resourceKind === 'comfort' || resourceKind === 'prosperity') &&
+        openingNetOwed > 0
+      ) {
+        break
+      }
 
-    const unitPriceCp = offMapUnitPriceCp({
-      referencePriceCp: referencePriceCp(commodityId),
-      direction: 'import',
-    })
-    if (!(unitPriceCp > 0)) continue
-    const cargoLb = cargoLbPerUnit(commodityId)
-    const affordable = (state.externalAccounts.get(port.id) ?? 0) / unitPriceCp
-    const qty = Math.min(need, remaining / cargoLb, affordable)
-    if (!(qty > EPSILON)) continue
-    bag[commodityId] += qty
-    remaining -= qty * cargoLb
-    creditExternal(state, port.id, -unitPriceCp * qty)
-    recordOffMap(state, {
-      settlementId: port.id,
-      originSettlementId: port.id,
-      commodityId,
-      direction: 'import',
-      amount: qty,
-      unitPriceCp,
-    })
+      const unitPriceCp = offMapUnitPriceCp({
+        referencePriceCp: referencePriceCp(commodityId),
+        direction: 'import',
+      })
+      if (!(unitPriceCp > 0)) break
+      const cargoLb = cargoLbPerUnit(commodityId)
+      const affordable = (state.externalAccounts.get(port.id) ?? 0) / unitPriceCp
+      let qty = Math.min(need, remaining / cargoLb, affordable)
+      if (
+        resourceKind === 'survival' &&
+        (commodityId === 'grain' || commodityId === 'fish')
+      ) {
+        const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
+        qty = Math.min(qty, Math.max(0, survivalFoodDemandLb(port.population) - foodHeld))
+      }
+      if (!(qty > EPSILON)) break
+      bag[commodityId] += qty
+      remaining -= qty * cargoLb
+      creditExternal(state, port.id, -unitPriceCp * qty)
+      recordOffMap(state, {
+        settlementId: port.id,
+        originSettlementId: port.id,
+        commodityId,
+        direction: 'import',
+        amount: qty,
+        unitPriceCp,
+      })
+      need -= qty
+    }
   }
   importBudgetLbByPortId.set(port.id, remaining)
 }
@@ -334,22 +346,25 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
     let need = shortfall[commodityId]
     if (!(need > EPSILON)) continue
 
-    let resourceKind = offMapImportResourceKind(commodityId)
     if (state.overLimitAtOpen.get(claimant.id) === true) {
-      if (resourceKind === 'prosperity') continue
+      const kind = offMapImportResourceKind(commodityId)
+      if (kind === 'prosperity') continue
       if (commodityId === 'grain' || commodityId === 'fish') {
         const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
         need = Math.min(need, Math.max(0, survivalFoodDemandLb(claimant.population) - foodHeld))
         if (!(need > EPSILON)) continue
       }
-    } else if (commodityId === 'grain' || commodityId === 'fish') {
-      const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
-      if (foodHeld >= survivalFoodDemandLb(claimant.population) - EPSILON) {
-        resourceKind = 'comfort'
-      }
     }
 
     while (need > EPSILON) {
+      let resourceKind = offMapImportResourceKind(commodityId)
+      if (commodityId === 'grain' || commodityId === 'fish') {
+        const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
+        if (foodHeld >= survivalFoodDemandLb(claimant.population) - EPSILON) {
+          resourceKind = 'comfort'
+        }
+      }
+
       const unitPriceCp = offMapUnitPriceCp({
         referencePriceCp: referencePriceCp(commodityId),
         direction: 'import',
@@ -373,7 +388,14 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
 
       const room = creditRoomCpForImport(state, claimant.id, resourceKind)
       const creditCap = Math.max(0, room) / netUnitCp
-      const qty = Math.min(need, best.path.bottleneckUnits, pierRemaining / cargoLb, affordable, creditCap)
+      let qty = Math.min(need, best.path.bottleneckUnits, pierRemaining / cargoLb, affordable, creditCap)
+      if (
+        resourceKind === 'survival' &&
+        (commodityId === 'grain' || commodityId === 'fish')
+      ) {
+        const foodHeld = (bag.grain ?? 0) + (bag.fish ?? 0)
+        qty = Math.min(qty, Math.max(0, survivalFoodDemandLb(claimant.population) - foodHeld))
+      }
       if (!(qty > EPSILON)) break
 
       applyPathCapacityFlows(state, {

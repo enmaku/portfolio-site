@@ -17,17 +17,36 @@ import { combinedSettlementWealthCp } from './ledgers/combinedSettlementWealthCp
  */
 
 /**
- * @param {{
- *   settlements?: Array<{ id: string, x?: number, y?: number }>,
- *   lastTradeEpochResult?: import('./tradeClearing/runTradeClearing.js').TradeClearingResult | null,
- *   externalTradeAccounts?: Record<string, number>,
- * }} worldDocument
+ * @typedef {Object} EconomyInspectSource
+ * @property {Array<{ id: string, x?: number, y?: number }>} [settlements]
+ * @property {import('./ledgers/bilateralObligations.js').TradeAccountsState} [tradeAccounts]
+ * @property {Record<string, number>} [balancesBySettlementId]
+ * @property {Record<string, number>} [externalTradeAccounts]
+ * @property {import('./tradeClearing/runTradeClearing.js').TradeClearingResult | null} [lastTradeEpochResult]
+ */
+
+/**
+ * Live mutual-credit balances for wealth display (not stale clearing snapshot).
+ *
+ * @param {EconomyInspectSource | null | undefined} source
+ * @returns {Record<string, number>}
+ */
+export function balancesFromEconomyInspectSource(source) {
+  return (
+    source?.balancesBySettlementId ??
+    source?.tradeAccounts?.balancesBySettlementId ??
+    {}
+  )
+}
+
+/**
+ * @param {EconomyInspectSource} economyInspectSource
  * @returns {SettlementWealthSignal[]}
  */
-export function computeSettlementWealthSignals(worldDocument) {
-  const settlements = worldDocument?.settlements ?? []
-  const result = worldDocument?.lastTradeEpochResult ?? null
-  const external = worldDocument?.externalTradeAccounts ?? {}
+export function computeSettlementWealthSignals(economyInspectSource) {
+  const settlements = economyInspectSource?.settlements ?? []
+  const balancesBySettlementId = balancesFromEconomyInspectSource(economyInspectSource)
+  const external = economyInspectSource?.externalTradeAccounts ?? {}
 
   /** @type {Array<{
    *   id: string,
@@ -41,11 +60,11 @@ export function computeSettlementWealthSignals(worldDocument) {
   let maxAbsNet = 0
   for (const settlement of settlements) {
     if (!settlement || !Number.isFinite(settlement.x) || !Number.isFinite(settlement.y)) continue
-    const balanceCp = result?.realmBalancesCp?.[settlement.id] ?? 0
+    const balanceCp = balancesBySettlementId[settlement.id] ?? 0
     const externalClaimCp = Math.max(0, Number(external[settlement.id]) || 0)
     const netWealthCp = combinedSettlementWealthCp({
       settlementId: settlement.id,
-      realmBalancesCp: result?.realmBalancesCp,
+      balancesBySettlementId,
       externalTradeAccounts: external,
     })
     maxAbsNet = Math.max(maxAbsNet, Math.abs(netWealthCp))

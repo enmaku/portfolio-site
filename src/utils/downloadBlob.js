@@ -21,5 +21,7 @@ export function downloadBlob(blob, filename, dom = globalThis.document) {
   if (body?.removeChild) {
     body.removeChild(anchor)
   }
-  URL.revokeObjectURL(url)
+  // Revoking on the same tick can invalidate the URL before some browsers
+  // finish handling the click-triggered download.
+  setTimeout(() => URL.revokeObjectURL(url), 0)
 }

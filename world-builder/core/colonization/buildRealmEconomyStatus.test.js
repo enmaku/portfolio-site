@@ -12,6 +12,10 @@ test('buildRealmEconomyStatus ranks local prices and combined wealth', () => {
     { id: 'c', status: 'ruin', population: 0, x: 2, y: 0, maritimeRole: 'port' },
   ]
   slice.externalTradeAccounts = { a: 50, b: 0 }
+  slice.tradeAccounts = {
+    obligations: [],
+    balancesBySettlementId: { a: 100, b: -20 },
+  }
   slice.lastTradeEpochResult = {
     flows: [],
     offMapTrades: [],
@@ -23,7 +27,7 @@ test('buildRealmEconomyStatus ranks local prices and combined wealth', () => {
     obligationDeltas: [],
     externalAccountDeltas: {},
     effectiveDelivered: {},
-    realmBalancesCp: { a: 100, b: -20 },
+    realmBalancesCp: {},
     nettedObligations: [],
     portTollIncomeCpBySettlementId: { a: 40, b: 99 },
   }
@@ -56,7 +60,7 @@ test('buildRealmEconomyStatus ranks living port toll income and ignores inland',
     obligationDeltas: [],
     externalAccountDeltas: {},
     effectiveDelivered: {},
-    realmBalancesCp: {},
+    tradeAccounts: { balancesBySettlementId: {} },
     nettedObligations: [],
     portTollIncomeCpBySettlementId: { a: 10, b: 80, c: 999 },
   }
@@ -77,7 +81,7 @@ test('buildRealmEconomyStatus omits toll extremes when no living ports', () => {
     obligationDeltas: [],
     externalAccountDeltas: {},
     effectiveDelivered: {},
-    realmBalancesCp: {},
+    tradeAccounts: { balancesBySettlementId: {} },
     nettedObligations: [],
     portTollIncomeCpBySettlementId: { a: 50 },
   }

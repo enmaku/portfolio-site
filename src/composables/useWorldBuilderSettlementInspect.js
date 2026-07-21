@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { livingSettlements } from '../../world-builder/core/colonization/expeditions/expeditionConstants.js'
 import { COLONIZATION_PHASE_RUNNING } from '../../world-builder/core/colonization/createDefaultColonizationSlice.js'
-import { buildSettlementTradeTooltip } from '../../world-builder/core/economy/settlementTradeTooltip.js'
+import { buildSettlementEconomyInspect } from '../../world-builder/core/economy/settlementEconomyInspect.js'
 
 /**
  * Settlement hover / focus / trade tooltip for the colonization map.
@@ -143,9 +143,10 @@ export function useWorldBuilderSettlementInspect(options) {
       return null
     }
     const geography = getGeographyDocument?.() ?? null
-    return buildSettlementTradeTooltip(
+    return buildSettlementEconomyInspect(
       {
         settlements: slice.value.settlements,
+        tradeAccounts: slice.value.tradeAccounts,
         lastTradeEpochResult: slice.value.lastTradeEpochResult,
         externalTradeAccounts: slice.value.externalTradeAccounts,
         saltNodes: geography?.saltNodes,

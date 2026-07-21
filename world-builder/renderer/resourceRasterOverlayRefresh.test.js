@@ -122,8 +122,8 @@ function createWealthFixture() {
     colonizationPhase: 'running',
     settlements: [{ id: 'a', x: 2, y: 2 }],
     primaryClaim: { a: [{ x: 2, y: 2 }] },
+    tradeAccounts: { balancesBySettlementId: { a: 500 } },
     lastTradeEpochResult: {
-      realmBalancesCp: { a: 500 },
       obligationDeltas: [{ toSettlementId: 'a', amountCp: 1000, kind: 'goods' }],
     },
   }

@@ -97,8 +97,8 @@ function visibleRasterFixture(resourceId) {
       colonizationPhase: 'running',
       settlements: [{ id: 'a', x: 1, y: 1 }],
       primaryClaim: { a: [{ x: 1, y: 1 }] },
+      tradeAccounts: { balancesBySettlementId: { a: 100 } },
       lastTradeEpochResult: {
-        realmBalancesCp: { a: 100 },
         obligationDeltas: [{ toSettlementId: 'a', amountCp: 200, kind: 'goods' }],
       },
     }

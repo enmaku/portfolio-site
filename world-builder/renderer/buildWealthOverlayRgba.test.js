@@ -2,13 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildWealthOverlayRgba,
-  computeSettlementWealthSignals,
   WEALTH_CLAIM_OUTLINE_RGBA,
   WEALTH_NEUTRAL_RGB,
   WEALTH_OVERLAY_MAX_ALPHA,
   WEALTH_OVERLAY_MIN_ALPHA,
   wealthTintRgb,
 } from './buildWealthOverlayRgba.js'
+import { computeSettlementWealthSignals } from '../core/economy/computeSettlementWealthSignals.js'
 
 const MAX_ALPHA_BYTE = Math.round(WEALTH_OVERLAY_MAX_ALPHA * 255)
 
@@ -38,8 +38,8 @@ test('paints claimed cells with surplus green and deficit red', () => {
         { x: 4, y: 7 },
       ],
     },
+    tradeAccounts: { balancesBySettlementId: { a: 500, b: -800 } },
     lastTradeEpochResult: {
-      realmBalancesCp: { a: 500, b: -800 },
       obligationDeltas: [
         { toSettlementId: 'a', amountCp: 1000, kind: 'goods' },
         { toSettlementId: 'b', amountCp: 1000, kind: 'goods' },
@@ -79,9 +79,8 @@ test('higher tooltip balances paint darker than lower peers', () => {
       mild: [{ x: 1, y: 1 }],
       rich: [{ x: 6, y: 6 }],
     },
-    lastTradeEpochResult: {
-      realmBalancesCp: { mild: 300, rich: 5000 },
-    },
+    tradeAccounts: { balancesBySettlementId: { mild: 300, rich: 5000 } },
+    lastTradeEpochResult: {},
   })
   assert.ok(rgba)
   const mild = [
@@ -105,9 +104,8 @@ test('overlay magnitude tracks the tooltip combined balance directly', () => {
       { id: 'mid', x: 1, y: 0 },
       { id: 'huge', x: 2, y: 0 },
     ],
-    lastTradeEpochResult: {
-      realmBalancesCp: { small: 14_000, mid: 55_000, huge: 380_000 },
-    },
+    tradeAccounts: { balancesBySettlementId: { small: 14_000, mid: 55_000, huge: 380_000 } },
+    lastTradeEpochResult: {},
   }
   const signals = computeSettlementWealthSignals(worldDocument)
   const byId = Object.fromEntries(signals.map((s) => [s.id, s]))
@@ -124,7 +122,7 @@ test('overlay magnitude tracks the tooltip combined balance directly', () => {
 test('external port credit contributes to net wealth', () => {
   const signals = computeSettlementWealthSignals({
     settlements: [{ id: 'port', x: 0, y: 0 }],
-    lastTradeEpochResult: { realmBalancesCp: { port: -100 } },
+    tradeAccounts: { balancesBySettlementId: { port: -100 } },
     externalTradeAccounts: { port: 400 },
   })
   assert.strictEqual(signals.length, 1)
@@ -139,8 +137,8 @@ test('does not paint wealth fill outside primary claim cells', () => {
     primaryClaim: {
       a: [{ x: 4, y: 4 }],
     },
+    tradeAccounts: { balancesBySettlementId: { a: 100 } },
     lastTradeEpochResult: {
-      realmBalancesCp: { a: 100 },
       obligationDeltas: [{ toSettlementId: 'a', amountCp: 1000, kind: 'goods' }],
     },
   })
@@ -169,8 +167,8 @@ test('omits ruin settlements even when primary claim cells remain', () => {
         { x: 7, y: 6 },
       ],
     },
+    tradeAccounts: { balancesBySettlementId: { living: 500, ruined: -800 } },
     lastTradeEpochResult: {
-      realmBalancesCp: { living: 500, ruined: -800 },
       obligationDeltas: [
         { toSettlementId: 'living', amountCp: 1000, kind: 'goods' },
         { toSettlementId: 'ruined', amountCp: 1000, kind: 'goods' },
@@ -191,8 +189,8 @@ test('returns null when living settlements have empty primary claim', () => {
       gridHeight: 4,
       settlements: [{ id: 'a', x: 1, y: 1 }],
       primaryClaim: { a: [] },
+      tradeAccounts: { balancesBySettlementId: { a: 100 } },
       lastTradeEpochResult: {
-        realmBalancesCp: { a: 100 },
         obligationDeltas: [{ toSettlementId: 'a', amountCp: 1000, kind: 'goods' }],
       },
     }),
@@ -203,8 +201,8 @@ test('returns null when living settlements have empty primary claim', () => {
       gridWidth: 4,
       gridHeight: 4,
       settlements: [{ id: 'a', x: 1, y: 1 }],
+      tradeAccounts: { balancesBySettlementId: { a: 100 } },
       lastTradeEpochResult: {
-        realmBalancesCp: { a: 100 },
         obligationDeltas: [{ toSettlementId: 'a', amountCp: 1000, kind: 'goods' }],
       },
     }),
@@ -242,8 +240,8 @@ test('skips ocean lake and river cells inside primary claim', () => {
         { x: 3, y: 0 },
       ],
     },
+    tradeAccounts: { balancesBySettlementId: { a: 100 } },
     lastTradeEpochResult: {
-      realmBalancesCp: { a: 100 },
       obligationDeltas: [{ toSettlementId: 'a', amountCp: 1000, kind: 'goods' }],
     },
   })
@@ -272,8 +270,8 @@ test('wealth alpha uses sqrt magnitude so mid balances read stronger than linear
       mid: [{ x: 1, y: 1 }],
       rich: [{ x: 2, y: 2 }],
     },
+    tradeAccounts: { balancesBySettlementId: { mid: 500, rich: 20_000 } },
     lastTradeEpochResult: {
-      realmBalancesCp: { mid: 500, rich: 20_000 },
       obligationDeltas: [
         { toSettlementId: 'mid', amountCp: 1000, kind: 'goods' },
         { toSettlementId: 'rich', amountCp: 1000, kind: 'goods' },
@@ -332,8 +330,8 @@ test('paints a thin black outline between abutting primary claims', () => {
         { x: 5, y: 1 },
       ],
     },
+    tradeAccounts: { balancesBySettlementId: { a: 500, b: 500 } },
     lastTradeEpochResult: {
-      realmBalancesCp: { a: 500, b: 500 },
       obligationDeltas: [
         { toSettlementId: 'a', amountCp: 1000, kind: 'goods' },
         { toSettlementId: 'b', amountCp: 1000, kind: 'goods' },
@@ -364,8 +362,8 @@ test('paints a thin black outline on dry land beside an isolated claim', () => {
         { x: 4, y: 3 },
       ],
     },
+    tradeAccounts: { balancesBySettlementId: { a: 500 } },
     lastTradeEpochResult: {
-      realmBalancesCp: { a: 500 },
       obligationDeltas: [{ toSettlementId: 'a', amountCp: 1000, kind: 'goods' }],
     },
   })

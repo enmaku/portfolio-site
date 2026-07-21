@@ -4,6 +4,7 @@
  * comfort, material prosperity, off-map trade, mutual credit, port toll, credit limit.
  */
 
+import { COLONIZATION_TRADE_SUBSTEPS } from '../../colonization/colonizationEpochSteps.js'
 import { FISH_CURING_SALT_PER_FISH_LB } from '../productionAccounting.js'
 import {
   PROSPERITY_COMMODITIES,
@@ -22,11 +23,6 @@ import { PORT_TOLL_RATE } from './tradeConstants.js'
 import { addObligation, markRole } from './clearingMutators.js'
 import { applyPathCapacityFlows } from './applyPathCapacityFlows.js'
 import { createClearingState } from './clearingState.js'
-
-export { PORT_TOLL_RATE } from './tradeConstants.js'
-export { addObligation, markRole } from './clearingMutators.js'
-export { creditRoomCpForImport } from '../ledgers/creditRoom.js'
-export { createClearingState } from './clearingState.js'
 
 /**
  * @typedef {import('../commodityCatalog.js').CommodityId} CommodityId
@@ -74,16 +70,26 @@ const CLEAR_RESOURCE_YIELD_EVERY = 8
  */
 
 /**
- * Trade ladder indices after production (index 0) in clearRealmTrade.
- * localPrices = 1 … offMap = 5.
+ * @param {import('../../colonization/colonizationEpochSteps.js').ColonizationTradeSubstepId} id
+ * @returns {number}
  */
+function tradeSubstepIndex(id) {
+  const index = COLONIZATION_TRADE_SUBSTEPS.findIndex((step) => step.id === id)
+  if (index < 0) throw new Error(`unknown trade substep: ${id}`)
+  return index
+}
+
+/** Indices aligned with COLONIZATION_TRADE_SUBSTEPS (production = 0 in clearRealmTrade). */
 const TRADE_SUBSTEP = Object.freeze({
-  localPrices: 1,
-  survival: 2,
-  comfort: 3,
-  prosperity: 4,
-  offMap: 5,
+  localPrices: tradeSubstepIndex('localPrices'),
+  survival: tradeSubstepIndex('survival'),
+  comfort: tradeSubstepIndex('comfort'),
+  prosperity: tradeSubstepIndex('prosperity'),
+  offMap: tradeSubstepIndex('offMap'),
 })
+
+/** Exported for coupling tests against COLONIZATION_TRADE_SUBSTEPS. */
+export { TRADE_SUBSTEP }
 
 /**
  * @param {Parameters<typeof createClearingState>[0]} [params]
@@ -244,19 +250,7 @@ function emitTradeSubstep(hooks, type, substepIndex, substepId, itemIndex, itemC
  * @param {ClearResourceProgress} [progress]
  */
 async function clearFoodTier(state, targetFn, resourceKind, progress) {
-  await clearResource(
-    state,
-    {
-      commodities: ['grain', 'fish'],
-      targetOf: (s) => targetFn(s.population),
-      heldResource: (id) => {
-        const bag = state.held.get(id)
-        return (bag?.grain ?? 0) + (bag?.fish ?? 0)
-      },
-      resourceKind,
-    },
-    progress,
-  )
+  await clearResource(state, foodClearSpec(state, targetFn, resourceKind), progress)
 }
 
 /**
@@ -265,15 +259,7 @@ async function clearFoodTier(state, targetFn, resourceKind, progress) {
  * @param {'survival' | 'comfort'} resourceKind
  */
 function clearFoodTierSync(state, targetFn, resourceKind) {
-  clearResourceSync(state, {
-    commodities: ['grain', 'fish'],
-    targetOf: (s) => targetFn(s.population),
-    heldResource: (id) => {
-      const bag = state.held.get(id)
-      return (bag?.grain ?? 0) + (bag?.fish ?? 0)
-    },
-    resourceKind,
-  })
+  clearResourceSync(state, foodClearSpec(state, targetFn, resourceKind))
 }
 
 /**
@@ -282,16 +268,7 @@ function clearFoodTierSync(state, targetFn, resourceKind) {
  * @param {ClearResourceProgress} [progress]
  */
 async function clearSaltTier(state, targetFn, progress) {
-  await clearResource(
-    state,
-    {
-      commodities: ['salt'],
-      targetOf: (s) => targetFn(s.population),
-      heldResource: (id) => state.held.get(id)?.salt ?? 0,
-      resourceKind: 'salt',
-    },
-    progress,
-  )
+  await clearResource(state, saltClearSpec(state, targetFn), progress)
 }
 
 /**
@@ -299,12 +276,7 @@ async function clearSaltTier(state, targetFn, progress) {
  * @param {(pop: number) => number} targetFn
  */
 function clearSaltTierSync(state, targetFn) {
-  clearResourceSync(state, {
-    commodities: ['salt'],
-    targetOf: (s) => targetFn(s.population),
-    heldResource: (id) => state.held.get(id)?.salt ?? 0,
-    resourceKind: 'salt',
-  })
+  clearResourceSync(state, saltClearSpec(state, targetFn))
 }
 
 /**
@@ -321,6 +293,38 @@ function clearProsperityCommodity(state, commodityId) {
 }
 
 /**
+ * @param {ClearingState} state
+ * @param {(pop: number) => number} targetFn
+ * @param {'survival' | 'comfort'} resourceKind
+ * @returns {ClearResourceSpec}
+ */
+function foodClearSpec(state, targetFn, resourceKind) {
+  return {
+    commodities: ['grain', 'fish'],
+    targetOf: (s) => targetFn(s.population),
+    heldResource: (id) => {
+      const bag = state.held.get(id)
+      return (bag?.grain ?? 0) + (bag?.fish ?? 0)
+    },
+    resourceKind,
+  }
+}
+
+/**
+ * @param {ClearingState} state
+ * @param {(pop: number) => number} targetFn
+ * @returns {ClearResourceSpec}
+ */
+function saltClearSpec(state, targetFn) {
+  return {
+    commodities: ['salt'],
+    targetOf: (s) => targetFn(s.population),
+    heldResource: (id) => state.held.get(id)?.salt ?? 0,
+    resourceKind: 'salt',
+  }
+}
+
+/**
  * @typedef {{
  *   commodities: CommodityId[],
  *   targetOf: (s: { population: number }) => number,
@@ -330,17 +334,18 @@ function clearProsperityCommodity(state, commodityId) {
  */
 
 /**
- * Max-min fair clearing of one resource with cooperative yields when progress is set.
+ * Single max-min body: each yield is one deficit attempt (same pattern as offMapTradeSteps).
  *
  * @param {ClearingState} state
  * @param {ClearResourceSpec} spec
- * @param {ClearResourceProgress} [progress]
+ * @returns {Generator<{ deficitCount: number, run: () => void }>}
  */
-async function clearResource(state, spec, progress) {
+function* clearResourceSteps(state, spec) {
   const { commodities, targetOf, heldResource } = spec
   /** @type {Set<string>} */
   const blocked = new Set()
-  let attempt = 0
+  /** @type {Set<string>} originId::commodityId pairs that applied ≤ ε */
+  const excludedMoves = new Set()
 
   for (let guard = 0; guard < 100000; guard += 1) {
     const ranked = state.settlements
@@ -350,8 +355,52 @@ async function clearResource(state, spec, progress) {
       .sort((a, b) => a.ratio - b.ratio || (a.s.id < b.s.id ? -1 : 1))
 
     const deficits = ranked.filter((row) => row.held < row.target - EPSILON && !blocked.has(row.s.id))
-    if (deficits.length === 0) break
+    if (deficits.length === 0) return
 
+    const target = deficits[0]
+    const secondRatio = ranked.find((row) => row.s.id !== target.s.id && row.ratio > target.ratio)?.ratio
+    const capRatio = Math.min(1, secondRatio ?? 1)
+    let raiseUnits = target.target * capRatio - target.held
+    if (raiseUnits <= EPSILON) raiseUnits = target.target - target.held
+    const targetId = target.s.id
+    const deficitCount = deficits.length
+
+    yield {
+      deficitCount,
+      run: () => {
+        const move = planBestMove(state, {
+          spec,
+          targetId,
+          commodities,
+          excludedMoves,
+        })
+        if (!move) {
+          blocked.add(targetId)
+          return
+        }
+        const applied = applyMove(state, {
+          move,
+          maxUnits: raiseUnits,
+          resourceKind: spec.resourceKind,
+        })
+        if (applied <= EPSILON) {
+          excludedMoves.add(`${move.path.originId}::${move.commodityId}`)
+        }
+      },
+    }
+  }
+}
+
+/**
+ * Max-min fair clearing of one resource with cooperative yields when progress is set.
+ *
+ * @param {ClearingState} state
+ * @param {ClearResourceSpec} spec
+ * @param {ClearResourceProgress} [progress]
+ */
+async function clearResource(state, spec, progress) {
+  let attempt = 0
+  for (const step of clearResourceSteps(state, spec)) {
     attempt += 1
     if (progress && (attempt === 1 || attempt % CLEAR_RESOURCE_YIELD_EVERY === 0)) {
       emitTradeSubstep(
@@ -360,28 +409,11 @@ async function clearResource(state, spec, progress) {
         progress.substepIndex,
         progress.substepId,
         attempt,
-        Math.max(attempt, deficits.length),
+        Math.max(attempt, step.deficitCount),
       )
       await progress.yieldToUi?.()
     }
-
-    const target = deficits[0]
-    const secondRatio = ranked.find((row) => row.s.id !== target.s.id && row.ratio > target.ratio)?.ratio
-    const capRatio = Math.min(1, secondRatio ?? 1)
-    let raiseUnits = target.target * capRatio - target.held
-    if (raiseUnits <= EPSILON) raiseUnits = target.target - target.held
-
-    const move = planBestMove(state, { spec, targetId: target.s.id, commodities })
-    if (!move) {
-      blocked.add(target.s.id)
-      continue
-    }
-    const applied = applyMove(state, {
-      move,
-      maxUnits: raiseUnits,
-      resourceKind: spec.resourceKind,
-    })
-    if (applied <= EPSILON) blocked.add(target.s.id)
+    step.run()
   }
 }
 
@@ -390,37 +422,8 @@ async function clearResource(state, spec, progress) {
  * @param {ClearResourceSpec} spec
  */
 function clearResourceSync(state, spec) {
-  const { commodities, targetOf, heldResource } = spec
-  /** @type {Set<string>} */
-  const blocked = new Set()
-
-  for (let guard = 0; guard < 100000; guard += 1) {
-    const ranked = state.settlements
-      .map((s) => ({ s, target: targetOf(s), held: heldResource(s.id) }))
-      .filter((row) => row.target > EPSILON)
-      .map((row) => ({ ...row, ratio: row.held / row.target }))
-      .sort((a, b) => a.ratio - b.ratio || (a.s.id < b.s.id ? -1 : 1))
-
-    const deficits = ranked.filter((row) => row.held < row.target - EPSILON && !blocked.has(row.s.id))
-    if (deficits.length === 0) break
-
-    const target = deficits[0]
-    const secondRatio = ranked.find((row) => row.s.id !== target.s.id && row.ratio > target.ratio)?.ratio
-    const capRatio = Math.min(1, secondRatio ?? 1)
-    let raiseUnits = target.target * capRatio - target.held
-    if (raiseUnits <= EPSILON) raiseUnits = target.target - target.held
-
-    const move = planBestMove(state, { spec, targetId: target.s.id, commodities })
-    if (!move) {
-      blocked.add(target.s.id)
-      continue
-    }
-    const applied = applyMove(state, {
-      move,
-      maxUnits: raiseUnits,
-      resourceKind: spec.resourceKind,
-    })
-    if (applied <= EPSILON) blocked.add(target.s.id)
+  for (const step of clearResourceSteps(state, spec)) {
+    step.run()
   }
 }
 
@@ -432,6 +435,7 @@ function clearResourceSync(state, spec) {
  *   spec: { targetOf: (s: { population: number }) => number },
  *   targetId: string,
  *   commodities: CommodityId[],
+ *   excludedMoves?: Set<string>,
  * }} params
  * @returns {{
  *   commodityId: CommodityId,
@@ -441,13 +445,16 @@ function clearResourceSync(state, spec) {
  * } | null}
  */
 function planBestMove(state, params) {
-  const { targetId, commodities } = params
+  const { targetId, commodities, excludedMoves } = params
   let best = null
   for (const commodityId of commodities) {
     const priceAtDest = state.localPrices[targetId]?.[commodityId] ?? 0
     const unitTollCp = PORT_TOLL_RATE * priceAtDest
     const sources = state.settlements.filter(
-      (s) => s.id !== targetId && exportableUnits(state, s, params.spec, commodityId) > EPSILON,
+      (s) =>
+        s.id !== targetId &&
+        !(excludedMoves?.has(`${s.id}::${commodityId}`)) &&
+        exportableUnits(state, s, params.spec, commodityId) > EPSILON,
     )
     if (sources.length === 0) continue
 
@@ -506,7 +513,11 @@ function exportableUnits(state, source, spec, commodityId) {
   if (commodityId === 'grain' || commodityId === 'fish') {
     const food = (bag.grain ?? 0) + (bag.fish ?? 0)
     const exportableFood = Math.max(0, food - target)
-    return Math.min(bag[commodityId] ?? 0, exportableFood)
+    let units = Math.min(bag[commodityId] ?? 0, exportableFood)
+    if (commodityId === 'fish') {
+      units = Math.min(units, (bag.salt ?? 0) * FISH_CURING_SALT_PER_FISH_LB)
+    }
+    return units
   }
   return Math.max(0, (bag[commodityId] ?? 0) - target)
 }
