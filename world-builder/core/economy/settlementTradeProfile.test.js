@@ -15,13 +15,14 @@ test('computes surplusOrDeficit from production and demand', () => {
   assert.equal(profile.surplusOrDeficit.fish, -10)
 })
 
-test('derives demand from population when demand omitted', () => {
+test('derives allocation demand from population when demand omitted', () => {
   const profile = computeSettlementTradeProfile({
     settlementId: 'a',
     production: { grain: 0 },
     population: 10,
   })
   assert.ok(profile.demand.grain > 0)
+  assert.equal(profile.demand.fish, 0)
   assert.ok(profile.surplusOrDeficit.grain < 0)
 })
 

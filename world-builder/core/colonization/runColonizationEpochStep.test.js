@@ -135,6 +135,6 @@ test('runColonizationEpochStep reports trade substep indices in order without st
     },
   })
 
-  assert.deepStrictEqual(tradeSubstepStarts, [0, 1, 2, 3, 4])
+  assert.deepStrictEqual(tradeSubstepStarts, [0, 1, 2, 3, 4, 5])
   assert.strictEqual(sawProgressAfterTradeStart, true)
 })

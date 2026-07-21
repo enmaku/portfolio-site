@@ -4,8 +4,8 @@
  */
 
 import { referencePriceCp } from '../economy/commodityCatalog.js'
-import { realizedPortTollIncomeCpBySettlementId } from '../economy/ledgers/realizedIncome.js'
 import { combinedSettlementWealthCp } from '../economy/ledgers/combinedSettlementWealthCp.js'
+import { portTollIncomeCpForSettlement } from '../economy/ledgers/portTollIncomeCpForSettlement.js'
 import { presentMapCommodityIds } from '../economy/presentMapCommodities.js'
 import { livingSettlements } from './expeditions/expeditionConstants.js'
 import { pickSettlementExtremes } from './pickSettlementExtreme.js'
@@ -35,21 +35,6 @@ import { pickSettlementExtremes } from './pickSettlementExtreme.js'
  * @property {SettlementValueExtreme | null} highestTolls
  * @property {SettlementValueExtreme | null} lowestTolls
  */
-
-/**
- * @param {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null} result
- * @param {string} settlementId
- * @returns {number}
- */
-function portTollIncomeCp(result, settlementId) {
-  const mapped = result?.portTollIncomeCpBySettlementId?.[settlementId]
-  if (typeof mapped === 'number' && Number.isFinite(mapped)) {
-    return Math.max(0, mapped)
-  }
-  const recovered = realizedPortTollIncomeCpBySettlementId(result?.obligationDeltas, null)
-  const amount = recovered[settlementId]
-  return typeof amount === 'number' && Number.isFinite(amount) ? Math.max(0, amount) : 0
-}
 
 /**
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
@@ -103,7 +88,7 @@ export function buildRealmEconomyStatus(slice, worldDocument) {
   const livingPorts = living.filter((settlement) => settlement.maritimeRole === 'port')
   const tollEntries = livingPorts.map((settlement) => ({
     id: settlement.id,
-    valueCp: portTollIncomeCp(tradeResult, settlement.id),
+    valueCp: portTollIncomeCpForSettlement(tradeResult, settlement.id),
   }))
   const tollExtremes = pickSettlementExtremes(tollEntries, (entry) => entry.valueCp)
 

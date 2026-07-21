@@ -53,7 +53,7 @@ export function offMapUnitPriceCp(params) {
  */
 
 /**
- * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {import('./clearingState.js').ClearingState} state
  * @returns {{
  *   living: Array<{ id: string, population: number, isPort: boolean }>,
  *   ports: Array<{ id: string, population: number, isPort: boolean }>,
@@ -72,7 +72,7 @@ function partitionLivingSettlements(state) {
 /**
  * Ordered mutator steps for residual off-map clearing (single control-flow body).
  *
- * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {import('./clearingState.js').ClearingState} state
  * @returns {Generator<() => void>}
  */
 function* offMapTradeSteps(state) {
@@ -97,7 +97,7 @@ function* offMapTradeSteps(state) {
 
 /**
  * Synchronous residual off-map clearing (founding commit / tests).
- * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {import('./clearingState.js').ClearingState} state
  */
 export function clearOffMapTradeSync(state) {
   for (const step of offMapTradeSteps(state)) {
@@ -108,7 +108,7 @@ export function clearOffMapTradeSync(state) {
 /**
  * Residual off-map clearing with optional UI progress / yield hooks.
  *
- * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {import('./clearingState.js').ClearingState} state
  * @param {OffMapProgressHooks} [options]
  */
 export async function clearOffMapTrade(state, options = {}) {
@@ -125,7 +125,7 @@ export async function clearOffMapTrade(state, options = {}) {
 }
 
 /**
- * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {import('./clearingState.js').ClearingState} state
  * @param {{ id: string, population: number, isPort: boolean }} origin
  * @param {ReadonlyArray<{ id: string, population: number, isPort: boolean }>} ports
  */
@@ -179,7 +179,7 @@ function exportSettlementResidual(state, origin, ports) {
 }
 
 /**
- * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {import('./clearingState.js').ClearingState} state
  * @param {string} originId
  * @param {ReadonlyArray<{ id: string }>} ports
  * @param {import('../commodityCatalog.js').CommodityId} commodityId
@@ -214,7 +214,7 @@ function pickCheapestExportPath(state, originId, ports, commodityId, unitPriceCp
 }
 
 /**
- * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {import('./clearingState.js').ClearingState} state
  * @param {{
  *   originId: string,
  *   exitPortId: string,
@@ -267,7 +267,7 @@ function dumpFromPort(state, params) {
 }
 
 /**
- * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {import('./clearingState.js').ClearingState} state
  * @param {{ id: string, population: number }} port
  * @param {Map<string, number>} importBudgetLbByPortId
  */
@@ -320,7 +320,7 @@ function importPortOwnNeeds(state, port, importBudgetLbByPortId) {
 }
 
 /**
- * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {import('./clearingState.js').ClearingState} state
  * @param {{ id: string, population: number }} claimant
  * @param {ReadonlyArray<{ id: string, population: number, isPort: boolean }>} ports
  * @param {Map<string, number>} importBudgetLbByPortId
@@ -411,7 +411,7 @@ function importInlandViaPorts(state, claimant, ports, importBudgetLbByPortId) {
 }
 
 /**
- * @param {import('./runTradeClearing.js').ClearingState} state
+ * @param {import('./clearingState.js').ClearingState} state
  * @param {string} claimantId
  * @param {ReadonlyArray<{ id: string }>} ports
  * @param {import('../commodityCatalog.js').CommodityId} commodityId

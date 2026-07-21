@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { assembleCampaignKitPdf, downloadBlob } from '../../world-builder/core/campaignKit/assembleCampaignKitPdf.js'
+import { assembleCampaignKitPdf } from '../../world-builder/core/campaignKit/assembleCampaignKitPdf.js'
 import { buildCampaignKitModel } from '../../world-builder/core/campaignKit/buildCampaignKitModel.js'
 import { campaignKitFilename } from '../../world-builder/core/campaignKit/campaignKitFilename.js'
 import {
@@ -12,6 +12,7 @@ import {
   campaignKitSettlementsMapVisibility,
 } from '../../world-builder/core/campaignKit/campaignKitOverlayPresets.js'
 import { buildCampaignKitExportStatusSection } from '../../world-builder/buildWorldBuilderStatusBar.js'
+import { downloadBlob } from '../utils/downloadBlob.js'
 import { yieldColonizationProgressToUi } from './colonizationUiYield.js'
 
 /**
@@ -75,6 +76,29 @@ export function useWorldBuilderCampaignKitExport(options) {
     viewport?.setSettlementIdLabelsVisible?.(settlementIdLabels)
   }
 
+  function restoreOwnerOverlays() {
+    options.getViewport()?.setSettlementIdLabelsVisible?.(false)
+    options.syncOverlayToViewport()
+  }
+
+  /**
+   * Apply kit overlays, capture immediately, restore owner state — no UI yield while
+   * kit visibility is on the live overlay cache.
+   *
+   * @param {Record<string, boolean>} visibility
+   * @param {boolean} settlementIdLabels
+   * @returns {Promise<Blob>}
+   */
+  async function captureKitMapPng(visibility, settlementIdLabels) {
+    const viewport = options.getViewport()
+    applyKitOverlays(visibility, settlementIdLabels)
+    try {
+      return await viewport.captureWorldPng()
+    } finally {
+      restoreOwnerOverlays()
+    }
+  }
+
   async function exportCampaignKit() {
     if (!options.canExport() || options.isOtherWorkBusy() || isCampaignKitExportRunning.value) {
       return false
@@ -94,15 +118,11 @@ export function useWorldBuilderCampaignKitExport(options) {
 
       await completeActiveStep()
       await enterStep(1)
-      applyKitOverlays(campaignKitSettlementsMapVisibility(), true)
-      await yieldColonizationProgressToUi()
-      const settlementsMapPng = await viewport.captureWorldPng()
+      const settlementsMapPng = await captureKitMapPng(campaignKitSettlementsMapVisibility(), true)
 
       await completeActiveStep()
       await enterStep(2)
-      applyKitOverlays(campaignKitResourcesMapVisibility(), false)
-      await yieldColonizationProgressToUi()
-      const resourcesMapPng = await viewport.captureWorldPng()
+      const resourcesMapPng = await captureKitMapPng(campaignKitResourcesMapVisibility(), false)
 
       await completeActiveStep()
       await enterStep(3)
@@ -124,8 +144,7 @@ export function useWorldBuilderCampaignKitExport(options) {
       return true
     } finally {
       try {
-        options.getViewport()?.setSettlementIdLabelsVisible?.(false)
-        options.syncOverlayToViewport()
+        restoreOwnerOverlays()
       } catch {
         // restore best-effort
       }

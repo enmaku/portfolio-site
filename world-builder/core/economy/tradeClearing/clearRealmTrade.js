@@ -8,8 +8,8 @@
 
 import { computeSettlementProduction } from '../productionAccounting.js'
 import { sumFishProductionOnCells } from '../../colonization/fish/sumFishProductionOnCells.js'
-import { classifySettlementMaritimeRole } from '../../colonization/expeditions/classifySettlementMaritimeRole.js'
 import { livingSettlements } from '../../colonization/expeditions/expeditionConstants.js'
+import { refreshSettlementMaritimeRoles } from '../../colonization/refreshSettlementMaritimeRoles.js'
 import { recomputeBalances } from '../ledgers/bilateralObligations.js'
 import { realizedOnMapIncomeCpBySettlementId } from '../ledgers/realizedIncome.js'
 import { roundMoneyCp } from '../formatMoneyCp.js'
@@ -32,7 +32,7 @@ export const TRADE_ACTIVATION_MIN_SETTLEMENTS = 2
  * @property {TradeAccountsState} tradeAccounts Netted realm obligations + balances.
  * @property {Record<string, number>} externalTradeAccounts Port off-map credit (≥ 0).
  * @property {Record<string, number>} priorRealizedIncomeCp On-map export+toll income from this clear (or preserved).
- * @property {{ candidates: TradeRouteEdge[], activeFlows: import('./runTradeClearing.js').TradeFlow[] }} tradeRouteState
+ * @property {{ candidates: TradeRouteEdge[], activeFlows: import('./clearingState.js').TradeFlow[] }} tradeRouteState
  * @property {import('./runTradeClearing.js').TradeClearingResult | null} lastTradeEpochResult
  */
 
@@ -51,6 +51,7 @@ export const TRADE_ACTIVATION_MIN_SETTLEMENTS = 2
 export async function clearRealmTrade(params, options = {}) {
   const { slice, worldDocument, primaryClaim } = params
   const { hooks, yieldToUi } = options
+  refreshSettlementMaritimeRoles(slice, worldDocument)
   const living = livingSettlements(slice.settlements)
   const gridWidth = worldDocument.gridWidth
   const gridHeight = worldDocument.gridHeight
@@ -67,7 +68,7 @@ export async function clearRealmTrade(params, options = {}) {
     hooks?.onTradeSubstep?.({
       type: 'substep-start',
       substepIndex: 0,
-      substepId: 'localPrices',
+      substepId: 'production',
     })
     await yieldToUi?.()
   }
@@ -98,11 +99,7 @@ export async function clearRealmTrade(params, options = {}) {
     })
     production[settlement.id] = amounts
 
-    const maritimeRole = classifySettlementMaritimeRole(worldDocument, {
-      x: settlement.x,
-      y: settlement.y,
-    })
-    settlement.maritimeRole = maritimeRole
+    const maritimeRole = settlement.maritimeRole ?? 'none'
     graphSettlements.push({
       id: settlement.id,
       x: settlement.x,
@@ -117,12 +114,21 @@ export async function clearRealmTrade(params, options = {}) {
       hooks?.onTradeSubstep?.({
         type: 'substep-item',
         substepIndex: 0,
-        substepId: 'localPrices',
+        substepId: 'production',
         itemIndex: index + 1,
         itemCount: living.length,
       })
       await yieldToUi?.()
     }
+  }
+
+  if (living.length >= TRADE_ACTIVATION_MIN_SETTLEMENTS) {
+    hooks?.onTradeSubstep?.({
+      type: 'substep-complete',
+      substepIndex: 0,
+      substepId: 'production',
+    })
+    await yieldToUi?.()
   }
 
   if (living.length < TRADE_ACTIVATION_MIN_SETTLEMENTS) {

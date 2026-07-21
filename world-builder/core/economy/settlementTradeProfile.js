@@ -5,7 +5,7 @@
 
 import { COMMODITY_IDS } from './commodityCatalog.js'
 import { emptyCommodityAmounts } from './productionAccounting.js'
-import { priceFormationDemand } from './localPrices.js'
+import { allocationDemand } from './tradeClearing/allocationTiers.js'
 import { computeClaimProduction } from './founding/computeClaimProduction.js'
 
 /**
@@ -51,7 +51,7 @@ export function computeSettlementTradeProfile(params) {
     params.demand != null
       ? fillCommodityAmounts(params.demand)
       : typeof params.population === 'number' && Number.isFinite(params.population)
-        ? priceFormationDemand(Math.max(0, Math.floor(params.population)))
+        ? allocationDemand(Math.max(0, Math.floor(params.population)))
         : emptyCommodityAmounts()
   /** @type {Record<CommodityId, number>} */
   const surplusOrDeficit = emptyCommodityAmounts()

@@ -4,69 +4,42 @@
  * comfort, material prosperity, off-map trade, mutual credit, port toll, credit limit.
  */
 
-import { emptyCommodityAmounts, FISH_CURING_SALT_PER_FISH_LB } from '../productionAccounting.js'
-import { computeConnectedMarketPrices } from '../localPrices.js'
+import { FISH_CURING_SALT_PER_FISH_LB } from '../productionAccounting.js'
 import {
   PROSPERITY_COMMODITIES,
   comfortFoodDemandLb,
-  exportableSurplusValueCp,
   prosperityDemandUnits,
   survivalFoodDemandLb,
   survivalSaltDemandLb,
 } from './allocationTiers.js'
 import { findMinCostPath } from './pathSearch.js'
 import { clearOffMapTrade, clearOffMapTradeSync } from './offMapTrade.js'
-import { creditLimitCp } from '../ledgers/creditLimit.js'
-import { creditRoomCpForImport, annualSurvivalBasketCp } from '../ledgers/creditRoom.js'
+import { creditRoomCpForImport } from '../ledgers/creditRoom.js'
 import { roundMoneyCp } from '../formatMoneyCp.js'
 import { realizedPortTollIncomeCpBySettlementId } from '../ledgers/realizedIncome.js'
 import { applyObligation } from '../ledgers/bilateralObligations.js'
 import { PORT_TOLL_RATE } from './tradeConstants.js'
 import { addObligation, markRole } from './clearingMutators.js'
 import { applyPathCapacityFlows } from './applyPathCapacityFlows.js'
+import { createClearingState } from './clearingState.js'
 
 export { PORT_TOLL_RATE } from './tradeConstants.js'
 export { addObligation, markRole } from './clearingMutators.js'
 export { creditRoomCpForImport } from '../ledgers/creditRoom.js'
+export { createClearingState } from './clearingState.js'
 
 /**
  * @typedef {import('../commodityCatalog.js').CommodityId} CommodityId
- * @typedef {import('../tradeGraph/buildCandidateRoutes.js').CandidateTradeGraph} CandidateTradeGraph
- * @typedef {import('../tradeGraph/buildCandidateRoutes.js').TradeRouteEdge} TradeRouteEdge
- * @typedef {import('../tradeGraph/routeEconomics.js').TradeRouteMode} TradeRouteMode
+ * @typedef {import('./clearingState.js').ClearingState} ClearingState
+ * @typedef {import('./clearingState.js').TradeFlow} TradeFlow
+ * @typedef {import('./clearingState.js').ObligationDelta} ObligationDelta
+ * @typedef {import('./clearingState.js').OffMapTrade} OffMapTrade
+ * @typedef {import('./clearingState.js').CommodityTradeRole} CommodityTradeRole
  */
-
-/** @typedef {'neither' | 'import' | 'export' | 'both'} CommodityTradeRole */
 
 const EPSILON = 1e-6
-
-/**
- * @typedef {Object} TradeFlow
- * @property {string} edgeId
- * @property {string} fromSettlementId
- * @property {string} toSettlementId
- * @property {CommodityId} commodityId
- * @property {number} amount
- * @property {TradeRouteMode} mode
- */
-
-/**
- * @typedef {Object} ObligationDelta
- * @property {string} fromSettlementId Debtor (importer / toll payer).
- * @property {string} toSettlementId Creditor (exporter / toll collector).
- * @property {number} amountCp
- * @property {'goods' | 'toll'} kind
- */
-
-/**
- * @typedef {Object} OffMapTrade
- * @property {string} settlementId Mediating / exit port.
- * @property {string} originSettlementId Origin exporter or inland importer (may equal settlementId).
- * @property {CommodityId} commodityId
- * @property {'import' | 'export'} direction
- * @property {number} amount Catalog units.
- * @property {number} unitPriceCp Discounted/inflated off-map unit price.
- */
+/** Yield / progress cadence for deficit attempts inside survival/comfort clearing. */
+const CLEAR_RESOURCE_YIELD_EVERY = 8
 
 /**
  * @typedef {Object} TradeClearingResult
@@ -81,10 +54,6 @@ const EPSILON = 1e-6
  * @property {Record<string, number>} portTollIncomeCpBySettlementId Last-epoch collected
  *   port tolls (on-map obligations + off-map external credits) per collecting settlement.
  * @property {import('../ledgers/bilateralObligations.js').BilateralObligation[]} nettedObligations
- */
-
-/**
- * @typedef {ReturnType<typeof createClearingState>} ClearingState
  */
 
 /**
@@ -105,61 +74,80 @@ const EPSILON = 1e-6
  */
 
 /**
- * @param {{
- *   settlements?: Array<{ id: string, population?: number, maritimeRole?: string }>,
- *   graph?: CandidateTradeGraph,
- *   production?: Record<string, Partial<Record<CommodityId, number>>>,
- *   priorRealizedIncomeCp?: Record<string, number>,
- *   priorTradeAccounts?: {
- *     obligations?: import('../ledgers/bilateralObligations.js').BilateralObligation[],
- *     balancesBySettlementId?: Record<string, number>,
- *   },
- *   externalAccountsCp?: Record<string, number>,
- * }} [params]
+ * Trade ladder indices after production (index 0) in clearRealmTrade.
+ * localPrices = 1 … offMap = 5.
+ */
+const TRADE_SUBSTEP = Object.freeze({
+  localPrices: 1,
+  survival: 2,
+  comfort: 3,
+  prosperity: 4,
+  offMap: 5,
+})
+
+/**
+ * @param {Parameters<typeof createClearingState>[0]} [params]
  * @param {TradeClearingOptions} [options]
  * @returns {Promise<TradeClearingResult>}
  */
 export async function runTradeClearing(params = {}, options = {}) {
   const { hooks, yieldToUi } = options
 
-  emitTradeSubstep(hooks, 'substep-start', 0, 'localPrices')
+  emitTradeSubstep(hooks, 'substep-start', TRADE_SUBSTEP.localPrices, 'localPrices')
   await yieldToUi?.()
   const state = createClearingState(params)
-  emitTradeSubstep(hooks, 'substep-complete', 0, 'localPrices')
+  emitTradeSubstep(hooks, 'substep-complete', TRADE_SUBSTEP.localPrices, 'localPrices')
   await yieldToUi?.()
 
-  emitTradeSubstep(hooks, 'substep-start', 1, 'survival')
+  emitTradeSubstep(hooks, 'substep-start', TRADE_SUBSTEP.survival, 'survival')
   await yieldToUi?.()
-  clearSurvivalFoodTiersCore(state)
-  emitTradeSubstep(hooks, 'substep-complete', 1, 'survival')
+  await clearSurvivalFoodTiersCore(state, {
+    hooks,
+    yieldToUi,
+    substepIndex: TRADE_SUBSTEP.survival,
+    substepId: 'survival',
+  })
+  emitTradeSubstep(hooks, 'substep-complete', TRADE_SUBSTEP.survival, 'survival')
   await yieldToUi?.()
 
-  emitTradeSubstep(hooks, 'substep-start', 2, 'comfort')
+  emitTradeSubstep(hooks, 'substep-start', TRADE_SUBSTEP.comfort, 'comfort')
   await yieldToUi?.()
-  clearComfortFoodTier(state)
-  emitTradeSubstep(hooks, 'substep-complete', 2, 'comfort')
+  await clearComfortFoodTiers(state, {
+    hooks,
+    yieldToUi,
+    substepIndex: TRADE_SUBSTEP.comfort,
+    substepId: 'comfort',
+  })
+  emitTradeSubstep(hooks, 'substep-complete', TRADE_SUBSTEP.comfort, 'comfort')
   await yieldToUi?.()
 
-  emitTradeSubstep(hooks, 'substep-start', 3, 'prosperity')
+  emitTradeSubstep(hooks, 'substep-start', TRADE_SUBSTEP.prosperity, 'prosperity')
   await yieldToUi?.()
   const prosperityCount = PROSPERITY_COMMODITIES.length
   for (let index = 0; index < prosperityCount; index += 1) {
-    emitTradeSubstep(hooks, 'substep-item', 3, 'prosperity', index + 1, prosperityCount)
+    emitTradeSubstep(
+      hooks,
+      'substep-item',
+      TRADE_SUBSTEP.prosperity,
+      'prosperity',
+      index + 1,
+      prosperityCount,
+    )
     await yieldToUi?.()
     clearProsperityCommodity(state, PROSPERITY_COMMODITIES[index])
   }
-  emitTradeSubstep(hooks, 'substep-complete', 3, 'prosperity')
+  emitTradeSubstep(hooks, 'substep-complete', TRADE_SUBSTEP.prosperity, 'prosperity')
   await yieldToUi?.()
 
-  emitTradeSubstep(hooks, 'substep-start', 4, 'offMap')
+  emitTradeSubstep(hooks, 'substep-start', TRADE_SUBSTEP.offMap, 'offMap')
   await yieldToUi?.()
   await clearOffMapTrade(state, {
     onItem: (itemIndex, itemCount) => {
-      emitTradeSubstep(hooks, 'substep-item', 4, 'offMap', itemIndex, itemCount)
+      emitTradeSubstep(hooks, 'substep-item', TRADE_SUBSTEP.offMap, 'offMap', itemIndex, itemCount)
     },
     yieldToUi,
   })
-  emitTradeSubstep(hooks, 'substep-complete', 4, 'offMap')
+  emitTradeSubstep(hooks, 'substep-complete', TRADE_SUBSTEP.offMap, 'offMap')
   await yieldToUi?.()
 
   return buildResult(state)
@@ -169,7 +157,7 @@ export async function runTradeClearing(params = {}, options = {}) {
  * Synchronous clearing for call sites that cannot await (founding commit).
  * Prefer {@link runTradeClearing} everywhere else.
  *
- * @param {Parameters<typeof runTradeClearing>[0]} [params]
+ * @param {Parameters<typeof createClearingState>[0]} [params]
  * @returns {TradeClearingResult}
  */
 export function runTradeClearingSync(params = {}) {
@@ -182,24 +170,52 @@ export function runTradeClearingSync(params = {}) {
 /**
  * On-map allocation tiers only (no off-map). Shared by sync orchestrator.
  *
- * @param {ReturnType<typeof createClearingState>} state
+ * @param {ClearingState} state
  */
 function runOnMapClearingTiers(state) {
-  clearSurvivalFoodTiersCore(state)
-  clearComfortFoodTier(state)
+  clearSurvivalFoodTiersCoreSync(state)
+  clearComfortFoodTiersSync(state)
   for (const commodityId of PROSPERITY_COMMODITIES) {
     clearProsperityCommodity(state, commodityId)
   }
 }
 
 /**
- * @param {ReturnType<typeof createClearingState>} state
+ * @typedef {{
+ *   hooks?: TradeClearingHooks,
+ *   yieldToUi?: () => Promise<void>,
+ *   substepIndex: number,
+ *   substepId: string,
+ * }} ClearResourceProgress
  */
-function clearSurvivalFoodTiersCore(state) {
-  clearSurvivalFoodTier(state)
-  clearSaltTier(state, survivalSaltDemandLb)
+
+/**
+ * @param {ClearingState} state
+ * @param {ClearResourceProgress} [progress]
+ */
+async function clearSurvivalFoodTiersCore(state, progress) {
+  await clearFoodTier(state, survivalFoodDemandLb, 'survival', progress)
+  await clearSaltTier(state, survivalSaltDemandLb, progress)
 }
 
+/** @param {ClearingState} state */
+function clearSurvivalFoodTiersCoreSync(state) {
+  clearFoodTierSync(state, survivalFoodDemandLb, 'survival')
+  clearSaltTierSync(state, survivalSaltDemandLb)
+}
+
+/**
+ * @param {ClearingState} state
+ * @param {ClearResourceProgress} [progress]
+ */
+async function clearComfortFoodTiers(state, progress) {
+  await clearFoodTier(state, comfortFoodDemandLb, 'comfort', progress)
+}
+
+/** @param {ClearingState} state */
+function clearComfortFoodTiersSync(state) {
+  clearFoodTierSync(state, comfortFoodDemandLb, 'comfort')
+}
 
 /**
  * @param {TradeClearingHooks | undefined} hooks
@@ -220,138 +236,36 @@ function emitTradeSubstep(hooks, type, substepIndex, substepId, itemIndex, itemC
 }
 
 /**
- * @param {Parameters<typeof runTradeClearing>[0]} params
+ * Food tier: fulfillment counts grain + fish; ships grain first, then cured fish.
+ *
+ * @param {ClearingState} state
+ * @param {(pop: number) => number} targetFn
+ * @param {'survival' | 'comfort'} resourceKind
+ * @param {ClearResourceProgress} [progress]
  */
-function createClearingState(params = {}) {
-  const settlements = (params.settlements ?? []).map((s) => ({
-    id: s.id,
-    population: Math.max(0, Number(s.population) || 0),
-    isPort: s.maritimeRole === 'port',
-  }))
-  const edges = params.graph?.edges ?? []
-  const production = params.production ?? {}
-
-  const localPrices = computeConnectedMarketPrices({
-    settlements: settlements.map((s) => ({ id: s.id, population: s.population })),
-    edges,
-    production,
-  })
-
-  /** @type {Map<string, { id: string, population: number, isPort: boolean }>} */
-  const byId = new Map(settlements.map((s) => [s.id, s]))
-  /** @type {Map<string, Record<CommodityId, number>>} */
-  const held = new Map()
-  /** @type {Record<string, Record<CommodityId, CommodityTradeRole>>} */
-  const roles = {}
-  for (const s of settlements) {
-    held.set(s.id, { ...emptyCommodityAmounts(), ...(production[s.id] ?? {}) })
-    roles[s.id] = /** @type {Record<CommodityId, CommodityTradeRole>} */ ({ ...neutralRoles() })
-  }
-
-  /** @type {Map<string, number>} */
-  const remainingCapLbByEdgeId = new Map()
-  for (const edge of edges) remainingCapLbByEdgeId.set(edge.id, Math.max(0, edge.capacityLb))
-
-  const creditLimit = new Map(
-    settlements.map((s) => [
-      s.id,
-      creditLimitCp({
-        priorRealizedNetExportTollIncomeCp: params.priorRealizedIncomeCp?.[s.id] ?? 0,
-        exportableSurplusAfterSurvivalReservationCp: exportableSurplusValueCp({
-          population: s.population,
-          production: production[s.id] ?? {},
-          prices: localPrices[s.id] ?? {},
-        }),
-      }),
-    ]),
+async function clearFoodTier(state, targetFn, resourceKind, progress) {
+  await clearResource(
+    state,
+    {
+      commodities: ['grain', 'fish'],
+      targetOf: (s) => targetFn(s.population),
+      heldResource: (id) => {
+        const bag = state.held.get(id)
+        return (bag?.grain ?? 0) + (bag?.fish ?? 0)
+      },
+      resourceKind,
+    },
+    progress,
   )
-  const survivalBasketCp = new Map(
-    settlements.map((s) => [s.id, annualSurvivalBasketCp(s.population)]),
-  )
-
-  const priorBalances = params.priorTradeAccounts?.balancesBySettlementId ?? {}
-  /** @type {Map<string, number>} netOwed: debits − credits (positive = owes) */
-  const netOwed = new Map(
-    settlements.map((s) => [s.id, -roundMoneyCp(priorBalances[s.id] ?? 0)]),
-  )
-  /** @type {Map<string, number>} */
-  const openingNetOwed = new Map(netOwed)
-  /** @type {Map<string, boolean>} */
-  const overLimitAtOpen = new Map(
-    settlements.map((s) => {
-      const owed = netOwed.get(s.id) ?? 0
-      const limit = creditLimit.get(s.id) ?? 0
-      return [s.id, owed > limit + EPSILON]
-    }),
-  )
-
-  /** @type {Map<string, number>} absolute external balances (cannot go negative) */
-  const externalAccounts = new Map(
-    settlements.map((s) => [
-      s.id,
-      Math.max(0, roundMoneyCp(params.externalAccountsCp?.[s.id] ?? 0)),
-    ]),
-  )
-  const externalInitial = new Map(externalAccounts)
-
-  const priorObligations = Array.isArray(params.priorTradeAccounts?.obligations)
-    ? params.priorTradeAccounts.obligations
-        .map((row) => ({ ...row, amountCp: roundMoneyCp(row.amountCp) }))
-        .filter((row) => row.amountCp > 0)
-    : []
-
-  return {
-    settlements,
-    edges,
-    byId,
-    held,
-    roles,
-    localPrices,
-    remainingCapLbByEdgeId,
-    creditLimit,
-    survivalBasketCp,
-    netOwed,
-    openingNetOwed,
-    overLimitAtOpen,
-    priorObligations,
-    externalAccounts,
-    externalInitial,
-    /** @type {TradeFlow[]} */
-    flows: [],
-    /** @type {ObligationDelta[]} */
-    obligationDeltas: [],
-    /** @type {OffMapTrade[]} */
-    offMapTrades: [],
-    /** @type {Map<string, number>} Off-map path + loading toll credits this clear. */
-    offMapPortTollIncomeCp: new Map(),
-    isPort: (/** @type {string} */ id) => byId.get(id)?.isPort === true,
-  }
-}
-
-/** @returns {Record<CommodityId, CommodityTradeRole>} */
-function neutralRoles() {
-  return /** @type {Record<CommodityId, CommodityTradeRole>} */ ({
-    grain: 'neither',
-    fish: 'neither',
-    salt: 'neither',
-    timber: 'neither',
-    baseMetals: 'neither',
-    copper: 'neither',
-    silver: 'neither',
-    gold: 'neither',
-    diamonds: 'neither',
-  })
 }
 
 /**
- * Food tier: fulfillment counts grain + fish; ships grain first, then cured fish.
- *
- * @param {ReturnType<typeof createClearingState>} state
+ * @param {ClearingState} state
  * @param {(pop: number) => number} targetFn
  * @param {'survival' | 'comfort'} resourceKind
  */
-function clearFoodTier(state, targetFn, resourceKind) {
-  clearResource(state, {
+function clearFoodTierSync(state, targetFn, resourceKind) {
+  clearResourceSync(state, {
     commodities: ['grain', 'fish'],
     targetOf: (s) => targetFn(s.population),
     heldResource: (id) => {
@@ -362,22 +276,30 @@ function clearFoodTier(state, targetFn, resourceKind) {
   })
 }
 
-/** @param {ReturnType<typeof createClearingState>} state */
-function clearSurvivalFoodTier(state) {
-  clearFoodTier(state, survivalFoodDemandLb, 'survival')
-}
-
-/** @param {ReturnType<typeof createClearingState>} state */
-function clearComfortFoodTier(state) {
-  clearFoodTier(state, comfortFoodDemandLb, 'comfort')
+/**
+ * @param {ClearingState} state
+ * @param {(pop: number) => number} targetFn
+ * @param {ClearResourceProgress} [progress]
+ */
+async function clearSaltTier(state, targetFn, progress) {
+  await clearResource(
+    state,
+    {
+      commodities: ['salt'],
+      targetOf: (s) => targetFn(s.population),
+      heldResource: (id) => state.held.get(id)?.salt ?? 0,
+      resourceKind: 'salt',
+    },
+    progress,
+  )
 }
 
 /**
- * @param {ReturnType<typeof createClearingState>} state
+ * @param {ClearingState} state
  * @param {(pop: number) => number} targetFn
  */
-function clearSaltTier(state, targetFn) {
-  clearResource(state, {
+function clearSaltTierSync(state, targetFn) {
+  clearResourceSync(state, {
     commodities: ['salt'],
     targetOf: (s) => targetFn(s.population),
     heldResource: (id) => state.held.get(id)?.salt ?? 0,
@@ -386,11 +308,11 @@ function clearSaltTier(state, targetFn) {
 }
 
 /**
- * @param {ReturnType<typeof createClearingState>} state
+ * @param {ClearingState} state
  * @param {CommodityId} commodityId
  */
 function clearProsperityCommodity(state, commodityId) {
-  clearResource(state, {
+  clearResourceSync(state, {
     commodities: [commodityId],
     targetOf: (s) => prosperityDemandUnits(commodityId, s.population),
     heldResource: (id) => state.held.get(id)?.[commodityId] ?? 0,
@@ -399,19 +321,75 @@ function clearProsperityCommodity(state, commodityId) {
 }
 
 /**
- * Max-min fair clearing of one resource: raise every settlement's lowest fulfillment
- * ratio before any climbs higher, subject to capacity, credit, profitability, and
- * (for fish) curing salt.
- *
- * @param {ReturnType<typeof createClearingState>} state
- * @param {{
+ * @typedef {{
  *   commodities: CommodityId[],
  *   targetOf: (s: { population: number }) => number,
  *   heldResource: (id: string) => number,
  *   resourceKind: 'survival' | 'comfort' | 'salt' | 'prosperity',
- * }} spec
+ * }} ClearResourceSpec
  */
-function clearResource(state, spec) {
+
+/**
+ * Max-min fair clearing of one resource with cooperative yields when progress is set.
+ *
+ * @param {ClearingState} state
+ * @param {ClearResourceSpec} spec
+ * @param {ClearResourceProgress} [progress]
+ */
+async function clearResource(state, spec, progress) {
+  const { commodities, targetOf, heldResource } = spec
+  /** @type {Set<string>} */
+  const blocked = new Set()
+  let attempt = 0
+
+  for (let guard = 0; guard < 100000; guard += 1) {
+    const ranked = state.settlements
+      .map((s) => ({ s, target: targetOf(s), held: heldResource(s.id) }))
+      .filter((row) => row.target > EPSILON)
+      .map((row) => ({ ...row, ratio: row.held / row.target }))
+      .sort((a, b) => a.ratio - b.ratio || (a.s.id < b.s.id ? -1 : 1))
+
+    const deficits = ranked.filter((row) => row.held < row.target - EPSILON && !blocked.has(row.s.id))
+    if (deficits.length === 0) break
+
+    attempt += 1
+    if (progress && (attempt === 1 || attempt % CLEAR_RESOURCE_YIELD_EVERY === 0)) {
+      emitTradeSubstep(
+        progress.hooks,
+        'substep-item',
+        progress.substepIndex,
+        progress.substepId,
+        attempt,
+        Math.max(attempt, deficits.length),
+      )
+      await progress.yieldToUi?.()
+    }
+
+    const target = deficits[0]
+    const secondRatio = ranked.find((row) => row.s.id !== target.s.id && row.ratio > target.ratio)?.ratio
+    const capRatio = Math.min(1, secondRatio ?? 1)
+    let raiseUnits = target.target * capRatio - target.held
+    if (raiseUnits <= EPSILON) raiseUnits = target.target - target.held
+
+    const move = planBestMove(state, { spec, targetId: target.s.id, commodities })
+    if (!move) {
+      blocked.add(target.s.id)
+      continue
+    }
+    const applied = applyMove(state, {
+      move,
+      maxUnits: raiseUnits,
+      resourceKind: spec.resourceKind,
+    })
+    if (applied <= EPSILON) blocked.add(target.s.id)
+  }
+}
+
+/**
+ * @param {ClearingState} state
+ * @param {ClearResourceSpec} spec
+ */
+function clearResourceSync(state, spec) {
   const { commodities, targetOf, heldResource } = spec
   /** @type {Set<string>} */
   const blocked = new Set()
@@ -449,7 +427,7 @@ function clearResource(state, spec) {
 /**
  * Choose the cheapest profitable source+commodity path delivering to the target.
  *
- * @param {ReturnType<typeof createClearingState>} state
+ * @param {ClearingState} state
  * @param {{
  *   spec: { targetOf: (s: { population: number }) => number },
  *   targetId: string,
@@ -471,49 +449,49 @@ function planBestMove(state, params) {
     const sources = state.settlements.filter(
       (s) => s.id !== targetId && exportableUnits(state, s, params.spec, commodityId) > EPSILON,
     )
-    for (const source of sources) {
-      const path = findMinCostPath({
-        edges: state.edges,
-        remainingCapLbByEdgeId: state.remainingCapLbByEdgeId,
-        sourceIds: [source.id],
-        targetId,
-        commodityId,
-        isPort: state.isPort,
-        unitTollCp,
-      })
-      if (!path) continue
+    if (sources.length === 0) continue
 
-      const priceAtOrigin = state.localPrices[path.originId]?.[commodityId] ?? 0
-      const tollUnitCp = path.tollEvents.reduce((sum, e) => sum + e.unitTollCp, 0)
-      const arbitrageGapCp = priceAtDest - priceAtOrigin - path.transportUnitCp - tollUnitCp
-      if (arbitrageGapCp <= EPSILON) continue
+    const path = findMinCostPath({
+      edges: state.edges,
+      remainingCapLbByEdgeId: state.remainingCapLbByEdgeId,
+      sourceIds: sources.map((s) => s.id),
+      targetId,
+      commodityId,
+      isPort: state.isPort,
+      unitTollCp,
+    })
+    if (!path) continue
 
-      const netUnitValueCp = priceAtDest - path.transportUnitCp
-      if (netUnitValueCp <= EPSILON) continue
+    const priceAtOrigin = state.localPrices[path.originId]?.[commodityId] ?? 0
+    const tollUnitCp = path.tollEvents.reduce((sum, e) => sum + e.unitTollCp, 0)
+    const arbitrageGapCp = priceAtDest - priceAtOrigin - path.transportUnitCp - tollUnitCp
+    if (arbitrageGapCp <= EPSILON) continue
 
-      const importerUnitCostCp = netUnitValueCp + tollUnitCp
-      const candidate = {
-        commodityId,
-        path,
-        netUnitValueCp,
-        importerUnitCostCp,
-        arbitrageGapCp,
-      }
-      if (
-        !best ||
-        candidate.arbitrageGapCp > best.arbitrageGapCp + 1e-9 ||
-        (Math.abs(candidate.arbitrageGapCp - best.arbitrageGapCp) <= 1e-9 &&
-          candidate.path.totalUnitCp < best.path.totalUnitCp - 1e-9)
-      ) {
-        best = candidate
-      }
+    const netUnitValueCp = priceAtDest - path.transportUnitCp
+    if (netUnitValueCp <= EPSILON) continue
+
+    const importerUnitCostCp = netUnitValueCp + tollUnitCp
+    const candidate = {
+      commodityId,
+      path,
+      netUnitValueCp,
+      importerUnitCostCp,
+      arbitrageGapCp,
+    }
+    if (
+      !best ||
+      candidate.arbitrageGapCp > best.arbitrageGapCp + 1e-9 ||
+      (Math.abs(candidate.arbitrageGapCp - best.arbitrageGapCp) <= 1e-9 &&
+        candidate.path.totalUnitCp < best.path.totalUnitCp - 1e-9)
+    ) {
+      best = candidate
     }
   }
   return best
 }
 
 /**
- * @param {ReturnType<typeof createClearingState>} state
+ * @param {ClearingState} state
  * @param {{ id: string }} source
  * @param {{ targetOf: (s: { population: number }) => number }} spec
  * @param {CommodityId} commodityId
@@ -534,7 +512,7 @@ function exportableUnits(state, source, spec, commodityId) {
 }
 
 /**
- * @param {ReturnType<typeof createClearingState>} state
+ * @param {ClearingState} state
  * @param {{
  *   move: NonNullable<ReturnType<typeof planBestMove>>,
  *   maxUnits: number,
@@ -598,7 +576,7 @@ function applyMove(state, params) {
 }
 
 /**
- * @param {ReturnType<typeof createClearingState>} state
+ * @param {ClearingState} state
  * @returns {TradeClearingResult}
  */
 function buildResult(state) {

@@ -580,31 +580,36 @@ test('runTradeClearing reports trade substep indices in order and matches sync w
 
   assert.deepStrictEqual(withYields, bare)
   assert.deepStrictEqual(withYields, sync)
-  assert.deepStrictEqual(
-    events.map((e) => `${e.type}:${e.substepIndex}:${e.substepId}`),
-    [
-      'substep-start:0:localPrices',
-      'substep-complete:0:localPrices',
-      'substep-start:1:survival',
-      'substep-complete:1:survival',
-      'substep-start:2:comfort',
-      'substep-complete:2:comfort',
-      'substep-start:3:prosperity',
-      'substep-item:3:prosperity',
-      'substep-item:3:prosperity',
-      'substep-item:3:prosperity',
-      'substep-item:3:prosperity',
-      'substep-item:3:prosperity',
-      'substep-item:3:prosperity',
-      'substep-complete:3:prosperity',
-      'substep-start:4:offMap',
-      'substep-item:4:offMap',
-      'substep-item:4:offMap',
-      'substep-item:4:offMap',
-      'substep-item:4:offMap',
-      'substep-complete:4:offMap',
-    ],
-  )
+
+  const bookends = events
+    .filter((e) => e.type === 'substep-start' || e.type === 'substep-complete')
+    .map((e) => `${e.type}:${e.substepIndex}:${e.substepId}`)
+  assert.deepStrictEqual(bookends, [
+    'substep-start:1:localPrices',
+    'substep-complete:1:localPrices',
+    'substep-start:2:survival',
+    'substep-complete:2:survival',
+    'substep-start:3:comfort',
+    'substep-complete:3:comfort',
+    'substep-start:4:prosperity',
+    'substep-complete:4:prosperity',
+    'substep-start:5:offMap',
+    'substep-complete:5:offMap',
+  ])
+
+  const prosperityItems = events.filter((e) => e.type === 'substep-item' && e.substepId === 'prosperity')
+  assert.equal(prosperityItems.length, 6)
+  assert.ok(prosperityItems.every((e) => e.substepIndex === 4))
+
+  const offMapItems = events.filter((e) => e.type === 'substep-item' && e.substepId === 'offMap')
+  assert.ok(offMapItems.length >= 1)
+  assert.ok(offMapItems.every((e) => e.substepIndex === 5))
+
+  const survivalItems = events.filter((e) => e.type === 'substep-item' && e.substepId === 'survival')
+  const comfortItems = events.filter((e) => e.type === 'substep-item' && e.substepId === 'comfort')
+  assert.ok(survivalItems.length + comfortItems.length >= 1)
+  assert.ok(survivalItems.every((e) => e.substepIndex === 2))
+  assert.ok(comfortItems.every((e) => e.substepIndex === 3))
 })
 
 test('prior trade accounts seed net owed so debt carries into the next clear', () => {

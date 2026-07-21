@@ -225,8 +225,8 @@ test('reduceEpochStepProgressOnTradeSubstepStart appends trade substep label', (
       phaseId: 'trade',
     },
   )
-  const next = reduceEpochStepProgressOnTradeSubstepStart(progress, { substepIndex: 1 })
-  assert.strictEqual(next.activeTradeSubstepIndex, 1)
+  const next = reduceEpochStepProgressOnTradeSubstepStart(progress, { substepIndex: 2 })
+  assert.strictEqual(next.activeTradeSubstepIndex, 2)
   assert.strictEqual(next.label, 'Epoch 1 · Trade · Survival')
 })
 

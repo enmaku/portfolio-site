@@ -6,12 +6,12 @@
 
 import { referencePriceCp } from './commodityCatalog.js'
 import { presentMapCommodityIds } from './presentMapCommodities.js'
-import { realizedPortTollIncomeCpBySettlementId } from './ledgers/realizedIncome.js'
 import { combinedSettlementWealthCp } from './ledgers/combinedSettlementWealthCp.js'
+import { portTollIncomeCpForSettlement } from './ledgers/portTollIncomeCpForSettlement.js'
 
 /**
  * @typedef {import('./commodityCatalog.js').CommodityId} CommodityId
- * @typedef {import('./tradeClearing/runTradeClearing.js').CommodityTradeRole} CommodityTradeRole
+ * @typedef {import('./tradeClearing/clearingState.js').CommodityTradeRole} CommodityTradeRole
  * @typedef {import('./tradeClearing/runTradeClearing.js').TradeClearingResult} TradeClearingResult
  */
 
@@ -69,21 +69,6 @@ export function comparePriceToReference(localPriceCp, referenceCp) {
 }
 
 /**
- * @param {TradeClearingResult | null | undefined} result
- * @param {string} settlementId
- * @returns {number}
- */
-function portTollsCpFromResult(result, settlementId) {
-  const mapped = result?.portTollIncomeCpBySettlementId?.[settlementId]
-  if (typeof mapped === 'number' && Number.isFinite(mapped)) {
-    return Math.max(0, mapped)
-  }
-  const recovered = realizedPortTollIncomeCpBySettlementId(result?.obligationDeltas, null)
-  const amount = recovered[settlementId]
-  return typeof amount === 'number' && Number.isFinite(amount) ? Math.max(0, amount) : 0
-}
-
-/**
  * @param {{
  *   settlements?: Array<{ id: string, population?: number, maritimeRole?: string }>,
  *   lastTradeEpochResult?: TradeClearingResult | null,
@@ -138,7 +123,7 @@ export function buildSettlementEconomyInspect(worldDocument, settlementId) {
       realmBalancesCp: result?.realmBalancesCp,
       externalTradeAccounts: worldDocument.externalTradeAccounts,
     }),
-    portTollsCp: isPort ? portTollsCpFromResult(result, settlementId) : null,
+    portTollsCp: isPort ? portTollIncomeCpForSettlement(result, settlementId) : null,
     commodities,
   }
 }
