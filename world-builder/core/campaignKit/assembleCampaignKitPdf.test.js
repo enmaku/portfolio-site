@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import sharp from 'sharp'
 import { assembleCampaignKitPdf } from './assembleCampaignKitPdf.js'
 import { buildCampaignKitModel } from './buildCampaignKitModel.js'
 import { createDefaultColonizationSlice } from '../colonization/createDefaultColonizationSlice.js'
@@ -40,6 +41,34 @@ test('assembleCampaignKitPdf returns a non-empty pdf blob', async () => {
     model,
     settlementsMapPng: png,
     resourcesMapPng: png,
+  })
+  assert.equal(pdf.type, 'application/pdf')
+  assert.ok(pdf.size > 100)
+})
+
+test('assembleCampaignKitPdf fits non-square map images without distortion errors', async () => {
+  const slice = createDefaultColonizationSlice()
+  slice.epoch = 1
+  const worldDocument = {
+    gridWidth: 1,
+    gridHeight: 1,
+    geographySeed: 1,
+    biomes: new Uint8Array([2]),
+    saltNodes: [],
+    metalNodes: [],
+    fields: { elevation: new Float32Array(1) },
+  }
+  const model = buildCampaignKitModel(slice, worldDocument)
+  const widePngBuffer = await sharp({
+    create: { width: 400, height: 100, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 1 } },
+  })
+    .png()
+    .toBuffer()
+  const widePng = new Blob([widePngBuffer], { type: 'image/png' })
+  const pdf = await assembleCampaignKitPdf({
+    model,
+    settlementsMapPng: widePng,
+    resourcesMapPng: widePng,
   })
   assert.equal(pdf.type, 'application/pdf')
   assert.ok(pdf.size > 100)
