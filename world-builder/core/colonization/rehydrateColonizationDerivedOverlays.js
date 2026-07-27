@@ -8,6 +8,7 @@ import { COLONIZATION_SESSION_RESTORE_DERIVED_STEP_START, COLONIZATION_SESSION_R
 import {
   createInitialRehydrateColonizationProgress,
   reduceRehydrateColonizationProgressOnCollapseSubstepComplete,
+  reduceRehydrateColonizationProgressOnCollapseSubstepItemProgress,
   reduceRehydrateColonizationProgressOnCollapseSubstepStart,
   reduceRehydrateColonizationProgressOnRunComplete,
   reduceRehydrateColonizationProgressOnStepComplete,
@@ -290,6 +291,12 @@ async function collapsePopulationForRehydration(slice, doc, context) {
         if (payload.type === 'substep-start') {
           progress = reduceRehydrateColonizationProgressOnCollapseSubstepStart(progress, {
             substepIndex: payload.substepIndex,
+          })
+        } else if (payload.type === 'item-progress') {
+          progress = reduceRehydrateColonizationProgressOnCollapseSubstepItemProgress(progress, {
+            substepIndex: payload.substepIndex,
+            itemIndex: payload.itemIndex ?? 0,
+            itemCount: payload.itemCount ?? 0,
           })
         } else {
           progress = reduceRehydrateColonizationProgressOnCollapseSubstepComplete(progress, {

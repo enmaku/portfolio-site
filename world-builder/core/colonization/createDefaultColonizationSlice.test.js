@@ -8,9 +8,15 @@ import {
   DEFAULT_LAND_EXPEDITION_RANGE,
   DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
   DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
+  DEFAULT_PEOPLE_PER_HABITABLE_CELL,
+  DEFAULT_POPULATION_DENSITY,
   MAX_LAND_EXPEDITION_RANGE,
+  MAX_PEOPLE_PER_HABITABLE_CELL,
+  MAX_POPULATION_DENSITY,
   MAX_THREE_DAY_HAUL_DISTANCE,
   MIN_INLAND_SAIL_EXPEDITION_RANGE,
+  MIN_PEOPLE_PER_HABITABLE_CELL,
+  MIN_POPULATION_DENSITY,
   cloneColonizationSlice,
   createDefaultColonistSettings,
   createDefaultColonizationSlice,
@@ -43,10 +49,77 @@ test('createDefaultColonistSettings provides concrete defaults for every field',
   assert.ok(settings.threeDayHaulDistance <= MAX_THREE_DAY_HAUL_DISTANCE)
   assert.strictEqual(typeof settings.startingPopulation, 'number')
   assert.ok(settings.startingPopulation > 0)
+  assert.strictEqual(settings.peoplePerHabitableCell, DEFAULT_PEOPLE_PER_HABITABLE_CELL)
+  assert.strictEqual(settings.populationDensity, DEFAULT_POPULATION_DENSITY)
   assert.strictEqual(settings.yieldModifier, 'typical')
   assert.strictEqual(settings.landExpeditionRange, DEFAULT_LAND_EXPEDITION_RANGE)
   assert.strictEqual(settings.inlandSailExpeditionRange, DEFAULT_INLAND_SAIL_EXPEDITION_RANGE)
   assert.strictEqual(settings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)
+})
+
+test('resolveColonistSettings clamps people per habitable cell', () => {
+  assert.strictEqual(
+    resolveColonistSettings({ peoplePerHabitableCell: 999 }).peoplePerHabitableCell,
+    MAX_PEOPLE_PER_HABITABLE_CELL,
+  )
+  assert.strictEqual(
+    resolveColonistSettings({ peoplePerHabitableCell: 1 }).peoplePerHabitableCell,
+    MIN_PEOPLE_PER_HABITABLE_CELL,
+  )
+})
+
+test('resolveColonistSettings clamps population density', () => {
+  assert.strictEqual(
+    resolveColonistSettings({ populationDensity: 99 }).populationDensity,
+    MAX_POPULATION_DENSITY,
+  )
+  assert.strictEqual(
+    resolveColonistSettings({ populationDensity: 0.1 }).populationDensity,
+    MIN_POPULATION_DENSITY,
+  )
+})
+
+test('createDefaultColonizationSlice includes empty trade accounts and route state', () => {
+  const slice = createDefaultColonizationSlice()
+  assert.deepStrictEqual(slice.tradeAccounts, { obligations: [], balancesBySettlementId: {} })
+  assert.deepStrictEqual(slice.externalTradeAccounts, {})
+  assert.deepStrictEqual(slice.priorRealizedIncomeCp, {})
+  assert.deepStrictEqual(slice.tradeRouteState, { candidates: [], activeFlows: [] })
+  assert.strictEqual(slice.lastTradeEpochResult, null)
+})
+
+test('serializeColonizationSessionForStorage round-trips trade accounts', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = COLONIZATION_PHASE_RUNNING
+  slice.tradeAccounts = {
+    obligations: [
+      { creditorSettlementId: 'a', debtorSettlementId: 'b', amountCp: 12 },
+    ],
+    balancesBySettlementId: { a: 12, b: -12 },
+  }
+  slice.priorRealizedIncomeCp = { a: 40, b: 0 }
+  slice.externalTradeAccounts = { a: 5 }
+  slice.tradeRouteState = {
+    candidates: [
+      {
+        id: 'e1',
+        fromSettlementId: 'a',
+        toSettlementId: 'b',
+        mode: 'overland',
+        haulDistanceFraction: 0.5,
+        capacityLb: 100,
+        transportCostCpPerLb: 0.5,
+      },
+    ],
+    activeFlows: [],
+  }
+
+  const revived = resolveColonizationSlice(serializeColonizationSessionForStorage(slice))
+  assert.deepStrictEqual(revived.tradeAccounts.obligations, slice.tradeAccounts.obligations)
+  assert.deepStrictEqual(revived.priorRealizedIncomeCp, { a: 40, b: 0 })
+  assert.strictEqual(revived.externalTradeAccounts.a, 5)
+  assert.strictEqual(revived.tradeRouteState.candidates.length, 1)
+  assert.strictEqual(revived.colonistSettings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)
 })
 
 test('resolveColonistSettings clamps expedition range multipliers', () => {
@@ -194,6 +267,23 @@ test('resolveColonizationSlice strips legacy committedTips payloads', () => {
     colonizationPhase: COLONIZATION_PHASE_RUNNING,
   })
   assert.strictEqual('committedTips' in revived, false)
+})
+
+test('resolveColonizationSlice backfills settlement map numbers for legacy sessions', () => {
+  const revived = resolveColonizationSlice({
+    colonizationPhase: COLONIZATION_PHASE_RUNNING,
+    settlements: [
+      { id: 'later', x: 2, y: 2, foundedEpoch: 3 },
+      { id: 'founding', x: 1, y: 1, foundedEpoch: 0 },
+    ],
+  })
+  assert.deepEqual(
+    revived.settlements.map((row) => ({ id: row.id, mapNumber: row.mapNumber })),
+    [
+      { id: 'later', mapNumber: 2 },
+      { id: 'founding', mapNumber: 1 },
+    ],
+  )
 })
 
 test('serializeColonizationSessionForStorage omits legacy committedTips from output', () => {

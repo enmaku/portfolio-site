@@ -59,7 +59,7 @@ test('runColonizationEpochStep reports progress through phases and epoch complet
   assert.strictEqual(result.ran, true)
   assert.strictEqual(result.slice.epoch, 1)
   assert.ok(percents.length > 0)
-  assert.strictEqual(percents.at(-1), 83)
+  assert.strictEqual(percents.at(-1), 86)
 })
 
 test('runColonizationEpochStep reports dispatch and advance network item progress', async () => {
@@ -90,4 +90,51 @@ test('runColonizationEpochStep reports dispatch and advance network item progres
   const advanceProgress = itemProgress.filter((entry) => entry.substepIndex === 2)
   assert.ok(dispatchProgress.length > 0)
   assert.ok(advanceProgress.length > 0)
+})
+
+test('runColonizationEpochStep reports trade substep indices in order without stalling progress', async () => {
+  const running = await commitRunningSlice()
+  running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
+    ...entry,
+    exhausted: true,
+  }))
+  /** Add a second settlement so pairwise trade clears. */
+  running.settlements = [
+    ...running.settlements,
+    {
+      ...running.settlements[0],
+      id: 'trade-peer',
+      x: 2,
+      y: 2,
+      population: 20,
+    },
+  ]
+
+  /** @type {number[]} */
+  const tradeSubstepStarts = []
+  let sawProgressAfterTradeStart = false
+  let tradePhaseSeen = false
+
+  await runColonizationEpochStep(running, richGeographyDoc(), {
+    yieldToUi: async () => {},
+    handlers: {
+      onProgress(progress) {
+        if (progress.activePhaseIndex === 2 && progress.activeTradeSubstepIndex >= 0) {
+          tradePhaseSeen = true
+          if (
+            tradeSubstepStarts.length === 0 ||
+            tradeSubstepStarts.at(-1) !== progress.activeTradeSubstepIndex
+          ) {
+            tradeSubstepStarts.push(progress.activeTradeSubstepIndex)
+          }
+        }
+        if (tradePhaseSeen && progress.activePhaseIndex > 2) {
+          sawProgressAfterTradeStart = true
+        }
+      },
+    },
+  })
+
+  assert.deepStrictEqual(tradeSubstepStarts, [0, 1, 2, 3, 4, 5])
+  assert.strictEqual(sawProgressAfterTradeStart, true)
 })

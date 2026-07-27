@@ -219,6 +219,13 @@ export function diffWorldDocumentMapLayers(previous, next) {
   if (roadSegmentsChanged(previous.roads, next.roads)) {
     changedLayers.push('routes')
   }
+  if (
+    previous.lastTradeEpochResult !== next.lastTradeEpochResult ||
+    previous.externalTradeAccounts !== next.externalTradeAccounts ||
+    previous.tradeAccounts !== next.tradeAccounts
+  ) {
+    changedLayers.push('wealth')
+  }
   if (riverLayerInputsChanged(previous, next)) {
     changedLayers.push('rivers')
   }
@@ -236,6 +243,7 @@ export function diffWorldDocumentMapLayers(previous, next) {
   }
   if (nodeListChanged(previous.settlements, next.settlements)) {
     changedLayers.push('settlementNodes')
+    changedLayers.push('settlementIdLabels')
   }
 
   return changedLayers

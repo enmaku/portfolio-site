@@ -90,6 +90,20 @@ function visibleRasterFixture(resourceId) {
     }
   }
 
+  if (resourceId === 'wealth') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      settlements: [{ id: 'a', x: 1, y: 1 }],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+      tradeAccounts: { balancesBySettlementId: { a: 100 } },
+      lastTradeEpochResult: {
+        obligationDeltas: [{ toSettlementId: 'a', amountCp: 200, kind: 'goods' }],
+      },
+    }
+  }
+
   const raster = new Float32Array(16)
   raster[5] = 0.8
   return {

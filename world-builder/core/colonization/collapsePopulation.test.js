@@ -244,10 +244,20 @@ test('collapsePopulation emits collapse substeps and matches output with or with
   }
   /** @type {string[]} */
   const substepEvents = []
+  /** @type {Array<{ substepId: string, itemIndex: number, itemCount: number }>} */
+  const itemEvents = []
   const withHooksRaster = await collapsePopulation(params, {
     yieldToUi: async () => {},
     hooks: {
       onCollapseSubstep(payload) {
+        if (payload.type === 'item-progress') {
+          itemEvents.push({
+            substepId: payload.substepId,
+            itemIndex: payload.itemIndex ?? 0,
+            itemCount: payload.itemCount ?? 0,
+          })
+          return
+        }
         substepEvents.push(`${payload.type}:${payload.substepId}`)
       },
     },
@@ -258,11 +268,23 @@ test('collapsePopulation emits collapse substeps and matches output with or with
     hashPopulationCollapseRaster(bareRaster),
   )
   assert.deepStrictEqual(substepEvents, [
+    'substep-start:prepare',
+    'substep-complete:prepare',
     'substep-start:urban',
     'substep-complete:urban',
     'substep-start:hinterland',
     'substep-complete:hinterland',
   ])
+  assert.ok(itemEvents.some((event) => event.substepId === 'prepare' && event.itemCount === 1))
+  assert.ok(itemEvents.some((event) => event.substepId === 'urban' && event.itemCount === 1))
+  assert.ok(
+    itemEvents.some(
+      (event) =>
+        event.substepId === 'hinterland' &&
+        event.itemCount === 16 &&
+        event.itemIndex === event.itemCount,
+    ),
+  )
 })
 
 test('collapsePopulation skips ruins and empty domains', async () => {

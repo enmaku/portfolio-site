@@ -108,3 +108,22 @@ test('resolveWorldGenerationOptions merges enableSeasonalHydrology override', ()
   assert.strictEqual(options.enableSeasonalHydrology, false)
   assert.strictEqual(options.seasonalYearCount, DEFAULT_WORLD_GENERATION_OPTIONS.seasonalYearCount)
 })
+
+test('mineral occurrence defaults preserve inverse 100:10:1 with diamonds disabled', () => {
+  const options = resolveWorldGenerationOptions()
+  assert.strictEqual(options.mineralOccurrenceCopper, 100)
+  assert.strictEqual(options.mineralOccurrenceSilver, 10)
+  assert.strictEqual(options.mineralOccurrenceGold, 1)
+  assert.strictEqual(options.mineralOccurrenceDiamond, 0)
+})
+
+test('resolveWorldGenerationOptions round-trips mineral occurrence overrides', () => {
+  const options = resolveWorldGenerationOptions({
+    mineralOccurrenceGold: 50,
+    mineralOccurrenceDiamond: 5,
+  })
+  assert.strictEqual(options.mineralOccurrenceGold, 50)
+  assert.strictEqual(options.mineralOccurrenceDiamond, 5)
+  assert.strictEqual(options.mineralOccurrenceCopper, 100)
+  assert.strictEqual(options.maxMetalNodes, DEFAULT_WORLD_GENERATION_OPTIONS.maxMetalNodes)
+})

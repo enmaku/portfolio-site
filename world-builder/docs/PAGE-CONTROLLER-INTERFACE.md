@@ -111,7 +111,7 @@ Display computeds must stay free of renderer imports — formatting lives in `wo
 |---------|----------------|
 | Params build | `getDerivedGeographyParams()` — parses seed, returns null on invalid |
 | Apply doc to map | `applyWorldDocumentToMap` → `mapLifecycle.applyWorldDocument` |
-| Generation hooks | `onBeforeRun` / `onRunCompleteSuccess` → `overlay.resetVisibility()` |
+| Generation hooks | `onRunCompleteSuccess` → landing visuals + locked-terrain persist (does **not** clear overlay visibility) |
 | Generation errors | `onRunError` → `onGenerationError?.(message)` |
 
 ---

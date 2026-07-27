@@ -32,7 +32,7 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
   destroy: ['destroy cancels the active run and tears down the map lifecycle'],
   regenerate: [
     'regenerate starts a fresh generation run',
-    'a completed run resets overlay visibility',
+    'a completed run preserves overlay visibility',
     'superseding regenerate ignores stale terminal callbacks from prior run',
     'supersede ignores stale step-complete world document from prior run',
     'rapid regenerate does not duplicate world document apply from stale worker',
@@ -40,8 +40,14 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
   onToggleChange: ['onToggleChange persists to settings and regenerates'],
   onSliderInput: ['onSliderInput persists to settings without regenerating'],
   onSliderCommit: ['committing a slider value persists to settings and regenerates'],
-  commitSeed: ['committing a seed applies it to settings and regenerates'],
-  randomizeSeed: ['randomizeSeed updates seed input, settings, and regenerates'],
+  commitSeed: [
+    'committing a seed applies it to settings and regenerates',
+    'commitSeed preserves overlay visibility across regeneration',
+  ],
+  randomizeSeed: [
+    'randomizeSeed updates seed input, settings, and regenerates',
+    'randomizeSeed preserves overlay visibility across regeneration',
+  ],
   resetDefaults: [
     'resetDefaults resets settings, restores overlay display settings, and regenerates',
   ],
@@ -443,7 +449,7 @@ test('focusValidationRow focuses the viewport only when the row has a map focus'
   }
 })
 
-test('a completed run resets overlay visibility', async () => {
+test('a completed run preserves overlay visibility', async () => {
   const scope = effectScope(true)
   try {
     const { ctx } = mountController(scope)
@@ -456,7 +462,46 @@ test('a completed run resets overlay visibility', async () => {
     ctx.regenerate()
     await nextTick()
 
-    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.salt, false)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.salt, true)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('commitSeed preserves overlay visibility across regeneration', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx } = mountController(scope)
+
+    await ctx.start()
+    await nextTick()
+    ctx.overlays.toggleResourceOverlayVisibility('timber', true)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.timber, true)
+
+    ctx.seedInput.value = '424242'
+    ctx.commitSeed()
+    await nextTick()
+
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.timber, true)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('randomizeSeed preserves overlay visibility across regeneration', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx } = mountController(scope)
+
+    await ctx.start()
+    await nextTick()
+    ctx.overlays.toggleResourceOverlayVisibility('arable', true)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.arable, true)
+
+    ctx.randomizeSeed()
+    await nextTick()
+
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.arable, true)
   } finally {
     scope.stop()
   }
@@ -773,7 +818,7 @@ test('terrain authoring hides and disables colonization overlays', async () => {
         return { cancel() {} }
       },
     })
-    const colonizationOverlayIds = ['population', 'settlements', 'explorationFog', 'routes']
+    const colonizationOverlayIds = ['population', 'settlements', 'explorationFog', 'routes', 'wealth']
 
     await ctx.start()
     await nextTick()
@@ -791,8 +836,13 @@ test('terrain authoring hides and disables colonization overlays', async () => {
 
     for (const overlayId of colonizationOverlayIds) {
       assert.ok(ctx.statusBar.value.overlayDefs.some((definition) => definition.id === overlayId))
+    }
+    assert.ok(!ctx.statusBar.value.overlayDefs.some((definition) => definition.id === 'settlementIds'))
+    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.settlementIds, undefined)
 
     await ctx.colonization.resetColonization()
     await nextTick()
@@ -868,6 +918,7 @@ test('start restores running colonization from colonization cache after beginCol
     for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
     assert.strictEqual(
       colonizationCache.getRecord()?.session.colonizationPhase,
       COLONIZATION_PHASE_RUNNING,

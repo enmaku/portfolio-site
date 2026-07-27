@@ -26,16 +26,28 @@ function createFakeSettingsStore(initial = {}) {
 /** Captures viewport interactions so tests can assert map wiring without a real renderer. */
 function createFakeViewport() {
   const landingMarkers = []
+  const focusMarkers = []
   const haulShedPreviews = []
   const placementModes = []
   /** @type {((cell: { x: number, y: number }) => void) | null} */
   let cellPickHandler = null
+  /** @type {(() => void) | null} */
+  let settlementFocusClearHandler = null
+  /** @type {((payload: { settlementId: string, clientX: number, clientY: number } | null) => void) | null} */
+  let settlementHoverHandler = null
   return {
     landingMarkers,
+    focusMarkers,
     haulShedPreviews,
     placementModes,
     triggerCellPick(cell) {
       cellPickHandler?.(cell)
+    },
+    triggerSettlementFocusClear() {
+      settlementFocusClearHandler?.()
+    },
+    triggerSettlementHover(payload) {
+      settlementHoverHandler?.(payload)
     },
     handle: {
       setLandingPlacementMode(enabled) {
@@ -44,11 +56,20 @@ function createFakeViewport() {
       setFoundingLandingMarker(marker) {
         landingMarkers.push(marker)
       },
+      setSettlementFocusMarker(marker) {
+        focusMarkers.push(marker)
+      },
       setHaulShedPreviewCells(cells) {
         haulShedPreviews.push(cells)
       },
       onCellPick(handler) {
         cellPickHandler = handler
+      },
+      onSettlementFocusClear(handler) {
+        settlementFocusClearHandler = handler
+      },
+      onSettlementHover(handler) {
+        settlementHoverHandler = handler
       },
     },
   }
@@ -294,6 +315,72 @@ test('setColonistSetting updates three-day haul distance and rescales preview', 
   }
 })
 
+test('setColonistSetting locks land expedition range after begin colonization', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, settingsStore, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.setColonistSetting('landExpeditionRange', 3)
+    ctx.pickFoundingLanding(3, 3)
+
+    assert.strictEqual(await ctx.beginColonization(), true)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+
+    ctx.setColonistSetting('landExpeditionRange', 1)
+
+    assert.strictEqual(ctx.colonistSettings.value.landExpeditionRange, 3)
+    assert.strictEqual(settingsStore.colonizationSession.colonistSettings.landExpeditionRange, 3)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('setColonistSetting locks people per habitable cell after begin colonization', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, settingsStore, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.setColonistSetting('peoplePerHabitableCell', 40)
+    ctx.pickFoundingLanding(3, 3)
+
+    assert.strictEqual(await ctx.beginColonization(), true)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+
+    ctx.setColonistSetting('peoplePerHabitableCell', 5)
+
+    assert.strictEqual(ctx.colonistSettings.value.peoplePerHabitableCell, 40)
+    assert.strictEqual(
+      settingsStore.colonizationSession.colonistSettings.peoplePerHabitableCell,
+      40,
+    )
+  } finally {
+    scope.stop()
+  }
+})
+
+test('setColonistSetting locks population density after begin colonization', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, settingsStore, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.setColonistSetting('populationDensity', 1.5)
+    ctx.pickFoundingLanding(3, 3)
+
+    assert.strictEqual(await ctx.beginColonization(), true)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+
+    ctx.setColonistSetting('populationDensity', 0.5)
+
+    assert.strictEqual(ctx.colonistSettings.value.populationDensity, 1.5)
+    assert.strictEqual(settingsStore.colonizationSession.colonistSettings.populationDensity, 1.5)
+  } finally {
+    scope.stop()
+  }
+})
+
 test('beginColonization commits founding settlement tip and locks terrain', async () => {
   const scope = effectScope(true)
   try {
@@ -313,6 +400,8 @@ test('beginColonization commits founding settlement tip and locks terrain', asyn
     assert.strictEqual(ctx.isTerrainLocked.value, true)
     assert.strictEqual(ctx.timeControlsActive.value, true)
     assert.strictEqual(ctx.showResetColonization.value, true)
+    assert.strictEqual(ctx.showColonistSettingsPanel.value, false)
+    assert.strictEqual(ctx.showRealmEconomyPanel.value, true)
     assert.strictEqual(settingsStore.colonizationSession.colonizationPhase, COLONIZATION_PHASE_RUNNING)
   } finally {
     scope.stop()
@@ -366,6 +455,58 @@ test('epochStep is inactive outside running phase', async () => {
   }
 })
 
+test('epochStep and resetColonization are blocked while rehydration progress is running', async () => {
+  const scope = effectScope(true)
+  try {
+    const confirmCalls = []
+    const { ctx, setGeographyDocument } = mountColonization(scope, {
+      requestConfirm: async () => {
+        confirmCalls.push(true)
+        return true
+      },
+    })
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.pickFoundingLanding(3, 3)
+    await ctx.beginColonization()
+    ctx.beginSessionRestore()
+
+    assert.strictEqual(ctx.isRehydrationRunning.value, true)
+    assert.strictEqual(await ctx.epochStep(), false)
+    assert.strictEqual(await ctx.resetColonization(), false)
+    assert.strictEqual(confirmCalls.length, 0)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+    assert.strictEqual(ctx.epoch.value, 0)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('epochStep and resetColonization are blocked while session restore is pending', async () => {
+  const scope = effectScope(true)
+  try {
+    const confirmCalls = []
+    const { ctx, setGeographyDocument } = mountColonization(scope, {
+      getSessionRestorePending: () => true,
+      requestConfirm: async () => {
+        confirmCalls.push(true)
+        return true
+      },
+    })
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.pickFoundingLanding(3, 3)
+    await ctx.beginColonization()
+
+    assert.strictEqual(await ctx.epochStep(), false)
+    assert.strictEqual(await ctx.resetColonization(), false)
+    assert.strictEqual(confirmCalls.length, 0)
+    assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+  } finally {
+    scope.stop()
+  }
+})
+
 test('resetColonization clears tips and returns to terrain when confirmed', async () => {
   const scope = effectScope(true)
   try {
@@ -407,6 +548,99 @@ test('resetColonization stays in running when confirm is declined', async () => 
 
     assert.strictEqual(ctx.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
     assert.strictEqual(settingsStore.colonizationSession.colonizationPhase, COLONIZATION_PHASE_RUNNING)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('settlement trade tooltip model is null when no settlement is hovered', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, viewport, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.pickFoundingLanding(3, 3)
+    await ctx.beginColonization()
+
+    assert.strictEqual(ctx.hoveredSettlementId.value, null)
+    assert.strictEqual(ctx.settlementTradeTooltip.value, null)
+
+    const settlementId = ctx.settlements.value?.[0]?.id
+    assert.ok(settlementId)
+    viewport.triggerSettlementHover({
+      settlementId,
+      clientX: 40,
+      clientY: 80,
+    })
+    assert.strictEqual(ctx.hoveredSettlementId.value, settlementId)
+    assert.ok(ctx.settlementTradeTooltip.value)
+    assert.strictEqual(ctx.settlementTradeTooltip.value.settlementId, settlementId)
+
+    viewport.triggerSettlementHover(null)
+    assert.strictEqual(ctx.hoveredSettlementId.value, null)
+    assert.strictEqual(ctx.settlementTradeTooltip.value, null)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('settlement focus toggles by extreme key, not settlement id', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, viewport, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.pickFoundingLanding(3, 3)
+    await ctx.beginColonization()
+
+    const settlementId = ctx.settlements.value?.[0]?.id
+    assert.ok(settlementId)
+
+    ctx.setSettlementFocus({
+      settlementId,
+      focusKey: 'commodity:copper:highest',
+    })
+    assert.strictEqual(ctx.focusedSettlementId.value, settlementId)
+    assert.deepEqual(viewport.focusMarkers.at(-1), { x: 3, y: 3 })
+
+    ctx.setSettlementFocus({
+      settlementId,
+      focusKey: 'commodity:gold:highest',
+    })
+    assert.strictEqual(ctx.focusedSettlementId.value, settlementId)
+    assert.deepEqual(viewport.focusMarkers.at(-1), { x: 3, y: 3 })
+
+    ctx.setSettlementFocus({
+      settlementId,
+      focusKey: 'commodity:gold:highest',
+    })
+    assert.strictEqual(ctx.focusedSettlementId.value, null)
+    assert.strictEqual(viewport.focusMarkers.at(-1), null)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('epochStep clears settlement focus', async () => {
+  const scope = effectScope(true)
+  try {
+    const { ctx, viewport, setGeographyDocument } = mountColonization(scope)
+    setGeographyDocument(coastalLandmassDocument())
+    await ctx.enterColonizationSetup(true)
+    ctx.pickFoundingLanding(3, 3)
+    await ctx.beginColonization()
+
+    const settlementId = ctx.settlements.value?.[0]?.id
+    assert.ok(settlementId)
+    ctx.setSettlementFocus({
+      settlementId,
+      focusKey: 'population:highest',
+    })
+    assert.strictEqual(ctx.focusedSettlementId.value, settlementId)
+
+    assert.strictEqual(await ctx.epochStep(), true)
+    assert.strictEqual(ctx.focusedSettlementId.value, null)
+    assert.strictEqual(viewport.focusMarkers.at(-1), null)
   } finally {
     scope.stop()
   }

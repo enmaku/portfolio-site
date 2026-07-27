@@ -1,8 +1,9 @@
-/** @typedef {'claims' | 'survival' | 'ruin' | 'dynasty' | 'logistics' | 'visited' | 'collapse' | 'commit'} ColonizationBeginStepId */
+/** @typedef {'claims' | 'trade' | 'survival' | 'ruin' | 'dynasty' | 'logistics' | 'visited' | 'collapse' | 'commit'} ColonizationBeginStepId */
 
 /** @type {ReadonlyArray<{ id: ColonizationBeginStepId, label: string }>} */
 export const COLONIZATION_BEGIN_STEPS = Object.freeze([
   { id: 'claims', label: 'Claims' },
+  { id: 'trade', label: 'Trade' },
   { id: 'survival', label: 'Survival' },
   { id: 'ruin', label: 'Ruin' },
   { id: 'dynasty', label: 'Dynasty' },

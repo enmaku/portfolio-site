@@ -161,7 +161,7 @@ test('useWorldBuilderGeneration composable resets progress on cancel without pag
   }
 })
 
-test('generation run hooks reset overlay visibility before run and after success', async () => {
+test('generation run hooks fire without clearing overlay visibility', async () => {
   const scope = effectScope(true)
   try {
     const viewport = createViewportSyncSeam()
@@ -182,11 +182,9 @@ test('generation run hooks reset overlay visibility before run and after success
         applyWorldDocument: () => {},
         onBeforeRun: () => {
           hookLog.push('before')
-          overlayCtx.resetVisibility()
         },
         onRunCompleteSuccess: () => {
           hookLog.push('success')
-          overlayCtx.resetVisibility()
         },
         runDerivedGeographyInWorker(_params, callbacks) {
           callbacks.onComplete?.()
@@ -197,17 +195,18 @@ test('generation run hooks reset overlay visibility before run and after success
 
     overlayCtx.toggleVisibility('timber', true)
     assert.strictEqual(overlayCtx.visibility.value.timber, true)
+    const syncsBefore = viewport.syncedStates.length
 
     generationCtx.regenerate()
     await nextTick()
 
     assert.deepStrictEqual(hookLog, ['before', 'success'])
-    assert.strictEqual(overlayCtx.visibility.value.timber, false)
+    assert.strictEqual(overlayCtx.visibility.value.timber, true)
     assert.strictEqual(generationCtx.runPhase.value, 'success')
     assert.strictEqual(generationCtx.showResourceOverlayBar.value, true)
     assert.strictEqual(generationCtx.showGenerationProgress.value, false)
-    assert.ok(viewport.syncedStates.length >= 2)
-    assert.strictEqual(viewport.syncedStates.at(-1)?.visibility.timber, false)
+    assert.strictEqual(viewport.syncedStates.length, syncsBefore)
+    assert.strictEqual(viewport.syncedStates.at(-1)?.visibility.timber, true)
   } finally {
     scope.stop()
   }

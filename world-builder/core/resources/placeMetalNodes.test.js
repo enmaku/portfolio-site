@@ -3,6 +3,7 @@ import test from 'node:test'
 import { SEA_LEVEL } from '../biomeIds.js'
 import { NODE_MAP_EDGE_MARGIN } from '../nodePlacementBounds.js'
 import { strategicResourceNodeSpacingForGrid } from '../resourcePlacementScaling.js'
+import { MINERAL_KINDS } from './mineralOccurrence.js'
 import { placeMetalNodes } from './placeMetalNodes.js'
 
 const width = 64
@@ -14,6 +15,28 @@ function makeMetalsRaster(peaks, gridWidth = width, gridHeight = height) {
     raster[y * gridWidth + x] = value
   }
   return raster
+}
+
+/** Scatter spaced peaks so many candidates survive the spacing filter. */
+function makeScatteredRaster(count, gridWidth = 128, gridHeight = 128) {
+  const raster = new Float32Array(gridWidth * gridHeight)
+  const step = 6
+  let placed = 0
+  for (let y = step; y < gridHeight - step && placed < count; y += step) {
+    for (let x = step; x < gridWidth - step && placed < count; x += step) {
+      raster[y * gridWidth + x] = 0.5 + ((placed % 40) / 40) * 0.4
+      placed += 1
+    }
+  }
+  return raster
+}
+
+function countByKind(nodes) {
+  const counts = { copper: 0, silver: 0, gold: 0, diamond: 0 }
+  for (const node of nodes) {
+    counts[node.kind] += 1
+  }
+  return counts
 }
 
 test('placeMetalNodes returns stable ids and coordinates from raster peaks', () => {
@@ -37,6 +60,9 @@ test('placeMetalNodes returns stable ids and coordinates from raster peaks', () 
   assert.strictEqual(nodes[1].id, 'metal-1')
   assert.strictEqual(typeof nodes[0].x, 'number')
   assert.strictEqual(typeof nodes[0].y, 'number')
+  for (const node of nodes) {
+    assert.ok(MINERAL_KINDS.includes(node.kind))
+  }
 })
 
 test('placeMetalNodes is deterministic for a fixed seed', () => {
@@ -162,4 +188,94 @@ test('placeMetalNodes excludes candidates within the map edge margin', () => {
     assert.ok(node.x < gridWidth - margin)
     assert.ok(node.y < gridHeight - margin)
   }
+})
+
+test('placeMetalNodes yields the same typed set for a fixed seed and weights', () => {
+  const gridWidth = 128
+  const gridHeight = 128
+  const metalsRaster = makeScatteredRaster(200, gridWidth, gridHeight)
+  const elevation = new Float32Array(gridWidth * gridHeight).fill(SEA_LEVEL + 0.4)
+  const params = {
+    metalsRaster,
+    elevation,
+    width: gridWidth,
+    height: gridHeight,
+    geographySeed: 2024,
+    maxNodes: 30,
+  }
+
+  assert.deepStrictEqual(placeMetalNodes(params), placeMetalNodes(params))
+})
+
+test('placeMetalNodes defaults favor copper over silver over gold with no diamonds', () => {
+  const gridWidth = 128
+  const gridHeight = 128
+  const metalsRaster = makeScatteredRaster(300, gridWidth, gridHeight)
+  const elevation = new Float32Array(gridWidth * gridHeight).fill(SEA_LEVEL + 0.4)
+
+  const nodes = placeMetalNodes({
+    metalsRaster,
+    elevation,
+    width: gridWidth,
+    height: gridHeight,
+    geographySeed: 777,
+    maxNodes: 60,
+  })
+
+  const counts = countByKind(nodes)
+  assert.ok(nodes.length >= 20)
+  assert.strictEqual(counts.diamond, 0)
+  assert.ok(counts.copper >= counts.silver)
+  assert.ok(counts.silver >= counts.gold)
+  assert.ok(counts.copper > counts.gold)
+})
+
+test('placeMetalNodes weights change the mix without changing the deposit count', () => {
+  const gridWidth = 128
+  const gridHeight = 128
+  const metalsRaster = makeScatteredRaster(300, gridWidth, gridHeight)
+  const elevation = new Float32Array(gridWidth * gridHeight).fill(SEA_LEVEL + 0.4)
+  const base = {
+    metalsRaster,
+    elevation,
+    width: gridWidth,
+    height: gridHeight,
+    geographySeed: 5150,
+    maxNodes: 60,
+  }
+
+  const defaults = placeMetalNodes(base)
+  const goldHeavy = placeMetalNodes({
+    ...base,
+    occurrenceWeights: { copper: 1, silver: 1, gold: 100, diamond: 5 },
+  })
+
+  assert.strictEqual(defaults.length, goldHeavy.length)
+  for (let i = 0; i < defaults.length; i += 1) {
+    assert.strictEqual(defaults[i].x, goldHeavy[i].x)
+    assert.strictEqual(defaults[i].y, goldHeavy[i].y)
+  }
+
+  const goldHeavyCounts = countByKind(goldHeavy)
+  assert.ok(goldHeavyCounts.gold > countByKind(defaults).gold)
+  assert.ok(goldHeavyCounts.diamond > 0)
+})
+
+test('placeMetalNodes with diamond weight zero never places diamonds', () => {
+  const gridWidth = 128
+  const gridHeight = 128
+  const metalsRaster = makeScatteredRaster(300, gridWidth, gridHeight)
+  const elevation = new Float32Array(gridWidth * gridHeight).fill(SEA_LEVEL + 0.4)
+
+  const nodes = placeMetalNodes({
+    metalsRaster,
+    elevation,
+    width: gridWidth,
+    height: gridHeight,
+    geographySeed: 314,
+    maxNodes: 60,
+    occurrenceWeights: { copper: 50, silver: 25, gold: 25, diamond: 0 },
+  })
+
+  assert.strictEqual(countByKind(nodes).diamond, 0)
 })

@@ -8,21 +8,110 @@ import {
 } from './buildColonizationSimStatus.js'
 import { createDefaultColonizationSlice } from './createDefaultColonizationSlice.js'
 
-test('buildColonizationSimStatus reports epoch, settlements, expeditions, frontier flag', () => {
+test('buildColonizationSimStatus reports census counters and population extremes', () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 3
   slice.settlements = [
-    { id: 'a', status: 'living', population: 10 },
-    { id: 'b', status: 'ruin', population: 0 },
+    { id: 'a', status: 'living', population: 10, x: 0, y: 0 },
+    { id: 'b', status: 'ruin', population: 0, x: 1, y: 0 },
+    { id: 'c', status: 'living', population: 40, x: 2, y: 0 },
   ]
-  slice.expeditions = [{ id: 'e1', settlementId: 'a', status: 'active', mode: 'land', route: [], progressIndex: 0, target: { x: 0, y: 0 } }]
+  slice.expeditions = [
+    {
+      id: 'e1',
+      settlementId: 'a',
+      status: 'active',
+      mode: 'land',
+      route: [],
+      progressIndex: 0,
+      bearing: 0,
+    },
+  ]
+  slice.roads = [{ cells: [{ x: 0, y: 0 }], settlementIds: ['a', 'c'] }]
+  slice.tradeRouteState = {
+    candidates: [],
+    activeFlows: [{ edgeId: 'f1', fromSettlementId: 'a', toSettlementId: 'c', commodityId: 'grain', amount: 1 }],
+  }
+  slice.lastTradeEpochResult = {
+    flows: slice.tradeRouteState.activeFlows,
+    offMapTrades: [
+      { settlementId: 'a', commodityId: 'salt', direction: 'import', amount: 10, unitPriceCp: 5 },
+      { settlementId: 'a', commodityId: 'grain', direction: 'export', amount: 100, unitPriceCp: 0.5 },
+    ],
+    settlementCommodityRoles: {},
+    localPricesBySettlementId: {},
+    obligationDeltas: [],
+    externalAccountDeltas: {},
+    effectiveDelivered: {},
+    realmBalancesCp: {},
+    nettedObligations: [],
+  }
   slice.frontierExhausted = true
 
   const status = buildColonizationSimStatus(slice)
   assert.strictEqual(status.epoch, 3)
-  assert.strictEqual(status.livingSettlementCount, 1)
+  assert.strictEqual(status.livingSettlementCount, 2)
+  assert.strictEqual(status.ruinCount, 1)
   assert.strictEqual(status.activeExpeditionCount, 1)
-  assert.strictEqual(status.frontierExhausted, true)
+  assert.strictEqual(status.roadSegmentCount, 1)
+  assert.strictEqual(status.activeTradeFlowCount, 1)
+  assert.strictEqual(status.offMapTradeVolumeCp, 100)
+  assert.strictEqual(status.totalPopulation, 50)
+  assert.deepEqual(status.highestPopulation, { settlementId: 'c', value: 40 })
+  assert.deepEqual(status.lowestPopulation, { settlementId: 'a', value: 10 })
+  assert.equal('frontierExhausted' in status, false)
+})
+
+test('buildColonizationSimStatus ties population extremes by settlement id', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.settlements = [
+    { id: 'b', status: 'living', population: 10, x: 0, y: 0 },
+    { id: 'a', status: 'living', population: 10, x: 1, y: 0 },
+  ]
+  const status = buildColonizationSimStatus(slice)
+  assert.deepEqual(status.highestPopulation, { settlementId: 'a', value: 10 })
+  assert.deepEqual(status.lowestPopulation, { settlementId: 'a', value: 10 })
+})
+
+test('buildColonizationSimStatus resource claims count salt and metals in primary claim', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.settlements = [{ id: 'a', status: 'living', population: 5, x: 0, y: 0 }]
+  slice.primaryClaim = {
+    a: [
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+    ],
+  }
+  const worldDocument = {
+    gridWidth: 10,
+    saltNodes: [
+      { id: 's1', x: 1, y: 0, score: 1 },
+      { id: 's2', x: 9, y: 0, score: 1 },
+    ],
+    metalNodes: [
+      { id: 'm1', x: 2, y: 0, score: 1, kind: 'copper' },
+      { id: 'm2', x: 3, y: 0, score: 1, kind: 'copper' },
+      { id: 'm3', x: 4, y: 0, score: 1, kind: 'silver' },
+    ],
+  }
+
+  const status = buildColonizationSimStatus(slice, worldDocument)
+  assert.deepEqual(status.resourceClaims, [
+    { key: 'salt', claimed: 1, total: 2 },
+    { key: 'copper', claimed: 1, total: 2 },
+    { key: 'silver', claimed: 0, total: 1 },
+  ])
+})
+
+test('buildColonizationSimStatus omits resource rows with zero world total', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.settlements = [{ id: 'a', status: 'living', population: 5, x: 0, y: 0 }]
+  const status = buildColonizationSimStatus(slice, {
+    gridWidth: 4,
+    saltNodes: [],
+    metalNodes: [],
+  })
+  assert.deepEqual(status.resourceClaims, [])
 })
 
 test('buildFoundingChronicle filters founding-related history kinds', () => {
@@ -40,10 +129,10 @@ test('buildFoundingChronicle filters founding-related history kinds', () => {
   assert.strictEqual(chronicle[2].kind, 'settlement_abandoned')
 })
 
-test('shouldShowSimStatusPanel after epoch 0 only in running phase', () => {
-  assert.strictEqual(shouldShowSimStatusPanel('running', 1), true)
-  assert.strictEqual(shouldShowSimStatusPanel('running', 0), false)
-  assert.strictEqual(shouldShowSimStatusPanel('setup', 0), false)
+test('shouldShowSimStatusPanel for entire running phase including epoch 0', () => {
+  assert.strictEqual(shouldShowSimStatusPanel('running'), true)
+  assert.strictEqual(shouldShowSimStatusPanel('setup'), false)
+  assert.strictEqual(shouldShowSimStatusPanel('terrain'), false)
 })
 
 test('shouldShowValidationAdvisory hides after epoch 0 in running', () => {

@@ -4,8 +4,10 @@ import { applyRuinTransitions } from './applyRuin.js'
 import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaimMap.js'
 import { DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
-import { saltSpoilageMultiplierForSettlement as defaultSaltSpoilage } from './saltSpoilageMultiplier.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
+import { clearRealmTrade } from '../economy/tradeClearing/clearRealmTrade.js'
+import { buildRealmTradeClearingInput } from './buildRealmTradeClearingInput.js'
+import { combinedSettlementWealthCp } from '../economy/ledgers/combinedSettlementWealthCp.js'
 import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
 
 /**
@@ -16,6 +18,7 @@ import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
  * @property {Record<string, Array<{ x: number, y: number }>>} primaryClaim
  * @property {(string | null)[] | undefined} ownerByCell
  * @property {Record<string, import('./resolveSurvivalTriad.js').SurvivalTriadResult>} survivalBySettlementId
+ * @property {Record<string, { foodLb: number, saltLb: number }>} effectiveDeliveredBySettlementId
  */
 
 /**
@@ -31,6 +34,7 @@ export function createColonizationEpochContext(slice, worldDocument) {
     primaryClaim: {},
     ownerByCell: undefined,
     survivalBySettlementId: {},
+    effectiveDeliveredBySettlementId: {},
   }
 }
 
@@ -64,10 +68,42 @@ export function runColonizationEpochClaimsPhase(ctx) {
 }
 
 /**
+ * Trade phase: clear pairwise + off-map trade (when ≥ 2 living settlements) and persist
+ * the ledgers, route flows, and inspect payload. The food/salt each settlement holds after
+ * trade is stashed on the context for the survival phase.
+ *
  * @param {ColonizationEpochContext} ctx
- * @param {{ saltSpoilageMultiplierForSettlement?: Function }} [options]
+ * @param {{ trade?: { hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks, yieldToUi?: () => Promise<void> } }} [options]
+ * @returns {Promise<void>}
+ */
+export async function runColonizationEpochTradePhase(ctx, options = {}) {
+  const input = await buildRealmTradeClearingInput(
+    {
+      slice: ctx.slice,
+      worldDocument: ctx.worldDocument,
+      primaryClaim: ctx.primaryClaim,
+    },
+    options.trade,
+  )
+  const trade = await clearRealmTrade(input, options.trade)
+
+  ctx.effectiveDeliveredBySettlementId = trade.effectiveDeliveredBySettlementId
+  ctx.slice = {
+    ...ctx.slice,
+    tradeAccounts: trade.tradeAccounts,
+    externalTradeAccounts: trade.externalTradeAccounts,
+    priorRealizedIncomeCp: trade.priorRealizedIncomeCp,
+    tradeRouteState: trade.tradeRouteState,
+    lastTradeEpochResult: trade.lastTradeEpochResult,
+  }
+}
+
+/**
+ * @param {ColonizationEpochContext} ctx
+ * @param {object} [options]
  */
 export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
+  void options
   /** @type {object[]} */
   const nextSettlements = []
   /** @type {Record<string, import('./resolveSurvivalTriad.js').SurvivalTriadResult>} */
@@ -80,15 +116,24 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
     }
 
     const claimedCells = ctx.primaryClaim[settlement.id] ?? []
-    const saltResolver = options.saltSpoilageMultiplierForSettlement ?? defaultSaltSpoilage
-    const saltSpoilageMultiplier = saltResolver(settlement, claimedCells, ctx.worldDocument)
+    const delivered = ctx.effectiveDeliveredBySettlementId[settlement.id] ?? {
+      foodLb: 0,
+      saltLb: 0,
+    }
+    const realmWealthCp = combinedSettlementWealthCp({
+      settlementId: settlement.id,
+      balancesBySettlementId: ctx.slice.tradeAccounts?.balancesBySettlementId,
+      externalTradeAccounts: ctx.slice.externalTradeAccounts,
+    })
 
     const { settlement: resolved, survival } = applySurvivalResolveToSettlement({
       settlement,
       claimedCells,
       colonistSettings: ctx.slice.colonistSettings,
       worldDocument: ctx.worldDocument,
-      saltSpoilageMultiplier,
+      deliveredFoodLb: delivered.foodLb,
+      deliveredSaltLb: delivered.saltLb,
+      realmWealthCp,
     })
 
     survivalBySettlementId[settlement.id] = survival
@@ -103,6 +148,7 @@ export function runColonizationEpochSurvivalPhase(ctx, options = {}) {
     } else {
       population = 0
     }
+    population = applyMarginalWealthAttrition(population, realmWealthCp)
 
     nextSettlements.push({
       ...resolved,
@@ -128,6 +174,8 @@ export function runColonizationEpochRuinPhase(ctx) {
     primaryClaim: ctx.primaryClaim,
     historyLog: ctx.slice.historyLog,
     epoch: nextEpoch,
+    tradeAccounts: ctx.slice.tradeAccounts,
+    externalTradeAccounts: ctx.slice.externalTradeAccounts,
   })
 
   applyPoliticsPhaseNoop()
@@ -138,6 +186,8 @@ export function runColonizationEpochRuinPhase(ctx) {
     settlements: ruined.settlements,
     primaryClaim: ruined.primaryClaim,
     historyLog: ruined.historyLog,
+    tradeAccounts: ruined.tradeAccounts,
+    externalTradeAccounts: ruined.externalTradeAccounts,
   }
   ctx.events.push(...ruined.events)
 }
@@ -165,11 +215,15 @@ export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
 
 /**
  * Annual colonization tick order:
- * network → claims → survival → ruin → collapse.
+ * network → claims → trade → survival → ruin → collapse.
  *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument
- * @param {{ saltSpoilageMultiplierForSettlement?: Function, network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions }} [options]
+ * @param {{
+ *   network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions,
+ *   trade?: { hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks, yieldToUi?: () => Promise<void> },
+ *   collapse?: { hooks?: import('./collapsePopulation.js').CollapsePopulationHooks, yieldToUi?: () => Promise<void> },
+ * }} [options]
  * @returns {Promise<{
  *   slice: import('./createDefaultColonizationSlice.js').ColonizationSlice,
  *   events: object[],
@@ -190,6 +244,19 @@ export async function applyColonizationEpoch(slice, worldDocument, options = {})
 }
 
 /**
+ * Fraction of food surplus (people-units) converted to headcount change per epoch.
+ * 0.1 filled large haul-shed ceilings in a handful of years; 0.02 keeps early epochs
+ * in village/town bands under calibrated packing constants.
+ */
+export const SURPLUS_POPULATION_GROWTH_FRACTION = 0.02
+
+/** Fraction of headcount that leaves the map each epoch when combined wealth ≤ 0. */
+export const MARGINAL_WEALTH_ATTRITION_RATE = 0.5
+
+/** Floor on leavers per marginal-wealth attrition pass (avoids endless half-rounding residue). */
+export const MARGINAL_WEALTH_ATTRITION_MIN_LEAVERS = 5
+
+/**
  * Surplus-driven population change in people-units, clamped by ceiling.
  *
  * @param {number} population
@@ -200,11 +267,36 @@ export async function applyColonizationEpoch(slice, worldDocument, options = {})
 export function applySurplusPopulationDelta(population, foodSurplus, populationCeiling) {
   let next = population
   if (foodSurplus > 0) {
-    next = population + Math.max(1, Math.floor(foodSurplus * 0.1))
+    next = population + Math.max(1, Math.floor(foodSurplus * SURPLUS_POPULATION_GROWTH_FRACTION))
   } else if (foodSurplus < 0) {
-    next = population - Math.max(1, Math.floor(Math.abs(foodSurplus) * 0.1))
+    next =
+      population - Math.max(1, Math.floor(Math.abs(foodSurplus) * SURPLUS_POPULATION_GROWTH_FRACTION))
   }
   return Math.max(0, Math.min(Math.floor(next), populationCeiling))
+}
+
+/**
+ * Off-map attrition for marginal/broke settlements (wealth overlay orange/red: ≤ 0 cp).
+ * Leavers exit the realm entirely — not transferred to another pin.
+ * Each pass removes the larger of half the headcount or
+ * {@link MARGINAL_WEALTH_ATTRITION_MIN_LEAVERS} people (capped by headcount).
+ *
+ * @param {number} population
+ * @param {number} realmWealthCp Combined realm + external wealth (tooltip / overlay figure).
+ * @returns {number}
+ */
+export function applyMarginalWealthAttrition(population, realmWealthCp) {
+  const headcount = Math.max(0, Math.floor(Number(population) || 0))
+  if (!(headcount > 0)) return 0
+  if (!(Number.isFinite(realmWealthCp) && realmWealthCp <= 0)) return headcount
+  const leavers = Math.min(
+    headcount,
+    Math.max(
+      Math.floor(headcount * MARGINAL_WEALTH_ATTRITION_RATE),
+      MARGINAL_WEALTH_ATTRITION_MIN_LEAVERS,
+    ),
+  )
+  return headcount - leavers
 }
 
 function applyPoliticsPhaseNoop() {}

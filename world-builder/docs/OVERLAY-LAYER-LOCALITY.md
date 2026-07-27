@@ -79,7 +79,7 @@ Metal/salt visibility toggles add `vectorOverlays` — not `metals` raster layer
 
 ### Viewport draw (today)
 
-From `createWorldBuilderMapViewport.js`:
+From `createWorldBuilderMapViewport.js` (draw helpers live in `drawMapNodeOverlays.js`):
 
 ```javascript
 vectorOverlays: () =>
@@ -237,7 +237,7 @@ Marker: circle radius 2 at `(x + 0.5, y + 0.5)`.
 
 ### Metal / salt draw details
 
-Uses `STRATEGIC_RESOURCE_NODE_MARKER_RADIUS` with resource-specific colors (`METAL_NODE_OVERLAY_COLOR`, `SALT_NODE_OVERLAY_COLOR`).
+Uses `STRATEGIC_RESOURCE_NODE_MARKER_RADIUS` with resource-specific colors (`METAL_NODE_OVERLAY_COLOR`, `SALT_NODE_OVERLAY_COLOR`) from `drawMapNodeOverlays.js` (re-exported by the viewport factory).
 
 Visibility from `worldBuilderMapViewportModel.js`:
 

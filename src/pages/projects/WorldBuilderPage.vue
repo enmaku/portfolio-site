@@ -29,8 +29,9 @@
             type="number"
             dense
             outlined
-            class="q-mb-md"
+            class="q-mb-md seed-input"
             min="0"
+            step="1"
             @change="commitSeed"
             @keyup.enter="commitSeed"
           >
@@ -196,7 +197,6 @@
       >
         <div class="panel-scroll q-pa-md">
           <q-btn
-            v-if="colonizationPhase === 'setup'"
             unelevated
             color="negative"
             class="full-width q-mb-md"
@@ -204,21 +204,34 @@
             label="Back to terrain"
             @click="backToTerrain"
           />
+          <WorldBuilderColonistSettingsPanel
+            :colonist-settings="colonistSettings"
+            :colonist-settings-snapshot="colonistSettingsSnapshot"
+            :running-phase="false"
+            @update-setting="setColonistSetting"
+            @reset-defaults="resetColonistSettings"
+          />
+        </div>
+      </aside>
+      <aside
+        v-else-if="showRealmEconomyPanel"
+        data-testid="world-builder-realm-economy-panel"
+        class="generation-controls-panel bg-grey-10"
+      >
+        <div class="panel-scroll q-pa-md">
           <q-btn
-            v-else-if="showResetColonization"
+            v-if="showResetColonization"
             unelevated
             color="negative"
             class="full-width q-mb-md"
             data-testid="world-builder-reset-colonization"
             label="Reset colonization"
+            :disable="colonizationTimeControlsDisabled"
             @click="resetColonization"
           />
-          <WorldBuilderColonistSettingsPanel
-            :colonist-settings="colonistSettings"
-            :colonist-settings-snapshot="colonistSettingsSnapshot"
-            :running-phase="isColonistSettingsRunningPhase"
-            @update-setting="setColonistSetting"
-            @reset-defaults="resetColonistSettings"
+          <WorldBuilderRealmEconomyPanel
+            :economy="realmEconomy"
+            @focus-settlement="setSettlementFocus"
           />
         </div>
       </aside>
@@ -226,6 +239,10 @@
         ref="mapHostRef"
         data-testid="world-builder-map-host"
         class="map-host col"
+      />
+      <WorldBuilderSettlementTradeTooltip
+        :tooltip="settlementTradeTooltip"
+        :position="hoveredSettlementScreenPosition"
       />
       <aside
         data-testid="world-builder-generation-report"
@@ -253,17 +270,33 @@
             :disable="!canBeginColonization || isBeginColonizationRunning"
             @click="beginColonization"
           />
-          <q-btn
+          <div
             v-else-if="timeControlsActive"
-            unelevated
-            color="primary"
-            class="full-width q-mb-md"
-            data-testid="world-builder-epoch-step"
-            label="Next epoch"
-            :loading="isEpochStepRunning"
-            :disable="isEpochStepRunning"
-            @click="epochStep"
-          />
+            class="row q-gutter-sm q-mb-md items-stretch"
+          >
+            <q-btn
+              unelevated
+              color="primary"
+              class="col"
+              data-testid="world-builder-epoch-step"
+              label="Next epoch"
+              :loading="isEpochStepRunning"
+              :disable="colonizationTimeControlsDisabled"
+              @click="epochStep"
+            />
+            <q-btn
+              unelevated
+              color="positive"
+              icon="download"
+              data-testid="world-builder-campaign-kit-export"
+              aria-label="Download campaign kit"
+              :loading="isCampaignKitExportRunning"
+              :disable="colonizationTimeControlsDisabled"
+              @click="exportCampaignKit"
+            >
+              <q-tooltip>Download campaign kit</q-tooltip>
+            </q-btn>
+          </div>
           <q-banner
             v-if="showValidationFailureIndicator"
             :data-testid="WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID"
@@ -307,80 +340,82 @@
           <WorldBuilderSimStatusPanel
             v-if="showSimStatusPanel"
             :status="simStatus"
-            :chronicle="foundingChronicle"
+            @focus-settlement="setSettlementFocus"
           />
-          <div class="text-subtitle2 q-mb-sm">Generation report</div>
-          <div class="text-caption q-mb-md">
-            Erosion steps: {{ stageSummary.erosionStepCount }} · Sailable water cells:
-            {{ stageSummary.largestSailComponentCellCount }} · Coastal nodes:
-            {{ stageSummary.coastalNodeCount }}
-          </div>
-          <div
-            class="text-caption q-mb-md"
-            data-testid="world-builder-hydrology-stats"
-          >
-            <div>River cells: {{ hydrologyStats.riverCellCount ?? 'n/a' }}</div>
-            <div>
-              Largest sail component:
-              {{ hydrologyStats.largestSailComponentCellCount ?? 'n/a' }} cells
-            </div>
-            <div>
-              Coastal river access:
-              {{
-                hydrologyStats.coastalRiverAccess === null
-                  ? 'n/a'
-                  : hydrologyStats.coastalRiverAccess
-                    ? 'yes'
-                    : 'no'
-              }}
-            </div>
-            <div>
-              Coast-to-interior sail path:
-              {{ hydrologyStats.coastToInteriorSailPathLength ?? 'n/a' }} cells
-            </div>
-            <div>Hack's law exponent: {{ formatHydrologyMetricValue(hydrologyStats.hacksLawExponent) }}</div>
-            <div>
-              Slope–area concavity:
-              {{
-                formatSlopeAreaConcavityForDisplay(
-                  hydrologyStats.slopeAreaConcavityMedian,
-                  hydrologyStats.slopeAreaConcavitySampleCount,
-                )
-              }}
-            </div>
-            <div>Parallel strand ratio: {{ formatHydrologyMetricValue(hydrologyStats.parallelStrandRatio) }}</div>
-            <div>Lake count: {{ hydrologyStats.lakeCount ?? 'n/a' }}</div>
-            <div>Breach count: {{ hydrologyStats.breachCount ?? 'n/a' }}</div>
-            <div>Endorheic fraction: {{ formatHydrologyMetricValue(hydrologyStats.endorheicFraction) }}</div>
-            <div data-testid="world-builder-rejection-status">
-              Rejected:
-              {{ hydrologyStats.shouldReject ? 'yes' : 'no' }}
+          <template v-if="colonizationPhase === 'terrain'">
+            <div class="text-subtitle2 q-mb-sm">Generation report</div>
+            <div class="text-caption q-mb-md">
+              Erosion steps: {{ stageSummary.erosionStepCount }} · Sailable water cells:
+              {{ stageSummary.largestSailComponentCellCount }} · Coastal nodes:
+              {{ stageSummary.coastalNodeCount }}
             </div>
             <div
-              v-if="hydrologyStats.rejectionReasons.length > 0"
-              data-testid="world-builder-rejection-reasons"
+              class="text-caption q-mb-md"
+              data-testid="world-builder-hydrology-stats"
             >
+              <div>River cells: {{ hydrologyStats.riverCellCount ?? 'n/a' }}</div>
+              <div>
+                Largest sail component:
+                {{ hydrologyStats.largestSailComponentCellCount ?? 'n/a' }} cells
+              </div>
+              <div>
+                Coastal river access:
+                {{
+                  hydrologyStats.coastalRiverAccess === null
+                    ? 'n/a'
+                    : hydrologyStats.coastalRiverAccess
+                      ? 'yes'
+                      : 'no'
+                }}
+              </div>
+              <div>
+                Coast-to-interior sail path:
+                {{ hydrologyStats.coastToInteriorSailPathLength ?? 'n/a' }} cells
+              </div>
+              <div>Hack's law exponent: {{ formatHydrologyMetricValue(hydrologyStats.hacksLawExponent) }}</div>
+              <div>
+                Slope–area concavity:
+                {{
+                  formatSlopeAreaConcavityForDisplay(
+                    hydrologyStats.slopeAreaConcavityMedian,
+                    hydrologyStats.slopeAreaConcavitySampleCount,
+                  )
+                }}
+              </div>
+              <div>Parallel strand ratio: {{ formatHydrologyMetricValue(hydrologyStats.parallelStrandRatio) }}</div>
+              <div>Lake count: {{ hydrologyStats.lakeCount ?? 'n/a' }}</div>
+              <div>Breach count: {{ hydrologyStats.breachCount ?? 'n/a' }}</div>
+              <div>Endorheic fraction: {{ formatHydrologyMetricValue(hydrologyStats.endorheicFraction) }}</div>
+              <div data-testid="world-builder-rejection-status">
+                Rejected:
+                {{ hydrologyStats.shouldReject ? 'yes' : 'no' }}
+              </div>
               <div
-                v-for="reason in hydrologyStats.rejectionReasons"
-                :key="reason"
+                v-if="hydrologyStats.rejectionReasons.length > 0"
+                data-testid="world-builder-rejection-reasons"
               >
-                {{ reason }}
+                <div
+                  v-for="reason in hydrologyStats.rejectionReasons"
+                  :key="reason"
+                >
+                  {{ reason }}
+                </div>
               </div>
             </div>
-          </div>
-          <div
-            v-if="hydrologySubstepTimings.length > 0"
-            class="text-caption q-mb-md"
-            data-testid="world-builder-hydrology-substep-timings"
-          >
             <div
-              v-for="row in hydrologySubstepTimings"
-              :key="row.substepId"
-              :data-testid="`world-builder-hydrology-timing-${row.substepId}`"
+              v-if="hydrologySubstepTimings.length > 0"
+              class="text-caption q-mb-md"
+              data-testid="world-builder-hydrology-substep-timings"
             >
-              {{ row.label }}: {{ formatHydrologySubstepTimingForDisplay(row) }}
+              <div
+                v-for="row in hydrologySubstepTimings"
+                :key="row.substepId"
+                :data-testid="`world-builder-hydrology-timing-${row.substepId}`"
+              >
+                {{ row.label }}: {{ formatHydrologySubstepTimingForDisplay(row) }}
+              </div>
             </div>
-          </div>
+          </template>
         </div>
       </aside>
     </div>
@@ -408,6 +443,8 @@ import { useWorldBuilderPageController } from '../../composables/useWorldBuilder
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
 import PrevailingWindArrow from '../../components/world-builder/PrevailingWindArrow.vue'
 import WorldBuilderColonistSettingsPanel from '../../components/world-builder/WorldBuilderColonistSettingsPanel.vue'
+import WorldBuilderRealmEconomyPanel from '../../components/world-builder/WorldBuilderRealmEconomyPanel.vue'
+import WorldBuilderSettlementTradeTooltip from '../../components/world-builder/WorldBuilderSettlementTradeTooltip.js'
 import WorldBuilderSimStatusPanel from '../../components/world-builder/WorldBuilderSimStatusPanel.vue'
 import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
 import WorldBuilderStatusPanel from '../../components/world-builder/WorldBuilderStatusPanel.vue'
@@ -427,7 +464,7 @@ const {
   visibleValidationRows,
   showSimStatusPanel,
   simStatus,
-  foundingChronicle,
+  realmEconomy,
   stageSummary,
   hydrologyStats,
   hydrologySubstepTimings,
@@ -489,21 +526,27 @@ const {
   colonizationPhase,
   showTerrainAuthoringControls,
   showColonistSettingsPanel,
+  showRealmEconomyPanel,
   colonistSettings,
   colonistSettingsSnapshot,
-  isColonistSettingsRunningPhase,
   canBeginColonization,
   showResetColonization,
   timeControlsActive,
   isEpochStepRunning,
   isBeginColonizationRunning,
+  isCampaignKitExportRunning,
+  colonizationTimeControlsDisabled,
   enterColonizationSetup,
   backToTerrain,
   beginColonization,
   epochStep,
+  exportCampaignKit,
   resetColonization,
   setColonistSetting,
   resetColonistSettings,
+  settlementTradeTooltip,
+  hoveredSettlementScreenPosition,
+  setSettlementFocus,
 } = colonization
 
 onMounted(start)
@@ -614,5 +657,16 @@ onUnmounted(destroy)
 
 .generation-control__slider {
   padding: 0 4px;
+}
+
+.seed-input :deep(input[type='number']) {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.seed-input :deep(input[type='number']::-webkit-inner-spin-button),
+.seed-input :deep(input[type='number']::-webkit-outer-spin-button) {
+  appearance: none;
+  margin: 0;
 }
 </style>

@@ -18,6 +18,7 @@ import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays
  * @property {(() => void) | null} resizeObserverCallback
  * @property {{ scale: { x: number, y: number }, center: { x: number, y: number } } | null} lastViewportInstance
  * @property {Record<'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes', Array<{ x: number, y: number, color: number | null }>>} drawnCirclesByLayer
+ * @property {Array<{ text: string, x: number, y: number, fill: number | null }>} drawnTexts
  */
 
 /** @type {ViewportSpyState} */
@@ -37,6 +38,7 @@ export const viewportSpyState = {
     saltNodes: [],
     settlementNodes: [],
   },
+  drawnTexts: [],
 }
 
 /** Skip viewport suites when the runtime lacks module mocking support. */
@@ -58,6 +60,7 @@ export function resetViewportSpyState() {
     saltNodes: [],
     settlementNodes: [],
   }
+  viewportSpyState.drawnTexts = []
 }
 
 /** Vector overlay Graphics are always created coastal → metal → salt → settlement per viewport. */
@@ -68,9 +71,14 @@ const VECTOR_LAYER_IDS = /** @type {const} */ ([
   'settlementNodes',
 ])
 
+/** Landing-placement overlays appended after vector layers: haul shed, landing pin, focus pin. */
+const LANDING_PLACEMENT_GRAPHICS_COUNT = 3
+
 function syncDrawnCirclesByLayer() {
-  // Final two Graphics are landing-placement overlays (haul shed + pin).
-  const vectorLayers = viewportSpyState.graphicsLayers.slice(-6, -2)
+  const vectorLayers = viewportSpyState.graphicsLayers.slice(
+    -(VECTOR_LAYER_IDS.length + LANDING_PLACEMENT_GRAPHICS_COUNT),
+    -LANDING_PLACEMENT_GRAPHICS_COUNT,
+  )
   for (let i = 0; i < VECTOR_LAYER_IDS.length; i += 1) {
     viewportSpyState.drawnCirclesByLayer[VECTOR_LAYER_IDS[i]] = vectorLayers[i]?.circles ?? []
   }
@@ -119,12 +127,19 @@ export async function installViewportMocks() {
     namedExports: {
       Application: class {
         constructor() {
-          this.canvas = { tagName: 'CANVAS' }
+          this.canvas = {
+            tagName: 'CANVAS',
+            toBlob(callback, type) {
+              callback(new Blob(['png'], { type: type || 'image/png' }))
+            },
+          }
           this.stage = { addChild() {} }
           this.renderer = {
             events: {},
             render() {},
+            resize() {},
           }
+          this.resizeTo = null
           this.ticker = {
             elapsedMS: 16,
             start() {},
@@ -132,7 +147,10 @@ export async function installViewportMocks() {
             add() {},
           }
         }
-        async init() {}
+        async init(options = {}) {
+          this.resizeTo = options.resizeTo ?? null
+        }
+        resize() {}
         destroy() {}
       },
       Sprite: class {
@@ -178,6 +196,58 @@ export async function installViewportMocks() {
         lineTo() {}
         stroke() {}
         setFillStyle() {}
+      },
+      Container: class {
+        constructor() {
+          /** @type {unknown[]} */
+          this.children = []
+        }
+        addChild(child) {
+          this.children.push(child)
+          return child
+        }
+        removeChildren() {
+          const removed = this.children
+          this.children = []
+          viewportSpyState.drawnTexts = []
+          return removed
+        }
+      },
+      Text: class {
+        /**
+         * @param {{ text?: string, style?: { fill?: number } }} [options]
+         */
+        constructor(options = {}) {
+          this.text = options.text ?? ''
+          this.style = options.style ?? {}
+          this.x = 0
+          this.y = 0
+          this.anchor = { set() {} }
+          viewportSpyState.drawnTexts.push({
+            text: this.text,
+            x: 0,
+            y: 0,
+            fill: typeof this.style.fill === 'number' ? this.style.fill : null,
+          })
+          const record = viewportSpyState.drawnTexts.at(-1)
+          Object.defineProperty(this, 'x', {
+            get() {
+              return record.x
+            },
+            set(value) {
+              record.x = value
+            },
+          })
+          Object.defineProperty(this, 'y', {
+            get() {
+              return record.y
+            },
+            set(value) {
+              record.y = value
+            },
+          })
+        }
+        destroy() {}
       },
     },
   })
@@ -342,7 +412,7 @@ export function createSettlementFixture() {
   return worldDocFixture({
     gridWidth: 4,
     gridHeight: 4,
-    settlements: [{ id: 's1', x: 1, y: 2, population: 100 }],
+    settlements: [{ id: 's1', x: 1, y: 2, population: 100, mapNumber: 1 }],
   })
 }
 
@@ -399,17 +469,17 @@ export function createMetalsFixture() {
       elevation: new Float32Array(16).fill(0.7),
     },
     metalsRaster,
-    metalNodes: [{ id: 'metal-0', x: 2, y: 1, score: 0.9 }],
+    metalNodes: [{ id: 'metal-0', x: 2, y: 1, score: 0.9, kind: 'copper' }],
   })
 }
 
 /**
  * Sprites from the most recently created viewport.
  * Order: terrain, contours, arable, timber, metals, lakes, rivers, sail,
- * freshwater, population, explorationFog, routes.
+ * freshwater, population, explorationFog, routes, wealth.
  */
 export function recentSpriteLayers() {
-  return viewportSpyState.spriteLayers.slice(-12)
+  return viewportSpyState.spriteLayers.slice(-13)
 }
 
 /** Contours sprite sits above terrain in the layer stack. */

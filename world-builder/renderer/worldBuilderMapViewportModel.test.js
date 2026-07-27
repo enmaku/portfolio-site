@@ -5,14 +5,34 @@ import {
   resetResourceRasterOverlayRgbaBuildCount,
 } from './buildResourceRasterOverlayRgba.js'
 import {
+  DEFAULT_MINERAL_NODE_OVERLAY_COLOR,
+  MINERAL_NODE_OVERLAY_COLORS,
   computeRegionFocusScale,
+  mineralNodeOverlayColor,
   resolveArableRasterLayerVisible,
   resolveMetalsOverlayDrawn,
   resolveResourceRasterLayerVisible,
   resolveSaltNodeOverlayDrawn,
   resolveSettlementNodeOverlayDrawn,
 } from './worldBuilderMapViewportModel.js'
+import { MINERAL_KINDS } from '../core/resources/mineralOccurrence.js'
 import { applyResourceOverlayVisibility, createDefaultResourceOverlayVisibility } from '../resourceOverlays.js'
+
+test('mineralNodeOverlayColor gives each typed deposit a distinct marker color', () => {
+  const colors = MINERAL_KINDS.map((kind) => mineralNodeOverlayColor(kind))
+  assert.strictEqual(new Set(colors).size, MINERAL_KINDS.length)
+  for (const kind of MINERAL_KINDS) {
+    assert.strictEqual(mineralNodeOverlayColor(kind), MINERAL_NODE_OVERLAY_COLORS[kind])
+  }
+})
+
+test('mineralNodeOverlayColor falls back for unknown or missing kinds', () => {
+  assert.strictEqual(mineralNodeOverlayColor(undefined), DEFAULT_MINERAL_NODE_OVERLAY_COLOR)
+  assert.strictEqual(
+    mineralNodeOverlayColor(/** @type {any} */ ('platinum')),
+    DEFAULT_MINERAL_NODE_OVERLAY_COLOR,
+  )
+})
 
 test('computeRegionFocusScale uses the active world width after regeneration', () => {
   const region = { minX: 0, minY: 0, maxX: 20, maxY: 20 }

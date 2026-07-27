@@ -115,6 +115,20 @@ function createRoutesFixture() {
   }
 }
 
+function createWealthFixture() {
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    colonizationPhase: 'running',
+    settlements: [{ id: 'a', x: 2, y: 2 }],
+    primaryClaim: { a: [{ x: 2, y: 2 }] },
+    tradeAccounts: { balancesBySettlementId: { a: 500 } },
+    lastTradeEpochResult: {
+      obligationDeltas: [{ toSettlementId: 'a', amountCp: 1000, kind: 'goods' }],
+    },
+  }
+}
+
 function createUnifiedRasterFixture() {
   const cellCount = 64
   const arableRaster = new Float32Array(cellCount)
@@ -155,6 +169,7 @@ test('RESOURCE_RASTER_OVERLAY_LAYER_IDS lists raster overlay layers from definit
     'population',
     'explorationFog',
     'routes',
+    'wealth',
   ])
 })
 
@@ -249,7 +264,9 @@ test('refreshResourceRasterOverlayCanvas performs at most one RGBA build per lay
                   ? createExplorationFogFixture()
                   : resourceId === 'routes'
                     ? createRoutesFixture()
-                    : createSailFixture()
+                    : resourceId === 'wealth'
+                      ? createWealthFixture()
+                      : createSailFixture()
     const visibility = applyResourceOverlayVisibility(
       createDefaultResourceOverlayVisibility(),
       resourceId,

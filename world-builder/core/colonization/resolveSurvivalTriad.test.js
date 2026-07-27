@@ -3,7 +3,6 @@ import test from 'node:test'
 import { BIOMES, SEA_LEVEL } from '../biomeIds.js'
 import {
   PEOPLE_PER_ARABLE_UNIT,
-  PEOPLE_PER_TIMBER_UNIT,
   applySurvivalResolveToSettlement,
   resolveSurvivalTriad,
   sumRasterOnCells,
@@ -22,7 +21,12 @@ import {
  *   freshwater: number[],
  *   yieldModifier: string,
  *   population: number,
+ *   peoplePerHabitableCell: number,
+ *   populationDensity: number,
  *   saltSpoilageMultiplier: number,
+ *   deliveredFoodLb: number,
+ *   deliveredSaltLb: number,
+ *   realmWealthCp: number,
  * }>} overrides
  */
 function triadParams(overrides = {}) {
@@ -36,12 +40,26 @@ function triadParams(overrides = {}) {
     gridWidth,
     arableRaster: Float32Array.from(overrides.arable ?? [1, 1, 0]),
     timberRaster: Float32Array.from(overrides.timber ?? [1, 1, 0]),
+    elevation: new Float32Array(3).fill(SEA_LEVEL + 0.1),
+    lakeMask: new Uint8Array(3),
+    riverCorridorMask: new Uint8Array(3),
+    biomes: new Uint8Array([BIOMES.GRASSLAND, BIOMES.GRASSLAND, BIOMES.GRASSLAND]),
     yieldModifier: overrides.yieldModifier ?? 'typical',
     freshwaterClassification: Uint8Array.from(
       overrides.freshwater ?? [FRESHWATER_SURFACE, FRESHWATER_NONE, FRESHWATER_NONE],
     ),
     population: overrides.population ?? 50,
+    // High default so food-ceiling tests are not accidentally land-bound.
+    peoplePerHabitableCell: overrides.peoplePerHabitableCell ?? 100_000,
+    populationDensity: overrides.populationDensity ?? 1,
     saltSpoilageMultiplier: overrides.saltSpoilageMultiplier ?? 1,
+    ...(overrides.deliveredFoodLb !== undefined
+      ? { deliveredFoodLb: overrides.deliveredFoodLb }
+      : {}),
+    ...(overrides.deliveredSaltLb !== undefined
+      ? { deliveredSaltLb: overrides.deliveredSaltLb }
+      : {}),
+    ...(overrides.realmWealthCp !== undefined ? { realmWealthCp: overrides.realmWealthCp } : {}),
   }
 }
 
@@ -55,7 +73,7 @@ test('resolveSurvivalTriad food production equals arable sum times yield modifie
   assert.strictEqual(result.cropProduction, 3)
   assert.strictEqual(result.fishProduction, 0)
   assert.strictEqual(result.foodProduction, 3)
-  assert.strictEqual(result.populationCeiling, Math.min(3 * PEOPLE_PER_ARABLE_UNIT, 2 * PEOPLE_PER_TIMBER_UNIT))
+  assert.strictEqual(result.populationCeiling, 3 * PEOPLE_PER_ARABLE_UNIT)
 })
 
 test('resolveSurvivalTriad applies yield modifier to crop production only', () => {
@@ -84,19 +102,26 @@ test('resolveSurvivalTriad freshwater gate uses shared classification', () => {
   assert.strictEqual(dry.population, 0)
 })
 
-test('resolveSurvivalTriad timber scarcity binds ceiling below food', () => {
-  const result = resolveSurvivalTriad(
+test('resolveSurvivalTriad timber scarcity no longer binds the population ceiling', () => {
+  const scarceTimber = resolveSurvivalTriad(
     triadParams({
       arable: [10, 10, 0],
       timber: [0.1, 0, 0],
       population: 1000,
     }),
   )
+  const abundantTimber = resolveSurvivalTriad(
+    triadParams({
+      arable: [10, 10, 0],
+      timber: [1000, 1000, 0],
+      population: 1000,
+    }),
+  )
   const foodCap = 20 * PEOPLE_PER_ARABLE_UNIT
-  const timberCap = 0.1 * PEOPLE_PER_TIMBER_UNIT
-  assert.ok(timberCap < foodCap)
-  assert.strictEqual(result.populationCeiling, Math.floor(timberCap))
-  assert.strictEqual(result.population, Math.floor(timberCap))
+  assert.strictEqual(scarceTimber.populationCeiling, foodCap)
+  assert.strictEqual(scarceTimber.populationCeiling, abundantTimber.populationCeiling)
+  assert.strictEqual(scarceTimber.population, foodCap)
+  assert.ok(scarceTimber.timberSum > 0)
 })
 
 test('resolveSurvivalTriad clamps starting population and sets tier from absolute bands', () => {
@@ -136,7 +161,9 @@ test('resolveSurvivalTriad sustains zero-arable ocean shore claims from fish', (
     elevation,
     lakeMask: new Uint8Array(6),
     riverCorridorMask: new Uint8Array(6),
+    biomes: new Uint8Array(6).fill(BIOMES.GRASSLAND),
     yieldModifier: 'typical',
+    peoplePerHabitableCell: 100_000,
     freshwaterClassification: Uint8Array.from([
       FRESHWATER_NONE,
       FRESHWATER_SURFACE,
@@ -170,7 +197,9 @@ test('resolveSurvivalTriad adds fish to crop food production', () => {
     elevation,
     lakeMask: new Uint8Array(3),
     riverCorridorMask: new Uint8Array(3),
+    biomes: new Uint8Array(3).fill(BIOMES.GRASSLAND),
     yieldModifier: 'typical',
+    peoplePerHabitableCell: 100_000,
     freshwaterClassification: Uint8Array.from([
       FRESHWATER_NONE,
       FRESHWATER_SURFACE,
@@ -203,7 +232,9 @@ test('resolveSurvivalTriad salt spoilage taxes total food including fish for sur
     elevation,
     lakeMask: new Uint8Array(2),
     riverCorridorMask: new Uint8Array(2),
+    biomes: new Uint8Array(2).fill(BIOMES.GRASSLAND),
     yieldModifier: 'typical',
+    peoplePerHabitableCell: 100_000,
     freshwaterClassification: Uint8Array.from([FRESHWATER_NONE, FRESHWATER_SURFACE]),
     population: 10,
   }
@@ -211,6 +242,76 @@ test('resolveSurvivalTriad salt spoilage taxes total food including fish for sur
   const weakSalt = resolveSurvivalTriad({ ...base, saltSpoilageMultiplier: 0.35 })
   assert.strictEqual(fullSalt.populationCeiling, weakSalt.populationCeiling)
   assert.ok(weakSalt.foodSurplus < fullSalt.foodSurplus)
+})
+
+test('resolveSurvivalTriad land ceiling binds below food on tiny claims', () => {
+  const result = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [50, 0, 0],
+      timber: [1, 0, 0],
+      peoplePerHabitableCell: 100,
+      population: 10_000,
+    }),
+  )
+  assert.strictEqual(result.foodProduction, 50)
+  assert.ok(50 * PEOPLE_PER_ARABLE_UNIT > 100)
+  assert.strictEqual(result.populationCeiling, 100)
+  assert.strictEqual(result.population, 100)
+})
+
+test('resolveSurvivalTriad food ceiling still binds when land is ample', () => {
+  const ampleLand = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 2, y: 0 },
+      ],
+      arable: [1, 0, 0],
+      timber: [1, 0, 0],
+      freshwater: [FRESHWATER_SURFACE, FRESHWATER_NONE, FRESHWATER_NONE],
+      peoplePerHabitableCell: 100,
+      population: 10_000,
+    }),
+  )
+  // Three habitable cells × 100 = 300; food = 1 × 100 = 100 → food binds.
+  assert.strictEqual(ampleLand.foodProduction, 1)
+  assert.strictEqual(ampleLand.populationCeiling, PEOPLE_PER_ARABLE_UNIT)
+})
+
+test('resolveSurvivalTriad population density scales food and land ceilings', () => {
+  const landBound = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [50, 0, 0],
+      peoplePerHabitableCell: 40,
+      populationDensity: 1,
+      population: 10_000,
+    }),
+  )
+  const landBoundDense = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [50, 0, 0],
+      peoplePerHabitableCell: 40,
+      populationDensity: 2,
+      population: 10_000,
+    }),
+  )
+  assert.strictEqual(landBound.populationCeiling, 40)
+  assert.strictEqual(landBoundDense.populationCeiling, 80)
+
+  const foodBound = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [2, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      populationDensity: 1.5,
+      population: 10_000,
+    }),
+  )
+  assert.strictEqual(foodBound.populationCeiling, Math.floor(2 * PEOPLE_PER_ARABLE_UNIT * 1.5))
 })
 
 test('applySurvivalResolveToSettlement uses document rasters and freshwater derive', () => {
@@ -237,7 +338,7 @@ test('applySurvivalResolveToSettlement uses document rasters and freshwater deri
       { x: 0, y: 0 },
       { x: 1, y: 0 },
     ],
-    colonistSettings: { yieldModifier: 'typical' },
+    colonistSettings: { yieldModifier: 'typical', peoplePerHabitableCell: 100 },
     worldDocument,
   })
 
@@ -245,4 +346,68 @@ test('applySurvivalResolveToSettlement uses document rasters and freshwater deri
   assert.ok(survival.fishProduction > 0)
   assert.ok(settlement.population <= survival.populationCeiling)
   assert.ok(settlement.tier != null)
+})
+
+test('credit-financed food can hold population but does not create growth surplus', () => {
+  const localOnly = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [1, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 50,
+    }),
+  )
+  // Local food supports 10 people; imports deliver enough for 50.
+  const importFed = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [1, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 50,
+      deliveredFoodLb: 50 * 365,
+      deliveredSaltLb: 50 * 5,
+    }),
+  )
+  assert.ok(localOnly.population < 50)
+  assert.strictEqual(importFed.population, 50)
+  assert.ok(importFed.foodSurplus <= 0, 'imports must not fund surplus growth')
+  assert.ok(localOnly.foodSurplus <= 0 || localOnly.populationCeiling <= PEOPLE_PER_ARABLE_UNIT)
+})
+
+test('delivered shortfall still produces negative surplus for die-off', () => {
+  // Ceiling uses ungated local food; weak salt taxes surplus only (existing spoilage rule).
+  const result = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [10, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 100,
+      saltSpoilageMultiplier: 0.35,
+    }),
+  )
+  assert.strictEqual(result.population, 100)
+  assert.ok(result.foodSurplus < 0)
+})
+
+test('local food surplus does not grow population while settlement is in debt', () => {
+  const solvent = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [20, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 50,
+      realmWealthCp: 100,
+    }),
+  )
+  const indebted = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [20, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 50,
+      realmWealthCp: -31_813.93 * 100,
+    }),
+  )
+  assert.ok(solvent.foodSurplus > 0)
+  assert.equal(indebted.foodSurplus, 0)
 })

@@ -543,6 +543,50 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         step: 1,
         testId: 'world-builder-control-max-metal-nodes',
       },
+      {
+        key: 'mineralOccurrenceCopper',
+        label: 'Copper occurrence',
+        tooltip:
+          'Relative share of mineral deposits that are copper. Changes the mix within the metal mine cap without adding deposits.',
+        kind: 'slider',
+        min: 0,
+        max: 100,
+        step: 1,
+        testId: 'world-builder-control-mineral-copper',
+      },
+      {
+        key: 'mineralOccurrenceSilver',
+        label: 'Silver occurrence',
+        tooltip:
+          'Relative share of mineral deposits that are silver. Raising it replaces commoner deposits rather than increasing the total.',
+        kind: 'slider',
+        min: 0,
+        max: 100,
+        step: 1,
+        testId: 'world-builder-control-mineral-silver',
+      },
+      {
+        key: 'mineralOccurrenceGold',
+        label: 'Gold occurrence',
+        tooltip:
+          'Relative share of mineral deposits that are gold. Raising it replaces commoner deposits rather than increasing the total.',
+        kind: 'slider',
+        min: 0,
+        max: 100,
+        step: 1,
+        testId: 'world-builder-control-mineral-gold',
+      },
+      {
+        key: 'mineralOccurrenceDiamond',
+        label: 'Diamond occurrence',
+        tooltip:
+          'Relative share of mineral deposits that are diamond. Defaults to zero so gems stay rare; raise it to let diamonds replace commoner deposits.',
+        kind: 'slider',
+        min: 0,
+        max: 100,
+        step: 1,
+        testId: 'world-builder-control-mineral-diamond',
+      },
     ],
   },
 ]
@@ -600,6 +644,9 @@ export function formatGenerationControlValue(key, value) {
   if (key === 'seasonalBiomeInfluenceScale' && value <= 0) {
     return 'Off'
   }
+  if (key === 'mineralOccurrenceDiamond' && value <= 0) {
+    return 'Off'
+  }
   if (key === 'streamPowerK' && value <= 0) {
     return 'Off'
   }
@@ -627,6 +674,10 @@ export function formatGenerationControlValue(key, value) {
     key === 'riverSettlementSteps' ||
     key === 'maxSaltNodes' ||
     key === 'maxMetalNodes' ||
+    key === 'mineralOccurrenceCopper' ||
+    key === 'mineralOccurrenceSilver' ||
+    key === 'mineralOccurrenceGold' ||
+    key === 'mineralOccurrenceDiamond' ||
     key === 'elevationDomainWarpStrength'
   ) {
     return String(Math.round(value))

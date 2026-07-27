@@ -1,17 +1,35 @@
+import {
+  cancelObligationsForSettlement,
+  recomputeBalances,
+} from '../economy/ledgers/bilateralObligations.js'
+
 /**
- * Convert zero-population living settlements to ruins and release their claims.
+ * Living settlements at or below this headcount abandon: remaining people leave the map
+ * and the pin becomes a ruin.
+ */
+export const SETTLEMENT_ABANDONMENT_POPULATION_FLOOR = 10
+
+/**
+ * Convert failed living settlements to ruins and release their claims.
+ * Failure is headcount at or below {@link SETTLEMENT_ABANDONMENT_POPULATION_FLOOR}
+ * (remaining people leave the map). Incident bilateral obligations are cancelled and
+ * external credit is zeroed for each newly ruined settlement.
  *
  * @param {{
  *   settlements: object[],
  *   primaryClaim: Record<string, Array<{ x: number, y: number }>>,
  *   historyLog: object[],
  *   epoch: number,
+ *   tradeAccounts?: import('../economy/ledgers/bilateralObligations.js').TradeAccountsState,
+ *   externalTradeAccounts?: Record<string, number>,
  * }} state
  * @returns {{
  *   settlements: object[],
  *   primaryClaim: Record<string, Array<{ x: number, y: number }>>,
  *   historyLog: object[],
  *   events: object[],
+ *   tradeAccounts: import('../economy/ledgers/bilateralObligations.js').TradeAccountsState,
+ *   externalTradeAccounts: Record<string, number>,
  * }}
  */
 export function applyRuinTransitions(state) {
@@ -23,18 +41,29 @@ export function applyRuinTransitions(state) {
   /** @type {object[]} */
   const settlements = []
 
+  let tradeAccounts = state.tradeAccounts
+    ? {
+        obligations: state.tradeAccounts.obligations.map((row) => ({ ...row })),
+        balancesBySettlementId: { ...state.tradeAccounts.balancesBySettlementId },
+      }
+    : { obligations: [], balancesBySettlementId: {} }
+  const externalTradeAccounts = { ...(state.externalTradeAccounts ?? {}) }
+
   for (const settlement of state.settlements) {
     if (settlement.status === 'ruin') {
       settlements.push({ ...settlement })
       continue
     }
 
-    if (settlement.population > 0) {
+    const headcount = Math.max(0, Math.floor(Number(settlement.population) || 0))
+    if (headcount > SETTLEMENT_ABANDONMENT_POPULATION_FLOOR) {
       settlements.push({ ...settlement })
       continue
     }
 
     delete primaryClaim[settlement.id]
+    tradeAccounts = cancelObligationsForSettlement(tradeAccounts, settlement.id)
+    delete externalTradeAccounts[settlement.id]
 
     const abandoned = {
       ...settlement,
@@ -55,5 +84,7 @@ export function applyRuinTransitions(state) {
     })
   }
 
-  return { settlements, primaryClaim, historyLog, events }
+  recomputeBalances(tradeAccounts)
+
+  return { settlements, primaryClaim, historyLog, events, tradeAccounts, externalTradeAccounts }
 }

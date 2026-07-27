@@ -381,10 +381,11 @@ test('founding stores computed A-to-B corridor between settlement pins', async (
 
 test('session round-trip restores bearing expeditions and visit raster', async () => {
   const doc = colonizationFixtureDoc()
-  let slice = await commitOnDoc(doc, { x: 6, y: 6 }, 1)
+  let slice = await commitOnDoc(doc)
   for (let i = 0; i < 3; i += 1) {
     slice = (await applyColonizationEpoch(slice, doc)).slice
   }
+  assert.ok(slice.expeditions.length > 0)
 
   const serialized = serializeColonizationSessionForStorage(slice)
   const revivedSlice = resolveColonizationSlice(serialized)

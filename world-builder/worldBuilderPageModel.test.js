@@ -24,6 +24,7 @@ import {
   shouldShowBeginColonizationProgress,
   shouldShowEpochStepProgress,
   shouldShowRehydrationProgress,
+  areColonizationTimeControlsDisabled,
   shouldShowResourceOverlayBar,
   shouldShowValidationFailureIndicator,
   isGenerationRunSuccess,
@@ -318,7 +319,7 @@ test('formatHydrologyMetricValue renders null as n/a', () => {
 
 test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
   const definitions = createResourceOverlayDefinitions()
-  assert.strictEqual(definitions.length, 10)
+  assert.strictEqual(definitions.length, 11)
   assert.deepStrictEqual(
     definitions.map((definition) => ({ id: definition.id, kind: definition.kind })),
     [
@@ -332,6 +333,7 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'settlements', kind: 'nodes' },
       { id: 'explorationFog', kind: 'raster' },
       { id: 'routes', kind: 'raster' },
+      { id: 'wealth', kind: 'raster' },
     ],
   )
 })
@@ -348,6 +350,7 @@ test('createDefaultResourceOverlayVisibility defaults every overlay off', () => 
     settlements: false,
     explorationFog: false,
     routes: false,
+    wealth: false,
   })
 })
 
@@ -365,6 +368,23 @@ test('shouldShowBeginColonizationProgress is true only while running', () => {
 test('shouldShowRehydrationProgress is true only while running', () => {
   assert.strictEqual(shouldShowRehydrationProgress('running'), true)
   assert.strictEqual(shouldShowRehydrationProgress('idle'), false)
+})
+
+test('areColonizationTimeControlsDisabled matches epoch, rehydration, restore, and export busy flags', () => {
+  assert.strictEqual(areColonizationTimeControlsDisabled(), false)
+  assert.strictEqual(areColonizationTimeControlsDisabled({ epochStepRunning: true }), true)
+  assert.strictEqual(areColonizationTimeControlsDisabled({ rehydrationRunning: true }), true)
+  assert.strictEqual(areColonizationTimeControlsDisabled({ sessionRestorePending: true }), true)
+  assert.strictEqual(areColonizationTimeControlsDisabled({ campaignKitExportRunning: true }), true)
+  assert.strictEqual(
+    areColonizationTimeControlsDisabled({
+      epochStepRunning: false,
+      rehydrationRunning: false,
+      sessionRestorePending: false,
+      campaignKitExportRunning: false,
+    }),
+    false,
+  )
 })
 
 test('shouldShowResourceOverlayBar is true only after successful pipeline completion', () => {

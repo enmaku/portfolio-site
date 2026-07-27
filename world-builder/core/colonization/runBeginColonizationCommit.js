@@ -5,6 +5,9 @@ import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaim
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
 import { saltSpoilageMultiplier } from './saltSpoilageMultiplier.js'
 import { scoreLogisticsNodes } from './logisticsNodes/scoreLogisticsNodes.js'
+import { classifySettlementMaritimeRole } from './expeditions/classifySettlementMaritimeRole.js'
+import { computeClaimProduction } from '../economy/founding/computeClaimProduction.js'
+import { runTradeClearingSync } from '../economy/tradeClearing/runTradeClearing.js'
 import { seedSettlementHaulShedVisited } from './expeditions/foundDaughterSettlement.js'
 import {
   COLONIZATION_PHASE_RUNNING,
@@ -28,12 +31,15 @@ import {
  * @property {object} [seedSettlement]
  * @property {ReturnType<typeof serializeClaimMap>} [primaryClaim]
  * @property {Array<{ x: number, y: number }>} [claimedCells]
+ * @property {{ foodLb: number, saltLb: number } | null} [foundingDelivered]
+ * @property {Record<string, number> | undefined} [foundingExternalTradeAccounts]
  * @property {object} [settlement]
  * @property {object} [historyEntry]
  * @property {{ settlements: object[], historyLog: object[], primaryClaim: ReturnType<typeof serializeClaimMap>, events?: object[] }} [ruined]
  * @property {object} [foundingDynasty]
  * @property {object} [logisticsNodeSurvey]
  * @property {Uint8Array} [visitedCells]
+ * @property {() => Promise<void>} [yieldToUi]
  * @property {import('./createDefaultColonizationSlice.js').ColonizationSlice} [result]
  */
 
@@ -55,6 +61,8 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
         tier: /** @type {string | null} */ ('outpost'),
         population: ctx.current.colonistSettings.startingPopulation,
         status: 'living',
+        mapNumber: 1,
+        maritimeRole: classifySettlementMaritimeRole(ctx.doc, ctx.landing),
       }
       const claimMap = recomputePrimaryClaims({
         settlements: [ctx.seedSettlement],
@@ -69,6 +77,14 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
     },
   },
   {
+    id: 'trade',
+    run(ctx) {
+      const offMap = resolveFoundingPortOffMapDelivery(ctx)
+      ctx.foundingDelivered = offMap?.delivered ?? null
+      ctx.foundingExternalTradeAccounts = offMap?.externalTradeAccounts
+    },
+  },
+  {
     id: 'survival',
     run(ctx) {
       const { settlement } = applySurvivalResolveToSettlement({
@@ -77,6 +93,8 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
         colonistSettings: ctx.current.colonistSettings,
         worldDocument: ctx.doc,
         saltSpoilageMultiplier: saltSpoilageMultiplier(ctx.claimedCells, ctx.doc.saltNodes),
+        deliveredFoodLb: ctx.foundingDelivered?.foodLb,
+        deliveredSaltLb: ctx.foundingDelivered?.saltLb,
       })
       ctx.settlement = settlement
       ctx.historyEntry = {
@@ -86,6 +104,8 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
         colonistSettings: {
           threeDayHaulDistance: ctx.current.colonistSettings.threeDayHaulDistance,
           startingPopulation: ctx.current.colonistSettings.startingPopulation,
+          peoplePerHabitableCell: ctx.current.colonistSettings.peoplePerHabitableCell,
+          populationDensity: ctx.current.colonistSettings.populationDensity,
           yieldModifier: ctx.current.colonistSettings.yieldModifier,
           landExpeditionRange: ctx.current.colonistSettings.landExpeditionRange,
           inlandSailExpeditionRange: ctx.current.colonistSettings.inlandSailExpeditionRange,
@@ -149,8 +169,11 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
           frontierExhausted: false,
           roads: [],
           logisticsNodeSurvey: ctx.logisticsNodeSurvey,
+          externalTradeAccounts:
+            ctx.foundingExternalTradeAccounts ?? ctx.current.externalTradeAccounts,
         },
         ctx.doc,
+        { yieldToUi: ctx.yieldToUi },
       )
       ctx.result = slice
     },
@@ -164,11 +187,58 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
 ])
 
 /**
+ * Founding port off-map trade before its first survival resolve: local exports earn
+ * external credit that funds same-commit food or salt imports (export-first). Non-port
+ * foundings return null so survival resolves against local production only.
+ *
+ * @param {BeginCommitContext} ctx
+ * @returns {{ delivered: { foodLb: number, saltLb: number }, externalTradeAccounts: Record<string, number> } | null}
+ */
+function resolveFoundingPortOffMapDelivery(ctx) {
+  const seedSettlement = ctx.seedSettlement
+  if (!seedSettlement) {
+    return null
+  }
+  const maritimeRole = classifySettlementMaritimeRole(ctx.doc, {
+    x: ctx.landing.x,
+    y: ctx.landing.y,
+  })
+  if (maritimeRole !== 'port') {
+    return null
+  }
+
+  const production = computeClaimProduction({
+    settlementId: seedSettlement.id,
+    claimedCells: ctx.claimedCells ?? [],
+    worldDocument: ctx.doc,
+    yieldModifier: ctx.current.colonistSettings.yieldModifier,
+    populationDensity: ctx.current.colonistSettings.populationDensity,
+  })
+  const result = runTradeClearingSync({
+    settlements: [{ id: seedSettlement.id, population: seedSettlement.population, maritimeRole }],
+    graph: { edges: [] },
+    production: { [seedSettlement.id]: production },
+    externalAccountsCp: {},
+  })
+  const delivered = result.effectiveDelivered[seedSettlement.id]
+  if (!delivered) {
+    return null
+  }
+  /** @type {Record<string, number>} */
+  const externalTradeAccounts = {}
+  for (const [id, delta] of Object.entries(result.externalAccountDeltas)) {
+    externalTradeAccounts[id] = Math.max(0, delta)
+  }
+  return { delivered, externalTradeAccounts }
+}
+
+/**
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} current
  * @param {import('../types.js').WorldDocument} doc
  * @param {{
  *   onStepStart?: (stepIndex: number) => void | Promise<void>,
  *   onStepComplete?: (stepIndex: number) => void | Promise<void>,
+ *   yieldToUi?: () => Promise<void>,
  * }} [hooks]
  * @returns {Promise<import('./createDefaultColonizationSlice.js').ColonizationSlice>}
  */
@@ -179,7 +249,7 @@ export async function executeBeginColonizationCommitSteps(current, doc, hooks = 
   }
 
   /** @type {BeginCommitContext} */
-  const ctx = { current, doc, landing }
+  const ctx = { current, doc, landing, yieldToUi: hooks.yieldToUi }
 
   for (let stepIndex = 0; stepIndex < BEGIN_COMMIT_PIPELINE.length; stepIndex += 1) {
     const step = BEGIN_COMMIT_PIPELINE[stepIndex]
@@ -224,6 +294,7 @@ export async function runBeginColonizationCommit(slice, doc, options = {}) {
   await yieldToUi()
 
   const next = await executeBeginColonizationCommitSteps(cloneColonizationSlice(slice), doc, {
+    yieldToUi,
     async onStepStart(stepIndex) {
       const step = COLONIZATION_BEGIN_STEPS[stepIndex]
       progress = reduceBeginColonizationProgressOnStepStart(progress, {

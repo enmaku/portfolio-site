@@ -2,10 +2,13 @@ import { deriveFieldSeed, createSeededRandom } from '../noise/seededRandom.js'
 import { SEA_LEVEL } from '../biomeIds.js'
 import { isNodePlacementCellAllowed } from '../nodePlacementBounds.js'
 import { strategicResourceNodeSpacingForGrid } from '../resourcePlacementScaling.js'
+import { pickMineralKind, resolveMineralOccurrenceWeights } from './mineralOccurrence.js'
 const MIN_CANDIDATE_SCORE = 0.35
 
 /**
- * Place discrete metal mine nodes from local maxima on the metals raster.
+ * Place discrete typed mineral deposits from local maxima on the metals raster.
+ * Placement and count depend only on geography; occurrence weights set the
+ * relative copper/silver/gold/diamond mix within that fixed deposit set.
  * @param {Object} params
  * @param {Float32Array} params.metalsRaster
  * @param {Float32Array} params.elevation
@@ -14,6 +17,7 @@ const MIN_CANDIDATE_SCORE = 0.35
  * @param {number} params.geographySeed
  * @param {number} [params.maxNodes]
  * @param {number} [params.seaLevel]
+ * @param {Partial<Record<import('./mineralOccurrence.js').MineralKind, number>>} [params.occurrenceWeights]
  * @returns {import('../types.js').MetalNode[]}
  */
 export function placeMetalNodes({
@@ -24,12 +28,15 @@ export function placeMetalNodes({
   geographySeed,
   maxNodes = 12,
   seaLevel = SEA_LEVEL,
+  occurrenceWeights,
 }) {
   if (maxNodes <= 0) {
     return []
   }
 
+  const weights = resolveMineralOccurrenceWeights(occurrenceWeights)
   const random = createSeededRandom(deriveFieldSeed(geographySeed, 'metal-nodes'))
+  const kindRandom = createSeededRandom(deriveFieldSeed(geographySeed, 'mineral-kinds'))
   const minNodeSpacing = strategicResourceNodeSpacingForGrid(width)
   const candidates = []
 
@@ -59,6 +66,7 @@ export function placeMetalNodes({
       x: candidate.x,
       y: candidate.y,
       score: candidate.score,
+      kind: pickMineralKind(kindRandom(), weights),
     })
     if (selected.length >= maxNodes) break
   }

@@ -65,7 +65,11 @@ Exclude `*.test.js` from budget enforcement unless a test file itself exceeds re
 
 | File | Budget | Notes |
 | --- | ---: | --- |
-| `world-builder/renderer/createWorldBuilderMapViewport.js` | ≤600 | Split refresh helpers if growth continues |
+| `world-builder/renderer/createWorldBuilderMapViewport.js` | ≤600 | Pixi orchestrator; helpers extracted |
+| `world-builder/renderer/drawMapNodeOverlays.js` | ≤250 | Discrete node/label drawers + marker constants |
+| `world-builder/renderer/hideMapLayer.js` | ≤80 | Per-layer hide switch |
+| `world-builder/renderer/buildTerrainCanvas.js` | ≤80 | Terrain canvas + elevation tint |
+| `world-builder/renderer/viewportFraming.js` | ≤80 | fit/sync helpers |
 | `world-builder/renderer/mapLayerRefresh.js` | ≤300 | Per-layer handler registry |
 | `world-builder/renderer/diffResourceOverlayMapLayers.js` | ≤200 | Locality diffs |
 | `world-builder/renderer/worldBuilderMapViewportModel.js` | ≤250 | Pure view-model resolvers |

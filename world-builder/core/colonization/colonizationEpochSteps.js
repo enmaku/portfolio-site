@@ -1,11 +1,13 @@
-/** @typedef {'network' | 'claims' | 'survival' | 'ruin' | 'collapse'} ColonizationEpochPhaseId */
+/** @typedef {'network' | 'claims' | 'trade' | 'survival' | 'ruin' | 'collapse'} ColonizationEpochPhaseId */
 /** @typedef {'dispatch' | 'advance' | 'frontier'} ColonizationNetworkSubstepId */
-/** @typedef {'urban' | 'hinterland'} ColonizationCollapseSubstepId */
+/** @typedef {'prepare' | 'urban' | 'hinterland'} ColonizationCollapseSubstepId */
+/** @typedef {'production' | 'localPrices' | 'survival' | 'comfort' | 'prosperity' | 'offMap'} ColonizationTradeSubstepId */
 
 /** @type {ReadonlyArray<{ id: ColonizationEpochPhaseId, label: string }>} */
 export const COLONIZATION_EPOCH_PHASES = Object.freeze([
   { id: 'network', label: 'Network' },
   { id: 'claims', label: 'Claims' },
+  { id: 'trade', label: 'Trade' },
   { id: 'survival', label: 'Survival' },
   { id: 'ruin', label: 'Ruin' },
   { id: 'collapse', label: 'Collapse' },
@@ -20,8 +22,19 @@ export const COLONIZATION_NETWORK_SUBSTEPS = Object.freeze([
 
 /** @type {ReadonlyArray<{ id: ColonizationCollapseSubstepId, label: string }>} */
 export const COLONIZATION_COLLAPSE_SUBSTEPS = Object.freeze([
+  { id: 'prepare', label: 'Prepare' },
   { id: 'urban', label: 'Urban' },
   { id: 'hinterland', label: 'Hinterland' },
+])
+
+/** @type {ReadonlyArray<{ id: ColonizationTradeSubstepId, label: string }>} */
+export const COLONIZATION_TRADE_SUBSTEPS = Object.freeze([
+  { id: 'production', label: 'Production' },
+  { id: 'localPrices', label: 'Local prices' },
+  { id: 'survival', label: 'Survival' },
+  { id: 'comfort', label: 'Comfort' },
+  { id: 'prosperity', label: 'Prosperity' },
+  { id: 'offMap', label: 'Off-map' },
 ])
 
 /** @type {number} */

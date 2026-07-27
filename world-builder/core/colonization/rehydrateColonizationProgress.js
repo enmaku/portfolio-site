@@ -17,6 +17,8 @@ import { COLONIZATION_COLLAPSE_SUBSTEPS } from './colonizationEpochSteps.js'
  * @property {number} completedSessionSubstepIndex
  * @property {number} activeCollapseSubstepIndex
  * @property {number} completedCollapseSubstepIndex
+ * @property {number} collapseSubstepItemIndex one-based item within active collapse substep; -1 when idle
+ * @property {number} collapseSubstepItemCount total items in active collapse substep loop; 0 when idle
  * @property {number} activeVisitedSubstepIndex
  * @property {number} completedVisitedSubstepIndex
  * @property {number} visitedSubstepItemIndex
@@ -36,6 +38,8 @@ export function createInitialRehydrateColonizationProgress() {
     completedSessionSubstepIndex: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    collapseSubstepItemIndex: -1,
+    collapseSubstepItemCount: 0,
     activeVisitedSubstepIndex: -1,
     completedVisitedSubstepIndex: -1,
     visitedSubstepItemIndex: -1,
@@ -82,6 +86,14 @@ export function reduceRehydrateColonizationProgressOnStepStart(progress, payload
       payload.stepIndex === COLONIZATION_SESSION_RESTORE_COLLAPSE_STEP_INDEX
         ? -1
         : progress.completedCollapseSubstepIndex,
+    collapseSubstepItemIndex:
+      payload.stepIndex === COLONIZATION_SESSION_RESTORE_COLLAPSE_STEP_INDEX
+        ? -1
+        : progress.collapseSubstepItemIndex,
+    collapseSubstepItemCount:
+      payload.stepIndex === COLONIZATION_SESSION_RESTORE_COLLAPSE_STEP_INDEX
+        ? 0
+        : progress.collapseSubstepItemCount,
     activeVisitedSubstepIndex:
       payload.stepIndex === COLONIZATION_SESSION_RESTORE_VISITED_STEP_INDEX
         ? -1
@@ -110,6 +122,8 @@ export function reduceRehydrateColonizationProgressOnStepComplete(progress, payl
     completedSessionSubstepIndex: -1,
     activeCollapseSubstepIndex: -1,
     completedCollapseSubstepIndex: -1,
+    collapseSubstepItemIndex: -1,
+    collapseSubstepItemCount: 0,
     activeVisitedSubstepIndex: -1,
     completedVisitedSubstepIndex: -1,
     visitedSubstepItemIndex: -1,
@@ -198,6 +212,8 @@ export function reduceRehydrateColonizationProgressOnCollapseSubstepStart(progre
   return {
     ...progress,
     activeCollapseSubstepIndex: payload.substepIndex,
+    collapseSubstepItemIndex: -1,
+    collapseSubstepItemCount: 0,
     label: progress.label.includes('·')
       ? `${progress.label.split(' · ')[0]} · Collapse · ${substep?.label ?? ''}`
       : `Collapse · ${substep?.label ?? ''}`,
@@ -214,6 +230,30 @@ export function reduceRehydrateColonizationProgressOnCollapseSubstepComplete(pro
     ...progress,
     activeCollapseSubstepIndex: payload.substepIndex,
     completedCollapseSubstepIndex: payload.substepIndex,
+    collapseSubstepItemIndex: -1,
+    collapseSubstepItemCount: 0,
+  }
+}
+
+/**
+ * @param {RehydrateColonizationProgressState} progress
+ * @param {{ substepIndex: number, itemIndex: number, itemCount: number }} payload
+ * @returns {RehydrateColonizationProgressState}
+ */
+export function reduceRehydrateColonizationProgressOnCollapseSubstepItemProgress(progress, payload) {
+  const substep = COLONIZATION_COLLAPSE_SUBSTEPS[payload.substepIndex]
+  const itemLabel =
+    payload.itemCount > 0 && payload.itemIndex > 0
+      ? `${substep?.label ?? ''} ${payload.itemIndex}/${payload.itemCount}`
+      : (substep?.label ?? '')
+  return {
+    ...progress,
+    activeCollapseSubstepIndex: payload.substepIndex,
+    collapseSubstepItemIndex: payload.itemIndex,
+    collapseSubstepItemCount: payload.itemCount,
+    label: progress.label.includes('·')
+      ? `${progress.label.split(' · ')[0]} · Collapse · ${itemLabel}`
+      : `Collapse · ${itemLabel}`,
   }
 }
 
@@ -228,6 +268,8 @@ export function reduceRehydrateColonizationProgressOnRunComplete(progress) {
     activeStepIndex: -1,
     activeSessionSubstepIndex: -1,
     activeCollapseSubstepIndex: -1,
+    collapseSubstepItemIndex: -1,
+    collapseSubstepItemCount: 0,
     activeVisitedSubstepIndex: -1,
     visitedSubstepItemIndex: -1,
     visitedSubstepItemCount: 0,

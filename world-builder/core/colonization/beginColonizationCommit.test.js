@@ -46,6 +46,60 @@ function geographyDoc(options = {}) {
   }
 }
 
+/**
+ * Coastal fixture whose landing (4,5) classifies as a port: left columns are ocean, the
+ * rest is well-viable grassland. A salt node at the landing gives the port export value
+ * but no local food.
+ */
+function portGeographyDoc() {
+  const width = 10
+  const height = 10
+  const cellCount = width * height
+  const elevation = new Float32Array(cellCount).fill(0.5)
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < 4; x += 1) {
+      elevation[y * width + x] = 0.1
+    }
+  }
+  return {
+    geographySeed: 7,
+    gridWidth: width,
+    gridHeight: height,
+    arableRaster: new Float32Array(cellCount),
+    timberRaster: new Float32Array(cellCount),
+    metalsRaster: new Float32Array(cellCount),
+    movementCost: new Float32Array(cellCount).fill(1),
+    fields: {
+      elevation,
+      temperature: new Float32Array(cellCount).fill(0.5),
+      rainfall: new Float32Array(cellCount).fill(0.6),
+      drainage: new Float32Array(cellCount).fill(0.2),
+      salinity: new Float32Array(cellCount).fill(0.1),
+    },
+    biomes: new Uint8Array(cellCount).fill(BIOMES.GRASSLAND),
+    lakeMask: new Uint8Array(cellCount),
+    riverCorridorMask: new Uint8Array(cellCount),
+    saltNodes: [{ x: 4, y: 5, score: 5 }],
+    metalNodes: [],
+    coastalNodes: [],
+  }
+}
+
+test('beginColonizationCommit off-map import lets a food-poor founding port survive', async () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = COLONIZATION_PHASE_SETUP
+  slice.foundingLanding = { x: 4, y: 5 }
+  slice.colonistSettings.startingPopulation = 100
+  slice.colonistSettings.threeDayHaulDistance = 2
+
+  const next = await beginColonizationCommit(slice, portGeographyDoc())
+
+  assert.ok(next.settlements[0].population > 0)
+  assert.strictEqual(next.settlements[0].status, 'living')
+  // External may be spent down to zero funding last-line food imports at 2.5×.
+  assert.ok((next.externalTradeAccounts[next.settlements[0].id] ?? 0) >= 0)
+})
+
 test('beginColonizationCommit enters running with founding settlement and history log', async () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_SETUP

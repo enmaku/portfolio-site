@@ -317,6 +317,27 @@ export function shouldShowRehydrationProgress(rehydrationPhase) {
 }
 
 /**
+ * Next epoch, campaign kit download, and reset colonization stay disabled while
+ * colonization progress owns the status bar (epoch step, rehydration / session
+ * restore, or campaign kit export).
+ * @param {{
+ *   epochStepRunning?: boolean,
+ *   rehydrationRunning?: boolean,
+ *   sessionRestorePending?: boolean,
+ *   campaignKitExportRunning?: boolean,
+ * }} [flags]
+ * @returns {boolean}
+ */
+export function areColonizationTimeControlsDisabled(flags = {}) {
+  return (
+    flags.epochStepRunning === true ||
+    flags.rehydrationRunning === true ||
+    flags.sessionRestorePending === true ||
+    flags.campaignKitExportRunning === true
+  )
+}
+
+/**
  * @param {GenerationRunPhase} runPhase
  * @param {'idle' | 'running'} colonizationBusyPhase
  * @returns {boolean}

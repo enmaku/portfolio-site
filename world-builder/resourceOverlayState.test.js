@@ -40,6 +40,7 @@ test('createResourceOverlayPageState defaults visibility off and uses persisted 
     settlements: false,
     explorationFog: false,
     routes: false,
+    wealth: false,
   })
   assert.strictEqual(state.displaySettings.arableMinimumProductivity, 0.25)
 })
@@ -174,6 +175,7 @@ test('normalizeResourceOverlayVisibility coerces null and undefined to false', (
       settlements: false,
       explorationFog: false,
       routes: false,
+      wealth: false,
     },
   )
 })
@@ -190,6 +192,7 @@ test('normalizeResourceOverlayVisibility fills missing overlay ids with false', 
     settlements: false,
     explorationFog: false,
     routes: false,
+    wealth: false,
   })
 })
 
@@ -223,6 +226,7 @@ test('commitResourceOverlayState normalizes visibility before sync', () => {
     settlements: false,
     explorationFog: false,
     routes: false,
+    wealth: false,
   })
   assert.deepStrictEqual(viewport.syncedStates[0].visibility, committed.visibility)
 })

@@ -5,10 +5,24 @@
  * @typedef {Object} ColonistSettings
  * @property {number} threeDayHaulDistance
  * @property {number} startingPopulation
+ * @property {number} peoplePerHabitableCell Landscape packing density for the land leg of population ceiling.
+ * @property {number} populationDensity Scalar on feeding and land packing (and matching food lb yields).
  * @property {YieldModifier} yieldModifier
  * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap.
  * @property {number} inlandSailExpeditionRange Multiplier on three-day haul distance for inland sail expedition range cap.
  * @property {number} openSeaExpeditionRange Multiplier on three-day haul distance for open-sea expedition range cap.
+ */
+
+/**
+ * @typedef {Object} TradeRouteState
+ * @property {import('../economy/tradeGraph/buildCandidateRoutes.js').TradeRouteEdge[]} candidates
+ * @property {import('../economy/tradeClearing/runTradeClearing.js').TradeFlow[]} activeFlows
+ */
+
+/**
+ * @typedef {Object} TradeAccountsSlice
+ * @property {import('../economy/ledgers/bilateralObligations.js').BilateralObligation[]} obligations
+ * @property {Record<string, number>} balancesBySettlementId
  */
 
 /**
@@ -34,6 +48,11 @@
  * @property {boolean} frontierExhausted All logistics nodes founded or exhausted.
  * @property {import('./roads/roadNetwork.js').RoadSegment[]} roads Persisted overland link geometry.
  * @property {import('./logisticsNodes/scoreLogisticsNodes.js').LogisticsNodeSurveyEntry[]} logisticsNodeSurvey Scored founding candidates.
+ * @property {TradeAccountsSlice} tradeAccounts Mutual-credit realm ledgers.
+ * @property {Record<string, number>} externalTradeAccounts Port off-map credit (≥ 0).
+ * @property {Record<string, number>} priorRealizedIncomeCp Last active clear's on-map export+toll income by settlement.
+ * @property {TradeRouteState} tradeRouteState Candidate edges and current-epoch flows.
+ * @property {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null} lastTradeEpochResult Inspect payload from last clearing.
  */
 
 import { resolveExpeditions } from './expeditions/expeditionConstants.js'
@@ -42,6 +61,7 @@ import {
   resolveLogisticsNodeSurvey,
 } from './logisticsNodes/scoreLogisticsNodes.js'
 import { resolveRoadSegments } from './roads/roadNetwork.js'
+import { ensureSettlementMapNumbers } from './settlementMapNumber.js'
 
 export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
 export const COLONIZATION_PHASE_SETUP = /** @type {const} */ ('setup')
@@ -63,6 +83,11 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'frontierExhausted',
   'roads',
   'logisticsNodeSurvey',
+  'tradeAccounts',
+  'externalTradeAccounts',
+  'priorRealizedIncomeCp',
+  'tradeRouteState',
+  'lastTradeEpochResult',
 ])
 
 /** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
@@ -80,6 +105,12 @@ export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 100
 /** Upper bound for author scale calibration. */
 export const MAX_THREE_DAY_HAUL_DISTANCE = 300
 export const DEFAULT_STARTING_POPULATION = 100
+export const DEFAULT_PEOPLE_PER_HABITABLE_CELL = 10
+export const MIN_PEOPLE_PER_HABITABLE_CELL = 1
+export const MAX_PEOPLE_PER_HABITABLE_CELL = 50
+export const DEFAULT_POPULATION_DENSITY = 1
+export const MIN_POPULATION_DENSITY = 0.5
+export const MAX_POPULATION_DENSITY = 2
 export const DEFAULT_YIELD_MODIFIER = /** @type {YieldModifier} */ ('typical')
 export const DEFAULT_LAND_EXPEDITION_RANGE = 2
 export const MIN_LAND_EXPEDITION_RANGE = 1
@@ -92,12 +123,28 @@ export const MIN_OPEN_SEA_EXPEDITION_RANGE = 4
 export const MAX_OPEN_SEA_EXPEDITION_RANGE = 12
 
 /**
+ * @returns {TradeAccountsSlice}
+ */
+export function createEmptyTradeAccountsSlice() {
+  return { obligations: [], balancesBySettlementId: {} }
+}
+
+/**
+ * @returns {TradeRouteState}
+ */
+export function createEmptyTradeRouteState() {
+  return { candidates: [], activeFlows: [] }
+}
+
+/**
  * @returns {ColonistSettings}
  */
 export function createDefaultColonistSettings() {
   return {
     threeDayHaulDistance: DEFAULT_THREE_DAY_HAUL_DISTANCE,
     startingPopulation: DEFAULT_STARTING_POPULATION,
+    peoplePerHabitableCell: DEFAULT_PEOPLE_PER_HABITABLE_CELL,
+    populationDensity: DEFAULT_POPULATION_DENSITY,
     yieldModifier: DEFAULT_YIELD_MODIFIER,
     landExpeditionRange: DEFAULT_LAND_EXPEDITION_RANGE,
     inlandSailExpeditionRange: DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
@@ -125,6 +172,11 @@ export function createDefaultColonizationSlice() {
     frontierExhausted: false,
     roads: [],
     logisticsNodeSurvey: [],
+    tradeAccounts: createEmptyTradeAccountsSlice(),
+    externalTradeAccounts: {},
+    priorRealizedIncomeCp: {},
+    tradeRouteState: createEmptyTradeRouteState(),
+    lastTradeEpochResult: null,
   }
 }
 
@@ -151,9 +203,9 @@ export function resolveColonizationSlice(value) {
     colonistSettings: resolveColonistSettings(incoming.colonistSettings),
     foundingLanding: resolveFoundingLanding(incoming.foundingLanding),
     historyLog: Array.isArray(incoming.historyLog) ? incoming.historyLog.map((row) => ({ ...row })) : [],
-    settlements: Array.isArray(incoming.settlements)
-      ? incoming.settlements.map((row) => ({ ...row }))
-      : [],
+    settlements: ensureSettlementMapNumbers(
+      Array.isArray(incoming.settlements) ? incoming.settlements : [],
+    ),
     realmId: typeof incoming.realmId === 'string' ? incoming.realmId : null,
     epoch: Number.isFinite(incoming.epoch) ? /** @type {number} */ (incoming.epoch) : 0,
     primaryClaim: resolvePrimaryClaim(incoming.primaryClaim),
@@ -166,6 +218,11 @@ export function resolveColonizationSlice(value) {
     frontierExhausted: incoming.frontierExhausted === true,
     roads: resolveRoadSegments(incoming.roads),
     logisticsNodeSurvey: resolveLogisticsNodeSurvey(incoming.logisticsNodeSurvey),
+    tradeAccounts: resolveTradeAccounts(incoming.tradeAccounts),
+    externalTradeAccounts: resolveExternalTradeAccounts(incoming.externalTradeAccounts),
+    priorRealizedIncomeCp: resolvePriorRealizedIncomeCp(incoming.priorRealizedIncomeCp),
+    tradeRouteState: resolveTradeRouteState(incoming.tradeRouteState),
+    lastTradeEpochResult: resolveLastTradeEpochResult(incoming.lastTradeEpochResult),
   }
 }
 
@@ -215,6 +272,18 @@ export function resolveColonistSettings(value) {
       incoming.startingPopulation,
       defaults.startingPopulation,
     ),
+    peoplePerHabitableCell: clampIntegerRange(
+      incoming.peoplePerHabitableCell,
+      defaults.peoplePerHabitableCell,
+      MIN_PEOPLE_PER_HABITABLE_CELL,
+      MAX_PEOPLE_PER_HABITABLE_CELL,
+    ),
+    populationDensity: clampNumberRange(
+      incoming.populationDensity,
+      defaults.populationDensity,
+      MIN_POPULATION_DENSITY,
+      MAX_POPULATION_DENSITY,
+    ),
     yieldModifier,
     landExpeditionRange: clampIntegerRange(
       incoming.landExpeditionRange,
@@ -236,6 +305,116 @@ export function resolveColonistSettings(value) {
       MAX_OPEN_SEA_EXPEDITION_RANGE,
     ),
   }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {TradeAccountsSlice}
+ */
+function resolveTradeAccounts(value) {
+  const empty = createEmptyTradeAccountsSlice()
+  if (!value || typeof value !== 'object') {
+    return empty
+  }
+  const incoming = /** @type {Partial<TradeAccountsSlice>} */ (value)
+  const obligations = Array.isArray(incoming.obligations)
+    ? incoming.obligations
+        .filter(
+          (row) =>
+            row &&
+            typeof row.creditorSettlementId === 'string' &&
+            typeof row.debtorSettlementId === 'string' &&
+            typeof row.amountCp === 'number' &&
+            Number.isFinite(row.amountCp),
+        )
+        .map((row) => ({
+          creditorSettlementId: row.creditorSettlementId,
+          debtorSettlementId: row.debtorSettlementId,
+          amountCp: Math.round(row.amountCp) || 0,
+        }))
+        .filter((row) => row.amountCp > 0)
+    : []
+  /** @type {Record<string, number>} */
+  const balancesBySettlementId = {}
+  if (incoming.balancesBySettlementId && typeof incoming.balancesBySettlementId === 'object') {
+    for (const [id, amount] of Object.entries(incoming.balancesBySettlementId)) {
+      if (typeof amount === 'number' && Number.isFinite(amount)) {
+        const rounded = Math.round(amount) || 0
+        if (rounded !== 0) balancesBySettlementId[id] = rounded
+      }
+    }
+  }
+  return { obligations, balancesBySettlementId }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, number>}
+ */
+function resolveExternalTradeAccounts(value) {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+  /** @type {Record<string, number>} */
+  const resolved = {}
+  for (const [id, amount] of Object.entries(value)) {
+    if (typeof amount === 'number' && Number.isFinite(amount) && amount >= 0) {
+      const rounded = Math.round(amount) || 0
+      if (rounded > 0) resolved[id] = rounded
+    }
+  }
+  return resolved
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, number>}
+ */
+function resolvePriorRealizedIncomeCp(value) {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+  /** @type {Record<string, number>} */
+  const resolved = {}
+  for (const [id, amount] of Object.entries(value)) {
+    if (typeof amount === 'number' && Number.isFinite(amount) && amount >= 0) {
+      resolved[id] = amount
+    }
+  }
+  return resolved
+}
+
+/**
+ * @param {unknown} value
+ * @returns {TradeRouteState}
+ */
+function resolveTradeRouteState(value) {
+  const empty = createEmptyTradeRouteState()
+  if (!value || typeof value !== 'object') {
+    return empty
+  }
+  const incoming = /** @type {Partial<TradeRouteState>} */ (value)
+  return {
+    candidates: Array.isArray(incoming.candidates)
+      ? incoming.candidates.map((edge) => ({ ...edge }))
+      : [],
+    activeFlows: Array.isArray(incoming.activeFlows)
+      ? incoming.activeFlows.map((flow) => ({ ...flow }))
+      : [],
+  }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null}
+ */
+function resolveLastTradeEpochResult(value) {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  return /** @type {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult} */ (
+    value
+  )
 }
 
 /**
@@ -283,6 +462,18 @@ function clampPositiveNumber(value, fallback, max) {
 function clampIntegerRange(value, fallback, min, max) {
   const resolved =
     typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : fallback
+  return Math.min(max, Math.max(min, resolved))
+}
+
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @param {number} min
+ * @param {number} max
+ * @returns {number}
+ */
+function clampNumberRange(value, fallback, min, max) {
+  const resolved = typeof value === 'number' && Number.isFinite(value) ? value : fallback
   return Math.min(max, Math.max(min, resolved))
 }
 

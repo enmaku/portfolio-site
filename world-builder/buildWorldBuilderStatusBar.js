@@ -1,5 +1,5 @@
 /**
- * @typedef {'hidden' | 'generation' | 'begin' | 'epoch' | 'rehydration' | 'overlays'} StatusBarMode
+ * @typedef {'hidden' | 'generation' | 'begin' | 'epoch' | 'rehydration' | 'campaignKit' | 'overlays'} StatusBarMode
  * @typedef {{ id: string, label: string, status: string, testId: string }} StatusBarStep
  * @typedef {{ id: string, label: string, testId: string }} StatusBarOverlayDef
  * @typedef {{
@@ -31,6 +31,7 @@ const PANEL_TEST_ID = Object.freeze({
   begin: 'world-builder-begin-colonization-progress',
   epoch: 'world-builder-epoch-step-progress',
   rehydration: 'world-builder-rehydration-progress',
+  campaignKit: 'world-builder-campaign-kit-export-progress',
   overlays: 'world-builder-resource-overlay-bar',
 })
 
@@ -97,6 +98,7 @@ export function buildBeginStatusSection({ percent, steps }) {
  *   phaseSteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   finalizeSteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   networkSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
+ *   tradeSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   collapseSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   mapSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  * }} input
@@ -107,6 +109,7 @@ export function buildEpochStatusSection({
   phaseSteps,
   finalizeSteps,
   networkSubsteps,
+  tradeSubsteps = [],
   collapseSubsteps,
   mapSubsteps,
 }) {
@@ -122,6 +125,7 @@ export function buildEpochStatusSection({
     ],
     nestedByParentId: {
       network: withTestIds(networkSubsteps, 'world-builder-epoch-step-network-substep-'),
+      trade: withTestIds(tradeSubsteps, 'world-builder-epoch-step-trade-substep-'),
       collapse: withTestIds(collapseSubsteps, 'world-builder-epoch-step-collapse-substep-'),
       map: withTestIds(mapSubsteps, 'world-builder-epoch-step-map-substep-'),
     },
@@ -188,16 +192,37 @@ export function buildOverlaysStatusSection({ definitions }) {
 }
 
 /**
+ * @param {{
+ *   percent: number,
+ *   steps: ReadonlyArray<{ id: string, label: string, status: string }>,
+ * }} input
+ * @returns {StatusBarViewModel}
+ */
+export function buildCampaignKitExportStatusSection({ percent, steps }) {
+  return {
+    mode: 'campaignKit',
+    percent,
+    color: 'positive',
+    indeterminate: false,
+    panelTestId: PANEL_TEST_ID.campaignKit,
+    steps: withTestIds(steps, 'world-builder-campaign-kit-export-step-'),
+    nestedByParentId: {},
+    overlayDefs: [],
+  }
+}
+
+/**
  * Mutually-exclusive selection with priority
- * generation > begin > epoch > rehydration > overlays > hidden.
+ * generation > begin > epoch > rehydration > campaignKit > overlays > hidden.
  *
  * @param {{
  *   generation: StatusBarViewModel | null,
  *   colonization: StatusBarViewModel | null,
+ *   campaignKit?: StatusBarViewModel | null,
  *   overlays: StatusBarViewModel | null,
  * }} sections
  * @returns {StatusBarViewModel}
  */
-export function buildWorldBuilderStatusBar({ generation, colonization, overlays }) {
-  return generation ?? colonization ?? overlays ?? HIDDEN_STATUS_BAR
+export function buildWorldBuilderStatusBar({ generation, colonization, campaignKit = null, overlays }) {
+  return generation ?? colonization ?? campaignKit ?? overlays ?? HIDDEN_STATUS_BAR
 }
