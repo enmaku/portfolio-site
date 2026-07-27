@@ -1,46 +1,21 @@
 /**
  * Build a pure clearing DTO for realm trade from colonization state.
- * Keeps colonization deps (living filter, maritime roles, fish production) out of economy.
+ * Keeps colonization deps (living filter, maritime roles, fish production, trade graph)
+ * out of economy.
  */
 
-import { COLONIZATION_TRADE_SUBSTEPS } from './colonizationEpochSteps.js'
 import { livingSettlements } from './expeditions/expeditionConstants.js'
 import { refreshSettlementMaritimeRoles } from './refreshSettlementMaritimeRoles.js'
 import { sumFishProductionOnCells } from './fish/sumFishProductionOnCells.js'
 import { computeSettlementProduction } from '../economy/productionAccounting.js'
-
-/** Living-settlement count at which pairwise trade activates (mirrors clearRealmTrade). */
-const TRADE_ACTIVATION_MIN_SETTLEMENTS = 2
-
-const PRODUCTION_SUBSTEP_INDEX = COLONIZATION_TRADE_SUBSTEPS.findIndex(
-  (step) => step.id === 'production',
-)
+import { TRADE_ACTIVATION_MIN_SETTLEMENTS } from '../economy/tradeClearing/clearRealmTrade.js'
+import { buildCandidateTradeGraph } from './tradeGraph/buildCandidateRoutes.js'
 
 /**
  * @typedef {import('../economy/commodityCatalog.js').CommodityId} CommodityId
  * @typedef {import('./createDefaultColonizationSlice.js').ColonizationSlice} ColonizationSlice
  * @typedef {import('../types.js').WorldDocument} WorldDocument
- */
-
-/**
- * @typedef {Object} RealmTradeClearingInput
- * @property {Array<{ id: string, x: number, y: number, population: number, maritimeRole: string }>} settlements
- *   Living settlements only, with maritimeRole already refreshed.
- * @property {Record<string, Record<CommodityId, number>>} production
- * @property {number} gridWidth
- * @property {number} gridHeight
- * @property {Float32Array | null} elevation
- * @property {import('../types.js').WorldDocument['movementCost']} movementCost
- * @property {Uint8Array | undefined} lakeMask
- * @property {Uint8Array | undefined} riverCorridorMask
- * @property {ColonizationSlice['roads']} roads
- * @property {number} threeDayHaulDistance
- * @property {number} inlandSailExpeditionRange Colonist setting (multiple of haul distance).
- * @property {ColonizationSlice['tradeAccounts']} tradeAccounts
- * @property {ColonizationSlice['externalTradeAccounts']} externalTradeAccounts
- * @property {ColonizationSlice['priorRealizedIncomeCp']} priorRealizedIncomeCp
- * @property {ColonizationSlice['lastTradeEpochResult']} lastTradeEpochResult
- * @property {ColonizationSlice['tradeRouteState']} tradeRouteState
+ * @typedef {import('../economy/tradeClearing/clearRealmTrade.js').RealmTradeClearingInput} RealmTradeClearingInput
  */
 
 /**
@@ -72,7 +47,6 @@ export async function buildRealmTradeClearingInput(params, options = {}) {
   if (living.length >= TRADE_ACTIVATION_MIN_SETTLEMENTS) {
     hooks?.onTradeSubstep?.({
       type: 'substep-start',
-      substepIndex: PRODUCTION_SUBSTEP_INDEX,
       substepId: 'production',
     })
     await yieldToUi?.()
@@ -115,7 +89,6 @@ export async function buildRealmTradeClearingInput(params, options = {}) {
     if (living.length >= TRADE_ACTIVATION_MIN_SETTLEMENTS && (index + 1) % 4 === 0) {
       hooks?.onTradeSubstep?.({
         type: 'substep-item',
-        substepIndex: PRODUCTION_SUBSTEP_INDEX,
         substepId: 'production',
         itemIndex: index + 1,
         itemCount: living.length,
@@ -127,8 +100,35 @@ export async function buildRealmTradeClearingInput(params, options = {}) {
   if (living.length >= TRADE_ACTIVATION_MIN_SETTLEMENTS) {
     hooks?.onTradeSubstep?.({
       type: 'substep-complete',
-      substepIndex: PRODUCTION_SUBSTEP_INDEX,
       substepId: 'production',
+    })
+    await yieldToUi?.()
+  }
+
+  /** @type {import('./tradeGraph/buildCandidateRoutes.js').CandidateTradeGraph | null} */
+  let graph = null
+  if (living.length >= TRADE_ACTIVATION_MIN_SETTLEMENTS) {
+    const graphSettlements = settlements.map((settlement) => ({
+      id: settlement.id,
+      x: settlement.x,
+      y: settlement.y,
+      population: settlement.population,
+      status: 'living',
+      maritimeRole: settlement.maritimeRole ?? 'none',
+    }))
+    const threeDayHaulDistance = slice.colonistSettings.threeDayHaulDistance
+    graph = buildCandidateTradeGraph({
+      settlements: graphSettlements,
+      gridWidth,
+      gridHeight,
+      threeDayHaulDistance,
+      inlandSailExpeditionRange:
+        slice.colonistSettings.inlandSailExpeditionRange * threeDayHaulDistance,
+      movementCost: worldDocument.movementCost,
+      elevation,
+      roads: slice.roads,
+      lakeMask: worldDocument.lakeMask,
+      riverCorridorMask: worldDocument.riverCorridorMask,
     })
     await yieldToUi?.()
   }
@@ -136,15 +136,7 @@ export async function buildRealmTradeClearingInput(params, options = {}) {
   return {
     settlements,
     production,
-    gridWidth,
-    gridHeight,
-    elevation,
-    movementCost: worldDocument.movementCost,
-    lakeMask: worldDocument.lakeMask,
-    riverCorridorMask: worldDocument.riverCorridorMask,
-    roads: slice.roads,
-    threeDayHaulDistance: slice.colonistSettings.threeDayHaulDistance,
-    inlandSailExpeditionRange: slice.colonistSettings.inlandSailExpeditionRange,
+    graph,
     tradeAccounts: slice.tradeAccounts,
     externalTradeAccounts: slice.externalTradeAccounts,
     priorRealizedIncomeCp: slice.priorRealizedIncomeCp,

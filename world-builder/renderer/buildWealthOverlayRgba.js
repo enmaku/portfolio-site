@@ -235,7 +235,7 @@ function isWealthOverlayLandCell(worldDocument, x, y) {
  *   fields?: { elevation?: Float32Array },
  *   lakeMask?: Uint8Array,
  *   riverCorridorMask?: Uint8Array,
- *   lastTradeEpochResult?: import('../core/economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null,
+ *   lastTradeEpochResult?: import('../core/economy/economyEpochSnapshot.js').EconomyEpochSnapshot | null,
  *   tradeAccounts?: import('../core/economy/ledgers/bilateralObligations.js').TradeAccountsState,
  *   balancesBySettlementId?: Record<string, number>,
  *   externalTradeAccounts?: Record<string, number>,

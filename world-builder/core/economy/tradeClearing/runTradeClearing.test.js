@@ -17,8 +17,8 @@ function production(overrides) {
 }
 
 /**
- * @param {Partial<import('../tradeGraph/buildCandidateRoutes.js').TradeRouteEdge>} over
- * @returns {import('../tradeGraph/buildCandidateRoutes.js').TradeRouteEdge}
+ * @param {Partial<import('../../colonization/tradeGraph/buildCandidateRoutes.js').TradeRouteEdge>} over
+ * @returns {import('../../colonization/tradeGraph/buildCandidateRoutes.js').TradeRouteEdge}
  */
 function edge(over) {
   return {
@@ -641,21 +641,7 @@ test('uncurable fish surplus does not block grain from another exporter', () => 
   )
 })
 
-test('TRADE_SUBSTEP indices match COLONIZATION_TRADE_SUBSTEPS', async () => {
-  const { TRADE_SUBSTEP } = await import('./runTradeClearing.js')
-  const { COLONIZATION_TRADE_SUBSTEPS } = await import(
-    '../../colonization/colonizationEpochSteps.js'
-  )
-  for (const [id, index] of Object.entries(TRADE_SUBSTEP)) {
-    assert.equal(
-      index,
-      COLONIZATION_TRADE_SUBSTEPS.findIndex((step) => step.id === id),
-      id,
-    )
-  }
-})
-
-test('runTradeClearing reports trade substep indices in order and matches sync without yields', async () => {
+test('runTradeClearing reports trade substep ids in order and matches sync without yields', async () => {
   const settlements = [
     { id: 'a', population: 100 },
     { id: 'b', population: 100 },
@@ -671,7 +657,7 @@ test('runTradeClearing reports trade substep indices in order and matches sync w
     priorRealizedIncomeCp: { b: 1_000_000 },
   }
 
-  /** @type {Array<{ type: string, substepIndex: number, substepId: string }>} */
+  /** @type {Array<{ type: string, substepId: string }>} */
   const events = []
   const withYields = await runTradeClearing(params, {
     yieldToUi: async () => {},
@@ -679,7 +665,6 @@ test('runTradeClearing reports trade substep indices in order and matches sync w
       onTradeSubstep(payload) {
         events.push({
           type: payload.type,
-          substepIndex: payload.substepIndex,
           substepId: payload.substepId,
         })
       },
@@ -693,33 +678,29 @@ test('runTradeClearing reports trade substep indices in order and matches sync w
 
   const bookends = events
     .filter((e) => e.type === 'substep-start' || e.type === 'substep-complete')
-    .map((e) => `${e.type}:${e.substepIndex}:${e.substepId}`)
+    .map((e) => `${e.type}:${e.substepId}`)
   assert.deepStrictEqual(bookends, [
-    'substep-start:1:localPrices',
-    'substep-complete:1:localPrices',
-    'substep-start:2:survival',
-    'substep-complete:2:survival',
-    'substep-start:3:comfort',
-    'substep-complete:3:comfort',
-    'substep-start:4:prosperity',
-    'substep-complete:4:prosperity',
-    'substep-start:5:offMap',
-    'substep-complete:5:offMap',
+    'substep-start:localPrices',
+    'substep-complete:localPrices',
+    'substep-start:survival',
+    'substep-complete:survival',
+    'substep-start:comfort',
+    'substep-complete:comfort',
+    'substep-start:prosperity',
+    'substep-complete:prosperity',
+    'substep-start:offMap',
+    'substep-complete:offMap',
   ])
 
   const prosperityItems = events.filter((e) => e.type === 'substep-item' && e.substepId === 'prosperity')
   assert.equal(prosperityItems.length, 6)
-  assert.ok(prosperityItems.every((e) => e.substepIndex === 4))
 
   const offMapItems = events.filter((e) => e.type === 'substep-item' && e.substepId === 'offMap')
   assert.ok(offMapItems.length >= 1)
-  assert.ok(offMapItems.every((e) => e.substepIndex === 5))
 
   const survivalItems = events.filter((e) => e.type === 'substep-item' && e.substepId === 'survival')
   const comfortItems = events.filter((e) => e.type === 'substep-item' && e.substepId === 'comfort')
   assert.ok(survivalItems.length + comfortItems.length >= 1)
-  assert.ok(survivalItems.every((e) => e.substepIndex === 2))
-  assert.ok(comfortItems.every((e) => e.substepIndex === 3))
 })
 
 test('prior trade accounts seed net owed so debt carries into the next clear', () => {

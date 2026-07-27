@@ -8,7 +8,7 @@ import { findLogisticsNodeAt } from '../logisticsNodes/scoreLogisticsNodes.js'
 import { buildLandRouteCellMask } from '../roads/roadNetwork.js'
 import { computeClaimProduction } from '../../economy/founding/computeClaimProduction.js'
 import { computeLocalPrices, priceFormationDemand } from '../../economy/localPrices.js'
-import { buildCandidateTradeGraph } from '../../economy/tradeGraph/buildCandidateRoutes.js'
+import { buildCandidateTradeGraph } from '../tradeGraph/buildCandidateRoutes.js'
 import { modeGroup } from '../../economy/tradeClearing/pathSearch.js'
 import { evaluateTradeAwareFounding } from '../../economy/founding/evaluateTradeAwareFounding.js'
 import {

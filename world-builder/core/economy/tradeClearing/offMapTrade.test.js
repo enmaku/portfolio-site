@@ -24,7 +24,7 @@ function production(overrides) {
 }
 
 /**
- * @param {Partial<import('../tradeGraph/buildCandidateRoutes.js').TradeRouteEdge>} over
+ * @param {Partial<import('../../colonization/tradeGraph/buildCandidateRoutes.js').TradeRouteEdge>} over
  */
 function edge(over) {
   return {

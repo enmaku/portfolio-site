@@ -3,18 +3,18 @@
  * Domain: world-builder/CONTEXT.md — trade route, route cargo capacity, transport cost.
  */
 
-import { computeHaulShedTravelTimes } from '../../colonization/computeHaulShedIsochrone.js'
-import { buildLandRouteCellMask, resolveRoadSegments } from '../../colonization/roads/roadNetwork.js'
-import { buildDryLandTraversableMask } from '../../colonization/expeditions/buildDryLandTraversableMask.js'
-import { resolveSailTraversableMask } from '../../colonization/expeditions/expeditionRouting.js'
+import { computeHaulShedTravelTimes } from '../computeHaulShedIsochrone.js'
+import { buildLandRouteCellMask, resolveRoadSegments } from '../roads/roadNetwork.js'
+import { buildDryLandTraversableMask } from '../expeditions/buildDryLandTraversableMask.js'
+import { resolveSailTraversableMask } from '../expeditions/expeditionRouting.js'
 import {
   directionalHaulFriction,
   routeCargoCapacityLb,
   transportCostCpPerLb,
-} from './routeEconomics.js'
+} from '../../economy/tradeGraph/routeEconomics.js'
 
 /**
- * @typedef {import('./routeEconomics.js').TradeRouteMode} TradeRouteMode
+ * @typedef {import('../../economy/tradeGraph/routeEconomics.js').TradeRouteMode} TradeRouteMode
  */
 
 /**
