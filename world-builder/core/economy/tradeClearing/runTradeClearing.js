@@ -4,7 +4,6 @@
  * comfort, material prosperity, off-map trade, mutual credit, port toll, credit limit.
  */
 
-import { COLONIZATION_TRADE_SUBSTEPS } from '../../colonization/colonizationEpochSteps.js'
 import { FISH_CURING_SALT_PER_FISH_LB } from '../productionAccounting.js'
 import {
   PROSPERITY_COMMODITIES,
@@ -56,8 +55,8 @@ const CLEAR_RESOURCE_YIELD_EVERY = 8
  * @typedef {Object} TradeClearingHooks
  * @property {(payload: {
  *   type: 'substep-start' | 'substep-complete' | 'substep-item',
- *   substepIndex: number,
  *   substepId: string,
+ *   substepIndex?: number,
  *   itemIndex?: number,
  *   itemCount?: number,
  * }) => void} [onTradeSubstep]
@@ -70,28 +69,6 @@ const CLEAR_RESOURCE_YIELD_EVERY = 8
  */
 
 /**
- * @param {import('../../colonization/colonizationEpochSteps.js').ColonizationTradeSubstepId} id
- * @returns {number}
- */
-function tradeSubstepIndex(id) {
-  const index = COLONIZATION_TRADE_SUBSTEPS.findIndex((step) => step.id === id)
-  if (index < 0) throw new Error(`unknown trade substep: ${id}`)
-  return index
-}
-
-/** Indices aligned with COLONIZATION_TRADE_SUBSTEPS (production = 0 in clearRealmTrade). */
-const TRADE_SUBSTEP = Object.freeze({
-  localPrices: tradeSubstepIndex('localPrices'),
-  survival: tradeSubstepIndex('survival'),
-  comfort: tradeSubstepIndex('comfort'),
-  prosperity: tradeSubstepIndex('prosperity'),
-  offMap: tradeSubstepIndex('offMap'),
-})
-
-/** Exported for coupling tests against COLONIZATION_TRADE_SUBSTEPS. */
-export { TRADE_SUBSTEP }
-
-/**
  * @param {Parameters<typeof createClearingState>[0]} [params]
  * @param {TradeClearingOptions} [options]
  * @returns {Promise<TradeClearingResult>}
@@ -99,61 +76,52 @@ export { TRADE_SUBSTEP }
 export async function runTradeClearing(params = {}, options = {}) {
   const { hooks, yieldToUi } = options
 
-  emitTradeSubstep(hooks, 'substep-start', TRADE_SUBSTEP.localPrices, 'localPrices')
+  emitTradeSubstep(hooks, 'substep-start', 'localPrices')
   await yieldToUi?.()
   const state = createClearingState(params)
-  emitTradeSubstep(hooks, 'substep-complete', TRADE_SUBSTEP.localPrices, 'localPrices')
+  emitTradeSubstep(hooks, 'substep-complete', 'localPrices')
   await yieldToUi?.()
 
-  emitTradeSubstep(hooks, 'substep-start', TRADE_SUBSTEP.survival, 'survival')
+  emitTradeSubstep(hooks, 'substep-start', 'survival')
   await yieldToUi?.()
   await clearSurvivalFoodTiersCore(state, {
     hooks,
     yieldToUi,
-    substepIndex: TRADE_SUBSTEP.survival,
     substepId: 'survival',
   })
-  emitTradeSubstep(hooks, 'substep-complete', TRADE_SUBSTEP.survival, 'survival')
+  emitTradeSubstep(hooks, 'substep-complete', 'survival')
   await yieldToUi?.()
 
-  emitTradeSubstep(hooks, 'substep-start', TRADE_SUBSTEP.comfort, 'comfort')
+  emitTradeSubstep(hooks, 'substep-start', 'comfort')
   await yieldToUi?.()
   await clearComfortFoodTiers(state, {
     hooks,
     yieldToUi,
-    substepIndex: TRADE_SUBSTEP.comfort,
     substepId: 'comfort',
   })
-  emitTradeSubstep(hooks, 'substep-complete', TRADE_SUBSTEP.comfort, 'comfort')
+  emitTradeSubstep(hooks, 'substep-complete', 'comfort')
   await yieldToUi?.()
 
-  emitTradeSubstep(hooks, 'substep-start', TRADE_SUBSTEP.prosperity, 'prosperity')
+  emitTradeSubstep(hooks, 'substep-start', 'prosperity')
   await yieldToUi?.()
   const prosperityCount = PROSPERITY_COMMODITIES.length
   for (let index = 0; index < prosperityCount; index += 1) {
-    emitTradeSubstep(
-      hooks,
-      'substep-item',
-      TRADE_SUBSTEP.prosperity,
-      'prosperity',
-      index + 1,
-      prosperityCount,
-    )
+    emitTradeSubstep(hooks, 'substep-item', 'prosperity', index + 1, prosperityCount)
     await yieldToUi?.()
     clearProsperityCommodity(state, PROSPERITY_COMMODITIES[index])
   }
-  emitTradeSubstep(hooks, 'substep-complete', TRADE_SUBSTEP.prosperity, 'prosperity')
+  emitTradeSubstep(hooks, 'substep-complete', 'prosperity')
   await yieldToUi?.()
 
-  emitTradeSubstep(hooks, 'substep-start', TRADE_SUBSTEP.offMap, 'offMap')
+  emitTradeSubstep(hooks, 'substep-start', 'offMap')
   await yieldToUi?.()
   await clearOffMapTrade(state, {
     onItem: (itemIndex, itemCount) => {
-      emitTradeSubstep(hooks, 'substep-item', TRADE_SUBSTEP.offMap, 'offMap', itemIndex, itemCount)
+      emitTradeSubstep(hooks, 'substep-item', 'offMap', itemIndex, itemCount)
     },
     yieldToUi,
   })
-  emitTradeSubstep(hooks, 'substep-complete', TRADE_SUBSTEP.offMap, 'offMap')
+  emitTradeSubstep(hooks, 'substep-complete', 'offMap')
   await yieldToUi?.()
 
   return buildResult(state)
@@ -161,36 +129,27 @@ export async function runTradeClearing(params = {}, options = {}) {
 
 /**
  * Synchronous clearing for call sites that cannot await (founding commit).
- * Prefer {@link runTradeClearing} everywhere else.
+ * Same generator path as {@link runTradeClearing} with no UI yields/hooks.
  *
  * @param {Parameters<typeof createClearingState>[0]} [params]
  * @returns {TradeClearingResult}
  */
 export function runTradeClearingSync(params = {}) {
   const state = createClearingState(params)
-  runOnMapClearingTiers(state)
-  clearOffMapTradeSync(state)
-  return buildResult(state)
-}
-
-/**
- * On-map allocation tiers only (no off-map). Shared by sync orchestrator.
- *
- * @param {ClearingState} state
- */
-function runOnMapClearingTiers(state) {
-  clearSurvivalFoodTiersCoreSync(state)
-  clearComfortFoodTiersSync(state)
+  clearResourceSync(state, foodClearSpec(state, survivalFoodDemandLb, 'survival'))
+  clearResourceSync(state, saltClearSpec(state, survivalSaltDemandLb))
+  clearResourceSync(state, foodClearSpec(state, comfortFoodDemandLb, 'comfort'))
   for (const commodityId of PROSPERITY_COMMODITIES) {
     clearProsperityCommodity(state, commodityId)
   }
+  clearOffMapTradeSync(state)
+  return buildResult(state)
 }
 
 /**
  * @typedef {{
  *   hooks?: TradeClearingHooks,
  *   yieldToUi?: () => Promise<void>,
- *   substepIndex: number,
  *   substepId: string,
  * }} ClearResourceProgress
  */
@@ -204,12 +163,6 @@ async function clearSurvivalFoodTiersCore(state, progress) {
   await clearSaltTier(state, survivalSaltDemandLb, progress)
 }
 
-/** @param {ClearingState} state */
-function clearSurvivalFoodTiersCoreSync(state) {
-  clearFoodTierSync(state, survivalFoodDemandLb, 'survival')
-  clearSaltTierSync(state, survivalSaltDemandLb)
-}
-
 /**
  * @param {ClearingState} state
  * @param {ClearResourceProgress} [progress]
@@ -218,23 +171,16 @@ async function clearComfortFoodTiers(state, progress) {
   await clearFoodTier(state, comfortFoodDemandLb, 'comfort', progress)
 }
 
-/** @param {ClearingState} state */
-function clearComfortFoodTiersSync(state) {
-  clearFoodTierSync(state, comfortFoodDemandLb, 'comfort')
-}
-
 /**
  * @param {TradeClearingHooks | undefined} hooks
  * @param {'substep-start' | 'substep-complete' | 'substep-item'} type
- * @param {number} substepIndex
  * @param {string} substepId
  * @param {number} [itemIndex]
  * @param {number} [itemCount]
  */
-function emitTradeSubstep(hooks, type, substepIndex, substepId, itemIndex, itemCount) {
+function emitTradeSubstep(hooks, type, substepId, itemIndex, itemCount) {
   hooks?.onTradeSubstep?.({
     type,
-    substepIndex,
     substepId,
     ...(typeof itemIndex === 'number' ? { itemIndex } : {}),
     ...(typeof itemCount === 'number' ? { itemCount } : {}),
@@ -256,27 +202,10 @@ async function clearFoodTier(state, targetFn, resourceKind, progress) {
 /**
  * @param {ClearingState} state
  * @param {(pop: number) => number} targetFn
- * @param {'survival' | 'comfort'} resourceKind
- */
-function clearFoodTierSync(state, targetFn, resourceKind) {
-  clearResourceSync(state, foodClearSpec(state, targetFn, resourceKind))
-}
-
-/**
- * @param {ClearingState} state
- * @param {(pop: number) => number} targetFn
  * @param {ClearResourceProgress} [progress]
  */
 async function clearSaltTier(state, targetFn, progress) {
   await clearResource(state, saltClearSpec(state, targetFn), progress)
-}
-
-/**
- * @param {ClearingState} state
- * @param {(pop: number) => number} targetFn
- */
-function clearSaltTierSync(state, targetFn) {
-  clearResourceSync(state, saltClearSpec(state, targetFn))
 }
 
 /**
@@ -406,7 +335,6 @@ async function clearResource(state, spec, progress) {
       emitTradeSubstep(
         progress.hooks,
         'substep-item',
-        progress.substepIndex,
         progress.substepId,
         attempt,
         Math.max(attempt, step.deficitCount),

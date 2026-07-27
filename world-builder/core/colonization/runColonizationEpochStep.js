@@ -25,6 +25,7 @@ import {
   reduceEpochStepProgressOnTradeSubstepStart,
 } from './colonizationEpochProgress.js'
 import { COLONIZATION_EPOCH_PHASES } from './colonizationEpochSteps.js'
+import { wrapTradeClearingHooksWithEpochIndices } from './tradeSubstepIndex.js'
 
 /** @typedef {import('./colonizationEpochProgress.js').EpochStepProgressState} EpochStepProgressState */
 
@@ -118,26 +119,26 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
       await runColonizationEpochTradePhase(ctx, {
         trade: {
           yieldToUi,
-          hooks: {
+          hooks: wrapTradeClearingHooksWithEpochIndices({
             onTradeSubstep(payload) {
               if (payload.type === 'substep-start') {
                 progress = reduceEpochStepProgressOnTradeSubstepStart(progress, {
-                  substepIndex: payload.substepIndex,
+                  substepIndex: payload.substepIndex ?? 0,
                 })
               } else if (payload.type === 'substep-item') {
                 progress = reduceEpochStepProgressOnTradeSubstepItemProgress(progress, {
-                  substepIndex: payload.substepIndex,
+                  substepIndex: payload.substepIndex ?? 0,
                   itemIndex: payload.itemIndex ?? 0,
                   itemCount: payload.itemCount ?? 0,
                 })
               } else {
                 progress = reduceEpochStepProgressOnTradeSubstepComplete(progress, {
-                  substepIndex: payload.substepIndex,
+                  substepIndex: payload.substepIndex ?? 0,
                 })
               }
               handlers.onProgress?.(progress)
             },
-          },
+          }),
         },
       })
     } else if (phase.id === 'survival') {

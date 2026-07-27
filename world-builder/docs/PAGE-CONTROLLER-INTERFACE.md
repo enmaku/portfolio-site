@@ -22,6 +22,9 @@ WorldBuilderPage.vue
   └─ useWorldBuilderPageController({ getMapHost, settingsStore, ... })
        ├─ useWorldBuilderGeneration (generation seam)
        ├─ useWorldBuilderOverlayState (overlay seam)
+       ├─ useWorldBuilderColonization (colonization owner)
+       ├─ useWorldBuilderColonizationProgressStatus (epoch/begin/rehydration chrome)
+       ├─ useWorldBuilderCampaignKitExport (campaign kit PDF)
        ├─ worldBuilderPageModel (display projections)
        └─ createGenerationMapLifecycle (map host ↔ viewport)
 ```
@@ -62,6 +65,22 @@ All behavioral tests (#375) should inject fakes for the three defaults — never
 | `resourceOverlayVisibility` | from overlay | Per-overlay boolean map |
 | `overlayDisplaySetting` | from overlay | Display tuning (e.g. arable threshold) |
 | `runPhase` | from generation | Exposed for advanced UI (rare) |
+| `realmEconomy` | `ComputedRef` | Realm economy status panel model (`buildRealmEconomyStatus`) |
+| `simStatus` | `ComputedRef` | Colonization sim status strip |
+| `showSimStatusPanel` | `ComputedRef` | Whether sim status chrome is visible |
+| `colonization` (returned bag) | object | Colonization owner surface — see below |
+
+### Colonization / campaign kit surfaces (via page controller)
+
+Wired through `useWorldBuilderColonization`, `useWorldBuilderColonizationProgressStatus`, and `useWorldBuilderCampaignKitExport`:
+
+| Export | Role |
+|--------|------|
+| `colonization.settlementTradeTooltip` | Settlement hover inspect (economy snapshot) |
+| `colonization.hoveredSettlementId` / `hoveredSettlementScreenPosition` | Map hover → tooltip anchor |
+| `colonization.setSettlementFocus` | Inspect focus selection |
+| `isCampaignKitExportRunning` / `exportCampaignKit` | Campaign kit PDF export |
+| Colonization progress status section | Merged into status bar (begin / epoch trade+collapse / rehydration) |
 
 Display computeds must stay free of renderer imports — formatting lives in `worldBuilderPageModel.js`.
 

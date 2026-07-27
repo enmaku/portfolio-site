@@ -24,6 +24,43 @@ import {
 } from '../../world-builder/buildWorldBuilderStatusBar.js'
 
 /**
+ * @param {ReadonlyArray<{ id: string, label: string }>} substeps
+ * @param {number} activeIndex
+ * @param {number} completedIndex
+ * @param {{ itemIndex: number, itemCount: number, phase?: string, phasePercent?: number } | null} [activeItemProgress]
+ */
+function createItemAwareSubstepStatuses(
+  substeps,
+  activeIndex,
+  completedIndex,
+  activeItemProgress = null,
+) {
+  return createHydrologySubstepStatuses(
+    substeps,
+    activeIndex,
+    completedIndex,
+    new Set(),
+    activeItemProgress,
+  )
+}
+
+/**
+ * @param {number} itemIndex
+ * @param {number} itemCount
+ * @param {{ phase?: string, phasePercent?: number }} [extras]
+ */
+function activeItemProgressFromCounts(itemIndex, itemCount, extras = {}) {
+  if (!(itemCount > 0 && itemIndex > 0)) {
+    return null
+  }
+  return {
+    itemIndex,
+    itemCount,
+    ...extras,
+  }
+}
+
+/**
  * Colonization progress → status-bar view-model wiring.
  *
  * @param {{
@@ -55,63 +92,44 @@ export function useWorldBuilderColonizationProgressStatus(options) {
     ),
   )
   const epochStepNetworkSubstepStatuses = computed(() => {
-    const itemCount = epochStepProgress.value.networkSubstepItemCount
-    const itemIndex = epochStepProgress.value.networkSubstepItemIndex
     const phase = epochStepProgress.value.networkSubstepPhase
     const phasePercent = epochStepProgress.value.networkSubstepPhasePercent
-    const activeItemProgress =
-      itemCount > 0 && itemIndex > 0
-        ? {
-            itemIndex,
-            itemCount,
-            phase: phase || undefined,
-            phasePercent: phasePercent >= 0 ? phasePercent : undefined,
-          }
-        : null
-    return createHydrologySubstepStatuses(
+    return createItemAwareSubstepStatuses(
       COLONIZATION_NETWORK_SUBSTEPS,
       epochStepProgress.value.activeNetworkSubstepIndex,
       epochStepProgress.value.completedNetworkSubstepIndex,
-      new Set(),
-      activeItemProgress,
+      activeItemProgressFromCounts(
+        epochStepProgress.value.networkSubstepItemIndex,
+        epochStepProgress.value.networkSubstepItemCount,
+        {
+          phase: phase || undefined,
+          phasePercent: phasePercent >= 0 ? phasePercent : undefined,
+        },
+      ),
     )
   })
-  const epochStepTradeSubstepStatuses = computed(() => {
-    const itemCount = epochStepProgress.value.tradeSubstepItemCount
-    const itemIndex = epochStepProgress.value.tradeSubstepItemIndex
-    const activeItemProgress =
-      itemCount > 0 && itemIndex > 0
-        ? {
-            itemIndex,
-            itemCount,
-          }
-        : null
-    return createHydrologySubstepStatuses(
+  const epochStepTradeSubstepStatuses = computed(() =>
+    createItemAwareSubstepStatuses(
       COLONIZATION_TRADE_SUBSTEPS,
       epochStepProgress.value.activeTradeSubstepIndex,
       epochStepProgress.value.completedTradeSubstepIndex,
-      new Set(),
-      activeItemProgress,
-    )
-  })
-  const epochStepCollapseSubstepStatuses = computed(() => {
-    const itemCount = epochStepProgress.value.collapseSubstepItemCount
-    const itemIndex = epochStepProgress.value.collapseSubstepItemIndex
-    const activeItemProgress =
-      itemCount > 0 && itemIndex > 0
-        ? {
-            itemIndex,
-            itemCount,
-          }
-        : null
-    return createHydrologySubstepStatuses(
+      activeItemProgressFromCounts(
+        epochStepProgress.value.tradeSubstepItemIndex,
+        epochStepProgress.value.tradeSubstepItemCount,
+      ),
+    ),
+  )
+  const epochStepCollapseSubstepStatuses = computed(() =>
+    createItemAwareSubstepStatuses(
       COLONIZATION_COLLAPSE_SUBSTEPS,
       epochStepProgress.value.activeCollapseSubstepIndex,
       epochStepProgress.value.completedCollapseSubstepIndex,
-      new Set(),
-      activeItemProgress,
-    )
-  })
+      activeItemProgressFromCounts(
+        epochStepProgress.value.collapseSubstepItemIndex,
+        epochStepProgress.value.collapseSubstepItemCount,
+      ),
+    ),
+  )
   const epochStepFinalizeStepStatuses = computed(() =>
     createGenerationStepStatuses(
       COLONIZATION_EPOCH_FINALIZE_STEPS,
@@ -154,39 +172,24 @@ export function useWorldBuilderColonizationProgressStatus(options) {
       visitedSubstepItemIndex,
       visitedSubstepItemCount,
     } = rehydrationProgress.value
-    const activeItemProgress =
-      visitedSubstepItemCount > 0 && visitedSubstepItemIndex > 0
-        ? {
-            itemIndex: visitedSubstepItemIndex,
-            itemCount: visitedSubstepItemCount,
-          }
-        : null
-    return createHydrologySubstepStatuses(
+    return createItemAwareSubstepStatuses(
       COLONIZATION_VISITED_REHYDRATION_SUBSTEPS,
       activeVisitedSubstepIndex,
       completedVisitedSubstepIndex,
-      new Set(),
-      activeItemProgress,
+      activeItemProgressFromCounts(visitedSubstepItemIndex, visitedSubstepItemCount),
     )
   })
-  const rehydrationCollapseSubstepStatuses = computed(() => {
-    const itemCount = rehydrationProgress.value.collapseSubstepItemCount
-    const itemIndex = rehydrationProgress.value.collapseSubstepItemIndex
-    const activeItemProgress =
-      itemCount > 0 && itemIndex > 0
-        ? {
-            itemIndex,
-            itemCount,
-          }
-        : null
-    return createHydrologySubstepStatuses(
+  const rehydrationCollapseSubstepStatuses = computed(() =>
+    createItemAwareSubstepStatuses(
       COLONIZATION_COLLAPSE_SUBSTEPS,
       rehydrationProgress.value.activeCollapseSubstepIndex,
       rehydrationProgress.value.completedCollapseSubstepIndex,
-      new Set(),
-      activeItemProgress,
-    )
-  })
+      activeItemProgressFromCounts(
+        rehydrationProgress.value.collapseSubstepItemIndex,
+        rehydrationProgress.value.collapseSubstepItemCount,
+      ),
+    ),
+  )
 
   /**
    * Colonization-owned status-bar section (begin > epoch > rehydration), or null when idle.

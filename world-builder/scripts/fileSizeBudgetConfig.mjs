@@ -45,6 +45,17 @@ export const PHASE5_FILE_BUDGETS = {
   'world-builder/core/stages/hydrologyStage.js': { max: 400 },
   'world-builder/core/stages/physicalTerrainBaselineStage.js': { max: 400 },
   'world-builder/core/stages/validationStage.js': { max: 400 },
+  'world-builder/core/economy/tradeClearing/runTradeClearing.js': { max: 650, label: 'trade clearing' },
+  'world-builder/core/economy/tradeClearing/offMapTrade.js': { max: 550, label: 'off-map trade' },
+  'world-builder/core/colonization/tradeGraph/buildCandidateRoutes.js': {
+    max: 600,
+    label: 'trade graph',
+  },
+  'world-builder/core/colonization/colonizationEpochProgress.js': {
+    max: 650,
+    label: 'epoch progress',
+  },
+  'world-builder/core/economy/economyEpochSnapshot.js': { max: 120, label: 'economy snapshot' },
 }
 
 /**

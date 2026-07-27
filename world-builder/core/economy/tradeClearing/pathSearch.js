@@ -5,7 +5,7 @@
 
 import { cargoLbPerUnit } from '../commodityCatalog.js'
 
-/** @typedef {import('../tradeGraph/buildCandidateRoutes.js').TradeRouteEdge} TradeRouteEdge */
+/** @typedef {import('../../colonization/tradeGraph/buildCandidateRoutes.js').TradeRouteEdge} TradeRouteEdge */
 /** @typedef {import('../commodityCatalog.js').CommodityId} CommodityId */
 /** @typedef {import('../tradeGraph/routeEconomics.js').TradeRouteMode} TradeRouteMode */
 

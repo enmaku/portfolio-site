@@ -5,7 +5,7 @@ import {
   DIRECTIONAL_FRICTION_DOWNHILL,
   DIRECTIONAL_FRICTION_UPHILL,
   ROUTE_CAPACITY_LB_PER_PERSON_DAY,
-} from './routeEconomics.js'
+} from '../../economy/tradeGraph/routeEconomics.js'
 import { SEA_LEVEL } from '../../biomeIds.js'
 
 const LAND_ELEVATION = SEA_LEVEL + 0.08

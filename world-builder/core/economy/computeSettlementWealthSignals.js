@@ -22,7 +22,7 @@ import { combinedSettlementWealthCp } from './ledgers/combinedSettlementWealthCp
  * @property {import('./ledgers/bilateralObligations.js').TradeAccountsState} [tradeAccounts]
  * @property {Record<string, number>} [balancesBySettlementId]
  * @property {Record<string, number>} [externalTradeAccounts]
- * @property {import('./tradeClearing/runTradeClearing.js').TradeClearingResult | null} [lastTradeEpochResult]
+ * @property {import('./economyEpochSnapshot.js').EconomyEpochSnapshot | null} [lastTradeEpochResult]
  */
 
 /**

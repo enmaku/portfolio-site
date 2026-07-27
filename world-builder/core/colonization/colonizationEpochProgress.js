@@ -247,48 +247,11 @@ export function reduceEpochStepProgressOnPhaseComplete(progress, payload) {
 }
 
 /**
- * @param {EpochStepProgressState} progress
- * @param {{ substepIndex: number }} payload
- * @returns {EpochStepProgressState}
- */
-export function reduceEpochStepProgressOnNetworkSubstepStart(progress, payload) {
-  const substep = COLONIZATION_NETWORK_SUBSTEPS[payload.substepIndex]
-  return {
-    ...progress,
-    activeNetworkSubstepIndex: payload.substepIndex,
-    networkSubstepItemIndex: -1,
-    networkSubstepItemCount: 0,
-    networkSubstepPhase: '',
-    networkSubstepPhasePercent: -1,
-    label: progress.label.includes('·')
-      ? `${progress.label.split(' · ')[0]} · Network · ${substep?.label ?? ''}`
-      : progress.label,
-  }
-}
-
-/**
- * @param {EpochStepProgressState} progress
- * @param {{ substepIndex: number }} payload
- * @returns {EpochStepProgressState}
- */
-export function reduceEpochStepProgressOnNetworkSubstepComplete(progress, payload) {
-  return {
-    ...progress,
-    activeNetworkSubstepIndex: payload.substepIndex,
-    completedNetworkSubstepIndex: payload.substepIndex,
-    networkSubstepItemIndex: -1,
-    networkSubstepItemCount: 0,
-    networkSubstepPhase: '',
-    networkSubstepPhasePercent: -1,
-  }
-}
-
-/**
  * @param {string} substepLabel
  * @param {{ itemIndex: number, itemCount: number, phase?: string, phasePercent?: number }} itemProgress
  * @returns {string}
  */
-export function formatNetworkSubstepItemLabel(substepLabel, itemProgress) {
+export function formatSubstepItemLabel(substepLabel, itemProgress) {
   if (itemProgress.itemCount <= 0 || itemProgress.itemIndex <= 0) {
     return substepLabel
   }
@@ -303,6 +266,164 @@ export function formatNetworkSubstepItemLabel(substepLabel, itemProgress) {
   return label
 }
 
+export const formatNetworkSubstepItemLabel = formatSubstepItemLabel
+export const formatCollapseSubstepItemLabel = formatSubstepItemLabel
+export const formatTradeSubstepItemLabel = formatSubstepItemLabel
+
+/**
+ * @param {{
+ *   phaseLabel: string,
+ *   substeps: ReadonlyArray<{ id: string, label: string }>,
+ *   activeKey: keyof EpochStepProgressState,
+ *   completedKey: keyof EpochStepProgressState,
+ *   itemIndexKey: keyof EpochStepProgressState,
+ *   itemCountKey: keyof EpochStepProgressState,
+ *   clearExtras?: () => Partial<EpochStepProgressState>,
+ *   itemExtras?: (payload: {
+ *     substepIndex: number,
+ *     itemIndex: number,
+ *     itemCount: number,
+ *     phase?: string,
+ *     phasePercent?: number,
+ *   }) => Partial<EpochStepProgressState>,
+ * }} config
+ */
+function createSubstepLaneReducers(config) {
+  const {
+    phaseLabel,
+    substeps,
+    activeKey,
+    completedKey,
+    itemIndexKey,
+    itemCountKey,
+    clearExtras,
+    itemExtras,
+  } = config
+
+  /**
+   * @param {EpochStepProgressState} progress
+   * @param {{ substepIndex: number }} payload
+   * @returns {EpochStepProgressState}
+   */
+  function onStart(progress, payload) {
+    const substep = substeps[payload.substepIndex]
+    return {
+      ...progress,
+      [activeKey]: payload.substepIndex,
+      [itemIndexKey]: -1,
+      [itemCountKey]: 0,
+      ...(clearExtras?.() ?? {}),
+      label: progress.label.includes('·')
+        ? `${progress.label.split(' · ')[0]} · ${phaseLabel} · ${substep?.label ?? ''}`
+        : progress.label,
+    }
+  }
+
+  /**
+   * @param {EpochStepProgressState} progress
+   * @param {{ substepIndex: number }} payload
+   * @returns {EpochStepProgressState}
+   */
+  function onComplete(progress, payload) {
+    return {
+      ...progress,
+      [activeKey]: payload.substepIndex,
+      [completedKey]: payload.substepIndex,
+      [itemIndexKey]: -1,
+      [itemCountKey]: 0,
+      ...(clearExtras?.() ?? {}),
+    }
+  }
+
+  /**
+   * @param {EpochStepProgressState} progress
+   * @param {{
+   *   substepIndex: number,
+   *   itemIndex: number,
+   *   itemCount: number,
+   *   phase?: string,
+   *   phasePercent?: number,
+   * }} payload
+   * @returns {EpochStepProgressState}
+   */
+  function onItem(progress, payload) {
+    const substep = substeps[payload.substepIndex]
+    const epochLabel = progress.label.includes('·') ? progress.label.split(' · ')[0] : progress.label
+    const itemLabel = formatSubstepItemLabel(substep?.label ?? '', {
+      itemIndex: payload.itemIndex,
+      itemCount: payload.itemCount,
+      phase: payload.phase,
+      phasePercent: payload.phasePercent,
+    })
+    return {
+      ...progress,
+      [activeKey]: payload.substepIndex,
+      [itemIndexKey]: payload.itemIndex,
+      [itemCountKey]: payload.itemCount,
+      ...(itemExtras?.(payload) ?? {}),
+      label: `${epochLabel} · ${phaseLabel} · ${itemLabel}`,
+    }
+  }
+
+  return { onStart, onComplete, onItem }
+}
+
+const networkLane = createSubstepLaneReducers({
+  phaseLabel: 'Network',
+  substeps: COLONIZATION_NETWORK_SUBSTEPS,
+  activeKey: 'activeNetworkSubstepIndex',
+  completedKey: 'completedNetworkSubstepIndex',
+  itemIndexKey: 'networkSubstepItemIndex',
+  itemCountKey: 'networkSubstepItemCount',
+  clearExtras: () => ({
+    networkSubstepPhase: '',
+    networkSubstepPhasePercent: -1,
+  }),
+  itemExtras: (payload) => ({
+    networkSubstepPhase: payload.phase ?? '',
+    networkSubstepPhasePercent:
+      Number.isFinite(payload.phasePercent) && payload.phasePercent >= 0
+        ? payload.phasePercent
+        : -1,
+  }),
+})
+
+const collapseLane = createSubstepLaneReducers({
+  phaseLabel: 'Collapse',
+  substeps: COLONIZATION_COLLAPSE_SUBSTEPS,
+  activeKey: 'activeCollapseSubstepIndex',
+  completedKey: 'completedCollapseSubstepIndex',
+  itemIndexKey: 'collapseSubstepItemIndex',
+  itemCountKey: 'collapseSubstepItemCount',
+})
+
+const tradeLane = createSubstepLaneReducers({
+  phaseLabel: 'Trade',
+  substeps: COLONIZATION_TRADE_SUBSTEPS,
+  activeKey: 'activeTradeSubstepIndex',
+  completedKey: 'completedTradeSubstepIndex',
+  itemIndexKey: 'tradeSubstepItemIndex',
+  itemCountKey: 'tradeSubstepItemCount',
+})
+
+/**
+ * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnNetworkSubstepStart(progress, payload) {
+  return networkLane.onStart(progress, payload)
+}
+
+/**
+ * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnNetworkSubstepComplete(progress, payload) {
+  return networkLane.onComplete(progress, payload)
+}
+
 /**
  * @param {EpochStepProgressState} progress
  * @param {{
@@ -315,26 +436,7 @@ export function formatNetworkSubstepItemLabel(substepLabel, itemProgress) {
  * @returns {EpochStepProgressState}
  */
 export function reduceEpochStepProgressOnNetworkSubstepItemProgress(progress, payload) {
-  const substep = COLONIZATION_NETWORK_SUBSTEPS[payload.substepIndex]
-  const epochLabel = progress.label.includes('·') ? progress.label.split(' · ')[0] : progress.label
-  const itemLabel = formatNetworkSubstepItemLabel(substep?.label ?? '', {
-    itemIndex: payload.itemIndex,
-    itemCount: payload.itemCount,
-    phase: payload.phase,
-    phasePercent: payload.phasePercent,
-  })
-  return {
-    ...progress,
-    activeNetworkSubstepIndex: payload.substepIndex,
-    networkSubstepItemIndex: payload.itemIndex,
-    networkSubstepItemCount: payload.itemCount,
-    networkSubstepPhase: payload.phase ?? '',
-    networkSubstepPhasePercent:
-      Number.isFinite(payload.phasePercent) && payload.phasePercent >= 0
-        ? payload.phasePercent
-        : -1,
-    label: `${epochLabel} · Network · ${itemLabel}`,
-  }
+  return networkLane.onItem(progress, payload)
 }
 
 /**
@@ -343,16 +445,7 @@ export function reduceEpochStepProgressOnNetworkSubstepItemProgress(progress, pa
  * @returns {EpochStepProgressState}
  */
 export function reduceEpochStepProgressOnCollapseSubstepStart(progress, payload) {
-  const substep = COLONIZATION_COLLAPSE_SUBSTEPS[payload.substepIndex]
-  return {
-    ...progress,
-    activeCollapseSubstepIndex: payload.substepIndex,
-    collapseSubstepItemIndex: -1,
-    collapseSubstepItemCount: 0,
-    label: progress.label.includes('·')
-      ? `${progress.label.split(' · ')[0]} · Collapse · ${substep?.label ?? ''}`
-      : progress.label,
-  }
+  return collapseLane.onStart(progress, payload)
 }
 
 /**
@@ -361,25 +454,7 @@ export function reduceEpochStepProgressOnCollapseSubstepStart(progress, payload)
  * @returns {EpochStepProgressState}
  */
 export function reduceEpochStepProgressOnCollapseSubstepComplete(progress, payload) {
-  return {
-    ...progress,
-    activeCollapseSubstepIndex: payload.substepIndex,
-    completedCollapseSubstepIndex: payload.substepIndex,
-    collapseSubstepItemIndex: -1,
-    collapseSubstepItemCount: 0,
-  }
-}
-
-/**
- * @param {string} substepLabel
- * @param {{ itemIndex: number, itemCount: number }} itemProgress
- * @returns {string}
- */
-export function formatCollapseSubstepItemLabel(substepLabel, itemProgress) {
-  if (itemProgress.itemCount <= 0 || itemProgress.itemIndex <= 0) {
-    return substepLabel
-  }
-  return `${substepLabel} ${itemProgress.itemIndex}/${itemProgress.itemCount}`
+  return collapseLane.onComplete(progress, payload)
 }
 
 /**
@@ -388,19 +463,7 @@ export function formatCollapseSubstepItemLabel(substepLabel, itemProgress) {
  * @returns {EpochStepProgressState}
  */
 export function reduceEpochStepProgressOnCollapseSubstepItemProgress(progress, payload) {
-  const substep = COLONIZATION_COLLAPSE_SUBSTEPS[payload.substepIndex]
-  const epochLabel = progress.label.includes('·') ? progress.label.split(' · ')[0] : progress.label
-  const itemLabel = formatCollapseSubstepItemLabel(substep?.label ?? '', {
-    itemIndex: payload.itemIndex,
-    itemCount: payload.itemCount,
-  })
-  return {
-    ...progress,
-    activeCollapseSubstepIndex: payload.substepIndex,
-    collapseSubstepItemIndex: payload.itemIndex,
-    collapseSubstepItemCount: payload.itemCount,
-    label: `${epochLabel} · Collapse · ${itemLabel}`,
-  }
+  return collapseLane.onItem(progress, payload)
 }
 
 /**
@@ -409,16 +472,7 @@ export function reduceEpochStepProgressOnCollapseSubstepItemProgress(progress, p
  * @returns {EpochStepProgressState}
  */
 export function reduceEpochStepProgressOnTradeSubstepStart(progress, payload) {
-  const substep = COLONIZATION_TRADE_SUBSTEPS[payload.substepIndex]
-  return {
-    ...progress,
-    activeTradeSubstepIndex: payload.substepIndex,
-    tradeSubstepItemIndex: -1,
-    tradeSubstepItemCount: 0,
-    label: progress.label.includes('·')
-      ? `${progress.label.split(' · ')[0]} · Trade · ${substep?.label ?? ''}`
-      : progress.label,
-  }
+  return tradeLane.onStart(progress, payload)
 }
 
 /**
@@ -427,25 +481,7 @@ export function reduceEpochStepProgressOnTradeSubstepStart(progress, payload) {
  * @returns {EpochStepProgressState}
  */
 export function reduceEpochStepProgressOnTradeSubstepComplete(progress, payload) {
-  return {
-    ...progress,
-    activeTradeSubstepIndex: payload.substepIndex,
-    completedTradeSubstepIndex: payload.substepIndex,
-    tradeSubstepItemIndex: -1,
-    tradeSubstepItemCount: 0,
-  }
-}
-
-/**
- * @param {string} substepLabel
- * @param {{ itemIndex: number, itemCount: number }} itemProgress
- * @returns {string}
- */
-export function formatTradeSubstepItemLabel(substepLabel, itemProgress) {
-  if (itemProgress.itemCount <= 0 || itemProgress.itemIndex <= 0) {
-    return substepLabel
-  }
-  return `${substepLabel} ${itemProgress.itemIndex}/${itemProgress.itemCount}`
+  return tradeLane.onComplete(progress, payload)
 }
 
 /**
@@ -454,19 +490,7 @@ export function formatTradeSubstepItemLabel(substepLabel, itemProgress) {
  * @returns {EpochStepProgressState}
  */
 export function reduceEpochStepProgressOnTradeSubstepItemProgress(progress, payload) {
-  const substep = COLONIZATION_TRADE_SUBSTEPS[payload.substepIndex]
-  const epochLabel = progress.label.includes('·') ? progress.label.split(' · ')[0] : progress.label
-  const itemLabel = formatTradeSubstepItemLabel(substep?.label ?? '', {
-    itemIndex: payload.itemIndex,
-    itemCount: payload.itemCount,
-  })
-  return {
-    ...progress,
-    activeTradeSubstepIndex: payload.substepIndex,
-    tradeSubstepItemIndex: payload.itemIndex,
-    tradeSubstepItemCount: payload.itemCount,
-    label: `${epochLabel} · Trade · ${itemLabel}`,
-  }
+  return tradeLane.onItem(progress, payload)
 }
 
 /**

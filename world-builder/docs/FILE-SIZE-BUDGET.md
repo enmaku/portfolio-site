@@ -78,11 +78,22 @@ Exclude `*.test.js` from budget enforcement unless a test file itself exceeds re
 
 | File | Budget | Notes |
 | --- | ---: | --- |
-| `src/pages/projects/WorldBuilderPage.vue` | ≤400 | Markup-heavy; logic in controller (#368) |
-| `src/composables/useWorldBuilderPageController.js` | ≤350 | App seam |
+| `src/pages/projects/WorldBuilderPage.vue` | ≤700 | Inc3 markup (economy panel, campaign kit, trade tooltip); extract target still ≤400 long-term |
+| `src/composables/useWorldBuilderPageController.js` | ≤750 | Inc3 app seam (colonization + campaign kit); extract target still ≤350 long-term |
+| `src/composables/useWorldBuilderColonization.js` | ≤750 | Colonization owner; progress/status split into dedicated composables |
 | `world-builder/worldBuilderPageModel.js` | ≤300 | Display format helpers |
 | `src/composables/useWorldBuilderGeneration.js` | ≤250 | Generation wiring |
 | `src/composables/useWorldBuilderOverlayState.js` | ≤200 | Overlay owner |
+
+### Colonization / economy (Increment 3)
+
+| File | Budget | Notes |
+| --- | ---: | --- |
+| `world-builder/core/economy/tradeClearing/runTradeClearing.js` | ≤650 | Async clearing ladder; Sync is thin generator drain |
+| `world-builder/core/economy/tradeClearing/offMapTrade.js` | ≤550 | Residual off-map steps generator |
+| `world-builder/core/colonization/tradeGraph/buildCandidateRoutes.js` | ≤600 | Candidate trade graph (colonization logistics) |
+| `world-builder/core/colonization/colonizationEpochProgress.js` | ≤650 | Epoch progress reducers (shared substep lanes) |
+| `world-builder/core/economy/economyEpochSnapshot.js` | ≤120 | Persisted inspect projection from clearing |
 
 ### Worker
 

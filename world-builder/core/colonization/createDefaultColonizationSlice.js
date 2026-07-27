@@ -15,8 +15,8 @@
 
 /**
  * @typedef {Object} TradeRouteState
- * @property {import('../economy/tradeGraph/buildCandidateRoutes.js').TradeRouteEdge[]} candidates
- * @property {import('../economy/tradeClearing/runTradeClearing.js').TradeFlow[]} activeFlows
+ * @property {import('./tradeGraph/buildCandidateRoutes.js').TradeRouteEdge[]} candidates
+ * @property {import('../economy/tradeClearing/clearingState.js').TradeFlow[]} activeFlows
  */
 
 /**
@@ -52,7 +52,7 @@
  * @property {Record<string, number>} externalTradeAccounts Port off-map credit (≥ 0).
  * @property {Record<string, number>} priorRealizedIncomeCp Last active clear's on-map export+toll income by settlement.
  * @property {TradeRouteState} tradeRouteState Candidate edges and current-epoch flows.
- * @property {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null} lastTradeEpochResult Inspect payload from last clearing.
+ * @property {import('../economy/economyEpochSnapshot.js').EconomyEpochSnapshot | null} lastTradeEpochResult Inspect payload from last clearing.
  */
 
 import { resolveExpeditions } from './expeditions/expeditionConstants.js'
@@ -62,6 +62,7 @@ import {
 } from './logisticsNodes/scoreLogisticsNodes.js'
 import { resolveRoadSegments } from './roads/roadNetwork.js'
 import { ensureSettlementMapNumbers } from './settlementMapNumber.js'
+import { resolveEconomyEpochSnapshot } from '../economy/economyEpochSnapshot.js'
 
 export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
 export const COLONIZATION_PHASE_SETUP = /** @type {const} */ ('setup')
@@ -406,15 +407,10 @@ function resolveTradeRouteState(value) {
 
 /**
  * @param {unknown} value
- * @returns {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult | null}
+ * @returns {import('../economy/economyEpochSnapshot.js').EconomyEpochSnapshot | null}
  */
 function resolveLastTradeEpochResult(value) {
-  if (!value || typeof value !== 'object') {
-    return null
-  }
-  return /** @type {import('../economy/tradeClearing/runTradeClearing.js').TradeClearingResult} */ (
-    value
-  )
+  return resolveEconomyEpochSnapshot(value)
 }
 
 /**

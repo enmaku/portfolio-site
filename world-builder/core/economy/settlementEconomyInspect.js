@@ -15,7 +15,7 @@ import { portTollIncomeCpForSettlement } from './ledgers/portTollIncomeCpForSett
 /**
  * @typedef {import('./commodityCatalog.js').CommodityId} CommodityId
  * @typedef {import('./tradeClearing/clearingState.js').CommodityTradeRole} CommodityTradeRole
- * @typedef {import('./tradeClearing/runTradeClearing.js').TradeClearingResult} TradeClearingResult
+ * @typedef {import('./economyEpochSnapshot.js').EconomyEpochSnapshot} EconomyEpochSnapshot
  * @typedef {import('./computeSettlementWealthSignals.js').EconomyInspectSource} EconomyInspectSource
  */
 

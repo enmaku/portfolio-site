@@ -12,7 +12,7 @@ import { roundMoneyCp } from '../formatMoneyCp.js'
 
 /**
  * @typedef {import('../commodityCatalog.js').CommodityId} CommodityId
- * @typedef {import('../tradeGraph/buildCandidateRoutes.js').CandidateTradeGraph} CandidateTradeGraph
+ * @typedef {import('../../colonization/tradeGraph/buildCandidateRoutes.js').CandidateTradeGraph} CandidateTradeGraph
  * @typedef {import('../tradeGraph/routeEconomics.js').TradeRouteMode} TradeRouteMode
  */
 
