@@ -78,7 +78,6 @@ export function formatMoneyCp(amountCp, options = {}) {
 
 /**
  * Local / reference unit price for a catalog commodity (e.g. `5 cp/lb`, `5k gp/gem`).
- * Timber is shown per 10 lb to match the catalog reference quote.
  *
  * @param {number} amountCp Price in copper pieces per catalog unit (lb or gem).
  * @param {import('./commodityCatalog.js').CommodityId} commodityId
@@ -86,8 +85,5 @@ export function formatMoneyCp(amountCp, options = {}) {
  * @returns {string}
  */
 export function formatCommodityPriceCp(amountCp, commodityId, options = {}) {
-  if (commodityId === 'timber') {
-    return `${formatMoneyCp(amountCp * 10, options)}/10 lb`
-  }
   return `${formatMoneyCp(amountCp, options)}/${commodityUnit(commodityId)}`
 }

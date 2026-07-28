@@ -35,7 +35,7 @@ export const COMMODITY_IDS = Object.freeze([
 ])
 
 /**
- * Reference prices: grain 1 cp/lb, fish 2 cp/lb, salt 5 cp/lb, timber 5 cp/10 lb,
+ * Reference prices: grain 1 cp/lb, fish 2 cp/lb, salt 5 cp/lb, timber 0.5 cp/lb,
  * base metals 1 sp/lb, copper 5 sp/lb, silver 5 gp/lb, gold 50 gp/lb, diamonds 5000 gp/gem.
  *
  * @type {Readonly<Record<CommodityId, CommodityDef>>}

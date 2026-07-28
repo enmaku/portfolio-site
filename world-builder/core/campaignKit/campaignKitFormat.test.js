@@ -26,7 +26,8 @@ test('campaign kit quantities and money round to integers', () => {
   assert.equal(formatCampaignKitMoneyCp(1.4), '1 cp')
   assert.equal(formatCampaignKitMoneyCp(CP_PER_SP + 0.4), '1 sp')
   assert.equal(formatCampaignKitMoneyCp(1.5 * CP_PER_GP), '2 gp')
-  assert.equal(formatCampaignKitCommodityPriceCp(1.4, 'grain'), '1 cp/lb')
+  assert.equal(formatCampaignKitCommodityPriceCp(1.4, 'grain'), '1.4 cp/lb')
+  assert.equal(formatCampaignKitCommodityPriceCp(0.5, 'timber'), '0.5 cp/lb')
 })
 
 test('formatCampaignKitHistoryKind replaces underscores with spaces', () => {

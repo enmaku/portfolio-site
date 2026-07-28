@@ -37,5 +37,5 @@ test('formatCommodityPriceCp appends catalog units', () => {
     formatCommodityPriceCp(5000 * CP_PER_GP, 'diamonds', { compact: true }),
     '5k gp/gem',
   )
-  assert.strictEqual(formatCommodityPriceCp(0.5, 'timber', { compact: true }), '5 cp/10 lb')
+  assert.strictEqual(formatCommodityPriceCp(0.5, 'timber', { compact: true }), '0.5 cp/lb')
 })
