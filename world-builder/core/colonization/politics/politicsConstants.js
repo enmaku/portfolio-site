@@ -22,3 +22,6 @@ export const VASSAL_INDEPENDENCE_EPOCHS = 3
 
 /** Sustained epochs above strategic overstretch span before hinterland peel. */
 export const OVERSTRETCH_STREAK_EPOCHS = 3
+
+/** Maximum simultaneously living (active) factions (ColorBrewer qualitative set). */
+export const MAX_ACTIVE_FACTIONS = 12

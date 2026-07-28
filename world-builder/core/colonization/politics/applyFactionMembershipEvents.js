@@ -17,6 +17,7 @@ import {
 } from './politicsConstants.js'
 import { applyVassalDefections, findAdjacentFaction } from './applyVassalDefectionEvents.js'
 import { applyStrategicOverstretchPeel } from './applyStrategicOverstretchPeel.js'
+import { createActiveFactionRecord } from './factionCap.js'
 
 /**
  * @param {{
@@ -149,19 +150,13 @@ function applyMaritimePeels(params) {
       })
     }
     const factionId = `faction-${peelId}-peel-${next.epoch}`
-    const faction = {
+    const minted = createActiveFactionRecord({
       id: factionId,
       capitalSettlementId: peelId,
       settlementIds: [peelId],
-      status: /** @type {const} */ ('active'),
       emergedEpoch: next.epoch,
-    }
-    factions.push(faction)
-    settlements = settlements.map((s) =>
-      s.id === peelId
-        ? { ...s, factionId, vassalLiegeSettlementId: null }
-        : s,
-    )
+      factions,
+    })
     pending = pending
       .map((mint) => ({
         ...mint,
@@ -169,21 +164,31 @@ function applyMaritimePeels(params) {
       }))
       .filter((mint) => mint.settlementIds.length > 0)
 
-    const emerged = {
-      kind: HISTORY_KIND_FACTION_EMERGED,
-      epoch: next.epoch,
-      factionId,
-      capitalSettlementId: peelId,
-      cause: 'maritime_peel',
+    if (minted) {
+      factions.push(minted)
+      settlements = settlements.map((s) =>
+        s.id === peelId ? { ...s, factionId, vassalLiegeSettlementId: null } : s,
+      )
+      const emerged = {
+        kind: HISTORY_KIND_FACTION_EMERGED,
+        epoch: next.epoch,
+        factionId,
+        capitalSettlementId: peelId,
+        cause: 'maritime_peel',
+      }
+      const cityState = {
+        kind: HISTORY_KIND_CITY_STATE_FOUNDING,
+        epoch: next.epoch,
+        factionId,
+        settlementId: peelId,
+      }
+      historyLog.push(emerged, cityState)
+      events.push(emerged, cityState)
+    } else {
+      settlements = settlements.map((s) =>
+        s.id === peelId ? { ...s, factionId: null, vassalLiegeSettlementId: null } : s,
+      )
     }
-    const cityState = {
-      kind: HISTORY_KIND_CITY_STATE_FOUNDING,
-      epoch: next.epoch,
-      factionId,
-      settlementId: peelId,
-    }
-    historyLog.push(emerged, cityState)
-    events.push(emerged, cityState)
   }
 
   next = {
@@ -336,12 +341,20 @@ function crystallizeDueMints(params) {
 
     const capitalSettlementId = pickCapitalId(livingIds, settlements)
     const factionId = `faction-${mint.componentKey}-${next.epoch}`
-    const faction = {
+    const faction = createActiveFactionRecord({
       id: factionId,
       capitalSettlementId,
       settlementIds: livingIds,
-      status: /** @type {const} */ ('active'),
       emergedEpoch: next.epoch,
+      factions,
+    })
+    if (!faction) {
+      // At cap: keep waiting until an active faction frees a slot.
+      remaining.push({
+        ...mint,
+        dueEpoch: next.epoch + FACTION_MINT_STAGGER_EPOCHS,
+      })
+      continue
     }
     factions.push(faction)
     settlements = settlements.map((s) => {
@@ -554,16 +567,30 @@ function resolveLoneUnaligned(params) {
       isTownTierOrHigher(settlement)
     ) {
       const factionId = `faction-${settlement.id}-unaligned-${next.epoch}`
-      const factions = [
-        ...(next.factions ?? []),
-        {
-          id: factionId,
-          capitalSettlementId: settlement.id,
-          settlementIds: [settlement.id],
-          status: /** @type {const} */ ('active'),
-          emergedEpoch: next.epoch,
-        },
-      ]
+      const minted = createActiveFactionRecord({
+        id: factionId,
+        capitalSettlementId: settlement.id,
+        settlementIds: [settlement.id],
+        emergedEpoch: next.epoch,
+        factions: next.factions ?? [],
+      })
+      if (!minted) {
+        // At cap: prefer join-first when an adjacent faction exists; else hold streak.
+        if (adjacent) {
+          const target = next.factions.find((f) => f.id === adjacent.factionId)
+          const absorbed = reabsorbUnaligned({
+            slice: next,
+            settlementId: settlement.id,
+            targetFactionId: adjacent.factionId,
+            capitalSettlementId: target?.capitalSettlementId ?? adjacent.settlementId,
+          })
+          next = absorbed.slice
+          events.push(...absorbed.events)
+          delete viability[settlement.id]
+        }
+        continue
+      }
+      const factions = [...(next.factions ?? []), minted]
       const settlements = next.settlements.map((s) =>
         s.id === settlement.id ? { ...s, factionId, vassalLiegeSettlementId: null } : s,
       )

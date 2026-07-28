@@ -297,3 +297,84 @@ test('foundDaughterSettlement mints apoikia faction when open-sea founding is be
     ),
   )
 })
+
+test('foundDaughterSettlement apoikia stays unaligned when active faction roster is at cap', () => {
+  const width = 40
+  const height = 40
+  const cellCount = width * height
+  const worldDocument = {
+    gridWidth: width,
+    gridHeight: height,
+    fields: { elevation: new Float32Array(cellCount).fill(LAND_ELEVATION) },
+    lakeMask: new Uint8Array(cellCount),
+    riverCorridorMask: new Uint8Array(cellCount),
+    movementCost: new Float32Array(cellCount).fill(1),
+    roads: [],
+    sailMask: new Uint8Array(cellCount).fill(1),
+  }
+  const filler = Array.from({ length: 11 }, (_, i) => ({
+    id: `faction-fill-${i}`,
+    capitalSettlementId: `fill-${i}`,
+    settlementIds: [`fill-${i}`],
+    status: 'active',
+    emergedEpoch: i + 1,
+    territoryPaletteIndex: i + 1,
+  }))
+  const slice = {
+    ...createDefaultColonizationSlice(),
+    colonistSettings: {
+      ...createDefaultColonizationSlice().colonistSettings,
+      threeDayHaulDistance: 5,
+      landExpeditionRange: 2,
+    },
+    settlements: [
+      {
+        id: 'origin',
+        x: 5,
+        y: 5,
+        status: 'living',
+        tier: 'town',
+        mapNumber: 1,
+        factionId: 'faction-a',
+        population: 1200,
+      },
+    ],
+    factions: [
+      {
+        id: 'faction-a',
+        capitalSettlementId: 'origin',
+        settlementIds: ['origin'],
+        status: 'active',
+        emergedEpoch: 0,
+        territoryPaletteIndex: 0,
+      },
+      ...filler,
+    ],
+    roads: [],
+    logisticsNodeSurvey: [{ x: 35, y: 35, primaryType: 'drain_city', exhausted: false, founded: false }],
+  }
+
+  const result = foundDaughterSettlement({
+    slice,
+    worldDocument,
+    candidate: {
+      x: 35,
+      y: 35,
+      node: { x: 35, y: 35, primaryType: 'drain_city', exhausted: false, founded: false },
+    },
+    originSettlementId: 'origin',
+    epoch: 3,
+    expeditionRoute: [
+      { x: 5, y: 5 },
+      { x: 35, y: 35 },
+    ],
+    progressIndex: 1,
+    mode: 'open_sea',
+  })
+
+  const daughter = result.slice.settlements.find((s) => s.id !== 'origin')
+  assert.ok(daughter)
+  assert.strictEqual(daughter.factionId, null)
+  assert.strictEqual(result.slice.factions.filter((f) => f.status === 'active').length, 12)
+  assert.ok(!result.slice.historyLog.some((h) => h.cause === 'strategic_overstretch_apoikia'))
+})

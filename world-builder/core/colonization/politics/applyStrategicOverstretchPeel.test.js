@@ -179,3 +179,46 @@ test('strategic overstretch skips peels that would mint a singleton faction', ()
   assert.equal(result.events.length, 0)
   assert.equal(result.slice.factions.length, 1)
 })
+
+test('strategic overstretch peels to unaligned when active faction roster is at cap', () => {
+  const { worldDocument, settlements, roads } = chainWorld(14)
+  const filler = Array.from({ length: 11 }, (_, i) => ({
+    id: `faction-fill-${i}`,
+    capitalSettlementId: `fill-${i}`,
+    settlementIds: [`fill-${i}`],
+    status: 'active',
+    emergedEpoch: i + 1,
+    territoryPaletteIndex: i + 1,
+  }))
+  let slice = {
+    ...createDefaultColonizationSlice(),
+    epoch: 10,
+    colonistSettings: {
+      ...createDefaultColonizationSlice().colonistSettings,
+      threeDayHaulDistance: 3,
+      strategicOverstretchSpan: 12,
+    },
+    settlements,
+    roads,
+    factions: [
+      {
+        id: 'faction-a',
+        capitalSettlementId: 's0',
+        settlementIds: settlements.map((s) => s.id),
+        status: 'active',
+        emergedEpoch: 0,
+        territoryPaletteIndex: 0,
+      },
+      ...filler,
+    ],
+    factionOverstretchStreak: { 'faction-a': OVERSTRETCH_STREAK_EPOCHS },
+  }
+
+  const peeled = applyStrategicOverstretchPeel({ slice, worldDocument })
+  assert.equal(peeled.events.filter((e) => e.cause === 'strategic_overstretch_peel').length, 0)
+  assert.equal(peeled.slice.factions.filter((f) => f.status === 'active').length, 12)
+  const parent = peeled.slice.factions.find((f) => f.id === 'faction-a')
+  assert.ok(parent.settlementIds.length < settlements.length)
+  const unaligned = peeled.slice.settlements.filter((s) => !s.factionId && s.status !== 'ruin')
+  assert.ok(unaligned.length >= 2)
+})

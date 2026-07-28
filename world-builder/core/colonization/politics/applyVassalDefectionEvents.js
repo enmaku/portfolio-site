@@ -13,6 +13,7 @@ import {
   MEMBERSHIP_REFRACTORY_EPOCHS,
   VASSAL_INDEPENDENCE_EPOCHS,
 } from './politicsConstants.js'
+import { createActiveFactionRecord } from './factionCap.js'
 import { isVassalLocallyIndependent, resolveVassalDefection } from './resolveVassalDefection.js'
 
 /**
@@ -198,23 +199,31 @@ function applyDefectionDecision(params) {
     }
   } else if (params.decision.action === 'spawn') {
     nextFactionId = `faction-${vassal.id}-spawn-${next.epoch}`
-    factions.push({
+    const minted = createActiveFactionRecord({
       id: nextFactionId,
       capitalSettlementId: vassal.id,
       settlementIds: [vassal.id],
-      status: 'active',
       emergedEpoch: next.epoch,
+      factions,
     })
-    nextLiege = null
-    const emerged = {
-      kind: HISTORY_KIND_FACTION_EMERGED,
-      epoch: next.epoch,
-      factionId: nextFactionId,
-      capitalSettlementId: vassal.id,
-      cause: 'vassal_defection',
+    if (minted) {
+      factions.push(minted)
+      nextLiege = null
+      const emerged = {
+        kind: HISTORY_KIND_FACTION_EMERGED,
+        epoch: next.epoch,
+        factionId: nextFactionId,
+        capitalSettlementId: vassal.id,
+        cause: 'vassal_defection',
+      }
+      historyLog.push(emerged)
+      events.push(emerged)
+    } else {
+      // At cap: soft unaligned (join-first already preferred upstream).
+      nextFactionId = null
+      nextLiege = null
+      cause = 'soft_unaligned'
     }
-    historyLog.push(emerged)
-    events.push(emerged)
   } else {
     nextFactionId = null
     nextLiege = null

@@ -8,7 +8,7 @@ Glossary: [`world-builder/CONTEXT.md`](../../world-builder/CONTEXT.md) (**Factio
 
 Paint **faction territory** on exclusive **primary claim** cells of each living member **settlement**—the same hinterland assignment as wealth and calorie claim. Overlapping **haul-shed** circles remain logistics geometry (latch, connectivity pressure, founding spacing) and do **not** create co-owned political fill.
 
-Presentation: one solid distinct color per living **faction**; **unaligned settlements** as neutral gray on the same overlay; no capital / **vassal** / loyalty shade or opacity bands; no faction badges as pin chrome.
+Presentation: ColorBrewer qualitative Set3 (**12** solid colors) for living **factions**; active roster capped at **12**—overflow mints prefer join-first, else **unaligned** until a slot frees; **unaligned settlements** as neutral gray on the same overlay; no capital / **vassal** / loyalty shade or opacity bands on fill; membership band instead scales settlement pin size (capital > member = **unaligned** > **vassal**); no faction badges as pin chrome.
 
 ## Consequences
 

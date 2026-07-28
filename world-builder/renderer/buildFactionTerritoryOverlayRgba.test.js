@@ -272,6 +272,15 @@ test('overlapping haul-shed geometry does not dual-fill a claimed cell', () => {
   assert.notStrictEqual(aTint[0], bTint[0])
 })
 
+test('faction palette prefers stored territoryPaletteIndex over emergence order', () => {
+  const roster = [
+    { id: 'faction-a', emergedEpoch: 0, territoryPaletteIndex: 5 },
+    { id: 'faction-b', emergedEpoch: 2, territoryPaletteIndex: 1 },
+  ]
+  assert.strictEqual(factionTerritoryPaletteIndex('faction-a', roster), 5)
+  assert.strictEqual(factionTerritoryPaletteIndex('faction-b', roster), 1)
+})
+
 test('faction palette assigns by emergence order and keeps colors when another faction goes extinct', () => {
   const roster = [
     { id: 'faction-a', emergedEpoch: 0 },
@@ -290,26 +299,20 @@ test('faction palette assigns by emergence order and keeps colors when another f
   assert.deepStrictEqual(before, afterExtinct)
 })
 
-test('first sixteen faction colors are pairwise distinct in RGB', () => {
-  assert.ok(FACTION_TERRITORY_PALETTE.length >= 16)
+test('ColorBrewer Set3 twelve faction colors are pairwise distinct in RGB', () => {
+  assert.strictEqual(FACTION_TERRITORY_PALETTE.length, 12)
   const roster = Array.from({ length: FACTION_TERRITORY_PALETTE.length }, (_, i) => ({
     id: `faction-${i}`,
     emergedEpoch: i,
+    territoryPaletteIndex: i,
   }))
   const colors = roster.map((f) => factionTerritoryRgb(f.id, roster))
   for (let i = 0; i < colors.length; i += 1) {
     for (let j = i + 1; j < colors.length; j += 1) {
       assert.ok(
-        rgbDistance(colors[i], colors[j]) >= 40,
+        rgbDistance(colors[i], colors[j]) >= 28,
         `colors ${i} and ${j} too close: ${rgbDistance(colors[i], colors[j])}`,
       )
     }
   }
-})
-
-test('palette has at most one true green and one teal in the first ring', () => {
-  const greens = FACTION_TERRITORY_PALETTE.filter(([h]) => h >= 100 && h <= 140)
-  const teals = FACTION_TERRITORY_PALETTE.filter(([h]) => h > 140 && h < 170)
-  assert.ok(greens.length <= 1)
-  assert.ok(teals.length <= 1)
 })

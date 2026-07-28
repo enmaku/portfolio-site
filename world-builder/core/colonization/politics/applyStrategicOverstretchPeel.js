@@ -12,6 +12,7 @@ import {
   MEMBERSHIP_REFRACTORY_EPOCHS,
   OVERSTRETCH_STREAK_EPOCHS,
 } from './politicsConstants.js'
+import { createActiveFactionRecord } from './factionCap.js'
 import { openLegacyRivalry } from './rivalryEdges.js'
 
 /**
@@ -115,9 +116,11 @@ export function applyStrategicOverstretchPeel(params) {
     next = peeled.slice
     events.push(...peeled.events)
     streaks[faction.id] = 0
-    streaks[newFactionId] = 0
+    if (peeled.mintedFactionId) {
+      streaks[peeled.mintedFactionId] = 0
+      cooldownBlocked.add(peeled.mintedFactionId)
+    }
     cooldownBlocked.add(faction.id)
-    cooldownBlocked.add(newFactionId)
   }
 
   // Drop streaks for extinct / missing factions
@@ -159,53 +162,74 @@ function applyPeelMint(params) {
       settlementIds: f.settlementIds.filter((id) => !memberSet.has(id)),
     }
   })
-  factions.push({
+
+  const minted = createActiveFactionRecord({
     id: newFactionId,
     capitalSettlementId,
     settlementIds: [...memberIds],
-    status: /** @type {const} */ ('active'),
     emergedEpoch: slice.epoch,
+    factions,
   })
 
-  const settlements = slice.settlements.map((s) => {
-    if (!memberSet.has(s.id)) return s
-    return {
-      ...s,
+  let rivalryEdges = slice.rivalryEdges ?? []
+  let membershipCooldown = [...(slice.membershipCooldown ?? [])]
+  let historyLog = [...(slice.historyLog ?? [])]
+  let settlements
+
+  if (minted) {
+    factions.push(minted)
+    settlements = slice.settlements.map((s) => {
+      if (!memberSet.has(s.id)) return s
+      return {
+        ...s,
+        factionId: newFactionId,
+        vassalLiegeSettlementId: s.id === capitalSettlementId ? null : capitalSettlementId,
+      }
+    })
+    const historyEntry = {
+      kind: HISTORY_KIND_FACTION_EMERGED,
+      epoch: slice.epoch,
       factionId: newFactionId,
-      vassalLiegeSettlementId: s.id === capitalSettlementId ? null : capitalSettlementId,
+      capitalSettlementId,
+      cause: 'strategic_overstretch_peel',
+      parentFactionId,
     }
-  })
-
-  const historyEntry = {
-    kind: HISTORY_KIND_FACTION_EMERGED,
-    epoch: slice.epoch,
-    factionId: newFactionId,
-    capitalSettlementId,
-    cause: 'strategic_overstretch_peel',
-    parentFactionId,
-  }
-  events.push(historyEntry)
-
-  const rivalryEdges = openLegacyRivalry(slice.rivalryEdges ?? [], {
-    aFactionId: parentFactionId,
-    bFactionId: newFactionId,
-    cause: 'legacy',
-    createdEpoch: slice.epoch,
-  })
-
-  const membershipCooldown = [
-    ...(slice.membershipCooldown ?? []),
-    {
+    events.push(historyEntry)
+    historyLog.push(historyEntry)
+    rivalryEdges = openLegacyRivalry(rivalryEdges, {
+      aFactionId: parentFactionId,
+      bFactionId: newFactionId,
+      cause: 'legacy',
+      createdEpoch: slice.epoch,
+    })
+    membershipCooldown.push(
+      {
+        subjectId: parentFactionId,
+        untilEpoch: slice.epoch + MEMBERSHIP_REFRACTORY_EPOCHS,
+        kind: 'strategic_overstretch',
+      },
+      {
+        subjectId: newFactionId,
+        untilEpoch: slice.epoch + MEMBERSHIP_REFRACTORY_EPOCHS,
+        kind: 'strategic_overstretch',
+      },
+    )
+  } else {
+    // At cap: peel hinterland to unaligned; crystallize when a slot frees.
+    settlements = slice.settlements.map((s) => {
+      if (!memberSet.has(s.id)) return s
+      return {
+        ...s,
+        factionId: null,
+        vassalLiegeSettlementId: null,
+      }
+    })
+    membershipCooldown.push({
       subjectId: parentFactionId,
       untilEpoch: slice.epoch + MEMBERSHIP_REFRACTORY_EPOCHS,
       kind: 'strategic_overstretch',
-    },
-    {
-      subjectId: newFactionId,
-      untilEpoch: slice.epoch + MEMBERSHIP_REFRACTORY_EPOCHS,
-      kind: 'strategic_overstretch',
-    },
-  ]
+    })
+  }
 
   return {
     slice: {
@@ -214,9 +238,10 @@ function applyPeelMint(params) {
       settlements,
       rivalryEdges,
       membershipCooldown,
-      historyLog: [...(slice.historyLog ?? []), historyEntry],
+      historyLog,
     },
     events,
+    mintedFactionId: minted?.id ?? null,
   }
 }
 

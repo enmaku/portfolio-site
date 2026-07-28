@@ -10,6 +10,7 @@ import { classifySettlementMaritimeRole } from './classifySettlementMaritimeRole
 import { allocateNextSettlementMapNumber } from '../settlementMapNumber.js'
 import { isWithinStrategicOverstretchReach } from '../politics/landAdminSettlementGraph.js'
 import { openLegacyRivalry } from '../politics/rivalryEdges.js'
+import { createActiveFactionRecord } from '../politics/factionCap.js'
 import { HISTORY_KIND_FACTION_EMERGED } from '../politics/historyKinds.js'
 
 /**
@@ -146,33 +147,37 @@ export function foundDaughterSettlement(params) {
 
   if (apoikia && originFactionId) {
     const factionId = `faction-${settlementId}-apoikia`
-    daughter.factionId = factionId
-    daughter.vassalLiegeSettlementId = null
-    factions = [
-      ...factions.map((f) => ({ ...f, settlementIds: [...f.settlementIds] })),
-      {
-        id: factionId,
-        capitalSettlementId: settlementId,
-        settlementIds: [settlementId],
-        status: /** @type {const} */ ('active'),
-        emergedEpoch: epoch,
-      },
-    ]
-    rivalryEdges = openLegacyRivalry(rivalryEdges, {
-      aFactionId: originFactionId,
-      bFactionId: factionId,
-      cause: 'legacy',
-      createdEpoch: epoch,
-    })
-    extraHistory.push({
-      kind: HISTORY_KIND_FACTION_EMERGED,
-      epoch,
-      factionId,
+    const minted = createActiveFactionRecord({
+      id: factionId,
       capitalSettlementId: settlementId,
-      cause: 'strategic_overstretch_apoikia',
-      originFactionId,
-      originSettlementId,
+      settlementIds: [settlementId],
+      emergedEpoch: epoch,
+      factions,
     })
+    if (minted) {
+      daughter.factionId = factionId
+      daughter.vassalLiegeSettlementId = null
+      factions = [...factions.map((f) => ({ ...f, settlementIds: [...f.settlementIds] })), minted]
+      rivalryEdges = openLegacyRivalry(rivalryEdges, {
+        aFactionId: originFactionId,
+        bFactionId: factionId,
+        cause: 'legacy',
+        createdEpoch: epoch,
+      })
+      extraHistory.push({
+        kind: HISTORY_KIND_FACTION_EMERGED,
+        epoch,
+        factionId,
+        capitalSettlementId: settlementId,
+        cause: 'strategic_overstretch_apoikia',
+        originFactionId,
+        originSettlementId,
+      })
+    } else {
+      // At active-faction cap: out-of-reach daughter stays unaligned until a slot frees.
+      daughter.factionId = null
+      daughter.vassalLiegeSettlementId = null
+    }
   } else if (originFactionId) {
     factions = factions.map((faction) => {
       if (faction.id !== originFactionId || faction.status !== 'active') return faction

@@ -74,6 +74,7 @@
  * @property {string[]} settlementIds
  * @property {'active' | 'extinct'} status
  * @property {number} emergedEpoch
+ * @property {number} [territoryPaletteIndex] ColorBrewer slot 0–11 while/after mint; optional on legacy saves.
  */
 
 /**
@@ -524,13 +525,23 @@ function resolveFactions(value) {
         typeof row.emergedEpoch === 'number' &&
         Number.isFinite(row.emergedEpoch),
     )
-    .map((row) => ({
-      id: row.id,
-      capitalSettlementId: row.capitalSettlementId,
-      settlementIds: row.settlementIds.filter((id) => typeof id === 'string'),
-      status: row.status,
-      emergedEpoch: row.emergedEpoch,
-    }))
+    .map((row) => {
+      const faction = {
+        id: row.id,
+        capitalSettlementId: row.capitalSettlementId,
+        settlementIds: row.settlementIds.filter((id) => typeof id === 'string'),
+        status: row.status,
+        emergedEpoch: row.emergedEpoch,
+      }
+      if (
+        Number.isInteger(row.territoryPaletteIndex) &&
+        row.territoryPaletteIndex >= 0 &&
+        row.territoryPaletteIndex < 12
+      ) {
+        faction.territoryPaletteIndex = row.territoryPaletteIndex
+      }
+      return faction
+    })
 }
 
 /**

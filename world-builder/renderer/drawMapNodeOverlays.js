@@ -1,12 +1,14 @@
 import {
   SETTLEMENT_ID_LABEL_COLOR,
   SETTLEMENT_ID_LABEL_FONT_SIZE,
-  SETTLEMENT_ID_LABEL_OFFSET_X,
   SETTLEMENT_ID_LABEL_OUTLINE_COLOR,
   SETTLEMENT_ID_LABEL_OUTLINE_WIDTH,
-  SETTLEMENT_NODE_MARKER_RADIUS,
   SETTLEMENT_NODE_OVERLAY_COLOR,
   SETTLEMENT_NODE_RUIN_OVERLAY_COLOR,
+  SETTLEMENT_PIN_OUTLINE_COLOR,
+  SETTLEMENT_PIN_OUTLINE_WIDTH,
+  settlementIdLabelOffsetX,
+  settlementPinMarkerRadius,
 } from './settlementNodeMarkers.js'
 import {
   mineralNodeOverlayColor,
@@ -82,12 +84,19 @@ export function drawSettlementNodes(overlay, worldDocument, resourceOverlayVisib
   overlay.clear()
 
   if (resolveSettlementNodeOverlayDrawn(resourceOverlayVisibility, worldDocument)) {
+    const factions = worldDocument.factions ?? []
     for (const settlement of worldDocument.settlements ?? []) {
       if (typeof settlement.x !== 'number' || typeof settlement.y !== 'number') {
         continue
       }
-      overlay.circle(settlement.x + 0.5, settlement.y + 0.5, SETTLEMENT_NODE_MARKER_RADIUS)
+      const radius = settlementPinMarkerRadius(settlement, factions)
+      overlay.circle(settlement.x + 0.5, settlement.y + 0.5, radius)
       overlay.fill({ color: settlementNodeColor(settlement.status), alpha: 0.9 })
+      overlay.stroke({
+        width: SETTLEMENT_PIN_OUTLINE_WIDTH,
+        color: SETTLEMENT_PIN_OUTLINE_COLOR,
+        alpha: 1,
+      })
     }
   }
 }
@@ -115,6 +124,7 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
     return
   }
 
+  const factions = worldDocument.factions ?? []
   for (const settlement of worldDocument.settlements ?? []) {
     if (
       !Number.isInteger(settlement.mapNumber) ||
@@ -137,7 +147,7 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
       },
     })
     label.anchor.set(0, 0.5)
-    label.x = settlement.x + 0.5 + SETTLEMENT_ID_LABEL_OFFSET_X
+    label.x = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions)
     label.y = settlement.y + 0.5
     overlay.addChild(label)
   }

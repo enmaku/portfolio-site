@@ -9,30 +9,26 @@ import {
   resourceRasterOverlayCanvasFromRgba,
 } from './buildResourceRasterOverlayRgba.js'
 import { SEA_LEVEL } from '../core/biomeIds.js'
+import { MAX_ACTIVE_FACTIONS } from '../core/colonization/politics/politicsConstants.js'
 
 /**
- * Qualitative HSV slots for living factions. Hues are spaced to avoid a green pile-up
- * (one green, one teal); S/V also vary so near-hues stay distinct in RGB. Length 16 covers
- * a typical heavily colonized run; later slots reuse entries with extra S/V wraps.
- * Each entry: [hue°, saturation 0–1, value 0–1].
+ * ColorBrewer qualitative Set3 (12 classes) — RGB slots for living factions.
+ * Active roster is capped at this length; palette index is assigned at mint.
+ * Source: https://colorbrewer2.org/?type=qualitative&scheme=Set3&n=12
  */
 export const FACTION_TERRITORY_PALETTE = Object.freeze([
-  Object.freeze([205, 0.8, 0.8]), // blue
-  Object.freeze([30, 0.85, 0.85]), // orange
-  Object.freeze([275, 0.72, 0.74]), // purple
-  Object.freeze([355, 0.8, 0.8]), // crimson
-  Object.freeze([155, 0.75, 0.72]), // teal
-  Object.freeze([315, 0.72, 0.8]), // magenta
-  Object.freeze([55, 0.82, 0.84]), // gold
-  Object.freeze([180, 0.72, 0.7]), // cyan
-  Object.freeze([330, 0.74, 0.76]), // rose
-  Object.freeze([120, 0.7, 0.64]), // green (single, dimmer)
-  Object.freeze([240, 0.7, 0.72]), // indigo
-  Object.freeze([10, 0.68, 0.66]), // brick red
-  Object.freeze([205, 0.4, 0.92]), // light sky (blue second ring)
-  Object.freeze([95, 0.5, 0.5]), // olive (not bright green)
-  Object.freeze([275, 0.38, 0.9]), // lavender
-  Object.freeze([45, 0.65, 0.48]), // brown-amber
+  Object.freeze([0x8d, 0xd3, 0xc7]),
+  Object.freeze([0xff, 0xff, 0xb3]),
+  Object.freeze([0xbe, 0xba, 0xda]),
+  Object.freeze([0xfb, 0x80, 0x72]),
+  Object.freeze([0x80, 0xb1, 0xd3]),
+  Object.freeze([0xfd, 0xb4, 0x62]),
+  Object.freeze([0xb3, 0xde, 0x69]),
+  Object.freeze([0xfc, 0xcd, 0xe5]),
+  Object.freeze([0xd9, 0xd9, 0xd9]),
+  Object.freeze([0xbc, 0x80, 0xbd]),
+  Object.freeze([0xcc, 0xeb, 0xc5]),
+  Object.freeze([0xff, 0xed, 0x6f]),
 ])
 
 /** Unaligned gray fill. */
@@ -44,51 +40,24 @@ export const FACTION_TERRITORY_FILL_ALPHA = 0.72
 export const FACTION_TERRITORY_CLAIM_OUTLINE_RGBA = [0, 0, 0, Math.round(0.78 * 255)]
 
 /**
- * @param {number} h degrees
- * @param {number} s 0–1
- * @param {number} v 0–1
- * @returns {number[]}
- */
-function hsvToRgb(h, s, v) {
-  const hue = ((h % 360) + 360) % 360
-  const c = v * s
-  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1))
-  const m = v - c
-  let r = 0
-  let g = 0
-  let b = 0
-  if (hue < 60) {
-    r = c
-    g = x
-  } else if (hue < 120) {
-    r = x
-    g = c
-  } else if (hue < 180) {
-    g = c
-    b = x
-  } else if (hue < 240) {
-    g = x
-    b = c
-  } else if (hue < 300) {
-    r = x
-    b = c
-  } else {
-    r = c
-    b = x
-  }
-  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)]
-}
-
-/**
- * Stable palette index for a faction: prefer emergence order across the roster (including
- * extinct) so living colors do not reshuffle when another faction dies; fall back to id hash.
+ * Stable palette index for a faction: prefer stored mint slot, then emergence order
+ * across the roster (including extinct); fall back to id hash.
  *
  * @param {string} factionId
- * @param {Array<{ id: string, emergedEpoch?: number }> | null | undefined} factions
+ * @param {Array<{ id: string, emergedEpoch?: number, territoryPaletteIndex?: number }> | null | undefined} factions
  * @returns {number}
  */
 export function factionTerritoryPaletteIndex(factionId, factions) {
   if (Array.isArray(factions) && factions.length > 0) {
+    const stored = factions.find((f) => f && f.id === factionId)
+    if (
+      stored &&
+      Number.isInteger(stored.territoryPaletteIndex) &&
+      /** @type {number} */ (stored.territoryPaletteIndex) >= 0 &&
+      /** @type {number} */ (stored.territoryPaletteIndex) < MAX_ACTIVE_FACTIONS
+    ) {
+      return /** @type {number} */ (stored.territoryPaletteIndex)
+    }
     const roster = [...factions].sort((a, b) => {
       const ae = Number.isFinite(a.emergedEpoch) ? /** @type {number} */ (a.emergedEpoch) : 0
       const be = Number.isFinite(b.emergedEpoch) ? /** @type {number} */ (b.emergedEpoch) : 0
@@ -96,30 +65,26 @@ export function factionTerritoryPaletteIndex(factionId, factions) {
       return String(a.id).localeCompare(String(b.id))
     })
     const index = roster.findIndex((f) => f && f.id === factionId)
-    if (index >= 0) return index
+    if (index >= 0) return index % FACTION_TERRITORY_PALETTE.length
   }
   let hash = 0
   for (let i = 0; i < factionId.length; i += 1) {
     hash = (hash * 31 + factionId.charCodeAt(i)) >>> 0
   }
-  return hash
+  return hash % FACTION_TERRITORY_PALETTE.length
 }
 
 /**
  * Solid RGB for a faction id (no membership / loyalty shade variation).
  *
  * @param {string} factionId
- * @param {Array<{ id: string, emergedEpoch?: number }> | null | undefined} [factions]
+ * @param {Array<{ id: string, emergedEpoch?: number, territoryPaletteIndex?: number }> | null | undefined} [factions]
  * @returns {number[]}
  */
 export function factionTerritoryRgb(factionId, factions) {
   const index = factionTerritoryPaletteIndex(factionId, factions)
-  const base = FACTION_TERRITORY_PALETTE[index % FACTION_TERRITORY_PALETTE.length]
-  const wrap = Math.floor(index / FACTION_TERRITORY_PALETTE.length)
-  const [hue, baseS, baseV] = base
-  const s = Math.min(0.92, Math.max(0.28, baseS + (wrap % 3) * 0.08 - wrap * 0.02))
-  const v = Math.min(0.94, Math.max(0.4, baseV + ((wrap + 1) % 3) * 0.06 - wrap * 0.03))
-  return hsvToRgb(hue, s, v)
+  const rgb = FACTION_TERRITORY_PALETTE[index % FACTION_TERRITORY_PALETTE.length]
+  return [rgb[0], rgb[1], rgb[2]]
 }
 
 /**
