@@ -197,3 +197,39 @@ test('buildCampaignKitModel lists unaligned settlements under realm politics wit
   assert.strictEqual(model.politics.factions.length, 1)
   assert.ok(model.politics.unalignedRisks.some((row) => row.settlementId === 'u'))
 })
+
+test('buildCampaignKitModel includes rivalry edges from the colonization slice', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = 'running'
+  slice.increment3LatchedEpoch = 4
+  slice.rivalryEdges = [
+    { aFactionId: 'faction-a', bFactionId: 'faction-b', cause: 'legacy', createdEpoch: 5 },
+  ]
+  slice.factions = [
+    {
+      id: 'faction-a',
+      capitalSettlementId: 'a',
+      settlementIds: ['a'],
+      status: 'active',
+      emergedEpoch: 0,
+    },
+    {
+      id: 'faction-b',
+      capitalSettlementId: 'b',
+      settlementIds: ['b'],
+      status: 'active',
+      emergedEpoch: 5,
+    },
+  ]
+  slice.settlements = [
+    { id: 'a', x: 0, y: 0, mapNumber: 1, status: 'living', population: 1000, tier: 'town', factionId: 'faction-a' },
+    { id: 'b', x: 1, y: 0, mapNumber: 2, status: 'living', population: 1000, tier: 'town', factionId: 'faction-b' },
+  ]
+  const model = buildCampaignKitModel(slice, {
+    geographySeed: 1,
+    gridWidth: 4,
+    gridHeight: 4,
+    biomes: new Uint8Array(16).fill(BIOMES.GRASSLAND),
+  })
+  assert.deepStrictEqual(model.politics.rivalryEdges, slice.rivalryEdges)
+})

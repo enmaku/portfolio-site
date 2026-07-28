@@ -16,6 +16,7 @@ import {
   UNALIGNED_CRYSTALLIZE_EPOCHS,
 } from './politicsConstants.js'
 import { applyVassalDefections, findAdjacentFaction } from './applyVassalDefectionEvents.js'
+import { applyStrategicOverstretchPeel } from './applyStrategicOverstretchPeel.js'
 
 /**
  * @param {{
@@ -79,6 +80,13 @@ export function applyFactionMembershipEvents(params) {
   if (latched || hasActiveFactions) {
     const succession = applyCapitalSuccession({ slice: next })
     next = succession.slice
+
+    const overstretch = applyStrategicOverstretchPeel({
+      slice: next,
+      worldDocument: params.worldDocument,
+    })
+    next = overstretch.slice
+    events.push(...overstretch.events)
 
     const defections = applyVassalDefections({
       slice: next,

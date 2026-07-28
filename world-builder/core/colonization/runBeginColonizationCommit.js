@@ -111,6 +111,7 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
           landExpeditionRange: ctx.current.colonistSettings.landExpeditionRange,
           inlandSailExpeditionRange: ctx.current.colonistSettings.inlandSailExpeditionRange,
           openSeaExpeditionRange: ctx.current.colonistSettings.openSeaExpeditionRange,
+          strategicOverstretchSpan: ctx.current.colonistSettings.strategicOverstretchSpan,
         },
       }
     },

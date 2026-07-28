@@ -2,16 +2,20 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildFactionTerritoryOverlayRgba,
-  factionTerritoryControlAlpha,
+  factionTerritoryPaletteIndex,
   factionTerritoryRgb,
-  FACTION_TERRITORY_CAPITAL_ALPHA,
-  FACTION_TERRITORY_UNALIGNED_ALPHA,
+  FACTION_TERRITORY_CLAIM_OUTLINE_RGBA,
+  FACTION_TERRITORY_FILL_ALPHA,
+  FACTION_TERRITORY_PALETTE,
   FACTION_TERRITORY_UNALIGNED_RGB,
-  FACTION_TERRITORY_VASSAL_ALPHA,
 } from './buildFactionTerritoryOverlayRgba.js'
 
 function cellOffset(x, y, gridWidth) {
   return (y * gridWidth + x) * 4
+}
+
+function rgbDistance(a, b) {
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
 }
 
 test('faction territory paints only primary claim cells', () => {
@@ -39,10 +43,10 @@ test('faction territory paints only primary claim cells', () => {
   const claim = cellOffset(3, 0, 8)
   const pin = cellOffset(0, 0, 8)
   const unclaimed = cellOffset(1, 0, 8)
-  const tint = factionTerritoryRgb('faction-a')
+  const tint = factionTerritoryRgb('faction-a', [{ id: 'faction-a', emergedEpoch: 1 }])
   assert.strictEqual(rgba[claim], tint[0])
   assert.strictEqual(rgba[claim + 1], tint[1])
-  assert.ok(rgba[claim + 3] > 0)
+  assert.strictEqual(rgba[claim + 3], Math.round(FACTION_TERRITORY_FILL_ALPHA * 255))
   assert.strictEqual(rgba[pin + 3], 0)
   assert.strictEqual(rgba[unclaimed + 3], 0)
 })
@@ -61,6 +65,7 @@ test('unaligned settlements paint gray on primary claim', () => {
   assert.strictEqual(rgba[offset], FACTION_TERRITORY_UNALIGNED_RGB[0])
   assert.strictEqual(rgba[offset + 1], FACTION_TERRITORY_UNALIGNED_RGB[1])
   assert.strictEqual(rgba[offset + 2], FACTION_TERRITORY_UNALIGNED_RGB[2])
+  assert.strictEqual(rgba[offset + 3], Math.round(FACTION_TERRITORY_FILL_ALPHA * 255))
 })
 
 test('pre-latch founding faction still paints territory', () => {
@@ -81,7 +86,9 @@ test('pre-latch founding faction still paints territory', () => {
     primaryClaim: { a: [{ x: 1, y: 1 }] },
   })
   assert.ok(rgba)
-  const tint = factionTerritoryRgb('faction-founding-a')
+  const tint = factionTerritoryRgb('faction-founding-a', [
+    { id: 'faction-founding-a', emergedEpoch: 0 },
+  ])
   const offset = cellOffset(1, 1, 4)
   assert.strictEqual(rgba[offset], tint[0])
 })
@@ -98,18 +105,149 @@ test('pre-latch with no factions paints nothing', () => {
   assert.strictEqual(rgba, null)
 })
 
-test('vassal control strength opacity is below capital', () => {
-  assert.ok(FACTION_TERRITORY_VASSAL_ALPHA < FACTION_TERRITORY_CAPITAL_ALPHA)
-  assert.ok(FACTION_TERRITORY_UNALIGNED_ALPHA < FACTION_TERRITORY_VASSAL_ALPHA)
+test('capital and vassal of the same faction share one solid tint', () => {
+  const factions = [
+    {
+      id: 'faction-a',
+      capitalSettlementId: 'a',
+      settlementIds: ['a', 'b'],
+      status: 'active',
+      emergedEpoch: 1,
+    },
+  ]
+  const rgba = buildFactionTerritoryOverlayRgba({
+    gridWidth: 8,
+    gridHeight: 8,
+    increment3LatchedEpoch: 3,
+    settlements: [
+      { id: 'a', x: 1, y: 1, status: 'living', factionId: 'faction-a' },
+      { id: 'b', x: 6, y: 1, status: 'living', factionId: 'faction-a', vassalLiegeSettlementId: 'a' },
+    ],
+    factions,
+    primaryClaim: {
+      a: [{ x: 2, y: 1 }],
+      b: [{ x: 5, y: 1 }],
+    },
+  })
+  assert.ok(rgba)
+  const tint = factionTerritoryRgb('faction-a', factions)
+  const capitalCell = cellOffset(2, 1, 8)
+  const vassalCell = cellOffset(5, 1, 8)
+  assert.strictEqual(rgba[capitalCell], tint[0])
+  assert.strictEqual(rgba[capitalCell + 1], tint[1])
+  assert.strictEqual(rgba[capitalCell + 2], tint[2])
+  assert.strictEqual(rgba[vassalCell], tint[0])
+  assert.strictEqual(rgba[vassalCell + 1], tint[1])
+  assert.strictEqual(rgba[vassalCell + 2], tint[2])
+  assert.strictEqual(rgba[capitalCell + 3], rgba[vassalCell + 3])
+})
 
-  const capital = { id: 'a', factionId: 'f1' }
-  const vassal = { id: 'b', factionId: 'f1', vassalLiegeSettlementId: 'a' }
-  const faction = { id: 'f1', capitalSettlementId: 'a' }
-  assert.strictEqual(factionTerritoryControlAlpha(capital, faction), FACTION_TERRITORY_CAPITAL_ALPHA)
-  assert.strictEqual(factionTerritoryControlAlpha(vassal, faction), FACTION_TERRITORY_VASSAL_ALPHA)
+test('omits outline between abutting claims of the same faction', () => {
+  const factions = [
+    {
+      id: 'faction-a',
+      capitalSettlementId: 'a',
+      settlementIds: ['a', 'b'],
+      status: 'active',
+      emergedEpoch: 1,
+    },
+  ]
+  const rgba = buildFactionTerritoryOverlayRgba({
+    gridWidth: 8,
+    gridHeight: 8,
+    increment3LatchedEpoch: 3,
+    settlements: [
+      { id: 'a', x: 1, y: 1, status: 'living', factionId: 'faction-a' },
+      { id: 'b', x: 6, y: 1, status: 'living', factionId: 'faction-a' },
+    ],
+    factions,
+    primaryClaim: {
+      a: [
+        { x: 2, y: 1 },
+        { x: 3, y: 1 },
+      ],
+      b: [
+        { x: 4, y: 1 },
+        { x: 5, y: 1 },
+      ],
+    },
+  })
+  assert.ok(rgba)
+  const tint = factionTerritoryRgb('faction-a', factions)
+  const aEdge = cellOffset(3, 1, 8)
+  const bEdge = cellOffset(4, 1, 8)
+  assert.strictEqual(rgba[aEdge], tint[0])
+  assert.strictEqual(rgba[aEdge + 1], tint[1])
+  assert.strictEqual(rgba[aEdge + 2], tint[2])
+  assert.strictEqual(rgba[bEdge], tint[0])
+  assert.strictEqual(rgba[bEdge + 1], tint[1])
+  assert.strictEqual(rgba[bEdge + 2], tint[2])
+  assert.notStrictEqual(rgba[aEdge + 3], FACTION_TERRITORY_CLAIM_OUTLINE_RGBA[3])
+})
+
+test('paints outline between abutting claims of different factions', () => {
+  const factions = [
+    {
+      id: 'faction-a',
+      capitalSettlementId: 'a',
+      settlementIds: ['a'],
+      status: 'active',
+      emergedEpoch: 1,
+    },
+    {
+      id: 'faction-b',
+      capitalSettlementId: 'b',
+      settlementIds: ['b'],
+      status: 'active',
+      emergedEpoch: 2,
+    },
+  ]
+  const rgba = buildFactionTerritoryOverlayRgba({
+    gridWidth: 8,
+    gridHeight: 8,
+    increment3LatchedEpoch: 3,
+    settlements: [
+      { id: 'a', x: 1, y: 1, status: 'living', factionId: 'faction-a' },
+      { id: 'b', x: 6, y: 1, status: 'living', factionId: 'faction-b' },
+    ],
+    factions,
+    primaryClaim: {
+      a: [
+        { x: 2, y: 1 },
+        { x: 3, y: 1 },
+      ],
+      b: [
+        { x: 4, y: 1 },
+        { x: 5, y: 1 },
+      ],
+    },
+  })
+  assert.ok(rgba)
+  const aEdge = cellOffset(3, 1, 8)
+  const bEdge = cellOffset(4, 1, 8)
+  assert.strictEqual(rgba[aEdge], FACTION_TERRITORY_CLAIM_OUTLINE_RGBA[0])
+  assert.strictEqual(rgba[aEdge + 3], FACTION_TERRITORY_CLAIM_OUTLINE_RGBA[3])
+  assert.strictEqual(rgba[bEdge], FACTION_TERRITORY_CLAIM_OUTLINE_RGBA[0])
+  assert.strictEqual(rgba[bEdge + 3], FACTION_TERRITORY_CLAIM_OUTLINE_RGBA[3])
 })
 
 test('overlapping haul-shed geometry does not dual-fill a claimed cell', () => {
+  const factions = [
+    {
+      id: 'faction-a',
+      capitalSettlementId: 'a',
+      settlementIds: ['a'],
+      status: 'active',
+      emergedEpoch: 1,
+    },
+    {
+      id: 'faction-b',
+      capitalSettlementId: 'b',
+      settlementIds: ['b'],
+      status: 'active',
+      emergedEpoch: 2,
+    },
+  ]
   const rgba = buildFactionTerritoryOverlayRgba({
     gridWidth: 4,
     gridHeight: 4,
@@ -118,33 +256,60 @@ test('overlapping haul-shed geometry does not dual-fill a claimed cell', () => {
       { id: 'a', x: 0, y: 0, status: 'living', factionId: 'faction-a' },
       { id: 'b', x: 3, y: 3, status: 'living', factionId: 'faction-b' },
     ],
-    factions: [
-      {
-        id: 'faction-a',
-        capitalSettlementId: 'a',
-        settlementIds: ['a'],
-        status: 'active',
-        emergedEpoch: 1,
-      },
-      {
-        id: 'faction-b',
-        capitalSettlementId: 'b',
-        settlementIds: ['b'],
-        status: 'active',
-        emergedEpoch: 2,
-      },
-    ],
+    factions,
     primaryClaim: {
       a: [{ x: 1, y: 1 }],
       b: [{ x: 2, y: 2 }],
     },
   })
   assert.ok(rgba)
-  const aTint = factionTerritoryRgb('faction-a')
-  const bTint = factionTerritoryRgb('faction-b')
+  const aTint = factionTerritoryRgb('faction-a', factions)
+  const bTint = factionTerritoryRgb('faction-b', factions)
   const aCell = cellOffset(1, 1, 4)
   const bCell = cellOffset(2, 2, 4)
   assert.strictEqual(rgba[aCell], aTint[0])
   assert.strictEqual(rgba[bCell], bTint[0])
   assert.notStrictEqual(aTint[0], bTint[0])
+})
+
+test('faction palette assigns by emergence order and keeps colors when another faction goes extinct', () => {
+  const roster = [
+    { id: 'faction-a', emergedEpoch: 0 },
+    { id: 'faction-b', emergedEpoch: 2 },
+    { id: 'faction-c', emergedEpoch: 5 },
+  ]
+  assert.strictEqual(factionTerritoryPaletteIndex('faction-a', roster), 0)
+  assert.strictEqual(factionTerritoryPaletteIndex('faction-b', roster), 1)
+  assert.strictEqual(factionTerritoryPaletteIndex('faction-c', roster), 2)
+  const before = factionTerritoryRgb('faction-b', roster)
+  const afterExtinct = factionTerritoryRgb('faction-b', [
+    { id: 'faction-a', emergedEpoch: 0 },
+    { id: 'faction-b', emergedEpoch: 2 },
+    { id: 'faction-c', emergedEpoch: 5, status: 'extinct' },
+  ])
+  assert.deepStrictEqual(before, afterExtinct)
+})
+
+test('first sixteen faction colors are pairwise distinct in RGB', () => {
+  assert.ok(FACTION_TERRITORY_PALETTE.length >= 16)
+  const roster = Array.from({ length: FACTION_TERRITORY_PALETTE.length }, (_, i) => ({
+    id: `faction-${i}`,
+    emergedEpoch: i,
+  }))
+  const colors = roster.map((f) => factionTerritoryRgb(f.id, roster))
+  for (let i = 0; i < colors.length; i += 1) {
+    for (let j = i + 1; j < colors.length; j += 1) {
+      assert.ok(
+        rgbDistance(colors[i], colors[j]) >= 40,
+        `colors ${i} and ${j} too close: ${rgbDistance(colors[i], colors[j])}`,
+      )
+    }
+  }
+})
+
+test('palette has at most one true green and one teal in the first ring', () => {
+  const greens = FACTION_TERRITORY_PALETTE.filter(([h]) => h >= 100 && h <= 140)
+  const teals = FACTION_TERRITORY_PALETTE.filter(([h]) => h > 140 && h < 170)
+  assert.ok(greens.length <= 1)
+  assert.ok(teals.length <= 1)
 })

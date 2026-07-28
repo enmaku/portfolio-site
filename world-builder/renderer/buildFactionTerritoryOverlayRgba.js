@@ -1,6 +1,6 @@
 /**
- * Faction territory overlay: paints exclusive primary-claim hinterlands by faction hue
- * with hybrid control-strength opacity. Unaligned settlements paint neutral gray.
+ * Faction territory overlay: paints exclusive primary-claim hinterlands with one solid
+ * color per faction. Unaligned settlements paint neutral gray.
  * Domain: world-builder/CONTEXT.md — Faction territory overlay; ADR 0018.
  */
 
@@ -10,16 +10,36 @@ import {
 } from './buildResourceRasterOverlayRgba.js'
 import { SEA_LEVEL } from '../core/biomeIds.js'
 
-/** Distinct hues for living factions (degrees). */
-export const FACTION_TERRITORY_HUES = Object.freeze([210, 12, 140, 280, 45, 320, 175, 85])
+/**
+ * Qualitative HSV slots for living factions. Hues are spaced to avoid a green pile-up
+ * (one green, one teal); S/V also vary so near-hues stay distinct in RGB. Length 16 covers
+ * a typical heavily colonized run; later slots reuse entries with extra S/V wraps.
+ * Each entry: [hue°, saturation 0–1, value 0–1].
+ */
+export const FACTION_TERRITORY_PALETTE = Object.freeze([
+  Object.freeze([205, 0.8, 0.8]), // blue
+  Object.freeze([30, 0.85, 0.85]), // orange
+  Object.freeze([275, 0.72, 0.74]), // purple
+  Object.freeze([355, 0.8, 0.8]), // crimson
+  Object.freeze([155, 0.75, 0.72]), // teal
+  Object.freeze([315, 0.72, 0.8]), // magenta
+  Object.freeze([55, 0.82, 0.84]), // gold
+  Object.freeze([180, 0.72, 0.7]), // cyan
+  Object.freeze([330, 0.74, 0.76]), // rose
+  Object.freeze([120, 0.7, 0.64]), // green (single, dimmer)
+  Object.freeze([240, 0.7, 0.72]), // indigo
+  Object.freeze([10, 0.68, 0.66]), // brick red
+  Object.freeze([205, 0.4, 0.92]), // light sky (blue second ring)
+  Object.freeze([95, 0.5, 0.5]), // olive (not bright green)
+  Object.freeze([275, 0.38, 0.9]), // lavender
+  Object.freeze([45, 0.65, 0.48]), // brown-amber
+])
 
 /** Unaligned gray fill. */
 export const FACTION_TERRITORY_UNALIGNED_RGB = Object.freeze([148, 148, 148])
 
-export const FACTION_TERRITORY_CAPITAL_ALPHA = 0.82
-export const FACTION_TERRITORY_MEMBER_ALPHA = 0.72
-export const FACTION_TERRITORY_VASSAL_ALPHA = 0.55
-export const FACTION_TERRITORY_UNALIGNED_ALPHA = 0.48
+/** Uniform stained-glass fill alpha for all territory cells. */
+export const FACTION_TERRITORY_FILL_ALPHA = 0.72
 
 export const FACTION_TERRITORY_CLAIM_OUTLINE_RGBA = [0, 0, 0, Math.round(0.78 * 255)]
 
@@ -60,32 +80,46 @@ function hsvToRgb(h, s, v) {
 }
 
 /**
- * Stable hue for a faction id.
+ * Stable palette index for a faction: prefer emergence order across the roster (including
+ * extinct) so living colors do not reshuffle when another faction dies; fall back to id hash.
  *
  * @param {string} factionId
- * @returns {number[]}
+ * @param {Array<{ id: string, emergedEpoch?: number }> | null | undefined} factions
+ * @returns {number}
  */
-export function factionTerritoryRgb(factionId) {
+export function factionTerritoryPaletteIndex(factionId, factions) {
+  if (Array.isArray(factions) && factions.length > 0) {
+    const roster = [...factions].sort((a, b) => {
+      const ae = Number.isFinite(a.emergedEpoch) ? /** @type {number} */ (a.emergedEpoch) : 0
+      const be = Number.isFinite(b.emergedEpoch) ? /** @type {number} */ (b.emergedEpoch) : 0
+      if (ae !== be) return ae - be
+      return String(a.id).localeCompare(String(b.id))
+    })
+    const index = roster.findIndex((f) => f && f.id === factionId)
+    if (index >= 0) return index
+  }
   let hash = 0
   for (let i = 0; i < factionId.length; i += 1) {
     hash = (hash * 31 + factionId.charCodeAt(i)) >>> 0
   }
-  const hue = FACTION_TERRITORY_HUES[hash % FACTION_TERRITORY_HUES.length]
-  return hsvToRgb(hue, 0.72, 0.78)
+  return hash
 }
 
 /**
- * @param {object} settlement
- * @param {object | undefined} faction
- * @returns {number}
+ * Solid RGB for a faction id (no membership / loyalty shade variation).
+ *
+ * @param {string} factionId
+ * @param {Array<{ id: string, emergedEpoch?: number }> | null | undefined} [factions]
+ * @returns {number[]}
  */
-export function factionTerritoryControlAlpha(settlement, faction) {
-  if (!settlement?.factionId) return FACTION_TERRITORY_UNALIGNED_ALPHA
-  if (faction && faction.capitalSettlementId === settlement.id) {
-    return FACTION_TERRITORY_CAPITAL_ALPHA
-  }
-  if (settlement.vassalLiegeSettlementId) return FACTION_TERRITORY_VASSAL_ALPHA
-  return FACTION_TERRITORY_MEMBER_ALPHA
+export function factionTerritoryRgb(factionId, factions) {
+  const index = factionTerritoryPaletteIndex(factionId, factions)
+  const base = FACTION_TERRITORY_PALETTE[index % FACTION_TERRITORY_PALETTE.length]
+  const wrap = Math.floor(index / FACTION_TERRITORY_PALETTE.length)
+  const [hue, baseS, baseV] = base
+  const s = Math.min(0.92, Math.max(0.28, baseS + (wrap % 3) * 0.08 - wrap * 0.02))
+  const v = Math.min(0.94, Math.max(0.4, baseV + ((wrap + 1) % 3) * 0.06 - wrap * 0.03))
+  return hsvToRgb(hue, s, v)
 }
 
 /**
@@ -183,26 +217,35 @@ export function buildFactionTerritoryOverlayRgba(worldDocument) {
   )
   if (settlements.length === 0) return null
 
-  const factionsById = new Map(
-    (worldDocument.factions ?? [])
-      .filter((f) => f && f.status === 'active')
-      .map((f) => [f.id, f]),
-  )
+  const factionRoster = worldDocument.factions ?? []
   const primaryClaim = worldDocument.primaryClaim ?? {}
   const rgba = new Uint8ClampedArray(gridWidth * gridHeight * 4)
+  // Outline ownership is by faction (not settlement) so abutting same-faction claims
+  // share one silhouette; unaligned settlements each keep their own key.
   const ownerByCell = new Int32Array(gridWidth * gridHeight)
+  const outlineOwnerByFactionId = new Map()
   let paintedAny = false
-  let ownerKey = 0
+  let nextOwnerKey = 0
 
   for (const settlement of settlements) {
     const cells = primaryClaim[settlement.id]
     if (!Array.isArray(cells) || cells.length === 0) continue
-    const faction = settlement.factionId ? factionsById.get(settlement.factionId) : null
     const rgb = settlement.factionId
-      ? factionTerritoryRgb(settlement.factionId)
+      ? factionTerritoryRgb(settlement.factionId, factionRoster)
       : [...FACTION_TERRITORY_UNALIGNED_RGB]
-    const alphaByte = Math.round(factionTerritoryControlAlpha(settlement, faction) * 255)
-    ownerKey += 1
+    const alphaByte = Math.round(FACTION_TERRITORY_FILL_ALPHA * 255)
+    let ownerKey
+    if (settlement.factionId) {
+      ownerKey = outlineOwnerByFactionId.get(settlement.factionId)
+      if (ownerKey == null) {
+        nextOwnerKey += 1
+        ownerKey = nextOwnerKey
+        outlineOwnerByFactionId.set(settlement.factionId, ownerKey)
+      }
+    } else {
+      nextOwnerKey += 1
+      ownerKey = nextOwnerKey
+    }
     for (const cell of cells) {
       if (!cell || !Number.isFinite(cell.x) || !Number.isFinite(cell.y)) continue
       const x = Math.trunc(cell.x)

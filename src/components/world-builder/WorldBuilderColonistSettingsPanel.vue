@@ -164,6 +164,25 @@
       :disable="runningPhase"
       @update:model-value="(value) => emitSetting('openSeaExpeditionRange', value)"
     />
+
+    <div class="row items-center no-wrap q-gutter-xs q-mb-xs q-mt-md">
+      <span class="text-caption">Strategic overstretch span</span>
+      <WorldBuilderSettingHelp
+        :text="STRATEGIC_OVERSTRETCH_SPAN_TOOLTIP"
+        label="Strategic overstretch span"
+      />
+    </div>
+    <q-slider
+      :model-value="displaySettings.strategicOverstretchSpan"
+      :min="minStrategicOverstretchSpan"
+      :max="maxStrategicOverstretchSpan"
+      :step="1"
+      label
+      color="primary"
+      data-testid="world-builder-colonist-strategic-overstretch-span"
+      :disable="runningPhase"
+      @update:model-value="(value) => emitSetting('strategicOverstretchSpan', value)"
+    />
   </div>
 </template>
 
@@ -176,6 +195,7 @@ import {
   PEOPLE_PER_HABITABLE_CELL_TOOLTIP,
   POPULATION_DENSITY_TOOLTIP,
   STARTING_POPULATION_TOOLTIP,
+  STRATEGIC_OVERSTRETCH_SPAN_TOOLTIP,
   THREE_DAY_HAUL_DISTANCE_TOOLTIP,
   YIELD_MODIFIER_TOOLTIP,
 } from '@world-builder/worldBuilderColonistSettingsControls.js'
@@ -185,12 +205,14 @@ import {
   MAX_OPEN_SEA_EXPEDITION_RANGE,
   MAX_PEOPLE_PER_HABITABLE_CELL,
   MAX_POPULATION_DENSITY,
+  MAX_STRATEGIC_OVERSTRETCH_SPAN,
   MAX_THREE_DAY_HAUL_DISTANCE,
   MIN_INLAND_SAIL_EXPEDITION_RANGE,
   MIN_LAND_EXPEDITION_RANGE,
   MIN_OPEN_SEA_EXPEDITION_RANGE,
   MIN_PEOPLE_PER_HABITABLE_CELL,
   MIN_POPULATION_DENSITY,
+  MIN_STRATEGIC_OVERSTRETCH_SPAN,
 } from '@world-builder/core/colonization/createDefaultColonizationSlice.js'
 import WorldBuilderSettingHelp from './WorldBuilderSettingHelp.vue'
 
@@ -221,6 +243,8 @@ const minInlandSailExpeditionRange = MIN_INLAND_SAIL_EXPEDITION_RANGE
 const maxInlandSailExpeditionRange = MAX_INLAND_SAIL_EXPEDITION_RANGE
 const minOpenSeaExpeditionRange = MIN_OPEN_SEA_EXPEDITION_RANGE
 const maxOpenSeaExpeditionRange = MAX_OPEN_SEA_EXPEDITION_RANGE
+const minStrategicOverstretchSpan = MIN_STRATEGIC_OVERSTRETCH_SPAN
+const maxStrategicOverstretchSpan = MAX_STRATEGIC_OVERSTRETCH_SPAN
 
 const displaySettings = computed(() =>
   props.runningPhase ? props.colonistSettingsSnapshot : props.colonistSettings,

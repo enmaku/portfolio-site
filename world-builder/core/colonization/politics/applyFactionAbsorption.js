@@ -9,6 +9,7 @@ import {
   HISTORY_KIND_FACTION_EXTINCT,
 } from './historyKinds.js'
 import { ABSORPTION_SUSTAINED_EPOCHS, MEMBERSHIP_REFRACTORY_EPOCHS } from './politicsConstants.js'
+import { transferRivalryOnAbsorb } from './rivalryEdges.js'
 
 /**
  * @param {{
@@ -315,6 +316,11 @@ function absorbFaction(params) {
     settlements,
     historyLog: [...(next.historyLog ?? []), historyEntry, extinctEntry],
     membershipCooldown,
+    rivalryEdges: transferRivalryOnAbsorb(next.rivalryEdges ?? [], {
+      loserFactionId: loser.id,
+      survivorFactionId: survivor.id,
+      createdEpoch: next.epoch,
+    }),
   }
   events.push(historyEntry, extinctEntry)
   return { slice: next, events }

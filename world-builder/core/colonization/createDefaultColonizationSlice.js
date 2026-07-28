@@ -8,9 +8,10 @@
  * @property {number} peoplePerHabitableCell Landscape packing density for the land leg of population ceiling.
  * @property {number} populationDensity Scalar on feeding and land packing (and matching food lb yields).
  * @property {YieldModifier} yieldModifier
- * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap.
+ * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap (also strategic overstretch reach).
  * @property {number} inlandSailExpeditionRange Multiplier on three-day haul distance for inland sail expedition range cap.
  * @property {number} openSeaExpeditionRange Multiplier on three-day haul distance for open-sea expedition range cap.
+ * @property {number} strategicOverstretchSpan Living member settlements a faction can hold before mid-run strategic overstretch peel.
  */
 
 /**
@@ -62,6 +63,8 @@
  * @property {Record<string, number>} unalignedViabilityStreak Lone-unaligned crystallize viability by settlement id.
  * @property {Record<string, number>} membershipCauseClearStreak Clear-and-rearm counters by subject id.
  * @property {Record<string, number>} vassalIndependenceStreak Local food independence streak by vassal settlement id.
+ * @property {Record<string, number>} factionOverstretchStreak Living-membership over-span streak by faction id.
+ * @property {RivalryEdge[]} rivalryEdges Legacy (and other) rivalry edges between living factions.
  */
 
 /**
@@ -71,6 +74,14 @@
  * @property {string[]} settlementIds
  * @property {'active' | 'extinct'} status
  * @property {number} emergedEpoch
+ */
+
+/**
+ * @typedef {Object} RivalryEdge
+ * @property {string} aFactionId
+ * @property {string} bFactionId
+ * @property {'legacy' | 'resource' | 'logistics' | 'territory' | 'belief'} cause
+ * @property {number} createdEpoch
  */
 
 /**
@@ -130,6 +141,8 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'unalignedViabilityStreak',
   'membershipCauseClearStreak',
   'vassalIndependenceStreak',
+  'factionOverstretchStreak',
+  'rivalryEdges',
 ])
 
 /** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
@@ -163,6 +176,9 @@ export const MAX_INLAND_SAIL_EXPEDITION_RANGE = 6
 export const DEFAULT_OPEN_SEA_EXPEDITION_RANGE = 8
 export const MIN_OPEN_SEA_EXPEDITION_RANGE = 4
 export const MAX_OPEN_SEA_EXPEDITION_RANGE = 12
+export const DEFAULT_STRATEGIC_OVERSTRETCH_SPAN = 12
+export const MIN_STRATEGIC_OVERSTRETCH_SPAN = 6
+export const MAX_STRATEGIC_OVERSTRETCH_SPAN = 24
 
 /**
  * @returns {TradeAccountsSlice}
@@ -191,6 +207,7 @@ export function createDefaultColonistSettings() {
     landExpeditionRange: DEFAULT_LAND_EXPEDITION_RANGE,
     inlandSailExpeditionRange: DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
     openSeaExpeditionRange: DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
+    strategicOverstretchSpan: DEFAULT_STRATEGIC_OVERSTRETCH_SPAN,
   }
 }
 
@@ -228,6 +245,8 @@ export function createDefaultColonizationSlice() {
     unalignedViabilityStreak: {},
     membershipCauseClearStreak: {},
     vassalIndependenceStreak: {},
+    factionOverstretchStreak: {},
+    rivalryEdges: [],
   }
 }
 
@@ -283,6 +302,8 @@ export function resolveColonizationSlice(value) {
     unalignedViabilityStreak: resolveStreakMap(incoming.unalignedViabilityStreak),
     membershipCauseClearStreak: resolveStreakMap(incoming.membershipCauseClearStreak),
     vassalIndependenceStreak: resolveStreakMap(incoming.vassalIndependenceStreak),
+    factionOverstretchStreak: resolveStreakMap(incoming.factionOverstretchStreak),
+    rivalryEdges: resolveRivalryEdges(incoming.rivalryEdges),
   }
 }
 
@@ -363,6 +384,12 @@ export function resolveColonistSettings(value) {
       defaults.openSeaExpeditionRange,
       MIN_OPEN_SEA_EXPEDITION_RANGE,
       MAX_OPEN_SEA_EXPEDITION_RANGE,
+    ),
+    strategicOverstretchSpan: clampIntegerRange(
+      incoming.strategicOverstretchSpan,
+      defaults.strategicOverstretchSpan,
+      MIN_STRATEGIC_OVERSTRETCH_SPAN,
+      MAX_STRATEGIC_OVERSTRETCH_SPAN,
     ),
   }
 }
@@ -564,6 +591,31 @@ function resolveStreakMap(value) {
     }
   }
   return resolved
+}
+
+/**
+ * @param {unknown} value
+ * @returns {RivalryEdge[]}
+ */
+function resolveRivalryEdges(value) {
+  if (!Array.isArray(value)) return []
+  const causes = new Set(['legacy', 'resource', 'logistics', 'territory', 'belief'])
+  return value
+    .filter(
+      (row) =>
+        row &&
+        typeof row.aFactionId === 'string' &&
+        typeof row.bFactionId === 'string' &&
+        causes.has(row.cause) &&
+        typeof row.createdEpoch === 'number' &&
+        Number.isFinite(row.createdEpoch),
+    )
+    .map((row) => ({
+      aFactionId: row.aFactionId,
+      bFactionId: row.bFactionId,
+      cause: row.cause,
+      createdEpoch: row.createdEpoch,
+    }))
 }
 
 /**

@@ -10,13 +10,16 @@ import {
   DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
   DEFAULT_PEOPLE_PER_HABITABLE_CELL,
   DEFAULT_POPULATION_DENSITY,
+  DEFAULT_STRATEGIC_OVERSTRETCH_SPAN,
   MAX_LAND_EXPEDITION_RANGE,
   MAX_PEOPLE_PER_HABITABLE_CELL,
   MAX_POPULATION_DENSITY,
+  MAX_STRATEGIC_OVERSTRETCH_SPAN,
   MAX_THREE_DAY_HAUL_DISTANCE,
   MIN_INLAND_SAIL_EXPEDITION_RANGE,
   MIN_PEOPLE_PER_HABITABLE_CELL,
   MIN_POPULATION_DENSITY,
+  MIN_STRATEGIC_OVERSTRETCH_SPAN,
   cloneColonizationSlice,
   createDefaultColonistSettings,
   createDefaultColonizationSlice,
@@ -55,6 +58,7 @@ test('createDefaultColonistSettings provides concrete defaults for every field',
   assert.strictEqual(settings.landExpeditionRange, DEFAULT_LAND_EXPEDITION_RANGE)
   assert.strictEqual(settings.inlandSailExpeditionRange, DEFAULT_INLAND_SAIL_EXPEDITION_RANGE)
   assert.strictEqual(settings.openSeaExpeditionRange, DEFAULT_OPEN_SEA_EXPEDITION_RANGE)
+  assert.strictEqual(settings.strategicOverstretchSpan, DEFAULT_STRATEGIC_OVERSTRETCH_SPAN)
 })
 
 test('resolveColonistSettings clamps people per habitable cell', () => {
@@ -99,6 +103,8 @@ test('createDefaultColonizationSlice includes empty faction politics scaffolding
   assert.deepStrictEqual(slice.unalignedViabilityStreak, {})
   assert.deepStrictEqual(slice.membershipCauseClearStreak, {})
   assert.deepStrictEqual(slice.vassalIndependenceStreak, {})
+  assert.deepStrictEqual(slice.factionOverstretchStreak, {})
+  assert.deepStrictEqual(slice.rivalryEdges, [])
 })
 
 test('serializeColonizationSessionForStorage round-trips faction politics fields', () => {
@@ -175,6 +181,21 @@ test('resolveColonistSettings clamps expedition range multipliers', () => {
   assert.strictEqual(settings.landExpeditionRange, MAX_LAND_EXPEDITION_RANGE)
   assert.strictEqual(settings.inlandSailExpeditionRange, MIN_INLAND_SAIL_EXPEDITION_RANGE)
   assert.strictEqual(settings.openSeaExpeditionRange, 12)
+})
+
+test('resolveColonistSettings clamps strategic overstretch span', () => {
+  assert.strictEqual(
+    resolveColonistSettings({ strategicOverstretchSpan: 99 }).strategicOverstretchSpan,
+    MAX_STRATEGIC_OVERSTRETCH_SPAN,
+  )
+  assert.strictEqual(
+    resolveColonistSettings({ strategicOverstretchSpan: 1 }).strategicOverstretchSpan,
+    MIN_STRATEGIC_OVERSTRETCH_SPAN,
+  )
+  assert.strictEqual(
+    resolveColonistSettings({}).strategicOverstretchSpan,
+    DEFAULT_STRATEGIC_OVERSTRETCH_SPAN,
+  )
 })
 
 test('resolveColonistSettings migrates legacy sailExpeditionRange to inland sail range', () => {

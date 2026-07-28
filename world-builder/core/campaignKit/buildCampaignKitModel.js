@@ -423,6 +423,7 @@ export function buildCampaignKitModel(slice, worldDocument) {
         landExpeditionRange: settings.landExpeditionRange,
         inlandSailExpeditionRange: settings.inlandSailExpeditionRange,
         openSeaExpeditionRange: settings.openSeaExpeditionRange,
+        strategicOverstretchSpan: settings.strategicOverstretchSpan,
       },
     },
     mapPageKeys: CAMPAIGN_KIT_MAP_PAGE_KEYS,
@@ -469,6 +470,11 @@ function buildCampaignKitPolitics(slice) {
     factions,
     unalignedSettlementIds,
     unalignedRisks,
-    rivalryEdges: [],
+    rivalryEdges: (slice.rivalryEdges ?? []).map((edge) => ({
+      aFactionId: edge.aFactionId,
+      bFactionId: edge.bFactionId,
+      cause: edge.cause,
+      createdEpoch: edge.createdEpoch,
+    })),
   }
 }
