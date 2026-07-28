@@ -12,11 +12,11 @@ import { SEA_LEVEL } from '../core/biomeIds.js'
 import { MAX_ACTIVE_FACTIONS } from '../core/colonization/politics/politicsConstants.js'
 
 /**
- * ColorBrewer qualitative Set3 (12 classes) — RGB slots for living factions.
+ * ColorBrewer qualitative Set3 (12 classes) — source RGB before baseline sat bump.
  * Active roster is capped at this length; palette index is assigned at mint.
  * Source: https://colorbrewer2.org/?type=qualitative&scheme=Set3&n=12
  */
-export const FACTION_TERRITORY_PALETTE = Object.freeze([
+const COLORBREWER_SET3_RGB = Object.freeze([
   Object.freeze([0x8d, 0xd3, 0xc7]),
   Object.freeze([0xff, 0xff, 0xb3]),
   Object.freeze([0xbe, 0xba, 0xda]),
@@ -31,6 +31,15 @@ export const FACTION_TERRITORY_PALETTE = Object.freeze([
   Object.freeze([0xff, 0xed, 0x6f]),
 ])
 
+/** Modest chroma lift so Set3 reads through stained-glass alpha (below hover boost). */
+export const FACTION_TERRITORY_BASELINE_SATURATION_BOOST = 0.18
+
+/** Saturation added on hover (clearly above baseline). */
+export const FACTION_TERRITORY_HOVER_SATURATION_BOOST = 0.42
+
+/** Near-gray fills (unaligned / Set3 gray) darken slightly on hover — no chroma to boost. */
+export const FACTION_TERRITORY_HOVER_GRAY_DARKEN = 0.18
+
 /** Unaligned gray fill. */
 export const FACTION_TERRITORY_UNALIGNED_RGB = Object.freeze([148, 148, 148])
 
@@ -38,6 +47,109 @@ export const FACTION_TERRITORY_UNALIGNED_RGB = Object.freeze([148, 148, 148])
 export const FACTION_TERRITORY_FILL_ALPHA = 0.72
 
 export const FACTION_TERRITORY_CLAIM_OUTLINE_RGBA = [0, 0, 0, Math.round(0.78 * 255)]
+
+/**
+ * @param {number} h degrees
+ * @param {number} s 0–1
+ * @param {number} v 0–1
+ * @returns {number[]}
+ */
+function hsvToRgb(h, s, v) {
+  const hue = ((h % 360) + 360) % 360
+  const c = v * s
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1))
+  const m = v - c
+  let r = 0
+  let g = 0
+  let b = 0
+  if (hue < 60) {
+    r = c
+    g = x
+  } else if (hue < 120) {
+    r = x
+    g = c
+  } else if (hue < 180) {
+    g = c
+    b = x
+  } else if (hue < 240) {
+    g = x
+    b = c
+  } else if (hue < 300) {
+    r = x
+    b = c
+  } else {
+    r = c
+    b = x
+  }
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)]
+}
+
+/**
+ * @param {number[]} rgb
+ * @returns {[number, number, number]} hue°, s 0–1, v 0–1
+ */
+function rgbToHsv(rgb) {
+  const r = rgb[0] / 255
+  const g = rgb[1] / 255
+  const b = rgb[2] / 255
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const delta = max - min
+  let h = 0
+  if (delta > 0) {
+    if (max === r) h = 60 * (((g - b) / delta) % 6)
+    else if (max === g) h = 60 * ((b - r) / delta + 2)
+    else h = 60 * ((r - g) / delta + 4)
+  }
+  if (h < 0) h += 360
+  const s = max === 0 ? 0 : delta / max
+  return [h, s, max]
+}
+
+/**
+ * @param {number[]} rgb
+ * @param {number} saturationBoost
+ * @returns {number[]}
+ */
+function boostRgbSaturation(rgb, saturationBoost) {
+  const [h, s, v] = rgbToHsv(rgb)
+  if (s < 0.06) return [rgb[0], rgb[1], rgb[2]]
+  const boost = Math.min(1, Math.max(0, saturationBoost))
+  return hsvToRgb(h, Math.min(1, s + boost), v)
+}
+
+/**
+ * Display palette: ColorBrewer Set3 with a light baseline saturation bump.
+ */
+export const FACTION_TERRITORY_PALETTE = Object.freeze(
+  COLORBREWER_SET3_RGB.map((rgb) =>
+    Object.freeze(boostRgbSaturation(rgb, FACTION_TERRITORY_BASELINE_SATURATION_BOOST)),
+  ),
+)
+
+/**
+ * Hover highlight: raise saturation further. Near-gray (unaligned) darkens a little
+ * instead, since there is no hue chroma to boost.
+ *
+ * @param {number[]} rgb
+ * @param {number} [saturationBoost]
+ * @returns {number[]}
+ */
+export function saturateFactionTerritoryRgb(
+  rgb,
+  saturationBoost = FACTION_TERRITORY_HOVER_SATURATION_BOOST,
+) {
+  const [, s] = rgbToHsv(rgb)
+  if (s < 0.06) {
+    const t = Math.min(1, Math.max(0, FACTION_TERRITORY_HOVER_GRAY_DARKEN))
+    return [
+      Math.max(0, Math.round(rgb[0] * (1 - t))),
+      Math.max(0, Math.round(rgb[1] * (1 - t))),
+      Math.max(0, Math.round(rgb[2] * (1 - t))),
+    ]
+  }
+  return boostRgbSaturation(rgb, saturationBoost)
+}
 
 /**
  * Stable palette index for a faction: prefer stored mint slot, then emergence order
@@ -151,6 +263,10 @@ function computeOutlineMask(ownerByCell, gridWidth, gridHeight) {
 }
 
 /**
+ * @typedef {{ type: 'faction', factionId: string } | { type: 'unaligned', settlementId: string }} FactionTerritoryHighlight
+ */
+
+/**
  * @param {{
  *   gridWidth: number,
  *   gridHeight: number,
@@ -162,9 +278,10 @@ function computeOutlineMask(ownerByCell, gridWidth, gridHeight) {
  *   riverCorridorMask?: Uint8Array,
  *   colonizationPhase?: string,
  * }} worldDocument
+ * @param {{ highlight?: FactionTerritoryHighlight | null }} [options]
  * @returns {Uint8ClampedArray | null}
  */
-export function buildFactionTerritoryOverlayRgba(worldDocument) {
+export function buildFactionTerritoryOverlayRgba(worldDocument, options = {}) {
   incrementResourceRasterOverlayRgbaBuildCount()
   const { gridWidth, gridHeight } = worldDocument
   if (!gridWidth || !gridHeight) return null
@@ -182,6 +299,7 @@ export function buildFactionTerritoryOverlayRgba(worldDocument) {
   )
   if (settlements.length === 0) return null
 
+  const highlight = options.highlight ?? null
   const factionRoster = worldDocument.factions ?? []
   const primaryClaim = worldDocument.primaryClaim ?? {}
   const rgba = new Uint8ClampedArray(gridWidth * gridHeight * 4)
@@ -195,9 +313,12 @@ export function buildFactionTerritoryOverlayRgba(worldDocument) {
   for (const settlement of settlements) {
     const cells = primaryClaim[settlement.id]
     if (!Array.isArray(cells) || cells.length === 0) continue
-    const rgb = settlement.factionId
+    let rgb = settlement.factionId
       ? factionTerritoryRgb(settlement.factionId, factionRoster)
       : [...FACTION_TERRITORY_UNALIGNED_RGB]
+    if (settlementMatchesTerritoryHighlight(settlement, highlight)) {
+      rgb = saturateFactionTerritoryRgb(rgb)
+    }
     const alphaByte = Math.round(FACTION_TERRITORY_FILL_ALPHA * 255)
     let ownerKey
     if (settlement.factionId) {
@@ -243,11 +364,28 @@ export function buildFactionTerritoryOverlayRgba(worldDocument) {
 }
 
 /**
+ * @param {object} settlement
+ * @param {FactionTerritoryHighlight | null | undefined} highlight
+ * @returns {boolean}
+ */
+export function settlementMatchesTerritoryHighlight(settlement, highlight) {
+  if (!highlight || !settlement) return false
+  if (highlight.type === 'faction') {
+    return Boolean(settlement.factionId) && settlement.factionId === highlight.factionId
+  }
+  if (highlight.type === 'unaligned') {
+    return !settlement.factionId && settlement.id === highlight.settlementId
+  }
+  return false
+}
+
+/**
  * @param {Parameters<typeof buildFactionTerritoryOverlayRgba>[0]} worldDocument
+ * @param {{ highlight?: FactionTerritoryHighlight | null }} [options]
  * @returns {HTMLCanvasElement | null}
  */
-export function buildFactionTerritoryOverlayCanvas(worldDocument) {
-  const rgba = buildFactionTerritoryOverlayRgba(worldDocument)
+export function buildFactionTerritoryOverlayCanvas(worldDocument, options = {}) {
+  const rgba = buildFactionTerritoryOverlayRgba(worldDocument, options)
   if (!rgba) return null
   return resourceRasterOverlayCanvasFromRgba(rgba, worldDocument.gridWidth, worldDocument.gridHeight)
 }

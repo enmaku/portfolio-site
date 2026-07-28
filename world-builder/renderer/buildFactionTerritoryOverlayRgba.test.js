@@ -4,10 +4,14 @@ import {
   buildFactionTerritoryOverlayRgba,
   factionTerritoryPaletteIndex,
   factionTerritoryRgb,
+  FACTION_TERRITORY_BASELINE_SATURATION_BOOST,
   FACTION_TERRITORY_CLAIM_OUTLINE_RGBA,
   FACTION_TERRITORY_FILL_ALPHA,
+  FACTION_TERRITORY_HOVER_SATURATION_BOOST,
   FACTION_TERRITORY_PALETTE,
   FACTION_TERRITORY_UNALIGNED_RGB,
+  saturateFactionTerritoryRgb,
+  settlementMatchesTerritoryHighlight,
 } from './buildFactionTerritoryOverlayRgba.js'
 
 function cellOffset(x, y, gridWidth) {
@@ -301,6 +305,7 @@ test('faction palette assigns by emergence order and keeps colors when another f
 
 test('ColorBrewer Set3 twelve faction colors are pairwise distinct in RGB', () => {
   assert.strictEqual(FACTION_TERRITORY_PALETTE.length, 12)
+  assert.ok(FACTION_TERRITORY_BASELINE_SATURATION_BOOST < FACTION_TERRITORY_HOVER_SATURATION_BOOST)
   const roster = Array.from({ length: FACTION_TERRITORY_PALETTE.length }, (_, i) => ({
     id: `faction-${i}`,
     emergedEpoch: i,
@@ -315,4 +320,95 @@ test('ColorBrewer Set3 twelve faction colors are pairwise distinct in RGB', () =
       )
     }
   }
+})
+
+test('hover highlight saturates only the matched faction claims', () => {
+  const factions = [
+    {
+      id: 'faction-a',
+      capitalSettlementId: 'a',
+      settlementIds: ['a', 'b'],
+      status: 'active',
+      emergedEpoch: 1,
+      territoryPaletteIndex: 0,
+    },
+    {
+      id: 'faction-b',
+      capitalSettlementId: 'c',
+      settlementIds: ['c'],
+      status: 'active',
+      emergedEpoch: 2,
+      territoryPaletteIndex: 1,
+    },
+  ]
+  const worldDocument = {
+    gridWidth: 8,
+    gridHeight: 8,
+    increment3LatchedEpoch: 3,
+    settlements: [
+      { id: 'a', x: 1, y: 1, status: 'living', factionId: 'faction-a' },
+      { id: 'b', x: 6, y: 1, status: 'living', factionId: 'faction-a' },
+      { id: 'c', x: 4, y: 4, status: 'living', factionId: 'faction-b' },
+    ],
+    factions,
+    primaryClaim: {
+      a: [{ x: 2, y: 1 }],
+      b: [{ x: 5, y: 1 }],
+      c: [{ x: 4, y: 4 }],
+    },
+  }
+  const rgba = buildFactionTerritoryOverlayRgba(worldDocument, {
+    highlight: { type: 'faction', factionId: 'faction-a' },
+  })
+  assert.ok(rgba)
+  const baseA = factionTerritoryRgb('faction-a', factions)
+  const satA = saturateFactionTerritoryRgb(baseA)
+  const baseB = factionTerritoryRgb('faction-b', factions)
+  const aCell = cellOffset(2, 1, 8)
+  const bCell = cellOffset(5, 1, 8)
+  const cCell = cellOffset(4, 4, 8)
+  assert.strictEqual(rgba[aCell], satA[0])
+  assert.strictEqual(rgba[aCell + 1], satA[1])
+  assert.strictEqual(rgba[bCell], satA[0])
+  assert.strictEqual(rgba[cCell], baseB[0])
+  assert.notDeepEqual(satA, baseA)
+  assert.ok(
+    settlementMatchesTerritoryHighlight(worldDocument.settlements[0], {
+      type: 'faction',
+      factionId: 'faction-a',
+    }),
+  )
+  assert.ok(
+    !settlementMatchesTerritoryHighlight(worldDocument.settlements[2], {
+      type: 'faction',
+      factionId: 'faction-a',
+    }),
+  )
+})
+
+test('unaligned hover highlight darkens only that settlement', () => {
+  const worldDocument = {
+    gridWidth: 4,
+    gridHeight: 4,
+    increment3LatchedEpoch: 5,
+    settlements: [
+      { id: 'u1', x: 0, y: 0, status: 'living', factionId: null },
+      { id: 'u2', x: 3, y: 3, status: 'living', factionId: null },
+    ],
+    factions: [{ id: 'faction-a', status: 'active', emergedEpoch: 0 }],
+    primaryClaim: {
+      u1: [{ x: 0, y: 0 }],
+      u2: [{ x: 3, y: 3 }],
+    },
+  }
+  const rgba = buildFactionTerritoryOverlayRgba(worldDocument, {
+    highlight: { type: 'unaligned', settlementId: 'u1' },
+  })
+  assert.ok(rgba)
+  const highlighted = saturateFactionTerritoryRgb([...FACTION_TERRITORY_UNALIGNED_RGB])
+  const u1 = cellOffset(0, 0, 4)
+  const u2 = cellOffset(3, 3, 4)
+  assert.strictEqual(rgba[u1], highlighted[0])
+  assert.ok(highlighted[0] < FACTION_TERRITORY_UNALIGNED_RGB[0])
+  assert.strictEqual(rgba[u2], FACTION_TERRITORY_UNALIGNED_RGB[0])
 })

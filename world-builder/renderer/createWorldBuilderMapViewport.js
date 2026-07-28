@@ -1,5 +1,6 @@
 import { attachLandingPlacementControls } from './attachLandingPlacementControls.js'
 import { attachSettlementHoverControls } from './attachSettlementHoverControls.js'
+import { buildFactionTerritoryOverlayCanvas } from './buildFactionTerritoryOverlayRgba.js'
 import { buildLakeOverlayCanvas } from './buildLakeOverlayCanvas.js'
 import { buildRiverOverlayCanvas } from './buildRiverOverlayCanvas.js'
 import { buildTerrainCanvas } from './buildTerrainCanvas.js'
@@ -12,6 +13,11 @@ import {
   drawSettlementIdLabels,
   drawSettlementNodes,
 } from './drawMapNodeOverlays.js'
+import {
+  buildFactionTerritoryHoverIndex,
+  factionTerritoryHighlightKey,
+  hitTestFactionTerritoryHighlight,
+} from './factionTerritoryHover.js'
 import { hideMapLayer } from './hideMapLayer.js'
 import {
   createDefaultResourceOverlayVisibility,
@@ -24,7 +30,10 @@ import {
 import { createMapLayerRefreshRunner } from './mapLayerRefresh.js'
 import { diffResourceOverlayMapLayers } from './diffResourceOverlayMapLayers.js'
 import { fitMapToView, syncViewportToHost } from './viewportFraming.js'
-import { computeRegionFocusScale } from './worldBuilderMapViewportModel.js'
+import {
+  computeRegionFocusScale,
+  resolveFactionTerritoryRasterLayerVisible,
+} from './worldBuilderMapViewportModel.js'
 
 export {
   SETTLEMENT_ID_LABEL_COLOR,
@@ -267,6 +276,11 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   /** @type {ReturnType<typeof setInterval> | null} */
   let replayTimer = null
 
+  /** @type {import('./buildFactionTerritoryOverlayRgba.js').FactionTerritoryHighlight | null} */
+  let factionTerritoryHighlight = null
+  /** @type {ReturnType<typeof buildFactionTerritoryHoverIndex>} */
+  let factionTerritoryHoverIndex = null
+
   const mapLayerRefresh = createMapLayerRefreshRunner(
     {
       terrain: refreshTerrain,
@@ -280,7 +294,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       explorationFog: () => refreshResourceRasterOverlay('explorationFog', currentWorldDocument),
       routes: () => refreshResourceRasterOverlay('routes', currentWorldDocument),
       wealth: () => refreshResourceRasterOverlay('wealth', currentWorldDocument),
-      factionTerritory: () => refreshResourceRasterOverlay('factionTerritory', currentWorldDocument),
+      factionTerritory: () => refreshFactionTerritoryOverlay(currentWorldDocument),
       rivers: () => refreshRiverOverlay(currentWorldDocument),
       lakes: () => refreshLakeOverlay(currentWorldDocument),
       coastalNodes: () => drawCoastalNodes(coastalOverlay, currentWorldDocument),
@@ -367,6 +381,36 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   /**
    * @param {import('../core/types.js').WorldDocument} doc
    */
+  function refreshFactionTerritoryOverlay(doc) {
+    const sprite = resourceRasterSprites.factionTerritory
+    resourceRasterTextures.factionTerritory?.destroy(true)
+    resourceRasterTextures.factionTerritory = null
+
+    if (!resolveFactionTerritoryRasterLayerVisible(resourceOverlayVisibility, doc)) {
+      factionTerritoryHighlight = null
+      sprite.visible = false
+      sprite.texture = Texture.EMPTY
+      return
+    }
+
+    const nextCanvas = buildFactionTerritoryOverlayCanvas(doc, {
+      highlight: factionTerritoryHighlight,
+    })
+    if (!nextCanvas) {
+      sprite.visible = false
+      sprite.texture = Texture.EMPTY
+      return
+    }
+
+    const nextTexture = Texture.from(nextCanvas)
+    resourceRasterTextures.factionTerritory = nextTexture
+    sprite.texture = nextTexture
+    sprite.visible = true
+  }
+
+  /**
+   * @param {import('../core/types.js').WorldDocument} doc
+   */
   function refreshRiverOverlay(doc) {
     const nextCanvas = buildRiverOverlayCanvas(doc)
     riverTexture?.destroy(true)
@@ -414,6 +458,48 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     getWorldDocument: () => currentWorldDocument,
   })
 
+  function invalidateFactionTerritoryHoverIndex() {
+    factionTerritoryHoverIndex = null
+  }
+
+  /**
+   * @param {import('./buildFactionTerritoryOverlayRgba.js').FactionTerritoryHighlight | null} next
+   */
+  function setFactionTerritoryHighlight(next) {
+    const prevKey = factionTerritoryHighlightKey(factionTerritoryHighlight)
+    const nextKey = factionTerritoryHighlightKey(next)
+    if (prevKey === nextKey) return
+    factionTerritoryHighlight = next
+    if (!resolveFactionTerritoryRasterLayerVisible(resourceOverlayVisibility, currentWorldDocument)) {
+      return
+    }
+    refreshMapLayers(['factionTerritory'])
+  }
+
+  viewport.on('pointermove', (event) => {
+    if (!resolveFactionTerritoryRasterLayerVisible(resourceOverlayVisibility, currentWorldDocument)) {
+      setFactionTerritoryHighlight(null)
+      return
+    }
+    if (!factionTerritoryHoverIndex) {
+      factionTerritoryHoverIndex = buildFactionTerritoryHoverIndex(currentWorldDocument)
+    }
+    const world = /** @type {{ getLocalPosition: (target: unknown) => { x: number, y: number } }} */ (
+      event
+    ).getLocalPosition(viewport)
+    setFactionTerritoryHighlight(
+      hitTestFactionTerritoryHighlight(
+        currentWorldDocument,
+        world.x,
+        world.y,
+        factionTerritoryHoverIndex,
+      ),
+    )
+  })
+  viewport.on('pointerleave', () => {
+    setFactionTerritoryHighlight(null)
+  })
+
   return {
     /**
      * @param {import('../core/types.js').WorldDocument} nextDocument
@@ -426,6 +512,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         nextDocument.gridWidth !== currentWorldDocument.gridWidth ||
         nextDocument.gridHeight !== currentWorldDocument.gridHeight
       currentWorldDocument = nextDocument
+      invalidateFactionTerritoryHoverIndex()
       refreshMapLayers(options.changedLayers)
       if (dimensionsChanged) {
         syncViewportToHost(viewport, hostEl, nextDocument.gridWidth, nextDocument.gridHeight)
@@ -521,6 +608,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       renderedOverlayState = nextOverlayState
       resourceOverlayVisibility = nextOverlayState.visibility
       arableMinimumProductivity = nextOverlayState.displaySettings.arableMinimumProductivity
+      if (!resourceOverlayVisibility.factionTerritory) {
+        factionTerritoryHighlight = null
+      }
       refreshMapLayers(changedLayers)
     },
 
