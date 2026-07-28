@@ -37,6 +37,8 @@ export function foundDaughterSettlement(params) {
   } = params
 
   const settlementId = `settlement-${candidate.x}-${candidate.y}-${epoch}`
+  const origin = slice.settlements.find((settlement) => settlement.id === originSettlementId)
+  const originFactionId = origin?.factionId ?? null
   const daughter = {
     id: settlementId,
     x: candidate.x,
@@ -52,6 +54,8 @@ export function foundDaughterSettlement(params) {
       x: candidate.x,
       y: candidate.y,
     }),
+    factionId: originFactionId,
+    vassalLiegeSettlementId: originFactionId ? originSettlementId : null,
   }
 
   const dynasty = createFoundingDynasty({
@@ -92,7 +96,6 @@ export function foundDaughterSettlement(params) {
   })
 
   let roads = slice.roads ?? []
-  const origin = slice.settlements.find((settlement) => settlement.id === originSettlementId)
   if (origin) {
     const corridor = computeFoundingRouteCorridor({
       doc: worldDocument,
@@ -118,6 +121,28 @@ export function foundDaughterSettlement(params) {
     { founded: true },
   )
 
+  let factions = slice.factions ?? []
+  let pendingComponentMints = slice.pendingComponentMints ?? []
+  if (originFactionId) {
+    factions = factions.map((faction) => {
+      if (faction.id !== originFactionId || faction.status !== 'active') return faction
+      if (faction.settlementIds.includes(settlementId)) return faction
+      return {
+        ...faction,
+        settlementIds: [...faction.settlementIds, settlementId],
+      }
+    })
+  } else if (origin) {
+    pendingComponentMints = pendingComponentMints.map((mint) => {
+      if (!mint.settlementIds.includes(originSettlementId)) return mint
+      if (mint.settlementIds.includes(settlementId)) return mint
+      return {
+        ...mint,
+        settlementIds: [...mint.settlementIds, settlementId],
+      }
+    })
+  }
+
   return {
     slice: {
       ...slice,
@@ -128,6 +153,8 @@ export function foundDaughterSettlement(params) {
       roads,
       logisticsNodeSurvey,
       realmId: slice.realmId,
+      factions,
+      pendingComponentMints,
     },
     worldDocument: {
       ...worldDocument,

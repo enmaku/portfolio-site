@@ -226,6 +226,9 @@ export function diffWorldDocumentMapLayers(previous, next) {
   ) {
     changedLayers.push('wealth')
   }
+  if (previous.primaryClaim !== next.primaryClaim || previous.factions !== next.factions) {
+    changedLayers.push('factionTerritory')
+  }
   if (riverLayerInputsChanged(previous, next)) {
     changedLayers.push('rivers')
   }
@@ -244,6 +247,7 @@ export function diffWorldDocumentMapLayers(previous, next) {
   if (nodeListChanged(previous.settlements, next.settlements)) {
     changedLayers.push('settlementNodes')
     changedLayers.push('settlementIdLabels')
+    changedLayers.push('factionTerritory')
   }
 
   return changedLayers

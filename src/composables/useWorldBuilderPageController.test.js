@@ -818,7 +818,14 @@ test('terrain authoring hides and disables colonization overlays', async () => {
         return { cancel() {} }
       },
     })
-    const colonizationOverlayIds = ['population', 'settlements', 'explorationFog', 'routes', 'wealth']
+    const colonizationOverlayIds = [
+      'population',
+      'settlements',
+      'explorationFog',
+      'routes',
+      'wealth',
+      'factionTerritory',
+    ]
 
     await ctx.start()
     await nextTick()
@@ -842,6 +849,7 @@ test('terrain authoring hides and disables colonization overlays', async () => {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.factionTerritory, false)
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.settlementIds, undefined)
 
     await ctx.colonization.resetColonization()
@@ -919,6 +927,7 @@ test('start restores running colonization from colonization cache after beginCol
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.factionTerritory, false)
     assert.strictEqual(
       colonizationCache.getRecord()?.session.colonizationPhase,
       COLONIZATION_PHASE_RUNNING,
@@ -949,7 +958,9 @@ test('start restores running colonization from colonization cache after beginCol
     assert.strictEqual(refreshed.colonization.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
     assert.strictEqual(refreshed.colonization.colonizationEpoch.value, 0)
     assert.strictEqual(refreshed.worldDocument.value?.settlements?.length, 1)
-    assert.strictEqual(refreshed.worldDocument.value?.historyLog?.length, 1)
+    assert.strictEqual(refreshed.worldDocument.value?.historyLog?.length, 2)
+    assert.ok(refreshed.worldDocument.value?.historyLog?.some((e) => e.kind === 'founding'))
+    assert.ok(refreshed.worldDocument.value?.historyLog?.some((e) => e.kind === 'faction_emerged'))
     assert.strictEqual(refreshed.colonization.timeControlsActive.value, true)
     assert.ok(refreshed.worldDocument.value?.populationCollapseRaster instanceof Float32Array)
   } finally {

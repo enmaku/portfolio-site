@@ -20,6 +20,7 @@ import {
   reduceBeginColonizationProgressOnStepComplete,
   reduceBeginColonizationProgressOnStepStart,
 } from './beginColonizationProgress.js'
+import { mintFoundingFaction } from './politics/mintFoundingFaction.js'
 
 /** @typedef {import('./beginColonizationProgress.js').BeginColonizationProgressState} BeginColonizationProgressState */
 
@@ -154,13 +155,29 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
   {
     id: 'collapse',
     async run(ctx) {
+      let settlements = ctx.ruined.settlements
+      let historyLog = ctx.ruined.historyLog
+      /** @type {import('./createDefaultColonizationSlice.js').FactionRecord[]} */
+      let factions = []
+      const livingFounding = settlements.find(
+        (s) => s && s.status !== 'ruin' && (s.population ?? 0) > 0,
+      )
+      if (livingFounding) {
+        const minted = mintFoundingFaction({ settlement: livingFounding, epoch: 0 })
+        settlements = settlements.map((s) =>
+          s.id === livingFounding.id ? minted.settlement : s,
+        )
+        historyLog = [...historyLog, minted.historyEntry]
+        factions = [minted.faction]
+      }
+
       const { slice } = await applyPopulationCollapse(
         {
           ...ctx.current,
           colonizationPhase: COLONIZATION_PHASE_RUNNING,
           epoch: 0,
-          settlements: ctx.ruined.settlements,
-          historyLog: ctx.ruined.historyLog,
+          settlements,
+          historyLog,
           primaryClaim: ctx.ruined.primaryClaim,
           notableFigures: [ctx.foundingDynasty],
           realmId: `realm-${ctx.doc.geographySeed ?? 0}-${ctx.landing.x}-${ctx.landing.y}`,
@@ -171,6 +188,7 @@ const BEGIN_COMMIT_PIPELINE = Object.freeze([
           logisticsNodeSurvey: ctx.logisticsNodeSurvey,
           externalTradeAccounts:
             ctx.foundingExternalTradeAccounts ?? ctx.current.externalTradeAccounts,
+          factions,
         },
         ctx.doc,
         { yieldToUi: ctx.yieldToUi },

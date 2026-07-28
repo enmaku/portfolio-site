@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import {
+  HISTORY_KIND_FACTION_ABSORPTION,
+  HISTORY_KIND_FACTION_EMERGED,
+  HISTORY_KIND_FACTION_EXTINCT,
+  HISTORY_KIND_INCREMENT3_LATCHED,
+  HISTORY_KIND_VASSAL_DEFECTION,
+  POLITICS_HISTORY_KINDS,
+} from './historyKinds.js'
+
+test('politics history kinds include latch membership and absorption events', () => {
+  assert.ok(POLITICS_HISTORY_KINDS.has(HISTORY_KIND_INCREMENT3_LATCHED))
+  assert.ok(POLITICS_HISTORY_KINDS.has(HISTORY_KIND_FACTION_EMERGED))
+  assert.ok(POLITICS_HISTORY_KINDS.has(HISTORY_KIND_FACTION_EXTINCT))
+  assert.ok(POLITICS_HISTORY_KINDS.has(HISTORY_KIND_FACTION_ABSORPTION))
+  assert.ok(POLITICS_HISTORY_KINDS.has(HISTORY_KIND_VASSAL_DEFECTION))
+})

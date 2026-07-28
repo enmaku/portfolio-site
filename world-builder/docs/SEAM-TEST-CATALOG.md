@@ -85,7 +85,16 @@
 | `colonization/computeHaulShedIsochrone.test.js` | `core-unit` | Movement-cost isochrone; circle fallback; uphill budget shrink | None — runs under npm run test:world-builder |
 | `colonization/computeHaulShedReachPreview.test.js` | `core-unit` | Setup haul-shed preview shares isochrone seam | None — runs under npm run test:world-builder |
 | `colonization/computePrimaryClaimMap.test.js` | `core-unit` | Exclusive primary claim; ruin pins ignored; tip serialization | None — runs under npm run test:world-builder |
-| `colonization/createDefaultColonizationSlice.test.js` | `core-unit` | Colonization slice defaults and clone independence | None — runs under npm run test:world-builder |
+| `colonization/createDefaultColonizationSlice.test.js` | `core-unit` | Colonization slice defaults and clone independence; faction politics scaffolding round-trip | None — runs under npm run test:world-builder |
+| `colonization/politics/historyKinds.test.js` | `core-unit` | Politics history kind constants | None — runs under npm run test:world-builder |
+| `colonization/politics/computeLogisticsConnectivityComponents.test.js` | `core-unit` | Haul-shed/road/sail logistics components for mint pressure | None — runs under npm run test:world-builder |
+| `colonization/politics/evaluateSupplyChainIndependence.test.js` | `core-unit` | Land and maritime supply-chain independence latch predicates | None — runs under npm run test:world-builder |
+| `colonization/politics/applyPoliticsPhase.test.js` | `core-unit` | Politics latch-once and pre-latch empty membership | None — runs under npm run test:world-builder |
+| `colonization/politics/applyFactionMembershipEvents.test.js` | `core-unit` | Staggered mint; cohort crystallize; maritime peel | None — runs under npm run test:world-builder |
+| `colonization/politics/resolveVassalDefection.test.js` | `core-unit` | Sticky membership; defection cause-split; anti-churn | None — runs under npm run test:world-builder |
+| `colonization/politics/applyFactionAbsorption.test.js` | `core-unit` | Asymmetric/mutual/war absorption; extinction; trade-only non-absorb | None — runs under npm run test:world-builder |
+| `colonization/politics/factionPoliticsIntegration.test.js` | `core-unit` | Deterministic membership history; no nested living factions | None — runs under npm run test:world-builder |
+| `colonization/politics/unalignedAndCapitalGaps.test.js` | `core-unit` | Lone unaligned crystallize/reabsorb; capital succession | None — runs under npm run test:world-builder |
 | `colonization/createFoundingDynasty.test.js` | `core-unit` | Dynasty labelKey shape from landing geography heuristic | None — runs under npm run test:world-builder |
 | `colonization/freshwater/deriveFreshwaterAvailability.test.js` | `core-unit` | Surface vs well-viable classification; shared freshwater gate | None — runs under npm run test:world-builder |
 | `colonization/resolveSurvivalTriad.test.js` | `core-unit` | Food/timber/freshwater triad; ceiling; commit clamp | None — runs under npm run test:world-builder |
@@ -186,6 +195,7 @@
 | `buildResourceRasterOverlayRgba.test.js` | `renderer-unit` | resourceRasterHatchFactor leaves transparent gaps between diagonal crosshatch ba; +8 additional cases | None — runs under npm run test:world-builder |
 | `buildRiverOverlayCanvas.test.js` | `renderer-unit` | Contract derivation or selector wiring | None — runs under npm run test:world-builder |
 | `buildSailOverlayRgba.test.js` | `renderer-unit` | Pink Sail raster adapter over deriveSailOverlayMask | None — runs under npm run test:world-builder |
+| `buildFactionTerritoryOverlayRgba.test.js` | `renderer-unit` | Primary-claim faction territory paint; unaligned gray; vassal opacity | None — runs under npm run test:world-builder |
 | `buildTimberOverlayCanvas.test.js` | `renderer-unit` | buildTimberOverlayRgba returns null when raster is absent; +2 additional cases | None — runs under npm run test:world-builder |
 | `buildTopographyContourCanvas.test.js` | `renderer-unit` | buildTopographyContourCanvas returns null for flat submerged terrain; +2 additional cases | None — runs under npm run test:world-builder |
 | `createWorldBuilderMapViewport.documentUpdate.test.js` | `viewport-behavior` | updateWorldDocument preserves overlay render cache set by syncOverlayRenderCache; +5 additional cases | May require --experimental-test-module-mocks in npm test (#369) |

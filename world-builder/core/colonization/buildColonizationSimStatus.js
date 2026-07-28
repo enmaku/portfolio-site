@@ -182,6 +182,12 @@ export function buildFoundingChronicle(slice) {
     'founding',
     'settlement_founded',
     'settlement_abandoned',
+    'increment3_latched',
+    'faction_emerged',
+    'faction_extinct',
+    'faction_absorption',
+    'vassal_defection',
+    'city_state_founding',
   ])
   return (slice.historyLog ?? [])
     .filter((entry) => allowedKinds.has(entry.kind))
@@ -191,6 +197,8 @@ export function buildFoundingChronicle(slice) {
       settlementId: entry.settlementId,
       originSettlementId: entry.originSettlementId,
       logisticsNodePrimaryType: entry.logisticsNodePrimaryType,
+      factionId: entry.factionId,
+      cause: entry.cause,
     }))
 }
 

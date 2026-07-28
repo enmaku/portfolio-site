@@ -2,6 +2,7 @@ import {
   runColonizationEpochClaimsPhase,
   runColonizationEpochCollapsePhase,
   runColonizationEpochNetworkPhase,
+  runColonizationEpochPoliticsPhase,
   runColonizationEpochRuinPhase,
   runColonizationEpochSurvivalPhase,
   runColonizationEpochTradePhase,
@@ -12,7 +13,8 @@ import {
  */
 
 /**
- * Canonical annual epoch tick: network → claims → trade → survival → ruin → collapse.
+ * Canonical annual epoch tick:
+ * network → claims → trade → survival → ruin → collapse → politics.
  * Network, trade, and collapse phases yield to the UI between substeps when
  * `options.network.yieldToUi` / `options.trade.yieldToUi` / `options.collapse.yieldToUi`
  * are provided.
@@ -22,6 +24,7 @@ import {
  *   network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions,
  *   trade?: { hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks, yieldToUi?: () => Promise<void> },
  *   collapse?: { hooks?: import('./collapsePopulation.js').CollapsePopulationHooks, yieldToUi?: () => Promise<void> },
+ *   warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }>,
  * }} [options]
  * @returns {Promise<void>}
  */
@@ -32,4 +35,5 @@ export async function runColonizationEpochPhases(ctx, options = {}) {
   runColonizationEpochSurvivalPhase(ctx, options)
   runColonizationEpochRuinPhase(ctx)
   await runColonizationEpochCollapsePhase(ctx, options)
+  runColonizationEpochPoliticsPhase(ctx, options)
 }

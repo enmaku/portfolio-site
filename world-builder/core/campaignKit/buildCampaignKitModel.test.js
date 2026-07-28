@@ -145,3 +145,55 @@ test('buildCampaignKitModel sorts dossiers by map number and stubs ruins', () =>
   )
 })
 
+
+test('buildCampaignKitModel lists unaligned settlements under realm politics without rivalry edges', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = 'running'
+  slice.epoch = 12
+  slice.realmId = 'realm-1'
+  slice.increment3LatchedEpoch = 10
+  slice.factions = [
+    {
+      id: 'faction-a',
+      capitalSettlementId: 'a',
+      settlementIds: ['a'],
+      status: 'active',
+      emergedEpoch: 11,
+    },
+  ]
+  slice.settlements = [
+    {
+      id: 'a',
+      x: 0,
+      y: 0,
+      mapNumber: 1,
+      status: 'living',
+      population: 1200,
+      tier: 'town',
+      factionId: 'faction-a',
+    },
+    {
+      id: 'u',
+      x: 2,
+      y: 2,
+      mapNumber: 2,
+      status: 'living',
+      population: 80,
+      tier: 'hamlet',
+      factionId: null,
+    },
+  ]
+
+  const model = buildCampaignKitModel(slice, {
+    geographySeed: 1,
+    gridWidth: 4,
+    gridHeight: 4,
+    biomes: new Uint8Array(16).fill(BIOMES.GRASSLAND),
+  })
+
+  assert.strictEqual(model.politics.realmId, 'realm-1')
+  assert.deepStrictEqual(model.politics.unalignedSettlementIds, ['u'])
+  assert.deepStrictEqual(model.politics.rivalryEdges, [])
+  assert.strictEqual(model.politics.factions.length, 1)
+  assert.ok(model.politics.unalignedRisks.some((row) => row.settlementId === 'u'))
+})

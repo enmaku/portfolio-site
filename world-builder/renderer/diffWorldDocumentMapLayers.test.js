@@ -190,5 +190,6 @@ test('diffWorldDocumentMapLayers detects settlement changes in pin and ID label 
   assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), [
     'settlementNodes',
     'settlementIdLabels',
+    'factionTerritory',
   ])
 })

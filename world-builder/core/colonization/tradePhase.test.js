@@ -94,9 +94,18 @@ async function runTradeSurvivalRuin(settlements, doc = tradeFixtureDoc()) {
 
 test('epoch phases run trade after claims and before survival', () => {
   const ids = COLONIZATION_EPOCH_PHASES.map((phase) => phase.id)
-  assert.deepStrictEqual(ids, ['network', 'claims', 'trade', 'survival', 'ruin', 'collapse'])
+  assert.deepStrictEqual(ids, [
+    'network',
+    'claims',
+    'trade',
+    'survival',
+    'ruin',
+    'collapse',
+    'politics',
+  ])
   assert.ok(ids.indexOf('trade') > ids.indexOf('claims'))
   assert.ok(ids.indexOf('trade') < ids.indexOf('survival'))
+  assert.ok(ids.indexOf('politics') > ids.indexOf('collapse'))
 })
 
 test('same-epoch imports keep a food-less settlement alive that would otherwise ruin', async () => {

@@ -53,6 +53,38 @@
  * @property {Record<string, number>} priorRealizedIncomeCp Last active clear's on-map export+toll income by settlement.
  * @property {TradeRouteState} tradeRouteState Candidate edges and current-epoch flows.
  * @property {import('../economy/economyEpochSnapshot.js').EconomyEpochSnapshot | null} lastTradeEpochResult Inspect payload from last clearing.
+ * @property {number | null} increment3LatchedEpoch Epoch when supply-chain independence latched; null until latch.
+ * @property {FactionRecord[]} factions Living and extinct faction roster (sticky membership).
+ * @property {MembershipCooldownEntry[]} membershipCooldown Anti-churn refractory floors.
+ * @property {PendingComponentMint[]} pendingComponentMints Staggered post-latch faction mint queue.
+ * @property {Record<string, number>} factionDependenceStreak Asymmetric dependence streak keys `weak->strong`.
+ * @property {Record<string, number>} mutualReintegrationStreak Mutual reintegration streak keys `idA|idB`.
+ * @property {Record<string, number>} unalignedViabilityStreak Lone-unaligned crystallize viability by settlement id.
+ * @property {Record<string, number>} membershipCauseClearStreak Clear-and-rearm counters by subject id.
+ * @property {Record<string, number>} vassalIndependenceStreak Local food independence streak by vassal settlement id.
+ */
+
+/**
+ * @typedef {Object} FactionRecord
+ * @property {string} id
+ * @property {string} capitalSettlementId
+ * @property {string[]} settlementIds
+ * @property {'active' | 'extinct'} status
+ * @property {number} emergedEpoch
+ */
+
+/**
+ * @typedef {Object} MembershipCooldownEntry
+ * @property {string} subjectId Settlement or faction id under refractory.
+ * @property {number} untilEpoch Inclusive epoch until which inverse flips are blocked.
+ * @property {string} kind Cooldown cause (e.g. vassal_defection, faction_absorption).
+ */
+
+/**
+ * @typedef {Object} PendingComponentMint
+ * @property {string} componentKey Deterministic logistics-connectivity component key.
+ * @property {string[]} settlementIds Living pins waiting to crystallize together.
+ * @property {number} dueEpoch Epoch when the cohort mints.
  */
 
 import { resolveExpeditions } from './expeditions/expeditionConstants.js'
@@ -89,6 +121,15 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'priorRealizedIncomeCp',
   'tradeRouteState',
   'lastTradeEpochResult',
+  'increment3LatchedEpoch',
+  'factions',
+  'membershipCooldown',
+  'pendingComponentMints',
+  'factionDependenceStreak',
+  'mutualReintegrationStreak',
+  'unalignedViabilityStreak',
+  'membershipCauseClearStreak',
+  'vassalIndependenceStreak',
 ])
 
 /** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
@@ -178,6 +219,15 @@ export function createDefaultColonizationSlice() {
     priorRealizedIncomeCp: {},
     tradeRouteState: createEmptyTradeRouteState(),
     lastTradeEpochResult: null,
+    increment3LatchedEpoch: null,
+    factions: [],
+    membershipCooldown: [],
+    pendingComponentMints: [],
+    factionDependenceStreak: {},
+    mutualReintegrationStreak: {},
+    unalignedViabilityStreak: {},
+    membershipCauseClearStreak: {},
+    vassalIndependenceStreak: {},
   }
 }
 
@@ -224,6 +274,15 @@ export function resolveColonizationSlice(value) {
     priorRealizedIncomeCp: resolvePriorRealizedIncomeCp(incoming.priorRealizedIncomeCp),
     tradeRouteState: resolveTradeRouteState(incoming.tradeRouteState),
     lastTradeEpochResult: resolveLastTradeEpochResult(incoming.lastTradeEpochResult),
+    increment3LatchedEpoch: resolveIncrement3LatchedEpoch(incoming.increment3LatchedEpoch),
+    factions: resolveFactions(incoming.factions),
+    membershipCooldown: resolveMembershipCooldown(incoming.membershipCooldown),
+    pendingComponentMints: resolvePendingComponentMints(incoming.pendingComponentMints),
+    factionDependenceStreak: resolveStreakMap(incoming.factionDependenceStreak),
+    mutualReintegrationStreak: resolveStreakMap(incoming.mutualReintegrationStreak),
+    unalignedViabilityStreak: resolveStreakMap(incoming.unalignedViabilityStreak),
+    membershipCauseClearStreak: resolveStreakMap(incoming.membershipCauseClearStreak),
+    vassalIndependenceStreak: resolveStreakMap(incoming.vassalIndependenceStreak),
   }
 }
 
@@ -411,6 +470,100 @@ function resolveTradeRouteState(value) {
  */
 function resolveLastTradeEpochResult(value) {
   return resolveEconomyEpochSnapshot(value)
+}
+
+/**
+ * @param {unknown} value
+ * @returns {number | null}
+ */
+function resolveIncrement3LatchedEpoch(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+/**
+ * @param {unknown} value
+ * @returns {FactionRecord[]}
+ */
+function resolveFactions(value) {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(
+      (row) =>
+        row &&
+        typeof row.id === 'string' &&
+        typeof row.capitalSettlementId === 'string' &&
+        Array.isArray(row.settlementIds) &&
+        (row.status === 'active' || row.status === 'extinct') &&
+        typeof row.emergedEpoch === 'number' &&
+        Number.isFinite(row.emergedEpoch),
+    )
+    .map((row) => ({
+      id: row.id,
+      capitalSettlementId: row.capitalSettlementId,
+      settlementIds: row.settlementIds.filter((id) => typeof id === 'string'),
+      status: row.status,
+      emergedEpoch: row.emergedEpoch,
+    }))
+}
+
+/**
+ * @param {unknown} value
+ * @returns {MembershipCooldownEntry[]}
+ */
+function resolveMembershipCooldown(value) {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(
+      (row) =>
+        row &&
+        typeof row.subjectId === 'string' &&
+        typeof row.untilEpoch === 'number' &&
+        Number.isFinite(row.untilEpoch) &&
+        typeof row.kind === 'string',
+    )
+    .map((row) => ({
+      subjectId: row.subjectId,
+      untilEpoch: row.untilEpoch,
+      kind: row.kind,
+    }))
+}
+
+/**
+ * @param {unknown} value
+ * @returns {PendingComponentMint[]}
+ */
+function resolvePendingComponentMints(value) {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(
+      (row) =>
+        row &&
+        typeof row.componentKey === 'string' &&
+        Array.isArray(row.settlementIds) &&
+        typeof row.dueEpoch === 'number' &&
+        Number.isFinite(row.dueEpoch),
+    )
+    .map((row) => ({
+      componentKey: row.componentKey,
+      settlementIds: row.settlementIds.filter((id) => typeof id === 'string'),
+      dueEpoch: row.dueEpoch,
+    }))
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, number>}
+ */
+function resolveStreakMap(value) {
+  if (!value || typeof value !== 'object') return {}
+  /** @type {Record<string, number>} */
+  const resolved = {}
+  for (const [key, streak] of Object.entries(value)) {
+    if (typeof streak === 'number' && Number.isFinite(streak) && streak > 0) {
+      resolved[key] = Math.floor(streak)
+    }
+  }
+  return resolved
 }
 
 /**

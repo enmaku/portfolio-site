@@ -107,6 +107,13 @@ import { CAMPAIGN_KIT_MAP_PAGE_KEYS } from './campaignKitOverlayPresets.js'
  * }} header
  * @property {typeof CAMPAIGN_KIT_MAP_PAGE_KEYS} mapPageKeys
  * @property {CampaignKitSettlementDossier[]} settlements
+ * @property {{
+ *   realmId: string | null,
+ *   increment3LatchedEpoch: number | null,
+ *   factions: Array<{ id: string, capitalSettlementId: string, settlementIds: string[], status: string, emergedEpoch: number }>,
+ *   unalignedSettlementIds: string[],
+ *   rivalryEdges: Array<{ fromFactionId: string, toFactionId: string }>,
+ * }} politics
  */
 
 /**
@@ -420,5 +427,48 @@ export function buildCampaignKitModel(slice, worldDocument) {
     },
     mapPageKeys: CAMPAIGN_KIT_MAP_PAGE_KEYS,
     settlements,
+    politics: buildCampaignKitPolitics(slice),
+  }
+}
+
+/**
+ * Unaligned free towns list under the realm; rivalry edges only between living factions.
+ *
+ * @param {ColonizationSlice} slice
+ */
+function buildCampaignKitPolitics(slice) {
+  const latched = slice.increment3LatchedEpoch != null
+  const living = (slice.settlements ?? []).filter(
+    (s) => s && s.status !== 'ruin' && (s.population === undefined || s.population > 0),
+  )
+  const unalignedSettlementIds = latched
+    ? living.filter((s) => !s.factionId).map((s) => s.id)
+    : []
+  const pendingBySettlement = new Map()
+  for (const mint of slice.pendingComponentMints ?? []) {
+    for (const id of mint.settlementIds) {
+      pendingBySettlement.set(id, mint.dueEpoch)
+    }
+  }
+  const viability = slice.unalignedViabilityStreak ?? {}
+  const unalignedRisks = unalignedSettlementIds.map((settlementId) => ({
+    settlementId,
+    pendingMintDueEpoch: pendingBySettlement.get(settlementId) ?? null,
+    loneViabilityStreak: viability[settlementId] ?? 0,
+  }))
+  const factions = (slice.factions ?? []).map((faction) => ({
+    id: faction.id,
+    capitalSettlementId: faction.capitalSettlementId,
+    settlementIds: [...(faction.settlementIds ?? [])],
+    status: faction.status,
+    emergedEpoch: faction.emergedEpoch,
+  }))
+  return {
+    realmId: slice.realmId ?? null,
+    increment3LatchedEpoch: slice.increment3LatchedEpoch ?? null,
+    factions,
+    unalignedSettlementIds,
+    unalignedRisks,
+    rivalryEdges: [],
   }
 }

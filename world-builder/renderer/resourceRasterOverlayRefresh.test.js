@@ -129,6 +129,26 @@ function createWealthFixture() {
   }
 }
 
+function createFactionTerritoryFixture() {
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    colonizationPhase: 'running',
+    increment3LatchedEpoch: 1,
+    settlements: [{ id: 'a', x: 2, y: 2, factionId: 'faction-a' }],
+    factions: [
+      {
+        id: 'faction-a',
+        capitalSettlementId: 'a',
+        settlementIds: ['a'],
+        status: 'active',
+        emergedEpoch: 1,
+      },
+    ],
+    primaryClaim: { a: [{ x: 2, y: 2 }] },
+  }
+}
+
 function createUnifiedRasterFixture() {
   const cellCount = 64
   const arableRaster = new Float32Array(cellCount)
@@ -170,6 +190,7 @@ test('RESOURCE_RASTER_OVERLAY_LAYER_IDS lists raster overlay layers from definit
     'explorationFog',
     'routes',
     'wealth',
+    'factionTerritory',
   ])
 })
 
@@ -266,7 +287,9 @@ test('refreshResourceRasterOverlayCanvas performs at most one RGBA build per lay
                     ? createRoutesFixture()
                     : resourceId === 'wealth'
                       ? createWealthFixture()
-                      : createSailFixture()
+                      : resourceId === 'factionTerritory'
+                        ? createFactionTerritoryFixture()
+                        : createSailFixture()
     const visibility = applyResourceOverlayVisibility(
       createDefaultResourceOverlayVisibility(),
       resourceId,

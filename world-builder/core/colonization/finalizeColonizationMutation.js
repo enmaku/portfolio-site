@@ -80,6 +80,7 @@ async function runColonizationMapSubsteps(ports, handlers) {
   await runSubstep(5, () => ports.applyLayer(merged, 'routes'))
   await runSubstep(6, async () => {
     await ports.applyLayer(merged, 'wealth')
+    await ports.applyLayer(merged, 'factionTerritory')
     await ports.applyLayer(merged, 'settlementNodes')
     await ports.applyLayer(merged, 'settlementIdLabels')
     await ports.onComplete()

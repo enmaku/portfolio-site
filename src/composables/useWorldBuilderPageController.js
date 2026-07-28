@@ -63,9 +63,10 @@ const COLONIZATION_OVERLAY_IDS = new Set([
   'explorationFog',
   'routes',
   'wealth',
+  'factionTerritory',
 ])
 
-/** Auto-enabled once when `running` begins; wealth stays off until the user opts in. */
+/** Auto-enabled once when `running` begins; wealth and faction territory stay off until the user opts in. */
 const COLONIZATION_OVERLAYS_AUTO_ENABLED_ON_RUNNING = new Set([
   'population',
   'settlements',

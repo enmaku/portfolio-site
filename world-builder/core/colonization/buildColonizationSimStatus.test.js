@@ -139,3 +139,18 @@ test('shouldShowValidationAdvisory hides after epoch 0 in running', () => {
   assert.strictEqual(shouldShowValidationAdvisory('running', 0, 1), true)
   assert.strictEqual(shouldShowValidationAdvisory('running', 1, 1), false)
 })
+
+test('buildFoundingChronicle includes faction politics history kinds', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.historyLog = [
+    { kind: 'increment3_latched', epoch: 5 },
+    { kind: 'faction_emerged', epoch: 7, factionId: 'faction-a' },
+    { kind: 'vassal_defection', epoch: 8, settlementId: 's2', cause: 'spawn' },
+    { kind: 'other', epoch: 9 },
+  ]
+  const chronicle = buildFoundingChronicle(slice)
+  assert.strictEqual(chronicle.length, 3)
+  assert.strictEqual(chronicle[0].kind, 'increment3_latched')
+  assert.strictEqual(chronicle[1].factionId, 'faction-a')
+  assert.strictEqual(chronicle[2].cause, 'spawn')
+})

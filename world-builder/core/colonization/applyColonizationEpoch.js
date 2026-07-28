@@ -9,6 +9,7 @@ import { clearRealmTrade } from '../economy/tradeClearing/clearRealmTrade.js'
 import { buildRealmTradeClearingInput } from './buildRealmTradeClearingInput.js'
 import { combinedSettlementWealthCp } from '../economy/ledgers/combinedSettlementWealthCp.js'
 import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
+import { applyPoliticsPhase } from './politics/applyPoliticsPhase.js'
 
 /**
  * @typedef {Object} ColonizationEpochContext
@@ -178,8 +179,6 @@ export function runColonizationEpochRuinPhase(ctx) {
     externalTradeAccounts: ctx.slice.externalTradeAccounts,
   })
 
-  applyPoliticsPhaseNoop()
-
   ctx.slice = {
     ...ctx.slice,
     epoch: nextEpoch,
@@ -214,8 +213,26 @@ export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
 }
 
 /**
+ * Politics after survival/ruin/collapse: latch, sticky membership, absorption.
+ *
+ * @param {ColonizationEpochContext} ctx
+ * @param {{ warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }> }} [options]
+ */
+export function runColonizationEpochPoliticsPhase(ctx, options = {}) {
+  const politics = applyPoliticsPhase({
+    slice: ctx.slice,
+    worldDocument: ctx.worldDocument,
+    primaryClaim: ctx.primaryClaim,
+    survivalBySettlementId: ctx.survivalBySettlementId,
+    warOutcomes: options.warOutcomes,
+  })
+  ctx.slice = politics.slice
+  ctx.events.push(...politics.events)
+}
+
+/**
  * Annual colonization tick order:
- * network → claims → trade → survival → ruin → collapse.
+ * network → claims → trade → survival → ruin → collapse → politics.
  *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument
@@ -223,6 +240,7 @@ export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
  *   network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions,
  *   trade?: { hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks, yieldToUi?: () => Promise<void> },
  *   collapse?: { hooks?: import('./collapsePopulation.js').CollapsePopulationHooks, yieldToUi?: () => Promise<void> },
+ *   warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }>,
  * }} [options]
  * @returns {Promise<{
  *   slice: import('./createDefaultColonizationSlice.js').ColonizationSlice,
@@ -298,5 +316,3 @@ export function applyMarginalWealthAttrition(population, realmWealthCp) {
   )
   return headcount - leavers
 }
-
-function applyPoliticsPhaseNoop() {}

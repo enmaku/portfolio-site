@@ -245,3 +245,28 @@ export function resolveWealthRasterLayerVisible(visibility, worldDocument) {
   const settlements = worldDocument.settlements
   return Array.isArray(settlements) && settlements.length > 0
 }
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolveFactionTerritoryRasterLayerVisible(visibility, worldDocument) {
+  if (!isResourceOverlayVisible(visibility, 'factionTerritory')) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  const hasMembership =
+    worldDocument.increment3LatchedEpoch != null ||
+    (Array.isArray(worldDocument.factions) &&
+      worldDocument.factions.some((f) => f && f.status === 'active')) ||
+    (Array.isArray(worldDocument.settlements) &&
+      worldDocument.settlements.some((s) => s && s.factionId))
+  if (!hasMembership) {
+    return false
+  }
+  const settlements = worldDocument.settlements
+  return Array.isArray(settlements) && settlements.length > 0
+}

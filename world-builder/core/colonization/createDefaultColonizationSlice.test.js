@@ -88,6 +88,50 @@ test('createDefaultColonizationSlice includes empty trade accounts and route sta
   assert.strictEqual(slice.lastTradeEpochResult, null)
 })
 
+test('createDefaultColonizationSlice includes empty faction politics scaffolding', () => {
+  const slice = createDefaultColonizationSlice()
+  assert.strictEqual(slice.increment3LatchedEpoch, null)
+  assert.deepStrictEqual(slice.factions, [])
+  assert.deepStrictEqual(slice.membershipCooldown, [])
+  assert.deepStrictEqual(slice.pendingComponentMints, [])
+  assert.deepStrictEqual(slice.factionDependenceStreak, {})
+  assert.deepStrictEqual(slice.mutualReintegrationStreak, {})
+  assert.deepStrictEqual(slice.unalignedViabilityStreak, {})
+  assert.deepStrictEqual(slice.membershipCauseClearStreak, {})
+  assert.deepStrictEqual(slice.vassalIndependenceStreak, {})
+})
+
+test('serializeColonizationSessionForStorage round-trips faction politics fields', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = COLONIZATION_PHASE_RUNNING
+  slice.increment3LatchedEpoch = 12
+  slice.factions = [
+    {
+      id: 'faction-a',
+      capitalSettlementId: 's1',
+      settlementIds: ['s1', 's2'],
+      status: 'active',
+      emergedEpoch: 14,
+    },
+  ]
+  slice.membershipCooldown = [{ subjectId: 's2', untilEpoch: 20, kind: 'vassal_defection' }]
+  slice.pendingComponentMints = [
+    { componentKey: 'comp-1', settlementIds: ['s3', 's4'], dueEpoch: 16 },
+  ]
+  slice.settlements = [
+    { id: 's1', factionId: 'faction-a', vassalLiegeSettlementId: null },
+    { id: 's2', factionId: 'faction-a', vassalLiegeSettlementId: 's1' },
+  ]
+
+  const revived = resolveColonizationSlice(serializeColonizationSessionForStorage(slice))
+  assert.strictEqual(revived.increment3LatchedEpoch, 12)
+  assert.deepStrictEqual(revived.factions, slice.factions)
+  assert.deepStrictEqual(revived.membershipCooldown, slice.membershipCooldown)
+  assert.deepStrictEqual(revived.pendingComponentMints, slice.pendingComponentMints)
+  assert.strictEqual(revived.settlements[0].factionId, 'faction-a')
+  assert.strictEqual(revived.settlements[1].vassalLiegeSettlementId, 's1')
+})
+
 test('serializeColonizationSessionForStorage round-trips trade accounts', () => {
   const slice = createDefaultColonizationSlice()
   slice.colonizationPhase = COLONIZATION_PHASE_RUNNING

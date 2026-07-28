@@ -104,6 +104,26 @@ function visibleRasterFixture(resourceId) {
     }
   }
 
+  if (resourceId === 'factionTerritory') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      increment3LatchedEpoch: 1,
+      settlements: [{ id: 'a', x: 1, y: 1, factionId: 'faction-a' }],
+      factions: [
+        {
+          id: 'faction-a',
+          capitalSettlementId: 'a',
+          settlementIds: ['a'],
+          status: 'active',
+          emergedEpoch: 1,
+        },
+      ],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+    }
+  }
+
   const raster = new Float32Array(16)
   raster[5] = 0.8
   return {
