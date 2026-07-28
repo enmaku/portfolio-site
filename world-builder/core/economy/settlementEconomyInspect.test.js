@@ -241,6 +241,29 @@ test('port settlements always expose last-epoch port tolls; inland omits the fie
   assert.strictEqual(inland.portTollsCp, null)
 })
 
+test('living settlements always expose signed faction tax net including zero', () => {
+  const taxed = buildSettlementEconomyInspect(
+    docWith({
+      settlements: [{ id: 'a', maritimeRole: 'none', population: 100 }],
+      lastTradeEpochResult: {
+        settlementCommodityRoles: {},
+        localPricesBySettlementId: {},
+        factionTaxNetCpBySettlementId: { a: -40 },
+      },
+    }),
+    'a',
+  )
+  assert.strictEqual(taxed.factionTaxCp, -40)
+
+  const idle = buildSettlementEconomyInspect(
+    docWith({
+      settlements: [{ id: 'a', maritimeRole: 'none', population: 100 }],
+    }),
+    'a',
+  )
+  assert.strictEqual(idle.factionTaxCp, 0)
+})
+
 test('missing portTollIncomeCpBySettlementId is honest zero', () => {
   const tooltip = buildSettlementEconomyInspect(
     docWith({

@@ -4,6 +4,7 @@ import { clampSettlementTradeTooltipPosition } from '../../composables/clampSett
 import {
   COMMODITY_ACCESSIBLE_NAMES,
   COMMODITY_ICONS,
+  factionTaxIcon,
   moneyBagIcon,
   personIcon,
   portTollsIcon,
@@ -126,6 +127,17 @@ export default defineComponent({
                 }),
               ]
             : []),
+          iconValueRow({
+            testId: 'world-builder-settlement-trade-tooltip-faction-tax',
+            accessibleName: 'Faction tax',
+            icon: factionTaxIcon(),
+            valueText: formatMoneyCp(
+              typeof tooltip.factionTaxCp === 'number' ? tooltip.factionTaxCp : 0,
+            ),
+            valueClass: signedAmountClass(
+              typeof tooltip.factionTaxCp === 'number' ? tooltip.factionTaxCp : 0,
+            ),
+          }),
           h(
             'div',
             {

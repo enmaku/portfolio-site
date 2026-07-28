@@ -5,6 +5,7 @@ import {
   runColonizationEpochPoliticsPhase,
   runColonizationEpochRuinPhase,
   runColonizationEpochSurvivalPhase,
+  runColonizationEpochTaxPhase,
   runColonizationEpochTradePhase,
 } from './applyColonizationEpoch.js'
 
@@ -14,7 +15,7 @@ import {
 
 /**
  * Canonical annual epoch tick:
- * network → claims → trade → survival → ruin → collapse → politics.
+ * network → claims → trade → tax → survival → ruin → collapse → politics.
  * Network, trade, and collapse phases yield to the UI between substeps when
  * `options.network.yieldToUi` / `options.trade.yieldToUi` / `options.collapse.yieldToUi`
  * are provided.
@@ -32,6 +33,7 @@ export async function runColonizationEpochPhases(ctx, options = {}) {
   await runColonizationEpochNetworkPhase(ctx, options)
   runColonizationEpochClaimsPhase(ctx)
   await runColonizationEpochTradePhase(ctx, options)
+  runColonizationEpochTaxPhase(ctx, options)
   runColonizationEpochSurvivalPhase(ctx, options)
   runColonizationEpochRuinPhase(ctx)
   await runColonizationEpochCollapsePhase(ctx, options)

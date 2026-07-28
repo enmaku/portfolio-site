@@ -98,12 +98,15 @@ test('epoch phases run trade after claims and before survival', () => {
     'network',
     'claims',
     'trade',
+    'tax',
     'survival',
     'ruin',
     'collapse',
     'politics',
   ])
   assert.ok(ids.indexOf('trade') > ids.indexOf('claims'))
+  assert.ok(ids.indexOf('tax') > ids.indexOf('trade'))
+  assert.ok(ids.indexOf('tax') < ids.indexOf('survival'))
   assert.ok(ids.indexOf('trade') < ids.indexOf('survival'))
   assert.ok(ids.indexOf('politics') > ids.indexOf('collapse'))
 })

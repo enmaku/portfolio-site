@@ -90,6 +90,7 @@ import { CAMPAIGN_KIT_MAP_PAGE_KEYS } from './campaignKitOverlayPresets.js'
  * @property {CampaignKitTradeProfileRow[] | null} supplies
  * @property {CampaignKitTradeProfileRow[] | null} wants
  * @property {string | null} balance
+ * @property {string | null} factionTax
  * @property {CampaignKitCommodityRow[] | null} commodities
  * @property {CampaignKitOffMapTradeRow[] | null} offMapTrades
  */
@@ -345,6 +346,7 @@ function buildSettlementDossier(slice, worldDocument, settlement, mapNumbers) {
     supplies: null,
     wants: null,
     balance: null,
+    factionTax: null,
     commodities: null,
     offMapTrades: null,
   }
@@ -371,6 +373,7 @@ function buildSettlementDossier(slice, worldDocument, settlement, mapNumbers) {
   )
   if (inspect) {
     dossier.balance = formatCampaignKitMoneyCp(inspect.balanceCp)
+    dossier.factionTax = formatCampaignKitMoneyCp(inspect.factionTaxCp)
     dossier.commodities = inspect.commodities.map((row) => ({
       commodityId: row.commodityId,
       label: campaignKitCommodityLabel(row.commodityId),

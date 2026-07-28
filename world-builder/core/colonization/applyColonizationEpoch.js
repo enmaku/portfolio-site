@@ -8,6 +8,7 @@ import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
 import { clearRealmTrade } from '../economy/tradeClearing/clearRealmTrade.js'
 import { buildRealmTradeClearingInput } from './buildRealmTradeClearingInput.js'
 import { combinedSettlementWealthCp } from '../economy/ledgers/combinedSettlementWealthCp.js'
+import { applyFactionTax } from '../economy/ledgers/applyFactionTax.js'
 import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
 import { applyPoliticsPhase } from './politics/applyPoliticsPhase.js'
 
@@ -20,6 +21,8 @@ import { applyPoliticsPhase } from './politics/applyPoliticsPhase.js'
  * @property {(string | null)[] | undefined} ownerByCell
  * @property {Record<string, import('./resolveSurvivalTriad.js').SurvivalTriadResult>} survivalBySettlementId
  * @property {Record<string, { foodLb: number, saltLb: number }>} effectiveDeliveredBySettlementId
+ * @property {Record<string, number>} taxAssessmentIncomeCp Prior income for faction tax (pre-clear stash).
+ * @property {boolean} tradeClearingActive Whether pairwise trade cleared this epoch.
  */
 
 /**
@@ -36,6 +39,8 @@ export function createColonizationEpochContext(slice, worldDocument) {
     ownerByCell: undefined,
     survivalBySettlementId: {},
     effectiveDeliveredBySettlementId: {},
+    taxAssessmentIncomeCp: {},
+    tradeClearingActive: false,
   }
 }
 
@@ -78,6 +83,8 @@ export function runColonizationEpochClaimsPhase(ctx) {
  * @returns {Promise<void>}
  */
 export async function runColonizationEpochTradePhase(ctx, options = {}) {
+  ctx.taxAssessmentIncomeCp = { ...(ctx.slice.priorRealizedIncomeCp ?? {}) }
+
   const input = await buildRealmTradeClearingInput(
     {
       slice: ctx.slice,
@@ -88,6 +95,7 @@ export async function runColonizationEpochTradePhase(ctx, options = {}) {
   )
   const trade = await clearRealmTrade(input, options.trade)
 
+  ctx.tradeClearingActive = trade.active === true
   ctx.effectiveDeliveredBySettlementId = trade.effectiveDeliveredBySettlementId
   ctx.slice = {
     ...ctx.slice,
@@ -96,6 +104,49 @@ export async function runColonizationEpochTradePhase(ctx, options = {}) {
     priorRealizedIncomeCp: trade.priorRealizedIncomeCp,
     tradeRouteState: trade.tradeRouteState,
     lastTradeEpochResult: trade.lastTradeEpochResult,
+  }
+}
+
+/**
+ * Faction tax after active trade clearing, before survival.
+ *
+ * @param {ColonizationEpochContext} ctx
+ * @param {object} [options]
+ */
+export function runColonizationEpochTaxPhase(ctx, options = {}) {
+  void options
+  if (!ctx.tradeClearingActive) {
+    return
+  }
+
+  const goodsTollIncomeCp = { ...(ctx.slice.priorRealizedIncomeCp ?? {}) }
+  const taxed = applyFactionTax({
+    settlements: ctx.slice.settlements,
+    factions: ctx.slice.factions,
+    tradeAccounts: ctx.slice.tradeAccounts,
+    taxAssessmentIncomeCp: ctx.taxAssessmentIncomeCp,
+  })
+
+  /** @type {Record<string, number>} */
+  const priorRealizedIncomeCp = { ...goodsTollIncomeCp }
+  for (const [id, amount] of Object.entries(taxed.taxIncomeCpBySettlementId)) {
+    priorRealizedIncomeCp[id] = (priorRealizedIncomeCp[id] ?? 0) + amount
+  }
+
+  const priorSnapshot = ctx.slice.lastTradeEpochResult
+  const lastTradeEpochResult = priorSnapshot
+    ? {
+        ...priorSnapshot,
+        factionTaxNetCpBySettlementId: { ...taxed.factionTaxNetCpBySettlementId },
+        realmBalancesCp: { ...taxed.tradeAccounts.balancesBySettlementId },
+      }
+    : null
+
+  ctx.slice = {
+    ...ctx.slice,
+    tradeAccounts: taxed.tradeAccounts,
+    priorRealizedIncomeCp,
+    lastTradeEpochResult,
   }
 }
 

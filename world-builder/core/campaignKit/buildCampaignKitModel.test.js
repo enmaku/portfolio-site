@@ -118,6 +118,7 @@ test('buildCampaignKitModel sorts dossiers by map number and stubs ruins', () =>
   assert.equal(model.settlements[0].biomeLabel, 'Grassland')
   assert.equal(model.settlements[0].maritimeRole, 'port')
   assert.ok(model.settlements[0].balance)
+  assert.ok(model.settlements[0].factionTax)
   assert.ok(Array.isArray(model.settlements[0].commodities))
   assert.ok(model.settlements[0].commodities.some((row) => row.commodityId === 'grain'))
   assert.equal(model.settlements[0].offMapTrades?.length, 1)
@@ -137,6 +138,7 @@ test('buildCampaignKitModel sorts dossiers by map number and stubs ruins', () =>
   assert.equal(model.settlements[1].originMapNumber, 1)
   assert.equal(model.settlements[1].commodities, null)
   assert.equal(model.settlements[1].balance, null)
+  assert.equal(model.settlements[1].factionTax, null)
   assert.ok(
     model.settlements[1].historyNotes.some((note) => note.label === 'settlement abandoned'),
   )
