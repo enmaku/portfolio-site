@@ -199,12 +199,12 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(freshwater)
   viewport.addChild(population)
   viewport.addChild(explorationFog)
-  viewport.addChild(routes)
   viewport.addChild(wealth)
   viewport.addChild(factionTerritory)
   viewport.addChild(coastalOverlay)
   viewport.addChild(metalOverlay)
   viewport.addChild(saltOverlay)
+  viewport.addChild(routes)
   viewport.addChild(settlementOverlay)
   viewport.addChild(settlementIdOverlay)
   viewport
