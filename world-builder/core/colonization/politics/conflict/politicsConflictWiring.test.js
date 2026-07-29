@@ -22,7 +22,7 @@ test.afterEach(() => {
   resetConflictTuning()
 })
 
-test('applyPoliticsPhase derives resource scores and can escalate conquest', () => {
+test('applyPoliticsPhase derives resource scores and can escalate conquest', async () => {
   setConflictTuning({
     requireBorderNeighbor: true,
     allowDistantUnalignedConquest: true,
@@ -86,7 +86,7 @@ test('applyPoliticsPhase derives resource scores and can escalate conquest', () 
     },
   }
 
-  const { slice: next, events } = applyPoliticsPhase({
+  const { slice: next, events } = await applyPoliticsPhase({
     slice,
     worldDocument: {
       gridWidth: 4,

@@ -21,4 +21,5 @@ A multi-second main-thread monolith with a static progress label is explicitly o
 - Deterministic sim results must not depend on yield timing; yields only release the UI thread between pure work chunks.
 - Progress chrome may show nested labels (phase · substep · counter/percent) when outer and inner progress both apply.
 - **Epoch step** Trade phase uses named clearing-ladder substeps (local prices → survival → comfort → prosperity → off-map residual); any substep that can still stall gets an inner `n/m` or `%`.
+- **Epoch step** Politics phase uses named substeps (latch → membership → conflict → absorption → palette); Conflict yields while scoring conquest stakes and reports an inner `n/m`.
 - Unit and integration test wall times are a primary signal for where yields belong—stages or substeps that run slowly under test are presumed to need cooperative yielding and progress updates in the product UI. Paying attention to those timings is enough; no separate profiling pass is required to decide placement.

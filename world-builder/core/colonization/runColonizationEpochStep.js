@@ -25,8 +25,12 @@ import {
   reduceEpochStepProgressOnTradeSubstepComplete,
   reduceEpochStepProgressOnTradeSubstepItemProgress,
   reduceEpochStepProgressOnTradeSubstepStart,
+  reduceEpochStepProgressOnPoliticsSubstepComplete,
+  reduceEpochStepProgressOnPoliticsSubstepItemProgress,
+  reduceEpochStepProgressOnPoliticsSubstepStart,
 } from './colonizationEpochProgress.js'
 import { COLONIZATION_EPOCH_PHASES } from './colonizationEpochSteps.js'
+import { wrapPoliticsHooksWithEpochIndices } from './politicsSubstepIndex.js'
 import { wrapTradeClearingHooksWithEpochIndices } from './tradeSubstepIndex.js'
 
 /** @typedef {import('./colonizationEpochProgress.js').EpochStepProgressState} EpochStepProgressState */
@@ -176,7 +180,32 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
         },
       })
     } else if (phase.id === 'politics') {
-      runColonizationEpochPoliticsPhase(ctx, epochOptions)
+      await runColonizationEpochPoliticsPhase(ctx, {
+        ...epochOptions,
+        politics: {
+          yieldToUi,
+          hooks: wrapPoliticsHooksWithEpochIndices({
+            onPoliticsSubstep(payload) {
+              if (payload.type === 'substep-start') {
+                progress = reduceEpochStepProgressOnPoliticsSubstepStart(progress, {
+                  substepIndex: payload.substepIndex ?? 0,
+                })
+              } else if (payload.type === 'substep-item') {
+                progress = reduceEpochStepProgressOnPoliticsSubstepItemProgress(progress, {
+                  substepIndex: payload.substepIndex ?? 0,
+                  itemIndex: payload.itemIndex ?? 0,
+                  itemCount: payload.itemCount ?? 0,
+                })
+              } else {
+                progress = reduceEpochStepProgressOnPoliticsSubstepComplete(progress, {
+                  substepIndex: payload.substepIndex ?? 0,
+                })
+              }
+              handlers.onProgress?.(progress)
+            },
+          }),
+        },
+      })
     }
 
     progress = reduceEpochStepProgressOnPhaseComplete(progress, { phaseIndex })

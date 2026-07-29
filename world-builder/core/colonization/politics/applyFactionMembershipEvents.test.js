@@ -21,7 +21,7 @@ function flatLandDoc(width, height, arableFill = 2) {
   }
 }
 
-test('post-latch stagger queues components without minting all on the latch epoch', () => {
+test('post-latch stagger queues components without minting all on the latch epoch', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 10
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -30,7 +30,7 @@ test('post-latch stagger queues components without minting all on the latch epoc
     { id: 'b', x: 35, y: 2, population: 1200, status: 'living', tier: 'town' },
     { id: 'c', x: 2, y: 35, population: 1200, status: 'living', tier: 'town' },
   ]
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -43,7 +43,7 @@ test('post-latch stagger queues components without minting all on the latch epoc
   assert.ok(next.settlements.every((s) => s.factionId == null))
 })
 
-test('pending component crystallizes into one faction on its due epoch', () => {
+test('pending component crystallizes into one faction on its due epoch', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 10
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -56,14 +56,14 @@ test('pending component crystallizes into one faction on its due epoch', () => {
     { id: 'b', x: 4, y: 2, population: 200, status: 'living', tier: 'village' },
   ]
 
-  const beforeDue = applyPoliticsPhase({
+  const beforeDue = await applyPoliticsPhase({
     slice: { ...slice, epoch: 10 + FACTION_MINT_STAGGER_EPOCHS - 1 },
     worldDocument: flatLandDoc(20, 20),
     primaryClaim: {},
   })
   assert.strictEqual(beforeDue.slice.factions.length, 0)
 
-  const onDue = applyPoliticsPhase({
+  const onDue = await applyPoliticsPhase({
     slice: { ...beforeDue.slice, epoch: 10 + FACTION_MINT_STAGGER_EPOCHS },
     worldDocument: flatLandDoc(20, 20),
     primaryClaim: {},
@@ -80,7 +80,7 @@ test('pending component crystallizes into one faction on its due epoch', () => {
   assert.strictEqual(onDue.slice.pendingComponentMints.length, 0)
 })
 
-test('maritime peel mints the drain city faction immediately on latch', () => {
+test('maritime peel mints the drain city faction immediately on latch', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 7
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -96,7 +96,7 @@ test('maritime peel mints the drain city faction immediately on latch', () => {
     },
     { id: 'inland', x: 8, y: 5, population: 1200, status: 'living', tier: 'town' },
   ]
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(20, 20, 0),
     primaryClaim: { port: [{ x: 5, y: 5 }], inland: [{ x: 8, y: 5 }] },
@@ -109,7 +109,7 @@ test('maritime peel mints the drain city faction immediately on latch', () => {
   assert.strictEqual(next.settlements.find((s) => s.id === 'port').factionId, peelFaction.id)
 })
 
-test('latch fracture keeps founding faction capital component and detaches isolated towns', () => {
+test('latch fracture keeps founding faction capital component and detaches isolated towns', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 10
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -127,7 +127,7 @@ test('latch fracture keeps founding faction capital component and detaches isola
     { id: 'b', x: 35, y: 2, population: 1200, status: 'living', tier: 'town', factionId: 'faction-founding-a' },
     { id: 'c', x: 2, y: 35, population: 1200, status: 'living', tier: 'town', factionId: 'faction-founding-a' },
   ]
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -142,7 +142,7 @@ test('latch fracture keeps founding faction capital component and detaches isola
   assert.strictEqual(next.factions.filter((f) => f.status === 'active').length, 1)
 })
 
-test('maritime peel detaches drain city from founding faction with inland peers', () => {
+test('maritime peel detaches drain city from founding faction with inland peers', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 7
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -177,7 +177,7 @@ test('maritime peel detaches drain city from founding faction with inland peers'
       vassalLiegeSettlementId: 'port',
     },
   ]
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(20, 20, 0),
     primaryClaim: { port: [{ x: 5, y: 5 }], inland: [{ x: 8, y: 5 }] },

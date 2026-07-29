@@ -21,7 +21,7 @@ function flatLandDoc(width, height) {
   }
 }
 
-test('lone unaligned crystallizes after sustained viability stretch', () => {
+test('lone unaligned crystallizes after sustained viability stretch', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 40
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -39,7 +39,7 @@ test('lone unaligned crystallizes after sustained viability stretch', () => {
     },
   ]
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(10, 10),
     primaryClaim: {},
@@ -49,7 +49,7 @@ test('lone unaligned crystallizes after sustained viability stretch', () => {
   assert.ok(next.historyLog.some((e) => e.kind === HISTORY_KIND_FACTION_EMERGED))
 })
 
-test('lone unaligned re-absorbs as vassal when dependence asserts first', () => {
+test('lone unaligned re-absorbs as vassal when dependence asserts first', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 40
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -76,7 +76,7 @@ test('lone unaligned re-absorbs as vassal when dependence asserts first', () => 
     },
   ]
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(20, 20),
     primaryClaim: {},
@@ -95,7 +95,7 @@ test('lone unaligned re-absorbs as vassal when dependence asserts first', () => 
   )
 })
 
-test('capital succession passes to next highest-tier living member', () => {
+test('capital succession passes to next highest-tier living member', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 40
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -131,7 +131,7 @@ test('capital succession passes to next highest-tier living member', () => {
     },
   ]
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(20, 20),
     primaryClaim: {},

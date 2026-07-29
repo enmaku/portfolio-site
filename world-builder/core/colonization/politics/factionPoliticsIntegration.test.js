@@ -20,8 +20,8 @@ function flatLandDoc(width, height) {
   }
 }
 
-test('same politics inputs replay identical membership history sequence', () => {
-  function runSequence() {
+test('same politics inputs replay identical membership history sequence', async () => {
+  async function runSequence() {
     let slice = createDefaultColonizationSlice()
     slice.colonistSettings.threeDayHaulDistance = 3
     slice.settlements = [
@@ -32,7 +32,7 @@ test('same politics inputs replay identical membership history sequence', () => 
     const kinds = []
     for (let epoch = 1; epoch <= 8; epoch += 1) {
       slice = { ...slice, epoch }
-      const result = applyPoliticsPhase({
+      const result = await applyPoliticsPhase({
         slice,
         worldDocument: doc,
         primaryClaim: {},
@@ -45,8 +45,8 @@ test('same politics inputs replay identical membership history sequence', () => 
     return { kinds, slice }
   }
 
-  const first = runSequence()
-  const second = runSequence()
+  const first = await runSequence()
+  const second = await runSequence()
   assert.deepStrictEqual(first.kinds, second.kinds)
   assert.ok(first.kinds.some((k) => k.includes(HISTORY_KIND_INCREMENT3_LATCHED)))
   assert.ok(first.kinds.some((k) => k.includes(HISTORY_KIND_FACTION_EMERGED)))
@@ -56,7 +56,7 @@ test('same politics inputs replay identical membership history sequence', () => 
   )
 })
 
-test('living factions are never nested under one another after absorption', () => {
+test('living factions are never nested under one another after absorption', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 50
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -82,7 +82,7 @@ test('living factions are never nested under one another after absorption', () =
     { id: 'b', x: 35, y: 35, population: 0, status: 'ruin', tier: null, factionId: 'loser' },
   ]
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},

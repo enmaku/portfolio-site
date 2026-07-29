@@ -25,14 +25,14 @@ function flatLandDoc(width, height) {
   }
 }
 
-test('applyPoliticsPhase leaves membership empty before latch conditions hold', () => {
+test('applyPoliticsPhase leaves membership empty before latch conditions hold', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 5
   slice.settlements = [
     { id: 'a', x: 5, y: 5, population: 100, status: 'living', tier: 'village' },
     { id: 'b', x: 6, y: 5, population: 100, status: 'living', tier: 'village' },
   ]
-  const { slice: next, events } = applyPoliticsPhase({
+  const { slice: next, events } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(20, 20),
     primaryClaim: {},
@@ -43,7 +43,7 @@ test('applyPoliticsPhase leaves membership empty before latch conditions hold', 
   assert.ok(!events.some((e) => e.kind === HISTORY_KIND_INCREMENT3_LATCHED))
 })
 
-test('applyPoliticsPhase latches once and records history', () => {
+test('applyPoliticsPhase latches once and records history', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 8
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -52,7 +52,7 @@ test('applyPoliticsPhase latches once and records history', () => {
     { id: 'b', x: 35, y: 35, population: 100, status: 'living', tier: 'village' },
   ]
   const doc = flatLandDoc(40, 40)
-  const first = applyPoliticsPhase({
+  const first = await applyPoliticsPhase({
     slice,
     worldDocument: doc,
     primaryClaim: {},
@@ -60,7 +60,7 @@ test('applyPoliticsPhase latches once and records history', () => {
   assert.strictEqual(first.slice.increment3LatchedEpoch, 8)
   assert.ok(first.slice.historyLog.some((e) => e.kind === HISTORY_KIND_INCREMENT3_LATCHED))
 
-  const second = applyPoliticsPhase({
+  const second = await applyPoliticsPhase({
     slice: first.slice,
     worldDocument: doc,
     primaryClaim: {},
@@ -72,7 +72,7 @@ test('applyPoliticsPhase latches once and records history', () => {
   )
 })
 
-test('applyPoliticsPhase can escalate conquest before latch when unaligned stakes exist', () => {
+test('applyPoliticsPhase can escalate conquest before latch when unaligned stakes exist', async () => {
   setConflictTuning({
     requireBorderNeighbor: true,
     allowDistantUnalignedConquest: true,
@@ -134,7 +134,7 @@ test('applyPoliticsPhase can escalate conquest before latch when unaligned stake
     effectiveDelivered: {},
   }
 
-  const { slice: next, events } = applyPoliticsPhase({
+  const { slice: next, events } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(20, 20),
     candidateEdges: edges,
@@ -147,4 +147,48 @@ test('applyPoliticsPhase can escalate conquest before latch when unaligned stake
   assert.strictEqual(next.increment3LatchedEpoch, null)
   assert.ok(events.some((e) => e.kind === 'major_war_start'))
   assert.equal(next.settlements.find((s) => s.id === 'free').factionId, 'fa')
+})
+
+test('applyPoliticsPhase emits politics substeps and matches output with or without yieldToUi', async () => {
+  const slice = createDefaultColonizationSlice()
+  slice.epoch = 5
+  slice.settlements = [
+    { id: 'a', x: 5, y: 5, population: 100, status: 'living', tier: 'village' },
+  ]
+  const doc = flatLandDoc(20, 20)
+  /** @type {string[]} */
+  const substepIds = []
+  let yieldCount = 0
+
+  const withYield = await applyPoliticsPhase(
+    { slice, worldDocument: doc, primaryClaim: {} },
+    {
+      yieldToUi: async () => {
+        yieldCount += 1
+      },
+      hooks: {
+        onPoliticsSubstep(payload) {
+          if (payload.type === 'substep-start') {
+            substepIds.push(payload.substepId)
+          }
+        },
+      },
+    },
+  )
+  const withoutYield = await applyPoliticsPhase({
+    slice,
+    worldDocument: doc,
+    primaryClaim: {},
+  })
+
+  assert.deepStrictEqual(substepIds, [
+    'latch',
+    'membership',
+    'conflict',
+    'absorption',
+    'palette',
+  ])
+  assert.ok(yieldCount >= substepIds.length)
+  assert.deepStrictEqual(withYield.slice.factions, withoutYield.slice.factions)
+  assert.strictEqual(withYield.slice.increment3LatchedEpoch, withoutYield.slice.increment3LatchedEpoch)
 })

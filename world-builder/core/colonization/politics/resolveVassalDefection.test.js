@@ -90,7 +90,7 @@ function roadLinkedVassalSlice(opts = {}) {
   return slice
 }
 
-test('isVassalLocallyIndependent requires positive localFoodSurplus', () => {
+test('isVassalLocallyIndependent requires positive localFoodSurplus', async () => {
   assert.equal(isVassalLocallyIndependent({ localFoodSurplus: 1 }), true)
   assert.equal(isVassalLocallyIndependent({ localFoodSurplus: 0 }), false)
   assert.equal(isVassalLocallyIndependent({ localFoodSurplus: -3 }), false)
@@ -98,7 +98,7 @@ test('isVassalLocallyIndependent requires positive localFoodSurplus', () => {
   assert.equal(isVassalLocallyIndependent(null), false)
 })
 
-test('connectivity merge alone does not change sticky faction membership', () => {
+test('connectivity merge alone does not change sticky faction membership', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 20
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -131,7 +131,7 @@ test('connectivity merge alone does not change sticky faction membership', () =>
     },
   ]
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -142,7 +142,7 @@ test('connectivity merge alone does not change sticky faction membership', () =>
   assert.strictEqual(next.factions.filter((f) => f.status === 'active').length, 2)
 })
 
-test('resolveVassalDefection joins adjacent faction when still corridor-dependent', () => {
+test('resolveVassalDefection joins adjacent faction when still corridor-dependent', async () => {
   const decision = resolveVassalDefection({
     settlement: {
       id: 'v',
@@ -158,7 +158,7 @@ test('resolveVassalDefection joins adjacent faction when still corridor-dependen
   assert.deepStrictEqual(decision, { action: 'join', targetFactionId: 'faction-b' })
 })
 
-test('resolveVassalDefection spawns when independent and town-tier ready', () => {
+test('resolveVassalDefection spawns when independent and town-tier ready', async () => {
   const decision = resolveVassalDefection({
     settlement: {
       id: 'v',
@@ -174,7 +174,7 @@ test('resolveVassalDefection spawns when independent and town-tier ready', () =>
   assert.deepStrictEqual(decision, { action: 'spawn' })
 })
 
-test('resolveVassalDefection soft-unaligns when independent but not faction-ready', () => {
+test('resolveVassalDefection soft-unaligns when independent but not faction-ready', async () => {
   const decision = resolveVassalDefection({
     settlement: {
       id: 'v',
@@ -190,7 +190,7 @@ test('resolveVassalDefection soft-unaligns when independent but not faction-read
   assert.deepStrictEqual(decision, { action: 'soft_unaligned' })
 })
 
-test('vassal defection spawn writes history and sets refractory cooldown', () => {
+test('vassal defection spawn writes history and sets refractory cooldown', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 30
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -218,7 +218,7 @@ test('vassal defection spawn writes history and sets refractory cooldown', () =>
     },
   ]
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -236,11 +236,11 @@ test('vassal defection spawn writes history and sets refractory cooldown', () =>
   )
 })
 
-test('road-linked vassal with sustained local independence spawns a faction', () => {
+test('road-linked vassal with sustained local independence spawns a faction', async () => {
   const slice = roadLinkedVassalSlice({
     independenceStreak: VASSAL_INDEPENDENCE_EPOCHS - 1,
   })
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -258,11 +258,11 @@ test('road-linked vassal with sustained local independence spawns a faction', ()
   assert.ok(next.factions.some((f) => f.id === vassal.factionId && f.status === 'active'))
 })
 
-test('road-linked vassal below independence streak stays loyal', () => {
+test('road-linked vassal below independence streak stays loyal', async () => {
   const slice = roadLinkedVassalSlice({
     independenceStreak: VASSAL_INDEPENDENCE_EPOCHS - 2,
   })
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -277,11 +277,11 @@ test('road-linked vassal below independence streak stays loyal', () => {
   assert.strictEqual(next.vassalIndependenceStreak.v, VASSAL_INDEPENDENCE_EPOCHS - 1)
 })
 
-test('import-dependent road-linked vassal stays loyal', () => {
+test('import-dependent road-linked vassal stays loyal', async () => {
   const slice = roadLinkedVassalSlice({
     independenceStreak: VASSAL_INDEPENDENCE_EPOCHS,
   })
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -295,13 +295,13 @@ test('import-dependent road-linked vassal stays loyal', () => {
   assert.strictEqual(next.vassalIndependenceStreak.v ?? 0, 0)
 })
 
-test('road-linked independent hamlet soft-unaligns', () => {
+test('road-linked independent hamlet soft-unaligns', async () => {
   const slice = roadLinkedVassalSlice({
     vassalTier: 'hamlet',
     vassalPopulation: 80,
     independenceStreak: VASSAL_INDEPENDENCE_EPOCHS - 1,
   })
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -315,14 +315,14 @@ test('road-linked independent hamlet soft-unaligns', () => {
   assert.strictEqual(vassal.vassalLiegeSettlementId, null)
 })
 
-test('pre-latch founding faction allows independent vassal spawn', () => {
+test('pre-latch founding faction allows independent vassal spawn', async () => {
   const slice = roadLinkedVassalSlice({
     latched: false,
     independenceStreak: VASSAL_INDEPENDENCE_EPOCHS - 1,
   })
   assert.strictEqual(slice.increment3LatchedEpoch, null)
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -338,7 +338,7 @@ test('pre-latch founding faction allows independent vassal spawn', () => {
   assert.notStrictEqual(vassal.factionId, 'faction-founding-a')
 })
 
-test('anti-churn blocks inverse membership flip during refractory', () => {
+test('anti-churn blocks inverse membership flip during refractory', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 40
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -376,7 +376,7 @@ test('anti-churn blocks inverse membership flip during refractory', () => {
   ]
 
   const before = slice.settlements.find((s) => s.id === 'v').factionId
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},

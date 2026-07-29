@@ -169,3 +169,27 @@ test('runColonizationEpochStep reports trade substep indices in order without st
   assert.deepStrictEqual(tradeSubstepStarts, [0, 1, 2, 3, 4, 5])
   assert.strictEqual(sawProgressAfterTradeStart, true)
 })
+
+test('runColonizationEpochStep reports politics substep indices in order', async () => {
+  const running = await commitRunningSlice()
+  /** @type {number[]} */
+  const politicsSubstepStarts = []
+
+  await runColonizationEpochStep(running, richGeographyDoc(), {
+    yieldToUi: async () => {},
+    handlers: {
+      onProgress(progress) {
+        if (progress.activePhaseIndex === 7 && progress.activePoliticsSubstepIndex >= 0) {
+          if (
+            politicsSubstepStarts.length === 0 ||
+            politicsSubstepStarts.at(-1) !== progress.activePoliticsSubstepIndex
+          ) {
+            politicsSubstepStarts.push(progress.activePoliticsSubstepIndex)
+          }
+        }
+      },
+    },
+  })
+
+  assert.deepStrictEqual(politicsSubstepStarts, [0, 1, 2, 3, 4])
+})

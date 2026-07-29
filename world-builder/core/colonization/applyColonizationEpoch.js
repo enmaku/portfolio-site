@@ -267,16 +267,28 @@ export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
  * Politics after survival/ruin/collapse: latch, sticky membership, absorption.
  *
  * @param {ColonizationEpochContext} ctx
- * @param {{ warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }> }} [options]
+ * @param {{
+ *   warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }>,
+ *   politics?: {
+ *     hooks?: import('./politics/applyPoliticsPhase.js').PoliticsPhaseHooks,
+ *     yieldToUi?: () => Promise<void>,
+ *   },
+ * }} [options]
  */
-export function runColonizationEpochPoliticsPhase(ctx, options = {}) {
-  const politics = applyPoliticsPhase({
-    slice: ctx.slice,
-    worldDocument: ctx.worldDocument,
-    primaryClaim: ctx.primaryClaim,
-    survivalBySettlementId: ctx.survivalBySettlementId,
-    warOutcomes: options.warOutcomes,
-  })
+export async function runColonizationEpochPoliticsPhase(ctx, options = {}) {
+  const politics = await applyPoliticsPhase(
+    {
+      slice: ctx.slice,
+      worldDocument: ctx.worldDocument,
+      primaryClaim: ctx.primaryClaim,
+      survivalBySettlementId: ctx.survivalBySettlementId,
+      warOutcomes: options.warOutcomes,
+    },
+    {
+      hooks: options.politics?.hooks,
+      yieldToUi: options.politics?.yieldToUi,
+    },
+  )
   ctx.slice = politics.slice
   ctx.events.push(...politics.events)
 }
@@ -291,6 +303,7 @@ export function runColonizationEpochPoliticsPhase(ctx, options = {}) {
  *   network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions,
  *   trade?: { hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks, yieldToUi?: () => Promise<void> },
  *   collapse?: { hooks?: import('./collapsePopulation.js').CollapsePopulationHooks, yieldToUi?: () => Promise<void> },
+ *   politics?: { hooks?: import('./politics/applyPoliticsPhase.js').PoliticsPhaseHooks, yieldToUi?: () => Promise<void> },
  *   warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }>,
  * }} [options]
  * @returns {Promise<{

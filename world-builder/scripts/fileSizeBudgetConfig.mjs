@@ -52,7 +52,7 @@ export const PHASE5_FILE_BUDGETS = {
     label: 'trade graph',
   },
   'world-builder/core/colonization/colonizationEpochProgress.js': {
-    max: 650,
+    max: 720,
     label: 'epoch progress',
   },
   'world-builder/core/economy/economyEpochSnapshot.js': { max: 120, label: 'economy snapshot' },

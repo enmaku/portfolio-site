@@ -28,7 +28,7 @@ function baseSlice() {
   return slice
 }
 
-test('asymmetric survival dependence absorbs weaker into stronger', () => {
+test('asymmetric survival dependence absorbs weaker into stronger', async () => {
   const slice = baseSlice()
   slice.factions = [
     {
@@ -52,7 +52,7 @@ test('asymmetric survival dependence absorbs weaker into stronger', () => {
   ]
   slice.factionDependenceStreak = { 'weak->strong': 3 }
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(20, 20),
     primaryClaim: {},
@@ -67,7 +67,7 @@ test('asymmetric survival dependence absorbs weaker into stronger', () => {
   assert.ok(next.historyLog.some((e) => e.kind === HISTORY_KIND_FACTION_ABSORPTION))
 })
 
-test('heavy trade alone without dependence does not absorb separate factions', () => {
+test('heavy trade alone without dependence does not absorb separate factions', async () => {
   const slice = baseSlice()
   slice.factions = [
     {
@@ -90,7 +90,7 @@ test('heavy trade alone without dependence does not absorb separate factions', (
     { id: 'b', x: 35, y: 35, population: 1200, status: 'living', tier: 'town', factionId: 'b-faction' },
   ]
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -104,7 +104,7 @@ test('heavy trade alone without dependence does not absorb separate factions', (
   assert.ok(!next.historyLog.some((e) => e.kind === HISTORY_KIND_FACTION_ABSORPTION))
 })
 
-test('warOutcomes does not whole-faction absorb while loser still has living pins', () => {
+test('warOutcomes does not whole-faction absorb while loser still has living pins', async () => {
   const slice = baseSlice()
   slice.factions = [
     {
@@ -127,7 +127,7 @@ test('warOutcomes does not whole-faction absorb while loser still has living pin
     { id: 'b', x: 35, y: 35, population: 1200, status: 'living', tier: 'town', factionId: 'loser' },
   ]
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -138,7 +138,7 @@ test('warOutcomes does not whole-faction absorb while loser still has living pin
   assert.strictEqual(next.settlements.find((s) => s.id === 'b').factionId, 'loser')
 })
 
-test('warOutcomes absorbs only when the loser faction has no living members left', () => {
+test('warOutcomes absorbs only when the loser faction has no living members left', async () => {
   const slice = baseSlice()
   slice.factions = [
     {
@@ -161,7 +161,7 @@ test('warOutcomes absorbs only when the loser faction has no living members left
     { id: 'b', x: 35, y: 35, population: 0, status: 'ruin', tier: null, factionId: 'loser' },
   ]
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(40, 40),
     primaryClaim: {},
@@ -176,7 +176,7 @@ test('warOutcomes absorbs only when the loser faction has no living members left
   )
 })
 
-test('faction with no living members becomes extinct', () => {
+test('faction with no living members becomes extinct', async () => {
   const slice = baseSlice()
   slice.factions = [
     {
@@ -191,7 +191,7 @@ test('faction with no living members becomes extinct', () => {
     { id: 'a', x: 2, y: 2, population: 0, status: 'ruin', tier: null, factionId: 'dead' },
   ]
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(10, 10),
     primaryClaim: {},
@@ -201,7 +201,7 @@ test('faction with no living members becomes extinct', () => {
   assert.ok(next.historyLog.some((e) => e.kind === HISTORY_KIND_FACTION_EXTINCT))
 })
 
-test('mutual re-integration keeps senior lineage as survivor', () => {
+test('mutual re-integration keeps senior lineage as survivor', async () => {
   const slice = baseSlice()
   slice.factions = [
     {
@@ -225,7 +225,7 @@ test('mutual re-integration keeps senior lineage as survivor', () => {
   ]
   slice.mutualReintegrationStreak = { 'junior|senior': 3 }
 
-  const { slice: next } = applyPoliticsPhase({
+  const { slice: next } = await applyPoliticsPhase({
     slice,
     worldDocument: flatLandDoc(20, 20),
     primaryClaim: {},

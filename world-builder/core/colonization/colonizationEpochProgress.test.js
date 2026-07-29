@@ -14,6 +14,7 @@ import {
   reduceEpochStepProgressOnNetworkSubstepItemProgress,
   reduceEpochStepProgressOnPhaseStart,
   reduceEpochStepProgressOnTradeSubstepStart,
+  reduceEpochStepProgressOnPoliticsSubstepStart,
 } from './colonizationEpochProgress.js'
 import {
   COLONIZATION_EPOCH_FINALIZE_STEP_COUNT,
@@ -42,6 +43,10 @@ test('createInitialEpochStepProgress starts idle before any epoch phase', () => 
     completedTradeSubstepIndex: -1,
     tradeSubstepItemIndex: -1,
     tradeSubstepItemCount: 0,
+    activePoliticsSubstepIndex: -1,
+    completedPoliticsSubstepIndex: -1,
+    politicsSubstepItemIndex: -1,
+    politicsSubstepItemCount: 0,
     activeFinalizeStepIndex: -1,
     completedFinalizeStepIndex: -1,
     activeMapSubstepIndex: -1,
@@ -228,6 +233,22 @@ test('reduceEpochStepProgressOnTradeSubstepStart appends trade substep label', (
   const next = reduceEpochStepProgressOnTradeSubstepStart(progress, { substepIndex: 2 })
   assert.strictEqual(next.activeTradeSubstepIndex, 2)
   assert.strictEqual(next.label, 'Epoch 1 · Trade · Survival')
+})
+
+test('reduceEpochStepProgressOnPoliticsSubstepStart appends politics substep label', () => {
+  const progress = reduceEpochStepProgressOnPhaseStart(
+    reduceEpochStepProgressOnEpochStart(createInitialEpochStepProgress(), {
+      simulationEpoch: 0,
+    }),
+    {
+      simulationEpoch: 0,
+      phaseIndex: 7,
+      phaseId: 'politics',
+    },
+  )
+  const next = reduceEpochStepProgressOnPoliticsSubstepStart(progress, { substepIndex: 2 })
+  assert.strictEqual(next.activePoliticsSubstepIndex, 2)
+  assert.strictEqual(next.label, 'Epoch 1 · Politics · Conflict')
 })
 
 test('reduceEpochStepProgressOnFinalizeStepStart marks map finalize after simulation phases', () => {

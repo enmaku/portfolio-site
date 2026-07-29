@@ -85,7 +85,7 @@ function twoFactionSlice() {
   }
 }
 
-test('resource conquest takes only the contested pin and records major war history', () => {
+test('resource conquest takes only the contested pin and records major war history', async () => {
   const slice = twoFactionSlice()
   const edges = [
     edge({ id: 'a1-b1', fromSettlementId: 'a1', toSettlementId: 'b1' }),
@@ -112,7 +112,7 @@ test('resource conquest takes only the contested pin and records major war histo
   assert.ok(result.slice.warExhaustionBySettlementId.a1)
 })
 
-test('unaligned stake needs no rivalry edge and defends alone', () => {
+test('unaligned stake needs no rivalry edge and defends alone', async () => {
   const slice = twoFactionSlice()
   slice.settlements.push({
     id: 'free',
@@ -135,7 +135,7 @@ test('unaligned stake needs no rivalry edge and defends alone', () => {
   assert.equal(result.slice.belligerentTradeBlocks.length, 0)
 })
 
-test('selectResourceConquest respects cadence and intensity threshold', () => {
+test('selectResourceConquest respects cadence and intensity threshold', async () => {
   setConflictTuning({
     warThreshold: 50,
     rivalBonus: 0,
@@ -148,7 +148,7 @@ test('selectResourceConquest respects cadence and intensity threshold', () => {
   })
   const slice = twoFactionSlice()
   const edges = [edge({ id: 'a1-b1', fromSettlementId: 'a1', toSettlementId: 'b1' })]
-  const below = selectResourceConquest({
+  const below = await selectResourceConquest({
     slice,
     capacityBySettlementId: { a1: 100, b1: 50, b2: 50 },
     candidateEdges: edges,
@@ -157,7 +157,7 @@ test('selectResourceConquest respects cadence and intensity threshold', () => {
   })
   assert.equal(below, null)
 
-  const busy = selectResourceConquest({
+  const busy = await selectResourceConquest({
     slice,
     capacityBySettlementId: { a1: 5000, b1: 50, b2: 50 },
     candidateEdges: edges,
@@ -167,7 +167,7 @@ test('selectResourceConquest respects cadence and intensity threshold', () => {
   })
   assert.equal(busy, null)
 
-  const picked = selectResourceConquest({
+  const picked = await selectResourceConquest({
     slice,
     capacityBySettlementId: { a1: 5000, b1: 50, b2: 50 },
     candidateEdges: edges,
