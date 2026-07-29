@@ -228,6 +228,13 @@ export function diffWorldDocumentMapLayers(previous, next) {
   }
   if (previous.primaryClaim !== next.primaryClaim || previous.factions !== next.factions) {
     changedLayers.push('factionTerritory')
+    changedLayers.push('recentConquestMarkers')
+  }
+  if (
+    previous.epoch !== next.epoch ||
+    previous.recentConquestBySettlementId !== next.recentConquestBySettlementId
+  ) {
+    changedLayers.push('recentConquestMarkers')
   }
   if (riverLayerInputsChanged(previous, next)) {
     changedLayers.push('rivers')
@@ -248,6 +255,7 @@ export function diffWorldDocumentMapLayers(previous, next) {
     changedLayers.push('settlementNodes')
     changedLayers.push('settlementIdLabels')
     changedLayers.push('factionTerritory')
+    changedLayers.push('recentConquestMarkers')
   }
 
   return changedLayers

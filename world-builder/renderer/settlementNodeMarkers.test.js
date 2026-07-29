@@ -6,6 +6,7 @@ import {
   SETTLEMENT_PIN_RADIUS_VASSAL,
   settlementPinMarkerRadius,
   settlementPinMembershipBand,
+  wasConqueredLastEpoch,
 } from './settlementNodeMarkers.js'
 
 const factions = [
@@ -50,4 +51,31 @@ test('pin marker radii: capital largest, member and unaligned equal, vassal smal
   assert.strictEqual(vassal, SETTLEMENT_PIN_RADIUS_VASSAL)
   assert.ok(capital > member)
   assert.ok(member > vassal)
+})
+
+test('wasConqueredLastEpoch is true only for conquests stamped with the current epoch', () => {
+  assert.equal(
+    wasConqueredLastEpoch({
+      settlementId: 'border',
+      epoch: 12,
+      recentConquestBySettlementId: { border: { conqueredEpoch: 12 } },
+    }),
+    true,
+  )
+  assert.equal(
+    wasConqueredLastEpoch({
+      settlementId: 'border',
+      epoch: 13,
+      recentConquestBySettlementId: { border: { conqueredEpoch: 12 } },
+    }),
+    false,
+  )
+  assert.equal(
+    wasConqueredLastEpoch({
+      settlementId: 'other',
+      epoch: 12,
+      recentConquestBySettlementId: { border: { conqueredEpoch: 12 } },
+    }),
+    false,
+  )
 })

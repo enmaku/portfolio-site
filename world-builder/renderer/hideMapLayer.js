@@ -1,4 +1,4 @@
-import { clearSettlementIdLabels } from './drawMapNodeOverlays.js'
+import { clearRecentConquestMarkers, clearSettlementIdLabels } from './drawMapNodeOverlays.js'
 
 /** @type {Readonly<Partial<Record<import('./mapLayerRefresh.js').MapLayerId, keyof MapLayerPresentation>>>} */
 const NODE_OVERLAY_CLEAR_KEYS = Object.freeze({
@@ -29,6 +29,7 @@ const NODE_OVERLAY_CLEAR_KEYS = Object.freeze({
  *   saltOverlay: import('pixi.js').Graphics,
  *   settlementOverlay: import('pixi.js').Graphics,
  *   settlementIdOverlay: import('pixi.js').Container,
+ *   recentConquestOverlay: import('pixi.js').Container,
  * }} MapLayerPresentation
  */
 
@@ -42,6 +43,10 @@ export function hideMapLayer(layerId, layers) {
   }
   if (layerId === 'settlementIdLabels') {
     clearSettlementIdLabels(layers.settlementIdOverlay)
+    return
+  }
+  if (layerId === 'recentConquestMarkers') {
+    clearRecentConquestMarkers(layers.recentConquestOverlay)
     return
   }
   const overlayKey = NODE_OVERLAY_CLEAR_KEYS[layerId]

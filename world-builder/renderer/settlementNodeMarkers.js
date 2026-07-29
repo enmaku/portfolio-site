@@ -37,7 +37,7 @@ export const SETTLEMENT_ID_LABEL_FONT_SIZE = 14
 /** Horizontal gap from pin edge to the start of the ID label. */
 export const SETTLEMENT_ID_LABEL_GAP_X = 2
 
-/** Mid-band label offset from pin center. */
+/** Horizontal offset from pin center to the start of the ID label. */
 export const SETTLEMENT_ID_LABEL_OFFSET_X = SETTLEMENT_PIN_RADIUS_MEMBER + SETTLEMENT_ID_LABEL_GAP_X
 
 /** Thin black outline so yellow pins stay readable on yellow faction fill. */
@@ -45,6 +45,24 @@ export const SETTLEMENT_PIN_OUTLINE_COLOR = 0x000000
 
 /** Outline width in world/grid units. */
 export const SETTLEMENT_PIN_OUTLINE_WIDTH = 0.9
+
+/** Material Symbols ligature for crossed swords (recent conquest cue). */
+export const RECENT_CONQUEST_ICON_LIGATURE = 'swords'
+
+/** Font family for Material Symbols Outlined (Quasar extras). */
+export const RECENT_CONQUEST_ICON_FONT_FAMILY = 'Material Symbols Outlined'
+
+/** Yellow fill matching living settlement pins. */
+export const RECENT_CONQUEST_ICON_COLOR = SETTLEMENT_NODE_OVERLAY_COLOR
+
+/** Black outline matching settlement pin / ID label outline. */
+export const RECENT_CONQUEST_ICON_OUTLINE_COLOR = SETTLEMENT_ID_LABEL_OUTLINE_COLOR
+
+/** Outline width in world/grid units. */
+export const RECENT_CONQUEST_ICON_OUTLINE_WIDTH = SETTLEMENT_ID_LABEL_OUTLINE_WIDTH
+
+/** Icon size in world/grid units. */
+export const RECENT_CONQUEST_ICON_FONT_SIZE = 12
 
 /**
  * @param {object} settlement
@@ -103,4 +121,21 @@ export function settlementPinHoverRadius(settlement, factions) {
  */
 export function settlementIdLabelOffsetX(settlement, factions) {
   return settlementPinMarkerRadius(settlement, factions) + SETTLEMENT_ID_LABEL_GAP_X
+}
+
+/**
+ * True when the settlement was conquered during the most recently completed epoch tick
+ * (politics stamps `conqueredEpoch` after ruin advances `epoch`).
+ *
+ * @param {{
+ *   settlementId: string,
+ *   epoch: number,
+ *   recentConquestBySettlementId?: Record<string, { conqueredEpoch?: number } | null | undefined> | null,
+ * }} params
+ * @returns {boolean}
+ */
+export function wasConqueredLastEpoch(params) {
+  const entry = params.recentConquestBySettlementId?.[params.settlementId]
+  if (!entry || !Number.isFinite(entry.conqueredEpoch)) return false
+  return entry.conqueredEpoch === params.epoch
 }

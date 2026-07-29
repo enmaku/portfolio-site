@@ -1,4 +1,10 @@
 import {
+  RECENT_CONQUEST_ICON_COLOR,
+  RECENT_CONQUEST_ICON_FONT_FAMILY,
+  RECENT_CONQUEST_ICON_FONT_SIZE,
+  RECENT_CONQUEST_ICON_LIGATURE,
+  RECENT_CONQUEST_ICON_OUTLINE_COLOR,
+  RECENT_CONQUEST_ICON_OUTLINE_WIDTH,
   SETTLEMENT_ID_LABEL_COLOR,
   SETTLEMENT_ID_LABEL_FONT_SIZE,
   SETTLEMENT_ID_LABEL_OUTLINE_COLOR,
@@ -9,6 +15,7 @@ import {
   SETTLEMENT_PIN_OUTLINE_WIDTH,
   settlementIdLabelOffsetX,
   settlementPinMarkerRadius,
+  wasConqueredLastEpoch,
 } from './settlementNodeMarkers.js'
 import {
   mineralNodeOverlayColor,
@@ -17,6 +24,7 @@ import {
   resolveSettlementIdLabelsDrawn,
   resolveSettlementNodeOverlayDrawn,
 } from './worldBuilderMapViewportModel.js'
+import { isResourceOverlayVisible } from '../resourceOverlays.js'
 
 /** Fallback color for discrete metal mine markers (matches metals raster hue). */
 export const METAL_NODE_OVERLAY_COLOR = 0x000000
@@ -113,6 +121,13 @@ export function clearSettlementIdLabels(overlay) {
 
 /**
  * @param {import('pixi.js').Container} overlay
+ */
+export function clearRecentConquestMarkers(overlay) {
+  clearSettlementIdLabels(overlay)
+}
+
+/**
+ * @param {import('pixi.js').Container} overlay
  * @param {typeof import('pixi.js').Text} TextCtor
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @param {boolean} kitEnabled
@@ -150,6 +165,72 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
     label.x = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions)
     label.y = settlement.y + 0.5
     overlay.addChild(label)
+  }
+}
+
+/**
+ * Yellow Material Symbols "swords" to the right of pins conquered in the current epoch,
+ * only while the faction territory overlay toggle is on.
+ *
+ * @param {import('pixi.js').Container} overlay
+ * @param {typeof import('pixi.js').Text} TextCtor
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @param {Record<string, boolean>} resourceOverlayVisibility
+ */
+export function drawRecentConquestMarkers(
+  overlay,
+  TextCtor,
+  worldDocument,
+  resourceOverlayVisibility,
+) {
+  clearRecentConquestMarkers(overlay)
+
+  if (!isResourceOverlayVisible(resourceOverlayVisibility, 'factionTerritory')) {
+    return
+  }
+  if (!resolveSettlementNodeOverlayDrawn(resourceOverlayVisibility, worldDocument)) {
+    return
+  }
+
+  const factions = worldDocument.factions ?? []
+  const epoch = Number(worldDocument.epoch)
+  const recent = worldDocument.recentConquestBySettlementId ?? {}
+
+  for (const settlement of worldDocument.settlements ?? []) {
+    if (
+      settlement.status === 'ruin' ||
+      typeof settlement.x !== 'number' ||
+      typeof settlement.y !== 'number' ||
+      !settlement.id
+    ) {
+      continue
+    }
+    if (
+      !wasConqueredLastEpoch({
+        settlementId: settlement.id,
+        epoch,
+        recentConquestBySettlementId: recent,
+      })
+    ) {
+      continue
+    }
+
+    const icon = new TextCtor({
+      text: RECENT_CONQUEST_ICON_LIGATURE,
+      style: {
+        fontFamily: RECENT_CONQUEST_ICON_FONT_FAMILY,
+        fontSize: RECENT_CONQUEST_ICON_FONT_SIZE,
+        fill: RECENT_CONQUEST_ICON_COLOR,
+        stroke: {
+          color: RECENT_CONQUEST_ICON_OUTLINE_COLOR,
+          width: RECENT_CONQUEST_ICON_OUTLINE_WIDTH,
+        },
+      },
+    })
+    icon.anchor.set(0, 0.5)
+    icon.x = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions)
+    icon.y = settlement.y + 0.5
+    overlay.addChild(icon)
   }
 }
 

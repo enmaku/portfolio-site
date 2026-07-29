@@ -191,5 +191,6 @@ test('diffWorldDocumentMapLayers detects settlement changes in pin and ID label 
     'settlementNodes',
     'settlementIdLabels',
     'factionTerritory',
+    'recentConquestMarkers',
   ])
 })

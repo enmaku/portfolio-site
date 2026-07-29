@@ -9,6 +9,7 @@ import { captureWorldMapPng } from './captureWorldMapPng.js'
 import {
   drawCoastalNodes,
   drawMetalNodes,
+  drawRecentConquestMarkers,
   drawSaltNodes,
   drawSettlementIdLabels,
   drawSettlementNodes,
@@ -111,6 +112,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const saltOverlay = new Graphics()
   const settlementOverlay = new Graphics()
   const settlementIdOverlay = new Container()
+  const recentConquestOverlay = new Container()
   /** Campaign kit export only — never toggled from the overlay bar. */
   let settlementIdLabelsEnabled = false
   let resourceOverlayVisibility = createDefaultResourceOverlayVisibility()
@@ -177,6 +179,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     saltOverlay,
     settlementOverlay,
     settlementIdOverlay,
+    recentConquestOverlay,
   }
 
   const viewport = new Viewport({
@@ -206,6 +209,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(saltOverlay)
   viewport.addChild(routes)
   viewport.addChild(settlementOverlay)
+  viewport.addChild(recentConquestOverlay)
   viewport.addChild(settlementIdOverlay)
   viewport
     .drag()
@@ -310,6 +314,13 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
           Text,
           currentWorldDocument,
           settlementIdLabelsEnabled,
+        ),
+      recentConquestMarkers: () =>
+        drawRecentConquestMarkers(
+          recentConquestOverlay,
+          Text,
+          currentWorldDocument,
+          resourceOverlayVisibility,
         ),
     },
     { hideLayer: (layerId) => hideMapLayer(layerId, mapLayerPresentation) },
