@@ -7,6 +7,7 @@ import {
   settlementPinMarkerRadius,
   settlementPinMembershipBand,
   wasConqueredLastEpoch,
+  wasJoinedAsTradePartnerLastEpoch,
 } from './settlementNodeMarkers.js'
 
 const factions = [
@@ -35,6 +36,41 @@ test('pin membership band orders capital > member = unaligned > vassal', () => {
     'vassal',
   )
   assert.strictEqual(settlementPinMembershipBand({ id: 'lone', factionId: null }, factions), 'unaligned')
+})
+
+test('trade partner uses mid pin band like ordinary member', () => {
+  const roster = [
+    ...factions,
+  ]
+  roster[0] = {
+    ...factions[0],
+    settlementIds: ['capital', 'member', 'vassal', 'tp'],
+  }
+  assert.strictEqual(
+    settlementPinMembershipBand(
+      { id: 'tp', factionId: 'faction-a', isTradePartner: true },
+      roster,
+      [
+        { id: 'capital', factionId: 'faction-a', population: 1 },
+        { id: 'member', factionId: 'faction-a', population: 1 },
+        { id: 'vassal', factionId: 'faction-a', population: 1 },
+        { id: 'tp', factionId: 'faction-a', isTradePartner: true, population: 1 },
+      ],
+    ),
+    'tradePartner',
+  )
+  assert.strictEqual(
+    settlementPinMarkerRadius(
+      { id: 'tp', factionId: 'faction-a', isTradePartner: true },
+      roster,
+      [
+        { id: 'capital', factionId: 'faction-a', population: 1 },
+        { id: 'member', factionId: 'faction-a', population: 1 },
+        { id: 'tp', factionId: 'faction-a', isTradePartner: true, population: 1 },
+      ],
+    ),
+    SETTLEMENT_PIN_RADIUS_MEMBER,
+  )
 })
 
 test('singleton faction capital uses unaligned pin band', () => {
@@ -94,6 +130,25 @@ test('wasConqueredLastEpoch is true only for the conquest epoch', () => {
       settlementId: 'other',
       epoch: 12,
       recentConquestBySettlementId: { border: { conqueredEpoch: 12 } },
+    }),
+    false,
+  )
+})
+
+test('wasJoinedAsTradePartnerLastEpoch mirrors conquest window', () => {
+  assert.equal(
+    wasJoinedAsTradePartnerLastEpoch({
+      settlementId: 'tp',
+      epoch: 9,
+      recentTradePartnerJoinBySettlementId: { tp: { joinedEpoch: 9 } },
+    }),
+    true,
+  )
+  assert.equal(
+    wasJoinedAsTradePartnerLastEpoch({
+      settlementId: 'tp',
+      epoch: 10,
+      recentTradePartnerJoinBySettlementId: { tp: { joinedEpoch: 9 } },
     }),
     false,
   )

@@ -22,6 +22,8 @@ import {
   presentCampaignKitProduction,
 } from './campaignKitFormat.js'
 import { CAMPAIGN_KIT_MAP_PAGE_KEYS } from './campaignKitOverlayPresets.js'
+import { settlementPinMembershipBand } from '../../renderer/settlementNodeMarkers.js'
+import { resolveFactionalController } from '../colonization/politics/softPower/factionalControl.js'
 
 /**
  * @typedef {import('../colonization/createDefaultColonizationSlice.js').ColonizationSlice} ColonizationSlice
@@ -91,6 +93,10 @@ import { CAMPAIGN_KIT_MAP_PAGE_KEYS } from './campaignKitOverlayPresets.js'
  * @property {CampaignKitTradeProfileRow[] | null} wants
  * @property {string | null} balance
  * @property {string | null} factionTax
+ * @property {string | null} factionId
+ * @property {'capital' | 'member' | 'vassal' | 'tradePartner' | 'unaligned' | null} membershipBand
+ * @property {boolean} isTradePartner
+ * @property {string | null} factionalControllerId
  * @property {CampaignKitCommodityRow[] | null} commodities
  * @property {CampaignKitOffMapTradeRow[] | null} offMapTrades
  */
@@ -347,6 +353,10 @@ function buildSettlementDossier(slice, worldDocument, settlement, mapNumbers) {
     wants: null,
     balance: null,
     factionTax: null,
+    factionId: null,
+    membershipBand: null,
+    isTradePartner: false,
+    factionalControllerId: null,
     commodities: null,
     offMapTrades: null,
   }
@@ -359,6 +369,19 @@ function buildSettlementDossier(slice, worldDocument, settlement, mapNumbers) {
   const tradeProfile = tradeProfileForSettlement(slice, worldDocument, settlement)
   dossier.supplies = tradeProfile.supplies
   dossier.wants = tradeProfile.wants
+
+  dossier.factionId = typeof settlement.factionId === 'string' ? settlement.factionId : null
+  dossier.isTradePartner = settlement.isTradePartner === true
+  dossier.membershipBand = settlementPinMembershipBand(
+    settlement,
+    slice.factions,
+    slice.settlements,
+  )
+  dossier.factionalControllerId = resolveFactionalController(settlement, {
+    settlements: slice.settlements,
+    factions: slice.factions,
+    softPowerPaintBySettlementId: slice.softPowerPaintBySettlementId,
+  })
 
   const inspect = buildSettlementEconomyInspect(
     {

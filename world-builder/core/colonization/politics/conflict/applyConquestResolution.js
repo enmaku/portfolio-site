@@ -13,6 +13,7 @@ import { defenderAdvantageMultiplier } from './computeMartialCapacity.js'
 import { projectMight, sumFactionProjectedMight } from './projectMight.js'
 import { resolveContestedSettlement } from './resolveContestedSettlement.js'
 import { transferSettlementAsVassal } from './transferSettlementAsVassal.js'
+import { taxedMemberSettlementIds } from '../softPower/taxedMembers.js'
 
 /**
  * @param {{
@@ -63,10 +64,22 @@ export function applyConquestResolution(params) {
     ? (next.factions ?? []).find((f) => f.id === defenderFactionId && f.status === 'active')
     : null
 
-  const attackerMemberIds = attacker.settlementIds ?? []
-  const defenderMemberIds = defenderFaction
-    ? defenderFaction.settlementIds
-    : [params.contestedSettlementId]
+  const attackerMemberIds = taxedMemberSettlementIds({
+    factionId: params.attackerFactionId,
+    settlements: next.settlements,
+    settlementIds: attacker.settlementIds,
+  })
+  const aloneDefense =
+    !defenderFaction ||
+    stake.isTradePartner === true ||
+    !stake.factionId
+  const defenderMemberIds = aloneDefense
+    ? [params.contestedSettlementId]
+    : taxedMemberSettlementIds({
+        factionId: defenderFactionId,
+        settlements: next.settlements,
+        settlementIds: defenderFaction.settlementIds,
+      })
 
   /** @type {Record<string, number>} */
   const contributions = {}

@@ -104,6 +104,7 @@ export async function runColonizationEpochTradePhase(ctx, options = {}) {
     priorRealizedIncomeCp: trade.priorRealizedIncomeCp,
     tradeRouteState: trade.tradeRouteState,
     lastTradeEpochResult: trade.lastTradeEpochResult,
+    lastOnMapGoodsBilateralCpByPair: trade.lastOnMapGoodsBilateralCpByPair,
   }
 }
 

@@ -232,7 +232,9 @@ export function diffWorldDocumentMapLayers(previous, next) {
   }
   if (
     previous.epoch !== next.epoch ||
-    previous.recentConquestBySettlementId !== next.recentConquestBySettlementId
+    previous.recentConquestBySettlementId !== next.recentConquestBySettlementId ||
+    previous.recentTradePartnerJoinBySettlementId !== next.recentTradePartnerJoinBySettlementId ||
+    previous.softPowerPaintBySettlementId !== next.softPowerPaintBySettlementId
   ) {
     changedLayers.push('recentConquestMarkers')
   }

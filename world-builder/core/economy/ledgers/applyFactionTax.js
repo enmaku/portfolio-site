@@ -85,6 +85,7 @@ export function applyFactionTax(input) {
       if (!isLivingSettlement(settlement)) continue
       if (settlement.factionId !== faction.id) continue
       if (settlement.id === capitalId) continue
+      if (settlement.isTradePartner === true) continue
 
       const income = Math.max(0, Number(taxAssessmentIncomeCp[settlement.id]) || 0)
       const amountCp = Math.floor(income * FACTION_TAX_RATE)

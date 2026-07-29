@@ -32,6 +32,7 @@ export function transferSettlementAsVassal(params) {
     return {
       ...settlement,
       factionId: params.winnerFactionId,
+      isTradePartner: false,
       vassalLiegeSettlementId: winner.capitalSettlementId,
     }
   })

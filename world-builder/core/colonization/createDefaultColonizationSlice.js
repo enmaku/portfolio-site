@@ -68,6 +68,15 @@
  * @property {Record<string, { penalty: number, expiresEpoch: number }>} warExhaustionBySettlementId
  * @property {import('./politics/conflict/belligerentTradeBlocks.js').BelligerentTradeBlock[]} belligerentTradeBlocks
  * @property {Record<string, { conqueredEpoch: number, priorFactionId?: string | null }>} recentConquestBySettlementId
+ * @property {Record<string, number>} lastOnMapGoodsBilateralCpByPair Last clear on-map goods pair volumes.
+ * @property {Record<string, number>} softPowerPaintStreak Soft-power paint arming streaks by settlement id.
+ * @property {Record<string, number>} softPowerJoinHoldStreak Soft-power join-hold streaks by settlement id.
+ * @property {Record<string, number>} softPowerClearStreak Soft-power clear-and-rearm counters by settlement id.
+ * @property {Record<string, string>} softPowerPaintBySettlementId Armed soft-power controller by settlement id.
+ * @property {Record<string, string>} softPowerJoinEligibleBySettlementId Peaceful trade-partner join eligibility.
+ * @property {Record<string, number>} softPowerRebellionPressureStreak Rival trade pressure streaks on taxed members.
+ * @property {Record<string, { joinedEpoch: number, factionId?: string | null }>} recentTradePartnerJoinBySettlementId
+ * @property {Record<string, number>} tradePartnerPeelClearStreak Clear-and-rearm before trade-partner peel.
  */
 
 /**
@@ -104,7 +113,6 @@
 
 import { resolveExpeditions } from './expeditions/expeditionConstants.js'
 import {
-  logisticsNodeSurveyPatchesForStorage,
   resolveLogisticsNodeSurvey,
 } from './logisticsNodes/scoreLogisticsNodes.js'
 import { resolveRoadSegments } from './roads/roadNetwork.js'
@@ -116,6 +124,10 @@ import {
   resolveRivalryEdges,
   resolveWarExhaustionMap,
 } from './resolveConflictSliceFields.js'
+import {
+  createEmptySoftPowerSliceFields,
+  resolveSoftPowerSliceFields,
+} from './resolveSoftPowerSliceFields.js'
 
 export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
 export const COLONIZATION_PHASE_SETUP = /** @type {const} */ ('setup')
@@ -156,6 +168,15 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'warExhaustionBySettlementId',
   'belligerentTradeBlocks',
   'recentConquestBySettlementId',
+  'lastOnMapGoodsBilateralCpByPair',
+  'softPowerPaintStreak',
+  'softPowerJoinHoldStreak',
+  'softPowerClearStreak',
+  'softPowerPaintBySettlementId',
+  'softPowerJoinEligibleBySettlementId',
+  'softPowerRebellionPressureStreak',
+  'recentTradePartnerJoinBySettlementId',
+  'tradePartnerPeelClearStreak',
 ])
 
 /** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
@@ -263,6 +284,7 @@ export function createDefaultColonizationSlice() {
     warExhaustionBySettlementId: {},
     belligerentTradeBlocks: [],
     recentConquestBySettlementId: {},
+    ...createEmptySoftPowerSliceFields(),
   }
 }
 
@@ -323,6 +345,7 @@ export function resolveColonizationSlice(value) {
     warExhaustionBySettlementId: resolveWarExhaustionMap(incoming.warExhaustionBySettlementId),
     belligerentTradeBlocks: resolveBelligerentTradeBlocks(incoming.belligerentTradeBlocks),
     recentConquestBySettlementId: resolveRecentConquestMap(incoming.recentConquestBySettlementId),
+    ...resolveSoftPowerSliceFields(incoming, resolveStreakMap, resolvePriorRealizedIncomeCp),
   }
 }
 
@@ -682,118 +705,10 @@ function clampNumberRange(value, fallback, min, max) {
   return Math.min(max, Math.max(min, resolved))
 }
 
-/**
- * @param {ColonizationPhase} phase
- * @returns {number}
- */
-function colonizationPhaseRank(phase) {
-  if (phase === COLONIZATION_PHASE_RUNNING) {
-    return 2
-  }
-  if (phase === COLONIZATION_PHASE_SETUP) {
-    return 1
-  }
-  return 0
-}
-
-/**
- * Pick the furthest-along colonization session among candidates (running beats setup).
- *
- * @param {...(ColonizationSlice | null | undefined)} candidates
- * @returns {ColonizationSlice}
- */
-export function mergeColonizationSessions(...candidates) {
-  let best = createDefaultColonizationSlice()
-  for (const candidate of candidates) {
-    if (!candidate) {
-      continue
-    }
-    const resolved = resolveColonizationSlice(candidate)
-    const resolvedRank = colonizationPhaseRank(resolved.colonizationPhase)
-    const bestRank = colonizationPhaseRank(best.colonizationPhase)
-    if (resolvedRank > bestRank || (resolvedRank === bestRank && resolved.epoch > best.epoch)) {
-      best = resolved
-    }
-  }
-  return best
-}
-
-/**
- * @param {ColonizationSlice} slice
- * @returns {ColonizationSlice}
- */
-export function cloneColonizationSlice(slice) {
-  const resolved = resolveColonizationSlice(slice)
-  const raster = slice?.populationCollapseRaster
-  if (raster instanceof Float32Array) {
-    resolved.populationCollapseRaster = new Float32Array(raster)
-  }
-  const visited = slice?.visitedCells
-  if (visited instanceof Uint8Array) {
-    resolved.visitedCells = new Uint8Array(visited)
-  }
-  return resolved
-}
-
-/**
- * Persistable colonization session: history + sim state only. Overlay rasters, present-day
- * claim maps, and full logistics surveys are rebuilt on hydrate.
- *
- * @param {ColonizationSlice} slice
- * @returns {Omit<ColonizationSlice, 'populationCollapseRaster' | 'visitedCells' | 'primaryClaim'>}
- */
-export function serializeColonizationSessionForStorage(slice) {
-  const resolved = resolveColonizationSlice(slice)
-  const {
-    populationCollapseRaster,
-    visitedCells,
-    primaryClaim,
-    logisticsNodeSurvey,
-    ...persistedCore
-  } = resolved
-  void populationCollapseRaster
-  void visitedCells
-  void primaryClaim
-
-  const persistable = {
-    ...persistedCore,
-    logisticsNodeSurvey: logisticsNodeSurveyPatchesForStorage(logisticsNodeSurvey),
-  }
-
-  return /** @type {Omit<ColonizationSlice, 'populationCollapseRaster' | 'visitedCells' | 'primaryClaim'>} */ (
-    JSON.parse(JSON.stringify(persistable))
-  )
-}
-
-/**
- * @param {object | null | undefined} source
- * @returns {Partial<ColonizationSlice>}
- */
-export function pickColonizationSliceFields(source) {
-  if (!source || typeof source !== 'object') {
-    return {}
-  }
-  /** @type {Partial<ColonizationSlice>} */
-  const picked = {}
-  const record = /** @type {Record<string, unknown>} */ (source)
-  for (const key of COLONIZATION_SLICE_KEYS) {
-    if (key in record) {
-      picked[key] = /** @type {ColonizationSlice[typeof key]} */ (record[key])
-    }
-  }
-  return picked
-}
-
-/**
- * Geography-only shallow copy (colonization fields removed).
- * @template {object} T
- * @param {T} doc
- * @returns {T}
- */
-export function omitColonizationSliceFields(doc) {
-  const next = { ...doc }
-  for (const key of COLONIZATION_SLICE_KEYS) {
-    delete next[key]
-  }
-  return next
-}
+export {
+  cloneColonizationSlice,
+  mergeColonizationSessions,
+  omitColonizationSliceFields,
+  pickColonizationSliceFields,
+  serializeColonizationSessionForStorage,
+} from './colonizationSliceOps.js'

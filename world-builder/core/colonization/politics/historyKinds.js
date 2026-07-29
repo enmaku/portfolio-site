@@ -14,6 +14,9 @@ export const HISTORY_KIND_MAJOR_WAR_END = 'major_war_end'
 export const HISTORY_KIND_REBELLION_START = 'rebellion_start'
 export const HISTORY_KIND_REBELLION_END = 'rebellion_end'
 export const HISTORY_KIND_TREATY_PEACE = 'treaty_peace'
+export const HISTORY_KIND_TRADE_PARTNER_JOIN = 'trade_partner_join'
+export const HISTORY_KIND_TRADE_PARTNER_PEEL = 'trade_partner_peel'
+export const HISTORY_KIND_TRADE_BACKED_REBEL_EXIT = 'trade_backed_rebel_exit'
 
 /** @type {ReadonlySet<string>} */
 export const POLITICS_HISTORY_KINDS = Object.freeze(
@@ -29,5 +32,8 @@ export const POLITICS_HISTORY_KINDS = Object.freeze(
     HISTORY_KIND_REBELLION_START,
     HISTORY_KIND_REBELLION_END,
     HISTORY_KIND_TREATY_PEACE,
+    HISTORY_KIND_TRADE_PARTNER_JOIN,
+    HISTORY_KIND_TRADE_PARTNER_PEEL,
+    HISTORY_KIND_TRADE_BACKED_REBEL_EXIT,
   ]),
 )

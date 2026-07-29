@@ -6,6 +6,10 @@
  */
 
 import { MAX_ACTIVE_FACTIONS } from './politicsConstants.js'
+import {
+  countLivingFactionControl,
+  factionHasTerritoryColorByControl,
+} from './softPower/factionalControl.js'
 
 export { MAX_ACTIVE_FACTIONS }
 
@@ -123,26 +127,26 @@ export function allocateTerritoryPaletteIndex(factions, settlements) {
 }
 
 /**
- * Release palette slots for singleton factions; assign slots when a faction grows to 2+.
+ * Release palette slots when control drops below 2; assign when control reaches 2+.
  *
  * @param {{
  *   factions: Array<object> | null | undefined,
  *   settlements: Array<object> | null | undefined,
+ *   softPowerPaintBySettlementId?: Record<string, string> | null,
  * }} params
  * @returns {Array<object>}
  */
 export function syncFactionTerritoryPalettes(params) {
   const factions = Array.isArray(params.factions) ? params.factions : []
   const settlements = params.settlements ?? []
+  const softPowerPaintBySettlementId = params.softPowerPaintBySettlementId ?? {}
+  const controlOpts = { settlements, factions, softPowerPaintBySettlementId }
   /** @type {Array<object>} */
   const next = factions.map((faction) => ({ ...faction }))
 
   for (const faction of next) {
     if (!faction || faction.status !== 'active') continue
-    const living = countLivingFactionMembers(faction.id, {
-      settlements,
-      settlementIds: faction.settlementIds,
-    })
+    const living = countLivingFactionControl(faction.id, controlOpts)
     if (living < 2) {
       if (faction.territoryPaletteIndex != null) {
         delete faction.territoryPaletteIndex
@@ -152,11 +156,7 @@ export function syncFactionTerritoryPalettes(params) {
 
   for (const faction of next) {
     if (!faction || faction.status !== 'active') continue
-    const living = countLivingFactionMembers(faction.id, {
-      settlements,
-      settlementIds: faction.settlementIds,
-    })
-    if (living < 2) continue
+    if (!factionHasTerritoryColorByControl(faction.id, controlOpts)) continue
     const index = faction.territoryPaletteIndex
     if (Number.isInteger(index) && index >= 0 && index < MAX_ACTIVE_FACTIONS) continue
     const allocated = allocateTerritoryPaletteIndex(next, settlements)

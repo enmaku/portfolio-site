@@ -432,3 +432,79 @@ test('unaligned hover highlight darkens only that settlement', () => {
   assert.ok(highlighted[0] < FACTION_TERRITORY_UNALIGNED_RGB[0])
   assert.strictEqual(rgba[u2], FACTION_TERRITORY_UNALIGNED_RGB[0])
 })
+
+test('soft-power paint colors map-gray pin with controller hue when control ≥ 2', () => {
+  const factions = [
+    {
+      id: 'faction-a',
+      capitalSettlementId: 'cap',
+      settlementIds: ['cap'],
+      status: 'active',
+      emergedEpoch: 1,
+      territoryPaletteIndex: 0,
+    },
+  ]
+  const rgba = buildFactionTerritoryOverlayRgba({
+    gridWidth: 4,
+    gridHeight: 4,
+    increment3LatchedEpoch: 5,
+    settlements: [
+      { id: 'cap', x: 0, y: 0, status: 'living', factionId: 'faction-a', population: 100 },
+      { id: 'free', x: 3, y: 3, status: 'living', factionId: null, population: 50 },
+    ],
+    factions,
+    softPowerPaintBySettlementId: { free: 'faction-a' },
+    primaryClaim: {
+      cap: [{ x: 0, y: 0 }],
+      free: [{ x: 3, y: 3 }],
+    },
+  })
+  assert.ok(rgba)
+  const tint = factionTerritoryRgb('faction-a', factions)
+  const free = cellOffset(3, 3, 4)
+  const cap = cellOffset(0, 0, 4)
+  assert.strictEqual(rgba[free], tint[0])
+  assert.strictEqual(rgba[free + 1], tint[1])
+  assert.strictEqual(rgba[cap], tint[0])
+})
+
+test('taxed membership hue wins over rival soft-power paint on the same pin', () => {
+  const factions = [
+    {
+      id: 'home',
+      capitalSettlementId: 'cap',
+      settlementIds: ['cap', 'm'],
+      status: 'active',
+      emergedEpoch: 1,
+      territoryPaletteIndex: 1,
+    },
+    {
+      id: 'rival',
+      capitalSettlementId: 'r1',
+      settlementIds: ['r1', 'r2'],
+      status: 'active',
+      emergedEpoch: 2,
+      territoryPaletteIndex: 2,
+    },
+  ]
+  const rgba = buildFactionTerritoryOverlayRgba({
+    gridWidth: 4,
+    gridHeight: 4,
+    increment3LatchedEpoch: 5,
+    settlements: [
+      { id: 'cap', x: 0, y: 0, status: 'living', factionId: 'home', population: 100 },
+      { id: 'm', x: 1, y: 0, status: 'living', factionId: 'home', population: 80 },
+      { id: 'r1', x: 3, y: 0, status: 'living', factionId: 'rival', population: 100 },
+      { id: 'r2', x: 3, y: 1, status: 'living', factionId: 'rival', population: 80 },
+    ],
+    factions,
+    softPowerPaintBySettlementId: { m: 'rival' },
+    primaryClaim: { m: [{ x: 1, y: 0 }] },
+  })
+  assert.ok(rgba)
+  const homeTint = factionTerritoryRgb('home', factions)
+  const rivalTint = factionTerritoryRgb('rival', factions)
+  const offset = cellOffset(1, 0, 4)
+  assert.strictEqual(rgba[offset], homeTint[0])
+  assert.notStrictEqual(rgba[offset], rivalTint[0])
+})

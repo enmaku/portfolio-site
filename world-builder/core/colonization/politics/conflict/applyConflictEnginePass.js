@@ -94,6 +94,8 @@ export async function applyConflictEnginePass(params) {
       {},
     adjacentFactionIdBySettlementId: params.adjacentFactionIdBySettlementId,
     corridorDependentBySettlementId: params.corridorDependentBySettlementId,
+    softPowerScores: params.softPowerScores,
+    softPowerRebellionPressureStreak: next.softPowerRebellionPressureStreak,
   })
   next = rebellion.slice
   events.push(...rebellion.events)

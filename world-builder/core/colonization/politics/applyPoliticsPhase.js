@@ -11,6 +11,10 @@ import { buildConflictEngineInputs } from './conflict/buildConflictEngineInputs.
 import { evaluateSupplyChainIndependence } from './evaluateSupplyChainIndependence.js'
 import { syncFactionTerritoryPalettes } from './factionCap.js'
 import { HISTORY_KIND_INCREMENT3_LATCHED } from './historyKinds.js'
+import { resolveMapGraySettlementIds } from './softPower/factionalControl.js'
+import { scoreSoftPowerBySettlement } from './softPower/scoreSoftPower.js'
+import { advanceSoftPowerStreaks } from './softPower/softPowerStreaks.js'
+import { isTaxedFactionMember } from './softPower/taxedMembers.js'
 
 /**
  * @typedef {Object} PoliticsSubstepPayload
@@ -100,6 +104,8 @@ export async function applyPoliticsPhase(params, options = {}) {
 
   emitPoliticsSubstep(hooks, 'substep-start', 'membership')
   await yieldToUi?.()
+  /** @type {Record<string, { dominantFactionId?: string | null }>} */
+  let softPowerScores = {}
   if (latched || hasActiveFactions) {
     survivalBySettlementId = annotateSurvivalFactionDependence({
       settlements: next.settlements,
@@ -113,12 +119,41 @@ export async function applyPoliticsPhase(params, options = {}) {
         next.colonistSettings.threeDayHaulDistance,
     })
 
+    softPowerScores = scoreSoftPowerBySettlement({
+      settlements: next.settlements,
+      factions: next.factions,
+      bilateralCpByPair: next.lastOnMapGoodsBilateralCpByPair,
+    })
+    const mapGray = resolveMapGraySettlementIds({
+      settlements: next.settlements,
+      factions: next.factions,
+    })
+    /** @type {Set<string>} */
+    const taxedIds = new Set()
+    /** @type {Record<string, string>} */
+    const homeFactionBySettlementId = {}
+    for (const settlement of next.settlements ?? []) {
+      if (!isTaxedFactionMember(settlement)) continue
+      taxedIds.add(settlement.id)
+      homeFactionBySettlementId[settlement.id] = settlement.factionId
+    }
+    const streaked = advanceSoftPowerStreaks({
+      state: next,
+      scores: softPowerScores,
+      epoch: next.epoch,
+      mapGraySettlementIds: mapGray,
+      taxedMemberSettlementIds: taxedIds,
+      homeFactionBySettlementId,
+    })
+    next = { ...next, ...streaked.state }
+
     const membership = applyFactionMembershipEvents({
       slice: next,
       worldDocument: params.worldDocument,
       primaryClaim: params.primaryClaim,
       justLatched,
       survivalBySettlementId,
+      softPowerScores,
     })
     next = membership.slice
     events.push(...membership.events)
@@ -150,6 +185,7 @@ export async function applyPoliticsPhase(params, options = {}) {
           params.resourceScoreBySettlementId ?? derived.resourceScoreBySettlementId,
         martialInputBySettlementId:
           params.martialInputBySettlementId ?? derived.martialInputBySettlementId,
+        softPowerScores,
         yieldToUi,
         onSelectProgress: (itemIndex, itemCount) => {
           emitPoliticsSubstep(hooks, 'substep-item', 'conflict', itemIndex, itemCount)
@@ -184,6 +220,7 @@ export async function applyPoliticsPhase(params, options = {}) {
     factions: syncFactionTerritoryPalettes({
       factions: next.factions,
       settlements: next.settlements,
+      softPowerPaintBySettlementId: next.softPowerPaintBySettlementId,
     }),
   }
   emitPoliticsSubstep(hooks, 'substep-complete', 'palette')

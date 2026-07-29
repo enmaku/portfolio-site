@@ -22,6 +22,11 @@ import { getConflictTuning } from './conflictTuning.js'
 import { defenderAdvantageMultiplier } from './computeMartialCapacity.js'
 import { projectMight, projectionPathHaulFraction, sumFactionProjectedMight } from './projectMight.js'
 import { resolveContestedSettlement } from './resolveContestedSettlement.js'
+import { taxedMemberSettlementIds } from '../softPower/taxedMembers.js'
+import { SOFT_POWER_PAINT_STREAK_EPOCHS } from '../softPower/softPowerStreaks.js'
+import {
+  HISTORY_KIND_TRADE_BACKED_REBEL_EXIT,
+} from '../historyKinds.js'
 
 /**
  * @param {{
@@ -58,7 +63,12 @@ export function applyRebellionResolution(params) {
     return { slice: next, events, fought: false, participatingFactionIds: [] }
   }
 
-  const loyalistMemberIds = (faction.settlementIds ?? []).filter((id) => id !== stake.id)
+  const loyalistMemberIds = taxedMemberSettlementIds({
+    factionId: loyalistFactionId,
+    settlements: next.settlements,
+    settlementIds: faction.settlementIds,
+    excludeSettlementId: stake.id,
+  })
   const startEvent = {
     kind: HISTORY_KIND_REBELLION_START,
     epoch: next.epoch,
@@ -120,6 +130,7 @@ export function applyRebellionResolution(params) {
       adjacentFactionId: params.adjacentFactionIdBySettlementId?.[stake.id] ?? null,
       corridorDependentOnAdjacent:
         params.corridorDependentBySettlementId?.[stake.id] ?? false,
+      tradeBackedDominantFactionId: stake.tradeBackedDominantFactionId ?? null,
     })
     const endEvent = {
       kind: HISTORY_KIND_REBELLION_END,
@@ -152,6 +163,7 @@ export function applyRebellionResolution(params) {
       adjacentFactionId: params.adjacentFactionIdBySettlementId?.[stake.id] ?? null,
       corridorDependentOnAdjacent:
         params.corridorDependentBySettlementId?.[stake.id] ?? false,
+      tradeBackedDominantFactionId: stake.tradeBackedDominantFactionId ?? null,
     })
     const breakawayFactionId = next.settlements.find((s) => s.id === stake.id)?.factionId
     if (breakawayFactionId && breakawayFactionId !== loyalistFactionId) {
@@ -208,11 +220,21 @@ function pickRebellionStake(params) {
   const busy = params.busyFactionIds ?? new Set()
   const tax = params.taxDrainCpBySettlementId ?? {}
   const recent = params.slice.recentConquestBySettlementId ?? {}
-  /** @type {Array<object & { rebellionCause: string, pressure: number }>} */
+  const tradeStreak =
+    params.softPowerRebellionPressureStreak ??
+    params.slice.softPowerRebellionPressureStreak ??
+    {}
+  const scores = params.softPowerScores ?? {}
+  /** @type {Array<object & {
+   *   rebellionCause: string,
+   *   pressure: number,
+   *   tradeBackedDominantFactionId?: string | null,
+   * }>} */
   const candidates = []
 
   for (const settlement of params.slice.settlements ?? []) {
     if (settlement.status !== 'living' || !settlement.factionId) continue
+    if (settlement.isTradePartner === true) continue
     if (busy.has(settlement.factionId)) continue
     const faction = (params.slice.factions ?? []).find(
       (f) => f.id === settlement.factionId && f.status === 'active',
@@ -228,9 +250,23 @@ function pickRebellionStake(params) {
     let pressure = 0
     /** @type {string | null} */
     let cause = null
+    /** @type {string | null} */
+    let tradeBackedDominantFactionId = null
+
+    const rivalDominant = scores[settlement.id]?.dominantFactionId ?? null
+    const tradeArmed =
+      (tradeStreak[settlement.id] ?? 0) >= SOFT_POWER_PAINT_STREAK_EPOCHS &&
+      typeof rivalDominant === 'string' &&
+      rivalDominant !== settlement.factionId
+    if (tradeArmed) {
+      pressure += 35
+      cause = 'trade'
+      tradeBackedDominantFactionId = rivalDominant
+    }
+
     if (taxDrain >= REBELLION_TAX_DRAIN_CP_THRESHOLD) {
       pressure += taxDrain / 10
-      cause = 'tax'
+      cause = cause === 'trade' ? 'tax_and_trade' : 'tax'
     }
     if (resentful) {
       // Nearby holdings stay under the capital's projected grip; only distant
@@ -254,13 +290,22 @@ function pickRebellionStake(params) {
         Number(getConflictTuning().rebellionDistantHaulFraction) || 0.4,
       )
       const distantHolding = haul == null || haul >= landReach * distantFraction
-      if (distantHolding || cause === 'tax') {
+      if (distantHolding || cause === 'tax' || cause === 'tax_and_trade' || cause === 'trade') {
         pressure += 40
-        cause = cause ? 'tax_and_conquest' : 'recent_conquest'
+        if (cause === 'trade' || cause === 'tax_and_trade') {
+          cause = cause === 'trade' ? 'trade_and_conquest' : 'tax_trade_and_conquest'
+        } else {
+          cause = cause ? 'tax_and_conquest' : 'recent_conquest'
+        }
       }
     }
     if (!(pressure > 0) || !cause) continue
-    candidates.push({ ...settlement, rebellionCause: cause, pressure })
+    candidates.push({
+      ...settlement,
+      rebellionCause: cause,
+      pressure,
+      tradeBackedDominantFactionId,
+    })
   }
 
   candidates.sort((a, b) => {
@@ -276,11 +321,72 @@ function pickRebellionStake(params) {
  *   settlementId: string,
  *   adjacentFactionId: string | null,
  *   corridorDependentOnAdjacent: boolean,
+ *   tradeBackedDominantFactionId?: string | null,
  * }} params
  */
 function applyRebelVictoryExit(params) {
   const settlement = params.slice.settlements.find((s) => s.id === params.settlementId)
   if (!settlement) return params.slice
+
+  const tradeBackedId = params.tradeBackedDominantFactionId
+  if (typeof tradeBackedId === 'string') {
+    const target = (params.slice.factions ?? []).find(
+      (f) => f.id === tradeBackedId && f.status === 'active',
+    )
+    if (target) {
+      const priorFactionId = settlement.factionId
+      const joinEvent = {
+        kind: HISTORY_KIND_TRADE_BACKED_REBEL_EXIT,
+        epoch: params.slice.epoch,
+        settlementId: params.settlementId,
+        factionId: tradeBackedId,
+        priorFactionId,
+      }
+      const recentJoin = {
+        ...(params.slice.recentTradePartnerJoinBySettlementId ?? {}),
+        [params.settlementId]: {
+          joinedEpoch: params.slice.epoch,
+          factionId: tradeBackedId,
+        },
+      }
+      return {
+        ...params.slice,
+        settlements: params.slice.settlements.map((s) =>
+          s.id === params.settlementId
+            ? {
+                ...s,
+                factionId: tradeBackedId,
+                isTradePartner: true,
+                vassalLiegeSettlementId: null,
+              }
+            : s,
+        ),
+        factions: params.slice.factions.map((f) => {
+          if (f.id === tradeBackedId) {
+            return {
+              ...f,
+              settlementIds: f.settlementIds.includes(params.settlementId)
+                ? f.settlementIds
+                : [...f.settlementIds, params.settlementId],
+            }
+          }
+          if (f.id === priorFactionId) {
+            return {
+              ...f,
+              settlementIds: f.settlementIds.filter((id) => id !== params.settlementId),
+            }
+          }
+          return f
+        }),
+        historyLog: [...(params.slice.historyLog ?? []), joinEvent],
+        recentTradePartnerJoinBySettlementId: recentJoin,
+        softPowerRebellionPressureStreak: omitStreak(
+          params.slice.softPowerRebellionPressureStreak,
+          params.settlementId,
+        ),
+      }
+    }
+  }
 
   const decision = resolveVassalDefection({
     settlement,
@@ -305,6 +411,7 @@ function applyRebelVictoryExit(params) {
           ? {
               ...s,
               factionId: target.id,
+              isTradePartner: false,
               vassalLiegeSettlementId: target.capitalSettlementId,
             }
           : s,
@@ -348,7 +455,12 @@ function applyRebelVictoryExit(params) {
         ...next,
         settlements: next.settlements.map((s) =>
           s.id === params.settlementId
-            ? { ...s, factionId: newFactionId, vassalLiegeSettlementId: null }
+            ? {
+                ...s,
+                factionId: newFactionId,
+                isTradePartner: false,
+                vassalLiegeSettlementId: null,
+              }
             : s,
         ),
         factions: [
@@ -372,7 +484,12 @@ function applyRebelVictoryExit(params) {
     ...next,
     settlements: next.settlements.map((s) =>
       s.id === params.settlementId
-        ? { ...s, factionId: null, vassalLiegeSettlementId: null }
+        ? {
+            ...s,
+            factionId: null,
+            isTradePartner: false,
+            vassalLiegeSettlementId: null,
+          }
         : s,
     ),
     factions: next.factions.map((f) =>
@@ -384,4 +501,14 @@ function applyRebelVictoryExit(params) {
         : f,
     ),
   }
+}
+
+/**
+ * @param {Record<string, number> | null | undefined} map
+ * @param {string} key
+ */
+function omitStreak(map, key) {
+  const next = { ...(map ?? {}) }
+  delete next[key]
+  return next
 }

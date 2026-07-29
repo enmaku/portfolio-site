@@ -92,3 +92,48 @@ test('tax phase skips booking when trade clearing was inactive', () => {
   assert.equal(ctx.slice.lastTradeEpochResult.factionTaxNetCpBySettlementId.cap, 7)
   assert.equal(ctx.slice.priorRealizedIncomeCp.a, 1000)
 })
+
+test('tax phase skips trade partners', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.settlements = [
+    { id: 'cap', status: 'living', population: 100, factionId: 'f1' },
+    { id: 'a', status: 'living', population: 50, factionId: 'f1' },
+    {
+      id: 'tp',
+      status: 'living',
+      population: 50,
+      factionId: 'f1',
+      isTradePartner: true,
+    },
+  ]
+  slice.factions = [
+    {
+      id: 'f1',
+      capitalSettlementId: 'cap',
+      settlementIds: ['cap', 'a', 'tp'],
+      status: 'active',
+      emergedEpoch: 0,
+    },
+  ]
+  slice.tradeAccounts = createEmptyTradeAccounts()
+  slice.priorRealizedIncomeCp = { cap: 0, a: 1000, tp: 1000 }
+  slice.lastTradeEpochResult = {
+    settlementCommodityRoles: {},
+    localPricesBySettlementId: {},
+    effectiveDelivered: {},
+    realmBalancesCp: {},
+    offMapTrades: [],
+    portTollIncomeCpBySettlementId: {},
+    factionTaxNetCpBySettlementId: {},
+  }
+
+  const ctx = createColonizationEpochContext(slice, { gridWidth: 4, gridHeight: 4 })
+  ctx.tradeClearingActive = true
+  ctx.taxAssessmentIncomeCp = { a: 1000, tp: 1000 }
+
+  runColonizationEpochTaxPhase(ctx)
+
+  assert.equal(ctx.slice.lastTradeEpochResult.factionTaxNetCpBySettlementId.a, -100)
+  assert.equal(ctx.slice.lastTradeEpochResult.factionTaxNetCpBySettlementId.tp ?? 0, 0)
+  assert.equal(ctx.slice.tradeAccounts.balancesBySettlementId.tp ?? 0, 0)
+})

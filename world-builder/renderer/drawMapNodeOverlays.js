@@ -1,5 +1,6 @@
 import {
   drawCrossedSwordsIcon,
+  drawSackIcon,
   SETTLEMENT_ID_LABEL_COLOR,
   SETTLEMENT_ID_LABEL_FONT_SIZE,
   SETTLEMENT_ID_LABEL_OUTLINE_COLOR,
@@ -11,6 +12,7 @@ import {
   settlementIdLabelOffsetX,
   settlementPinMarkerRadius,
   wasConqueredLastEpoch,
+  wasJoinedAsTradePartnerLastEpoch,
 } from './settlementNodeMarkers.js'
 import {
   mineralNodeOverlayColor,
@@ -193,6 +195,7 @@ export function drawRecentConquestMarkers(
   const settlements = worldDocument.settlements ?? []
   const epoch = Number(worldDocument.epoch)
   const recent = worldDocument.recentConquestBySettlementId ?? {}
+  const recentJoin = worldDocument.recentTradePartnerJoinBySettlementId ?? {}
 
   for (const settlement of settlements) {
     if (
@@ -203,19 +206,29 @@ export function drawRecentConquestMarkers(
     ) {
       continue
     }
+    const left = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions, settlements)
+    const midY = settlement.y + 0.5
+
     if (
-      !wasConqueredLastEpoch({
+      wasConqueredLastEpoch({
         settlementId: settlement.id,
         epoch,
         recentConquestBySettlementId: recent,
       })
     ) {
+      drawCrossedSwordsIcon(overlay, left, midY, GraphicsPathCtor)
       continue
     }
 
-    const left = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions, settlements)
-    const midY = settlement.y + 0.5
-    drawCrossedSwordsIcon(overlay, left, midY, GraphicsPathCtor)
+    if (
+      wasJoinedAsTradePartnerLastEpoch({
+        settlementId: settlement.id,
+        epoch,
+        recentTradePartnerJoinBySettlementId: recentJoin,
+      })
+    ) {
+      drawSackIcon(overlay, left, midY, GraphicsPathCtor)
+    }
   }
 }
 

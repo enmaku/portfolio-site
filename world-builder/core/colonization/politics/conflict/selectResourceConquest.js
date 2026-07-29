@@ -5,6 +5,7 @@
 
 import { getConflictTuning } from './conflictTuning.js'
 import { projectMight, projectionPathHaulFraction } from './projectMight.js'
+import { taxedMemberSettlementIds } from '../softPower/taxedMembers.js'
 
 /** Yield / progress cadence while scoring attacker×stake pairs. */
 export const CONQUEST_SELECT_YIELD_EVERY = 8
@@ -62,7 +63,11 @@ export async function selectResourceConquests(params) {
   const { yieldToUi, onProgress } = params
 
   for (const attacker of attackers) {
-    const memberIds = attacker.settlementIds ?? []
+    const memberIds = taxedMemberSettlementIds({
+      factionId: attacker.id,
+      settlements,
+      settlementIds: attacker.settlementIds,
+    })
     const coreMemberIds = contiguousCoreMemberIds(
       memberIds,
       attacker.capitalSettlementId,
@@ -98,9 +103,16 @@ export async function selectResourceConquests(params) {
         continue
       }
 
-      const defenderMemberIds = defenderFactionId
-        ? (factionById.get(defenderFactionId)?.settlementIds ?? [stake.id])
-        : [stake.id]
+      const aloneDefense =
+        !defenderFactionId ||
+        stake.isTradePartner === true
+      const defenderMemberIds = aloneDefense
+        ? [stake.id]
+        : taxedMemberSettlementIds({
+            factionId: defenderFactionId,
+            settlements,
+            settlementIds: factionById.get(defenderFactionId)?.settlementIds,
+          })
       const defenderMight = sumProjection({
         memberIds: defenderMemberIds,
         capacityBySettlementId: params.capacityBySettlementId,

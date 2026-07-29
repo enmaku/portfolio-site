@@ -10,8 +10,9 @@ import {
 } from './buildResourceRasterOverlayRgba.js'
 import { SEA_LEVEL } from '../core/biomeIds.js'
 import {
-  factionHasTerritoryColor,
-} from '../core/colonization/politics/factionCap.js'
+  factionHasTerritoryColorByControl,
+  resolveFactionalController,
+} from '../core/colonization/politics/softPower/factionalControl.js'
 import { MAX_ACTIVE_FACTIONS } from '../core/colonization/politics/politicsConstants.js'
 
 /**
@@ -316,15 +317,20 @@ export function buildFactionTerritoryOverlayRgba(worldDocument, options = {}) {
   for (const settlement of settlements) {
     const cells = primaryClaim[settlement.id]
     if (!Array.isArray(cells) || cells.length === 0) continue
+    const controlOpts = {
+      settlements,
+      factions: factionRoster,
+      softPowerPaintBySettlementId: worldDocument.softPowerPaintBySettlementId ?? {},
+    }
+    const controllerId = resolveFactionalController(settlement, controlOpts)
     const coloredFactionId =
-      settlement.factionId &&
-      factionHasTerritoryColor(settlement.factionId, { settlements })
-        ? settlement.factionId
+      controllerId && factionHasTerritoryColorByControl(controllerId, controlOpts)
+        ? controllerId
         : null
     let rgb = coloredFactionId
       ? factionTerritoryRgb(coloredFactionId, factionRoster)
       : [...FACTION_TERRITORY_UNALIGNED_RGB]
-    if (settlementMatchesTerritoryHighlight(settlement, highlight, settlements)) {
+    if (settlementMatchesTerritoryHighlight(settlement, highlight, settlements, controlOpts)) {
       rgb = saturateFactionTerritoryRgb(rgb)
     }
     const alphaByte = Math.round(FACTION_TERRITORY_FILL_ALPHA * 255)
@@ -375,16 +381,35 @@ export function buildFactionTerritoryOverlayRgba(worldDocument, options = {}) {
  * @param {object} settlement
  * @param {FactionTerritoryHighlight | null | undefined} highlight
  * @param {object[] | null | undefined} [settlements]
+ * @param {{
+ *   softPowerPaintBySettlementId?: Record<string, string>,
+ *   factions?: object[],
+ * } | null | undefined} [controlOpts]
  * @returns {boolean}
  */
-export function settlementMatchesTerritoryHighlight(settlement, highlight, settlements) {
+export function settlementMatchesTerritoryHighlight(
+  settlement,
+  highlight,
+  settlements,
+  controlOpts,
+) {
   if (!highlight || !settlement) return false
+  const roster = settlements ?? [settlement]
+  const opts = controlOpts ?? {
+    settlements: roster,
+    softPowerPaintBySettlementId: {},
+  }
+  const controllerId = resolveFactionalController(settlement, {
+    ...opts,
+    settlements: opts.settlements ?? roster,
+  })
   const coloredFactionId =
-    settlement.factionId &&
-    factionHasTerritoryColor(settlement.factionId, {
-      settlements: settlements ?? [settlement],
+    controllerId &&
+    factionHasTerritoryColorByControl(controllerId, {
+      ...opts,
+      settlements: opts.settlements ?? roster,
     })
-      ? settlement.factionId
+      ? controllerId
       : null
   if (highlight.type === 'faction') {
     return Boolean(coloredFactionId) && coloredFactionId === highlight.factionId

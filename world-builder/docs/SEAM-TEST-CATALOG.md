@@ -91,6 +91,13 @@
 | `colonization/politics/evaluateSupplyChainIndependence.test.js` | `core-unit` | Land and maritime supply-chain independence latch predicates | None — runs under npm run test:world-builder |
 | `colonization/politics/applyPoliticsPhase.test.js` | `core-unit` | Politics latch-once and pre-latch empty membership | None — runs under npm run test:world-builder |
 | `colonization/politics/applyFactionMembershipEvents.test.js` | `core-unit` | Staggered mint; cohort crystallize; maritime peel | None — runs under npm run test:world-builder |
+| `colonization/politics/softPower/onMapGoodsBilateralCpByPair.test.js` | `core-unit` | On-map goods pair volumes for soft power (exclude tolls/tax) | None — runs under npm run test:world-builder |
+| `colonization/politics/softPower/scoreSoftPower.test.js` | `core-unit` | Soft-power majority + 2× margin; faction shares; determinism | None — runs under npm run test:world-builder |
+| `colonization/politics/softPower/softPowerStreaks.test.js` | `core-unit` | Paint/join streaks; clear-and-rearm; rebellion pressure | None — runs under npm run test:world-builder |
+| `colonization/politics/softPower/factionalControl.test.js` | `core-unit` | Factional control attribution; ColorBrewer by control ≥ 2 | None — runs under npm run test:world-builder |
+| `colonization/politics/softPower/applyTradePartnerMembership.test.js` | `core-unit` | Peaceful trade-partner join/peel; singleton extinction | None — runs under npm run test:world-builder |
+| `colonization/politics/softPower/taxedMembers.test.js` | `core-unit` | Trade partners excluded from taxed projection pools | None — runs under npm run test:world-builder |
+| `colonization/politics/softPower/softPowerBelievability.test.js` | `core-unit` | Contiguity / anti-churn / threshold sweep for soft spheres | None — runs under npm run test:world-builder |
 | `colonization/politics/resolveVassalDefection.test.js` | `core-unit` | Sticky membership; defection cause-split; anti-churn | None — runs under npm run test:world-builder |
 | `colonization/politics/applyFactionAbsorption.test.js` | `core-unit` | Asymmetric/mutual/war absorption; extinction; trade-only non-absorb | None — runs under npm run test:world-builder |
 | `colonization/politics/factionPoliticsIntegration.test.js` | `core-unit` | Deterministic membership history; no nested living factions | None — runs under npm run test:world-builder |

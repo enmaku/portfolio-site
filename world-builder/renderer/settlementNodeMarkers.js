@@ -111,7 +111,7 @@ export const RECENT_CONQUEST_MARKER_EPOCHS = 1
  * @param {object} settlement
  * @param {Array<{ id: string, capitalSettlementId?: string, status?: string }> | null | undefined} factions
  * @param {Array<object> | null | undefined} [settlements] Living roster for singleton-faction checks.
- * @returns {'capital' | 'member' | 'vassal' | 'unaligned'}
+ * @returns {'capital' | 'member' | 'vassal' | 'tradePartner' | 'unaligned'}
  */
 export function settlementPinMembershipBand(settlement, factions, settlements) {
   if (!settlement?.factionId) return 'unaligned'
@@ -120,6 +120,7 @@ export function settlementPinMembershipBand(settlement, factions, settlements) {
     return 'unaligned'
   }
   if (settlement.vassalLiegeSettlementId) return 'vassal'
+  if (settlement.isTradePartner === true) return 'tradePartner'
   if (
     Array.isArray(factions) &&
     factions.some(
@@ -211,5 +212,78 @@ export function wasConqueredLastEpoch(params) {
   const window = Number.isFinite(params.markerEpochs)
     ? Number(params.markerEpochs)
     : RECENT_CONQUEST_MARKER_EPOCHS
+  return age < window
+}
+
+/** Gold-brown sack fill matching tooltip moneyBagIcon (`#C9A227`). */
+export const RECENT_TRADE_PARTNER_ICON_COLOR = 0xc9a227
+
+/** Black outline so the sack stays readable on brown faction fills. */
+export const RECENT_TRADE_PARTNER_ICON_OUTLINE_COLOR = SETTLEMENT_ID_LABEL_OUTLINE_COLOR
+
+/** Outline width in world/grid units. */
+export const RECENT_TRADE_PARTNER_ICON_OUTLINE_WIDTH = 1.2
+
+/** Drawn size of the sack icon in world/grid units. */
+export const RECENT_TRADE_PARTNER_ICON_SIZE = 11
+
+/** How many epochs a trade-partner join cue stays on the map. */
+export const RECENT_TRADE_PARTNER_MARKER_EPOCHS = 1
+
+/**
+ * MDI `mdiSack` path `d` (viewBox 0 0 24 24).
+ * Apache-2.0 — https://github.com/Templarian/MaterialDesign
+ */
+export const RECENT_TRADE_PARTNER_SACK_PATH_D =
+  'M16,9C20,11 21,18 21,18C21,18 22,22 16,22C10,22 8,22 8,22C2,22 3,18 3,18C3,18 4,11 8,9M14,4L12,2L10,4L6,2L8,7H16L18,2L14,4Z'
+
+/** MDI viewBox width/height. */
+export const RECENT_TRADE_PARTNER_SACK_VIEWBOX = 24
+
+/**
+ * Draw mdiSack at the left-middle anchor `(left, midY)` with thin black outline.
+ *
+ * @param {import('pixi.js').Graphics} graphics
+ * @param {number} left
+ * @param {number} midY
+ * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
+ */
+export function drawSackIcon(graphics, left, midY, GraphicsPathCtor) {
+  const size = RECENT_TRADE_PARTNER_ICON_SIZE
+  const scale = size / RECENT_TRADE_PARTNER_SACK_VIEWBOX
+  const cx = left + size / 2
+  const cy = midY
+  const path = new GraphicsPathCtor(RECENT_TRADE_PARTNER_SACK_PATH_D)
+
+  graphics.save()
+  graphics.setTransform(scale, 0, 0, scale, cx - 12 * scale, cy - 12 * scale)
+  graphics.path(path)
+  graphics.stroke({
+    width: RECENT_TRADE_PARTNER_ICON_OUTLINE_WIDTH / scale,
+    color: RECENT_TRADE_PARTNER_ICON_OUTLINE_COLOR,
+    alpha: 1,
+  })
+  graphics.path(path)
+  graphics.fill({ color: RECENT_TRADE_PARTNER_ICON_COLOR, alpha: 1 })
+  graphics.restore()
+}
+
+/**
+ * @param {{
+ *   settlementId: string,
+ *   epoch: number,
+ *   recentTradePartnerJoinBySettlementId?: Record<string, { joinedEpoch?: number } | null | undefined> | null,
+ *   markerEpochs?: number,
+ * }} params
+ * @returns {boolean}
+ */
+export function wasJoinedAsTradePartnerLastEpoch(params) {
+  const entry = params.recentTradePartnerJoinBySettlementId?.[params.settlementId]
+  if (!entry || !Number.isFinite(entry.joinedEpoch)) return false
+  const age = params.epoch - entry.joinedEpoch
+  if (!(age >= 0)) return false
+  const window = Number.isFinite(params.markerEpochs)
+    ? Number(params.markerEpochs)
+    : RECENT_TRADE_PARTNER_MARKER_EPOCHS
   return age < window
 }

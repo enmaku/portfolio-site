@@ -14,6 +14,7 @@ import { roundMoneyCp } from '../formatMoneyCp.js'
 import { projectEconomyEpochSnapshot } from '../economyEpochSnapshot.js'
 import { runTradeClearing } from './runTradeClearing.js'
 import { filterCandidateEdgesForBelligerents } from '../../colonization/politics/conflict/belligerentTradeBlocks.js'
+import { onMapGoodsBilateralCpByPair } from '../../colonization/politics/softPower/onMapGoodsBilateralCpByPair.js'
 
 /**
  * @typedef {import('../commodityCatalog.js').CommodityId} CommodityId
@@ -38,6 +39,7 @@ export const TRADE_ACTIVATION_MIN_SETTLEMENTS = 2
  * @property {{ candidates: TradeRouteEdge[], activeFlows: import('./clearingState.js').TradeFlow[] }} [tradeRouteState]
  *   Prior route state, preserved verbatim when pairwise trade does not activate this epoch.
  * @property {EconomyEpochSnapshot | null} [lastTradeEpochResult]
+ * @property {Record<string, number>} [lastOnMapGoodsBilateralCpByPair]
  * @property {import('../../colonization/politics/conflict/belligerentTradeBlocks.js').BelligerentTradeBlock[]} [belligerentTradeBlocks]
  * @property {Record<string, string | null | undefined>} [factionIdBySettlementId]
  */
@@ -51,6 +53,7 @@ export const TRADE_ACTIVATION_MIN_SETTLEMENTS = 2
  * @property {Record<string, number>} priorRealizedIncomeCp On-map export+toll income from this clear (or preserved).
  * @property {{ candidates: TradeRouteEdge[], activeFlows: import('./clearingState.js').TradeFlow[] }} tradeRouteState
  * @property {EconomyEpochSnapshot | null} lastTradeEpochResult
+ * @property {Record<string, number>} lastOnMapGoodsBilateralCpByPair On-map goods pair volumes from this clear (or preserved).
  */
 
 /**
@@ -71,6 +74,7 @@ export async function clearRealmTrade(input, options = {}) {
     priorRealizedIncomeCp: priorRealizedIncomeCpInput,
     tradeRouteState: priorTradeRouteState,
     lastTradeEpochResult: priorTradeEpochResult,
+    lastOnMapGoodsBilateralCpByPair: priorGoodsBilateral,
     belligerentTradeBlocks,
     factionIdBySettlementId,
   } = input
@@ -90,6 +94,7 @@ export async function clearRealmTrade(input, options = {}) {
         activeFlows: [],
       },
       lastTradeEpochResult: priorTradeEpochResult ?? null,
+      lastOnMapGoodsBilateralCpByPair: { ...(priorGoodsBilateral ?? {}) },
     }
   }
 
@@ -143,6 +148,7 @@ export async function clearRealmTrade(input, options = {}) {
     priorRealizedIncomeCp: realizedOnMapIncomeCpBySettlementId(result.obligationDeltas),
     tradeRouteState: { candidates: graph.edges, activeFlows: result.flows },
     lastTradeEpochResult: projectEconomyEpochSnapshot(result),
+    lastOnMapGoodsBilateralCpByPair: onMapGoodsBilateralCpByPair(result.obligationDeltas),
   }
 }
 

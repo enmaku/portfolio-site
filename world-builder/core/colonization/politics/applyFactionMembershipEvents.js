@@ -18,6 +18,11 @@ import {
 import { applyVassalDefections, findAdjacentFaction } from './applyVassalDefectionEvents.js'
 import { applyStrategicOverstretchPeel } from './applyStrategicOverstretchPeel.js'
 import { createActiveFactionRecord } from './factionCap.js'
+import {
+  applyPeacefulTradePartnerJoins,
+  applyTradePartnerPeels,
+  upgradeTradePartnersOnSurvivalDependence,
+} from './softPower/applyTradePartnerMembership.js'
 
 /**
  * @param {{
@@ -26,6 +31,7 @@ import { createActiveFactionRecord } from './factionCap.js'
  *   primaryClaim?: Record<string, Array<{ x: number, y: number }>>,
  *   justLatched?: boolean,
  *   survivalBySettlementId?: Record<string, object>,
+ *   softPowerScores?: Record<string, { dominantFactionId?: string | null }>,
  * }} params
  * @returns {{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
@@ -96,6 +102,24 @@ export function applyFactionMembershipEvents(params) {
     })
     next = defections.slice
     events.push(...defections.events)
+
+    const survivalUpgrade = upgradeTradePartnersOnSurvivalDependence({
+      slice: next,
+      survivalBySettlementId: params.survivalBySettlementId ?? {},
+    })
+    next = survivalUpgrade.slice
+    events.push(...survivalUpgrade.events)
+
+    const tradePartnerJoins = applyPeacefulTradePartnerJoins({ slice: next })
+    next = tradePartnerJoins.slice
+    events.push(...tradePartnerJoins.events)
+
+    const tradePartnerPeels = applyTradePartnerPeels({
+      slice: next,
+      scores: params.softPowerScores ?? {},
+    })
+    next = tradePartnerPeels.slice
+    events.push(...tradePartnerPeels.events)
 
     const unaligned = resolveLoneUnaligned({
       slice: next,
