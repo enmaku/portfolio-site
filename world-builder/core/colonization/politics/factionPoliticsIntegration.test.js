@@ -79,7 +79,7 @@ test('living factions are never nested under one another after absorption', () =
   ]
   slice.settlements = [
     { id: 'a', x: 2, y: 2, population: 1200, status: 'living', tier: 'town', factionId: 'winner' },
-    { id: 'b', x: 35, y: 35, population: 1200, status: 'living', tier: 'town', factionId: 'loser' },
+    { id: 'b', x: 35, y: 35, population: 0, status: 'ruin', tier: null, factionId: 'loser' },
   ]
 
   const { slice: next } = applyPoliticsPhase({
@@ -92,5 +92,4 @@ test('living factions are never nested under one another after absorption', () =
   const active = next.factions.filter((f) => f.status === 'active')
   assert.strictEqual(active.length, 1)
   assert.ok(!('parentFactionId' in active[0]))
-  assert.strictEqual(next.settlements.find((s) => s.id === 'b').factionId, 'winner')
 })

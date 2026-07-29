@@ -6,6 +6,7 @@
 import { annotateSurvivalFactionDependence } from './annotateSurvivalFactionDependence.js'
 import { applyFactionAbsorption } from './applyFactionAbsorption.js'
 import { applyFactionMembershipEvents } from './applyFactionMembershipEvents.js'
+import { applyConflictEnginePass } from './conflict/applyConflictEnginePass.js'
 import { evaluateSupplyChainIndependence } from './evaluateSupplyChainIndependence.js'
 import { HISTORY_KIND_INCREMENT3_LATCHED } from './historyKinds.js'
 
@@ -16,6 +17,10 @@ import { HISTORY_KIND_INCREMENT3_LATCHED } from './historyKinds.js'
  *   primaryClaim?: Record<string, Array<{ x: number, y: number }>>,
  *   survivalBySettlementId?: Record<string, object>,
  *   warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }>,
+ *   candidateEdges?: object[],
+ *   capacityBySettlementId?: Record<string, number>,
+ *   resourceScoreBySettlementId?: Record<string, number>,
+ *   martialInputBySettlementId?: Record<string, object>,
  * }} params
  * @returns {{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
@@ -85,6 +90,16 @@ export function applyPoliticsPhase(params) {
     events.push(...membership.events)
 
     if (latched) {
+      const conflict = applyConflictEnginePass({
+        slice: next,
+        candidateEdges: params.candidateEdges,
+        capacityBySettlementId: params.capacityBySettlementId,
+        resourceScoreBySettlementId: params.resourceScoreBySettlementId,
+        martialInputBySettlementId: params.martialInputBySettlementId,
+      })
+      next = conflict.slice
+      events.push(...conflict.events)
+
       const absorption = applyFactionAbsorption({
         slice: next,
         worldDocument: params.worldDocument,

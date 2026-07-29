@@ -13,6 +13,7 @@ import { realizedOnMapIncomeCpBySettlementId } from '../ledgers/realizedIncome.j
 import { roundMoneyCp } from '../formatMoneyCp.js'
 import { projectEconomyEpochSnapshot } from '../economyEpochSnapshot.js'
 import { runTradeClearing } from './runTradeClearing.js'
+import { filterCandidateEdgesForBelligerents } from '../../colonization/politics/conflict/belligerentTradeBlocks.js'
 
 /**
  * @typedef {import('../commodityCatalog.js').CommodityId} CommodityId
@@ -37,6 +38,8 @@ export const TRADE_ACTIVATION_MIN_SETTLEMENTS = 2
  * @property {{ candidates: TradeRouteEdge[], activeFlows: import('./clearingState.js').TradeFlow[] }} [tradeRouteState]
  *   Prior route state, preserved verbatim when pairwise trade does not activate this epoch.
  * @property {EconomyEpochSnapshot | null} [lastTradeEpochResult]
+ * @property {import('../../colonization/politics/conflict/belligerentTradeBlocks.js').BelligerentTradeBlock[]} [belligerentTradeBlocks]
+ * @property {Record<string, string | null | undefined>} [factionIdBySettlementId]
  */
 
 /**
@@ -68,6 +71,8 @@ export async function clearRealmTrade(input, options = {}) {
     priorRealizedIncomeCp: priorRealizedIncomeCpInput,
     tradeRouteState: priorTradeRouteState,
     lastTradeEpochResult: priorTradeEpochResult,
+    belligerentTradeBlocks,
+    factionIdBySettlementId,
   } = input
 
   if (settlements.length < TRADE_ACTIVATION_MIN_SETTLEMENTS || !graph) {
@@ -96,10 +101,17 @@ export async function clearRealmTrade(input, options = {}) {
 
   const priorRealizedIncomeCp = { ...(priorRealizedIncomeCpInput ?? {}) }
 
+  const clearingEdges = filterCandidateEdgesForBelligerents({
+    edges: graph.edges,
+    blocks: belligerentTradeBlocks,
+    factionIdBySettlementId: factionIdBySettlementId ?? {},
+  })
+  const clearingGraph = { edges: clearingEdges }
+
   const result = await runTradeClearing(
     {
       settlements: clearingSettlements,
-      graph,
+      graph: clearingGraph,
       production,
       externalAccountsCp: priorExternalTradeAccounts,
       priorTradeAccounts,

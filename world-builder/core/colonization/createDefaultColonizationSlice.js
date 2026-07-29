@@ -65,6 +65,9 @@
  * @property {Record<string, number>} vassalIndependenceStreak Local food independence streak by vassal settlement id.
  * @property {Record<string, number>} factionOverstretchStreak Living-membership over-span streak by faction id.
  * @property {RivalryEdge[]} rivalryEdges Legacy (and other) rivalry edges between living factions.
+ * @property {Record<string, { penalty: number, expiresEpoch: number }>} warExhaustionBySettlementId
+ * @property {import('./politics/conflict/belligerentTradeBlocks.js').BelligerentTradeBlock[]} belligerentTradeBlocks
+ * @property {Record<string, { conqueredEpoch: number, priorFactionId?: string | null }>} recentConquestBySettlementId
  */
 
 /**
@@ -107,6 +110,12 @@ import {
 import { resolveRoadSegments } from './roads/roadNetwork.js'
 import { ensureSettlementMapNumbers } from './settlementMapNumber.js'
 import { resolveEconomyEpochSnapshot } from '../economy/economyEpochSnapshot.js'
+import {
+  resolveBelligerentTradeBlocks,
+  resolveRecentConquestMap,
+  resolveRivalryEdges,
+  resolveWarExhaustionMap,
+} from './resolveConflictSliceFields.js'
 
 export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
 export const COLONIZATION_PHASE_SETUP = /** @type {const} */ ('setup')
@@ -144,6 +153,9 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'vassalIndependenceStreak',
   'factionOverstretchStreak',
   'rivalryEdges',
+  'warExhaustionBySettlementId',
+  'belligerentTradeBlocks',
+  'recentConquestBySettlementId',
 ])
 
 /** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
@@ -248,6 +260,9 @@ export function createDefaultColonizationSlice() {
     vassalIndependenceStreak: {},
     factionOverstretchStreak: {},
     rivalryEdges: [],
+    warExhaustionBySettlementId: {},
+    belligerentTradeBlocks: [],
+    recentConquestBySettlementId: {},
   }
 }
 
@@ -305,6 +320,9 @@ export function resolveColonizationSlice(value) {
     vassalIndependenceStreak: resolveStreakMap(incoming.vassalIndependenceStreak),
     factionOverstretchStreak: resolveStreakMap(incoming.factionOverstretchStreak),
     rivalryEdges: resolveRivalryEdges(incoming.rivalryEdges),
+    warExhaustionBySettlementId: resolveWarExhaustionMap(incoming.warExhaustionBySettlementId),
+    belligerentTradeBlocks: resolveBelligerentTradeBlocks(incoming.belligerentTradeBlocks),
+    recentConquestBySettlementId: resolveRecentConquestMap(incoming.recentConquestBySettlementId),
   }
 }
 
@@ -602,31 +620,6 @@ function resolveStreakMap(value) {
     }
   }
   return resolved
-}
-
-/**
- * @param {unknown} value
- * @returns {RivalryEdge[]}
- */
-function resolveRivalryEdges(value) {
-  if (!Array.isArray(value)) return []
-  const causes = new Set(['legacy', 'resource', 'logistics', 'territory', 'belief'])
-  return value
-    .filter(
-      (row) =>
-        row &&
-        typeof row.aFactionId === 'string' &&
-        typeof row.bFactionId === 'string' &&
-        causes.has(row.cause) &&
-        typeof row.createdEpoch === 'number' &&
-        Number.isFinite(row.createdEpoch),
-    )
-    .map((row) => ({
-      aFactionId: row.aFactionId,
-      bFactionId: row.bFactionId,
-      cause: row.cause,
-      createdEpoch: row.createdEpoch,
-    }))
 }
 
 /**

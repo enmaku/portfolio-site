@@ -72,6 +72,11 @@ function applyWarOutcomes(params) {
   for (const outcome of params.warOutcomes) {
     if (!outcome?.loserFactionId || !outcome?.winnerFactionId) continue
     if (outcome.loserFactionId === outcome.winnerFactionId) continue
+    const loserLiving = (next.settlements ?? []).filter(
+      (s) => s.status === 'living' && s.factionId === outcome.loserFactionId,
+    )
+    // Pin-level conquest is the ordinary war prize; whole-faction war absorb only on extinction.
+    if (loserLiving.length > 0) continue
     const absorbed = absorbFaction({
       slice: next,
       loserFactionId: outcome.loserFactionId,

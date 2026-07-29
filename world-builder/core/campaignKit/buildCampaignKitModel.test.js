@@ -235,3 +235,75 @@ test('buildCampaignKitModel includes rivalry edges from the colonization slice',
   })
   assert.deepStrictEqual(model.politics.rivalryEdges, slice.rivalryEdges)
 })
+
+test('buildCampaignKitModel exposes structured conquest and rebellion politics without tax-only rebellion prose', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = 'running'
+  slice.increment3LatchedEpoch = 4
+  slice.epoch = 12
+  slice.recentConquestBySettlementId = {
+    b: { conqueredEpoch: 11, priorFactionId: 'faction-b' },
+  }
+  slice.belligerentTradeBlocks = [
+    {
+      aFactionId: 'faction-a',
+      bFactionId: 'faction-b',
+      openedEpoch: 11,
+      peaceEligibleEpoch: 12,
+    },
+  ]
+  slice.historyLog = [
+    {
+      kind: 'major_war_end',
+      epoch: 11,
+      contestedSettlementId: 'b',
+      winner: 'attacker',
+      fought: true,
+      attackerFactionId: 'faction-a',
+      defenderFactionId: 'faction-b',
+    },
+  ]
+  slice.factions = [
+    {
+      id: 'faction-a',
+      capitalSettlementId: 'a',
+      settlementIds: ['a', 'b'],
+      status: 'active',
+      emergedEpoch: 0,
+    },
+  ]
+  slice.settlements = [
+    {
+      id: 'a',
+      x: 0,
+      y: 0,
+      mapNumber: 1,
+      status: 'living',
+      population: 1000,
+      tier: 'town',
+      factionId: 'faction-a',
+    },
+    {
+      id: 'b',
+      x: 1,
+      y: 0,
+      mapNumber: 2,
+      status: 'living',
+      population: 800,
+      tier: 'village',
+      factionId: 'faction-a',
+      vassalLiegeSettlementId: 'a',
+    },
+  ]
+  const model = buildCampaignKitModel(slice, {
+    geographySeed: 1,
+    gridWidth: 4,
+    gridHeight: 4,
+    biomes: new Uint8Array(16).fill(BIOMES.GRASSLAND),
+  })
+  assert.equal(model.politics.recentConquests.length, 1)
+  assert.equal(model.politics.recentConquests[0].settlementId, 'b')
+  assert.equal(model.politics.belligerentTradeBlocks.length, 1)
+  assert.equal(model.politics.recentConflictOutcomes[0].kind, 'major_war_end')
+  assert.equal(model.politics.recentConflictOutcomes[0].winner, 'attacker')
+})

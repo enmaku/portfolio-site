@@ -142,5 +142,9 @@ export async function buildRealmTradeClearingInput(params, options = {}) {
     priorRealizedIncomeCp: slice.priorRealizedIncomeCp,
     lastTradeEpochResult: slice.lastTradeEpochResult ?? null,
     tradeRouteState: slice.tradeRouteState,
+    belligerentTradeBlocks: slice.belligerentTradeBlocks ?? [],
+    factionIdBySettlementId: Object.fromEntries(
+      living.map((settlement) => [settlement.id, settlement.factionId ?? null]),
+    ),
   }
 }

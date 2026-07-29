@@ -188,6 +188,11 @@ export function buildFoundingChronicle(slice) {
     'faction_absorption',
     'vassal_defection',
     'city_state_founding',
+    'major_war_start',
+    'major_war_end',
+    'rebellion_start',
+    'rebellion_end',
+    'treaty_peace',
   ])
   return (slice.historyLog ?? [])
     .filter((entry) => allowedKinds.has(entry.kind))
@@ -199,6 +204,14 @@ export function buildFoundingChronicle(slice) {
       logisticsNodePrimaryType: entry.logisticsNodePrimaryType,
       factionId: entry.factionId,
       cause: entry.cause,
+      attackerFactionId: entry.attackerFactionId,
+      defenderFactionId: entry.defenderFactionId,
+      contestedSettlementId: entry.contestedSettlementId,
+      loyalistFactionId: entry.loyalistFactionId,
+      winner: entry.winner,
+      fought: entry.fought,
+      aFactionId: entry.aFactionId,
+      bFactionId: entry.bFactionId,
     }))
 }
 

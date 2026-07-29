@@ -104,7 +104,7 @@ test('heavy trade alone without dependence does not absorb separate factions', (
   assert.ok(!next.historyLog.some((e) => e.kind === HISTORY_KIND_FACTION_ABSORPTION))
 })
 
-test('war outcome absorbs loser into winner', () => {
+test('warOutcomes does not whole-faction absorb while loser still has living pins', () => {
   const slice = baseSlice()
   slice.factions = [
     {
@@ -134,8 +134,41 @@ test('war outcome absorbs loser into winner', () => {
     warOutcomes: [{ loserFactionId: 'loser', winnerFactionId: 'winner' }],
   })
 
+  assert.strictEqual(next.factions.find((f) => f.id === 'loser')?.status, 'active')
+  assert.strictEqual(next.settlements.find((s) => s.id === 'b').factionId, 'loser')
+})
+
+test('warOutcomes absorbs only when the loser faction has no living members left', () => {
+  const slice = baseSlice()
+  slice.factions = [
+    {
+      id: 'winner',
+      capitalSettlementId: 'a',
+      settlementIds: ['a'],
+      status: 'active',
+      emergedEpoch: 12,
+    },
+    {
+      id: 'loser',
+      capitalSettlementId: 'b',
+      settlementIds: ['b'],
+      status: 'active',
+      emergedEpoch: 14,
+    },
+  ]
+  slice.settlements = [
+    { id: 'a', x: 2, y: 2, population: 1200, status: 'living', tier: 'town', factionId: 'winner' },
+    { id: 'b', x: 35, y: 35, population: 0, status: 'ruin', tier: null, factionId: 'loser' },
+  ]
+
+  const { slice: next } = applyPoliticsPhase({
+    slice,
+    worldDocument: flatLandDoc(40, 40),
+    primaryClaim: {},
+    warOutcomes: [{ loserFactionId: 'loser', winnerFactionId: 'winner' }],
+  })
+
   assert.strictEqual(next.factions.find((f) => f.id === 'loser')?.status, 'extinct')
-  assert.strictEqual(next.settlements.find((s) => s.id === 'b').factionId, 'winner')
   assert.ok(
     next.historyLog.some(
       (e) => e.kind === HISTORY_KIND_FACTION_ABSORPTION && e.cause === 'war',

@@ -479,5 +479,34 @@ function buildCampaignKitPolitics(slice) {
       cause: edge.cause,
       createdEpoch: edge.createdEpoch,
     })),
+    recentConquests: Object.entries(slice.recentConquestBySettlementId ?? {}).map(
+      ([settlementId, entry]) => ({
+        settlementId,
+        conqueredEpoch: entry.conqueredEpoch,
+        priorFactionId: entry.priorFactionId ?? null,
+      }),
+    ),
+    belligerentTradeBlocks: (slice.belligerentTradeBlocks ?? []).map((block) => ({
+      aFactionId: block.aFactionId,
+      bFactionId: block.bFactionId,
+      openedEpoch: block.openedEpoch,
+      peaceEligibleEpoch: block.peaceEligibleEpoch,
+    })),
+    recentConflictOutcomes: (slice.historyLog ?? [])
+      .filter(
+        (entry) =>
+          entry &&
+          (entry.kind === 'major_war_end' || entry.kind === 'rebellion_end'),
+      )
+      .map((entry) => ({
+        kind: entry.kind,
+        epoch: entry.epoch,
+        contestedSettlementId: entry.contestedSettlementId ?? null,
+        winner: entry.winner ?? null,
+        fought: entry.fought === true,
+        attackerFactionId: entry.attackerFactionId ?? null,
+        defenderFactionId: entry.defenderFactionId ?? null,
+        loyalistFactionId: entry.loyalistFactionId ?? null,
+      })),
   }
 }
