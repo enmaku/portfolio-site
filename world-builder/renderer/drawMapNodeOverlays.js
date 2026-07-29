@@ -11,8 +11,8 @@ import {
   SETTLEMENT_PIN_OUTLINE_WIDTH,
   settlementIdLabelOffsetX,
   settlementPinMarkerRadius,
+  shouldShowTradePartnerSackMarker,
   wasConqueredLastEpoch,
-  wasJoinedAsTradePartnerLastEpoch,
 } from './settlementNodeMarkers.js'
 import {
   mineralNodeOverlayColor,
@@ -168,8 +168,8 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
 }
 
 /**
- * Red Material Symbols crossed-swords (SVG path) to the right of pins conquered in
- * recent epochs, only while the faction territory overlay toggle is on.
+ * Recent-conquest swords (one-epoch flash) plus lasting trade-partner sack status
+ * cues, only while the faction territory overlay toggle is on.
  *
  * @param {import('pixi.js').Graphics} overlay
  * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
@@ -195,7 +195,6 @@ export function drawRecentConquestMarkers(
   const settlements = worldDocument.settlements ?? []
   const epoch = Number(worldDocument.epoch)
   const recent = worldDocument.recentConquestBySettlementId ?? {}
-  const recentJoin = worldDocument.recentTradePartnerJoinBySettlementId ?? {}
 
   for (const settlement of settlements) {
     if (
@@ -220,13 +219,7 @@ export function drawRecentConquestMarkers(
       continue
     }
 
-    if (
-      wasJoinedAsTradePartnerLastEpoch({
-        settlementId: settlement.id,
-        epoch,
-        recentTradePartnerJoinBySettlementId: recentJoin,
-      })
-    ) {
+    if (shouldShowTradePartnerSackMarker(settlement)) {
       drawSackIcon(overlay, left, midY, GraphicsPathCtor)
     }
   }

@@ -192,3 +192,99 @@ test('applyPoliticsPhase emits politics substeps and matches output with or with
   assert.deepStrictEqual(withYield.slice.factions, withoutYield.slice.factions)
   assert.strictEqual(withYield.slice.increment3LatchedEpoch, withoutYield.slice.increment3LatchedEpoch)
 })
+
+test('applyPoliticsPhase emits membership and absorption m/n item progress when latched', async () => {
+  const slice = createDefaultColonizationSlice()
+  slice.epoch = 50
+  slice.increment3LatchedEpoch = 10
+  slice.colonistSettings.threeDayHaulDistance = 3
+  slice.settlements = [
+    {
+      id: 'a',
+      x: 2,
+      y: 2,
+      population: 200,
+      status: 'living',
+      tier: 'town',
+      factionId: 'fa',
+    },
+    {
+      id: 'b',
+      x: 4,
+      y: 2,
+      population: 200,
+      status: 'living',
+      tier: 'town',
+      factionId: 'fb',
+    },
+  ]
+  slice.factions = [
+    {
+      id: 'fa',
+      capitalSettlementId: 'a',
+      settlementIds: ['a'],
+      status: 'active',
+      emergedEpoch: 12,
+    },
+    {
+      id: 'fb',
+      capitalSettlementId: 'b',
+      settlementIds: ['b'],
+      status: 'active',
+      emergedEpoch: 12,
+    },
+  ]
+
+  /** @type {Array<{ substepId: string, itemIndex: number, itemCount: number }>} */
+  const membershipItems = []
+  /** @type {Array<{ substepId: string, itemIndex: number, itemCount: number }>} */
+  const absorptionItems = []
+
+  await applyPoliticsPhase(
+    {
+      slice,
+      worldDocument: flatLandDoc(20, 20),
+      primaryClaim: {},
+      survivalBySettlementId: {
+        a: { ok: true, foodSurplus: 1 },
+        b: { ok: true, foodSurplus: 1 },
+      },
+    },
+    {
+      yieldToUi: async () => {},
+      hooks: {
+        onPoliticsSubstep(payload) {
+          if (payload.type !== 'substep-item') return
+          if (payload.substepId === 'membership') {
+            membershipItems.push({
+              substepId: payload.substepId,
+              itemIndex: payload.itemIndex ?? 0,
+              itemCount: payload.itemCount ?? 0,
+            })
+          }
+          if (payload.substepId === 'absorption') {
+            absorptionItems.push({
+              substepId: payload.substepId,
+              itemIndex: payload.itemIndex ?? 0,
+              itemCount: payload.itemCount ?? 0,
+            })
+          }
+        },
+      },
+    },
+  )
+
+  assert.ok(membershipItems.length > 1, 'expected membership item progress')
+  assert.equal(membershipItems[0].itemIndex, 1)
+  assert.equal(membershipItems.at(-1)?.itemIndex, membershipItems[0].itemCount)
+  assert.ok(
+    membershipItems.every((item) => item.itemCount === membershipItems[0].itemCount),
+  )
+
+  assert.ok(absorptionItems.length > 1, 'expected absorption item progress')
+  assert.equal(absorptionItems[0].itemIndex, 1)
+  assert.equal(absorptionItems.at(-1)?.itemIndex, absorptionItems[0].itemCount)
+  assert.ok(
+    absorptionItems.every((item) => item.itemCount === absorptionItems[0].itemCount),
+  )
+})

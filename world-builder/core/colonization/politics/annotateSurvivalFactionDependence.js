@@ -14,13 +14,28 @@ import { computeLogisticsConnectivityComponents } from './computeLogisticsConnec
  *   roads?: object[] | null,
  *   inlandSailExpeditionRange?: number,
  * }} params
- * @returns {Record<string, object>}
+ * @param {{
+ *   onItem?: () => void,
+ *   yieldToUi?: () => Promise<void>,
+ * }} [options]
+ * @returns {Promise<Record<string, object>>}
  */
-export function annotateSurvivalFactionDependence(params) {
+export async function annotateSurvivalFactionDependence(params, options = {}) {
+  const { onItem, yieldToUi } = options
   const survival = { ...(params.survivalBySettlementId ?? {}) }
   const activeFactions = (params.factions ?? []).filter((f) => f.status === 'active')
-  if (activeFactions.length === 0) return survival
+  if (activeFactions.length === 0) {
+    const skipCount = countAnnotateSurvivalProgressItems(params.settlements)
+    for (let i = 0; i < skipCount; i += 1) {
+      onItem?.()
+      await yieldToUi?.()
+    }
+    return survival
+  }
 
+  // Connectivity graph build is the expensive prelude — tick first so UI can paint 1/n.
+  onItem?.()
+  await yieldToUi?.()
   const components = computeLogisticsConnectivityComponents({
     settlements: params.settlements,
     worldDocument: params.worldDocument,
@@ -38,14 +53,30 @@ export function annotateSurvivalFactionDependence(params) {
   }
 
   for (const settlement of params.settlements ?? []) {
-    if (!settlement?.id || settlement.status === 'ruin' || !settlement.factionId) continue
+    if (!settlement?.id || settlement.status === 'ruin' || !settlement.factionId) {
+      onItem?.()
+      await yieldToUi?.()
+      continue
+    }
     const existing = survival[settlement.id] ?? {}
-    if (existing.dependsOnFactionId) continue
+    if (existing.dependsOnFactionId) {
+      onItem?.()
+      await yieldToUi?.()
+      continue
+    }
     const surplus = existing.foodSurplus
-    if (!(typeof surplus === 'number' && surplus < 0) && existing.ok !== false) continue
+    if (!(typeof surplus === 'number' && surplus < 0) && existing.ok !== false) {
+      onItem?.()
+      await yieldToUi?.()
+      continue
+    }
 
     const ownComponent = componentBySettlement.get(settlement.id)
-    if (!ownComponent) continue
+    if (!ownComponent) {
+      onItem?.()
+      await yieldToUi?.()
+      continue
+    }
 
     for (const other of params.settlements ?? []) {
       if (!other?.factionId || other.factionId === settlement.factionId) continue
@@ -61,7 +92,19 @@ export function annotateSurvivalFactionDependence(params) {
         break
       }
     }
+    onItem?.()
+    await yieldToUi?.()
   }
 
   return survival
+}
+
+/**
+ * Progress ticks emitted by {@link annotateSurvivalFactionDependence} (prelude + one per settlement).
+ *
+ * @param {Array<object> | null | undefined} settlements
+ * @returns {number}
+ */
+export function countAnnotateSurvivalProgressItems(settlements) {
+  return 1 + (Array.isArray(settlements) ? settlements.length : 0)
 }

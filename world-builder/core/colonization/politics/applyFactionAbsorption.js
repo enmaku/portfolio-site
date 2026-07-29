@@ -11,6 +11,9 @@ import {
 import { ABSORPTION_SUSTAINED_EPOCHS, MEMBERSHIP_REFRACTORY_EPOCHS } from './politicsConstants.js'
 import { transferRivalryOnAbsorb } from './rivalryEdges.js'
 
+/** Fixed absorption progress stages (always ticked when absorption work runs). */
+export const ABSORPTION_PROGRESS_STAGE_COUNT = 5
+
 /**
  * @param {{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
@@ -18,12 +21,22 @@ import { transferRivalryOnAbsorb } from './rivalryEdges.js'
  *   survivalBySettlementId?: Record<string, object>,
  *   warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }>,
  * }} params
- * @returns {{
+ * @param {{
+ *   onProgress?: () => void,
+ *   yieldToUi?: () => Promise<void>,
+ * }} [options]
+ * @returns {Promise<{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
  *   events: object[],
- * }}
+ * }>}
  */
-export function applyFactionAbsorption(params) {
+export async function applyFactionAbsorption(params, options = {}) {
+  const { onProgress, yieldToUi } = options
+  const tick = async () => {
+    onProgress?.()
+    await yieldToUi?.()
+  }
+
   let next = params.slice
   const events = []
 
@@ -31,6 +44,7 @@ export function applyFactionAbsorption(params) {
     return { slice: next, events }
   }
 
+  await tick()
   const warApplied = applyWarOutcomes({
     slice: next,
     warOutcomes: params.warOutcomes ?? [],
@@ -38,26 +52,42 @@ export function applyFactionAbsorption(params) {
   next = warApplied.slice
   events.push(...warApplied.events)
 
-  const streaked = updateDependenceStreaks({
+  await tick()
+  const streaked = await updateDependenceStreaks({
     slice: next,
     worldDocument: params.worldDocument,
     survivalBySettlementId: params.survivalBySettlementId ?? {},
+    onItem: onProgress,
+    yieldToUi,
   })
   next = streaked.slice
 
+  await tick()
   const asymmetric = applyAsymmetricAbsorptions({ slice: next })
   next = asymmetric.slice
   events.push(...asymmetric.events)
 
+  await tick()
   const mutual = applyMutualReintegrations({ slice: next })
   next = mutual.slice
   events.push(...mutual.events)
 
+  await tick()
   const extinct = extinguishEmptyFactions({ slice: next })
   next = extinct.slice
   events.push(...extinct.events)
 
   return { slice: next, events }
+}
+
+/**
+ * Progress ticks from {@link applyFactionAbsorption} when latched (stages + settlement streak scan).
+ *
+ * @param {Array<object> | null | undefined} settlements
+ * @returns {number}
+ */
+export function countAbsorptionProgressItems(settlements) {
+  return ABSORPTION_PROGRESS_STAGE_COUNT + (Array.isArray(settlements) ? settlements.length : 0)
 }
 
 /**
@@ -94,10 +124,13 @@ function applyWarOutcomes(params) {
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
  *   worldDocument: object,
  *   survivalBySettlementId: Record<string, object>,
+ *   onItem?: () => void,
+ *   yieldToUi?: () => Promise<void>,
  * }} params
  */
-function updateDependenceStreaks(params) {
+async function updateDependenceStreaks(params) {
   const next = params.slice
+  const { onItem, yieldToUi } = params
   /** @type {Record<string, number>} */
   const dependence = { ...(next.factionDependenceStreak ?? {}) }
   /** @type {Record<string, number>} */
@@ -125,7 +158,11 @@ function updateDependenceStreaks(params) {
   /** @type {Set<string>} */
   const seenDependence = new Set()
   for (const settlement of next.settlements) {
-    if (settlement.status === 'ruin' || !settlement.factionId) continue
+    if (settlement.status === 'ruin' || !settlement.factionId) {
+      onItem?.()
+      await yieldToUi?.()
+      continue
+    }
     const survival = params.survivalBySettlementId[settlement.id]
     const dependsOn = survival?.dependsOnFactionId
     if (
@@ -137,6 +174,8 @@ function updateDependenceStreaks(params) {
       seenDependence.add(key)
       dependence[key] = (dependence[key] ?? 0) + 1
     }
+    onItem?.()
+    await yieldToUi?.()
   }
   for (const key of Object.keys(dependence)) {
     if (!seenDependence.has(key)) dependence[key] = 0

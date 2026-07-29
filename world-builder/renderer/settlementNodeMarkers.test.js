@@ -7,7 +7,7 @@ import {
   settlementPinMarkerRadius,
   settlementPinMembershipBand,
   wasConqueredLastEpoch,
-  wasJoinedAsTradePartnerLastEpoch,
+  shouldShowTradePartnerSackMarker,
 } from './settlementNodeMarkers.js'
 
 const factions = [
@@ -135,20 +135,44 @@ test('wasConqueredLastEpoch is true only for the conquest epoch', () => {
   )
 })
 
-test('wasJoinedAsTradePartnerLastEpoch mirrors conquest window', () => {
+test('trade partner sack is a lasting status cue while isTradePartner', () => {
   assert.equal(
-    wasJoinedAsTradePartnerLastEpoch({
-      settlementId: 'tp',
-      epoch: 9,
-      recentTradePartnerJoinBySettlementId: { tp: { joinedEpoch: 9 } },
+    shouldShowTradePartnerSackMarker({
+      id: 'tp',
+      factionId: 'fa',
+      isTradePartner: true,
+      status: 'living',
+      population: 40,
     }),
     true,
   )
   assert.equal(
-    wasJoinedAsTradePartnerLastEpoch({
-      settlementId: 'tp',
-      epoch: 10,
-      recentTradePartnerJoinBySettlementId: { tp: { joinedEpoch: 9 } },
+    shouldShowTradePartnerSackMarker({
+      id: 'member',
+      factionId: 'fa',
+      isTradePartner: false,
+      status: 'living',
+      population: 40,
+    }),
+    false,
+  )
+  assert.equal(
+    shouldShowTradePartnerSackMarker({
+      id: 'free',
+      factionId: null,
+      status: 'living',
+      population: 40,
+    }),
+    false,
+  )
+  assert.equal(
+    shouldShowTradePartnerSackMarker({
+      id: 'vassal',
+      factionId: 'fa',
+      isTradePartner: false,
+      vassalLiegeSettlementId: 'cap',
+      status: 'living',
+      population: 40,
     }),
     false,
   )

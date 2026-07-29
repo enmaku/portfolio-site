@@ -7,6 +7,9 @@ import {
   RECENT_CONQUEST_SWORDS_PATH_D,
   SETTLEMENT_ID_LABEL_GAP_X,
   SETTLEMENT_PIN_RADIUS_CAPITAL,
+  TRADE_PARTNER_ICON_COLOR,
+  TRADE_PARTNER_ICON_OUTLINE_COLOR,
+  TRADE_PARTNER_SACK_PATH_D,
 } from './settlementNodeMarkers.js'
 
 class FakeGraphicsPath {
@@ -116,4 +119,56 @@ test('drawRecentConquestMarkers clears when faction territory overlay is off', (
     { factionTerritory: false, settlements: true },
   )
   assert.equal(overlay.paints.length, 0)
+})
+
+test('drawRecentConquestMarkers keeps sack for living trade partners across epochs', () => {
+  const overlay = fakeGraphics()
+  const worldDocument = {
+    epoch: 40,
+    settlements: [
+      {
+        id: 'tp',
+        x: 2,
+        y: 3,
+        status: 'living',
+        factionId: 'fa',
+        isTradePartner: true,
+        population: 50,
+      },
+      {
+        id: 'member',
+        x: 5,
+        y: 3,
+        status: 'living',
+        factionId: 'fa',
+        isTradePartner: false,
+        population: 80,
+      },
+    ],
+    factions: [
+      {
+        id: 'fa',
+        capitalSettlementId: 'member',
+        settlementIds: ['member', 'tp'],
+        status: 'active',
+      },
+    ],
+    recentConquestBySettlementId: {},
+  }
+
+  drawRecentConquestMarkers(
+    /** @type {any} */ (overlay),
+    /** @type {any} */ (FakeGraphicsPath),
+    /** @type {any} */ (worldDocument),
+    { factionTerritory: true, settlements: true },
+  )
+
+  assert.ok(overlay.paths.every((path) => path.d === TRADE_PARTNER_SACK_PATH_D))
+  assert.ok(overlay.paths.length >= 2)
+  const fills = overlay.paints.filter((paint) => paint.kind === 'fill')
+  const strokes = overlay.paints.filter((paint) => paint.kind === 'stroke')
+  assert.equal(fills.length, 1)
+  assert.equal(fills[0].color, TRADE_PARTNER_ICON_COLOR)
+  assert.equal(strokes.length, 1)
+  assert.equal(strokes[0].color, TRADE_PARTNER_ICON_OUTLINE_COLOR)
 })

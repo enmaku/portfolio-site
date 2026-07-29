@@ -3,16 +3,28 @@
  * Domain: world-builder/CONTEXT.md — Faction, Supply-chain independence.
  */
 
-import { annotateSurvivalFactionDependence } from './annotateSurvivalFactionDependence.js'
-import { applyFactionAbsorption } from './applyFactionAbsorption.js'
-import { applyFactionMembershipEvents } from './applyFactionMembershipEvents.js'
+import {
+  annotateSurvivalFactionDependence,
+  countAnnotateSurvivalProgressItems,
+} from './annotateSurvivalFactionDependence.js'
+import {
+  applyFactionAbsorption,
+  countAbsorptionProgressItems,
+} from './applyFactionAbsorption.js'
+import {
+  applyFactionMembershipEvents,
+  MEMBERSHIP_EVENT_PROGRESS_STAGE_COUNT,
+} from './applyFactionMembershipEvents.js'
 import { applyConflictEnginePass } from './conflict/applyConflictEnginePass.js'
 import { buildConflictEngineInputs } from './conflict/buildConflictEngineInputs.js'
 import { evaluateSupplyChainIndependence } from './evaluateSupplyChainIndependence.js'
 import { syncFactionTerritoryPalettes } from './factionCap.js'
 import { HISTORY_KIND_INCREMENT3_LATCHED } from './historyKinds.js'
 import { resolveMapGraySettlementIds } from './softPower/factionalControl.js'
-import { scoreSoftPowerBySettlement } from './softPower/scoreSoftPower.js'
+import {
+  countLivingSoftPowerSettlements,
+  scoreSoftPowerBySettlementAsync,
+} from './softPower/scoreSoftPower.js'
 import { advanceSoftPowerStreaks } from './softPower/softPowerStreaks.js'
 import { isTaxedFactionMember } from './softPower/taxedMembers.js'
 
@@ -35,6 +47,25 @@ import { isTaxedFactionMember } from './softPower/taxedMembers.js'
  * @property {PoliticsPhaseHooks} [hooks]
  * @property {() => Promise<void>} [yieldToUi]
  */
+
+/**
+ * Emit-only item counter. Callers yield via their own `yieldToUi` after `report()`.
+ *
+ * @param {PoliticsPhaseHooks | undefined} hooks
+ * @param {string} substepId
+ * @param {number} itemCount
+ */
+function createPoliticsItemProgress(hooks, substepId, itemCount) {
+  let itemIndex = 0
+  return {
+    itemCount,
+    report() {
+      if (!(itemCount > 0)) return
+      itemIndex += 1
+      emitPoliticsSubstep(hooks, 'substep-item', substepId, itemIndex, itemCount)
+    },
+  }
+}
 
 /**
  * @param {{
@@ -107,23 +138,50 @@ export async function applyPoliticsPhase(params, options = {}) {
   /** @type {Record<string, { dominantFactionId?: string | null }>} */
   let softPowerScores = {}
   if (latched || hasActiveFactions) {
-    survivalBySettlementId = annotateSurvivalFactionDependence({
-      settlements: next.settlements,
-      factions: next.factions,
-      survivalBySettlementId,
-      worldDocument: params.worldDocument,
-      threeDayHaulDistance: next.colonistSettings.threeDayHaulDistance,
-      roads: next.roads,
-      inlandSailExpeditionRange:
-        next.colonistSettings.inlandSailExpeditionRange *
-        next.colonistSettings.threeDayHaulDistance,
-    })
+    const membershipItemCount =
+      countAnnotateSurvivalProgressItems(next.settlements) +
+      countLivingSoftPowerSettlements(next.settlements) +
+      1 + // soft-power streaks
+      MEMBERSHIP_EVENT_PROGRESS_STAGE_COUNT
+    const membershipProgress = createPoliticsItemProgress(
+      hooks,
+      'membership',
+      membershipItemCount,
+    )
 
-    softPowerScores = scoreSoftPowerBySettlement({
-      settlements: next.settlements,
-      factions: next.factions,
-      bilateralCpByPair: next.lastOnMapGoodsBilateralCpByPair,
-    })
+    survivalBySettlementId = await annotateSurvivalFactionDependence(
+      {
+        settlements: next.settlements,
+        factions: next.factions,
+        survivalBySettlementId,
+        worldDocument: params.worldDocument,
+        threeDayHaulDistance: next.colonistSettings.threeDayHaulDistance,
+        roads: next.roads,
+        inlandSailExpeditionRange:
+          next.colonistSettings.inlandSailExpeditionRange *
+          next.colonistSettings.threeDayHaulDistance,
+      },
+      {
+        onItem: () => {
+          membershipProgress.report()
+        },
+        yieldToUi,
+      },
+    )
+
+    softPowerScores = await scoreSoftPowerBySettlementAsync(
+      {
+        settlements: next.settlements,
+        factions: next.factions,
+        bilateralCpByPair: next.lastOnMapGoodsBilateralCpByPair,
+      },
+      {
+        onItem: () => {
+          membershipProgress.report()
+        },
+        yieldToUi,
+      },
+    )
     const mapGray = resolveMapGraySettlementIds({
       settlements: next.settlements,
       factions: next.factions,
@@ -146,15 +204,25 @@ export async function applyPoliticsPhase(params, options = {}) {
       homeFactionBySettlementId,
     })
     next = { ...next, ...streaked.state }
+    membershipProgress.report()
+    await yieldToUi?.()
 
-    const membership = applyFactionMembershipEvents({
-      slice: next,
-      worldDocument: params.worldDocument,
-      primaryClaim: params.primaryClaim,
-      justLatched,
-      survivalBySettlementId,
-      softPowerScores,
-    })
+    const membership = await applyFactionMembershipEvents(
+      {
+        slice: next,
+        worldDocument: params.worldDocument,
+        primaryClaim: params.primaryClaim,
+        justLatched,
+        survivalBySettlementId,
+        softPowerScores,
+      },
+      {
+        onProgress: () => {
+          membershipProgress.report()
+        },
+        yieldToUi,
+      },
+    )
     next = membership.slice
     events.push(...membership.events)
   }
@@ -201,12 +269,26 @@ export async function applyPoliticsPhase(params, options = {}) {
   emitPoliticsSubstep(hooks, 'substep-start', 'absorption')
   await yieldToUi?.()
   if (latched) {
-    const absorption = applyFactionAbsorption({
-      slice: next,
-      worldDocument: params.worldDocument,
-      survivalBySettlementId,
-      warOutcomes: params.warOutcomes,
-    })
+    const absorptionItemCount = countAbsorptionProgressItems(next.settlements)
+    const absorptionProgress = createPoliticsItemProgress(
+      hooks,
+      'absorption',
+      absorptionItemCount,
+    )
+    const absorption = await applyFactionAbsorption(
+      {
+        slice: next,
+        worldDocument: params.worldDocument,
+        survivalBySettlementId,
+        warOutcomes: params.warOutcomes,
+      },
+      {
+        onProgress: () => {
+          absorptionProgress.report()
+        },
+        yieldToUi,
+      },
+    )
     next = absorption.slice
     events.push(...absorption.events)
   }

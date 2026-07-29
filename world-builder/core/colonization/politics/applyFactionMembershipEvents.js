@@ -24,6 +24,9 @@ import {
   upgradeTradePartnersOnSurvivalDependence,
 } from './softPower/applyTradePartnerMembership.js'
 
+/** Fixed membership-event progress stages (always ticked when membership work runs). */
+export const MEMBERSHIP_EVENT_PROGRESS_STAGE_COUNT = 9
+
 /**
  * @param {{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
@@ -33,12 +36,22 @@ import {
  *   survivalBySettlementId?: Record<string, object>,
  *   softPowerScores?: Record<string, { dominantFactionId?: string | null }>,
  * }} params
- * @returns {{
+ * @param {{
+ *   onProgress?: () => void,
+ *   yieldToUi?: () => Promise<void>,
+ * }} [options]
+ * @returns {Promise<{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
  *   events: object[],
- * }}
+ * }>}
  */
-export function applyFactionMembershipEvents(params) {
+export async function applyFactionMembershipEvents(params, options = {}) {
+  const { onProgress, yieldToUi } = options
+  const tick = async () => {
+    onProgress?.()
+    await yieldToUi?.()
+  }
+
   let next = params.slice
   const events = []
   const latched = next.increment3LatchedEpoch != null
@@ -49,6 +62,7 @@ export function applyFactionMembershipEvents(params) {
 
   const primaryClaim = params.primaryClaim ?? next.primaryClaim
 
+  await tick()
   if (latched) {
     const evaluation = evaluateSupplyChainIndependence({
       settlements: next.settlements,
@@ -78,60 +92,69 @@ export function applyFactionMembershipEvents(params) {
       })
       next = queued.slice
     }
+  }
 
+  await tick()
+  if (latched) {
     const crystallized = crystallizeDueMints({ slice: next })
     next = crystallized.slice
     events.push(...crystallized.events)
   }
 
-  if (latched || hasActiveFactions) {
-    const succession = applyCapitalSuccession({ slice: next })
-    next = succession.slice
+  await tick()
+  const succession = applyCapitalSuccession({ slice: next })
+  next = succession.slice
 
-    const overstretch = applyStrategicOverstretchPeel({
-      slice: next,
-      worldDocument: params.worldDocument,
-    })
-    next = overstretch.slice
-    events.push(...overstretch.events)
+  await tick()
+  const overstretch = applyStrategicOverstretchPeel({
+    slice: next,
+    worldDocument: params.worldDocument,
+  })
+  next = overstretch.slice
+  events.push(...overstretch.events)
 
-    const defections = applyVassalDefections({
-      slice: next,
-      worldDocument: params.worldDocument,
-      survivalBySettlementId: params.survivalBySettlementId ?? {},
-    })
-    next = defections.slice
-    events.push(...defections.events)
+  await tick()
+  const defections = applyVassalDefections({
+    slice: next,
+    worldDocument: params.worldDocument,
+    survivalBySettlementId: params.survivalBySettlementId ?? {},
+  })
+  next = defections.slice
+  events.push(...defections.events)
 
-    const survivalUpgrade = upgradeTradePartnersOnSurvivalDependence({
-      slice: next,
-      survivalBySettlementId: params.survivalBySettlementId ?? {},
-    })
-    next = survivalUpgrade.slice
-    events.push(...survivalUpgrade.events)
+  await tick()
+  const survivalUpgrade = upgradeTradePartnersOnSurvivalDependence({
+    slice: next,
+    survivalBySettlementId: params.survivalBySettlementId ?? {},
+  })
+  next = survivalUpgrade.slice
+  events.push(...survivalUpgrade.events)
 
-    const tradePartnerJoins = applyPeacefulTradePartnerJoins({ slice: next })
-    next = tradePartnerJoins.slice
-    events.push(...tradePartnerJoins.events)
+  await tick()
+  const tradePartnerJoins = applyPeacefulTradePartnerJoins({ slice: next })
+  next = tradePartnerJoins.slice
+  events.push(...tradePartnerJoins.events)
 
-    const tradePartnerPeels = applyTradePartnerPeels({
-      slice: next,
-      scores: params.softPowerScores ?? {},
-    })
-    next = tradePartnerPeels.slice
-    events.push(...tradePartnerPeels.events)
+  await tick()
+  const tradePartnerPeels = applyTradePartnerPeels({
+    slice: next,
+    scores: params.softPowerScores ?? {},
+  })
+  next = tradePartnerPeels.slice
+  events.push(...tradePartnerPeels.events)
 
-    const unaligned = resolveLoneUnaligned({
-      slice: next,
-      worldDocument: params.worldDocument,
-      survivalBySettlementId: params.survivalBySettlementId ?? {},
-    })
-    next = unaligned.slice
-    events.push(...unaligned.events)
-  }
+  await tick()
+  const unaligned = resolveLoneUnaligned({
+    slice: next,
+    worldDocument: params.worldDocument,
+    survivalBySettlementId: params.survivalBySettlementId ?? {},
+  })
+  next = unaligned.slice
+  events.push(...unaligned.events)
 
   return { slice: next, events }
 }
+
 
 /**
  * @param {{

@@ -6,6 +6,7 @@ import {
   COLONIZATION_EPOCH_MAP_SUBSTEPS,
   COLONIZATION_EPOCH_PHASES,
   COLONIZATION_NETWORK_SUBSTEPS,
+  COLONIZATION_POLITICS_SUBSTEPS,
   COLONIZATION_TRADE_SUBSTEPS,
 } from '../../world-builder/core/colonization/colonizationEpochSteps.js'
 import {
@@ -130,6 +131,17 @@ export function useWorldBuilderColonizationProgressStatus(options) {
       ),
     ),
   )
+  const epochStepPoliticsSubstepStatuses = computed(() =>
+    createItemAwareSubstepStatuses(
+      COLONIZATION_POLITICS_SUBSTEPS,
+      epochStepProgress.value.activePoliticsSubstepIndex,
+      epochStepProgress.value.completedPoliticsSubstepIndex,
+      activeItemProgressFromCounts(
+        epochStepProgress.value.politicsSubstepItemIndex,
+        epochStepProgress.value.politicsSubstepItemCount,
+      ),
+    ),
+  )
   const epochStepFinalizeStepStatuses = computed(() =>
     createGenerationStepStatuses(
       COLONIZATION_EPOCH_FINALIZE_STEPS,
@@ -211,6 +223,7 @@ export function useWorldBuilderColonizationProgressStatus(options) {
         networkSubsteps: epochStepNetworkSubstepStatuses.value,
         tradeSubsteps: epochStepTradeSubstepStatuses.value,
         collapseSubsteps: epochStepCollapseSubstepStatuses.value,
+        politicsSubsteps: epochStepPoliticsSubstepStatuses.value,
         mapSubsteps: epochStepMapSubstepStatuses.value,
       })
     }
@@ -235,6 +248,7 @@ export function useWorldBuilderColonizationProgressStatus(options) {
     epochStepNetworkSubstepStatuses,
     epochStepTradeSubstepStatuses,
     epochStepCollapseSubstepStatuses,
+    epochStepPoliticsSubstepStatuses,
     epochStepFinalizeStepStatuses,
     epochStepMapSubstepStatuses,
     beginColonizationStepStatuses,
