@@ -223,11 +223,14 @@ export async function selectResourceConquests(params) {
  *   strategicReachHaulFractions: object,
  *   resourceScoreBySettlementId?: Record<string, number>,
  *   busyFactionIds?: Set<string>,
+ *   yieldToUi?: () => Promise<void>,
+ *   onProgress?: (itemIndex: number, itemCount: number) => void,
  * }} params
- * @returns {ConquestCandidate | null}
+ * @returns {Promise<ConquestCandidate | null>}
  */
-export function selectResourceConquest(params) {
-  return selectResourceConquests({ ...params, maxConquests: 1 })[0] ?? null
+export async function selectResourceConquest(params) {
+  const picked = await selectResourceConquests({ ...params, maxConquests: 1 })
+  return picked[0] ?? null
 }
 
 /**

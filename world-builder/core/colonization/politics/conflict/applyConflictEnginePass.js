@@ -26,16 +26,19 @@ import { selectResourceConquests } from './selectResourceConquest.js'
  *   taxDrainCpBySettlementId?: Record<string, number>,
  *   adjacentFactionIdBySettlementId?: Record<string, string | null>,
  *   corridorDependentBySettlementId?: Record<string, boolean>,
+ *   yieldToUi?: () => Promise<void>,
+ *   onSelectProgress?: (itemIndex: number, itemCount: number) => void,
  * }} params
- * @returns {{ slice: object, events: object[], busyFactionIds: Set<string> }}
+ * @returns {Promise<{ slice: object, events: object[], busyFactionIds: Set<string> }>}
  */
-export function applyConflictEnginePass(params) {
+export async function applyConflictEnginePass(params) {
   const events = []
   const historyBefore = (params.slice.historyLog ?? []).length
   let next = decayWarExhaustion({ slice: params.slice, epoch: params.slice.epoch }).slice
   next = clearEligibleBelligerentTradeBlocks({ slice: next, epoch: next.epoch })
   const added = (next.historyLog ?? []).slice(historyBefore)
   events.push(...added)
+  await params.yieldToUi?.()
 
   const busyFactionIds = new Set()
   let capacityBySettlementId =
@@ -50,7 +53,7 @@ export function applyConflictEnginePass(params) {
   // Conquest before rebellion so tax revolts do not busy-out every territorial grab.
   const maxConquests = Math.max(1, Math.floor(Number(tuning.maxConquestsPerEpoch) || 1))
   for (let i = 0; i < maxConquests; i += 1) {
-    const selected = selectResourceConquests({
+    const selected = await selectResourceConquests({
       slice: next,
       capacityBySettlementId,
       candidateEdges: edges,
@@ -58,6 +61,8 @@ export function applyConflictEnginePass(params) {
       resourceScoreBySettlementId: params.resourceScoreBySettlementId,
       busyFactionIds,
       maxConquests: 1,
+      yieldToUi: params.yieldToUi,
+      onProgress: params.onSelectProgress,
     })
     const [conquest] = selected
     if (!conquest) break
@@ -74,6 +79,7 @@ export function applyConflictEnginePass(params) {
     events.push(...resolved.events)
     for (const id of resolved.participatingFactionIds) busyFactionIds.add(id)
     capacityBySettlementId = buildCapacities(next, params.martialInputBySettlementId ?? {})
+    await params.yieldToUi?.()
   }
 
   const rebellion = applyRebellionResolution({
@@ -92,6 +98,7 @@ export function applyConflictEnginePass(params) {
   next = rebellion.slice
   events.push(...rebellion.events)
   for (const id of rebellion.participatingFactionIds) busyFactionIds.add(id)
+  await params.yieldToUi?.()
 
   return { slice: next, events, busyFactionIds }
 }
