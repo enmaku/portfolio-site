@@ -89,6 +89,24 @@ export function sumFactionProjectedMight(params) {
 }
 
 /**
+ * Cheapest logistics-graph haul from one pin to another, or null when unreachable.
+ *
+ * @param {{
+ *   fromSettlementId: string,
+ *   contestedSettlementId: string,
+ *   candidateEdges: TradeRouteEdge[],
+ * }} params
+ * @returns {number | null}
+ */
+export function projectionPathHaulFraction(params) {
+  if (!params.fromSettlementId || !params.contestedSettlementId) return null
+  if (params.fromSettlementId === params.contestedSettlementId) return 0
+  const path = findCheapestProjectionPath(params)
+  if (!path) return null
+  return path.totalHaulFraction
+}
+
+/**
  * @param {{
  *   fromSettlementId: string,
  *   contestedSettlementId: string,

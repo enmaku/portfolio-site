@@ -29,17 +29,17 @@ export const WEALTH_CP_FOR_FULL_MERC_TOP_UP = 100_000
 
 /** Defender advantage multipliers by settlement tier. */
 export const DEFENDER_ADVANTAGE_BY_TIER = Object.freeze({
-  hamlet: 1.05,
-  village: 1.1,
-  town: 1.2,
-  city: 1.35,
+  hamlet: 1.0,
+  village: 1.02,
+  town: 1.06,
+  city: 1.12,
 })
 
 /** Extra defender multiplier when the stake is a faction capital. */
-export const DEFENDER_CAPITAL_BUMP = 1.15
+export const DEFENDER_CAPITAL_BUMP = 1.05
 
 /** Default tier multiplier when tier is unknown. */
-export const DEFENDER_ADVANTAGE_DEFAULT = 1.1
+export const DEFENDER_ADVANTAGE_DEFAULT = 1.02
 
 /** Soft-cutoff: projection fades to zero between this fraction and 1.0 of strategic reach. */
 export const PROJECTION_SOFT_CUTOFF_START_FRACTION = 0.75
@@ -66,7 +66,22 @@ export const BELLIGERENT_PEACE_MIN_POST_WAR_EPOCHS = 1
 export const WAR_WEALTH_BURN_FRACTION = 0.02
 
 /** Economic contest intensity required to escalate into a major-war conquest. */
-export const ECONOMIC_CONTEST_WAR_THRESHOLD = 50
+export const ECONOMIC_CONTEST_WAR_THRESHOLD = 15
+
+/**
+ * Extra intensity when the stake belongs to a rival faction (vs unaligned free towns,
+ * which already get an attractiveness bonus in resource scoring).
+ */
+export const RIVAL_FACTION_CONTEST_BONUS = 28
+
+/**
+ * Cap on projected-might contribution to contest intensity.
+ * Paired with {@link PROJECTED_MIGHT_INTENSITY_DIVISOR}.
+ */
+export const PROJECTED_MIGHT_INTENSITY_CAP = 50
+
+/** Divide projected might by this before adding to contest intensity (then cap). */
+export const PROJECTED_MIGHT_INTENSITY_DIVISOR = 2
 
 /** Epochs of recent-conquest resentment that can arm rebellion. */
 export const RECENT_CONQUEST_RESENTMENT_EPOCHS = 5

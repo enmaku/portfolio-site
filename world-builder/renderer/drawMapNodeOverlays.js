@@ -1,10 +1,5 @@
 import {
-  RECENT_CONQUEST_ICON_COLOR,
-  RECENT_CONQUEST_ICON_FONT_FAMILY,
-  RECENT_CONQUEST_ICON_FONT_SIZE,
-  RECENT_CONQUEST_ICON_LIGATURE,
-  RECENT_CONQUEST_ICON_OUTLINE_COLOR,
-  RECENT_CONQUEST_ICON_OUTLINE_WIDTH,
+  drawCrossedSwordsIcon,
   SETTLEMENT_ID_LABEL_COLOR,
   SETTLEMENT_ID_LABEL_FONT_SIZE,
   SETTLEMENT_ID_LABEL_OUTLINE_COLOR,
@@ -120,10 +115,10 @@ export function clearSettlementIdLabels(overlay) {
 }
 
 /**
- * @param {import('pixi.js').Container} overlay
+ * @param {import('pixi.js').Graphics} overlay
  */
 export function clearRecentConquestMarkers(overlay) {
-  clearSettlementIdLabels(overlay)
+  overlay.clear()
 }
 
 /**
@@ -169,20 +164,16 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
 }
 
 /**
- * Yellow Material Symbols "swords" to the right of pins conquered in the current epoch,
+ * Yellow crossed-swords cue to the right of pins conquered in recent epochs,
  * only while the faction territory overlay toggle is on.
+ * Drawn with Graphics strokes (same stack as settlement pins) so the mark does
+ * not depend on emoji / icon-font glyph coverage in Pixi Text.
  *
- * @param {import('pixi.js').Container} overlay
- * @param {typeof import('pixi.js').Text} TextCtor
+ * @param {import('pixi.js').Graphics} overlay
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @param {Record<string, boolean>} resourceOverlayVisibility
  */
-export function drawRecentConquestMarkers(
-  overlay,
-  TextCtor,
-  worldDocument,
-  resourceOverlayVisibility,
-) {
+export function drawRecentConquestMarkers(overlay, worldDocument, resourceOverlayVisibility) {
   clearRecentConquestMarkers(overlay)
 
   if (!isResourceOverlayVisible(resourceOverlayVisibility, 'factionTerritory')) {
@@ -215,22 +206,9 @@ export function drawRecentConquestMarkers(
       continue
     }
 
-    const icon = new TextCtor({
-      text: RECENT_CONQUEST_ICON_LIGATURE,
-      style: {
-        fontFamily: RECENT_CONQUEST_ICON_FONT_FAMILY,
-        fontSize: RECENT_CONQUEST_ICON_FONT_SIZE,
-        fill: RECENT_CONQUEST_ICON_COLOR,
-        stroke: {
-          color: RECENT_CONQUEST_ICON_OUTLINE_COLOR,
-          width: RECENT_CONQUEST_ICON_OUTLINE_WIDTH,
-        },
-      },
-    })
-    icon.anchor.set(0, 0.5)
-    icon.x = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions)
-    icon.y = settlement.y + 0.5
-    overlay.addChild(icon)
+    const cx = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions) + 4
+    const cy = settlement.y + 0.5
+    drawCrossedSwordsIcon(overlay, cx, cy)
   }
 }
 

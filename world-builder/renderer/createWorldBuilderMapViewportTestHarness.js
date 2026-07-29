@@ -19,6 +19,7 @@ import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays
  * @property {{ scale: { x: number, y: number }, center: { x: number, y: number } } | null} lastViewportInstance
  * @property {Record<'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes', Array<{ x: number, y: number, color: number | null }>>} drawnCirclesByLayer
  * @property {Array<{ text: string, x: number, y: number, fill: number | null }>} drawnTexts
+ * @property {Array<{ color: number | null, path: Array<{ x: number, y: number }> }>} drawnStrokes
  */
 
 /** @type {ViewportSpyState} */
@@ -39,6 +40,7 @@ export const viewportSpyState = {
     settlementNodes: [],
   },
   drawnTexts: [],
+  drawnStrokes: [],
 }
 
 /** Skip viewport suites when the runtime lacks module mocking support. */
@@ -61,6 +63,7 @@ export function resetViewportSpyState() {
     settlementNodes: [],
   }
   viewportSpyState.drawnTexts = []
+  viewportSpyState.drawnStrokes = []
 }
 
 /** Vector overlay Graphics are always created coastal → metal → salt → settlement per viewport. */
@@ -71,13 +74,17 @@ const VECTOR_LAYER_IDS = /** @type {const} */ ([
   'settlementNodes',
 ])
 
+/** Crossed-swords conquest cue Graphics sits after settlement pins. */
+const RECENT_CONQUEST_GRAPHICS_COUNT = 1
+
 /** Landing-placement overlays appended after vector layers: haul shed, landing pin, focus pin. */
 const LANDING_PLACEMENT_GRAPHICS_COUNT = 3
 
 function syncDrawnCirclesByLayer() {
+  const trailingNonVector = RECENT_CONQUEST_GRAPHICS_COUNT + LANDING_PLACEMENT_GRAPHICS_COUNT
   const vectorLayers = viewportSpyState.graphicsLayers.slice(
-    -(VECTOR_LAYER_IDS.length + LANDING_PLACEMENT_GRAPHICS_COUNT),
-    -LANDING_PLACEMENT_GRAPHICS_COUNT,
+    -(VECTOR_LAYER_IDS.length + trailingNonVector),
+    -trailingNonVector,
   )
   for (let i = 0; i < VECTOR_LAYER_IDS.length; i += 1) {
     viewportSpyState.drawnCirclesByLayer[VECTOR_LAYER_IDS[i]] = vectorLayers[i]?.circles ?? []
@@ -93,7 +100,22 @@ export async function installViewportMocks() {
   resetViewportSpyState()
 
   globalThis.ImageData = class {
-    constructor() {}
+    /**
+     * @param {Uint8ClampedArray | number} dataOrWidth
+     * @param {number} [width]
+     * @param {number} [height]
+     */
+    constructor(dataOrWidth, width, height) {
+      if (typeof dataOrWidth === 'number') {
+        this.width = dataOrWidth
+        this.height = width ?? 0
+        this.data = new Uint8ClampedArray(this.width * this.height * 4)
+        return
+      }
+      this.data = dataOrWidth
+      this.width = width ?? 0
+      this.height = height ?? 0
+    }
   }
 
   globalThis.document = {
@@ -106,8 +128,35 @@ export async function installViewportMocks() {
         width: 0,
         height: 0,
         getContext() {
+          // Stub enough Canvas2D for terrain/contour/raster overlay builders under Node.
           return {
+            strokeStyle: '',
+            fillStyle: '',
+            lineWidth: 1,
+            lineCap: 'butt',
+            lineJoin: 'miter',
+            globalAlpha: 1,
             putImageData() {},
+            getImageData(x, y, w, h) {
+              return new ImageData(w, h)
+            },
+            beginPath() {},
+            closePath() {},
+            moveTo() {},
+            lineTo() {},
+            stroke() {},
+            fill() {},
+            clearRect() {},
+            fillRect() {},
+            strokeRect() {},
+            drawImage() {},
+            save() {},
+            restore() {},
+            translate() {},
+            scale() {},
+            setLineDash() {},
+            arc() {},
+            clip() {},
           }
         },
       }
@@ -170,6 +219,10 @@ export async function installViewportMocks() {
         constructor() {
           /** @type {Array<{ x: number, y: number, color: number | null }>} */
           this.circles = []
+          /** @type {Array<{ color: number | null, path: Array<{ x: number, y: number }> }>} */
+          this.strokes = []
+          /** @type {Array<{ x: number, y: number }>} */
+          this._path = []
           viewportSpyState.graphicsLayers.push(this)
         }
         syncDrawnCircles() {
@@ -180,7 +233,10 @@ export async function installViewportMocks() {
         }
         clear() {
           this.circles = []
+          this.strokes = []
+          this._path = []
           this.syncDrawnCircles()
+          this.syncDrawnStrokes()
         }
         circle(x, y) {
           this.circles.push({ x, y, color: null })
@@ -192,9 +248,27 @@ export async function installViewportMocks() {
           this.syncDrawnCircles()
         }
         rect() {}
-        moveTo() {}
-        lineTo() {}
-        stroke() {}
+        moveTo(x, y) {
+          this._path = [{ x, y }]
+        }
+        lineTo(x, y) {
+          if (!this._path) this._path = []
+          this._path.push({ x, y })
+        }
+        stroke({ color } = {}) {
+          if (!this.strokes) this.strokes = []
+          this.strokes.push({
+            color: typeof color === 'number' ? color : null,
+            path: this._path ? [...this._path] : [],
+          })
+          this._path = []
+          this.syncDrawnStrokes()
+        }
+        syncDrawnStrokes() {
+          viewportSpyState.drawnStrokes = viewportSpyState.graphicsLayers.flatMap(
+            (layer) => layer.strokes ?? [],
+          )
+        }
         setFillStyle() {}
       },
       Container: class {

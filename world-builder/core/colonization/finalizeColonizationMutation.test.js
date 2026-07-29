@@ -52,6 +52,7 @@ test('finalizeColonizationMutation applies map layers including wealth before se
     'applyLayer:factionTerritory',
     'applyLayer:settlementNodes',
     'applyLayer:settlementIdLabels',
+    'applyLayer:recentConquestMarkers',
     'onComplete',
   ])
 })

@@ -18,8 +18,9 @@ import {
   REBELLION_TAX_DRAIN_CP_THRESHOLD,
   RECENT_CONQUEST_RESENTMENT_EPOCHS,
 } from './conflictConstants.js'
+import { getConflictTuning } from './conflictTuning.js'
 import { defenderAdvantageMultiplier } from './computeMartialCapacity.js'
-import { projectMight, sumFactionProjectedMight } from './projectMight.js'
+import { projectMight, projectionPathHaulFraction, sumFactionProjectedMight } from './projectMight.js'
 import { resolveContestedSettlement } from './resolveContestedSettlement.js'
 
 /**
@@ -232,8 +233,31 @@ function pickRebellionStake(params) {
       cause = 'tax'
     }
     if (resentful) {
-      pressure += 40
-      cause = cause ? 'tax_and_conquest' : 'recent_conquest'
+      // Nearby holdings stay under the capital's projected grip; only distant
+      // resentful vassals break for conquest-resentment alone (CONTEXT / ADR 0020).
+      const capitalId = faction.capitalSettlementId
+      const haul =
+        capitalId == null
+          ? null
+          : projectionPathHaulFraction({
+              fromSettlementId: capitalId,
+              contestedSettlementId: settlement.id,
+              candidateEdges: params.candidateEdges,
+            })
+      const reach = params.strategicReachHaulFractions ?? {}
+      const landReach = Math.max(
+        1,
+        Number(reach.road) || Number(reach.overland) || 1,
+      )
+      const distantFraction = Math.max(
+        0,
+        Number(getConflictTuning().rebellionDistantHaulFraction) || 0.4,
+      )
+      const distantHolding = haul == null || haul >= landReach * distantFraction
+      if (distantHolding || cause === 'tax') {
+        pressure += 40
+        cause = cause ? 'tax_and_conquest' : 'recent_conquest'
+      }
     }
     if (!(pressure > 0) || !cause) continue
     candidates.push({ ...settlement, rebellionCause: cause, pressure })

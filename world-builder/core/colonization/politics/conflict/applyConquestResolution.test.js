@@ -2,11 +2,15 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { applyConquestResolution } from './applyConquestResolution.js'
 import { selectResourceConquest } from './selectResourceConquest.js'
-import { ECONOMIC_CONTEST_WAR_THRESHOLD } from './conflictConstants.js'
+import { resetConflictTuning, setConflictTuning } from './conflictTuning.js'
 import {
   HISTORY_KIND_MAJOR_WAR_END,
   HISTORY_KIND_MAJOR_WAR_START,
 } from '../historyKinds.js'
+
+test.afterEach(() => {
+  resetConflictTuning()
+})
 
 function edge(partial) {
   return {
@@ -132,6 +136,16 @@ test('unaligned stake needs no rivalry edge and defends alone', () => {
 })
 
 test('selectResourceConquest respects cadence and intensity threshold', () => {
+  setConflictTuning({
+    warThreshold: 50,
+    rivalBonus: 0,
+    mightIntensityCap: 40,
+    mightIntensityDivisor: 10,
+    requireAttackerEdge: false,
+    preferWinnableStakes: false,
+    maxConquestsPerEpoch: 1,
+    requireBorderNeighbor: false,
+  })
   const slice = twoFactionSlice()
   const edges = [edge({ id: 'a1-b1', fromSettlementId: 'a1', toSettlementId: 'b1' })]
   const below = selectResourceConquest({
@@ -139,7 +153,7 @@ test('selectResourceConquest respects cadence and intensity threshold', () => {
     capacityBySettlementId: { a1: 100, b1: 50, b2: 50 },
     candidateEdges: edges,
     strategicReachHaulFractions: reach,
-    resourceScoreBySettlementId: { b1: ECONOMIC_CONTEST_WAR_THRESHOLD - 40 },
+    resourceScoreBySettlementId: { b1: 10 },
   })
   assert.equal(below, null)
 

@@ -46,23 +46,66 @@ export const SETTLEMENT_PIN_OUTLINE_COLOR = 0x000000
 /** Outline width in world/grid units. */
 export const SETTLEMENT_PIN_OUTLINE_WIDTH = 0.9
 
-/** Material Symbols ligature for crossed swords (recent conquest cue). */
-export const RECENT_CONQUEST_ICON_LIGATURE = 'swords'
-
-/** Font family for Material Symbols Outlined (Quasar extras). */
-export const RECENT_CONQUEST_ICON_FONT_FAMILY = 'Material Symbols Outlined'
-
-/** Yellow fill matching living settlement pins. */
+/** Yellow stroke matching living settlement pins. */
 export const RECENT_CONQUEST_ICON_COLOR = SETTLEMENT_NODE_OVERLAY_COLOR
 
-/** Black outline matching settlement pin / ID label outline. */
+/** Black outline under the yellow crossed-swords strokes. */
 export const RECENT_CONQUEST_ICON_OUTLINE_COLOR = SETTLEMENT_ID_LABEL_OUTLINE_COLOR
 
-/** Outline width in world/grid units. */
-export const RECENT_CONQUEST_ICON_OUTLINE_WIDTH = SETTLEMENT_ID_LABEL_OUTLINE_WIDTH
+/** Outline stroke width in world/grid units. */
+export const RECENT_CONQUEST_ICON_OUTLINE_WIDTH = 2.4
 
-/** Icon size in world/grid units. */
-export const RECENT_CONQUEST_ICON_FONT_SIZE = 12
+/** Inner yellow stroke width in world/grid units. */
+export const RECENT_CONQUEST_ICON_STROKE_WIDTH = 1.2
+
+/** Half-diagonal length of each sword stroke in world/grid units. */
+export const RECENT_CONQUEST_ICON_ARM = 5
+
+/**
+ * Draw a crossed-swords mark (two diagonals) with black outline then yellow fill.
+ * Uses Graphics strokes so the cue does not depend on font glyph coverage.
+ *
+ * @param {import('pixi.js').Graphics} graphics
+ * @param {number} cx
+ * @param {number} cy
+ */
+export function drawCrossedSwordsIcon(graphics, cx, cy) {
+  const arm = RECENT_CONQUEST_ICON_ARM
+  const diagonals = [
+    [
+      [cx - arm, cy - arm],
+      [cx + arm, cy + arm],
+    ],
+    [
+      [cx - arm, cy + arm],
+      [cx + arm, cy - arm],
+    ],
+  ]
+  for (const [[x0, y0], [x1, y1]] of diagonals) {
+    graphics.moveTo(x0, y0)
+    graphics.lineTo(x1, y1)
+  }
+  graphics.stroke({
+    width: RECENT_CONQUEST_ICON_OUTLINE_WIDTH,
+    color: RECENT_CONQUEST_ICON_OUTLINE_COLOR,
+    alpha: 1,
+  })
+  for (const [[x0, y0], [x1, y1]] of diagonals) {
+    graphics.moveTo(x0, y0)
+    graphics.lineTo(x1, y1)
+  }
+  graphics.stroke({
+    width: RECENT_CONQUEST_ICON_STROKE_WIDTH,
+    color: RECENT_CONQUEST_ICON_COLOR,
+    alpha: 1,
+  })
+}
+
+/**
+ * How many epochs a conquest cue stays on the map (inclusive of the conquest epoch).
+ * One epoch only: cue is present after the tick that took the pin, gone after the next.
+ */
+export const RECENT_CONQUEST_MARKER_EPOCHS = 1
 
 /**
  * @param {object} settlement
@@ -124,18 +167,24 @@ export function settlementIdLabelOffsetX(settlement, factions) {
 }
 
 /**
- * True when the settlement was conquered during the most recently completed epoch tick
+ * True when the settlement was conquered recently enough to show the map cue
  * (politics stamps `conqueredEpoch` after ruin advances `epoch`).
  *
  * @param {{
  *   settlementId: string,
  *   epoch: number,
  *   recentConquestBySettlementId?: Record<string, { conqueredEpoch?: number } | null | undefined> | null,
+ *   markerEpochs?: number,
  * }} params
  * @returns {boolean}
  */
 export function wasConqueredLastEpoch(params) {
   const entry = params.recentConquestBySettlementId?.[params.settlementId]
   if (!entry || !Number.isFinite(entry.conqueredEpoch)) return false
-  return entry.conqueredEpoch === params.epoch
+  const age = params.epoch - entry.conqueredEpoch
+  if (!(age >= 0)) return false
+  const window = Number.isFinite(params.markerEpochs)
+    ? Number(params.markerEpochs)
+    : RECENT_CONQUEST_MARKER_EPOCHS
+  return age < window
 }

@@ -66,3 +66,73 @@ test('applyPoliticsPhase latches once and records history', () => {
     1,
   )
 })
+
+test('applyPoliticsPhase can escalate conquest before latch when unaligned stakes exist', () => {
+  const edges = [
+    {
+      id: 'a1-free',
+      fromSettlementId: 'a1',
+      toSettlementId: 'free',
+      mode: 'road',
+      haulDistanceFraction: 1,
+      capacityLb: 1,
+      transportCostCpPerLb: 1,
+      directionalFrictionAtoB: 1,
+      directionalFrictionBtoA: 1,
+    },
+  ]
+  const slice = createDefaultColonizationSlice()
+  slice.epoch = 6
+  slice.increment3LatchedEpoch = null
+  slice.colonistSettings.threeDayHaulDistance = 100
+  slice.settlements = [
+    {
+      id: 'a1',
+      x: 2,
+      y: 2,
+      factionId: 'fa',
+      status: 'living',
+      population: 800,
+      tier: 'town',
+    },
+    {
+      id: 'free',
+      x: 3,
+      y: 2,
+      factionId: null,
+      status: 'living',
+      population: 60,
+      tier: 'hamlet',
+    },
+  ]
+  slice.factions = [
+    {
+      id: 'fa',
+      capitalSettlementId: 'a1',
+      settlementIds: ['a1'],
+      status: 'active',
+      emergedEpoch: 0,
+    },
+  ]
+  slice.tradeRouteState = { candidates: edges, activeFlows: [] }
+  slice.lastTradeEpochResult = {
+    realmBalancesCp: { a1: 0, free: 0 },
+    portTollIncomeCpBySettlementId: { free: 3_000 },
+    factionTaxNetCpBySettlementId: {},
+    effectiveDelivered: {},
+  }
+
+  const { slice: next, events } = applyPoliticsPhase({
+    slice,
+    worldDocument: flatLandDoc(20, 20),
+    candidateEdges: edges,
+    survivalBySettlementId: {
+      a1: { foodSurplus: 10, ok: true },
+      free: { foodSurplus: 8, ok: true },
+    },
+  })
+
+  assert.strictEqual(next.increment3LatchedEpoch, null)
+  assert.ok(events.some((e) => e.kind === 'major_war_start'))
+  assert.equal(next.settlements.find((s) => s.id === 'free').factionId, 'fa')
+})

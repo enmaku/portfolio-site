@@ -29,7 +29,7 @@ const NODE_OVERLAY_CLEAR_KEYS = Object.freeze({
  *   saltOverlay: import('pixi.js').Graphics,
  *   settlementOverlay: import('pixi.js').Graphics,
  *   settlementIdOverlay: import('pixi.js').Container,
- *   recentConquestOverlay: import('pixi.js').Container,
+ *   recentConquestOverlay: import('pixi.js').Graphics,
  * }} MapLayerPresentation
  */
 

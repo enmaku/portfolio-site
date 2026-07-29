@@ -9,6 +9,7 @@ import {
 } from '../historyKinds.js'
 import { applyWarExhaustion } from './applyWarExhaustion.js'
 import { openBelligerentTradeBlock } from './belligerentTradeBlocks.js'
+import { conflictDebug } from './conflictDebug.js'
 import { defenderAdvantageMultiplier } from './computeMartialCapacity.js'
 import { projectMight, sumFactionProjectedMight } from './projectMight.js'
 import { resolveContestedSettlement } from './resolveContestedSettlement.js'
@@ -128,6 +129,19 @@ export function applyConquestResolution(params) {
     defenderProjectedMight,
     stakeDefenderProjectedMight,
     defenderAdvantageOnStake,
+  })
+
+  conflictDebug('resolve.fight', {
+    epoch: next.epoch,
+    attacker: params.attackerFactionId,
+    defender: defenderFactionId,
+    stake: params.contestedSettlementId,
+    attackerProjectedMight,
+    defenderProjectedMight,
+    stakeDefenderProjectedMight,
+    defenderAdvantageOnStake,
+    winner,
+    edgeCount: params.candidateEdges?.length ?? 0,
   })
 
   const participatingFactionIds = [params.attackerFactionId]

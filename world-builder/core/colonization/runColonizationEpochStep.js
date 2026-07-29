@@ -3,6 +3,7 @@ import {
   runColonizationEpochClaimsPhase,
   runColonizationEpochCollapsePhase,
   runColonizationEpochNetworkPhase,
+  runColonizationEpochPoliticsPhase,
   runColonizationEpochRuinPhase,
   runColonizationEpochSurvivalPhase,
   runColonizationEpochTaxPhase,
@@ -174,6 +175,8 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
           },
         },
       })
+    } else if (phase.id === 'politics') {
+      runColonizationEpochPoliticsPhase(ctx, epochOptions)
     }
 
     progress = reduceEpochStepProgressOnPhaseComplete(progress, { phaseIndex })

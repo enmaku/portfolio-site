@@ -112,7 +112,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const saltOverlay = new Graphics()
   const settlementOverlay = new Graphics()
   const settlementIdOverlay = new Container()
-  const recentConquestOverlay = new Container()
+  const recentConquestOverlay = new Graphics()
   /** Campaign kit export only — never toggled from the overlay bar. */
   let settlementIdLabelsEnabled = false
   let resourceOverlayVisibility = createDefaultResourceOverlayVisibility()
@@ -318,7 +318,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       recentConquestMarkers: () =>
         drawRecentConquestMarkers(
           recentConquestOverlay,
-          Text,
           currentWorldDocument,
           resourceOverlayVisibility,
         ),

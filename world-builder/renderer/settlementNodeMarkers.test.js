@@ -53,7 +53,7 @@ test('pin marker radii: capital largest, member and unaligned equal, vassal smal
   assert.ok(member > vassal)
 })
 
-test('wasConqueredLastEpoch is true only for conquests stamped with the current epoch', () => {
+test('wasConqueredLastEpoch is true only for the conquest epoch', () => {
   assert.equal(
     wasConqueredLastEpoch({
       settlementId: 'border',

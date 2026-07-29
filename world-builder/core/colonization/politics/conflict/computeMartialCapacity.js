@@ -6,15 +6,13 @@
 import {
   ARMAMENT_MODIFIER_CAP,
   BASE_METALS_LB_PER_PERSON_FOR_FULL_ARMAMENT,
-  DEFENDER_ADVANTAGE_BY_TIER,
-  DEFENDER_ADVANTAGE_DEFAULT,
-  DEFENDER_CAPITAL_BUMP,
   FEED_MODIFIER_CAP,
   FOOD_SURPLUS_LB_PER_PERSON_FOR_FULL_FEED,
   MARTIAL_PER_PERSON,
   MERCENARY_TOP_UP_CAP_FRACTION,
   WEALTH_CP_FOR_FULL_MERC_TOP_UP,
 } from './conflictConstants.js'
+import { getConflictTuning } from './conflictTuning.js'
 
 /**
  * @param {{
@@ -63,13 +61,20 @@ export function computeMartialCapacity(params) {
  * @returns {number}
  */
 export function defenderAdvantageMultiplier(params) {
+  const tuning = getConflictTuning()
+  const byTier = {
+    hamlet: tuning.defenderHamlet,
+    village: tuning.defenderVillage,
+    town: tuning.defenderTown,
+    city: tuning.defenderCity,
+  }
   const tier = params.tier
   const tierMult =
-    tier && Object.prototype.hasOwnProperty.call(DEFENDER_ADVANTAGE_BY_TIER, tier)
-      ? DEFENDER_ADVANTAGE_BY_TIER[tier]
-      : DEFENDER_ADVANTAGE_DEFAULT
+    tier && Object.prototype.hasOwnProperty.call(byTier, tier)
+      ? byTier[/** @type {keyof typeof byTier} */ (tier)]
+      : tuning.defenderDefault
   if (params.isFactionCapital) {
-    return tierMult * DEFENDER_CAPITAL_BUMP
+    return tierMult * tuning.defenderCapitalBump
   }
   return tierMult
 }

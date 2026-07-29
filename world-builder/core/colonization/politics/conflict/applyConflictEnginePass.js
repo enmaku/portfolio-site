@@ -8,7 +8,9 @@ import { decayWarExhaustion, warExhaustionPenaltyFor } from './applyWarExhaustio
 import { applyConquestResolution } from './applyConquestResolution.js'
 import { applyRebellionResolution } from './applyRebellionResolution.js'
 import { computeMartialCapacity } from './computeMartialCapacity.js'
-import { selectResourceConquest } from './selectResourceConquest.js'
+import { conflictDebug } from './conflictDebug.js'
+import { getConflictTuning } from './conflictTuning.js'
+import { selectResourceConquests } from './selectResourceConquest.js'
 
 /**
  * @param {{
@@ -37,13 +39,90 @@ export function applyConflictEnginePass(params) {
   events.push(...added)
 
   const busyFactionIds = new Set()
-  const capacityBySettlementId =
+  let capacityBySettlementId =
     params.capacityBySettlementId ??
     buildCapacities(next, params.martialInputBySettlementId ?? {})
 
   const reach =
     params.strategicReachHaulFractions ?? defaultStrategicReach(next.colonistSettings)
+  const edgesFromParams = params.candidateEdges != null
   const edges = params.candidateEdges ?? next.tradeRouteState?.candidates ?? []
+  const capacityValues = Object.values(capacityBySettlementId)
+  const tuning = getConflictTuning()
+
+  conflictDebug('engine.enter', {
+    epoch: next.epoch,
+    edgeSource: edgesFromParams ? 'params' : 'tradeRouteState.candidates',
+    edgeCount: edges.length,
+    reach,
+    tuning: {
+      warThreshold: tuning.warThreshold,
+      rivalBonus: tuning.rivalBonus,
+      requireAttackerEdge: tuning.requireAttackerEdge,
+      attackerEdgeMargin: tuning.attackerEdgeMargin,
+      maxConquestsPerEpoch: tuning.maxConquestsPerEpoch,
+      preferWinnableStakes: tuning.preferWinnableStakes,
+    },
+    capacityCount: capacityValues.length,
+    capacityMax: capacityValues.length ? Math.max(...capacityValues) : 0,
+    capacitySum: capacityValues.reduce((a, b) => a + b, 0),
+    resourceScoreKeys: Object.keys(params.resourceScoreBySettlementId ?? {}).length,
+  })
+
+  // Conquest before rebellion so tax revolts do not busy-out every territorial grab.
+  const maxConquests = Math.max(1, Math.floor(Number(tuning.maxConquestsPerEpoch) || 1))
+  for (let i = 0; i < maxConquests; i += 1) {
+    const selected = selectResourceConquests({
+      slice: next,
+      capacityBySettlementId,
+      candidateEdges: edges,
+      strategicReachHaulFractions: reach,
+      resourceScoreBySettlementId: params.resourceScoreBySettlementId,
+      busyFactionIds,
+      maxConquests: 1,
+    })
+    const [conquest] = selected
+    conflictDebug('engine.select', {
+      epoch: next.epoch,
+      attempt: i + 1,
+      maxConquests,
+      busyFactionIds: [...busyFactionIds],
+      picked: conquest
+        ? {
+            attacker: conquest.attackerFactionId,
+            stake: conquest.contestedSettlementId,
+            defender: conquest.defenderFactionId,
+            intensity: conquest.intensity,
+            attackerMight: conquest.attackerMight,
+            defendedMight: conquest.defendedMight,
+            stakeCapacity: conquest.stakeCapacity,
+          }
+        : null,
+    })
+    if (!conquest) break
+
+    const resolved = applyConquestResolution({
+      slice: next,
+      attackerFactionId: conquest.attackerFactionId,
+      contestedSettlementId: conquest.contestedSettlementId,
+      capacityBySettlementId,
+      candidateEdges: edges,
+      strategicReachHaulFractions: reach,
+    })
+    next = resolved.slice
+    events.push(...resolved.events)
+    for (const id of resolved.participatingFactionIds) busyFactionIds.add(id)
+    capacityBySettlementId = buildCapacities(next, params.martialInputBySettlementId ?? {})
+    conflictDebug('engine.resolve', {
+      epoch: next.epoch,
+      attempt: i + 1,
+      winner: resolved.winner,
+      fought: resolved.fought,
+      stake: conquest.contestedSettlementId,
+      attacker: conquest.attackerFactionId,
+      recentStamp: next.recentConquestBySettlementId?.[conquest.contestedSettlementId] ?? null,
+    })
+  }
 
   const rebellion = applyRebellionResolution({
     slice: next,
@@ -61,29 +140,19 @@ export function applyConflictEnginePass(params) {
   next = rebellion.slice
   events.push(...rebellion.events)
   for (const id of rebellion.participatingFactionIds) busyFactionIds.add(id)
-
-  const conquest = selectResourceConquest({
-    slice: next,
-    capacityBySettlementId,
-    candidateEdges: edges,
-    strategicReachHaulFractions: reach,
-    resourceScoreBySettlementId: params.resourceScoreBySettlementId,
-    busyFactionIds,
-  })
-
-  if (conquest) {
-    const resolved = applyConquestResolution({
-      slice: next,
-      attackerFactionId: conquest.attackerFactionId,
-      contestedSettlementId: conquest.contestedSettlementId,
-      capacityBySettlementId,
-      candidateEdges: edges,
-      strategicReachHaulFractions: reach,
+  if (rebellion.events.length) {
+    conflictDebug('engine.rebellion', {
+      epoch: next.epoch,
+      events: rebellion.events.map((e) => e.kind),
+      participating: rebellion.participatingFactionIds,
     })
-    next = resolved.slice
-    events.push(...resolved.events)
-    for (const id of resolved.participatingFactionIds) busyFactionIds.add(id)
   }
+
+  conflictDebug('engine.exit', {
+    epoch: next.epoch,
+    eventKinds: events.map((e) => e.kind),
+    busyFactionIds: [...busyFactionIds],
+  })
 
   return { slice: next, events, busyFactionIds }
 }
