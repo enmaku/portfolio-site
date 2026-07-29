@@ -6,6 +6,9 @@
 import { getConflictTuning } from './conflictTuning.js'
 import { projectMight, projectionPathHaulFraction } from './projectMight.js'
 
+/** Yield / progress cadence while scoring attacker×stake pairs. */
+export const CONQUEST_SELECT_YIELD_EVERY = 8
+
 /**
  * @typedef {{
  *   attackerFactionId: string,
@@ -32,10 +35,12 @@ import { projectMight, projectionPathHaulFraction } from './projectMight.js'
  *   resourceScoreBySettlementId?: Record<string, number>,
  *   busyFactionIds?: Set<string>,
  *   maxConquests?: number,
+ *   yieldToUi?: () => Promise<void>,
+ *   onProgress?: (itemIndex: number, itemCount: number) => void,
  * }} params
- * @returns {ConquestCandidate[]}
+ * @returns {Promise<ConquestCandidate[]>}
  */
-export function selectResourceConquests(params) {
+export async function selectResourceConquests(params) {
   const tuning = getConflictTuning()
   const maxConquests = Math.max(
     1,
@@ -44,6 +49,7 @@ export function selectResourceConquests(params) {
   const busy = new Set(params.busyFactionIds ?? [])
   const settlements = (params.slice.settlements ?? []).filter((s) => s.status === 'living')
   const activeFactions = (params.slice.factions ?? []).filter((f) => f.status === 'active')
+  const attackers = activeFactions.filter((f) => !busy.has(f.id))
   const factionById = new Map(activeFactions.map((f) => [f.id, f]))
   const neighborsBySettlementId = buildNeighborIndex(
     params.candidateEdges,
@@ -51,11 +57,11 @@ export function selectResourceConquests(params) {
   )
   /** @type {ConquestCandidate[]} */
   const candidates = []
+  const totalWork = Math.max(1, attackers.length * settlements.length)
+  let workIndex = 0
+  const { yieldToUi, onProgress } = params
 
-  for (const attacker of activeFactions) {
-    if (busy.has(attacker.id)) {
-      continue
-    }
+  for (const attacker of attackers) {
     const memberIds = attacker.settlementIds ?? []
     const coreMemberIds = contiguousCoreMemberIds(
       memberIds,
@@ -64,6 +70,15 @@ export function selectResourceConquests(params) {
     )
 
     for (const stake of settlements) {
+      workIndex += 1
+      if (
+        workIndex === 1 ||
+        workIndex === totalWork ||
+        workIndex % CONQUEST_SELECT_YIELD_EVERY === 0
+      ) {
+        onProgress?.(workIndex, totalWork)
+        await yieldToUi?.()
+      }
       if (stake.factionId === attacker.id) {
         continue
       }
