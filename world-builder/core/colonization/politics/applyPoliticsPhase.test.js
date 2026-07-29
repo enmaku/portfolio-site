@@ -3,6 +3,11 @@ import test from 'node:test'
 import { applyPoliticsPhase } from './applyPoliticsPhase.js'
 import { HISTORY_KIND_INCREMENT3_LATCHED } from './historyKinds.js'
 import { createDefaultColonizationSlice } from '../createDefaultColonizationSlice.js'
+import { resetConflictTuning, setConflictTuning } from './conflict/conflictTuning.js'
+
+test.afterEach(() => {
+  resetConflictTuning()
+})
 
 function flatLandDoc(width, height) {
   const n = width * height
@@ -68,13 +73,20 @@ test('applyPoliticsPhase latches once and records history', () => {
 })
 
 test('applyPoliticsPhase can escalate conquest before latch when unaligned stakes exist', () => {
+  setConflictTuning({
+    requireBorderNeighbor: true,
+    allowDistantUnalignedConquest: true,
+    borderNeighborHaulFraction: 0.6,
+    distantUnalignedHaulFraction: 0.75,
+    warThreshold: 10,
+  })
   const edges = [
     {
       id: 'a1-free',
       fromSettlementId: 'a1',
       toSettlementId: 'free',
       mode: 'road',
-      haulDistanceFraction: 1,
+      haulDistanceFraction: 0.4,
       capacityLb: 1,
       transportCostCpPerLb: 1,
       directionalFrictionAtoB: 1,

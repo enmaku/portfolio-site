@@ -8,8 +8,8 @@ import { applyFactionAbsorption } from './applyFactionAbsorption.js'
 import { applyFactionMembershipEvents } from './applyFactionMembershipEvents.js'
 import { applyConflictEnginePass } from './conflict/applyConflictEnginePass.js'
 import { buildConflictEngineInputs } from './conflict/buildConflictEngineInputs.js'
-import { conflictDebug } from './conflict/conflictDebug.js'
 import { evaluateSupplyChainIndependence } from './evaluateSupplyChainIndependence.js'
+import { syncFactionTerritoryPalettes } from './factionCap.js'
 import { HISTORY_KIND_INCREMENT3_LATCHED } from './historyKinds.js'
 
 /**
@@ -68,26 +68,6 @@ export function applyPoliticsPhase(params) {
 
   const latched = next.increment3LatchedEpoch != null
   const hasActiveFactions = (next.factions ?? []).some((f) => f && f.status === 'active')
-  const livingCount = (next.settlements ?? []).filter((s) => s.status === 'living').length
-  const factionSummaries = (next.factions ?? [])
-    .filter((f) => f && f.status === 'active')
-    .map((f) => ({
-      id: f.id,
-      capital: f.capitalSettlementId,
-      pins: (f.settlementIds ?? []).length,
-    }))
-
-  conflictDebug('politics.enter', {
-    epoch: next.epoch,
-    latched,
-    latchEpoch: next.increment3LatchedEpoch,
-    hasActiveFactions,
-    livingSettlements: livingCount,
-    activeFactions: factionSummaries,
-    haul: next.colonistSettings?.threeDayHaulDistance,
-    tradeCandidates: next.tradeRouteState?.candidates?.length ?? 0,
-    passedCandidateEdges: params.candidateEdges?.length ?? null,
-  })
 
   if (latched || hasActiveFactions) {
     const survivalBySettlementId = annotateSurvivalFactionDependence({
@@ -117,13 +97,6 @@ export function applyPoliticsPhase(params) {
       (s) => s.status === 'living' && s.factionId == null,
     )
     const runConflict = latched || activeFactionCount >= 2 || hasUnalignedStake
-    conflictDebug('politics.conflictGate', {
-      epoch: next.epoch,
-      latched,
-      activeFactionCount,
-      hasUnalignedStake,
-      runConflict,
-    })
     // Conquest/rebellion once there are rival actors or free towns — not only after
     // haul-shed latch (default haul often never latches on mid-size maps).
     if (runConflict) {
@@ -131,21 +104,6 @@ export function applyPoliticsPhase(params) {
         slice: next,
         survivalBySettlementId,
         baseMetalsLbBySettlementId: params.baseMetalsLbBySettlementId,
-      })
-      const scoreValues = Object.values(derived.resourceScoreBySettlementId)
-      const capacityPreview = Object.values(derived.martialInputBySettlementId)
-      conflictDebug('politics.conflictInputs', {
-        epoch: next.epoch,
-        resourceScoreCount: scoreValues.length,
-        resourceScoreMax: scoreValues.length ? Math.max(...scoreValues) : 0,
-        resourceScoreAvg: scoreValues.length
-          ? scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length
-          : 0,
-        martialInputCount: capacityPreview.length,
-        sampleScores: Object.entries(derived.resourceScoreBySettlementId)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5)
-          .map(([id, score]) => ({ id, score })),
       })
       const conflict = applyConflictEnginePass({
         slice: next,
@@ -158,19 +116,6 @@ export function applyPoliticsPhase(params) {
       })
       next = conflict.slice
       events.push(...conflict.events)
-      conflictDebug('politics.conflictDone', {
-        epoch: next.epoch,
-        eventKinds: conflict.events.map((e) => e.kind),
-        recentConquests: Object.keys(next.recentConquestBySettlementId ?? {}).length,
-      })
-    } else {
-      conflictDebug('politics.conflictSkipped', {
-        epoch: next.epoch,
-        reason: 'gate_closed',
-        latched,
-        activeFactionCount,
-        hasUnalignedStake,
-      })
     }
 
     if (latched) {
@@ -183,16 +128,14 @@ export function applyPoliticsPhase(params) {
       next = absorption.slice
       events.push(...absorption.events)
     }
-  } else {
-    conflictDebug('politics.membershipSkipped', {
-      epoch: next.epoch,
-      reason: 'not_latched_and_no_active_factions',
-    })
   }
 
-  conflictDebug('politics.exit', {
-    epoch: next.epoch,
-    events: events.map((e) => e.kind),
-  })
+  next = {
+    ...next,
+    factions: syncFactionTerritoryPalettes({
+      factions: next.factions,
+      settlements: next.settlements,
+    }),
+  }
   return { slice: next, events }
 }

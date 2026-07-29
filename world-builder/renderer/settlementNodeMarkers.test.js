@@ -37,6 +37,25 @@ test('pin membership band orders capital > member = unaligned > vassal', () => {
   assert.strictEqual(settlementPinMembershipBand({ id: 'lone', factionId: null }, factions), 'unaligned')
 })
 
+test('singleton faction capital uses unaligned pin band', () => {
+  const soloFactions = [
+    {
+      id: 'faction-solo',
+      capitalSettlementId: 'only',
+      settlementIds: ['only'],
+      status: 'active',
+    },
+  ]
+  assert.strictEqual(
+    settlementPinMembershipBand({ id: 'only', factionId: 'faction-solo' }, soloFactions),
+    'unaligned',
+  )
+  assert.strictEqual(
+    settlementPinMarkerRadius({ id: 'only', factionId: 'faction-solo' }, soloFactions),
+    SETTLEMENT_PIN_RADIUS_MEMBER,
+  )
+})
+
 test('pin marker radii: capital largest, member and unaligned equal, vassal smallest', () => {
   const capital = settlementPinMarkerRadius({ id: 'capital', factionId: 'faction-a' }, factions)
   const member = settlementPinMarkerRadius({ id: 'member', factionId: 'faction-a' }, factions)

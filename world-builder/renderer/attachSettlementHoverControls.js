@@ -70,7 +70,7 @@ export function hitTestLivingSettlement(worldDocument, worldX, worldY) {
     if (typeof settlement.id !== 'string') {
       continue
     }
-    const hoverRadius = settlementPinHoverRadius(settlement, factions)
+    const hoverRadius = settlementPinHoverRadius(settlement, factions, settlements)
     const maxDistSq = hoverRadius * hoverRadius
     const dx = worldX - (settlement.x + 0.5)
     const dy = worldY - (settlement.y + 0.5)

@@ -9,6 +9,9 @@ import {
   resourceRasterOverlayCanvasFromRgba,
 } from './buildResourceRasterOverlayRgba.js'
 import { SEA_LEVEL } from '../core/biomeIds.js'
+import {
+  factionHasTerritoryColor,
+} from '../core/colonization/politics/factionCap.js'
 import { MAX_ACTIVE_FACTIONS } from '../core/colonization/politics/politicsConstants.js'
 
 /**
@@ -313,20 +316,25 @@ export function buildFactionTerritoryOverlayRgba(worldDocument, options = {}) {
   for (const settlement of settlements) {
     const cells = primaryClaim[settlement.id]
     if (!Array.isArray(cells) || cells.length === 0) continue
-    let rgb = settlement.factionId
-      ? factionTerritoryRgb(settlement.factionId, factionRoster)
+    const coloredFactionId =
+      settlement.factionId &&
+      factionHasTerritoryColor(settlement.factionId, { settlements })
+        ? settlement.factionId
+        : null
+    let rgb = coloredFactionId
+      ? factionTerritoryRgb(coloredFactionId, factionRoster)
       : [...FACTION_TERRITORY_UNALIGNED_RGB]
-    if (settlementMatchesTerritoryHighlight(settlement, highlight)) {
+    if (settlementMatchesTerritoryHighlight(settlement, highlight, settlements)) {
       rgb = saturateFactionTerritoryRgb(rgb)
     }
     const alphaByte = Math.round(FACTION_TERRITORY_FILL_ALPHA * 255)
     let ownerKey
-    if (settlement.factionId) {
-      ownerKey = outlineOwnerByFactionId.get(settlement.factionId)
+    if (coloredFactionId) {
+      ownerKey = outlineOwnerByFactionId.get(coloredFactionId)
       if (ownerKey == null) {
         nextOwnerKey += 1
         ownerKey = nextOwnerKey
-        outlineOwnerByFactionId.set(settlement.factionId, ownerKey)
+        outlineOwnerByFactionId.set(coloredFactionId, ownerKey)
       }
     } else {
       nextOwnerKey += 1
@@ -366,15 +374,23 @@ export function buildFactionTerritoryOverlayRgba(worldDocument, options = {}) {
 /**
  * @param {object} settlement
  * @param {FactionTerritoryHighlight | null | undefined} highlight
+ * @param {object[] | null | undefined} [settlements]
  * @returns {boolean}
  */
-export function settlementMatchesTerritoryHighlight(settlement, highlight) {
+export function settlementMatchesTerritoryHighlight(settlement, highlight, settlements) {
   if (!highlight || !settlement) return false
+  const coloredFactionId =
+    settlement.factionId &&
+    factionHasTerritoryColor(settlement.factionId, {
+      settlements: settlements ?? [settlement],
+    })
+      ? settlement.factionId
+      : null
   if (highlight.type === 'faction') {
-    return Boolean(settlement.factionId) && settlement.factionId === highlight.factionId
+    return Boolean(coloredFactionId) && coloredFactionId === highlight.factionId
   }
   if (highlight.type === 'unaligned') {
-    return !settlement.factionId && settlement.id === highlight.settlementId
+    return !coloredFactionId && settlement.id === highlight.settlementId
   }
   return false
 }

@@ -11,7 +11,6 @@ import { combinedSettlementWealthCp } from '../economy/ledgers/combinedSettlemen
 import { applyFactionTax } from '../economy/ledgers/applyFactionTax.js'
 import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
 import { applyPoliticsPhase } from './politics/applyPoliticsPhase.js'
-import { conflictDebug } from './politics/conflict/conflictDebug.js'
 
 /**
  * @typedef {Object} ColonizationEpochContext
@@ -271,12 +270,6 @@ export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
  * @param {{ warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }> }} [options]
  */
 export function runColonizationEpochPoliticsPhase(ctx, options = {}) {
-  conflictDebug('epoch.politicsPhase', {
-    epoch: ctx.slice.epoch,
-    living: (ctx.slice.settlements ?? []).filter((s) => s.status === 'living').length,
-    factions: (ctx.slice.factions ?? []).filter((f) => f.status === 'active').length,
-    tradeCandidates: ctx.slice.tradeRouteState?.candidates?.length ?? 0,
-  })
   const politics = applyPoliticsPhase({
     slice: ctx.slice,
     worldDocument: ctx.worldDocument,

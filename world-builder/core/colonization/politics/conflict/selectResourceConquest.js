@@ -3,7 +3,6 @@
  * Domain: world-builder/CONTEXT.md — Conquest, Conflict engine, economic contest.
  */
 
-import { conflictDebug } from './conflictDebug.js'
 import { getConflictTuning } from './conflictTuning.js'
 import { projectMight, projectionPathHaulFraction } from './projectMight.js'
 
@@ -52,23 +51,9 @@ export function selectResourceConquests(params) {
   )
   /** @type {ConquestCandidate[]} */
   const candidates = []
-  const skips = {
-    ownStake: 0,
-    busyAttacker: 0,
-    busyDefender: 0,
-    noAttackerMight: 0,
-    belowThreshold: 0,
-    noAttackerEdge: 0,
-    tooFar: 0,
-    notBorder: 0,
-  }
-  let maxIntensitySeen = 0
-  /** @type {Array<Record<string, unknown>>} */
-  const nearMisses = []
 
   for (const attacker of activeFactions) {
     if (busy.has(attacker.id)) {
-      skips.busyAttacker += 1
       continue
     }
     const memberIds = attacker.settlementIds ?? []
@@ -80,12 +65,10 @@ export function selectResourceConquests(params) {
 
     for (const stake of settlements) {
       if (stake.factionId === attacker.id) {
-        skips.ownStake += 1
         continue
       }
       const defenderFactionId = stake.factionId ?? null
       if (defenderFactionId && busy.has(defenderFactionId)) {
-        skips.busyDefender += 1
         continue
       }
 
@@ -97,7 +80,6 @@ export function selectResourceConquests(params) {
         strategicReachHaulFractions: params.strategicReachHaulFractions,
       })
       if (!(attackerMight > 0)) {
-        skips.noAttackerMight += 1
         continue
       }
 
@@ -125,39 +107,12 @@ export function selectResourceConquests(params) {
         resourceScore +
         rivalBonus +
         Math.min(tuning.mightIntensityCap, attackerMight / tuning.mightIntensityDivisor)
-      if (intensity > maxIntensitySeen) maxIntensitySeen = intensity
       if (intensity < tuning.warThreshold) {
-        skips.belowThreshold += 1
-        if (nearMisses.length < 8) {
-          nearMisses.push({
-            reason: 'belowThreshold',
-            attacker: attacker.id,
-            stake: stake.id,
-            intensity,
-            threshold: tuning.warThreshold,
-            resourceScore,
-            rivalBonus,
-            attackerMight,
-          })
-        }
         continue
       }
 
       // Skip hopeless fights: major wars should usually flip the pin.
       if (tuning.requireAttackerEdge && !(attackerMight > defended * tuning.attackerEdgeMargin)) {
-        skips.noAttackerEdge += 1
-        if (nearMisses.length < 8) {
-          nearMisses.push({
-            reason: 'noAttackerEdge',
-            attacker: attacker.id,
-            stake: stake.id,
-            intensity,
-            attackerMight,
-            defended,
-            need: defended * tuning.attackerEdgeMargin,
-            margin: tuning.attackerEdgeMargin,
-          })
-        }
         continue
       }
 
@@ -179,8 +134,6 @@ export function selectResourceConquests(params) {
       const maxHaulFraction = Number(tuning.maxStakeHaulReachFraction)
       if (Number.isFinite(maxHaulFraction) && maxHaulFraction < 1) {
         if (pathHaul > landReach * Math.max(0, maxHaulFraction)) {
-          skips.tooFar ??= 0
-          skips.tooFar += 1
           continue
         }
       }
@@ -206,8 +159,6 @@ export function selectResourceConquests(params) {
           defenderFactionId == null &&
           withinDistantCap
         if (!allowDistantUnaligned) {
-          skips.notBorder ??= 0
-          skips.notBorder += 1
           continue
         }
       }
@@ -245,37 +196,6 @@ export function selectResourceConquests(params) {
     usedStakes.add(candidate.contestedSettlementId)
     if (candidate.defenderFactionId) usedDefenders.add(candidate.defenderFactionId)
   }
-
-  conflictDebug('select.summary', {
-    epoch: params.slice.epoch,
-    activeFactions: activeFactions.length,
-    livingSettlements: settlements.length,
-    edgeCount: params.candidateEdges?.length ?? 0,
-    busy: [...busy],
-    skips,
-    maxIntensitySeen,
-    warThreshold: tuning.warThreshold,
-    candidates: candidates.length,
-    topCandidates: candidates.slice(0, 5).map((c) => ({
-      attacker: c.attackerFactionId,
-      stake: c.contestedSettlementId,
-      defender: c.defenderFactionId,
-      intensity: c.intensity,
-      attackerMight: c.attackerMight,
-      defendedMight: c.defendedMight,
-      pathHaul: c.pathHaul,
-      borderNeighbor: c.borderNeighbor,
-    })),
-    nearMisses,
-    picked: picked.map((c) => ({
-      attacker: c.attackerFactionId,
-      stake: c.contestedSettlementId,
-      defender: c.defenderFactionId,
-      intensity: c.intensity,
-      pathHaul: c.pathHaul,
-      borderNeighbor: c.borderNeighbor,
-    })),
-  })
 
   return picked
 }

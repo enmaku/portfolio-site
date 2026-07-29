@@ -29,18 +29,20 @@ test('faction territory paints only primary claim cells', () => {
     increment3LatchedEpoch: 1,
     settlements: [
       { id: 'a', x: 0, y: 0, status: 'living', factionId: 'faction-a' },
+      { id: 'a2', x: 7, y: 7, status: 'living', factionId: 'faction-a' },
     ],
     factions: [
       {
         id: 'faction-a',
         capitalSettlementId: 'a',
-        settlementIds: ['a'],
+        settlementIds: ['a', 'a2'],
         status: 'active',
         emergedEpoch: 1,
       },
     ],
     primaryClaim: {
       a: [{ x: 3, y: 0 }],
+      a2: [{ x: 7, y: 7 }],
     },
   })
   assert.ok(rgba)
@@ -72,7 +74,7 @@ test('unaligned settlements paint gray on primary claim', () => {
   assert.strictEqual(rgba[offset + 3], Math.round(FACTION_TERRITORY_FILL_ALPHA * 255))
 })
 
-test('pre-latch founding faction still paints territory', () => {
+test('pre-latch founding singleton paints unaligned gray', () => {
   const rgba = buildFactionTerritoryOverlayRgba({
     gridWidth: 4,
     gridHeight: 4,
@@ -90,11 +92,10 @@ test('pre-latch founding faction still paints territory', () => {
     primaryClaim: { a: [{ x: 1, y: 1 }] },
   })
   assert.ok(rgba)
-  const tint = factionTerritoryRgb('faction-founding-a', [
-    { id: 'faction-founding-a', emergedEpoch: 0 },
-  ])
   const offset = cellOffset(1, 1, 4)
-  assert.strictEqual(rgba[offset], tint[0])
+  assert.strictEqual(rgba[offset], FACTION_TERRITORY_UNALIGNED_RGB[0])
+  assert.strictEqual(rgba[offset + 1], FACTION_TERRITORY_UNALIGNED_RGB[1])
+  assert.strictEqual(rgba[offset + 2], FACTION_TERRITORY_UNALIGNED_RGB[2])
 })
 
 test('pre-latch with no factions paints nothing', () => {
@@ -240,14 +241,14 @@ test('overlapping haul-shed geometry does not dual-fill a claimed cell', () => {
     {
       id: 'faction-a',
       capitalSettlementId: 'a',
-      settlementIds: ['a'],
+      settlementIds: ['a', 'a2'],
       status: 'active',
       emergedEpoch: 1,
     },
     {
       id: 'faction-b',
       capitalSettlementId: 'b',
-      settlementIds: ['b'],
+      settlementIds: ['b', 'b2'],
       status: 'active',
       emergedEpoch: 2,
     },
@@ -258,7 +259,9 @@ test('overlapping haul-shed geometry does not dual-fill a claimed cell', () => {
     increment3LatchedEpoch: 3,
     settlements: [
       { id: 'a', x: 0, y: 0, status: 'living', factionId: 'faction-a' },
+      { id: 'a2', x: 0, y: 3, status: 'living', factionId: 'faction-a' },
       { id: 'b', x: 3, y: 3, status: 'living', factionId: 'faction-b' },
+      { id: 'b2', x: 3, y: 0, status: 'living', factionId: 'faction-b' },
     ],
     factions,
     primaryClaim: {
@@ -363,26 +366,43 @@ test('hover highlight saturates only the matched faction claims', () => {
   assert.ok(rgba)
   const baseA = factionTerritoryRgb('faction-a', factions)
   const satA = saturateFactionTerritoryRgb(baseA)
-  const baseB = factionTerritoryRgb('faction-b', factions)
   const aCell = cellOffset(2, 1, 8)
   const bCell = cellOffset(5, 1, 8)
   const cCell = cellOffset(4, 4, 8)
   assert.strictEqual(rgba[aCell], satA[0])
   assert.strictEqual(rgba[aCell + 1], satA[1])
   assert.strictEqual(rgba[bCell], satA[0])
-  assert.strictEqual(rgba[cCell], baseB[0])
+  assert.strictEqual(rgba[cCell], FACTION_TERRITORY_UNALIGNED_RGB[0])
   assert.notDeepEqual(satA, baseA)
   assert.ok(
-    settlementMatchesTerritoryHighlight(worldDocument.settlements[0], {
-      type: 'faction',
-      factionId: 'faction-a',
-    }),
+    settlementMatchesTerritoryHighlight(
+      worldDocument.settlements[0],
+      {
+        type: 'faction',
+        factionId: 'faction-a',
+      },
+      worldDocument.settlements,
+    ),
   )
   assert.ok(
-    !settlementMatchesTerritoryHighlight(worldDocument.settlements[2], {
-      type: 'faction',
-      factionId: 'faction-a',
-    }),
+    !settlementMatchesTerritoryHighlight(
+      worldDocument.settlements[2],
+      {
+        type: 'faction',
+        factionId: 'faction-a',
+      },
+      worldDocument.settlements,
+    ),
+  )
+  assert.ok(
+    settlementMatchesTerritoryHighlight(
+      worldDocument.settlements[2],
+      {
+        type: 'unaligned',
+        settlementId: 'c',
+      },
+      worldDocument.settlements,
+    ),
   )
 })
 

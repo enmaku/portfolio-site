@@ -10,7 +10,7 @@ import { classifySettlementMaritimeRole } from './classifySettlementMaritimeRole
 import { allocateNextSettlementMapNumber } from '../settlementMapNumber.js'
 import { isWithinStrategicOverstretchReach } from '../politics/landAdminSettlementGraph.js'
 import { openLegacyRivalry } from '../politics/rivalryEdges.js'
-import { createActiveFactionRecord } from '../politics/factionCap.js'
+import { createActiveFactionRecord, syncFactionTerritoryPalettes } from '../politics/factionCap.js'
 import { HISTORY_KIND_FACTION_EMERGED } from '../politics/historyKinds.js'
 
 /**
@@ -198,10 +198,16 @@ export function foundDaughterSettlement(params) {
     })
   }
 
+  const nextSettlements = [...slice.settlements, daughter]
+  factions = syncFactionTerritoryPalettes({
+    factions,
+    settlements: nextSettlements,
+  })
+
   return {
     slice: {
       ...slice,
-      settlements: [...slice.settlements, daughter],
+      settlements: nextSettlements,
       notableFigures: [...slice.notableFigures, dynasty],
       historyLog: [...slice.historyLog, historyEntry, ...extraHistory],
       visitedCells,

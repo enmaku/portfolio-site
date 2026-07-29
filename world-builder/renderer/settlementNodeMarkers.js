@@ -1,3 +1,7 @@
+import {
+  factionHasTerritoryColor,
+} from '../core/colonization/politics/factionCap.js'
+
 /** Yellow for living settlement pins. */
 export const SETTLEMENT_NODE_OVERLAY_COLOR = 0xffd700
 
@@ -6,7 +10,7 @@ export const SETTLEMENT_NODE_RUIN_OVERLAY_COLOR = 0x8e9094
 
 /**
  * Membership-band pin radii (grid cells). Capitals largest; ordinary members and
- * unaligned share the mid size; vassals smallest.
+ * unaligned (including singleton factions) share the mid size; vassals smallest.
  */
 export const SETTLEMENT_PIN_RADIUS_CAPITAL = 7
 export const SETTLEMENT_PIN_RADIUS_MEMBER = 5
@@ -110,10 +114,15 @@ export const RECENT_CONQUEST_MARKER_EPOCHS = 1
 /**
  * @param {object} settlement
  * @param {Array<{ id: string, capitalSettlementId?: string, status?: string }> | null | undefined} factions
+ * @param {Array<object> | null | undefined} [settlements] Living roster for singleton-faction checks.
  * @returns {'capital' | 'member' | 'vassal' | 'unaligned'}
  */
-export function settlementPinMembershipBand(settlement, factions) {
+export function settlementPinMembershipBand(settlement, factions, settlements) {
   if (!settlement?.factionId) return 'unaligned'
+  const roster = settlements ?? inferSettlementsFromFactions(factions)
+  if (!factionHasTerritoryColor(settlement.factionId, { settlements: roster })) {
+    return 'unaligned'
+  }
   if (settlement.vassalLiegeSettlementId) return 'vassal'
   if (
     Array.isArray(factions) &&
@@ -131,14 +140,32 @@ export function settlementPinMembershipBand(settlement, factions) {
 }
 
 /**
+ * @param {Array<{ id?: string, settlementIds?: string[] }> | null | undefined} factions
+ * @returns {object[]}
+ */
+function inferSettlementsFromFactions(factions) {
+  /** @type {object[]} */
+  const rows = []
+  if (!Array.isArray(factions)) return rows
+  for (const faction of factions) {
+    if (!faction?.id) continue
+    for (const id of faction.settlementIds ?? []) {
+      rows.push({ id, factionId: faction.id, status: 'living', population: 1 })
+    }
+  }
+  return rows
+}
+
+/**
  * Drawn pin radius for a settlement from membership band.
  *
  * @param {object} settlement
  * @param {Array<{ id: string, capitalSettlementId?: string, status?: string }> | null | undefined} [factions]
+ * @param {Array<object> | null | undefined} [settlements]
  * @returns {number}
  */
-export function settlementPinMarkerRadius(settlement, factions) {
-  const band = settlementPinMembershipBand(settlement, factions)
+export function settlementPinMarkerRadius(settlement, factions, settlements) {
+  const band = settlementPinMembershipBand(settlement, factions, settlements)
   if (band === 'capital') return SETTLEMENT_PIN_RADIUS_CAPITAL
   if (band === 'vassal') return SETTLEMENT_PIN_RADIUS_VASSAL
   return SETTLEMENT_PIN_RADIUS_MEMBER
@@ -149,10 +176,11 @@ export function settlementPinMarkerRadius(settlement, factions) {
  *
  * @param {object} settlement
  * @param {Array<{ id: string, capitalSettlementId?: string, status?: string }> | null | undefined} [factions]
+ * @param {Array<object> | null | undefined} [settlements]
  * @returns {number}
  */
-export function settlementPinHoverRadius(settlement, factions) {
-  return settlementPinMarkerRadius(settlement, factions) + SETTLEMENT_PIN_HOVER_PADDING
+export function settlementPinHoverRadius(settlement, factions, settlements) {
+  return settlementPinMarkerRadius(settlement, factions, settlements) + SETTLEMENT_PIN_HOVER_PADDING
 }
 
 /**
@@ -160,10 +188,11 @@ export function settlementPinHoverRadius(settlement, factions) {
  *
  * @param {object} settlement
  * @param {Array<{ id: string, capitalSettlementId?: string, status?: string }> | null | undefined} [factions]
+ * @param {Array<object> | null | undefined} [settlements]
  * @returns {number}
  */
-export function settlementIdLabelOffsetX(settlement, factions) {
-  return settlementPinMarkerRadius(settlement, factions) + SETTLEMENT_ID_LABEL_GAP_X
+export function settlementIdLabelOffsetX(settlement, factions, settlements) {
+  return settlementPinMarkerRadius(settlement, factions, settlements) + SETTLEMENT_ID_LABEL_GAP_X
 }
 
 /**

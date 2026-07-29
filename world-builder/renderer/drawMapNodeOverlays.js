@@ -88,11 +88,12 @@ export function drawSettlementNodes(overlay, worldDocument, resourceOverlayVisib
 
   if (resolveSettlementNodeOverlayDrawn(resourceOverlayVisibility, worldDocument)) {
     const factions = worldDocument.factions ?? []
-    for (const settlement of worldDocument.settlements ?? []) {
+    const settlements = worldDocument.settlements ?? []
+    for (const settlement of settlements) {
       if (typeof settlement.x !== 'number' || typeof settlement.y !== 'number') {
         continue
       }
-      const radius = settlementPinMarkerRadius(settlement, factions)
+      const radius = settlementPinMarkerRadius(settlement, factions, settlements)
       overlay.circle(settlement.x + 0.5, settlement.y + 0.5, radius)
       overlay.fill({ color: settlementNodeColor(settlement.status), alpha: 0.9 })
       overlay.stroke({
@@ -135,7 +136,8 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
   }
 
   const factions = worldDocument.factions ?? []
-  for (const settlement of worldDocument.settlements ?? []) {
+  const settlements = worldDocument.settlements ?? []
+  for (const settlement of settlements) {
     if (
       !Number.isInteger(settlement.mapNumber) ||
       settlement.mapNumber < 1 ||
@@ -157,7 +159,7 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
       },
     })
     label.anchor.set(0, 0.5)
-    label.x = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions)
+    label.x = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions, settlements)
     label.y = settlement.y + 0.5
     overlay.addChild(label)
   }
@@ -184,10 +186,11 @@ export function drawRecentConquestMarkers(overlay, worldDocument, resourceOverla
   }
 
   const factions = worldDocument.factions ?? []
+  const settlements = worldDocument.settlements ?? []
   const epoch = Number(worldDocument.epoch)
   const recent = worldDocument.recentConquestBySettlementId ?? {}
 
-  for (const settlement of worldDocument.settlements ?? []) {
+  for (const settlement of settlements) {
     if (
       settlement.status === 'ruin' ||
       typeof settlement.x !== 'number' ||
@@ -206,7 +209,7 @@ export function drawRecentConquestMarkers(overlay, worldDocument, resourceOverla
       continue
     }
 
-    const cx = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions) + 4
+    const cx = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions, settlements) + 4
     const cy = settlement.y + 0.5
     drawCrossedSwordsIcon(overlay, cx, cy)
   }

@@ -4,6 +4,7 @@
  */
 
 import { SEA_LEVEL } from '../core/biomeIds.js'
+import { factionHasTerritoryColor } from '../core/colonization/politics/factionCap.js'
 
 /**
  * @typedef {import('./buildFactionTerritoryOverlayRgba.js').FactionTerritoryHighlight} FactionTerritoryHighlight
@@ -25,6 +26,7 @@ export function factionTerritoryHighlightKey(highlight) {
  *   gridWidth: number,
  *   settlementIdByCell: (string | null)[],
  *   factionIdBySettlementId: Map<string, string | null>,
+ *   settlements: object[],
  * } | null}
  */
 export function buildFactionTerritoryHoverIndex(worldDocument) {
@@ -44,7 +46,12 @@ export function buildFactionTerritoryHoverIndex(worldDocument) {
 
   for (const settlement of settlements) {
     if (typeof settlement.id !== 'string') continue
-    factionIdBySettlementId.set(settlement.id, settlement.factionId ?? null)
+    const colored =
+      settlement.factionId &&
+      factionHasTerritoryColor(settlement.factionId, { settlements })
+        ? settlement.factionId
+        : null
+    factionIdBySettlementId.set(settlement.id, colored)
     const cells = primaryClaim[settlement.id]
     if (!Array.isArray(cells)) continue
     for (const cell of cells) {
@@ -57,7 +64,7 @@ export function buildFactionTerritoryHoverIndex(worldDocument) {
     }
   }
 
-  return { gridWidth, settlementIdByCell, factionIdBySettlementId }
+  return { gridWidth, settlementIdByCell, factionIdBySettlementId, settlements }
 }
 
 /**

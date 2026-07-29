@@ -26,12 +26,17 @@ test('hitTestFactionTerritoryHighlight returns faction for shared claims and una
       { id: 'a', x: 1, y: 1, status: 'living', factionId: 'faction-a' },
       { id: 'b', x: 6, y: 1, status: 'living', factionId: 'faction-a' },
       { id: 'u', x: 4, y: 4, status: 'living', factionId: null },
+      { id: 'solo', x: 7, y: 7, status: 'living', factionId: 'faction-solo' },
     ],
-    factions: [{ id: 'faction-a', status: 'active', emergedEpoch: 0 }],
+    factions: [
+      { id: 'faction-a', status: 'active', emergedEpoch: 0, settlementIds: ['a', 'b'] },
+      { id: 'faction-solo', status: 'active', emergedEpoch: 1, settlementIds: ['solo'] },
+    ],
     primaryClaim: {
       a: [{ x: 2, y: 1 }],
       b: [{ x: 5, y: 1 }],
       u: [{ x: 4, y: 4 }],
+      solo: [{ x: 7, y: 7 }],
     },
   }
   const index = buildFactionTerritoryHoverIndex(worldDocument)
@@ -46,6 +51,10 @@ test('hitTestFactionTerritoryHighlight returns faction for shared claims and una
   assert.deepEqual(hitTestFactionTerritoryHighlight(worldDocument, 4.1, 4.2, index), {
     type: 'unaligned',
     settlementId: 'u',
+  })
+  assert.deepEqual(hitTestFactionTerritoryHighlight(worldDocument, 7.1, 7.2, index), {
+    type: 'unaligned',
+    settlementId: 'solo',
   })
   assert.strictEqual(hitTestFactionTerritoryHighlight(worldDocument, 0.2, 0.2, index), null)
 })
