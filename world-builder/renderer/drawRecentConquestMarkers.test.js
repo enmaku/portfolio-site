@@ -2,37 +2,56 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { drawRecentConquestMarkers } from './drawMapNodeOverlays.js'
 import {
-  RECENT_CONQUEST_ICON_ARM,
   RECENT_CONQUEST_ICON_COLOR,
+  RECENT_CONQUEST_ICON_OUTLINE_COLOR,
+  RECENT_CONQUEST_SWORDS_PATH_D,
   SETTLEMENT_ID_LABEL_GAP_X,
   SETTLEMENT_PIN_RADIUS_CAPITAL,
 } from './settlementNodeMarkers.js'
 
+class FakeGraphicsPath {
+  /**
+   * @param {string} d
+   */
+  constructor(d) {
+    this.d = d
+  }
+}
+
 function fakeGraphics() {
-  /** @type {Array<{ color: number | null, path: Array<{ x: number, y: number }> }>} */
-  const strokes = []
-  /** @type {Array<{ x: number, y: number }>} */
-  let path = []
+  /** @type {Array<{ color: number | null, kind: 'fill' | 'stroke' }>} */
+  const paints = []
+  /** @type {FakeGraphicsPath[]} */
+  const paths = []
+  /** @type {number[][]} */
+  const transforms = []
   return {
-    strokes,
+    paints,
+    paths,
+    transforms,
     clear() {
-      strokes.length = 0
-      path = []
+      paints.length = 0
+      paths.length = 0
+      transforms.length = 0
     },
-    moveTo(x, y) {
-      path = [{ x, y }]
+    save() {},
+    restore() {},
+    setTransform(...args) {
+      transforms.push(args.map(Number))
     },
-    lineTo(x, y) {
-      path.push({ x, y })
+    path(path) {
+      paths.push(path)
     },
     stroke({ color } = {}) {
-      strokes.push({ color: typeof color === 'number' ? color : null, path: [...path] })
-      path = []
+      paints.push({ color: typeof color === 'number' ? color : null, kind: 'stroke' })
+    },
+    fill({ color } = {}) {
+      paints.push({ color: typeof color === 'number' ? color : null, kind: 'fill' })
     },
   }
 }
 
-test('drawRecentConquestMarkers strokes crossed swords only for last-epoch conquests when faction overlay is on', () => {
+test('drawRecentConquestMarkers draws swords SVG path only for last-epoch conquests when faction overlay is on', () => {
   const overlay = fakeGraphics()
   const worldDocument = {
     epoch: 12,
@@ -51,21 +70,26 @@ test('drawRecentConquestMarkers strokes crossed swords only for last-epoch conqu
 
   drawRecentConquestMarkers(
     /** @type {any} */ (overlay),
+    /** @type {any} */ (FakeGraphicsPath),
     /** @type {any} */ (worldDocument),
     { factionTerritory: true, settlements: true },
   )
 
-  const yellow = overlay.strokes.filter((stroke) => stroke.color === RECENT_CONQUEST_ICON_COLOR)
-  assert.equal(yellow.length, 1)
-  const expectedCx = 2 + 0.5 + SETTLEMENT_PIN_RADIUS_CAPITAL + SETTLEMENT_ID_LABEL_GAP_X + 4
-  const expectedCy = 3 + 0.5
-  // Fake Graphics keeps only the last subpath; second diagonal ends at (+arm, -arm).
-  const end = yellow[0].path.at(-1)
-  assert.ok(end)
-  assert.ok(
-    Math.hypot(end.x - (expectedCx + RECENT_CONQUEST_ICON_ARM), end.y - (expectedCy - RECENT_CONQUEST_ICON_ARM)) <
-      0.01,
-  )
+  assert.ok(overlay.paths.every((path) => path.d === RECENT_CONQUEST_SWORDS_PATH_D))
+  assert.ok(overlay.paths.length >= 2)
+  const fills = overlay.paints.filter((paint) => paint.kind === 'fill')
+  const strokes = overlay.paints.filter((paint) => paint.kind === 'stroke')
+  assert.equal(fills.length, 1)
+  assert.equal(fills[0].color, RECENT_CONQUEST_ICON_COLOR)
+  assert.equal(strokes.length, 1)
+  assert.equal(strokes[0].color, RECENT_CONQUEST_ICON_OUTLINE_COLOR)
+  assert.equal(overlay.transforms.length, 1)
+  // fresh is the faction capital → left edge at pin + capital radius + gap
+  const expectedLeft = 2 + 0.5 + SETTLEMENT_PIN_RADIUS_CAPITAL + SETTLEMENT_ID_LABEL_GAP_X
+  const [, , , , tx] = overlay.transforms[0]
+  assert.ok(Number.isFinite(tx))
+  assert.ok(tx < expectedLeft + 12)
+  assert.ok(tx > expectedLeft - 12)
 })
 
 test('drawRecentConquestMarkers clears when faction territory overlay is off', () => {
@@ -79,15 +103,17 @@ test('drawRecentConquestMarkers clears when faction territory overlay is off', (
 
   drawRecentConquestMarkers(
     /** @type {any} */ (overlay),
+    /** @type {any} */ (FakeGraphicsPath),
     /** @type {any} */ (worldDocument),
     { factionTerritory: true, settlements: true },
   )
-  assert.ok(overlay.strokes.length > 0)
+  assert.ok(overlay.paints.length > 0)
 
   drawRecentConquestMarkers(
     /** @type {any} */ (overlay),
+    /** @type {any} */ (FakeGraphicsPath),
     /** @type {any} */ (worldDocument),
     { factionTerritory: false, settlements: true },
   )
-  assert.equal(overlay.strokes.length, 0)
+  assert.equal(overlay.paints.length, 0)
 })

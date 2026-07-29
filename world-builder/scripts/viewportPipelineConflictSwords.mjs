@@ -1,7 +1,7 @@
 /**
  * Drive real createWorldBuilderMapViewport (Pixi mocked via the same harness as unit tests)
  * after full-resolution geography + colonization epochs. Asserts the viewport Graphics draw
- * path emits conquest swords — no sharp stub map / Text emoji.
+ * path fills conquest swords from the Material Symbols SVG path.
  */
 import { mock } from 'node:test'
 import { generateDerivedGeography } from '../core/generateDerivedGeography.js'
@@ -45,10 +45,8 @@ function pickFoundingLanding(doc) {
   return { x: (w / 2) | 0, y: (h / 3) | 0 }
 }
 
-function yellowSwordMarks() {
-  return viewportSpyState.drawnStrokes.filter(
-    (stroke) => stroke.color === RECENT_CONQUEST_ICON_COLOR,
-  )
+function swordMarks() {
+  return viewportSpyState.drawnFills.filter((fill) => fill.color === RECENT_CONQUEST_ICON_COLOR)
 }
 
 const createWorldBuilderMapViewport = await installViewportMocks()
@@ -93,7 +91,7 @@ for (let step = 0; step < maxEpochs; step += 1) {
   const worldDocument = applyColonizationSliceToWorldDocument(geography, slice)
   viewport.updateWorldDocument(worldDocument)
 
-  const swords = yellowSwordMarks()
+  const swords = swordMarks()
   const row = {
     epoch: slice.epoch,
     living: slice.settlements.filter((s) => s.status === 'living').length,
@@ -102,7 +100,7 @@ for (let step = 0; step < maxEpochs; step += 1) {
     attackerWins: wins.length,
     defenderWins: losses.length,
     recentKeys: Object.keys(slice.recentConquestBySettlementId ?? {}).length,
-    viewportYellowSwordStrokes: swords.length,
+    viewportSwordFills: swords.length,
   }
   epochLog.push(row)
   console.log(JSON.stringify(row))
@@ -116,7 +114,7 @@ viewport.destroy()
 uninstallViewportGlobals()
 
 const summary = {
-  pipeline: 'createWorldBuilderMapViewport + updateWorldDocument + Graphics crossed swords',
+  pipeline: 'createWorldBuilderMapViewport + updateWorldDocument + Material Symbols swords SVG path',
   firstSwordsEpoch,
   anyWars: epochLog.some((r) => r.wars > 0),
   anyAttackerWins: epochLog.some((r) => r.attackerWins > 0),
@@ -127,8 +125,8 @@ console.log('SUMMARY', JSON.stringify(summary, null, 2))
 if (!firstSwordsEpoch) {
   process.exitCode = 1
   throw new Error(
-    'FAIL: createWorldBuilderMapViewport never stroked conquest swords after colonization epochs',
+    'FAIL: createWorldBuilderMapViewport never filled conquest swords after colonization epochs',
   )
 }
 
-console.log('PASS: viewport pipeline stroked conquest swords at epoch', firstSwordsEpoch.epoch)
+console.log('PASS: viewport pipeline filled conquest swords at epoch', firstSwordsEpoch.epoch)

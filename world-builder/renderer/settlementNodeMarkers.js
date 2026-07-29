@@ -50,59 +50,55 @@ export const SETTLEMENT_PIN_OUTLINE_COLOR = 0x000000
 /** Outline width in world/grid units. */
 export const SETTLEMENT_PIN_OUTLINE_WIDTH = 0.9
 
-/** Yellow stroke matching living settlement pins. */
-export const RECENT_CONQUEST_ICON_COLOR = SETTLEMENT_NODE_OVERLAY_COLOR
+/** Red fill for recent-conquest swords. */
+export const RECENT_CONQUEST_ICON_COLOR = 0xff0000
 
-/** Black outline under the yellow crossed-swords strokes. */
+/** Black outline matching settlement pin / ID label outline. */
 export const RECENT_CONQUEST_ICON_OUTLINE_COLOR = SETTLEMENT_ID_LABEL_OUTLINE_COLOR
 
-/** Outline stroke width in world/grid units. */
-export const RECENT_CONQUEST_ICON_OUTLINE_WIDTH = 2.4
+/** Outline width in world/grid units. */
+export const RECENT_CONQUEST_ICON_OUTLINE_WIDTH = 1.6
 
-/** Inner yellow stroke width in world/grid units. */
-export const RECENT_CONQUEST_ICON_STROKE_WIDTH = 1.2
-
-/** Half-diagonal length of each sword stroke in world/grid units. */
-export const RECENT_CONQUEST_ICON_ARM = 5
+/** Drawn size of the swords icon in world/grid units. */
+export const RECENT_CONQUEST_ICON_SIZE = 12
 
 /**
- * Draw a crossed-swords mark (two diagonals) with black outline then yellow fill.
- * Uses Graphics strokes so the cue does not depend on font glyph coverage.
+ * Material Symbols Outlined `swords` path `d` (24px / fill1), viewBox `0 -960 960 960`.
+ * Apache-2.0 — https://github.com/google/material-design-icons
+ */
+export const RECENT_CONQUEST_SWORDS_PATH_D =
+  'M762-96 645-212l-88 88-28-28q-23-23-23-57t23-57l169-169q23-23 57-23t57 23l28 28-88 88 116 117q12 12 12 28t-12 28l-50 50q-12 12-28 12t-28-12Zm118-628L426-270l5 4q23 23 23 57t-23 57l-28 28-88-88L198-96q-12 12-28 12t-28-12l-50-50q-12-12-12-28t12-28l116-117-88-88 28-28q23-23 57-23t57 23l4 5 454-454h160v160ZM278-526 80-724v-160h160l198 198-160 160Z'
+
+/** Material Symbols viewBox width/height. */
+export const RECENT_CONQUEST_SWORDS_VIEWBOX = 960
+
+/**
+ * Draw Material Symbols crossed-swords at the left-middle anchor `(left, midY)`.
+ * Path geometry is stroked black then filled red — no icon font / ligature.
  *
  * @param {import('pixi.js').Graphics} graphics
- * @param {number} cx
- * @param {number} cy
+ * @param {number} left
+ * @param {number} midY
+ * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
  */
-export function drawCrossedSwordsIcon(graphics, cx, cy) {
-  const arm = RECENT_CONQUEST_ICON_ARM
-  const diagonals = [
-    [
-      [cx - arm, cy - arm],
-      [cx + arm, cy + arm],
-    ],
-    [
-      [cx - arm, cy + arm],
-      [cx + arm, cy - arm],
-    ],
-  ]
-  for (const [[x0, y0], [x1, y1]] of diagonals) {
-    graphics.moveTo(x0, y0)
-    graphics.lineTo(x1, y1)
-  }
+export function drawCrossedSwordsIcon(graphics, left, midY, GraphicsPathCtor) {
+  const size = RECENT_CONQUEST_ICON_SIZE
+  const scale = size / RECENT_CONQUEST_SWORDS_VIEWBOX
+  const cx = left + size / 2
+  const cy = midY
+  const path = new GraphicsPathCtor(RECENT_CONQUEST_SWORDS_PATH_D)
+
+  graphics.save()
+  graphics.setTransform(scale, 0, 0, scale, cx - 480 * scale, cy + 480 * scale)
+  graphics.path(path)
   graphics.stroke({
     width: RECENT_CONQUEST_ICON_OUTLINE_WIDTH,
     color: RECENT_CONQUEST_ICON_OUTLINE_COLOR,
     alpha: 1,
   })
-  for (const [[x0, y0], [x1, y1]] of diagonals) {
-    graphics.moveTo(x0, y0)
-    graphics.lineTo(x1, y1)
-  }
-  graphics.stroke({
-    width: RECENT_CONQUEST_ICON_STROKE_WIDTH,
-    color: RECENT_CONQUEST_ICON_COLOR,
-    alpha: 1,
-  })
+  graphics.path(path)
+  graphics.fill({ color: RECENT_CONQUEST_ICON_COLOR, alpha: 1 })
+  graphics.restore()
 }
 
 /**

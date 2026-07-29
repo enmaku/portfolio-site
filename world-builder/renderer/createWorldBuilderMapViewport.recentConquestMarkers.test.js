@@ -28,10 +28,9 @@ after(() => {
   uninstallViewportGlobals()
 })
 
-function yellowSwordStrokeCount() {
-  return viewportSpyState.drawnStrokes.filter(
-    (stroke) => stroke.color === RECENT_CONQUEST_ICON_COLOR,
-  ).length
+function redSwordFillCount() {
+  return viewportSpyState.drawnFills.filter((fill) => fill.color === RECENT_CONQUEST_ICON_COLOR)
+    .length
 }
 
 /**
@@ -83,18 +82,18 @@ test(
     const viewport = await createWorldBuilderMapViewport(createHostEl(), fixture)
     const overlay = createOverlayOwnerDriver(viewport)
 
-    assert.equal(yellowSwordStrokeCount(), 0, 'swords stay hidden while factionTerritory is off')
+    assert.equal(redSwordFillCount(), 0, 'swords stay hidden while factionTerritory is off')
 
     overlay.setVisibility('settlements', true)
     overlay.setVisibility('factionTerritory', true)
 
     assert.ok(
-      yellowSwordStrokeCount() > 0,
-      'viewport Graphics path must stroke the conquest mark',
+      redSwordFillCount() > 0,
+      'viewport Graphics path must fill the conquest swords SVG',
     )
 
     overlay.setVisibility('factionTerritory', false)
-    assert.equal(yellowSwordStrokeCount(), 0)
+    assert.equal(redSwordFillCount(), 0)
 
     viewport.destroy()
   },
@@ -190,7 +189,7 @@ test(
     viewport.updateWorldDocument(worldDocument)
 
     assert.ok(
-      yellowSwordStrokeCount() > 0,
+      redSwordFillCount() > 0,
       'merged conquest stamp must reach createWorldBuilderMapViewport Graphics draw',
     )
 

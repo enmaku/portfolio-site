@@ -20,6 +20,7 @@ import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays
  * @property {Record<'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes', Array<{ x: number, y: number, color: number | null }>>} drawnCirclesByLayer
  * @property {Array<{ text: string, x: number, y: number, fill: number | null }>} drawnTexts
  * @property {Array<{ color: number | null, path: Array<{ x: number, y: number }> }>} drawnStrokes
+ * @property {Array<{ color: number | null }>} drawnFills
  */
 
 /** @type {ViewportSpyState} */
@@ -41,6 +42,7 @@ export const viewportSpyState = {
   },
   drawnTexts: [],
   drawnStrokes: [],
+  drawnFills: [],
 }
 
 /** Skip viewport suites when the runtime lacks module mocking support. */
@@ -64,6 +66,7 @@ export function resetViewportSpyState() {
   }
   viewportSpyState.drawnTexts = []
   viewportSpyState.drawnStrokes = []
+  viewportSpyState.drawnFills = []
 }
 
 /** Vector overlay Graphics are always created coastal → metal → salt → settlement per viewport. */
@@ -74,11 +77,11 @@ const VECTOR_LAYER_IDS = /** @type {const} */ ([
   'settlementNodes',
 ])
 
-/** Crossed-swords conquest cue Graphics sits after settlement pins. */
-const RECENT_CONQUEST_GRAPHICS_COUNT = 1
-
 /** Landing-placement overlays appended after vector layers: haul shed, landing pin, focus pin. */
 const LANDING_PLACEMENT_GRAPHICS_COUNT = 3
+
+/** Crossed-swords conquest cue Graphics sits after settlement pins. */
+const RECENT_CONQUEST_GRAPHICS_COUNT = 1
 
 function syncDrawnCirclesByLayer() {
   const trailingNonVector = RECENT_CONQUEST_GRAPHICS_COUNT + LANDING_PLACEMENT_GRAPHICS_COUNT
@@ -221,8 +224,12 @@ export async function installViewportMocks() {
           this.circles = []
           /** @type {Array<{ color: number | null, path: Array<{ x: number, y: number }> }>} */
           this.strokes = []
+          /** @type {Array<{ color: number | null }>} */
+          this.fills = []
           /** @type {Array<{ x: number, y: number }>} */
           this._path = []
+          /** @type {unknown} */
+          this._activePath = null
           viewportSpyState.graphicsLayers.push(this)
         }
         syncDrawnCircles() {
@@ -234,9 +241,12 @@ export async function installViewportMocks() {
         clear() {
           this.circles = []
           this.strokes = []
+          this.fills = []
           this._path = []
+          this._activePath = null
           this.syncDrawnCircles()
           this.syncDrawnStrokes()
+          this.syncDrawnFills()
         }
         circle(x, y) {
           this.circles.push({ x, y, color: null })
@@ -244,8 +254,14 @@ export async function installViewportMocks() {
         }
         fill({ color } = {}) {
           const last = this.circles.at(-1)
-          if (last) last.color = color
-          this.syncDrawnCircles()
+          if (last) {
+            last.color = color
+            this.syncDrawnCircles()
+          }
+          if (this._activePath) {
+            this.fills.push({ color: typeof color === 'number' ? color : null })
+            this.syncDrawnFills()
+          }
         }
         rect() {}
         moveTo(x, y) {
@@ -254,6 +270,12 @@ export async function installViewportMocks() {
         lineTo(x, y) {
           if (!this._path) this._path = []
           this._path.push({ x, y })
+        }
+        save() {}
+        restore() {}
+        setTransform() {}
+        path(path) {
+          this._activePath = path
         }
         stroke({ color } = {}) {
           if (!this.strokes) this.strokes = []
@@ -269,7 +291,20 @@ export async function installViewportMocks() {
             (layer) => layer.strokes ?? [],
           )
         }
+        syncDrawnFills() {
+          viewportSpyState.drawnFills = viewportSpyState.graphicsLayers.flatMap(
+            (layer) => layer.fills ?? [],
+          )
+        }
         setFillStyle() {}
+      },
+      GraphicsPath: class {
+        /**
+         * @param {string} d
+         */
+        constructor(d) {
+          this.d = d
+        }
       },
       Container: class {
         constructor() {

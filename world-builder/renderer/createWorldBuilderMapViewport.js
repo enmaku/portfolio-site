@@ -63,7 +63,7 @@ export {
  * @param {import('../core/types.js').WorldDocument} worldDocument
  */
 export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
-  const { Application, Sprite, Texture, Graphics, Text, Container } = await import('pixi.js')
+  const { Application, Sprite, Texture, Graphics, Text, Container, GraphicsPath } = await import('pixi.js')
   const { Viewport } = await import('pixi-viewport')
 
   const app = new Application()
@@ -318,6 +318,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       recentConquestMarkers: () =>
         drawRecentConquestMarkers(
           recentConquestOverlay,
+          GraphicsPath,
           currentWorldDocument,
           resourceOverlayVisibility,
         ),

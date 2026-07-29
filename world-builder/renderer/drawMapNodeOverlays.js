@@ -166,16 +166,20 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
 }
 
 /**
- * Yellow crossed-swords cue to the right of pins conquered in recent epochs,
- * only while the faction territory overlay toggle is on.
- * Drawn with Graphics strokes (same stack as settlement pins) so the mark does
- * not depend on emoji / icon-font glyph coverage in Pixi Text.
+ * Red Material Symbols crossed-swords (SVG path) to the right of pins conquered in
+ * recent epochs, only while the faction territory overlay toggle is on.
  *
  * @param {import('pixi.js').Graphics} overlay
+ * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @param {Record<string, boolean>} resourceOverlayVisibility
  */
-export function drawRecentConquestMarkers(overlay, worldDocument, resourceOverlayVisibility) {
+export function drawRecentConquestMarkers(
+  overlay,
+  GraphicsPathCtor,
+  worldDocument,
+  resourceOverlayVisibility,
+) {
   clearRecentConquestMarkers(overlay)
 
   if (!isResourceOverlayVisible(resourceOverlayVisibility, 'factionTerritory')) {
@@ -209,9 +213,9 @@ export function drawRecentConquestMarkers(overlay, worldDocument, resourceOverla
       continue
     }
 
-    const cx = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions, settlements) + 4
-    const cy = settlement.y + 0.5
-    drawCrossedSwordsIcon(overlay, cx, cy)
+    const left = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions, settlements)
+    const midY = settlement.y + 0.5
+    drawCrossedSwordsIcon(overlay, left, midY, GraphicsPathCtor)
   }
 }
 
