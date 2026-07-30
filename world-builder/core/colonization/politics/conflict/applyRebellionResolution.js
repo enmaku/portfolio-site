@@ -16,6 +16,7 @@ import { applyWarExhaustion } from './applyWarExhaustion.js'
 import { openBelligerentTradeBlock } from './belligerentTradeBlocks.js'
 import {
   REBELLION_TAX_DRAIN_CP_THRESHOLD,
+  REBELLION_TRADE_PRESSURE_EPOCHS,
   RECENT_CONQUEST_RESENTMENT_EPOCHS,
 } from './conflictConstants.js'
 import { getConflictTuning } from './conflictTuning.js'
@@ -23,7 +24,6 @@ import { defenderAdvantageMultiplier } from './computeMartialCapacity.js'
 import { projectMight, projectionPathHaulFraction, sumFactionProjectedMight } from './projectMight.js'
 import { resolveContestedSettlement } from './resolveContestedSettlement.js'
 import { taxedMemberSettlementIds } from '../softPower/taxedMembers.js'
-import { SOFT_POWER_PAINT_STREAK_EPOCHS } from '../softPower/softPowerStreaks.js'
 import {
   HISTORY_KIND_TRADE_BACKED_REBEL_EXIT,
 } from '../historyKinds.js'
@@ -225,6 +225,13 @@ function pickRebellionStake(params) {
     params.slice.softPowerRebellionPressureStreak ??
     {}
   const scores = params.softPowerScores ?? {}
+  const tuning = getConflictTuning()
+  const taxThreshold =
+    Number(tuning.rebellionTaxDrainCpThreshold) || REBELLION_TAX_DRAIN_CP_THRESHOLD
+  const resentmentEpochs =
+    Number(tuning.rebellionResentmentEpochs) || RECENT_CONQUEST_RESENTMENT_EPOCHS
+  const tradeStreakNeed =
+    Number(tuning.rebellionTradeStreakEpochs) || REBELLION_TRADE_PRESSURE_EPOCHS
   /** @type {Array<object & {
    *   rebellionCause: string,
    *   pressure: number,
@@ -244,8 +251,7 @@ function pickRebellionStake(params) {
     const taxDrain = Math.max(0, -(tax[settlement.id] ?? 0))
     const conquest = recent[settlement.id]
     const resentful =
-      conquest &&
-      params.slice.epoch - conquest.conqueredEpoch <= RECENT_CONQUEST_RESENTMENT_EPOCHS
+      conquest && params.slice.epoch - conquest.conqueredEpoch <= resentmentEpochs
 
     let pressure = 0
     /** @type {string | null} */
@@ -255,7 +261,7 @@ function pickRebellionStake(params) {
 
     const rivalDominant = scores[settlement.id]?.dominantFactionId ?? null
     const tradeArmed =
-      (tradeStreak[settlement.id] ?? 0) >= SOFT_POWER_PAINT_STREAK_EPOCHS &&
+      (tradeStreak[settlement.id] ?? 0) >= tradeStreakNeed &&
       typeof rivalDominant === 'string' &&
       rivalDominant !== settlement.factionId
     if (tradeArmed) {
@@ -264,7 +270,7 @@ function pickRebellionStake(params) {
       tradeBackedDominantFactionId = rivalDominant
     }
 
-    if (taxDrain >= REBELLION_TAX_DRAIN_CP_THRESHOLD) {
+    if (taxDrain >= taxThreshold) {
       pressure += taxDrain / 10
       cause = cause === 'trade' ? 'tax_and_trade' : 'tax'
     }
@@ -287,7 +293,7 @@ function pickRebellionStake(params) {
       )
       const distantFraction = Math.max(
         0,
-        Number(getConflictTuning().rebellionDistantHaulFraction) || 0.4,
+        Number(tuning.rebellionDistantHaulFraction) || 0.4,
       )
       const distantHolding = haul == null || haul >= landReach * distantFraction
       if (distantHolding || cause === 'tax' || cause === 'tax_and_trade' || cause === 'trade') {

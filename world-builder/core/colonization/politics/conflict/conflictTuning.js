@@ -37,6 +37,9 @@
  *   borderNeighborHaulFraction: number,
  *   maxStakeHaulReachFraction: number,
  *   rebellionDistantHaulFraction: number,
+ *   rebellionTaxDrainCpThreshold: number,
+ *   rebellionResentmentEpochs: number,
+ *   rebellionTradeStreakEpochs: number,
  * }} ConflictTuning */
 
 /**
@@ -76,6 +79,9 @@ export const DEFAULT_CONFLICT_TUNING = Object.freeze({
   borderNeighborHaulFraction: 0.6,
   maxStakeHaulReachFraction: 1,
   rebellionDistantHaulFraction: 0.85,
+  rebellionTaxDrainCpThreshold: 2000,
+  rebellionResentmentEpochs: 3,
+  rebellionTradeStreakEpochs: 4,
 })
 
 /** @type {ConflictTuning} */

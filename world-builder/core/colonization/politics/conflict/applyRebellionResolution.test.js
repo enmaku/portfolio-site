@@ -62,6 +62,20 @@ function empireSlice() {
   }
 }
 
+test('tax drain below threshold without other pressure does not arm rebellion', () => {
+  const slice = empireSlice()
+  slice.recentConquestBySettlementId = {}
+  const edges = [edge({ id: 'cap-vassal', fromSettlementId: 'cap', toSettlementId: 'vassal' })]
+  const result = applyRebellionResolution({
+    slice,
+    capacityBySettlementId: { cap: 100, vassal: 5000 },
+    candidateEdges: edges,
+    strategicReachHaulFractions: reach,
+    taxDrainCpBySettlementId: { vassal: -(REBELLION_TAX_DRAIN_CP_THRESHOLD - 1) },
+  })
+  assert.equal(result.events.some((e) => e.kind === HISTORY_KIND_REBELLION_START), false)
+})
+
 test('tax drain and recent conquest can arm a breakaway rebellion', () => {
   const slice = empireSlice()
   const edges = [edge({ id: 'cap-vassal', fromSettlementId: 'cap', toSettlementId: 'vassal' })]
@@ -88,7 +102,7 @@ test('loyalist victory keeps membership with refractory', () => {
     capacityBySettlementId: { cap: 8000, vassal: 100 },
     candidateEdges: edges,
     strategicReachHaulFractions: reach,
-    taxDrainCpBySettlementId: { vassal: -500 },
+    taxDrainCpBySettlementId: { vassal: -REBELLION_TAX_DRAIN_CP_THRESHOLD },
   })
   assert.equal(result.events.find((e) => e.kind === HISTORY_KIND_REBELLION_END)?.winner, 'loyalist')
   assert.equal(result.slice.settlements.find((s) => s.id === 'vassal').factionId, 'empire')
@@ -102,7 +116,7 @@ test('zero loyalist projection yields breakaway without war exhaustion', () => {
     capacityBySettlementId: { cap: 5000, vassal: 800 },
     candidateEdges: [],
     strategicReachHaulFractions: reach,
-    taxDrainCpBySettlementId: { vassal: -500 },
+    taxDrainCpBySettlementId: { vassal: -REBELLION_TAX_DRAIN_CP_THRESHOLD },
   })
   assert.equal(result.fought, false)
   assert.deepEqual(result.slice.warExhaustionBySettlementId, {})

@@ -84,7 +84,13 @@ export const PROJECTED_MIGHT_INTENSITY_CAP = 50
 export const PROJECTED_MIGHT_INTENSITY_DIVISOR = 2
 
 /** Epochs of recent-conquest resentment that can arm rebellion. */
-export const RECENT_CONQUEST_RESENTMENT_EPOCHS = 5
+export const RECENT_CONQUEST_RESENTMENT_EPOCHS = 3
 
 /** Absolute faction-tax drain (cp paid) that can arm rebellion pressure. */
-export const REBELLION_TAX_DRAIN_CP_THRESHOLD = 100
+export const REBELLION_TAX_DRAIN_CP_THRESHOLD = 2000
+
+/**
+ * Sustained rival-trade streak epochs before trade pressure arms rebellion
+ * (longer than soft-power paint alone).
+ */
+export const REBELLION_TRADE_PRESSURE_EPOCHS = 4
