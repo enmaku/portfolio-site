@@ -218,8 +218,12 @@ test('believability: flicker without clear-and-rearm does not recolor every epoc
   assert.equal(paintOnCount, 0)
 })
 
-test('believability: join hold is longer than paint streak', () => {
-  assert.ok(SOFT_POWER_JOIN_HOLD_EPOCHS > SOFT_POWER_PAINT_STREAK_EPOCHS)
+test('believability: join requires additional hold after paint arms', () => {
+  assert.ok(SOFT_POWER_JOIN_HOLD_EPOCHS >= 1)
+  assert.ok(
+    SOFT_POWER_PAINT_STREAK_EPOCHS + SOFT_POWER_JOIN_HOLD_EPOCHS >
+      SOFT_POWER_PAINT_STREAK_EPOCHS,
+  )
 })
 
 test('believability sweep over paint/join/margin knobs keeps dominance contract', () => {

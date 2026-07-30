@@ -3,7 +3,9 @@
  * Domain: world-builder/CONTEXT.md — Soft power; ADR 0021.
  */
 
+import { countLivingFactionMembers } from '../factionCap.js'
 import { goodsPairKey } from './onMapGoodsBilateralCpByPair.js'
+import { getSoftPowerTuning } from './softPowerTuning.js'
 
 /** Majority threshold (exclusive): share must be strictly greater. */
 export const SOFT_POWER_MAJORITY = 0.5
@@ -19,8 +21,9 @@ export const SOFT_POWER_ABS_FLOOR_CP = 0
  * @returns {boolean}
  */
 export function isSoftPowerDominant(params) {
-  const majority = params.majority ?? SOFT_POWER_MAJORITY
-  const marginRatio = params.marginRatio ?? SOFT_POWER_MARGIN_RATIO
+  const tuning = getSoftPowerTuning()
+  const majority = params.majority ?? tuning.majority ?? SOFT_POWER_MAJORITY
+  const marginRatio = params.marginRatio ?? tuning.marginRatio ?? SOFT_POWER_MARGIN_RATIO
   const share = Number(params.share) || 0
   const runnerUp = Math.max(0, Number(params.runnerUpShare) || 0)
   if (!(share > majority)) return false
@@ -58,9 +61,11 @@ function isFactionCounterparty(settlement, factionId) {
  *   absFloorCp?: number,
  *   majority?: number,
  *   marginRatio?: number,
+ *   requireMultiMemberDominant?: boolean,
  * }} input
  */
 function prepareSoftPowerContext(input) {
+  const tuning = getSoftPowerTuning()
   const settlements = Array.isArray(input.settlements) ? input.settlements : []
   const factions = Array.isArray(input.factions) ? input.factions : []
   const bilateral =
@@ -69,14 +74,27 @@ function prepareSoftPowerContext(input) {
       : {}
   const absFloorCp = Number.isFinite(input.absFloorCp)
     ? Number(input.absFloorCp)
-    : SOFT_POWER_ABS_FLOOR_CP
-  const majority = input.majority ?? SOFT_POWER_MAJORITY
-  const marginRatio = input.marginRatio ?? SOFT_POWER_MARGIN_RATIO
+    : Number.isFinite(tuning.absFloorCp)
+      ? Number(tuning.absFloorCp)
+      : SOFT_POWER_ABS_FLOOR_CP
+  const majority = input.majority ?? tuning.majority ?? SOFT_POWER_MAJORITY
+  const marginRatio = input.marginRatio ?? tuning.marginRatio ?? SOFT_POWER_MARGIN_RATIO
+  const requireMultiMemberDominant =
+    input.requireMultiMemberDominant ?? tuning.requireMultiMemberDominant ?? true
   const activeFactions = factions.filter(
     (f) => f && f.status === 'active' && typeof f.id === 'string',
   )
   const livingPins = settlements.filter((pin) => isLivingSoftPowerSettlement(pin))
-  return { settlements, bilateral, absFloorCp, majority, marginRatio, activeFactions, livingPins }
+  return {
+    settlements,
+    bilateral,
+    absFloorCp,
+    majority,
+    marginRatio,
+    requireMultiMemberDominant,
+    activeFactions,
+    livingPins,
+  }
 }
 
 /**
@@ -84,12 +102,31 @@ function prepareSoftPowerContext(input) {
  * @param {ReturnType<typeof prepareSoftPowerContext>} ctx
  */
 function scoreSoftPowerForPin(pin, ctx) {
-  const { settlements, bilateral, absFloorCp, majority, marginRatio, activeFactions } = ctx
+  const {
+    settlements,
+    bilateral,
+    absFloorCp,
+    majority,
+    marginRatio,
+    requireMultiMemberDominant,
+    activeFactions,
+  } = ctx
+  /** @type {Set<string>} */
+  const multiMemberFactionIds = new Set()
+  if (requireMultiMemberDominant) {
+    for (const faction of activeFactions) {
+      if (countLivingFactionMembers(faction.id, { settlements }) >= 2) {
+        multiMemberFactionIds.add(faction.id)
+      }
+    }
+  }
+
   /** @type {Record<string, number>} */
   const volumeByFactionId = {}
   let totalVolumeCp = 0
 
   for (const faction of activeFactions) {
+    if (requireMultiMemberDominant && !multiMemberFactionIds.has(faction.id)) continue
     let volume = 0
     for (const other of settlements) {
       if (!isFactionCounterparty(other, faction.id)) continue

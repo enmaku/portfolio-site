@@ -3,17 +3,25 @@
  * Domain: world-builder/CONTEXT.md — Soft power; ADR 0019 anti-churn.
  */
 
+import { getSoftPowerTuning } from './softPowerTuning.js'
+
 /** Shorter streak that arms overlay paint and trade-backed rebellion pressure. */
 export const SOFT_POWER_PAINT_STREAK_EPOCHS = 2
 
 /** Extra clear hold after paint before peaceful trade-partner join eligibility. */
-export const SOFT_POWER_JOIN_HOLD_EPOCHS = 3
+export const SOFT_POWER_JOIN_HOLD_EPOCHS = 2
 
 /** Epochs dominance must stay clear before re-arming. */
 export const SOFT_POWER_CLEAR_AND_REARM_EPOCHS = 2
 
 /** Refractory after join / peel / trade-backed exit (mirrors membership). */
 export const SOFT_POWER_REFRACTORY_EPOCHS = 2
+
+/** Only commercial-affiliation cooldowns gate soft-power arming. */
+export const SOFT_POWER_COOLDOWN_KINDS = new Set([
+  'trade_partner_join',
+  'trade_partner_peel',
+])
 
 /**
  * @typedef {Object} SoftPowerStreakState
@@ -41,9 +49,12 @@ export const SOFT_POWER_REFRACTORY_EPOCHS = 2
  * @returns {{ state: SoftPowerStreakState }}
  */
 export function advanceSoftPowerStreaks(params) {
-  const paintNeed = params.paintStreakEpochs ?? SOFT_POWER_PAINT_STREAK_EPOCHS
-  const joinNeed = params.joinHoldEpochs ?? SOFT_POWER_JOIN_HOLD_EPOCHS
-  const clearNeed = params.clearAndRearmEpochs ?? SOFT_POWER_CLEAR_AND_REARM_EPOCHS
+  const tuning = getSoftPowerTuning()
+  const paintNeed =
+    params.paintStreakEpochs ?? tuning.paintStreakEpochs ?? SOFT_POWER_PAINT_STREAK_EPOCHS
+  const joinNeed = params.joinHoldEpochs ?? tuning.joinHoldEpochs ?? SOFT_POWER_JOIN_HOLD_EPOCHS
+  const clearNeed =
+    params.clearAndRearmEpochs ?? tuning.clearAndRearmEpochs ?? SOFT_POWER_CLEAR_AND_REARM_EPOCHS
   const epoch = params.epoch
   const scores = params.scores ?? {}
   const mapGray = params.mapGraySettlementIds ?? new Set()
@@ -66,6 +77,7 @@ export function advanceSoftPowerStreaks(params) {
   const cooldownBlocked = new Set()
   for (const entry of params.state.membershipCooldown ?? []) {
     if (!entry || typeof entry.subjectId !== 'string') continue
+    if (typeof entry.kind === 'string' && !SOFT_POWER_COOLDOWN_KINDS.has(entry.kind)) continue
     if (typeof entry.untilEpoch === 'number' && epoch <= entry.untilEpoch) {
       cooldownBlocked.add(entry.subjectId)
     }
@@ -129,16 +141,16 @@ export function advanceSoftPowerStreaks(params) {
     const hasDominant = typeof dominant === 'string'
 
     if (!hasDominant) {
-      const wasArmed =
-        priorPaint ||
-        (paintStreak[settlementId] ?? 0) > 0 ||
-        joinEligible[settlementId] ||
-        (clearStreak[settlementId] ?? 0) > 0
-      if (wasArmed) {
-        delete paintBy[settlementId]
-        delete joinEligible[settlementId]
-        delete paintStreak[settlementId]
-        delete joinHold[settlementId]
+      // Clear-and-rearm only after armed paint / join eligibility. An incomplete
+      // paint streak simply drops — a one-epoch gap must not impose a full
+      // clear penalty before the overlay ever armed.
+      const hadArmedPaintOrJoin = Boolean(priorPaint || joinEligible[settlementId])
+      const clearing = (clearStreak[settlementId] ?? 0) > 0
+      delete paintBy[settlementId]
+      delete joinEligible[settlementId]
+      delete paintStreak[settlementId]
+      delete joinHold[settlementId]
+      if (hadArmedPaintOrJoin || clearing) {
         clearStreak[settlementId] = (clearStreak[settlementId] ?? 0) + 1
         if (clearStreak[settlementId] >= clearNeed) {
           delete clearStreak[settlementId]

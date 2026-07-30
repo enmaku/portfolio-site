@@ -67,6 +67,54 @@ test('join eligibility requires extra hold after paint', () => {
   assert.equal(state.softPowerJoinEligibleBySettlementId.free, 'fa')
 })
 
+test('incomplete paint streak miss does not start clear-and-rearm', () => {
+  let state = {
+    softPowerPaintStreak: {},
+    softPowerJoinHoldStreak: {},
+    softPowerClearStreak: {},
+    softPowerPaintBySettlementId: {},
+    softPowerJoinEligibleBySettlementId: {},
+    membershipCooldown: [],
+  }
+  const scoresOn = { free: { dominantFactionId: 'fa' } }
+  const scoresOff = { free: { dominantFactionId: null } }
+
+  state = advanceSoftPowerStreaks({
+    state,
+    scores: scoresOn,
+    epoch: 1,
+    mapGraySettlementIds: new Set(['free']),
+  }).state
+  assert.equal(state.softPowerPaintStreak.free, 1)
+  assert.equal(state.softPowerPaintBySettlementId.free, undefined)
+
+  state = advanceSoftPowerStreaks({
+    state,
+    scores: scoresOff,
+    epoch: 2,
+    mapGraySettlementIds: new Set(['free']),
+  }).state
+  assert.equal(state.softPowerPaintStreak.free, undefined)
+  assert.equal(state.softPowerClearStreak.free, undefined)
+
+  state = advanceSoftPowerStreaks({
+    state,
+    scores: scoresOn,
+    epoch: 3,
+    mapGraySettlementIds: new Set(['free']),
+  }).state
+  assert.equal(state.softPowerPaintStreak.free, 1)
+  assert.equal(state.softPowerPaintBySettlementId.free, undefined)
+
+  state = advanceSoftPowerStreaks({
+    state,
+    scores: scoresOn,
+    epoch: 4,
+    mapGraySettlementIds: new Set(['free']),
+  }).state
+  assert.equal(state.softPowerPaintBySettlementId.free, 'fa')
+})
+
 test('lost dominance clears paint and requires clear-and-rearm', () => {
   let state = {
     softPowerPaintStreak: { free: 2 },
@@ -107,7 +155,7 @@ test('lost dominance clears paint and requires clear-and-rearm', () => {
   }).state
   assert.equal(state.softPowerClearStreak.free, undefined)
 
-  // Re-arm paint streak from zero.
+  // Re-arm paint streak from zero (paint still needs a full streak under current tuning).
   state = advanceSoftPowerStreaks({
     state,
     scores: { free: { dominantFactionId: 'fa' } },
@@ -136,6 +184,26 @@ test('refractory cooldown blocks paint and join arming', () => {
   }).state
   assert.equal(state.softPowerPaintStreak.free, undefined)
   assert.equal(SOFT_POWER_REFRACTORY_EPOCHS, 2)
+})
+
+test('vassal and rebellion cooldowns do not block soft-power paint arming', () => {
+  const state = advanceSoftPowerStreaks({
+    state: {
+      softPowerPaintStreak: {},
+      softPowerJoinHoldStreak: {},
+      softPowerClearStreak: {},
+      softPowerPaintBySettlementId: {},
+      softPowerJoinEligibleBySettlementId: {},
+      membershipCooldown: [
+        { subjectId: 'free', untilEpoch: 9, kind: 'vassal_defection' },
+        { subjectId: 'free', untilEpoch: 9, kind: 'rebellion_failed' },
+      ],
+    },
+    scores: { free: { dominantFactionId: 'fa' } },
+    epoch: 4,
+    mapGraySettlementIds: new Set(['free']),
+  }).state
+  assert.equal(state.softPowerPaintStreak.free, 1)
 })
 
 test('taxed seats accumulate rival trade pressure streak without paint', () => {

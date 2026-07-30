@@ -91,8 +91,17 @@ test('thin plurality without majority does not dominate', () => {
 })
 
 test('majority without 2x margin does not dominate', () => {
-  const settlements = [living('free'), living('a1', 'fa'), living('b1', 'fb')]
-  const factions = [faction('fa', 'a1', ['a1']), faction('fb', 'b1', ['b1'])]
+  const settlements = [
+    living('free'),
+    living('a1', 'fa'),
+    living('a2', 'fa'),
+    living('b1', 'fb'),
+    living('b2', 'fb'),
+  ]
+  const factions = [
+    faction('fa', 'a1', ['a1', 'a2']),
+    faction('fb', 'b1', ['b1', 'b2']),
+  ]
   const scores = scoreSoftPowerBySettlement({
     settlements,
     factions,
@@ -123,10 +132,11 @@ test('taxed members still receive rival dominance scores for rebellion pressure'
     living('member', 'fa'),
     living('cap-a', 'fa'),
     living('rival', 'fb'),
+    living('rival-2', 'fb'),
   ]
   const factions = [
     faction('fa', 'cap-a', ['cap-a', 'member']),
-    faction('fb', 'rival', ['rival']),
+    faction('fb', 'rival', ['rival', 'rival-2']),
   ]
   const scores = scoreSoftPowerBySettlement({
     settlements,
@@ -138,6 +148,41 @@ test('taxed members still receive rival dominance scores for rebellion pressure'
   })
   assert.equal(scores.member.sharesByFactionId.fb, 0.8)
   assert.equal(scores.member.dominantFactionId, 'fb')
+})
+
+test('singleton-faction trade majority does not arm soft-power dominance', () => {
+  const settlements = [living('free'), living('solo', 'solo-f')]
+  const factions = [faction('solo-f', 'solo', ['solo'])]
+  const scores = scoreSoftPowerBySettlement({
+    settlements,
+    factions,
+    bilateralCpByPair: { 'free|solo': 100 },
+  })
+  assert.equal(scores.free.totalVolumeCp, 0)
+  assert.equal(scores.free.dominantFactionId, null)
+})
+
+test('singleton trade does not dilute multi-member soft-power majority', () => {
+  const settlements = [
+    living('free'),
+    living('cap-a', 'fa'),
+    living('m-a', 'fa'),
+    living('solo', 'solo-f'),
+  ]
+  const factions = [
+    faction('fa', 'cap-a', ['cap-a', 'm-a']),
+    faction('solo-f', 'solo', ['solo']),
+  ]
+  const scores = scoreSoftPowerBySettlement({
+    settlements,
+    factions,
+    bilateralCpByPair: {
+      'free|m-a': 55,
+      'free|solo': 45,
+    },
+  })
+  assert.equal(scores.free.sharesByFactionId.fa, 1)
+  assert.equal(scores.free.dominantFactionId, 'fa')
 })
 
 test('determinism: same inputs yield same scores', () => {
