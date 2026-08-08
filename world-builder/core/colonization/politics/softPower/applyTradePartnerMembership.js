@@ -15,6 +15,7 @@ import {
   SOFT_POWER_CLEAR_AND_REARM_EPOCHS,
   SOFT_POWER_REFRACTORY_EPOCHS,
 } from './softPowerStreaks.js'
+import { resolveSoftPowerRejoinCause } from './populaceAppeased.js'
 
 /**
  * @param {{ slice: import('../../createDefaultColonizationSlice.js').ColonizationSlice }} params
@@ -92,15 +93,25 @@ export function applyPeacefulTradePartnerJoins(params) {
       }
     }
 
+    const joinCause = resolveSoftPowerRejoinCause(
+      next,
+      settlementId,
+      factionId,
+      'soft_power_peaceful',
+    )
     const joinEvent = {
       kind: HISTORY_KIND_TRADE_PARTNER_JOIN,
       epoch: next.epoch,
       settlementId,
       factionId,
-      cause: 'soft_power_peaceful',
+      cause: joinCause,
     }
     events.push(joinEvent)
-    recentJoin[settlementId] = { joinedEpoch: next.epoch, factionId }
+    recentJoin[settlementId] = {
+      joinedEpoch: next.epoch,
+      factionId,
+      cause: joinCause,
+    }
     delete eligible[settlementId]
     delete paint[settlementId]
 

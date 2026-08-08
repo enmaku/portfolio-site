@@ -244,6 +244,10 @@
         :tooltip="settlementTradeTooltip"
         :position="hoveredSettlementScreenPosition"
       />
+      <WorldBuilderPoliticalMarkerTooltip
+        :tooltip="politicalMarkerTooltip"
+        :position="politicalMarkerScreenPosition"
+      />
       <aside
         data-testid="world-builder-generation-report"
         class="generation-report-panel bg-grey-10"
@@ -445,6 +449,7 @@ import PrevailingWindArrow from '../../components/world-builder/PrevailingWindAr
 import WorldBuilderColonistSettingsPanel from '../../components/world-builder/WorldBuilderColonistSettingsPanel.vue'
 import WorldBuilderRealmEconomyPanel from '../../components/world-builder/WorldBuilderRealmEconomyPanel.vue'
 import WorldBuilderSettlementTradeTooltip from '../../components/world-builder/WorldBuilderSettlementTradeTooltip.js'
+import WorldBuilderPoliticalMarkerTooltip from '../../components/world-builder/WorldBuilderPoliticalMarkerTooltip.js'
 import WorldBuilderSimStatusPanel from '../../components/world-builder/WorldBuilderSimStatusPanel.vue'
 import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
 import WorldBuilderStatusPanel from '../../components/world-builder/WorldBuilderStatusPanel.vue'
@@ -546,6 +551,8 @@ const {
   resetColonistSettings,
   settlementTradeTooltip,
   hoveredSettlementScreenPosition,
+  politicalMarkerTooltip,
+  politicalMarkerScreenPosition,
   setSettlementFocus,
 } = colonization
 

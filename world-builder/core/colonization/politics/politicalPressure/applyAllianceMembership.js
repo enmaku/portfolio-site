@@ -18,6 +18,10 @@ import {
   DEFAULT_POLITICAL_PRESSURE_TUNING,
 } from './politicalPressureTuning.js'
 import { POLITICAL_PRESSURE_COOLDOWN_KIND } from './politicalPressureStreaks.js'
+import {
+  POPULACE_APPEASED_CAUSE,
+  resolveSoftPowerRejoinCause,
+} from '../softPower/populaceAppeased.js'
 
 /**
  * @param {{
@@ -38,7 +42,7 @@ export function applyAllianceMembership(params) {
   const armed = {
     ...(params.armedBySettlementId ?? next.politicalPressureArmedBySettlementId ?? {}),
   }
-  /** @type {Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null }>} */
+  /** @type {Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null, cause?: string | null }>} */
   const recentAlliance = {}
   /** @type {Set<string>} */
   const joinCommitted = new Set()
@@ -58,11 +62,18 @@ export function applyAllianceMembership(params) {
     if (isMultiPinCapital(settlement, next)) continue
     if (!isJoinEligibleSubject(settlement, next)) continue
 
+    const rejoinCause = resolveSoftPowerRejoinCause(
+      next,
+      subjectId,
+      factionId,
+      'join_existing',
+    )
     const applied = seatAsAllianceVassal({
       slice: next,
       settlementId: subjectId,
       factionId,
       epoch: next.epoch,
+      cause: rejoinCause,
     })
     next = clearPressureStateForSubject(applied.slice, subjectId)
     next = {
@@ -80,6 +91,7 @@ export function applyAllianceMembership(params) {
       allianceEpoch: next.epoch,
       factionId,
       kind: 'join_existing',
+      cause: rejoinCause,
     }
     joinCommitted.add(subjectId)
     delete armed[subjectId]
@@ -220,6 +232,7 @@ function isPeerMintEligible(settlement, slice) {
  *   settlementId: string,
  *   factionId: string,
  *   epoch: number,
+ *   cause?: string,
  * }} params
  */
 function seatAsAllianceVassal(params) {
@@ -279,7 +292,7 @@ function seatAsAllianceVassal(params) {
     epoch: params.epoch,
     settlementId: params.settlementId,
     factionId: params.factionId,
-    cause: 'join_existing',
+    cause: params.cause === POPULACE_APPEASED_CAUSE ? POPULACE_APPEASED_CAUSE : 'join_existing',
   })
 
   return {

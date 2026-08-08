@@ -467,6 +467,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const settlementHover = attachSettlementHoverControls({
     viewport,
     getWorldDocument: () => currentWorldDocument,
+    getResourceOverlayVisibility: () => resourceOverlayVisibility,
   })
 
   function invalidateFactionTerritoryHoverIndex() {
@@ -679,6 +680,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     onCellPick: landingPlacement.onCellPick,
     onSettlementFocusClear: landingPlacement.onSettlementFocusClear,
     onSettlementHover: settlementHover.onSettlementHover,
+    onPoliticalMarkerHover: settlementHover.onPoliticalMarkerHover,
 
     destroy() {
       stopReplay()

@@ -510,6 +510,7 @@ function buildCampaignKitPolitics(slice) {
         settlementId,
         conqueredEpoch: entry.conqueredEpoch,
         priorFactionId: entry.priorFactionId ?? null,
+        cause: entry.cause ?? null,
       }),
     ),
     recentAlliances: Object.entries(slice.recentAllianceBySettlementId ?? {}).map(

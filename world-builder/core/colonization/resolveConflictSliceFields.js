@@ -75,11 +75,11 @@ export function resolveBelligerentTradeBlocks(value) {
 
 /**
  * @param {unknown} value
- * @returns {Record<string, { conqueredEpoch: number, priorFactionId?: string | null }>}
+ * @returns {Record<string, { conqueredEpoch: number, priorFactionId?: string | null, cause?: string }>}
  */
 export function resolveRecentConquestMap(value) {
   if (!value || typeof value !== 'object') return {}
-  /** @type {Record<string, { conqueredEpoch: number, priorFactionId?: string | null }>} */
+  /** @type {Record<string, { conqueredEpoch: number, priorFactionId?: string | null, cause?: string }>} */
   const resolved = {}
   for (const [settlementId, entry] of Object.entries(value)) {
     if (!entry || typeof entry !== 'object') continue
@@ -88,11 +88,13 @@ export function resolveRecentConquestMap(value) {
     )
     if (!Number.isFinite(conqueredEpoch)) continue
     const priorFactionId = /** @type {{ priorFactionId?: unknown }} */ (entry).priorFactionId
+    const cause = /** @type {{ cause?: unknown }} */ (entry).cause
     resolved[settlementId] = {
       conqueredEpoch,
       ...(typeof priorFactionId === 'string' || priorFactionId == null
         ? { priorFactionId: /** @type {string | null | undefined} */ (priorFactionId) }
         : {}),
+      ...(typeof cause === 'string' && cause.length > 0 ? { cause } : {}),
     }
   }
   return resolved

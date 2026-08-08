@@ -11,7 +11,7 @@ import { getBannerTenureTuning } from '../bannerTenure/bannerTenureTuning.js'
  *   politicalPressureStreak: Record<string, number>,
  *   politicalPressureClearStreak: Record<string, number>,
  *   politicalPressureArmedBySettlementId: Record<string, string>,
- *   recentAllianceBySettlementId: Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null }>,
+ *   recentAllianceBySettlementId: Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null, cause?: string | null }>,
  *   bannerMembershipHistoryBySettlementId: Record<string, string[]>,
  * }}
  */
@@ -27,22 +27,24 @@ export function createEmptyPoliticalPressureSliceFields() {
 
 /**
  * @param {unknown} value
- * @returns {Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null }>}
+ * @returns {Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null, cause?: string | null }>}
  */
 export function resolveRecentAllianceMap(value) {
   if (!value || typeof value !== 'object') return {}
-  /** @type {Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null }>} */
+  /** @type {Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null, cause?: string | null }>} */
   const resolved = {}
   for (const [id, entry] of Object.entries(value)) {
     if (!entry || typeof entry !== 'object') continue
-    const row = /** @type {{ allianceEpoch?: unknown, factionId?: unknown, kind?: unknown }} */ (
-      entry
-    )
+    const row =
+      /** @type {{ allianceEpoch?: unknown, factionId?: unknown, kind?: unknown, cause?: unknown }} */ (
+        entry
+      )
     if (typeof row.allianceEpoch !== 'number' || !Number.isFinite(row.allianceEpoch)) continue
     resolved[id] = {
       allianceEpoch: Math.floor(row.allianceEpoch),
       factionId: typeof row.factionId === 'string' ? row.factionId : null,
       kind: typeof row.kind === 'string' ? row.kind : null,
+      ...(typeof row.cause === 'string' && row.cause.length > 0 ? { cause: row.cause } : {}),
     }
   }
   return resolved

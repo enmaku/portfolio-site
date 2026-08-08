@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { livingSettlements } from '../../world-builder/core/colonization/expeditions/expeditionConstants.js'
 import { COLONIZATION_PHASE_RUNNING } from '../../world-builder/core/colonization/createDefaultColonizationSlice.js'
 import { buildSettlementEconomyInspect } from '../../world-builder/core/economy/settlementEconomyInspect.js'
+import { buildPoliticalMarkerTooltip } from '../../world-builder/renderer/buildPoliticalMarkerTooltip.js'
 
 /**
  * Settlement hover / focus / trade tooltip for the colonization map.
@@ -12,6 +13,16 @@ import { buildSettlementEconomyInspect } from '../../world-builder/core/economy/
  *     onSettlementFocusClear?: (handler: (() => void) | null) => void,
  *     onSettlementHover?: (
  *       handler: ((payload: { settlementId: string, clientX: number, clientY: number } | null) => void) | null,
+ *     ) => void,
+ *     onPoliticalMarkerHover?: (
+ *       handler: ((payload: {
+ *         settlementId: string,
+ *         marker: 'swords' | 'handshake' | 'sack',
+ *         cause?: string | null,
+ *         allianceKind?: string | null,
+ *         clientX: number,
+ *         clientY: number,
+ *       } | null) => void) | null,
  *     ) => void,
  *   } | null,
  *   slice: import('vue').Ref<import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice>,
@@ -25,6 +36,10 @@ export function useWorldBuilderSettlementInspect(options) {
   const hoveredSettlementId = ref(null)
   /** @type {import('vue').Ref<{ x: number, y: number } | null>} */
   const hoveredSettlementScreenPosition = ref(null)
+  /** @type {import('vue').Ref<import('../../world-builder/renderer/buildPoliticalMarkerTooltip.js').PoliticalMarkerTooltip | null>} */
+  const politicalMarkerTooltip = ref(null)
+  /** @type {import('vue').Ref<{ x: number, y: number } | null>} */
+  const politicalMarkerScreenPosition = ref(null)
   /** @type {import('vue').Ref<string | null>} */
   const focusedSettlementId = ref(null)
   /** @type {import('vue').Ref<string | null>} */
@@ -33,6 +48,11 @@ export function useWorldBuilderSettlementInspect(options) {
   function clearSettlementHover() {
     hoveredSettlementId.value = null
     hoveredSettlementScreenPosition.value = null
+  }
+
+  function clearPoliticalMarkerHover() {
+    politicalMarkerTooltip.value = null
+    politicalMarkerScreenPosition.value = null
   }
 
   function clearSettlementFocus() {
@@ -104,6 +124,16 @@ export function useWorldBuilderSettlementInspect(options) {
    *   onSettlementHover?: (
    *     handler: ((payload: { settlementId: string, clientX: number, clientY: number } | null) => void) | null,
    *   ) => void,
+   *   onPoliticalMarkerHover?: (
+   *     handler: ((payload: {
+   *       settlementId: string,
+   *       marker: 'swords' | 'handshake' | 'sack',
+   *       cause?: string | null,
+   *       allianceKind?: string | null,
+   *       clientX: number,
+   *       clientY: number,
+   *     } | null) => void) | null,
+   *   ) => void,
    * } | null | undefined} viewport
    */
   function wireSettlementHover(viewport) {
@@ -112,8 +142,21 @@ export function useWorldBuilderSettlementInspect(options) {
         clearSettlementHover()
         return
       }
+      clearPoliticalMarkerHover()
       hoveredSettlementId.value = payload.settlementId
       hoveredSettlementScreenPosition.value = {
+        x: payload.clientX,
+        y: payload.clientY,
+      }
+    })
+    viewport?.onPoliticalMarkerHover?.((payload) => {
+      if (!payload?.settlementId || !payload.marker) {
+        clearPoliticalMarkerHover()
+        return
+      }
+      clearSettlementHover()
+      politicalMarkerTooltip.value = buildPoliticalMarkerTooltip(payload)
+      politicalMarkerScreenPosition.value = {
         x: payload.clientX,
         y: payload.clientY,
       }
@@ -162,7 +205,10 @@ export function useWorldBuilderSettlementInspect(options) {
     focusedSettlementId,
     focusedExtremeKey,
     settlementTradeTooltip,
+    politicalMarkerTooltip,
+    politicalMarkerScreenPosition,
     clearSettlementHover,
+    clearPoliticalMarkerHover,
     clearSettlementFocus,
     syncSettlementFocusMarker,
     setSettlementFocus,

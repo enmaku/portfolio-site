@@ -103,6 +103,7 @@ export function createFakeViewport() {
         cellPickHandler = handler
       },
       onSettlementHover() {},
+      onPoliticalMarkerHover() {},
       updateWorldDocument() {},
       fitToWorld() {},
       destroy() {},

@@ -1,7 +1,12 @@
+import { CONQUEST_CAUSE_QUASHED_REBELLION } from '../core/colonization/politics/conflict/conquestCause.js'
+import { POPULACE_APPEASED_CAUSE } from '../core/colonization/politics/softPower/populaceAppeased.js'
 import {
   drawCrossedSwordsIcon,
   drawHandshakeIcon,
   drawSackIcon,
+  RECENT_ALLIANCE_ICON_COLOR,
+  RECENT_CONQUEST_ICON_COLOR,
+  REUNIFICATION_MARKER_ICON_COLOR,
   SETTLEMENT_ID_LABEL_COLOR,
   SETTLEMENT_ID_LABEL_FONT_SIZE,
   SETTLEMENT_ID_LABEL_OUTLINE_COLOR,
@@ -219,7 +224,11 @@ export function drawRecentConquestMarkers(
         recentConquestBySettlementId: recent,
       })
     ) {
-      drawCrossedSwordsIcon(overlay, left, midY, GraphicsPathCtor)
+      const fillColor =
+        recent[settlement.id]?.cause === CONQUEST_CAUSE_QUASHED_REBELLION
+          ? REUNIFICATION_MARKER_ICON_COLOR
+          : RECENT_CONQUEST_ICON_COLOR
+      drawCrossedSwordsIcon(overlay, left, midY, GraphicsPathCtor, fillColor)
       continue
     }
 
@@ -230,7 +239,11 @@ export function drawRecentConquestMarkers(
         recentAllianceBySettlementId: recentAlliance,
       })
     ) {
-      drawHandshakeIcon(overlay, left, midY, GraphicsPathCtor)
+      const fillColor =
+        recentAlliance[settlement.id]?.cause === POPULACE_APPEASED_CAUSE
+          ? REUNIFICATION_MARKER_ICON_COLOR
+          : RECENT_ALLIANCE_ICON_COLOR
+      drawHandshakeIcon(overlay, left, midY, GraphicsPathCtor, fillColor)
       continue
     }
 

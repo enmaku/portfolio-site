@@ -67,7 +67,7 @@
  * @property {RivalryEdge[]} rivalryEdges Legacy (and other) rivalry edges between living factions.
  * @property {Record<string, { penalty: number, expiresEpoch: number }>} warExhaustionBySettlementId
  * @property {import('./politics/conflict/belligerentTradeBlocks.js').BelligerentTradeBlock[]} belligerentTradeBlocks
- * @property {Record<string, { conqueredEpoch: number, priorFactionId?: string | null }>} recentConquestBySettlementId
+ * @property {Record<string, { conqueredEpoch: number, priorFactionId?: string | null, cause?: string }>} recentConquestBySettlementId
  * @property {Record<string, number>} lastOnMapGoodsBilateralCpByPair Last clear on-map goods pair volumes.
  * @property {Record<string, number>} softPowerPaintStreak Soft-power paint arming streaks by settlement id.
  * @property {Record<string, number>} softPowerJoinHoldStreak Soft-power join-hold streaks by settlement id.
@@ -75,12 +75,12 @@
  * @property {Record<string, string>} softPowerPaintBySettlementId Armed soft-power controller by settlement id.
  * @property {Record<string, string>} softPowerJoinEligibleBySettlementId Peaceful trade-partner join eligibility.
  * @property {Record<string, number>} softPowerRebellionPressureStreak Rival trade pressure streaks on taxed members.
- * @property {Record<string, { joinedEpoch: number, factionId?: string | null }>} recentTradePartnerJoinBySettlementId
+ * @property {Record<string, { joinedEpoch: number, factionId?: string | null, cause?: string | null }>} recentTradePartnerJoinBySettlementId
  * @property {Record<string, number>} tradePartnerPeelClearStreak Clear-and-rearm before trade-partner peel.
  * @property {Record<string, number>} politicalPressureStreak Political-pressure arming streaks by settlement id.
  * @property {Record<string, number>} politicalPressureClearStreak Clear-and-rearm counters by settlement id.
  * @property {Record<string, string>} politicalPressureArmedBySettlementId Armed pressure controller by settlement id.
- * @property {Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null }>} recentAllianceBySettlementId
+ * @property {Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null, cause?: string | null }>} recentAllianceBySettlementId
  * @property {Record<string, string[]>} bannerMembershipHistoryBySettlementId Rolling sticky-membership window per settlement.
  */
 

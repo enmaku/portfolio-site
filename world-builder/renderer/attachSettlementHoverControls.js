@@ -1,8 +1,17 @@
 import { livingSettlements } from '../core/colonization/expeditions/expeditionConstants.js'
+import { hitTestPoliticalMarkerIcon } from './hitTestPoliticalMarkerIcon.js'
 import { settlementPinHoverRadius } from './settlementNodeMarkers.js'
 
 /**
  * @typedef {{ settlementId: string, clientX: number, clientY: number }} SettlementHoverPayload
+ * @typedef {{
+ *   settlementId: string,
+ *   marker: 'swords' | 'handshake' | 'sack',
+ *   cause?: string | null,
+ *   allianceKind?: string | null,
+ *   clientX: number,
+ *   clientY: number,
+ * }} PoliticalMarkerHoverPayload
  */
 
 /**
@@ -12,33 +21,58 @@ import { settlementPinHoverRadius } from './settlementNodeMarkers.js'
  *     on: (event: string, handler: (...args: unknown[]) => void) => void,
  *   },
  *   getWorldDocument: () => import('../core/types.js').WorldDocument | null | undefined,
+ *   getResourceOverlayVisibility?: () => Record<string, boolean> | null | undefined,
  * }} options
  */
 export function attachSettlementHoverControls(options) {
-  const { viewport, getWorldDocument } = options
+  const { viewport, getWorldDocument, getResourceOverlayVisibility } = options
 
   /** @type {((payload: SettlementHoverPayload | null) => void) | null} */
   let hoverHandler = null
+  /** @type {((payload: PoliticalMarkerHoverPayload | null) => void) | null} */
+  let markerHoverHandler = null
 
   viewport.eventMode = 'static'
   viewport.on('pointermove', (event) => {
-    if (!hoverHandler) {
+    if (!hoverHandler && !markerHoverHandler) {
       return
     }
     const doc = getWorldDocument()
     const world = /** @type {{ getLocalPosition: (target: unknown) => { x: number, y: number } }} */ (
       event
     ).getLocalPosition(viewport)
-    const hit = hitTestLivingSettlement(doc, world.x, world.y)
-    if (!hit) {
-      hoverHandler(null)
+    const pointer = /** @type {{ clientX?: number, clientY?: number }} */ (event)
+    const clientX = typeof pointer.clientX === 'number' ? pointer.clientX : 0
+    const clientY = typeof pointer.clientY === 'number' ? pointer.clientY : 0
+
+    const markerHit = hitTestPoliticalMarkerIcon(
+      doc,
+      getResourceOverlayVisibility?.() ?? null,
+      world.x,
+      world.y,
+    )
+    if (markerHit) {
+      markerHoverHandler?.(
+        /** @type {PoliticalMarkerHoverPayload} */ ({
+          ...markerHit,
+          clientX,
+          clientY,
+        }),
+      )
+      hoverHandler?.(null)
       return
     }
-    const pointer = /** @type {{ clientX?: number, clientY?: number }} */ (event)
-    hoverHandler({
+    markerHoverHandler?.(null)
+
+    const hit = hitTestLivingSettlement(doc, world.x, world.y)
+    if (!hit) {
+      hoverHandler?.(null)
+      return
+    }
+    hoverHandler?.({
       settlementId: hit,
-      clientX: typeof pointer.clientX === 'number' ? pointer.clientX : 0,
-      clientY: typeof pointer.clientY === 'number' ? pointer.clientY : 0,
+      clientX,
+      clientY,
     })
   })
 
@@ -48,6 +82,12 @@ export function attachSettlementHoverControls(options) {
      */
     onSettlementHover(handler) {
       hoverHandler = handler
+    },
+    /**
+     * @param {((payload: PoliticalMarkerHoverPayload | null) => void) | null} handler
+     */
+    onPoliticalMarkerHover(handler) {
+      markerHoverHandler = handler
     },
   }
 }

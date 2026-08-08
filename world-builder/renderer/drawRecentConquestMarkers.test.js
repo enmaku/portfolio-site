@@ -7,6 +7,7 @@ import {
   RECENT_CONQUEST_ICON_COLOR,
   RECENT_CONQUEST_ICON_OUTLINE_COLOR,
   RECENT_CONQUEST_SWORDS_PATH_D,
+  REUNIFICATION_MARKER_ICON_COLOR,
   SETTLEMENT_ID_LABEL_GAP_X,
   SETTLEMENT_PIN_RADIUS_CAPITAL,
   TRADE_PARTNER_ICON_COLOR,
@@ -173,6 +174,82 @@ test('drawRecentConquestMarkers keeps sack for living trade partners across epoc
   assert.equal(fills[0].color, TRADE_PARTNER_ICON_COLOR)
   assert.equal(strokes.length, 1)
   assert.equal(strokes[0].color, TRADE_PARTNER_ICON_OUTLINE_COLOR)
+})
+
+test('drawRecentConquestMarkers fills quashed rebellion and populace appeased handshake yellow-orange', () => {
+  const overlay = fakeGraphics()
+  const worldDocument = {
+    epoch: 30,
+    settlements: [
+      { id: 'quashed', x: 2, y: 3, status: 'living', factionId: 'fa' },
+      {
+        id: 'appeased-alliance',
+        x: 5,
+        y: 3,
+        status: 'living',
+        factionId: 'fa',
+        vassalLiegeSettlementId: 'cap',
+      },
+      {
+        id: 'appeased-tp',
+        x: 8,
+        y: 3,
+        status: 'living',
+        factionId: 'fa',
+        isTradePartner: true,
+        population: 40,
+      },
+      { id: 'ordinary', x: 11, y: 3, status: 'living', factionId: 'fb' },
+    ],
+    factions: [
+      {
+        id: 'fa',
+        capitalSettlementId: 'cap',
+        settlementIds: ['cap', 'quashed', 'appeased-alliance', 'appeased-tp'],
+        status: 'active',
+      },
+      {
+        id: 'fb',
+        capitalSettlementId: 'ordinary',
+        settlementIds: ['ordinary'],
+        status: 'active',
+      },
+    ],
+    recentConquestBySettlementId: {
+      quashed: { conqueredEpoch: 30, cause: 'quashed_rebellion' },
+      ordinary: { conqueredEpoch: 30, cause: 'conquest' },
+    },
+    recentAllianceBySettlementId: {
+      'appeased-alliance': {
+        allianceEpoch: 30,
+        factionId: 'fa',
+        kind: 'join_existing',
+        cause: 'populace_appeased',
+      },
+    },
+    recentTradePartnerJoinBySettlementId: {
+      'appeased-tp': {
+        joinedEpoch: 30,
+        factionId: 'fa',
+        cause: 'populace_appeased',
+      },
+    },
+  }
+
+  drawRecentConquestMarkers(
+    /** @type {any} */ (overlay),
+    /** @type {any} */ (FakeGraphicsPath),
+    /** @type {any} */ (worldDocument),
+    { factionTerritory: true, settlements: true },
+  )
+
+  const fills = overlay.paints.filter((paint) => paint.kind === 'fill').map((paint) => paint.color)
+  assert.deepEqual(fills.sort((a, b) => a - b), [
+    RECENT_CONQUEST_ICON_COLOR,
+    REUNIFICATION_MARKER_ICON_COLOR,
+    REUNIFICATION_MARKER_ICON_COLOR,
+    TRADE_PARTNER_ICON_COLOR,
+  ].sort((a, b) => a - b))
 })
 
 test('drawRecentConquestMarkers draws handshake for alliance-epoch pins and culls after TTL', () => {

@@ -721,6 +721,8 @@ export function useWorldBuilderPageController(options) {
       hoveredSettlementId: colonization.hoveredSettlementId,
       hoveredSettlementScreenPosition: colonization.hoveredSettlementScreenPosition,
       settlementTradeTooltip: colonization.settlementTradeTooltip,
+      politicalMarkerTooltip: colonization.politicalMarkerTooltip,
+      politicalMarkerScreenPosition: colonization.politicalMarkerScreenPosition,
       setSettlementFocus: colonization.setSettlementFocus,
     },
     validationRows,

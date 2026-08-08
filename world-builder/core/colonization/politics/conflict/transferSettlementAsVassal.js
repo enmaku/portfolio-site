@@ -1,7 +1,9 @@
 /**
  * Pin-level conquest transfer into a victor faction as vassal.
- * Domain: world-builder/CONTEXT.md — Conquest, Contested settlement, Vassal.
+ * Domain: world-builder/CONTEXT.md — Conquest, Contested settlement, Vassal, Quashed rebellion.
  */
+
+import { resolveConquestCause } from './conquestCause.js'
 
 /**
  * Transfer one living settlement into the winner faction as a vassal of the capital.
@@ -53,6 +55,14 @@ export function transferSettlementAsVassal(params) {
     return faction
   })
 
+  const cause = resolveConquestCause(
+    params.slice,
+    params.settlementId,
+    params.winnerFactionId,
+    params.conqueredEpoch,
+    priorFactionId,
+  )
+
   return {
     ...params.slice,
     settlements,
@@ -62,6 +72,7 @@ export function transferSettlementAsVassal(params) {
       [params.settlementId]: {
         conqueredEpoch: params.conqueredEpoch,
         priorFactionId,
+        cause,
       },
     },
   }

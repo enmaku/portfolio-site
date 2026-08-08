@@ -68,6 +68,7 @@ test('conquest victory vassalizes only the stake pin; other loser pins remain', 
   assert.ok(fb.settlementIds.includes('cap-b'))
   assert.equal(next.recentConquestBySettlementId.border.conqueredEpoch, 12)
   assert.equal(next.recentConquestBySettlementId.border.priorFactionId, 'fb')
+  assert.equal(next.recentConquestBySettlementId.border.cause, 'conquest')
 })
 
 test('unaligned stake can be vassalized without a prior faction', () => {

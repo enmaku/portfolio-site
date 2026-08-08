@@ -19,19 +19,22 @@ export function resolveSoftPowerStringMap(value) {
 
 /**
  * @param {unknown} value
- * @returns {Record<string, { joinedEpoch: number, factionId?: string | null }>}
+ * @returns {Record<string, { joinedEpoch: number, factionId?: string | null, cause?: string | null }>}
  */
 export function resolveRecentTradePartnerJoinMap(value) {
   if (!value || typeof value !== 'object') return {}
-  /** @type {Record<string, { joinedEpoch: number, factionId?: string | null }>} */
+  /** @type {Record<string, { joinedEpoch: number, factionId?: string | null, cause?: string | null }>} */
   const resolved = {}
   for (const [id, entry] of Object.entries(value)) {
     if (!entry || typeof entry !== 'object') continue
-    const row = /** @type {{ joinedEpoch?: unknown, factionId?: unknown }} */ (entry)
+    const row = /** @type {{ joinedEpoch?: unknown, factionId?: unknown, cause?: unknown }} */ (
+      entry
+    )
     if (typeof row.joinedEpoch !== 'number' || !Number.isFinite(row.joinedEpoch)) continue
     resolved[id] = {
       joinedEpoch: Math.floor(row.joinedEpoch),
       factionId: typeof row.factionId === 'string' ? row.factionId : null,
+      ...(typeof row.cause === 'string' && row.cause.length > 0 ? { cause: row.cause } : {}),
     }
   }
   return resolved

@@ -50,8 +50,15 @@ export const SETTLEMENT_PIN_OUTLINE_COLOR = 0x000000
 /** Outline width in world/grid units. */
 export const SETTLEMENT_PIN_OUTLINE_WIDTH = 0.9
 
-/** Red fill for recent-conquest swords. */
+/** Red fill for ordinary recent-conquest swords. */
 export const RECENT_CONQUEST_ICON_COLOR = 0xff0000
+
+/**
+ * Yellow-orange fill for reunification flavors on one-epoch flash cues
+ * (quashed rebellion swords / populace appeased handshake) so they separate
+ * from red conquest and green alliance. Trade-partner sack stay gold always.
+ */
+export const REUNIFICATION_MARKER_ICON_COLOR = 0xff9800
 
 /** Black outline matching settlement pin / ID label outline. */
 export const RECENT_CONQUEST_ICON_OUTLINE_COLOR = SETTLEMENT_ID_LABEL_OUTLINE_COLOR
@@ -74,14 +81,21 @@ export const RECENT_CONQUEST_SWORDS_VIEWBOX = 960
 
 /**
  * Draw Material Symbols crossed-swords at the left-middle anchor `(left, midY)`.
- * Path geometry is stroked black then filled red — no icon font / ligature.
+ * Path geometry is stroked black then filled — no icon font / ligature.
  *
  * @param {import('pixi.js').Graphics} graphics
  * @param {number} left
  * @param {number} midY
  * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
+ * @param {number} [fillColor=RECENT_CONQUEST_ICON_COLOR]
  */
-export function drawCrossedSwordsIcon(graphics, left, midY, GraphicsPathCtor) {
+export function drawCrossedSwordsIcon(
+  graphics,
+  left,
+  midY,
+  GraphicsPathCtor,
+  fillColor = RECENT_CONQUEST_ICON_COLOR,
+) {
   const size = RECENT_CONQUEST_ICON_SIZE
   const scale = size / RECENT_CONQUEST_SWORDS_VIEWBOX
   const cx = left + size / 2
@@ -97,7 +111,7 @@ export function drawCrossedSwordsIcon(graphics, left, midY, GraphicsPathCtor) {
     alpha: 1,
   })
   graphics.path(path)
-  graphics.fill({ color: RECENT_CONQUEST_ICON_COLOR, alpha: 1 })
+  graphics.fill({ color: fillColor, alpha: 1 })
   graphics.restore()
 }
 
@@ -107,7 +121,7 @@ export function drawCrossedSwordsIcon(graphics, left, midY, GraphicsPathCtor) {
  */
 export const RECENT_CONQUEST_MARKER_EPOCHS = 1
 
-/** Green fill for recent-alliance handshake. */
+/** Green fill for ordinary recent-alliance handshake. */
 export const RECENT_ALLIANCE_ICON_COLOR = 0x4caf50
 
 /** Black outline matching settlement pin / ID label outline. */
@@ -141,15 +155,22 @@ const RECENT_ALLIANCE_PATH_CENTER_Y = -340
 
 /**
  * Draw edited Material Symbols `partner_exchange` (no diamond) at `(left, midY)`.
- * Stroke black then fill green (same paint order as swords). Stroke width is world
+ * Stroke black then fill (same paint order as swords). Stroke width is world
  * units — not ÷viewBox scale.
  *
  * @param {import('pixi.js').Graphics} graphics
  * @param {number} left
  * @param {number} midY
  * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
+ * @param {number} [fillColor=RECENT_ALLIANCE_ICON_COLOR]
  */
-export function drawHandshakeIcon(graphics, left, midY, GraphicsPathCtor) {
+export function drawHandshakeIcon(
+  graphics,
+  left,
+  midY,
+  GraphicsPathCtor,
+  fillColor = RECENT_ALLIANCE_ICON_COLOR,
+) {
   const size = RECENT_ALLIANCE_ICON_SIZE
   const scale = size / RECENT_ALLIANCE_HANDSHAKE_VIEWBOX
   const cx = left + size / 2
@@ -172,7 +193,7 @@ export function drawHandshakeIcon(graphics, left, midY, GraphicsPathCtor) {
     alpha: 1,
   })
   graphics.path(path)
-  graphics.fill({ color: RECENT_ALLIANCE_ICON_COLOR, alpha: 1 })
+  graphics.fill({ color: fillColor, alpha: 1 })
   graphics.restore()
 }
 
@@ -305,6 +326,28 @@ export function wasAlliedLastEpoch(params) {
   const entry = params.recentAllianceBySettlementId?.[params.settlementId]
   if (!entry || !Number.isFinite(entry.allianceEpoch)) return false
   const age = params.epoch - entry.allianceEpoch
+  if (!(age >= 0)) return false
+  const window = Number.isFinite(params.markerEpochs)
+    ? Number(params.markerEpochs)
+    : RECENT_ALLIANCE_MARKER_EPOCHS
+  return age < window
+}
+
+/**
+ * True when a trade-partner join is recent enough for one-epoch flavor chrome.
+ *
+ * @param {{
+ *   settlementId: string,
+ *   epoch: number,
+ *   recentTradePartnerJoinBySettlementId?: Record<string, { joinedEpoch?: number } | null | undefined> | null,
+ *   markerEpochs?: number,
+ * }} params
+ * @returns {boolean}
+ */
+export function wasTradePartnerJoinedLastEpoch(params) {
+  const entry = params.recentTradePartnerJoinBySettlementId?.[params.settlementId]
+  if (!entry || !Number.isFinite(entry.joinedEpoch)) return false
+  const age = params.epoch - entry.joinedEpoch
   if (!(age >= 0)) return false
   const window = Number.isFinite(params.markerEpochs)
     ? Number(params.markerEpochs)
