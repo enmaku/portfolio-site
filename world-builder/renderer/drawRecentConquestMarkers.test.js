@@ -215,8 +215,14 @@ test('drawRecentConquestMarkers fills quashed rebellion and populace appeased ha
         status: 'active',
       },
     ],
+    bannerMembershipHistoryBySettlementId: {
+      quashed: ['fa', ''],
+      'appeased-alliance': ['fa', ''],
+      'appeased-tp': ['fa', ''],
+      ordinary: ['fx', 'fx'],
+    },
     recentConquestBySettlementId: {
-      quashed: { conqueredEpoch: 30, cause: 'quashed_rebellion' },
+      quashed: { conqueredEpoch: 30, cause: 'conquest' },
       ordinary: { conqueredEpoch: 30, cause: 'conquest' },
     },
     recentAllianceBySettlementId: {
@@ -224,7 +230,6 @@ test('drawRecentConquestMarkers fills quashed rebellion and populace appeased ha
         allianceEpoch: 30,
         factionId: 'fa',
         kind: 'join_existing',
-        cause: 'populace_appeased',
       },
     },
     recentTradePartnerJoinBySettlementId: {

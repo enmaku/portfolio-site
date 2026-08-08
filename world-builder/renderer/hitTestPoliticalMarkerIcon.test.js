@@ -30,7 +30,10 @@ function docWithSwords() {
       },
     ],
     recentConquestBySettlementId: {
-      pin: { conqueredEpoch: 14, priorFactionId: null, cause: 'quashed_rebellion' },
+      pin: { conqueredEpoch: 14, priorFactionId: null, cause: 'conquest' },
+    },
+    bannerMembershipHistoryBySettlementId: {
+      pin: ['fa', ''],
     },
     recentAllianceBySettlementId: {},
   }

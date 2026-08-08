@@ -4,6 +4,9 @@
  */
 
 import { livingSettlements } from '../core/colonization/expeditions/expeditionConstants.js'
+import { CONQUEST_CAUSE_CONQUEST, CONQUEST_CAUSE_QUASHED_REBELLION } from '../core/colonization/politics/conflict/conquestCause.js'
+import { isSameBannerEpochReunification } from '../core/colonization/politics/sameBannerReunification.js'
+import { POPULACE_APPEASED_CAUSE } from '../core/colonization/politics/softPower/populaceAppeased.js'
 import { isResourceOverlayVisible } from '../resourceOverlays.js'
 import { resolveSettlementNodeOverlayDrawn } from './worldBuilderMapViewportModel.js'
 import {
@@ -105,11 +108,15 @@ export function hitTestPoliticalMarkerIcon(
         recentConquestBySettlementId: recent,
       })
     ) {
-      const entry = recent[settlement.id]
+      const reunify = isSameBannerEpochReunification(
+        worldDocument,
+        settlement.id,
+        settlement.factionId,
+      )
       cue = {
         marker: 'swords',
         size: RECENT_CONQUEST_ICON_SIZE,
-        cause: typeof entry?.cause === 'string' ? entry.cause : null,
+        cause: reunify ? CONQUEST_CAUSE_QUASHED_REBELLION : CONQUEST_CAUSE_CONQUEST,
       }
     } else if (
       wasAlliedLastEpoch({
@@ -119,11 +126,20 @@ export function hitTestPoliticalMarkerIcon(
       })
     ) {
       const entry = recentAlliance[settlement.id]
+      const reunify = isSameBannerEpochReunification(
+        worldDocument,
+        settlement.id,
+        settlement.factionId,
+      )
       cue = {
         marker: 'handshake',
         size: RECENT_ALLIANCE_ICON_SIZE,
         allianceKind: typeof entry?.kind === 'string' ? entry.kind : null,
-        cause: typeof entry?.cause === 'string' ? entry.cause : null,
+        cause: reunify
+          ? POPULACE_APPEASED_CAUSE
+          : typeof entry?.cause === 'string'
+            ? entry.cause
+            : null,
       }
     } else if (shouldShowTradePartnerSackMarker(settlement)) {
       const joinEntry = recentTradePartnerJoin[settlement.id]
@@ -132,11 +148,17 @@ export function hitTestPoliticalMarkerIcon(
         epoch,
         recentTradePartnerJoinBySettlementId: recentTradePartnerJoin,
       })
+      const reunify =
+        recentJoinFlavor &&
+        isSameBannerEpochReunification(worldDocument, settlement.id, settlement.factionId)
       cue = {
         marker: 'sack',
         size: TRADE_PARTNER_ICON_SIZE,
-        cause:
-          recentJoinFlavor && typeof joinEntry?.cause === 'string' ? joinEntry.cause : null,
+        cause: reunify
+          ? POPULACE_APPEASED_CAUSE
+          : recentJoinFlavor && typeof joinEntry?.cause === 'string'
+            ? joinEntry.cause
+            : null,
       }
     }
 

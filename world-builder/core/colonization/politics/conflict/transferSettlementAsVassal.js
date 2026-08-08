@@ -59,8 +59,6 @@ export function transferSettlementAsVassal(params) {
     params.slice,
     params.settlementId,
     params.winnerFactionId,
-    params.conqueredEpoch,
-    priorFactionId,
   )
 
   return {

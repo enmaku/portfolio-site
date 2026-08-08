@@ -1,26 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { HISTORY_KIND_VASSAL_DEFECTION } from '../historyKinds.js'
 import {
   isPopulaceAppeasedRejoin,
   POPULACE_APPEASED_CAUSE,
   resolveSoftPowerRejoinCause,
 } from './populaceAppeased.js'
 
-test('isPopulaceAppeasedRejoin after soft-unalign from the joining banner', () => {
+test('isPopulaceAppeasedRejoin when epoch-start banner matches join target', () => {
   assert.equal(
     isPopulaceAppeasedRejoin(
-      {
-        historyLog: [
-          {
-            kind: HISTORY_KIND_VASSAL_DEFECTION,
-            settlementId: 'pin',
-            fromFactionId: 'fa',
-            cause: 'soft_unaligned',
-            epoch: 10,
-          },
-        ],
-      },
+      { bannerMembershipHistoryBySettlementId: { pin: ['fa', ''] } },
       'pin',
       'fa',
     ),
@@ -31,17 +20,7 @@ test('isPopulaceAppeasedRejoin after soft-unalign from the joining banner', () =
 test('isPopulaceAppeasedRejoin false when rejoining a different banner', () => {
   assert.equal(
     isPopulaceAppeasedRejoin(
-      {
-        historyLog: [
-          {
-            kind: HISTORY_KIND_VASSAL_DEFECTION,
-            settlementId: 'pin',
-            fromFactionId: 'fa',
-            cause: 'soft_unaligned',
-            epoch: 10,
-          },
-        ],
-      },
+      { bannerMembershipHistoryBySettlementId: { pin: ['fa', ''] } },
       'pin',
       'fb',
     ),
@@ -52,17 +31,7 @@ test('isPopulaceAppeasedRejoin false when rejoining a different banner', () => {
 test('resolveSoftPowerRejoinCause returns populace_appeased when reunifying', () => {
   assert.equal(
     resolveSoftPowerRejoinCause(
-      {
-        historyLog: [
-          {
-            kind: HISTORY_KIND_VASSAL_DEFECTION,
-            settlementId: 'pin',
-            fromFactionId: 'fa',
-            cause: 'soft_unaligned',
-            epoch: 10,
-          },
-        ],
-      },
+      { bannerMembershipHistoryBySettlementId: { pin: ['fa', 'fa'] } },
       'pin',
       'fa',
       'join_existing',

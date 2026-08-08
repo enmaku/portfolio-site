@@ -1,5 +1,4 @@
-import { CONQUEST_CAUSE_QUASHED_REBELLION } from '../core/colonization/politics/conflict/conquestCause.js'
-import { POPULACE_APPEASED_CAUSE } from '../core/colonization/politics/softPower/populaceAppeased.js'
+import { isSameBannerEpochReunification } from '../core/colonization/politics/sameBannerReunification.js'
 import {
   drawCrossedSwordsIcon,
   drawHandshakeIcon,
@@ -224,11 +223,18 @@ export function drawRecentConquestMarkers(
         recentConquestBySettlementId: recent,
       })
     ) {
-      const fillColor =
-        recent[settlement.id]?.cause === CONQUEST_CAUSE_QUASHED_REBELLION
-          ? REUNIFICATION_MARKER_ICON_COLOR
-          : RECENT_CONQUEST_ICON_COLOR
-      drawCrossedSwordsIcon(overlay, left, midY, GraphicsPathCtor, fillColor)
+      const reunify = isSameBannerEpochReunification(
+        worldDocument,
+        settlement.id,
+        settlement.factionId,
+      )
+      drawCrossedSwordsIcon(
+        overlay,
+        left,
+        midY,
+        GraphicsPathCtor,
+        reunify ? REUNIFICATION_MARKER_ICON_COLOR : RECENT_CONQUEST_ICON_COLOR,
+      )
       continue
     }
 
@@ -239,11 +245,18 @@ export function drawRecentConquestMarkers(
         recentAllianceBySettlementId: recentAlliance,
       })
     ) {
-      const fillColor =
-        recentAlliance[settlement.id]?.cause === POPULACE_APPEASED_CAUSE
-          ? REUNIFICATION_MARKER_ICON_COLOR
-          : RECENT_ALLIANCE_ICON_COLOR
-      drawHandshakeIcon(overlay, left, midY, GraphicsPathCtor, fillColor)
+      const reunify = isSameBannerEpochReunification(
+        worldDocument,
+        settlement.id,
+        settlement.factionId,
+      )
+      drawHandshakeIcon(
+        overlay,
+        left,
+        midY,
+        GraphicsPathCtor,
+        reunify ? REUNIFICATION_MARKER_ICON_COLOR : RECENT_ALLIANCE_ICON_COLOR,
+      )
       continue
     }
 
