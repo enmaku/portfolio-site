@@ -84,7 +84,7 @@ export function buildPoliticalMarkerTooltip(payload) {
     return {
       cueKind: 'trade_partner',
       title: 'Trade partner',
-      body: 'Sticky commercial affiliation under this faction — paints with them, skips faction tax.',
+      body: 'Strictly commercial affiliation under this faction.',
     }
   }
 
