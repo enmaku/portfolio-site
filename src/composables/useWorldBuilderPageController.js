@@ -66,7 +66,7 @@ const COLONIZATION_OVERLAY_IDS = new Set([
   'factionTerritory',
 ])
 
-/** Auto-enabled once when `running` begins; wealth and faction territory stay off until the user opts in. */
+/** Auto-enabled on setup → running (begin colonization); wealth and faction territory stay off until the user opts in. */
 const COLONIZATION_OVERLAYS_AUTO_ENABLED_ON_RUNNING = new Set([
   'population',
   'settlements',
@@ -146,7 +146,8 @@ export function useWorldBuilderPageController(options) {
   let colonization
   /** @type {ReturnType<typeof setTimeout> | null} */
   let colonizationSessionPersistTimer = null
-  let colonizationRunningOverlaysEnabled = false
+  /** @type {string | null} */
+  let previousColonizationPhaseForOverlays = null
 
   const {
     currentTerrainFingerprint,
@@ -179,26 +180,28 @@ export function useWorldBuilderPageController(options) {
 
   function syncColonizationOverlayVisibility() {
     const phase = colonization.colonizationPhase.value
+    const previousPhase = previousColonizationPhaseForOverlays
+    previousColonizationPhaseForOverlays = phase
+
     if (phase === COLONIZATION_PHASE_TERRAIN) {
       for (const overlayId of COLONIZATION_OVERLAY_IDS) {
         if (overlay.visibility.value[overlayId]) {
           overlay.toggleVisibility(overlayId, false)
         }
       }
-      colonizationRunningOverlaysEnabled = false
       return
     }
     if (phase !== COLONIZATION_PHASE_RUNNING) {
-      colonizationRunningOverlaysEnabled = false
       return
     }
-    if (colonizationRunningOverlaysEnabled) {
+    // Only when colonization begins (setup → running). Restoring an already-running
+    // session must keep persisted overlay visibility (including exploration fog off).
+    if (previousPhase !== COLONIZATION_PHASE_SETUP) {
       return
     }
     for (const overlayId of COLONIZATION_OVERLAYS_AUTO_ENABLED_ON_RUNNING) {
       overlay.toggleVisibility(overlayId, true)
     }
-    colonizationRunningOverlaysEnabled = true
   }
 
   /** Merged geography + colonization; refreshed only on explicit map sync, not on every slice tick. */

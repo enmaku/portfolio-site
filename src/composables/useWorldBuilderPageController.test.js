@@ -28,6 +28,7 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
     'start runs initial generation and applies the world document to the map',
     'start syncs overlay state when the viewport becomes ready',
     'start restores running colonization from colonization cache after beginColonization refresh',
+    'restoring a running session does not force auto overlays on',
   ],
   destroy: ['destroy cancels the active run and tears down the map lifecycle'],
   regenerate: [
@@ -885,6 +886,30 @@ test('start restores running colonization session after landmass regen', async (
     assert.strictEqual(ctx.worldDocument.value?.settlements?.length, 1)
     assert.strictEqual(ctx.worldDocument.value?.realmId, 'realm-test')
     assert.strictEqual(ctx.colonization.isTerrainLocked.value, true)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('restoring a running session does not force auto overlays on', async () => {
+  const scope = effectScope(true)
+  try {
+    const persisted = createDefaultColonizationSlice()
+    persisted.colonizationPhase = COLONIZATION_PHASE_RUNNING
+    persisted.foundingLanding = { x: 3, y: 3 }
+    persisted.settlements = [{ id: 's1', x: 3, y: 3, population: 100 }]
+    persisted.historyLog = [{ kind: 'founding', epoch: 0 }]
+    const { ctx } = mountController(scope, {
+      settingsStore: createFakeSettingsStore({ colonizationSession: persisted }),
+    })
+
+    await ctx.start()
+    await waitUntil(() => ctx.worldDocument.value != null, 'colonization world document')
+
+    assert.strictEqual(ctx.colonization.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
+      assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], false)
+    }
   } finally {
     scope.stop()
   }
