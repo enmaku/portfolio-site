@@ -107,6 +107,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   wealth.visible = false
   const factionTerritory = new Sprite(Texture.EMPTY)
   factionTerritory.visible = false
+  const loyalty = new Sprite(Texture.EMPTY)
+  loyalty.visible = false
   const coastalOverlay = new Graphics()
   const metalOverlay = new Graphics()
   const saltOverlay = new Graphics()
@@ -144,6 +146,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     routes: null,
     wealth: null,
     factionTerritory: null,
+    loyalty: null,
   }
 
   /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Sprite>} */
@@ -158,6 +161,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     routes,
     wealth,
     factionTerritory,
+    loyalty,
   }
 
   const mapLayerPresentation = {
@@ -172,6 +176,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     routes,
     wealth,
     factionTerritory,
+    loyalty,
     rivers,
     lakes,
     coastalOverlay,
@@ -204,6 +209,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(explorationFog)
   viewport.addChild(wealth)
   viewport.addChild(factionTerritory)
+  viewport.addChild(loyalty)
   viewport.addChild(coastalOverlay)
   viewport.addChild(metalOverlay)
   viewport.addChild(saltOverlay)
@@ -299,6 +305,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       routes: () => refreshResourceRasterOverlay('routes', currentWorldDocument),
       wealth: () => refreshResourceRasterOverlay('wealth', currentWorldDocument),
       factionTerritory: () => refreshFactionTerritoryOverlay(currentWorldDocument),
+      loyalty: () => refreshResourceRasterOverlay('loyalty', currentWorldDocument),
       rivers: () => refreshRiverOverlay(currentWorldDocument),
       lakes: () => refreshLakeOverlay(currentWorldDocument),
       coastalNodes: () => drawCoastalNodes(coastalOverlay, currentWorldDocument),

@@ -124,6 +124,32 @@ function visibleRasterFixture(resourceId) {
     }
   }
 
+  if (resourceId === 'loyalty') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      fields: { elevation: new Float32Array(16).fill(0.6) },
+      lakeMask: new Uint8Array(16),
+      riverCorridorMask: new Uint8Array(16),
+      settlements: [
+        { id: 'a', x: 1, y: 1, factionId: 'faction-a', status: 'living' },
+        { id: 'b', x: 2, y: 1, factionId: 'faction-a', status: 'living' },
+      ],
+      factions: [
+        {
+          id: 'faction-a',
+          capitalSettlementId: 'a',
+          settlementIds: ['a', 'b'],
+          status: 'active',
+          emergedEpoch: 1,
+        },
+      ],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+      bannerMembershipHistoryBySettlementId: { a: Array(10).fill('faction-a') },
+    }
+  }
+
   const raster = new Float32Array(16)
   raster[5] = 0.8
   return {

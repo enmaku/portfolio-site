@@ -27,7 +27,8 @@ export function createResourceOverlayDefinitions() {
     { id: 'explorationFog', kind: 'raster', label: 'Exploration fog' },
     { id: 'routes', kind: 'raster', label: 'Routes' },
     { id: 'wealth', kind: 'raster', label: 'Wealth' },
-    { id: 'factionTerritory', kind: 'raster', label: 'Factions' },
+    { id: 'factionTerritory', kind: 'raster', label: 'Control' },
+    { id: 'loyalty', kind: 'raster', label: 'Loyalty' },
   ]
 }
 

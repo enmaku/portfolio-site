@@ -228,7 +228,14 @@ export function diffWorldDocumentMapLayers(previous, next) {
   }
   if (previous.primaryClaim !== next.primaryClaim || previous.factions !== next.factions) {
     changedLayers.push('factionTerritory')
+    changedLayers.push('loyalty')
     changedLayers.push('recentConquestMarkers')
+  }
+  if (
+    previous.bannerMembershipHistoryBySettlementId !== next.bannerMembershipHistoryBySettlementId ||
+    previous.softPowerPaintBySettlementId !== next.softPowerPaintBySettlementId
+  ) {
+    changedLayers.push('loyalty')
   }
   if (
     previous.epoch !== next.epoch ||
@@ -258,6 +265,7 @@ export function diffWorldDocumentMapLayers(previous, next) {
     changedLayers.push('settlementNodes')
     changedLayers.push('settlementIdLabels')
     changedLayers.push('factionTerritory')
+    changedLayers.push('loyalty')
     changedLayers.push('recentConquestMarkers')
   }
 

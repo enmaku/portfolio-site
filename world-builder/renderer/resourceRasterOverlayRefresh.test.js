@@ -149,6 +149,33 @@ function createFactionTerritoryFixture() {
   }
 }
 
+function createLoyaltyFixture() {
+  const cellCount = 64
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    colonizationPhase: 'running',
+    fields: { elevation: new Float32Array(cellCount).fill(0.6) },
+    lakeMask: new Uint8Array(cellCount),
+    riverCorridorMask: new Uint8Array(cellCount),
+    settlements: [
+      { id: 'a', x: 4, y: 4, factionId: 'faction-a', status: 'living' },
+      { id: 'b', x: 3, y: 4, factionId: 'faction-a', status: 'living' },
+    ],
+    factions: [
+      {
+        id: 'faction-a',
+        capitalSettlementId: 'a',
+        settlementIds: ['a', 'b'],
+        status: 'active',
+        emergedEpoch: 1,
+      },
+    ],
+    primaryClaim: { a: [{ x: 4, y: 4 }] },
+    bannerMembershipHistoryBySettlementId: { a: Array(10).fill('faction-a') },
+  }
+}
+
 function createUnifiedRasterFixture() {
   const cellCount = 64
   const arableRaster = new Float32Array(cellCount)
@@ -191,6 +218,7 @@ test('RESOURCE_RASTER_OVERLAY_LAYER_IDS lists raster overlay layers from definit
     'routes',
     'wealth',
     'factionTerritory',
+    'loyalty',
   ])
 })
 
@@ -289,7 +317,9 @@ test('refreshResourceRasterOverlayCanvas performs at most one RGBA build per lay
                       ? createWealthFixture()
                       : resourceId === 'factionTerritory'
                         ? createFactionTerritoryFixture()
-                        : createSailFixture()
+                        : resourceId === 'loyalty'
+                          ? createLoyaltyFixture()
+                          : createSailFixture()
     const visibility = applyResourceOverlayVisibility(
       createDefaultResourceOverlayVisibility(),
       resourceId,

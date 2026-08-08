@@ -6,6 +6,7 @@ import { buildWealthOverlayRgba } from './buildWealthOverlayRgba.js'
 import { buildFactionTerritoryOverlayRgba } from './buildFactionTerritoryOverlayRgba.js'
 import { buildMetalsOverlayRgba } from './buildMetalsOverlayCanvas.js'
 import { buildPopulationOverlayRgba } from './buildPopulationOverlayRgba.js'
+import { buildLoyaltyOverlayRgba } from './buildLoyaltyOverlayRgba.js'
 import { buildSailOverlayRgba } from './buildSailOverlayRgba.js'
 import { buildTimberOverlayRgba } from './buildTimberOverlayCanvas.js'
 import { resourceRasterOverlayCanvasFromRgba } from './buildResourceRasterOverlayRgba.js'
@@ -20,9 +21,10 @@ import {
   resolveSailRasterLayerVisible,
   resolveWealthRasterLayerVisible,
   resolveFactionTerritoryRasterLayerVisible,
+  resolveLoyaltyRasterLayerVisible,
 } from './worldBuilderMapViewportModel.js'
 
-/** @typedef {'arable' | 'timber' | 'metals' | 'sail' | 'freshwater' | 'population' | 'explorationFog' | 'routes' | 'wealth' | 'factionTerritory'} ResourceRasterOverlayLayerId */
+/** @typedef {'arable' | 'timber' | 'metals' | 'sail' | 'freshwater' | 'population' | 'explorationFog' | 'routes' | 'wealth' | 'factionTerritory' | 'loyalty'} ResourceRasterOverlayLayerId */
 
 /**
  * @typedef {Object} ResourceRasterOverlayRefreshContext
@@ -100,6 +102,12 @@ export const RESOURCE_RASTER_OVERLAY_REGISTRY = {
     resolveVisible: (visibility, worldDocument) =>
       resolveFactionTerritoryRasterLayerVisible(visibility, worldDocument),
     buildRgba: (worldDocument) => buildFactionTerritoryOverlayRgba(worldDocument),
+  },
+  loyalty: {
+    id: 'loyalty',
+    resolveVisible: (visibility, worldDocument) =>
+      resolveLoyaltyRasterLayerVisible(visibility, worldDocument),
+    buildRgba: (worldDocument) => buildLoyaltyOverlayRgba(worldDocument),
   },
 }
 
@@ -193,6 +201,7 @@ export function refreshAllResourceRasterOverlayCanvases(context) {
     routes: null,
     wealth: null,
     factionTerritory: null,
+    loyalty: null,
   }
 
   for (const resourceId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {

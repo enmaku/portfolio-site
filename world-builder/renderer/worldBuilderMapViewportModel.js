@@ -270,3 +270,30 @@ export function resolveFactionTerritoryRasterLayerVisible(visibility, worldDocum
   const settlements = worldDocument.settlements
   return Array.isArray(settlements) && settlements.length > 0
 }
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolveLoyaltyRasterLayerVisible(visibility, worldDocument) {
+  if (!isResourceOverlayVisible(visibility, 'loyalty')) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  const settlements = worldDocument.settlements
+  if (!Array.isArray(settlements) || settlements.length === 0) {
+    return false
+  }
+  const primaryClaim = worldDocument.primaryClaim ?? {}
+  return settlements.some(
+    (settlement) =>
+      settlement &&
+      settlement.status !== 'ruin' &&
+      typeof settlement.id === 'string' &&
+      Array.isArray(primaryClaim[settlement.id]) &&
+      primaryClaim[settlement.id].length > 0,
+  )
+}

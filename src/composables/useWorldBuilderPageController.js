@@ -64,6 +64,7 @@ const COLONIZATION_OVERLAY_IDS = new Set([
   'routes',
   'wealth',
   'factionTerritory',
+  'loyalty',
 ])
 
 /** Auto-enabled on setup → running (begin colonization); wealth and faction territory stay off until the user opts in. */

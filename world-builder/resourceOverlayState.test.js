@@ -42,6 +42,7 @@ test('createResourceOverlayPageState defaults visibility off and uses persisted 
     routes: false,
     wealth: false,
     factionTerritory: false,
+    loyalty: false,
   })
   assert.strictEqual(state.displaySettings.arableMinimumProductivity, 0.25)
 })
@@ -178,6 +179,7 @@ test('normalizeResourceOverlayVisibility coerces null and undefined to false', (
       routes: false,
       wealth: false,
       factionTerritory: false,
+    loyalty: false,
     },
   )
 })
@@ -196,6 +198,7 @@ test('normalizeResourceOverlayVisibility fills missing overlay ids with false', 
     routes: false,
     wealth: false,
     factionTerritory: false,
+    loyalty: false,
   })
 })
 
@@ -231,6 +234,7 @@ test('commitResourceOverlayState normalizes visibility before sync', () => {
     routes: false,
     wealth: false,
     factionTerritory: false,
+    loyalty: false,
   })
   assert.deepStrictEqual(viewport.syncedStates[0].visibility, committed.visibility)
 })

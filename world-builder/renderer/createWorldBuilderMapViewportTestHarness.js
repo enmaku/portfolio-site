@@ -585,12 +585,12 @@ export function createMetalsFixture() {
 /**
  * Sprites from the most recently created viewport.
  * Order: terrain, contours, arable, timber, metals, lakes, rivers, sail,
- * freshwater, population, explorationFog, wealth, factionTerritory, routes.
+ * freshwater, population, explorationFog, wealth, factionTerritory, loyalty, routes.
  * Full child stack inserts coastal/metal/salt node layers before routes;
  * settlement pins stay above routes.
  */
 export function recentSpriteLayers() {
-  return viewportSpyState.spriteLayers.slice(-14)
+  return viewportSpyState.spriteLayers.slice(-15)
 }
 
 /** Contours sprite sits above terrain in the layer stack. */

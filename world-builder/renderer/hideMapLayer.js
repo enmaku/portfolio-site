@@ -22,6 +22,7 @@ const NODE_OVERLAY_CLEAR_KEYS = Object.freeze({
  *   routes: import('pixi.js').Sprite,
  *   wealth: import('pixi.js').Sprite,
  *   factionTerritory: import('pixi.js').Sprite,
+ *   loyalty: import('pixi.js').Sprite,
  *   rivers: import('pixi.js').Sprite,
  *   lakes: import('pixi.js').Sprite,
  *   coastalOverlay: import('pixi.js').Graphics,
