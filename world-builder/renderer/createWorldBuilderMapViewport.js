@@ -50,8 +50,9 @@ export {
 export {
   METAL_NODE_OVERLAY_COLOR,
   SALT_NODE_OVERLAY_COLOR,
-  STRATEGIC_RESOURCE_NODE_MARKER_RADIUS,
 } from './drawMapNodeOverlays.js'
+
+export { STRATEGIC_RESOURCE_NODE_ICON_SIZE } from './strategicResourceNodeMarkers.js'
 
 /**
  * @typedef {Object} UpdateWorldDocumentOptions
@@ -289,9 +290,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       lakes: () => refreshLakeOverlay(currentWorldDocument),
       coastalNodes: () => drawCoastalNodes(coastalOverlay, currentWorldDocument),
       metalNodes: () =>
-        drawMetalNodes(metalOverlay, currentWorldDocument, resourceOverlayVisibility),
+        drawMetalNodes(metalOverlay, GraphicsPath, currentWorldDocument, resourceOverlayVisibility),
       saltNodes: () =>
-        drawSaltNodes(saltOverlay, currentWorldDocument, resourceOverlayVisibility),
+        drawSaltNodes(saltOverlay, GraphicsPath, currentWorldDocument, resourceOverlayVisibility),
       settlementNodes: () =>
         drawSettlementNodes(settlementOverlay, currentWorldDocument, resourceOverlayVisibility),
       settlementIdLabels: () =>

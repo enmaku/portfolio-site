@@ -10,6 +10,7 @@ import {
   createSaltNodeFixture,
   createTimberRasterFixture,
   drawnCirclesByLayer,
+  drawnFillsByLayer,
   installViewportMocks,
   metalsSpriteLayer,
   overlayPageState,
@@ -197,7 +198,7 @@ test(
     assert.strictEqual(timberSpriteLayer().visible, true)
     assert.strictEqual(metalsSpriteLayer().visible, true)
     assert.strictEqual(
-      viewportSpyState.drawnCircles.some((circle) => circle.color === SALT_NODE_OVERLAY_COLOR),
+      viewportSpyState.drawnFills.some((fill) => fill.color === SALT_NODE_OVERLAY_COLOR),
       true,
     )
 
@@ -230,7 +231,7 @@ test(
     const after = drawnCirclesByLayer()
     assert.strictEqual(after.coastalNodes.length, coastalBefore.length)
     assert.deepStrictEqual(after.coastalNodes, coastalBefore)
-    assert.strictEqual(after.saltNodes.length, 1)
+    assert.strictEqual(drawnFillsByLayer().saltNodes.length, 1)
 
     viewport.destroy()
   },
@@ -255,21 +256,23 @@ test(
       overlayPageState({ arable: true, timber: true, metals: false, salt: true }),
     )
 
-    const before = drawnCirclesByLayer()
-    assert.strictEqual(before.coastalNodes.length, 1)
-    assert.strictEqual(before.saltNodes.length, 1)
-    assert.strictEqual(before.metalNodes.length, 0)
+    const beforeCircles = drawnCirclesByLayer()
+    const beforeFills = drawnFillsByLayer()
+    assert.strictEqual(beforeCircles.coastalNodes.length, 1)
+    assert.strictEqual(beforeFills.saltNodes.length, 1)
+    assert.strictEqual(beforeFills.metalNodes.length, 0)
 
     viewport.syncOverlayRenderCache(
       overlayPageState({ arable: true, timber: true, metals: true, salt: true }),
     )
 
-    const after = drawnCirclesByLayer()
-    assert.deepStrictEqual(after.coastalNodes, before.coastalNodes)
-    assert.deepStrictEqual(after.saltNodes, before.saltNodes)
-    assert.strictEqual(after.metalNodes.length, 1)
-    assert.strictEqual(after.coastalNodes[0].color, COASTAL_MOUTH_COLOR)
-    assert.strictEqual(after.saltNodes[0].color, SALT_NODE_OVERLAY_COLOR)
+    const afterCircles = drawnCirclesByLayer()
+    const afterFills = drawnFillsByLayer()
+    assert.deepStrictEqual(afterCircles.coastalNodes, beforeCircles.coastalNodes)
+    assert.deepStrictEqual(afterFills.saltNodes, beforeFills.saltNodes)
+    assert.strictEqual(afterFills.metalNodes.length, 1)
+    assert.strictEqual(afterCircles.coastalNodes[0].color, COASTAL_MOUTH_COLOR)
+    assert.strictEqual(afterFills.saltNodes[0].color, SALT_NODE_OVERLAY_COLOR)
 
     viewport.destroy()
   },

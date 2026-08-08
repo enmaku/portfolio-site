@@ -44,19 +44,19 @@ test(
     const overlay = createOverlayOwnerDriver(viewport)
 
     assert.strictEqual(
-      viewportSpyState.drawnCircles.some((circle) => circle.color === SALT_NODE_OVERLAY_COLOR),
+      viewportSpyState.drawnFills.some((fill) => fill.color === SALT_NODE_OVERLAY_COLOR),
       resolveSaltNodeOverlayDrawn(HIDDEN_VISIBILITY, fixture),
     )
 
     overlay.setVisibility('salt', true)
     assert.strictEqual(
-      viewportSpyState.drawnCircles.some((circle) => circle.color === SALT_NODE_OVERLAY_COLOR),
+      viewportSpyState.drawnFills.some((fill) => fill.color === SALT_NODE_OVERLAY_COLOR),
       resolveSaltNodeOverlayDrawn({ ...HIDDEN_VISIBILITY, salt: true }, fixture),
     )
 
     overlay.setVisibility('salt', false)
     assert.strictEqual(
-      viewportSpyState.drawnCircles.some((circle) => circle.color === SALT_NODE_OVERLAY_COLOR),
+      viewportSpyState.drawnFills.some((fill) => fill.color === SALT_NODE_OVERLAY_COLOR),
       resolveSaltNodeOverlayDrawn(HIDDEN_VISIBILITY, fixture),
     )
 
@@ -316,7 +316,7 @@ test(
     overlay.setVisibility('timber', true)
 
     assert.strictEqual(
-      viewportSpyState.drawnCircles.some((circle) => circle.color === SALT_NODE_OVERLAY_COLOR),
+      viewportSpyState.drawnFills.some((fill) => fill.color === SALT_NODE_OVERLAY_COLOR),
       true,
     )
     assert.strictEqual(timberSpriteLayer().visible, true)
@@ -342,7 +342,7 @@ test(
       resolveMetalsOverlayDrawn(HIDDEN_VISIBILITY, fixture).rasterVisible,
     )
     assert.strictEqual(
-      viewportSpyState.drawnCircles.some((circle) => circle.color === copperColor),
+      viewportSpyState.drawnFills.some((fill) => fill.color === copperColor),
       resolveMetalsOverlayDrawn(HIDDEN_VISIBILITY, fixture).nodesVisible,
     )
 
@@ -350,7 +350,7 @@ test(
     const visibleDrawn = resolveMetalsOverlayDrawn({ ...HIDDEN_VISIBILITY, metals: true }, fixture)
     assert.strictEqual(metalsSpriteLayer().visible, visibleDrawn.rasterVisible)
     assert.strictEqual(
-      viewportSpyState.drawnCircles.some((circle) => circle.color === copperColor),
+      viewportSpyState.drawnFills.some((fill) => fill.color === copperColor),
       visibleDrawn.nodesVisible,
     )
 
@@ -360,7 +360,7 @@ test(
       resolveMetalsOverlayDrawn(HIDDEN_VISIBILITY, fixture).rasterVisible,
     )
     assert.strictEqual(
-      viewportSpyState.drawnCircles.some((circle) => circle.color === copperColor),
+      viewportSpyState.drawnFills.some((fill) => fill.color === copperColor),
       resolveMetalsOverlayDrawn(HIDDEN_VISIBILITY, fixture).nodesVisible,
     )
 

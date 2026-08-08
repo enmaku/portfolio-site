@@ -21,22 +21,22 @@ import {
   wasConqueredLastEpoch,
 } from './settlementNodeMarkers.js'
 import {
-  mineralNodeOverlayColor,
   resolveMetalsOverlayDrawn,
   resolveSaltNodeOverlayDrawn,
   resolveSettlementIdLabelsDrawn,
   resolveSettlementNodeOverlayDrawn,
 } from './worldBuilderMapViewportModel.js'
 import { isResourceOverlayVisible } from '../resourceOverlays.js'
+import {
+  drawMineralDepositIcon,
+  drawSaltDepositIcon,
+  SALT_NODE_OVERLAY_COLOR,
+} from './strategicResourceNodeMarkers.js'
 
 /** Fallback color for discrete metal mine markers (matches metals raster hue). */
 export const METAL_NODE_OVERLAY_COLOR = 0x000000
 
-/** Pure white for salt strategic-resource markers. */
-export const SALT_NODE_OVERLAY_COLOR = 0xffffff
-
-/** Grid-cell radius for metal/salt strategic-resource node markers. */
-export const STRATEGIC_RESOURCE_NODE_MARKER_RADIUS = 7
+export { SALT_NODE_OVERLAY_COLOR }
 
 /**
  * @param {import('pixi.js').Graphics} overlay
@@ -56,32 +56,38 @@ export function drawCoastalNodes(overlay, worldDocument) {
 
 /**
  * @param {import('pixi.js').Graphics} overlay
+ * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @param {Record<string, boolean>} resourceOverlayVisibility
  */
-export function drawMetalNodes(overlay, worldDocument, resourceOverlayVisibility) {
+export function drawMetalNodes(overlay, GraphicsPathCtor, worldDocument, resourceOverlayVisibility) {
   overlay.clear()
 
   if (resolveMetalsOverlayDrawn(resourceOverlayVisibility, worldDocument).nodesVisible) {
     for (const node of worldDocument.metalNodes) {
-      overlay.circle(node.x + 0.5, node.y + 0.5, STRATEGIC_RESOURCE_NODE_MARKER_RADIUS)
-      overlay.fill({ color: mineralNodeOverlayColor(node.kind), alpha: 0.9 })
+      drawMineralDepositIcon(
+        overlay,
+        node.x + 0.5,
+        node.y + 0.5,
+        node.kind,
+        GraphicsPathCtor,
+      )
     }
   }
 }
 
 /**
  * @param {import('pixi.js').Graphics} overlay
+ * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @param {Record<string, boolean>} resourceOverlayVisibility
  */
-export function drawSaltNodes(overlay, worldDocument, resourceOverlayVisibility) {
+export function drawSaltNodes(overlay, GraphicsPathCtor, worldDocument, resourceOverlayVisibility) {
   overlay.clear()
 
   if (resolveSaltNodeOverlayDrawn(resourceOverlayVisibility, worldDocument)) {
     for (const node of worldDocument.saltNodes) {
-      overlay.circle(node.x + 0.5, node.y + 0.5, STRATEGIC_RESOURCE_NODE_MARKER_RADIUS)
-      overlay.fill({ color: SALT_NODE_OVERLAY_COLOR, alpha: 0.9 })
+      drawSaltDepositIcon(overlay, node.x + 0.5, node.y + 0.5, GraphicsPathCtor)
     }
   }
 }

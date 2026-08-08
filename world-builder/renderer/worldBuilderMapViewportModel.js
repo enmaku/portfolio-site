@@ -77,15 +77,15 @@ export function resolveMetalsOverlayDrawn(visibility, worldDocument) {
 }
 
 /**
- * Distinct marker colors per typed mineral deposit so the overlay separates
- * copper/silver/gold/diamond pins from each other and the metals-potential raster.
+ * Distinct marker colors per typed mineral deposit — same fills as realm-economy /
+ * trade-tooltip commodity stamps (copper/silver/gold/diamonds).
  * @type {Readonly<Record<import('../core/types.js').MineralKind, number>>}
  */
 export const MINERAL_NODE_OVERLAY_COLORS = Object.freeze({
   copper: 0xb87333,
-  silver: 0xc0c0c0,
-  gold: 0xffd700,
-  diamond: 0x7fdfff,
+  silver: 0xc0c5ce,
+  gold: 0xd4af37,
+  diamond: 0xa8d4f0,
 })
 
 /** Fallback marker color for an unknown or missing deposit kind. */

@@ -18,6 +18,7 @@ import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays
  * @property {(() => void) | null} resizeObserverCallback
  * @property {{ scale: { x: number, y: number }, center: { x: number, y: number } } | null} lastViewportInstance
  * @property {Record<'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes', Array<{ x: number, y: number, color: number | null }>>} drawnCirclesByLayer
+ * @property {Record<'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes', Array<{ color: number | null }>>} drawnFillsByLayer
  * @property {Array<{ text: string, x: number, y: number, fill: number | null }>} drawnTexts
  * @property {Array<{ color: number | null, path: Array<{ x: number, y: number }> }>} drawnStrokes
  * @property {Array<{ color: number | null }>} drawnFills
@@ -35,6 +36,12 @@ export const viewportSpyState = {
   resizeObserverCallback: null,
   lastViewportInstance: null,
   drawnCirclesByLayer: {
+    coastalNodes: [],
+    metalNodes: [],
+    saltNodes: [],
+    settlementNodes: [],
+  },
+  drawnFillsByLayer: {
     coastalNodes: [],
     metalNodes: [],
     saltNodes: [],
@@ -59,6 +66,12 @@ export function resetViewportSpyState() {
   viewportSpyState.resizeObserverCallback = null
   viewportSpyState.lastViewportInstance = null
   viewportSpyState.drawnCirclesByLayer = {
+    coastalNodes: [],
+    metalNodes: [],
+    saltNodes: [],
+    settlementNodes: [],
+  }
+  viewportSpyState.drawnFillsByLayer = {
     coastalNodes: [],
     metalNodes: [],
     saltNodes: [],
@@ -91,6 +104,7 @@ function syncDrawnCirclesByLayer() {
   )
   for (let i = 0; i < VECTOR_LAYER_IDS.length; i += 1) {
     viewportSpyState.drawnCirclesByLayer[VECTOR_LAYER_IDS[i]] = vectorLayers[i]?.circles ?? []
+    viewportSpyState.drawnFillsByLayer[VECTOR_LAYER_IDS[i]] = vectorLayers[i]?.fills ?? []
   }
 }
 
@@ -295,6 +309,7 @@ export async function installViewportMocks() {
           viewportSpyState.drawnFills = viewportSpyState.graphicsLayers.flatMap(
             (layer) => layer.fills ?? [],
           )
+          syncDrawnCirclesByLayer()
         }
         setFillStyle() {}
       },
@@ -637,4 +652,14 @@ export function sailSpriteLayer() {
 export function drawnCirclesByLayer() {
   syncDrawnCirclesByLayer()
   return viewportSpyState.drawnCirclesByLayer
+}
+
+/**
+ * Per-vector-layer path-fill records from the most recently created viewport.
+ *
+ * @returns {ViewportSpyState['drawnFillsByLayer']}
+ */
+export function drawnFillsByLayer() {
+  syncDrawnCirclesByLayer()
+  return viewportSpyState.drawnFillsByLayer
 }
