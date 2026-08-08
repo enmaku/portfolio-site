@@ -359,7 +359,7 @@ export function applySurplusPopulationDelta(population, foodSurplus, populationC
 }
 
 /**
- * Off-map attrition for marginal/broke settlements (wealth overlay orange/red: ≤ 0 cp).
+ * Off-map attrition for marginal/broke settlements (wealth overlay gray/red: ≤ 0 cp).
  * Leavers exit the realm entirely — not transferred to another pin.
  * Each pass removes the larger of half the headcount or
  * {@link MARGINAL_WEALTH_ATTRITION_MIN_LEAVERS} people (capped by headcount).

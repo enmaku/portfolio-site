@@ -231,6 +231,8 @@
           />
           <WorldBuilderRealmEconomyPanel
             :economy="realmEconomy"
+            :resource-overlay-visibility="resourceOverlayVisibility"
+            :toggle-resource-overlay-visibility="toggleResourceOverlayVisibility"
             @focus-settlement="setSettlementFocus"
           />
         </div>

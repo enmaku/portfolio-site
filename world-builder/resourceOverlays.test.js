@@ -1,21 +1,31 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.js'
+import { COMMODITY_IDS } from './core/economy/commodityCatalog.js'
 import {
   applyResourceOverlayVisibility,
+  commodityPriceOverlayId,
   createDefaultOverlayDisplaySettings,
   createDefaultResourceOverlayVisibility,
   createResourceOverlayDefinitions,
   createResourceOverlayIds,
   DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+  enforceExclusiveClaimOverlayVisibility,
   isResourceOverlayVisible,
+  REALM_ECONOMY_OVERLAY_IDS,
   shouldDrawResourceNodeOverlay,
   shouldDrawResourceRasterOverlay,
 } from './resourceOverlays.js'
 
+const COMMODITY_PRICE_DEFS = COMMODITY_IDS.map((commodityId) => ({
+  id: commodityPriceOverlayId(commodityId),
+  kind: 'raster',
+  vectorLayerId: undefined,
+}))
+
 test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
   const definitions = createResourceOverlayDefinitions()
-  assert.strictEqual(definitions.length, 13)
+  assert.strictEqual(definitions.length, 13 + 2 + COMMODITY_IDS.length)
   assert.deepStrictEqual(
     definitions.map((definition) => ({
       id: definition.id,
@@ -34,6 +44,9 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'explorationFog', kind: 'raster', vectorLayerId: undefined },
       { id: 'routes', kind: 'raster', vectorLayerId: undefined },
       { id: 'wealth', kind: 'raster', vectorLayerId: undefined },
+      { id: 'portTolls', kind: 'raster', vectorLayerId: undefined },
+      { id: 'factionTax', kind: 'raster', vectorLayerId: undefined },
+      ...COMMODITY_PRICE_DEFS,
       { id: 'factionTerritory', kind: 'raster', vectorLayerId: undefined },
       { id: 'loyalty', kind: 'raster', vectorLayerId: undefined },
     ],
@@ -53,27 +66,17 @@ test('createResourceOverlayIds returns canonical overlay ids in order', () => {
     'explorationFog',
     'routes',
     'wealth',
+    'portTolls',
+    'factionTax',
+    ...COMMODITY_IDS.map((id) => commodityPriceOverlayId(id)),
     'factionTerritory',
     'loyalty',
   ])
 })
 
 test('createDefaultResourceOverlayVisibility defaults every canonical overlay off', () => {
-  assert.deepStrictEqual(createDefaultResourceOverlayVisibility(), {
-    arable: false,
-    timber: false,
-    metals: false,
-    salt: false,
-    sail: false,
-    freshwater: false,
-    population: false,
-    settlements: false,
-    explorationFog: false,
-    routes: false,
-    wealth: false,
-    factionTerritory: false,
-    loyalty: false,
-  })
+  const expected = Object.fromEntries(createResourceOverlayIds().map((id) => [id, false]))
+  assert.deepStrictEqual(createDefaultResourceOverlayVisibility(), expected)
 })
 
 test('createDefaultResourceOverlayVisibility accepts a subset of resource ids', () => {
@@ -95,6 +98,61 @@ test('applyResourceOverlayVisibility toggles a resource without mutating prior s
   const visible = applyResourceOverlayVisibility(initial, 'salt', true)
   assert.strictEqual(isResourceOverlayVisible(initial, 'salt'), false)
   assert.strictEqual(isResourceOverlayVisible(visible, 'salt'), true)
+})
+
+test('applyResourceOverlayVisibility turns off other exclusive claim overlays', () => {
+  const withWealth = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(),
+    'wealth',
+    true,
+  )
+  const withLoyalty = applyResourceOverlayVisibility(withWealth, 'loyalty', true)
+  assert.strictEqual(withLoyalty.loyalty, true)
+  assert.strictEqual(withLoyalty.wealth, false)
+  assert.strictEqual(withLoyalty.population, false)
+})
+
+test('applyResourceOverlayVisibility clears control when enabling commodity price', () => {
+  const withControl = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(),
+    'factionTerritory',
+    true,
+  )
+  const withGrain = applyResourceOverlayVisibility(
+    withControl,
+    commodityPriceOverlayId('grain'),
+    true,
+  )
+  assert.strictEqual(withGrain[commodityPriceOverlayId('grain')], true)
+  assert.strictEqual(withGrain.factionTerritory, false)
+  assert.strictEqual(withGrain.timber, false)
+})
+
+test('applyResourceOverlayVisibility leaves non-exclusive overlays when enabling claim inspect', () => {
+  let state = applyResourceOverlayVisibility(createDefaultResourceOverlayVisibility(), 'population', true)
+  state = applyResourceOverlayVisibility(state, 'routes', true)
+  state = applyResourceOverlayVisibility(state, 'wealth', true)
+  assert.strictEqual(state.population, true)
+  assert.strictEqual(state.routes, true)
+  assert.strictEqual(state.wealth, true)
+})
+
+test('enforceExclusiveClaimOverlayVisibility keeps first exclusive true in definition order', () => {
+  const visibility = createDefaultResourceOverlayVisibility()
+  visibility.wealth = true
+  visibility.loyalty = true
+  visibility.factionTerritory = true
+  const enforced = enforceExclusiveClaimOverlayVisibility(visibility)
+  assert.strictEqual(enforced.wealth, true)
+  assert.strictEqual(enforced.loyalty, false)
+  assert.strictEqual(enforced.factionTerritory, false)
+})
+
+test('REALM_ECONOMY_OVERLAY_IDS excludes control and loyalty', () => {
+  assert.ok(REALM_ECONOMY_OVERLAY_IDS.includes('wealth'))
+  assert.ok(REALM_ECONOMY_OVERLAY_IDS.includes('portTolls'))
+  assert.ok(!REALM_ECONOMY_OVERLAY_IDS.includes('factionTerritory'))
+  assert.ok(!REALM_ECONOMY_OVERLAY_IDS.includes('loyalty'))
 })
 
 test('isResourceOverlayVisible treats unknown resources as hidden', () => {

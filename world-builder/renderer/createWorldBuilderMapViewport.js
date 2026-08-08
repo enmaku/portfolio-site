@@ -81,34 +81,34 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const contours = new Sprite(Texture.EMPTY)
   contours.visible = false
   let contourTexture = null
-  const arable = new Sprite(Texture.EMPTY)
-  arable.visible = false
-  const timber = new Sprite(Texture.EMPTY)
-  timber.visible = false
-  const metals = new Sprite(Texture.EMPTY)
-  metals.visible = false
+
+  /** @type {Record<string, import('pixi.js').Sprite>} */
+  const resourceRasterSprites = {}
+  /** @type {Record<string, import('pixi.js').Texture | null>} */
+  const resourceRasterTextures = {}
+  for (const layerId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {
+    const sprite = new Sprite(Texture.EMPTY)
+    sprite.visible = false
+    resourceRasterSprites[layerId] = sprite
+    resourceRasterTextures[layerId] = null
+  }
+  const {
+    arable,
+    timber,
+    metals,
+    sail,
+    freshwater,
+    population,
+    explorationFog,
+    routes,
+  } = resourceRasterSprites
+
   const lakes = new Sprite(Texture.EMPTY)
   lakes.visible = false
   let lakeTexture = null
   const rivers = new Sprite(Texture.EMPTY)
   rivers.visible = false
   let riverTexture = null
-  const sail = new Sprite(Texture.EMPTY)
-  sail.visible = false
-  const freshwater = new Sprite(Texture.EMPTY)
-  freshwater.visible = false
-  const population = new Sprite(Texture.EMPTY)
-  population.visible = false
-  const explorationFog = new Sprite(Texture.EMPTY)
-  explorationFog.visible = false
-  const routes = new Sprite(Texture.EMPTY)
-  routes.visible = false
-  const wealth = new Sprite(Texture.EMPTY)
-  wealth.visible = false
-  const factionTerritory = new Sprite(Texture.EMPTY)
-  factionTerritory.visible = false
-  const loyalty = new Sprite(Texture.EMPTY)
-  loyalty.visible = false
   const coastalOverlay = new Graphics()
   const metalOverlay = new Graphics()
   const saltOverlay = new Graphics()
@@ -134,49 +134,9 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   /** @type {{ elevationTint?: boolean }} */
   let terrainBuildOptions = {}
 
-  /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Texture | null>} */
-  const resourceRasterTextures = {
-    arable: null,
-    timber: null,
-    metals: null,
-    sail: null,
-    freshwater: null,
-    population: null,
-    explorationFog: null,
-    routes: null,
-    wealth: null,
-    factionTerritory: null,
-    loyalty: null,
-  }
-
-  /** @type {Record<import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId, import('pixi.js').Sprite>} */
-  const resourceRasterSprites = {
-    arable,
-    timber,
-    metals,
-    sail,
-    freshwater,
-    population,
-    explorationFog,
-    routes,
-    wealth,
-    factionTerritory,
-    loyalty,
-  }
-
   const mapLayerPresentation = {
     contours,
-    arable,
-    timber,
-    metals,
-    sail,
-    freshwater,
-    population,
-    explorationFog,
-    routes,
-    wealth,
-    factionTerritory,
-    loyalty,
+    ...resourceRasterSprites,
     rivers,
     lakes,
     coastalOverlay,
@@ -207,9 +167,21 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(freshwater)
   viewport.addChild(population)
   viewport.addChild(explorationFog)
-  viewport.addChild(wealth)
-  viewport.addChild(factionTerritory)
-  viewport.addChild(loyalty)
+  for (const layerId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {
+    if (
+      layerId === 'arable' ||
+      layerId === 'timber' ||
+      layerId === 'metals' ||
+      layerId === 'sail' ||
+      layerId === 'freshwater' ||
+      layerId === 'population' ||
+      layerId === 'explorationFog' ||
+      layerId === 'routes'
+    ) {
+      continue
+    }
+    viewport.addChild(resourceRasterSprites[layerId])
+  }
   viewport.addChild(coastalOverlay)
   viewport.addChild(metalOverlay)
   viewport.addChild(saltOverlay)
@@ -304,6 +276,13 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       explorationFog: () => refreshResourceRasterOverlay('explorationFog', currentWorldDocument),
       routes: () => refreshResourceRasterOverlay('routes', currentWorldDocument),
       wealth: () => refreshResourceRasterOverlay('wealth', currentWorldDocument),
+      portTolls: () => refreshResourceRasterOverlay('portTolls', currentWorldDocument),
+      factionTax: () => refreshResourceRasterOverlay('factionTax', currentWorldDocument),
+      ...Object.fromEntries(
+        RESOURCE_RASTER_OVERLAY_LAYER_IDS.filter((id) => id.startsWith('commodityPrice')).map(
+          (id) => [id, () => refreshResourceRasterOverlay(id, currentWorldDocument)],
+        ),
+      ),
       factionTerritory: () => refreshFactionTerritoryOverlay(currentWorldDocument),
       loyalty: () => refreshResourceRasterOverlay('loyalty', currentWorldDocument),
       rivers: () => refreshRiverOverlay(currentWorldDocument),

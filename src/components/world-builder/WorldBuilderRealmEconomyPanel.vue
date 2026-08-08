@@ -17,6 +17,15 @@
             data-testid="world-builder-realm-economy-wealth"
           >
             <div class="row items-center no-wrap q-gutter-xs">
+              <q-checkbox
+                dense
+                :toggle-indeterminate="false"
+                :model-value="resourceOverlayVisibility.wealth === true"
+                data-testid="world-builder-overlay-toggle-wealth"
+                @update:model-value="
+                  (value) => toggleResourceOverlayVisibility('wealth', value === true)
+                "
+              />
               <MoneyBagIcon />
               <span class="text-body2">Wealth</span>
             </div>
@@ -65,6 +74,15 @@
             data-testid="world-builder-realm-economy-tolls"
           >
             <div class="row items-center no-wrap q-gutter-xs">
+              <q-checkbox
+                dense
+                :toggle-indeterminate="false"
+                :model-value="resourceOverlayVisibility.portTolls === true"
+                data-testid="world-builder-overlay-toggle-portTolls"
+                @update:model-value="
+                  (value) => toggleResourceOverlayVisibility('portTolls', value === true)
+                "
+              />
               <PortTollsIcon />
               <span class="text-body2">Tolls</span>
             </div>
@@ -113,6 +131,15 @@
             data-testid="world-builder-realm-economy-faction-tax"
           >
             <div class="row items-center no-wrap q-gutter-xs">
+              <q-checkbox
+                dense
+                :toggle-indeterminate="false"
+                :model-value="resourceOverlayVisibility.factionTax === true"
+                data-testid="world-builder-overlay-toggle-factionTax"
+                @update:model-value="
+                  (value) => toggleResourceOverlayVisibility('factionTax', value === true)
+                "
+              />
               <FactionTaxIcon />
               <span class="text-body2">Tax</span>
             </div>
@@ -166,6 +193,21 @@
               :data-testid="`world-builder-realm-economy-commodity-${row.commodityId}`"
             >
               <div class="row items-center no-wrap q-gutter-xs">
+                <q-checkbox
+                  dense
+                  :toggle-indeterminate="false"
+                  :model-value="
+                    resourceOverlayVisibility[commodityPriceOverlayId(row.commodityId)] === true
+                  "
+                  :data-testid="`world-builder-overlay-toggle-${commodityPriceOverlayId(row.commodityId)}`"
+                  @update:model-value="
+                    (value) =>
+                      toggleResourceOverlayVisibility(
+                        commodityPriceOverlayId(row.commodityId),
+                        value === true,
+                      )
+                  "
+                />
                 <CommodityIcon :commodity-id="row.commodityId" />
                 <span class="text-body2">{{ commodityName(row.commodityId) }}</span>
               </div>
@@ -220,6 +262,7 @@
 
 <script setup>
 import { formatCommodityPriceCp, formatMoneyCp } from '../../../world-builder/core/economy/formatMoneyCp.js'
+import { commodityPriceOverlayId } from '../../../world-builder/resourceOverlayIds.js'
 import {
   COMMODITY_ACCESSIBLE_NAMES,
   COMMODITY_ICONS,
@@ -231,6 +274,14 @@ import {
 defineProps({
   economy: {
     type: Object,
+    required: true,
+  },
+  resourceOverlayVisibility: {
+    type: Object,
+    required: true,
+  },
+  toggleResourceOverlayVisibility: {
+    type: Function,
     required: true,
   },
 })

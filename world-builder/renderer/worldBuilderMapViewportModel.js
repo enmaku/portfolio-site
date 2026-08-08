@@ -6,6 +6,7 @@ import {
   deriveFreshwaterAvailabilityFromDocument,
 } from '../core/colonization/freshwater/deriveFreshwaterAvailability.js'
 import { deriveSailOverlayMask } from '../core/sail/deriveSailOverlayMask.js'
+import { presentMapCommodityIds } from '../core/economy/presentMapCommodities.js'
 import {
   isResourceOverlayVisible,
   shouldDrawResourceNodeOverlay,
@@ -240,6 +241,76 @@ export function resolveWealthRasterLayerVisible(visibility, worldDocument) {
     return false
   }
   if (!worldDocument.lastTradeEpochResult) {
+    return false
+  }
+  const settlements = worldDocument.settlements
+  return Array.isArray(settlements) && settlements.length > 0
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolvePortTollsRasterLayerVisible(visibility, worldDocument) {
+  if (!isResourceOverlayVisible(visibility, 'portTolls')) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  if (!worldDocument.lastTradeEpochResult) {
+    return false
+  }
+  const settlements = worldDocument.settlements
+  return (
+    Array.isArray(settlements) &&
+    settlements.some((settlement) => settlement && settlement.maritimeRole === 'port')
+  )
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolveFactionTaxRasterLayerVisible(visibility, worldDocument) {
+  if (!isResourceOverlayVisible(visibility, 'factionTax')) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  if (!worldDocument.lastTradeEpochResult) {
+    return false
+  }
+  const settlements = worldDocument.settlements
+  return Array.isArray(settlements) && settlements.length > 0
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {string} overlayId
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @param {import('../core/economy/commodityCatalog.js').CommodityId} commodityId
+ * @returns {boolean}
+ */
+export function resolveCommodityPriceRasterLayerVisible(
+  visibility,
+  overlayId,
+  worldDocument,
+  commodityId,
+) {
+  if (!isResourceOverlayVisible(visibility, overlayId)) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  if (!worldDocument.lastTradeEpochResult) {
+    return false
+  }
+  if (!presentMapCommodityIds(worldDocument).includes(commodityId)) {
     return false
   }
   const settlements = worldDocument.settlements

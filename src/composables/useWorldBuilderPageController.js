@@ -19,7 +19,12 @@ import {
   shouldShowResourceOverlayBar,
   areColonizationTimeControlsDisabled,
 } from '../../world-builder/worldBuilderPageModel.js'
-import { createResourceOverlayDefinitions } from '../../world-builder/resourceOverlays.js'
+import {
+  commodityPriceOverlayId,
+  createResourceOverlayDefinitions,
+  isRealmEconomyOverlayId,
+} from '../../world-builder/resourceOverlays.js'
+import { COMMODITY_IDS } from '../../world-builder/core/economy/commodityCatalog.js'
 import {
   buildGenerationStatusSection,
   buildOverlaysStatusSection,
@@ -63,11 +68,14 @@ const COLONIZATION_OVERLAY_IDS = new Set([
   'explorationFog',
   'routes',
   'wealth',
+  'portTolls',
+  'factionTax',
+  ...COMMODITY_IDS.map((commodityId) => commodityPriceOverlayId(commodityId)),
   'factionTerritory',
   'loyalty',
 ])
 
-/** Auto-enabled on setup → running (begin colonization); wealth and faction territory stay off until the user opts in. */
+/** Auto-enabled on setup → running (begin colonization); wealth / control / loyalty / economy inspect stay off until the user opts in. */
 const COLONIZATION_OVERLAYS_AUTO_ENABLED_ON_RUNNING = new Set([
   'population',
   'settlements',
@@ -422,13 +430,16 @@ export function useWorldBuilderPageController(options) {
     shouldShowResourceOverlayBar(generation.runPhase.value, colonizationBusyPhase.value),
   )
   const resourceOverlayDefinitions = createResourceOverlayDefinitions()
-  const visibleResourceOverlayDefinitions = computed(() =>
-    colonization.colonizationPhase.value === COLONIZATION_PHASE_TERRAIN
-      ? resourceOverlayDefinitions.filter(
-          (definition) => !COLONIZATION_OVERLAY_IDS.has(definition.id),
-        )
-      : resourceOverlayDefinitions,
-  )
+  const visibleResourceOverlayDefinitions = computed(() => {
+    if (colonization.colonizationPhase.value === COLONIZATION_PHASE_TERRAIN) {
+      return resourceOverlayDefinitions.filter(
+        (definition) => !COLONIZATION_OVERLAY_IDS.has(definition.id),
+      )
+    }
+    return resourceOverlayDefinitions.filter(
+      (definition) => !isRealmEconomyOverlayId(definition.id),
+    )
+  })
   const statusBar = computed(() => {
     const generationSection = generation.showGenerationProgress.value
       ? buildGenerationStatusSection({

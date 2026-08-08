@@ -304,12 +304,11 @@ test('mild surplus stays bright lime while full surplus reaches dark hunter', ()
   assert.ok(mild[1] > full[1], 'full surplus green channel drops as brightness mixes toward black')
 })
 
-test('zero net wealth paints amber orange, not gray', () => {
+test('zero net wealth paints map gray', () => {
   const zero = wealthTintRgb(0)
   assert.deepEqual(zero, WEALTH_NEUTRAL_RGB)
-  assert.ok(zero[0] > zero[2], 'orange should be red-dominant over blue')
-  assert.ok(zero[0] > zero[1], 'orange should be red-dominant over green')
-  assert.ok(zero[1] > zero[2], 'amber orange keeps green above blue')
+  assert.strictEqual(zero[0], zero[1])
+  assert.strictEqual(zero[1], zero[2])
 })
 
 test('paints a thin black outline between abutting primary claims', () => {

@@ -13,7 +13,11 @@ import {
   resolveResourceRasterOverlaySpriteVisible,
   RESOURCE_RASTER_OVERLAY_LAYER_IDS,
 } from './resourceRasterOverlayRefresh.js'
-import { applyResourceOverlayVisibility, createDefaultResourceOverlayVisibility } from '../resourceOverlays.js'
+import {
+  applyResourceOverlayVisibility,
+  createDefaultResourceOverlayVisibility,
+  createResourceOverlayDefinitions,
+} from '../resourceOverlays.js'
 
 /**
  * @returns {import('../core/types.js').WorldDocument}
@@ -129,6 +133,64 @@ function createWealthFixture() {
   }
 }
 
+function createPortTollsFixture() {
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    colonizationPhase: 'running',
+    settlements: [{ id: 'a', x: 2, y: 2, maritimeRole: 'port' }],
+    primaryClaim: { a: [{ x: 2, y: 2 }] },
+    lastTradeEpochResult: {
+      portTollIncomeCpBySettlementId: { a: 40 },
+    },
+  }
+}
+
+function createFactionTaxFixture() {
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    colonizationPhase: 'running',
+    settlements: [{ id: 'a', x: 2, y: 2 }],
+    primaryClaim: { a: [{ x: 2, y: 2 }] },
+    lastTradeEpochResult: {
+      factionTaxNetCpBySettlementId: { a: -8 },
+    },
+  }
+}
+
+function createCommodityPriceFixture() {
+  return {
+    gridWidth: 8,
+    gridHeight: 8,
+    colonizationPhase: 'running',
+    settlements: [{ id: 'a', x: 2, y: 2 }],
+    primaryClaim: { a: [{ x: 2, y: 2 }] },
+    saltNodes: [{ id: 'salt-0', x: 0, y: 0 }],
+    metalNodes: [
+      { id: 'm-copper', x: 1, y: 0, kind: 'copper' },
+      { id: 'm-silver', x: 2, y: 0, kind: 'silver' },
+      { id: 'm-gold', x: 3, y: 0, kind: 'gold' },
+      { id: 'm-diamond', x: 4, y: 0, kind: 'diamond' },
+    ],
+    lastTradeEpochResult: {
+      localPricesBySettlementId: {
+        a: {
+          grain: 1,
+          fish: 2,
+          timber: 0.5,
+          baseMetals: 10,
+          salt: 5,
+          copper: 50,
+          silver: 500,
+          gold: 5000,
+          diamonds: 500000,
+        },
+      },
+    },
+  }
+}
+
 function createFactionTerritoryFixture() {
   return {
     gridWidth: 8,
@@ -207,19 +269,12 @@ function createUnifiedRasterFixture() {
 }
 
 test('RESOURCE_RASTER_OVERLAY_LAYER_IDS lists raster overlay layers from definitions', () => {
-  assert.deepStrictEqual(RESOURCE_RASTER_OVERLAY_LAYER_IDS, [
-    'arable',
-    'timber',
-    'metals',
-    'sail',
-    'freshwater',
-    'population',
-    'explorationFog',
-    'routes',
-    'wealth',
-    'factionTerritory',
-    'loyalty',
-  ])
+  assert.deepStrictEqual(
+    RESOURCE_RASTER_OVERLAY_LAYER_IDS,
+    createResourceOverlayDefinitions()
+      .filter((definition) => definition.kind === 'raster' || definition.kind === 'rasterAndNodes')
+      .map((definition) => definition.id),
+  )
 })
 
 test('isResourceRasterOverlayLayerId identifies raster layers only', () => {
@@ -315,11 +370,17 @@ test('refreshResourceRasterOverlayCanvas performs at most one RGBA build per lay
                     ? createRoutesFixture()
                     : resourceId === 'wealth'
                       ? createWealthFixture()
-                      : resourceId === 'factionTerritory'
-                        ? createFactionTerritoryFixture()
-                        : resourceId === 'loyalty'
-                          ? createLoyaltyFixture()
-                          : createSailFixture()
+                      : resourceId === 'portTolls'
+                        ? createPortTollsFixture()
+                        : resourceId === 'factionTax'
+                          ? createFactionTaxFixture()
+                          : resourceId.startsWith('commodityPrice')
+                            ? createCommodityPriceFixture()
+                            : resourceId === 'factionTerritory'
+                              ? createFactionTerritoryFixture()
+                              : resourceId === 'loyalty'
+                                ? createLoyaltyFixture()
+                                : createSailFixture()
     const visibility = applyResourceOverlayVisibility(
       createDefaultResourceOverlayVisibility(),
       resourceId,

@@ -104,6 +104,55 @@ function visibleRasterFixture(resourceId) {
     }
   }
 
+  if (resourceId === 'portTolls') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      settlements: [{ id: 'a', x: 1, y: 1, maritimeRole: 'port' }],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+      lastTradeEpochResult: {
+        portTollIncomeCpBySettlementId: { a: 40 },
+      },
+    }
+  }
+
+  if (resourceId === 'factionTax') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      settlements: [{ id: 'a', x: 1, y: 1 }],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+      lastTradeEpochResult: {
+        factionTaxNetCpBySettlementId: { a: -12 },
+      },
+    }
+  }
+
+  if (typeof resourceId === 'string' && resourceId.startsWith('commodityPrice')) {
+    const saltNeeded = resourceId === 'commodityPriceSalt'
+    const mineralKindByOverlay = {
+      commodityPriceCopper: 'copper',
+      commodityPriceSilver: 'silver',
+      commodityPriceGold: 'gold',
+      commodityPriceDiamonds: 'diamond',
+    }
+    const mineralKind = mineralKindByOverlay[resourceId]
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      settlements: [{ id: 'a', x: 1, y: 1 }],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+      saltNodes: saltNeeded ? [{ id: 'salt-0', x: 0, y: 0 }] : [],
+      metalNodes: mineralKind ? [{ id: 'm0', x: 0, y: 1, kind: mineralKind }] : [],
+      lastTradeEpochResult: {
+        localPricesBySettlementId: { a: { grain: 2, fish: 3, timber: 1, baseMetals: 10 } },
+      },
+    }
+  }
+
   if (resourceId === 'factionTerritory') {
     return {
       gridWidth: 4,

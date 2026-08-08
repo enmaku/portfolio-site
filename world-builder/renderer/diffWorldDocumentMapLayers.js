@@ -1,5 +1,7 @@
 /** @typedef {import('./mapLayerRefresh.js').MapLayerId} MapLayerId */
 
+import { COMMODITY_PRICE_OVERLAY_IDS } from '../resourceOverlayIds.js'
+
 /**
  * @param {ArrayBufferView | undefined | null} a
  * @param {ArrayBufferView | undefined | null} b
@@ -225,6 +227,11 @@ export function diffWorldDocumentMapLayers(previous, next) {
     previous.tradeAccounts !== next.tradeAccounts
   ) {
     changedLayers.push('wealth')
+    changedLayers.push('portTolls')
+    changedLayers.push('factionTax')
+    for (const overlayId of COMMODITY_PRICE_OVERLAY_IDS) {
+      changedLayers.push(/** @type {MapLayerId} */ (overlayId))
+    }
   }
   if (previous.primaryClaim !== next.primaryClaim || previous.factions !== next.factions) {
     changedLayers.push('factionTerritory')

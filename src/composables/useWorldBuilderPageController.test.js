@@ -824,9 +824,10 @@ test('terrain authoring hides and disables colonization overlays', async () => {
       'settlements',
       'explorationFog',
       'routes',
-      'wealth',
       'factionTerritory',
+      'loyalty',
     ]
+    const realmEconomyOverlayIds = ['wealth', 'portTolls', 'factionTax', 'commodityPriceGrain']
 
     await ctx.start()
     await nextTick()
@@ -845,12 +846,16 @@ test('terrain authoring hides and disables colonization overlays', async () => {
     for (const overlayId of colonizationOverlayIds) {
       assert.ok(ctx.statusBar.value.overlayDefs.some((definition) => definition.id === overlayId))
     }
+    for (const overlayId of realmEconomyOverlayIds) {
+      assert.ok(!ctx.statusBar.value.overlayDefs.some((definition) => definition.id === overlayId))
+    }
     assert.ok(!ctx.statusBar.value.overlayDefs.some((definition) => definition.id === 'settlementIds'))
     for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.factionTerritory, false)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.loyalty, false)
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.settlementIds, undefined)
 
     await ctx.colonization.resetColonization()
