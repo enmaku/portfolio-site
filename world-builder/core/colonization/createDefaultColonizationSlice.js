@@ -81,6 +81,7 @@
  * @property {Record<string, number>} politicalPressureClearStreak Clear-and-rearm counters by settlement id.
  * @property {Record<string, string>} politicalPressureArmedBySettlementId Armed pressure controller by settlement id.
  * @property {Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null }>} recentAllianceBySettlementId
+ * @property {Record<string, string[]>} bannerMembershipHistoryBySettlementId Rolling sticky-membership window per settlement.
  */
 
 /**
@@ -190,6 +191,7 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'politicalPressureClearStreak',
   'politicalPressureArmedBySettlementId',
   'recentAllianceBySettlementId',
+  'bannerMembershipHistoryBySettlementId',
 ])
 
 /** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */

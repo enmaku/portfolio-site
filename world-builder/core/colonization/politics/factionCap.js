@@ -90,6 +90,8 @@ export function canMintNewFaction(factions) {
 
 /**
  * Lowest free territory palette slot among multi-settlement active factions.
+ * Independent of the active-roster mint cap: an existing faction that grows
+ * to 2+ living pins still needs a color even when the roster is full.
  *
  * @param {Array<{
  *   id?: string,
@@ -101,7 +103,6 @@ export function canMintNewFaction(factions) {
  * @returns {number | null}
  */
 export function allocateTerritoryPaletteIndex(factions, settlements) {
-  if (!canMintNewFaction(factions)) return null
   const used = new Set()
   if (Array.isArray(factions)) {
     for (const faction of factions) {

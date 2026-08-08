@@ -3,6 +3,10 @@
  * Domain: world-builder/CONTEXT.md — Political pressure; ADR 0022.
  */
 
+import {
+  applyBannerTenurePushWeight,
+  computeBannerTenureResistance,
+} from '../bannerTenure/bannerTenure.js'
 import { undirectedSettlementPairKey } from './primaryClaimAdjacency.js'
 import { countSharedPrimaryClaimBorderCells } from './primaryClaimAdjacency.js'
 import {
@@ -98,6 +102,7 @@ export function computePoliticalPressureRawPush(params) {
  *   corridorPairs?: Set<string> | null,
  *   bilateralCpByPair?: Record<string, number> | null,
  *   martialBySettlementId?: Record<string, number> | null,
+ *   bannerMembershipHistoryBySettlementId?: Record<string, string[]> | null,
  *   subjectIds?: string[] | null,
  *   majority?: number,
  *   marginRatio?: number,
@@ -106,6 +111,7 @@ export function computePoliticalPressureRawPush(params) {
  *   pushByFactionId: Record<string, number>,
  *   totalPush: number,
  *   subjectStrength: number,
+ *   bannerTenureResistance: number,
  *   sharesByFactionId: Record<string, number>,
  *   dominantFactionId: string | null,
  *   majority: boolean,
@@ -127,6 +133,7 @@ export function scorePoliticalPressureBySettlement(input) {
   const corridorPairs = input.corridorPairs ?? new Set()
   const bilateral = input.bilateralCpByPair ?? {}
   const primaryClaim = input.primaryClaim ?? {}
+  const membershipHistory = input.bannerMembershipHistoryBySettlementId ?? {}
   const { gridWidth, gridHeight } = input
 
   /** @type {Record<string, string[]>} */
@@ -152,6 +159,7 @@ export function scorePoliticalPressureBySettlement(input) {
       corridorPairs,
       bilateral,
       martialBySettlementId: input.martialBySettlementId,
+      membershipHistory: membershipHistory[subjectId] ?? [],
       majority,
       marginRatio,
       tuning,
@@ -175,13 +183,14 @@ function scoreOne(ctx) {
     corridorPairs,
     bilateral,
     martialBySettlementId,
+    membershipHistory,
     majority,
     marginRatio,
     tuning,
   } = ctx
 
   /** @type {Record<string, number>} */
-  const pushByFactionId = {}
+  const rawPushByFactionId = {}
   for (const faction of factions) {
     let push = 0
     for (const memberId of membersByFaction[faction.id] ?? []) {
@@ -212,7 +221,7 @@ function scoreOne(ctx) {
         tuning,
       })
     }
-    if (push > 0) pushByFactionId[faction.id] = push
+    if (push > 0) rawPushByFactionId[faction.id] = push
   }
 
   const subjectStrength = computePoliticalPressureRawPush({
@@ -225,11 +234,35 @@ function scoreOne(ctx) {
     tuning,
   })
 
+  const sticky =
+    typeof subject.factionId === 'string' && subject.factionId ? subject.factionId : null
+
+  /** @type {Record<string, number>} */
+  const pushByFactionId = {}
+  for (const [fid, push] of Object.entries(rawPushByFactionId)) {
+    const weighted = sticky
+      ? applyBannerTenurePushWeight({
+          push,
+          history: membershipHistory,
+          pressuringFactionId: fid,
+        })
+      : push
+    if (weighted > 0) pushByFactionId[fid] = weighted
+  }
+
+  const bannerTenureResistance = sticky
+    ? computeBannerTenureResistance({
+        subjectStrength,
+        history: membershipHistory,
+        currentFactionId: sticky,
+      })
+    : 0
+
   const totalPush = Object.values(pushByFactionId).reduce((a, b) => a + b, 0)
   /** @type {Record<string, number>} */
   const sharesByFactionId = {}
-  // marginShare resistance: subject strength + all pushes form the denominator field
-  const denom = totalPush + subjectStrength
+  // marginShare resistance: subject strength + preferred-banner habit + (homecoming-weighted) pushes
+  const denom = totalPush + subjectStrength + bannerTenureResistance
   if (denom > 0) {
     for (const [fid, push] of Object.entries(pushByFactionId)) {
       sharesByFactionId[fid] = push / denom
@@ -260,6 +293,7 @@ function scoreOne(ctx) {
     pushByFactionId,
     totalPush,
     subjectStrength,
+    bannerTenureResistance,
     sharesByFactionId,
     dominantFactionId: dominant,
     majority: majorityOk,

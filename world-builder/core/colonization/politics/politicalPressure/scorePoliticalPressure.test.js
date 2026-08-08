@@ -155,4 +155,84 @@ test('empty political pressure slice fields are empty maps', () => {
   const empty = createEmptyPoliticalPressureSliceFields()
   assert.deepEqual(empty.politicalPressureStreak, {})
   assert.deepEqual(empty.recentAllianceBySettlementId, {})
+  assert.deepEqual(empty.bannerMembershipHistoryBySettlementId, {})
+})
+
+test('banner tenure resistance can block modest push that flips a new sticky seat', () => {
+  const primaryClaim = {
+    sub: [
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+    ],
+    'cap-a': [
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+    ],
+  }
+  const base = {
+    settlements: [
+      living('sub', 'fb', { population: 100, wealthCp: 0 }),
+      living('cap-a', 'fa', { population: 140, wealthCp: 0 }),
+      living('cap-b', 'fb', { population: 100, wealthCp: 0 }),
+    ],
+    factions: [
+      faction('fa', 'cap-a', ['cap-a']),
+      faction('fb', 'cap-b', ['cap-b', 'sub']),
+    ],
+    primaryClaim,
+    gridWidth: 8,
+    gridHeight: 8,
+    corridorPairs: new Set(['sub|cap-a']),
+    bilateralCpByPair: {},
+    subjectIds: ['sub'],
+  }
+  const fresh = scorePoliticalPressureBySettlement({
+    ...base,
+    bannerMembershipHistoryBySettlementId: { sub: [] },
+  })
+  assert.equal(fresh.sub.dominantFactionId, 'fa')
+  assert.equal(fresh.sub.bannerTenureResistance, 0)
+
+  const heartland = scorePoliticalPressureBySettlement({
+    ...base,
+    bannerMembershipHistoryBySettlementId: {
+      sub: Array.from({ length: 10 }, () => 'fb'),
+    },
+  })
+  assert.equal(heartland.sub.dominantFactionId, null)
+  assert.ok(heartland.sub.bannerTenureResistance > 0)
+})
+
+test('fresh conquest memory prefers prior banner for reunification pressure', () => {
+  const primaryClaim = {
+    sub: [
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+    ],
+    'cap-purple': [
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+    ],
+  }
+  const history = [...Array.from({ length: 9 }, () => 'purple'), 'orange']
+  const scores = scorePoliticalPressureBySettlement({
+    settlements: [
+      living('sub', 'orange', { population: 100, wealthCp: 0 }),
+      living('cap-purple', 'purple', { population: 140, wealthCp: 0 }),
+      living('cap-orange', 'orange', { population: 100, wealthCp: 0 }),
+    ],
+    factions: [
+      faction('purple', 'cap-purple', ['cap-purple']),
+      faction('orange', 'cap-orange', ['cap-orange', 'sub']),
+    ],
+    primaryClaim,
+    gridWidth: 8,
+    gridHeight: 8,
+    corridorPairs: new Set(['sub|cap-purple']),
+    bilateralCpByPair: {},
+    subjectIds: ['sub'],
+    bannerMembershipHistoryBySettlementId: { sub: history },
+  })
+  assert.equal(scores.sub.dominantFactionId, 'purple')
+  assert.equal(scores.sub.bannerTenureResistance, 0)
 })

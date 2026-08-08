@@ -100,7 +100,8 @@
 | `colonization/politics/softPower/softPowerBelievability.test.js` | `core-unit` | Contiguity / anti-churn / threshold sweep for soft spheres | None — runs under npm run test:world-builder |
 | `colonization/politics/politicalPressure/primaryClaimAdjacency.test.js` | `core-unit` | Primary-claim 4-connected adjacency for pressure borders | None — runs under npm run test:world-builder |
 | `colonization/politics/politicalPressure/directCorridorPairs.test.js` | `core-unit` | Direct land/inland-sail corridor pairs; open-sea excluded | None — runs under npm run test:world-builder |
-| `colonization/politics/politicalPressure/scorePoliticalPressure.test.js` | `core-unit` | Sweep B scoring/arming; streaks; tuning smoke | None — runs under npm run test:world-builder |
+| `colonization/politics/politicalPressure/scorePoliticalPressure.test.js` | `core-unit` | Sweep B scoring/arming; streaks; tuning smoke; banner tenure resistance | None — runs under npm run test:world-builder |
+| `colonization/politics/bannerTenure/bannerTenureBelievability.test.js` | `core-unit` | Rolling-window preference/recency; hard/soft believability sweep locking defaults | None — runs under npm run test:world-builder |
 | `colonization/politics/politicalPressure/applyAllianceMembership.test.js` | `core-unit` | Join-existing vassal; peer mint; roster cap; history | None — runs under npm run test:world-builder |
 | `colonization/politics/politicalPressure/politicsPressureWiring.test.js` | `core-unit` | Politics order trade → pressure → conflict; enable gate | None — runs under npm run test:world-builder |
 | `colonization/politics/politicalPressure/liveEpochAlliance.test.js` | `core-unit` | Live `runColonizationEpochStep` alliances on healthy seeds | None — runs under npm run test:world-builder |

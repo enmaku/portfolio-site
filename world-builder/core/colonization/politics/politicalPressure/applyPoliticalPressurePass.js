@@ -83,6 +83,7 @@ export function applyPoliticalPressurePass(params) {
     corridorPairs,
     bilateralCpByPair,
     martialBySettlementId,
+    bannerMembershipHistoryBySettlementId: next.bannerMembershipHistoryBySettlementId,
     subjectIds: [...eligibleSubjectIds],
   })
 

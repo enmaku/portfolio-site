@@ -14,6 +14,7 @@ import { allocateTerritoryPaletteIndex, canMintNewFaction } from '../factionCap.
 import { resolveVassalDefection } from '../resolveVassalDefection.js'
 import { applyWarExhaustion } from './applyWarExhaustion.js'
 import { openBelligerentTradeBlock } from './belligerentTradeBlocks.js'
+import { rebellionArmThresholdScale } from '../bannerTenure/bannerTenure.js'
 import {
   REBELLION_TAX_DRAIN_CP_THRESHOLD,
   REBELLION_TRADE_PRESSURE_EPOCHS,
@@ -226,12 +227,13 @@ function pickRebellionStake(params) {
     {}
   const scores = params.softPowerScores ?? {}
   const tuning = getConflictTuning()
-  const taxThreshold =
+  const taxThresholdBase =
     Number(tuning.rebellionTaxDrainCpThreshold) || REBELLION_TAX_DRAIN_CP_THRESHOLD
   const resentmentEpochs =
     Number(tuning.rebellionResentmentEpochs) || RECENT_CONQUEST_RESENTMENT_EPOCHS
-  const tradeStreakNeed =
+  const tradeStreakNeedBase =
     Number(tuning.rebellionTradeStreakEpochs) || REBELLION_TRADE_PRESSURE_EPOCHS
+  const historyById = params.slice.bannerMembershipHistoryBySettlementId ?? {}
   /** @type {Array<object & {
    *   rebellionCause: string,
    *   pressure: number,
@@ -247,6 +249,13 @@ function pickRebellionStake(params) {
       (f) => f.id === settlement.factionId && f.status === 'active',
     )
     if (!faction || faction.capitalSettlementId === settlement.id) continue
+
+    const armScale = rebellionArmThresholdScale({
+      history: historyById[settlement.id] ?? [],
+      currentFactionId: settlement.factionId,
+    })
+    const taxThreshold = taxThresholdBase * armScale
+    const tradeStreakNeed = Math.ceil(tradeStreakNeedBase * armScale)
 
     const taxDrain = Math.max(0, -(tax[settlement.id] ?? 0))
     const conquest = recent[settlement.id]

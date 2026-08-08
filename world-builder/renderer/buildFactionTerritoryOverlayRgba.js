@@ -156,8 +156,9 @@ export function saturateFactionTerritoryRgb(
 }
 
 /**
- * Stable palette index for a faction: prefer stored mint slot, then emergence order
- * across the roster (including extinct); fall back to id hash.
+ * Stable palette index for a faction: prefer stored mint slot, then a free slot
+ * among colorless peers (emergence order), then id hash. Never reuses a slot that
+ * another roster row already holds via territoryPaletteIndex.
  *
  * @param {string} factionId
  * @param {Array<{ id: string, emergedEpoch?: number, territoryPaletteIndex?: number }> | null | undefined} factions
@@ -174,14 +175,51 @@ export function factionTerritoryPaletteIndex(factionId, factions) {
     ) {
       return /** @type {number} */ (stored.territoryPaletteIndex)
     }
-    const roster = [...factions].sort((a, b) => {
-      const ae = Number.isFinite(a.emergedEpoch) ? /** @type {number} */ (a.emergedEpoch) : 0
-      const be = Number.isFinite(b.emergedEpoch) ? /** @type {number} */ (b.emergedEpoch) : 0
-      if (ae !== be) return ae - be
-      return String(a.id).localeCompare(String(b.id))
-    })
-    const index = roster.findIndex((f) => f && f.id === factionId)
-    if (index >= 0) return index % FACTION_TERRITORY_PALETTE.length
+
+    const used = new Set()
+    for (const faction of factions) {
+      if (!faction || faction.id === factionId) continue
+      const index = faction.territoryPaletteIndex
+      if (
+        Number.isInteger(index) &&
+        /** @type {number} */ (index) >= 0 &&
+        /** @type {number} */ (index) < MAX_ACTIVE_FACTIONS
+      ) {
+        used.add(/** @type {number} */ (index))
+      }
+    }
+    const free = []
+    for (let index = 0; index < FACTION_TERRITORY_PALETTE.length; index += 1) {
+      if (!used.has(index)) free.push(index)
+    }
+
+    if (free.length > 0) {
+      const colorless = factions
+        .filter((f) => {
+          if (!f || !f.id) return false
+          const index = f.territoryPaletteIndex
+          return !(
+            Number.isInteger(index) &&
+            /** @type {number} */ (index) >= 0 &&
+            /** @type {number} */ (index) < MAX_ACTIVE_FACTIONS
+          )
+        })
+        .sort((a, b) => {
+          const ae = Number.isFinite(a.emergedEpoch) ? /** @type {number} */ (a.emergedEpoch) : 0
+          const be = Number.isFinite(b.emergedEpoch) ? /** @type {number} */ (b.emergedEpoch) : 0
+          if (ae !== be) return ae - be
+          return String(a.id).localeCompare(String(b.id))
+        })
+      const colorLessIndex = colorless.findIndex((f) => f.id === factionId)
+      if (colorLessIndex >= 0) {
+        return free[colorLessIndex % free.length]
+      }
+      let hash = 0
+      for (let i = 0; i < factionId.length; i += 1) {
+        hash = (hash * 31 + factionId.charCodeAt(i)) >>> 0
+      }
+      return free[hash % free.length]
+    }
   }
   let hash = 0
   for (let i = 0; i < factionId.length; i += 1) {

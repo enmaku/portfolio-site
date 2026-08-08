@@ -1,7 +1,10 @@
 /**
  * Political-pressure slice field resolvers.
- * Domain: world-builder/CONTEXT.md — Political pressure.
+ * Domain: world-builder/CONTEXT.md — Political pressure; Banner tenure.
  */
+
+import { normalizeMembershipHistory } from '../bannerTenure/bannerTenure.js'
+import { getBannerTenureTuning } from '../bannerTenure/bannerTenureTuning.js'
 
 /**
  * @returns {{
@@ -9,6 +12,7 @@
  *   politicalPressureClearStreak: Record<string, number>,
  *   politicalPressureArmedBySettlementId: Record<string, string>,
  *   recentAllianceBySettlementId: Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null }>,
+ *   bannerMembershipHistoryBySettlementId: Record<string, string[]>,
  * }}
  */
 export function createEmptyPoliticalPressureSliceFields() {
@@ -17,6 +21,7 @@ export function createEmptyPoliticalPressureSliceFields() {
     politicalPressureClearStreak: {},
     politicalPressureArmedBySettlementId: {},
     recentAllianceBySettlementId: {},
+    bannerMembershipHistoryBySettlementId: {},
   }
 }
 
@@ -44,6 +49,22 @@ export function resolveRecentAllianceMap(value) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {Record<string, string[]>}
+ */
+export function resolveBannerMembershipHistoryMap(value) {
+  if (!value || typeof value !== 'object') return {}
+  const windowSize = getBannerTenureTuning().windowSize
+  /** @type {Record<string, string[]>} */
+  const resolved = {}
+  for (const [id, history] of Object.entries(value)) {
+    const normalized = normalizeMembershipHistory(history, { windowSize })
+    if (normalized.length > 0) resolved[id] = normalized
+  }
+  return resolved
+}
+
+/**
  * @param {object} incoming
  * @param {(value: unknown) => Record<string, number>} resolveStreakMap
  * @param {(value: unknown) => Record<string, string>} resolveStringMap
@@ -56,5 +77,8 @@ export function resolvePoliticalPressureSliceFields(incoming, resolveStreakMap, 
       incoming.politicalPressureArmedBySettlementId,
     ),
     recentAllianceBySettlementId: resolveRecentAllianceMap(incoming.recentAllianceBySettlementId),
+    bannerMembershipHistoryBySettlementId: resolveBannerMembershipHistoryMap(
+      incoming.bannerMembershipHistoryBySettlementId,
+    ),
   }
 }

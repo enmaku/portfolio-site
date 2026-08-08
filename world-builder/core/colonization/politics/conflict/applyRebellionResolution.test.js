@@ -122,3 +122,46 @@ test('zero loyalist projection yields breakaway without war exhaustion', () => {
   assert.deepEqual(result.slice.warExhaustionBySettlementId, {})
   assert.notEqual(result.slice.settlements.find((s) => s.id === 'vassal').factionId, 'empire')
 })
+
+test('long banner tenure blocks bare tax-threshold rebellion; higher tax still arms', () => {
+  const blocked = empireSlice()
+  blocked.bannerMembershipHistoryBySettlementId = {
+    vassal: Array.from({ length: 10 }, () => 'empire'),
+  }
+  blocked.recentConquestBySettlementId = {}
+  const edges = [edge({ id: 'cap-vassal', fromSettlementId: 'cap', toSettlementId: 'vassal' })]
+  const noArm = applyRebellionResolution({
+    slice: blocked,
+    capacityBySettlementId: { cap: 100, vassal: 5000 },
+    candidateEdges: edges,
+    strategicReachHaulFractions: reach,
+    taxDrainCpBySettlementId: { vassal: -REBELLION_TAX_DRAIN_CP_THRESHOLD },
+  })
+  assert.equal(noArm.events.some((e) => e.kind === HISTORY_KIND_REBELLION_START), false)
+
+  const armed = applyRebellionResolution({
+    slice: blocked,
+    capacityBySettlementId: { cap: 100, vassal: 5000 },
+    candidateEdges: edges,
+    strategicReachHaulFractions: reach,
+    taxDrainCpBySettlementId: { vassal: -(REBELLION_TAX_DRAIN_CP_THRESHOLD * 2.05) },
+  })
+  assert.ok(armed.events.some((e) => e.kind === HISTORY_KIND_REBELLION_START))
+})
+
+test('fresh conquest memory eases rebellion arming against the usurper at bare tax', () => {
+  const slice = empireSlice()
+  slice.bannerMembershipHistoryBySettlementId = {
+    vassal: [...Array.from({ length: 9 }, () => 'old'), 'empire'],
+  }
+  slice.recentConquestBySettlementId = {}
+  const edges = [edge({ id: 'cap-vassal', fromSettlementId: 'cap', toSettlementId: 'vassal' })]
+  const result = applyRebellionResolution({
+    slice,
+    capacityBySettlementId: { cap: 100, vassal: 5000 },
+    candidateEdges: edges,
+    strategicReachHaulFractions: reach,
+    taxDrainCpBySettlementId: { vassal: -REBELLION_TAX_DRAIN_CP_THRESHOLD },
+  })
+  assert.ok(result.events.some((e) => e.kind === HISTORY_KIND_REBELLION_START))
+})

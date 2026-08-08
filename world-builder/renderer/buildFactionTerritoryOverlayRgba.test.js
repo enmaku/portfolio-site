@@ -306,6 +306,16 @@ test('faction palette assigns by emergence order and keeps colors when another f
   assert.deepStrictEqual(before, afterExtinct)
 })
 
+test('faction palette fallback does not collide with another faction stored slot', () => {
+  const roster = [
+    { id: 'held-yellow', emergedEpoch: 0, territoryPaletteIndex: 1 },
+    { id: 'colorless-grown', emergedEpoch: 3 },
+  ]
+  assert.strictEqual(factionTerritoryPaletteIndex('held-yellow', roster), 1)
+  assert.notStrictEqual(factionTerritoryPaletteIndex('colorless-grown', roster), 1)
+  assert.strictEqual(factionTerritoryPaletteIndex('colorless-grown', roster), 0)
+})
+
 test('ColorBrewer Set3 twelve faction colors are pairwise distinct in RGB', () => {
   assert.strictEqual(FACTION_TERRITORY_PALETTE.length, 12)
   assert.ok(FACTION_TERRITORY_BASELINE_SATURATION_BOOST < FACTION_TERRITORY_HOVER_SATURATION_BOOST)

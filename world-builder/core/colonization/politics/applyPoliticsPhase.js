@@ -20,6 +20,7 @@ import { buildConflictEngineInputs } from './conflict/buildConflictEngineInputs.
 import { evaluateSupplyChainIndependence } from './evaluateSupplyChainIndependence.js'
 import { syncFactionTerritoryPalettes } from './factionCap.js'
 import { HISTORY_KIND_INCREMENT3_LATCHED } from './historyKinds.js'
+import { advanceBannerTenure } from './bannerTenure/bannerTenure.js'
 import { applyPoliticalPressurePass } from './politicalPressure/applyPoliticalPressurePass.js'
 import { resolveMapGraySettlementIds } from './softPower/factionalControl.js'
 import {
@@ -233,6 +234,11 @@ export async function applyPoliticsPhase(params, options = {}) {
   emitPoliticsSubstep(hooks, 'substep-start', 'pressure')
   await yieldToUi?.()
   if (latched || hasActiveFactions) {
+    const tenure = advanceBannerTenure({
+      settlements: next.settlements,
+      bannerMembershipHistoryBySettlementId: next.bannerMembershipHistoryBySettlementId,
+    })
+    next = { ...next, ...tenure }
     const pressure = applyPoliticalPressurePass({
       slice: next,
       worldDocument: params.worldDocument,
