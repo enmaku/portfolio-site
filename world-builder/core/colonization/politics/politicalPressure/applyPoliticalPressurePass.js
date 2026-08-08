@@ -10,11 +10,20 @@ import { applyAllianceMembership } from './applyAllianceMembership.js'
 import { buildDirectPressureCorridorPairSet } from './directCorridorPairs.js'
 import { getPoliticalPressureTuning } from './politicalPressureTuning.js'
 import { advancePoliticalPressureStreaks } from './politicalPressureStreaks.js'
-import {
-  buildPrimaryClaimAdjacencyUndirected,
-  undirectedSettlementPairKey,
-} from './primaryClaimAdjacency.js'
-import { scorePoliticalPressureBySettlement } from './scorePoliticalPressure.js'
+import { buildPrimaryClaimContact, undirectedSettlementPairKey } from './primaryClaimAdjacency.js'
+import { scorePoliticalPressureBySettlementAsync } from './scorePoliticalPressure.js'
+
+/** Fixed progress ticks outside per-subject scoring: contact, streaks, alliance. */
+export const PRESSURE_PASS_FIXED_PROGRESS_STAGES = 3
+
+/**
+ * @param {number} eligibleSubjectCount
+ * @returns {number}
+ */
+export function countPoliticalPressureProgressItems(eligibleSubjectCount) {
+  const n = Math.max(0, eligibleSubjectCount | 0)
+  return PRESSURE_PASS_FIXED_PROGRESS_STAGES + n
+}
 
 /**
  * @param {{
@@ -24,12 +33,17 @@ import { scorePoliticalPressureBySettlement } from './scorePoliticalPressure.js'
  *   capacityBySettlementId?: Record<string, number> | null,
  *   martialInputBySettlementId?: Record<string, { martialCapacity?: number } | number> | null,
  * }} params
- * @returns {{
+ * @param {{
+ *   onProgress?: () => void,
+ *   yieldToUi?: () => Promise<void>,
+ * }} [options]
+ * @returns {Promise<{
  *   slice: import('../../createDefaultColonizationSlice.js').ColonizationSlice,
  *   events: object[],
- * }}
+ * }>}
  */
-export function applyPoliticalPressurePass(params) {
+export async function applyPoliticalPressurePass(params, options = {}) {
+  const { onProgress, yieldToUi } = options
   let next = params.slice
   if (!getPoliticalPressureTuning().enabled) {
     return { slice: next, events: [] }
@@ -43,12 +57,17 @@ export function applyPoliticalPressurePass(params) {
     .filter((s) => isLiving(s))
     .map((s) => s.id)
 
-  const claimAdjacencyPairs = buildPrimaryClaimAdjacencyUndirected({
-    primaryClaim,
-    settlementIds: livingIds,
-    gridWidth,
-    gridHeight,
-  })
+  // Contact graph is the expensive prelude — tick first so UI can paint 1/n.
+  onProgress?.()
+  await yieldToUi?.()
+
+  const { adjacencyPairs: claimAdjacencyPairs, borderCountByDirectedPair } =
+    buildPrimaryClaimContact({
+      primaryClaim,
+      settlementIds: livingIds,
+      gridWidth,
+      gridHeight,
+    })
 
   // Built roads / inland sail only — trade candidate edges are haul graph, not corridors.
   const corridorPairs = buildDirectPressureCorridorPairSet({
@@ -74,18 +93,24 @@ export function applyPoliticalPressurePass(params) {
     eligibleSubjectIds.add(settlement.id)
   }
 
-  const scores = scorePoliticalPressureBySettlement({
-    settlements: next.settlements,
-    factions: next.factions,
-    primaryClaim,
-    gridWidth,
-    gridHeight,
-    corridorPairs,
-    bilateralCpByPair,
-    martialBySettlementId,
-    bannerMembershipHistoryBySettlementId: next.bannerMembershipHistoryBySettlementId,
-    subjectIds: [...eligibleSubjectIds],
-  })
+  const scores = await scorePoliticalPressureBySettlementAsync(
+    {
+      settlements: next.settlements,
+      factions: next.factions,
+      borderCountByDirectedPair,
+      corridorPairs,
+      bilateralCpByPair,
+      martialBySettlementId,
+      bannerMembershipHistoryBySettlementId: next.bannerMembershipHistoryBySettlementId,
+      subjectIds: [...eligibleSubjectIds],
+    },
+    {
+      onItem: () => {
+        onProgress?.()
+      },
+      yieldToUi,
+    },
+  )
 
   /** @type {Record<string, string | null | undefined>} */
   const homeFactionBySettlementId = {}
@@ -108,6 +133,8 @@ export function applyPoliticalPressurePass(params) {
     mapGraySettlementIds,
   })
   next = { ...next, ...streaked.state }
+  onProgress?.()
+  await yieldToUi?.()
 
   const historyBefore = next.historyLog?.length ?? 0
   const alliance = applyAllianceMembership({
@@ -120,6 +147,8 @@ export function applyPoliticalPressurePass(params) {
   })
   next = alliance.slice
   const events = (next.historyLog ?? []).slice(historyBefore)
+  onProgress?.()
+  await yieldToUi?.()
 
   return { slice: next, events }
 }
@@ -142,6 +171,21 @@ function isMultiPinCapital(settlement, slice) {
   const faction = (slice.factions ?? []).find((f) => f.id === settlement.factionId)
   if (!faction || faction.capitalSettlementId !== settlement.id) return false
   return countLivingFactionMembers(settlement.factionId, { settlements: slice.settlements }) > 1
+}
+
+/**
+ * Eligible pressure subjects (living, not multi-pin capitals).
+ * @param {import('../../createDefaultColonizationSlice.js').ColonizationSlice} slice
+ * @returns {number}
+ */
+export function countEligiblePoliticalPressureSubjects(slice) {
+  let n = 0
+  for (const settlement of slice?.settlements ?? []) {
+    if (!isLiving(settlement)) continue
+    if (isMultiPinCapital(settlement, slice)) continue
+    n += 1
+  }
+  return n
 }
 
 /**

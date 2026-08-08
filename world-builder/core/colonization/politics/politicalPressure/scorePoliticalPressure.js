@@ -7,8 +7,11 @@ import {
   applyBannerTenurePushWeight,
   computeBannerTenureResistance,
 } from '../bannerTenure/bannerTenure.js'
-import { undirectedSettlementPairKey } from './primaryClaimAdjacency.js'
-import { countSharedPrimaryClaimBorderCells } from './primaryClaimAdjacency.js'
+import {
+  buildPrimaryClaimContact,
+  directedSettlementPairKey,
+  undirectedSettlementPairKey,
+} from './primaryClaimAdjacency.js'
 import {
   DEFAULT_POLITICAL_PRESSURE_TUNING,
   getPoliticalPressureTuning,
@@ -97,8 +100,111 @@ export function computePoliticalPressureRawPush(params) {
  *   settlements?: object[] | null,
  *   factions?: object[] | null,
  *   primaryClaim?: Record<string, Array<{ x: number, y: number }>> | null,
- *   gridWidth: number,
- *   gridHeight: number,
+ *   gridWidth?: number,
+ *   gridHeight?: number,
+ *   borderCountByDirectedPair?: Map<string, number> | Record<string, number> | null,
+ *   corridorPairs?: Set<string> | null,
+ *   bilateralCpByPair?: Record<string, number> | null,
+ *   martialBySettlementId?: Record<string, number> | null,
+ *   bannerMembershipHistoryBySettlementId?: Record<string, string[]> | null,
+ *   subjectIds?: string[] | null,
+ *   majority?: number,
+ *   marginRatio?: number,
+ * }} input
+ */
+function preparePoliticalPressureContext(input) {
+  const tuning = getPoliticalPressureTuning()
+  const majority = input.majority ?? tuning.majority
+  const marginRatio = input.marginRatio ?? tuning.marginRatio
+  const settlements = (input.settlements ?? []).filter(isLiving)
+  const byId = Object.fromEntries(settlements.map((s) => [s.id, s]))
+  const factions = (input.factions ?? []).filter(
+    (f) => f && f.status === 'active' && typeof f.id === 'string',
+  )
+  const subjectIds = input.subjectIds ?? settlements.map((s) => s.id)
+  const corridorPairs = input.corridorPairs ?? new Set()
+  const bilateral = input.bilateralCpByPair ?? {}
+  const membershipHistory = input.bannerMembershipHistoryBySettlementId ?? {}
+  const borderCounts = resolveBorderCountLookup(input)
+
+  /** @type {Record<string, string[]>} */
+  const membersByFaction = {}
+  for (const faction of factions) {
+    const ids = Array.isArray(faction.settlementIds) ? faction.settlementIds : []
+    membersByFaction[faction.id] = ids.filter((id) => byId[id])
+  }
+
+  return {
+    byId,
+    factions,
+    membersByFaction,
+    subjectIds,
+    corridorPairs,
+    bilateral,
+    membershipHistory,
+    borderCounts,
+    martialBySettlementId: input.martialBySettlementId,
+    majority,
+    marginRatio,
+    tuning,
+  }
+}
+
+/**
+ * @param {Map<string, number> | Record<string, number>} raw
+ * @returns {(from: string, to: string) => number}
+ */
+function lookupFromBorderCounts(raw) {
+  if (raw instanceof Map) {
+    return (from, to) => raw.get(directedSettlementPairKey(from, to)) ?? 0
+  }
+  return (from, to) => {
+    const n = raw[directedSettlementPairKey(from, to)]
+    return typeof n === 'number' && Number.isFinite(n) ? n : 0
+  }
+}
+
+/**
+ * Prefer precomputed directed frontier counts; otherwise one contact sweep from primaryClaim.
+ * @param {{
+ *   borderCountByDirectedPair?: Map<string, number> | Record<string, number> | null,
+ *   primaryClaim?: Record<string, Array<{ x: number, y: number }>> | null,
+ *   settlements?: object[] | null,
+ *   subjectIds?: string[] | null,
+ *   gridWidth?: number,
+ *   gridHeight?: number,
+ * }} input
+ * @returns {(from: string, to: string) => number}
+ */
+function resolveBorderCountLookup(input) {
+  if (input.borderCountByDirectedPair) {
+    return lookupFromBorderCounts(input.borderCountByDirectedPair)
+  }
+  const gridWidth = Number(input.gridWidth) || 0
+  const gridHeight = Number(input.gridHeight) || 0
+  if (!(gridWidth > 0) || !(gridHeight > 0)) {
+    return () => 0
+  }
+  const livingIds = (input.settlements ?? []).filter(isLiving).map((s) => s.id)
+  const settlementIds =
+    livingIds.length > 0 ? livingIds : Object.keys(input.primaryClaim ?? {})
+  const { borderCountByDirectedPair } = buildPrimaryClaimContact({
+    primaryClaim: input.primaryClaim,
+    settlementIds,
+    gridWidth,
+    gridHeight,
+  })
+  return lookupFromBorderCounts(borderCountByDirectedPair)
+}
+
+/**
+ * @param {{
+ *   settlements?: object[] | null,
+ *   factions?: object[] | null,
+ *   primaryClaim?: Record<string, Array<{ x: number, y: number }>> | null,
+ *   gridWidth?: number,
+ *   gridHeight?: number,
+ *   borderCountByDirectedPair?: Map<string, number> | Record<string, number> | null,
  *   corridorPairs?: Set<string> | null,
  *   bilateralCpByPair?: Record<string, number> | null,
  *   martialBySettlementId?: Record<string, number> | null,
@@ -119,71 +225,60 @@ export function computePoliticalPressureRawPush(params) {
  * }>}
  */
 export function scorePoliticalPressureBySettlement(input) {
-  const tuning = getPoliticalPressureTuning()
-  const majority = input.majority ?? tuning.majority
-  const marginRatio = input.marginRatio ?? tuning.marginRatio
-  const settlements = (input.settlements ?? []).filter(isLiving)
-  const byId = Object.fromEntries(settlements.map((s) => [s.id, s]))
-  const factions = (input.factions ?? []).filter(
-    (f) => f && f.status === 'active' && typeof f.id === 'string',
-  )
-  const subjectIds =
-    input.subjectIds ??
-    settlements.map((s) => s.id)
-  const corridorPairs = input.corridorPairs ?? new Set()
-  const bilateral = input.bilateralCpByPair ?? {}
-  const primaryClaim = input.primaryClaim ?? {}
-  const membershipHistory = input.bannerMembershipHistoryBySettlementId ?? {}
-  const { gridWidth, gridHeight } = input
-
-  /** @type {Record<string, string[]>} */
-  const membersByFaction = {}
-  for (const faction of factions) {
-    const ids = Array.isArray(faction.settlementIds) ? faction.settlementIds : []
-    membersByFaction[faction.id] = ids.filter((id) => byId[id])
-  }
-
+  const ctx = preparePoliticalPressureContext(input)
   /** @type {Record<string, ReturnType<typeof scoreOne>>} */
   const out = {}
-  for (const subjectId of subjectIds) {
-    const subject = byId[subjectId]
+  for (const subjectId of ctx.subjectIds) {
+    const subject = ctx.byId[subjectId]
     if (!subject) continue
-    out[subjectId] = scoreOne({
-      subject,
-      byId,
-      membersByFaction,
-      factions,
-      primaryClaim,
-      gridWidth,
-      gridHeight,
-      corridorPairs,
-      bilateral,
-      martialBySettlementId: input.martialBySettlementId,
-      membershipHistory: membershipHistory[subjectId] ?? [],
-      majority,
-      marginRatio,
-      tuning,
-    })
+    out[subjectId] = scoreOne(subject, ctx)
   }
   return out
 }
 
 /**
- * @param {object} ctx
+ * Async scoring with per-subject progress ticks.
+ *
+ * @param {Parameters<typeof scorePoliticalPressureBySettlement>[0]} input
+ * @param {{
+ *   onItem?: () => void,
+ *   yieldToUi?: () => Promise<void>,
+ * }} [options]
+ * @returns {Promise<ReturnType<typeof scorePoliticalPressureBySettlement>>}
  */
-function scoreOne(ctx) {
+export async function scorePoliticalPressureBySettlementAsync(input, options = {}) {
+  const { onItem, yieldToUi } = options
+  const ctx = preparePoliticalPressureContext(input)
+  /** @type {Record<string, ReturnType<typeof scoreOne>>} */
+  const out = {}
+  for (const subjectId of ctx.subjectIds) {
+    const subject = ctx.byId[subjectId]
+    if (!subject) {
+      onItem?.()
+      await yieldToUi?.()
+      continue
+    }
+    out[subjectId] = scoreOne(subject, ctx)
+    onItem?.()
+    await yieldToUi?.()
+  }
+  return out
+}
+
+/**
+ * @param {object} subject
+ * @param {ReturnType<typeof preparePoliticalPressureContext>} ctx
+ */
+function scoreOne(subject, ctx) {
   const {
-    subject,
     byId,
     membersByFaction,
     factions,
-    primaryClaim,
-    gridWidth,
-    gridHeight,
     corridorPairs,
     bilateral,
-    martialBySettlementId,
     membershipHistory,
+    borderCounts,
+    martialBySettlementId,
     majority,
     marginRatio,
     tuning,
@@ -200,17 +295,15 @@ function scoreOne(ctx) {
       const source = byId[memberId]
       if (!source) continue
       const pairKey = undirectedSettlementPairKey(subject.id, memberId)
-      const borderCells = countSharedPrimaryClaimBorderCells({
-        primaryClaim,
-        settlementIdA: subject.id,
-        settlementIdB: memberId,
-        gridWidth,
-        gridHeight,
-      })
       const hasCorridor = corridorPairs.has(pairKey)
-      const tradeCp = bilateral[pairKey] ?? bilateral[`${subject.id}|${memberId}`] ?? bilateral[`${memberId}|${subject.id}`] ?? 0
+      const borderCells = borderCounts(subject.id, memberId)
       // Only neighbor contact counts: require border or corridor (trade alone still needs contact)
       if (borderCells <= 0 && !hasCorridor) continue
+      const tradeCp =
+        bilateral[pairKey] ??
+        bilateral[`${subject.id}|${memberId}`] ??
+        bilateral[`${memberId}|${subject.id}`] ??
+        0
       push += computePoliticalPressureRawPush({
         subject,
         source,
@@ -243,7 +336,7 @@ function scoreOne(ctx) {
     const weighted = sticky
       ? applyBannerTenurePushWeight({
           push,
-          history: membershipHistory,
+          history: membershipHistory[subject.id] ?? [],
           pressuringFactionId: fid,
         })
       : push
@@ -253,7 +346,7 @@ function scoreOne(ctx) {
   const bannerTenureResistance = sticky
     ? computeBannerTenureResistance({
         subjectStrength,
-        history: membershipHistory,
+        history: membershipHistory[subject.id] ?? [],
         currentFactionId: sticky,
       })
     : 0

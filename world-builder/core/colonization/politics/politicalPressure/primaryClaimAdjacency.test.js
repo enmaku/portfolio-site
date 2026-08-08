@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildPrimaryClaimAdjacencyUndirected,
+  buildPrimaryClaimContact,
   countSharedPrimaryClaimBorderCells,
 } from './primaryClaimAdjacency.js'
 
@@ -63,4 +64,40 @@ test('multi-cell shared frontier stacks border cell count', () => {
     gridHeight: 4,
   })
   assert.equal(count, 3)
+})
+
+test('buildPrimaryClaimContact matches pairwise border counts and adjacency', () => {
+  const primaryClaim = {
+    a: [
+      { x: 0, y: 0 },
+      { x: 0, y: 1 },
+      { x: 0, y: 2 },
+    ],
+    b: [
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 1, y: 2 },
+    ],
+    c: [{ x: 5, y: 5 }],
+  }
+  const { adjacencyPairs, borderCountByDirectedPair } = buildPrimaryClaimContact({
+    primaryClaim,
+    settlementIds: ['a', 'b', 'c'],
+    gridWidth: 8,
+    gridHeight: 8,
+  })
+  assert.equal(adjacencyPairs.has('a|b'), true)
+  assert.equal(adjacencyPairs.has('a|c'), false)
+  assert.equal(borderCountByDirectedPair.get('a|b'), 3)
+  assert.equal(borderCountByDirectedPair.get('b|a'), 3)
+  assert.equal(
+    borderCountByDirectedPair.get('a|b'),
+    countSharedPrimaryClaimBorderCells({
+      primaryClaim,
+      settlementIdA: 'a',
+      settlementIdB: 'b',
+      gridWidth: 8,
+      gridHeight: 8,
+    }),
+  )
 })

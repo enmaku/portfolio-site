@@ -194,7 +194,7 @@ test('applyPoliticsPhase emits politics substeps and matches output with or with
   assert.strictEqual(withYield.slice.increment3LatchedEpoch, withoutYield.slice.increment3LatchedEpoch)
 })
 
-test('applyPoliticsPhase emits membership and absorption m/n item progress when latched', async () => {
+test('applyPoliticsPhase emits membership, pressure, and absorption m/n item progress when latched', async () => {
   const slice = createDefaultColonizationSlice()
   slice.epoch = 50
   slice.increment3LatchedEpoch = 10
@@ -239,6 +239,8 @@ test('applyPoliticsPhase emits membership and absorption m/n item progress when 
   /** @type {Array<{ substepId: string, itemIndex: number, itemCount: number }>} */
   const membershipItems = []
   /** @type {Array<{ substepId: string, itemIndex: number, itemCount: number }>} */
+  const pressureItems = []
+  /** @type {Array<{ substepId: string, itemIndex: number, itemCount: number }>} */
   const absorptionItems = []
 
   await applyPoliticsPhase(
@@ -263,6 +265,13 @@ test('applyPoliticsPhase emits membership and absorption m/n item progress when 
               itemCount: payload.itemCount ?? 0,
             })
           }
+          if (payload.substepId === 'pressure') {
+            pressureItems.push({
+              substepId: payload.substepId,
+              itemIndex: payload.itemIndex ?? 0,
+              itemCount: payload.itemCount ?? 0,
+            })
+          }
           if (payload.substepId === 'absorption') {
             absorptionItems.push({
               substepId: payload.substepId,
@@ -280,6 +289,13 @@ test('applyPoliticsPhase emits membership and absorption m/n item progress when 
   assert.equal(membershipItems.at(-1)?.itemIndex, membershipItems[0].itemCount)
   assert.ok(
     membershipItems.every((item) => item.itemCount === membershipItems[0].itemCount),
+  )
+
+  assert.ok(pressureItems.length > 1, 'expected pressure item progress')
+  assert.equal(pressureItems[0].itemIndex, 1)
+  assert.equal(pressureItems.at(-1)?.itemIndex, pressureItems[0].itemCount)
+  assert.ok(
+    pressureItems.every((item) => item.itemCount === pressureItems[0].itemCount),
   )
 
   assert.ok(absorptionItems.length > 1, 'expected absorption item progress')

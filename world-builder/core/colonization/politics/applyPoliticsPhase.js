@@ -21,7 +21,12 @@ import { evaluateSupplyChainIndependence } from './evaluateSupplyChainIndependen
 import { syncFactionTerritoryPalettes } from './factionCap.js'
 import { HISTORY_KIND_INCREMENT3_LATCHED } from './historyKinds.js'
 import { advanceBannerTenure } from './bannerTenure/bannerTenure.js'
-import { applyPoliticalPressurePass } from './politicalPressure/applyPoliticalPressurePass.js'
+import {
+  applyPoliticalPressurePass,
+  countEligiblePoliticalPressureSubjects,
+  countPoliticalPressureProgressItems,
+} from './politicalPressure/applyPoliticalPressurePass.js'
+import { getPoliticalPressureTuning } from './politicalPressure/politicalPressureTuning.js'
 import { resolveMapGraySettlementIds } from './softPower/factionalControl.js'
 import {
   countLivingSoftPowerSettlements,
@@ -239,13 +244,25 @@ export async function applyPoliticsPhase(params, options = {}) {
       bannerMembershipHistoryBySettlementId: next.bannerMembershipHistoryBySettlementId,
     })
     next = { ...next, ...tenure }
-    const pressure = applyPoliticalPressurePass({
-      slice: next,
-      worldDocument: params.worldDocument,
-      primaryClaim: params.primaryClaim ?? next.primaryClaim,
-      capacityBySettlementId: params.capacityBySettlementId,
-      martialInputBySettlementId: params.martialInputBySettlementId,
-    })
+    const pressureItemCount = getPoliticalPressureTuning().enabled
+      ? countPoliticalPressureProgressItems(countEligiblePoliticalPressureSubjects(next))
+      : 0
+    const pressureProgress = createPoliticsItemProgress(hooks, 'pressure', pressureItemCount)
+    const pressure = await applyPoliticalPressurePass(
+      {
+        slice: next,
+        worldDocument: params.worldDocument,
+        primaryClaim: params.primaryClaim ?? next.primaryClaim,
+        capacityBySettlementId: params.capacityBySettlementId,
+        martialInputBySettlementId: params.martialInputBySettlementId,
+      },
+      {
+        onProgress: () => {
+          pressureProgress.report()
+        },
+        yieldToUi,
+      },
+    )
     next = pressure.slice
     events.push(...pressure.events)
   }

@@ -13,15 +13,31 @@ export function undirectedSettlementPairKey(a, b) {
 }
 
 /**
+ * Directed key: border cells of `from` that touch `to`.
+ * @param {string} from
+ * @param {string} to
+ * @returns {string}
+ */
+export function directedSettlementPairKey(from, to) {
+  return `${from}|${to}`
+}
+
+/**
+ * One cellular sweep: undirected adjacency + directed frontier cell counts.
+ * Directed count matches `countSharedPrimaryClaimBorderCells` (A-cells abutting B).
+ *
  * @param {{
  *   primaryClaim?: Record<string, Array<{ x: number, y: number }>> | null,
  *   settlementIds?: string[] | null,
  *   gridWidth: number,
  *   gridHeight: number,
  * }} params
- * @returns {Set<string>} undirected pair keys `a|b`
+ * @returns {{
+ *   adjacencyPairs: Set<string>,
+ *   borderCountByDirectedPair: Map<string, number>,
+ * }}
  */
-export function buildPrimaryClaimAdjacencyUndirected(params) {
+export function buildPrimaryClaimContact(params) {
   const primaryClaim = params.primaryClaim ?? {}
   const settlementIds = params.settlementIds ?? Object.keys(primaryClaim)
   const { gridWidth, gridHeight } = params
@@ -38,7 +54,9 @@ export function buildPrimaryClaimAdjacencyUndirected(params) {
   }
 
   /** @type {Set<string>} */
-  const edges = new Set()
+  const adjacencyPairs = new Set()
+  /** @type {Map<string, number>} */
+  const borderCountByDirectedPair = new Map()
   const deltas = [
     [1, 0],
     [-1, 0],
@@ -48,16 +66,36 @@ export function buildPrimaryClaimAdjacencyUndirected(params) {
   for (const [idx, owner] of ownerByCell) {
     const x = idx % gridWidth
     const y = Math.floor(idx / gridWidth)
+    /** @type {Set<string>} */
+    const borderedOthers = new Set()
     for (const [dx, dy] of deltas) {
       const nx = x + dx
       const ny = y + dy
       if (nx < 0 || ny < 0 || nx >= gridWidth || ny >= gridHeight) continue
       const other = ownerByCell.get(ny * gridWidth + nx)
       if (!other || other === owner) continue
-      edges.add(undirectedSettlementPairKey(owner, other))
+      borderedOthers.add(other)
+      adjacencyPairs.add(undirectedSettlementPairKey(owner, other))
+    }
+    for (const other of borderedOthers) {
+      const key = directedSettlementPairKey(owner, other)
+      borderCountByDirectedPair.set(key, (borderCountByDirectedPair.get(key) ?? 0) + 1)
     }
   }
-  return edges
+  return { adjacencyPairs, borderCountByDirectedPair }
+}
+
+/**
+ * @param {{
+ *   primaryClaim?: Record<string, Array<{ x: number, y: number }>> | null,
+ *   settlementIds?: string[] | null,
+ *   gridWidth: number,
+ *   gridHeight: number,
+ * }} params
+ * @returns {Set<string>} undirected pair keys `a|b`
+ */
+export function buildPrimaryClaimAdjacencyUndirected(params) {
+  return buildPrimaryClaimContact(params).adjacencyPairs
 }
 
 /**
