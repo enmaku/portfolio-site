@@ -107,6 +107,80 @@ export function drawCrossedSwordsIcon(graphics, left, midY, GraphicsPathCtor) {
  */
 export const RECENT_CONQUEST_MARKER_EPOCHS = 1
 
+/** Green fill for recent-alliance handshake. */
+export const RECENT_ALLIANCE_ICON_COLOR = 0x4caf50
+
+/** Black outline matching settlement pin / ID label outline. */
+export const RECENT_ALLIANCE_ICON_OUTLINE_COLOR = SETTLEMENT_ID_LABEL_OUTLINE_COLOR
+
+/**
+ * Outline width in world/grid units. Pixi stroke width is not scaled by the icon
+ * transform; match swords weight so thin silhouettes stay readable on faction fill.
+ */
+export const RECENT_ALLIANCE_ICON_OUTLINE_WIDTH = 1.6
+
+/**
+ * Drawn size in world/grid units. Larger than swords: figures only fill the lower
+ * band of the Material viewBox once the diamond is stripped.
+ */
+export const RECENT_ALLIANCE_ICON_SIZE = 16
+
+/**
+ * Material Symbols Outlined `partner_exchange` path `d` (24px), viewBox `0 -960 960 960`,
+ * with the top diamond subpath removed (two figures + joined arms only).
+ * Apache-2.0 — https://github.com/google/material-design-icons
+ */
+export const RECENT_ALLIANCE_HANDSHAKE_PATH_D =
+  'M40-160v-160q0-34 23.5-57t56.5-23h131q20 0 38 10t29 27q29 39 71.5 61t90.5 22q49 0 91.5-22t70.5-61q13-17 30.5-27t36.5-10h131q34 0 57 23t23 57v160H640v-91q-35 25-75.5 38T480-200q-43 0-84-13.5T320-252v92H40Zm120-280q-50 0-85-35t-35-85q0-51 35-85.5t85-34.5q51 0 85.5 34.5T280-560q0 50-34.5 85T160-440Zm640 0q-50 0-85-35t-35-85q0-51 35-85.5t85-34.5q51 0 85.5 34.5T920-560q0 50-34.5 85T800-440Z'
+
+/** Material Symbols viewBox width/height. */
+export const RECENT_ALLIANCE_HANDSHAKE_VIEWBOX = 960
+
+/** Path-space Y of the figure centroid (no diamond) for vertical centering. */
+const RECENT_ALLIANCE_PATH_CENTER_Y = -340
+
+/**
+ * Draw edited Material Symbols `partner_exchange` (no diamond) at `(left, midY)`.
+ * Stroke black then fill green (same paint order as swords). Stroke width is world
+ * units — not ÷viewBox scale.
+ *
+ * @param {import('pixi.js').Graphics} graphics
+ * @param {number} left
+ * @param {number} midY
+ * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
+ */
+export function drawHandshakeIcon(graphics, left, midY, GraphicsPathCtor) {
+  const size = RECENT_ALLIANCE_ICON_SIZE
+  const scale = size / RECENT_ALLIANCE_HANDSHAKE_VIEWBOX
+  const cx = left + size / 2
+  const cy = midY
+  const path = new GraphicsPathCtor(RECENT_ALLIANCE_HANDSHAKE_PATH_D)
+
+  graphics.save()
+  graphics.setTransform(
+    scale,
+    0,
+    0,
+    scale,
+    cx - 480 * scale,
+    cy - RECENT_ALLIANCE_PATH_CENTER_Y * scale,
+  )
+  graphics.path(path)
+  graphics.stroke({
+    width: RECENT_ALLIANCE_ICON_OUTLINE_WIDTH,
+    color: RECENT_ALLIANCE_ICON_OUTLINE_COLOR,
+    alpha: 1,
+  })
+  graphics.path(path)
+  graphics.fill({ color: RECENT_ALLIANCE_ICON_COLOR, alpha: 1 })
+  graphics.restore()
+}
+
+/**
+ * Same temporal family as conquest: visible for the alliance epoch only.
+ */
+export const RECENT_ALLIANCE_MARKER_EPOCHS = RECENT_CONQUEST_MARKER_EPOCHS
+
 /**
  * @param {object} settlement
  * @param {Array<{ id: string, capitalSettlementId?: string, status?: string }> | null | undefined} factions
@@ -212,6 +286,29 @@ export function wasConqueredLastEpoch(params) {
   const window = Number.isFinite(params.markerEpochs)
     ? Number(params.markerEpochs)
     : RECENT_CONQUEST_MARKER_EPOCHS
+  return age < window
+}
+
+/**
+ * True when the settlement allied recently enough to show the map cue
+ * (politics stamps `allianceEpoch` in the same epoch the membership flip commits).
+ *
+ * @param {{
+ *   settlementId: string,
+ *   epoch: number,
+ *   recentAllianceBySettlementId?: Record<string, { allianceEpoch?: number } | null | undefined> | null,
+ *   markerEpochs?: number,
+ * }} params
+ * @returns {boolean}
+ */
+export function wasAlliedLastEpoch(params) {
+  const entry = params.recentAllianceBySettlementId?.[params.settlementId]
+  if (!entry || !Number.isFinite(entry.allianceEpoch)) return false
+  const age = params.epoch - entry.allianceEpoch
+  if (!(age >= 0)) return false
+  const window = Number.isFinite(params.markerEpochs)
+    ? Number(params.markerEpochs)
+    : RECENT_ALLIANCE_MARKER_EPOCHS
   return age < window
 }
 

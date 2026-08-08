@@ -24,6 +24,7 @@ import {
 import { CAMPAIGN_KIT_MAP_PAGE_KEYS } from './campaignKitOverlayPresets.js'
 import { settlementPinMembershipBand } from '../../renderer/settlementNodeMarkers.js'
 import { resolveFactionalController } from '../colonization/politics/softPower/factionalControl.js'
+import { HISTORY_KIND_ALLIANCE } from '../colonization/politics/historyKinds.js'
 
 /**
  * @typedef {import('../colonization/createDefaultColonizationSlice.js').ColonizationSlice} ColonizationSlice
@@ -184,7 +185,9 @@ function historyNotesForSettlement(slice, settlementId, mapNumber) {
       continue
     }
     if (
-      (kind === 'settlement_founded' || kind === 'settlement_abandoned') &&
+      (kind === 'settlement_founded' ||
+        kind === 'settlement_abandoned' ||
+        kind === HISTORY_KIND_ALLIANCE) &&
       entry.settlementId === settlementId
     ) {
       notes.push({ kind, label: formatCampaignKitHistoryKind(kind), epoch })
@@ -509,6 +512,23 @@ function buildCampaignKitPolitics(slice) {
         priorFactionId: entry.priorFactionId ?? null,
       }),
     ),
+    recentAlliances: Object.entries(slice.recentAllianceBySettlementId ?? {}).map(
+      ([settlementId, entry]) => ({
+        settlementId,
+        allianceEpoch: entry.allianceEpoch,
+        factionId: entry.factionId ?? null,
+        kind: entry.kind ?? null,
+      }),
+    ),
+    allianceOutcomes: (slice.historyLog ?? [])
+      .filter((entry) => entry && entry.kind === HISTORY_KIND_ALLIANCE)
+      .map((entry) => ({
+        kind: entry.kind,
+        epoch: entry.epoch,
+        settlementId: entry.settlementId ?? null,
+        factionId: entry.factionId ?? null,
+        cause: entry.cause ?? null,
+      })),
     belligerentTradeBlocks: (slice.belligerentTradeBlocks ?? []).map((block) => ({
       aFactionId: block.aFactionId,
       bFactionId: block.bFactionId,

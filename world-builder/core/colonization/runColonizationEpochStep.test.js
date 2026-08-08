@@ -191,5 +191,5 @@ test('runColonizationEpochStep reports politics substep indices in order', async
     },
   })
 
-  assert.deepStrictEqual(politicsSubstepStarts, [0, 1, 2, 3, 4])
+  assert.deepStrictEqual(politicsSubstepStarts, [0, 1, 2, 3, 4, 5])
 })

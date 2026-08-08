@@ -233,6 +233,7 @@ export function diffWorldDocumentMapLayers(previous, next) {
   if (
     previous.epoch !== next.epoch ||
     previous.recentConquestBySettlementId !== next.recentConquestBySettlementId ||
+    previous.recentAllianceBySettlementId !== next.recentAllianceBySettlementId ||
     previous.recentTradePartnerJoinBySettlementId !== next.recentTradePartnerJoinBySettlementId ||
     previous.softPowerPaintBySettlementId !== next.softPowerPaintBySettlementId
   ) {

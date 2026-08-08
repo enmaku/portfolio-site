@@ -8,6 +8,14 @@ import {
   VASSAL_INDEPENDENCE_EPOCHS,
 } from './politicsConstants.js'
 import { createDefaultColonizationSlice } from '../createDefaultColonizationSlice.js'
+import {
+  resetPoliticalPressureTuning,
+  setPoliticalPressureTuning,
+} from './politicalPressure/politicalPressureTuning.js'
+
+test.afterEach(() => {
+  resetPoliticalPressureTuning()
+})
 
 function flatLandDoc(width, height) {
   const n = width * height
@@ -99,6 +107,7 @@ test('isVassalLocallyIndependent requires positive localFoodSurplus', async () =
 })
 
 test('connectivity merge alone does not change sticky faction membership', async () => {
+  setPoliticalPressureTuning({ enabled: false })
   const slice = createDefaultColonizationSlice()
   slice.epoch = 20
   slice.colonistSettings.threeDayHaulDistance = 3
@@ -296,6 +305,7 @@ test('import-dependent road-linked vassal stays loyal', async () => {
 })
 
 test('road-linked independent hamlet soft-unaligns', async () => {
+  setPoliticalPressureTuning({ enabled: false })
   const slice = roadLinkedVassalSlice({
     vassalTier: 'hamlet',
     vassalPopulation: 80,

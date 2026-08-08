@@ -248,7 +248,10 @@ test('reduceEpochStepProgressOnPoliticsSubstepStart appends politics substep lab
   )
   const next = reduceEpochStepProgressOnPoliticsSubstepStart(progress, { substepIndex: 2 })
   assert.strictEqual(next.activePoliticsSubstepIndex, 2)
-  assert.strictEqual(next.label, 'Epoch 1 · Politics · Conflict')
+  assert.strictEqual(next.label, 'Epoch 1 · Politics · Pressure')
+  const conflict = reduceEpochStepProgressOnPoliticsSubstepStart(progress, { substepIndex: 3 })
+  assert.strictEqual(conflict.activePoliticsSubstepIndex, 3)
+  assert.strictEqual(conflict.label, 'Epoch 1 · Politics · Conflict')
 })
 
 test('reduceEpochStepProgressOnFinalizeStepStart marks map finalize after simulation phases', () => {

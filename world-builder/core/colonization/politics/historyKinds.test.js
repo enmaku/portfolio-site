@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  HISTORY_KIND_ALLIANCE,
   HISTORY_KIND_FACTION_ABSORPTION,
   HISTORY_KIND_FACTION_EMERGED,
   HISTORY_KIND_FACTION_EXTINCT,
@@ -37,4 +38,8 @@ test('politics history kinds include soft-power commercial kinds', () => {
   assert.ok(POLITICS_HISTORY_KINDS.has(HISTORY_KIND_TRADE_PARTNER_JOIN))
   assert.ok(POLITICS_HISTORY_KINDS.has(HISTORY_KIND_TRADE_PARTNER_PEEL))
   assert.ok(POLITICS_HISTORY_KINDS.has(HISTORY_KIND_TRADE_BACKED_REBEL_EXIT))
+})
+
+test('politics history kinds include alliance from political pressure', () => {
+  assert.ok(POLITICS_HISTORY_KINDS.has(HISTORY_KIND_ALLIANCE))
 })

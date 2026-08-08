@@ -6,6 +6,7 @@ import {
   SETTLEMENT_PIN_RADIUS_VASSAL,
   settlementPinMarkerRadius,
   settlementPinMembershipBand,
+  wasAlliedLastEpoch,
   wasConqueredLastEpoch,
   shouldShowTradePartnerSackMarker,
 } from './settlementNodeMarkers.js'
@@ -130,6 +131,33 @@ test('wasConqueredLastEpoch is true only for the conquest epoch', () => {
       settlementId: 'other',
       epoch: 12,
       recentConquestBySettlementId: { border: { conqueredEpoch: 12 } },
+    }),
+    false,
+  )
+})
+
+test('wasAlliedLastEpoch matches conquest one-epoch TTL', () => {
+  assert.equal(
+    wasAlliedLastEpoch({
+      settlementId: 'free',
+      epoch: 20,
+      recentAllianceBySettlementId: { free: { allianceEpoch: 20 } },
+    }),
+    true,
+  )
+  assert.equal(
+    wasAlliedLastEpoch({
+      settlementId: 'free',
+      epoch: 21,
+      recentAllianceBySettlementId: { free: { allianceEpoch: 20 } },
+    }),
+    false,
+  )
+  assert.equal(
+    wasAlliedLastEpoch({
+      settlementId: 'other',
+      epoch: 20,
+      recentAllianceBySettlementId: { free: { allianceEpoch: 20 } },
     }),
     false,
   )

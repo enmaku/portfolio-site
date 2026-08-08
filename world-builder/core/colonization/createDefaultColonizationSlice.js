@@ -77,6 +77,10 @@
  * @property {Record<string, number>} softPowerRebellionPressureStreak Rival trade pressure streaks on taxed members.
  * @property {Record<string, { joinedEpoch: number, factionId?: string | null }>} recentTradePartnerJoinBySettlementId
  * @property {Record<string, number>} tradePartnerPeelClearStreak Clear-and-rearm before trade-partner peel.
+ * @property {Record<string, number>} politicalPressureStreak Political-pressure arming streaks by settlement id.
+ * @property {Record<string, number>} politicalPressureClearStreak Clear-and-rearm counters by settlement id.
+ * @property {Record<string, string>} politicalPressureArmedBySettlementId Armed pressure controller by settlement id.
+ * @property {Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null }>} recentAllianceBySettlementId
  */
 
 /**
@@ -127,7 +131,12 @@ import {
 import {
   createEmptySoftPowerSliceFields,
   resolveSoftPowerSliceFields,
+  resolveSoftPowerStringMap,
 } from './resolveSoftPowerSliceFields.js'
+import {
+  createEmptyPoliticalPressureSliceFields,
+  resolvePoliticalPressureSliceFields,
+} from './politics/politicalPressure/resolvePoliticalPressureSliceFields.js'
 
 export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
 export const COLONIZATION_PHASE_SETUP = /** @type {const} */ ('setup')
@@ -177,6 +186,10 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'softPowerRebellionPressureStreak',
   'recentTradePartnerJoinBySettlementId',
   'tradePartnerPeelClearStreak',
+  'politicalPressureStreak',
+  'politicalPressureClearStreak',
+  'politicalPressureArmedBySettlementId',
+  'recentAllianceBySettlementId',
 ])
 
 /** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
@@ -285,6 +298,7 @@ export function createDefaultColonizationSlice() {
     belligerentTradeBlocks: [],
     recentConquestBySettlementId: {},
     ...createEmptySoftPowerSliceFields(),
+    ...createEmptyPoliticalPressureSliceFields(),
   }
 }
 
@@ -346,6 +360,7 @@ export function resolveColonizationSlice(value) {
     belligerentTradeBlocks: resolveBelligerentTradeBlocks(incoming.belligerentTradeBlocks),
     recentConquestBySettlementId: resolveRecentConquestMap(incoming.recentConquestBySettlementId),
     ...resolveSoftPowerSliceFields(incoming, resolveStreakMap, resolvePriorRealizedIncomeCp),
+    ...resolvePoliticalPressureSliceFields(incoming, resolveStreakMap, resolveSoftPowerStringMap),
   }
 }
 

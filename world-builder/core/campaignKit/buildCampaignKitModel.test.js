@@ -307,3 +307,74 @@ test('buildCampaignKitModel exposes structured conquest and rebellion politics w
   assert.equal(model.politics.recentConflictOutcomes[0].kind, 'major_war_end')
   assert.equal(model.politics.recentConflictOutcomes[0].winner, 'attacker')
 })
+
+test('buildCampaignKitModel exposes structured alliance membership and history', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = 'running'
+  slice.increment3LatchedEpoch = 4
+  slice.epoch = 20
+  slice.recentAllianceBySettlementId = {
+    b: { allianceEpoch: 20, factionId: 'faction-a', kind: 'join_existing' },
+  }
+  slice.historyLog = [
+    {
+      kind: 'alliance',
+      epoch: 20,
+      settlementId: 'b',
+      factionId: 'faction-a',
+      cause: 'join_existing',
+    },
+  ]
+  slice.factions = [
+    {
+      id: 'faction-a',
+      capitalSettlementId: 'a',
+      settlementIds: ['a', 'b'],
+      status: 'active',
+      emergedEpoch: 0,
+    },
+  ]
+  slice.settlements = [
+    {
+      id: 'a',
+      x: 0,
+      y: 0,
+      mapNumber: 1,
+      status: 'living',
+      population: 1000,
+      tier: 'town',
+      factionId: 'faction-a',
+    },
+    {
+      id: 'b',
+      x: 1,
+      y: 0,
+      mapNumber: 2,
+      status: 'living',
+      population: 800,
+      tier: 'village',
+      factionId: 'faction-a',
+      vassalLiegeSettlementId: 'a',
+    },
+  ]
+  const model = buildCampaignKitModel(slice, {
+    geographySeed: 1,
+    gridWidth: 4,
+    gridHeight: 4,
+    biomes: new Uint8Array(16).fill(BIOMES.GRASSLAND),
+  })
+  assert.equal(model.politics.recentAlliances.length, 1)
+  assert.equal(model.politics.recentAlliances[0].settlementId, 'b')
+  assert.equal(model.politics.recentAlliances[0].kind, 'join_existing')
+  assert.equal(model.politics.allianceOutcomes.length, 1)
+  assert.equal(model.politics.allianceOutcomes[0].cause, 'join_existing')
+  const dossier = model.settlements.find((row) => row.settlementId === 'b')
+  assert.ok(dossier)
+  assert.equal(dossier.membershipBand, 'vassal')
+  assert.equal(dossier.factionId, 'faction-a')
+  assert.ok(dossier.historyNotes.some((note) => note.kind === 'alliance'))
+  assert.equal(
+    dossier.historyNotes.find((note) => note.kind === 'alliance')?.epoch,
+    20,
+  )
+})

@@ -1,5 +1,5 @@
 /**
- * Colonization politics phase: latch, sticky membership events, absorption.
+ * Colonization politics phase: latch, membership, pressure, conflict, absorption.
  * Domain: world-builder/CONTEXT.md — Faction, Supply-chain independence.
  */
 
@@ -20,6 +20,7 @@ import { buildConflictEngineInputs } from './conflict/buildConflictEngineInputs.
 import { evaluateSupplyChainIndependence } from './evaluateSupplyChainIndependence.js'
 import { syncFactionTerritoryPalettes } from './factionCap.js'
 import { HISTORY_KIND_INCREMENT3_LATCHED } from './historyKinds.js'
+import { applyPoliticalPressurePass } from './politicalPressure/applyPoliticalPressurePass.js'
 import { resolveMapGraySettlementIds } from './softPower/factionalControl.js'
 import {
   countLivingSoftPowerSettlements,
@@ -227,6 +228,22 @@ export async function applyPoliticsPhase(params, options = {}) {
     events.push(...membership.events)
   }
   emitPoliticsSubstep(hooks, 'substep-complete', 'membership')
+  await yieldToUi?.()
+
+  emitPoliticsSubstep(hooks, 'substep-start', 'pressure')
+  await yieldToUi?.()
+  if (latched || hasActiveFactions) {
+    const pressure = applyPoliticalPressurePass({
+      slice: next,
+      worldDocument: params.worldDocument,
+      primaryClaim: params.primaryClaim ?? next.primaryClaim,
+      capacityBySettlementId: params.capacityBySettlementId,
+      martialInputBySettlementId: params.martialInputBySettlementId,
+    })
+    next = pressure.slice
+    events.push(...pressure.events)
+  }
+  emitPoliticsSubstep(hooks, 'substep-complete', 'pressure')
   await yieldToUi?.()
 
   emitPoliticsSubstep(hooks, 'substep-start', 'conflict')

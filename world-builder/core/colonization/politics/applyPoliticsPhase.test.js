@@ -184,6 +184,7 @@ test('applyPoliticsPhase emits politics substeps and matches output with or with
   assert.deepStrictEqual(substepIds, [
     'latch',
     'membership',
+    'pressure',
     'conflict',
     'absorption',
     'palette',

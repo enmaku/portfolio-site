@@ -1,5 +1,6 @@
 import {
   drawCrossedSwordsIcon,
+  drawHandshakeIcon,
   drawSackIcon,
   SETTLEMENT_ID_LABEL_COLOR,
   SETTLEMENT_ID_LABEL_FONT_SIZE,
@@ -12,6 +13,7 @@ import {
   settlementIdLabelOffsetX,
   settlementPinMarkerRadius,
   shouldShowTradePartnerSackMarker,
+  wasAlliedLastEpoch,
   wasConqueredLastEpoch,
 } from './settlementNodeMarkers.js'
 import {
@@ -168,8 +170,9 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
 }
 
 /**
- * Recent-conquest swords (one-epoch flash) plus lasting trade-partner sack status
- * cues, only while the faction territory overlay toggle is on.
+ * Recent-conquest swords and recent-alliance handshake (one-epoch flash) plus
+ * lasting trade-partner sack status cues, only while the faction territory
+ * overlay toggle is on.
  *
  * @param {import('pixi.js').Graphics} overlay
  * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
@@ -195,6 +198,7 @@ export function drawRecentConquestMarkers(
   const settlements = worldDocument.settlements ?? []
   const epoch = Number(worldDocument.epoch)
   const recent = worldDocument.recentConquestBySettlementId ?? {}
+  const recentAlliance = worldDocument.recentAllianceBySettlementId ?? {}
 
   for (const settlement of settlements) {
     if (
@@ -216,6 +220,17 @@ export function drawRecentConquestMarkers(
       })
     ) {
       drawCrossedSwordsIcon(overlay, left, midY, GraphicsPathCtor)
+      continue
+    }
+
+    if (
+      wasAlliedLastEpoch({
+        settlementId: settlement.id,
+        epoch,
+        recentAllianceBySettlementId: recentAlliance,
+      })
+    ) {
+      drawHandshakeIcon(overlay, left, midY, GraphicsPathCtor)
       continue
     }
 

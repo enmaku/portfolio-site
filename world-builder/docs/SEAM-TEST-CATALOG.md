@@ -98,6 +98,13 @@
 | `colonization/politics/softPower/applyTradePartnerMembership.test.js` | `core-unit` | Peaceful trade-partner join/peel; singleton extinction | None — runs under npm run test:world-builder |
 | `colonization/politics/softPower/taxedMembers.test.js` | `core-unit` | Trade partners excluded from taxed projection pools | None — runs under npm run test:world-builder |
 | `colonization/politics/softPower/softPowerBelievability.test.js` | `core-unit` | Contiguity / anti-churn / threshold sweep for soft spheres | None — runs under npm run test:world-builder |
+| `colonization/politics/politicalPressure/primaryClaimAdjacency.test.js` | `core-unit` | Primary-claim 4-connected adjacency for pressure borders | None — runs under npm run test:world-builder |
+| `colonization/politics/politicalPressure/directCorridorPairs.test.js` | `core-unit` | Direct land/inland-sail corridor pairs; open-sea excluded | None — runs under npm run test:world-builder |
+| `colonization/politics/politicalPressure/scorePoliticalPressure.test.js` | `core-unit` | Sweep B scoring/arming; streaks; tuning smoke | None — runs under npm run test:world-builder |
+| `colonization/politics/politicalPressure/applyAllianceMembership.test.js` | `core-unit` | Join-existing vassal; peer mint; roster cap; history | None — runs under npm run test:world-builder |
+| `colonization/politics/politicalPressure/politicsPressureWiring.test.js` | `core-unit` | Politics order trade → pressure → conflict; enable gate | None — runs under npm run test:world-builder |
+| `colonization/politics/politicalPressure/liveEpochAlliance.test.js` | `core-unit` | Live `runColonizationEpochStep` alliances on healthy seeds | None — runs under npm run test:world-builder |
+| `colonization/politics/politicalPressure/politicalPressureHardening.test.js` | `core-unit` | Refractory anti-churn; wartime trade zeroing for pressure | None — runs under npm run test:world-builder |
 | `colonization/politics/resolveVassalDefection.test.js` | `core-unit` | Sticky membership; defection cause-split; anti-churn | None — runs under npm run test:world-builder |
 | `colonization/politics/applyFactionAbsorption.test.js` | `core-unit` | Asymmetric/mutual/war absorption; extinction; trade-only non-absorb | None — runs under npm run test:world-builder |
 | `colonization/politics/factionPoliticsIntegration.test.js` | `core-unit` | Deterministic membership history; no nested living factions | None — runs under npm run test:world-builder |
