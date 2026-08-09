@@ -9,7 +9,6 @@
         data-testid="gm-people-name-input"
         @update:model-value="onTypedName"
       />
-      <q-toggle v-model="persistToRoster" dense data-testid="gm-people-persist-toggle" />
       <q-btn
         color="primary"
         unelevated
@@ -20,6 +19,14 @@
       >
         Add
       </q-btn>
+    </div>
+
+    <div
+      v-if="error"
+      class="text-negative text-caption"
+      data-testid="gm-people-error"
+    >
+      {{ errorMessage }}
     </div>
 
     <q-list v-if="suggestions.length" bordered separator data-testid="gm-people-match-list">
@@ -47,23 +54,15 @@
           <q-item-label>{{ person.name }}</q-item-label>
         </q-item-section>
         <q-item-section side>
-          <div class="row q-gutter-xs items-center">
-            <q-toggle
-              :model-value="person.saved"
-              dense
-              :data-testid="`gm-people-saved-${person.id}`"
-              @update:model-value="(v) => setSaved(person.id, v)"
-            />
-            <q-btn
-              flat
-              dense
-              round
-              icon="delete"
-              color="negative"
-              :data-testid="`gm-people-delete-${person.id}`"
-              @click="deletePerson(person.id)"
-            />
-          </div>
+          <q-btn
+            flat
+            dense
+            round
+            icon="delete"
+            color="negative"
+            :data-testid="`gm-people-delete-${person.id}`"
+            @click="deletePerson(person.id)"
+          />
         </q-item-section>
       </q-item>
     </q-list>
@@ -71,14 +70,19 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useGameManagerPeople } from '../composables/useGameManagerPeople.js'
 
-const { people, suggestionsForName, addOrSelectPerson, setSaved, deletePerson } = useGameManagerPeople()
+const { people, error, suggestionsForName, addOrSelectPerson, deletePerson } =
+  useGameManagerPeople()
 
 const draftName = ref('')
-const persistToRoster = ref(true)
 const suggestions = ref([])
+
+const errorMessage = computed(() => {
+  if (!error.value) return ''
+  return error.value.message || String(error.value)
+})
 
 function onTypedName(value) {
   suggestions.value = suggestionsForName(String(value || ''))
@@ -87,7 +91,7 @@ function onTypedName(value) {
 async function onAdd() {
   await addOrSelectPerson({
     name: draftName.value,
-    persistToRoster: persistToRoster.value,
+    persistToRoster: true,
   })
   draftName.value = ''
   suggestions.value = []
@@ -97,7 +101,7 @@ async function onPickMatch(match) {
   await addOrSelectPerson({
     name: match.name,
     existingId: match.id,
-    persistToRoster: persistToRoster.value || match.saved,
+    persistToRoster: true,
   })
   draftName.value = ''
   suggestions.value = []

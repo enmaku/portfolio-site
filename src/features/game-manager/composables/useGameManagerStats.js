@@ -1,4 +1,4 @@
-import { onMounted, shallowRef, ref } from 'vue'
+import { shallowRef, ref, watch } from 'vue'
 import { listManagerPeople, listManagerPlaySessions } from '../firebase/managerStore.js'
 import { useGameManagerAuth } from './useGameManagerAuth.js'
 import { buildStatsRows } from '../stats/statsViewModel.js'
@@ -26,7 +26,13 @@ export function useGameManagerStats() {
     }
   }
 
-  onMounted(reload)
+  watch(
+    () => user.value?.uid || null,
+    () => {
+      reload().catch(() => {})
+    },
+    { immediate: true },
+  )
 
   return { rows, loading, reload }
 }

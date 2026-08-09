@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import {
   deleteManagerPlaySession,
   listManagerCollection,
@@ -52,7 +52,9 @@ export function useGameManagerSessions() {
     }
   }
 
-  onMounted(reload)
+  watch(uid, () => {
+    reload().catch(() => {})
+  }, { immediate: true })
 
   async function persist(session) {
     if (!uid.value) return

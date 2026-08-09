@@ -1,4 +1,4 @@
-import { onMounted, ref, shallowRef } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 import {
   applyPersonDeletionToSessions,
 } from '../domain/people.js'
@@ -39,7 +39,13 @@ export function useGameManagerPeople() {
     }
   }
 
-  onMounted(reload)
+  watch(
+    () => user.value?.uid || null,
+    () => {
+      reload().catch(() => {})
+    },
+    { immediate: true },
+  )
 
   function suggestionsForName(name) {
     return personMatchSuggestionsForTypedName(people.value, name)
@@ -59,9 +65,15 @@ export function useGameManagerPeople() {
             Boolean(people.value.find((p) => p.id === input.existingId)?.saved),
         )
       : buildNewPersonDraft(input)
-    await upsertManagerPerson(uid, person.id, person)
-    await reload()
-    return person
+    error.value = null
+    try {
+      await upsertManagerPerson(uid, person.id, person)
+      await reload()
+      return person
+    } catch (e) {
+      error.value = e
+      throw e
+    }
   }
 
   async function setSaved(personId, saved) {
@@ -70,20 +82,32 @@ export function useGameManagerPeople() {
     const current = people.value.find((p) => p.id === personId)
     if (!current) return
     const next = withSavedFlag(current, saved)
-    await upsertManagerPerson(uid, personId, next)
-    await reload()
+    error.value = null
+    try {
+      await upsertManagerPerson(uid, personId, next)
+      await reload()
+    } catch (e) {
+      error.value = e
+      throw e
+    }
   }
 
   async function deletePerson(personId) {
     const uid = user.value?.uid
     if (!uid) return
-    const sessions = await listManagerPlaySessions(uid)
-    const scrubbed = applyPersonDeletionToSessions(sessions, personId)
-    for (const session of scrubbed) {
-      await upsertManagerPlaySession(uid, session.id, session)
+    error.value = null
+    try {
+      const sessions = await listManagerPlaySessions(uid)
+      const scrubbed = applyPersonDeletionToSessions(sessions, personId)
+      for (const session of scrubbed) {
+        await upsertManagerPlaySession(uid, session.id, session)
+      }
+      await deleteManagerPerson(uid, personId)
+      await reload()
+    } catch (e) {
+      error.value = e
+      throw e
     }
-    await deleteManagerPerson(uid, personId)
-    await reload()
   }
 
   return {

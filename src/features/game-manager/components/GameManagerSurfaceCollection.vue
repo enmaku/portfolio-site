@@ -24,6 +24,14 @@
       {{ attribution }}
     </div>
 
+    <div
+      v-if="error"
+      class="text-negative text-caption"
+      data-testid="gm-collection-error"
+    >
+      {{ errorMessage }}
+    </div>
+
     <q-list v-if="searchResults.length" bordered separator data-testid="gm-collection-search-results">
       <q-item
         v-for="hit in searchResults"
@@ -31,7 +39,7 @@
         clickable
         v-ripple
         :data-testid="`gm-collection-hit-${hit.catalogEntryId}`"
-        @click="addCatalogResult(hit)"
+        @click="onPickHit(hit)"
       >
         <q-item-section>
           <q-item-label>{{ hit.title }}</q-item-label>
@@ -83,11 +91,12 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useGameManagerCollection } from '../composables/useGameManagerCollection.js'
 
 const {
   items,
+  error,
   searchResults,
   searchPending,
   attribution,
@@ -100,8 +109,18 @@ const {
 const query = ref('')
 const customTitle = ref('')
 
+const errorMessage = computed(() => {
+  if (!error.value) return ''
+  return error.value.message || String(error.value)
+})
+
 async function onSearch() {
   await searchCatalog(query.value)
+}
+
+async function onPickHit(hit) {
+  await addCatalogResult(hit)
+  query.value = ''
 }
 
 async function onAddCustom() {
