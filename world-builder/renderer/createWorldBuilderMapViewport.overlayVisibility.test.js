@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
-import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays.js'
+import {
+  DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+  createDefaultResourceOverlayVisibility,
+} from '../resourceOverlays.js'
 import {
   arableSpriteLayer,
   createArableRasterFixture,
@@ -21,7 +24,7 @@ import {
 /** @type {typeof import('./createWorldBuilderMapViewport.js').createWorldBuilderMapViewport} */
 let createWorldBuilderMapViewport
 
-const HIDDEN_VISIBILITY = { arable: false, timber: false, metals: false, salt: false }
+const HIDDEN_VISIBILITY = createDefaultResourceOverlayVisibility()
 
 before(async () => {
   if (!viewportTestOptions.skip) {

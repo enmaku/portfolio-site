@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { COMMODITY_IDS } from './core/economy/commodityCatalog.js'
 import { DEFAULT_WORLD_GENERATION_OPTIONS, DEFAULT_GEOGRAPHY_SEED } from './core/worldGenerationOptions.js'
+import { commodityPriceOverlayId } from './resourceOverlays.js'
 import {
   buildDerivedGeographyParams,
   createControlsStateForSeed,
@@ -8,6 +10,7 @@ import {
   createDefaultGenerationSettings,
   createDefaultResourceOverlayVisibility,
   createResourceOverlayDefinitions,
+  createResourceOverlayIds,
   createValidationRowsForDisplay,
   createGenerationStepStatuses,
   createHydrologyStatsForDisplay,
@@ -319,7 +322,7 @@ test('formatHydrologyMetricValue renders null as n/a', () => {
 
 test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
   const definitions = createResourceOverlayDefinitions()
-  assert.strictEqual(definitions.length, 13)
+  assert.strictEqual(definitions.length, 13 + 2 + COMMODITY_IDS.length)
   assert.deepStrictEqual(
     definitions.map((definition) => ({ id: definition.id, kind: definition.kind })),
     [
@@ -334,6 +337,12 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'explorationFog', kind: 'raster' },
       { id: 'routes', kind: 'raster' },
       { id: 'wealth', kind: 'raster' },
+      { id: 'portTolls', kind: 'raster' },
+      { id: 'factionTax', kind: 'raster' },
+      ...COMMODITY_IDS.map((commodityId) => ({
+        id: commodityPriceOverlayId(commodityId),
+        kind: 'raster',
+      })),
       { id: 'factionTerritory', kind: 'raster' },
       { id: 'loyalty', kind: 'raster' },
     ],
@@ -341,21 +350,10 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
 })
 
 test('createDefaultResourceOverlayVisibility defaults every overlay off', () => {
-  assert.deepStrictEqual(createDefaultResourceOverlayVisibility(), {
-    arable: false,
-    timber: false,
-    metals: false,
-    salt: false,
-    sail: false,
-    freshwater: false,
-    population: false,
-    settlements: false,
-    explorationFog: false,
-    routes: false,
-    wealth: false,
-    factionTerritory: false,
-    loyalty: false,
-  })
+  assert.deepStrictEqual(
+    createDefaultResourceOverlayVisibility(),
+    Object.fromEntries(createResourceOverlayIds().map((id) => [id, false])),
+  )
 })
 
 test('shouldShowGenerationProgress is true only while running', () => {

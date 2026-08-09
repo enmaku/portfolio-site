@@ -1,5 +1,24 @@
 import { mock } from 'node:test'
-import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays.js'
+import {
+  createDefaultResourceOverlayVisibility,
+  DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+} from '../resourceOverlays.js'
+import { RESOURCE_RASTER_OVERLAY_LAYER_IDS } from './resourceRasterOverlayRefresh.js'
+
+/** Terrain + contours + resource rasters + lakes + rivers (Sprite construction order). */
+export const VIEWPORT_SPRITE_LAYER_COUNT = 4 + RESOURCE_RASTER_OVERLAY_LAYER_IDS.length
+
+/**
+ * @param {string} resourceId
+ * @returns {number}
+ */
+function resourceRasterSpriteIndex(resourceId) {
+  const rasterIndex = RESOURCE_RASTER_OVERLAY_LAYER_IDS.indexOf(resourceId)
+  if (rasterIndex < 0) {
+    throw new Error(`Unknown resource raster overlay id: ${resourceId}`)
+  }
+  return 2 + rasterIndex
+}
 
 /**
  * Shared mock harness for {@link import('./createWorldBuilderMapViewport.js')} behavioral
@@ -481,7 +500,7 @@ export function overlayPageState(
   arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
 ) {
   return {
-    visibility: { arable: false, timber: false, metals: false, salt: false, ...visibility },
+    visibility: { ...createDefaultResourceOverlayVisibility(), ...visibility },
     displaySettings: { arableMinimumProductivity },
   }
 }
@@ -494,7 +513,7 @@ export function overlayPageState(
  */
 export function createOverlayOwnerDriver(viewport) {
   /** @type {Record<string, boolean>} */
-  const visibility = { arable: false, timber: false, metals: false, salt: false }
+  const visibility = createDefaultResourceOverlayVisibility()
   let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
 
   function sync() {
@@ -598,50 +617,47 @@ export function createMetalsFixture() {
 }
 
 /**
- * Sprites from the most recently created viewport.
- * Order: terrain, contours, arable, timber, metals, lakes, rivers, sail,
- * freshwater, population, explorationFog, wealth, portTolls, factionTax, commodityPrice*,
- * factionTerritory, loyalty, routes.
- * Full child stack inserts coastal/metal/salt node layers before routes;
- * settlement pins stay above routes.
+ * Sprites from the most recently created viewport, in Sprite construction order:
+ * terrain, contours, RESOURCE_RASTER_OVERLAY_LAYER_IDS…, lakes, rivers.
+ * (addChild order interleaves lakes/rivers between metals and sail.)
  */
 export function recentSpriteLayers() {
-  return viewportSpyState.spriteLayers.slice(-15)
+  return viewportSpyState.spriteLayers.slice(-VIEWPORT_SPRITE_LAYER_COUNT)
 }
 
-/** Contours sprite sits above terrain in the layer stack. */
+/** Contours sprite is constructed after terrain. */
 export function contoursSpriteLayer() {
   return recentSpriteLayers()[1]
 }
 
-/** Arable sprite sits above contours in the layer stack. */
+/** Arable resource raster sprite. */
 export function arableSpriteLayer() {
-  return recentSpriteLayers()[2]
+  return recentSpriteLayers()[resourceRasterSpriteIndex('arable')]
 }
 
-/** Timber sprite sits above arable in the layer stack. */
+/** Timber resource raster sprite. */
 export function timberSpriteLayer() {
-  return recentSpriteLayers()[3]
+  return recentSpriteLayers()[resourceRasterSpriteIndex('timber')]
 }
 
-/** Metals sprite sits above timber in the layer stack. */
+/** Metals resource raster sprite. */
 export function metalsSpriteLayer() {
-  return recentSpriteLayers()[4]
+  return recentSpriteLayers()[resourceRasterSpriteIndex('metals')]
 }
 
-/** Lakes sprite sits above resource raster overlays in the layer stack. */
+/** Lakes hydrology sprite (constructed after all resource rasters). */
 export function lakesSpriteLayer() {
-  return recentSpriteLayers()[5]
+  return recentSpriteLayers()[2 + RESOURCE_RASTER_OVERLAY_LAYER_IDS.length]
 }
 
-/** Rivers sprite sits above lakes in the layer stack. */
+/** Rivers hydrology sprite (constructed after lakes). */
 export function riversSpriteLayer() {
-  return recentSpriteLayers()[6]
+  return recentSpriteLayers()[3 + RESOURCE_RASTER_OVERLAY_LAYER_IDS.length]
 }
 
-/** Sail sprite sits above rivers so the pink overlay stays visible on water. */
+/** Sail resource raster sprite. */
 export function sailSpriteLayer() {
-  return recentSpriteLayers()[7]
+  return recentSpriteLayers()[resourceRasterSpriteIndex('sail')]
 }
 
 /**
