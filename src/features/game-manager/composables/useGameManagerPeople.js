@@ -14,7 +14,7 @@ import {
   buildNewPersonDraft,
   personMatchSuggestionsForTypedName,
   withSavedFlag,
-} from './peopleViewModel.js'
+} from '../people/peopleViewModel.js'
 
 export function useGameManagerPeople() {
   const { user } = useGameManagerAuth()
