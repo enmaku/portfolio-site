@@ -34,6 +34,8 @@ import { pickSettlementExtremes } from './pickSettlementExtreme.js'
  * @property {SettlementValueExtreme | null} poorest
  * @property {SettlementValueExtreme | null} highestTolls
  * @property {SettlementValueExtreme | null} lowestTolls
+ * @property {SettlementValueExtreme | null} highestFactionTax
+ * @property {SettlementValueExtreme | null} lowestFactionTax
  */
 
 /**
@@ -91,6 +93,16 @@ export function buildRealmEconomyStatus(slice, worldDocument) {
   }))
   const tollExtremes = pickSettlementExtremes(tollEntries, (entry) => entry.valueCp)
 
+  const taxMap = tradeResult?.factionTaxNetCpBySettlementId ?? {}
+  const taxEntries = living.map((settlement) => {
+    const raw = taxMap[settlement.id]
+    return {
+      id: settlement.id,
+      valueCp: typeof raw === 'number' && Number.isFinite(raw) ? raw : 0,
+    }
+  })
+  const taxExtremes = pickSettlementExtremes(taxEntries, (entry) => entry.valueCp)
+
   return {
     commodities,
     wealthiest: wealthExtremes
@@ -104,6 +116,12 @@ export function buildRealmEconomyStatus(slice, worldDocument) {
       : null,
     lowestTolls: tollExtremes
       ? { settlementId: tollExtremes.low.id, valueCp: tollExtremes.low.valueCp }
+      : null,
+    highestFactionTax: taxExtremes
+      ? { settlementId: taxExtremes.high.id, valueCp: taxExtremes.high.valueCp }
+      : null,
+    lowestFactionTax: taxExtremes
+      ? { settlementId: taxExtremes.low.id, valueCp: taxExtremes.low.valueCp }
       : null,
   }
 }

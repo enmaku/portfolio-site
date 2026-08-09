@@ -43,6 +43,8 @@ test('buildRealmEconomyStatus ranks local prices and combined wealth', () => {
   assert.deepEqual(status.poorest, { settlementId: 'b', valueCp: -20 })
   assert.deepEqual(status.highestTolls, { settlementId: 'a', valueCp: 40 })
   assert.deepEqual(status.lowestTolls, { settlementId: 'a', valueCp: 40 })
+  assert.deepEqual(status.highestFactionTax, { settlementId: 'a', valueCp: 0 })
+  assert.deepEqual(status.lowestFactionTax, { settlementId: 'a', valueCp: 0 })
 })
 
 test('buildRealmEconomyStatus ranks living port toll income and ignores inland', () => {
@@ -91,6 +93,32 @@ test('buildRealmEconomyStatus omits toll extremes when no living ports', () => {
   assert.equal(status.lowestTolls, null)
 })
 
+test('buildRealmEconomyStatus ranks signed faction tax among living settlements', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.settlements = [
+    { id: 'cap', status: 'living', population: 10, x: 0, y: 0, maritimeRole: 'none' },
+    { id: 'a', status: 'living', population: 20, x: 1, y: 0, maritimeRole: 'none' },
+    { id: 'b', status: 'living', population: 15, x: 2, y: 0, maritimeRole: 'none' },
+  ]
+  slice.lastTradeEpochResult = {
+    flows: [],
+    offMapTrades: [],
+    settlementCommodityRoles: {},
+    localPricesBySettlementId: {},
+    obligationDeltas: [],
+    externalAccountDeltas: {},
+    effectiveDelivered: {},
+    realmBalancesCp: {},
+    nettedObligations: [],
+    portTollIncomeCpBySettlementId: {},
+    factionTaxNetCpBySettlementId: { cap: 90, a: -50, b: -40 },
+  }
+
+  const status = buildRealmEconomyStatus(slice)
+  assert.deepEqual(status.highestFactionTax, { settlementId: 'cap', valueCp: 90 })
+  assert.deepEqual(status.lowestFactionTax, { settlementId: 'a', valueCp: -50 })
+})
+
 test('buildRealmEconomyStatus includes pin commodities when world has pins', () => {
   const slice = createDefaultColonizationSlice()
   slice.settlements = [{ id: 'a', status: 'living', population: 10, x: 0, y: 0 }]
@@ -121,4 +149,6 @@ test('buildRealmEconomyStatus falls back to reference prices and zero balances',
   assert.deepEqual(status.poorest, { settlementId: 'a', valueCp: 0 })
   assert.equal(status.highestTolls, null)
   assert.equal(status.lowestTolls, null)
+  assert.deepEqual(status.highestFactionTax, { settlementId: 'a', valueCp: 0 })
+  assert.deepEqual(status.lowestFactionTax, { settlementId: 'a', valueCp: 0 })
 })

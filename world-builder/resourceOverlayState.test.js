@@ -9,7 +9,10 @@ import {
   toggleResourceOverlayVisibility,
   updateOverlayDisplaySetting,
 } from './resourceOverlayState.js'
-import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from './resourceOverlays.js'
+import {
+  createDefaultResourceOverlayVisibility,
+  DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+} from './resourceOverlays.js'
 
 /**
  * @returns {{ syncOverlayRenderCache: (state: import('./resourceOverlayState.js').ResourceOverlayPageState) => void, syncedStates: import('./resourceOverlayState.js').ResourceOverlayPageState[] }}
@@ -29,19 +32,7 @@ test('createResourceOverlayPageState defaults visibility off and uses persisted 
   const state = createResourceOverlayPageState({
     arableMinimumProductivity: 0.25,
   })
-  assert.deepStrictEqual(state.visibility, {
-    arable: false,
-    timber: false,
-    metals: false,
-    salt: false,
-    sail: false,
-    freshwater: false,
-    population: false,
-    settlements: false,
-    explorationFog: false,
-    routes: false,
-    wealth: false,
-  })
+  assert.deepStrictEqual(state.visibility, createDefaultResourceOverlayVisibility())
   assert.strictEqual(state.displaySettings.arableMinimumProductivity, 0.25)
 })
 
@@ -165,35 +156,28 @@ test('normalizeResourceOverlayVisibility coerces null and undefined to false', (
       salt: false,
     }),
     {
+      ...createDefaultResourceOverlayVisibility(),
       arable: true,
-      timber: false,
-      metals: false,
-      salt: false,
-      sail: false,
-      freshwater: false,
-      population: false,
-      settlements: false,
-      explorationFog: false,
-      routes: false,
-      wealth: false,
     },
   )
 })
 
 test('normalizeResourceOverlayVisibility fills missing overlay ids with false', () => {
   assert.deepStrictEqual(normalizeResourceOverlayVisibility({ timber: true }), {
-    arable: false,
+    ...createDefaultResourceOverlayVisibility(),
     timber: true,
-    metals: false,
-    salt: false,
-    sail: false,
-    freshwater: false,
-    population: false,
-    settlements: false,
-    explorationFog: false,
-    routes: false,
-    wealth: false,
   })
+})
+
+test('normalizeResourceOverlayVisibility collapses multiple exclusive overlays', () => {
+  const visibility = {
+    ...createDefaultResourceOverlayVisibility(),
+    wealth: true,
+    loyalty: true,
+  }
+  const normalized = normalizeResourceOverlayVisibility(visibility)
+  assert.strictEqual(normalized.wealth, true)
+  assert.strictEqual(normalized.loyalty, false)
 })
 
 test('toggleResourceOverlayVisibility on then off stores false not null or undefined', () => {
@@ -215,19 +199,7 @@ test('commitResourceOverlayState normalizes visibility before sync', () => {
 
   const committed = commitResourceOverlayState(viewport, dirty)
 
-  assert.deepStrictEqual(committed.visibility, {
-    arable: false,
-    timber: false,
-    metals: false,
-    salt: false,
-    sail: false,
-    freshwater: false,
-    population: false,
-    settlements: false,
-    explorationFog: false,
-    routes: false,
-    wealth: false,
-  })
+  assert.deepStrictEqual(committed.visibility, createDefaultResourceOverlayVisibility())
   assert.deepStrictEqual(viewport.syncedStates[0].visibility, committed.visibility)
 })
 

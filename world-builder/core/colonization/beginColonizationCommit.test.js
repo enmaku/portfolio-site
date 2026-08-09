@@ -117,9 +117,9 @@ test('beginColonizationCommit enters running with founding settlement and histor
   assert.ok(next.settlements[0].population <= 120)
   assert.ok(next.settlements[0].population > 0)
   assert.ok(next.settlements[0].tier != null)
-  assert.strictEqual(next.historyLog.length, 1)
   assert.strictEqual(next.historyLog[0].kind, 'founding')
   assert.strictEqual(next.historyLog[0].epoch, 0)
+  assert.ok(next.historyLog.some((e) => e.kind === 'faction_emerged'))
   assert.ok(typeof next.realmId === 'string' && next.realmId.length > 0)
   const settlementId = next.settlements[0].id
   assert.ok(Array.isArray(next.primaryClaim[settlementId]))
@@ -127,6 +127,24 @@ test('beginColonizationCommit enters running with founding settlement and histor
   assert.ok(next.populationCollapseRaster instanceof Float32Array)
   assert.strictEqual(next.populationCollapseRaster.length, 16)
   assert.ok(next.populationCollapseRaster.some((value) => value > 0))
+})
+
+test('beginColonizationCommit mints a founding faction for the landing settlement', async () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = COLONIZATION_PHASE_SETUP
+  slice.foundingLanding = { x: 1, y: 2 }
+  slice.colonistSettings.startingPopulation = 120
+  slice.colonistSettings.threeDayHaulDistance = 2
+
+  const next = await beginColonizationCommit(slice, geographyDoc())
+  const founding = next.settlements[0]
+  assert.ok(founding.factionId)
+  assert.strictEqual(next.factions.length, 1)
+  assert.strictEqual(next.factions[0].status, 'active')
+  assert.strictEqual(next.factions[0].capitalSettlementId, founding.id)
+  assert.deepStrictEqual(next.factions[0].settlementIds, [founding.id])
+  assert.strictEqual(founding.factionId, next.factions[0].id)
+  assert.ok(next.historyLog.some((e) => e.kind === 'faction_emerged' && e.cause === 'founding'))
 })
 
 test('beginColonizationCommit clamps starting population and keeps founding history as epoch 0 anchor', async () => {

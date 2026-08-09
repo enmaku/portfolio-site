@@ -1,4 +1,4 @@
-import { clearSettlementIdLabels } from './drawMapNodeOverlays.js'
+import { clearRecentConquestMarkers, clearSettlementIdLabels } from './drawMapNodeOverlays.js'
 
 /** @type {Readonly<Partial<Record<import('./mapLayerRefresh.js').MapLayerId, keyof MapLayerPresentation>>>} */
 const NODE_OVERLAY_CLEAR_KEYS = Object.freeze({
@@ -21,6 +21,11 @@ const NODE_OVERLAY_CLEAR_KEYS = Object.freeze({
  *   explorationFog: import('pixi.js').Sprite,
  *   routes: import('pixi.js').Sprite,
  *   wealth: import('pixi.js').Sprite,
+ *   portTolls: import('pixi.js').Sprite,
+ *   factionTax: import('pixi.js').Sprite,
+ *   factionTerritory: import('pixi.js').Sprite,
+ *   loyalty: import('pixi.js').Sprite,
+ *   [commodityPriceOverlayId: string]: import('pixi.js').Sprite,
  *   rivers: import('pixi.js').Sprite,
  *   lakes: import('pixi.js').Sprite,
  *   coastalOverlay: import('pixi.js').Graphics,
@@ -28,6 +33,7 @@ const NODE_OVERLAY_CLEAR_KEYS = Object.freeze({
  *   saltOverlay: import('pixi.js').Graphics,
  *   settlementOverlay: import('pixi.js').Graphics,
  *   settlementIdOverlay: import('pixi.js').Container,
+ *   recentConquestOverlay: import('pixi.js').Graphics,
  * }} MapLayerPresentation
  */
 
@@ -41,6 +47,10 @@ export function hideMapLayer(layerId, layers) {
   }
   if (layerId === 'settlementIdLabels') {
     clearSettlementIdLabels(layers.settlementIdOverlay)
+    return
+  }
+  if (layerId === 'recentConquestMarkers') {
+    clearRecentConquestMarkers(layers.recentConquestOverlay)
     return
   }
   const overlayKey = NODE_OVERLAY_CLEAR_KEYS[layerId]

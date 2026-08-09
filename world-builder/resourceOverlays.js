@@ -1,4 +1,22 @@
 import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.js'
+import { COMMODITY_IDS } from './core/economy/commodityCatalog.js'
+import {
+  COMMODITY_PRICE_OVERLAY_IDS,
+  EXCLUSIVE_CLAIM_OVERLAY_IDS,
+  REALM_ECONOMY_OVERLAY_IDS,
+  commodityPriceOverlayId,
+  isExclusiveClaimOverlayId,
+  isRealmEconomyOverlayId,
+} from './resourceOverlayIds.js'
+
+export {
+  COMMODITY_PRICE_OVERLAY_IDS,
+  EXCLUSIVE_CLAIM_OVERLAY_IDS,
+  REALM_ECONOMY_OVERLAY_IDS,
+  commodityPriceOverlayId,
+  isExclusiveClaimOverlayId,
+  isRealmEconomyOverlayId,
+}
 
 /** @typedef {Object} OverlayDisplaySettings
  * @property {number} arableMinimumProductivity
@@ -27,6 +45,15 @@ export function createResourceOverlayDefinitions() {
     { id: 'explorationFog', kind: 'raster', label: 'Exploration fog' },
     { id: 'routes', kind: 'raster', label: 'Routes' },
     { id: 'wealth', kind: 'raster', label: 'Wealth' },
+    { id: 'portTolls', kind: 'raster', label: 'Tolls' },
+    { id: 'factionTax', kind: 'raster', label: 'Tax' },
+    ...COMMODITY_IDS.map((commodityId) => ({
+      id: commodityPriceOverlayId(commodityId),
+      kind: /** @type {'raster'} */ ('raster'),
+      label: commodityId,
+    })),
+    { id: 'factionTerritory', kind: 'raster', label: 'Control' },
+    { id: 'loyalty', kind: 'raster', label: 'Loyalty' },
   ]
 }
 
@@ -61,7 +88,40 @@ export function createDefaultOverlayDisplaySettings() {
  * @returns {Record<string, boolean>}
  */
 export function applyResourceOverlayVisibility(visibility, resourceId, visible) {
-  return { ...visibility, [resourceId]: Boolean(visible) }
+  const nextVisible = Boolean(visible)
+  /** @type {Record<string, boolean>} */
+  const next = { ...visibility, [resourceId]: nextVisible }
+  if (nextVisible && isExclusiveClaimOverlayId(resourceId)) {
+    for (const exclusiveId of EXCLUSIVE_CLAIM_OVERLAY_IDS) {
+      if (exclusiveId !== resourceId) {
+        next[exclusiveId] = false
+      }
+    }
+  }
+  return next
+}
+
+/**
+ * Collapse multiple exclusive claim overlays down to one (first true wins by def order).
+ *
+ * @param {Record<string, boolean>} visibility
+ * @returns {Record<string, boolean>}
+ */
+export function enforceExclusiveClaimOverlayVisibility(visibility) {
+  let kept = null
+  /** @type {Record<string, boolean>} */
+  const next = { ...visibility }
+  for (const overlayId of createResourceOverlayIds()) {
+    if (!isExclusiveClaimOverlayId(overlayId)) continue
+    if (next[overlayId] === true) {
+      if (kept == null) {
+        kept = overlayId
+      } else {
+        next[overlayId] = false
+      }
+    }
+  }
+  return next
 }
 
 /**

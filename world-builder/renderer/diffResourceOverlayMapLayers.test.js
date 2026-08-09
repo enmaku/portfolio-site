@@ -71,3 +71,12 @@ test('independent overlay changes union into the affected layers only', () => {
   )
   assert.deepStrictEqual(new Set(changed), new Set(['saltNodes', 'arable']))
 })
+
+test('toggling faction territory also refreshes recent conquest markers', () => {
+  const changed = diffResourceOverlayMapLayers(
+    overlayState({}),
+    overlayState({ factionTerritory: true }),
+  )
+  assert.ok(changed.includes('factionTerritory'))
+  assert.ok(changed.includes('recentConquestMarkers'))
+})

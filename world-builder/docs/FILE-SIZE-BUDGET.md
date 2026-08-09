@@ -92,7 +92,7 @@ Exclude `*.test.js` from budget enforcement unless a test file itself exceeds re
 | `world-builder/core/economy/tradeClearing/runTradeClearing.js` | ≤650 | Async clearing ladder; Sync is thin generator drain |
 | `world-builder/core/economy/tradeClearing/offMapTrade.js` | ≤550 | Residual off-map steps generator |
 | `world-builder/core/colonization/tradeGraph/buildCandidateRoutes.js` | ≤600 | Candidate trade graph (colonization logistics) |
-| `world-builder/core/colonization/colonizationEpochProgress.js` | ≤650 | Epoch progress reducers (shared substep lanes) |
+| `world-builder/core/colonization/colonizationEpochProgress.js` | ≤720 | Epoch progress reducers (shared substep lanes incl. politics) |
 | `world-builder/core/economy/economyEpochSnapshot.js` | ≤120 | Persisted inspect projection from clearing |
 
 ### Worker

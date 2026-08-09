@@ -28,6 +28,7 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
     'start runs initial generation and applies the world document to the map',
     'start syncs overlay state when the viewport becomes ready',
     'start restores running colonization from colonization cache after beginColonization refresh',
+    'restoring a running session does not force auto overlays on',
   ],
   destroy: ['destroy cancels the active run and tears down the map lifecycle'],
   regenerate: [
@@ -818,7 +819,15 @@ test('terrain authoring hides and disables colonization overlays', async () => {
         return { cancel() {} }
       },
     })
-    const colonizationOverlayIds = ['population', 'settlements', 'explorationFog', 'routes', 'wealth']
+    const colonizationOverlayIds = [
+      'population',
+      'settlements',
+      'explorationFog',
+      'routes',
+      'factionTerritory',
+      'loyalty',
+    ]
+    const realmEconomyOverlayIds = ['wealth', 'portTolls', 'factionTax', 'commodityPriceGrain']
 
     await ctx.start()
     await nextTick()
@@ -837,11 +846,16 @@ test('terrain authoring hides and disables colonization overlays', async () => {
     for (const overlayId of colonizationOverlayIds) {
       assert.ok(ctx.statusBar.value.overlayDefs.some((definition) => definition.id === overlayId))
     }
+    for (const overlayId of realmEconomyOverlayIds) {
+      assert.ok(!ctx.statusBar.value.overlayDefs.some((definition) => definition.id === overlayId))
+    }
     assert.ok(!ctx.statusBar.value.overlayDefs.some((definition) => definition.id === 'settlementIds'))
     for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.factionTerritory, false)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.loyalty, false)
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.settlementIds, undefined)
 
     await ctx.colonization.resetColonization()
@@ -877,6 +891,30 @@ test('start restores running colonization session after landmass regen', async (
     assert.strictEqual(ctx.worldDocument.value?.settlements?.length, 1)
     assert.strictEqual(ctx.worldDocument.value?.realmId, 'realm-test')
     assert.strictEqual(ctx.colonization.isTerrainLocked.value, true)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('restoring a running session does not force auto overlays on', async () => {
+  const scope = effectScope(true)
+  try {
+    const persisted = createDefaultColonizationSlice()
+    persisted.colonizationPhase = COLONIZATION_PHASE_RUNNING
+    persisted.foundingLanding = { x: 3, y: 3 }
+    persisted.settlements = [{ id: 's1', x: 3, y: 3, population: 100 }]
+    persisted.historyLog = [{ kind: 'founding', epoch: 0 }]
+    const { ctx } = mountController(scope, {
+      settingsStore: createFakeSettingsStore({ colonizationSession: persisted }),
+    })
+
+    await ctx.start()
+    await waitUntil(() => ctx.worldDocument.value != null, 'colonization world document')
+
+    assert.strictEqual(ctx.colonization.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
+    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
+      assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], false)
+    }
   } finally {
     scope.stop()
   }
@@ -919,6 +957,7 @@ test('start restores running colonization from colonization cache after beginCol
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
+    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.factionTerritory, false)
     assert.strictEqual(
       colonizationCache.getRecord()?.session.colonizationPhase,
       COLONIZATION_PHASE_RUNNING,
@@ -949,7 +988,9 @@ test('start restores running colonization from colonization cache after beginCol
     assert.strictEqual(refreshed.colonization.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
     assert.strictEqual(refreshed.colonization.colonizationEpoch.value, 0)
     assert.strictEqual(refreshed.worldDocument.value?.settlements?.length, 1)
-    assert.strictEqual(refreshed.worldDocument.value?.historyLog?.length, 1)
+    assert.strictEqual(refreshed.worldDocument.value?.historyLog?.length, 2)
+    assert.ok(refreshed.worldDocument.value?.historyLog?.some((e) => e.kind === 'founding'))
+    assert.ok(refreshed.worldDocument.value?.historyLog?.some((e) => e.kind === 'faction_emerged'))
     assert.strictEqual(refreshed.colonization.timeControlsActive.value, true)
     assert.ok(refreshed.worldDocument.value?.populationCollapseRaster instanceof Float32Array)
   } finally {

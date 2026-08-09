@@ -190,5 +190,21 @@ test('diffWorldDocumentMapLayers detects settlement changes in pin and ID label 
   assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), [
     'settlementNodes',
     'settlementIdLabels',
+    'factionTerritory',
+    'loyalty',
+    'recentConquestMarkers',
   ])
+})
+
+test('diffWorldDocumentMapLayers refreshes conquest markers when recentAlliance map changes', () => {
+  const previous = baseDocument({
+    recentAllianceBySettlementId: {},
+  })
+  const next = baseDocument({
+    recentAllianceBySettlementId: {
+      free: { allianceEpoch: 9, factionId: 'fa', kind: 'join_existing' },
+    },
+  })
+
+  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['recentConquestMarkers'])
 })

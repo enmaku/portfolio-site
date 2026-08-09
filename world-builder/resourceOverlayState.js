@@ -3,6 +3,7 @@ import {
   createDefaultOverlayDisplaySettings,
   createDefaultResourceOverlayVisibility,
   createResourceOverlayIds,
+  enforceExclusiveClaimOverlayVisibility,
 } from './resourceOverlays.js'
 
 /** @typedef {import('./resourceOverlays.js').OverlayDisplaySettings} OverlayDisplaySettings */
@@ -51,7 +52,10 @@ export function normalizeResourceOverlayVisibility(
   visibility,
   resourceIds = createResourceOverlayIds(),
 ) {
-  return Object.fromEntries(resourceIds.map((resourceId) => [resourceId, visibility[resourceId] === true]))
+  const booleans = Object.fromEntries(
+    resourceIds.map((resourceId) => [resourceId, visibility[resourceId] === true]),
+  )
+  return enforceExclusiveClaimOverlayVisibility(booleans)
 }
 
 /**

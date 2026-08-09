@@ -6,6 +6,7 @@ import {
   COLONIZATION_EPOCH_PHASE_COUNT,
   COLONIZATION_EPOCH_PHASES,
   COLONIZATION_NETWORK_SUBSTEPS,
+  COLONIZATION_POLITICS_SUBSTEPS,
   COLONIZATION_TRADE_SUBSTEPS,
 } from './colonizationEpochSteps.js'
 
@@ -31,6 +32,10 @@ import {
  * @property {number} completedTradeSubstepIndex
  * @property {number} tradeSubstepItemIndex one-based item within active trade substep; -1 when idle
  * @property {number} tradeSubstepItemCount total items in active trade substep loop; 0 when idle
+ * @property {number} activePoliticsSubstepIndex
+ * @property {number} completedPoliticsSubstepIndex
+ * @property {number} politicsSubstepItemIndex one-based item within active politics substep; -1 when idle
+ * @property {number} politicsSubstepItemCount total items in active politics substep loop; 0 when idle
  * @property {number} activeFinalizeStepIndex
  * @property {number} completedFinalizeStepIndex
  * @property {number} activeMapSubstepIndex
@@ -62,6 +67,10 @@ export function createInitialEpochStepProgress() {
     completedTradeSubstepIndex: -1,
     tradeSubstepItemIndex: -1,
     tradeSubstepItemCount: 0,
+    activePoliticsSubstepIndex: -1,
+    completedPoliticsSubstepIndex: -1,
+    politicsSubstepItemIndex: -1,
+    politicsSubstepItemCount: 0,
     activeFinalizeStepIndex: -1,
     completedFinalizeStepIndex: -1,
     activeMapSubstepIndex: -1,
@@ -137,6 +146,10 @@ export function reduceEpochStepProgressOnEpochStart(progress, payload) {
     completedTradeSubstepIndex: -1,
     tradeSubstepItemIndex: -1,
     tradeSubstepItemCount: 0,
+    activePoliticsSubstepIndex: -1,
+    completedPoliticsSubstepIndex: -1,
+    politicsSubstepItemIndex: -1,
+    politicsSubstepItemCount: 0,
     activeFinalizeStepIndex: -1,
     completedFinalizeStepIndex: -1,
     activeMapSubstepIndex: -1,
@@ -174,6 +187,10 @@ export function reduceEpochStepProgressOnEpochComplete(progress, payload) {
     completedTradeSubstepIndex: -1,
     tradeSubstepItemIndex: -1,
     tradeSubstepItemCount: 0,
+    activePoliticsSubstepIndex: -1,
+    completedPoliticsSubstepIndex: -1,
+    politicsSubstepItemIndex: -1,
+    politicsSubstepItemCount: 0,
     activeFinalizeStepIndex: -1,
     completedFinalizeStepIndex: -1,
     activeMapSubstepIndex: -1,
@@ -212,6 +229,14 @@ export function reduceEpochStepProgressOnPhaseStart(progress, payload) {
       payload.phaseId === 'trade' ? -1 : progress.completedTradeSubstepIndex,
     tradeSubstepItemIndex: payload.phaseId === 'trade' ? -1 : progress.tradeSubstepItemIndex,
     tradeSubstepItemCount: payload.phaseId === 'trade' ? 0 : progress.tradeSubstepItemCount,
+    activePoliticsSubstepIndex:
+      payload.phaseId === 'politics' ? -1 : progress.activePoliticsSubstepIndex,
+    completedPoliticsSubstepIndex:
+      payload.phaseId === 'politics' ? -1 : progress.completedPoliticsSubstepIndex,
+    politicsSubstepItemIndex:
+      payload.phaseId === 'politics' ? -1 : progress.politicsSubstepItemIndex,
+    politicsSubstepItemCount:
+      payload.phaseId === 'politics' ? 0 : progress.politicsSubstepItemCount,
   }
 }
 
@@ -243,6 +268,10 @@ export function reduceEpochStepProgressOnPhaseComplete(progress, payload) {
     completedTradeSubstepIndex: -1,
     tradeSubstepItemIndex: -1,
     tradeSubstepItemCount: 0,
+    activePoliticsSubstepIndex: -1,
+    completedPoliticsSubstepIndex: -1,
+    politicsSubstepItemIndex: -1,
+    politicsSubstepItemCount: 0,
   }
 }
 
@@ -269,6 +298,7 @@ export function formatSubstepItemLabel(substepLabel, itemProgress) {
 export const formatNetworkSubstepItemLabel = formatSubstepItemLabel
 export const formatCollapseSubstepItemLabel = formatSubstepItemLabel
 export const formatTradeSubstepItemLabel = formatSubstepItemLabel
+export const formatPoliticsSubstepItemLabel = formatSubstepItemLabel
 
 /**
  * @param {{
@@ -406,6 +436,15 @@ const tradeLane = createSubstepLaneReducers({
   itemCountKey: 'tradeSubstepItemCount',
 })
 
+const politicsLane = createSubstepLaneReducers({
+  phaseLabel: 'Politics',
+  substeps: COLONIZATION_POLITICS_SUBSTEPS,
+  activeKey: 'activePoliticsSubstepIndex',
+  completedKey: 'completedPoliticsSubstepIndex',
+  itemIndexKey: 'politicsSubstepItemIndex',
+  itemCountKey: 'politicsSubstepItemCount',
+})
+
 /**
  * @param {EpochStepProgressState} progress
  * @param {{ substepIndex: number }} payload
@@ -495,6 +534,33 @@ export function reduceEpochStepProgressOnTradeSubstepItemProgress(progress, payl
 
 /**
  * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnPoliticsSubstepStart(progress, payload) {
+  return politicsLane.onStart(progress, payload)
+}
+
+/**
+ * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnPoliticsSubstepComplete(progress, payload) {
+  return politicsLane.onComplete(progress, payload)
+}
+
+/**
+ * @param {EpochStepProgressState} progress
+ * @param {{ substepIndex: number, itemIndex: number, itemCount: number }} payload
+ * @returns {EpochStepProgressState}
+ */
+export function reduceEpochStepProgressOnPoliticsSubstepItemProgress(progress, payload) {
+  return politicsLane.onItem(progress, payload)
+}
+
+/**
+ * @param {EpochStepProgressState} progress
  * @param {{ stepIndex: number }} payload
  * @returns {EpochStepProgressState}
  */
@@ -523,6 +589,10 @@ export function reduceEpochStepProgressOnFinalizeStepStart(progress, payload) {
     completedTradeSubstepIndex: -1,
     tradeSubstepItemIndex: -1,
     tradeSubstepItemCount: 0,
+    activePoliticsSubstepIndex: -1,
+    completedPoliticsSubstepIndex: -1,
+    politicsSubstepItemIndex: -1,
+    politicsSubstepItemCount: 0,
     activeFinalizeStepIndex: payload.stepIndex,
     activeMapSubstepIndex: step?.id === 'map' ? -1 : progress.activeMapSubstepIndex,
     completedMapSubstepIndex: step?.id === 'map' ? -1 : progress.completedMapSubstepIndex,
@@ -556,6 +626,10 @@ export function reduceEpochStepProgressOnFinalizeStepComplete(progress, payload)
     completedTradeSubstepIndex: -1,
     tradeSubstepItemIndex: -1,
     tradeSubstepItemCount: 0,
+    activePoliticsSubstepIndex: -1,
+    completedPoliticsSubstepIndex: -1,
+    politicsSubstepItemIndex: -1,
+    politicsSubstepItemCount: 0,
     activeMapSubstepIndex: -1,
     completedMapSubstepIndex: -1,
   }
@@ -611,6 +685,10 @@ export function reduceEpochStepProgressOnRunComplete(progress) {
     activeTradeSubstepIndex: -1,
     tradeSubstepItemIndex: -1,
     tradeSubstepItemCount: 0,
+    activePoliticsSubstepIndex: -1,
+    completedPoliticsSubstepIndex: -1,
+    politicsSubstepItemIndex: -1,
+    politicsSubstepItemCount: 0,
     activeFinalizeStepIndex: -1,
     activeMapSubstepIndex: -1,
   }

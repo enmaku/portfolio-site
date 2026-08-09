@@ -6,6 +6,7 @@ import {
   deriveFreshwaterAvailabilityFromDocument,
 } from '../core/colonization/freshwater/deriveFreshwaterAvailability.js'
 import { deriveSailOverlayMask } from '../core/sail/deriveSailOverlayMask.js'
+import { presentMapCommodityIds } from '../core/economy/presentMapCommodities.js'
 import {
   isResourceOverlayVisible,
   shouldDrawResourceNodeOverlay,
@@ -76,15 +77,15 @@ export function resolveMetalsOverlayDrawn(visibility, worldDocument) {
 }
 
 /**
- * Distinct marker colors per typed mineral deposit so the overlay separates
- * copper/silver/gold/diamond pins from each other and the metals-potential raster.
+ * Distinct marker colors per typed mineral deposit — same fills as realm-economy /
+ * trade-tooltip commodity stamps (copper/silver/gold/diamonds).
  * @type {Readonly<Record<import('../core/types.js').MineralKind, number>>}
  */
 export const MINERAL_NODE_OVERLAY_COLORS = Object.freeze({
   copper: 0xb87333,
-  silver: 0xc0c0c0,
-  gold: 0xffd700,
-  diamond: 0x7fdfff,
+  silver: 0xc0c5ce,
+  gold: 0xd4af37,
+  diamond: 0xa8d4f0,
 })
 
 /** Fallback marker color for an unknown or missing deposit kind. */
@@ -244,4 +245,126 @@ export function resolveWealthRasterLayerVisible(visibility, worldDocument) {
   }
   const settlements = worldDocument.settlements
   return Array.isArray(settlements) && settlements.length > 0
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolvePortTollsRasterLayerVisible(visibility, worldDocument) {
+  if (!isResourceOverlayVisible(visibility, 'portTolls')) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  if (!worldDocument.lastTradeEpochResult) {
+    return false
+  }
+  const settlements = worldDocument.settlements
+  return (
+    Array.isArray(settlements) &&
+    settlements.some((settlement) => settlement && settlement.maritimeRole === 'port')
+  )
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolveFactionTaxRasterLayerVisible(visibility, worldDocument) {
+  if (!isResourceOverlayVisible(visibility, 'factionTax')) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  if (!worldDocument.lastTradeEpochResult) {
+    return false
+  }
+  const settlements = worldDocument.settlements
+  return Array.isArray(settlements) && settlements.length > 0
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {string} overlayId
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @param {import('../core/economy/commodityCatalog.js').CommodityId} commodityId
+ * @returns {boolean}
+ */
+export function resolveCommodityPriceRasterLayerVisible(
+  visibility,
+  overlayId,
+  worldDocument,
+  commodityId,
+) {
+  if (!isResourceOverlayVisible(visibility, overlayId)) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  if (!worldDocument.lastTradeEpochResult) {
+    return false
+  }
+  if (!presentMapCommodityIds(worldDocument).includes(commodityId)) {
+    return false
+  }
+  const settlements = worldDocument.settlements
+  return Array.isArray(settlements) && settlements.length > 0
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolveFactionTerritoryRasterLayerVisible(visibility, worldDocument) {
+  if (!isResourceOverlayVisible(visibility, 'factionTerritory')) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  const hasMembership =
+    worldDocument.increment3LatchedEpoch != null ||
+    (Array.isArray(worldDocument.factions) &&
+      worldDocument.factions.some((f) => f && f.status === 'active')) ||
+    (Array.isArray(worldDocument.settlements) &&
+      worldDocument.settlements.some((s) => s && s.factionId))
+  if (!hasMembership) {
+    return false
+  }
+  const settlements = worldDocument.settlements
+  return Array.isArray(settlements) && settlements.length > 0
+}
+
+/**
+ * @param {Record<string, boolean>} visibility
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {boolean}
+ */
+export function resolveLoyaltyRasterLayerVisible(visibility, worldDocument) {
+  if (!isResourceOverlayVisible(visibility, 'loyalty')) {
+    return false
+  }
+  if (worldDocument.colonizationPhase !== 'running') {
+    return false
+  }
+  const settlements = worldDocument.settlements
+  if (!Array.isArray(settlements) || settlements.length === 0) {
+    return false
+  }
+  const primaryClaim = worldDocument.primaryClaim ?? {}
+  return settlements.some(
+    (settlement) =>
+      settlement &&
+      settlement.status !== 'ruin' &&
+      typeof settlement.id === 'string' &&
+      Array.isArray(primaryClaim[settlement.id]) &&
+      primaryClaim[settlement.id].length > 0,
+  )
 }

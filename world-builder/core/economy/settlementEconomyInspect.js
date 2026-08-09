@@ -1,7 +1,7 @@
 /**
- * Neutral settlement economy inspect model (balance, tolls, commodity prices/roles).
+ * Neutral settlement economy inspect model (balance, tolls, tax, commodity prices/roles).
  * Domain: world-builder/CONTEXT.md — settlement trade tooltip, local price, realm balance,
- * port toll.
+ * port toll, faction tax.
  */
 
 import { referencePriceCp } from './commodityCatalog.js'
@@ -39,6 +39,7 @@ import { portTollIncomeCpForSettlement } from './ledgers/portTollIncomeCpForSett
  * @property {number} population
  * @property {number} balanceCp Combined realm + nonnegative external claim.
  * @property {number | null} portTollsCp
+ * @property {number} factionTaxCp Signed last-epoch faction tax net.
  * @property {SettlementEconomyInspectCommodity[]} commodities
  */
 
@@ -116,6 +117,9 @@ export function buildSettlementEconomyInspect(economyInspectSource, settlementId
 
   const isPort = settlement.maritimeRole === 'port'
   const balancesBySettlementId = balancesFromEconomyInspectSource(economyInspectSource)
+  const rawTax = result?.factionTaxNetCpBySettlementId?.[settlementId]
+  const factionTaxCp =
+    typeof rawTax === 'number' && Number.isFinite(rawTax) ? rawTax : 0
 
   return {
     settlementId,
@@ -126,6 +130,7 @@ export function buildSettlementEconomyInspect(economyInspectSource, settlementId
       externalTradeAccounts: economyInspectSource.externalTradeAccounts,
     }),
     portTollsCp: isPort ? portTollIncomeCpForSettlement(result, settlementId) : null,
+    factionTaxCp,
     commodities,
   }
 }

@@ -8,9 +8,10 @@
  * @property {number} peoplePerHabitableCell Landscape packing density for the land leg of population ceiling.
  * @property {number} populationDensity Scalar on feeding and land packing (and matching food lb yields).
  * @property {YieldModifier} yieldModifier
- * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap.
+ * @property {number} landExpeditionRange Multiplier on three-day haul distance for land expedition range cap (also strategic overstretch reach).
  * @property {number} inlandSailExpeditionRange Multiplier on three-day haul distance for inland sail expedition range cap.
  * @property {number} openSeaExpeditionRange Multiplier on three-day haul distance for open-sea expedition range cap.
+ * @property {number} strategicOverstretchSpan Living member settlements a faction can hold before mid-run strategic overstretch peel.
  */
 
 /**
@@ -53,16 +54,90 @@
  * @property {Record<string, number>} priorRealizedIncomeCp Last active clear's on-map export+toll income by settlement.
  * @property {TradeRouteState} tradeRouteState Candidate edges and current-epoch flows.
  * @property {import('../economy/economyEpochSnapshot.js').EconomyEpochSnapshot | null} lastTradeEpochResult Inspect payload from last clearing.
+ * @property {number | null} increment3LatchedEpoch Epoch when supply-chain independence latched; null until latch.
+ * @property {FactionRecord[]} factions Living and extinct faction roster (sticky membership).
+ * @property {MembershipCooldownEntry[]} membershipCooldown Anti-churn refractory floors.
+ * @property {PendingComponentMint[]} pendingComponentMints Staggered post-latch faction mint queue.
+ * @property {Record<string, number>} factionDependenceStreak Asymmetric dependence streak keys `weak->strong`.
+ * @property {Record<string, number>} mutualReintegrationStreak Mutual reintegration streak keys `idA|idB`.
+ * @property {Record<string, number>} unalignedViabilityStreak Lone-unaligned crystallize viability by settlement id.
+ * @property {Record<string, number>} membershipCauseClearStreak Clear-and-rearm counters by subject id.
+ * @property {Record<string, number>} vassalIndependenceStreak Local food independence streak by vassal settlement id.
+ * @property {Record<string, number>} factionOverstretchStreak Living-membership over-span streak by faction id.
+ * @property {RivalryEdge[]} rivalryEdges Legacy (and other) rivalry edges between living factions.
+ * @property {Record<string, { penalty: number, expiresEpoch: number }>} warExhaustionBySettlementId
+ * @property {import('./politics/conflict/belligerentTradeBlocks.js').BelligerentTradeBlock[]} belligerentTradeBlocks
+ * @property {Record<string, { conqueredEpoch: number, priorFactionId?: string | null, cause?: string }>} recentConquestBySettlementId
+ * @property {Record<string, number>} lastOnMapGoodsBilateralCpByPair Last clear on-map goods pair volumes.
+ * @property {Record<string, number>} softPowerPaintStreak Soft-power paint arming streaks by settlement id.
+ * @property {Record<string, number>} softPowerJoinHoldStreak Soft-power join-hold streaks by settlement id.
+ * @property {Record<string, number>} softPowerClearStreak Soft-power clear-and-rearm counters by settlement id.
+ * @property {Record<string, string>} softPowerPaintBySettlementId Armed soft-power controller by settlement id.
+ * @property {Record<string, string>} softPowerJoinEligibleBySettlementId Peaceful trade-partner join eligibility.
+ * @property {Record<string, number>} softPowerRebellionPressureStreak Rival trade pressure streaks on taxed members.
+ * @property {Record<string, { joinedEpoch: number, factionId?: string | null, cause?: string | null }>} recentTradePartnerJoinBySettlementId
+ * @property {Record<string, number>} tradePartnerPeelClearStreak Clear-and-rearm before trade-partner peel.
+ * @property {Record<string, number>} politicalPressureStreak Political-pressure arming streaks by settlement id.
+ * @property {Record<string, number>} politicalPressureClearStreak Clear-and-rearm counters by settlement id.
+ * @property {Record<string, string>} politicalPressureArmedBySettlementId Armed pressure controller by settlement id.
+ * @property {Record<string, { allianceEpoch: number, factionId?: string | null, kind?: string | null, cause?: string | null }>} recentAllianceBySettlementId
+ * @property {Record<string, string[]>} bannerMembershipHistoryBySettlementId Rolling sticky-membership window per settlement.
+ */
+
+/**
+ * @typedef {Object} FactionRecord
+ * @property {string} id
+ * @property {string} capitalSettlementId
+ * @property {string[]} settlementIds
+ * @property {'active' | 'extinct'} status
+ * @property {number} emergedEpoch
+ * @property {number} [territoryPaletteIndex] ColorBrewer slot 0–11 while/after mint; optional on legacy saves.
+ */
+
+/**
+ * @typedef {Object} RivalryEdge
+ * @property {string} aFactionId
+ * @property {string} bFactionId
+ * @property {'legacy' | 'resource' | 'logistics' | 'territory' | 'belief'} cause
+ * @property {number} createdEpoch
+ */
+
+/**
+ * @typedef {Object} MembershipCooldownEntry
+ * @property {string} subjectId Settlement or faction id under refractory.
+ * @property {number} untilEpoch Inclusive epoch until which inverse flips are blocked.
+ * @property {string} kind Cooldown cause (e.g. vassal_defection, faction_absorption).
+ */
+
+/**
+ * @typedef {Object} PendingComponentMint
+ * @property {string} componentKey Deterministic logistics-connectivity component key.
+ * @property {string[]} settlementIds Living pins waiting to crystallize together.
+ * @property {number} dueEpoch Epoch when the cohort mints.
  */
 
 import { resolveExpeditions } from './expeditions/expeditionConstants.js'
 import {
-  logisticsNodeSurveyPatchesForStorage,
   resolveLogisticsNodeSurvey,
 } from './logisticsNodes/scoreLogisticsNodes.js'
 import { resolveRoadSegments } from './roads/roadNetwork.js'
 import { ensureSettlementMapNumbers } from './settlementMapNumber.js'
 import { resolveEconomyEpochSnapshot } from '../economy/economyEpochSnapshot.js'
+import {
+  resolveBelligerentTradeBlocks,
+  resolveRecentConquestMap,
+  resolveRivalryEdges,
+  resolveWarExhaustionMap,
+} from './resolveConflictSliceFields.js'
+import {
+  createEmptySoftPowerSliceFields,
+  resolveSoftPowerSliceFields,
+  resolveSoftPowerStringMap,
+} from './resolveSoftPowerSliceFields.js'
+import {
+  createEmptyPoliticalPressureSliceFields,
+  resolvePoliticalPressureSliceFields,
+} from './politics/politicalPressure/resolvePoliticalPressureSliceFields.js'
 
 export const COLONIZATION_PHASE_TERRAIN = /** @type {const} */ ('terrain')
 export const COLONIZATION_PHASE_SETUP = /** @type {const} */ ('setup')
@@ -89,6 +164,34 @@ export const COLONIZATION_SLICE_KEYS = /** @type {const} */ ([
   'priorRealizedIncomeCp',
   'tradeRouteState',
   'lastTradeEpochResult',
+  'increment3LatchedEpoch',
+  'factions',
+  'membershipCooldown',
+  'pendingComponentMints',
+  'factionDependenceStreak',
+  'mutualReintegrationStreak',
+  'unalignedViabilityStreak',
+  'membershipCauseClearStreak',
+  'vassalIndependenceStreak',
+  'factionOverstretchStreak',
+  'rivalryEdges',
+  'warExhaustionBySettlementId',
+  'belligerentTradeBlocks',
+  'recentConquestBySettlementId',
+  'lastOnMapGoodsBilateralCpByPair',
+  'softPowerPaintStreak',
+  'softPowerJoinHoldStreak',
+  'softPowerClearStreak',
+  'softPowerPaintBySettlementId',
+  'softPowerJoinEligibleBySettlementId',
+  'softPowerRebellionPressureStreak',
+  'recentTradePartnerJoinBySettlementId',
+  'tradePartnerPeelClearStreak',
+  'politicalPressureStreak',
+  'politicalPressureClearStreak',
+  'politicalPressureArmedBySettlementId',
+  'recentAllianceBySettlementId',
+  'bannerMembershipHistoryBySettlementId',
 ])
 
 /** Derived overlay fields rebuilt on hydrate; never written to session or terrain caches. */
@@ -122,6 +225,9 @@ export const MAX_INLAND_SAIL_EXPEDITION_RANGE = 6
 export const DEFAULT_OPEN_SEA_EXPEDITION_RANGE = 8
 export const MIN_OPEN_SEA_EXPEDITION_RANGE = 4
 export const MAX_OPEN_SEA_EXPEDITION_RANGE = 12
+export const DEFAULT_STRATEGIC_OVERSTRETCH_SPAN = 12
+export const MIN_STRATEGIC_OVERSTRETCH_SPAN = 6
+export const MAX_STRATEGIC_OVERSTRETCH_SPAN = 24
 
 /**
  * @returns {TradeAccountsSlice}
@@ -150,6 +256,7 @@ export function createDefaultColonistSettings() {
     landExpeditionRange: DEFAULT_LAND_EXPEDITION_RANGE,
     inlandSailExpeditionRange: DEFAULT_INLAND_SAIL_EXPEDITION_RANGE,
     openSeaExpeditionRange: DEFAULT_OPEN_SEA_EXPEDITION_RANGE,
+    strategicOverstretchSpan: DEFAULT_STRATEGIC_OVERSTRETCH_SPAN,
   }
 }
 
@@ -178,6 +285,22 @@ export function createDefaultColonizationSlice() {
     priorRealizedIncomeCp: {},
     tradeRouteState: createEmptyTradeRouteState(),
     lastTradeEpochResult: null,
+    increment3LatchedEpoch: null,
+    factions: [],
+    membershipCooldown: [],
+    pendingComponentMints: [],
+    factionDependenceStreak: {},
+    mutualReintegrationStreak: {},
+    unalignedViabilityStreak: {},
+    membershipCauseClearStreak: {},
+    vassalIndependenceStreak: {},
+    factionOverstretchStreak: {},
+    rivalryEdges: [],
+    warExhaustionBySettlementId: {},
+    belligerentTradeBlocks: [],
+    recentConquestBySettlementId: {},
+    ...createEmptySoftPowerSliceFields(),
+    ...createEmptyPoliticalPressureSliceFields(),
   }
 }
 
@@ -224,6 +347,22 @@ export function resolveColonizationSlice(value) {
     priorRealizedIncomeCp: resolvePriorRealizedIncomeCp(incoming.priorRealizedIncomeCp),
     tradeRouteState: resolveTradeRouteState(incoming.tradeRouteState),
     lastTradeEpochResult: resolveLastTradeEpochResult(incoming.lastTradeEpochResult),
+    increment3LatchedEpoch: resolveIncrement3LatchedEpoch(incoming.increment3LatchedEpoch),
+    factions: resolveFactions(incoming.factions),
+    membershipCooldown: resolveMembershipCooldown(incoming.membershipCooldown),
+    pendingComponentMints: resolvePendingComponentMints(incoming.pendingComponentMints),
+    factionDependenceStreak: resolveStreakMap(incoming.factionDependenceStreak),
+    mutualReintegrationStreak: resolveStreakMap(incoming.mutualReintegrationStreak),
+    unalignedViabilityStreak: resolveStreakMap(incoming.unalignedViabilityStreak),
+    membershipCauseClearStreak: resolveStreakMap(incoming.membershipCauseClearStreak),
+    vassalIndependenceStreak: resolveStreakMap(incoming.vassalIndependenceStreak),
+    factionOverstretchStreak: resolveStreakMap(incoming.factionOverstretchStreak),
+    rivalryEdges: resolveRivalryEdges(incoming.rivalryEdges),
+    warExhaustionBySettlementId: resolveWarExhaustionMap(incoming.warExhaustionBySettlementId),
+    belligerentTradeBlocks: resolveBelligerentTradeBlocks(incoming.belligerentTradeBlocks),
+    recentConquestBySettlementId: resolveRecentConquestMap(incoming.recentConquestBySettlementId),
+    ...resolveSoftPowerSliceFields(incoming, resolveStreakMap, resolvePriorRealizedIncomeCp),
+    ...resolvePoliticalPressureSliceFields(incoming, resolveStreakMap, resolveSoftPowerStringMap),
   }
 }
 
@@ -304,6 +443,12 @@ export function resolveColonistSettings(value) {
       defaults.openSeaExpeditionRange,
       MIN_OPEN_SEA_EXPEDITION_RANGE,
       MAX_OPEN_SEA_EXPEDITION_RANGE,
+    ),
+    strategicOverstretchSpan: clampIntegerRange(
+      incoming.strategicOverstretchSpan,
+      defaults.strategicOverstretchSpan,
+      MIN_STRATEGIC_OVERSTRETCH_SPAN,
+      MAX_STRATEGIC_OVERSTRETCH_SPAN,
     ),
   }
 }
@@ -415,6 +560,110 @@ function resolveLastTradeEpochResult(value) {
 
 /**
  * @param {unknown} value
+ * @returns {number | null}
+ */
+function resolveIncrement3LatchedEpoch(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+/**
+ * @param {unknown} value
+ * @returns {FactionRecord[]}
+ */
+function resolveFactions(value) {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(
+      (row) =>
+        row &&
+        typeof row.id === 'string' &&
+        typeof row.capitalSettlementId === 'string' &&
+        Array.isArray(row.settlementIds) &&
+        (row.status === 'active' || row.status === 'extinct') &&
+        typeof row.emergedEpoch === 'number' &&
+        Number.isFinite(row.emergedEpoch),
+    )
+    .map((row) => {
+      const faction = {
+        id: row.id,
+        capitalSettlementId: row.capitalSettlementId,
+        settlementIds: row.settlementIds.filter((id) => typeof id === 'string'),
+        status: row.status,
+        emergedEpoch: row.emergedEpoch,
+      }
+      if (
+        Number.isInteger(row.territoryPaletteIndex) &&
+        row.territoryPaletteIndex >= 0 &&
+        row.territoryPaletteIndex < 12
+      ) {
+        faction.territoryPaletteIndex = row.territoryPaletteIndex
+      }
+      return faction
+    })
+}
+
+/**
+ * @param {unknown} value
+ * @returns {MembershipCooldownEntry[]}
+ */
+function resolveMembershipCooldown(value) {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(
+      (row) =>
+        row &&
+        typeof row.subjectId === 'string' &&
+        typeof row.untilEpoch === 'number' &&
+        Number.isFinite(row.untilEpoch) &&
+        typeof row.kind === 'string',
+    )
+    .map((row) => ({
+      subjectId: row.subjectId,
+      untilEpoch: row.untilEpoch,
+      kind: row.kind,
+    }))
+}
+
+/**
+ * @param {unknown} value
+ * @returns {PendingComponentMint[]}
+ */
+function resolvePendingComponentMints(value) {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter(
+      (row) =>
+        row &&
+        typeof row.componentKey === 'string' &&
+        Array.isArray(row.settlementIds) &&
+        typeof row.dueEpoch === 'number' &&
+        Number.isFinite(row.dueEpoch),
+    )
+    .map((row) => ({
+      componentKey: row.componentKey,
+      settlementIds: row.settlementIds.filter((id) => typeof id === 'string'),
+      dueEpoch: row.dueEpoch,
+    }))
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Record<string, number>}
+ */
+function resolveStreakMap(value) {
+  if (!value || typeof value !== 'object') return {}
+  /** @type {Record<string, number>} */
+  const resolved = {}
+  for (const [key, streak] of Object.entries(value)) {
+    if (typeof streak === 'number' && Number.isFinite(streak) && streak > 0) {
+      resolved[key] = Math.floor(streak)
+    }
+  }
+  return resolved
+}
+
+/**
+ * @param {unknown} value
  * @returns {FoundingLanding | null}
  */
 function resolveFoundingLanding(value) {
@@ -473,118 +722,10 @@ function clampNumberRange(value, fallback, min, max) {
   return Math.min(max, Math.max(min, resolved))
 }
 
-/**
- * @param {ColonizationPhase} phase
- * @returns {number}
- */
-function colonizationPhaseRank(phase) {
-  if (phase === COLONIZATION_PHASE_RUNNING) {
-    return 2
-  }
-  if (phase === COLONIZATION_PHASE_SETUP) {
-    return 1
-  }
-  return 0
-}
-
-/**
- * Pick the furthest-along colonization session among candidates (running beats setup).
- *
- * @param {...(ColonizationSlice | null | undefined)} candidates
- * @returns {ColonizationSlice}
- */
-export function mergeColonizationSessions(...candidates) {
-  let best = createDefaultColonizationSlice()
-  for (const candidate of candidates) {
-    if (!candidate) {
-      continue
-    }
-    const resolved = resolveColonizationSlice(candidate)
-    const resolvedRank = colonizationPhaseRank(resolved.colonizationPhase)
-    const bestRank = colonizationPhaseRank(best.colonizationPhase)
-    if (resolvedRank > bestRank || (resolvedRank === bestRank && resolved.epoch > best.epoch)) {
-      best = resolved
-    }
-  }
-  return best
-}
-
-/**
- * @param {ColonizationSlice} slice
- * @returns {ColonizationSlice}
- */
-export function cloneColonizationSlice(slice) {
-  const resolved = resolveColonizationSlice(slice)
-  const raster = slice?.populationCollapseRaster
-  if (raster instanceof Float32Array) {
-    resolved.populationCollapseRaster = new Float32Array(raster)
-  }
-  const visited = slice?.visitedCells
-  if (visited instanceof Uint8Array) {
-    resolved.visitedCells = new Uint8Array(visited)
-  }
-  return resolved
-}
-
-/**
- * Persistable colonization session: history + sim state only. Overlay rasters, present-day
- * claim maps, and full logistics surveys are rebuilt on hydrate.
- *
- * @param {ColonizationSlice} slice
- * @returns {Omit<ColonizationSlice, 'populationCollapseRaster' | 'visitedCells' | 'primaryClaim'>}
- */
-export function serializeColonizationSessionForStorage(slice) {
-  const resolved = resolveColonizationSlice(slice)
-  const {
-    populationCollapseRaster,
-    visitedCells,
-    primaryClaim,
-    logisticsNodeSurvey,
-    ...persistedCore
-  } = resolved
-  void populationCollapseRaster
-  void visitedCells
-  void primaryClaim
-
-  const persistable = {
-    ...persistedCore,
-    logisticsNodeSurvey: logisticsNodeSurveyPatchesForStorage(logisticsNodeSurvey),
-  }
-
-  return /** @type {Omit<ColonizationSlice, 'populationCollapseRaster' | 'visitedCells' | 'primaryClaim'>} */ (
-    JSON.parse(JSON.stringify(persistable))
-  )
-}
-
-/**
- * @param {object | null | undefined} source
- * @returns {Partial<ColonizationSlice>}
- */
-export function pickColonizationSliceFields(source) {
-  if (!source || typeof source !== 'object') {
-    return {}
-  }
-  /** @type {Partial<ColonizationSlice>} */
-  const picked = {}
-  const record = /** @type {Record<string, unknown>} */ (source)
-  for (const key of COLONIZATION_SLICE_KEYS) {
-    if (key in record) {
-      picked[key] = /** @type {ColonizationSlice[typeof key]} */ (record[key])
-    }
-  }
-  return picked
-}
-
-/**
- * Geography-only shallow copy (colonization fields removed).
- * @template {object} T
- * @param {T} doc
- * @returns {T}
- */
-export function omitColonizationSliceFields(doc) {
-  const next = { ...doc }
-  for (const key of COLONIZATION_SLICE_KEYS) {
-    delete next[key]
-  }
-  return next
-}
+export {
+  cloneColonizationSlice,
+  mergeColonizationSessions,
+  omitColonizationSliceFields,
+  pickColonizationSliceFields,
+  serializeColonizationSessionForStorage,
+} from './colonizationSliceOps.js'

@@ -1,29 +1,42 @@
+import { isSameBannerEpochReunification } from '../core/colonization/politics/sameBannerReunification.js'
 import {
+  drawCrossedSwordsIcon,
+  drawHandshakeIcon,
+  drawSackIcon,
+  RECENT_ALLIANCE_ICON_COLOR,
+  RECENT_CONQUEST_ICON_COLOR,
+  REUNIFICATION_MARKER_ICON_COLOR,
   SETTLEMENT_ID_LABEL_COLOR,
   SETTLEMENT_ID_LABEL_FONT_SIZE,
-  SETTLEMENT_ID_LABEL_OFFSET_X,
   SETTLEMENT_ID_LABEL_OUTLINE_COLOR,
   SETTLEMENT_ID_LABEL_OUTLINE_WIDTH,
-  SETTLEMENT_NODE_MARKER_RADIUS,
   SETTLEMENT_NODE_OVERLAY_COLOR,
   SETTLEMENT_NODE_RUIN_OVERLAY_COLOR,
+  SETTLEMENT_PIN_OUTLINE_COLOR,
+  SETTLEMENT_PIN_OUTLINE_WIDTH,
+  settlementIdLabelOffsetX,
+  settlementPinMarkerRadius,
+  shouldShowTradePartnerSackMarker,
+  wasAlliedLastEpoch,
+  wasConqueredLastEpoch,
 } from './settlementNodeMarkers.js'
 import {
-  mineralNodeOverlayColor,
   resolveMetalsOverlayDrawn,
   resolveSaltNodeOverlayDrawn,
   resolveSettlementIdLabelsDrawn,
   resolveSettlementNodeOverlayDrawn,
 } from './worldBuilderMapViewportModel.js'
+import { isResourceOverlayVisible } from '../resourceOverlays.js'
+import {
+  drawMineralDepositIcon,
+  drawSaltDepositIcon,
+  SALT_NODE_OVERLAY_COLOR,
+} from './strategicResourceNodeMarkers.js'
 
 /** Fallback color for discrete metal mine markers (matches metals raster hue). */
 export const METAL_NODE_OVERLAY_COLOR = 0x000000
 
-/** Pure white for salt strategic-resource markers. */
-export const SALT_NODE_OVERLAY_COLOR = 0xffffff
-
-/** Grid-cell radius for metal/salt strategic-resource node markers. */
-export const STRATEGIC_RESOURCE_NODE_MARKER_RADIUS = 7
+export { SALT_NODE_OVERLAY_COLOR }
 
 /**
  * @param {import('pixi.js').Graphics} overlay
@@ -43,32 +56,38 @@ export function drawCoastalNodes(overlay, worldDocument) {
 
 /**
  * @param {import('pixi.js').Graphics} overlay
+ * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @param {Record<string, boolean>} resourceOverlayVisibility
  */
-export function drawMetalNodes(overlay, worldDocument, resourceOverlayVisibility) {
+export function drawMetalNodes(overlay, GraphicsPathCtor, worldDocument, resourceOverlayVisibility) {
   overlay.clear()
 
   if (resolveMetalsOverlayDrawn(resourceOverlayVisibility, worldDocument).nodesVisible) {
     for (const node of worldDocument.metalNodes) {
-      overlay.circle(node.x + 0.5, node.y + 0.5, STRATEGIC_RESOURCE_NODE_MARKER_RADIUS)
-      overlay.fill({ color: mineralNodeOverlayColor(node.kind), alpha: 0.9 })
+      drawMineralDepositIcon(
+        overlay,
+        node.x + 0.5,
+        node.y + 0.5,
+        node.kind,
+        GraphicsPathCtor,
+      )
     }
   }
 }
 
 /**
  * @param {import('pixi.js').Graphics} overlay
+ * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @param {Record<string, boolean>} resourceOverlayVisibility
  */
-export function drawSaltNodes(overlay, worldDocument, resourceOverlayVisibility) {
+export function drawSaltNodes(overlay, GraphicsPathCtor, worldDocument, resourceOverlayVisibility) {
   overlay.clear()
 
   if (resolveSaltNodeOverlayDrawn(resourceOverlayVisibility, worldDocument)) {
     for (const node of worldDocument.saltNodes) {
-      overlay.circle(node.x + 0.5, node.y + 0.5, STRATEGIC_RESOURCE_NODE_MARKER_RADIUS)
-      overlay.fill({ color: SALT_NODE_OVERLAY_COLOR, alpha: 0.9 })
+      drawSaltDepositIcon(overlay, node.x + 0.5, node.y + 0.5, GraphicsPathCtor)
     }
   }
 }
@@ -82,12 +101,20 @@ export function drawSettlementNodes(overlay, worldDocument, resourceOverlayVisib
   overlay.clear()
 
   if (resolveSettlementNodeOverlayDrawn(resourceOverlayVisibility, worldDocument)) {
-    for (const settlement of worldDocument.settlements ?? []) {
+    const factions = worldDocument.factions ?? []
+    const settlements = worldDocument.settlements ?? []
+    for (const settlement of settlements) {
       if (typeof settlement.x !== 'number' || typeof settlement.y !== 'number') {
         continue
       }
-      overlay.circle(settlement.x + 0.5, settlement.y + 0.5, SETTLEMENT_NODE_MARKER_RADIUS)
+      const radius = settlementPinMarkerRadius(settlement, factions, settlements)
+      overlay.circle(settlement.x + 0.5, settlement.y + 0.5, radius)
       overlay.fill({ color: settlementNodeColor(settlement.status), alpha: 0.9 })
+      overlay.stroke({
+        width: SETTLEMENT_PIN_OUTLINE_WIDTH,
+        color: SETTLEMENT_PIN_OUTLINE_COLOR,
+        alpha: 1,
+      })
     }
   }
 }
@@ -103,6 +130,13 @@ export function clearSettlementIdLabels(overlay) {
 }
 
 /**
+ * @param {import('pixi.js').Graphics} overlay
+ */
+export function clearRecentConquestMarkers(overlay) {
+  overlay.clear()
+}
+
+/**
  * @param {import('pixi.js').Container} overlay
  * @param {typeof import('pixi.js').Text} TextCtor
  * @param {import('../core/types.js').WorldDocument} worldDocument
@@ -115,7 +149,9 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
     return
   }
 
-  for (const settlement of worldDocument.settlements ?? []) {
+  const factions = worldDocument.factions ?? []
+  const settlements = worldDocument.settlements ?? []
+  for (const settlement of settlements) {
     if (
       !Number.isInteger(settlement.mapNumber) ||
       settlement.mapNumber < 1 ||
@@ -137,9 +173,102 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
       },
     })
     label.anchor.set(0, 0.5)
-    label.x = settlement.x + 0.5 + SETTLEMENT_ID_LABEL_OFFSET_X
+    label.x = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions, settlements)
     label.y = settlement.y + 0.5
     overlay.addChild(label)
+  }
+}
+
+/**
+ * Recent-conquest swords and recent-alliance handshake (one-epoch flash) plus
+ * lasting trade-partner sack status cues, only while the faction territory
+ * overlay toggle is on.
+ *
+ * @param {import('pixi.js').Graphics} overlay
+ * @param {typeof import('pixi.js').GraphicsPath} GraphicsPathCtor
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @param {Record<string, boolean>} resourceOverlayVisibility
+ */
+export function drawRecentConquestMarkers(
+  overlay,
+  GraphicsPathCtor,
+  worldDocument,
+  resourceOverlayVisibility,
+) {
+  clearRecentConquestMarkers(overlay)
+
+  if (!isResourceOverlayVisible(resourceOverlayVisibility, 'factionTerritory')) {
+    return
+  }
+  if (!resolveSettlementNodeOverlayDrawn(resourceOverlayVisibility, worldDocument)) {
+    return
+  }
+
+  const factions = worldDocument.factions ?? []
+  const settlements = worldDocument.settlements ?? []
+  const epoch = Number(worldDocument.epoch)
+  const recent = worldDocument.recentConquestBySettlementId ?? {}
+  const recentAlliance = worldDocument.recentAllianceBySettlementId ?? {}
+
+  for (const settlement of settlements) {
+    if (
+      settlement.status === 'ruin' ||
+      typeof settlement.x !== 'number' ||
+      typeof settlement.y !== 'number' ||
+      !settlement.id
+    ) {
+      continue
+    }
+    const left = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions, settlements)
+    const midY = settlement.y + 0.5
+
+    if (
+      wasConqueredLastEpoch({
+        settlementId: settlement.id,
+        epoch,
+        recentConquestBySettlementId: recent,
+      })
+    ) {
+      const reunify = isSameBannerEpochReunification(
+        worldDocument,
+        settlement.id,
+        settlement.factionId,
+      )
+      drawCrossedSwordsIcon(
+        overlay,
+        left,
+        midY,
+        GraphicsPathCtor,
+        reunify ? REUNIFICATION_MARKER_ICON_COLOR : RECENT_CONQUEST_ICON_COLOR,
+      )
+      continue
+    }
+
+    if (
+      wasAlliedLastEpoch({
+        settlementId: settlement.id,
+        epoch,
+        recentAllianceBySettlementId: recentAlliance,
+      })
+    ) {
+      const reunify = isSameBannerEpochReunification(
+        worldDocument,
+        settlement.id,
+        settlement.factionId,
+      )
+      drawHandshakeIcon(
+        overlay,
+        left,
+        midY,
+        GraphicsPathCtor,
+        reunify ? REUNIFICATION_MARKER_ICON_COLOR : RECENT_ALLIANCE_ICON_COLOR,
+      )
+      continue
+    }
+
+    if (shouldShowTradePartnerSackMarker(settlement)) {
+      drawSackIcon(overlay, left, midY, GraphicsPathCtor)
+    }
   }
 }
 

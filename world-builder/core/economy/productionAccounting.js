@@ -8,7 +8,7 @@ import { yieldModifierMultiplier } from '../colonization/resolveSurvivalTriad.js
 /** Food productivity unit → edible lb per epoch (10 people × 365 lb). */
 export const FOOD_LB_PER_PRODUCTIVITY_UNIT = 3650
 /** Salt pin: score × this many lb per claimed pin per epoch. */
-export const SALT_LB_PER_SCORE = 10000
+export const SALT_LB_PER_SCORE = 20000
 /** Timber productivity unit → lb per epoch. */
 export const TIMBER_LB_PER_PRODUCTIVITY_UNIT = 16000
 /** Metals potential unit → base metals lb per epoch. */

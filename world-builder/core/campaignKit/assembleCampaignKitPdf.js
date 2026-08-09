@@ -190,6 +190,10 @@ function writeSettlementDossier(doc, settlement, margin, pageWidth, pageHeight, 
     line(`Balance: ${settlement.balance}`)
   }
 
+  if (settlement.factionTax) {
+    line(`Faction tax: ${settlement.factionTax}`)
+  }
+
   if (settlement.production?.length) {
     line('Claim production:')
     for (const row of settlement.production) {

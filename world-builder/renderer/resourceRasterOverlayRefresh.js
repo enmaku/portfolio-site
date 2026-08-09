@@ -3,12 +3,18 @@ import { buildExplorationFogOverlayRgba } from './buildExplorationFogOverlayRgba
 import { buildFreshwaterOverlayRgba } from './buildFreshwaterOverlayRgba.js'
 import { buildRoutesOverlayRgba } from './buildRoadOverlayRgba.js'
 import { buildWealthOverlayRgba } from './buildWealthOverlayRgba.js'
+import { buildPortTollsOverlayRgba } from './buildPortTollsOverlayRgba.js'
+import { buildFactionTaxOverlayRgba } from './buildFactionTaxOverlayRgba.js'
+import { buildCommodityPriceOverlayRgba } from './buildCommodityPriceOverlayRgba.js'
+import { buildFactionTerritoryOverlayRgba } from './buildFactionTerritoryOverlayRgba.js'
 import { buildMetalsOverlayRgba } from './buildMetalsOverlayCanvas.js'
 import { buildPopulationOverlayRgba } from './buildPopulationOverlayRgba.js'
+import { buildLoyaltyOverlayRgba } from './buildLoyaltyOverlayRgba.js'
 import { buildSailOverlayRgba } from './buildSailOverlayRgba.js'
 import { buildTimberOverlayRgba } from './buildTimberOverlayCanvas.js'
 import { resourceRasterOverlayCanvasFromRgba } from './buildResourceRasterOverlayRgba.js'
-import { createResourceOverlayDefinitions } from '../resourceOverlays.js'
+import { COMMODITY_IDS } from '../core/economy/commodityCatalog.js'
+import { createResourceOverlayDefinitions, commodityPriceOverlayId } from '../resourceOverlays.js'
 import {
   resolveArableRasterLayerVisible,
   resolveFreshwaterRasterLayerVisible,
@@ -18,9 +24,14 @@ import {
   resolveResourceRasterLayerVisible,
   resolveSailRasterLayerVisible,
   resolveWealthRasterLayerVisible,
+  resolvePortTollsRasterLayerVisible,
+  resolveFactionTaxRasterLayerVisible,
+  resolveCommodityPriceRasterLayerVisible,
+  resolveFactionTerritoryRasterLayerVisible,
+  resolveLoyaltyRasterLayerVisible,
 } from './worldBuilderMapViewportModel.js'
 
-/** @typedef {'arable' | 'timber' | 'metals' | 'sail' | 'freshwater' | 'population' | 'explorationFog' | 'routes' | 'wealth'} ResourceRasterOverlayLayerId */
+/** @typedef {string} ResourceRasterOverlayLayerId */
 
 /**
  * @typedef {Object} ResourceRasterOverlayRefreshContext
@@ -31,12 +42,12 @@ import {
 
 /**
  * @typedef {Object} ResourceRasterOverlayRegistryEntry
- * @property {ResourceRasterOverlayLayerId} id
+ * @property {string} id
  * @property {(visibility: Record<string, boolean>, worldDocument: import('../core/types.js').WorldDocument, arableMinimumProductivity: number) => boolean} resolveVisible
  * @property {(worldDocument: import('../core/types.js').WorldDocument, options: { arableMinimumProductivity: number }) => Uint8ClampedArray | null} buildRgba
  */
 
-/** @type {Record<ResourceRasterOverlayLayerId, ResourceRasterOverlayRegistryEntry>} */
+/** @type {Record<string, ResourceRasterOverlayRegistryEntry>} */
 export const RESOURCE_RASTER_OVERLAY_REGISTRY = {
   arable: {
     id: 'arable',
@@ -93,52 +104,88 @@ export const RESOURCE_RASTER_OVERLAY_REGISTRY = {
       resolveWealthRasterLayerVisible(visibility, worldDocument),
     buildRgba: (worldDocument) => buildWealthOverlayRgba(worldDocument),
   },
+  portTolls: {
+    id: 'portTolls',
+    resolveVisible: (visibility, worldDocument) =>
+      resolvePortTollsRasterLayerVisible(visibility, worldDocument),
+    buildRgba: (worldDocument) => buildPortTollsOverlayRgba(worldDocument),
+  },
+  factionTax: {
+    id: 'factionTax',
+    resolveVisible: (visibility, worldDocument) =>
+      resolveFactionTaxRasterLayerVisible(visibility, worldDocument),
+    buildRgba: (worldDocument) => buildFactionTaxOverlayRgba(worldDocument),
+  },
+  ...Object.fromEntries(
+    COMMODITY_IDS.map((commodityId) => {
+      const id = commodityPriceOverlayId(commodityId)
+      return [
+        id,
+        {
+          id,
+          resolveVisible: (visibility, worldDocument) =>
+            resolveCommodityPriceRasterLayerVisible(visibility, id, worldDocument, commodityId),
+          buildRgba: (worldDocument) => buildCommodityPriceOverlayRgba(worldDocument, commodityId),
+        },
+      ]
+    }),
+  ),
+  factionTerritory: {
+    id: 'factionTerritory',
+    resolveVisible: (visibility, worldDocument) =>
+      resolveFactionTerritoryRasterLayerVisible(visibility, worldDocument),
+    buildRgba: (worldDocument) => buildFactionTerritoryOverlayRgba(worldDocument),
+  },
+  loyalty: {
+    id: 'loyalty',
+    resolveVisible: (visibility, worldDocument) =>
+      resolveLoyaltyRasterLayerVisible(visibility, worldDocument),
+    buildRgba: (worldDocument) => buildLoyaltyOverlayRgba(worldDocument),
+  },
 }
 
-/** @type {readonly ResourceRasterOverlayLayerId[]} */
+/** @type {readonly string[]} */
 export const RESOURCE_RASTER_OVERLAY_LAYER_IDS = createResourceOverlayDefinitions()
   .filter((definition) => definition.kind === 'raster' || definition.kind === 'rasterAndNodes')
-  .map((definition) => /** @type {ResourceRasterOverlayLayerId} */ (definition.id))
+  .map((definition) => definition.id)
 
 /**
  * @param {string} resourceId
- * @returns {resourceId is ResourceRasterOverlayLayerId}
+ * @returns {boolean}
  */
 export function isResourceRasterOverlayLayerId(resourceId) {
-  return RESOURCE_RASTER_OVERLAY_LAYER_IDS.includes(
-    /** @type {ResourceRasterOverlayLayerId} */ (resourceId),
-  )
+  return RESOURCE_RASTER_OVERLAY_LAYER_IDS.includes(resourceId)
 }
 
 /**
- * @param {ResourceRasterOverlayLayerId} resourceId
+ * @param {string} resourceId
  * @param {ResourceRasterOverlayRefreshContext} context
  * @returns {boolean}
  */
 export function resolveResourceRasterOverlaySpriteVisible(resourceId, context) {
   const { visibility, worldDocument, arableMinimumProductivity } = context
-  return RESOURCE_RASTER_OVERLAY_REGISTRY[resourceId].resolveVisible(
-    visibility,
-    worldDocument,
-    arableMinimumProductivity,
-  )
+  const entry = RESOURCE_RASTER_OVERLAY_REGISTRY[resourceId]
+  if (!entry) return false
+  return entry.resolveVisible(visibility, worldDocument, arableMinimumProductivity)
 }
 
 /**
- * @param {ResourceRasterOverlayLayerId} resourceId
+ * @param {string} resourceId
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @param {{ arableMinimumProductivity?: number }} [options]
  * @returns {Uint8ClampedArray | null}
  */
 function buildResourceRasterOverlayRgbaForId(resourceId, worldDocument, options = {}) {
   const { arableMinimumProductivity = 0 } = options
-  return RESOURCE_RASTER_OVERLAY_REGISTRY[resourceId].buildRgba(worldDocument, {
+  const entry = RESOURCE_RASTER_OVERLAY_REGISTRY[resourceId]
+  if (!entry) return null
+  return entry.buildRgba(worldDocument, {
     arableMinimumProductivity,
   })
 }
 
 /**
- * @param {ResourceRasterOverlayLayerId} resourceId
+ * @param {string} resourceId
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @param {{ arableMinimumProductivity?: number }} [options]
  * @returns {HTMLCanvasElement | null}
@@ -154,7 +201,7 @@ export function buildResourceRasterOverlayCanvasForId(resourceId, worldDocument,
 }
 
 /**
- * @param {ResourceRasterOverlayLayerId} resourceId
+ * @param {string} resourceId
  * @param {ResourceRasterOverlayRefreshContext} context
  * @returns {HTMLCanvasElement | null}
  */
@@ -170,21 +217,11 @@ export function refreshResourceRasterOverlayCanvas(resourceId, context) {
 
 /**
  * @param {ResourceRasterOverlayRefreshContext} context
- * @returns {Record<ResourceRasterOverlayLayerId, HTMLCanvasElement | null>}
+ * @returns {Record<string, HTMLCanvasElement | null>}
  */
 export function refreshAllResourceRasterOverlayCanvases(context) {
-  /** @type {Record<ResourceRasterOverlayLayerId, HTMLCanvasElement | null>} */
-  const canvases = {
-    arable: null,
-    timber: null,
-    metals: null,
-    sail: null,
-    freshwater: null,
-    population: null,
-    explorationFog: null,
-    routes: null,
-    wealth: null,
-  }
+  /** @type {Record<string, HTMLCanvasElement | null>} */
+  const canvases = {}
 
   for (const resourceId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {
     canvases[resourceId] = refreshResourceRasterOverlayCanvas(resourceId, context)

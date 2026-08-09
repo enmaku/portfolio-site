@@ -33,6 +33,7 @@ export const YIELD_MODIFIER_MULTIPLIERS = Object.freeze({
  * @property {number} populationCeiling
  * @property {number} foodConsumption
  * @property {number} foodSurplus
+ * @property {number} localFoodSurplus Local capacity minus held population (ignores import hold).
  * @property {number} population
  * @property {string | null} tier
  * @property {boolean} canSustain
@@ -259,6 +260,7 @@ export function resolveSurvivalTriad(params) {
     populationCeiling,
     foodConsumption: clampedPopulation,
     foodSurplus,
+    localFoodSurplus: localSurplus,
     population: clampedPopulation,
     tier: settlementTierFromPopulation(clampedPopulation),
     canSustain,

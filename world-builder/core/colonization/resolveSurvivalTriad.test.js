@@ -374,6 +374,34 @@ test('credit-financed food can hold population but does not create growth surplu
   assert.ok(localOnly.foodSurplus <= 0 || localOnly.populationCeiling <= PEOPLE_PER_ARABLE_UNIT)
 })
 
+test('resolveSurvivalTriad exposes localFoodSurplus independent of import-held foodSurplus', () => {
+  const importFed = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [1, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 50,
+      deliveredFoodLb: 50 * 365,
+      deliveredSaltLb: 50 * 5,
+    }),
+  )
+  assert.ok(typeof importFed.localFoodSurplus === 'number')
+  assert.ok(importFed.localFoodSurplus < 0)
+  assert.ok(importFed.foodSurplus >= importFed.localFoodSurplus)
+
+  const independent = resolveSurvivalTriad(
+    triadParams({
+      claimedCells: [{ x: 0, y: 0 }],
+      arable: [20, 0, 0],
+      peoplePerHabitableCell: 100_000,
+      population: 50,
+      realmWealthCp: 100,
+    }),
+  )
+  assert.ok(independent.localFoodSurplus > 0)
+  assert.ok(independent.foodSurplus > 0)
+})
+
 test('delivered shortfall still produces negative surplus for die-off', () => {
   // Ceiling uses ungated local food; weak salt taxes surplus only (existing spoilage rule).
   const result = resolveSurvivalTriad(

@@ -17,6 +17,15 @@
             data-testid="world-builder-realm-economy-wealth"
           >
             <div class="row items-center no-wrap q-gutter-xs">
+              <q-checkbox
+                dense
+                :toggle-indeterminate="false"
+                :model-value="resourceOverlayVisibility.wealth === true"
+                data-testid="world-builder-overlay-toggle-wealth"
+                @update:model-value="
+                  (value) => toggleResourceOverlayVisibility('wealth', value === true)
+                "
+              />
               <MoneyBagIcon />
               <span class="text-body2">Wealth</span>
             </div>
@@ -65,6 +74,15 @@
             data-testid="world-builder-realm-economy-tolls"
           >
             <div class="row items-center no-wrap q-gutter-xs">
+              <q-checkbox
+                dense
+                :toggle-indeterminate="false"
+                :model-value="resourceOverlayVisibility.portTolls === true"
+                data-testid="world-builder-overlay-toggle-portTolls"
+                @update:model-value="
+                  (value) => toggleResourceOverlayVisibility('portTolls', value === true)
+                "
+              />
               <PortTollsIcon />
               <span class="text-body2">Tolls</span>
             </div>
@@ -108,6 +126,63 @@
             </div>
           </div>
           <div
+            v-if="economy.highestFactionTax && economy.lowestFactionTax"
+            class="realm-economy-row"
+            data-testid="world-builder-realm-economy-faction-tax"
+          >
+            <div class="row items-center no-wrap q-gutter-xs">
+              <q-checkbox
+                dense
+                :toggle-indeterminate="false"
+                :model-value="resourceOverlayVisibility.factionTax === true"
+                data-testid="world-builder-overlay-toggle-factionTax"
+                @update:model-value="
+                  (value) => toggleResourceOverlayVisibility('factionTax', value === true)
+                "
+              />
+              <FactionTaxIcon />
+              <span class="text-body2">Tax</span>
+            </div>
+            <div class="row items-center q-col-gutter-xs q-mt-xs">
+              <div class="col-6">
+                <q-btn
+                  class="full-width realm-economy-extreme-btn"
+                  dense
+                  outline
+                  no-caps
+                  color="white"
+                  size="sm"
+                  data-testid="world-builder-realm-economy-faction-tax-highest"
+                  :label="`Highest: ${formatMoneyCp(economy.highestFactionTax.valueCp, { compact: true })}`"
+                  @click="
+                    $emit('focus-settlement', {
+                      settlementId: economy.highestFactionTax.settlementId,
+                      focusKey: 'faction-tax:highest',
+                    })
+                  "
+                />
+              </div>
+              <div class="col-6">
+                <q-btn
+                  class="full-width realm-economy-extreme-btn"
+                  dense
+                  outline
+                  no-caps
+                  color="white"
+                  size="sm"
+                  data-testid="world-builder-realm-economy-faction-tax-lowest"
+                  :label="`Lowest: ${formatMoneyCp(economy.lowestFactionTax.valueCp, { compact: true })}`"
+                  @click="
+                    $emit('focus-settlement', {
+                      settlementId: economy.lowestFactionTax.settlementId,
+                      focusKey: 'faction-tax:lowest',
+                    })
+                  "
+                />
+              </div>
+            </div>
+          </div>
+          <div
             class="realm-economy-commodity-list"
             data-testid="world-builder-realm-economy-commodities"
           >
@@ -118,6 +193,21 @@
               :data-testid="`world-builder-realm-economy-commodity-${row.commodityId}`"
             >
               <div class="row items-center no-wrap q-gutter-xs">
+                <q-checkbox
+                  dense
+                  :toggle-indeterminate="false"
+                  :model-value="
+                    resourceOverlayVisibility[commodityPriceOverlayId(row.commodityId)] === true
+                  "
+                  :data-testid="`world-builder-overlay-toggle-${commodityPriceOverlayId(row.commodityId)}`"
+                  @update:model-value="
+                    (value) =>
+                      toggleResourceOverlayVisibility(
+                        commodityPriceOverlayId(row.commodityId),
+                        value === true,
+                      )
+                  "
+                />
                 <CommodityIcon :commodity-id="row.commodityId" />
                 <span class="text-body2">{{ commodityName(row.commodityId) }}</span>
               </div>
@@ -172,9 +262,11 @@
 
 <script setup>
 import { formatCommodityPriceCp, formatMoneyCp } from '../../../world-builder/core/economy/formatMoneyCp.js'
+import { commodityPriceOverlayId } from '../../../world-builder/resourceOverlayIds.js'
 import {
   COMMODITY_ACCESSIBLE_NAMES,
   COMMODITY_ICONS,
+  factionTaxIcon,
   moneyBagIcon,
   portTollsIcon,
 } from './settlementTradeTooltipIcons.js'
@@ -182,6 +274,14 @@ import {
 defineProps({
   economy: {
     type: Object,
+    required: true,
+  },
+  resourceOverlayVisibility: {
+    type: Object,
+    required: true,
+  },
+  toggleResourceOverlayVisibility: {
+    type: Function,
     required: true,
   },
 })
@@ -197,6 +297,12 @@ const MoneyBagIcon = {
 const PortTollsIcon = {
   setup() {
     return () => portTollsIcon()
+  },
+}
+
+const FactionTaxIcon = {
+  setup() {
+    return () => factionTaxIcon()
   },
 }
 

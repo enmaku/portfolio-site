@@ -16,10 +16,13 @@ export const YIELD_MODIFIER_TOOLTIP =
   'How generously arable land is read for food production: marginal (poor yields), typical, or bountiful (rich yields). Affects population ceiling and growth once survival ticks run.'
 
 export const LAND_EXPEDITION_RANGE_TOOLTIP =
-  'Multiplier on three-day haul distance for how far a land expedition may march before ending (1×–4×). Locked after begin colonization.'
+  'Multiplier on three-day haul distance for how far a land expedition may march before ending (1×–4×). Also sets strategic overstretch reach: daughter settlements founded farther than this from the expedition sender mint their own faction. Locked after begin colonization.'
 
 export const INLAND_SAIL_EXPEDITION_RANGE_TOOLTIP =
   'Multiplier on three-day haul distance for how far an inland sail expedition may travel before ending (2×–6×). Locked after begin colonization.'
 
 export const OPEN_SEA_EXPEDITION_RANGE_TOOLTIP =
   'Multiplier on three-day haul distance for how far an open-sea expedition may sail before ending (4×–12×). Locked after begin colonization.'
+
+export const STRATEGIC_OVERSTRETCH_SPAN_TOOLTIP =
+  'How many living member settlements a faction can hold before a mid-run strategic overstretch peel (6–24, default 12). Locked after begin colonization.'

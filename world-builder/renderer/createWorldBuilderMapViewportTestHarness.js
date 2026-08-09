@@ -1,5 +1,24 @@
 import { mock } from 'node:test'
-import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays.js'
+import {
+  createDefaultResourceOverlayVisibility,
+  DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+} from '../resourceOverlays.js'
+import { RESOURCE_RASTER_OVERLAY_LAYER_IDS } from './resourceRasterOverlayRefresh.js'
+
+/** Terrain + contours + resource rasters + lakes + rivers (Sprite construction order). */
+export const VIEWPORT_SPRITE_LAYER_COUNT = 4 + RESOURCE_RASTER_OVERLAY_LAYER_IDS.length
+
+/**
+ * @param {string} resourceId
+ * @returns {number}
+ */
+function resourceRasterSpriteIndex(resourceId) {
+  const rasterIndex = RESOURCE_RASTER_OVERLAY_LAYER_IDS.indexOf(resourceId)
+  if (rasterIndex < 0) {
+    throw new Error(`Unknown resource raster overlay id: ${resourceId}`)
+  }
+  return 2 + rasterIndex
+}
 
 /**
  * Shared mock harness for {@link import('./createWorldBuilderMapViewport.js')} behavioral
@@ -18,7 +37,10 @@ import { DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY } from '../resourceOverlays
  * @property {(() => void) | null} resizeObserverCallback
  * @property {{ scale: { x: number, y: number }, center: { x: number, y: number } } | null} lastViewportInstance
  * @property {Record<'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes', Array<{ x: number, y: number, color: number | null }>>} drawnCirclesByLayer
+ * @property {Record<'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes', Array<{ color: number | null }>>} drawnFillsByLayer
  * @property {Array<{ text: string, x: number, y: number, fill: number | null }>} drawnTexts
+ * @property {Array<{ color: number | null, path: Array<{ x: number, y: number }> }>} drawnStrokes
+ * @property {Array<{ color: number | null }>} drawnFills
  */
 
 /** @type {ViewportSpyState} */
@@ -38,7 +60,15 @@ export const viewportSpyState = {
     saltNodes: [],
     settlementNodes: [],
   },
+  drawnFillsByLayer: {
+    coastalNodes: [],
+    metalNodes: [],
+    saltNodes: [],
+    settlementNodes: [],
+  },
   drawnTexts: [],
+  drawnStrokes: [],
+  drawnFills: [],
 }
 
 /** Skip viewport suites when the runtime lacks module mocking support. */
@@ -60,7 +90,15 @@ export function resetViewportSpyState() {
     saltNodes: [],
     settlementNodes: [],
   }
+  viewportSpyState.drawnFillsByLayer = {
+    coastalNodes: [],
+    metalNodes: [],
+    saltNodes: [],
+    settlementNodes: [],
+  }
   viewportSpyState.drawnTexts = []
+  viewportSpyState.drawnStrokes = []
+  viewportSpyState.drawnFills = []
 }
 
 /** Vector overlay Graphics are always created coastal → metal → salt → settlement per viewport. */
@@ -74,13 +112,18 @@ const VECTOR_LAYER_IDS = /** @type {const} */ ([
 /** Landing-placement overlays appended after vector layers: haul shed, landing pin, focus pin. */
 const LANDING_PLACEMENT_GRAPHICS_COUNT = 3
 
+/** Crossed-swords conquest cue Graphics sits after settlement pins. */
+const RECENT_CONQUEST_GRAPHICS_COUNT = 1
+
 function syncDrawnCirclesByLayer() {
+  const trailingNonVector = RECENT_CONQUEST_GRAPHICS_COUNT + LANDING_PLACEMENT_GRAPHICS_COUNT
   const vectorLayers = viewportSpyState.graphicsLayers.slice(
-    -(VECTOR_LAYER_IDS.length + LANDING_PLACEMENT_GRAPHICS_COUNT),
-    -LANDING_PLACEMENT_GRAPHICS_COUNT,
+    -(VECTOR_LAYER_IDS.length + trailingNonVector),
+    -trailingNonVector,
   )
   for (let i = 0; i < VECTOR_LAYER_IDS.length; i += 1) {
     viewportSpyState.drawnCirclesByLayer[VECTOR_LAYER_IDS[i]] = vectorLayers[i]?.circles ?? []
+    viewportSpyState.drawnFillsByLayer[VECTOR_LAYER_IDS[i]] = vectorLayers[i]?.fills ?? []
   }
 }
 
@@ -93,7 +136,22 @@ export async function installViewportMocks() {
   resetViewportSpyState()
 
   globalThis.ImageData = class {
-    constructor() {}
+    /**
+     * @param {Uint8ClampedArray | number} dataOrWidth
+     * @param {number} [width]
+     * @param {number} [height]
+     */
+    constructor(dataOrWidth, width, height) {
+      if (typeof dataOrWidth === 'number') {
+        this.width = dataOrWidth
+        this.height = width ?? 0
+        this.data = new Uint8ClampedArray(this.width * this.height * 4)
+        return
+      }
+      this.data = dataOrWidth
+      this.width = width ?? 0
+      this.height = height ?? 0
+    }
   }
 
   globalThis.document = {
@@ -106,8 +164,35 @@ export async function installViewportMocks() {
         width: 0,
         height: 0,
         getContext() {
+          // Stub enough Canvas2D for terrain/contour/raster overlay builders under Node.
           return {
+            strokeStyle: '',
+            fillStyle: '',
+            lineWidth: 1,
+            lineCap: 'butt',
+            lineJoin: 'miter',
+            globalAlpha: 1,
             putImageData() {},
+            getImageData(x, y, w, h) {
+              return new ImageData(w, h)
+            },
+            beginPath() {},
+            closePath() {},
+            moveTo() {},
+            lineTo() {},
+            stroke() {},
+            fill() {},
+            clearRect() {},
+            fillRect() {},
+            strokeRect() {},
+            drawImage() {},
+            save() {},
+            restore() {},
+            translate() {},
+            scale() {},
+            setLineDash() {},
+            arc() {},
+            clip() {},
           }
         },
       }
@@ -170,6 +255,14 @@ export async function installViewportMocks() {
         constructor() {
           /** @type {Array<{ x: number, y: number, color: number | null }>} */
           this.circles = []
+          /** @type {Array<{ color: number | null, path: Array<{ x: number, y: number }> }>} */
+          this.strokes = []
+          /** @type {Array<{ color: number | null }>} */
+          this.fills = []
+          /** @type {Array<{ x: number, y: number }>} */
+          this._path = []
+          /** @type {unknown} */
+          this._activePath = null
           viewportSpyState.graphicsLayers.push(this)
         }
         syncDrawnCircles() {
@@ -180,7 +273,13 @@ export async function installViewportMocks() {
         }
         clear() {
           this.circles = []
+          this.strokes = []
+          this.fills = []
+          this._path = []
+          this._activePath = null
           this.syncDrawnCircles()
+          this.syncDrawnStrokes()
+          this.syncDrawnFills()
         }
         circle(x, y) {
           this.circles.push({ x, y, color: null })
@@ -188,14 +287,58 @@ export async function installViewportMocks() {
         }
         fill({ color } = {}) {
           const last = this.circles.at(-1)
-          if (last) last.color = color
-          this.syncDrawnCircles()
+          if (last) {
+            last.color = color
+            this.syncDrawnCircles()
+          }
+          if (this._activePath) {
+            this.fills.push({ color: typeof color === 'number' ? color : null })
+            this.syncDrawnFills()
+          }
         }
         rect() {}
-        moveTo() {}
-        lineTo() {}
-        stroke() {}
+        moveTo(x, y) {
+          this._path = [{ x, y }]
+        }
+        lineTo(x, y) {
+          if (!this._path) this._path = []
+          this._path.push({ x, y })
+        }
+        save() {}
+        restore() {}
+        setTransform() {}
+        path(path) {
+          this._activePath = path
+        }
+        stroke({ color } = {}) {
+          if (!this.strokes) this.strokes = []
+          this.strokes.push({
+            color: typeof color === 'number' ? color : null,
+            path: this._path ? [...this._path] : [],
+          })
+          this._path = []
+          this.syncDrawnStrokes()
+        }
+        syncDrawnStrokes() {
+          viewportSpyState.drawnStrokes = viewportSpyState.graphicsLayers.flatMap(
+            (layer) => layer.strokes ?? [],
+          )
+        }
+        syncDrawnFills() {
+          viewportSpyState.drawnFills = viewportSpyState.graphicsLayers.flatMap(
+            (layer) => layer.fills ?? [],
+          )
+          syncDrawnCirclesByLayer()
+        }
         setFillStyle() {}
+      },
+      GraphicsPath: class {
+        /**
+         * @param {string} d
+         */
+        constructor(d) {
+          this.d = d
+        }
       },
       Container: class {
         constructor() {
@@ -357,7 +500,7 @@ export function overlayPageState(
   arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
 ) {
   return {
-    visibility: { arable: false, timber: false, metals: false, salt: false, ...visibility },
+    visibility: { ...createDefaultResourceOverlayVisibility(), ...visibility },
     displaySettings: { arableMinimumProductivity },
   }
 }
@@ -370,7 +513,7 @@ export function overlayPageState(
  */
 export function createOverlayOwnerDriver(viewport) {
   /** @type {Record<string, boolean>} */
-  const visibility = { arable: false, timber: false, metals: false, salt: false }
+  const visibility = createDefaultResourceOverlayVisibility()
   let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
 
   function sync() {
@@ -474,47 +617,47 @@ export function createMetalsFixture() {
 }
 
 /**
- * Sprites from the most recently created viewport.
- * Order: terrain, contours, arable, timber, metals, lakes, rivers, sail,
- * freshwater, population, explorationFog, routes, wealth.
+ * Sprites from the most recently created viewport, in Sprite construction order:
+ * terrain, contours, RESOURCE_RASTER_OVERLAY_LAYER_IDS…, lakes, rivers.
+ * (addChild order interleaves lakes/rivers between metals and sail.)
  */
 export function recentSpriteLayers() {
-  return viewportSpyState.spriteLayers.slice(-13)
+  return viewportSpyState.spriteLayers.slice(-VIEWPORT_SPRITE_LAYER_COUNT)
 }
 
-/** Contours sprite sits above terrain in the layer stack. */
+/** Contours sprite is constructed after terrain. */
 export function contoursSpriteLayer() {
   return recentSpriteLayers()[1]
 }
 
-/** Arable sprite sits above contours in the layer stack. */
+/** Arable resource raster sprite. */
 export function arableSpriteLayer() {
-  return recentSpriteLayers()[2]
+  return recentSpriteLayers()[resourceRasterSpriteIndex('arable')]
 }
 
-/** Timber sprite sits above arable in the layer stack. */
+/** Timber resource raster sprite. */
 export function timberSpriteLayer() {
-  return recentSpriteLayers()[3]
+  return recentSpriteLayers()[resourceRasterSpriteIndex('timber')]
 }
 
-/** Metals sprite sits above timber in the layer stack. */
+/** Metals resource raster sprite. */
 export function metalsSpriteLayer() {
-  return recentSpriteLayers()[4]
+  return recentSpriteLayers()[resourceRasterSpriteIndex('metals')]
 }
 
-/** Lakes sprite sits above resource raster overlays in the layer stack. */
+/** Lakes hydrology sprite (constructed after all resource rasters). */
 export function lakesSpriteLayer() {
-  return recentSpriteLayers()[5]
+  return recentSpriteLayers()[2 + RESOURCE_RASTER_OVERLAY_LAYER_IDS.length]
 }
 
-/** Rivers sprite sits above lakes in the layer stack. */
+/** Rivers hydrology sprite (constructed after lakes). */
 export function riversSpriteLayer() {
-  return recentSpriteLayers()[6]
+  return recentSpriteLayers()[3 + RESOURCE_RASTER_OVERLAY_LAYER_IDS.length]
 }
 
-/** Sail sprite sits above rivers so the pink overlay stays visible on water. */
+/** Sail resource raster sprite. */
 export function sailSpriteLayer() {
-  return recentSpriteLayers()[7]
+  return recentSpriteLayers()[resourceRasterSpriteIndex('sail')]
 }
 
 /**
@@ -525,4 +668,14 @@ export function sailSpriteLayer() {
 export function drawnCirclesByLayer() {
   syncDrawnCirclesByLayer()
   return viewportSpyState.drawnCirclesByLayer
+}
+
+/**
+ * Per-vector-layer path-fill records from the most recently created viewport.
+ *
+ * @returns {ViewportSpyState['drawnFillsByLayer']}
+ */
+export function drawnFillsByLayer() {
+  syncDrawnCirclesByLayer()
+  return viewportSpyState.drawnFillsByLayer
 }

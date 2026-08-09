@@ -8,6 +8,7 @@ import {
   mdiGold,
   mdiPineTree,
   mdiSack,
+  mdiSale,
   mdiShaker,
 } from '@quasar/extras/mdi-v7'
 
@@ -45,6 +46,10 @@ export function moneyBagIcon() {
 
 export function portTollsIcon() {
   return mdiIcon('Port tolls', mdiCircleSlice1, '#6BA3B8')
+}
+
+export function factionTaxIcon() {
+  return mdiIcon('Faction tax', mdiSale, '#C48B5A')
 }
 
 export function wheatIcon() {

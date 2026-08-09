@@ -8,7 +8,9 @@ import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
 import { clearRealmTrade } from '../economy/tradeClearing/clearRealmTrade.js'
 import { buildRealmTradeClearingInput } from './buildRealmTradeClearingInput.js'
 import { combinedSettlementWealthCp } from '../economy/ledgers/combinedSettlementWealthCp.js'
+import { applyFactionTax } from '../economy/ledgers/applyFactionTax.js'
 import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
+import { applyPoliticsPhase } from './politics/applyPoliticsPhase.js'
 
 /**
  * @typedef {Object} ColonizationEpochContext
@@ -19,6 +21,8 @@ import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
  * @property {(string | null)[] | undefined} ownerByCell
  * @property {Record<string, import('./resolveSurvivalTriad.js').SurvivalTriadResult>} survivalBySettlementId
  * @property {Record<string, { foodLb: number, saltLb: number }>} effectiveDeliveredBySettlementId
+ * @property {Record<string, number>} taxAssessmentIncomeCp Prior income for faction tax (pre-clear stash).
+ * @property {boolean} tradeClearingActive Whether pairwise trade cleared this epoch.
  */
 
 /**
@@ -35,6 +39,8 @@ export function createColonizationEpochContext(slice, worldDocument) {
     ownerByCell: undefined,
     survivalBySettlementId: {},
     effectiveDeliveredBySettlementId: {},
+    taxAssessmentIncomeCp: {},
+    tradeClearingActive: false,
   }
 }
 
@@ -77,6 +83,8 @@ export function runColonizationEpochClaimsPhase(ctx) {
  * @returns {Promise<void>}
  */
 export async function runColonizationEpochTradePhase(ctx, options = {}) {
+  ctx.taxAssessmentIncomeCp = { ...(ctx.slice.priorRealizedIncomeCp ?? {}) }
+
   const input = await buildRealmTradeClearingInput(
     {
       slice: ctx.slice,
@@ -87,6 +95,7 @@ export async function runColonizationEpochTradePhase(ctx, options = {}) {
   )
   const trade = await clearRealmTrade(input, options.trade)
 
+  ctx.tradeClearingActive = trade.active === true
   ctx.effectiveDeliveredBySettlementId = trade.effectiveDeliveredBySettlementId
   ctx.slice = {
     ...ctx.slice,
@@ -95,6 +104,50 @@ export async function runColonizationEpochTradePhase(ctx, options = {}) {
     priorRealizedIncomeCp: trade.priorRealizedIncomeCp,
     tradeRouteState: trade.tradeRouteState,
     lastTradeEpochResult: trade.lastTradeEpochResult,
+    lastOnMapGoodsBilateralCpByPair: trade.lastOnMapGoodsBilateralCpByPair,
+  }
+}
+
+/**
+ * Faction tax after active trade clearing, before survival.
+ *
+ * @param {ColonizationEpochContext} ctx
+ * @param {object} [options]
+ */
+export function runColonizationEpochTaxPhase(ctx, options = {}) {
+  void options
+  if (!ctx.tradeClearingActive) {
+    return
+  }
+
+  const goodsTollIncomeCp = { ...(ctx.slice.priorRealizedIncomeCp ?? {}) }
+  const taxed = applyFactionTax({
+    settlements: ctx.slice.settlements,
+    factions: ctx.slice.factions,
+    tradeAccounts: ctx.slice.tradeAccounts,
+    taxAssessmentIncomeCp: ctx.taxAssessmentIncomeCp,
+  })
+
+  /** @type {Record<string, number>} */
+  const priorRealizedIncomeCp = { ...goodsTollIncomeCp }
+  for (const [id, amount] of Object.entries(taxed.taxIncomeCpBySettlementId)) {
+    priorRealizedIncomeCp[id] = (priorRealizedIncomeCp[id] ?? 0) + amount
+  }
+
+  const priorSnapshot = ctx.slice.lastTradeEpochResult
+  const lastTradeEpochResult = priorSnapshot
+    ? {
+        ...priorSnapshot,
+        factionTaxNetCpBySettlementId: { ...taxed.factionTaxNetCpBySettlementId },
+        realmBalancesCp: { ...taxed.tradeAccounts.balancesBySettlementId },
+      }
+    : null
+
+  ctx.slice = {
+    ...ctx.slice,
+    tradeAccounts: taxed.tradeAccounts,
+    priorRealizedIncomeCp,
+    lastTradeEpochResult,
   }
 }
 
@@ -178,8 +231,6 @@ export function runColonizationEpochRuinPhase(ctx) {
     externalTradeAccounts: ctx.slice.externalTradeAccounts,
   })
 
-  applyPoliticsPhaseNoop()
-
   ctx.slice = {
     ...ctx.slice,
     epoch: nextEpoch,
@@ -214,8 +265,38 @@ export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
 }
 
 /**
+ * Politics after survival/ruin/collapse: latch, sticky membership, absorption.
+ *
+ * @param {ColonizationEpochContext} ctx
+ * @param {{
+ *   warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }>,
+ *   politics?: {
+ *     hooks?: import('./politics/applyPoliticsPhase.js').PoliticsPhaseHooks,
+ *     yieldToUi?: () => Promise<void>,
+ *   },
+ * }} [options]
+ */
+export async function runColonizationEpochPoliticsPhase(ctx, options = {}) {
+  const politics = await applyPoliticsPhase(
+    {
+      slice: ctx.slice,
+      worldDocument: ctx.worldDocument,
+      primaryClaim: ctx.primaryClaim,
+      survivalBySettlementId: ctx.survivalBySettlementId,
+      warOutcomes: options.warOutcomes,
+    },
+    {
+      hooks: options.politics?.hooks,
+      yieldToUi: options.politics?.yieldToUi,
+    },
+  )
+  ctx.slice = politics.slice
+  ctx.events.push(...politics.events)
+}
+
+/**
  * Annual colonization tick order:
- * network → claims → trade → survival → ruin → collapse.
+ * network → claims → trade → survival → ruin → collapse → politics.
  *
  * @param {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../types.js').WorldDocument} worldDocument
@@ -223,6 +304,8 @@ export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
  *   network?: import('./expeditions/expeditionScheduler.js').ExpeditionNetworkPhaseOptions,
  *   trade?: { hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks, yieldToUi?: () => Promise<void> },
  *   collapse?: { hooks?: import('./collapsePopulation.js').CollapsePopulationHooks, yieldToUi?: () => Promise<void> },
+ *   politics?: { hooks?: import('./politics/applyPoliticsPhase.js').PoliticsPhaseHooks, yieldToUi?: () => Promise<void> },
+ *   warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }>,
  * }} [options]
  * @returns {Promise<{
  *   slice: import('./createDefaultColonizationSlice.js').ColonizationSlice,
@@ -276,7 +359,7 @@ export function applySurplusPopulationDelta(population, foodSurplus, populationC
 }
 
 /**
- * Off-map attrition for marginal/broke settlements (wealth overlay orange/red: ≤ 0 cp).
+ * Off-map attrition for marginal/broke settlements (wealth overlay gray/red: ≤ 0 cp).
  * Leavers exit the realm entirely — not transferred to another pin.
  * Each pass removes the larger of half the headcount or
  * {@link MARGINAL_WEALTH_ATTRITION_MIN_LEAVERS} people (capped by headcount).
@@ -298,5 +381,3 @@ export function applyMarginalWealthAttrition(population, realmWealthCp) {
   )
   return headcount - leavers
 }
-
-function applyPoliticsPhaseNoop() {}

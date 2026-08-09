@@ -8,6 +8,10 @@ import { computeFoundingRouteCorridor } from './computeFoundingRouteCorridor.js'
 import { buildCorridorCells } from './expeditionRouting.js'
 import { classifySettlementMaritimeRole } from './classifySettlementMaritimeRole.js'
 import { allocateNextSettlementMapNumber } from '../settlementMapNumber.js'
+import { isWithinStrategicOverstretchReach } from '../politics/landAdminSettlementGraph.js'
+import { openLegacyRivalry } from '../politics/rivalryEdges.js'
+import { createActiveFactionRecord, syncFactionTerritoryPalettes } from '../politics/factionCap.js'
+import { HISTORY_KIND_FACTION_EMERGED } from '../politics/historyKinds.js'
 
 /**
  * @param {{
@@ -37,6 +41,22 @@ export function foundDaughterSettlement(params) {
   } = params
 
   const settlementId = `settlement-${candidate.x}-${candidate.y}-${epoch}`
+  const origin = slice.settlements.find((settlement) => settlement.id === originSettlementId)
+  const originFactionId = origin?.factionId ?? null
+
+  const inReach =
+    !origin ||
+    !originFactionId ||
+    isWithinStrategicOverstretchReach({
+      origin: { x: origin.x, y: origin.y },
+      candidateCell: { x: candidate.x, y: candidate.y },
+      worldDocument,
+      roads: slice.roads,
+      colonistSettings: slice.colonistSettings,
+      expeditionMode: mode,
+    })
+  const apoikia = Boolean(originFactionId && !inReach)
+
   const daughter = {
     id: settlementId,
     x: candidate.x,
@@ -52,6 +72,8 @@ export function foundDaughterSettlement(params) {
       x: candidate.x,
       y: candidate.y,
     }),
+    factionId: apoikia ? null : originFactionId,
+    vassalLiegeSettlementId: apoikia || !originFactionId ? null : originSettlementId,
   }
 
   const dynasty = createFoundingDynasty({
@@ -92,7 +114,6 @@ export function foundDaughterSettlement(params) {
   })
 
   let roads = slice.roads ?? []
-  const origin = slice.settlements.find((settlement) => settlement.id === originSettlementId)
   if (origin) {
     const corridor = computeFoundingRouteCorridor({
       doc: worldDocument,
@@ -118,16 +139,84 @@ export function foundDaughterSettlement(params) {
     { founded: true },
   )
 
+  let factions = slice.factions ?? []
+  let pendingComponentMints = slice.pendingComponentMints ?? []
+  let rivalryEdges = slice.rivalryEdges ?? []
+  /** @type {object[]} */
+  const extraHistory = []
+
+  if (apoikia && originFactionId) {
+    const factionId = `faction-${settlementId}-apoikia`
+    const minted = createActiveFactionRecord({
+      id: factionId,
+      capitalSettlementId: settlementId,
+      settlementIds: [settlementId],
+      emergedEpoch: epoch,
+      factions,
+    })
+    if (minted) {
+      daughter.factionId = factionId
+      daughter.vassalLiegeSettlementId = null
+      factions = [...factions.map((f) => ({ ...f, settlementIds: [...f.settlementIds] })), minted]
+      rivalryEdges = openLegacyRivalry(rivalryEdges, {
+        aFactionId: originFactionId,
+        bFactionId: factionId,
+        cause: 'legacy',
+        createdEpoch: epoch,
+      })
+      extraHistory.push({
+        kind: HISTORY_KIND_FACTION_EMERGED,
+        epoch,
+        factionId,
+        capitalSettlementId: settlementId,
+        cause: 'strategic_overstretch_apoikia',
+        originFactionId,
+        originSettlementId,
+      })
+    } else {
+      // At active-faction cap: out-of-reach daughter stays unaligned until a slot frees.
+      daughter.factionId = null
+      daughter.vassalLiegeSettlementId = null
+    }
+  } else if (originFactionId) {
+    factions = factions.map((faction) => {
+      if (faction.id !== originFactionId || faction.status !== 'active') return faction
+      if (faction.settlementIds.includes(settlementId)) return faction
+      return {
+        ...faction,
+        settlementIds: [...faction.settlementIds, settlementId],
+      }
+    })
+  } else if (origin) {
+    pendingComponentMints = pendingComponentMints.map((mint) => {
+      if (!mint.settlementIds.includes(originSettlementId)) return mint
+      if (mint.settlementIds.includes(settlementId)) return mint
+      return {
+        ...mint,
+        settlementIds: [...mint.settlementIds, settlementId],
+      }
+    })
+  }
+
+  const nextSettlements = [...slice.settlements, daughter]
+  factions = syncFactionTerritoryPalettes({
+    factions,
+    settlements: nextSettlements,
+  })
+
   return {
     slice: {
       ...slice,
-      settlements: [...slice.settlements, daughter],
+      settlements: nextSettlements,
       notableFigures: [...slice.notableFigures, dynasty],
-      historyLog: [...slice.historyLog, historyEntry],
+      historyLog: [...slice.historyLog, historyEntry, ...extraHistory],
       visitedCells,
       roads,
       logisticsNodeSurvey,
       realmId: slice.realmId,
+      factions,
+      pendingComponentMints,
+      rivalryEdges,
     },
     worldDocument: {
       ...worldDocument,

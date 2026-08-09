@@ -22,6 +22,9 @@ import {
   presentCampaignKitProduction,
 } from './campaignKitFormat.js'
 import { CAMPAIGN_KIT_MAP_PAGE_KEYS } from './campaignKitOverlayPresets.js'
+import { settlementPinMembershipBand } from '../../renderer/settlementNodeMarkers.js'
+import { resolveFactionalController } from '../colonization/politics/softPower/factionalControl.js'
+import { HISTORY_KIND_ALLIANCE } from '../colonization/politics/historyKinds.js'
 
 /**
  * @typedef {import('../colonization/createDefaultColonizationSlice.js').ColonizationSlice} ColonizationSlice
@@ -90,6 +93,11 @@ import { CAMPAIGN_KIT_MAP_PAGE_KEYS } from './campaignKitOverlayPresets.js'
  * @property {CampaignKitTradeProfileRow[] | null} supplies
  * @property {CampaignKitTradeProfileRow[] | null} wants
  * @property {string | null} balance
+ * @property {string | null} factionTax
+ * @property {string | null} factionId
+ * @property {'capital' | 'member' | 'vassal' | 'tradePartner' | 'unaligned' | null} membershipBand
+ * @property {boolean} isTradePartner
+ * @property {string | null} factionalControllerId
  * @property {CampaignKitCommodityRow[] | null} commodities
  * @property {CampaignKitOffMapTradeRow[] | null} offMapTrades
  */
@@ -107,6 +115,13 @@ import { CAMPAIGN_KIT_MAP_PAGE_KEYS } from './campaignKitOverlayPresets.js'
  * }} header
  * @property {typeof CAMPAIGN_KIT_MAP_PAGE_KEYS} mapPageKeys
  * @property {CampaignKitSettlementDossier[]} settlements
+ * @property {{
+ *   realmId: string | null,
+ *   increment3LatchedEpoch: number | null,
+ *   factions: Array<{ id: string, capitalSettlementId: string, settlementIds: string[], status: string, emergedEpoch: number }>,
+ *   unalignedSettlementIds: string[],
+ *   rivalryEdges: Array<{ fromFactionId: string, toFactionId: string }>,
+ * }} politics
  */
 
 /**
@@ -170,7 +185,9 @@ function historyNotesForSettlement(slice, settlementId, mapNumber) {
       continue
     }
     if (
-      (kind === 'settlement_founded' || kind === 'settlement_abandoned') &&
+      (kind === 'settlement_founded' ||
+        kind === 'settlement_abandoned' ||
+        kind === HISTORY_KIND_ALLIANCE) &&
       entry.settlementId === settlementId
     ) {
       notes.push({ kind, label: formatCampaignKitHistoryKind(kind), epoch })
@@ -338,6 +355,11 @@ function buildSettlementDossier(slice, worldDocument, settlement, mapNumbers) {
     supplies: null,
     wants: null,
     balance: null,
+    factionTax: null,
+    factionId: null,
+    membershipBand: null,
+    isTradePartner: false,
+    factionalControllerId: null,
     commodities: null,
     offMapTrades: null,
   }
@@ -350,6 +372,19 @@ function buildSettlementDossier(slice, worldDocument, settlement, mapNumbers) {
   const tradeProfile = tradeProfileForSettlement(slice, worldDocument, settlement)
   dossier.supplies = tradeProfile.supplies
   dossier.wants = tradeProfile.wants
+
+  dossier.factionId = typeof settlement.factionId === 'string' ? settlement.factionId : null
+  dossier.isTradePartner = settlement.isTradePartner === true
+  dossier.membershipBand = settlementPinMembershipBand(
+    settlement,
+    slice.factions,
+    slice.settlements,
+  )
+  dossier.factionalControllerId = resolveFactionalController(settlement, {
+    settlements: slice.settlements,
+    factions: slice.factions,
+    softPowerPaintBySettlementId: slice.softPowerPaintBySettlementId,
+  })
 
   const inspect = buildSettlementEconomyInspect(
     {
@@ -364,6 +399,7 @@ function buildSettlementDossier(slice, worldDocument, settlement, mapNumbers) {
   )
   if (inspect) {
     dossier.balance = formatCampaignKitMoneyCp(inspect.balanceCp)
+    dossier.factionTax = formatCampaignKitMoneyCp(inspect.factionTaxCp)
     dossier.commodities = inspect.commodities.map((row) => ({
       commodityId: row.commodityId,
       label: campaignKitCommodityLabel(row.commodityId),
@@ -416,9 +452,105 @@ export function buildCampaignKitModel(slice, worldDocument) {
         landExpeditionRange: settings.landExpeditionRange,
         inlandSailExpeditionRange: settings.inlandSailExpeditionRange,
         openSeaExpeditionRange: settings.openSeaExpeditionRange,
+        strategicOverstretchSpan: settings.strategicOverstretchSpan,
       },
     },
     mapPageKeys: CAMPAIGN_KIT_MAP_PAGE_KEYS,
     settlements,
+    politics: buildCampaignKitPolitics(slice),
+  }
+}
+
+/**
+ * Unaligned free towns list under the realm; rivalry edges only between living factions.
+ *
+ * @param {ColonizationSlice} slice
+ */
+function buildCampaignKitPolitics(slice) {
+  const latched = slice.increment3LatchedEpoch != null
+  const living = (slice.settlements ?? []).filter(
+    (s) => s && s.status !== 'ruin' && (s.population === undefined || s.population > 0),
+  )
+  const unalignedSettlementIds = latched
+    ? living.filter((s) => !s.factionId).map((s) => s.id)
+    : []
+  const pendingBySettlement = new Map()
+  for (const mint of slice.pendingComponentMints ?? []) {
+    for (const id of mint.settlementIds) {
+      pendingBySettlement.set(id, mint.dueEpoch)
+    }
+  }
+  const viability = slice.unalignedViabilityStreak ?? {}
+  const unalignedRisks = unalignedSettlementIds.map((settlementId) => ({
+    settlementId,
+    pendingMintDueEpoch: pendingBySettlement.get(settlementId) ?? null,
+    loneViabilityStreak: viability[settlementId] ?? 0,
+  }))
+  const factions = (slice.factions ?? []).map((faction) => ({
+    id: faction.id,
+    capitalSettlementId: faction.capitalSettlementId,
+    settlementIds: [...(faction.settlementIds ?? [])],
+    status: faction.status,
+    emergedEpoch: faction.emergedEpoch,
+  }))
+  return {
+    realmId: slice.realmId ?? null,
+    increment3LatchedEpoch: slice.increment3LatchedEpoch ?? null,
+    factions,
+    unalignedSettlementIds,
+    unalignedRisks,
+    rivalryEdges: (slice.rivalryEdges ?? []).map((edge) => ({
+      aFactionId: edge.aFactionId,
+      bFactionId: edge.bFactionId,
+      cause: edge.cause,
+      createdEpoch: edge.createdEpoch,
+    })),
+    recentConquests: Object.entries(slice.recentConquestBySettlementId ?? {}).map(
+      ([settlementId, entry]) => ({
+        settlementId,
+        conqueredEpoch: entry.conqueredEpoch,
+        priorFactionId: entry.priorFactionId ?? null,
+        cause: entry.cause ?? null,
+      }),
+    ),
+    recentAlliances: Object.entries(slice.recentAllianceBySettlementId ?? {}).map(
+      ([settlementId, entry]) => ({
+        settlementId,
+        allianceEpoch: entry.allianceEpoch,
+        factionId: entry.factionId ?? null,
+        kind: entry.kind ?? null,
+      }),
+    ),
+    allianceOutcomes: (slice.historyLog ?? [])
+      .filter((entry) => entry && entry.kind === HISTORY_KIND_ALLIANCE)
+      .map((entry) => ({
+        kind: entry.kind,
+        epoch: entry.epoch,
+        settlementId: entry.settlementId ?? null,
+        factionId: entry.factionId ?? null,
+        cause: entry.cause ?? null,
+      })),
+    belligerentTradeBlocks: (slice.belligerentTradeBlocks ?? []).map((block) => ({
+      aFactionId: block.aFactionId,
+      bFactionId: block.bFactionId,
+      openedEpoch: block.openedEpoch,
+      peaceEligibleEpoch: block.peaceEligibleEpoch,
+    })),
+    recentConflictOutcomes: (slice.historyLog ?? [])
+      .filter(
+        (entry) =>
+          entry &&
+          (entry.kind === 'major_war_end' || entry.kind === 'rebellion_end'),
+      )
+      .map((entry) => ({
+        kind: entry.kind,
+        epoch: entry.epoch,
+        contestedSettlementId: entry.contestedSettlementId ?? null,
+        winner: entry.winner ?? null,
+        fought: entry.fought === true,
+        attackerFactionId: entry.attackerFactionId ?? null,
+        defenderFactionId: entry.defenderFactionId ?? null,
+        loyalistFactionId: entry.loyalistFactionId ?? null,
+      })),
   }
 }

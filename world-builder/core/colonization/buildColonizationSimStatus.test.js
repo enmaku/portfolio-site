@@ -139,3 +139,51 @@ test('shouldShowValidationAdvisory hides after epoch 0 in running', () => {
   assert.strictEqual(shouldShowValidationAdvisory('running', 0, 1), true)
   assert.strictEqual(shouldShowValidationAdvisory('running', 1, 1), false)
 })
+
+test('buildFoundingChronicle includes faction politics history kinds', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.historyLog = [
+    { kind: 'increment3_latched', epoch: 5 },
+    { kind: 'faction_emerged', epoch: 7, factionId: 'faction-a' },
+    { kind: 'vassal_defection', epoch: 8, settlementId: 's2', cause: 'spawn' },
+    { kind: 'other', epoch: 9 },
+  ]
+  const chronicle = buildFoundingChronicle(slice)
+  assert.strictEqual(chronicle.length, 3)
+  assert.strictEqual(chronicle[0].kind, 'increment3_latched')
+  assert.strictEqual(chronicle[1].factionId, 'faction-a')
+  assert.strictEqual(chronicle[2].cause, 'spawn')
+})
+
+test('buildFoundingChronicle includes war and rebellion kinds but not economic contest', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.historyLog = [
+    {
+      kind: 'major_war_start',
+      epoch: 10,
+      attackerFactionId: 'fa',
+      contestedSettlementId: 's1',
+    },
+    {
+      kind: 'major_war_end',
+      epoch: 10,
+      winner: 'attacker',
+      fought: true,
+      contestedSettlementId: 's1',
+    },
+    {
+      kind: 'rebellion_end',
+      epoch: 11,
+      winner: 'rebel',
+      fought: false,
+      contestedSettlementId: 's2',
+    },
+    { kind: 'treaty_peace', epoch: 12, aFactionId: 'fa', bFactionId: 'fb' },
+    { kind: 'economic_contest', epoch: 10, intensity: 12 },
+  ]
+  const chronicle = buildFoundingChronicle(slice)
+  assert.equal(chronicle.length, 4)
+  assert.ok(chronicle.every((row) => row.kind !== 'economic_contest'))
+  assert.ok(chronicle.some((row) => row.kind === 'major_war_end' && row.winner === 'attacker'))
+  assert.ok(chronicle.some((row) => row.kind === 'treaty_peace'))
+})

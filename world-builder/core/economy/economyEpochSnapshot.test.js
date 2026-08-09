@@ -20,6 +20,7 @@ test('projectEconomyEpochSnapshot keeps inspect fields only', () => {
   })
   assert.deepEqual(Object.keys(snapshot).sort(), [
     'effectiveDelivered',
+    'factionTaxNetCpBySettlementId',
     'localPricesBySettlementId',
     'offMapTrades',
     'portTollIncomeCpBySettlementId',
@@ -28,6 +29,7 @@ test('projectEconomyEpochSnapshot keeps inspect fields only', () => {
   ].sort())
   assert.equal(snapshot.realmBalancesCp.a, 5)
   assert.equal(snapshot.offMapTrades.length, 1)
+  assert.deepEqual(snapshot.factionTaxNetCpBySettlementId, {})
 })
 
 test('resolveEconomyEpochSnapshot rejects non-objects and fills defaults', () => {

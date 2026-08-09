@@ -100,6 +100,7 @@ export function buildBeginStatusSection({ percent, steps }) {
  *   networkSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   tradeSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   collapseSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
+ *   politicsSubsteps?: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   mapSubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
  * }} input
  * @returns {StatusBarViewModel}
@@ -111,6 +112,7 @@ export function buildEpochStatusSection({
   networkSubsteps,
   tradeSubsteps = [],
   collapseSubsteps,
+  politicsSubsteps = [],
   mapSubsteps,
 }) {
   return {
@@ -127,6 +129,7 @@ export function buildEpochStatusSection({
       network: withTestIds(networkSubsteps, 'world-builder-epoch-step-network-substep-'),
       trade: withTestIds(tradeSubsteps, 'world-builder-epoch-step-trade-substep-'),
       collapse: withTestIds(collapseSubsteps, 'world-builder-epoch-step-collapse-substep-'),
+      politics: withTestIds(politicsSubsteps, 'world-builder-epoch-step-politics-substep-'),
       map: withTestIds(mapSubsteps, 'world-builder-epoch-step-map-substep-'),
     },
     overlayDefs: [],

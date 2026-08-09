@@ -37,5 +37,9 @@ export function diffResourceOverlayMapLayers(previous, next) {
     changed.add('arable')
   }
 
+  if (Boolean(previous.visibility.factionTerritory) !== Boolean(next.visibility.factionTerritory)) {
+    changed.add('recentConquestMarkers')
+  }
+
   return [...changed]
 }

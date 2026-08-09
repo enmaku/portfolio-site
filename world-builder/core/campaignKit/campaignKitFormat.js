@@ -9,6 +9,7 @@ import {
   CP_PER_SP,
   commodityUnit,
 } from '../economy/commodityCatalog.js'
+import { formatMoneyCp } from '../economy/formatMoneyCp.js'
 
 /** @typedef {import('../economy/commodityCatalog.js').CommodityId} CommodityId */
 
@@ -70,10 +71,7 @@ export function formatCampaignKitMoneyCp(amountCp) {
  * @returns {string}
  */
 export function formatCampaignKitCommodityPriceCp(amountCp, commodityId) {
-  if (commodityId === 'timber') {
-    return `${formatCampaignKitMoneyCp(amountCp * 10)}/10 lb`
-  }
-  return `${formatCampaignKitMoneyCp(amountCp)}/${commodityUnit(commodityId)}`
+  return `${formatMoneyCp(amountCp)}/${commodityUnit(commodityId)}`
 }
 
 /**

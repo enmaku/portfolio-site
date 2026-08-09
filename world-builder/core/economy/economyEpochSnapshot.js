@@ -21,6 +21,7 @@
  * @property {Record<string, number>} realmBalancesCp
  * @property {OffMapTrade[]} offMapTrades
  * @property {Record<string, number>} portTollIncomeCpBySettlementId
+ * @property {Record<string, number>} factionTaxNetCpBySettlementId Signed last-epoch faction tax net.
  */
 
 /**
@@ -35,6 +36,7 @@ export function projectEconomyEpochSnapshot(result) {
     realmBalancesCp: { ...result.realmBalancesCp },
     offMapTrades: [...(result.offMapTrades ?? [])],
     portTollIncomeCpBySettlementId: { ...(result.portTollIncomeCpBySettlementId ?? {}) },
+    factionTaxNetCpBySettlementId: {},
   }
 }
 
@@ -69,6 +71,11 @@ export function resolveEconomyEpochSnapshot(value) {
       incoming.portTollIncomeCpBySettlementId &&
       typeof incoming.portTollIncomeCpBySettlementId === 'object'
         ? { ...incoming.portTollIncomeCpBySettlementId }
+        : {},
+    factionTaxNetCpBySettlementId:
+      incoming.factionTaxNetCpBySettlementId &&
+      typeof incoming.factionTaxNetCpBySettlementId === 'object'
+        ? { ...incoming.factionTaxNetCpBySettlementId }
         : {},
   }
 }

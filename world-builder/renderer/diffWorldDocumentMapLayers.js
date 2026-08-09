@@ -1,5 +1,7 @@
 /** @typedef {import('./mapLayerRefresh.js').MapLayerId} MapLayerId */
 
+import { COMMODITY_PRICE_OVERLAY_IDS } from '../resourceOverlayIds.js'
+
 /**
  * @param {ArrayBufferView | undefined | null} a
  * @param {ArrayBufferView | undefined | null} b
@@ -225,6 +227,31 @@ export function diffWorldDocumentMapLayers(previous, next) {
     previous.tradeAccounts !== next.tradeAccounts
   ) {
     changedLayers.push('wealth')
+    changedLayers.push('portTolls')
+    changedLayers.push('factionTax')
+    for (const overlayId of COMMODITY_PRICE_OVERLAY_IDS) {
+      changedLayers.push(/** @type {MapLayerId} */ (overlayId))
+    }
+  }
+  if (previous.primaryClaim !== next.primaryClaim || previous.factions !== next.factions) {
+    changedLayers.push('factionTerritory')
+    changedLayers.push('loyalty')
+    changedLayers.push('recentConquestMarkers')
+  }
+  if (
+    previous.bannerMembershipHistoryBySettlementId !== next.bannerMembershipHistoryBySettlementId ||
+    previous.softPowerPaintBySettlementId !== next.softPowerPaintBySettlementId
+  ) {
+    changedLayers.push('loyalty')
+  }
+  if (
+    previous.epoch !== next.epoch ||
+    previous.recentConquestBySettlementId !== next.recentConquestBySettlementId ||
+    previous.recentAllianceBySettlementId !== next.recentAllianceBySettlementId ||
+    previous.recentTradePartnerJoinBySettlementId !== next.recentTradePartnerJoinBySettlementId ||
+    previous.softPowerPaintBySettlementId !== next.softPowerPaintBySettlementId
+  ) {
+    changedLayers.push('recentConquestMarkers')
   }
   if (riverLayerInputsChanged(previous, next)) {
     changedLayers.push('rivers')
@@ -244,6 +271,9 @@ export function diffWorldDocumentMapLayers(previous, next) {
   if (nodeListChanged(previous.settlements, next.settlements)) {
     changedLayers.push('settlementNodes')
     changedLayers.push('settlementIdLabels')
+    changedLayers.push('factionTerritory')
+    changedLayers.push('loyalty')
+    changedLayers.push('recentConquestMarkers')
   }
 
   return changedLayers
