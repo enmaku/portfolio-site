@@ -76,6 +76,16 @@ export const SHARE_CATALOG = [
     favicon: 'shield',
   },
   {
+    routePath: '/projects/game-manager',
+    pasteUnfurl: true,
+    shareSlug: 'projects/game-manager',
+    title: 'Game Manager',
+    description:
+      'Track your board game collection, table companions, play sessions, and personal records.',
+    ogImage: 'icons/favicon-default.svg',
+    favicon: 'default',
+  },
+  {
     routePath: '/projects/dungeon-runner/stats',
     pasteUnfurl: true,
     shareSlug: 'projects/dungeon-runner/stats',
