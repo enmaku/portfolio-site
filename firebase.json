@@ -6,12 +6,22 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log", "*.local", ".env"]
+    }
+  ],
   "emulators": {
     "database": {
       "port": 9001
     },
     "firestore": {
       "port": 8080
+    },
+    "functions": {
+      "port": 5001
     },
     "ui": {
       "enabled": false
