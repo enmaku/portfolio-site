@@ -24,6 +24,10 @@ const routes = [
         path: 'projects/dungeon-runner/stats',
         component: () => import('pages/projects/DungeonRunnerStatsPage.vue'),
       },
+      {
+        path: 'projects/world-builder',
+        component: () => import('pages/projects/WorldBuilderPage.vue'),
+      },
     ],
   },
   {

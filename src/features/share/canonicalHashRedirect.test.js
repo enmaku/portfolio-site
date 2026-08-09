@@ -11,7 +11,7 @@ const RUNTIME_CANONICAL_PATHS = SHARE_CATALOG.filter(
 ).map((entry) => entry.routePath)
 
 test('toHashRouteTarget maps every paste-unfurl catalog path except home', () => {
-  assert.equal(RUNTIME_CANONICAL_PATHS.length, 5)
+  assert.equal(RUNTIME_CANONICAL_PATHS.length, 6)
   for (const routePath of RUNTIME_CANONICAL_PATHS) {
     assert.equal(toHashRouteTarget(routePath), `/#${routePath}`)
     assert.equal(toHashRouteTarget(routePath, '?room=AB12CD'), `/#${routePath}?room=AB12CD`)

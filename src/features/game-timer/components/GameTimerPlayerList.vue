@@ -6,8 +6,8 @@
         item-key="id"
         tag="div"
         class="gt-draggable"
-        handle=".gt-player-row__turn"
-        :disabled="isGuest"
+        filter=".gt-player-row__hard-pass"
+        :disabled="isGuest || isPlayerOrderShuffling"
         @contextmenu.prevent
         :animation="200"
         :delay="450"
@@ -21,6 +21,7 @@
         <template #item="{ element: player }">
           <q-slide-item
             class="gt-slide q-mb-sm rounded-borders overflow-hidden"
+            :disable="isPlayerOrderShuffling"
             left-color="primary"
             right-color="negative"
             @contextmenu.prevent
@@ -60,6 +61,7 @@
                 <button
                   type="button"
                   class="gt-player-row__name col text-left gt-player-row__name-text"
+                  :disabled="isPlayerOrderShuffling"
                   @click="store.selectPlayer(player.id)"
                 >
                   {{ player.name }}
@@ -78,6 +80,7 @@
                   padding="sm"
                   :icon="rowForPlayer(player)?.isHardPassed ? 'undo' : 'sports_score'"
                   class="gt-player-row__hard-pass gt-hard-pass-hit"
+                  :disable="isPlayerOrderShuffling"
                   :aria-label="rowForPlayer(player)?.isHardPassed ? 'Undo hard pass' : 'Hard pass for this round'"
                   @click.stop="onHardPassButton(player)"
                 />
@@ -153,6 +156,7 @@ import Draggable from 'vuedraggable'
 import { useGameTimerPlayerListPresentation } from '../composables/useGameTimerPlayerListPresentation.js'
 import { useGameTimerNow } from '../composables/useGameTimerNow.js'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
+import { usePlayerOrderShufflePresentation } from '../composables/usePlayerOrderShufflePresentation.js'
 import {
   DEFAULT_PLAYER_COLORS,
   formatDurationMs,
@@ -164,6 +168,7 @@ import { useGameTimerStore } from '../../../stores/gameTimer.js'
 
 const $q = useQuasar()
 const { isGuest } = useGameTimerP2P()
+const { displayedPlayerIds, isPlayerOrderShuffling } = usePlayerOrderShufflePresentation()
 const store = useGameTimerStore()
 const now = useGameTimerNow(100)
 const { hasMultipleRounds, playerRowsById } = useGameTimerPlayerListPresentation({ now })
@@ -183,7 +188,11 @@ function onHardPassButton(player) {
 }
 
 const draggablePlayers = computed({
-  get: () => store.players,
+  get: () => {
+    if (!displayedPlayerIds.value) return store.players
+    const playersById = new Map(store.players.map((player) => [player.id, player]))
+    return displayedPlayerIds.value.map((id) => playersById.get(id)).filter(Boolean)
+  },
   set: (next) => {
     if (isGuest.value) return
     if (Array.isArray(next)) store.reorderPlayers(next)
@@ -335,7 +344,6 @@ function progressRoundFillStyle(player) {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-  touch-action: pan-x pinch-zoom;
 }
 
 .gt-sortable-ghost {
@@ -463,12 +471,6 @@ function progressRoundFillStyle(player) {
   width: 30px;
   flex-shrink: 0;
   align-self: stretch;
-  cursor: grab;
-  touch-action: none;
-}
-
-.gt-player-row__turn:active {
-  cursor: grabbing;
 }
 
 .gt-player-row__turn-icon {

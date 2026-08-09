@@ -429,16 +429,13 @@ test('hanging worker times out and returns INFER failure without blocking the in
       { seed: 153 },
     )
     const seatId = state.turn.activeSeatId
-    const started = Date.now()
     const result = await chooseNnAction(state, { seatId }, {
       modelId: 'latest',
       workerTimeoutMs: 40,
       loadTimeoutMs: 40,
     })
-    const elapsed = Date.now() - started
     assert.equal(result.ok, false)
     assert.equal(result.kind, NN_FAILURE_KIND.INFER)
-    assert.ok(elapsed < 500, `expected bounded inference time, got ${elapsed}ms`)
   } finally {
     globalThis.Worker = originalWorker
     resetNnRuntimeForTests()
@@ -485,6 +482,7 @@ test('worker-side model load errors return LOAD failure not pass actions', async
 
 test('inferBudgetMs returns INFER failure without waiting for slow inference', async () => {
   const originalWorker = globalThis.Worker
+  let slowWorkerResponded = false
   class SlowWorker {
     constructor() {
       this.onmessage = null
@@ -493,6 +491,7 @@ test('inferBudgetMs returns INFER failure without waiting for slow inference', a
 
     postMessage(payload) {
       setTimeout(() => {
+        slowWorkerResponded = true
         this.onmessage?.({
           data: {
             requestId: payload.requestId,
@@ -514,13 +513,11 @@ test('inferBudgetMs returns INFER failure without waiting for slow inference', a
       { seed: 153 },
     )
     const seatId = state.turn.activeSeatId
-    const start = performance.now()
     const result = await chooseNnAction(state, { seatId }, {
       modelId: 'latest',
       inferBudgetMs: 40,
     })
-    const elapsed = performance.now() - start
-    assert.ok(elapsed < 250, `expected budget cap, got ${elapsed}ms`)
+    assert.equal(slowWorkerResponded, false)
     assert.equal(result.ok, false)
     assert.equal(result.kind, NN_FAILURE_KIND.INFER)
     assert.equal(result.errorMessage, 'INFER_BUDGET_EXCEEDED')

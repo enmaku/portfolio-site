@@ -1,0 +1,276 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { DEFAULT_WORLD_GENERATION_OPTIONS } from './core/worldGenerationOptions.js'
+import { COMMODITY_IDS } from './core/economy/commodityCatalog.js'
+import {
+  applyResourceOverlayVisibility,
+  commodityPriceOverlayId,
+  createDefaultOverlayDisplaySettings,
+  createDefaultResourceOverlayVisibility,
+  createResourceOverlayDefinitions,
+  createResourceOverlayIds,
+  DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+  enforceExclusiveClaimOverlayVisibility,
+  isResourceOverlayVisible,
+  REALM_ECONOMY_OVERLAY_IDS,
+  shouldDrawResourceNodeOverlay,
+  shouldDrawResourceRasterOverlay,
+} from './resourceOverlays.js'
+
+const COMMODITY_PRICE_DEFS = COMMODITY_IDS.map((commodityId) => ({
+  id: commodityPriceOverlayId(commodityId),
+  kind: 'raster',
+  vectorLayerId: undefined,
+}))
+
+test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
+  const definitions = createResourceOverlayDefinitions()
+  assert.strictEqual(definitions.length, 13 + 2 + COMMODITY_IDS.length)
+  assert.deepStrictEqual(
+    definitions.map((definition) => ({
+      id: definition.id,
+      kind: definition.kind,
+      vectorLayerId: definition.vectorLayerId,
+    })),
+    [
+      { id: 'arable', kind: 'raster', vectorLayerId: undefined },
+      { id: 'timber', kind: 'raster', vectorLayerId: undefined },
+      { id: 'metals', kind: 'rasterAndNodes', vectorLayerId: 'metalNodes' },
+      { id: 'salt', kind: 'nodes', vectorLayerId: 'saltNodes' },
+      { id: 'sail', kind: 'raster', vectorLayerId: undefined },
+      { id: 'freshwater', kind: 'raster', vectorLayerId: undefined },
+      { id: 'population', kind: 'raster', vectorLayerId: undefined },
+      { id: 'settlements', kind: 'nodes', vectorLayerId: 'settlementNodes' },
+      { id: 'explorationFog', kind: 'raster', vectorLayerId: undefined },
+      { id: 'routes', kind: 'raster', vectorLayerId: undefined },
+      { id: 'wealth', kind: 'raster', vectorLayerId: undefined },
+      { id: 'portTolls', kind: 'raster', vectorLayerId: undefined },
+      { id: 'factionTax', kind: 'raster', vectorLayerId: undefined },
+      ...COMMODITY_PRICE_DEFS,
+      { id: 'factionTerritory', kind: 'raster', vectorLayerId: undefined },
+      { id: 'loyalty', kind: 'raster', vectorLayerId: undefined },
+    ],
+  )
+})
+
+test('createResourceOverlayIds returns canonical overlay ids in order', () => {
+  assert.deepStrictEqual(createResourceOverlayIds(), [
+    'arable',
+    'timber',
+    'metals',
+    'salt',
+    'sail',
+    'freshwater',
+    'population',
+    'settlements',
+    'explorationFog',
+    'routes',
+    'wealth',
+    'portTolls',
+    'factionTax',
+    ...COMMODITY_IDS.map((id) => commodityPriceOverlayId(id)),
+    'factionTerritory',
+    'loyalty',
+  ])
+})
+
+test('createDefaultResourceOverlayVisibility defaults every canonical overlay off', () => {
+  const expected = Object.fromEntries(createResourceOverlayIds().map((id) => [id, false]))
+  assert.deepStrictEqual(createDefaultResourceOverlayVisibility(), expected)
+})
+
+test('createDefaultResourceOverlayVisibility accepts a subset of resource ids', () => {
+  assert.deepStrictEqual(createDefaultResourceOverlayVisibility(['salt']), { salt: false })
+})
+
+test('createDefaultOverlayDisplaySettings matches generation arable threshold', () => {
+  assert.strictEqual(
+    DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY,
+    DEFAULT_WORLD_GENERATION_OPTIONS.arableMinimumProductivity,
+  )
+  assert.deepStrictEqual(createDefaultOverlayDisplaySettings(), {
+    arableMinimumProductivity: DEFAULT_WORLD_GENERATION_OPTIONS.arableMinimumProductivity,
+  })
+})
+
+test('applyResourceOverlayVisibility toggles a resource without mutating prior state', () => {
+  const initial = createDefaultResourceOverlayVisibility(['salt'])
+  const visible = applyResourceOverlayVisibility(initial, 'salt', true)
+  assert.strictEqual(isResourceOverlayVisible(initial, 'salt'), false)
+  assert.strictEqual(isResourceOverlayVisible(visible, 'salt'), true)
+})
+
+test('applyResourceOverlayVisibility turns off other exclusive claim overlays', () => {
+  const withWealth = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(),
+    'wealth',
+    true,
+  )
+  const withLoyalty = applyResourceOverlayVisibility(withWealth, 'loyalty', true)
+  assert.strictEqual(withLoyalty.loyalty, true)
+  assert.strictEqual(withLoyalty.wealth, false)
+  assert.strictEqual(withLoyalty.population, false)
+})
+
+test('applyResourceOverlayVisibility clears control when enabling commodity price', () => {
+  const withControl = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(),
+    'factionTerritory',
+    true,
+  )
+  const withGrain = applyResourceOverlayVisibility(
+    withControl,
+    commodityPriceOverlayId('grain'),
+    true,
+  )
+  assert.strictEqual(withGrain[commodityPriceOverlayId('grain')], true)
+  assert.strictEqual(withGrain.factionTerritory, false)
+  assert.strictEqual(withGrain.timber, false)
+})
+
+test('applyResourceOverlayVisibility leaves non-exclusive overlays when enabling claim inspect', () => {
+  let state = applyResourceOverlayVisibility(createDefaultResourceOverlayVisibility(), 'population', true)
+  state = applyResourceOverlayVisibility(state, 'routes', true)
+  state = applyResourceOverlayVisibility(state, 'wealth', true)
+  assert.strictEqual(state.population, true)
+  assert.strictEqual(state.routes, true)
+  assert.strictEqual(state.wealth, true)
+})
+
+test('enforceExclusiveClaimOverlayVisibility keeps first exclusive true in definition order', () => {
+  const visibility = createDefaultResourceOverlayVisibility()
+  visibility.wealth = true
+  visibility.loyalty = true
+  visibility.factionTerritory = true
+  const enforced = enforceExclusiveClaimOverlayVisibility(visibility)
+  assert.strictEqual(enforced.wealth, true)
+  assert.strictEqual(enforced.loyalty, false)
+  assert.strictEqual(enforced.factionTerritory, false)
+})
+
+test('REALM_ECONOMY_OVERLAY_IDS excludes control and loyalty', () => {
+  assert.ok(REALM_ECONOMY_OVERLAY_IDS.includes('wealth'))
+  assert.ok(REALM_ECONOMY_OVERLAY_IDS.includes('portTolls'))
+  assert.ok(!REALM_ECONOMY_OVERLAY_IDS.includes('factionTerritory'))
+  assert.ok(!REALM_ECONOMY_OVERLAY_IDS.includes('loyalty'))
+})
+
+test('isResourceOverlayVisible treats unknown resources as hidden', () => {
+  assert.strictEqual(isResourceOverlayVisible({}, 'salt'), false)
+})
+
+test('shouldDrawResourceNodeOverlay hides salt markers by default', () => {
+  const visibility = createDefaultResourceOverlayVisibility(['salt'])
+  assert.strictEqual(shouldDrawResourceNodeOverlay(visibility, 'salt', [{ x: 1, y: 2 }]), false)
+})
+
+test('shouldDrawResourceNodeOverlay draws salt markers when overlay is on', () => {
+  const visibility = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(['salt']),
+    'salt',
+    true,
+  )
+  assert.strictEqual(shouldDrawResourceNodeOverlay(visibility, 'salt', [{ x: 1, y: 2 }]), true)
+})
+
+test('shouldDrawResourceRasterOverlay hides timber raster by default', () => {
+  const visibility = createDefaultResourceOverlayVisibility(['timber'])
+  const raster = new Float32Array([0.5, 0, 0, 0])
+  assert.strictEqual(shouldDrawResourceRasterOverlay(visibility, 'timber', raster), false)
+})
+
+test('shouldDrawResourceRasterOverlay draws timber raster when overlay is on', () => {
+  const visibility = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(['timber']),
+    'timber',
+    true,
+  )
+  const raster = new Float32Array([0.5, 0, 0, 0])
+  assert.strictEqual(shouldDrawResourceRasterOverlay(visibility, 'timber', raster), true)
+})
+
+test('shouldDrawResourceRasterOverlay skips all-zero rasters', () => {
+  const visibility = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(['timber']),
+    'timber',
+    true,
+  )
+  assert.strictEqual(shouldDrawResourceRasterOverlay(visibility, 'timber', new Float32Array(4)), false)
+})
+
+test('shouldDrawResourceRasterOverlay hides arable raster by default', () => {
+  const visibility = createDefaultResourceOverlayVisibility(['arable'])
+  assert.strictEqual(
+    shouldDrawResourceRasterOverlay(visibility, 'arable', new Float32Array([0.5])),
+    false,
+  )
+})
+
+test('shouldDrawResourceRasterOverlay draws arable raster when overlay is on', () => {
+  const visibility = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(['arable']),
+    'arable',
+    true,
+  )
+  assert.strictEqual(
+    shouldDrawResourceRasterOverlay(visibility, 'arable', new Float32Array([0.5])),
+    true,
+  )
+})
+
+test('shouldDrawResourceRasterOverlay hides metals raster by default', () => {
+  const visibility = createDefaultResourceOverlayVisibility(['metals'])
+  assert.strictEqual(
+    shouldDrawResourceRasterOverlay(visibility, 'metals', new Float32Array([0.6])),
+    false,
+  )
+})
+
+test('shouldDrawResourceRasterOverlay draws metals raster when overlay is on', () => {
+  const visibility = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(['metals']),
+    'metals',
+    true,
+  )
+  assert.strictEqual(
+    shouldDrawResourceRasterOverlay(visibility, 'metals', new Float32Array([0.6])),
+    true,
+  )
+})
+
+test('shouldDrawResourceNodeOverlay hides metal mine markers by default', () => {
+  const visibility = createDefaultResourceOverlayVisibility(['metals'])
+  assert.strictEqual(
+    shouldDrawResourceNodeOverlay(visibility, 'metals', [{ id: 'metal-0', x: 1, y: 2 }]),
+    false,
+  )
+})
+
+test('shouldDrawResourceNodeOverlay draws metal mine markers when overlay is on', () => {
+  const visibility = applyResourceOverlayVisibility(
+    createDefaultResourceOverlayVisibility(['metals']),
+    'metals',
+    true,
+  )
+  assert.strictEqual(
+    shouldDrawResourceNodeOverlay(visibility, 'metals', [{ id: 'metal-0', x: 1, y: 2 }]),
+    true,
+  )
+})
+
+test('metals overlay visibility gates raster hatch and mine markers together', () => {
+  const metalsRaster = new Float32Array([0.6])
+  const metalNodes = [{ id: 'metal-0', x: 1, y: 2 }]
+  const hidden = createDefaultResourceOverlayVisibility(['metals'])
+  const visible = applyResourceOverlayVisibility(hidden, 'metals', true)
+
+  assert.strictEqual(shouldDrawResourceRasterOverlay(hidden, 'metals', metalsRaster), false)
+  assert.strictEqual(shouldDrawResourceNodeOverlay(hidden, 'metals', metalNodes), false)
+
+  assert.strictEqual(shouldDrawResourceRasterOverlay(visible, 'metals', metalsRaster), true)
+  assert.strictEqual(shouldDrawResourceNodeOverlay(visible, 'metals', metalNodes), true)
+
+  const rasterOnlyOff = applyResourceOverlayVisibility(visible, 'metals', false)
+  assert.strictEqual(shouldDrawResourceRasterOverlay(rasterOnlyOff, 'metals', metalsRaster), false)
+  assert.strictEqual(shouldDrawResourceNodeOverlay(rasterOnlyOff, 'metals', metalNodes), false)
+})

@@ -123,6 +123,12 @@ export const useGameTimerStore = defineStore('gameTimer', {
       this.playerOrderByRound[String(this.round)] = nextOrder.map((p) => p.id)
     },
 
+    completePlayerOrderShuffle(nextOrder) {
+      if (!Array.isArray(nextOrder)) return
+      this.players = nextOrder
+      this.playerOrderByRound[String(this.round)] = nextOrder.map((p) => p.id)
+    },
+
     /**
      * @param {boolean} value
      */

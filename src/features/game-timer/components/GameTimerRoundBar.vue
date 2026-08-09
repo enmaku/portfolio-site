@@ -28,10 +28,10 @@
             icon="chevron_right"
             color="grey-5"
             class="gt-round-bar__chev gt-round-bar__hit"
-            :class="{ 'gt-round-bar__chev--inert': !hasPlayers }"
-            :disable="!hasPlayers"
-            :tabindex="hasPlayers ? undefined : -1"
-            :aria-hidden="hasPlayers ? undefined : true"
+            :class="{ 'gt-round-bar__chev--inert': !canGoNextRound }"
+            :disable="!canGoNextRound"
+            :tabindex="canGoNextRound ? undefined : -1"
+            :aria-hidden="canGoNextRound ? undefined : true"
             aria-label="Next round"
             @click="store.goToNextRound()"
           />
@@ -39,7 +39,19 @@
       </div>
       <div class="gt-round-bar__right row no-wrap items-center q-gutter-x-xs">
         <q-btn
-          v-if="showStartNewGame"
+          v-if="canShufflePlayers"
+          flat
+          round
+          size="md"
+          icon="casino"
+          color="grey-5"
+          class="gt-round-bar__new-game gt-round-bar__hit"
+          aria-label="Randomize player order"
+          :loading="isPlayerOrderShuffling"
+          @click="shufflePlayers"
+        />
+        <q-btn
+          v-else-if="showStartNewGame"
           flat
           round
           size="md"
@@ -47,6 +59,7 @@
           color="grey-5"
           class="gt-round-bar__new-game gt-round-bar__hit"
           aria-label="Start new game with same players"
+          :disable="isPlayerOrderShuffling"
           @click="newGameDialogOpen = true"
         />
         <q-btn
@@ -57,6 +70,7 @@
           color="grey-5"
           class="gt-round-bar__settings gt-round-bar__hit"
           aria-label="Game timer settings"
+          :disable="isPlayerOrderShuffling"
         >
           <q-menu anchor="bottom right" self="top right" :offset="[0, 6]">
             <div class="gt-settings-menu q-pa-md" style="min-width: 280px">
@@ -86,6 +100,7 @@
     <button
       type="button"
       class="gt-round-bar__session-strip row items-center justify-between full-width"
+      :disabled="isPlayerOrderShuffling"
       @click="store.toggleTimingStripMode()"
     >
       <span class="gt-round-bar__session-label">{{ timingStripLabel }}</span>
@@ -115,11 +130,25 @@ import GameTimerSyncControl from './GameTimerSyncControl.vue'
 import { formatDurationMs, nonPlayerElapsedMs, totalGameElapsedMs } from '../core.js'
 import { useGameTimerNow } from '../composables/useGameTimerNow.js'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
+import {
+  finishPlayerOrderShufflePresentation,
+  runPlayerOrderShufflePresentation,
+  usePlayerOrderShufflePresentation,
+} from '../composables/usePlayerOrderShufflePresentation.js'
+import {
+  canShufflePlayerOrder,
+  createPlayerOrderShuffleSeed,
+} from '../playerOrderShuffle.js'
+import {
+  broadcastPlayerOrderShuffle,
+  isP2PSessionActive,
+} from '../p2p/session.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 import { getGameTimerSettingsModel } from '../settingsModel.js'
 import { useProjectShellBrowserFullscreenChrome } from '../../../layouts/projects/projectShellFullscreenChrome.js'
 
 const { isGuest } = useGameTimerP2P()
+const { isPlayerOrderShuffling } = usePlayerOrderShufflePresentation()
 const fullscreenChromeExposed = useProjectShellBrowserFullscreenChrome()
 const store = useGameTimerStore()
 const now = useGameTimerNow(1000)
@@ -127,8 +156,14 @@ const { round, players, hardPassEnabled, hardPassOrderNextRound, fullscreenEnabl
   storeToRefs(store)
 const hasPlayers = computed(() => players.value.length > 0)
 const showStartNewGame = computed(() => !isGuest.value && hasPlayers.value)
+const canShufflePlayers = computed(
+  () => !isGuest.value && canShufflePlayerOrder(store.$state),
+)
 const newGameDialogOpen = ref(false)
-const canGoPreviousRound = computed(() => hasPlayers.value && round.value > 1)
+const canGoPreviousRound = computed(
+  () => hasPlayers.value && round.value > 1 && !isPlayerOrderShuffling.value,
+)
+const canGoNextRound = computed(() => hasPlayers.value && !isPlayerOrderShuffling.value)
 const settingsModel = computed(() =>
   getGameTimerSettingsModel({
     isGuest: isGuest.value,
@@ -174,6 +209,35 @@ const fullscreenModel = computed({
 function confirmStartNewGame() {
   store.startNewGameSamePlayers()
   newGameDialogOpen.value = false
+}
+
+async function shufflePlayers() {
+  if (!canShufflePlayers.value || isPlayerOrderShuffling.value) return
+  const seed = createPlayerOrderShuffleSeed()
+  const playerIds = store.players.map((player) => player.id)
+  if (isP2PSessionActive() && !(await broadcastPlayerOrderShuffle(seed))) return
+  if (
+    !canShufflePlayers.value ||
+    playerIds.some((id, index) => store.players[index]?.id !== id)
+  ) {
+    return
+  }
+
+  const targetOrder = await runPlayerOrderShufflePresentation({ playerIds, seed })
+  if (!targetOrder || !canShufflePlayers.value) {
+    finishPlayerOrderShufflePresentation()
+    return
+  }
+
+  const playersById = new Map(store.players.map((player) => [player.id, player]))
+  const shuffledPlayers = targetOrder.map((id) => playersById.get(id))
+  if (shuffledPlayers.some((player) => !player)) {
+    finishPlayerOrderShufflePresentation()
+    return
+  }
+
+  store.completePlayerOrderShuffle(shuffledPlayers)
+  finishPlayerOrderShufflePresentation()
 }
 </script>
 

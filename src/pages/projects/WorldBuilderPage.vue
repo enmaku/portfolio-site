@@ -1,0 +1,681 @@
+<template>
+  <q-page class="world-builder-page column fit no-wrap">
+    <div
+      v-if="statusBar.mode !== 'hidden'"
+      data-testid="world-builder-status-bar"
+      class="generation-progress"
+    >
+      <q-separator />
+      <div class="q-px-sm status-bar-content">
+        <WorldBuilderStatusPanel
+          :status-bar="statusBar"
+          :resource-overlay-visibility="resourceOverlayVisibility"
+          :toggle-resource-overlay-visibility="toggleResourceOverlayVisibility"
+        />
+      </div>
+      <q-separator />
+    </div>
+    <div class="row col map-row">
+      <aside
+        v-if="showTerrainAuthoringControls"
+        data-testid="world-builder-generation-controls"
+        class="generation-controls-panel bg-grey-10"
+      >
+        <div class="panel-scroll q-pa-md">
+          <div class="text-subtitle2 q-mb-sm">Generation controls</div>
+          <q-input
+            v-model="seedInput"
+            data-testid="world-builder-seed-input"
+            type="number"
+            dense
+            outlined
+            class="q-mb-md seed-input"
+            min="0"
+            step="1"
+            @change="commitSeed"
+            @keyup.enter="commitSeed"
+          >
+            <template #label>
+              <span class="row items-center no-wrap q-gutter-xs">
+                Geography seed
+                <WorldBuilderSettingHelp
+                  :text="GEOGRAPHY_SEED_TOOLTIP"
+                  label="Geography seed"
+                />
+              </span>
+            </template>
+            <template #append>
+              <q-btn
+                round
+                dense
+                flat
+                icon="casino"
+                data-testid="world-builder-seed-randomize"
+                aria-label="Random geography seed"
+                @click="randomizeSeed"
+              />
+            </template>
+          </q-input>
+          <q-btn
+            flat
+            dense
+            color="primary"
+            class="full-width q-mb-md"
+            data-testid="world-builder-reset-defaults"
+            aria-label="Reset generation settings to defaults"
+            @click="resetDefaults"
+          >
+            Reset to defaults
+          </q-btn>
+          <q-list
+            dense
+            class="generation-controls-sections"
+          >
+            <q-expansion-item
+              v-for="section in controlSections"
+              :key="section.section"
+              :label="section.section"
+              dense
+              header-class="text-caption text-weight-medium"
+            >
+              <div
+                v-for="control in section.controls"
+                :key="control.key"
+                class="generation-control q-mb-md"
+              >
+                <div class="row items-center no-wrap q-gutter-xs q-mb-xs">
+                  <span class="text-caption">
+                    {{ control.label }}:
+                    {{ formatGenerationControlValue(control.key, controlValue(control.key)) }}
+                  </span>
+                  <WorldBuilderSettingHelp
+                    :text="control.tooltip"
+                    :label="control.label"
+                  />
+                </div>
+                <q-toggle
+                  v-if="control.kind === 'toggle'"
+                  :model-value="Boolean(controlValue(control.key))"
+                  :disable="isGenerationControlDisabled(control.key, generationOptions)"
+                  :data-testid="control.testId"
+                  color="primary"
+                  @update:model-value="onToggleChange(control.key, $event)"
+                />
+                <q-slider
+                  v-else-if="control.key !== 'prevailingWindDegrees'"
+                  class="generation-control__slider full-width"
+                  dense
+                  :model-value="controlValue(control.key)"
+                  :disable="isGenerationControlDisabled(control.key, generationOptions)"
+                  :data-testid="control.testId"
+                  :min="control.min"
+                  :max="control.max"
+                  :step="control.step"
+                  label
+                  color="primary"
+                  @update:model-value="onSliderInput(control.key, $event)"
+                  @change="onSliderCommit(control.key, $event)"
+                />
+                <div
+                  v-else
+                  class="row items-center no-wrap q-gutter-xs"
+                >
+                  <q-slider
+                    class="col generation-control__slider"
+                    dense
+                    :model-value="controlValue(control.key)"
+                    :disable="isGenerationControlDisabled(control.key, generationOptions)"
+                    :data-testid="control.testId"
+                    :min="control.min"
+                    :max="control.max"
+                    :step="control.step"
+                    label
+                    color="primary"
+                    @update:model-value="onSliderInput(control.key, $event)"
+                    @change="onSliderCommit(control.key, $event)"
+                  />
+                  <PrevailingWindArrow
+                    data-testid="world-builder-wind-arrow"
+                    :degrees="controlValue(control.key)"
+                  />
+                </div>
+              </div>
+            </q-expansion-item>
+            <q-expansion-item
+              label="Map overlays"
+              dense
+              header-class="text-caption text-weight-medium"
+            >
+              <div
+                v-for="control in overlayControlDefinitions"
+                :key="control.key"
+                class="generation-control q-mb-md"
+              >
+                <div class="row items-center no-wrap q-gutter-xs q-mb-xs">
+                  <span class="text-caption">
+                    {{ control.label }}:
+                    {{ formatOverlayControlValue(control.key, overlayDisplaySetting(control.key)) }}
+                  </span>
+                  <WorldBuilderSettingHelp
+                    :text="control.tooltip"
+                    :label="control.label"
+                  />
+                </div>
+                <q-slider
+                  class="generation-control__slider full-width"
+                  dense
+                  :model-value="overlayDisplaySetting(control.key)"
+                  :data-testid="control.testId"
+                  :min="control.min"
+                  :max="control.max"
+                  :step="control.step"
+                  label
+                  color="primary"
+                  @update:model-value="setResourceOverlayDisplaySetting(control.key, $event)"
+                />
+              </div>
+            </q-expansion-item>
+          </q-list>
+        </div>
+        <div class="generation-controls-footer">
+          <q-btn
+            data-testid="world-builder-regenerate"
+            class="generation-controls-footer__btn"
+            color="primary"
+            label="Regenerate"
+            unelevated
+            square
+            :loading="runPhase === 'running'"
+            @click="regenerate"
+          />
+        </div>
+      </aside>
+      <aside
+        v-else-if="showColonistSettingsPanel"
+        data-testid="world-builder-colonist-settings"
+        class="generation-controls-panel bg-grey-10"
+      >
+        <div class="panel-scroll q-pa-md">
+          <q-btn
+            unelevated
+            color="negative"
+            class="full-width q-mb-md"
+            data-testid="world-builder-back-to-terrain"
+            label="Back to terrain"
+            @click="backToTerrain"
+          />
+          <WorldBuilderColonistSettingsPanel
+            :colonist-settings="colonistSettings"
+            :colonist-settings-snapshot="colonistSettingsSnapshot"
+            :running-phase="false"
+            @update-setting="setColonistSetting"
+            @reset-defaults="resetColonistSettings"
+          />
+        </div>
+      </aside>
+      <aside
+        v-else-if="showRealmEconomyPanel"
+        data-testid="world-builder-realm-economy-panel"
+        class="generation-controls-panel bg-grey-10"
+      >
+        <div class="panel-scroll q-pa-md">
+          <q-btn
+            v-if="showResetColonization"
+            unelevated
+            color="negative"
+            class="full-width q-mb-md"
+            data-testid="world-builder-reset-colonization"
+            label="Reset colonization"
+            :disable="colonizationTimeControlsDisabled"
+            @click="resetColonization"
+          />
+          <WorldBuilderRealmEconomyPanel
+            :economy="realmEconomy"
+            :resource-overlay-visibility="resourceOverlayVisibility"
+            :toggle-resource-overlay-visibility="toggleResourceOverlayVisibility"
+            @focus-settlement="setSettlementFocus"
+          />
+        </div>
+      </aside>
+      <div
+        ref="mapHostRef"
+        data-testid="world-builder-map-host"
+        class="map-host col"
+      />
+      <WorldBuilderSettlementTradeTooltip
+        :tooltip="settlementTradeTooltip"
+        :position="hoveredSettlementScreenPosition"
+      />
+      <WorldBuilderPoliticalMarkerTooltip
+        :tooltip="politicalMarkerTooltip"
+        :position="politicalMarkerScreenPosition"
+      />
+      <aside
+        data-testid="world-builder-generation-report"
+        class="generation-report-panel bg-grey-10"
+      >
+        <div class="panel-scroll q-pa-md">
+          <q-btn
+            v-if="colonizationPhase === 'terrain'"
+            unelevated
+            color="positive"
+            class="full-width q-mb-md"
+            data-testid="world-builder-colonize"
+            label="Colonize"
+            :disable="!hasLandmass"
+            @click="enterColonizationSetup"
+          />
+          <q-btn
+            v-else-if="colonizationPhase === 'setup'"
+            unelevated
+            color="positive"
+            class="full-width q-mb-md"
+            data-testid="world-builder-begin-colonization"
+            label="Begin colonization"
+            :loading="isBeginColonizationRunning"
+            :disable="!canBeginColonization || isBeginColonizationRunning"
+            @click="beginColonization"
+          />
+          <div
+            v-else-if="timeControlsActive"
+            class="row q-gutter-sm q-mb-md items-stretch"
+          >
+            <q-btn
+              unelevated
+              color="primary"
+              class="col"
+              data-testid="world-builder-epoch-step"
+              label="Next epoch"
+              :loading="isEpochStepRunning"
+              :disable="colonizationTimeControlsDisabled"
+              @click="epochStep"
+            />
+            <q-btn
+              unelevated
+              color="positive"
+              icon="download"
+              data-testid="world-builder-campaign-kit-export"
+              aria-label="Download campaign kit"
+              :loading="isCampaignKitExportRunning"
+              :disable="colonizationTimeControlsDisabled"
+              @click="exportCampaignKit"
+            >
+              <q-tooltip>Download campaign kit</q-tooltip>
+            </q-btn>
+          </div>
+          <q-banner
+            v-if="showValidationFailureIndicator"
+            :data-testid="WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID"
+            class="bg-warning text-dark q-mb-md"
+            rounded
+            dense
+          >
+            Validation retries exhausted — map shows the last candidate.
+          </q-banner>
+          <q-list
+            v-if="visibleValidationRows.length > 0"
+            bordered
+            separator
+            class="q-mb-md validation-advisory-list"
+          >
+            <q-item
+              v-for="row in visibleValidationRows"
+              :key="row.checkId"
+              :data-testid="`world-builder-validation-row-${row.checkId}`"
+              clickable
+              @click="focusValidationRow(row)"
+            >
+              <q-item-section avatar>
+                <q-icon
+                  :name="validationStatusIcon(row.status)"
+                  :color="validationStatusColor(row.status)"
+                />
+              </q-item-section>
+              <q-item-section class="validation-advisory-item__body">
+                <q-item-label class="validation-advisory-item__label">{{
+                  row.label ?? row.checkId
+                }}</q-item-label>
+                <q-item-label
+                  caption
+                  class="validation-advisory-item__summary"
+                  >{{ row.summary }}</q-item-label
+                >
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <WorldBuilderSimStatusPanel
+            v-if="showSimStatusPanel"
+            :status="simStatus"
+            @focus-settlement="setSettlementFocus"
+          />
+          <template v-if="colonizationPhase === 'terrain'">
+            <div class="text-subtitle2 q-mb-sm">Generation report</div>
+            <div class="text-caption q-mb-md">
+              Erosion steps: {{ stageSummary.erosionStepCount }} · Sailable water cells:
+              {{ stageSummary.largestSailComponentCellCount }} · Coastal nodes:
+              {{ stageSummary.coastalNodeCount }}
+            </div>
+            <div
+              class="text-caption q-mb-md"
+              data-testid="world-builder-hydrology-stats"
+            >
+              <div>River cells: {{ hydrologyStats.riverCellCount ?? 'n/a' }}</div>
+              <div>
+                Largest sail component:
+                {{ hydrologyStats.largestSailComponentCellCount ?? 'n/a' }} cells
+              </div>
+              <div>
+                Coastal river access:
+                {{
+                  hydrologyStats.coastalRiverAccess === null
+                    ? 'n/a'
+                    : hydrologyStats.coastalRiverAccess
+                      ? 'yes'
+                      : 'no'
+                }}
+              </div>
+              <div>
+                Coast-to-interior sail path:
+                {{ hydrologyStats.coastToInteriorSailPathLength ?? 'n/a' }} cells
+              </div>
+              <div>Hack's law exponent: {{ formatHydrologyMetricValue(hydrologyStats.hacksLawExponent) }}</div>
+              <div>
+                Slope–area concavity:
+                {{
+                  formatSlopeAreaConcavityForDisplay(
+                    hydrologyStats.slopeAreaConcavityMedian,
+                    hydrologyStats.slopeAreaConcavitySampleCount,
+                  )
+                }}
+              </div>
+              <div>Parallel strand ratio: {{ formatHydrologyMetricValue(hydrologyStats.parallelStrandRatio) }}</div>
+              <div>Lake count: {{ hydrologyStats.lakeCount ?? 'n/a' }}</div>
+              <div>Breach count: {{ hydrologyStats.breachCount ?? 'n/a' }}</div>
+              <div>Endorheic fraction: {{ formatHydrologyMetricValue(hydrologyStats.endorheicFraction) }}</div>
+              <div data-testid="world-builder-rejection-status">
+                Rejected:
+                {{ hydrologyStats.shouldReject ? 'yes' : 'no' }}
+              </div>
+              <div
+                v-if="hydrologyStats.rejectionReasons.length > 0"
+                data-testid="world-builder-rejection-reasons"
+              >
+                <div
+                  v-for="reason in hydrologyStats.rejectionReasons"
+                  :key="reason"
+                >
+                  {{ reason }}
+                </div>
+              </div>
+            </div>
+            <div
+              v-if="hydrologySubstepTimings.length > 0"
+              class="text-caption q-mb-md"
+              data-testid="world-builder-hydrology-substep-timings"
+            >
+              <div
+                v-for="row in hydrologySubstepTimings"
+                :key="row.substepId"
+                :data-testid="`world-builder-hydrology-timing-${row.substepId}`"
+              >
+                {{ row.label }}: {{ formatHydrologySubstepTimingForDisplay(row) }}
+              </div>
+            </div>
+          </template>
+        </div>
+      </aside>
+    </div>
+  </q-page>
+</template>
+
+<script setup>
+import { onMounted, onUnmounted, ref } from 'vue'
+import { useQuasar } from 'quasar'
+import {
+  formatGenerationControlValue,
+  formatHydrologyMetricValue,
+  formatHydrologySubstepTimingForDisplay,
+  formatOverlayControlValue,
+  formatSlopeAreaConcavityForDisplay,
+  GEOGRAPHY_SEED_TOOLTIP,
+  validationStatusColor,
+  validationStatusIcon,
+  WORLD_BUILDER_GENERATION_CONTROL_SECTIONS,
+  WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS,
+  WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID,
+  isGenerationControlDisabled,
+} from '@world-builder/worldBuilderPageModel.js'
+import { useWorldBuilderPageController } from '../../composables/useWorldBuilderPageController.js'
+import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
+import PrevailingWindArrow from '../../components/world-builder/PrevailingWindArrow.vue'
+import WorldBuilderColonistSettingsPanel from '../../components/world-builder/WorldBuilderColonistSettingsPanel.vue'
+import WorldBuilderRealmEconomyPanel from '../../components/world-builder/WorldBuilderRealmEconomyPanel.vue'
+import WorldBuilderSettlementTradeTooltip from '../../components/world-builder/WorldBuilderSettlementTradeTooltip.js'
+import WorldBuilderPoliticalMarkerTooltip from '../../components/world-builder/WorldBuilderPoliticalMarkerTooltip.js'
+import WorldBuilderSimStatusPanel from '../../components/world-builder/WorldBuilderSimStatusPanel.vue'
+import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
+import WorldBuilderStatusPanel from '../../components/world-builder/WorldBuilderStatusPanel.vue'
+
+const $q = useQuasar()
+
+const mapHostRef = ref(null)
+const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
+const overlayControlDefinitions = WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS
+
+const {
+  seedInput,
+  statusBar,
+  generation,
+  overlays,
+  colonization,
+  visibleValidationRows,
+  showSimStatusPanel,
+  simStatus,
+  realmEconomy,
+  stageSummary,
+  hydrologyStats,
+  hydrologySubstepTimings,
+  controlValue,
+  generationOptions,
+  hasLandmass,
+  onToggleChange,
+  onSliderInput,
+  onSliderCommit,
+  focusValidationRow,
+  commitSeed,
+  randomizeSeed,
+  resetDefaults,
+  regenerate,
+  start,
+  destroy,
+} = useWorldBuilderPageController({
+  getMapHost: () => mapHostRef.value,
+  settingsStore: useWorldBuilderSettingsStore(),
+  onGenerationError(message) {
+    $q.notify({
+      type: 'negative',
+      message: `World generation failed: ${message}`,
+      timeout: 0,
+      actions: [{ label: 'Dismiss', color: 'white' }],
+    })
+  },
+  requestConfirm(options = {}) {
+    return new Promise((resolve) => {
+      let settled = false
+      const finish = (value) => {
+        if (settled) {
+          return
+        }
+        settled = true
+        resolve(value)
+      }
+      $q.dialog({
+        title: options.title ?? 'Confirm',
+        message: options.message ?? 'Continue?',
+        cancel: true,
+        persistent: true,
+      })
+        .onOk(() => finish(true))
+        .onCancel(() => finish(false))
+        .onDismiss(() => finish(false))
+    })
+  },
+})
+
+const { runPhase, showValidationFailureIndicator } = generation
+const {
+  resourceOverlayVisibility,
+  overlayDisplaySetting,
+  toggleResourceOverlayVisibility,
+  setResourceOverlayDisplaySetting,
+} = overlays
+const {
+  colonizationPhase,
+  showTerrainAuthoringControls,
+  showColonistSettingsPanel,
+  showRealmEconomyPanel,
+  colonistSettings,
+  colonistSettingsSnapshot,
+  canBeginColonization,
+  showResetColonization,
+  timeControlsActive,
+  isEpochStepRunning,
+  isBeginColonizationRunning,
+  isCampaignKitExportRunning,
+  colonizationTimeControlsDisabled,
+  enterColonizationSetup,
+  backToTerrain,
+  beginColonization,
+  epochStep,
+  exportCampaignKit,
+  resetColonization,
+  setColonistSetting,
+  resetColonistSettings,
+  settlementTradeTooltip,
+  hoveredSettlementScreenPosition,
+  politicalMarkerTooltip,
+  politicalMarkerScreenPosition,
+  setSettlementFocus,
+} = colonization
+
+onMounted(start)
+onUnmounted(destroy)
+</script>
+
+<style scoped>
+.world-builder-page {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.generation-progress {
+  flex: 0 0 auto;
+}
+
+.status-bar-content {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  flex: 0 0 40px;
+  overflow: hidden;
+}
+
+.map-row {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.map-host {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.map-host :deep(canvas) {
+  display: block;
+}
+
+.generation-controls-panel,
+.generation-report-panel {
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.generation-controls-panel {
+  width: 300px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.generation-controls-footer {
+  flex: 0 0 48px;
+  height: 48px;
+  padding: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.generation-controls-footer__btn {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 0;
+}
+
+.generation-report-panel {
+  width: 320px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.validation-advisory-list {
+  min-width: 0;
+}
+
+.validation-advisory-item__body {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.validation-advisory-item__label,
+.validation-advisory-item__summary {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.panel-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.generation-controls-sections :deep(.q-expansion-item__content) {
+  padding: 0 16px 4px;
+}
+
+.generation-control {
+  padding-left: 8px;
+}
+
+.generation-control__slider {
+  padding: 0 4px;
+}
+
+.seed-input :deep(input[type='number']) {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.seed-input :deep(input[type='number']::-webkit-inner-spin-button),
+.seed-input :deep(input[type='number']::-webkit-outer-spin-button) {
+  appearance: none;
+  margin: 0;
+}
+</style>

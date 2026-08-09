@@ -6,7 +6,11 @@
  */
 import assert from 'node:assert/strict'
 import { afterEach, test } from 'node:test'
-import { encodeHostSnapshot, MSG_HOST_SNAPSHOT } from './protocol.js'
+import {
+  encodeHostPlayerOrderShuffle,
+  encodeHostSnapshot,
+  MSG_HOST_SNAPSHOT,
+} from './protocol.js'
 import * as sessionMod from './session.js'
 import {
   bindGameTimerP2PHandlers,
@@ -47,12 +51,20 @@ function bindFakeMirrorHandlers() {
   /** @type {GameTimerSyncPayload | null} */
   let mirror = null
   let applyCount = 0
+  let shuffleSeed = null
+  let finishCount = 0
 
   bindGameTimerP2PHandlers({
     getSnapshot: () => mirror ?? baseSnapshot(),
     applySnapshot: (snap) => {
       applyCount += 1
       mirror = structuredClone(snap)
+    },
+    startPlayerOrderShuffle: (...values) => {
+      shuffleSeed = values[1]
+    },
+    finishPlayerOrderShuffle: () => {
+      finishCount += 1
     },
   })
 
@@ -62,6 +74,12 @@ function bindFakeMirrorHandlers() {
     },
     get applyCount() {
       return applyCount
+    },
+    get shuffleSeed() {
+      return shuffleSeed
+    },
+    get finishCount() {
+      return finishCount
     },
     /** Simulates local mirror drift without host authority (e.g. reconnect fork). */
     setLocalFork(snap) {
@@ -87,6 +105,36 @@ test('guest inbound snapshot applies only when seq strictly increases', () => {
   assert.equal(wire.applyCount, 2)
   assert.equal(wire.mirror?.activePlayerId, 'p-b')
   assert.equal(wire.mirror?.round, 2)
+})
+
+test('shuffle event and final snapshot share monotonic host authority', () => {
+  const wire = bindFakeMirrorHandlers()
+  const initial = baseSnapshot({
+    players: [
+      { id: 'a', name: 'A', color: '#111111', bankedMs: 0, bankedMsByRound: {} },
+      { id: 'b', name: 'B', color: '#222222', bankedMs: 0, bankedMsByRound: {} },
+    ],
+    playerOrderByRound: { '1': ['a', 'b'] },
+  })
+  const settled = {
+    ...initial,
+    players: [initial.players[1], initial.players[0]],
+    playerOrderByRound: { '1': ['b', 'a'] },
+  }
+
+  handleGuestInbound(encodeHostPlayerOrderShuffle(initial, 99, 1))
+  assert.equal(wire.applyCount, 1)
+  assert.equal(wire.shuffleSeed, 99)
+  assert.equal(wire.finishCount, 0)
+
+  handleGuestInbound(encodeHostPlayerOrderShuffle(initial, 100, 1))
+  assert.equal(wire.applyCount, 1)
+  assert.equal(wire.shuffleSeed, 99)
+
+  handleGuestInbound(encodeHostSnapshot(settled, 2))
+  assert.equal(wire.applyCount, 2)
+  assert.equal(wire.finishCount, 1)
+  assert.deepEqual(wire.mirror?.playerOrderByRound['1'], ['b', 'a'])
 })
 
 test('guest inbound snapshot ignores regressive seq without changing mirror', () => {

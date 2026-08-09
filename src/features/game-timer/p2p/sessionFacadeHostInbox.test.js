@@ -118,6 +118,64 @@ test(
 )
 
 test(
+  'seeded shuffle defers hello rebroadcast and settles with one final snapshot',
+  hostInboxTests,
+  async () => {
+    mock.reset()
+
+    const hostStableId = 'GTHOSTSHUFFLE'
+    const guestStableId = 'GTGUESTSHUFFLE'
+    const suffix = 'DICE01'
+
+    mock.module('../../p2p/identity.js', {
+      namedExports: {
+        ...(await import('../../p2p/identity.js')),
+        getStableClientId: () => hostStableId,
+        deriveStableHostSuffix: () => suffix,
+      },
+    })
+
+    const harness = await installRtdbLifecycleMocks({
+      getHostPing: () => null,
+      getEnded: () => null,
+      getHostClientId: () => null,
+    })
+
+    await withFirebaseEnv(async () => {
+      const sessionMod = await importGameTimerSession(`shuffle-${Date.now()}`)
+      bindHostMirrorHandlers(sessionMod)
+      await sessionMod.startAsHost(3)
+
+      assert.equal(await sessionMod.broadcastPlayerOrderShuffle(123), true)
+      const stateWritesAfterEvent = harness.sets.filter((entry) => entry.path.endsWith('/state'))
+      const event = parseHostMessage(stateWritesAfterEvent.at(-1)?.value)
+      assert.ok(event)
+      assert.equal(event.type, 'gt-r')
+      assert.equal(event.seed, 123)
+
+      simulateHostInboxMessage(
+        harness,
+        'gameTimerRooms',
+        suffix,
+        guestStableId,
+        encodeGuestHello(guestStableId),
+      )
+      assert.equal(
+        harness.sets.filter((entry) => entry.path.endsWith('/state')).length,
+        stateWritesAfterEvent.length,
+      )
+
+      assert.equal(sessionMod.finalizePlayerOrderShuffle(HOST_TRUTH), true)
+      const stateWritesAfterFinal = harness.sets.filter((entry) => entry.path.endsWith('/state'))
+      const finalMessage = parseHostMessage(stateWritesAfterFinal.at(-1)?.value)
+      assert.ok(finalMessage)
+      assert.equal(finalMessage.type, 'gt-s')
+      assert.equal(finalMessage.seq, event.seq + 1)
+    })
+  },
+)
+
+test(
   'scoped cooldown at host inbox: honor then reject with corrective monotonic authority broadcast',
   hostInboxTests,
   async () => {

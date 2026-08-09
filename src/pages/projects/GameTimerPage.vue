@@ -42,7 +42,7 @@
         icon="add"
         aria-label="Add player"
         class="gt-actions-bar__fixed-btn"
-        :disable="hasMultipleRoundsFlag"
+        :disable="hasMultipleRoundsFlag || isPlayerOrderShuffling"
         @click="openAddDialog"
       />
     </div>
@@ -104,6 +104,7 @@ import GameTimerTurnControls from '../../features/game-timer/components/GameTime
 import { useGameTimerP2P } from '../../features/game-timer/composables/useGameTimerP2P.js'
 import { useProjectShellBrowserFullscreen } from '../../layouts/projects/composables/useProjectShellBrowserFullscreen.js'
 import { useNoSleep } from '../../features/game-timer/composables/useNoSleep.js'
+import { usePlayerOrderShufflePresentation } from '../../features/game-timer/composables/usePlayerOrderShufflePresentation.js'
 import { nextDefaultColor, hasMultipleRounds } from '../../features/game-timer/core.js'
 import {
   GAME_TIMER_ROOM_QUERY_KEY,
@@ -119,6 +120,7 @@ const router = useRouter()
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
 const { players, activePlayerId, fullscreenEnabled } = storeToRefs(store)
+const { isPlayerOrderShuffling } = usePlayerOrderShufflePresentation()
 
 const hasMultipleRoundsFlag = computed(() =>
   hasMultipleRounds({

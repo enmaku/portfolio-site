@@ -7,19 +7,19 @@ test('loadMatchesPerWeekTile aggregates weekly counts via createdAt range querie
   const result = await loadMatchesPerWeekTile({
     buildWeekBuckets: () => [
       {
-        startInclusive: '2026-05-01T00:00:00.000Z',
-        endExclusive: '2026-05-08T00:00:00.000Z',
-        label: 'May 1',
+        startInclusive: '2026-05-18T00:00:00.000Z',
+        endExclusive: '2026-05-25T00:00:00.000Z',
+        label: 'May 18',
       },
       {
-        startInclusive: '2026-05-08T00:00:00.000Z',
-        endExclusive: '2026-05-15T00:00:00.000Z',
-        label: 'May 8',
+        startInclusive: '2026-05-25T00:00:00.000Z',
+        endExclusive: '2026-06-01T00:00:00.000Z',
+        label: 'May 25',
       },
     ],
     countMatchOutcomesCreatedBetween: async (start, end) => {
       calls.push([start, end])
-      return start === '2026-05-01T00:00:00.000Z' ? 4 : 1
+      return start === '2026-05-18T00:00:00.000Z' ? 4 : 1
     },
   })
   assert.equal(result.status, 'ok')
@@ -34,19 +34,19 @@ test('loadMatchesPerWeekTile includes rolling averages when at least three weeks
   const result = await loadMatchesPerWeekTile({
     buildWeekBuckets: () => [
       {
-        startInclusive: '2026-05-01T00:00:00.000Z',
-        endExclusive: '2026-05-08T00:00:00.000Z',
-        label: 'May 1',
+        startInclusive: '2026-05-18T00:00:00.000Z',
+        endExclusive: '2026-05-25T00:00:00.000Z',
+        label: 'May 18',
       },
       {
-        startInclusive: '2026-05-08T00:00:00.000Z',
-        endExclusive: '2026-05-15T00:00:00.000Z',
-        label: 'May 8',
+        startInclusive: '2026-05-25T00:00:00.000Z',
+        endExclusive: '2026-06-01T00:00:00.000Z',
+        label: 'May 25',
       },
       {
-        startInclusive: '2026-05-15T00:00:00.000Z',
-        endExclusive: '2026-05-22T00:00:00.000Z',
-        label: 'May 15',
+        startInclusive: '2026-06-01T00:00:00.000Z',
+        endExclusive: '2026-06-08T00:00:00.000Z',
+        label: 'Jun 1',
       },
     ],
     countMatchOutcomesCreatedBetween: async () => 1,

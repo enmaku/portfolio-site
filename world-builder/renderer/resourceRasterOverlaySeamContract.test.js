@@ -1,0 +1,253 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import {
+  applyResourceOverlayVisibility,
+  createDefaultResourceOverlayVisibility,
+  createResourceOverlayDefinitions,
+} from '../resourceOverlays.js'
+import {
+  getResourceRasterOverlayRgbaBuildCount,
+  resetResourceRasterOverlayRgbaBuildCount,
+} from './buildResourceRasterOverlayRgba.js'
+import {
+  RESOURCE_RASTER_OVERLAY_LAYER_IDS,
+  RESOURCE_RASTER_OVERLAY_REGISTRY,
+  resolveResourceRasterOverlaySpriteVisible,
+} from './resourceRasterOverlayRefresh.js'
+
+/**
+ * Resource raster overlay seam: the viewport projects resource overlay refreshes through
+ * a single registry keyed by overlay id. Per-layer rebuild locality and one-build-per-refresh
+ * behavior are proven in createWorldBuilderMapViewport.overlaySync.test.js and
+ * resourceRasterOverlayRefresh.test.js; these checks pin the registry-to-definition coverage
+ * and that visibility is decided without rasterizing.
+ *
+ * @param {import('./resourceRasterOverlayRefresh.js').ResourceRasterOverlayLayerId} resourceId
+ * @returns {import('../core/types.js').WorldDocument}
+ */
+function visibleRasterFixture(resourceId) {
+  if (resourceId === 'sail') {
+    const cellCount = 16
+    const elevation = new Float32Array(cellCount).fill(0.5)
+    const riverCorridorMask = new Uint8Array(cellCount)
+    riverCorridorMask[5] = 1
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      fields: { elevation },
+      riverCorridorMask,
+    }
+  }
+
+  if (resourceId === 'freshwater') {
+    const cellCount = 16
+    const rainfall = new Float32Array(cellCount).fill(0.6)
+    const drainage = new Float32Array(cellCount).fill(0.2)
+    const salinity = new Float32Array(cellCount).fill(0.1)
+    const elevation = new Float32Array(cellCount).fill(0.5)
+    const biomes = new Uint8Array(cellCount).fill(2)
+    const riverCorridorMask = new Uint8Array(cellCount)
+    riverCorridorMask[5] = 1
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      fields: { rainfall, drainage, salinity, elevation },
+      biomes,
+      riverCorridorMask,
+    }
+  }
+
+  if (resourceId === 'population') {
+    const populationCollapseRaster = new Float32Array(16)
+    populationCollapseRaster[5] = 12
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      populationCollapseRaster,
+    }
+  }
+
+  if (resourceId === 'explorationFog') {
+    const visitedCells = new Uint8Array(16)
+    visitedCells[5] = 1
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      visitedCells,
+    }
+  }
+
+  if (resourceId === 'routes') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      roads: [
+        { cells: [{ x: 1, y: 1 }, { x: 2, y: 1 }], mode: 'land' },
+        { cells: [{ x: 0, y: 2 }], mode: 'sail' },
+      ],
+    }
+  }
+
+  if (resourceId === 'wealth') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      settlements: [{ id: 'a', x: 1, y: 1 }],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+      tradeAccounts: { balancesBySettlementId: { a: 100 } },
+      lastTradeEpochResult: {
+        obligationDeltas: [{ toSettlementId: 'a', amountCp: 200, kind: 'goods' }],
+      },
+    }
+  }
+
+  if (resourceId === 'portTolls') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      settlements: [{ id: 'a', x: 1, y: 1, maritimeRole: 'port' }],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+      lastTradeEpochResult: {
+        portTollIncomeCpBySettlementId: { a: 40 },
+      },
+    }
+  }
+
+  if (resourceId === 'factionTax') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      settlements: [{ id: 'a', x: 1, y: 1 }],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+      lastTradeEpochResult: {
+        factionTaxNetCpBySettlementId: { a: -12 },
+      },
+    }
+  }
+
+  if (typeof resourceId === 'string' && resourceId.startsWith('commodityPrice')) {
+    const saltNeeded = resourceId === 'commodityPriceSalt'
+    const mineralKindByOverlay = {
+      commodityPriceCopper: 'copper',
+      commodityPriceSilver: 'silver',
+      commodityPriceGold: 'gold',
+      commodityPriceDiamonds: 'diamond',
+    }
+    const mineralKind = mineralKindByOverlay[resourceId]
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      settlements: [{ id: 'a', x: 1, y: 1 }],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+      saltNodes: saltNeeded ? [{ id: 'salt-0', x: 0, y: 0 }] : [],
+      metalNodes: mineralKind ? [{ id: 'm0', x: 0, y: 1, kind: mineralKind }] : [],
+      lastTradeEpochResult: {
+        localPricesBySettlementId: { a: { grain: 2, fish: 3, timber: 1, baseMetals: 10 } },
+      },
+    }
+  }
+
+  if (resourceId === 'factionTerritory') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      increment3LatchedEpoch: 1,
+      settlements: [{ id: 'a', x: 1, y: 1, factionId: 'faction-a' }],
+      factions: [
+        {
+          id: 'faction-a',
+          capitalSettlementId: 'a',
+          settlementIds: ['a'],
+          status: 'active',
+          emergedEpoch: 1,
+        },
+      ],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+    }
+  }
+
+  if (resourceId === 'loyalty') {
+    return {
+      gridWidth: 4,
+      gridHeight: 4,
+      colonizationPhase: 'running',
+      fields: { elevation: new Float32Array(16).fill(0.6) },
+      lakeMask: new Uint8Array(16),
+      riverCorridorMask: new Uint8Array(16),
+      settlements: [
+        { id: 'a', x: 1, y: 1, factionId: 'faction-a', status: 'living' },
+        { id: 'b', x: 2, y: 1, factionId: 'faction-a', status: 'living' },
+      ],
+      factions: [
+        {
+          id: 'faction-a',
+          capitalSettlementId: 'a',
+          settlementIds: ['a', 'b'],
+          status: 'active',
+          emergedEpoch: 1,
+        },
+      ],
+      primaryClaim: { a: [{ x: 1, y: 1 }] },
+      bannerMembershipHistoryBySettlementId: { a: Array(10).fill('faction-a') },
+    }
+  }
+
+  const raster = new Float32Array(16)
+  raster[5] = 0.8
+  return {
+    gridWidth: 4,
+    gridHeight: 4,
+    [`${resourceId}Raster`]: raster,
+  }
+}
+
+test('RESOURCE_RASTER_OVERLAY_REGISTRY covers every raster overlay definition', () => {
+  const rasterDefinitionIds = createResourceOverlayDefinitions()
+    .filter((definition) => definition.kind === 'raster' || definition.kind === 'rasterAndNodes')
+    .map((definition) => definition.id)
+
+  assert.deepStrictEqual(RESOURCE_RASTER_OVERLAY_LAYER_IDS, rasterDefinitionIds)
+  assert.deepStrictEqual(
+    Object.keys(RESOURCE_RASTER_OVERLAY_REGISTRY).sort(),
+    [...rasterDefinitionIds].sort(),
+  )
+})
+
+test('registry resolves each raster overlay visibility without rasterizing RGBA', () => {
+  for (const resourceId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {
+    resetResourceRasterOverlayRgbaBuildCount()
+    const visibility = applyResourceOverlayVisibility(
+      createDefaultResourceOverlayVisibility(),
+      resourceId,
+      true,
+    )
+    const worldDocument = visibleRasterFixture(resourceId)
+
+    assert.strictEqual(
+      resolveResourceRasterOverlaySpriteVisible(resourceId, {
+        visibility,
+        worldDocument,
+        arableMinimumProductivity: 0,
+      }),
+      true,
+      resourceId,
+    )
+    assert.strictEqual(
+      resolveResourceRasterOverlaySpriteVisible(resourceId, {
+        visibility: createDefaultResourceOverlayVisibility(),
+        worldDocument,
+        arableMinimumProductivity: 0,
+      }),
+      false,
+      resourceId,
+    )
+    assert.strictEqual(getResourceRasterOverlayRgbaBuildCount(), 0, resourceId)
+  }
+})

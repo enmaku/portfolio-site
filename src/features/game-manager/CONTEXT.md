@@ -1,256 +1,242 @@
 # Game Manager
 
-Mobile-first portfolio **project** for managing a personal board game **collection**, a persistent **saved player** roster, **play sessions** (scores and optional timer outcomes), and **statistics**. Separate from **Game Timer**, with optional integration.
+Signed-in personal history for board game nights: what you own, who you play with, how sessions went, and simple records—optional companion to **Game Timer**, not a replacement for unauthenticated timing.
 
 ## Language
 
 ### Game Manager
 
-The portfolio **project** for collection management, session recording, and stats—not part of **Game Timer**.
+The portfolio **project** where an **account owner** manages their **collection**, **saved players**, **play sessions**, and **v1 statistics**.
 
-_Avoid_: “App” alone; treating Game Manager as a mode inside **Game Timer**.
+_Avoid_: Calling it a mode of **Game Timer**; treating timer-only use as incomplete without it.
 
 ### Mobile-first project shell
 
-Game Manager’s initial **project shell**, optimized for phone use at launch.
+Game Manager’s initial **project shell**, optimized for phone use. Hosts the **manager surfaces**.
 
-_Avoid_: Assuming the mobile layout is the only forever surface for manager **capability**.
+_Avoid_: Assuming the mobile layout is the only forever surface for **manager capability**.
 
-### Desktop project shell (future)
+### Desktop project shell
 
 A later full-width **project shell** for Game Manager—better for large **collections** and **statistics** views. Out of scope for v1.
 
-_Avoid_: Building v1 manager **capability** inside mobile-only assumptions that block a future shell swap.
+_Avoid_: Building v1 **manager capability** inside mobile-only assumptions that block a future shell swap.
 
 ### Manager capability
 
-What Game Manager does for a signed-in user—**collection**, **saved players**, **play sessions**, **statistics**—independent of which **project shell** presents it.
+What Game Manager does for an **account owner**—**collection**, people, **play sessions**, **v1 statistics**—independent of which **project shell** presents it.
 
 _Avoid_: “Backend” or “store” in product language; coupling **capability** to one layout.
 
 ### Account owner
 
-The signed-in user whose account holds **collection**, **saved players**, **play sessions**, and **statistics**. In v1, one **account owner** is the sole owner of all data they record.
+The signed-in person whose durable Game Manager data this is; sole reader/writer of their **manager store** in v1. They may facilitate a **play session** without being a **present player**. Firebase Auth via Google or email/password; email need not be verified before use.
 
-_Avoid_: “Host” when meaning data ownership (conflicts with **Game Timer** **host** role in a **room**).
+_Avoid_: “User” alone (too vague across the portfolio); anonymous Firebase identities as owners; requiring the owner to sit every recorded game; blocking email/password owners on verification in v1.
+
+### Sign-in provider
+
+A Firebase Authentication method the **account owner** uses. V1 exposes Google and email/password; Apple and Facebook are deferred until enabled. Anonymous is not an **account owner** path.
+
+_Avoid_: Custom passphrase accounts; requiring Game Timer users to sign in.
+
+### Manager store
+
+The **account owner**’s durable Game Manager data (roster, **collection**, **play sessions**, and whatever aggregates derive from them).
+
+_Avoid_: Confusing with Game Timer / Movie Vote **room** state in Realtime Database.
+
+### Catalog
+
+The external BoardGameGeek-backed encyclopedia of board games used when adding to a **collection**.
+
+_Avoid_: Owning a full local encyclopedia; equating **catalog** with the owner’s **collection**.
+
+### Catalog entry
+
+A normalized game identity and metadata drawn from the **catalog** (keyed by BoardGameGeek id). Product display cares about title, box art, player counts, play time, and **catalog attribution**; description may appear on a detail view.
+
+_Avoid_: Treating raw BGG XML as the product language; skipping **catalog attribution** where BGG metadata is shown; requiring weight/rank/etc. in v1 UI.
+
+### Catalog attribution
+
+Visible credit owed when BoardGameGeek **catalog** metadata is shown, per BGG terms.
+
+### Collection
+
+The **account owner**’s shelf of games they treat as owned—each item either references a **catalog entry** or is a **custom collection entry**. At most one item per **catalog entry** id; adding a game already on the shelf is a no-op / “already owned” path, not a second copy. Distinct from games merely played on **play sessions** (cafés, friends’ shelves).
+
+_Avoid_: “Library” (ambiguous); preset **group configurations** (out of scope for v1); multiple shelf rows for the same BGG id; requiring ownership for every recorded play.
+
+### Play session
+
+One game, one sitting: a chosen game (**catalog entry** or **custom collection entry** reference), its **present players**, optional timing export, **session score** (when entered), and a **play session state**. The game need not already be on the **collection** shelf (board game café / someone else’s copy). Setup may offer **add to collection**, defaulting on, as a separate choice from recording the sitting. An **account owner** may keep many incomplete sessions at once and resume any of them.
+
+_Avoid_: Multi-game nights as a single session; preset groups as the attendance model; forcing every played title onto the shelf; forcing a single in-flight session.
+
+### Custom collection entry
+
+A non-catalog game identity (homebrew, obscure titles) used when **catalog** search has no acceptable match. V1 requires only a title. May be played on a **play session** and/or pinned onto the **collection** shelf.
+
+_Avoid_: Forcing every title through BGG when search fails; requiring manual player-count/time metadata in v1; assuming every custom title is owned.
+
+### Add to collection
+
+Optional choice while setting up a **play session** (or after playing) to pin the chosen game onto the **collection** shelf. Defaults on when the title is not already owned; may be unchecked for café / friends’-shelf plays.
+
+_Avoid_: Silently forcing shelf membership for every recorded play.
 
 ### Saved player
 
-A persistent person on the **account owner’s** roster—display **name** and **color**, same identity fields **Game Timer** uses for roster entries (excluding live timer totals). The roster acts as a friends list, not a preset group.
+A reusable roster person with a stable id, display name, and color, aligned with Game Timer player identity fields (not live **banked time**). Color is always present; if the owner doesn’t pick one, Game Manager assigns a default.
 
-_Avoid_: “Group configuration”, “preset”, “party template” for v1; conflating with live **Game Timer** **player** session state (**banked time**, etc.).
-
-### Present players
-
-The subset of **saved players** checked as attending when starting a **play session**—who is at the table tonight, chosen fresh each time.
-
-_Avoid_: Saved roster implying everyone listed must play; named groups that encode attendance rules.
-
-### One-off guest
-
-A person added for a single **play session** only—not on the **saved player** roster unless promoted.
-
-### Persist to roster
-
-Optional choice when adding a person (e.g. checkbox in the add-player dialog): save them immediately as a **saved player** instead of creating a **one-off guest**. Shortcut so the **account owner** need not visit roster management for every new regular.
-
-_Avoid_: Implying roster management is removed; every add silently persists without an explicit choice.
+_Avoid_: “Group preset”; equating with a Firebase Auth identity (that is future **player claim**); colorless roster identities.
 
 ### Saved player management
 
-Dedicated UI for viewing, editing, and removing **saved players** on the roster—separate from the add-player shortcut during session setup.
+Dedicated UI for viewing, editing, pinning, and unpinning **saved players**—separate from the add-person shortcut during session setup.
 
-### Group configuration (future)
+### Group configuration
 
 Named preset rosters or recurring table setups. Out of scope for v1—attendance varies night to night, so v1 uses **present players** selection instead.
 
 ### Recorded player
 
-A **saved player** (or future one-off guest) who appears in **play session** history—whether **unlinked** or **linked** to an authenticated account.
+A durable person identity under an **account owner**’s history (stable id + display name + color), as captured across **play sessions**. Distinct from Firebase Auth until **player claim** links them. Color is always present (defaulted when needed). Display name and color are live on the identity—edits apply when viewing past sessions too (sessions reference the person; they don’t freeze the label).
 
-_Avoid_: Reusing **Game Timer** **player** when talking about persisted manager history (timer **players** are live session seats with **banked time**).
+_Avoid_: Equating with a live **saved player** row only; discarding history because someone was added as a **one-off guest**; treating each night’s name string as an immutable historical artifact.
+
+### Present player
+
+Someone included in a specific **play session**—usually drawn from **saved players**, plus any **one-off guests**. The list may start empty in `setup` (attendance unknown) and may change through `playing` / `scoring` when people arrive late or **drop out**. A session cannot enter `complete` with zero **present players**.
+
+_Avoid_: Requiring final attendance before the night starts; locking the roster once play begins.
+
+### Drop out
+
+Removing a **present player** from this **play session** (and any in-progress score row for them) because they left or never actually played—does not erase their history on other sessions.
+
+_Avoid_: A separate “dropped” outcome mark in v1; deleting the **recorded player** identity when they leave one night.
+
+### One-off guest
+
+A person added for tonight without pinning them on the **saved player** management list. They still receive a durable **recorded player** identity under this **account owner** (name is part of that identity) so scores can accumulate and later support **player claim**.
+
+_Avoid_: Treating one-off as “throw away the person after the night”; skipping a name.
+
+### Persist to roster
+
+The choice, while adding someone, to also pin them as a **saved player** for quick re-selection—same **recorded player** identity, not a second person. Unpinning later only removes the roster pin; history stays until an explicit **person deletion**.
+
+### Person deletion
+
+An explicit action that removes a **recorded player** identity from the **account owner**’s usable people. Past **play sessions** keep a seat via a **removed player** placeholder (not a silent scrub of history, and not a cascade delete of those nights). Distinct from unpinning a **saved player**.
+
+_Avoid_: Equating roster remove with erasing history; deleting every session the person touched; leaving broken references with no placeholder.
+
+### Removed player
+
+A tombstone seat on a past **play session** after **person deletion**—marks that someone was there without retaining their former identity for stats or **player claim**.
+
+_Avoid_: Pretending the seat never existed; keeping claimable history after the owner chose deletion.
+
+### Person match prompt
+
+When the **account owner** types a name that matches an existing **recorded player** or **saved player**, Game Manager suggests that identity for confirmation (or lets them create a new person)—no silent merge.
+
+_Avoid_: Auto-merging on normalized name alone; making free-typed names always brand-new without offering a match.
 
 ### Unlinked recorded player
 
-A **recorded player** with no authenticated account associated yet.
+A **recorded player** not yet tied to an authenticated identity via **player claim**.
 
-### Linked recorded player (future)
+### Linked recorded player
 
-A **recorded player** whose identity has been tied to an authenticated account through **player claim**.
+A **recorded player** whose identity has been tied to an authenticated account through **player claim**. Future; not built in v1.
 
-### Player claim (future)
+### Player claim
 
-Flow—e.g. QR code—where someone signs in and associates their account with an **unlinked recorded player** on another **account owner’s** device. After claim: prior **play sessions** involving that person become visible in the claimant’s account, and future sessions involving that identity are reachable from both the original **account owner** and the claimant.
+A future, cooperative handoff where an **unlinked recorded player**’s history under one **account owner** becomes linked to another person’s Firebase Auth identity so those records (and later nights logged for that person) can surface in the claimant’s Game Manager. Not built in v1; ids and history must not foreclose it.
 
-_Avoid_: “Merge accounts”; implying v1 supports any of this UX.
-
-### Play session
-
-One board game played once in one sitting—the unit of recording for scores, optional timer outcomes, and **statistics**. A game night with three titles is three **play sessions**.
-
-_Avoid_: “Game night” as the primary record; conflating with a **Game Timer** **room** (live sync session).
-
-### Collection
-
-The **account owner’s** personal library of board games they own or track—entries used when starting **play sessions**.
-
-_Avoid_: “Library” alone (ambiguous with code); the global board game **catalog**.
-
-### Catalog
-
-External board game reference data—titles, box art, player counts, play time, and similar metadata. Not owned by the **account owner**; used when adding to the **collection**. **BoardGameGeek** is the primary source; integration is subject to BGG terms (non-commercial use, attribution, no use of BGG data to train AI systems).
-
-_Avoid_: “Database” in product language; treating the catalog as the **collection** itself; calling the client app the integration (metadata is fetched server-side).
-
-### Catalog entry
-
-One game in the **catalog**, identified by a BoardGameGeek id, with metadata the integration provides.
-
-### Catalog attribution
-
-Required credit to BoardGameGeek wherever **catalog** metadata is shown—name, link back, and “Powered by BGG” branding per BGG API terms.
-
-### Custom collection entry
-
-A **collection** item the **account owner** creates without a **catalog** match—at minimum a display name; optional catalog link later.
-
-_Avoid_: “Manual game”; implying custom entries are second-class for **play sessions** (they record the same way).
-
-### Session score
-
-Outcome data for a **play session**, entered manually by the **account owner**—always optional. Shape depends on **score entry mode**: per-**present player** numbers in **competitive** mode, one shared team number in **cooperative** mode, or per-player win/loss/tie in **win_loss** mode. Numeric scores may be negative (e.g. games where points below zero are normal).
-
-_Avoid_: Game-specific scoring rules or automatic score calculation in v1; requiring scores to save or finish a **play session**.
-
-### Score entry mode
-
-How **session score** for a **play session** should be interpreted—chosen when entering scores, not baked into the **collection** item. v1 has exactly three modes:
-
-- **competitive** — one optional numeric **session score** per **present player** (negative values allowed).
-- **cooperative** — one optional shared team numeric **session score** for the group (negative values allowed).
-- **win_loss** — optional win, loss, or tie per **present player** (no numeric score).
-
-_Avoid_: “Scoring system”, “rules engine”; per-game presets; a fourth mode; implying the app knows how each board game is scored.
-
-### Timer leg
-
-Optional phase of a **play session** where the **account owner** runs **Game Timer** with **present players** pre-filled, then returns to Game Manager to enter **session score**.
-
-_Avoid_: Requiring a timer for every **play session**; treating the timer **room** as the **play session** record.
-
-### Game end (timer export)
-
-Explicit action in **Game Timer** when the session was launched from Game Manager—finalizes the timer **snapshot** and hands timing data back to the awaiting **play session**. Exact control placement is an implementation detail; timer-only sessions do not need this action.
-
-_Avoid_: “Finish game” for **new game with same players** (timer reset, not export); auto-export on **room exit**.
-
-### Manager-linked timer
-
-A **Game Timer** session started from an in-progress **play session** in Game Manager—roster and colors come from **present players**; **game end** export returns to that **play session**.
-
-### Statistics
-
-Derived views over completed **play sessions**—counts, bests, rates, and averages. v1 (**mobile-first project shell**) covers a minimal set; richer analytics expected with a future **desktop project shell**.
-
-_Avoid_: “Analytics dashboard” for v1 scope; stats that require rules beyond recorded **session score** and optional timer duration.
-
-### v1 statistics
-
-The initial **statistics** set on mobile: **play count**, **personal best** **session score** per game, **points per minute** when a **timer leg** supplied duration, and simple **average score** per game per player.
-
-_Avoid_: Win rate, head-to-head, trends, group leaderboards, and cross-player comparisons in v1.
-
-### Sign-in provider
-
-Third-party OAuth used to establish an **account owner** session—v1 supports Google, Apple, and Facebook.
-
-_Avoid_: “Social login” alone; implying providers beyond the three above are in v1.
-
-### Passphrase account
-
-An **account owner** who authenticates with a BIP39-style recovery **passphrase** instead of a **sign-in provider**—for users who will not use OAuth. The **passphrase** is the sole credential; losing it means losing access to that account’s data with no server-side recovery.
-
-_Avoid_: “Seed phrase” in user-facing copy unless clearly explained; “password” (implies reset flow).
-
-### Passphrase backup prompt
-
-Strong onboarding step requiring the **account owner** to acknowledge they have written down or otherwise secured their **passphrase** before use—because it is the only key to their Game Manager data.
-
-### Passphrase setup
-
-Onboarding for a **passphrase account**: by default the app **generates** a new BIP39-style **passphrase** (with **passphrase backup prompt**); alternatively the user may **restore** an existing **passphrase** they already saved—to access the same data on a new device or after storage loss.
-
-_Avoid_: Implying passphrases can be reset or recovered server-side.
-
-### Online-first (v1)
-
-Game Manager v1 requires network connectivity for sign-in, **catalog** search, **manager store** sync, and **manager-linked timer** coordination. No offline collection browsing or queued sync in v1.
-
-_Avoid_: “Offline mode”, “works without internet” for v1 scope.
-
-### Passphrase restore
-
-Entering an existing **passphrase** to open a **passphrase account** on a device—same phrase, same **account owner** data.
-
-### Device session (passphrase)
-
-After a successful **passphrase account** sign-in, the credential is remembered on that device so the user is not prompted again until browser storage is cleared.
-
-_Avoid_: “Remember me” toggle that implies optional low-security mode—the default for **passphrase account** is persistent device access.
-
-### Manager store
-
-Durable Game Manager data for an **account owner**—**collection**, **saved players**, **play sessions**, and materialized **statistics**—held in **Firestore**, distinct from live **Game Timer** **room** sync in **Realtime Database**.
-
-_Avoid_: “Database” when meaning the whole Firebase project; storing manager artifacts in RTDB.
-
-### Play session state
-
-Rough lifecycle of a **play session**: `setup` (game and **present players** chosen), `playing` (optional **timer leg** or table time in progress), `scoring` (play winding down; **session score** not yet saved), `complete` (**session score** saved). Sessions may stop in any state—real nights get interrupted.
-
-_Avoid_: **Phase** (reserved in other **projects** for different meanings); requiring a single uninterrupted flow.
+_Avoid_: Implementing cross-account sync in v1; requiring the guest to have the app on the night they first play.
 
 ### Partial play session
 
-A **play session** saved without reaching `complete`—no final scores, abandoned mid-game, or forgotten score entry. Still retained with whatever data exists (game, **present players**, partial timer export, notes, etc.).
-
-_Avoid_: Deleting or hiding incomplete records; treating partial as an error state only.
+A **play session** retained without a finished **session score**—left before `complete`, or never scored—still counted in **play count**.
 
 ### Complete play session
 
-A **play session** in `complete` state with **session score** saved—required for score-based **v1 statistics** (**personal best**, **average score**, **points per minute**).
+A **play session** in `complete` with a chosen **score entry mode** and full **session score** for that mode.
 
-_Avoid_: Implying only **complete play sessions** appear in history.
+### Play session state
+
+Lifecycle position of a **play session**: `setup`, `playing`, `scoring`, or `complete`. Happy path is forward along that order; **playing** may be skipped for manual score entry (`setup` → `scoring`). Entering `complete` requires a chosen **score entry mode** and a full **session score** for that mode (every **present player** marked for per-player modes; **shared score** filled). A `complete` session may be reopened to `scoring` to fix mistakes. Early stops remain **partial play sessions** until **session deletion**.
+
+_Avoid_: Treating states as freely jumbleable labels; making `complete` immutable except by delete-and-recreate; marking `complete` with half-filled scores.
+
+### Session score
+
+The outcome recording for a **play session**, interpreted according to its **score entry mode**.
+
+### Score entry mode
+
+How a **session score** is shaped for that sitting. V1 modes:
+
+- **Per-player scores** — each **present player** has a numeric score (competitive point totals).
+- **Shared score** — one numeric score for the whole group (cooperative totals).
+- **Outcome marks** — each **present player** is marked win, loss, or draw (no points required).
+
+_Avoid_: A game-rules engine; forcing every game into points-only entry.
 
 ### Session deletion
 
-Removing a **play session** from the **account owner’s** records so it no longer appears in history or **statistics**—for mistakes, cancelled nights, or records the user does not want in aggregates.
+Permanently removing a **play session** from the **manager store** (and its contribution to aggregates) when the record was a mistake or unwanted. No soft-archive in v1.
 
-## Relationships
+_Avoid_: Soft-delete/restore flows in v1.
 
-- Game Manager is a first-class **project** alongside **Game Timer**, **Movie Vote**, and **Dungeon Runner**.
-- **Manager capability** requires authentication and is **online-first** in v1—no anonymous collection or session recording.
-- **Account owner** may sign in via a **sign-in provider** (Google, Apple, Facebook) or a **passphrase account** (**passphrase setup** or **passphrase restore**).
-- **Manager capability** must remain usable when a future **desktop project shell** replaces or supplements the **mobile-first project shell**.
-- **Game Timer** remains a standalone **project**; Game Manager integration is optional and must not require auth for timer-only use.
-- In v1, the **account owner** owns all manager data; **saved players** are the canonical roster; starting a **play session** means selecting **present players** from that roster and/or **one-off guests**, then choosing a game from the **collection**.
-- Each **play session** records one game in one sitting; multiple games in an evening are multiple **play sessions**.
-- **Collection** is **catalog-first** via the **BoardGameGeek** **catalog** (with **catalog attribution**); **custom collection entries** allowed when no match suffices.
-- **Play session** outcomes may include **session score** with a manual **score entry mode** (`competitive`, `cooperative`, or `win_loss`) chosen at entry time—scores are optional and numeric scores may be negative; not per-game rules in v1.
-- A **play session** may include an optional **timer leg** via a **manager-linked timer**; otherwise scores are entered without timer data.
-- **Game end** in a **manager-linked timer** exports the final **snapshot** back to the **play session**; handoff mechanics are implementation detail.
-- v1 **statistics** are **session-derived basics** only; deeper **statistics** deferred to a future **desktop project shell**.
-- **Manager store** (**Firestore**) holds durable manager artifacts; **Game Timer** live sync stays in **Realtime Database**; **manager-linked timer** exports from RTDB **snapshot** into the **play session** in **Firestore**.
-- **Play sessions** may remain **partial**; retain all captured data regardless of **play session state**.
-- **Play count** includes **partial play sessions**; score-based **v1 statistics** require saved **session score** (typically **complete play sessions**). **Session deletion** removes a record from history and aggregates.
-- **One-off guests** may be promoted to **saved players** via **persist to roster** at add time or through **saved player management** later.
-- **Saved player** identity (name, color, stable id) aligns with **Game Timer** roster fields so integration can reuse the same people across projects.
-- v1 data and permissions must not foreclose **player claim**: a **saved player** / **recorded player** should remain a distinct identity that can later become **linked** without rewriting history.
-- **Player claim** is out of scope for v1 implementation but is a committed future **capability**.
+### Points per minute
+
+A **v1 statistics** rate for a person at a game: their **per-player score** divided by session duration. Duration comes only from a **manager-linked timer** export; no manual duration in v1. Until that handoff exists, PPM simply does not appear.
+
+_Avoid_: Manual duration entry in v1; inventing duration from wall-clock guesses.
+
+### Personal best
+
+For **per-player scores**, the highest numeric score that person has recorded at a given game. V1 treats higher as better; lower-is-better games are out of scope.
+
+_Avoid_: Golf-style inversions in v1; picking “best” manually per sitting.
+
+### V1 statistics
+
+Simple derived summaries over stored **play sessions**, primarily **per person per collection game** (how that **recorded player** did at a given title). Includes **play count** (counts **partial play sessions** regardless of **score entry mode**). **Personal best** and **average score** use only sittings scored with **per-player scores**; **points per minute** additionally requires timer-exported duration. **Shared score** and **outcome marks** contribute to **play count** only. Personal-stats browsing lists every **recorded player** who has history under this **account owner**, whether or not they are pinned as a **saved player**.
+
+_Avoid_: Win rate, head-to-head, trends, and group leaderboards in v1; a single shelf-wide personal best that mixes unrelated titles; inventing per-person points from **shared score** or **outcome marks**; hiding guest history from stats because they were never pinned to the roster.
+
+### Timer leg
+
+The optional stretch of a **play session** spent in **Game Timer** as a **manager-linked timer**, begun from Game Manager and finished via **game end**.
+
+### Manager-linked timer
+
+A **Game Timer** sitting started from a **play session** so roster identity can flow over and **game end** can return timing data. Standalone timer use remains auth-free and unchanged.
+
+_Avoid_: Requiring Game Manager for ordinary timing. (Launch/return transport deferred.)
+
+### Game end
+
+The manager-aware timer action that finishes a **manager-linked timer** and exports a final **snapshot** for the awaiting **play session**—distinct from starting a **new game with same players** inside the timer.
+
+### Online-first
+
+Game Manager expects connectivity for auth, **manager store**, and **catalog** access in v1—no offline sync or queued browsing.
+
+### Manager surfaces
+
+Primary mobile areas of Game Manager: **Collection**, **People** (**saved players** and **recorded players** with history), **Sessions** (**play sessions**), and **Stats**, plus account/sign-in. Desktop shell remains out of scope for v1.
+
+_Avoid_: Burying people management only inside session flows; a desktop-first dashboard layout for v1.
 
 ## Flagged ambiguities
 
-- After **player claim**, whether shared **play sessions** are referenced from multiple accounts, copied, or synchronized—implementation TBD; product intent is bidirectional visibility (claimant sees backfill; either party can record future shared history).
-- **Game end** control UX and handoff transport for **manager-linked timer** sessions—implementation TBD.
-- Whether an **account owner** may link a **passphrase account** to a **sign-in provider** account (or vice versa)—out of scope for v1; treat as separate identities unless decided later.
-- Exact **passphrase account** cryptography and Firebase Auth integration—implementation TBD; product intent is BIP39-style phrase, device persistence, no recovery without the phrase.
+- **Manager-linked timer** launch/return transport — deferred intentionally.
+- Apple / Facebook sign-in — deferred until those providers are enabled.

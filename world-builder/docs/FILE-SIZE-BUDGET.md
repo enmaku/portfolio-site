@@ -1,0 +1,208 @@
+# File size budget — World Builder production code
+
+Line-count limits for World Builder production code and ongoing maintenance. Enforced by `npm run check:world-builder-file-size`. Any production file **>1000 lines** should be split before merge unless the PR documents an explicit exception.
+
+Count production lines with:
+
+```bash
+wc -l path/to/file.js
+```
+
+Exclude `*.test.js` from budget enforcement unless a test file itself exceeds readability thresholds (rare; split fixtures instead).
+
+---
+
+## Hard ceilings
+
+| Tier | Max lines | Consequence |
+| --- | ---: | --- |
+| **Absolute max** | 1000 | Instant REWORK; must split before merge |
+| **Orchestrator max** | 650 | `#361` acceptance — `derivedGeographyPipeline.js` |
+| **Substep module max** | 250 | `#356` per-file extract targets |
+| **Registry / index max** | 80 | Import-only registries (`substeps/index.js`) |
+| **Small helper max** | 80 | Single-purpose extract (`cloneWorldDocument.js`, `buildWorldDocumentFromPipelineState.js`) |
+
+---
+
+## Budget by file type
+
+### Landmass pipeline orchestrator
+
+| File | Budget | Notes |
+| --- | ---: | --- |
+| `world-builder/core/derivedGeographyPipeline.js` | ≤650 | Thin dispatch + re-exports after #361 |
+| `world-builder/core/landmassPipelineRunner.js` | ≤300 | Retry, hooks, step loop (#361 extract) |
+| `world-builder/core/buildWorldDocumentFromPipelineState.js` | ≤70 | Document assembly only |
+| `world-builder/core/cloneWorldDocument.js` | ≤80 | Deep copy including `Uint8Array` fields |
+
+### Landmass stage modules
+
+| File pattern | Budget | Notes |
+| --- | ---: | --- |
+| `world-builder/core/stages/*Stage.js` | ≤400 | One stage per file (#359) |
+| `world-builder/core/landmassPipelineStageModules.js` | ≤120 | Ordered registry |
+
+### Hydrology substeps
+
+| File pattern | Budget | Notes |
+| --- | ---: | --- |
+| `world-builder/core/hydrology/substeps/hydrologyFillSubstep.js` | ≤250 | |
+| `world-builder/core/hydrology/substeps/hydrologyRouteSubstep.js` | ≤250 | |
+| `world-builder/core/hydrology/substeps/hydrologySettleSubstep.js` | ≤250 | |
+| `world-builder/core/hydrology/substeps/hydrologyPaintSubstep.js` | ≤250 | |
+| `world-builder/core/hydrology/substeps/hydrologyClimateSubstep.js` | ≤200 | |
+| `world-builder/core/hydrology/substeps/hydrologySeasonalSubstep.js` | ≤200 | |
+| `world-builder/core/hydrology/substeps/hydrologyInciseSubstep.js` | ≤200 | |
+| `world-builder/core/hydrology/substeps/hydrologyExtractSubstep.js` | ≤200 | |
+| `world-builder/core/hydrology/substeps/hydrologyRefineSubstep.js` | ≤200 | |
+| `world-builder/core/hydrology/substeps/index.js` | ≤80 | Import-only registry |
+| `world-builder/core/hydrology/hydrologySubsteps.js` | ≤400 | Typed runner after #355 |
+| `world-builder/core/hydrology/baselineDrainageFromState.js` | ≤60 | Helper extract |
+
+**Deleted by #356:** monolithic `hydrologySubstepModules.js` (shim re-export only if temporarily required).
+
+### Renderer / viewport
+
+| File | Budget | Notes |
+| --- | ---: | --- |
+| `world-builder/renderer/createWorldBuilderMapViewport.js` | ≤600 | Pixi orchestrator; helpers extracted |
+| `world-builder/renderer/drawMapNodeOverlays.js` | ≤250 | Discrete node/label drawers + marker constants |
+| `world-builder/renderer/hideMapLayer.js` | ≤80 | Per-layer hide switch |
+| `world-builder/renderer/buildTerrainCanvas.js` | ≤80 | Terrain canvas + elevation tint |
+| `world-builder/renderer/viewportFraming.js` | ≤80 | fit/sync helpers |
+| `world-builder/renderer/mapLayerRefresh.js` | ≤300 | Per-layer handler registry |
+| `world-builder/renderer/diffResourceOverlayMapLayers.js` | ≤200 | Locality diffs |
+| `world-builder/renderer/worldBuilderMapViewportModel.js` | ≤250 | Pure view-model resolvers |
+
+### Page / composables
+
+| File | Budget | Notes |
+| --- | ---: | --- |
+| `src/pages/projects/WorldBuilderPage.vue` | ≤700 | Inc3 markup (economy panel, campaign kit, trade tooltip); extract target still ≤400 long-term |
+| `src/composables/useWorldBuilderPageController.js` | ≤750 | Inc3 app seam (colonization + campaign kit); extract target still ≤350 long-term |
+| `src/composables/useWorldBuilderColonization.js` | ≤750 | Colonization owner; progress/status split into dedicated composables |
+| `world-builder/worldBuilderPageModel.js` | ≤300 | Display format helpers |
+| `src/composables/useWorldBuilderGeneration.js` | ≤250 | Generation wiring |
+| `src/composables/useWorldBuilderOverlayState.js` | ≤200 | Overlay owner |
+
+### Colonization / economy (Increment 3)
+
+| File | Budget | Notes |
+| --- | ---: | --- |
+| `world-builder/core/economy/tradeClearing/runTradeClearing.js` | ≤650 | Async clearing ladder; Sync is thin generator drain |
+| `world-builder/core/economy/tradeClearing/offMapTrade.js` | ≤550 | Residual off-map steps generator |
+| `world-builder/core/colonization/tradeGraph/buildCandidateRoutes.js` | ≤600 | Candidate trade graph (colonization logistics) |
+| `world-builder/core/colonization/colonizationEpochProgress.js` | ≤720 | Epoch progress reducers (shared substep lanes incl. politics) |
+| `world-builder/core/economy/economyEpochSnapshot.js` | ≤120 | Persisted inspect projection from clearing |
+
+### Worker
+
+| File | Budget | Notes |
+| --- | ---: | --- |
+| `world-builder/worker/derivedGeography.worker.js` | ≤80 | Message handler only |
+| `world-builder/worker/derivedGeographyWorkerProtocol.js` | ≤200 | Types + serializers |
+
+---
+
+## Warning thresholds (#372 audit)
+
+Flag in PR body when exceeded; split in same Phase or justify:
+
+| Threshold | Action |
+| --- | --- |
+| >600 lines | Review for extract candidate |
+| >800 lines | Split required before #382 unless documented exception |
+| >1000 lines | Block merge — split mandatory |
+
+Audit command:
+
+```bash
+find world-builder src/pages/projects/WorldBuilderPage.vue src/composables/useWorldBuilder*.js \
+  -name '*.js' -o -name '*.vue' 2>/dev/null | while read -r f; do
+  case "$f" in *.test.js) continue ;; esac
+  wc -l "$f"
+done | sort -n | tail -25
+```
+
+---
+
+## What counts as production
+
+**In budget:**
+
+- All `world-builder/**/*.js` except `*.test.js`
+- `src/composables/useWorldBuilder*.js`
+- `src/pages/projects/WorldBuilderPage.vue`
+
+**Out of budget:**
+
+- `world-builder/docs/**`
+- `*.test.js` (behavioral tests may be long; split fixtures if unreadable)
+- Generated or vendor files (none in world-builder today)
+
+---
+
+## Splitting guidelines
+
+When a file approaches budget:
+
+1. Extract pure functions to colocated helper with single responsibility.
+2. Move stage bodies to `stages/` or `substeps/` modules — keep orchestrator as registry + dispatch.
+3. Do not split along arbitrary line boundaries; split by **seam** (see [`ARCHITECTURE-SEAMS.md`](./ARCHITECTURE-SEAMS.md)).
+4. Update imports repo-wide; run `npm run test:world-builder`.
+5. Record new file in this budget table via follow-up doc PR if permanent.
+
+---
+
+## Phase 5 acceptance (#372)
+
+- [ ] No production file on branch exceeds 1000 lines without PR justification
+- [ ] `hydrologySubstepModules` monolith eliminated (#356)
+- [ ] `derivedGeographyPipeline.js` ≤650 lines (#361)
+- [ ] Substep files respect per-substep caps (#356)
+- [ ] Audit summary in merge PR body (#382)
+
+---
+
+## Automated check
+
+```bash
+npm run check:world-builder-file-size
+```
+
+Also runs at the start of `npm run test:world-builder`. Unit tests in `world-builder/scripts/checkFileSizeBudget.test.js` run under `npm test`.
+
+---
+
+## PR body snippet (for #382 merge PR)
+
+Paste after running `npm run check:world-builder-file-size`. Replace warning rows with current CLI output.
+
+```markdown
+## File size audit (#372)
+
+- [ ] `npm run check:world-builder-file-size` — exit 0
+- [ ] No production file exceeds 1000 lines
+- [ ] `derivedGeographyPipeline.js` ≤650 lines (orchestrator)
+- [ ] `hydrology/substeps/index.js` ≤80 lines (registry)
+- [ ] Hydrology substep modules ≤250 lines each (#356)
+- [ ] `hydrologySubstepModules.js` is shim re-export only (#356)
+
+**Warnings (>600 lines — extract candidates, flag for follow-up):**
+
+| File | Lines | Action |
+| --- | ---: | --- |
+| *(paste from CLI or none)* | | review / split before #382 if >800 |
+
+**Phase 5 caps verified:** `world-builder/scripts/checkFileSizeBudget.test.js`
+```
+
+---
+
+## Related documents
+
+| Document | Role |
+| --- | --- |
+| [`HYDROLOGY-SUBSTEP-FILE-MAP.md`](./HYDROLOGY-SUBSTEP-FILE-MAP.md) | Substep extract line caps |
+| [`ORCHESTRATOR-DECOMPOSITION.md`](./ORCHESTRATOR-DECOMPOSITION.md) | Orchestrator decomposition caps |
+| [`world-builder/scripts/fileSizeBudgetConfig.mjs`](../scripts/fileSizeBudgetConfig.mjs) | Budget constants consumed by CI |

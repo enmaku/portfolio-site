@@ -24,6 +24,9 @@ export const MSG_GUEST_UPDATE = 'gt-u'
 /** Hub → guest: authoritative snapshot with monotonic sequence (per room hub). */
 export const MSG_HOST_SNAPSHOT = 'gt-s'
 
+/** Hub → guest: deterministic player-order shuffle presentation. */
+export const MSG_HOST_PLAYER_ORDER_SHUFFLE = 'gt-r'
+
 /** Hub → guest: host is closing the room intentionally (before connections drop). */
 export const MSG_HOST_ENDED = 'gt-x'
 
@@ -238,6 +241,16 @@ export function encodeHostSnapshot(snapshot, seq) {
 }
 
 /**
+ * @param {GameTimerSyncPayload} snapshot
+ * @param {number} seed
+ * @param {number} seq
+ * @returns {{ type: typeof MSG_HOST_PLAYER_ORDER_SHUFFLE, snapshot: GameTimerSyncPayload, seed: number, seq: number }}
+ */
+export function encodeHostPlayerOrderShuffle(snapshot, seed, seq) {
+  return { type: MSG_HOST_PLAYER_ORDER_SHUFFLE, snapshot, seed: seed >>> 0, seq }
+}
+
+/**
  * Host keepalive payload (timestamp for debugging; guests only check message type).
  * @returns {{ type: typeof MSG_HOST_PING, t: number }}
  */
@@ -336,13 +349,35 @@ export function parseGuestHello(data) {
 
 /**
  * @param {unknown} data
- * @returns {{ type: typeof MSG_HOST_SNAPSHOT, snapshot: GameTimerSyncPayload, seq: number } | null}
+ * @returns {{ type: typeof MSG_HOST_SNAPSHOT, snapshot: GameTimerSyncPayload, seq: number } | { type: typeof MSG_HOST_PLAYER_ORDER_SHUFFLE, snapshot: GameTimerSyncPayload, seed: number, seq: number } | null}
  */
 export function parseHostMessage(data) {
   if (!isRecord(data)) return null
-  if (data.type != null && data.type !== MSG_HOST_SNAPSHOT) return null
+  if (
+    data.type != null &&
+    data.type !== MSG_HOST_SNAPSHOT &&
+    data.type !== MSG_HOST_PLAYER_ORDER_SHUFFLE
+  ) {
+    return null
+  }
   if (typeof data.seq !== 'number' || data.seq < 1) return null
   const snapshot = normalizeSnapshotFromRtdb(data.snapshot)
   if (!isValidSnapshot(snapshot)) return null
+  if (data.type === MSG_HOST_PLAYER_ORDER_SHUFFLE) {
+    if (
+      typeof data.seed !== 'number' ||
+      !Number.isInteger(data.seed) ||
+      data.seed < 0 ||
+      data.seed > 0xffffffff
+    ) {
+      return null
+    }
+    return {
+      type: MSG_HOST_PLAYER_ORDER_SHUFFLE,
+      snapshot,
+      seed: data.seed,
+      seq: data.seq,
+    }
+  }
   return { type: MSG_HOST_SNAPSHOT, snapshot, seq: data.seq }
 }

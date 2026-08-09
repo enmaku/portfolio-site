@@ -1,0 +1,131 @@
+import { SEA_LEVEL } from './biomeIds.js'
+import { EROSION_STEP_COUNT } from './types.js'
+import { DEFAULT_MINERAL_OCCURRENCE_WEIGHTS } from './resources/mineralOccurrence.js'
+
+/** @typedef {import('./types.js').WorldGenerationOptions} WorldGenerationOptions */
+
+/** Default geography seed for generation controls and reset. */
+export const DEFAULT_GEOGRAPHY_SEED = 0
+
+/** @type {WorldGenerationOptions} */
+export const DEFAULT_WORLD_GENERATION_OPTIONS = {
+  seaLevel: SEA_LEVEL,
+  elevationScale: 1.5,
+  elevationFrequencyScale: 1.65,
+  elevationOctaves: 6,
+  elevationPersistence: 0.6,
+  /** Domain warp amplitude in cells at REFERENCE_GRID_SIZE; 0 disables. */
+  elevationDomainWarpStrength: 20,
+  /** Pulls coastal land down and lifts inland plateaus for drainage headroom. */
+  elevationCoastBiasStrength: 0.15,
+  /** Smooths mid elevations while preserving peaks above ~0.78. */
+  elevationMidSmoothingStrength: 0.64,
+  /** Adds high-frequency detail on steep slopes only. */
+  elevationSlopeRoughnessStrength: 0.105,
+  /** Scales fine FBM octaves on gentle terrain; lower = smoother lowlands. */
+  elevationGentleSlopePersistenceScale: 0.56,
+  erosionStepCount: EROSION_STEP_COUNT,
+  erosionChannelWear: 0.0185,
+  erosionPeakWear: 0.001,
+  inciseIterations: 8,
+  streamPowerK: 0.0045,
+  streamPowerM: 0.35,
+  streamPowerN: 1.5,
+  channelInitiationThreshold: 0.005,
+  rainShadowStrength: 0.7,
+  moistureAdvectionStrength: 0.75,
+  rainfallAmountScale: 1.9,
+  /** 0–1 strength of seeded fractal noise on inland biome boundaries. */
+  biomeEdgeNoiseStrength: 1,
+  temperatureLapseRate: 0.5,
+  rainfallFrequencyScale: 1.35,
+  navigableFlowCutoffScale: 0.6,
+  /** Presentation corridor bridging via A* paths; 0 disables connectNearbyRiverCorridors. */
+  riverAttractionRadiusScale: 7.5,
+  /** Presentation hydrologyRefine substep (A* meander). */
+  enableMeanderRefine: true,
+  /** Legacy: meander strength when enableMeanderRefine is true. */
+  riverMeanderStrength: 1.4,
+  /** Legacy: valley settling when enableMeanderRefine is true (presentation carve disabled). */
+  riverSettlementSteps: 8,
+  /** Legacy: tributary merge bias when enableMeanderRefine is true. */
+  riverMergeStrength: 1.4,
+  minLakeAreaScale: 1,
+  soilDrainageScale: 1.25,
+  maxSaltNodes: 12,
+  maxMetalNodes: 12,
+  mineralOccurrenceCopper: DEFAULT_MINERAL_OCCURRENCE_WEIGHTS.copper,
+  mineralOccurrenceSilver: DEFAULT_MINERAL_OCCURRENCE_WEIGHTS.silver,
+  mineralOccurrenceGold: DEFAULT_MINERAL_OCCURRENCE_WEIGHTS.gold,
+  mineralOccurrenceDiamond: DEFAULT_MINERAL_OCCURRENCE_WEIGHTS.diamond,
+  /** Cells below this arable score are treated as non-arable (0). */
+  arableMinimumProductivity: 0.25,
+  /**
+   * Breach a closed basin when spill depth divided by basin depth is at or below
+   * this ratio (Lindsay-style hybrid breach-and-fill). Higher values breach more
+   * often; 0 forces fill-only endorheic basins.
+   */
+  breachThreshold: 0.3,
+  enableSeasonalHydrology: true,
+  /** 0–1 blend of season-weighted climate onto land biome classification. */
+  seasonalBiomeInfluenceScale: 0.2,
+  seasonalYearCount: 20,
+  dryRainMult: 0.42,
+  wetRainMult: 2.15,
+  yearlyClimateNoiseScale: 0.15,
+  lakeEvaporationScale: 1,
+  snowAccumRate: 1.55,
+  meltReleaseScale: 1.6,
+  /** Largest lakes that lose a bank segment each simulation year (0 disables). */
+  lakeBankCrumblePerYear: 1,
+  enforceNavigableRiverQuota: false,
+  enforceCoastMouth: false,
+  enforceHacksLawExponent: false,
+  enforceSlopeAreaConcavity: false,
+  enforceParallelStrandRatio: false,
+  enforceCoastConnectedNavigablePath: false,
+  enforceEndorheicFractionCap: false,
+  enforceSaltNodeLandProximity: false,
+  enforceStrategicResourceSpacing: false,
+  /**
+   * Maximum validation retries when enforce* checks reject a candidate.
+   * Each retry regenerates with geographySeed + attempt offset.
+   */
+  maxValidationRetries: 3,
+  /** When true, worker step-complete messages include cloned world documents for every stage. */
+  enableIntermediateStepPreviews: false,
+  minHacksLawExponent: 0.4,
+  maxHacksLawExponent: 0.75,
+  minSlopeAreaConcavity: 0.05,
+  maxSlopeAreaConcavity: 0.45,
+  maxParallelStrandRatio: 0.35,
+  minCoastConnectedNavigablePathCells: 8,
+  maxEndorheicFraction: Number.NaN,
+}
+
+/** Default breachThreshold; see DEFAULT_WORLD_GENERATION_OPTIONS.breachThreshold. */
+export const DEFAULT_BREACH_THRESHOLD = DEFAULT_WORLD_GENERATION_OPTIONS.breachThreshold
+
+/** Elevation settings before river-friendly priors (issue #306 baseline). */
+export const PRE_PRIORS_ELEVATION_OPTIONS = {
+  ...DEFAULT_WORLD_GENERATION_OPTIONS,
+  elevationDomainWarpStrength: 0,
+  elevationCoastBiasStrength: 0,
+  elevationMidSmoothingStrength: 0,
+  elevationSlopeRoughnessStrength: 0,
+  elevationGentleSlopePersistenceScale: 1,
+}
+
+/**
+ * @param {Partial<WorldGenerationOptions> | undefined | null} partial
+ * @returns {WorldGenerationOptions}
+ */
+export function resolveWorldGenerationOptions(partial) {
+  if (!partial) {
+    return { ...DEFAULT_WORLD_GENERATION_OPTIONS }
+  }
+  return {
+    ...DEFAULT_WORLD_GENERATION_OPTIONS,
+    ...partial,
+  }
+}

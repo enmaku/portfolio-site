@@ -5,12 +5,17 @@
  */
 
 import { nextDefaultColor } from '../core.js'
+import {
+  finishPlayerOrderShufflePresentation,
+  runPlayerOrderShufflePresentation,
+} from '../composables/usePlayerOrderShufflePresentation.js'
 import { syncOrderForActiveRoundOnStore } from '../timerRules.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
 import { SCOPED_GUEST_INTENT_KIND_SET } from './protocol.js'
 import {
   bindGameTimerP2PHandlers,
   broadcastGameTimerSnapshot,
+  finalizePlayerOrderShuffle,
   isP2PSessionActive,
 } from './session.js'
 
@@ -24,6 +29,7 @@ const SYNC_ACTION_NAMES = new Set([
   'addPlayer',
   'removePlayer',
   'reorderPlayers',
+  'completePlayerOrderShuffle',
   'setPlayerName',
   'setPlayerColor',
   'clearAllPlayers',
@@ -132,6 +138,7 @@ export function gameTimerP2PPlugin(ctx) {
     bindGameTimerP2PHandlers({
       getSnapshot: () => pickSnapshot(useGameTimerStore()),
       applySnapshot: (snap) => {
+        finishPlayerOrderShufflePresentation()
         const s = useGameTimerStore()
         applyingRemote = true
         // Functional $patch: object $patch deep-merges nested maps, so keys removed on the host would linger for guests.
@@ -157,6 +164,15 @@ export function gameTimerP2PPlugin(ctx) {
         normalizeAfterRemotePatch(s)
         applyingRemote = false
       },
+      startPlayerOrderShuffle: (snapshot, seed) => {
+        void runPlayerOrderShufflePresentation({
+          playerIds: snapshot.players.map((player) => player.id),
+          seed,
+        })
+      },
+      finishPlayerOrderShuffle: () => {
+        finishPlayerOrderShufflePresentation()
+      },
     })
   }
 
@@ -168,6 +184,13 @@ export function gameTimerP2PPlugin(ctx) {
       if (applyingRemote) return
       if (!SYNC_ACTION_NAMES.has(name)) return
       if (!isP2PSessionActive()) return
+      if (name === 'completePlayerOrderShuffle') {
+        const snapshot = pickSnapshot(useGameTimerStore())
+        if (!finalizePlayerOrderShuffle(snapshot)) {
+          broadcastGameTimerSnapshot(snapshot)
+        }
+        return
+      }
       const intent = guestIntentForAction(name, args, Date.now())
       try {
         broadcastGameTimerSnapshot(pickSnapshot(useGameTimerStore()), intent)

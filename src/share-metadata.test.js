@@ -52,6 +52,7 @@ const EXPECTED_PASTE_UNFURL_PATHS = [
   '/projects/movie-vote',
   '/projects/dungeon-runner',
   '/projects/dungeon-runner/stats',
+  '/projects/world-builder',
 ]
 
 const CATALOG_ENTRY_KEYS = [
@@ -82,7 +83,7 @@ test('catalog rows are all paste-unfurl routes', () => {
   for (const entry of SHARE_CATALOG) {
     assert.equal(entry.pasteUnfurl, true)
   }
-  assert.equal(SHARE_CATALOG.length, 6)
+  assert.equal(SHARE_CATALOG.length, 7)
 })
 
 test('shipped paste-unfurl routes each have a catalog row', () => {

@@ -34,12 +34,10 @@ export function computeRollingAverage(
 
 /**
  * Rolling mean over weekly match counts, capped at *windowSize* weeks lookback.
- * Returns `null` only when that week has no matches; uses a shorter window at the
- * start of the series or after gaps so points with bar data still get a trend value.
  *
  * @param {number[]} counts oldest→newest
  * @param {number} [windowSize]
- * @returns {{ status: 'ok', values: (number | null)[] } | { status: 'error' }}
+ * @returns {{ status: 'ok', values: number[] } | { status: 'error' }}
  */
 export function computeRollingWeekAverage(counts, windowSize = MATCHES_PER_WEEK_ROLLING_WINDOW_WEEKS) {
   if (!Array.isArray(counts) || counts.length === 0 || windowSize < 1) {
@@ -49,18 +47,5 @@ export function computeRollingWeekAverage(counts, windowSize = MATCHES_PER_WEEK_
     return { status: 'error' }
   }
 
-  const rolling = computeRollingAverage(counts, windowSize)
-  if (rolling.status === 'error') {
-    return { status: 'error' }
-  }
-
-  /** @type {(number | null)[]} */
-  const values = counts.map((count, index) => {
-    if (count === 0) {
-      return null
-    }
-    return rolling.values[index]
-  })
-
-  return { status: 'ok', values }
+  return computeRollingAverage(counts, windowSize)
 }
