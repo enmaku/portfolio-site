@@ -23,5 +23,6 @@ test('buildStatsRows lists per person per game with play counts', () => {
   assert.equal(rows.length, 1)
   assert.equal(rows[0].playCount, 2)
   assert.equal(rows[0].personalBest, 10)
+  assert.equal(rows[0].personColor, '#1')
   assert.equal(rows[0].pointsPerMinute, null)
 })

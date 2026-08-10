@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  fetchBggCatalogEntries,
   fetchBggCatalogEntry,
   isBggCatalogConfigured,
   resolveBggFunctionsBase,
@@ -58,6 +59,14 @@ test('fetchBggCatalogEntry calls bggThing with stats by default', async () => {
           minPlayers: 1,
           maxPlayers: 4,
         },
+        entries: [
+          {
+            catalogEntryId: '295947',
+            title: 'Cascadia',
+            minPlayers: 1,
+            maxPlayers: 4,
+          },
+        ],
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     )
@@ -66,6 +75,33 @@ test('fetchBggCatalogEntry calls bggThing with stats by default', async () => {
   const result = await fetchBggCatalogEntry('295947', { fetchImpl, functionsBase: EMULATOR_BASE })
   assert.equal(result.ok, true)
   assert.equal(result.entry?.title, 'Cascadia')
+})
+
+test('fetchBggCatalogEntries batches ids into one bggThing request', async () => {
+  /** @type {typeof fetch} */
+  const fetchImpl = async (url) => {
+    const parsed = new URL(String(url))
+    assert.equal(parsed.pathname, '/demo/us-central1/bggThing')
+    assert.equal(parsed.searchParams.get('id'), '13,295947')
+    assert.equal(parsed.searchParams.get('stats'), '1')
+    return new Response(
+      JSON.stringify({
+        entries: [
+          { catalogEntryId: '13', title: 'Catan', thumbnailUrl: 'https://example.com/a.jpg' },
+          { catalogEntryId: '295947', title: 'Cascadia', thumbnailUrl: 'https://example.com/b.jpg' },
+        ],
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  const result = await fetchBggCatalogEntries(['13', '295947'], {
+    fetchImpl,
+    functionsBase: EMULATOR_BASE,
+  })
+  assert.equal(result.ok, true)
+  assert.equal(result.entries.length, 2)
+  assert.equal(result.entries[0].thumbnailUrl, 'https://example.com/a.jpg')
 })
 
 test('searchBggCatalog returns empty results for blank query without fetch', async () => {

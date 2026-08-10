@@ -140,20 +140,47 @@ export async function fetchBggCatalogEntry(catalogEntryId, opts = {}) {
     return { ok: false, error: 'missing_id', entry: null }
   }
 
+  const batched = await fetchBggCatalogEntries([id], opts)
+  if (!batched.ok) {
+    return { ok: false, error: batched.error, entry: null, status: batched.status }
+  }
+  const entry = batched.entries[0] || null
+  if (!entry) {
+    return { ok: false, error: 'not_found', entry: null }
+  }
+  return { ok: true, entry }
+}
+
+/**
+ * Batch thing lookup (comma-separated BGG ids in one Cloud Function / upstream call).
+ *
+ * @param {string[]} catalogEntryIds
+ * @param {{ stats?: boolean, signal?: AbortSignal, fetchImpl?: typeof fetch, functionsBase?: string }} [opts]
+ * @returns {Promise<{ ok: true, entries: CatalogEntryDetail[] } | { ok: false, error: string, entries: [], status?: number }>}
+ */
+export async function fetchBggCatalogEntries(catalogEntryIds, opts = {}) {
+  const ids = [...new Set((catalogEntryIds || []).map((id) => String(id || '').trim()).filter(Boolean))].slice(
+    0,
+    20,
+  )
+  if (ids.length === 0) {
+    return { ok: true, entries: [] }
+  }
+
   const response = await callBggFunction(
     'bggThing',
-    { id, stats: opts.stats === false ? undefined : '1' },
+    { id: ids.join(','), stats: opts.stats === false ? undefined : '1' },
     opts,
   )
 
   if (!response.ok) {
-    return { ok: false, error: response.error, entry: null, status: response.status }
+    return { ok: false, error: response.error, entries: [], status: response.status }
   }
 
-  const entry = response.body?.entry ?? null
-  if (!entry) {
-    return { ok: false, error: 'not_found', entry: null, status: response.status }
-  }
-
-  return { ok: true, entry }
+  const entries = Array.isArray(response.body?.entries)
+    ? response.body.entries
+    : response.body?.entry
+      ? [response.body.entry]
+      : []
+  return { ok: true, entries }
 }

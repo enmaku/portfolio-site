@@ -91,6 +91,10 @@ export function useGameManagerSessions() {
   }
 
   async function selectSession(sessionId) {
+    if (!sessionId) {
+      activeSession.value = null
+      return
+    }
     activeSession.value = sessions.value.find((s) => s.id === sessionId) || null
   }
 

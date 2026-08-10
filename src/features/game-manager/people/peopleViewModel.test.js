@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildNewPersonDraft,
+  nextPersonDefaultColor,
   personMatchSuggestionsForTypedName,
+  withPersonIdentity,
   withSavedFlag,
 } from './peopleViewModel.js'
 
@@ -27,4 +29,18 @@ test('withSavedFlag pins and unpins without changing id', () => {
   person = withSavedFlag(person, false)
   assert.equal(person.saved, false)
   assert.equal(person.id, 'a1')
+})
+
+test('nextPersonDefaultColor prefers unused palette colors', () => {
+  const first = nextPersonDefaultColor([])
+  const second = nextPersonDefaultColor([{ color: first }])
+  assert.notEqual(first, second)
+})
+
+test('withPersonIdentity updates name and color', () => {
+  const person = buildNewPersonDraft({ name: 'Ada', id: 'a1', color: '#112233', persistToRoster: true })
+  const next = withPersonIdentity(person, { name: 'Adelaide', color: '#abcdef' })
+  assert.equal(next.name, 'Adelaide')
+  assert.equal(next.color, '#abcdef')
+  assert.equal(next.id, 'a1')
 })

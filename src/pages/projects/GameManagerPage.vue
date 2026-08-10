@@ -14,9 +14,20 @@
         <q-btn
           flat
           dense
-          no-caps
-          color="grey-6"
-          label="Sign out"
+          round
+          icon="help_outline"
+          color="grey-5"
+          aria-label="Help and about"
+          data-testid="gm-page-help-btn"
+          @click="helpOpen = true"
+        />
+        <q-btn
+          flat
+          dense
+          round
+          icon="logout"
+          color="grey-5"
+          aria-label="Sign out"
           data-testid="gm-page-sign-out-btn"
           :loading="signOutPending"
           @click="onSignOut"
@@ -54,12 +65,37 @@
           <q-tab name="stats" icon="bar_chart" label="Stats" />
         </q-tabs>
       </div>
+
+      <q-dialog v-model="helpOpen">
+        <q-card class="gm-dialog-card gm-dialog-card--narrow">
+          <q-card-section class="text-h6">Help &amp; about</q-card-section>
+          <q-separator />
+          <q-card-section class="text-body2" data-testid="gm-page-help-attribution">
+            {{ attribution }}
+            <div class="q-mt-sm">
+              <a
+                href="https://boardgamegeek.com/wiki/page/BGG_XML_API2"
+                target="_blank"
+                rel="noreferrer"
+                class="text-primary"
+                style="text-decoration: none"
+              >
+                BoardGameGeek XML API
+              </a>
+            </div>
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="Close" color="primary" v-close-popup />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
     </template>
   </q-page>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { CATALOG_ATTRIBUTION } from '../../features/game-manager/catalog/catalogAttribution.js'
 import GameManagerSignInPanel from '../../features/game-manager/components/GameManagerSignInPanel.vue'
 import GameManagerSurfaceCollection from '../../features/game-manager/components/GameManagerSurfaceCollection.vue'
 import GameManagerSurfacePeople from '../../features/game-manager/components/GameManagerSurfacePeople.vue'
@@ -71,6 +107,8 @@ const { isAccountOwner, loading, signOut } = useGameManagerAuth()
 
 const activeSurface = ref('collection')
 const signOutPending = ref(false)
+const helpOpen = ref(false)
+const attribution = CATALOG_ATTRIBUTION
 
 async function onSignOut() {
   signOutPending.value = true
@@ -100,10 +138,7 @@ async function onSignOut() {
 
   :deep(.q-tab-panel) {
     height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y pinch-zoom;
+    overflow: hidden;
   }
 }
 

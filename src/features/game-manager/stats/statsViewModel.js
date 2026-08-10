@@ -40,6 +40,7 @@ export function buildStatsRows(people, sessions) {
       rows.push({
         personId: person.id,
         personName: person.name,
+        personColor: person.color || null,
         gameKey: game.key,
         gameTitle: game.title,
         playCount,

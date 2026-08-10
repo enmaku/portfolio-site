@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   collectionHasCatalogEntry,
   createCustomCollectionEntry,
+  renameCustomCollectionEntry,
   upsertCatalogCollectionItem,
 } from './collection.js'
 
@@ -28,4 +29,21 @@ test('custom collection entry requires only a title', () => {
   assert.equal(entry.kind, 'custom')
   assert.equal(entry.title, 'Homebrew Hexes')
   assert.ok(entry.id)
+})
+
+test('renameCustomCollectionEntry updates title for matching custom id', () => {
+  const entry = createCustomCollectionEntry({ title: 'A', id: 'custom:1' })
+  const next = renameCustomCollectionEntry([entry], 'custom:1', 'B')
+  assert.equal(next[0].title, 'B')
+})
+
+test('upsertCatalogCollectionItem stores year and art', () => {
+  const items = upsertCatalogCollectionItem([], {
+    catalogEntryId: '13',
+    title: 'Catan',
+    yearPublished: 1995,
+    thumbnailUrl: 'https://example.com/t.jpg',
+  })
+  assert.equal(items[0].yearPublished, 1995)
+  assert.equal(items[0].thumbnailUrl, 'https://example.com/t.jpg')
 })

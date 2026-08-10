@@ -1,7 +1,5 @@
 import { ref, shallowRef, watch } from 'vue'
-import {
-  applyPersonDeletionToSessions,
-} from '../domain/people.js'
+import { applyPersonDeletionToSessions } from '../domain/people.js'
 import {
   deleteManagerPerson,
   listManagerPeople,
@@ -9,11 +7,12 @@ import {
   upsertManagerPerson,
   upsertManagerPlaySession,
 } from '../firebase/managerStore.js'
-import { useGameManagerAuth } from '../composables/useGameManagerAuth.js'
+import { useGameManagerAuth } from './useGameManagerAuth.js'
 import {
   buildNewPersonDraft,
+  nextPersonDefaultColor,
   personMatchSuggestionsForTypedName,
-  withSavedFlag,
+  withPersonIdentity,
 } from '../people/peopleViewModel.js'
 
 export function useGameManagerPeople() {
@@ -51,37 +50,54 @@ export function useGameManagerPeople() {
     return personMatchSuggestionsForTypedName(people.value, name)
   }
 
+  function peekNextColor() {
+    return nextPersonDefaultColor(people.value)
+  }
+
   /**
-   * @param {{ name: string, color?: string, persistToRoster?: boolean, existingId?: string }} input
+   * @param {{ name: string, color?: string, existingId?: string }} input
    */
   async function addOrSelectPerson(input) {
     const uid = user.value?.uid
     if (!uid) return null
     const person = input.existingId
-      ? withSavedFlag(
+      ? withPersonIdentity(
           people.value.find((p) => p.id === input.existingId) ||
-            buildNewPersonDraft({ ...input, id: input.existingId }),
-          Boolean(input.persistToRoster) ||
-            Boolean(people.value.find((p) => p.id === input.existingId)?.saved),
+            buildNewPersonDraft({
+              name: input.name,
+              color: input.color,
+              id: input.existingId,
+              persistToRoster: true,
+            }),
+          { name: input.name, color: input.color },
         )
-      : buildNewPersonDraft(input)
+      : buildNewPersonDraft({
+          name: input.name,
+          color: input.color || nextPersonDefaultColor(people.value),
+          persistToRoster: true,
+        })
+    const saved = { ...person, saved: true }
     error.value = null
     try {
-      await upsertManagerPerson(uid, person.id, person)
+      await upsertManagerPerson(uid, saved.id, saved)
       await reload()
-      return person
+      return saved
     } catch (e) {
       error.value = e
       throw e
     }
   }
 
-  async function setSaved(personId, saved) {
+  /**
+   * @param {string} personId
+   * @param {{ name?: string, color?: string }} patch
+   */
+  async function updatePerson(personId, patch) {
     const uid = user.value?.uid
     if (!uid) return
     const current = people.value.find((p) => p.id === personId)
     if (!current) return
-    const next = withSavedFlag(current, saved)
+    const next = { ...withPersonIdentity(current, patch), saved: true }
     error.value = null
     try {
       await upsertManagerPerson(uid, personId, next)
@@ -116,8 +132,9 @@ export function useGameManagerPeople() {
     error,
     reload,
     suggestionsForName,
+    peekNextColor,
     addOrSelectPerson,
-    setSaved,
+    updatePerson,
     deletePerson,
   }
 }

@@ -15,6 +15,8 @@ function decodeXmlEntities(raw) {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number.parseInt(dec, 10)))
     .replace(/&ldquo;/g, '\u201C')
     .replace(/&rdquo;/g, '\u201D')
     .replace(/&lsquo;/g, '\u2018')
@@ -152,27 +154,89 @@ export function normalizeBggSearchXml(xml) {
  * @property {string | null} [thumbnailUrl]
  * @property {string | null} [imageUrl]
  * @property {string | null} [description]
+ * @property {string | null} [thingType]
+ * @property {number | null} [usersRated]
+ * @property {number | null} [averageRating]
+ * @property {number | null} [bayesAverage]
+ * @property {number | null} [boardGameRank]
  */
+
+/**
+ * @param {string | number | null | undefined} value
+ * @returns {number | null}
+ */
+function toFloat(value) {
+  if (value == null || value === '') return null
+  const n = Number.parseFloat(String(value))
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * @param {string} xml
+ * @param {string} tag
+ * @returns {Record<string, string> | null}
+ */
+function firstSelfClosingTag(xml, tag) {
+  const re = new RegExp(`<${tag}\\b[^>]*/>`)
+  const match = re.exec(xml)
+  return match ? parseTagAttributes(match[0]) : null
+}
+
+/**
+ * @param {string} block
+ */
+function extractRatingsStats(block) {
+  const ratingsMatch = /<ratings\b[^>]*>([\s\S]*?)<\/ratings>/.exec(block)
+  if (!ratingsMatch) {
+    return {
+      usersRated: null,
+      averageRating: null,
+      bayesAverage: null,
+      boardGameRank: null,
+    }
+  }
+  const ratingsXml = ratingsMatch[1]
+  const ranks = extractSelfClosingTags(ratingsXml, 'rank')
+  const boardRank = ranks.find((r) => r.name === 'boardgame' && (r.type === 'subtype' || !r.type))
+  let boardGameRank = null
+  if (boardRank?.value && !/^not\s*ranked$/i.test(String(boardRank.value))) {
+    boardGameRank = toInt(boardRank.value)
+  }
+  return {
+    usersRated: toInt(firstSelfClosingTag(ratingsXml, 'usersrated')?.value),
+    averageRating: toFloat(firstSelfClosingTag(ratingsXml, 'average')?.value),
+    bayesAverage: toFloat(firstSelfClosingTag(ratingsXml, 'bayesaverage')?.value),
+    boardGameRank,
+  }
+}
 
 /**
  * @param {string} xml
  * @returns {CatalogEntryDetail | null}
  */
 export function normalizeBggThingXml(xml) {
-  if (!xml || !String(xml).trim()) return null
-  const block = extractItemBlocks(String(xml))[0]
-  if (!block) return null
+  const entries = normalizeBggThingListXml(xml)
+  return entries[0] || null
+}
 
+/**
+ * @param {string} block
+ * @returns {CatalogEntryDetail | null}
+ */
+function normalizeThingBlock(block) {
   const catalogEntryId = itemIdFromBlock(block)
   const title = primaryNameFromItem(block)
   if (!catalogEntryId || !title) return null
 
+  const open = /^<item\b([^>]*)>/.exec(block)
+  const itemAttrs = open ? parseTagAttributes(open[0]) : {}
   const yearTags = extractSelfClosingTags(block, 'yearpublished')
   const minPlayers = extractSelfClosingTags(block, 'minplayers')[0]?.value
   const maxPlayers = extractSelfClosingTags(block, 'maxplayers')[0]?.value
   const playingTime = extractSelfClosingTags(block, 'playingtime')[0]?.value
   const minPlayTime = extractSelfClosingTags(block, 'minplaytime')[0]?.value
   const maxPlayTime = extractSelfClosingTags(block, 'maxplaytime')[0]?.value
+  const ratings = extractRatingsStats(block)
 
   return {
     catalogEntryId,
@@ -186,5 +250,21 @@ export function normalizeBggThingXml(xml) {
     thumbnailUrl: extractElementText(block, 'thumbnail'),
     imageUrl: extractElementText(block, 'image'),
     description: extractElementText(block, 'description'),
+    thingType: itemAttrs.type || null,
+    usersRated: ratings.usersRated,
+    averageRating: ratings.averageRating,
+    bayesAverage: ratings.bayesAverage,
+    boardGameRank: ratings.boardGameRank,
   }
+}
+
+/**
+ * @param {string} xml
+ * @returns {CatalogEntryDetail[]}
+ */
+export function normalizeBggThingListXml(xml) {
+  if (!xml || !String(xml).trim()) return []
+  return extractItemBlocks(String(xml))
+    .map((block) => normalizeThingBlock(block))
+    .filter(Boolean)
 }

@@ -8,7 +8,16 @@ export function collectionHasCatalogEntry(items, catalogEntryId) {
 
 /**
  * @param {object[]} items
- * @param {{ catalogEntryId: string, title: string, thumbnailUrl?: string, imageUrl?: string, minPlayers?: number, maxPlayers?: number, playingTime?: number }} entry
+ * @param {{
+ *   catalogEntryId: string,
+ *   title: string,
+ *   yearPublished?: number | null,
+ *   thumbnailUrl?: string,
+ *   imageUrl?: string,
+ *   minPlayers?: number,
+ *   maxPlayers?: number,
+ *   playingTime?: number,
+ * }} entry
  */
 export function upsertCatalogCollectionItem(items, entry) {
   const next = {
@@ -16,6 +25,7 @@ export function upsertCatalogCollectionItem(items, entry) {
     id: `catalog:${entry.catalogEntryId}`,
     catalogEntryId: entry.catalogEntryId,
     title: entry.title,
+    yearPublished: entry.yearPublished ?? null,
     thumbnailUrl: entry.thumbnailUrl || null,
     imageUrl: entry.imageUrl || null,
     minPlayers: entry.minPlayers ?? null,
@@ -40,6 +50,20 @@ export function createCustomCollectionEntry(input) {
     id: input.id || `custom:${cryptoRandomId()}`,
     title,
   }
+}
+
+/**
+ * @param {object[]} items
+ * @param {string} itemId
+ * @param {string} title
+ */
+export function renameCustomCollectionEntry(items, itemId, title) {
+  const nextTitle = String(title || '').trim()
+  if (!nextTitle) throw new Error('Custom collection entry requires a title')
+  return items.map((item) => {
+    if (item.id !== itemId || item.kind !== 'custom') return item
+    return { ...item, title: nextTitle }
+  })
 }
 
 function cryptoRandomId() {
