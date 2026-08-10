@@ -53,50 +53,52 @@
 
           <q-separator class="q-my-xs" />
 
-          <q-input
-            v-model="email"
-            type="email"
-            label="Email"
-            outlined
-            dense
-            autocomplete="email"
-            data-testid="gm-auth-email-input"
-            :disable="actionPending"
-          />
-          <q-input
-            v-model="password"
-            type="password"
-            label="Password"
-            outlined
-            dense
-            autocomplete="current-password"
-            data-testid="gm-auth-password-input"
-            :disable="actionPending"
-            @keyup.enter="onEmailSignIn"
-          />
+          <form class="column q-gutter-y-md" @submit.prevent="onEmailSignIn">
+            <q-input
+              v-model="email"
+              type="email"
+              label="Email"
+              outlined
+              dense
+              autocomplete="email"
+              data-testid="gm-auth-email-input"
+              :disable="actionPending"
+            />
+            <q-input
+              v-model="password"
+              type="password"
+              label="Password"
+              outlined
+              dense
+              autocomplete="current-password"
+              data-testid="gm-auth-password-input"
+              :disable="actionPending"
+            />
 
-          <q-btn
-            unelevated
-            no-caps
-            color="primary"
-            class="full-width"
-            label="Sign in with email"
-            data-testid="gm-auth-sign-in-btn"
-            :loading="actionPending"
-            :disable="!canSubmitEmail"
-            @click="onEmailSignIn"
-          />
-          <q-btn
-            flat
-            no-caps
-            color="grey-5"
-            class="full-width"
-            label="Create account"
-            data-testid="gm-auth-create-account-btn"
-            :loading="actionPending"
-            :disable="!canSubmitEmail"
-            @click="onCreateAccount"
-          />
+            <q-btn
+              type="submit"
+              unelevated
+              no-caps
+              color="primary"
+              class="full-width"
+              label="Sign in with email"
+              data-testid="gm-auth-sign-in-btn"
+              :loading="actionPending"
+              :disable="!canSubmitEmail"
+            />
+            <q-btn
+              type="button"
+              flat
+              no-caps
+              color="grey-5"
+              class="full-width"
+              label="Create account"
+              data-testid="gm-auth-create-account-btn"
+              :loading="actionPending"
+              :disable="!canSubmitEmail"
+              @click="onCreateAccount"
+            />
+          </form>
         </div>
       </q-card-section>
     </template>
