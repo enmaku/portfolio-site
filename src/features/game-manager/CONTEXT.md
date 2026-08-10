@@ -54,9 +54,9 @@ _Avoid_: Owning a full local encyclopedia; equating **catalog** with the owner�
 
 ### Catalog entry
 
-A normalized game identity and metadata drawn from the **catalog** (keyed by BoardGameGeek id). Product display cares about title, box art, player counts, play time, and **catalog attribution**; description may appear on a detail view.
+A normalized game identity and metadata drawn from the **catalog** (keyed by BoardGameGeek id). Shelf rows care about title, box art, player counts, and play time; **game detail** can show a richer curated set (description, year, weight, ranks, and other facts we normalize), always with **catalog attribution**.
 
-_Avoid_: Treating raw BGG XML as the product language; skipping **catalog attribution** where BGG metadata is shown; requiring weight/rank/etc. in v1 UI.
+_Avoid_: Treating raw BGG XML as the product language; skipping **catalog attribution** where BGG metadata is shown; dumping every upstream field whether or not we normalize it.
 
 ### Catalog attribution
 
@@ -64,27 +64,33 @@ Visible credit owed when BoardGameGeek **catalog** metadata is shown, per BGG te
 
 ### Collection
 
-The **account owner**’s shelf of games they treat as owned—each item either references a **catalog entry** or is a **custom collection entry**. At most one item per **catalog entry** id; adding a game already on the shelf is a no-op / “already owned” path, not a second copy. Distinct from games merely played on **play sessions** (cafés, friends’ shelves).
+The **account owner**’s shelf of games they treat as owned—each item either references a **catalog entry** or is a **custom collection entry**. At most one item per **catalog entry** id; adding a game already on the shelf is a no-op / “already owned” path, not a second copy. Every **play session** is started from a shelf item—ownership is required to record a sitting.
 
-_Avoid_: “Library” (ambiguous); preset **group configurations** (out of scope for v1); multiple shelf rows for the same BGG id; requiring ownership for every recorded play.
+_Avoid_: “Library” (ambiguous); preset **group configurations** (out of scope for v1); multiple shelf rows for the same BGG id; recording plays of titles not on the shelf.
+
+### Game detail
+
+A full-screen detail view opened from a **collection** shelf item. Opens immediately on shelf-known facts (title, art, basic counts); for catalog-backed items it then refreshes fuller **catalog** metadata into a rich curated view, with retry if that refresh fails. **Custom collection entries** use stored custom fields only. Bottom action starts a **play session** (“Start new session”), which continues in the same full-screen session flow (`setup` → `playing` → `scoring`). A failed catalog refresh does not block starting a sitting—the shelf identity is enough.
+
+_Avoid_: Treating the shelf row itself as the only place game facts appear; starting sessions from the **Sessions** surface’s add control; requiring a successful catalog fetch before “Start new session”; nesting **game detail** as a small dialog over the shelf while the rest of the sitting is full-screen.
 
 ### Play session
 
-One game, one sitting: a chosen game (**catalog entry** or **custom collection entry** reference), its **present players**, optional timing export, **session score** (when entered), and a **play session state**. The game need not already be on the **collection** shelf (board game café / someone else’s copy). Setup may offer **add to collection**, defaulting on, as a separate choice from recording the sitting. An **account owner** may keep many incomplete sessions at once and resume any of them.
+One game, one sitting: a chosen **collection** item (**catalog entry** or **custom collection entry** reference), its **present players**, optional timing export, **session score** (when entered), and a **play session state**. Creation begins from **game detail** (“Start new session”); the durable record appears then (typically in `setup`) so incomplete sittings can be resumed. An **account owner** may keep many incomplete sessions at once and resume any of them. “Save” on the scoring step means enter `complete` with a full **session score**, not first creation of the row.
 
-_Avoid_: Multi-game nights as a single session; preset groups as the attendance model; forcing every played title onto the shelf; forcing a single in-flight session.
+_Avoid_: Multi-game nights as a single session; preset groups as the attendance model; play sessions for titles not on the **collection** shelf; creating sittings from a Sessions-page + control; delaying durability until final Save.
 
 ### Custom collection entry
 
-A non-catalog game identity (homebrew, obscure titles) used when **catalog** search has no acceptable match. V1 requires only a title. May be played on a **play session** and/or pinned onto the **collection** shelf.
+A non-catalog game identity (homebrew, obscure titles) used when **catalog** search has no acceptable match. V1 requires only a title. Must be on the **collection** shelf before it can be played on a **play session**.
 
-_Avoid_: Forcing every title through BGG when search fails; requiring manual player-count/time metadata in v1; assuming every custom title is owned.
+_Avoid_: Forcing every title through BGG when search fails; requiring manual player-count/time metadata in v1; recording a custom title without first shelving it.
 
 ### Add to collection
 
-Optional choice while setting up a **play session** (or after playing) to pin the chosen game onto the **collection** shelf. Defaults on when the title is not already owned; may be unchecked for café / friends’-shelf plays.
+The action that pins a game onto the **collection** shelf (from catalog search or custom title entry)—ownership gate before any **play session** can start for that title.
 
-_Avoid_: Silently forcing shelf membership for every recorded play.
+_Avoid_: Optional shelf membership during session setup; café / friends’-shelf plays without first adding the title.
 
 ### Saved player
 
@@ -108,9 +114,9 @@ _Avoid_: Equating with a live **saved player** row only; discarding history beca
 
 ### Present player
 
-Someone included in a specific **play session**—usually drawn from **saved players**, plus any **one-off guests**. The list may start empty in `setup` (attendance unknown) and may change through `playing` / `scoring` when people arrive late or **drop out**. A session cannot enter `complete` with zero **present players**.
+Someone included in a specific **play session**—usually drawn from **saved players**, plus any **one-off guests**. The people picker in `setup` lists **saved players** (none pre-checked) with selection controls and an add-person path (guest / **persist to roster**). At least one **present player** is required before leaving `setup` into `playing`. That `setup` list seeds the future **manager-linked timer**; until that handoff exists, it remains the table through the `playing` interstitial (no roster editor there). When a real **game end** export returns, its roster becomes the starting **present players** for `scoring`. On the scoring step the owner may still add people or **drop out** before Save. A session cannot enter `complete` with zero **present players**.
 
-_Avoid_: Requiring final attendance before the night starts; locking the roster once play begins.
+_Avoid_: Requiring final attendance before the night starts; a second full roster editor on the timer interstitial; dumping every unpinned **recorded player** onto the picker by default; advancing into `playing` with nobody selected.
 
 ### Drop out
 
@@ -166,13 +172,13 @@ A **play session** retained without a finished **session score**—left before `
 
 ### Complete play session
 
-A **play session** in `complete` with a chosen **score entry mode** and full **session score** for that mode.
+A **play session** in `complete` with a chosen **score entry mode** and full **session score** for that mode. Viewing or fixing scores uses the scoring UI without leaving `complete`; Save while already complete updates the **session score** and stays `complete`.
 
 ### Play session state
 
-Lifecycle position of a **play session**: `setup`, `playing`, `scoring`, or `complete`. Happy path is forward along that order; **playing** may be skipped for manual score entry (`setup` → `scoring`). Entering `complete` requires a chosen **score entry mode** and a full **session score** for that mode (every **present player** marked for per-player modes; **shared score** filled). A `complete` session may be reopened to `scoring` to fix mistakes. Early stops remain **partial play sessions** until **session deletion**.
+Lifecycle position of a **play session**: `setup`, `playing`, `scoring`, or `complete`. The owned-game creation path is forward along that order without skipping **playing**: people pick in `setup`, timer (or timer interstitial) in `playing`, scores/options in `scoring`, then `complete` on Save. Entering `complete` requires a chosen **score entry mode** and a full **session score** for that mode (every **present player** scored for **points**, or marked for **outcomes**). Once `complete`, viewing or editing scores does not move the sitting back to `scoring`. Early stops remain **partial play sessions** until **session deletion**.
 
-_Avoid_: Treating states as freely jumbleable labels; making `complete` immutable except by delete-and-recreate; marking `complete` with half-filled scores.
+_Avoid_: Treating states as freely jumbleable labels; making `complete` immutable except by delete-and-recreate; marking `complete` with half-filled scores; a separate skip-timer creation path in this flow; demoting `complete` to `scoring` just to show the score editor.
 
 ### Session score
 
@@ -180,51 +186,52 @@ The outcome recording for a **play session**, interpreted according to its **sco
 
 ### Score entry mode
 
-How a **session score** is shaped for that sitting. V1 modes:
+How a **session score** is shaped for that sitting. Defaults to **points** on the scoring step. V1 modes offered in UI:
 
-- **Per-player scores** — each **present player** has a numeric score (competitive point totals).
-- **Shared score** — one numeric score for the whole group (cooperative totals).
-- **Outcome marks** — each **present player** is marked win, loss, or draw (no points required).
+- **Points** — each **present player** has a numeric score (competitive totals).
+- **Outcomes** — each **present player** is marked win, loss, or draw (no points required).
 
-_Avoid_: A game-rules engine; forcing every game into points-only entry.
+Shared / cooperative group totals are deferred for a later coop-oriented UI.
+
+_Avoid_: A game-rules engine; forcing every game into points-only entry; a shared-score mode in the current scoring UI.
 
 ### Session deletion
 
-Permanently removing a **play session** from the **manager store** (and its contribution to aggregates) when the record was a mistake or unwanted. No soft-archive in v1.
+Permanently removing a **play session** from the **manager store** (and its contribution to aggregates) when the record was a mistake or unwanted. No soft-archive in v1. The main abandon path for unwanted partial sittings created from **game detail**.
 
 _Avoid_: Soft-delete/restore flows in v1.
 
 ### Points per minute
 
-A **v1 statistics** rate for a person at a game: their **per-player score** divided by session duration. Duration comes only from a **manager-linked timer** export; no manual duration in v1. Until that handoff exists, PPM simply does not appear.
+A **v1 statistics** rate for a person at a game: their **points** score divided by session duration. Duration comes only from a **manager-linked timer** export; no manual duration in v1. Until that handoff exists, PPM simply does not appear.
 
 _Avoid_: Manual duration entry in v1; inventing duration from wall-clock guesses.
 
 ### Personal best
 
-For **per-player scores**, the highest numeric score that person has recorded at a given game. V1 treats higher as better; lower-is-better games are out of scope.
+For **points**, the highest numeric score that person has recorded at a given game. V1 treats higher as better; lower-is-better games are out of scope.
 
 _Avoid_: Golf-style inversions in v1; picking “best” manually per sitting.
 
 ### V1 statistics
 
-Simple derived summaries over stored **play sessions**, primarily **per person per collection game** (how that **recorded player** did at a given title). Includes **play count** (counts **partial play sessions** regardless of **score entry mode**). **Personal best** and **average score** use only sittings scored with **per-player scores**; **points per minute** additionally requires timer-exported duration. **Shared score** and **outcome marks** contribute to **play count** only. Personal-stats browsing lists every **recorded player** who has history under this **account owner**, whether or not they are pinned as a **saved player**.
+Simple derived summaries over stored **play sessions**, primarily **per person per collection game** (how that **recorded player** did at a given title). Includes **play count** (counts **partial play sessions** regardless of **score entry mode**). **Personal best** and **average score** use only sittings scored with **points**; **points per minute** additionally requires timer-exported duration. **Outcomes** contribute to **play count** only. Personal-stats browsing lists every **recorded player** who has history under this **account owner**, whether or not they are pinned as a **saved player**.
 
-_Avoid_: Win rate, head-to-head, trends, and group leaderboards in v1; a single shelf-wide personal best that mixes unrelated titles; inventing per-person points from **shared score** or **outcome marks**; hiding guest history from stats because they were never pinned to the roster.
+_Avoid_: Win rate, head-to-head, trends, and group leaderboards in v1; a single shelf-wide personal best that mixes unrelated titles; inventing per-person points from **outcomes**; hiding guest history from stats because they were never pinned to the roster.
 
 ### Timer leg
 
-The optional stretch of a **play session** spent in **Game Timer** as a **manager-linked timer**, begun from Game Manager and finished via **game end**.
+The optional stretch of a **play session** spent in **Game Timer** as a **manager-linked timer**, begun from Game Manager after `setup` and finished via **game end**. Until that handoff exists, `playing` is a placeholder interstitial with Finish game.
 
 ### Manager-linked timer
 
-A **Game Timer** sitting started from a **play session** so roster identity can flow over and **game end** can return timing data. Standalone timer use remains auth-free and unchanged.
+A **Game Timer** sitting started from a **play session** so **present players** seed the timer roster and **game end** can return timing data plus the timer’s final roster as the starting **present players** for scoring. Standalone timer use remains auth-free and unchanged.
 
 _Avoid_: Requiring Game Manager for ordinary timing. (Launch/return transport deferred.)
 
 ### Game end
 
-The manager-aware timer action that finishes a **manager-linked timer** and exports a final **snapshot** for the awaiting **play session**—distinct from starting a **new game with same players** inside the timer.
+The manager-aware timer action that finishes a **manager-linked timer** and exports a final **snapshot** (timing plus roster) for the awaiting **play session**—distinct from starting a **new game with same players** inside the timer. Until the real timer is wired, Finish game on the interstitial advances to scoring using the `setup` **present players**.
 
 ### Online-first
 
@@ -232,11 +239,25 @@ Game Manager expects connectivity for auth, **manager store**, and **catalog** a
 
 ### Manager surfaces
 
-Primary mobile areas of Game Manager: **Collection**, **People** (**saved players** and **recorded players** with history), **Sessions** (**play sessions**), and **Stats**, plus account/sign-in. Desktop shell remains out of scope for v1.
+Primary mobile areas of Game Manager: **Collection** (shelf browse and **game detail**), **People** (**saved players** and **recorded players** with history), **Sessions** (**play sessions**—resume incomplete, review complete; not a creation entry), and **Stats**, plus account/sign-in. Desktop shell remains out of scope for v1.
 
-_Avoid_: Burying people management only inside session flows; a desktop-first dashboard layout for v1.
+_Avoid_: Burying people management only inside session flows; a desktop-first dashboard layout for v1; a Sessions-page + control as the way to start sittings.
 
 ## Flagged ambiguities
 
-- **Manager-linked timer** launch/return transport — deferred intentionally.
+- **Manager-linked timer** launch/return transport — deferred intentionally; `playing` uses a placeholder interstitial until then.
 - Apple / Facebook sign-in — deferred until those providers are enabled.
+
+## Example dialogue
+
+> **Owner:** “I want to log tonight’s Wingspan.”  
+> **Designer:** “Open it from **Collection** into **game detail**, then **Start new session**—that creates a **play session** in `setup`. Sessions doesn’t offer a + create path.”
+
+> **Owner:** “Nobody’s pre-checked and Sam isn’t on the roster.”  
+> **Designer:** “Pick **saved players**, add Sam as a **one-off guest** or **persist to roster**, then **Start game** once at least one **present player** is selected.”
+
+> **Owner:** “The timer isn’t built yet.”  
+> **Designer:** “`playing` is a placeholder; **Finish game** still advances to scoring. Later, **game end** from a **manager-linked timer** will hand back timing and the timer roster as scoring’s starting table.”
+
+> **Owner:** “I backed out before Save.”  
+> **Designer:** “That’s a **partial play session**—resume from **Sessions** at the same step, or **session deletion** if it was a mistake.”

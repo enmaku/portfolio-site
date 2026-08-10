@@ -1,18 +1,19 @@
 import {
   SCORE_ENTRY_MODES,
+  addPresentPlayer,
   canCompletePlaySession,
   createPlaySession,
   dropOutPresentPlayer,
+  normalizeScoreEntryMode,
   setPlaySessionScore,
+  setPresentPlayers,
   transitionPlaySessionState,
 } from '../domain/playSession.js'
-import { applyCatalogPickToCollection } from '../collection/collectionViewModel.js'
-import { collectionHasCatalogEntry } from '../domain/collection.js'
 
-export { SCORE_ENTRY_MODES, canCompletePlaySession }
+export { SCORE_ENTRY_MODES, canCompletePlaySession, normalizeScoreEntryMode }
 
 /**
- * @param {{ id: string, game: object, presentPlayers?: object[], addToCollection?: boolean }} input
+ * @param {{ id: string, game: object, presentPlayers?: object[] }} input
  */
 export function startPlaySessionDraft(input) {
   return createPlaySession(input)
@@ -36,6 +37,22 @@ export function writePlaySessionScore(session, score) {
 
 /**
  * @param {object} session
+ * @param {object[]} presentPlayers
+ */
+export function replacePresentPlayers(session, presentPlayers) {
+  return setPresentPlayers(session, presentPlayers)
+}
+
+/**
+ * @param {object} session
+ * @param {{ recordedPlayerId: string, name: string, color: string }} player
+ */
+export function includePresentPlayer(session, player) {
+  return addPresentPlayer(session, player)
+}
+
+/**
+ * @param {object} session
  * @param {string} recordedPlayerId
  */
 export function dropPresentPlayer(session, recordedPlayerId) {
@@ -43,35 +60,30 @@ export function dropPresentPlayer(session, recordedPlayerId) {
 }
 
 /**
- * @param {object[]} collectionItems
- * @param {object} session
+ * Map a collection shelf item to the play session game reference.
+ * @param {object} item
  */
-export function maybeAddSessionGameToCollection(collectionItems, session) {
-  if (!session.addToCollection) {
-    return { items: collectionItems, changed: false }
-  }
-  const game = session.game
-  if (!game) return { items: collectionItems, changed: false }
-  if (game.kind === 'catalog') {
-    if (collectionHasCatalogEntry(collectionItems, game.catalogEntryId)) {
-      return { items: collectionItems, changed: false }
+export function gameRefFromCollectionItem(item) {
+  if (!item) return null
+  if (item.kind === 'catalog') {
+    return {
+      kind: 'catalog',
+      catalogEntryId: item.catalogEntryId,
+      title: item.title,
+      thumbnailUrl: item.thumbnailUrl ?? null,
+      imageUrl: item.imageUrl ?? null,
+      minPlayers: item.minPlayers ?? null,
+      maxPlayers: item.maxPlayers ?? null,
+      playingTime: item.playingTime ?? null,
+      yearPublished: item.yearPublished ?? null,
     }
-    const { items } = applyCatalogPickToCollection(collectionItems, {
-      catalogEntryId: game.catalogEntryId,
-      title: game.title,
-      thumbnailUrl: game.thumbnailUrl,
-      imageUrl: game.imageUrl,
-      minPlayers: game.minPlayers,
-      maxPlayers: game.maxPlayers,
-      playingTime: game.playingTime,
-    })
-    return { items, changed: true }
   }
-  if (game.kind === 'custom') {
-    if (collectionItems.some((i) => i.kind === 'custom' && i.id === game.id)) {
-      return { items: collectionItems, changed: false }
+  if (item.kind === 'custom') {
+    return {
+      kind: 'custom',
+      id: item.id,
+      title: item.title,
     }
-    return { items: [...collectionItems, game], changed: true }
   }
-  return { items: collectionItems, changed: false }
+  return null
 }

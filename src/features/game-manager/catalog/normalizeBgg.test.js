@@ -27,7 +27,7 @@ const THING_FIXTURE = `<?xml version="1.0" encoding="utf-8"?>
     <maxplaytime value="45"/>
     <thumbnail>https://cf.geekdo-images.com/thumb.jpg</thumbnail>
     <image>https://cf.geekdo-images.com/image.jpg</image>
-    <description>&amp;ldquo;Build&amp;rdquo; a habitat mosaic.</description>
+    <description>&amp;ldquo;Build&amp;rdquo; a habitat mosaic.&amp;nbsp;Score&amp;mdash;then win.&lt;br/&gt;Next line.</description>
     <statistics page="1">
       <ratings>
         <usersrated value="42000"/>
@@ -86,7 +86,7 @@ test('normalizeBggThingXml maps thing payload to catalog entry detail', () => {
   assert.equal(entry.maxPlayTime, 45)
   assert.equal(entry.thumbnailUrl, 'https://cf.geekdo-images.com/thumb.jpg')
   assert.equal(entry.imageUrl, 'https://cf.geekdo-images.com/image.jpg')
-  assert.equal(entry.description, '“Build” a habitat mosaic.')
+  assert.equal(entry.description, '“Build” a habitat mosaic. Score—then win.\nNext line.')
   assert.equal(entry.thingType, 'boardgame')
   assert.equal(entry.usersRated, 42000)
   assert.equal(entry.bayesAverage, 7.6)

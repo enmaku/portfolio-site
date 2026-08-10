@@ -1,4 +1,4 @@
-import { SCORE_ENTRY_MODES } from './playSession.js'
+import { SCORE_ENTRY_MODES, normalizeScoreEntryMode } from './playSession.js'
 
 function gameMatches(sessionGame, gameKey) {
   if (!sessionGame || !gameKey) return false
@@ -35,7 +35,7 @@ export function playCountForPersonAtGame(sessions, recordedPlayerId, gameKey) {
 function perPlayerScores(sessions, recordedPlayerId, gameKey) {
   const values = []
   for (const s of sessionsForPersonAtGame(sessions, recordedPlayerId, gameKey)) {
-    if (s.score?.mode !== SCORE_ENTRY_MODES.PER_PLAYER) continue
+    if (normalizeScoreEntryMode(s.score?.mode) !== SCORE_ENTRY_MODES.POINTS) continue
     const n = s.score.perPlayer?.[recordedPlayerId]
     if (typeof n === 'number' && Number.isFinite(n)) values.push(n)
   }
@@ -58,7 +58,7 @@ export function averageScoreForPersonAtGame(sessions, recordedPlayerId, gameKey)
 export function pointsPerMinuteForPersonAtGame(sessions, recordedPlayerId, gameKey) {
   const rates = []
   for (const s of sessionsForPersonAtGame(sessions, recordedPlayerId, gameKey)) {
-    if (s.score?.mode !== SCORE_ENTRY_MODES.PER_PLAYER) continue
+    if (normalizeScoreEntryMode(s.score?.mode) !== SCORE_ENTRY_MODES.POINTS) continue
     const n = s.score.perPlayer?.[recordedPlayerId]
     const durationMs = s.timerExport?.durationMs
     if (typeof n !== 'number' || !Number.isFinite(n)) continue

@@ -88,7 +88,7 @@ _Avoid_: Implying a guarantee on every OS or browser—best-effort only.
 
 ### Game end (Game Manager export)
 
-When **Game Timer** is a **manager-linked timer**, an explicit **game end** action finalizes the **snapshot** and returns timing data to the awaiting **play session** in **Game Manager**. Timer-only use is unchanged—no export action required.
+When **Game Timer** is a **manager-linked timer**, an explicit **game end** action finalizes the **snapshot** and returns timing data plus the final **player** roster to the awaiting **play session** in **Game Manager** (roster becomes the starting **present players** for scoring). Timer-only use is unchanged—no export action required.
 
 _Avoid_: Conflating with **new game with same players**; auto-export on **room exit**.
 

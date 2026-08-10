@@ -40,7 +40,12 @@
             </div>
           </template>
 
-          <q-item class="gm-collection-row">
+          <q-item
+            clickable
+            v-ripple
+            class="gm-collection-row"
+            @click="openGameDetail(item)"
+          >
             <q-item-section avatar>
               <div class="gm-row-thumb flex flex-center">
                 <q-img
@@ -166,10 +171,16 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { collectionItemThumbUrl } from '../collection/collectionViewModel.js'
+import { GAME_MANAGER_SESSION_FLOW_KEY } from '../composables/sessionFlowKey.js'
 import { useGameManagerCollection } from '../composables/useGameManagerCollection.js'
 import GameManagerCatalogSearchPanel from './GameManagerCatalogSearchPanel.vue'
+
+const flow = inject(GAME_MANAGER_SESSION_FLOW_KEY)
+if (!flow) {
+  throw new Error('GameManagerSurfaceCollection requires session flow provide')
+}
 
 const { items, error, addFromSearchPick, renameCustom, removeItem } = useGameManagerCollection()
 
@@ -187,6 +198,10 @@ const errorMessage = computed(() => {
 
 function thumbFor(item) {
   return collectionItemThumbUrl(item)
+}
+
+function openGameDetail(item) {
+  flow.openGameDetail(item)
 }
 
 function onSearchSelect(pick) {

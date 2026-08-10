@@ -42,7 +42,7 @@
           <GameManagerSurfacePeople />
         </q-tab-panel>
         <q-tab-panel name="sessions" class="q-pa-none">
-          <GameManagerSurfaceSessions />
+          <GameManagerSurfaceSessions :sessions-api="sessionsApi" />
         </q-tab-panel>
         <q-tab-panel name="stats" class="q-pa-none">
           <GameManagerSurfaceStats />
@@ -65,6 +65,8 @@
           <q-tab name="stats" icon="bar_chart" label="Stats" />
         </q-tabs>
       </div>
+
+      <GameManagerSessionFlowHost />
 
       <q-dialog v-model="helpOpen">
         <q-card class="gm-dialog-card gm-dialog-card--narrow">
@@ -94,14 +96,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { provide, ref } from 'vue'
 import { CATALOG_ATTRIBUTION } from '../../features/game-manager/catalog/catalogAttribution.js'
 import GameManagerSignInPanel from '../../features/game-manager/components/GameManagerSignInPanel.vue'
+import GameManagerSessionFlowHost from '../../features/game-manager/components/GameManagerSessionFlowHost.vue'
 import GameManagerSurfaceCollection from '../../features/game-manager/components/GameManagerSurfaceCollection.vue'
 import GameManagerSurfacePeople from '../../features/game-manager/components/GameManagerSurfacePeople.vue'
 import GameManagerSurfaceSessions from '../../features/game-manager/components/GameManagerSurfaceSessions.vue'
 import GameManagerSurfaceStats from '../../features/game-manager/components/GameManagerSurfaceStats.vue'
+import { GAME_MANAGER_SESSION_FLOW_KEY } from '../../features/game-manager/composables/sessionFlowKey.js'
 import { useGameManagerAuth } from '../../features/game-manager/composables/useGameManagerAuth.js'
+import { useGameManagerSessionFlow } from '../../features/game-manager/composables/useGameManagerSessionFlow.js'
+import { useGameManagerSessions } from '../../features/game-manager/composables/useGameManagerSessions.js'
 
 const { isAccountOwner, loading, signOut } = useGameManagerAuth()
 
@@ -109,6 +115,13 @@ const activeSurface = ref('collection')
 const signOutPending = ref(false)
 const helpOpen = ref(false)
 const attribution = CATALOG_ATTRIBUTION
+
+const sessionsApi = useGameManagerSessions()
+const sessionFlow = useGameManagerSessionFlow({
+  sessionsApi,
+  activeSurface,
+})
+provide(GAME_MANAGER_SESSION_FLOW_KEY, sessionFlow)
 
 async function onSignOut() {
   signOutPending.value = true

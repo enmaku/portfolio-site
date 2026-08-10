@@ -16,7 +16,7 @@ test('buildStatsRows lists per person per game with play counts', () => {
       state: 'complete',
       game: { kind: 'catalog', catalogEntryId: '1', title: 'Catan' },
       presentPlayers: [{ recordedPlayerId: 'ada', name: 'Ada', color: '#1' }],
-      score: { mode: SCORE_ENTRY_MODES.PER_PLAYER, perPlayer: { ada: 10 } },
+      score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { ada: 10 } },
     },
   ]
   const rows = buildStatsRows(people, sessions)

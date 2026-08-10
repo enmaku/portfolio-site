@@ -3,37 +3,65 @@ import test from 'node:test'
 import {
   SCORE_ENTRY_MODES,
   canCompletePlaySession,
-  maybeAddSessionGameToCollection,
+  gameRefFromCollectionItem,
+  includePresentPlayer,
   movePlaySession,
+  replacePresentPlayers,
   startPlaySessionDraft,
   writePlaySessionScore,
 } from './sessionsViewModel.js'
 
-test('startPlaySessionDraft begins in setup and can skip to scoring', () => {
+test('startPlaySessionDraft begins in setup and advances through playing', () => {
   let session = startPlaySessionDraft({
     id: 's1',
     game: { kind: 'catalog', catalogEntryId: '1', title: 'Catan' },
     presentPlayers: [{ recordedPlayerId: 'p1', name: 'Ada', color: '#111111' }],
   })
   assert.equal(session.state, 'setup')
+  session = movePlaySession(session, 'playing')
+  assert.equal(session.state, 'playing')
   session = movePlaySession(session, 'scoring')
   assert.equal(session.state, 'scoring')
 })
 
-test('maybeAddSessionGameToCollection respects addToCollection flag', () => {
-  const game = { kind: 'catalog', catalogEntryId: '9', title: 'X' }
-  const skipped = maybeAddSessionGameToCollection([], {
-    game,
-    addToCollection: false,
+test('gameRefFromCollectionItem maps shelf catalog and custom items', () => {
+  assert.deepEqual(
+    gameRefFromCollectionItem({
+      kind: 'catalog',
+      catalogEntryId: '9',
+      title: 'X',
+      thumbnailUrl: 'https://example.com/t.jpg',
+    }),
+    {
+      kind: 'catalog',
+      catalogEntryId: '9',
+      title: 'X',
+      thumbnailUrl: 'https://example.com/t.jpg',
+      imageUrl: null,
+      minPlayers: null,
+      maxPlayers: null,
+      playingTime: null,
+      yearPublished: null,
+    },
+  )
+  assert.deepEqual(gameRefFromCollectionItem({ kind: 'custom', id: 'c1', title: 'Home' }), {
+    kind: 'custom',
+    id: 'c1',
+    title: 'Home',
   })
-  assert.equal(skipped.changed, false)
+})
 
-  const added = maybeAddSessionGameToCollection([], {
-    game,
-    addToCollection: true,
+test('replacePresentPlayers and includePresentPlayer update attendance', () => {
+  let session = startPlaySessionDraft({
+    id: 's-attend',
+    game: { kind: 'custom', id: 'c1', title: 'Home' },
   })
-  assert.equal(added.changed, true)
-  assert.equal(added.items.length, 1)
+  session = replacePresentPlayers(session, [{ recordedPlayerId: 'p1', name: 'Ada', color: '#111111' }])
+  session = includePresentPlayer(session, { recordedPlayerId: 'p2', name: 'Bob', color: '#222222' })
+  assert.deepEqual(
+    session.presentPlayers.map((p) => p.recordedPlayerId),
+    ['p1', 'p2'],
+  )
 })
 
 test('complete requires full score via sessions view model helpers', () => {
@@ -42,9 +70,10 @@ test('complete requires full score via sessions view model helpers', () => {
     game: { kind: 'custom', id: 'c1', title: 'Home' },
     presentPlayers: [{ recordedPlayerId: 'p1', name: 'Ada', color: '#111111' }],
   })
+  session = movePlaySession(session, 'playing')
   session = movePlaySession(session, 'scoring')
   session = writePlaySessionScore(session, {
-    mode: SCORE_ENTRY_MODES.PER_PLAYER,
+    mode: SCORE_ENTRY_MODES.POINTS,
     perPlayer: { p1: 12 },
   })
   assert.equal(canCompletePlaySession(session), true)

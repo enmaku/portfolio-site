@@ -3,24 +3,66 @@
  * @see https://boardgamegeek.com/wiki/page/BGG_XML_API2
  */
 
+const NAMED_ENTITIES = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+  mdash: '\u2014',
+  ndash: '\u2013',
+  hellip: '\u2026',
+  bull: '\u2022',
+  ldquo: '\u201C',
+  rdquo: '\u201D',
+  lsquo: '\u2018',
+  rsquo: '\u2019',
+  times: '\u00D7',
+  trade: '\u2122',
+  copy: '\u00A9',
+  reg: '\u00AE',
+}
+
 /**
+ * Decode XML/HTML entities. Runs multiple passes for BGG double-encoding
+ * (`&amp;nbsp;` → `&nbsp;` → space).
  * @param {string | null | undefined} raw
  * @returns {string | null}
  */
 function decodeXmlEntities(raw) {
   if (raw == null || raw === '') return null
-  return String(raw)
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number.parseInt(dec, 10)))
-    .replace(/&ldquo;/g, '\u201C')
-    .replace(/&rdquo;/g, '\u201D')
-    .replace(/&lsquo;/g, '\u2018')
-    .replace(/&rsquo;/g, '\u2019')
+  let text = String(raw)
+  for (let pass = 0; pass < 3; pass += 1) {
+    const next = text
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
+      .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number.parseInt(dec, 10)))
+      .replace(/&([a-zA-Z]+);/g, (match, name) => {
+        const mapped = NAMED_ENTITIES[name.toLowerCase()]
+        return mapped !== undefined ? mapped : match
+      })
+    if (next === text) break
+    text = next
+  }
+  return text.trim()
+}
+
+/**
+ * BGG descriptions are HTML fragments. Produce plain wrapped text for UI.
+ * Safe to call on already-normalized or still-encoded API payloads.
+ * @param {string | null | undefined} raw
+ * @returns {string | null}
+ */
+export function normalizeDescriptionText(raw) {
+  const decoded = decodeXmlEntities(raw)
+  if (!decoded) return null
+  return decoded
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/\s*p\s*>/gi, '\n\n')
+    .replace(/<\/\s*div\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
 
@@ -249,7 +291,7 @@ function normalizeThingBlock(block) {
     maxPlayTime: toInt(maxPlayTime),
     thumbnailUrl: extractElementText(block, 'thumbnail'),
     imageUrl: extractElementText(block, 'image'),
-    description: extractElementText(block, 'description'),
+    description: normalizeDescriptionText(extractElementText(block, 'description')),
     thingType: itemAttrs.type || null,
     usersRated: ratings.usersRated,
     averageRating: ratings.averageRating,

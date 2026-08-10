@@ -4,17 +4,26 @@ import {
   listManagerCollection,
   listManagerPeople,
   listManagerPlaySessions,
-  upsertManagerCollectionItem,
+  upsertManagerPerson,
   upsertManagerPlaySession,
 } from '../firebase/managerStore.js'
 import { useGameManagerAuth } from './useGameManagerAuth.js'
 import {
   dropPresentPlayer,
-  maybeAddSessionGameToCollection,
+  gameRefFromCollectionItem,
+  includePresentPlayer,
   movePlaySession,
+  replacePresentPlayers,
   startPlaySessionDraft,
   writePlaySessionScore,
 } from '../sessions/sessionsViewModel.js'
+import { reopenPlaySessionForScoring } from '../domain/playSession.js'
+import {
+  buildNewPersonDraft,
+  nextPersonDefaultColor,
+  personMatchSuggestionsForTypedName,
+  withPersonIdentity,
+} from '../people/peopleViewModel.js'
 
 function newId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
@@ -29,6 +38,8 @@ export function useGameManagerSessions() {
   const loading = ref(false)
 
   const uid = computed(() => user.value?.uid || null)
+
+  const savedPeople = computed(() => people.value.filter((p) => p.saved))
 
   async function reload() {
     if (!uid.value) {
@@ -47,73 +58,107 @@ export function useGameManagerSessions() {
       sessions.value = s
       people.value = p
       collectionItems.value = c
+      if (activeSession.value?.id) {
+        activeSession.value = s.find((x) => x.id === activeSession.value.id) || activeSession.value
+      }
     } finally {
       loading.value = false
     }
   }
 
-  watch(uid, () => {
-    reload().catch(() => {})
-  }, { immediate: true })
+  watch(
+    uid,
+    () => {
+      reload().catch(() => {})
+    },
+    { immediate: true },
+  )
 
   async function persist(session) {
-    if (!uid.value) return
+    if (!uid.value) return session
     await upsertManagerPlaySession(uid.value, session.id, session)
     await reload()
-    activeSession.value = (await listManagerPlaySessions(uid.value)).find((x) => x.id === session.id) || session
+    return sessions.value.find((x) => x.id === session.id) || session
   }
 
   /**
-   * @param {{ game: object, presentPlayerIds: string[], addToCollection?: boolean }} input
+   * @param {object} collectionItem
    */
-  async function createSession(input) {
-    const presentPlayers = people.value
-      .filter((p) => input.presentPlayerIds.includes(p.id))
-      .map((p) => ({
-        recordedPlayerId: p.id,
-        name: p.name,
-        color: p.color,
-      }))
-    let session = startPlaySessionDraft({
+  async function createSessionFromShelf(collectionItem) {
+    const game = gameRefFromCollectionItem(collectionItem)
+    if (!game) throw new Error('Invalid collection item for play session')
+    const session = startPlaySessionDraft({
       id: newId('session'),
-      game: input.game,
-      presentPlayers,
-      addToCollection: input.addToCollection !== false,
+      game,
+      presentPlayers: [],
     })
-    const shelf = maybeAddSessionGameToCollection(collectionItems.value, session)
-    if (shelf.changed && uid.value) {
-      for (const item of shelf.items) {
-        await upsertManagerCollectionItem(uid.value, item.id, item)
-      }
-    }
-    await persist(session)
-    return session
+    const saved = await persist(session)
+    activeSession.value = saved
+    return saved
   }
 
   async function selectSession(sessionId) {
     if (!sessionId) {
       activeSession.value = null
-      return
+      return null
     }
-    activeSession.value = sessions.value.find((s) => s.id === sessionId) || null
+    const found = sessions.value.find((s) => s.id === sessionId) || null
+    activeSession.value = found
+    return found
   }
 
   async function transition(nextState) {
-    if (!activeSession.value) return
+    if (!activeSession.value) return null
     const next = movePlaySession(activeSession.value, nextState)
-    await persist(next)
+    const saved = await persist(next)
+    activeSession.value = saved
+    return saved
   }
 
   async function saveScore(score) {
-    if (!activeSession.value) return
+    if (!activeSession.value) return null
     const next = writePlaySessionScore(activeSession.value, score)
-    await persist(next)
+    const saved = await persist(next)
+    activeSession.value = saved
+    return saved
+  }
+
+  /**
+   * @param {object[]} presentPlayers
+   */
+  async function setAttendance(presentPlayers) {
+    if (!activeSession.value) return null
+    const next = replacePresentPlayers(activeSession.value, presentPlayers)
+    const saved = await persist(next)
+    activeSession.value = saved
+    return saved
+  }
+
+  /**
+   * @param {{ recordedPlayerId: string, name: string, color: string }} player
+   */
+  async function addAttendance(player) {
+    if (!activeSession.value) return null
+    const next = includePresentPlayer(activeSession.value, player)
+    const saved = await persist(next)
+    activeSession.value = saved
+    return saved
   }
 
   async function dropPlayer(recordedPlayerId) {
-    if (!activeSession.value) return
+    if (!activeSession.value) return null
     const next = dropPresentPlayer(activeSession.value, recordedPlayerId)
-    await persist(next)
+    const saved = await persist(next)
+    activeSession.value = saved
+    return saved
+  }
+
+  async function reopenActiveForScoring() {
+    if (!activeSession.value) return null
+    const next = reopenPlaySessionForScoring(activeSession.value)
+    const saved = await persist(next)
+    activeSession.value = saved
+    return saved
   }
 
   async function removeSession(sessionId) {
@@ -123,18 +168,61 @@ export function useGameManagerSessions() {
     await reload()
   }
 
+  function suggestionsForName(name) {
+    return personMatchSuggestionsForTypedName(people.value, name)
+  }
+
+  function peekNextColor() {
+    return nextPersonDefaultColor(people.value)
+  }
+
+  /**
+   * @param {{ name: string, color?: string, existingId?: string, persistToRoster?: boolean }} input
+   */
+  async function upsertPerson(input) {
+    if (!uid.value) return null
+    const persistToRoster = input.persistToRoster !== false
+    const person = input.existingId
+      ? withPersonIdentity(
+          people.value.find((p) => p.id === input.existingId) ||
+            buildNewPersonDraft({
+              name: input.name,
+              color: input.color,
+              id: input.existingId,
+              persistToRoster,
+            }),
+          { name: input.name, color: input.color },
+        )
+      : buildNewPersonDraft({
+          name: input.name,
+          color: input.color || nextPersonDefaultColor(people.value),
+          persistToRoster,
+        })
+    const saved = persistToRoster ? { ...person, saved: true } : { ...person, saved: false }
+    await upsertManagerPerson(uid.value, saved.id, saved)
+    await reload()
+    return people.value.find((p) => p.id === saved.id) || saved
+  }
+
   return {
     sessions,
     people,
+    savedPeople,
     collectionItems,
     activeSession,
     loading,
     reload,
-    createSession,
+    createSessionFromShelf,
     selectSession,
     transition,
     saveScore,
+    setAttendance,
+    addAttendance,
     dropPlayer,
+    reopenActiveForScoring,
     removeSession,
+    suggestionsForName,
+    peekNextColor,
+    upsertPerson,
   }
 }
