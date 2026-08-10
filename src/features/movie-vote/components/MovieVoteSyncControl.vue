@@ -579,11 +579,6 @@ function onLeave() {
   gap: 12px;
 }
 
-.mv-sync-menu-shell .mv-sync-menu__quorum-list {
-  max-height: 240px;
-  overflow-y: auto;
-}
-
 .mv-sync-menu-shell .mv-sync-menu__quorum-side {
   flex-shrink: 0;
   padding-left: 8px !important;
