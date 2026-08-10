@@ -68,7 +68,7 @@
       />
     </div>
 
-    <q-dialog v-model="createOpen">
+    <q-dialog :model-value="createOpen && !catalogSearchOpen" @update:model-value="onCreateDialogToggle">
       <q-card class="gm-dialog-card gm-dialog-card--wide">
         <q-card-section class="text-h6">Start session</q-card-section>
         <q-card-section class="q-gutter-md q-pt-none">
@@ -84,8 +84,15 @@
             data-testid="gm-sessions-game-select"
           />
 
-          <div class="text-caption text-grey-6">Or search / custom title</div>
-          <GameManagerCatalogSearchField @select="onCatalogPick" />
+          <q-btn
+            outline
+            color="primary"
+            class="full-width"
+            label="Search catalog / custom title"
+            icon="search"
+            data-testid="gm-sessions-open-search"
+            @click="catalogSearchOpen = true"
+          />
 
           <div
             v-if="pickedCatalogGame || customGameTitle"
@@ -129,6 +136,15 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <GameManagerCatalogSearchPanel
+      v-if="catalogSearchOpen"
+      title="Find a game"
+      test-id="gm-sessions-search-panel"
+      close-test-id="gm-sessions-search-close"
+      @select="onCatalogPick"
+      @close="catalogSearchOpen = false"
+    />
 
     <q-dialog v-model="detailOpen">
       <q-card v-if="activeSession" class="gm-dialog-card gm-dialog-card--wide" data-testid="gm-sessions-active">
@@ -280,7 +296,7 @@ import { collectionItemThumbUrl } from '../collection/collectionViewModel.js'
 import { createCustomCollectionEntry } from '../domain/collection.js'
 import { useGameManagerSessions } from '../composables/useGameManagerSessions.js'
 import { SCORE_ENTRY_MODES } from '../sessions/sessionsViewModel.js'
-import GameManagerCatalogSearchField from './GameManagerCatalogSearchField.vue'
+import GameManagerCatalogSearchPanel from './GameManagerCatalogSearchPanel.vue'
 
 const {
   sessions,
@@ -296,6 +312,7 @@ const {
 } = useGameManagerSessions()
 
 const createOpen = ref(false)
+const catalogSearchOpen = ref(false)
 const detailOpen = ref(false)
 const selectedGameId = ref(null)
 const customGameTitle = ref('')
@@ -372,7 +389,15 @@ function openCreate() {
   pickedCatalogGame.value = null
   selectedPeopleIds.value = []
   addToCollection.value = true
+  catalogSearchOpen.value = false
   createOpen.value = true
+}
+
+/** @param {boolean} open */
+function onCreateDialogToggle(open) {
+  if (!open && !catalogSearchOpen.value) {
+    createOpen.value = false
+  }
 }
 
 /**
@@ -383,6 +408,7 @@ function onCatalogPick(pick) {
   if (pick.source === 'custom') {
     pickedCatalogGame.value = null
     customGameTitle.value = pick.title
+    catalogSearchOpen.value = false
     return
   }
   customGameTitle.value = ''
@@ -394,6 +420,7 @@ function onCatalogPick(pick) {
     yearPublished: pick.yearPublished ?? null,
     thumbnailUrl: pick.thumbnailUrl || null,
   }
+  catalogSearchOpen.value = false
 }
 
 async function openSession(sessionId) {

@@ -92,3 +92,29 @@ test('unauthenticated client cannot access gameManagerOwners', async () => {
   await assertFails(setDoc(doc(db, 'gameManagerOwners/owner-1/people/p1'), { name: 'Ada' }))
   await assertFails(getDoc(doc(db, 'gameManagerOwners/owner-1/people/p1')))
 })
+
+test('authenticated client can read bggCatalogGames but cannot write', async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'bggCatalogGames/266192'), {
+      bggId: '266192',
+      name: 'Wingspan',
+      searchPrefixes: ['wing'],
+    })
+  })
+
+  const db = authedFirestore('owner-1')
+  await assertSucceeds(getDoc(doc(db, 'bggCatalogGames/266192')))
+  await assertFails(setDoc(doc(db, 'bggCatalogGames/1'), { bggId: '1', name: 'X' }))
+})
+
+test('unauthenticated client cannot read bggCatalogGames', async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'bggCatalogGames/266192'), {
+      bggId: '266192',
+      name: 'Wingspan',
+    })
+  })
+
+  const db = unauthenticatedFirestore()
+  await assertFails(getDoc(doc(db, 'bggCatalogGames/266192')))
+})

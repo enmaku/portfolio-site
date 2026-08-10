@@ -75,21 +75,18 @@
         aria-label="Add game"
         class="gm-actions-bar__fixed-btn"
         data-testid="gm-collection-add-fab"
-        @click="addDialogOpen = true"
+        @click="searchOpen = true"
       />
     </div>
 
-    <q-dialog v-model="addDialogOpen">
-      <q-card class="gm-dialog-card gm-dialog-card--wide">
-        <q-card-section class="text-h6">Add game</q-card-section>
-        <q-card-section class="q-pt-none">
-          <GameManagerCatalogSearchField @select="onSearchSelect" />
-        </q-card-section>
-        <q-card-actions align="right">
-          <q-btn flat label="Close" color="grey" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <GameManagerCatalogSearchPanel
+      v-if="searchOpen"
+      title="Add game"
+      test-id="gm-collection-search-panel"
+      close-test-id="gm-collection-search-close"
+      @select="onSearchSelect"
+      @close="searchOpen = false"
+    />
 
     <q-dialog v-model="editDialogOpen">
       <q-card class="gm-dialog-card gm-dialog-card--narrow">
@@ -172,11 +169,11 @@
 import { computed, ref } from 'vue'
 import { collectionItemThumbUrl } from '../collection/collectionViewModel.js'
 import { useGameManagerCollection } from '../composables/useGameManagerCollection.js'
-import GameManagerCatalogSearchField from './GameManagerCatalogSearchField.vue'
+import GameManagerCatalogSearchPanel from './GameManagerCatalogSearchPanel.vue'
 
 const { items, error, addFromSearchPick, renameCustom, removeItem } = useGameManagerCollection()
 
-const addDialogOpen = ref(false)
+const searchOpen = ref(false)
 const editDialogOpen = ref(false)
 const editTarget = ref(null)
 const editTitle = ref('')
@@ -194,7 +191,7 @@ function thumbFor(item) {
 
 async function onSearchSelect(pick) {
   await addFromSearchPick(pick)
-  addDialogOpen.value = false
+  searchOpen.value = false
 }
 
 function openEditSlide(detail, item) {

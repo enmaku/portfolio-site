@@ -13,6 +13,27 @@
   width: min(100vw - 32px, 420px);
 }
 
+.gm-catalog-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  min-height: 0;
+  background: $dark-page;
+}
+
+.body--light .gm-catalog-panel {
+  background: #fff;
+}
+
+.gm-catalog-panel__body {
+  min-height: 0;
+}
+
+.gm-catalog-panel__actions {
+  flex-shrink: 0;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}
+
 @media (max-width: 599px) {
   .gm-dialog-card--narrow {
     min-width: min(100vw - 32px, 360px);
@@ -30,6 +51,7 @@
 }
 
 .gm-surface {
+  position: relative;
   min-height: 100%;
   height: 100%;
   display: flex;

@@ -8,6 +8,11 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /bggCatalogGames/{bggId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     match /gameManagerOwners/{ownerUid} {
       allow read, write: if request.auth != null && request.auth.uid == ownerUid;
 

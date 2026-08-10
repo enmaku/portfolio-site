@@ -1,7 +1,17 @@
-const { fetchBgg } = require('./fetchBgg')
-const { normalizeBggSearchXml } = require('./normalize')
+const admin = require('firebase-admin')
+const { searchCatalogGames } = require('./catalogQuery')
+
+function getFirestore() {
+  if (!admin.apps.length) {
+    admin.initializeApp()
+  }
+  return admin.firestore()
+}
 
 /**
+ * Catalog search against Firestore bggCatalogGames (Model A prefixes).
+ * Response shape matches prior BGG XML search normalizer output.
+ *
  * @param {import('firebase-functions/v2/https').Request} req
  * @param {import('firebase-functions/v2/https').Response} res
  */
@@ -18,24 +28,14 @@ async function bggSearchHandler(req, res) {
     return
   }
 
-  const type = String(req.query.type || 'boardgame').trim() || 'boardgame'
-
   try {
-    const upstream = await fetchBgg('/search', { query, type })
-    const xml = await upstream.text()
-    if (!upstream.ok) {
-      res.status(upstream.status >= 400 ? upstream.status : 502).json({
-        error: 'upstream_error',
-        results: [],
-      })
-      return
-    }
-
-    res.status(200).json({ results: normalizeBggSearchXml(xml) })
+    const db = getFirestore()
+    const results = await searchCatalogGames(db, query)
+    res.status(200).json({ results })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'unknown_error'
-    const status = message.includes('GAME_MANAGER_API_KEY') ? 500 : 502
-    res.status(status).json({ error: message, results: [] })
+    console.error('bggSearch failed', err)
+    res.status(502).json({ error: message, results: [] })
   }
 }
 

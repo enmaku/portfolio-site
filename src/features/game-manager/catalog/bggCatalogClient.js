@@ -9,6 +9,10 @@
  * @property {string} title
  * @property {number | null} yearPublished
  * @property {string | null} [type]
+ * @property {number | null} [usersRated]
+ * @property {number | null} [averageRating]
+ * @property {number | null} [bayesAverage]
+ * @property {number | null} [boardGameRank]
  */
 
 /**

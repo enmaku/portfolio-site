@@ -71,6 +71,29 @@ test('exact query puts Wingspan before Wingspan Asia even if Asia has similar ba
   assert.equal(ranked[0].catalogEntryId, '266192')
 })
 
+test('rankCatalogSearchHits uses popularity fields on the hit without thing details', () => {
+  const hits = [
+    {
+      catalogEntryId: '1',
+      title: 'Wing Commander',
+      type: 'boardgame',
+      bayesAverage: 5.5,
+      usersRated: 200,
+      boardGameRank: 9000,
+    },
+    {
+      catalogEntryId: '266192',
+      title: 'Wingspan',
+      type: 'boardgame',
+      bayesAverage: 7.84,
+      usersRated: 100000,
+      boardGameRank: 38,
+    },
+  ]
+  const ranked = rankCatalogSearchHits(hits, 'wing', { limit: 20 })
+  assert.equal(ranked[0].catalogEntryId, '266192')
+})
+
 test('selectCatalogSearchEnrichmentIds prefers text-relevant ids before popularity fetch', () => {
   const hits = [
     { catalogEntryId: '1', title: 'Ace of Aces: Wingleader', type: 'boardgame' },

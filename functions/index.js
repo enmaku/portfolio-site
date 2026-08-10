@@ -5,11 +5,21 @@ const { bggThingHandler } = require('./bgg/bggThing')
 
 const gameManagerApiKey = defineSecret('GAME_MANAGER_API_KEY')
 
-const sharedOptions = {
-  cors: true,
-  secrets: [gameManagerApiKey],
-  region: 'us-central1',
-}
+const region = 'us-central1'
 
-exports.bggSearch = onRequest(sharedOptions, bggSearchHandler)
-exports.bggThing = onRequest(sharedOptions, bggThingHandler)
+exports.bggSearch = onRequest(
+  {
+    cors: true,
+    region,
+  },
+  bggSearchHandler,
+)
+
+exports.bggThing = onRequest(
+  {
+    cors: true,
+    secrets: [gameManagerApiKey],
+    region,
+  },
+  bggThingHandler,
+)

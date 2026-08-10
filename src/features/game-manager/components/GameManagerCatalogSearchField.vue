@@ -1,102 +1,119 @@
 <template>
-  <div class="gm-catalog-search" data-testid="gm-catalog-search">
-    <div v-if="!configured" class="text-caption text-warning q-mb-xs">
-      Catalog search is off. Cloud Functions base URL could not be resolved.
+  <div
+    class="gm-catalog-search column"
+    :class="{ 'gm-catalog-search--panel col': panel }"
+    data-testid="gm-catalog-search"
+  >
+    <div class="gm-catalog-search__header q-pb-sm">
+      <div v-if="!configured" class="text-caption text-warning q-mb-xs">
+        Catalog search is off. Cloud Functions base URL could not be resolved.
+      </div>
+      <q-input
+        ref="inputRef"
+        v-model="query"
+        outlined
+        dense
+        clearable
+        label="Search or enter a game title"
+        :loading="loading"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+        inputmode="search"
+        data-testid="gm-catalog-search-input"
+        @update:model-value="onQueryInput"
+        @keydown.enter.prevent="onEnterPressed"
+      />
+      <div class="text-caption text-grey-6 q-mt-xs" data-testid="gm-catalog-search-attribution">
+        {{ attribution }}
+      </div>
     </div>
-    <q-input
-      v-model="query"
-      outlined
-      dense
-      clearable
-      label="Search or enter a game title"
-      :loading="loading"
-      autocomplete="off"
-      autocorrect="off"
-      spellcheck="false"
-      inputmode="search"
-      data-testid="gm-catalog-search-input"
-      @update:model-value="onQueryInput"
-      @keydown.enter.prevent="onEnterPressed"
-    />
 
-    <div class="text-caption text-grey-6 q-mt-xs" data-testid="gm-catalog-search-attribution">
-      {{ attribution }}
-    </div>
-
-    <q-list
+    <q-scroll-area
       v-show="showSuggestionPanel"
-      bordered
-      separator
-      dense
-      class="rounded-borders q-mt-sm gm-catalog-search__suggestions"
-      data-testid="gm-catalog-search-results"
+      class="gm-catalog-search__scroll col"
+      :thumb-style="scrollThumbStyle"
+      data-testid="gm-catalog-search-scroll"
     >
-      <q-item
-        v-for="hit in suggestions"
-        :key="hit.catalogEntryId"
-        v-ripple
-        clickable
-        :data-testid="`gm-catalog-hit-${hit.catalogEntryId}`"
-        @click="pickCatalog(hit)"
+      <q-list
+        bordered
+        separator
+        dense
+        class="rounded-borders gm-catalog-search__suggestions"
+        data-testid="gm-catalog-search-results"
       >
-        <q-item-section avatar>
-          <div class="gm-row-thumb flex flex-center">
-            <q-img
-              v-if="thumbUrls[hit.catalogEntryId]"
-              :src="thumbUrls[hit.catalogEntryId]"
-              width="40px"
-              height="56px"
-              fit="cover"
-              spinner-color="primary"
-              loading="lazy"
-            />
-            <q-icon v-else name="casino" size="md" color="grey-5" />
-          </div>
-        </q-item-section>
-        <q-item-section>
-          <q-item-label>{{ hit.title }}</q-item-label>
-          <q-item-label v-if="hit.yearPublished" caption>{{ hit.yearPublished }}</q-item-label>
-        </q-item-section>
-      </q-item>
+        <q-item
+          v-for="hit in suggestions"
+          :key="hit.catalogEntryId"
+          v-ripple
+          clickable
+          :data-testid="`gm-catalog-hit-${hit.catalogEntryId}`"
+          @click="pickCatalog(hit)"
+        >
+          <q-item-section avatar>
+            <div class="gm-row-thumb flex flex-center">
+              <q-img
+                v-if="thumbUrls[hit.catalogEntryId]"
+                :src="thumbUrls[hit.catalogEntryId]"
+                width="40px"
+                height="56px"
+                fit="cover"
+                spinner-color="primary"
+                loading="lazy"
+              />
+              <q-icon v-else name="casino" size="md" color="grey-5" />
+            </div>
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>{{ hit.title }}</q-item-label>
+            <q-item-label v-if="hit.yearPublished" caption>{{ hit.yearPublished }}</q-item-label>
+          </q-item-section>
+        </q-item>
 
-      <q-item v-if="showNoResults">
-        <q-item-section class="text-grey-6 text-caption">No catalog match.</q-item-section>
-      </q-item>
+        <q-item v-if="showNoResults">
+          <q-item-section class="text-grey-6 text-caption">No catalog match.</q-item-section>
+        </q-item>
 
-      <q-item
-        v-if="showCustomOption"
-        v-ripple
-        clickable
-        class="gm-catalog-search__custom"
-        data-testid="gm-catalog-search-custom"
-        @click="pickCustom(trimmedQuery)"
-      >
-        <q-item-section avatar>
-          <div class="gm-row-thumb flex flex-center">
-            <q-icon name="add" size="md" color="primary" />
-          </div>
-        </q-item-section>
-        <q-item-section>
-          <q-item-label>Add &ldquo;{{ trimmedQuery }}&rdquo; as a custom entry</q-item-label>
-          <q-item-label caption class="text-grey-6">No box art — just the title.</q-item-label>
-        </q-item-section>
-      </q-item>
-    </q-list>
+        <q-item
+          v-if="showCustomOption"
+          v-ripple
+          clickable
+          class="gm-catalog-search__custom"
+          data-testid="gm-catalog-search-custom"
+          @click="pickCustom(trimmedQuery)"
+        >
+          <q-item-section avatar>
+            <div class="gm-row-thumb flex flex-center">
+              <q-icon name="add" size="md" color="primary" />
+            </div>
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Add &ldquo;{{ trimmedQuery }}&rdquo; as a custom entry</q-item-label>
+            <q-item-label caption class="text-grey-6">No box art — just the title.</q-item-label>
+          </q-item-section>
+        </q-item>
+      </q-list>
+    </q-scroll-area>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { CATALOG_ATTRIBUTION } from '../catalog/catalogAttribution.js'
-import {
-  fetchBggCatalogEntries,
-  isBggCatalogConfigured,
-  searchBggCatalog,
-} from '../catalog/bggCatalogClient.js'
-import {
-  rankCatalogSearchHits,
-  selectCatalogSearchEnrichmentIds,
-} from '../catalog/rankCatalogSearch.js'
+import { isBggCatalogConfigured, searchBggCatalog } from '../catalog/bggCatalogClient.js'
+import { rankCatalogSearchHits } from '../catalog/rankCatalogSearch.js'
+
+const props = defineProps({
+  /** Fill parent height: search top, scrollable results below. */
+  panel: {
+    type: Boolean,
+    default: false,
+  },
+  autofocus: {
+    type: Boolean,
+    default: false,
+  },
+})
 
 const emit = defineEmits(['select'])
 
@@ -107,14 +124,18 @@ const suggestions = ref([])
 const loading = ref(false)
 const thumbUrls = ref(/** @type {Record<string, string>} */ ({}))
 const lastSearchedQuery = ref('')
+const inputRef = ref(null)
+
+const scrollThumbStyle = {
+  borderRadius: '4px',
+  background: 'rgba(128, 128, 128, 0.45)',
+  width: '4px',
+  opacity: '0.75',
+}
 
 /** @type {AbortController | null} */
 let abort = null
 let debounceId = 0
-/** @type {Map<string, string>} */
-const thumbCache = new Map()
-/** @type {Map<string, object>} */
-const detailCache = new Map()
 
 function onQueryInput() {
   window.clearTimeout(debounceId)
@@ -162,37 +183,9 @@ async function runSearch() {
     const result = await searchBggCatalog(q, { signal: abort.signal })
     if (abort.signal.aborted) return
     const rawHits = result.ok ? result.results : []
-    const enrichIds = selectCatalogSearchEnrichmentIds(rawHits, q, 20)
-    /** @type {Record<string, object>} */
-    const detailsById = {}
-    for (const id of enrichIds) {
-      if (detailCache.has(id)) detailsById[id] = detailCache.get(id)
-    }
-    const missing = enrichIds.filter((id) => !detailsById[id])
-    if (missing.length) {
-      const detailResult = await fetchBggCatalogEntries(missing, { signal: abort.signal, stats: true })
-      if (abort.signal.aborted) return
-      if (detailResult.ok) {
-        for (const entry of detailResult.entries) {
-          detailCache.set(entry.catalogEntryId, entry)
-          detailsById[entry.catalogEntryId] = entry
-          const url = entry.thumbnailUrl || ''
-          thumbCache.set(entry.catalogEntryId, url)
-        }
-      }
-    }
-
-    const ranked = rankCatalogSearchHits(rawHits, q, { detailsById, limit: 20 })
-    suggestions.value = ranked
+    suggestions.value = rankCatalogSearchHits(rawHits, q, { limit: 20 })
     lastSearchedQuery.value = q
-
-    const nextThumbs = { ...thumbUrls.value }
-    for (const hit of ranked) {
-      const cached = thumbCache.get(hit.catalogEntryId)
-      if (cached) nextThumbs[hit.catalogEntryId] = cached
-      else if (hit.thumbnailUrl) nextThumbs[hit.catalogEntryId] = hit.thumbnailUrl
-    }
-    thumbUrls.value = nextThumbs
+    thumbUrls.value = {}
   } catch {
     if (abort?.signal.aborted) return
     suggestions.value = []
@@ -218,11 +211,7 @@ async function pickCatalog(hit) {
     catalogEntryId: hit.catalogEntryId,
     title: hit.title,
     yearPublished: hit.yearPublished ?? null,
-    thumbnailUrl:
-      hit.thumbnailUrl ||
-      thumbUrls.value[hit.catalogEntryId] ||
-      thumbCache.get(hit.catalogEntryId) ||
-      null,
+    thumbnailUrl: hit.thumbnailUrl || thumbUrls.value[hit.catalogEntryId] || null,
   })
   resetQueryState()
 }
@@ -242,6 +231,13 @@ function onEnterPressed() {
   if (showCustomOption.value) pickCustom(trimmedQuery.value)
 }
 
+function focusInput() {
+  const input = inputRef.value
+  if (input && typeof input.focus === 'function') {
+    input.focus()
+  }
+}
+
 watch(query, (q) => {
   if (!String(q).trim()) {
     suggestions.value = []
@@ -249,14 +245,32 @@ watch(query, (q) => {
   }
 })
 
-defineExpose({ resetQueryState })
+onMounted(async () => {
+  if (!props.autofocus) return
+  await nextTick()
+  focusInput()
+})
+
+defineExpose({ resetQueryState, focusInput })
 </script>
 
 <style scoped>
-.gm-catalog-search__suggestions {
-  max-height: 45vh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+.gm-catalog-search--panel {
+  min-height: 0;
+}
+
+.gm-catalog-search__header {
+  flex-shrink: 0;
+}
+
+.gm-catalog-search__scroll {
+  min-height: 0;
+}
+
+.gm-catalog-search:not(.gm-catalog-search--panel) .gm-catalog-search__scroll {
+  flex: 0 0 auto;
+  height: min(45vh, 360px);
+  margin-top: 8px;
 }
 
 .gm-catalog-search__custom {
