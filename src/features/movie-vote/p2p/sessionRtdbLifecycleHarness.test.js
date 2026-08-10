@@ -75,7 +75,7 @@ test(
         onWireTeardown: () => {},
       })
 
-      await joinRoom('LAST01')
+      await joinRoom('LAST01', { participantName: 'Guest' })
       const statePath = [...harness.listeners.keys()].find((p) => p.endsWith('/state'))
       assert.ok(statePath)
       harness.emitValue(statePath, joinableState)
@@ -94,7 +94,7 @@ test(
         onWireTeardown: () => {},
       })
 
-      await joinRoom('LAST01')
+      await joinRoom('LAST01', { participantName: 'Guest' })
       const statePathAfterReset = [...harness.listeners.keys()].find((p) => p.endsWith('/state'))
       assert.ok(statePathAfterReset)
       harness.emitValue(statePathAfterReset, joinableState)

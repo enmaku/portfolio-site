@@ -25,6 +25,10 @@ export const useMovieVoteStore = defineStore('movieVote', {
     readyToVote: false,
     /** @type {string | null} */
     myParticipantId: null,
+    /** Host seat participant name for this room. */
+    myParticipantName: '',
+    /** Host seat quorum requirement (default on). */
+    myQuorumRequired: true,
     /** @type {MovieVoteParticipantSummary[]} */
     participants: [],
     /** @type {BallotMovie[]} */
@@ -82,12 +86,25 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.myParticipantId = id
     },
 
+    /** @param {string} name */
+    setMyParticipantName(name) {
+      this.myParticipantName = typeof name === 'string' ? name.trim() : ''
+    },
+
+    /** @param {boolean} required */
+    setMyQuorumRequired(required) {
+      this.myQuorumRequired = Boolean(required)
+    },
+
     /** @param {MovieVoteParticipantSummary[]} list */
     setParticipants(list) {
       this.participants = list.map((x) => ({
         id: x.id,
+        name: typeof x.name === 'string' ? x.name : '',
+        quorumRequired: x.quorumRequired !== false,
         ready: Boolean(x.ready),
         pickCount: typeof x.pickCount === 'number' ? x.pickCount : 0,
+        online: x.online !== false,
       }))
     },
 
@@ -262,6 +279,8 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.phase = 'suggest'
       this.readyToVote = false
       this.myParticipantId = null
+      this.myParticipantName = ''
+      this.myQuorumRequired = true
       this.participants = []
       this.ballotMovies = []
       this.ballotOrderIds = []

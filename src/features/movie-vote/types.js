@@ -54,8 +54,11 @@
 /**
  * @typedef {object} MovieVoteParticipantSummary
  * @property {string} id
+ * @property {string} name
+ * @property {boolean} quorumRequired
  * @property {boolean} ready
  * @property {number} pickCount
+ * @property {boolean} [online]
  */
 
 /**

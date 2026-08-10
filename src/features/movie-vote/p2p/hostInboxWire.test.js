@@ -23,6 +23,7 @@ function baseDeps(overrides = {}) {
     cancelParticipantRemoval: () => {},
     applyGuestDraft: () => {},
     applyGuestVote: () => false,
+    getHostParticipantName: () => 'Host',
     ...overrides,
   }
 }

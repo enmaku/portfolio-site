@@ -27,20 +27,26 @@
       </template>
 
       <template v-else-if="phase === 'voting'">
-        <div class="q-px-md q-pt-md text-body2 text-grey-6">
-          Rank every movie. {{ voteProgressLabel }}
-        </div>
-        <MovieBallotList class="col mv-page__ballot" />
-        <div class="mv-page__vote-footer">
-          <q-btn
-            unelevated
-            color="primary"
-            no-caps
-            class="full-width"
-            label="Done voting"
-            :disable="myVoteSubmitted"
-            @click="onDoneVoting"
-          />
+        <template v-if="iAmRequiredVoter">
+          <div class="q-px-md q-pt-md text-body2 text-grey-6">
+            Rank every movie. {{ voteProgressLabel }}
+          </div>
+          <MovieBallotList class="col mv-page__ballot" />
+          <div class="mv-page__vote-footer">
+            <q-btn
+              unelevated
+              color="primary"
+              no-caps
+              class="full-width"
+              label="Done voting"
+              :disable="myVoteSubmitted"
+              @click="onDoneVoting"
+            />
+          </div>
+        </template>
+        <div v-else class="q-pa-lg text-center text-body2 text-grey-5" data-testid="mv-vote-watch">
+          <p class="q-mb-sm">You’re watching this round — not casting a ballot.</p>
+          <p class="q-mb-none">{{ voteProgressLabel }}</p>
         </div>
       </template>
 
@@ -102,6 +108,9 @@ import {
 import { joinRoom } from '../../features/movie-vote/p2p/session.js'
 import { useProjectShellBrowserFullscreen } from '../../layouts/projects/composables/useProjectShellBrowserFullscreen.js'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
+import { useMovieVoteRoomSessionStore } from '../../stores/movieVoteRoomSession.js'
+import { HOST_PARTICIPANT_ID } from '../../features/movie-vote/core.js'
+import { normalizeParticipantName } from '../../features/movie-vote/participantName.js'
 
 const $q = useQuasar()
 const route = useRoute()
@@ -114,6 +123,8 @@ const {
   voteProgress,
   uniqueSuggestedMovieCount,
   fullscreenEnabled,
+  myParticipantId,
+  participants,
 } = storeToRefs(store)
 
 const { isGuest, isInSession } = useMovieVoteP2P()
@@ -141,6 +152,13 @@ const voteProgressLabel = computed(() => {
   const v = voteProgress.value
   if (!v) return ''
   return `${v.submitted} / ${v.total} voted`
+})
+
+const iAmRequiredVoter = computed(() => {
+  const pid = myParticipantId.value ?? HOST_PARTICIPANT_ID
+  const row = participants.value.find((p) => p.id === pid)
+  if (row) return row.quorumRequired !== false
+  return store.myQuorumRequired !== false
 })
 
 const clearConfirmOpen = ref(false)
@@ -192,7 +210,32 @@ onMounted(() => {
     return
   }
 
-  void joinRoom(code).catch(() => {})
+  let stickyName = ''
+  try {
+    stickyName = normalizeParticipantName(useMovieVoteRoomSessionStore().participantName || '')
+  } catch {
+    stickyName = ''
+  }
+
+  if (stickyName) {
+    void joinRoom(code, { participantName: stickyName }).catch(() => {})
+    return
+  }
+
+  $q.dialog({
+    title: 'Join room',
+    message: 'Enter your name to join.',
+    prompt: {
+      model: '',
+      type: 'text',
+    },
+    cancel: true,
+    persistent: true,
+  }).onOk((name) => {
+    const participantName = normalizeParticipantName(name)
+    if (!participantName) return
+    void joinRoom(code, { participantName }).catch(() => {})
+  })
 })
 </script>
 

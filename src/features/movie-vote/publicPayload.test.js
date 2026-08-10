@@ -113,13 +113,15 @@ test('clearGuestDraftReadyFlags clears ready on every guest draft', () => {
 })
 
 test('buildMovieVotePublicPayload reflects cleared guest ready flags', () => {
-  const guestDrafts = new Map([['g1', { picks: [], ready: true }]])
+  const guestDrafts = new Map([['g1', { picks: [], ready: true, name: 'Guest', quorumRequired: true }]])
   clearGuestDraftReadyFlags(guestDrafts)
   const payload = buildMovieVotePublicPayload(
     {
       phase: 'suggest',
       readyToVote: false,
       myDraftPicks: [],
+      myParticipantName: 'Host',
+      myQuorumRequired: true,
       ballotMovies: [],
       ballotOrderIds: [],
       voteProgress: null,
@@ -129,4 +131,69 @@ test('buildMovieVotePublicPayload reflects cleared guest ready flags', () => {
     guestDrafts,
   )
   assert.equal(payload.participants.find((p) => p.id === 'g1')?.ready, false)
+})
+
+test('public payload participant summaries include name and quorumRequired', () => {
+  const guestDrafts = new Map([
+    ['g1', { picks: [{ localId: '1', title: 'A', source: 'custom' }], ready: true, name: 'Sam', quorumRequired: false }],
+    ['g2', { picks: [], ready: false, name: 'Alex', quorumRequired: true }],
+  ])
+  const payload = buildMovieVotePublicPayload(
+    {
+      phase: 'suggest',
+      readyToVote: true,
+      myDraftPicks: [],
+      myParticipantName: 'Dana',
+      myQuorumRequired: true,
+      ballotMovies: [],
+      ballotOrderIds: [],
+      voteProgress: null,
+      electionOutcome: null,
+      votingMethod: 'irv',
+    },
+    guestDrafts,
+  )
+  const host = payload.participants.find((p) => p.id === '__host__')
+  const sam = payload.participants.find((p) => p.id === 'g1')
+  const alex = payload.participants.find((p) => p.id === 'g2')
+  assert.equal(host?.name, 'Dana')
+  assert.equal(host?.quorumRequired, true)
+  assert.equal(sam?.name, 'Sam')
+  assert.equal(sam?.quorumRequired, false)
+  assert.equal(sam?.pickCount, 1)
+  assert.equal(alex?.name, 'Alex')
+  assert.equal(alex?.quorumRequired, true)
+})
+
+test('public payload voteProgress total counts only quorum-required seats', () => {
+  const payload = buildMovieVotePublicPayload(
+    {
+      phase: 'voting',
+      readyToVote: true,
+      myDraftPicks: [],
+      myParticipantName: 'Dana',
+      myQuorumRequired: true,
+      ballotMovies: [
+        {
+          publicId: 'a',
+          source: 'custom',
+          tmdbId: null,
+          title: 'A',
+          posterPath: null,
+          overview: '',
+        },
+      ],
+      ballotOrderIds: ['a'],
+      voterIds: ['__host__', 'g2'],
+      votesByParticipant: { __host__: ['a'] },
+      voteProgress: { submitted: 1, total: 3 },
+      electionOutcome: null,
+      votingMethod: 'irv',
+    },
+    new Map([
+      ['g1', { picks: [], ready: true, name: 'Sam', quorumRequired: false }],
+      ['g2', { picks: [], ready: true, name: 'Alex', quorumRequired: true }],
+    ]),
+  )
+  assert.deepEqual(payload.voteProgress, { submitted: 1, total: 2 })
 })

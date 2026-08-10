@@ -108,7 +108,7 @@ test(
       const { joinRoom, sessionPhase, sessionSuffix } = sessionMod
       const { room } = bindPostureHandlers(sessionMod)
 
-      await joinRoom('FATAL1')
+      await joinRoom('FATAL1', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
       assert.equal(room.role, 'guest')
       assert.equal(room.suffix, 'FATAL1')
@@ -143,7 +143,7 @@ test(
       const { joinRoom, sessionPhase } = sessionMod
       bindPostureHandlers(sessionMod)
 
-      await joinRoom('OFFLN1')
+      await joinRoom('OFFLN1', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
 
       listenerAt(listeners, 'connected')(false)
@@ -169,7 +169,7 @@ test(
       const { joinRoom, sessionPhase, sessionSuffix } = sessionMod
       const { room } = bindPostureHandlers(sessionMod)
 
-      await joinRoom('END123')
+      await joinRoom('END123', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
       assert.equal(room.role, 'guest')
 
@@ -199,7 +199,7 @@ test(
       const { joinRoom, sessionPhase, sessionSuffix } = sessionMod
       const { room } = bindPostureHandlers(sessionMod)
 
-      await joinRoom('STRICT')
+      await joinRoom('STRICT', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
       assert.equal(
         [...listeners.keys()].some((p) => p.endsWith('hostPing')),
@@ -231,7 +231,7 @@ test(
       const { joinRoom, sessionPhase, sessionSuffix } = sessionMod
       const { room } = bindPostureHandlers(sessionMod)
 
-      await joinRoom('STATE1')
+      await joinRoom('STATE1', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
       assert.equal(sessionSuffix.value, 'STATE1')
       assert.equal(
@@ -283,7 +283,7 @@ test(
       const { joinRoom, sessionPhase } = sessionMod
       bindPostureHandlers(sessionMod)
 
-      await joinRoom('JOIN01')
+      await joinRoom('JOIN01', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
 
       assert.ok(
@@ -335,7 +335,7 @@ test(
       const { joinRoom, sessionPhase, teardownSession } = sessionMod
       bindPostureHandlers(sessionMod)
 
-      await joinRoom('TEAR01')
+      await joinRoom('TEAR01', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
       teardownSession()
 
@@ -365,7 +365,7 @@ test(
       const { joinRoom, remoteHostTabVisible, sessionPhase } = sessionMod
       bindPostureHandlers(sessionMod)
 
-      await joinRoom('VIS001')
+      await joinRoom('VIS001', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
       assert.equal(remoteHostTabVisible.value, true)
 

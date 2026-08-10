@@ -4,14 +4,17 @@
 
 import { computed } from 'vue'
 import {
+  clearGuestParticipants,
   isMovieVoteP2PSessionActive,
   joinRoom,
   leaveSession,
   remoteHostTabVisible,
+  removeGuestParticipant,
   resumeMovieVoteSessionIfNeeded,
   roomAuthoritySeq,
   sessionPhase,
   sessionSuffix,
+  setParticipantQuorumRequired,
   startAsHost,
 } from '../p2p/session.js'
 
@@ -29,6 +32,9 @@ import {
  *   joinRoom: typeof joinRoom,
  *   leaveSession: typeof leaveSession,
  *   resumeMovieVoteSessionIfNeeded: typeof resumeMovieVoteSessionIfNeeded,
+ *   setParticipantQuorumRequired: typeof setParticipantQuorumRequired,
+ *   removeGuestParticipant: typeof removeGuestParticipant,
+ *   clearGuestParticipants: typeof clearGuestParticipants,
  *   roomAuthoritySeq: typeof roomAuthoritySeq,
  * }}
  */
@@ -48,6 +54,9 @@ export function useMovieVoteP2P() {
     joinRoom,
     leaveSession,
     resumeMovieVoteSessionIfNeeded,
+    setParticipantQuorumRequired,
+    removeGuestParticipant,
+    clearGuestParticipants,
     roomAuthoritySeq,
   }
 }

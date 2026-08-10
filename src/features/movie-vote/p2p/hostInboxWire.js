@@ -1,13 +1,18 @@
-import { normalizeCustomTitle } from '../core.js'
 import {
-  encodeHostVisibility,
-  encodeState,
   encodeWelcome,
+  encodeNameRejected,
   parseDraft,
   parseHello,
   parseVote,
+  encodeHostVisibility,
+  encodeState,
 } from './protocol.js'
 import { generateAnonymousVoterId } from './roomId.js'
+import { normalizeCustomTitle, HOST_PARTICIPANT_ID } from '../core.js'
+import {
+  isParticipantNameTaken,
+  normalizeParticipantName,
+} from '../participantName.js'
 
 /**
  * @param {import('../types.js').MoviePick[]} picks
@@ -53,6 +58,7 @@ function normalizePicks(picks) {
  * @param {(pid: string) => void} deps.cancelParticipantRemoval
  * @param {(participantId: string, entry: { picks: import('../types.js').MoviePick[], ready: boolean }) => void} deps.applyGuestDraft
  * @param {(participantId: string, ranking: string[]) => boolean} deps.applyGuestVote
+ * @param {() => string} deps.getHostParticipantName
  */
 export function createHostInboxWire(deps) {
   const {
@@ -60,6 +66,16 @@ export function createHostInboxWire(deps) {
     activeGuestStableIds,
     guestDrafts,
   } = deps.wireState
+
+  function seatsForNameCheck() {
+    /** @type {{ id: string, name: string }[]} */
+    const seats = [{ id: HOST_PARTICIPANT_ID, name: deps.getHostParticipantName() }]
+    for (const [pid, g] of guestDrafts) {
+      seats.push({ id: pid, name: typeof g.name === 'string' ? g.name : '' })
+    }
+    return seats
+  }
+
   /**
    * @param {string} stableId
    * @param {unknown} raw
@@ -75,7 +91,7 @@ export function createHostInboxWire(deps) {
 
     stableIdToParticipant.set(stableId, pid)
     if (!guestDrafts.has(pid)) {
-      guestDrafts.set(pid, { picks: [], ready: false })
+      guestDrafts.set(pid, { picks: [], ready: false, name: '', quorumRequired: true })
     }
     deps.cancelParticipantRemoval(pid)
     return pid
@@ -83,26 +99,44 @@ export function createHostInboxWire(deps) {
 
   /**
    * @param {string} stableId
+   * @param {string} [participantName]
    */
-  function onGuestHello(stableId) {
+  function onGuestHello(stableId, participantName = '') {
     const existingPid = stableIdToParticipant.get(stableId)
-    const pid = existingPid ?? generateAnonymousVoterId()
-    const resumed = Boolean(existingPid)
-
-    if (!existingPid) {
-      stableIdToParticipant.set(stableId, pid)
-      guestDrafts.set(pid, { picks: [], ready: false })
-    } else {
-      deps.cancelParticipantRemoval(pid)
-    }
-
-    activeGuestStableIds.add(stableId)
-
     const suffix = deps.getSessionSuffix()
     if (!suffix) return
 
     const welcomeRef = deps.roomChild(suffix, `welcome/${stableId}`)
-    deps.setRtdb(welcomeRef, encodeWelcome(pid, resumed)).catch(() => {})
+
+    if (existingPid) {
+      deps.cancelParticipantRemoval(existingPid)
+      activeGuestStableIds.add(stableId)
+      deps.setRtdb(welcomeRef, encodeWelcome(existingPid, true)).catch(() => {})
+      const payload = deps.buildPublicPayload()
+      if (deps.getNextSeq() < 1) deps.setNextSeq(1)
+      deps.setRtdb(deps.roomChild(suffix, 'state'), encodeState(payload, deps.getNextSeq())).catch(() => {})
+      if (typeof document !== 'undefined') {
+        deps.setRtdb(
+          deps.roomChild(suffix, 'hostVisible'),
+          encodeHostVisibility(document.visibilityState === 'visible'),
+        ).catch(() => {})
+      }
+      deps.hostBroadcastState()
+      return
+    }
+
+    const name = normalizeParticipantName(participantName)
+    if (name && isParticipantNameTaken(name, seatsForNameCheck())) {
+      deps.setRtdb(welcomeRef, encodeNameRejected('taken')).catch(() => {})
+      return
+    }
+
+    const pid = generateAnonymousVoterId()
+    stableIdToParticipant.set(stableId, pid)
+    guestDrafts.set(pid, { picks: [], ready: false, name, quorumRequired: true })
+    activeGuestStableIds.add(stableId)
+
+    deps.setRtdb(welcomeRef, encodeWelcome(pid, false)).catch(() => {})
 
     const payload = deps.buildPublicPayload()
     if (deps.getNextSeq() < 1) deps.setNextSeq(1)
@@ -114,8 +148,6 @@ export function createHostInboxWire(deps) {
         encodeHostVisibility(document.visibilityState === 'visible'),
       ).catch(() => {})
     }
-
-    if (resumed) deps.hostBroadcastState()
   }
 
   /**
@@ -126,7 +158,7 @@ export function createHostInboxWire(deps) {
     const hello = parseHello(raw)
     if (hello) {
       if (hello.stableId !== stableId) return
-      onGuestHello(stableId)
+      onGuestHello(stableId, hello.participantName)
       return
     }
 

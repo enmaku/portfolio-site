@@ -65,7 +65,7 @@ test(
         setActivePinia(pinia)
         const store = useMovieVoteStore()
 
-        await sessionMod.startAsHost(3)
+        await sessionMod.startAsHost({ participantName: 'Host', maxAttempts: 3 })
         assert.equal(sessionMod.sessionPhase.value, 'hosting')
 
         setGuestDraftForTests(sessionMod, 'guest-1', { picks: [], ready: true })

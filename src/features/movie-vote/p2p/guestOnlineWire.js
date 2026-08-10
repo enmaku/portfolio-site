@@ -48,6 +48,8 @@ export function createGuestOnlineWire(deps) {
 
   function scheduleParticipantRemoval(pid) {
     if (!guestDrafts.has(pid)) return
+    const draft = guestDrafts.get(pid)
+    if (draft && draft.quorumRequired !== false) return
     const stableId = [...stableIdToParticipant.entries()].find(([, p]) => p === pid)?.[0]
     if (stableId && activeGuestStableIds.has(stableId)) return
     const existing = pendingRemovalTimers.get(pid)
@@ -55,6 +57,8 @@ export function createGuestOnlineWire(deps) {
     const t = scheduleTimer(() => {
       pendingRemovalTimers.delete(pid)
       if (stableId && activeGuestStableIds.has(stableId)) return
+      const latest = guestDrafts.get(pid)
+      if (latest && latest.quorumRequired !== false) return
       guestDrafts.delete(pid)
       if (stableId) {
         stableIdToParticipant.delete(stableId)

@@ -31,7 +31,8 @@
                 class="full-width mv-sync-menu__action-btn"
                 padding="12px 16px"
                 label="Host room"
-                @click.stop="onHost"
+                data-testid="mv-host-room"
+                @click.stop="openHostFromMenu"
               />
               <q-btn
                 outline
@@ -40,6 +41,7 @@
                 class="full-width mv-sync-menu__action-btn"
                 padding="12px 16px"
                 label="Join room"
+                data-testid="mv-join-room"
                 @click="openJoinFromMenu"
               />
             </div>
@@ -93,6 +95,7 @@
                   @click.stop="copyRoomUrl"
                 />
               </div>
+
               <q-btn
                 outline
                 no-caps
@@ -102,6 +105,69 @@
                 label="Stop hosting"
                 @click="onLeave"
               />
+
+              <div
+                v-if="suggestQuorumEditable"
+                class="column q-gutter-sm"
+                data-testid="mv-quorum-controls"
+              >
+                <div class="text-subtitle2">Quorum</div>
+                <q-list bordered class="rounded-borders mv-sync-menu__quorum-list">
+                  <q-item
+                    v-for="row in quorumRows"
+                    :key="row.id"
+                    dense
+                    data-testid="mv-quorum-row"
+                  >
+                    <q-item-section avatar>
+                      <q-icon
+                        :name="row.online ? 'circle' : 'radio_button_unchecked'"
+                        :color="row.online ? 'positive' : 'grey-5'"
+                        size="xs"
+                        :aria-label="row.online ? 'online' : 'offline'"
+                      />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label class="ellipsis">{{ row.name || '—' }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section side class="mv-sync-menu__quorum-side">
+                      <div class="row items-center no-wrap q-gutter-x-xs">
+                        <q-toggle
+                          dense
+                          :model-value="row.quorumRequired"
+                          data-testid="mv-quorum-toggle"
+                          @update:model-value="(v) => onToggleQuorum(row.id, v)"
+                        />
+                        <q-btn
+                          v-if="!row.isHost"
+                          flat
+                          round
+                          dense
+                          icon="delete"
+                          color="grey-7"
+                          size="md"
+                          data-testid="mv-quorum-remove"
+                          aria-label="Remove participant"
+                          @click.stop="confirmRemove(row)"
+                        >
+                          <q-tooltip>Remove from room</q-tooltip>
+                        </q-btn>
+                      </div>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+                <q-btn
+                  outline
+                  no-caps
+                  color="grey-7"
+                  class="full-width"
+                  padding="8px 12px"
+                  label="Clear guests"
+                  data-testid="mv-clear-guests"
+                  :disable="!hasGuests"
+                  @click="confirmClearGuests"
+                />
+              </div>
             </div>
           </template>
 
@@ -128,23 +194,64 @@
       </q-menu>
     </q-btn>
 
+    <q-dialog v-model="hostOpen">
+      <q-card class="mv-dialog-card mv-dialog-card--narrow">
+        <q-card-section class="text-h6">Host room</q-card-section>
+        <q-card-section class="q-pt-none">
+          <q-input
+            v-model="nameInput"
+            label="Your name"
+            outlined
+            autofocus
+            data-testid="mv-host-name"
+            @keyup.enter="confirmHost"
+          />
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="grey" padding="10px 18px" @click="hostOpen = false" />
+          <q-btn
+            unelevated
+            label="Host"
+            color="primary"
+            padding="10px 22px"
+            data-testid="mv-host-confirm"
+            @click="confirmHost"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="joinOpen">
       <q-card class="mv-dialog-card mv-dialog-card--narrow">
         <q-card-section class="text-h6">Join room</q-card-section>
-        <q-card-section class="q-pt-none">
+        <q-card-section class="q-pt-none column q-gutter-md">
+          <q-input
+            v-model="nameInput"
+            label="Your name"
+            outlined
+            autofocus
+            data-testid="mv-join-name"
+          />
           <q-input
             v-model="joinCodeInput"
             label="Room code"
             outlined
-            autofocus
             maxlength="32"
             input-class="text-h6"
+            data-testid="mv-join-code"
             @keyup.enter="confirmJoin"
           />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="Cancel" color="grey" padding="10px 18px" @click="joinOpen = false" />
-          <q-btn unelevated label="Join" color="primary" padding="10px 22px" @click="confirmJoin" />
+          <q-btn
+            unelevated
+            label="Join"
+            color="primary"
+            padding="10px 22px"
+            data-testid="mv-join-confirm"
+            @click="confirmJoin"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -153,12 +260,18 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import { useMovieVoteP2P } from '../composables/useMovieVoteP2P.js'
+import { HOST_PARTICIPANT_ID } from '../core.js'
 import { buildMovieVoteRoomShareUrl, normalizeRoomSuffixInput } from '../p2p/roomId.js'
+import { normalizeParticipantName } from '../participantName.js'
+import { useMovieVoteStore } from '../../../stores/movieVote.js'
 
 const $q = useQuasar()
 const menuRef = ref(/** @type {{ hide?: () => void } | null} */ (null))
+const store = useMovieVoteStore()
+const { participants, phase: collabPhase } = storeToRefs(store)
 const {
   phase,
   suffix,
@@ -167,12 +280,29 @@ const {
   joinRoom,
   leaveSession,
   resumeMovieVoteSessionIfNeeded,
+  setParticipantQuorumRequired,
+  removeGuestParticipant,
+  clearGuestParticipants,
 } = useMovieVoteP2P()
 
+const hostOpen = ref(false)
 const joinOpen = ref(false)
 const joinCodeInput = ref('')
+const nameInput = ref('')
 
 const isBusy = computed(() => phase.value === 'connecting' || phase.value === 'reconnecting')
+const suggestQuorumEditable = computed(() => collabPhase.value === 'suggest')
+const hasGuests = computed(() => participants.value.some((p) => p.id !== HOST_PARTICIPANT_ID))
+
+const quorumRows = computed(() =>
+  participants.value.map((p) => ({
+    id: p.id,
+    name: p.name,
+    quorumRequired: p.quorumRequired !== false,
+    isHost: p.id === HOST_PARTICIPANT_ID,
+    online: p.id === HOST_PARTICIPANT_ID ? true : Boolean(p.online),
+  })),
+)
 
 const syncIcon = computed(() => {
   if (phase.value === 'guest_connected') return 'check_circle'
@@ -231,7 +361,10 @@ const statusDescription = computed(() => {
 })
 
 watch(joinOpen, (open) => {
-  if (open) joinCodeInput.value = ''
+  if (open) {
+    joinCodeInput.value = joinCodeInput.value || ''
+    nameInput.value = nameInput.value || ''
+  }
 })
 
 onMounted(() => {
@@ -242,28 +375,73 @@ function hideMenu() {
   menuRef.value?.hide?.()
 }
 
-async function onHost() {
-  try {
-    await startAsHost()
-  } catch {
-    void 0
-  }
+function openHostFromMenu() {
+  hideMenu()
+  nameInput.value = ''
+  hostOpen.value = true
 }
 
 function openJoinFromMenu() {
   hideMenu()
+  nameInput.value = ''
+  joinCodeInput.value = ''
   joinOpen.value = true
 }
 
-async function confirmJoin() {
-  const code = normalizeRoomSuffixInput(joinCodeInput.value)
-  if (!code) return
+async function confirmHost() {
+  const participantName = normalizeParticipantName(nameInput.value)
+  if (!participantName) return
   try {
-    await joinRoom(code)
+    await startAsHost({ participantName })
+    hostOpen.value = false
+  } catch {
+    void 0
+  }
+}
+
+async function confirmJoin() {
+  const participantName = normalizeParticipantName(nameInput.value)
+  const code = normalizeRoomSuffixInput(joinCodeInput.value)
+  if (!participantName || !code) return
+  try {
+    await joinRoom(code, { participantName })
     joinOpen.value = false
   } catch {
     void 0
   }
+}
+
+/**
+ * @param {string} participantId
+ * @param {boolean} required
+ */
+function onToggleQuorum(participantId, required) {
+  setParticipantQuorumRequired(participantId, required)
+}
+
+/**
+ * @param {{ id: string, name: string }} row
+ */
+function confirmRemove(row) {
+  $q.dialog({
+    title: 'Remove participant?',
+    message: `Remove ${row.name || 'this guest'} from the room?`,
+    cancel: true,
+    persistent: true,
+  }).onOk(() => {
+    removeGuestParticipant(row.id)
+  })
+}
+
+function confirmClearGuests() {
+  $q.dialog({
+    title: 'Clear guests?',
+    message: 'Remove every guest from the room? You stay as host.',
+    cancel: true,
+    persistent: true,
+  }).onOk(() => {
+    clearGuestParticipants()
+  })
 }
 
 function copyCode() {
@@ -319,7 +497,7 @@ function onLeave() {
 
 .mv-sync-menu-shell .mv-sync-menu {
   box-sizing: border-box;
-  width: min(480px, calc(100vw - 32px));
+  width: min(520px, calc(100vw - 32px));
 }
 
 .mv-sync-menu-shell .mv-sync-menu__hosting-block {
@@ -343,6 +521,16 @@ function onLeave() {
   white-space: nowrap;
   min-width: 0;
   overflow-x: clip;
+}
+
+.mv-sync-menu-shell .mv-sync-menu__quorum-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.mv-sync-menu-shell .mv-sync-menu__quorum-side {
+  flex-shrink: 0;
+  padding-left: 8px !important;
 }
 
 .mv-dialog-card {
