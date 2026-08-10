@@ -18,7 +18,7 @@ test('sessionSortMs uses createdAt then id timestamp', () => {
   assert.equal(sessionSortMs({ id }), ms)
 })
 
-test('buildSessionGameGroups nests sessions under games newest first', () => {
+test('buildSessionGameGroups sorts games by title; sessions newest first', () => {
   const sessions = [
     {
       id: 's-old',
@@ -36,8 +36,8 @@ test('buildSessionGameGroups nests sessions under games newest first', () => {
     },
     {
       id: 's-other',
-      createdAt: 200,
-      game: { kind: 'custom', id: 'c1', title: 'Homebrew' },
+      createdAt: 400,
+      game: { kind: 'custom', id: 'c1', title: 'Azul' },
       presentPlayers: [],
       state: 'playing',
     },
@@ -45,11 +45,13 @@ test('buildSessionGameGroups nests sessions under games newest first', () => {
 
   const groups = buildSessionGameGroups(sessions)
   assert.equal(groups.length, 2)
-  assert.equal(groups[0].key, 'catalog:13')
   assert.deepEqual(
-    groups[0].sessions.map((s) => s.id),
+    groups.map((g) => g.game.title),
+    ['Azul', 'Catan'],
+  )
+  assert.deepEqual(
+    groups[1].sessions.map((s) => s.id),
     ['s-new', 's-old'],
   )
-  assert.equal(groups[1].key, 'custom:c1')
-  assert.equal(groups[0].sessions[0].presentPlayers.length, 2)
+  assert.equal(groups[1].sessions[0].presentPlayers.length, 2)
 })

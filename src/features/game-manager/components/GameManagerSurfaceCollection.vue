@@ -10,7 +10,7 @@
       </div>
 
       <div
-        v-if="!items.length"
+        v-if="!shelfItems.length"
         class="gm-empty column items-center q-mx-auto q-py-xl text-center text-grey-5"
         data-testid="gm-collection-empty"
       >
@@ -20,7 +20,7 @@
 
       <div v-else data-testid="gm-collection-list">
         <q-slide-item
-          v-for="item in items"
+          v-for="item in shelfItems"
           :key="item.id"
           class="gm-slide rounded-borders overflow-hidden"
           left-color="primary"
@@ -172,7 +172,10 @@
 
 <script setup>
 import { computed, inject, ref } from 'vue'
-import { collectionItemThumbUrl } from '../collection/collectionViewModel.js'
+import {
+  collectionItemThumbUrl,
+  sortCollectionItemsByTitle,
+} from '../collection/collectionViewModel.js'
 import { GAME_MANAGER_SESSION_FLOW_KEY } from '../composables/sessionFlowKey.js'
 import { useGameManagerCollection } from '../composables/useGameManagerCollection.js'
 import GameManagerCatalogSearchPanel from './GameManagerCatalogSearchPanel.vue'
@@ -190,6 +193,8 @@ const editTarget = ref(null)
 const editTitle = ref('')
 const deleteConfirmOpen = ref(false)
 const deleteTarget = ref(null)
+
+const shelfItems = computed(() => sortCollectionItemsByTitle(items.value))
 
 const errorMessage = computed(() => {
   if (!error.value) return ''

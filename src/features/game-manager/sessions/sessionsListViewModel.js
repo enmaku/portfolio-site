@@ -30,7 +30,7 @@ export function sessionSortMs(session) {
 
 /**
  * Group play sessions by game for the Sessions surface.
- * Games ordered by newest nested session; sessions within a game newest-first.
+ * Games ordered alphabetically by title; sessions within a game newest-first.
  *
  * @param {object[]} sessions
  * @returns {{ key: string, game: object, sessions: object[], newestMs: number }[]}
@@ -58,6 +58,8 @@ export function buildSessionGameGroups(sessions) {
     }
   })
 
-  groups.sort((a, b) => b.newestMs - a.newestMs)
+  groups.sort((a, b) =>
+    String(a.game?.title || '').localeCompare(String(b.game?.title || '')),
+  )
   return groups
 }

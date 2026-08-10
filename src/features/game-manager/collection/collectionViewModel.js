@@ -62,3 +62,13 @@ export function collectionItemThumbUrl(item) {
   if (!item) return null
   return item.thumbnailUrl || item.imageUrl || null
 }
+
+/**
+ * @param {object[]} items
+ * @returns {object[]}
+ */
+export function sortCollectionItemsByTitle(items) {
+  return [...(items || [])].sort((a, b) =>
+    String(a?.title || '').localeCompare(String(b?.title || '')),
+  )
+}

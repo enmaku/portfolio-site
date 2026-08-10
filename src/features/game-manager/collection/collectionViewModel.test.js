@@ -6,6 +6,7 @@ import {
   applyCatalogPickToCollection,
   catalogItemNeedsArtBackfill,
   renameCustomInCollection,
+  sortCollectionItemsByTitle,
 } from './collectionViewModel.js'
 
 test('applyCatalogPickToCollection upserts by catalog id', () => {
@@ -53,4 +54,16 @@ test('catalogItemNeedsArtBackfill detects catalog rows missing thumbnails', () =
 test('catalog attribution constant is non-empty', () => {
   assert.equal(typeof CATALOG_ATTRIBUTION, 'string')
   assert.ok(CATALOG_ATTRIBUTION.length > 0)
+})
+
+test('sortCollectionItemsByTitle orders alphabetically', () => {
+  const sorted = sortCollectionItemsByTitle([
+    { id: '2', title: 'Catan' },
+    { id: '1', title: 'Azul' },
+    { id: '3', title: 'Brass' },
+  ])
+  assert.deepEqual(
+    sorted.map((item) => item.title),
+    ['Azul', 'Brass', 'Catan'],
+  )
 })
