@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildMovieVotePublicPayload, clearGuestDraftReadyFlags } from './publicPayload.js'
+import { buildMovieVotePublicPayload, resetGuestDraftsForSuggestRound } from './publicPayload.js'
 import { DEFAULT_VOTING_METHOD } from './votingMethod.js'
 
 test('public payload includes voting method from room store', () => {
@@ -101,20 +101,21 @@ test('public payload defaults voting method when store value is invalid', () => 
   assert.equal(payload.votingMethod, DEFAULT_VOTING_METHOD)
 })
 
-test('clearGuestDraftReadyFlags clears ready on every guest draft', () => {
+test('resetGuestDraftsForSuggestRound clears ready and picks on every guest draft', () => {
   const guestDrafts = new Map([
     ['g1', { picks: [{ localId: '1', title: 'A', source: 'custom' }], ready: true }],
-    ['g2', { picks: [], ready: true }],
+    ['g2', { picks: [{ localId: '2', title: 'B', source: 'custom' }], ready: true }],
   ])
-  clearGuestDraftReadyFlags(guestDrafts)
+  resetGuestDraftsForSuggestRound(guestDrafts)
   assert.equal(guestDrafts.get('g1')?.ready, false)
   assert.equal(guestDrafts.get('g2')?.ready, false)
-  assert.equal(guestDrafts.get('g1')?.picks.length, 1)
+  assert.deepEqual(guestDrafts.get('g1')?.picks, [])
+  assert.deepEqual(guestDrafts.get('g2')?.picks, [])
 })
 
 test('buildMovieVotePublicPayload reflects cleared guest ready flags', () => {
   const guestDrafts = new Map([['g1', { picks: [], ready: true, name: 'Guest', quorumRequired: true }]])
-  clearGuestDraftReadyFlags(guestDrafts)
+  resetGuestDraftsForSuggestRound(guestDrafts)
   const payload = buildMovieVotePublicPayload(
     {
       phase: 'suggest',

@@ -144,6 +144,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
         this.voteProgress = null
         if (wasVoting || wasResults) {
           this.readyToVote = false
+          this.myDraftPicks = []
         }
       } else if (p.ballotMovies && p.ballotOrderIds) {
         const incomingIds = [...p.ballotOrderIds]
@@ -315,10 +316,11 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.uniqueSuggestedMovieCount = 0
     },
 
-    /** New vote: back to nominations. */
+    /** New vote: back to nominations with empty draft lists. */
     resetToSuggest() {
       this.phase = 'suggest'
       this.readyToVote = false
+      this.myDraftPicks = []
       this.ballotMovies = []
       this.ballotOrderIds = []
       this.myRanking = []

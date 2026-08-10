@@ -26,7 +26,7 @@ import {
   compileBallotMovies,
   uniqueMoviesInPicks,
 } from '../core.js'
-import { buildMovieVotePublicPayload, clearGuestDraftReadyFlags } from '../publicPayload.js'
+import { buildMovieVotePublicPayload, resetGuestDraftsForSuggestRound } from '../publicPayload.js'
 import { normalizeParticipantName } from '../participantName.js'
 import {
   applyHostStoreFromRtdbHydrate,
@@ -488,7 +488,7 @@ const movieVoteP2POutboundSync = {
   },
   hostResetToSuggest() {
     if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
-    clearGuestDraftReadyFlags(guestDrafts)
+    resetGuestDraftsForSuggestRound(guestDrafts)
     hostBroadcastState()
   },
   hostVotingMethodChanged() {

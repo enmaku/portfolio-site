@@ -106,9 +106,9 @@ Per-**participant** indicator that they finished nominating while drafts can sti
 
 ### Quorum controls
 
-Host-only section of the room hosting dialog (alongside the room code and hosting actions) listing each **participant** by **participant name**, with a simple online/offline cue, **quorum requirement** toggles, **host participant removal**, and **clear guests**. Available during **suggest phase** only. Guests do not manage this list.
+Host-only section of the room hosting dialog (alongside the room code and hosting actions) listing each **participant** by **participant name**, with a **progress status** cue (nomination / ready / ballot—not connection online/offline), **quorum requirement** toggles, **host participant removal**, and **clear guests**. The list and progress cues stay visible through **voting phase**; toggles and remove actions are **suggest phase** only. The list is hidden in **results phase**. Guests do not manage this list.
 
-_Avoid_: Exposing remove/toggle controls to guests; calling this a “user list”; omitting presence so required-not-ready and phone-dead are indistinguishable.
+_Avoid_: Exposing remove/toggle controls to guests; calling this a “user list”; relying on connection online/offline as the primary seat cue once **progress status** is shown.
 
 ### Quorum requirement
 

@@ -107,30 +107,45 @@
               />
 
               <div
-                v-if="suggestQuorumEditable"
+                v-if="showParticipantStatusList"
                 class="column mv-sync-menu__quorum-block"
                 data-testid="mv-quorum-controls"
               >
-                <div class="text-subtitle2">Quorum</div>
+                <div class="row items-center no-wrap">
+                  <div class="text-subtitle2 col">Quorum</div>
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    icon="help_outline"
+                    color="grey-6"
+                    size="sm"
+                    data-testid="mv-quorum-help"
+                    aria-label="About quorum controls"
+                    @click.stop="quorumHelpOpen = true"
+                  />
+                </div>
                 <q-list bordered class="rounded-borders mv-sync-menu__quorum-list">
                   <q-item
                     v-for="row in quorumRows"
                     :key="row.id"
                     dense
                     data-testid="mv-quorum-row"
+                    :data-progress-key="row.progress?.key"
                   >
                     <q-item-section avatar>
                       <q-icon
-                        :name="row.online ? 'circle' : 'radio_button_unchecked'"
-                        :color="row.online ? 'positive' : 'grey-5'"
-                        size="xs"
-                        :aria-label="row.online ? 'online' : 'offline'"
+                        v-if="row.progress"
+                        :name="row.progress.icon"
+                        :color="row.progress.color"
+                        size="sm"
+                        data-testid="mv-progress-status"
                       />
                     </q-item-section>
                     <q-item-section>
                       <q-item-label class="ellipsis">{{ row.name || '—' }}</q-item-label>
                     </q-item-section>
-                    <q-item-section side class="mv-sync-menu__quorum-side">
+                    <q-item-section v-if="suggestQuorumEditable" side class="mv-sync-menu__quorum-side">
                       <div class="row items-center no-wrap q-gutter-x-xs">
                         <div class="mv-sync-menu__quorum-remove-slot">
                           <q-btn
@@ -139,7 +154,7 @@
                             round
                             dense
                             icon="delete"
-                            color="grey-7"
+                            color="negative"
                             size="md"
                             data-testid="mv-quorum-remove"
                             aria-label="Remove participant"
@@ -159,6 +174,7 @@
                   </q-item>
                 </q-list>
                 <q-btn
+                  v-if="suggestQuorumEditable"
                   outline
                   no-caps
                   color="grey-7"
@@ -257,6 +273,8 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <MovieVoteQuorumHelpDialog v-model="quorumHelpOpen" />
   </div>
 </template>
 
@@ -268,12 +286,20 @@ import { useMovieVoteP2P } from '../composables/useMovieVoteP2P.js'
 import { HOST_PARTICIPANT_ID } from '../core.js'
 import { buildMovieVoteRoomShareUrl, normalizeRoomSuffixInput } from '../p2p/roomId.js'
 import { normalizeParticipantName } from '../participantName.js'
+import { participantProgressStatus } from '../participantProgressStatus.js'
+import MovieVoteQuorumHelpDialog from './MovieVoteQuorumHelpDialog.vue'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 
 const $q = useQuasar()
 const menuRef = ref(/** @type {{ hide?: () => void } | null} */ (null))
 const store = useMovieVoteStore()
-const { participants, phase: collabPhase } = storeToRefs(store)
+const {
+  participants,
+  phase: collabPhase,
+  voterIds,
+  votesByParticipant,
+  ballotOrderIds,
+} = storeToRefs(store)
 const {
   phase,
   suffix,
@@ -291,20 +317,42 @@ const hostOpen = ref(false)
 const joinOpen = ref(false)
 const joinCodeInput = ref('')
 const nameInput = ref('')
+const quorumHelpOpen = ref(false)
 
 const isBusy = computed(() => phase.value === 'connecting' || phase.value === 'reconnecting')
 const suggestQuorumEditable = computed(() => collabPhase.value === 'suggest')
+const showParticipantStatusList = computed(
+  () => collabPhase.value === 'suggest' || collabPhase.value === 'voting',
+)
 const hasGuests = computed(() => participants.value.some((p) => p.id !== HOST_PARTICIPANT_ID))
 
-const quorumRows = computed(() =>
-  participants.value.map((p) => ({
-    id: p.id,
-    name: p.name,
-    quorumRequired: p.quorumRequired !== false,
-    isHost: p.id === HOST_PARTICIPANT_ID,
-    online: p.id === HOST_PARTICIPANT_ID ? true : Boolean(p.online),
-  })),
-)
+const quorumRows = computed(() => {
+  const collab = collabPhase.value
+  const ballotLen = ballotOrderIds.value?.length ?? 0
+  const votes = votesByParticipant.value ?? {}
+  const voters = voterIds.value ?? []
+  const voterSet = new Set(voters)
+  return participants.value.map((p) => {
+    const quorumRequired = p.quorumRequired !== false
+    const countsAsVoter =
+      collab === 'voting' && voters.length > 0 ? voterSet.has(p.id) : quorumRequired
+    const hasVoted =
+      Array.isArray(votes[p.id]) && votes[p.id].length === ballotLen && ballotLen > 0
+    return {
+      id: p.id,
+      name: p.name,
+      quorumRequired,
+      isHost: p.id === HOST_PARTICIPANT_ID,
+      progress: participantProgressStatus({
+        phase: collab,
+        pickCount: p.pickCount,
+        ready: p.ready,
+        quorumRequired: countsAsVoter,
+        hasVoted,
+      }),
+    }
+  })
+})
 
 const syncIcon = computed(() => {
   if (phase.value === 'guest_connected') return 'check_circle'

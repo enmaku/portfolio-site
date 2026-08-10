@@ -3,25 +3,37 @@ import test from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
 
-test('applyPublicPayload: returning to suggest from results clears ready', () => {
+test('applyPublicPayload: returning to suggest from results clears ready and local picks', () => {
   setActivePinia(createPinia())
   const store = useMovieVoteStore()
   store.phase = 'results'
   store.readyToVote = true
   store.setMyParticipantId('guest-1')
+  store.myDraftPicks = [
+    {
+      localId: '1',
+      source: 'custom',
+      tmdbId: null,
+      customKey: 'old',
+      title: 'Old',
+      posterPath: null,
+      overview: '',
+    },
+  ]
 
   store.applyPublicPayload({
     phase: 'suggest',
-    participants: [{ id: 'guest-1', ready: false, pickCount: 2 }],
+    participants: [{ id: 'guest-1', ready: false, pickCount: 0 }],
     ballotMovies: null,
     ballotOrderIds: null,
     voteProgress: null,
     electionOutcome: null,
-    uniqueSuggestedMovieCount: 2,
+    uniqueSuggestedMovieCount: 0,
     votingMethod: 'irv',
   })
 
   assert.equal(store.readyToVote, false)
+  assert.deepEqual(store.myDraftPicks, [])
 })
 
 test('applyPublicPayload: legacy irvResult inbound populates electionOutcome', () => {

@@ -14,12 +14,15 @@ function distinctSuggestedMovieCountFromPicks(picks) {
 }
 
 /**
+ * Start-over / return to nominations: drop ready flags and guest movie picks.
+ * Seat names and quorum requirement stay.
+ *
  * @param {Map<string, { picks: import('./types.js').MoviePick[], ready: boolean, name?: string, quorumRequired?: boolean }>} guestDrafts
  */
-export function clearGuestDraftReadyFlags(guestDrafts) {
+export function resetGuestDraftsForSuggestRound(guestDrafts) {
   for (const [pid, g] of guestDrafts) {
     guestDrafts.set(pid, {
-      picks: g.picks,
+      picks: [],
       ready: false,
       name: typeof g.name === 'string' ? g.name : '',
       quorumRequired: g.quorumRequired !== false,
