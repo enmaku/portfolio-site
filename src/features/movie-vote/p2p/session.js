@@ -28,7 +28,13 @@ import {
 } from '../core.js'
 import { buildMovieVotePublicPayload, clearGuestDraftReadyFlags } from '../publicPayload.js'
 import { normalizeParticipantName } from '../participantName.js'
-import { applyHostStoreFromRtdbHydrate } from '../hostRtdbHydrate.js'
+import {
+  applyHostStoreFromRtdbHydrate,
+  hostSeatMetaFromParticipants,
+  planGuestHydrateFromRtdb,
+  pruneNamelessGuestDrafts,
+  seedGuestDraftsFromParticipants,
+} from '../hostRtdbHydrate.js'
 import { runElection } from '../election.js'
 import {
   runGuestStarReconnectLoop,
@@ -220,8 +226,17 @@ function buildPublicPayload() {
 let hostStateBroadcastProbe = 0
 
 function hostBroadcastState() {
+  void hostBroadcastStatePersist()
+}
+
+/**
+ * Persist authority state to RTDB (awaits write). Prefer this after eject.
+ * @returns {Promise<void>}
+ */
+async function hostBroadcastStatePersist() {
   if (!core.isHostRole() || !sessionSuffix.value) return
   hostStateBroadcastProbe += 1
+  pruneNamelessGuestDrafts(guestDrafts, stableIdToParticipant)
   const payload = buildPublicPayload()
   payload.participants = payload.participants.map((p) => {
     if (p.id === HOST_PARTICIPANT_ID) return { ...p, online: true }
@@ -239,7 +254,11 @@ function hostBroadcastState() {
   }
   const msg = encodeState(payload, ++nextSeq)
   roomAuthoritySeq.value = nextSeq
-  setRtdb(roomChild(sessionSuffix.value, 'state'), msg).catch(() => {})
+  try {
+    await setRtdb(roomChild(sessionSuffix.value, 'state'), msg)
+  } catch {
+    void 0
+  }
 }
 
 function tryCompileBallot() {
@@ -290,14 +309,15 @@ function tryFinishVoting() {
  */
 function applyGuestDraftFromInbox(participantId, entry) {
   const prev = guestDrafts.get(participantId)
+  const quorumRequired =
+    typeof entry.quorumRequired === 'boolean'
+      ? entry.quorumRequired
+      : prev?.quorumRequired !== false
   guestDrafts.set(participantId, {
     picks: entry.picks,
-    ready: entry.ready,
+    ready: quorumRequired ? Boolean(entry.ready) : false,
     name: typeof entry.name === 'string' ? entry.name : (prev?.name ?? ''),
-    quorumRequired:
-      typeof entry.quorumRequired === 'boolean'
-        ? entry.quorumRequired
-        : prev?.quorumRequired !== false,
+    quorumRequired,
   })
   tryCompileBallot()
   hostBroadcastState()
@@ -367,6 +387,11 @@ const hostInboxWire = createHostInboxWire({
   applyGuestDraft: applyGuestDraftFromInbox,
   applyGuestVote: applyGuestVoteFromInbox,
   getHostParticipantName: () => useMovieVoteStore().myParticipantName ?? '',
+  clearGuestKick: (stableId) => {
+    const suffix = sessionSuffix.value
+    if (!suffix) return
+    remove(roomChild(suffix, `kicked/${stableId}`)).catch(() => {})
+  },
 })
 
 const guestInboundWire = createGuestInboundWire({
@@ -475,7 +500,11 @@ const movieVoteP2POutboundSync = {
     const store = useMovieVoteStore()
     const pid = store.myParticipantId
     if (!pid) return
-    core.writeGuestInbox(encodeDraft(store.myDraftPicks, store.readyToVote, pid))
+    const row = store.participants.find((p) => p.id === pid)
+    const required = row ? row.quorumRequired !== false : true
+    core.writeGuestInbox(
+      encodeDraft(store.myDraftPicks, required ? store.readyToVote : false, pid),
+    )
   },
   guestSubmitVote(ranking) {
     if (core.isHostRole()) return
@@ -519,9 +548,16 @@ function wireGuestWelcome(suffix, stableId) {
       guestInboundWire.handleGuestWelcome(raw)
     }),
   )
+  let kickListenerPrimed = false
   trackFeatureUnsub(
     onValue(roomChild(suffix, `kicked/${stableId}`), (snap) => {
-      if (snap.val() !== true) return
+      const kicked = snap.val() === true
+      // Residual true from a prior eject must not abort a deliberate rejoin.
+      if (!kickListenerPrimed) {
+        kickListenerPrimed = true
+        if (kicked) return
+      }
+      if (!kicked) return
       notifyP2P('You were removed from the room.', 'info')
       clearRoomPersistence()
       resetLocalStateAfterRoomExit()
@@ -585,29 +621,54 @@ async function hydrateHostFromRtdb(suffix) {
       applyPublicPayload: (p) => handlers.applyPublicPayload(p),
       votingMethod: useMovieVoteStore().votingMethod,
     })
+    const hostMeta = hostSeatMetaFromParticipants(parsed?.payload?.participants)
+    if (hostMeta) {
+      const st = useMovieVoteStore()
+      if (hostMeta.name) st.setMyParticipantName(hostMeta.name)
+      st.setMyQuorumRequired(hostMeta.quorumRequired)
+    }
   } catch {
     void 0
   }
 
   const welcomeSnap = await get(roomChild(suffix, 'welcome'))
   const welcomes = welcomeSnap.val()
+  /** @type {Array<{ stableId: string, participantId: string }>} */
+  const welcomeEntries = []
   if (welcomes && typeof welcomes === 'object') {
     for (const [stableId, raw] of Object.entries(welcomes)) {
       if (typeof stableId !== 'string') continue
       const welcome = parseWelcome(raw)
       if (!welcome) continue
-      stableIdToParticipant.set(stableId, welcome.participantId)
-      if (!guestDrafts.has(welcome.participantId)) {
-        guestDrafts.set(welcome.participantId, { picks: [], ready: false, name: '', quorumRequired: true })
-      }
+      welcomeEntries.push({ stableId, participantId: welcome.participantId })
     }
   }
+
+  const planned = planGuestHydrateFromRtdb(welcomeEntries, parsed?.payload?.participants)
+  for (const staleStableId of planned.staleWelcomeStableIds) {
+    remove(roomChild(suffix, `welcome/${staleStableId}`)).catch(() => {})
+  }
+  for (const { stableId, participantId } of planned.keep) {
+    stableIdToParticipant.set(stableId, participantId)
+    if (!guestDrafts.has(participantId)) {
+      guestDrafts.set(participantId, { picks: [], ready: false, name: '', quorumRequired: true })
+    }
+  }
+
+  seedGuestDraftsFromParticipants(
+    guestDrafts,
+    parsed?.payload?.participants,
+    planned.keptParticipantIds,
+  )
+  pruneNamelessGuestDrafts(guestDrafts, stableIdToParticipant)
 
   const onlineSnap = await get(roomChild(suffix, 'guestOnline'))
   const online = onlineSnap.val()
   if (online && typeof online === 'object') {
     for (const [stableId, isOnline] of Object.entries(online)) {
-      if (isOnline === true) activeGuestStableIds.add(stableId)
+      if (isOnline === true && stableIdToParticipant.has(stableId)) {
+        activeGuestStableIds.add(stableId)
+      }
     }
   }
 }
@@ -903,12 +964,18 @@ export function setParticipantQuorumRequired(participantId, required) {
   if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
   const store = useMovieVoteStore()
   if (store.phase !== 'suggest') return
+  const nextRequired = Boolean(required)
   if (participantId === HOST_PARTICIPANT_ID) {
-    store.setMyQuorumRequired(required)
+    store.setMyQuorumRequired(nextRequired)
+    if (!nextRequired) store.setReadyToVote(false)
   } else {
     const draft = guestDrafts.get(participantId)
     if (!draft) return
-    guestDrafts.set(participantId, { ...draft, quorumRequired: Boolean(required) })
+    guestDrafts.set(participantId, {
+      ...draft,
+      quorumRequired: nextRequired,
+      ready: nextRequired ? Boolean(draft.ready) : false,
+    })
   }
   tryCompileBallot()
   hostBroadcastState()
@@ -917,46 +984,54 @@ export function setParticipantQuorumRequired(participantId, required) {
 /**
  * Host-only suggest-phase eject of one guest seat.
  * @param {string} participantId
+ * @returns {Promise<void>}
  */
-export function removeGuestParticipant(participantId) {
+export async function removeGuestParticipant(participantId) {
   if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
   const store = useMovieVoteStore()
   if (store.phase !== 'suggest') return
   if (participantId === HOST_PARTICIPANT_ID) return
-  ejectGuestSeat(participantId)
+  await ejectGuestSeat(participantId)
   tryCompileBallot()
-  hostBroadcastState()
+  await hostBroadcastStatePersist()
 }
 
 /** Host-only suggest-phase eject of every guest seat. */
-export function clearGuestParticipants() {
+export async function clearGuestParticipants() {
   if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
   const store = useMovieVoteStore()
   if (store.phase !== 'suggest') return
-  for (const pid of [...guestDrafts.keys()]) {
-    ejectGuestSeat(pid)
-  }
+  await Promise.all([...guestDrafts.keys()].map((pid) => ejectGuestSeat(pid)))
   tryCompileBallot()
-  hostBroadcastState()
+  await hostBroadcastStatePersist()
 }
 
 /**
  * @param {string} participantId
+ * @returns {Promise<void>}
  */
-function ejectGuestSeat(participantId) {
+async function ejectGuestSeat(participantId) {
   const stableId = [...stableIdToParticipant.entries()].find(([, p]) => p === participantId)?.[0]
   guestDrafts.delete(participantId)
+  /** @type {Promise<unknown>[]} */
+  const persists = []
   if (stableId) {
     stableIdToParticipant.delete(stableId)
     activeGuestStableIds.delete(stableId)
     const suffix = sessionSuffix.value
     if (suffix) {
-      setRtdb(roomChild(suffix, `kicked/${stableId}`), true).catch(() => {})
-      remove(roomChild(suffix, `welcome/${stableId}`)).catch(() => {})
+      persists.push(setRtdb(roomChild(suffix, `kicked/${stableId}`), true))
+      persists.push(remove(roomChild(suffix, `welcome/${stableId}`)))
+      // Prevent onChildAdded replay of stale hello/draft after host refresh.
+      persists.push(remove(roomChild(suffix, `inbox/${stableId}`)))
+      persists.push(remove(roomChild(suffix, `guestOnline/${stableId}`)))
     }
   }
   guestOnlineWire.cancelParticipantRemoval(participantId)
   useMovieVoteStore().removeParticipantFromVote(participantId)
+  if (persists.length) {
+    await Promise.all(persists.map((p) => p.catch(() => {})))
+  }
 }
 
 export function isMovieVoteP2PSessionActive() {

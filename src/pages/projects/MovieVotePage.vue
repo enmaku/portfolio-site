@@ -16,12 +16,13 @@
           </template>
         </div>
         <MovieNominationList v-else class="col" />
-        <div v-if="isInSession" class="q-px-md q-pb-md">
+        <div v-if="isInSession && iAmRequiredVoter" class="q-px-md q-pb-md">
           <q-toggle
             v-model="readyModel"
             color="primary"
             label="Ready to vote"
             :disable="!roomCanMarkReadyForVote"
+            data-testid="mv-ready-toggle"
           />
         </div>
       </template>

@@ -100,7 +100,7 @@ async function bootstrapHostVotingWithGuest(harness, suffix, guestStableId, sess
 
   const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-  simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
+  simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
   harness.emitChildAdded(guestOnlineRoot, guestStableId)
   harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
   hostSyncParticipantsFromRoom(outbound)
@@ -216,7 +216,7 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -752,7 +752,13 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
       for (const sid of [guestStableId, optionalStableId]) {
-        simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, sid, encodeHello(sid))
+        simulateHostInboxMessage(
+          harness,
+          'movieVoteRooms',
+          suffix,
+          sid,
+          encodeHello(sid, sid === guestStableId ? 'ReqGuest' : 'OptGuest'),
+        )
         harness.emitChildAdded(guestOnlineRoot, sid)
         harness.emitValue(`${guestOnlineRoot}/${sid}`, true)
       }

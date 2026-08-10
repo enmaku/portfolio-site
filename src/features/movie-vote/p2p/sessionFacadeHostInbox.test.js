@@ -114,7 +114,7 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -129,7 +129,7 @@ test(
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, false)
 
       const setsBeforeReconnectHello = harness.sets.length
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
 
@@ -180,7 +180,7 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableA, encodeHello(guestStableA))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableA, encodeHello(guestStableA, 'GuestA'))
       harness.emitChildAdded(guestOnlineRoot, guestStableA)
       harness.emitValue(`${guestOnlineRoot}/${guestStableA}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -192,7 +192,7 @@ test(
       assert.ok(pidA)
 
       const setsBeforeSecondGuest = harness.sets.length
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableB, encodeHello(guestStableB))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableB, encodeHello(guestStableB, 'GuestB'))
       harness.emitChildAdded(guestOnlineRoot, guestStableB)
       harness.emitValue(`${guestOnlineRoot}/${guestStableB}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -243,7 +243,7 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -321,7 +321,7 @@ test(
       assert.equal(sessionPhase.value, 'hosting')
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -329,12 +329,12 @@ test(
       const firstPid = guestParticipantIds(store)[0]
       assert.ok(firstPid)
 
-      removeGuestParticipant(firstPid)
+      await removeGuestParticipant(firstPid)
       hostSyncParticipantsFromRoom(outbound)
       assert.deepEqual(guestParticipantIds(store), [])
 
       const setsBefore = harness.sets.length
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
 
@@ -343,6 +343,69 @@ test(
       assert.equal(welcomes[0].resumed, false)
       assert.notEqual(welcomes[0].participantId, firstPid)
       assert.deepEqual(guestParticipantIds(store), [welcomes[0].participantId])
+    })
+  },
+)
+
+test(
+  'after eject, leftover inbox draft does not resurrect a nameless guest',
+  hostInboxTests,
+  async () => {
+    mock.reset()
+
+    const hostStableId = 'MVHOSTORPHAN1'
+    const guestStableId = 'MVGUESTORPHAN1'
+    const suffix = 'ORPHN1'
+
+    mock.module('../../p2p/identity.js', {
+      namedExports: {
+        ...(await import('../../p2p/identity.js')),
+        getStableClientId: () => hostStableId,
+        deriveStableHostSuffix: () => suffix,
+      },
+    })
+
+    const harness = await installRtdbLifecycleMocks({
+      getHostPing: () => null,
+      getEnded: () => null,
+      getHostClientId: () => null,
+    })
+
+    await withFirebaseEnv(async () => {
+      const sessionMod = await importMovieVoteSession(`orphan-${Date.now()}`)
+      const { startAsHost, removeGuestParticipant } = sessionMod
+      const { store, outbound } = bindHostStoreHandlers(sessionMod)
+
+      await startAsHost({ participantName: 'Host', maxAttempts: 3 })
+
+      const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
+      simulateHostInboxMessage(
+        harness,
+        'movieVoteRooms',
+        suffix,
+        guestStableId,
+        encodeHello(guestStableId, 'Brian'),
+      )
+      harness.emitChildAdded(guestOnlineRoot, guestStableId)
+      harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
+      hostSyncParticipantsFromRoom(outbound)
+
+      const firstPid = guestParticipantIds(store)[0]
+      assert.ok(firstPid)
+
+      await removeGuestParticipant(firstPid)
+      hostSyncParticipantsFromRoom(outbound)
+      assert.deepEqual(guestParticipantIds(store), [])
+
+      simulateHostInboxMessage(
+        harness,
+        'movieVoteRooms',
+        suffix,
+        guestStableId,
+        encodeDraft([{ localId: '1', title: 'Dune', source: 'custom' }], false, firstPid),
+      )
+      hostSyncParticipantsFromRoom(outbound)
+      assert.deepEqual(guestParticipantIds(store), [])
     })
   },
 )
@@ -379,14 +442,20 @@ test(
 
       for (const guestStableId of ['GUESTA1', 'GUESTB1']) {
         const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
-        simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
+        simulateHostInboxMessage(
+          harness,
+          'movieVoteRooms',
+          suffix,
+          guestStableId,
+          encodeHello(guestStableId, guestStableId === 'GUESTA1' ? 'Ada' : 'Bea'),
+        )
         harness.emitChildAdded(guestOnlineRoot, guestStableId)
         harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       }
       hostSyncParticipantsFromRoom(outbound)
       assert.equal(guestParticipantIds(store).length, 2)
 
-      clearGuestParticipants()
+      await clearGuestParticipants()
       hostSyncParticipantsFromRoom(outbound)
       assert.deepEqual(guestParticipantIds(store), [])
       assert.ok(store.participants.some((p) => p.id === HOST_PARTICIPANT_ID))

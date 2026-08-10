@@ -24,6 +24,7 @@ function baseDeps(overrides = {}) {
     applyGuestDraft: () => {},
     applyGuestVote: () => false,
     getHostParticipantName: () => 'Host',
+    clearGuestKick: () => {},
     ...overrides,
   }
 }
@@ -88,4 +89,46 @@ test('handleHostInboxMessage skips broadcast when guest vote rejected', () => {
 
   assert.equal(broadcastCount, 0)
   assert.equal(finishCount, 0)
+})
+
+test('orphan inbox draft does not mint an empty-name guest seat', () => {
+  /** @type {unknown[]} */
+  const applied = []
+  const deps = baseDeps({
+    applyGuestDraft: (...args) => applied.push(args),
+  })
+  const wire = createHostInboxWire(deps)
+
+  wire.handleHostInboxMessage(
+    'stable-orphan',
+    encodeDraft([{ localId: 'p1', title: 'Film', source: 'custom' }], true, 'ghost-pid'),
+  )
+
+  assert.equal(applied.length, 0)
+  assert.equal(deps.wireState.guestDrafts.size, 0)
+  assert.equal(deps.wireState.stableIdToParticipant.size, 0)
+})
+
+test('hello without a participant name does not allocate a seat', () => {
+  const deps = baseDeps()
+  const wire = createHostInboxWire(deps)
+
+  wire.onGuestHello('stable-noname', '   ')
+
+  assert.equal(deps.wireState.guestDrafts.size, 0)
+  assert.equal(deps.wireState.stableIdToParticipant.has('stable-noname'), false)
+})
+
+test('onGuestHello clears prior kick marker so ejected guests can rejoin', () => {
+  /** @type {string[]} */
+  const cleared = []
+  const deps = baseDeps({
+    clearGuestKick: (stableId) => cleared.push(stableId),
+  })
+  const wire = createHostInboxWire(deps)
+
+  wire.onGuestHello('stable-rejoin', 'Brian')
+
+  assert.deepEqual(cleared, ['stable-rejoin'])
+  assert.equal(deps.wireState.stableIdToParticipant.has('stable-rejoin'), true)
 })

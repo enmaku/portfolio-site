@@ -53,16 +53,19 @@ export function buildMovieVotePublicPayload(store, guestDrafts) {
       id: HOST_PARTICIPANT_ID,
       name: hostName,
       quorumRequired: hostQuorum,
-      ready: store.readyToVote,
+      ready: hostQuorum ? store.readyToVote : false,
       pickCount: store.myDraftPicks.length,
     },
   ]
   for (const [id, g] of guestDrafts) {
+    const name = normalizeParticipantName(g.name ?? '')
+    if (!name) continue
+    const quorumRequired = g.quorumRequired !== false
     participants.push({
       id,
-      name: normalizeParticipantName(g.name ?? ''),
-      quorumRequired: g.quorumRequired !== false,
-      ready: g.ready,
+      name,
+      quorumRequired,
+      ready: quorumRequired ? Boolean(g.ready) : false,
       pickCount: g.picks.length,
     })
   }

@@ -160,9 +160,57 @@ test('public payload participant summaries include name and quorumRequired', () 
   assert.equal(host?.quorumRequired, true)
   assert.equal(sam?.name, 'Sam')
   assert.equal(sam?.quorumRequired, false)
+  assert.equal(sam?.ready, false, 'optional seats never publish ready')
   assert.equal(sam?.pickCount, 1)
   assert.equal(alex?.name, 'Alex')
   assert.equal(alex?.quorumRequired, true)
+})
+
+test('public payload host ready is false when host quorum is off', () => {
+  const payload = buildMovieVotePublicPayload(
+    {
+      phase: 'suggest',
+      readyToVote: true,
+      myDraftPicks: [],
+      myParticipantName: 'Dana',
+      myQuorumRequired: false,
+      ballotMovies: [],
+      ballotOrderIds: [],
+      voteProgress: null,
+      electionOutcome: null,
+      votingMethod: 'irv',
+    },
+    new Map(),
+  )
+  const host = payload.participants.find((p) => p.id === '__host__')
+  assert.equal(host?.quorumRequired, false)
+  assert.equal(host?.ready, false)
+})
+
+test('public payload omits guest drafts with empty names', () => {
+  const guestDrafts = new Map([
+    ['g1', { picks: [], ready: false, name: '', quorumRequired: true }],
+    ['g2', { picks: [], ready: false, name: 'Sam', quorumRequired: true }],
+  ])
+  const payload = buildMovieVotePublicPayload(
+    {
+      phase: 'suggest',
+      readyToVote: false,
+      myDraftPicks: [],
+      myParticipantName: 'Dana',
+      myQuorumRequired: true,
+      ballotMovies: [],
+      ballotOrderIds: [],
+      voteProgress: null,
+      electionOutcome: null,
+      votingMethod: 'irv',
+    },
+    guestDrafts,
+  )
+  assert.deepEqual(
+    payload.participants.map((p) => p.id),
+    ['__host__', 'g2'],
+  )
 })
 
 test('public payload voteProgress total counts only quorum-required seats', () => {

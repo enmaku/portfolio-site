@@ -108,7 +108,7 @@
 
               <div
                 v-if="suggestQuorumEditable"
-                class="column q-gutter-sm"
+                class="column mv-sync-menu__quorum-block"
                 data-testid="mv-quorum-controls"
               >
                 <div class="text-subtitle2">Quorum</div>
@@ -132,26 +132,28 @@
                     </q-item-section>
                     <q-item-section side class="mv-sync-menu__quorum-side">
                       <div class="row items-center no-wrap q-gutter-x-xs">
+                        <div class="mv-sync-menu__quorum-remove-slot">
+                          <q-btn
+                            v-if="!row.isHost"
+                            flat
+                            round
+                            dense
+                            icon="delete"
+                            color="grey-7"
+                            size="md"
+                            data-testid="mv-quorum-remove"
+                            aria-label="Remove participant"
+                            @click.stop="confirmRemove(row)"
+                          >
+                            <q-tooltip>Remove from room</q-tooltip>
+                          </q-btn>
+                        </div>
                         <q-toggle
                           dense
                           :model-value="row.quorumRequired"
                           data-testid="mv-quorum-toggle"
                           @update:model-value="(v) => onToggleQuorum(row.id, v)"
                         />
-                        <q-btn
-                          v-if="!row.isHost"
-                          flat
-                          round
-                          dense
-                          icon="delete"
-                          color="grey-7"
-                          size="md"
-                          data-testid="mv-quorum-remove"
-                          aria-label="Remove participant"
-                          @click.stop="confirmRemove(row)"
-                        >
-                          <q-tooltip>Remove from room</q-tooltip>
-                        </q-btn>
                       </div>
                     </q-item-section>
                   </q-item>
@@ -160,8 +162,8 @@
                   outline
                   no-caps
                   color="grey-7"
-                  class="full-width"
-                  padding="8px 12px"
+                  class="full-width mv-sync-menu__action-btn"
+                  padding="12px 16px"
                   label="Clear guests"
                   data-testid="mv-clear-guests"
                   :disable="!hasGuests"
@@ -523,6 +525,12 @@ function onLeave() {
   overflow-x: clip;
 }
 
+.mv-sync-menu-shell .mv-sync-menu__quorum-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .mv-sync-menu-shell .mv-sync-menu__quorum-list {
   max-height: 240px;
   overflow-y: auto;
@@ -531,6 +539,15 @@ function onLeave() {
 .mv-sync-menu-shell .mv-sync-menu__quorum-side {
   flex-shrink: 0;
   padding-left: 8px !important;
+}
+
+.mv-sync-menu-shell .mv-sync-menu__quorum-remove-slot {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .mv-dialog-card {

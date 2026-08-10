@@ -59,6 +59,7 @@ function normalizePicks(picks) {
  * @param {(participantId: string, entry: { picks: import('../types.js').MoviePick[], ready: boolean }) => void} deps.applyGuestDraft
  * @param {(participantId: string, ranking: string[]) => boolean} deps.applyGuestVote
  * @param {() => string} deps.getHostParticipantName
+ * @param {(stableId: string) => void} deps.clearGuestKick
  */
 export function createHostInboxWire(deps) {
   const {
@@ -88,11 +89,11 @@ export function createHostInboxWire(deps) {
     const draft = parseDraft(raw)
     const pid = draft?.participantId ?? parseVote(raw)?.participantId
     if (!pid) return null
+    // Only hello may allocate seats. Orphan inbox drafts after eject/refresh must not
+    // mint empty-name guests.
+    if (!guestDrafts.has(pid)) return null
 
     stableIdToParticipant.set(stableId, pid)
-    if (!guestDrafts.has(pid)) {
-      guestDrafts.set(pid, { picks: [], ready: false, name: '', quorumRequired: true })
-    }
     deps.cancelParticipantRemoval(pid)
     return pid
   }
@@ -107,6 +108,8 @@ export function createHostInboxWire(deps) {
     if (!suffix) return
 
     const welcomeRef = deps.roomChild(suffix, `welcome/${stableId}`)
+    // Allow rejoin after host eject — clear residual kick marker before welcoming.
+    deps.clearGuestKick(stableId)
 
     if (existingPid) {
       deps.cancelParticipantRemoval(existingPid)
@@ -126,7 +129,8 @@ export function createHostInboxWire(deps) {
     }
 
     const name = normalizeParticipantName(participantName)
-    if (name && isParticipantNameTaken(name, seatsForNameCheck())) {
+    if (!name) return
+    if (isParticipantNameTaken(name, seatsForNameCheck())) {
       deps.setRtdb(welcomeRef, encodeNameRejected('taken')).catch(() => {})
       return
     }
