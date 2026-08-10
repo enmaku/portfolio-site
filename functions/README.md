@@ -16,9 +16,9 @@ Responses are JSON with normalized catalog shapes (see `src/features/game-manage
 
 Search hits: `{ catalogEntryId, title, yearPublished, type, usersRated, averageRating, bayesAverage, boardGameRank }[]` under `{ results }`. The SPA ranks locally from these fields and does not call `bggThing` during typeahead (thumbnails deferred).
 
-`bggThing` response: `{ entry, entries }` (same normalized thing shape). Cache-first against `bggThingCache/{id}` with `entry` + `cachedAtMs`. Fresh docs (under 24h) skip BGG entirely and therefore skip the ~5s upstream limiter. Misses/expired ids are fetched once with `stats=1`, then batch-written; expired docs are overwritten, not deleted. Cap remains 20 ids per request.
+`bggThing` response: `{ entry, entries }` (same normalized thing shape). Cache-first against `bggThingCache/{id}` with `entry` + `cachedAtMs`. Fresh docs (under 24h) skip BGG entirely. Misses/expired ids are fetched once with `stats=1`, then batch-written; expired docs are overwritten, not deleted. Cap remains 20 ids per request.
 
-`bggThumb` response: `{ results: [{ catalogEntryId, thumbnailUrl, source }] }` where `source` is `cache`, `bgg`, or `missing`. Accepts comma-separated `id` values (max 40). One `getAll` against Firestore, then `/thing` in chunks of 20 (no stats) only for cache misses; write-back is a single batch merge of `thumbnailUrl` onto existing docs. Use `bggThing` for full catalog detail. TTL eviction is deferred.
+`bggThumb` response: `{ results: [{ catalogEntryId, thumbnailUrl, source }] }` where `source` is `cache`, `thing_cache`, `bgg`, or `missing`. Accepts comma-separated `id` values (max 40). One `getAll` against Firestore catalog docs plus `bggThingCache`, then `/thing` in chunks of 20 (no stats) only for remaining misses; write-back is a single batch merge of `thumbnailUrl` onto existing catalog docs. Use `bggThing` for full catalog detail.
 
 Catalog documents are maintained by local scripts (`npm run bgg-update` / `bgg:ranks:*`).
 
@@ -61,10 +61,6 @@ VITE_GAME_MANAGER_BGG_FUNCTIONS_BASE=http://127.0.0.1:5001/<firebase-project-id>
 ```
 
 If `VITE_GAME_MANAGER_BGG_FUNCTIONS_BASE` is unset, the client falls back to `https://us-central1-<VITE_FIREBASE_PROJECT_ID>.cloudfunctions.net`.
-
-## Rate limiting
-
-`bggThing` / `bggThumb` serialize upstream BGG calls with ~5 seconds between requests per functions instance (in-memory). This is not a distributed cache; it reduces burst traffic against BGG limits. Cached `bggThing` and `bggThumb` hits skip the limiter entirely.
 
 ## Normalizer sync
 

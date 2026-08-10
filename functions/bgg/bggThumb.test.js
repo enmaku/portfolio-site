@@ -41,14 +41,19 @@ describe('chunkIds', () => {
 })
 
 /**
- * @param {{ docs: Record<string, object | null> }} opts
+ * @param {{
+ *   catalogDocs?: Record<string, object | null>,
+ *   thingDocs?: Record<string, object | null>,
+ * }} opts
  */
-function mockDb({ docs }) {
+function mockDb({ catalogDocs = {}, thingDocs = {} }) {
   const calls = { getAll: 0, batchSets: [], commits: 0, singleSets: [] }
 
-  function makeRef(id) {
+  function makeRef(collectionName, id) {
+    const docs = collectionName === 'bggThingCache' ? thingDocs : catalogDocs
     return {
       id,
+      collectionName,
       async get() {
         const data = docs[id]
         return {
@@ -57,7 +62,7 @@ function mockDb({ docs }) {
         }
       },
       async set(payload, opts) {
-        calls.singleSets.push({ id, payload, opts })
+        calls.singleSets.push({ id, collectionName, payload, opts })
       },
     }
   }
@@ -66,10 +71,10 @@ function mockDb({ docs }) {
     calls,
     db: {
       collection(name) {
-        assert.equal(name, 'bggCatalogGames')
+        assert.ok(name === 'bggCatalogGames' || name === 'bggThingCache')
         return {
           doc(id) {
-            return makeRef(id)
+            return makeRef(name, id)
           },
         }
       },
@@ -81,7 +86,7 @@ function mockDb({ docs }) {
         const ops = []
         return {
           set(ref, payload, opts) {
-            ops.push({ id: ref.id, payload, opts })
+            ops.push({ id: ref.id, collectionName: ref.collectionName, payload, opts })
           },
           async commit() {
             calls.commits += 1
@@ -96,7 +101,7 @@ function mockDb({ docs }) {
 describe('resolveCatalogThumbs', () => {
   it('returns cache hits without calling BGG', async () => {
     const { db, calls } = mockDb({
-      docs: {
+      catalogDocs: {
         '1': { thumbnailUrl: 'https://cdn/1.jpg' },
         '2': { thumbnailUrl: 'https://cdn/2.jpg' },
       },
@@ -119,9 +124,34 @@ describe('resolveCatalogThumbs', () => {
     ])
   })
 
+  it('uses thing cache before BGG and write-backs to catalog', async () => {
+    const { db, calls } = mockDb({
+      catalogDocs: {
+        '1': { name: 'One' },
+      },
+      thingDocs: {
+        '1': { entry: { catalogEntryId: '1', thumbnailUrl: 'https://cdn/thing.jpg' } },
+      },
+    })
+    let fetched = false
+    const { results, wroteIds } = await resolveCatalogThumbs(['1'], {
+      db,
+      fetchBggImpl: async () => {
+        fetched = true
+        throw new Error('should not fetch')
+      },
+    })
+    assert.equal(fetched, false)
+    assert.equal(calls.commits, 1)
+    assert.deepEqual(wroteIds, ['1'])
+    assert.deepEqual(results, [
+      { catalogEntryId: '1', thumbnailUrl: 'https://cdn/thing.jpg', source: 'thing_cache' },
+    ])
+  })
+
   it('batches BGG for misses and write-backs only existing docs', async () => {
     const { db, calls } = mockDb({
-      docs: {
+      catalogDocs: {
         '1': { name: 'One' },
         '2': null,
         '3': { thumbnailUrl: 'https://cdn/3.jpg' },
@@ -153,7 +183,7 @@ describe('resolveCatalogThumbs', () => {
     assert.equal(calls.getAll, 1)
     assert.equal(calls.commits, 1)
     assert.deepEqual(calls.batchSets, [
-      { id: '1', payload: { thumbnailUrl: 'https://cdn/1.jpg' }, opts: { merge: true } },
+      { id: '1', collectionName: 'bggCatalogGames', payload: { thumbnailUrl: 'https://cdn/1.jpg' }, opts: { merge: true } },
     ])
     assert.deepEqual(wroteIds, ['1'])
     assert.deepEqual(results, [

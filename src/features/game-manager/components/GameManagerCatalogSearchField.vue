@@ -61,6 +61,13 @@
                 spinner-color="primary"
                 loading="lazy"
               />
+              <q-circular-progress
+                v-else-if="thumbsLoading"
+                indeterminate
+                size="22px"
+                color="grey-6"
+                track-color="transparent"
+              />
               <q-icon v-else name="casino" size="md" color="grey-5" />
             </div>
           </q-item-section>
@@ -126,6 +133,7 @@ const attribution = CATALOG_ATTRIBUTION
 const query = ref('')
 const suggestions = ref([])
 const loading = ref(false)
+const thumbsLoading = ref(false)
 const thumbUrls = ref(/** @type {Record<string, string>} */ ({}))
 const lastSearchedQuery = ref('')
 const inputRef = ref(null)
@@ -141,12 +149,13 @@ const scrollThumbStyle = {
 let abort = null
 let debounceId = 0
 
-function onQueryInput() {
+function onQueryInput(value) {
+  if (value == null) query.value = ''
   window.clearTimeout(debounceId)
   debounceId = window.setTimeout(runSearch, 320)
 }
 
-const trimmedQuery = computed(() => query.value.trim())
+const trimmedQuery = computed(() => String(query.value ?? '').trim())
 
 const showNoResults = computed(
   () =>
@@ -173,16 +182,21 @@ async function loadThumbsForHits(hits, signal) {
     ...new Set(hits.map((hit) => String(hit.catalogEntryId || '').trim()).filter((id) => /^\d+$/.test(id))),
   ]
   if (ids.length === 0) return
-  const art = await fetchBggCatalogThumbs(ids, { signal })
-  if (signal.aborted || !art.ok) return
-  /** @type {Record<string, string>} */
-  const next = {}
-  for (const row of art.results) {
-    if (row.catalogEntryId && row.thumbnailUrl) {
-      next[row.catalogEntryId] = row.thumbnailUrl
+  thumbsLoading.value = true
+  try {
+    const art = await fetchBggCatalogThumbs(ids, { signal })
+    if (signal.aborted || !art.ok) return
+    /** @type {Record<string, string>} */
+    const next = { ...thumbUrls.value }
+    for (const row of art.results) {
+      if (row.catalogEntryId && row.thumbnailUrl) {
+        next[row.catalogEntryId] = row.thumbnailUrl
+      }
     }
+    thumbUrls.value = next
+  } finally {
+    if (!signal.aborted) thumbsLoading.value = false
   }
-  thumbUrls.value = next
 }
 
 async function runSearch() {
@@ -190,14 +204,14 @@ async function runSearch() {
   if (abort) abort.abort()
   if (q.length < 2) {
     suggestions.value = []
-    thumbUrls.value = {}
+    thumbsLoading.value = false
     lastSearchedQuery.value = ''
     return
   }
 
   if (!configured.value) {
     suggestions.value = []
-    thumbUrls.value = {}
+    thumbsLoading.value = false
     lastSearchedQuery.value = q
     return
   }
@@ -211,7 +225,6 @@ async function runSearch() {
     const rawHits = result.ok ? result.results : []
     suggestions.value = rankCatalogSearchHits(rawHits, q, { limit: 20 })
     lastSearchedQuery.value = q
-    thumbUrls.value = {}
     void loadThumbsForHits(suggestions.value, signal)
   } catch {
     if (signal.aborted) return
@@ -226,6 +239,7 @@ function resetQueryState() {
   query.value = ''
   suggestions.value = []
   thumbUrls.value = {}
+  thumbsLoading.value = false
   lastSearchedQuery.value = ''
 }
 

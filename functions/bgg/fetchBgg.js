@@ -1,5 +1,3 @@
-const { withBggRateLimit } = require('./rateLimit')
-
 const BGG_BASE = 'https://boardgamegeek.com/xmlapi2'
 
 /**
@@ -27,14 +25,12 @@ async function fetchBgg(path, searchParams) {
     }
   }
 
-  return withBggRateLimit(() =>
-    fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        Accept: 'application/xml,text/xml,*/*',
-      },
-    }),
-  )
+  return fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      Accept: 'application/xml,text/xml,*/*',
+    },
+  })
 }
 
 module.exports = {

@@ -4,6 +4,8 @@ const { normalizeBggThingListXml } = require('./normalize')
 
 const MAX_IDS = 40
 const BGG_THING_CHUNK = 20
+const BGG_CATALOG_GAMES_COLLECTION = 'bggCatalogGames'
+const BGG_THING_CACHE_COLLECTION = 'bggThingCache'
 
 /**
  * @returns {FirebaseFirestore.Firestore}
@@ -68,6 +70,17 @@ function cachedThumbnailUrl(data) {
 }
 
 /**
+ * @param {FirebaseFirestore.DocumentData | undefined | null} data
+ * @returns {string | null}
+ */
+function thingCacheThumbnailUrl(data) {
+  if (!data || typeof data !== 'object') return null
+  const entry = data.entry
+  if (!entry || typeof entry !== 'object') return null
+  return typeof entry.thumbnailUrl === 'string' && entry.thumbnailUrl ? entry.thumbnailUrl : null
+}
+
+/**
  * @param {string[]} ids
  * @param {number} size
  * @returns {string[][]}
@@ -104,9 +117,17 @@ async function resolveCatalogThumbs(bggIds, deps = {}) {
   const fetchBggImpl = deps.fetchBggImpl || fetchBgg
   const normalizeThingListXml = deps.normalizeThingListXml || normalizeBggThingListXml
 
-  const collection = db.collection('bggCatalogGames')
-  const refs = ids.map((id) => collection.doc(id))
-  const snaps = typeof db.getAll === 'function' ? await db.getAll(...refs) : await Promise.all(refs.map((ref) => ref.get()))
+  const catalog = db.collection(BGG_CATALOG_GAMES_COLLECTION)
+  const thingCache = db.collection(BGG_THING_CACHE_COLLECTION)
+  const catalogRefs = ids.map((id) => catalog.doc(id))
+  const thingRefs = ids.map((id) => thingCache.doc(id))
+  const allRefs = [...catalogRefs, ...thingRefs]
+  const snaps =
+    typeof db.getAll === 'function'
+      ? await db.getAll(...allRefs)
+      : await Promise.all(allRefs.map((ref) => ref.get()))
+  const catalogSnaps = snaps.slice(0, ids.length)
+  const thingSnaps = snaps.slice(ids.length)
 
   /** @type {Map<string, { exists: boolean, thumbnailUrl: string | null }>} */
   const docState = new Map()
@@ -114,18 +135,31 @@ async function resolveCatalogThumbs(bggIds, deps = {}) {
   const byId = new Map()
   /** @type {string[]} */
   const misses = []
+  /** @type {{ ref: FirebaseFirestore.DocumentReference, thumbnailUrl: string }[]} */
+  const pendingWrites = []
 
   ids.forEach((id, index) => {
-    const snap = snaps[index]
+    const snap = catalogSnaps[index]
     const exists = Boolean(snap?.exists)
     const data = exists ? snap.data() : null
-    const thumbnailUrl = cachedThumbnailUrl(data)
-    docState.set(id, { exists, thumbnailUrl })
-    if (thumbnailUrl) {
-      byId.set(id, { catalogEntryId: id, thumbnailUrl, source: 'cache' })
-    } else {
-      misses.push(id)
+    const catalogThumb = cachedThumbnailUrl(data)
+    const thingThumb = thingCacheThumbnailUrl(thingSnaps[index]?.exists ? thingSnaps[index].data() : null)
+    docState.set(id, { exists, thumbnailUrl: catalogThumb })
+
+    if (catalogThumb) {
+      byId.set(id, { catalogEntryId: id, thumbnailUrl: catalogThumb, source: 'cache' })
+      return
     }
+
+    if (thingThumb) {
+      byId.set(id, { catalogEntryId: id, thumbnailUrl: thingThumb, source: 'thing_cache' })
+      if (exists) {
+        pendingWrites.push({ ref: catalog.doc(id), thumbnailUrl: thingThumb })
+      }
+      return
+    }
+
+    misses.push(id)
   })
 
   /** @type {string[]} */
@@ -154,10 +188,6 @@ async function resolveCatalogThumbs(bggIds, deps = {}) {
       }
     }
 
-    const writer = typeof db.batch === 'function' ? db.batch() : null
-    /** @type {{ ref: FirebaseFirestore.DocumentReference, thumbnailUrl: string }[]} */
-    const pendingWrites = []
-
     for (const id of misses) {
       const thumbnailUrl = fetched.get(id) || null
       if (!thumbnailUrl) {
@@ -167,22 +197,26 @@ async function resolveCatalogThumbs(bggIds, deps = {}) {
 
       byId.set(id, { catalogEntryId: id, thumbnailUrl, source: 'bgg' })
       if (docState.get(id)?.exists) {
-        pendingWrites.push({ ref: collection.doc(id), thumbnailUrl })
-        wroteIds.push(id)
+        pendingWrites.push({ ref: catalog.doc(id), thumbnailUrl })
       }
     }
+  }
 
-    if (pendingWrites.length > 0) {
-      if (writer) {
-        for (const row of pendingWrites) {
-          writer.set(row.ref, { thumbnailUrl: row.thumbnailUrl }, { merge: true })
-        }
-        await writer.commit()
-      } else {
-        await Promise.all(
-          pendingWrites.map((row) => row.ref.set({ thumbnailUrl: row.thumbnailUrl }, { merge: true })),
-        )
+  if (pendingWrites.length > 0) {
+    const writer = typeof db.batch === 'function' ? db.batch() : null
+    if (writer) {
+      for (const row of pendingWrites) {
+        writer.set(row.ref, { thumbnailUrl: row.thumbnailUrl }, { merge: true })
+        wroteIds.push(row.ref.id)
       }
+      await writer.commit()
+    } else {
+      await Promise.all(
+        pendingWrites.map((row) => {
+          wroteIds.push(row.ref.id)
+          return row.ref.set({ thumbnailUrl: row.thumbnailUrl }, { merge: true })
+        }),
+      )
     }
   }
 
@@ -231,9 +265,12 @@ async function bggThumbHandler(req, res, deps = {}) {
 module.exports = {
   MAX_IDS,
   BGG_THING_CHUNK,
+  BGG_CATALOG_GAMES_COLLECTION,
+  BGG_THING_CACHE_COLLECTION,
   bggThumbHandler,
   parseThumbIds,
   cachedThumbnailUrl,
+  thingCacheThumbnailUrl,
   chunkIds,
   resolveCatalogThumbs,
 }
