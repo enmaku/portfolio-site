@@ -189,9 +189,9 @@ function thumbFor(item) {
   return collectionItemThumbUrl(item)
 }
 
-async function onSearchSelect(pick) {
-  await addFromSearchPick(pick)
+function onSearchSelect(pick) {
   searchOpen.value = false
+  addFromSearchPick(pick)
 }
 
 function openEditSlide(detail, item) {
@@ -214,13 +214,13 @@ function cancelDelete() {
 
 async function confirmDelete() {
   if (!deleteTarget.value) return
-  await removeItem(deleteTarget.value.id)
+  removeItem(deleteTarget.value.id)
   cancelDelete()
 }
 
-async function saveEdit() {
+function saveEdit() {
   if (!editTarget.value || editTarget.value.kind !== 'custom') return
-  await renameCustom(editTarget.value.id, editTitle.value)
+  renameCustom(editTarget.value.id, editTitle.value)
   editDialogOpen.value = false
   editTarget.value = null
 }

@@ -83,82 +83,64 @@ export function useGameManagerCollection() {
   /**
    * @param {{ source: string, catalogEntryId?: string, title: string, yearPublished?: number | null, thumbnailUrl?: string | null }} pick
    */
-  async function addFromSearchPick(pick) {
+  function addFromSearchPick(pick) {
     const uid = user.value?.uid
-    if (!uid) return
+    if (!uid) return null
     error.value = null
-    try {
-      if (pick.source === 'custom') {
-        const { items: next, entry } = addCustomTitleToCollection(items.value, pick.title)
-        items.value = next
-        await upsertManagerCollectionItem(uid, entry.id, entry)
-        await reload()
-        return entry
-      }
 
-      let entry = {
-        catalogEntryId: pick.catalogEntryId,
-        title: pick.title,
-        yearPublished: pick.yearPublished ?? null,
-        thumbnailUrl: pick.thumbnailUrl || null,
-      }
-      const detail = await fetchBggCatalogEntry(pick.catalogEntryId)
-      if (detail.ok && detail.entry) {
-        entry = {
-          catalogEntryId: detail.entry.catalogEntryId,
-          title: detail.entry.title || pick.title,
-          yearPublished: detail.entry.yearPublished ?? pick.yearPublished ?? null,
-          thumbnailUrl: detail.entry.thumbnailUrl || pick.thumbnailUrl || null,
-          imageUrl: detail.entry.imageUrl || null,
-          minPlayers: detail.entry.minPlayers,
-          maxPlayers: detail.entry.maxPlayers,
-          playingTime: detail.entry.playingTime,
-        }
-      }
-      const applied = applyCatalogPickToCollection(items.value, entry)
-      items.value = applied.items
-      const saved = applied.items.find(
-        (i) => i.kind === 'catalog' && i.catalogEntryId === entry.catalogEntryId,
-      )
-      if (saved) await upsertManagerCollectionItem(uid, saved.id, saved)
-      await reload()
-      return saved
-    } catch (e) {
-      error.value = e
-      throw e
-    }
-  }
-
-  async function renameCustom(itemId, title) {
-    const uid = user.value?.uid
-    if (!uid) return
-    error.value = null
-    try {
-      const { items: next, entry } = renameCustomInCollection(items.value, itemId, title)
-      if (!entry) throw new Error('Custom entry not found')
+    if (pick.source === 'custom') {
+      const { items: next, entry } = addCustomTitleToCollection(items.value, pick.title)
       items.value = next
-      await upsertManagerCollectionItem(uid, entry.id, entry)
-      await reload()
-    } catch (e) {
-      error.value = e
-      throw e
+      void upsertManagerCollectionItem(uid, entry.id, entry).catch((e) => {
+        error.value = e
+      })
+      return entry
     }
+
+    const entry = {
+      catalogEntryId: pick.catalogEntryId,
+      title: pick.title,
+      yearPublished: pick.yearPublished ?? null,
+      thumbnailUrl: pick.thumbnailUrl || null,
+    }
+    const applied = applyCatalogPickToCollection(items.value, entry)
+    items.value = applied.items
+    const saved = applied.items.find(
+      (i) => i.kind === 'catalog' && i.catalogEntryId === entry.catalogEntryId,
+    )
+    if (saved) {
+      void upsertManagerCollectionItem(uid, saved.id, saved).catch((e) => {
+        error.value = e
+      })
+    }
+    return saved || null
   }
 
-  async function removeItem(itemId) {
+  function renameCustom(itemId, title) {
+    const uid = user.value?.uid
+    if (!uid) return
+    error.value = null
+    const { items: next, entry } = renameCustomInCollection(items.value, itemId, title)
+    if (!entry) {
+      error.value = new Error('Custom entry not found')
+      return
+    }
+    items.value = next
+    void upsertManagerCollectionItem(uid, entry.id, entry).catch((e) => {
+      error.value = e
+    })
+  }
+
+  function removeItem(itemId) {
     const uid = user.value?.uid
     if (!uid) return
     const previous = items.value
     items.value = previous.filter((item) => item.id !== itemId)
     error.value = null
-    try {
-      await deleteManagerCollectionItem(uid, itemId)
-      await reload()
-    } catch (e) {
+    void deleteManagerCollectionItem(uid, itemId).catch((e) => {
       items.value = previous
       error.value = e
-      throw e
-    }
+    })
   }
 
   return {

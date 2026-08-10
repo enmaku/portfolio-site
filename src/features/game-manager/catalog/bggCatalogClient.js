@@ -156,6 +156,66 @@ export async function fetchBggCatalogEntry(catalogEntryId, opts = {}) {
 }
 
 /**
+ * Resolve catalog thumbnail URLs via `bggThumb` (batched Firestore + BGG).
+ *
+ * @param {string[]} catalogEntryIds
+ * @param {{ signal?: AbortSignal, fetchImpl?: typeof fetch, functionsBase?: string }} [opts]
+ * @returns {Promise<{ ok: true, results: { catalogEntryId: string, thumbnailUrl: string | null, source: string }[] } | { ok: false, error: string, results: [], status?: number }>}
+ */
+export async function fetchBggCatalogThumbs(catalogEntryIds, opts = {}) {
+  const ids = [
+    ...new Set((catalogEntryIds || []).map((id) => String(id || '').trim()).filter((id) => /^\d+$/.test(id))),
+  ].slice(0, 40)
+  if (ids.length === 0) {
+    return { ok: true, results: [] }
+  }
+
+  const response = await callBggFunction('bggThumb', { id: ids.join(',') }, opts)
+  if (!response.ok) {
+    return { ok: false, error: response.error, results: [], status: response.status }
+  }
+
+  const results = Array.isArray(response.body?.results)
+    ? response.body.results.map((row) => ({
+        catalogEntryId: String(row?.catalogEntryId || ''),
+        thumbnailUrl:
+          typeof row?.thumbnailUrl === 'string' && row.thumbnailUrl ? row.thumbnailUrl : null,
+        source: typeof row?.source === 'string' ? row.source : 'unknown',
+      }))
+    : []
+  return { ok: true, results }
+}
+
+/**
+ * Resolve one catalog thumbnail URL via `bggThumb`.
+ *
+ * @param {string} catalogEntryId
+ * @param {{ signal?: AbortSignal, fetchImpl?: typeof fetch, functionsBase?: string }} [opts]
+ * @returns {Promise<{ ok: true, catalogEntryId: string, thumbnailUrl: string | null, source: string } | { ok: false, error: string, thumbnailUrl: null, status?: number }>}
+ */
+export async function fetchBggCatalogThumb(catalogEntryId, opts = {}) {
+  const id = String(catalogEntryId || '').trim()
+  if (!id || !/^\d+$/.test(id)) {
+    return { ok: false, error: 'missing_id', thumbnailUrl: null }
+  }
+
+  const batched = await fetchBggCatalogThumbs([id], opts)
+  if (!batched.ok) {
+    return { ok: false, error: batched.error, thumbnailUrl: null, status: batched.status }
+  }
+  const row = batched.results[0]
+  if (!row) {
+    return { ok: false, error: 'not_found', thumbnailUrl: null }
+  }
+  return {
+    ok: true,
+    catalogEntryId: row.catalogEntryId || id,
+    thumbnailUrl: row.thumbnailUrl,
+    source: row.source,
+  }
+}
+
+/**
  * Batch thing lookup (comma-separated BGG ids in one Cloud Function / upstream call).
  *
  * @param {string[]} catalogEntryIds

@@ -4,16 +4,19 @@ Server-side BoardGameGeek access for Game Manager. Keeps the BGG Bearer token of
 
 ## Endpoints
 
-Both are HTTPS `onRequest` functions (GET, CORS enabled):
+HTTPS `onRequest` functions (GET, CORS enabled):
 
-| Function | Query params | Backend |
+| Function | Params | Backend |
 | --- | --- | --- |
 | `bggSearch` | `query` (required); `type` ignored (catalog is base games only) | Firestore `bggCatalogGames` Model A prefix search |
 | `bggThing` | `id` (required), `stats=1` (default on) | `https://boardgamegeek.com/xmlapi2/thing` |
+| `bggThumb` | path `/{id}` or query `id` | Firestore cache on `bggCatalogGames`, then minimal `/thing` (no stats) write-back |
 
 Responses are JSON with normalized catalog shapes (see `src/features/game-manager/catalog/normalizeBgg.js`).
 
 Search hits: `{ catalogEntryId, title, yearPublished, type, usersRated, averageRating, bayesAverage, boardGameRank }[]` under `{ results }`. The SPA ranks locally from these fields and does not call `bggThing` during typeahead (thumbnails deferred).
+
+`bggThumb` response: `{ results: [{ catalogEntryId, thumbnailUrl, source }] }` where `source` is `cache`, `bgg`, or `missing`. Accepts comma-separated `id` values (max 40). One `getAll` against Firestore, then `/thing` in chunks of 20 (no stats) only for cache misses; write-back is a single batch merge of `thumbnailUrl` onto existing docs. Use `bggThing` for full catalog detail. TTL eviction is deferred.
 
 Catalog documents are maintained by local scripts (`npm run bgg-update` / `bgg:ranks:*`).
 
@@ -21,7 +24,7 @@ Catalog documents are maintained by local scripts (`npm run bgg-update` / `bgg:r
 
 ### Deploy (Secret Manager)
 
-`bggThing` still needs the BGG application token:
+`bggThing` and `bggThumb` need the BGG application token:
 
 ```bash
 firebase functions:secrets:set GAME_MANAGER_API_KEY
@@ -29,6 +32,7 @@ firebase deploy --only functions
 ```
 
 `bggSearch` uses the Admin SDK against Firestore and does **not** bind `GAME_MANAGER_API_KEY`.
+`bggThumb` binds the secret only for cache-miss upstream fetches; cache hits never call BGG.
 
 Do **not** expose BGG credentials in Vite `VITE_*` env.
 
@@ -58,7 +62,7 @@ If `VITE_GAME_MANAGER_BGG_FUNCTIONS_BASE` is unset, the client falls back to `ht
 
 ## Rate limiting
 
-`bggThing` serializes upstream BGG calls with ~5 seconds between requests per functions instance (in-memory). This is not a distributed cache; it reduces burst traffic against BGG limits.
+`bggThing` / `bggThumb` serialize upstream BGG calls with ~5 seconds between requests per functions instance (in-memory). This is not a distributed cache; it reduces burst traffic against BGG limits. Cached `bggThumb` hits skip the limiter entirely.
 
 ## Normalizer sync
 

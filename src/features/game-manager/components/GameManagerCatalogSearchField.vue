@@ -100,7 +100,11 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { CATALOG_ATTRIBUTION } from '../catalog/catalogAttribution.js'
-import { isBggCatalogConfigured, searchBggCatalog } from '../catalog/bggCatalogClient.js'
+import {
+  fetchBggCatalogThumbs,
+  isBggCatalogConfigured,
+  searchBggCatalog,
+} from '../catalog/bggCatalogClient.js'
 import { rankCatalogSearchHits } from '../catalog/rankCatalogSearch.js'
 
 const props = defineProps({
@@ -160,6 +164,27 @@ const showSuggestionPanel = computed(() => {
   return loading.value || suggestions.value.length > 0 || showNoResults.value || showCustomOption.value
 })
 
+/**
+ * @param {{ catalogEntryId: string }[]} hits
+ * @param {AbortSignal} signal
+ */
+async function loadThumbsForHits(hits, signal) {
+  const ids = [
+    ...new Set(hits.map((hit) => String(hit.catalogEntryId || '').trim()).filter((id) => /^\d+$/.test(id))),
+  ]
+  if (ids.length === 0) return
+  const art = await fetchBggCatalogThumbs(ids, { signal })
+  if (signal.aborted || !art.ok) return
+  /** @type {Record<string, string>} */
+  const next = {}
+  for (const row of art.results) {
+    if (row.catalogEntryId && row.thumbnailUrl) {
+      next[row.catalogEntryId] = row.thumbnailUrl
+    }
+  }
+  thumbUrls.value = next
+}
+
 async function runSearch() {
   const q = trimmedQuery.value
   if (abort) abort.abort()
@@ -178,16 +203,18 @@ async function runSearch() {
   }
 
   abort = new AbortController()
+  const signal = abort.signal
   loading.value = true
   try {
-    const result = await searchBggCatalog(q, { signal: abort.signal })
-    if (abort.signal.aborted) return
+    const result = await searchBggCatalog(q, { signal })
+    if (signal.aborted) return
     const rawHits = result.ok ? result.results : []
     suggestions.value = rankCatalogSearchHits(rawHits, q, { limit: 20 })
     lastSearchedQuery.value = q
     thumbUrls.value = {}
+    void loadThumbsForHits(suggestions.value, signal)
   } catch {
-    if (abort?.signal.aborted) return
+    if (signal.aborted) return
     suggestions.value = []
     lastSearchedQuery.value = q
   } finally {
