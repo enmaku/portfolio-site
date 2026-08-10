@@ -13,6 +13,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Server-only BGG /thing response cache (Admin SDK). Clients must not read or write.
+    match /bggThingCache/{bggId} {
+      allow read, write: if false;
+    }
+
     match /gameManagerOwners/{ownerUid} {
       allow read, write: if request.auth != null && request.auth.uid == ownerUid;
 

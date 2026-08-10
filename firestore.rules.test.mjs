@@ -118,3 +118,24 @@ test('unauthenticated client cannot read bggCatalogGames', async () => {
   const db = unauthenticatedFirestore()
   await assertFails(getDoc(doc(db, 'bggCatalogGames/266192')))
 })
+
+test('clients cannot read or write bggThingCache', async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'bggThingCache/13'), {
+      entry: { catalogEntryId: '13', title: 'Catan' },
+      cachedAtMs: Date.now(),
+    })
+  })
+
+  const authed = authedFirestore('owner-1')
+  await assertFails(getDoc(doc(authed, 'bggThingCache/13')))
+  await assertFails(
+    setDoc(doc(authed, 'bggThingCache/1'), {
+      entry: { catalogEntryId: '1', title: 'X' },
+      cachedAtMs: Date.now(),
+    }),
+  )
+
+  const anon = unauthenticatedFirestore()
+  await assertFails(getDoc(doc(anon, 'bggThingCache/13')))
+})
