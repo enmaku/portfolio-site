@@ -2,6 +2,10 @@
  * Per-session host-side guest wire bookkeeping for Movie Vote P2P.
  */
 
+/**
+ * @import '../types.js'
+ */
+
 export function createMovieVoteWireState() {
   /** @type {Map<string, string>} */
   const stableIdToParticipant = new Map()
@@ -9,7 +13,7 @@ export function createMovieVoteWireState() {
   /** @type {Set<string>} */
   const activeGuestStableIds = new Set()
 
-  /** @type {Map<string, { picks: import('../types.js').MoviePick[], ready: boolean }>} */
+  /** @type {Map<string, import('../types.js').MovieVoteGuestDraft>} */
   const guestDrafts = new Map()
 
   /** @type {Map<string, ReturnType<typeof setTimeout>>} */
@@ -25,7 +29,7 @@ export function createMovieVoteWireState() {
 
   /**
    * @param {string} participantId
-   * @param {{ picks: import('../types.js').MoviePick[], ready: boolean }} entry
+   * @param {import('../types.js').MovieVoteGuestDraft} entry
    */
   function seedGuestDraft(participantId, entry) {
     guestDrafts.set(participantId, entry)

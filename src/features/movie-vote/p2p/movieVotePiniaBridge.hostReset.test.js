@@ -32,7 +32,7 @@ function customPick(localId, title) {
 const hostResetWireTests = { skip: !mock.module }
 
 test(
-  'host resetToSuggest clears guest draft ready flags and broadcasts state',
+  'host resetToSuggest clears guest draft picks and ready flags and broadcasts state',
   hostResetWireTests,
   async () => {
     mock.reset()
@@ -65,16 +65,24 @@ test(
         setActivePinia(pinia)
         const store = useMovieVoteStore()
 
-        await sessionMod.startAsHost(3)
+        await sessionMod.startAsHost({ participantName: 'Host', maxAttempts: 3 })
         assert.equal(sessionMod.sessionPhase.value, 'hosting')
 
-        setGuestDraftForTests(sessionMod, 'guest-1', { picks: [], ready: true })
+        setGuestDraftForTests(sessionMod, 'guest-1', {
+          picks: [customPick('g1', 'Guest One')],
+          ready: true,
+          name: 'Lisa',
+          quorumRequired: true,
+        })
         setGuestDraftForTests(sessionMod, 'guest-2', {
           picks: [customPick('g2', 'Guest Two')],
           ready: true,
+          name: 'Brian',
+          quorumRequired: true,
         })
 
         store.phase = 'results'
+        store.myDraftPicks = [customPick('h1', 'Host Pick')]
         drainHostStateBroadcastProbeForTests(sessionMod)
         bridgeMod.resetMovieVoteHostResetToSuggestProbeForTests()
 
@@ -85,11 +93,17 @@ test(
         ])
         assert.equal(getGuestDraftReadyForTests(sessionMod, 'guest-1'), false)
         assert.equal(getGuestDraftReadyForTests(sessionMod, 'guest-2'), false)
+        assert.deepEqual(store.myDraftPicks, [])
         assert.ok(drainHostStateBroadcastProbeForTests(sessionMod) >= 1)
-        assert.ok(
-          harness.sets.some((s) => s.path.endsWith('/state')),
-          'host reset should write sequenced hub state',
-        )
+
+        const stateWrites = harness.sets.filter((s) => s.path.endsWith('/state'))
+        assert.ok(stateWrites.length >= 1, 'host reset should write sequenced hub state')
+        const lastState = stateWrites[stateWrites.length - 1]?.value
+        const participants = lastState?.payload?.participants ?? []
+        for (const row of participants) {
+          assert.equal(row.pickCount, 0, `${row.id} should have empty picks after start over`)
+          assert.equal(row.ready, false)
+        }
 
         sessionMod.teardownSession()
       })

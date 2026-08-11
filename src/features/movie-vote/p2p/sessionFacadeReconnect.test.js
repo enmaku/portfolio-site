@@ -176,7 +176,7 @@ test(
       setActivePinia(createPinia())
       const room = useMovieVoteRoomSessionStore()
 
-      await joinRoom('SUP001')
+      await joinRoom('SUP001', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
       assert.equal(room.role, 'guest')
       assert.equal(room.suffix, 'SUP001')
@@ -238,7 +238,7 @@ test(
       bindFakeHandlers(hostMod)
       const { startAsHost, sessionPhase: hostPhase } = hostMod
 
-      await startAsHost(3)
+      await startAsHost({ participantName: 'Host', maxAttempts: 3 })
       assert.equal(hostPhase.value, 'hosting')
 
       const connectedPath = [...harness.listeners.keys()].find((p) => p.endsWith('connected'))
@@ -255,7 +255,7 @@ test(
       const { joinRoom, sessionPhase: guestPhase, sessionSuffix: guestSuffix } = guestMod
       const guestRoom = useMovieVoteRoomSessionStore()
 
-      await joinRoom(suffix)
+      await joinRoom(suffix, { participantName: 'Guest' })
       assert.equal(guestPhase.value, 'guest_connected')
       assert.equal(guestRoom.role, 'guest')
 
@@ -447,7 +447,7 @@ test(
       bindFakeHandlers(hostMod)
       const { startAsHost, sessionPhase, sessionSuffix } = hostMod
 
-      await startAsHost(3)
+      await startAsHost({ participantName: 'Host', maxAttempts: 3 })
       assert.equal(sessionPhase.value, 'hosting')
       assert.equal(hostRoom.role, 'host')
 

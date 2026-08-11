@@ -90,7 +90,7 @@ test(
       setActivePinia(createPinia())
       const room = useMovieVoteRoomSessionStore()
 
-      await joinRoom('ABC123')
+      await joinRoom('ABC123', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
       assert.equal(room.role, 'guest')
       assert.equal(
@@ -140,7 +140,7 @@ test(
     await withFirebaseEnv(async () => {
       const { joinRoom } = await importSession(`guest-online-${Date.now()}`)
       setActivePinia(createPinia())
-      await joinRoom('JOIN01')
+      await joinRoom('JOIN01', { participantName: 'Guest' })
 
       assert.ok(
         rtdbSets.some(
@@ -216,7 +216,7 @@ test(
     await withFirebaseEnv(async () => {
       const { joinRoom, teardownSession } = await importSession(`teardown-guest-${Date.now()}`)
       setActivePinia(createPinia())
-      await joinRoom('TEAR01')
+      await joinRoom('TEAR01', { participantName: 'Guest' })
       teardownSession()
 
       assert.ok(
@@ -278,7 +278,7 @@ test(
       const room = useMovieVoteRoomSessionStore()
       store.resetSessionSoft()
 
-      await joinRoom('END123')
+      await joinRoom('END123', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
 
       const endedPath = [...listeners.keys()].find((p) => p.endsWith('ended'))
@@ -320,7 +320,7 @@ test(
       const { startAsHost, sessionPhase } = await importSession(`host-claim-${Date.now()}`)
       setActivePinia(createPinia())
 
-      const result = await startAsHost(3)
+      const result = await startAsHost({ participantName: 'Host', maxAttempts: 3 })
       assert.equal(result.suffix, suffix)
       assert.equal(sessionPhase.value, 'hosting')
 
@@ -344,7 +344,7 @@ test(
     await withFirebaseEnv(async () => {
       const { joinRoom, sessionPhase } = await importSession(`guest-reconn-${Date.now()}`)
       setActivePinia(createPinia())
-      await joinRoom('RECONN1')
+      await joinRoom('RECONN1', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
 
       const connectedPath = [...listeners.keys()].find((p) => p.endsWith('connected'))
@@ -377,7 +377,7 @@ test(
       setActivePinia(createPinia())
       const room = useMovieVoteRoomSessionStore()
 
-      await joinRoom('NOPING')
+      await joinRoom('NOPING', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
       assert.equal(sessionSuffix.value, 'NOPING')
       assert.equal(
@@ -391,7 +391,7 @@ test(
 )
 
 test(
-  'host drops offline guest from readiness after guestOnline grace',
+  'host keeps required offline guest after guestOnline grace',
   rtdbLifecycleTests,
   async () => {
     mock.reset()
@@ -420,12 +420,12 @@ test(
       const { startAsHost, sessionPhase } = sessionMod
       const { store, outbound } = await installLifecyclePinia(sessionMod)
 
-      await startAsHost(3)
+      await startAsHost({ participantName: 'Host', maxAttempts: 3 })
       assert.equal(sessionPhase.value, 'hosting')
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -437,11 +437,137 @@ test(
       mock.timers.tick(45_000)
       hostSyncParticipantsFromRoom(outbound)
 
-      assert.equal(guestParticipantIds(store).length, 0)
-      assert.ok(!guestParticipantIds(store).includes(guestIdsAfterJoin[0]))
+      assert.equal(guestParticipantIds(store).length, 1)
+      assert.deepEqual(guestParticipantIds(store), guestIdsAfterJoin)
     })
 
     mock.timers.reset()
+  },
+)
+
+test(
+  'host drops offline optional guest after guestOnline grace',
+  rtdbLifecycleTests,
+  async () => {
+    mock.reset()
+    mock.timers.enable({ apis: ['setTimeout'] })
+
+    const hostStableId = 'MVHOSTOPTGRC'
+    const guestStableId = 'MVGUESTOPTGR'
+    const suffix = 'OPTGRC'
+
+    mock.module('../../p2p/identity.js', {
+      namedExports: {
+        ...(await import('../../p2p/identity.js')),
+        getStableClientId: () => hostStableId,
+        deriveStableHostSuffix: () => suffix,
+      },
+    })
+
+    const harness = await installRtdbLifecycleMocks({
+      getHostPing: () => null,
+      getEnded: () => null,
+      getHostClientId: () => null,
+    })
+
+    await withFirebaseEnv(async () => {
+      const sessionMod = await importSession(`optional-grace-${Date.now()}`)
+      const { startAsHost, sessionPhase, setParticipantQuorumRequired } = sessionMod
+      const { store, outbound } = await installLifecyclePinia(sessionMod)
+
+      await startAsHost({ participantName: 'Host', maxAttempts: 3 })
+      assert.equal(sessionPhase.value, 'hosting')
+
+      const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
+
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
+      harness.emitChildAdded(guestOnlineRoot, guestStableId)
+      harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
+      hostSyncParticipantsFromRoom(outbound)
+
+      const guestPid = guestParticipantIds(store)[0]
+      assert.ok(guestPid)
+      setParticipantQuorumRequired(guestPid, false)
+
+      harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, false)
+      mock.timers.tick(45_000)
+      hostSyncParticipantsFromRoom(outbound)
+
+      assert.equal(guestParticipantIds(store).length, 0)
+    })
+
+    mock.timers.reset()
+  },
+)
+
+test(
+  'offline required guest who is not ready blocks suggest to voting',
+  rtdbLifecycleTests,
+  async () => {
+    mock.reset()
+
+    const hostStableId = 'MVHOSTOFFBLK'
+    const guestStableId = 'MVGUESTOFFBLK'
+    const suffix = 'OFFBLK'
+
+    mock.module('../../p2p/identity.js', {
+      namedExports: {
+        ...(await import('../../p2p/identity.js')),
+        getStableClientId: () => hostStableId,
+        deriveStableHostSuffix: () => suffix,
+      },
+    })
+
+    const harness = await installRtdbLifecycleMocks({
+      getHostPing: () => null,
+      getEnded: () => null,
+      getHostClientId: () => null,
+    })
+
+    await withFirebaseEnv(async () => {
+      const sessionMod = await importSession(`offline-required-blocks-${Date.now()}`)
+      const { startAsHost, sessionPhase } = sessionMod
+      const { store, outbound } = await installLifecyclePinia(sessionMod)
+
+      await startAsHost({ participantName: 'Host', maxAttempts: 3 })
+      assert.equal(sessionPhase.value, 'hosting')
+
+      store.addDraftPick({
+        localId: 'h1',
+        source: 'custom',
+        tmdbId: null,
+        customKey: 'alpha',
+        title: 'Alpha',
+        posterPath: null,
+        overview: '',
+      })
+      store.addDraftPick({
+        localId: 'h2',
+        source: 'custom',
+        tmdbId: null,
+        customKey: 'beta',
+        title: 'Beta',
+        posterPath: null,
+        overview: '',
+      })
+
+      const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
+
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
+      harness.emitChildAdded(guestOnlineRoot, guestStableId)
+      harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
+      hostSyncParticipantsFromRoom(outbound)
+
+      const guestPid = guestParticipantIds(store)[0]
+      assert.ok(guestPid)
+
+      harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, false)
+      store.setReadyToVote(true)
+      hostSyncParticipantsFromRoom(outbound)
+
+      assert.equal(store.phase, 'suggest')
+      assert.equal(guestParticipantIds(store).length, 1)
+    })
   },
 )
 
@@ -474,7 +600,7 @@ test(
       const { startAsHost, sessionPhase } = sessionMod
       const { store, outbound } = await installLifecyclePinia(sessionMod)
 
-      await startAsHost(3)
+      await startAsHost({ participantName: 'Host', maxAttempts: 3 })
       assert.equal(sessionPhase.value, 'hosting')
 
       store.addDraftPick({
@@ -498,7 +624,7 @@ test(
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
@@ -521,6 +647,116 @@ test(
       assert.ok(store.voterIds.includes(guestPid))
       assert.equal(store.voterIds.length, 2)
       assert.equal(store.voteProgress?.total, 2)
+    })
+  },
+)
+
+test(
+  'compile voterIds exclude quorum-off guests and include their picks',
+  rtdbLifecycleTests,
+  async () => {
+    mock.reset()
+
+    const hostStableId = 'MVHOSTOPT01'
+    const guestStableId = 'MVGUESTOPT01'
+    const guest2StableId = 'MVGUESTOPT02'
+    const suffix = 'OPTV01'
+
+    mock.module('../../p2p/identity.js', {
+      namedExports: {
+        ...(await import('../../p2p/identity.js')),
+        getStableClientId: () => hostStableId,
+        deriveStableHostSuffix: () => suffix,
+      },
+    })
+
+    const harness = await installRtdbLifecycleMocks({
+      getHostPing: () => null,
+      getEnded: () => null,
+      getHostClientId: () => null,
+    })
+
+    await withFirebaseEnv(async () => {
+      const sessionMod = await importSession(`optional-voter-${Date.now()}`)
+      const { startAsHost, sessionPhase, setParticipantQuorumRequired } = sessionMod
+      const { store, outbound } = await installLifecyclePinia(sessionMod)
+
+      await startAsHost({ participantName: 'Host', maxAttempts: 3 })
+      assert.equal(sessionPhase.value, 'hosting')
+
+      store.addDraftPick({
+        localId: 'h1',
+        source: 'custom',
+        tmdbId: null,
+        customKey: 'alpha',
+        title: 'Alpha',
+        posterPath: null,
+        overview: '',
+      })
+
+      const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
+
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
+      harness.emitChildAdded(guestOnlineRoot, guestStableId)
+      harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
+      hostSyncParticipantsFromRoom(outbound)
+
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guest2StableId, encodeHello(guest2StableId, 'Guest2'))
+      harness.emitChildAdded(guestOnlineRoot, guest2StableId)
+      harness.emitValue(`${guestOnlineRoot}/${guest2StableId}`, true)
+      hostSyncParticipantsFromRoom(outbound)
+
+      const [guestA, guestB] = guestParticipantIds(store)
+      assert.ok(guestA)
+      assert.ok(guestB)
+
+      setParticipantQuorumRequired(guestB, false)
+
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, {
+        v: 1,
+        type: MSG_MV_DRAFT,
+        participantId: guestA,
+        ready: true,
+        picks: [
+          {
+            localId: 'g1',
+            source: 'custom',
+            tmdbId: null,
+            customKey: 'beta',
+            title: 'Beta',
+            posterPath: null,
+            overview: '',
+          },
+        ],
+      })
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guest2StableId, {
+        v: 1,
+        type: MSG_MV_DRAFT,
+        participantId: guestB,
+        ready: false,
+        picks: [
+          {
+            localId: 'g2',
+            source: 'custom',
+            tmdbId: null,
+            customKey: 'gamma',
+            title: 'Gamma',
+            posterPath: null,
+            overview: '',
+          },
+        ],
+      })
+
+      store.setReadyToVote(true)
+      hostSyncParticipantsFromRoom(outbound)
+
+      assert.equal(store.phase, 'voting')
+      assert.deepEqual(store.voterIds.sort(), [HOST_PARTICIPANT_ID, guestA].sort())
+      assert.ok(store.ballotOrderIds.some((id) => id.includes('gamma') || store.ballotMovies.some((m) => m.title === 'Gamma')))
+      assert.ok(store.ballotMovies.some((m) => m.title === 'Gamma'))
+      const optionalRow = store.participants.find((p) => p.id === guestB)
+      assert.equal(optionalRow?.quorumRequired, false)
+      assert.equal(optionalRow?.ready, false)
     })
   },
 )
@@ -555,12 +791,12 @@ test(
       const { startAsHost, sessionPhase } = sessionMod
       const { store, outbound } = await installLifecyclePinia(sessionMod)
 
-      await startAsHost(3)
+      await startAsHost({ participantName: 'Host', maxAttempts: 3 })
       assert.equal(sessionPhase.value, 'hosting')
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
 
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId))
+      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, encodeHello(guestStableId, 'Guest'))
       harness.emitChildAdded(guestOnlineRoot, guestStableId)
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)

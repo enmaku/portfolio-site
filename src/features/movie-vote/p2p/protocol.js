@@ -8,6 +8,7 @@ export const MSG_MV_HOST_ENDED = 'mv-x'
 export const MSG_MV_HOST_VISIBILITY = 'mv-v'
 export const MSG_MV_WELCOME = 'mv-w'
 export const MSG_MV_STATE = 'mv-s'
+export const MSG_MV_NAME_REJECTED = 'mv-nr'
 
 /** Guest → host: stable client identity presented right after attach so the
  *  host can remap this connection onto an existing participant slot instead of
@@ -67,19 +68,44 @@ export function parseHostVisibility(data) {
 
 /**
  * @param {string} stableId
+ * @param {string} [participantName]
  */
-export function encodeHello(stableId) {
-  return { v: 1, type: MSG_MV_HELLO, stableId }
+export function encodeHello(stableId, participantName = '') {
+  return {
+    v: 1,
+    type: MSG_MV_HELLO,
+    stableId,
+    participantName: typeof participantName === 'string' ? participantName : '',
+  }
 }
 
 /**
  * @param {unknown} data
- * @returns {{ stableId: string } | null}
+ * @returns {{ stableId: string, participantName: string } | null}
  */
 export function parseHello(data) {
   if (!isRecord(data) || data.type !== MSG_MV_HELLO) return null
   if (typeof data.stableId !== 'string' || !data.stableId) return null
-  return { stableId: data.stableId }
+  return {
+    stableId: data.stableId,
+    participantName: typeof data.participantName === 'string' ? data.participantName : '',
+  }
+}
+
+/**
+ * @param {'taken'} [reason]
+ */
+export function encodeNameRejected(reason = 'taken') {
+  return { v: 1, type: MSG_MV_NAME_REJECTED, reason }
+}
+
+/**
+ * @param {unknown} data
+ * @returns {{ reason: string } | null}
+ */
+export function parseNameRejected(data) {
+  if (!isRecord(data) || data.type !== MSG_MV_NAME_REJECTED) return null
+  return { reason: typeof data.reason === 'string' ? data.reason : 'taken' }
 }
 
 /**

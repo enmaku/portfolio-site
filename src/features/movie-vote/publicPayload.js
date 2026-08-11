@@ -3,6 +3,8 @@
  */
 
 import { HOST_PARTICIPANT_ID, uniqueMoviesInPicks } from './core.js'
+import { isQuorumRequired } from './guestDraft.js'
+import { normalizeParticipantName } from './participantName.js'
 import { normalizeVotingMethod } from './votingMethod.js'
 
 /**
@@ -17,36 +19,40 @@ function distinctSuggestedMovieCountFromPicks(picks) {
  *   phase: import('./types.js').MovieVotePhase,
  *   readyToVote: boolean,
  *   myDraftPicks: import('./types.js').MoviePick[],
+ *   myParticipantName?: string,
+ *   myQuorumRequired?: boolean,
  *   ballotMovies: import('./types.js').BallotMovie[],
  *   ballotOrderIds: string[],
+ *   voterIds?: string[],
+ *   votesByParticipant?: Record<string, string[]>,
  *   voteProgress: { submitted: number, total: number } | null,
  *   electionOutcome: import('./electionOutcomeTypes.js').ElectionOutcome | null,
  *   votingMethod: unknown,
  * }} store
- * @param {Map<string, { picks: import('./types.js').MoviePick[], ready: boolean }>} guestDrafts
+ * @param {Map<string, import('./types.js').MovieVoteGuestDraft>} guestDrafts
  * @returns {import('./types.js').MovieVotePublicPayload}
  */
-/**
- * @param {Map<string, { picks: import('./types.js').MoviePick[], ready: boolean }>} guestDrafts
- */
-export function clearGuestDraftReadyFlags(guestDrafts) {
-  for (const [pid, g] of guestDrafts) {
-    guestDrafts.set(pid, { picks: g.picks, ready: false })
-  }
-}
-
 export function buildMovieVotePublicPayload(store, guestDrafts) {
+  const hostName = normalizeParticipantName(store.myParticipantName ?? '')
+  const hostQuorum = store.myQuorumRequired !== false
   const participants = [
     {
       id: HOST_PARTICIPANT_ID,
-      ready: store.readyToVote,
+      name: hostName,
+      quorumRequired: hostQuorum,
+      ready: hostQuorum ? store.readyToVote : false,
       pickCount: store.myDraftPicks.length,
     },
   ]
   for (const [id, g] of guestDrafts) {
+    const name = normalizeParticipantName(g.name ?? '')
+    if (!name) continue
+    const quorumRequired = isQuorumRequired(g)
     participants.push({
       id,
-      ready: g.ready,
+      name,
+      quorumRequired,
+      ready: quorumRequired ? Boolean(g.ready) : false,
       pickCount: g.picks.length,
     })
   }
@@ -56,12 +62,27 @@ export function buildMovieVotePublicPayload(store, guestDrafts) {
   for (const [, g] of guestDrafts) {
     for (const p of g.picks) allPicks.push(p)
   }
+
+  /** @type {{ submitted: number, total: number } | null} */
+  let voteProgress = store.voteProgress ? { ...store.voteProgress } : null
+  if (store.phase === 'voting') {
+    const voterIds = Array.isArray(store.voterIds) ? store.voterIds : []
+    const votes = store.votesByParticipant ?? {}
+    const ballotLen = store.ballotOrderIds?.length ?? 0
+    let submitted = 0
+    for (const id of voterIds) {
+      const r = votes[id]
+      if (r && r.length === ballotLen) submitted += 1
+    }
+    voteProgress = { submitted, total: voterIds.length }
+  }
+
   return {
     phase: store.phase,
     participants,
     ballotMovies: suggest ? null : store.ballotMovies.map((m) => ({ ...m })),
     ballotOrderIds: suggest ? null : [...store.ballotOrderIds],
-    voteProgress: store.voteProgress ? { ...store.voteProgress } : null,
+    voteProgress,
     electionOutcome: store.electionOutcome,
     uniqueSuggestedMovieCount: suggest ? distinctSuggestedMovieCountFromPicks(allPicks) : 0,
     votingMethod: normalizeVotingMethod(store.votingMethod),

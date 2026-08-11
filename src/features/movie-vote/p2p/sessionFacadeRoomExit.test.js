@@ -270,7 +270,7 @@ test(
       const draftLocalIds = store.myDraftPicks.map((p) => p.localId)
       store.setFullscreenEnabled(true)
 
-      await startAsHost(3)
+      await startAsHost({ participantName: 'Host', maxAttempts: 3 })
       assert.equal(sessionPhase.value, 'hosting')
       activeRtdbSetsClear(harness)
 
@@ -317,7 +317,7 @@ test(
       const draftLocalIds = store.myDraftPicks.map((p) => p.localId)
       store.setFullscreenEnabled(true)
 
-      await joinRoom('END123')
+      await joinRoom('END123', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
 
       listenerAt(harness.listeners, 'ended')(1_700_000_000_000)
@@ -360,7 +360,7 @@ test(
       store.addDraftPick(customPick('l1', 'Leaver pick'))
       const draftLocalIds = store.myDraftPicks.map((p) => p.localId)
 
-      await joinRoom('LEAVE1')
+      await joinRoom('LEAVE1', { participantName: 'Guest' })
       assert.equal(sessionPhase.value, 'guest_connected')
 
       guestLeave()

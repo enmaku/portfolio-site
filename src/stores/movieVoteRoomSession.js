@@ -9,24 +9,35 @@ export const useMovieVoteRoomSessionStore = defineStore('movieVoteRoomSession', 
     role: null,
     /** @type {null | string} */
     suffix: null,
+    /** Sticky participant name for this room (resume without re-prompt). */
+    participantName: '',
   }),
 
   actions: {
-    /** @param {string} suffix */
-    setHost(suffix) {
+    /**
+     * @param {string} suffix
+     * @param {string} [participantName]
+     */
+    setHost(suffix, participantName = '') {
       this.role = 'host'
       this.suffix = suffix
+      if (participantName) this.participantName = participantName
     },
 
-    /** @param {string} suffix */
-    setGuest(suffix) {
+    /**
+     * @param {string} suffix
+     * @param {string} [participantName]
+     */
+    setGuest(suffix, participantName = '') {
       this.role = 'guest'
       this.suffix = suffix
+      if (participantName) this.participantName = participantName
     },
 
     clear() {
       this.role = null
       this.suffix = null
+      this.participantName = ''
     },
 
     /** Host left deliberately; keep suffix so the same room code is reused next time. */
@@ -37,7 +48,7 @@ export const useMovieVoteRoomSessionStore = defineStore('movieVoteRoomSession', 
 
   persist: {
     key: 'portfolio-movie-vote-room',
-    pick: ['role', 'suffix'],
+    pick: ['role', 'suffix', 'participantName'],
   },
 })
 

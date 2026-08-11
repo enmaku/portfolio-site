@@ -40,12 +40,28 @@ test('scheduleParticipantRemoval calls removeParticipantFromVote after grace whe
   })
   const wire = createGuestOnlineWire(deps)
   deps.wireState.stableIdToParticipant.set('stable-1', 'guest-1')
-  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: true })
+  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: true, name: 'Sam', quorumRequired: false })
 
   wire.scheduleParticipantRemoval('guest-1')
 
   assert.deepEqual(removed, ['guest-1'])
   assert.equal(deps.wireState.guestDrafts.has('guest-1'), false)
+})
+
+test('scheduleParticipantRemoval skips required seats even after grace', () => {
+  /** @type {string[]} */
+  const removed = []
+  const deps = baseDeps({
+    removeParticipantFromVote: (pid) => removed.push(pid),
+  })
+  const wire = createGuestOnlineWire(deps)
+  deps.wireState.stableIdToParticipant.set('stable-1', 'guest-1')
+  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: false, name: 'Alex', quorumRequired: true })
+
+  wire.scheduleParticipantRemoval('guest-1')
+
+  assert.deepEqual(removed, [])
+  assert.equal(deps.wireState.guestDrafts.has('guest-1'), true)
 })
 
 test('scheduleParticipantRemoval skips removal while guest stable id is still online', () => {
@@ -58,7 +74,7 @@ test('scheduleParticipantRemoval skips removal while guest stable id is still on
   const wire = createGuestOnlineWire(deps)
   deps.wireState.stableIdToParticipant.set('stable-1', 'guest-1')
   deps.wireState.activeGuestStableIds.add('stable-1')
-  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: true })
+  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: true, name: 'Sam', quorumRequired: false })
 
   wire.scheduleParticipantRemoval('guest-1')
 
@@ -78,7 +94,7 @@ test('cancelParticipantRemoval clears pending grace timer', () => {
   })
   const wire = createGuestOnlineWire(deps)
   deps.wireState.stableIdToParticipant.set('stable-1', 'guest-1')
-  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: true })
+  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: true, name: 'Sam', quorumRequired: false })
 
   wire.scheduleParticipantRemoval('guest-1')
   wire.cancelParticipantRemoval('guest-1')

@@ -1,13 +1,18 @@
-import { normalizeCustomTitle } from '../core.js'
 import {
-  encodeHostVisibility,
-  encodeState,
   encodeWelcome,
+  encodeNameRejected,
   parseDraft,
   parseHello,
   parseVote,
+  encodeHostVisibility,
 } from './protocol.js'
 import { generateAnonymousVoterId } from './roomId.js'
+import { normalizeCustomTitle, HOST_PARTICIPANT_ID } from '../core.js'
+import { createGuestDraft } from '../guestDraft.js'
+import {
+  isParticipantNameTaken,
+  normalizeParticipantName,
+} from '../participantName.js'
 
 /**
  * @param {import('../types.js').MoviePick[]} picks
@@ -45,14 +50,14 @@ function normalizePicks(picks) {
  * @param {(suffix: string, path: string) => import('firebase/database').DatabaseReference} deps.roomChild
  * @param {(ref: import('firebase/database').DatabaseReference, value: unknown) => Promise<void>} deps.setRtdb
  * @param {() => string | null} deps.getSessionSuffix
- * @param {() => number} deps.getNextSeq
- * @param {(n: number) => void} deps.setNextSeq
- * @param {() => import('../types.js').MovieVotePublicPayload} deps.buildPublicPayload
  * @param {() => void} deps.hostBroadcastState
+ * @param {() => Promise<void>} deps.hostBroadcastStatePersist
  * @param {() => void} deps.tryFinishVoting
  * @param {(pid: string) => void} deps.cancelParticipantRemoval
- * @param {(participantId: string, entry: { picks: import('../types.js').MoviePick[], ready: boolean }) => void} deps.applyGuestDraft
+ * @param {(participantId: string, entry: { picks: import('../types.js').MoviePick[], ready: boolean }) => void} deps.applyGuestDraft Inbox may author picks/ready only
  * @param {(participantId: string, ranking: string[]) => boolean} deps.applyGuestVote
+ * @param {() => string} deps.getHostParticipantName
+ * @param {(stableId: string) => void} deps.clearGuestKick
  */
 export function createHostInboxWire(deps) {
   const {
@@ -60,6 +65,29 @@ export function createHostInboxWire(deps) {
     activeGuestStableIds,
     guestDrafts,
   } = deps.wireState
+
+  function seatsForNameCheck() {
+    /** @type {{ id: string, name: string }[]} */
+    const seats = [{ id: HOST_PARTICIPANT_ID, name: deps.getHostParticipantName() }]
+    for (const [pid, g] of guestDrafts) {
+      seats.push({ id: pid, name: typeof g.name === 'string' ? g.name : '' })
+    }
+    return seats
+  }
+
+  /**
+   * @param {string} suffix
+   */
+  function publishHostVisible(suffix) {
+    if (typeof document === 'undefined') return
+    deps
+      .setRtdb(
+        deps.roomChild(suffix, 'hostVisible'),
+        encodeHostVisibility(document.visibilityState === 'visible'),
+      )
+      .catch(() => {})
+  }
+
   /**
    * @param {string} stableId
    * @param {unknown} raw
@@ -72,50 +100,52 @@ export function createHostInboxWire(deps) {
     const draft = parseDraft(raw)
     const pid = draft?.participantId ?? parseVote(raw)?.participantId
     if (!pid) return null
+    // Only hello may allocate seats. Orphan inbox drafts after eject/refresh must not
+    // mint empty-name guests.
+    if (!guestDrafts.has(pid)) return null
 
     stableIdToParticipant.set(stableId, pid)
-    if (!guestDrafts.has(pid)) {
-      guestDrafts.set(pid, { picks: [], ready: false })
-    }
     deps.cancelParticipantRemoval(pid)
     return pid
   }
 
   /**
    * @param {string} stableId
+   * @param {string} [participantName]
    */
-  function onGuestHello(stableId) {
+  async function onGuestHello(stableId, participantName = '') {
     const existingPid = stableIdToParticipant.get(stableId)
-    const pid = existingPid ?? generateAnonymousVoterId()
-    const resumed = Boolean(existingPid)
-
-    if (!existingPid) {
-      stableIdToParticipant.set(stableId, pid)
-      guestDrafts.set(pid, { picks: [], ready: false })
-    } else {
-      deps.cancelParticipantRemoval(pid)
-    }
-
-    activeGuestStableIds.add(stableId)
-
     const suffix = deps.getSessionSuffix()
     if (!suffix) return
 
     const welcomeRef = deps.roomChild(suffix, `welcome/${stableId}`)
-    deps.setRtdb(welcomeRef, encodeWelcome(pid, resumed)).catch(() => {})
+    // Allow rejoin after host eject — clear residual kick marker before welcoming.
+    deps.clearGuestKick(stableId)
 
-    const payload = deps.buildPublicPayload()
-    if (deps.getNextSeq() < 1) deps.setNextSeq(1)
-    deps.setRtdb(deps.roomChild(suffix, 'state'), encodeState(payload, deps.getNextSeq())).catch(() => {})
-
-    if (typeof document !== 'undefined') {
-      deps.setRtdb(
-        deps.roomChild(suffix, 'hostVisible'),
-        encodeHostVisibility(document.visibilityState === 'visible'),
-      ).catch(() => {})
+    if (existingPid) {
+      deps.cancelParticipantRemoval(existingPid)
+      activeGuestStableIds.add(stableId)
+      deps.setRtdb(welcomeRef, encodeWelcome(existingPid, true)).catch(() => {})
+      publishHostVisible(suffix)
+      await deps.hostBroadcastStatePersist()
+      return
     }
 
-    if (resumed) deps.hostBroadcastState()
+    const name = normalizeParticipantName(participantName)
+    if (!name) return
+    if (isParticipantNameTaken(name, seatsForNameCheck())) {
+      deps.setRtdb(welcomeRef, encodeNameRejected('taken')).catch(() => {})
+      return
+    }
+
+    const pid = generateAnonymousVoterId()
+    stableIdToParticipant.set(stableId, pid)
+    guestDrafts.set(pid, createGuestDraft({ name, quorumRequired: true }))
+    activeGuestStableIds.add(stableId)
+
+    deps.setRtdb(welcomeRef, encodeWelcome(pid, false)).catch(() => {})
+    publishHostVisible(suffix)
+    await deps.hostBroadcastStatePersist()
   }
 
   /**
@@ -126,7 +156,7 @@ export function createHostInboxWire(deps) {
     const hello = parseHello(raw)
     if (hello) {
       if (hello.stableId !== stableId) return
-      onGuestHello(stableId)
+      void onGuestHello(stableId, hello.participantName)
       return
     }
 

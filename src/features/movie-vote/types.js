@@ -52,10 +52,23 @@
  */
 
 /**
+ * Host-side in-memory guest seat during a session (wire map value).
+ *
+ * @typedef {object} MovieVoteGuestDraft
+ * @property {MoviePick[]} picks
+ * @property {boolean} ready
+ * @property {string} name
+ * @property {boolean} quorumRequired
+ */
+
+/**
  * @typedef {object} MovieVoteParticipantSummary
  * @property {string} id
+ * @property {string} name
+ * @property {boolean} quorumRequired
  * @property {boolean} ready
  * @property {number} pickCount
+ * @property {boolean} [online]
  */
 
 /**
