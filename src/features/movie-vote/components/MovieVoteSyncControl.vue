@@ -106,86 +106,14 @@
                 @click="onLeave"
               />
 
-              <div
+              <MovieVoteQuorumControls
                 v-if="showParticipantStatusList"
-                class="column mv-sync-menu__quorum-block"
-                data-testid="mv-quorum-controls"
-              >
-                <div class="row items-center no-wrap">
-                  <div class="text-subtitle2 col">Quorum</div>
-                  <q-btn
-                    flat
-                    round
-                    dense
-                    icon="help_outline"
-                    color="grey-6"
-                    size="sm"
-                    data-testid="mv-quorum-help"
-                    aria-label="About quorum controls"
-                    @click.stop="quorumHelpOpen = true"
-                  />
-                </div>
-                <q-list bordered class="rounded-borders mv-sync-menu__quorum-list">
-                  <q-item
-                    v-for="row in quorumRows"
-                    :key="row.id"
-                    dense
-                    data-testid="mv-quorum-row"
-                    :data-progress-key="row.progress?.key"
-                  >
-                    <q-item-section avatar>
-                      <q-icon
-                        v-if="row.progress"
-                        :name="row.progress.icon"
-                        :color="row.progress.color"
-                        size="sm"
-                        data-testid="mv-progress-status"
-                      />
-                    </q-item-section>
-                    <q-item-section>
-                      <q-item-label class="ellipsis">{{ row.name || '—' }}</q-item-label>
-                    </q-item-section>
-                    <q-item-section v-if="suggestQuorumEditable" side class="mv-sync-menu__quorum-side">
-                      <div class="row items-center no-wrap q-gutter-x-xs">
-                        <div class="mv-sync-menu__quorum-remove-slot">
-                          <q-btn
-                            v-if="!row.isHost"
-                            flat
-                            round
-                            dense
-                            icon="delete"
-                            color="negative"
-                            size="md"
-                            data-testid="mv-quorum-remove"
-                            aria-label="Remove participant"
-                            @click.stop="confirmRemove(row)"
-                          >
-                            <q-tooltip>Remove from room</q-tooltip>
-                          </q-btn>
-                        </div>
-                        <q-toggle
-                          dense
-                          :model-value="row.quorumRequired"
-                          data-testid="mv-quorum-toggle"
-                          @update:model-value="(v) => onToggleQuorum(row.id, v)"
-                        />
-                      </div>
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-                <q-btn
-                  v-if="suggestQuorumEditable"
-                  outline
-                  no-caps
-                  color="grey-7"
-                  class="full-width mv-sync-menu__action-btn"
-                  padding="12px 16px"
-                  label="Clear guests"
-                  data-testid="mv-clear-guests"
-                  :disable="!hasGuests"
-                  @click="confirmClearGuests"
-                />
-              </div>
+                :rows="quorumRows"
+                :editable="suggestQuorumEditable"
+                @toggle-quorum="onToggleQuorum"
+                @remove-guest="removeGuestParticipant"
+                @clear-guests="clearGuestParticipants"
+              />
             </div>
           </template>
 
@@ -273,8 +201,6 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-
-    <MovieVoteQuorumHelpDialog v-model="quorumHelpOpen" />
   </div>
 </template>
 
@@ -283,11 +209,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import { useMovieVoteP2P } from '../composables/useMovieVoteP2P.js'
-import { HOST_PARTICIPANT_ID } from '../core.js'
+import { buildQuorumRows } from '../buildQuorumRows.js'
 import { buildMovieVoteRoomShareUrl, normalizeRoomSuffixInput } from '../p2p/roomId.js'
 import { normalizeParticipantName } from '../participantName.js'
-import { participantProgressStatus } from '../participantProgressStatus.js'
-import MovieVoteQuorumHelpDialog from './MovieVoteQuorumHelpDialog.vue'
+import MovieVoteQuorumControls from './MovieVoteQuorumControls.vue'
 import { useMovieVoteStore } from '../../../stores/movieVote.js'
 
 const $q = useQuasar()
@@ -317,42 +242,22 @@ const hostOpen = ref(false)
 const joinOpen = ref(false)
 const joinCodeInput = ref('')
 const nameInput = ref('')
-const quorumHelpOpen = ref(false)
 
 const isBusy = computed(() => phase.value === 'connecting' || phase.value === 'reconnecting')
 const suggestQuorumEditable = computed(() => collabPhase.value === 'suggest')
 const showParticipantStatusList = computed(
   () => collabPhase.value === 'suggest' || collabPhase.value === 'voting',
 )
-const hasGuests = computed(() => participants.value.some((p) => p.id !== HOST_PARTICIPANT_ID))
 
-const quorumRows = computed(() => {
-  const collab = collabPhase.value
-  const ballotLen = ballotOrderIds.value?.length ?? 0
-  const votes = votesByParticipant.value ?? {}
-  const voters = voterIds.value ?? []
-  const voterSet = new Set(voters)
-  return participants.value.map((p) => {
-    const quorumRequired = p.quorumRequired !== false
-    const countsAsVoter =
-      collab === 'voting' && voters.length > 0 ? voterSet.has(p.id) : quorumRequired
-    const hasVoted =
-      Array.isArray(votes[p.id]) && votes[p.id].length === ballotLen && ballotLen > 0
-    return {
-      id: p.id,
-      name: p.name,
-      quorumRequired,
-      isHost: p.id === HOST_PARTICIPANT_ID,
-      progress: participantProgressStatus({
-        phase: collab,
-        pickCount: p.pickCount,
-        ready: p.ready,
-        quorumRequired: countsAsVoter,
-        hasVoted,
-      }),
-    }
-  })
-})
+const quorumRows = computed(() =>
+  buildQuorumRows({
+    phase: collabPhase.value,
+    participants: participants.value,
+    voterIds: voterIds.value,
+    votesByParticipant: votesByParticipant.value,
+    ballotOrderIds: ballotOrderIds.value,
+  }),
+)
 
 const syncIcon = computed(() => {
   if (phase.value === 'guest_connected') return 'check_circle'
@@ -469,31 +374,6 @@ function onToggleQuorum(participantId, required) {
   setParticipantQuorumRequired(participantId, required)
 }
 
-/**
- * @param {{ id: string, name: string }} row
- */
-function confirmRemove(row) {
-  $q.dialog({
-    title: 'Remove participant?',
-    message: `Remove ${row.name || 'this guest'} from the room?`,
-    cancel: true,
-    persistent: true,
-  }).onOk(() => {
-    removeGuestParticipant(row.id)
-  })
-}
-
-function confirmClearGuests() {
-  $q.dialog({
-    title: 'Clear guests?',
-    message: 'Remove every guest from the room? You stay as host.',
-    cancel: true,
-    persistent: true,
-  }).onOk(() => {
-    clearGuestParticipants()
-  })
-}
-
 function copyCode() {
   if (!suffix.value) return
   navigator.clipboard?.writeText(suffix.value).then(() => {
@@ -571,26 +451,6 @@ function onLeave() {
   white-space: nowrap;
   min-width: 0;
   overflow-x: clip;
-}
-
-.mv-sync-menu-shell .mv-sync-menu__quorum-block {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.mv-sync-menu-shell .mv-sync-menu__quorum-side {
-  flex-shrink: 0;
-  padding-left: 8px !important;
-}
-
-.mv-sync-menu-shell .mv-sync-menu__quorum-remove-slot {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 .mv-dialog-card {

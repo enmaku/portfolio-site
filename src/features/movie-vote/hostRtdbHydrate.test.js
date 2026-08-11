@@ -54,7 +54,7 @@ test('seedGuestDraftsFromParticipants restores name and quorum after host hydrat
   )
   assert.equal(guestDrafts.get('g1')?.name, 'Brian')
   assert.equal(guestDrafts.get('g1')?.quorumRequired, false)
-  assert.equal(guestDrafts.get('g1')?.ready, true)
+  assert.equal(guestDrafts.get('g1')?.ready, false)
   assert.equal(guestDrafts.get('g1')?.picks.length, 1)
   assert.equal(guestDrafts.get('g2')?.name, 'Sam')
   assert.equal(guestDrafts.get('g2')?.quorumRequired, true)

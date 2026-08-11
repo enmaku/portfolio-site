@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildMovieVotePublicPayload, resetGuestDraftsForSuggestRound } from './publicPayload.js'
+import { resetGuestDraftsForSuggestRound } from './guestDraft.js'
+import { buildMovieVotePublicPayload } from './publicPayload.js'
 import { DEFAULT_VOTING_METHOD } from './votingMethod.js'
 
 test('public payload includes voting method from room store', () => {

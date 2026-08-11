@@ -3,6 +3,7 @@
  */
 
 import { HOST_PARTICIPANT_ID, uniqueMoviesInPicks } from './core.js'
+import { isQuorumRequired } from './guestDraft.js'
 import { normalizeParticipantName } from './participantName.js'
 import { normalizeVotingMethod } from './votingMethod.js'
 
@@ -11,23 +12,6 @@ import { normalizeVotingMethod } from './votingMethod.js'
  */
 function distinctSuggestedMovieCountFromPicks(picks) {
   return uniqueMoviesInPicks(picks)
-}
-
-/**
- * Start-over / return to nominations: drop ready flags and guest movie picks.
- * Seat names and quorum requirement stay.
- *
- * @param {Map<string, { picks: import('./types.js').MoviePick[], ready: boolean, name?: string, quorumRequired?: boolean }>} guestDrafts
- */
-export function resetGuestDraftsForSuggestRound(guestDrafts) {
-  for (const [pid, g] of guestDrafts) {
-    guestDrafts.set(pid, {
-      picks: [],
-      ready: false,
-      name: typeof g.name === 'string' ? g.name : '',
-      quorumRequired: g.quorumRequired !== false,
-    })
-  }
 }
 
 /**
@@ -45,7 +29,7 @@ export function resetGuestDraftsForSuggestRound(guestDrafts) {
  *   electionOutcome: import('./electionOutcomeTypes.js').ElectionOutcome | null,
  *   votingMethod: unknown,
  * }} store
- * @param {Map<string, { picks: import('./types.js').MoviePick[], ready: boolean, name?: string, quorumRequired?: boolean }>} guestDrafts
+ * @param {Map<string, import('./types.js').MovieVoteGuestDraft>} guestDrafts
  * @returns {import('./types.js').MovieVotePublicPayload}
  */
 export function buildMovieVotePublicPayload(store, guestDrafts) {
@@ -63,7 +47,7 @@ export function buildMovieVotePublicPayload(store, guestDrafts) {
   for (const [id, g] of guestDrafts) {
     const name = normalizeParticipantName(g.name ?? '')
     if (!name) continue
-    const quorumRequired = g.quorumRequired !== false
+    const quorumRequired = isQuorumRequired(g)
     participants.push({
       id,
       name,

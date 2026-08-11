@@ -1,5 +1,6 @@
 import { DEFAULT_VOTING_METHOD } from './votingMethod.js'
 import { HOST_PARTICIPANT_ID } from './core.js'
+import { createGuestDraft, isQuorumRequired } from './guestDraft.js'
 import { normalizeParticipantName } from './participantName.js'
 
 /**
@@ -66,7 +67,7 @@ export function planGuestHydrateFromRtdb(welcomeEntries, participants) {
  * after host refresh (welcome hydrate alone leaves empty names).
  * When `allowIds` is set, only those participant ids are seeded (welcome∩state).
  *
- * @param {Map<string, { picks: import('./types.js').MoviePick[], ready: boolean, name?: string, quorumRequired?: boolean }>} guestDrafts
+ * @param {Map<string, import('./types.js').MovieVoteGuestDraft>} guestDrafts
  * @param {import('./types.js').MovieVoteParticipantSummary[] | undefined} participants
  * @param {Set<string>} [allowIds]
  */
@@ -76,12 +77,15 @@ export function seedGuestDraftsFromParticipants(guestDrafts, participants, allow
     if (!p || typeof p.id !== 'string' || p.id === HOST_PARTICIPANT_ID) continue
     if (allowIds && !allowIds.has(p.id)) continue
     const prev = guestDrafts.get(p.id)
-    guestDrafts.set(p.id, {
-      picks: prev?.picks ?? [],
-      ready: Boolean(p.ready),
-      name: typeof p.name === 'string' ? p.name : (prev?.name ?? ''),
-      quorumRequired: p.quorumRequired !== false,
-    })
+    guestDrafts.set(
+      p.id,
+      createGuestDraft({
+        picks: prev?.picks ?? [],
+        ready: Boolean(p.ready),
+        name: typeof p.name === 'string' ? p.name : (prev?.name ?? ''),
+        quorumRequired: p.quorumRequired !== false,
+      }),
+    )
   }
   if (allowIds) {
     for (const id of [...guestDrafts.keys()]) {
@@ -93,7 +97,7 @@ export function seedGuestDraftsFromParticipants(guestDrafts, participants, allow
 /**
  * Empty-name guest seats are an error state — drop them and their stableId mappings.
  *
- * @param {Map<string, { picks: import('./types.js').MoviePick[], ready: boolean, name?: string, quorumRequired?: boolean }>} guestDrafts
+ * @param {Map<string, import('./types.js').MovieVoteGuestDraft>} guestDrafts
  * @param {Map<string, string>} [stableIdToParticipant]
  */
 export function pruneNamelessGuestDrafts(guestDrafts, stableIdToParticipant) {
@@ -117,6 +121,6 @@ export function hostSeatMetaFromParticipants(participants) {
   if (!host) return null
   return {
     name: typeof host.name === 'string' ? host.name : '',
-    quorumRequired: host.quorumRequired !== false,
+    quorumRequired: isQuorumRequired(host),
   }
 }

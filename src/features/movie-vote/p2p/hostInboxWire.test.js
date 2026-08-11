@@ -37,6 +37,7 @@ test('handleHostInboxMessage applies guest draft through injected callback', () 
   })
   const wire = createHostInboxWire(deps)
   deps.wireState.stableIdToParticipant.set('stable-1', 'guest-1')
+  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: false, name: 'Sam', quorumRequired: true })
 
   wire.handleHostInboxMessage(
     'stable-1',
@@ -47,6 +48,7 @@ test('handleHostInboxMessage applies guest draft through injected callback', () 
   assert.equal(applied[0]?.participantId, 'guest-1')
   assert.equal(applied[0]?.entry.ready, true)
   assert.equal(applied[0]?.entry.picks[0]?.title, 'Film')
+  assert.deepEqual(Object.keys(applied[0].entry).sort(), ['picks', 'ready'])
 })
 
 test('handleHostInboxMessage broadcasts after accepted guest vote', () => {

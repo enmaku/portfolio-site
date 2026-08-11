@@ -9,6 +9,7 @@ import {
 } from './protocol.js'
 import { generateAnonymousVoterId } from './roomId.js'
 import { normalizeCustomTitle, HOST_PARTICIPANT_ID } from '../core.js'
+import { createGuestDraft } from '../guestDraft.js'
 import {
   isParticipantNameTaken,
   normalizeParticipantName,
@@ -56,7 +57,7 @@ function normalizePicks(picks) {
  * @param {() => void} deps.hostBroadcastState
  * @param {() => void} deps.tryFinishVoting
  * @param {(pid: string) => void} deps.cancelParticipantRemoval
- * @param {(participantId: string, entry: { picks: import('../types.js').MoviePick[], ready: boolean }) => void} deps.applyGuestDraft
+ * @param {(participantId: string, entry: { picks: import('../types.js').MoviePick[], ready: boolean }) => void} deps.applyGuestDraft Inbox may author picks/ready only
  * @param {(participantId: string, ranking: string[]) => boolean} deps.applyGuestVote
  * @param {() => string} deps.getHostParticipantName
  * @param {(stableId: string) => void} deps.clearGuestKick
@@ -137,7 +138,7 @@ export function createHostInboxWire(deps) {
 
     const pid = generateAnonymousVoterId()
     stableIdToParticipant.set(stableId, pid)
-    guestDrafts.set(pid, { picks: [], ready: false, name, quorumRequired: true })
+    guestDrafts.set(pid, createGuestDraft({ name, quorumRequired: true }))
     activeGuestStableIds.add(stableId)
 
     deps.setRtdb(welcomeRef, encodeWelcome(pid, false)).catch(() => {})
