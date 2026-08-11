@@ -106,14 +106,7 @@
                 @click="onLeave"
               />
 
-              <MovieVoteQuorumControls
-                v-if="showParticipantStatusList"
-                :rows="quorumRows"
-                :editable="suggestQuorumEditable"
-                @toggle-quorum="onToggleQuorum"
-                @remove-guest="removeGuestParticipant"
-                @clear-guests="clearGuestParticipants"
-              />
+              <MovieVoteHostSessionPanel />
             </div>
           </template>
 
@@ -206,25 +199,14 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
 import { useQuasar } from 'quasar'
 import { useMovieVoteP2P } from '../composables/useMovieVoteP2P.js'
-import { buildQuorumRows } from '../buildQuorumRows.js'
 import { buildMovieVoteRoomShareUrl, normalizeRoomSuffixInput } from '../p2p/roomId.js'
 import { normalizeParticipantName } from '../participantName.js'
-import MovieVoteQuorumControls from './MovieVoteQuorumControls.vue'
-import { useMovieVoteStore } from '../../../stores/movieVote.js'
+import MovieVoteHostSessionPanel from './MovieVoteHostSessionPanel.vue'
 
 const $q = useQuasar()
 const menuRef = ref(/** @type {{ hide?: () => void } | null} */ (null))
-const store = useMovieVoteStore()
-const {
-  participants,
-  phase: collabPhase,
-  voterIds,
-  votesByParticipant,
-  ballotOrderIds,
-} = storeToRefs(store)
 const {
   phase,
   suffix,
@@ -233,9 +215,6 @@ const {
   joinRoom,
   leaveSession,
   resumeMovieVoteSessionIfNeeded,
-  setParticipantQuorumRequired,
-  removeGuestParticipant,
-  clearGuestParticipants,
 } = useMovieVoteP2P()
 
 const hostOpen = ref(false)
@@ -244,20 +223,6 @@ const joinCodeInput = ref('')
 const nameInput = ref('')
 
 const isBusy = computed(() => phase.value === 'connecting' || phase.value === 'reconnecting')
-const suggestQuorumEditable = computed(() => collabPhase.value === 'suggest')
-const showParticipantStatusList = computed(
-  () => collabPhase.value === 'suggest' || collabPhase.value === 'voting',
-)
-
-const quorumRows = computed(() =>
-  buildQuorumRows({
-    phase: collabPhase.value,
-    participants: participants.value,
-    voterIds: voterIds.value,
-    votesByParticipant: votesByParticipant.value,
-    ballotOrderIds: ballotOrderIds.value,
-  }),
-)
 
 const syncIcon = computed(() => {
   if (phase.value === 'guest_connected') return 'check_circle'
@@ -364,14 +329,6 @@ async function confirmJoin() {
   } catch {
     void 0
   }
-}
-
-/**
- * @param {string} participantId
- * @param {boolean} required
- */
-function onToggleQuorum(participantId, required) {
-  setParticipantQuorumRequired(participantId, required)
 }
 
 function copyCode() {

@@ -1,5 +1,6 @@
 /**
- * Host quorum-list progress cue for one seat (suggest / voting). Not connection status.
+ * Host quorum-list progress cue key for one seat (suggest / voting). Not connection status.
+ * Icon/color mapping lives in the Vue layer.
  *
  * @param {{
  *   phase: import('./types.js').MovieVotePhase,
@@ -8,7 +9,7 @@
  *   quorumRequired?: boolean,
  *   hasVoted?: boolean,
  * }} args
- * @returns {{ icon: string, color: string, key: string } | null}
+ * @returns {{ key: string } | null}
  */
 export function participantProgressStatus(args) {
   const phase = args?.phase
@@ -19,19 +20,19 @@ export function participantProgressStatus(args) {
 
   if (phase === 'voting') {
     if (!quorumRequired) {
-      return { icon: 'visibility', color: 'grey-5', key: 'watching' }
+      return { key: 'watching' }
     }
     if (args.hasVoted) {
-      return { icon: 'ballot', color: 'positive', key: 'voted' }
+      return { key: 'voted' }
     }
-    return { icon: 'ballot', color: 'grey-5', key: 'not_voted' }
+    return { key: 'not_voted' }
   }
 
   if (quorumRequired && args.ready) {
-    return { icon: 'how_to_vote', color: 'positive', key: 'ready' }
+    return { key: 'ready' }
   }
   if (pickCount > 0) {
-    return { icon: 'movie_edit', color: 'positive', key: 'has_picks' }
+    return { key: 'has_picks' }
   }
-  return { icon: 'movie_edit', color: 'grey-5', key: 'no_picks' }
+  return { key: 'no_picks' }
 }

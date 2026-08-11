@@ -66,15 +66,15 @@ export function buildMovieVotePublicPayload(store, guestDrafts) {
   /** @type {{ submitted: number, total: number } | null} */
   let voteProgress = store.voteProgress ? { ...store.voteProgress } : null
   if (store.phase === 'voting') {
-    const requiredIds = participants.filter((p) => p.quorumRequired).map((p) => p.id)
+    const voterIds = Array.isArray(store.voterIds) ? store.voterIds : []
     const votes = store.votesByParticipant ?? {}
     const ballotLen = store.ballotOrderIds?.length ?? 0
     let submitted = 0
-    for (const id of requiredIds) {
+    for (const id of voterIds) {
       const r = votes[id]
       if (r && r.length === ballotLen) submitted += 1
     }
-    voteProgress = { submitted, total: requiredIds.length }
+    voteProgress = { submitted, total: voterIds.length }
   }
 
   return {

@@ -106,12 +106,9 @@ import {
   isValidRoomSuffix,
   normalizeRoomSuffixInput,
 } from '../../features/movie-vote/p2p/roomId.js'
-import { joinRoom } from '../../features/movie-vote/p2p/session.js'
 import { useProjectShellBrowserFullscreen } from '../../layouts/projects/composables/useProjectShellBrowserFullscreen.js'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
-import { useMovieVoteRoomSessionStore } from '../../stores/movieVoteRoomSession.js'
 import { HOST_PARTICIPANT_ID } from '../../features/movie-vote/core.js'
-import { normalizeParticipantName } from '../../features/movie-vote/participantName.js'
 
 const $q = useQuasar()
 const route = useRoute()
@@ -128,7 +125,7 @@ const {
   participants,
 } = storeToRefs(store)
 
-const { isGuest, isInSession } = useMovieVoteP2P()
+const { isGuest, isInSession, promptAndJoinRoom } = useMovieVoteP2P()
 
 useProjectShellBrowserFullscreen({
   enabled: fullscreenEnabled,
@@ -211,32 +208,7 @@ onMounted(() => {
     return
   }
 
-  let stickyName = ''
-  try {
-    stickyName = normalizeParticipantName(useMovieVoteRoomSessionStore().participantName || '')
-  } catch {
-    stickyName = ''
-  }
-
-  if (stickyName) {
-    void joinRoom(code, { participantName: stickyName }).catch(() => {})
-    return
-  }
-
-  $q.dialog({
-    title: 'Join room',
-    message: 'Enter your name to join.',
-    prompt: {
-      model: '',
-      type: 'text',
-    },
-    cancel: true,
-    persistent: true,
-  }).onOk((name) => {
-    const participantName = normalizeParticipantName(name)
-    if (!participantName) return
-    void joinRoom(code, { participantName }).catch(() => {})
-  })
+  void promptAndJoinRoom(code, { promptDialog: (cfg) => $q.dialog(cfg) }).catch(() => {})
 })
 </script>
 

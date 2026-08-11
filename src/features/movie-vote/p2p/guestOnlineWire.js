@@ -1,4 +1,4 @@
-import { isQuorumRequired } from '../guestDraft.js'
+import { retainsSeatWhenOffline } from '../guestDraft.js'
 
 const GUEST_REMOVAL_GRACE_MS = 45_000
 
@@ -51,7 +51,7 @@ export function createGuestOnlineWire(deps) {
   function scheduleParticipantRemoval(pid) {
     if (!guestDrafts.has(pid)) return
     const draft = guestDrafts.get(pid)
-    if (draft && isQuorumRequired(draft)) return
+    if (draft && retainsSeatWhenOffline(draft)) return
     const stableId = [...stableIdToParticipant.entries()].find(([, p]) => p === pid)?.[0]
     if (stableId && activeGuestStableIds.has(stableId)) return
     const existing = pendingRemovalTimers.get(pid)
@@ -60,7 +60,7 @@ export function createGuestOnlineWire(deps) {
       pendingRemovalTimers.delete(pid)
       if (stableId && activeGuestStableIds.has(stableId)) return
       const latest = guestDrafts.get(pid)
-      if (latest && isQuorumRequired(latest)) return
+      if (latest && retainsSeatWhenOffline(latest)) return
       guestDrafts.delete(pid)
       if (stableId) {
         stableIdToParticipant.delete(stableId)

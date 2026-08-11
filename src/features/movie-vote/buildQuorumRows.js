@@ -11,7 +11,7 @@ import { participantProgressStatus } from './participantProgressStatus.js'
  * @property {string} name
  * @property {boolean} quorumRequired
  * @property {boolean} isHost
- * @property {{ icon: string, color: string, key: string } | null} progress
+ * @property {{ key: string } | null} progress
  */
 
 /**

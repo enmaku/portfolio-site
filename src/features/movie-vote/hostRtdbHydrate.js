@@ -124,3 +124,93 @@ export function hostSeatMetaFromParticipants(participants) {
     quorumRequired: isQuorumRequired(host),
   }
 }
+
+/**
+ * Restore host wire maps + store seat meta from RTDB after reconnect / claim.
+ *
+ * @param {string} suffix
+ * @param {{
+ *   get: (ref: import('firebase/database').DatabaseReference) => Promise<{ val: () => unknown }>,
+ *   remove: (ref: import('firebase/database').DatabaseReference) => Promise<unknown>,
+ *   roomChild: (suffix: string, path: string) => import('firebase/database').DatabaseReference,
+ *   parseState: (raw: unknown) => { seq: number, payload: import('./types.js').MovieVotePublicPayload } | null,
+ *   parseWelcome: (raw: unknown) => { participantId: string } | null,
+ *   wireState: {
+ *     stableIdToParticipant: Map<string, string>,
+ *     activeGuestStableIds: Set<string>,
+ *     guestDrafts: Map<string, import('./types.js').MovieVoteGuestDraft>,
+ *   },
+ *   applyPublicPayload: (p: import('./types.js').MovieVotePublicPayload) => void,
+ *   getVotingMethod: () => string,
+ *   applyHostSeatMeta: (meta: { name: string, quorumRequired: boolean }) => void,
+ * }} deps
+ * @returns {Promise<{ nextSeq: number | null }>}
+ */
+export async function hydrateHostWireFromRtdb(suffix, deps) {
+  const {
+    stableIdToParticipant,
+    activeGuestStableIds,
+    guestDrafts,
+  } = deps.wireState
+
+  const stateSnap = await deps.get(deps.roomChild(suffix, 'state'))
+  const parsed = deps.parseState(stateSnap.val())
+  /** @type {number | null} */
+  let nextSeq = null
+  if (parsed) {
+    nextSeq = parsed.seq
+  }
+  try {
+    applyHostStoreFromRtdbHydrate(parsed, {
+      applyPublicPayload: deps.applyPublicPayload,
+      votingMethod: deps.getVotingMethod(),
+    })
+    const hostMeta = hostSeatMetaFromParticipants(parsed?.payload?.participants)
+    if (hostMeta) deps.applyHostSeatMeta(hostMeta)
+  } catch {
+    void 0
+  }
+
+  const welcomeSnap = await deps.get(deps.roomChild(suffix, 'welcome'))
+  const welcomes = welcomeSnap.val()
+  /** @type {Array<{ stableId: string, participantId: string }>} */
+  const welcomeEntries = []
+  if (welcomes && typeof welcomes === 'object') {
+    for (const [stableId, raw] of Object.entries(welcomes)) {
+      if (typeof stableId !== 'string') continue
+      const welcome = deps.parseWelcome(raw)
+      if (!welcome) continue
+      welcomeEntries.push({ stableId, participantId: welcome.participantId })
+    }
+  }
+
+  const planned = planGuestHydrateFromRtdb(welcomeEntries, parsed?.payload?.participants)
+  for (const staleStableId of planned.staleWelcomeStableIds) {
+    deps.remove(deps.roomChild(suffix, `welcome/${staleStableId}`)).catch(() => {})
+  }
+  for (const { stableId, participantId } of planned.keep) {
+    stableIdToParticipant.set(stableId, participantId)
+    if (!guestDrafts.has(participantId)) {
+      guestDrafts.set(participantId, createGuestDraft())
+    }
+  }
+
+  seedGuestDraftsFromParticipants(
+    guestDrafts,
+    parsed?.payload?.participants,
+    planned.keptParticipantIds,
+  )
+  pruneNamelessGuestDrafts(guestDrafts, stableIdToParticipant)
+
+  const onlineSnap = await deps.get(deps.roomChild(suffix, 'guestOnline'))
+  const online = onlineSnap.val()
+  if (online && typeof online === 'object') {
+    for (const [stableId, isOnline] of Object.entries(online)) {
+      if (isOnline === true && stableIdToParticipant.has(stableId)) {
+        activeGuestStableIds.add(stableId)
+      }
+    }
+  }
+
+  return { nextSeq }
+}

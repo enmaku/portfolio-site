@@ -30,6 +30,17 @@ export function isQuorumRequired(draft) {
 }
 
 /**
+ * Seat-retention policy for disconnect grace. Required seats stick offline;
+ * optional seats may be auto-dropped. Distinct from presence timers.
+ *
+ * @param {import('./types.js').MovieVoteGuestDraft | null | undefined} draft
+ * @returns {boolean}
+ */
+export function retainsSeatWhenOffline(draft) {
+  return isQuorumRequired(draft)
+}
+
+/**
  * @param {import('./types.js').MovieVoteGuestDraft} draft
  * @param {boolean} required
  * @returns {import('./types.js').MovieVoteGuestDraft}

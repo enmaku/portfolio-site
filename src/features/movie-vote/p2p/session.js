@@ -28,19 +28,13 @@ import {
 } from '../core.js'
 import {
   applyGuestInboxUpdate,
-  createGuestDraft,
   isQuorumRequired,
   resetGuestDraftsForSuggestRound,
 } from '../guestDraft.js'
 import { buildMovieVotePublicPayload } from '../publicPayload.js'
+import { withParticipantPresence } from '../participantPresence.js'
 import { normalizeParticipantName } from '../participantName.js'
-import {
-  applyHostStoreFromRtdbHydrate,
-  hostSeatMetaFromParticipants,
-  planGuestHydrateFromRtdb,
-  pruneNamelessGuestDrafts,
-  seedGuestDraftsFromParticipants,
-} from '../hostRtdbHydrate.js'
+import { hydrateHostWireFromRtdb, pruneNamelessGuestDrafts } from '../hostRtdbHydrate.js'
 import { runElection } from '../election.js'
 import {
   runGuestStarReconnectLoop,
@@ -54,7 +48,6 @@ import {
   encodeState,
   encodeVote,
   parseHostVisibility,
-  parseNameRejected,
   parseState,
   parseWelcome,
 } from './protocol.js'
@@ -66,6 +59,7 @@ import {
 } from './roomId.js'
 import { createGuestInboundWire } from './guestInboundWire.js'
 import { createGuestOnlineWire } from './guestOnlineWire.js'
+import { createGuestWelcomeKickWire } from './guestWelcomeKickWire.js'
 import { createHostInboxWire } from './hostInboxWire.js'
 import { createHostSeatAdmin } from './hostSeatAdmin.js'
 import { createMovieVoteWireState } from './movieVoteWireState.js'
@@ -244,11 +238,9 @@ async function hostBroadcastStatePersist() {
   if (!core.isHostRole() || !sessionSuffix.value) return
   hostStateBroadcastProbe += 1
   pruneNamelessGuestDrafts(guestDrafts, stableIdToParticipant)
-  const payload = buildPublicPayload()
-  payload.participants = payload.participants.map((p) => {
-    if (p.id === HOST_PARTICIPANT_ID) return { ...p, online: true }
-    const stableId = [...stableIdToParticipant.entries()].find(([, pid]) => pid === p.id)?.[0]
-    return { ...p, online: Boolean(stableId && activeGuestStableIds.has(stableId)) }
+  const payload = withParticipantPresence(buildPublicPayload(), {
+    stableIdToParticipant,
+    activeGuestStableIds,
   })
   try {
     const st = useMovieVoteStore()
@@ -389,12 +381,8 @@ const hostInboxWire = createHostInboxWire({
   roomChild,
   setRtdb,
   getSessionSuffix: () => sessionSuffix.value,
-  getNextSeq: () => nextSeq,
-  setNextSeq: (n) => {
-    nextSeq = n
-  },
-  buildPublicPayload,
   hostBroadcastState,
+  hostBroadcastStatePersist,
   tryFinishVoting,
   cancelParticipantRemoval: guestOnlineWire.cancelParticipantRemoval,
   applyGuestDraft: applyGuestDraftFromInbox,
@@ -420,6 +408,16 @@ const guestInboundWire = createGuestInboundWire({
 })
 
 export const handleGuestInbound = guestInboundWire.handleGuestInbound
+
+const guestWelcomeKickWire = createGuestWelcomeKickWire({
+  roomChild,
+  onValue,
+  trackFeatureUnsub,
+  handleGuestWelcome: (raw) => guestInboundWire.handleGuestWelcome(raw),
+  notifyP2P,
+  clearRoomPersistence,
+  resetLocalStateAfterRoomExit: () => resetLocalStateAfterRoomExit(),
+})
 
 core = createStarRoomSession({
   guestPresence: 'strict',
@@ -545,41 +543,6 @@ export function bindMovieVoteP2PHandlers(h) {
 
 /**
  * @param {string} suffix
- * @param {string} stableId
- */
-function wireGuestWelcome(suffix, stableId) {
-  trackFeatureUnsub(
-    onValue(roomChild(suffix, `welcome/${stableId}`), (snap) => {
-      const raw = snap.val()
-      if (raw == null) return
-      if (parseNameRejected(raw)) {
-        notifyP2P('That name is already taken in this room.', 'negative')
-        clearRoomPersistence()
-        resetLocalStateAfterRoomExit()
-        return
-      }
-      guestInboundWire.handleGuestWelcome(raw)
-    }),
-  )
-  let kickListenerPrimed = false
-  trackFeatureUnsub(
-    onValue(roomChild(suffix, `kicked/${stableId}`), (snap) => {
-      const kicked = snap.val() === true
-      // Residual true from a prior eject must not abort a deliberate rejoin.
-      if (!kickListenerPrimed) {
-        kickListenerPrimed = true
-        if (kicked) return
-      }
-      if (!kicked) return
-      notifyP2P('You were removed from the room.', 'info')
-      clearRoomPersistence()
-      resetLocalStateAfterRoomExit()
-    }),
-  )
-}
-
-/**
- * @param {string} suffix
  * @param {number} gen
  */
 function guestReconnectLoop(suffix, gen) {
@@ -623,66 +586,24 @@ function hostReconnectLoop(suffix, gen) {
  * @param {string} suffix
  */
 async function hydrateHostFromRtdb(suffix) {
-  const stateSnap = await get(roomChild(suffix, 'state'))
-  const parsed = parseState(stateSnap.val())
-  if (parsed) {
-    nextSeq = parsed.seq
-    roomAuthoritySeq.value = parsed.seq
-  }
-  try {
-    applyHostStoreFromRtdbHydrate(parsed, {
-      applyPublicPayload: (p) => handlers.applyPublicPayload(p),
-      votingMethod: useMovieVoteStore().votingMethod,
-    })
-    const hostMeta = hostSeatMetaFromParticipants(parsed?.payload?.participants)
-    if (hostMeta) {
+  const { nextSeq: restoredSeq } = await hydrateHostWireFromRtdb(suffix, {
+    get,
+    remove,
+    roomChild,
+    parseState,
+    parseWelcome,
+    wireState,
+    applyPublicPayload: (p) => handlers.applyPublicPayload(p),
+    getVotingMethod: () => useMovieVoteStore().votingMethod,
+    applyHostSeatMeta: (hostMeta) => {
       const st = useMovieVoteStore()
       if (hostMeta.name) st.setMyParticipantName(hostMeta.name)
       st.setMyQuorumRequired(hostMeta.quorumRequired)
-    }
-  } catch {
-    void 0
-  }
-
-  const welcomeSnap = await get(roomChild(suffix, 'welcome'))
-  const welcomes = welcomeSnap.val()
-  /** @type {Array<{ stableId: string, participantId: string }>} */
-  const welcomeEntries = []
-  if (welcomes && typeof welcomes === 'object') {
-    for (const [stableId, raw] of Object.entries(welcomes)) {
-      if (typeof stableId !== 'string') continue
-      const welcome = parseWelcome(raw)
-      if (!welcome) continue
-      welcomeEntries.push({ stableId, participantId: welcome.participantId })
-    }
-  }
-
-  const planned = planGuestHydrateFromRtdb(welcomeEntries, parsed?.payload?.participants)
-  for (const staleStableId of planned.staleWelcomeStableIds) {
-    remove(roomChild(suffix, `welcome/${staleStableId}`)).catch(() => {})
-  }
-  for (const { stableId, participantId } of planned.keep) {
-    stableIdToParticipant.set(stableId, participantId)
-    if (!guestDrafts.has(participantId)) {
-      guestDrafts.set(participantId, createGuestDraft())
-    }
-  }
-
-  seedGuestDraftsFromParticipants(
-    guestDrafts,
-    parsed?.payload?.participants,
-    planned.keptParticipantIds,
-  )
-  pruneNamelessGuestDrafts(guestDrafts, stableIdToParticipant)
-
-  const onlineSnap = await get(roomChild(suffix, 'guestOnline'))
-  const online = onlineSnap.val()
-  if (online && typeof online === 'object') {
-    for (const [stableId, isOnline] of Object.entries(online)) {
-      if (isOnline === true && stableIdToParticipant.has(stableId)) {
-        activeGuestStableIds.add(stableId)
-      }
-    }
+    },
+  })
+  if (restoredSeq != null) {
+    nextSeq = restoredSeq
+    roomAuthoritySeq.value = restoredSeq
   }
 }
 
@@ -717,7 +638,7 @@ async function establishGuestSession(suffix) {
   const stableId = core.getGuestStableId()
   if (!stableId) throw new Error('No active room for that code')
   await guestOnlineWire.markGuestOnline(suffix, stableId)
-  wireGuestWelcome(suffix, stableId)
+  guestWelcomeKickWire.wireGuestWelcome(suffix, stableId)
   try {
     useMovieVoteRoomSessionStore().setGuest(suffix, useMovieVoteStore().myParticipantName)
   } catch {

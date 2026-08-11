@@ -17,6 +17,7 @@ import {
   setParticipantQuorumRequired,
   startAsHost,
 } from '../p2p/session.js'
+import { promptAndJoinRoom } from './movieVoteNameEntry.js'
 
 /**
  * Reactive multiplayer session state and actions (wraps `session.js` refs and exports).
@@ -35,6 +36,7 @@ import {
  *   setParticipantQuorumRequired: typeof setParticipantQuorumRequired,
  *   removeGuestParticipant: typeof removeGuestParticipant,
  *   clearGuestParticipants: typeof clearGuestParticipants,
+ *   promptAndJoinRoom: typeof promptAndJoinRoom,
  *   roomAuthoritySeq: typeof roomAuthoritySeq,
  * }}
  */
@@ -57,6 +59,7 @@ export function useMovieVoteP2P() {
     setParticipantQuorumRequired,
     removeGuestParticipant,
     clearGuestParticipants,
+    promptAndJoinRoom,
     roomAuthoritySeq,
   }
 }

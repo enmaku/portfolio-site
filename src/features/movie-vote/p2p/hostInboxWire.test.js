@@ -3,7 +3,7 @@
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { encodeDraft, encodeVote } from './protocol.js'
+import { encodeDraft, encodeHello, encodeVote } from './protocol.js'
 import { createMovieVoteWireState } from './movieVoteWireState.js'
 import { createHostInboxWire } from './hostInboxWire.js'
 
@@ -15,10 +15,8 @@ function baseDeps(overrides = {}) {
     roomChild: () => ({}),
     setRtdb: async () => {},
     getSessionSuffix: () => 'ROOM01',
-    getNextSeq: () => 1,
-    setNextSeq: () => {},
-    buildPublicPayload: () => ({ phase: 'suggest', movies: [], ballotOrderIds: [], voterIds: [], votesByParticipant: {}, votingMethod: 'irv' }),
     hostBroadcastState: () => {},
+    hostBroadcastStatePersist: async () => {},
     tryFinishVoting: () => {},
     cancelParticipantRemoval: () => {},
     applyGuestDraft: () => {},
@@ -111,26 +109,99 @@ test('orphan inbox draft does not mint an empty-name guest seat', () => {
   assert.equal(deps.wireState.stableIdToParticipant.size, 0)
 })
 
-test('hello without a participant name does not allocate a seat', () => {
-  const deps = baseDeps()
-  const wire = createHostInboxWire(deps)
-
-  wire.onGuestHello('stable-noname', '   ')
-
-  assert.equal(deps.wireState.guestDrafts.size, 0)
-  assert.equal(deps.wireState.stableIdToParticipant.has('stable-noname'), false)
-})
-
-test('onGuestHello clears prior kick marker so ejected guests can rejoin', () => {
-  /** @type {string[]} */
-  const cleared = []
+test('hello without a participant name does not allocate a seat', async () => {
+  let persistCount = 0
   const deps = baseDeps({
-    clearGuestKick: (stableId) => cleared.push(stableId),
+    hostBroadcastStatePersist: async () => {
+      persistCount += 1
+    },
   })
   const wire = createHostInboxWire(deps)
 
-  wire.onGuestHello('stable-rejoin', 'Brian')
+  await wire.onGuestHello('stable-noname', '   ')
+
+  assert.equal(deps.wireState.guestDrafts.size, 0)
+  assert.equal(deps.wireState.stableIdToParticipant.has('stable-noname'), false)
+  assert.equal(persistCount, 0)
+})
+
+test('onGuestHello clears prior kick marker so ejected guests can rejoin', async () => {
+  /** @type {string[]} */
+  const cleared = []
+  let persistCount = 0
+  const deps = baseDeps({
+    clearGuestKick: (stableId) => cleared.push(stableId),
+    hostBroadcastStatePersist: async () => {
+      persistCount += 1
+    },
+  })
+  const wire = createHostInboxWire(deps)
+
+  await wire.onGuestHello('stable-rejoin', 'Brian')
 
   assert.deepEqual(cleared, ['stable-rejoin'])
   assert.equal(deps.wireState.stableIdToParticipant.has('stable-rejoin'), true)
+  assert.equal(persistCount, 1)
+})
+
+test('first-join hello publishes via Persist once without encoding state inline', async () => {
+  /** @type {string[]} */
+  const paths = []
+  let persistCount = 0
+  const deps = baseDeps({
+    roomChild: (_suffix, path) => {
+      paths.push(path)
+      return { path }
+    },
+    setRtdb: async (ref) => {
+      paths.push(`set:${ref.path}`)
+    },
+    hostBroadcastStatePersist: async () => {
+      persistCount += 1
+    },
+  })
+  const wire = createHostInboxWire(deps)
+
+  await wire.onGuestHello('stable-new', 'Alex')
+
+  assert.equal(persistCount, 1)
+  assert.equal(paths.some((p) => p === 'state' || p.startsWith('set:state')), false)
+  assert.ok(paths.includes('welcome/stable-new') || paths.includes('set:welcome/stable-new'))
+})
+
+test('resume hello publishes via Persist once', async () => {
+  let persistCount = 0
+  const deps = baseDeps({
+    hostBroadcastStatePersist: async () => {
+      persistCount += 1
+    },
+  })
+  deps.wireState.stableIdToParticipant.set('stable-1', 'guest-1')
+  deps.wireState.guestDrafts.set('guest-1', {
+    picks: [],
+    ready: false,
+    name: 'Sam',
+    quorumRequired: true,
+  })
+  const wire = createHostInboxWire(deps)
+
+  await wire.onGuestHello('stable-1', 'Sam')
+
+  assert.equal(persistCount, 1)
+})
+
+test('hello message path awaits Persist for new seat', async () => {
+  let persistCount = 0
+  const deps = baseDeps({
+    hostBroadcastStatePersist: async () => {
+      persistCount += 1
+    },
+  })
+  const wire = createHostInboxWire(deps)
+
+  wire.handleHostInboxMessage('stable-msg', encodeHello('stable-msg', 'Casey'))
+  await new Promise((r) => setTimeout(r, 0))
+
+  assert.equal(persistCount, 1)
+  assert.equal(deps.wireState.stableIdToParticipant.has('stable-msg'), true)
 })

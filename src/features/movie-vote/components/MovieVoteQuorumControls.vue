@@ -25,8 +25,8 @@
         <q-item-section avatar>
           <q-icon
             v-if="row.progress"
-            :name="row.progress.icon"
-            :color="row.progress.color"
+            :name="progressIcon(row.progress.key)"
+            :color="progressColor(row.progress.key)"
             size="sm"
             data-testid="mv-progress-status"
           />
@@ -95,6 +95,30 @@ const $q = useQuasar()
 const helpOpen = ref(false)
 
 const hasGuests = computed(() => props.rows.some((r) => r.id !== HOST_PARTICIPANT_ID))
+
+/** @type {Record<string, { icon: string, color: string }>} */
+const PROGRESS_CHROME = {
+  watching: { icon: 'visibility', color: 'grey-5' },
+  voted: { icon: 'ballot', color: 'positive' },
+  not_voted: { icon: 'ballot', color: 'grey-5' },
+  ready: { icon: 'how_to_vote', color: 'positive' },
+  has_picks: { icon: 'movie_edit', color: 'positive' },
+  no_picks: { icon: 'movie_edit', color: 'grey-5' },
+}
+
+/**
+ * @param {string} key
+ */
+function progressIcon(key) {
+  return PROGRESS_CHROME[key]?.icon ?? 'help_outline'
+}
+
+/**
+ * @param {string} key
+ */
+function progressColor(key) {
+  return PROGRESS_CHROME[key]?.color ?? 'grey-5'
+}
 
 /**
  * @param {{ id: string, name: string }} row

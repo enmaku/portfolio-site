@@ -5,6 +5,7 @@ import {
   createGuestDraft,
   isQuorumRequired,
   resetGuestDraftsForSuggestRound,
+  retainsSeatWhenOffline,
   withGuestQuorum,
 } from './guestDraft.js'
 
@@ -24,6 +25,12 @@ test('createGuestDraft forces ready false when optional', () => {
 test('isQuorumRequired defaults missing to true', () => {
   assert.equal(isQuorumRequired(undefined), true)
   assert.equal(isQuorumRequired({ quorumRequired: false }), false)
+})
+
+test('retainsSeatWhenOffline matches required-seat stickiness', () => {
+  assert.equal(retainsSeatWhenOffline(undefined), true)
+  assert.equal(retainsSeatWhenOffline({ quorumRequired: true }), true)
+  assert.equal(retainsSeatWhenOffline({ quorumRequired: false }), false)
 })
 
 test('withGuestQuorum clears ready when turning optional', () => {

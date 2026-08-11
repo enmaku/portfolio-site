@@ -215,7 +215,7 @@ test('public payload omits guest drafts with empty names', () => {
   )
 })
 
-test('public payload voteProgress total counts only quorum-required seats', () => {
+test('public payload voteProgress totals follow frozen voterIds', () => {
   const payload = buildMovieVotePublicPayload(
     {
       phase: 'voting',
@@ -241,7 +241,8 @@ test('public payload voteProgress total counts only quorum-required seats', () =
       votingMethod: 'irv',
     },
     new Map([
-      ['g1', { picks: [], ready: true, name: 'Sam', quorumRequired: false }],
+      // Live draft flags must not enlarge the frozen voter set.
+      ['g1', { picks: [], ready: true, name: 'Sam', quorumRequired: true }],
       ['g2', { picks: [], ready: true, name: 'Alex', quorumRequired: true }],
     ]),
   )
