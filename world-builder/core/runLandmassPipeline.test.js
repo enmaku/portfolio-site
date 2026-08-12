@@ -30,10 +30,12 @@ const forceValidationRejectionParams = {
   },
 }
 
-test('shouldAttachLandmassStepPreview is false for intermediate steps by default', () => {
-  assert.strictEqual(shouldAttachLandmassStepPreview('physicalTerrainBaseline', DEFAULT_WORLD_GENERATION_OPTIONS), false)
-  assert.strictEqual(shouldAttachLandmassStepPreview('erosion', DEFAULT_WORLD_GENERATION_OPTIONS), false)
-  assert.strictEqual(shouldAttachLandmassStepPreview('hydrology', DEFAULT_WORLD_GENERATION_OPTIONS), false)
+test('shouldAttachLandmassStepPreview attaches baseline erosion hydrology and validation by default', () => {
+  assert.strictEqual(shouldAttachLandmassStepPreview('physicalTerrainBaseline', DEFAULT_WORLD_GENERATION_OPTIONS), true)
+  assert.strictEqual(shouldAttachLandmassStepPreview('erosion', DEFAULT_WORLD_GENERATION_OPTIONS), true)
+  assert.strictEqual(shouldAttachLandmassStepPreview('hydrology', DEFAULT_WORLD_GENERATION_OPTIONS), true)
+  assert.strictEqual(shouldAttachLandmassStepPreview('fieldRefresh', DEFAULT_WORLD_GENERATION_OPTIONS), false)
+  assert.strictEqual(shouldAttachLandmassStepPreview('coastAndResources', DEFAULT_WORLD_GENERATION_OPTIONS), false)
   assert.strictEqual(shouldAttachLandmassStepPreview('validation', DEFAULT_WORLD_GENERATION_OPTIONS), true)
 })
 
@@ -67,7 +69,7 @@ test('runLandmassPipeline matches runFullDerivedGeographyPipeline output', async
   )
 })
 
-test('runLandmassPipeline omits world document on intermediate step-complete by default', async () => {
+test('runLandmassPipeline attaches world documents on baseline erosion hydrology and validation by default', async () => {
   /** @type {{ stepId: string, hasDoc: boolean }[]} */
   const completions = []
   const result = await runLandmassPipeline(params, {
@@ -79,8 +81,15 @@ test('runLandmassPipeline omits world document on intermediate step-complete by 
   assert.strictEqual(result.status, 'success')
   assert.strictEqual(completions.length, 6)
   assert.deepStrictEqual(
-    completions.map((row) => row.hasDoc),
-    [false, false, false, false, false, true],
+    completions.map((row) => ({ stepId: row.stepId, hasDoc: row.hasDoc })),
+    [
+      { stepId: 'physicalTerrainBaseline', hasDoc: true },
+      { stepId: 'erosion', hasDoc: true },
+      { stepId: 'hydrology', hasDoc: true },
+      { stepId: 'fieldRefresh', hasDoc: false },
+      { stepId: 'coastAndResources', hasDoc: false },
+      { stepId: 'validation', hasDoc: true },
+    ],
   )
 })
 
@@ -271,13 +280,15 @@ test('runLandmassPipeline retries validation with incremented seed', async () =>
 })
 
 test('runLandmassPipeline returns cancelled when hydrology aborts due to shouldCancel', async () => {
-  let completedSubsteps = 0
+  let completedHydrologySubsteps = 0
   const result = await runLandmassPipeline(params, {
-    onSubstepComplete() {
-      completedSubsteps += 1
+    onSubstepComplete(payload) {
+      if ((payload.parentStepId ?? payload.stepId) === 'hydrology') {
+        completedHydrologySubsteps += 1
+      }
     },
     shouldCancel() {
-      return completedSubsteps >= 2
+      return completedHydrologySubsteps >= 2
     },
   })
 
@@ -348,13 +359,15 @@ test('runLandmassPipelineRun forwards onSubstepPrepare through hydrology step', 
 })
 
 test('runLandmassPipelineRun returns cancelled when hydrology aborts due to shouldCancel', () => {
-  let completedSubsteps = 0
+  let completedHydrologySubsteps = 0
   const result = runLandmassPipelineRun(params, {
-    onSubstepComplete() {
-      completedSubsteps += 1
+    onSubstepComplete(payload) {
+      if ((payload.parentStepId ?? payload.stepId) === 'hydrology') {
+        completedHydrologySubsteps += 1
+      }
     },
     shouldCancel() {
-      return completedSubsteps >= 2
+      return completedHydrologySubsteps >= 2
     },
   })
 

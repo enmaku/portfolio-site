@@ -30,14 +30,23 @@ import {
   reduceEpochStepProgressOnPoliticsSubstepStart,
 } from './colonizationEpochProgress.js'
 import { COLONIZATION_EPOCH_PHASES } from './colonizationEpochSteps.js'
+import { createControlOverlayRefreshCue } from './mapFxCues.js'
 import { wrapPoliticsHooksWithEpochIndices } from './politicsSubstepIndex.js'
 import { wrapTradeClearingHooksWithEpochIndices } from './tradeSubstepIndex.js'
 
 /** @typedef {import('./colonizationEpochProgress.js').EpochStepProgressState} EpochStepProgressState */
+/** @typedef {import('./mapFxCues.js').MapFxCue} MapFxCue */
+
+/**
+ * @typedef {Object} MapFxLiveState
+ * @property {import('./createDefaultColonizationSlice.js').ColonizationSlice} slice
+ * @property {Record<string, Array<{ x: number, y: number }>>} [primaryClaim]
+ */
 
 /**
  * @typedef {Object} RunColonizationEpochStepHandlers
  * @property {(progress: EpochStepProgressState) => void} [onProgress]
+ * @property {(cue: MapFxCue, live: MapFxLiveState) => void | Promise<void>} [onMapFx]
  */
 
 /**
@@ -46,6 +55,28 @@ import { wrapTradeClearingHooksWithEpochIndices } from './tradeSubstepIndex.js'
  * @property {{ saltSpoilageMultiplierForSettlement?: Function }} [epochOptions]
  * @property {() => Promise<void>} [yieldToUi]
  */
+
+/**
+ * @param {RunColonizationEpochStepHandlers} handlers
+ * @param {() => Promise<void>} yieldToUi
+ * @param {MapFxCue} cue
+ * @param {MapFxLiveState} live
+ */
+async function emitMapFx(handlers, yieldToUi, cue, live) {
+  await handlers.onMapFx?.(cue, live)
+  await yieldToUi()
+}
+
+/**
+ * @param {import('./applyColonizationEpoch.js').ColonizationEpochContext} ctx
+ * @returns {MapFxLiveState}
+ */
+function liveFromCtx(ctx) {
+  return {
+    slice: ctx.slice,
+    primaryClaim: ctx.primaryClaim,
+  }
+}
 
 /**
  * Advance one annual epoch tick with UI progress reporting and yields between phases.
@@ -117,10 +148,23 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
               handlers.onProgress?.(progress)
             },
           },
+          onMapFx: async (cue) => {
+            await emitMapFx(handlers, yieldToUi, cue, liveFromCtx(ctx))
+          },
         },
       })
     } else if (phase.id === 'claims') {
       runColonizationEpochClaimsPhase(ctx)
+      await emitMapFx(
+        handlers,
+        yieldToUi,
+        createControlOverlayRefreshCue({
+          epoch: ctx.slice.epoch,
+          phaseId: 'claims',
+          primaryClaim: ctx.primaryClaim,
+        }),
+        liveFromCtx(ctx),
+      )
     } else if (phase.id === 'trade') {
       await runColonizationEpochTradePhase(ctx, {
         trade: {
@@ -153,6 +197,7 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
       runColonizationEpochSurvivalPhase(ctx, epochOptions)
     } else if (phase.id === 'ruin') {
       runColonizationEpochRuinPhase(ctx)
+      await emitRuinControlOverlayFx(ctx, handlers, yieldToUi)
     } else if (phase.id === 'collapse') {
       await runColonizationEpochCollapsePhase(ctx, {
         collapse: {
@@ -204,6 +249,10 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
               handlers.onProgress?.(progress)
             },
           }),
+          onMapFx: async (cue, live) => {
+            await emitMapFx(handlers, yieldToUi, cue, live)
+          },
+          primaryClaimForFx: () => ctx.primaryClaim,
         },
       })
     }
@@ -224,6 +273,26 @@ export async function runColonizationEpochStep(slice, worldDocument, options = {
     slice: current,
     ran: true,
   }
+}
+
+/**
+ * @param {import('./applyColonizationEpoch.js').ColonizationEpochContext} ctx
+ * @param {RunColonizationEpochStepHandlers} handlers
+ * @param {() => Promise<void>} yieldToUi
+ */
+async function emitRuinControlOverlayFx(ctx, handlers, yieldToUi) {
+  const abandonedAny = (ctx.events ?? []).some((event) => event?.kind === 'settlement_abandoned')
+  if (!abandonedAny) return
+  await emitMapFx(
+    handlers,
+    yieldToUi,
+    createControlOverlayRefreshCue({
+      epoch: ctx.slice.epoch,
+      phaseId: 'ruin',
+      primaryClaim: ctx.primaryClaim,
+    }),
+    liveFromCtx(ctx),
+  )
 }
 
 /**

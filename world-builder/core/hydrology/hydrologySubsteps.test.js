@@ -34,7 +34,7 @@ const params = {
   height: 64,
 }
 
-test('HYDROLOGY_SUBSTEPS lists nine substeps in canonical order', () => {
+test('HYDROLOGY_SUBSTEPS lists ten substeps in canonical order', () => {
   assert.deepStrictEqual(
     HYDROLOGY_SUBSTEPS.map((substep) => substep.id),
     [
@@ -47,6 +47,7 @@ test('HYDROLOGY_SUBSTEPS lists nine substeps in canonical order', () => {
       'hydrologyRefine',
       'hydrologySettle',
       'hydrologyPaint',
+      'hydrologyFinalize',
     ],
   )
 })

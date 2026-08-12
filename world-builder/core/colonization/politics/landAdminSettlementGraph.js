@@ -9,7 +9,7 @@ import {
   DEFAULT_ROAD_MOVEMENT_MULTIPLIER,
   resolveRoadSegments,
 } from '../roads/roadNetwork.js'
-import { buildCandidateTradeGraph } from '../tradeGraph/buildCandidateRoutes.js'
+import { getOrBuildCandidateTradeGraph } from '../tradeGraph/candidateTradeGraphCache.js'
 
 /**
  * @param {{
@@ -25,6 +25,7 @@ import { buildCandidateTradeGraph } from '../tradeGraph/buildCandidateRoutes.js'
  *   threeDayHaulDistance: number,
  *   roads?: object[] | null,
  *   inlandSailExpeditionRange?: number,
+ *   graphCache?: import('../tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  * }} params
  * @returns {Map<string, Set<string>>} Undirected adjacency (road + overland only).
  */
@@ -40,12 +41,13 @@ export function buildLandAdminAdjacency(params) {
   if (settlements.length < 2) return adj
 
   const doc = params.worldDocument
-  const graph = buildCandidateTradeGraph({
+  const graph = getOrBuildCandidateTradeGraph(params.graphCache, {
     settlements,
     gridWidth: doc.gridWidth,
     gridHeight: doc.gridHeight,
     threeDayHaulDistance: params.threeDayHaulDistance,
     inlandSailExpeditionRange: params.inlandSailExpeditionRange,
+    modes: 'land',
     movementCost: doc.fields?.movementCost ?? null,
     elevation: doc.fields?.elevation ?? null,
     roads: params.roads ?? null,

@@ -67,7 +67,7 @@ test('generation policy decides previews and progress as a renderer-free pure fu
   )
   assert.strictEqual(
     shouldApplyStepPreviewToMap({ delivery: 'step-complete', stepId: 'erosion', worldDocument: doc }),
-    false,
+    true,
   )
 })
 
@@ -75,6 +75,7 @@ test('generation composable runs to success and applies validation preview witho
   const scope = effectScope(true)
   try {
     const validationDoc = previewDoc()
+    const erosionDoc = previewDoc()
     /** @type {import('./core/types.js').WorldDocument[]} */
     const appliedDocs = []
     /** @type {string[]} */
@@ -93,7 +94,7 @@ test('generation composable runs to success and applies validation preview witho
             stepIndex: 1,
             stepCount: 6,
             label: 'Erosion',
-            worldDocument: previewDoc(),
+            worldDocument: erosionDoc,
           })
           callbacks.onStepComplete?.({
             stepId: 'validation',
@@ -117,7 +118,7 @@ test('generation composable runs to success and applies validation preview witho
     assert.strictEqual(ctx.generationProgress.value.percent, 100)
     assert.strictEqual(ctx.showResourceOverlayBar.value, true)
     assert.strictEqual(ctx.showGenerationProgress.value, false)
-    assert.deepStrictEqual(appliedDocs, [validationDoc])
+    assert.deepStrictEqual(appliedDocs, [erosionDoc, validationDoc])
   } finally {
     scope.stop()
   }

@@ -49,8 +49,22 @@ test('shouldApplyStepPreviewToMap accepts validation step-complete with world do
   )
 })
 
-test('shouldApplyStepPreviewToMap rejects non-validation step-complete even with world document', () => {
-  for (const stepId of ['physicalTerrainBaseline', 'erosion', 'hydrology', 'fieldRefresh', 'coastAndResources']) {
+test('shouldApplyStepPreviewToMap accepts mid-pipeline step-complete with world document', () => {
+  for (const stepId of ['physicalTerrainBaseline', 'erosion', 'hydrology', 'validation']) {
+    assert.strictEqual(
+      shouldApplyStepPreviewToMap({
+        delivery: 'step-complete',
+        stepId,
+        worldDocument: SAMPLE_DOC,
+      }),
+      true,
+      stepId,
+    )
+  }
+})
+
+test('shouldApplyStepPreviewToMap rejects coast and fieldRefresh step-complete even with world document', () => {
+  for (const stepId of ['fieldRefresh', 'coastAndResources']) {
     assert.strictEqual(
       shouldApplyStepPreviewToMap({
         delivery: 'step-complete',

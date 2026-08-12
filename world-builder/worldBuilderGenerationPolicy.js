@@ -3,7 +3,8 @@ import { isMapPreviewWorldDocumentDelivery } from './worker/derivedGeographyWork
 /**
  * Generation preview and progress policy for derived-geography runs.
  * Map delivery follows {@link import('./worker/derivedGeographyWorkerProtocol.js')}:
- * previews apply from validation `step-complete` payloads and exhausted terminals only.
+ * previews apply from baseline/erosion/hydrology/validation step-completes,
+ * selected hydrology substep-completes, and exhausted terminals.
  */
 
 /** @typedef {Parameters<typeof isMapPreviewWorldDocumentDelivery>[0]['delivery']} WorldDocumentDeliveryKind */
@@ -21,7 +22,12 @@ export function generationProgressValue(stepIndex, stepCount) {
 /**
  * Whether a worker world-document delivery should refresh the map preview.
  *
- * @param {{ delivery: WorldDocumentDeliveryKind, stepId?: string, worldDocument?: import('./core/types.js').WorldDocument | null | undefined }} payload
+ * @param {{
+ *   delivery: WorldDocumentDeliveryKind,
+ *   stepId?: string,
+ *   substepId?: string,
+ *   worldDocument?: import('./core/types.js').WorldDocument | null | undefined,
+ * }} payload
  * @returns {boolean}
  */
 export function shouldApplyStepPreviewToMap(payload) {

@@ -5,7 +5,7 @@
  * Domain: world-builder/CONTEXT.md — Faction, Supply-chain independence.
  */
 
-import { buildCandidateTradeGraph } from '../tradeGraph/buildCandidateRoutes.js'
+import { getOrBuildCandidateTradeGraph } from '../tradeGraph/candidateTradeGraphCache.js'
 
 /**
  * @typedef {Object} LogisticsConnectivityComponent
@@ -32,6 +32,7 @@ import { buildCandidateTradeGraph } from '../tradeGraph/buildCandidateRoutes.js'
  *   threeDayHaulDistance: number,
  *   roads?: object[] | null,
  *   inlandSailExpeditionRange?: number,
+ *   graphCache?: import('../tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  * }} params
  * @returns {LogisticsConnectivityResult}
  */
@@ -84,12 +85,13 @@ export function computeLogisticsConnectivityComponents(params) {
 
   const doc = params?.worldDocument
   if (doc && settlements.length >= 2 && radius > 0) {
-    const graph = buildCandidateTradeGraph({
+    const graph = getOrBuildCandidateTradeGraph(params?.graphCache, {
       settlements,
       gridWidth: doc.gridWidth,
       gridHeight: doc.gridHeight,
       threeDayHaulDistance: radius,
       inlandSailExpeditionRange: params?.inlandSailExpeditionRange ?? radius * 3,
+      modes: 'land',
       movementCost: doc.fields?.movementCost ?? null,
       elevation: doc.fields?.elevation ?? null,
       roads: params?.roads ?? [],

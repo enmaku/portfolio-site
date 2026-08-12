@@ -35,10 +35,12 @@ export const MEMBERSHIP_EVENT_PROGRESS_STAGE_COUNT = 9
  *   justLatched?: boolean,
  *   survivalBySettlementId?: Record<string, object>,
  *   softPowerScores?: Record<string, { dominantFactionId?: string | null }>,
+ *   graphCache?: import('../tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  * }} params
  * @param {{
  *   onProgress?: () => void,
  *   yieldToUi?: () => Promise<void>,
+ *   onControlChanged?: (slice: import('../createDefaultColonizationSlice.js').ColonizationSlice) => void | Promise<void>,
  * }} [options]
  * @returns {Promise<{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
@@ -46,10 +48,20 @@ export const MEMBERSHIP_EVENT_PROGRESS_STAGE_COUNT = 9
  * }>}
  */
 export async function applyFactionMembershipEvents(params, options = {}) {
-  const { onProgress, yieldToUi } = options
+  const { onProgress, yieldToUi, onControlChanged } = options
   const tick = async () => {
     onProgress?.()
     await yieldToUi?.()
+  }
+  /**
+   * @param {import('../createDefaultColonizationSlice.js').ColonizationSlice} slice
+   * @param {boolean} changed
+   */
+  async function finishStage(slice, changed) {
+    if (changed) {
+      await onControlChanged?.(slice)
+    }
+    await tick()
   }
 
   let next = params.slice
@@ -62,95 +74,138 @@ export async function applyFactionMembershipEvents(params, options = {}) {
 
   const primaryClaim = params.primaryClaim ?? next.primaryClaim
 
-  await tick()
-  if (latched) {
-    const evaluation = evaluateSupplyChainIndependence({
-      settlements: next.settlements,
-      worldDocument: params.worldDocument,
-      threeDayHaulDistance: next.colonistSettings.threeDayHaulDistance,
-      roads: next.roads,
-      inlandSailExpeditionRange:
-        next.colonistSettings.inlandSailExpeditionRange *
-        next.colonistSettings.threeDayHaulDistance,
-      colonistSettings: next.colonistSettings,
-      primaryClaim,
-    })
-
-    if (params.justLatched || evaluation.maritimePeelSettlementIds.length > 0) {
-      const peeled = applyMaritimePeels({
-        slice: next,
-        peelIds: evaluation.maritimePeelSettlementIds,
-      })
-      next = peeled.slice
-      events.push(...peeled.events)
-    }
-
-    if (params.justLatched) {
-      const queued = fractureAndQueueStaggeredMints({
-        slice: next,
+  // Stage 1 — maritime peels / latch fracture queue
+  {
+    let changed = false
+    if (latched) {
+      const evaluation = evaluateSupplyChainIndependence({
+        settlements: next.settlements,
         worldDocument: params.worldDocument,
+        threeDayHaulDistance: next.colonistSettings.threeDayHaulDistance,
+        roads: next.roads,
+        inlandSailExpeditionRange:
+          next.colonistSettings.inlandSailExpeditionRange *
+          next.colonistSettings.threeDayHaulDistance,
+        colonistSettings: next.colonistSettings,
+        primaryClaim,
+        graphCache: params.graphCache,
       })
-      next = queued.slice
+
+      if (params.justLatched || evaluation.maritimePeelSettlementIds.length > 0) {
+        const peeled = applyMaritimePeels({
+          slice: next,
+          peelIds: evaluation.maritimePeelSettlementIds,
+        })
+        next = peeled.slice
+        if (peeled.events.length > 0) changed = true
+        events.push(...peeled.events)
+      }
+
+      if (params.justLatched) {
+        const queued = fractureAndQueueStaggeredMints({
+          slice: next,
+          worldDocument: params.worldDocument,
+          graphCache: params.graphCache,
+        })
+        next = queued.slice
+        changed = true
+      }
     }
+    await finishStage(next, changed)
   }
 
-  await tick()
-  if (latched) {
-    const crystallized = crystallizeDueMints({ slice: next })
-    next = crystallized.slice
-    events.push(...crystallized.events)
+  // Stage 2 — crystallize due mints
+  {
+    let changed = false
+    if (latched) {
+      const crystallized = crystallizeDueMints({ slice: next })
+      next = crystallized.slice
+      if (crystallized.events.length > 0) changed = true
+      events.push(...crystallized.events)
+    }
+    await finishStage(next, changed)
   }
 
-  await tick()
-  const succession = applyCapitalSuccession({ slice: next })
-  next = succession.slice
+  // Stage 3 — capital succession
+  {
+    const beforeCapitals = JSON.stringify(
+      (next.factions ?? []).map((f) => [f.id, f.capitalSettlementId]),
+    )
+    const succession = applyCapitalSuccession({ slice: next })
+    next = succession.slice
+    const afterCapitals = JSON.stringify(
+      (next.factions ?? []).map((f) => [f.id, f.capitalSettlementId]),
+    )
+    await finishStage(next, beforeCapitals !== afterCapitals)
+  }
 
-  await tick()
-  const overstretch = applyStrategicOverstretchPeel({
-    slice: next,
-    worldDocument: params.worldDocument,
-  })
-  next = overstretch.slice
-  events.push(...overstretch.events)
+  // Stage 4 — strategic overstretch peel
+  {
+    const overstretch = applyStrategicOverstretchPeel({
+      slice: next,
+      worldDocument: params.worldDocument,
+      graphCache: params.graphCache,
+    })
+    next = overstretch.slice
+    events.push(...overstretch.events)
+    await finishStage(next, overstretch.events.length > 0)
+  }
 
-  await tick()
-  const defections = applyVassalDefections({
-    slice: next,
-    worldDocument: params.worldDocument,
-    survivalBySettlementId: params.survivalBySettlementId ?? {},
-  })
-  next = defections.slice
-  events.push(...defections.events)
+  // Stage 5 — vassal defections
+  {
+    const defections = applyVassalDefections({
+      slice: next,
+      worldDocument: params.worldDocument,
+      survivalBySettlementId: params.survivalBySettlementId ?? {},
+      graphCache: params.graphCache,
+    })
+    next = defections.slice
+    events.push(...defections.events)
+    await finishStage(next, defections.events.length > 0)
+  }
 
-  await tick()
-  const survivalUpgrade = upgradeTradePartnersOnSurvivalDependence({
-    slice: next,
-    survivalBySettlementId: params.survivalBySettlementId ?? {},
-  })
-  next = survivalUpgrade.slice
-  events.push(...survivalUpgrade.events)
+  // Stage 6 — survival-dependence trade-partner upgrade
+  {
+    const survivalUpgrade = upgradeTradePartnersOnSurvivalDependence({
+      slice: next,
+      survivalBySettlementId: params.survivalBySettlementId ?? {},
+    })
+    next = survivalUpgrade.slice
+    events.push(...survivalUpgrade.events)
+    await finishStage(next, survivalUpgrade.events.length > 0)
+  }
 
-  await tick()
-  const tradePartnerJoins = applyPeacefulTradePartnerJoins({ slice: next })
-  next = tradePartnerJoins.slice
-  events.push(...tradePartnerJoins.events)
+  // Stage 7 — peaceful trade-partner joins
+  {
+    const tradePartnerJoins = applyPeacefulTradePartnerJoins({ slice: next })
+    next = tradePartnerJoins.slice
+    events.push(...tradePartnerJoins.events)
+    await finishStage(next, tradePartnerJoins.events.length > 0)
+  }
 
-  await tick()
-  const tradePartnerPeels = applyTradePartnerPeels({
-    slice: next,
-    scores: params.softPowerScores ?? {},
-  })
-  next = tradePartnerPeels.slice
-  events.push(...tradePartnerPeels.events)
+  // Stage 8 — trade-partner peels
+  {
+    const tradePartnerPeels = applyTradePartnerPeels({
+      slice: next,
+      scores: params.softPowerScores ?? {},
+    })
+    next = tradePartnerPeels.slice
+    events.push(...tradePartnerPeels.events)
+    await finishStage(next, tradePartnerPeels.events.length > 0)
+  }
 
-  await tick()
-  const unaligned = resolveLoneUnaligned({
-    slice: next,
-    worldDocument: params.worldDocument,
-    survivalBySettlementId: params.survivalBySettlementId ?? {},
-  })
-  next = unaligned.slice
-  events.push(...unaligned.events)
+  // Stage 9 — lone unaligned resolution
+  {
+    const unaligned = resolveLoneUnaligned({
+      slice: next,
+      worldDocument: params.worldDocument,
+      survivalBySettlementId: params.survivalBySettlementId ?? {},
+      graphCache: params.graphCache,
+    })
+    next = unaligned.slice
+    events.push(...unaligned.events)
+    await finishStage(next, unaligned.events.length > 0)
+  }
 
   return { slice: next, events }
 }
@@ -267,6 +322,7 @@ function fractureAndQueueStaggeredMints(params) {
     inlandSailExpeditionRange:
       next.colonistSettings.inlandSailExpeditionRange *
       next.colonistSettings.threeDayHaulDistance,
+    graphCache: params.graphCache,
   }).components
 
   const senior = [...(next.factions ?? [])]
@@ -334,6 +390,7 @@ function fractureAndQueueStaggeredMints(params) {
     inlandSailExpeditionRange:
       next.colonistSettings.inlandSailExpeditionRange *
       next.colonistSettings.threeDayHaulDistance,
+    graphCache: params.graphCache,
   }).components
   for (const component of unalignedComponents) {
     if (existingKeys.has(component.key)) continue
@@ -545,6 +602,7 @@ function resolveLoneUnaligned(params) {
     inlandSailExpeditionRange:
       next.colonistSettings.inlandSailExpeditionRange *
       next.colonistSettings.threeDayHaulDistance,
+    graphCache: params.graphCache,
   }).components
   /** @type {Map<string, string>} */
   const componentBySettlement = new Map()

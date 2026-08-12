@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  buildLivingPrimaryClaimState,
   computePrimaryClaimMap,
+  computePrimaryClaimMapAddingPin,
   recomputePrimaryClaims,
   serializeClaimMap,
 } from './computePrimaryClaimMap.js'
@@ -72,4 +74,37 @@ test('serializeClaimMap clones cell lists for tip storage', () => {
   const serialized = serializeClaimMap(claimMap)
   serialized.s1[0].x = 99
   assert.notStrictEqual(claimMap.cellsBySettlementId.s1[0].x, 99)
+})
+
+test('computePrimaryClaimMapAddingPin matches full recompute for living plus candidate', () => {
+  const living = [
+    { id: 'a', x: 1, y: 1, status: 'living' },
+    { id: 'b', x: 6, y: 1, status: 'living' },
+  ]
+  const candidate = { id: 'c', x: 3, y: 3, status: 'living' }
+  const budget = 4
+  const gridWidth = 8
+  const gridHeight = 8
+
+  const base = buildLivingPrimaryClaimState({
+    pins: living,
+    budget,
+    gridWidth,
+    gridHeight,
+  })
+  const incremental = computePrimaryClaimMapAddingPin({
+    base,
+    candidatePin: candidate,
+    budget,
+    gridWidth,
+    gridHeight,
+  })
+  const full = computePrimaryClaimMap({
+    pins: [...living, candidate],
+    budget,
+    gridWidth,
+    gridHeight,
+  })
+
+  assert.deepStrictEqual(incremental.ownerByCell, full.ownerByCell)
 })

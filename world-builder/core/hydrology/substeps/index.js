@@ -7,6 +7,7 @@ import { hydrologyExtractSubstep } from './hydrologyExtractSubstep.js'
 import { hydrologyRefineSubstep } from './hydrologyRefineSubstep.js'
 import { hydrologySettleSubstep } from './hydrologySettleSubstep.js'
 import { hydrologyPaintSubstep } from './hydrologyPaintSubstep.js'
+import { hydrologyFinalizeSubstep } from './hydrologyFinalizeSubstep.js'
 
 /** @typedef {import('./moduleTypes.js').HydrologySubstepModule} HydrologySubstepModule */
 
@@ -21,6 +22,7 @@ export const HYDROLOGY_SUBSTEP_MODULES = [
   hydrologyRefineSubstep,
   hydrologySettleSubstep,
   hydrologyPaintSubstep,
+  hydrologyFinalizeSubstep,
 ]
 
 /** @type {Object.<string, HydrologySubstepModule>} */

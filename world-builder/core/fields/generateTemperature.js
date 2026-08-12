@@ -4,6 +4,39 @@ import { generateFbm2d } from '../noise/fbm2d.js'
 import { scaleForGridSize } from '../types.js'
 import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
 
+/** @type {Map<string, Float32Array>} */
+const temperatureNoiseCache = new Map()
+
+/**
+ * @param {number} geographySeed
+ * @param {number} width
+ * @param {number} height
+ * @param {number} seed
+ * @returns {Float32Array}
+ */
+function getTemperatureNoiseBase(geographySeed, width, height, seed) {
+  const key = `${geographySeed}|${width}x${height}|${seed}`
+  const cached = temperatureNoiseCache.get(key)
+  if (cached) {
+    return cached
+  }
+  const noise = generateFbm2d({
+    width,
+    height,
+    seed,
+    octaves: 4,
+    frequency: scaleForGridSize(0.015, width),
+    persistence: 0.45,
+  })
+  temperatureNoiseCache.set(key, noise)
+  return noise
+}
+
+/** Clear temperature FBM cache (tests). */
+export function clearTemperatureNoiseCache() {
+  temperatureNoiseCache.clear()
+}
+
 /**
  * Row 0 is north; equator is mid-latitude; elevation lapse cools high ground.
  * @param {Object} params
@@ -14,17 +47,10 @@ import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
  * @param {Partial<import('../types.js').WorldGenerationOptions>} [params.options]
  * @returns {Float32Array} normalized temperature in [0, 1] (0 = cold, 1 = hot)
  */
-export function generateTemperature({ geographySeed, width, height, elevation, options } ) {
+export function generateTemperature({ geographySeed, width, height, elevation, options }) {
   const resolved = resolveWorldGenerationOptions(options)
   const seed = deriveFieldSeed(geographySeed, 'temperature')
-  const noise = generateFbm2d({
-    width,
-    height,
-    seed,
-    octaves: 4,
-    frequency: scaleForGridSize(0.015, width),
-    persistence: 0.45,
-  })
+  const noise = getTemperatureNoiseBase(geographySeed, width, height, seed)
   const out = new Float32Array(width * height)
   const equatorRow = height > 1 ? (height - 1) / 2 : 0
 

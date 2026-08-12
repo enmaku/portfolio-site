@@ -1,4 +1,6 @@
 import { buildPipelineStateForHydrologySubsteps } from '../landmassPipelineStageContracts.js'
+import { isThenable } from '../asyncValue.js'
+import { buildHydrologySubstepPreviewDocument } from '../hydrology/buildHydrologySubstepPreviewDocument.js'
 import { runHydrologySubsteps } from '../hydrology/hydrologySubsteps.js'
 
 /** @typedef {import('./moduleTypes.js').LandmassStageModule} LandmassStageModule */
@@ -51,14 +53,21 @@ export const hydrologyStage = {
   ],
   run(input, options = {}) {
     const hydrologyState = buildPipelineStateForHydrologySubsteps(input)
-    const { state: nextState, timings } = runHydrologySubsteps(hydrologyState, {
+    const runResult = runHydrologySubsteps(hydrologyState, {
       onSubstepStart: options.onSubstepStart,
       onSubstepProgress: options.onSubstepProgress,
       onSubstepComplete: options.onSubstepComplete,
       onSubstepPrepare: options.onSubstepPrepare,
       shouldCancel: options.shouldCancel,
+      yield: options.yield,
+      buildSubstepPreview:
+        options.buildSubstepPreview ??
+        (typeof options.yield === 'function'
+          ? (payload) => buildHydrologySubstepPreviewDocument(payload)
+          : undefined),
     })
-    return {
+
+    const finish = ({ state: nextState, timings }) => ({
       lakeMask: nextState.lakeMask,
       lakes: nextState.lakes,
       lakeMeta: nextState.lakeMeta,
@@ -75,6 +84,11 @@ export const hydrologyStage = {
       biomes: nextState.biomes,
       hydrologySubstepTimings: timings,
       lastCompletedStep: /** @type {const} */ ('hydrology'),
+    })
+
+    if (isThenable(runResult)) {
+      return runResult.then(finish)
     }
+    return finish(runResult)
   },
 }

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildCandidateTradeGraph } from './buildCandidateRoutes.js'
+import {
+  buildCandidateTradeGraph,
+  computeSailPathDistances,
+} from './buildCandidateRoutes.js'
 import {
   DIRECTIONAL_FRICTION_DOWNHILL,
   DIRECTIONAL_FRICTION_UPHILL,
@@ -263,4 +266,106 @@ test('candidate set is deterministic for identical inputs', () => {
     })
 
   assert.deepStrictEqual(build(), build())
+})
+
+test('open-sea early-exit distances match full sail flood for the port set', () => {
+  const width = 24
+  const height = 24
+  const sailMask = new Uint8Array(width * height).fill(1)
+  for (let y = 8; y <= 11; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (x < 6 || x > 17) continue
+      sailMask[y * width + x] = 0
+    }
+  }
+
+  const ports = [
+    { x: 2, y: 2 },
+    { x: 21, y: 2 },
+    { x: 2, y: 21 },
+    { x: 21, y: 21 },
+  ]
+  const portIndices = ports.map((p) => p.y * width + p.x)
+  const origin = portIndices[0]
+
+  const early = computeSailPathDistances(
+    origin,
+    sailMask,
+    width,
+    height,
+    Number.POSITIVE_INFINITY,
+    { targetIndices: portIndices },
+  )
+  const full = computeSailPathDistances(origin, sailMask, width, height, Number.POSITIVE_INFINITY)
+
+  for (const index of portIndices) {
+    assert.ok(Number.isFinite(early[index]))
+    assert.strictEqual(early[index], full[index])
+  }
+
+  const earlyEdges = buildCandidateTradeGraph({
+    settlements: ports.map((p, i) => ({
+      id: `p${i}`,
+      x: p.x,
+      y: p.y,
+      population: 100,
+      maritimeRole: 'port',
+    })),
+    gridWidth: width,
+    gridHeight: height,
+    threeDayHaulDistance: 10,
+    sailMask,
+  }).edges.filter((e) => e.mode === 'openSea')
+
+  assert.strictEqual(earlyEdges.length, 6)
+  for (const edge of earlyEdges) {
+    assert.ok(edge.haulDistanceFraction > 0)
+  }
+})
+
+test('land modes omit water edges and match filtering an all-mode graph', () => {
+  const width = 16
+  const height = 8
+  const cellCount = width * height
+  const elevation = new Float32Array(cellCount).fill(SEA_LEVEL - 0.1)
+  const sailMask = new Uint8Array(cellCount).fill(1)
+  const settlements = [
+    { id: 'a', x: 1, y: 1, population: 100, maritimeRole: 'port' },
+    { id: 'b', x: 5, y: 1, population: 100, maritimeRole: 'port' },
+    { id: 'c', x: 9, y: 1, population: 100, maritimeRole: 'inland_sail' },
+  ]
+  const roads = [
+    {
+      cells: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1 },
+        { x: 3, y: 1 },
+        { x: 4, y: 1 },
+        { x: 5, y: 1 },
+      ],
+      settlementIds: ['a', 'b'],
+      mode: 'land',
+    },
+  ]
+  const base = {
+    settlements,
+    gridWidth: width,
+    gridHeight: height,
+    threeDayHaulDistance: 20,
+    inlandSailExpeditionRange: 40,
+    elevation,
+    sailMask,
+    roads,
+  }
+
+  const land = buildCandidateTradeGraph({ ...base, modes: 'land' })
+  const all = buildCandidateTradeGraph({ ...base, modes: 'all' })
+  const filtered = all.edges.filter((e) => e.mode === 'road' || e.mode === 'overland')
+
+  assert.ok(land.edges.every((e) => e.mode === 'road' || e.mode === 'overland'))
+  assert.ok(!land.edges.some((e) => e.mode === 'openSea' || e.mode === 'inlandWater'))
+  assert.deepStrictEqual(
+    land.edges.map((e) => e.id).sort(),
+    filtered.map((e) => e.id).sort(),
+  )
 })

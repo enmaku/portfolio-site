@@ -1,4 +1,5 @@
 import { generatePhysicalTerrainBaseline } from '../generatePhysicalTerrainBaseline.js'
+import { isThenable } from '../asyncValue.js'
 
 /** @typedef {import('./moduleTypes.js').LandmassStageModule} LandmassStageModule */
 
@@ -15,28 +16,37 @@ export const physicalTerrainBaselineStage = {
     height: (state) => state.height,
   },
   outputKeys: ['baselineDoc', 'fields', 'biomes', 'lastCompletedStep'],
-  run(input) {
+  run(input, options = {}) {
     const {
       geographySeed,
       prevailingWindDegrees,
       secondaryMaximumDegrees,
-      options,
+      options: generationOptions,
       width,
       height,
     } = input
-    const baselineDoc = generatePhysicalTerrainBaseline({
-      geographySeed,
-      prevailingWindDegrees,
-      secondaryMaximumDegrees,
-      width,
-      height,
+    const baselineResult = generatePhysicalTerrainBaseline(
+      {
+        geographySeed,
+        prevailingWindDegrees,
+        secondaryMaximumDegrees,
+        width,
+        height,
+        options: generationOptions,
+      },
       options,
-    })
-    return {
+    )
+
+    const finish = (baselineDoc) => ({
       baselineDoc,
       fields: baselineDoc.fields,
       biomes: baselineDoc.biomes,
       lastCompletedStep: /** @type {const} */ ('physicalTerrainBaseline'),
+    })
+
+    if (isThenable(baselineResult)) {
+      return baselineResult.then(finish)
     }
+    return finish(baselineResult)
   },
 }

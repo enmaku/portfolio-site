@@ -55,11 +55,13 @@ export const LANDMASS_PIPELINE_STEP_IDS = [
 
 /**
  * @typedef {Object} PipelineStepOptions
- * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string }) => void} [onSubstepStart]
- * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, progress: number }) => void} [onSubstepProgress]
- * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, progress: number }) => void} [onSubstepComplete]
- * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, input: Record<string, unknown> }) => void} [onSubstepPrepare]
- * @property {() => boolean} [shouldCancel]
+ * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, parentStepId?: string }) => void} [onSubstepStart]
+ * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, progress: number, parentStepId?: string, worldDocument?: import('./types.js').WorldDocument | null }) => void} [onSubstepProgress]
+ * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, progress: number, skipped?: boolean, parentStepId?: string, worldDocument?: import('./types.js').WorldDocument | null, maskLifecycle?: unknown }) => void} [onSubstepComplete]
+ * @property {(payload: { substepId: string, substepIndex: number, substepCount: number, label: string, input: Record<string, unknown>, parentStepId?: string }) => void} [onSubstepPrepare]
+ * @property {() => boolean | Promise<boolean>} [shouldCancel]
+ * @property {() => void | Promise<void>} [yield]
+ * @property {(payload: { substepId: string, world: Object, riverMaskPipeline: Object }) => import('./types.js').WorldDocument | null | undefined | Promise<import('./types.js').WorldDocument | null | undefined>} [buildSubstepPreview]
  */
 
 export class LandmassPipelineCancelledError extends Error {

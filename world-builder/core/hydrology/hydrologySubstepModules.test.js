@@ -121,6 +121,17 @@ test('hydrologyClimate module recomputes rainfall and temperature on eroded elev
   assert.ok(temperatureChanged)
 })
 
+test('hydrologyClimate reuses post-erosion climate fields when elevation buffer matches', () => {
+  const state = erodedState()
+  assert.strictEqual(state.fields.elevation, state.erodedElevation)
+
+  const { world } = composeSubsteps(state, 'hydrologyClimate')
+
+  assert.strictEqual(world.temperature, state.fields.temperature)
+  assert.strictEqual(world.rainfall, state.fields.rainfall)
+  assert.ok(world.snowCapMask instanceof Uint8Array)
+})
+
 test('hydrologyRoute module performs exactly one full flow solve and sets the sketch mask', () => {
   const { world, flowFieldSession, riverMaskPipeline } = composeSubsteps(
     erodedState(),
@@ -241,4 +252,22 @@ test('hydrologyPaint module reports inner progress through the shared onProgress
   assert.ok(progress.length >= 2)
   assert.ok(progress.some((value) => value > 0 && value < 1))
   assert.strictEqual(progress[progress.length - 1], 1)
+})
+
+test('hydrologyFinalize module refreshes climate and biomes after paint', () => {
+  const { world: paintedWorld, riverMaskPipeline } = composeSubsteps(
+    erodedState(),
+    'hydrologyPaint',
+  )
+  const finalize = HYDROLOGY_SUBSTEP_MODULE_BY_ID.hydrologyFinalize
+  /** @type {number[]} */
+  const progress = []
+  const output = finalize.run(selectHydrologySubstepInput(finalize, paintedWorld), {
+    flowFieldSession: createFlowFieldSession(),
+    riverMaskPipeline,
+    onProgress: (value) => progress.push(value),
+  })
+  assert.ok(output.fields?.rainfall)
+  assert.ok(output.biomes)
+  assert.ok(progress.includes(1))
 })

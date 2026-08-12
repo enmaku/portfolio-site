@@ -6,14 +6,24 @@ import { generationProgressValue, shouldApplyStepPreviewToMap } from './worldBui
  */
 
 /**
+ * @typedef {Object} GenerationItemProgress
+ * @property {number} itemIndex
+ * @property {number} itemCount
+ * @property {string} [phase]
+ * @property {number} [phasePercent]
+ */
+
+/**
  * @typedef {Object} GenerationProgressState
  * @property {number} percent
  * @property {number} activeStepIndex
  * @property {number} completedStepIndex
  * @property {string} label
+ * @property {string | null} activeNestedParentStepId
  * @property {number} activeHydrologySubstepIndex
  * @property {number} completedHydrologySubstepIndex
  * @property {string[]} skippedHydrologySubstepIds
+ * @property {GenerationItemProgress | null} activeItemProgress
  */
 
 /**
@@ -31,9 +41,11 @@ export function createInitialGenerationProgress() {
     activeStepIndex: -1,
     completedStepIndex: -1,
     label: '',
+    activeNestedParentStepId: null,
     activeHydrologySubstepIndex: -1,
     completedHydrologySubstepIndex: -1,
     skippedHydrologySubstepIds: [],
+    activeItemProgress: null,
   }
 }
 
@@ -89,39 +101,74 @@ export function reduceGenerationProgressOnStepStart(progress, payload) {
     activeStepIndex: payload.stepIndex,
     completedStepIndex: progress.completedStepIndex,
     label: payload.label,
+    activeNestedParentStepId: null,
     activeHydrologySubstepIndex: -1,
-    completedHydrologySubstepIndex:
-      payload.stepId === 'hydrology' ? -1 : progress.completedHydrologySubstepIndex,
+    completedHydrologySubstepIndex: -1,
     skippedHydrologySubstepIds:
       payload.stepId === 'hydrology' ? [] : progress.skippedHydrologySubstepIds,
+    activeItemProgress: null,
   }
 }
 
 /**
  * @param {GenerationProgressState} progress
- * @param {{ substepIndex: number }} payload
+ * @param {{ substepIndex: number, parentStepId?: string, stepId?: string }} payload
  * @returns {GenerationProgressState}
  */
 export function reduceGenerationProgressOnSubstepStart(progress, payload) {
+  const parentStepId = payload.parentStepId ?? payload.stepId ?? progress.activeNestedParentStepId
   return {
     ...progress,
+    activeNestedParentStepId: parentStepId ?? null,
     activeHydrologySubstepIndex: payload.substepIndex,
+    activeItemProgress: null,
   }
 }
 
 /**
  * @param {GenerationProgressState} progress
- * @param {{ substepIndex: number, substepId: string, skipped?: boolean }} payload
+ * @param {{ substepIndex: number, progress?: number, parentStepId?: string, stepId?: string }} payload
+ * @returns {GenerationProgressState}
+ */
+export function reduceGenerationProgressOnSubstepProgress(progress, payload) {
+  const fraction = Number(payload.progress)
+  const phasePercent = Number.isFinite(fraction)
+    ? Math.max(0, Math.min(100, Math.round(fraction * 100)))
+    : 0
+  const parentStepId = payload.parentStepId ?? payload.stepId ?? progress.activeNestedParentStepId
+  return {
+    ...progress,
+    activeNestedParentStepId: parentStepId ?? progress.activeNestedParentStepId,
+    activeHydrologySubstepIndex: payload.substepIndex,
+    activeItemProgress:
+      phasePercent > 0
+        ? {
+            itemIndex: Math.max(1, phasePercent),
+            itemCount: 100,
+            phasePercent,
+          }
+        : null,
+  }
+}
+
+/**
+ * @param {GenerationProgressState} progress
+ * @param {{ substepIndex: number, substepId: string, skipped?: boolean, parentStepId?: string, stepId?: string }} payload
  * @returns {GenerationProgressState}
  */
 export function reduceGenerationProgressOnSubstepComplete(progress, payload) {
+  const parentStepId = payload.parentStepId ?? payload.stepId ?? progress.activeNestedParentStepId
+  const skippedIds =
+    payload.skipped && parentStepId === 'hydrology'
+      ? [...progress.skippedHydrologySubstepIds, payload.substepId]
+      : progress.skippedHydrologySubstepIds
   return {
     ...progress,
+    activeNestedParentStepId: parentStepId ?? null,
     activeHydrologySubstepIndex: payload.substepIndex,
     completedHydrologySubstepIndex: payload.substepIndex,
-    skippedHydrologySubstepIds: payload.skipped
-      ? [...progress.skippedHydrologySubstepIds, payload.substepId]
-      : progress.skippedHydrologySubstepIds,
+    skippedHydrologySubstepIds: skippedIds,
+    activeItemProgress: null,
   }
 }
 
@@ -136,11 +183,12 @@ export function reduceGenerationProgressOnStepComplete(progress, payload) {
     activeStepIndex: payload.stepIndex,
     completedStepIndex: payload.stepIndex,
     label: payload.label,
+    activeNestedParentStepId: null,
     activeHydrologySubstepIndex: -1,
-    completedHydrologySubstepIndex:
-      payload.stepId === 'hydrology' ? -1 : progress.completedHydrologySubstepIndex,
+    completedHydrologySubstepIndex: -1,
     skippedHydrologySubstepIds:
       payload.stepId === 'hydrology' ? [] : progress.skippedHydrologySubstepIds,
+    activeItemProgress: null,
   }
 }
 
@@ -159,9 +207,6 @@ export function reduceGenerationProgressOnStepComplete(progress, payload) {
  *   onError?: (message: string) => void,
  * }} [options.handlers]
  * @returns {{ runId: number, cancel: () => void }}
- *
- * World-document delivery follows {@link import('./worker/derivedGeographyWorkerProtocol.js')}:
- * map previews update from validation `step-complete` and exhausted terminals only.
  */
 export function startDerivedGeographyGeneration({
   controller,
@@ -184,10 +229,35 @@ export function startDerivedGeographyGeneration({
       progress = reduceGenerationProgressOnSubstepStart(progress, payload)
       handlers.onProgress?.(progress)
     },
+    onSubstepProgress(payload) {
+      if (isStale()) return
+      progress = reduceGenerationProgressOnSubstepProgress(progress, payload)
+      handlers.onProgress?.(progress)
+      if (
+        shouldApplyStepPreviewToMap({
+          delivery: 'substep-progress',
+          stepId: payload.parentStepId ?? payload.stepId ?? 'physicalTerrainBaseline',
+          substepId: payload.substepId,
+          worldDocument: payload.worldDocument,
+        })
+      ) {
+        handlers.onWorldDocument?.(payload.worldDocument)
+      }
+    },
     onSubstepComplete(payload) {
       if (isStale()) return
       progress = reduceGenerationProgressOnSubstepComplete(progress, payload)
       handlers.onProgress?.(progress)
+      if (
+        shouldApplyStepPreviewToMap({
+          delivery: 'substep-complete',
+          stepId: payload.parentStepId ?? payload.stepId ?? 'hydrology',
+          substepId: payload.substepId,
+          worldDocument: payload.worldDocument,
+        })
+      ) {
+        handlers.onWorldDocument?.(payload.worldDocument)
+      }
     },
     onStepComplete(payload) {
       if (isStale()) return
@@ -244,6 +314,8 @@ export function startDerivedGeographyGeneration({
 
   return {
     runId,
-    cancel: () => job.cancel(),
+    cancel() {
+      job.cancel()
+    },
   }
 }

@@ -39,6 +39,8 @@ import {
   backToTerrain as backToTerrainTransition,
   enterColonizationSetup as enterColonizationSetupTransition,
 } from '../../world-builder/core/colonization/colonizationPhaseTransitions.js'
+import { mergeColonizationSliceForMapFx } from '../../world-builder/core/colonization/mergeColonizationSliceForMapFx.js'
+import { isControlOverlayRefreshCue } from '../../world-builder/core/colonization/mapFxCues.js'
 import { snapFoundingLandingCell } from '../../world-builder/core/colonization/isValidFoundingLandingCell.js'
 import { useWorldBuilderSettlementInspect } from './useWorldBuilderSettlementInspect.js'
 import { useWorldBuilderColonizationProgressStatus } from './useWorldBuilderColonizationProgressStatus.js'
@@ -66,6 +68,7 @@ import { useWorldBuilderColonizationProgressStatus } from './useWorldBuilderColo
  *   colonizationMapPorts?: import('../../world-builder/core/colonization/finalizeColonizationMutation.js').ColonizationEpochMapPorts,
  *   onSessionPersistRequested?: () => void,
  *   getSessionRestorePending?: () => boolean,
+ *   isFactionTerritoryOverlayVisible?: () => boolean,
  * }} options
  */
 export function useWorldBuilderColonization(options) {
@@ -78,6 +81,7 @@ export function useWorldBuilderColonization(options) {
     colonizationMapPorts,
     onSessionPersistRequested,
     getSessionRestorePending,
+    isFactionTerritoryOverlayVisible,
   } = options
 
   /** @type {import('vue').Ref<import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice>} */
@@ -508,6 +512,45 @@ export function useWorldBuilderColonization(options) {
     epochStepPhase.value = 'running'
     epochStepProgress.value = createInitialEpochStepProgress()
 
+    /**
+     * @param {import('../../world-builder/core/colonization/mapFxCues.js').MapFxCue} cue
+     * @param {import('../../world-builder/core/colonization/runColonizationEpochStep.js').MapFxLiveState} live
+     */
+    async function handleMapFx(cue, live) {
+      if (isControlOverlayRefreshCue(cue)) {
+        if (isFactionTerritoryOverlayVisible?.() === false) {
+          return
+        }
+        const base = colonizationMapPorts?.getBaseDocument?.() ?? getGeographyDocument?.()
+        if (!base || !colonizationMapPorts?.applyLayer) {
+          return
+        }
+        const merged = mergeColonizationSliceForMapFx(base, live.slice, {
+          primaryClaim: cue.primaryClaim ?? live.primaryClaim,
+        })
+        colonizationMapPorts.publishMergedDocument?.(merged)
+        const layers = Array.isArray(cue.layers) && cue.layers.length > 0
+          ? cue.layers
+          : ['factionTerritory', 'settlementNodes', 'recentConquestMarkers']
+        for (const layerId of layers) {
+          await colonizationMapPorts.applyLayer(merged, layerId)
+        }
+        return
+      }
+
+      if (cue.type === 'settlement_founded' && colonizationMapPorts?.applyLayer) {
+        const base = colonizationMapPorts.getBaseDocument?.() ?? getGeographyDocument?.()
+        if (base) {
+          const merged = mergeColonizationSliceForMapFx(base, live.slice, {
+            primaryClaim: live.primaryClaim,
+          })
+          colonizationMapPorts.publishMergedDocument?.(merged)
+          await colonizationMapPorts.applyLayer(merged, 'routes')
+          await colonizationMapPorts.applyLayer(merged, 'settlementNodes')
+        }
+      }
+    }
+
     try {
       const result = await runColonizationEpochStep(slice.value, doc, {
         yieldToUi: yieldColonizationProgressToUi,
@@ -515,6 +558,7 @@ export function useWorldBuilderColonization(options) {
           onProgress(progress) {
             epochStepProgress.value = progress
           },
+          onMapFx: handleMapFx,
         },
       })
       if (!result.ran) {

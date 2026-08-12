@@ -4,7 +4,11 @@ import { BIOMES } from '../../biomeIds.js'
 import {
   evaluateFirstViableCorridorCandidate,
   isSettlementFoundingSpacingSatisfied,
+  resolveFoundingLink,
 } from './evaluateCorridorFounding.js'
+import { buildCandidateTradeGraph } from '../tradeGraph/buildCandidateRoutes.js'
+import { modeGroup } from '../../economy/tradeClearing/pathSearch.js'
+import { DAUGHTER_OUTPOST_HEADCOUNT } from './expeditionConstants.js'
 
 /**
  * All-land world where a food-rich parent at (1,1) can supply a salt-only candidate
@@ -210,4 +214,52 @@ test('isSettlementFoundingSpacingSatisfied ignores ruins for travel-time spacing
     }),
     false,
   )
+})
+
+test('resolveFoundingLink cost matches graph overland link when both paths exist', () => {
+  const worldDocument = makeTradeWorld()
+  const parent = { id: 'parent', x: 1, y: 1, population: 200 }
+  const candidate = { x: 6, y: 1 }
+  const candidateId = 'candidate-6-1'
+  const colonistSettings = TRADE_COLONIST_SETTINGS
+
+  const cheap = resolveFoundingLink({
+    parent,
+    candidate,
+    candidateId,
+    worldDocument,
+    colonistSettings,
+  })
+  assert.ok(cheap)
+
+  const graph = buildCandidateTradeGraph({
+    settlements: [
+      {
+        id: parent.id,
+        x: parent.x,
+        y: parent.y,
+        population: parent.population,
+      },
+      {
+        id: candidateId,
+        x: candidate.x,
+        y: candidate.y,
+        population: DAUGHTER_OUTPOST_HEADCOUNT,
+      },
+    ],
+    gridWidth: worldDocument.gridWidth,
+    gridHeight: worldDocument.gridHeight,
+    threeDayHaulDistance: colonistSettings.threeDayHaulDistance,
+    movementCost: worldDocument.movementCost,
+    elevation: worldDocument.fields?.elevation,
+    modes: 'land',
+  })
+  assert.ok(graph.edges.length > 0)
+  let best = graph.edges[0]
+  for (const edge of graph.edges) {
+    if (edge.transportCostCpPerLb < best.transportCostCpPerLb) best = edge
+  }
+  assert.ok(Math.abs(cheap.transportCostCpPerLb - best.transportCostCpPerLb) < 1e-9)
+  assert.strictEqual(cheap.capacityLb, best.capacityLb)
+  assert.strictEqual(cheap.importToll, modeGroup(best.mode) === 'water')
 })

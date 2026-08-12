@@ -1,8 +1,14 @@
 import { applyPopulationCollapse } from './applyPopulationCollapse.js'
 import { applyExpeditionNetworkPhase } from './expeditions/expeditionScheduler.js'
 import { applyRuinTransitions } from './applyRuin.js'
-import { recomputePrimaryClaims, serializeClaimMap } from './computePrimaryClaimMap.js'
-import { DEFAULT_ROAD_MOVEMENT_MULTIPLIER } from './roads/roadNetwork.js'
+import {
+  buildLivingPrimaryClaimState,
+  serializeClaimMap,
+} from './computePrimaryClaimMap.js'
+import {
+  buildLandRouteCellMask,
+  DEFAULT_ROAD_MOVEMENT_MULTIPLIER,
+} from './roads/roadNetwork.js'
 import { applySurvivalResolveToSettlement } from './resolveSurvivalTriad.js'
 import { settlementTierFromPopulation } from './settlementTierFromPopulation.js'
 import { clearRealmTrade } from '../economy/tradeClearing/clearRealmTrade.js'
@@ -11,6 +17,7 @@ import { combinedSettlementWealthCp } from '../economy/ledgers/combinedSettlemen
 import { applyFactionTax } from '../economy/ledgers/applyFactionTax.js'
 import { runColonizationEpochPhases } from './runColonizationEpochPhases.js'
 import { applyPoliticsPhase } from './politics/applyPoliticsPhase.js'
+import { createCandidateTradeGraphCache } from './tradeGraph/candidateTradeGraphCache.js'
 
 /**
  * @typedef {Object} ColonizationEpochContext
@@ -23,6 +30,8 @@ import { applyPoliticsPhase } from './politics/applyPoliticsPhase.js'
  * @property {Record<string, { foodLb: number, saltLb: number }>} effectiveDeliveredBySettlementId
  * @property {Record<string, number>} taxAssessmentIncomeCp Prior income for faction tax (pre-clear stash).
  * @property {boolean} tradeClearingActive Whether pairwise trade cleared this epoch.
+ * @property {import('./tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache} graphCache
+ * @property {import('./computePrimaryClaimMap.js').LivingPrimaryClaimState | null} [livingClaimState]
  */
 
 /**
@@ -35,12 +44,16 @@ export function createColonizationEpochContext(slice, worldDocument) {
     slice,
     worldDocument,
     events: [],
-    primaryClaim: {},
+    /** Seed from prior epoch so mid-tick overlays never paint empty claims before claims phase. */
+    primaryClaim:
+      slice.primaryClaim && typeof slice.primaryClaim === 'object' ? { ...slice.primaryClaim } : {},
     ownerByCell: undefined,
     survivalBySettlementId: {},
     effectiveDeliveredBySettlementId: {},
     taxAssessmentIncomeCp: {},
     tradeClearingActive: false,
+    graphCache: createCandidateTradeGraphCache(),
+    livingClaimState: null,
   }
 }
 
@@ -60,17 +73,30 @@ export async function runColonizationEpochNetworkPhase(ctx, options = {}) {
  * @param {ColonizationEpochContext} ctx
  */
 export function runColonizationEpochClaimsPhase(ctx) {
-  const claimMap = recomputePrimaryClaims({
-    settlements: ctx.slice.settlements,
-    colonistSettings: ctx.slice.colonistSettings,
+  const roadCellMask = buildLandRouteCellMask(
+    ctx.worldDocument.roads,
+    ctx.worldDocument.gridWidth,
+    ctx.worldDocument.gridHeight,
+  )
+  const livingClaimState = buildLivingPrimaryClaimState({
+    pins: ctx.slice.settlements,
+    budget: ctx.slice.colonistSettings.threeDayHaulDistance,
     gridWidth: ctx.worldDocument.gridWidth,
     gridHeight: ctx.worldDocument.gridHeight,
     movementCost: ctx.worldDocument.movementCost,
     roadMultiplier: DEFAULT_ROAD_MOVEMENT_MULTIPLIER,
-    roads: ctx.worldDocument.roads,
+    roadCellMask,
   })
-  ctx.ownerByCell = claimMap.ownerByCell
-  ctx.primaryClaim = serializeClaimMap(claimMap)
+  ctx.livingClaimState = livingClaimState
+  ctx.ownerByCell = livingClaimState.ownerByCell
+  ctx.primaryClaim = serializeClaimMap({
+    ownerByCell: livingClaimState.ownerByCell,
+    cellsBySettlementId: livingClaimState.cellsBySettlementId,
+  })
+  ctx.slice = {
+    ...ctx.slice,
+    primaryClaim: ctx.primaryClaim,
+  }
 }
 
 /**
@@ -79,7 +105,12 @@ export function runColonizationEpochClaimsPhase(ctx) {
  * trade is stashed on the context for the survival phase.
  *
  * @param {ColonizationEpochContext} ctx
- * @param {{ trade?: { hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks, yieldToUi?: () => Promise<void> } }} [options]
+ * @param {{
+ *   trade?: {
+ *     hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks,
+ *     yieldToUi?: () => Promise<void>,
+ *   },
+ * }} [options]
  * @returns {Promise<void>}
  */
 export async function runColonizationEpochTradePhase(ctx, options = {}) {
@@ -90,9 +121,11 @@ export async function runColonizationEpochTradePhase(ctx, options = {}) {
       slice: ctx.slice,
       worldDocument: ctx.worldDocument,
       primaryClaim: ctx.primaryClaim,
+      graphCache: ctx.graphCache,
     },
     options.trade,
   )
+
   const trade = await clearRealmTrade(input, options.trade)
 
   ctx.tradeClearingActive = trade.active === true
@@ -273,6 +306,11 @@ export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
  *   politics?: {
  *     hooks?: import('./politics/applyPoliticsPhase.js').PoliticsPhaseHooks,
  *     yieldToUi?: () => Promise<void>,
+ *     onMapFx?: (cue: import('./mapFxCues.js').MapFxCue, live: {
+ *       slice: import('./createDefaultColonizationSlice.js').ColonizationSlice,
+ *       primaryClaim?: Record<string, Array<{ x: number, y: number }>>,
+ *     }) => void | Promise<void>,
+ *     primaryClaimForFx?: () => Record<string, Array<{ x: number, y: number }>> | undefined,
  *   },
  * }} [options]
  */
@@ -284,10 +322,13 @@ export async function runColonizationEpochPoliticsPhase(ctx, options = {}) {
       primaryClaim: ctx.primaryClaim,
       survivalBySettlementId: ctx.survivalBySettlementId,
       warOutcomes: options.warOutcomes,
+      graphCache: ctx.graphCache,
     },
     {
       hooks: options.politics?.hooks,
       yieldToUi: options.politics?.yieldToUi,
+      onMapFx: options.politics?.onMapFx,
+      primaryClaimForFx: options.politics?.primaryClaimForFx,
     },
   )
   ctx.slice = politics.slice

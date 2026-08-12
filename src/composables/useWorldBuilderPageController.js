@@ -2,6 +2,8 @@ import { computed, ref, shallowRef } from 'vue'
 import {
   DERIVED_GEOGRAPHY_STEPS,
   HYDROLOGY_SUBSTEPS,
+  BASELINE_NESTED_PHASES,
+  EROSION_NESTED_PHASES,
   runDerivedGeographyInWorker as defaultRunDerivedGeographyInWorker,
 } from '../../world-builder/runDerivedGeographyInWorker.js'
 import { createGenerationMapLifecycle } from '../../world-builder/worldBuilderGenerationMapLifecycle.js'
@@ -243,6 +245,7 @@ export function useWorldBuilderPageController(options) {
     getViewport: () => mapLifecycle?.getViewport() ?? null,
     getGeographyDocument: () => generation?.worldDocument.value ?? null,
     onSliceChanged: syncColonizationDocumentToMap,
+    isFactionTerritoryOverlayVisible: () => overlay.visibility.value.factionTerritory === true,
     colonizationMapPorts: {
       persistSession: () => {
         settingsStore.setColonizationSession?.(colonization.slice.value)
@@ -264,9 +267,10 @@ export function useWorldBuilderPageController(options) {
         colonizationWorldDocument.value = merged
         return merged
       },
-      applyLayer: (doc, layerId) => {
-        void mapLifecycle?.applyWorldDocument(doc, { changedLayers: [layerId] })
+      publishMergedDocument: (doc) => {
+        colonizationWorldDocument.value = doc
       },
+      applyLayer: (doc, layerId) => mapLifecycle?.applyWorldDocument(doc, { changedLayers: [layerId] }),
       onComplete: async () => {
         syncColonizationOverlayVisibility()
         await persistColonizationSessionIfNeeded()
@@ -368,14 +372,26 @@ export function useWorldBuilderPageController(options) {
       generation.generationProgress.value.completedStepIndex,
     ),
   )
-  const hydrologySubstepStatuses = computed(() =>
-    createHydrologySubstepStatuses(
-      HYDROLOGY_SUBSTEPS,
-      generation.generationProgress.value.activeHydrologySubstepIndex,
-      generation.generationProgress.value.completedHydrologySubstepIndex,
-      new Set(generation.generationProgress.value.skippedHydrologySubstepIds),
-    ),
-  )
+  const hydrologySubstepStatuses = computed(() => {
+    const progress = generation.generationProgress.value
+    const activeStep = DERIVED_GEOGRAPHY_STEPS[progress.activeStepIndex]
+    const parentId = progress.activeNestedParentStepId ?? activeStep?.id
+    let catalog = HYDROLOGY_SUBSTEPS
+    if (parentId === 'physicalTerrainBaseline') {
+      catalog = BASELINE_NESTED_PHASES
+    } else if (parentId === 'erosion') {
+      catalog = EROSION_NESTED_PHASES
+    } else if (parentId !== 'hydrology' && activeStep?.id !== 'hydrology') {
+      return []
+    }
+    return createHydrologySubstepStatuses(
+      catalog,
+      progress.activeHydrologySubstepIndex,
+      progress.completedHydrologySubstepIndex,
+      new Set(progress.skippedHydrologySubstepIds),
+      progress.activeItemProgress,
+    )
+  })
   const hydrologySubstepTimings = computed(() =>
     createHydrologySubstepTimingsForDisplay(geographyWorldDocument.value?.generationReport),
   )
@@ -446,6 +462,10 @@ export function useWorldBuilderPageController(options) {
           percent: generation.generationProgress.value.percent,
           steps: generationStepStatuses.value,
           hydrologySubsteps: hydrologySubstepStatuses.value,
+          nestedParentId:
+            generation.generationProgress.value.activeNestedParentStepId ??
+            DERIVED_GEOGRAPHY_STEPS[generation.generationProgress.value.activeStepIndex]?.id ??
+            'hydrology',
         })
       : null
     const overlaysSection = showResourceOverlayBarComputed.value

@@ -24,13 +24,9 @@ import { resolveWorldGenerationOptions } from './worldGenerationOptions.js'
  * @property {() => void | Promise<void>} [afterStep]
  */
 
-/**
- * @param {unknown} value
- * @returns {value is Promise<unknown>}
- */
-export function isThenable(value) {
-  return value != null && typeof /** @type {{ then?: unknown }} */ (value).then === 'function'
-}
+import { isThenable } from './asyncValue.js'
+
+export { isThenable }
 
 /**
  * @template T
@@ -75,7 +71,30 @@ function createHydrologyStepOptions(callbacks) {
     onSubstepComplete: callbacks.onSubstepComplete,
     onSubstepPrepare: callbacks.onSubstepPrepare,
     shouldCancel: () => Boolean(callbacks.shouldCancel?.()),
+    yield: callbacks.yield,
   }
+}
+
+/**
+ * @param {LandmassPipelineRunCallbacks} callbacks
+ * @param {DerivedGeographyStepId} stepId
+ * @returns {PipelineStepOptions | undefined}
+ */
+function createStepOptions(callbacks, stepId) {
+  if (stepId === 'hydrology') {
+    return createHydrologyStepOptions(callbacks)
+  }
+  if (stepId === 'physicalTerrainBaseline' || stepId === 'erosion') {
+    return {
+      onSubstepStart: callbacks.onSubstepStart,
+      onSubstepProgress: callbacks.onSubstepProgress,
+      onSubstepComplete: callbacks.onSubstepComplete,
+      onSubstepPrepare: callbacks.onSubstepPrepare,
+      shouldCancel: () => Boolean(callbacks.shouldCancel?.()),
+      yield: callbacks.yield,
+    }
+  }
+  return undefined
 }
 
 /**
@@ -137,33 +156,33 @@ function runLandmassPipelineStepsShared(state, callbacks, options, hooks) {
           label: step.label,
         })
 
-        let nextState
-        const stepOptions =
-          step.id === 'hydrology' ? createHydrologyStepOptions(callbacks) : undefined
-        nextState = runPipelineStep(currentState, step.id, stepOptions)
+        const stepOptions = createStepOptions(callbacks, step.id)
+        return continuePipeline(
+          runPipelineStep(currentState, step.id, stepOptions),
+          (nextState) =>
+            continuePipeline(hooks.shouldCancel(), (isCancelledAfterStep) => {
+              if (isCancelledAfterStep) {
+                throw new LandmassPipelineCancelledError(nextState)
+              }
 
-        return continuePipeline(hooks.shouldCancel(), (isCancelledAfterStep) => {
-          if (isCancelledAfterStep) {
-            throw new LandmassPipelineCancelledError(nextState)
-          }
+              const worldDocument = shouldAttachLandmassStepPreview(step.id, options)
+                ? cloneWorldDocument(buildWorldDocumentFromPipelineState(nextState))
+                : undefined
 
-          const worldDocument = shouldAttachLandmassStepPreview(step.id, options)
-            ? cloneWorldDocument(buildWorldDocumentFromPipelineState(nextState))
-            : undefined
+              callbacks.onStepComplete?.({
+                stepId: step.id,
+                stepIndex,
+                stepCount,
+                label: step.label,
+                state: nextState,
+                worldDocument,
+              })
 
-          callbacks.onStepComplete?.({
-            stepId: step.id,
-            stepIndex,
-            stepCount,
-            label: step.label,
-            state: nextState,
-            worldDocument,
-          })
-
-          return continuePipeline(hooks.afterStep?.() ?? undefined, () =>
-            runFromStep(stepIndex + 1, nextState),
-          )
-        })
+              return continuePipeline(hooks.afterStep?.() ?? undefined, () =>
+                runFromStep(stepIndex + 1, nextState),
+              )
+            }),
+        )
       },
     )
   }

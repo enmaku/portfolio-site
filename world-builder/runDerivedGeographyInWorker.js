@@ -1,5 +1,10 @@
 import { DERIVED_GEOGRAPHY_STEPS } from './core/derivedGeographyPipeline.js'
 export { HYDROLOGY_SUBSTEPS } from './core/hydrology/hydrologySubsteps.js'
+export {
+  BASELINE_NESTED_PHASES,
+  EROSION_NESTED_PHASES,
+  nestedPhasesForParentStep,
+} from './core/landmassNestedPhases.js'
 
 /**
  * @typedef {import('./worker/derivedGeographyWorkerProtocol.js').DerivedGeographyWorkerSubstepPrepareMessage} DerivedGeographyWorkerSubstepPrepareMessage
@@ -9,12 +14,14 @@ export { HYDROLOGY_SUBSTEPS } from './core/hydrology/hydrologySubsteps.js'
 /**
  * @typedef {Object} HydrologySubstepEventPayload
  * @property {string} stepId
+ * @property {string} [parentStepId]
  * @property {string} substepId
  * @property {number} substepIndex
  * @property {number} substepCount
  * @property {string} label
  * @property {number=} progress
  * @property {boolean=} skipped
+ * @property {import('./core/types.js').WorldDocument=} worldDocument
  */
 
 /**

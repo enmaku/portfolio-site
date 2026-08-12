@@ -18,6 +18,7 @@ export const ABSORPTION_PROGRESS_STAGE_COUNT = 5
  * @param {{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
  *   worldDocument: object,
+ *   graphCache?: import('../tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  *   survivalBySettlementId?: Record<string, object>,
  *   warOutcomes?: Array<{ loserFactionId: string, winnerFactionId: string }>,
  * }} params
@@ -56,6 +57,7 @@ export async function applyFactionAbsorption(params, options = {}) {
   const streaked = await updateDependenceStreaks({
     slice: next,
     worldDocument: params.worldDocument,
+    graphCache: params.graphCache,
     survivalBySettlementId: params.survivalBySettlementId ?? {},
     onItem: onProgress,
     yieldToUi,
@@ -123,6 +125,7 @@ function applyWarOutcomes(params) {
  * @param {{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
  *   worldDocument: object,
+ *   graphCache?: import('../tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  *   survivalBySettlementId: Record<string, object>,
  *   onItem?: () => void,
  *   yieldToUi?: () => Promise<void>,
@@ -145,6 +148,7 @@ async function updateDependenceStreaks(params) {
     inlandSailExpeditionRange:
       next.colonistSettings.inlandSailExpeditionRange *
       next.colonistSettings.threeDayHaulDistance,
+    graphCache: params.graphCache,
   }).components
 
   /** @type {Map<string, string>} */

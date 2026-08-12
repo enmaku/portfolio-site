@@ -119,7 +119,17 @@
  * @typedef {HydrologyAfterSettle & HydrologyPaintOutputs} HydrologyAfterPaint
  */
 
-/** @typedef {HydrologyAfterPaint} HydrologyWorld */
+/**
+ * @typedef {Object} HydrologyFinalizeOutputs
+ * @property {import('../types.js').ScalarFields} fields
+ * @property {Uint16Array | import('../types.js').BiomeId[]} biomes
+ */
+
+/**
+ * @typedef {HydrologyAfterPaint & HydrologyFinalizeOutputs} HydrologyAfterFinalize
+ */
+
+/** @typedef {HydrologyAfterFinalize} HydrologyWorld */
 
 /**
  * @param {DerivedGeographyPipelineState} state

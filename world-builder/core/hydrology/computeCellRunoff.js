@@ -23,6 +23,7 @@ export function computeDrainageInfiltration(drainage, idx, soilDrainageScale = 1
  * @param {Float32Array} [params.soilDrainage]
  * @param {number} [params.soilDrainageScale]
  * @param {boolean[]} [params.ocean]
+ * @param {Float32Array} [params.out]
  * @returns {Float32Array}
  */
 export function computeCellRunoff({
@@ -31,8 +32,9 @@ export function computeCellRunoff({
   soilDrainage,
   soilDrainageScale = 1,
   ocean,
+  out,
 }) {
-  const runoff = new Float32Array(rainfall.length)
+  const runoff = out && out.length === rainfall.length ? out : new Float32Array(rainfall.length)
   for (let i = 0; i < runoff.length; i += 1) {
     if (ocean?.[i]) {
       runoff[i] = 0
