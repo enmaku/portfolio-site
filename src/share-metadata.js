@@ -82,8 +82,8 @@ export const SHARE_CATALOG = [
     title: 'Game Manager',
     description:
       'Track your board game collection, table companions, play sessions, and personal records.',
-    ogImage: 'icons/favicon-default.svg',
-    favicon: 'default',
+    ogImage: 'icons/favicon-meeple.svg',
+    favicon: 'meeple',
   },
   {
     routePath: '/projects/dungeon-runner/stats',

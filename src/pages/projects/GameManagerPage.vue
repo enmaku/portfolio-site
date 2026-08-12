@@ -10,6 +10,7 @@
 
     <template v-else>
       <div class="gm-page__header row items-center no-wrap q-px-md q-pt-md q-pb-sm">
+        <MeepleIcon size="md" class="q-mr-sm" />
         <div class="text-h6 text-weight-medium col">Game Manager</div>
         <q-btn
           flat
@@ -96,7 +97,9 @@
 </template>
 
 <script setup>
-import { provide, ref } from 'vue'
+import { provide, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import MeepleIcon from '../../components/MeepleIcon.vue'
 import { CATALOG_ATTRIBUTION } from '../../features/game-manager/catalog/catalogAttribution.js'
 import GameManagerSignInPanel from '../../features/game-manager/components/GameManagerSignInPanel.vue'
 import GameManagerSessionFlowHost from '../../features/game-manager/components/GameManagerSessionFlowHost.vue'
@@ -108,6 +111,8 @@ import { GAME_MANAGER_SESSION_FLOW_KEY } from '../../features/game-manager/compo
 import { useGameManagerAuth } from '../../features/game-manager/composables/useGameManagerAuth.js'
 import { useGameManagerSessionFlow } from '../../features/game-manager/composables/useGameManagerSessionFlow.js'
 import { useGameManagerSessions } from '../../features/game-manager/composables/useGameManagerSessions.js'
+import { useManagerTimerLink } from '../../features/game-manager/composables/useManagerTimerLink.js'
+import { GM_CONTINUE_QUERY_KEY } from '../../features/game-manager/domain/timerLinkOrchestration.js'
 
 const { isAccountOwner, loading, signOut } = useGameManagerAuth()
 
@@ -115,13 +120,45 @@ const activeSurface = ref('collection')
 const signOutPending = ref(false)
 const helpOpen = ref(false)
 const attribution = CATALOG_ATTRIBUTION
+const route = useRoute()
+const router = useRouter()
 
 const sessionsApi = useGameManagerSessions()
+const timerLink = useManagerTimerLink({ router })
 const sessionFlow = useGameManagerSessionFlow({
   sessionsApi,
   activeSurface,
+  timerLink,
 })
 provide(GAME_MANAGER_SESSION_FLOW_KEY, sessionFlow)
+
+async function consumeTimerContinueQuery() {
+  if (!isAccountOwner.value) return
+  const raw = route.query[GM_CONTINUE_QUERY_KEY]
+  if (raw === undefined || raw === null) return
+  const playSessionId = Array.isArray(raw) ? raw[0] : raw
+  if (!String(playSessionId || '').trim()) return
+
+  const nextQuery = { ...route.query }
+  delete nextQuery[GM_CONTINUE_QUERY_KEY]
+  await router.replace({
+    path: route.path,
+    query: nextQuery,
+    hash: route.hash,
+  })
+
+  await sessionsApi.reload()
+  await sessionFlow.openScoringFromTimerContinue(String(playSessionId))
+}
+
+watch(
+  () => [isAccountOwner.value, loading.value, route.query[GM_CONTINUE_QUERY_KEY]],
+  () => {
+    if (loading.value) return
+    void consumeTimerContinueQuery()
+  },
+  { immediate: true },
+)
 
 async function onSignOut() {
   signOutPending.value = true
@@ -135,6 +172,7 @@ async function onSignOut() {
 
 <style scoped lang="scss">
 .gm-page {
+  position: relative;
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;

@@ -1,13 +1,15 @@
 import { computed, ref, shallowRef } from 'vue'
+import { buildLaunchConfigFromPresentPlayers } from '../domain/timerHandoff.js'
 
 /**
  * Orchestrates Game detail + play session full-screen steps.
  * @param {{
  *   sessionsApi: ReturnType<typeof import('./useGameManagerSessions.js').useGameManagerSessions>,
  *   activeSurface: import('vue').Ref<string>,
+ *   timerLink?: { enterLinkedTimer: (input: { playSessionId: string, launchConfig: object }) => Promise<unknown> },
  * }} deps
  */
-export function useGameManagerSessionFlow({ sessionsApi, activeSurface }) {
+export function useGameManagerSessionFlow({ sessionsApi, activeSurface, timerLink }) {
   const {
     activeSession,
     savedPeople,
@@ -82,7 +84,21 @@ export function useGameManagerSessionFlow({ sessionsApi, activeSurface }) {
         flowPanel.value = 'scoring'
         return
       }
-      if (session.state === 'setup' || session.state === 'playing' || session.state === 'scoring') {
+      if (session.state === 'playing') {
+        const current = activeSession.value || session
+        if (timerLink?.enterLinkedTimer) {
+          const launchConfig = buildLaunchConfigFromPresentPlayers(current.presentPlayers || [])
+          await timerLink.enterLinkedTimer({
+            playSessionId: current.id,
+            launchConfig,
+          })
+          flowPanel.value = null
+          return
+        }
+        flowPanel.value = 'playing'
+        return
+      }
+      if (session.state === 'setup' || session.state === 'scoring') {
         flowPanel.value = session.state
         return
       }
@@ -110,6 +126,16 @@ export function useGameManagerSessionFlow({ sessionsApi, activeSurface }) {
     error.value = null
     try {
       await transition('playing')
+      const session = activeSession.value
+      if (timerLink?.enterLinkedTimer && session) {
+        const launchConfig = buildLaunchConfigFromPresentPlayers(session.presentPlayers || [])
+        await timerLink.enterLinkedTimer({
+          playSessionId: session.id,
+          launchConfig,
+        })
+        flowPanel.value = null
+        return
+      }
       flowPanel.value = 'playing'
     } catch (e) {
       error.value = e
@@ -161,6 +187,26 @@ export function useGameManagerSessionFlow({ sessionsApi, activeSurface }) {
     }
   }
 
+  /**
+   * Open scoring after Timer game-end continue cue.
+   * @param {string} playSessionId
+   */
+  async function openScoringFromTimerContinue(playSessionId) {
+    if (!playSessionId || busy.value) return
+    busy.value = true
+    error.value = null
+    try {
+      await selectSession(playSessionId)
+      flowPanel.value = 'scoring'
+      returnSurface.value = 'sessions'
+    } catch (e) {
+      error.value = e
+      throw e
+    } finally {
+      busy.value = false
+    }
+  }
+
   return {
     gameDetailItem,
     gameDetailOpen,
@@ -179,6 +225,7 @@ export function useGameManagerSessionFlow({ sessionsApi, activeSurface }) {
     startGame,
     finishGame,
     saveAndComplete,
+    openScoringFromTimerContinue,
     setAttendance,
     addAttendance,
     dropPlayer,

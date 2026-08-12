@@ -1,6 +1,7 @@
 import {
   SCORE_ENTRY_MODES,
   addPresentPlayer,
+  attachTimerExport,
   canCompletePlaySession,
   createPlaySession,
   dropOutPresentPlayer,
@@ -25,6 +26,15 @@ export function startPlaySessionDraft(input) {
  */
 export function movePlaySession(session, nextState) {
   return transitionPlaySessionState(session, nextState)
+}
+
+/**
+ * @param {object} session
+ * @param {unknown} timerExport
+ * @param {{ newId?: () => string }} [options]
+ */
+export function applyTimerExport(session, timerExport, options) {
+  return attachTimerExport(session, timerExport, options)
 }
 
 /**

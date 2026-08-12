@@ -28,4 +28,6 @@ test('game manager share catalog row is paste-unfurl eligible', () => {
   assert.ok(entry)
   assert.equal(entry.pasteUnfurl, true)
   assert.equal(entry.shareSlug, 'projects/game-manager')
+  assert.equal(entry.favicon, 'meeple')
+  assert.equal(entry.ogImage, 'icons/favicon-meeple.svg')
 })

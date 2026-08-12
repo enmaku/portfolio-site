@@ -21,6 +21,21 @@
   background: $dark-page;
 }
 
+/** Full-page session flow (detail / setup / scoring) — stays inside project-shell phone frame. */
+.gm-flow-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: $dark-page;
+}
+
+.body--light .gm-flow-overlay {
+  background: #fff;
+}
+
 .body--light .gm-catalog-panel {
   background: #fff;
 }

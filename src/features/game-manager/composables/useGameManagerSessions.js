@@ -12,6 +12,7 @@ import {
   dropPresentPlayer,
   gameRefFromCollectionItem,
   includePresentPlayer,
+  applyTimerExport,
   movePlaySession,
   replacePresentPlayers,
   startPlaySessionDraft,
@@ -110,6 +111,19 @@ export function useGameManagerSessions() {
   async function transition(nextState) {
     if (!activeSession.value) return null
     const next = movePlaySession(activeSession.value, nextState)
+    const saved = await persist(next)
+    activeSession.value = saved
+    return saved
+  }
+
+  /**
+   * @param {unknown} timerExport
+   */
+  async function attachExport(timerExport) {
+    if (!activeSession.value) return null
+    const next = applyTimerExport(activeSession.value, timerExport, {
+      newId: () => newId('rp'),
+    })
     const saved = await persist(next)
     activeSession.value = saved
     return saved
@@ -215,6 +229,7 @@ export function useGameManagerSessions() {
     createSessionFromShelf,
     selectSession,
     transition,
+    attachExport,
     saveScore,
     setAttendance,
     addAttendance,

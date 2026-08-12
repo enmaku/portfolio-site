@@ -1,12 +1,10 @@
 <template>
-  <q-dialog
-    :model-value="overlayOpen"
-    maximized
-    :persistent="overlayPersistent"
-    transition-show="slide-up"
-    transition-hide="slide-down"
-    @update:model-value="onOverlayToggle"
-    @hide="blurActiveElement"
+  <div
+    v-if="overlayOpen"
+    class="gm-flow-overlay"
+    data-testid="gm-flow-overlay"
+    role="dialog"
+    aria-modal="true"
   >
     <GameManagerGameDetail
       v-if="showingDetail"
@@ -49,11 +47,11 @@
       @close="onClose"
       @save="onSave"
     />
-  </q-dialog>
+  </div>
 </template>
 
 <script setup>
-import { computed, inject } from 'vue'
+import { computed, inject, onMounted, onUnmounted } from 'vue'
 import { GAME_MANAGER_SESSION_FLOW_KEY } from '../composables/sessionFlowKey.js'
 import GameManagerGameDetail from './GameManagerGameDetail.vue'
 import GameManagerSessionPlayingPanel from './GameManagerSessionPlayingPanel.vue'
@@ -72,6 +70,7 @@ const savedPeople = computed(() => flow.savedPeople.value)
 const flowPanel = computed(() => flow.flowPanel.value)
 const showingDetail = computed(() => flow.gameDetailOpen.value)
 const overlayOpen = computed(() => flow.gameDetailOpen.value || flow.flowPanel.value != null)
+/** Setup / scoring / playing stay until explicit close; game detail may dismiss with Escape. */
 const overlayPersistent = computed(() => flow.flowPanel.value != null)
 
 function blurActiveElement() {
@@ -81,14 +80,27 @@ function blurActiveElement() {
   }
 }
 
-function onOverlayToggle(open) {
-  if (!open) onClose()
-}
-
 function onClose() {
   blurActiveElement()
   flow.leaveFlow()
 }
+
+function onDocumentKeydown(event) {
+  if (event.key !== 'Escape' || !overlayOpen.value) return
+  if (overlayPersistent.value) return
+  event.preventDefault()
+  onClose()
+}
+
+onMounted(() => {
+  if (typeof document === 'undefined') return
+  document.addEventListener('keydown', onDocumentKeydown)
+})
+
+onUnmounted(() => {
+  if (typeof document === 'undefined') return
+  document.removeEventListener('keydown', onDocumentKeydown)
+})
 
 async function onStartSession() {
   await flow.startNewSession()

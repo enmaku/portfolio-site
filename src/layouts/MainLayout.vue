@@ -64,7 +64,8 @@
                     @click="p.navigateInTab ? undefined : openProjectInNewTab(p.to)"
                   >
                     <q-item-section avatar>
-                      <q-icon :name="p.icon" />
+                      <MeepleIcon v-if="p.icon === MEEPLE_ICON_NAME" />
+                      <q-icon v-else :name="p.icon" />
                     </q-item-section>
                     <q-item-section>{{ p.label }}</q-item-section>
                   </q-item>
@@ -130,7 +131,8 @@
                 @click="p.navigateInTab ? undefined : openProjectInNewTab(p.to)"
               >
                 <q-item-section avatar>
-                  <q-icon :name="p.icon" />
+                  <MeepleIcon v-if="p.icon === MEEPLE_ICON_NAME" />
+                  <q-icon v-else :name="p.icon" />
                 </q-item-section>
                 <q-item-section>{{ p.label }}</q-item-section>
               </q-item>
@@ -158,6 +160,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import MeepleIcon from '../components/MeepleIcon.vue'
+import { MEEPLE_ICON_NAME } from '../icons/meeple.js'
 
 const navTabs = [
   { to: '/', label: 'Photography', icon: 'photo_library' },
@@ -171,7 +175,7 @@ const projectSections = [
       { to: '/projects/game-timer', label: 'Game Timer', icon: 'timer' },
       { to: '/projects/movie-vote', label: 'Movie Vote', icon: 'movie' },
       { to: '/projects/dungeon-runner', label: 'Dungeon Runner', icon: 'shield' },
-      { to: '/projects/game-manager', label: 'Game Manager', icon: 'collections_bookmark' },
+      { to: '/projects/game-manager', label: 'Game Manager', icon: MEEPLE_ICON_NAME },
     ],
   },
   {

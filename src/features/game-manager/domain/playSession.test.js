@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   SCORE_ENTRY_MODES,
   addPresentPlayer,
+  attachTimerExport,
   canCompletePlaySession,
   createPlaySession,
   dropOutPresentPlayer,
@@ -16,6 +17,18 @@ function present(id, name = id) {
   return { recordedPlayerId: id, name, color: '#112233' }
 }
 
+function sampleExport(seats) {
+  return {
+    durationMs: 60_000,
+    seats: seats.map((s) => ({
+      recordedPlayerId: s.recordedPlayerId,
+      name: s.name || s.recordedPlayerId,
+      color: s.color || '#112233',
+      bankedMs: typeof s.bankedMs === 'number' ? s.bankedMs : 1_000,
+    })),
+  }
+}
+
 function toPlaying(session) {
   return transitionPlaySessionState(session, 'playing')
 }
@@ -23,7 +36,15 @@ function toPlaying(session) {
 function toScoring(session) {
   let next = session
   if (next.state === 'setup') next = toPlaying(next)
-  if (next.state === 'playing') next = transitionPlaySessionState(next, 'scoring')
+  if (next.state === 'playing') {
+    if (!next.timerExport) {
+      next = attachTimerExport(
+        next,
+        sampleExport(next.presentPlayers.map((p) => ({ recordedPlayerId: p.recordedPlayerId, name: p.name }))),
+      )
+    }
+    next = transitionPlaySessionState(next, 'scoring')
+  }
   return next
 }
 
@@ -191,4 +212,38 @@ test('createPlaySession does not include addToCollection', () => {
     game: { kind: 'catalog', catalogEntryId: '1', title: 'X' },
   })
   assert.equal('addToCollection' in session, false)
+})
+
+test('playing to scoring requires a timer export', () => {
+  let session = createPlaySession({
+    id: 's-export-gate',
+    game: { kind: 'catalog', catalogEntryId: '1', title: 'X' },
+    presentPlayers: [present('p1')],
+  })
+  session = toPlaying(session)
+  assert.throws(() => transitionPlaySessionState(session, 'scoring'), /timer export/i)
+})
+
+test('attachTimerExport reconciles present players and enables scoring', () => {
+  let session = createPlaySession({
+    id: 's-attach',
+    game: { kind: 'catalog', catalogEntryId: '1', title: 'X' },
+    presentPlayers: [present('p1', 'Ada')],
+  })
+  session = toPlaying(session)
+  session = attachTimerExport(session, {
+    durationMs: 10_000,
+    seats: [
+      { recordedPlayerId: 'p1', name: 'Ada Renamed', color: '#abcdef', bankedMs: 4_000 },
+      { name: 'Guest', color: '#010101', bankedMs: 2_000 },
+    ],
+  }, { newId: () => 'p-guest' })
+
+  assert.equal(session.timerExport.durationMs, 10_000)
+  assert.deepEqual(session.presentPlayers, [
+    { recordedPlayerId: 'p1', name: 'Ada Renamed', color: '#abcdef' },
+    { recordedPlayerId: 'p-guest', name: 'Guest', color: '#010101' },
+  ])
+  session = transitionPlaySessionState(session, 'scoring')
+  assert.equal(session.state, 'scoring')
 })

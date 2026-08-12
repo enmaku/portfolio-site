@@ -1,5 +1,7 @@
 /** @typedef {'setup' | 'playing' | 'scoring' | 'complete'} PlaySessionState */
 
+import { normalizeTimerExport } from './timerHandoff.js'
+
 export const SCORE_ENTRY_MODES = Object.freeze({
   POINTS: 'points',
   OUTCOMES: 'outcomes',
@@ -119,11 +121,59 @@ export function transitionPlaySessionState(session, next) {
     throw new Error('Cannot start playing without at least one present player')
   }
 
+  if (next === 'scoring' && session.state === 'playing') {
+    if (!normalizeTimerExport(session.timerExport)) {
+      throw new Error('Cannot enter scoring without a timer export')
+    }
+  }
+
   if (next === 'complete' && !canCompletePlaySession(session)) {
     throw new Error('Cannot complete play session without a full session score')
   }
 
   return { ...session, state: next }
+}
+
+/**
+ * Attach a compact timer export and reconcile present players from export seats.
+ * Seats without recordedPlayerId receive ids from `options.newId`.
+ *
+ * @param {ReturnType<typeof createPlaySession>} session
+ * @param {unknown} timerExport
+ * @param {{ newId?: () => string }} [options]
+ */
+export function attachTimerExport(session, timerExport, options = {}) {
+  const normalized = normalizeTimerExport(timerExport)
+  if (!normalized) {
+    throw new Error('Invalid timer export')
+  }
+  const newId =
+    typeof options.newId === 'function'
+      ? options.newId
+      : () => `rp-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+  const presentPlayers = normalized.seats.map((seat) => {
+    const recordedPlayerId =
+      typeof seat.recordedPlayerId === 'string' && seat.recordedPlayerId
+        ? seat.recordedPlayerId
+        : newId()
+    return {
+      recordedPlayerId,
+      name: seat.name,
+      color: seat.color,
+    }
+  })
+
+  const seatsWithIds = normalized.seats.map((seat, i) => ({
+    ...seat,
+    recordedPlayerId: presentPlayers[i].recordedPlayerId,
+  }))
+
+  return {
+    ...session,
+    timerExport: { durationMs: normalized.durationMs, seats: seatsWithIds },
+    presentPlayers,
+  }
 }
 
 /**

@@ -59,19 +59,23 @@ test('personal best and average use only points scores', () => {
   assert.equal(averageScoreForPersonAtGame(sessions, 'ada', gameKey), 50)
 })
 
-test('points per minute requires timer export duration', () => {
-  const withoutDuration = [
+test('points per minute uses that person banked time from timer export', () => {
+  const withoutBanked = [
     session({
       score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { ada: 45 } },
+      timerExport: { durationMs: 45 * 60 * 1000, seats: [{ name: 'Ada', color: '#1', bankedMs: 0 }] },
     }),
   ]
-  assert.equal(pointsPerMinuteForPersonAtGame(withoutDuration, 'ada', gameKey), null)
+  assert.equal(pointsPerMinuteForPersonAtGame(withoutBanked, 'ada', gameKey), null)
 
-  const withDuration = [
+  const withBanked = [
     session({
       score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { ada: 45 } },
-      timerExport: { durationMs: 45 * 60 * 1000 },
+      timerExport: {
+        durationMs: 90 * 60 * 1000,
+        seats: [{ recordedPlayerId: 'ada', name: 'Ada', color: '#1', bankedMs: 45 * 60 * 1000 }],
+      },
     }),
   ]
-  assert.equal(pointsPerMinuteForPersonAtGame(withDuration, 'ada', gameKey), 1)
+  assert.equal(pointsPerMinuteForPersonAtGame(withBanked, 'ada', gameKey), 1)
 })

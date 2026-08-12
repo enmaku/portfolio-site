@@ -60,11 +60,24 @@ export function pointsPerMinuteForPersonAtGame(sessions, recordedPlayerId, gameK
   for (const s of sessionsForPersonAtGame(sessions, recordedPlayerId, gameKey)) {
     if (normalizeScoreEntryMode(s.score?.mode) !== SCORE_ENTRY_MODES.POINTS) continue
     const n = s.score.perPlayer?.[recordedPlayerId]
-    const durationMs = s.timerExport?.durationMs
+    const bankedMs = bankedMsForPerson(s.timerExport, recordedPlayerId)
     if (typeof n !== 'number' || !Number.isFinite(n)) continue
-    if (typeof durationMs !== 'number' || !(durationMs > 0)) continue
-    rates.push(n / (durationMs / 60000))
+    if (typeof bankedMs !== 'number' || !(bankedMs > 0)) continue
+    rates.push(n / (bankedMs / 60000))
   }
   if (!rates.length) return null
   return rates.reduce((a, b) => a + b, 0) / rates.length
+}
+
+/**
+ * @param {{ seats?: Array<{ recordedPlayerId?: string, bankedMs?: number }> } | null | undefined} timerExport
+ * @param {string} recordedPlayerId
+ * @returns {number | null}
+ */
+function bankedMsForPerson(timerExport, recordedPlayerId) {
+  const seats = timerExport?.seats
+  if (!Array.isArray(seats)) return null
+  const seat = seats.find((s) => s && s.recordedPlayerId === recordedPlayerId)
+  if (!seat || typeof seat.bankedMs !== 'number' || !Number.isFinite(seat.bankedMs)) return null
+  return seat.bankedMs
 }

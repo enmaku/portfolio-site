@@ -29,6 +29,9 @@
 
     <template v-else>
       <q-card-section data-testid="gm-auth-sign-in-form">
+        <div class="column items-center q-mb-md">
+          <MeepleIcon size="48px" />
+        </div>
         <div class="text-h6 text-weight-medium q-mb-xs">Sign in</div>
         <div class="text-body2 text-grey-5 q-mb-lg">
           Use Google or email to access your Game Manager collection and play history.
@@ -107,6 +110,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import MeepleIcon from '../../../components/MeepleIcon.vue'
 import { useGameManagerAuth } from '../composables/useGameManagerAuth.js'
 
 const {

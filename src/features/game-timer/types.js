@@ -18,6 +18,7 @@
  * @property {string} color
  * @property {number} bankedMs All rounds combined (lifetime banked).
  * @property {Record<string, number>} [bankedMsByRound] Banked ms per round key (`"1"`, `"2"`, …).
+ * @property {string} [recordedPlayerId] Stable Game Manager person id when manager-linked.
  */
 
 /**

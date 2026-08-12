@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   SCORE_ENTRY_MODES,
+  applyTimerExport,
   canCompletePlaySession,
   gameRefFromCollectionItem,
   includePresentPlayer,
@@ -10,6 +11,18 @@ import {
   startPlaySessionDraft,
   writePlaySessionScore,
 } from './sessionsViewModel.js'
+
+function withExport(session) {
+  return applyTimerExport(session, {
+    durationMs: 1_000,
+    seats: session.presentPlayers.map((p) => ({
+      recordedPlayerId: p.recordedPlayerId,
+      name: p.name,
+      color: p.color,
+      bankedMs: 500,
+    })),
+  })
+}
 
 test('startPlaySessionDraft begins in setup and advances through playing', () => {
   let session = startPlaySessionDraft({
@@ -20,6 +33,7 @@ test('startPlaySessionDraft begins in setup and advances through playing', () =>
   assert.equal(session.state, 'setup')
   session = movePlaySession(session, 'playing')
   assert.equal(session.state, 'playing')
+  session = withExport(session)
   session = movePlaySession(session, 'scoring')
   assert.equal(session.state, 'scoring')
 })
@@ -71,6 +85,7 @@ test('complete requires full score via sessions view model helpers', () => {
     presentPlayers: [{ recordedPlayerId: 'p1', name: 'Ada', color: '#111111' }],
   })
   session = movePlaySession(session, 'playing')
+  session = withExport(session)
   session = movePlaySession(session, 'scoring')
   session = writePlaySessionScore(session, {
     mode: SCORE_ENTRY_MODES.POINTS,

@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import routes, { portfolioDocumentTitle } from './router/routes.js'
 import {
   FAVICON_IDS,
@@ -120,6 +122,17 @@ test('home is paste-unfurl in catalog but not in PASTE_UNFURL_ROUTES', () => {
 test('FAVICON_IDS lists each catalog favicon exactly once', () => {
   const fromCatalog = [...new Set(SHARE_CATALOG.map((entry) => entry.favicon))].sort()
   assert.deepEqual([...FAVICON_IDS].sort(), fromCatalog)
+})
+
+test('each catalog favicon id has a public SVG asset', () => {
+  const iconsDir = fileURLToPath(new URL('../public/icons', import.meta.url))
+  for (const id of FAVICON_IDS) {
+    assert.equal(
+      existsSync(`${iconsDir}/favicon-${id}.svg`),
+      true,
+      `missing public/icons/favicon-${id}.svg`,
+    )
+  }
 })
 
 test('getShareEntryForPath returns null for unknown paths', () => {
