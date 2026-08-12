@@ -16,7 +16,7 @@ import {
   runLandmassPipelineWithRetryShared,
 } from './landmassPipelineRunner.js'
 import { resolveWorldGenerationOptions } from './worldGenerationOptions.js'
-import { normalizeWindDegrees } from './fields/prevailingWindField.js'
+import { normalizeWindDegrees, resolveSecondaryMaximumDegrees } from './fields/prevailingWindField.js'
 
 export {
   LANDMASS_PIPELINE_STAGE_CONTRACTS,
@@ -66,10 +66,10 @@ export function createInitialPipelineState(params) {
   const height = params.height ?? DEFAULT_GRID_SIZE
   const geographySeed = params.geographySeed | 0
   const prevailingWindDegrees = normalizeWindDegrees(params.prevailingWindDegrees)
-  const secondaryMaximumDegrees =
-    params.secondaryMaximumDegrees === undefined
-      ? normalizeWindDegrees(prevailingWindDegrees + 90)
-      : normalizeWindDegrees(params.secondaryMaximumDegrees)
+  const secondaryMaximumDegrees = resolveSecondaryMaximumDegrees(
+    prevailingWindDegrees,
+    params.secondaryMaximumDegrees,
+  )
   const options = resolveWorldGenerationOptions(params.options)
 
   return {

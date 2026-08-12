@@ -6,7 +6,10 @@ import { generateElevation } from './fields/generateElevation.js'
 import { generateRainfall } from './fields/generateRainfall.js'
 import { generateTemperature } from './fields/generateTemperature.js'
 import { deriveSalinityFromOcean } from './fields/deriveSalinityFromOcean.js'
-import { normalizeWindDegrees } from './fields/prevailingWindField.js'
+import {
+  normalizeWindDegrees,
+  resolveSecondaryMaximumDegrees,
+} from './fields/prevailingWindField.js'
 import {
   DEFAULT_GRID_SIZE,
   PIPELINE_STAGE_PHYSICAL_TERRAIN_BASELINE,
@@ -22,10 +25,10 @@ export function generatePhysicalTerrainBaseline(params) {
   const height = params.height ?? DEFAULT_GRID_SIZE
   const geographySeed = params.geographySeed | 0
   const prevailingWindDegrees = normalizeWindDegrees(params.prevailingWindDegrees)
-  const secondaryMaximumDegrees =
-    params.secondaryMaximumDegrees === undefined
-      ? normalizeWindDegrees(prevailingWindDegrees + 90)
-      : normalizeWindDegrees(params.secondaryMaximumDegrees)
+  const secondaryMaximumDegrees = resolveSecondaryMaximumDegrees(
+    prevailingWindDegrees,
+    params.secondaryMaximumDegrees,
+  )
   const options = resolveWorldGenerationOptions(params.options)
 
   const elevation = generateElevation({ geographySeed, width, height, options })

@@ -13,7 +13,7 @@ import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
  * @param {Float32Array} params.elevation
  * @param {number} params.width
  * @param {number} params.height
- * @param {number} params.prevailingWindDegrees
+ * @param {number} params.transportBearingDegrees
  * @param {number} params.advectionStrength
  * @param {number} params.rainShadowStrength
  * @param {number} params.seaLevel
@@ -24,7 +24,7 @@ function rainfallForBearing({
   elevation,
   width,
   height,
-  prevailingWindDegrees,
+  transportBearingDegrees,
   advectionStrength,
   rainShadowStrength,
   seaLevel,
@@ -35,7 +35,7 @@ function rainfallForBearing({
       elevation,
       width,
       height,
-      prevailingWindDegrees,
+      transportBearingDegrees,
       seaLevel,
     })
     for (let i = 0; i < base.length; i += 1) {
@@ -51,7 +51,7 @@ function rainfallForBearing({
     elevation,
     width,
     height,
-    prevailingWindDegrees,
+    transportBearingDegrees,
     rainShadowStrength,
   })
 }
@@ -63,7 +63,7 @@ function rainfallForBearing({
  * @param {number} params.height
  * @param {Float32Array} params.elevation
  * @param {number} params.prevailingWindDegrees
- * @param {number} [params.secondaryMaximumDegrees]
+ * @param {number} params.secondaryMaximumDegrees
  * @param {Partial<import('../types.js').WorldGenerationOptions>} [params.options]
  * @returns {Float32Array}
  */
@@ -88,12 +88,9 @@ export function generateRainfall({
   })
 
   const prevailing = normalizeWindDegrees(prevailingWindDegrees)
-  const secondary =
-    secondaryMaximumDegrees === undefined
-      ? normalizeWindDegrees(prevailing + 90)
-      : normalizeWindDegrees(secondaryMaximumDegrees)
+  const secondary = normalizeWindDegrees(secondaryMaximumDegrees)
 
-  const { bearings } = buildWindRoseSchedule({
+  const { lobes } = buildWindRoseSchedule({
     geographySeed,
     prevailingWindDegrees: prevailing,
     secondaryMaximumDegrees: secondary,
@@ -104,25 +101,20 @@ export function generateRainfall({
   const seaLevel = resolved.seaLevel
   const accumulated = new Float32Array(base.length)
 
-  for (const bearing of bearings) {
+  for (const lobe of lobes) {
     const sample = rainfallForBearing({
       base,
       elevation,
       width,
       height,
-      prevailingWindDegrees: bearing,
+      transportBearingDegrees: lobe.bearing,
       advectionStrength,
       rainShadowStrength,
       seaLevel,
     })
     for (let i = 0; i < accumulated.length; i += 1) {
-      accumulated[i] += sample[i]
+      accumulated[i] += lobe.weight * sample[i]
     }
-  }
-
-  const inv = 1 / bearings.length
-  for (let i = 0; i < accumulated.length; i += 1) {
-    accumulated[i] *= inv
   }
 
   if (resolved.rainfallAmountScale === 1) {

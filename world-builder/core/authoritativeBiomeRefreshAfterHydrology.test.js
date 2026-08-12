@@ -39,7 +39,7 @@ const NON_SEASONAL_PIPELINE_GOLDEN_CHECKSUMS = {
   elevation: 1794626407,
   drainage: 1059142182,
   temperature: 2118061058,
-  rainfall: 1044047867,
+  rainfall: 1044050390,
   salinity: 746831041,
   biomes: 48146,
 }

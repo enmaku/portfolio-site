@@ -1,12 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { derivePrevailingWindFromSeed } from '../derivePrevailingWindFromSeed.js'
-import { buildWindRoseSchedule } from './buildWindRoseSchedule.js'
+import {
+  buildWindRoseSchedule,
+  WIND_ROSE_MIX,
+  WIND_ROSE_SAMPLE_COUNT,
+} from './buildWindRoseSchedule.js'
 
-function countKinds(kinds) {
+/**
+ * @param {import('./buildWindRoseSchedule.js').WindRoseLobe[]} lobes
+ */
+function countKinds(lobes) {
   const counts = { prevailing: 0, secondary: 0, scatter: 0 }
-  for (const kind of kinds) {
-    counts[kind] += 1
+  for (const lobe of lobes) {
+    counts[lobe.kind] += 1
   }
   return counts
 }
@@ -19,35 +26,52 @@ test('buildWindRoseSchedule is deterministic for the same inputs', () => {
   }
   const a = buildWindRoseSchedule(params)
   const b = buildWindRoseSchedule(params)
-  assert.deepEqual(a.bearings, b.bearings)
-  assert.deepEqual(a.kinds, b.kinds)
+  assert.deepEqual(a.lobes, b.lobes)
 })
 
-test('buildWindRoseSchedule realizes locked lobe counts for N=20', () => {
-  const { kinds, bearings } = buildWindRoseSchedule({
+test('buildWindRoseSchedule returns one prevailing, one secondary, and locked scatter count', () => {
+  const { lobes } = buildWindRoseSchedule({
     geographySeed: 42,
     prevailingWindDegrees: 90,
     secondaryMaximumDegrees: 180,
   })
-  assert.equal(bearings.length, 20)
-  assert.equal(kinds.length, 20)
-  assert.deepEqual(countKinds(kinds), { prevailing: 7, secondary: 4, scatter: 9 })
+  const kinds = countKinds(lobes)
+  assert.deepEqual(kinds, { prevailing: 1, secondary: 1, scatter: 9 })
+  assert.equal(kinds.prevailing + kinds.secondary + kinds.scatter, 11)
+  assert.equal(WIND_ROSE_SAMPLE_COUNT, 20)
+})
+
+test('buildWindRoseSchedule lobe weights match locked mix and sum to 1', () => {
+  const { lobes } = buildWindRoseSchedule({
+    geographySeed: 42,
+    prevailingWindDegrees: 90,
+    secondaryMaximumDegrees: 180,
+  })
+  const byKind = Object.fromEntries(lobes.map((lobe) => [lobe.kind, lobe]))
+  assert.equal(byKind.prevailing.weight, WIND_ROSE_MIX.prevailing)
+  assert.equal(byKind.secondary.weight, WIND_ROSE_MIX.secondary)
+  const scatterWeight = lobes
+    .filter((lobe) => lobe.kind === 'scatter')
+    .reduce((sum, lobe) => sum + lobe.weight, 0)
+  assert.ok(Math.abs(scatterWeight - WIND_ROSE_MIX.scatter) < 1e-12)
+  const total = lobes.reduce((sum, lobe) => sum + lobe.weight, 0)
+  assert.ok(Math.abs(total - 1) < 1e-12)
 })
 
 test('buildWindRoseSchedule places prevailing and secondary at their absolute bearings', () => {
   const prevailing = 40
   const secondary = 200
-  const { bearings, kinds } = buildWindRoseSchedule({
+  const { lobes } = buildWindRoseSchedule({
     geographySeed: 99,
     prevailingWindDegrees: prevailing,
     secondaryMaximumDegrees: secondary,
   })
-  for (let i = 0; i < kinds.length; i += 1) {
-    if (kinds[i] === 'prevailing') {
-      assert.equal(bearings[i], prevailing)
+  for (const lobe of lobes) {
+    if (lobe.kind === 'prevailing') {
+      assert.equal(lobe.bearing, prevailing)
     }
-    if (kinds[i] === 'secondary') {
-      assert.equal(bearings[i], secondary)
+    if (lobe.kind === 'secondary') {
+      assert.equal(lobe.bearing, secondary)
     }
   }
 })
@@ -67,12 +91,11 @@ test('buildWindRoseSchedule rotates scatter with prevailing relative to seed fra
     secondaryMaximumDegrees: (secondary + 45) % 360,
   })
 
-  for (let i = 0; i < atFrame.kinds.length; i += 1) {
-    if (atFrame.kinds[i] !== 'scatter') {
-      continue
-    }
-    const expected = (((atFrame.bearings[i] + 45) % 360) + 360) % 360
-    assert.equal(rotated.bearings[i], expected)
-    assert.equal(rotated.kinds[i], 'scatter')
+  const atScatter = atFrame.lobes.filter((lobe) => lobe.kind === 'scatter')
+  const rotatedScatter = rotated.lobes.filter((lobe) => lobe.kind === 'scatter')
+  assert.equal(atScatter.length, rotatedScatter.length)
+  for (let i = 0; i < atScatter.length; i += 1) {
+    const expected = (((atScatter[i].bearing + 45) % 360) + 360) % 360
+    assert.equal(rotatedScatter[i].bearing, expected)
   }
 })

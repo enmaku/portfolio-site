@@ -30,7 +30,7 @@ test('applyOrographicMoisture enhances the windward flank and dries the leeward 
     elevation,
     width: WIDTH,
     height: HEIGHT,
-    prevailingWindDegrees: 270,
+    transportBearingDegrees: 270,
   })
 
   const windwardIdx = ROW * WIDTH + WINDWARD_COL
@@ -49,7 +49,7 @@ test('applyOrographicMoisture with liftStrength 0 only dries leeward cells', () 
     elevation,
     width: WIDTH,
     height: HEIGHT,
-    prevailingWindDegrees: 270,
+    transportBearingDegrees: 270,
     liftStrength: 0,
   })
 

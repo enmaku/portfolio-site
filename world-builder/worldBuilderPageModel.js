@@ -1,11 +1,21 @@
 import { derivePrevailingWindFromSeed } from './core/derivePrevailingWindFromSeed.js'
 import {
+  normalizeWindDegrees,
+  resolveLinkedSecondaryMaximum,
+  resolveSecondaryMaximumDegrees,
+} from './core/fields/prevailingWindField.js'
+import {
   DEFAULT_GEOGRAPHY_SEED,
   DEFAULT_WORLD_GENERATION_OPTIONS,
 } from './core/worldGenerationOptions.js'
 import { validationCheckDisplayLabel } from './core/validation/landmassValidationContracts.js'
 
 export { DEFAULT_GEOGRAPHY_SEED } from './core/worldGenerationOptions.js'
+export {
+  normalizeWindDegrees,
+  resolveLinkedSecondaryMaximum,
+  resolveSecondaryMaximumDegrees,
+} from './core/fields/prevailingWindField.js'
 
 /** Stable test id for the validation-retry exhaustion banner on World Builder. */
 export const WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID =
@@ -79,14 +89,10 @@ export function buildDerivedGeographyParams(
   secondaryMaximumDegrees,
 ) {
   const prevailing = normalizeWindDegrees(prevailingWindDegrees)
-  const secondary =
-    secondaryMaximumDegrees === undefined
-      ? normalizeWindDegrees(prevailing + 90)
-      : normalizeWindDegrees(secondaryMaximumDegrees)
   return {
     geographySeed,
     prevailingWindDegrees: prevailing,
-    secondaryMaximumDegrees: secondary,
+    secondaryMaximumDegrees: resolveSecondaryMaximumDegrees(prevailing, secondaryMaximumDegrees),
     options: { ...options },
   }
 }
@@ -122,7 +128,7 @@ export function createControlsStateForSeed(geographySeed) {
   return {
     geographySeed: normalizeGeographySeed(geographySeed),
     prevailingWindDegrees,
-    secondaryMaximumDegrees: normalizeWindDegrees(prevailingWindDegrees + 90),
+    secondaryMaximumDegrees: resolveLinkedSecondaryMaximum(prevailingWindDegrees),
     secondaryMaximumLinked: true,
   }
 }
@@ -137,24 +143,6 @@ export function parseGeographySeedInput(rawSeed) {
     return null
   }
   return parsed | 0
-}
-
-/**
- * @param {number} degrees
- * @returns {number}
- */
-export function normalizeWindDegrees(degrees) {
-  const rounded = Math.round(degrees)
-  return ((rounded % 360) + 360) % 360
-}
-
-/**
- * @param {number} prevailingWindDegrees
- * @param {number} [linkOffsetDegrees=90]
- * @returns {number}
- */
-export function resolveLinkedSecondaryMaximum(prevailingWindDegrees, linkOffsetDegrees = 90) {
-  return normalizeWindDegrees(prevailingWindDegrees + linkOffsetDegrees)
 }
 
 /**

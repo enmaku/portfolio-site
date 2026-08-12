@@ -14,6 +14,7 @@ test('refreshFieldsAfterErosion recomputes all fields from eroded elevation', ()
   const fields = refreshFieldsAfterErosion({
     geographySeed: 42,
     prevailingWindDegrees: 90,
+    secondaryMaximumDegrees: 180,
     elevation,
     drainage,
     width,
@@ -37,6 +38,7 @@ test('refreshFieldsAfterErosion uses prevailing wind for rainfall', () => {
   const wind0 = refreshFieldsAfterErosion({
     geographySeed: 7,
     prevailingWindDegrees: 0,
+    secondaryMaximumDegrees: 90,
     elevation,
     drainage,
     width,
@@ -45,6 +47,7 @@ test('refreshFieldsAfterErosion uses prevailing wind for rainfall', () => {
   const wind180 = refreshFieldsAfterErosion({
     geographySeed: 7,
     prevailingWindDegrees: 180,
+    secondaryMaximumDegrees: 270,
     elevation,
     drainage,
     width,
@@ -57,6 +60,7 @@ test('refreshFieldsAfterErosion uses prevailing wind for rainfall', () => {
     height,
     elevation,
     prevailingWindDegrees: 0,
+    secondaryMaximumDegrees: 90,
   })
   const directRain180 = generateRainfall({
     geographySeed: 7,
@@ -64,6 +68,7 @@ test('refreshFieldsAfterErosion uses prevailing wind for rainfall', () => {
     height,
     elevation,
     prevailingWindDegrees: 180,
+    secondaryMaximumDegrees: 270,
   })
 
   assert.deepStrictEqual(wind0.rainfall, directRain0)
@@ -133,6 +138,7 @@ test('refreshFieldsAfterErosion temperature tracks elevation', () => {
   const lowFields = refreshFieldsAfterErosion({
     geographySeed: 1,
     prevailingWindDegrees: 45,
+    secondaryMaximumDegrees: 135,
     elevation: low,
     drainage,
     width,
@@ -141,6 +147,7 @@ test('refreshFieldsAfterErosion temperature tracks elevation', () => {
   const highFields = refreshFieldsAfterErosion({
     geographySeed: 1,
     prevailingWindDegrees: 45,
+    secondaryMaximumDegrees: 135,
     elevation: high,
     drainage,
     width,
@@ -163,6 +170,7 @@ test('refreshFieldsAfterErosion salinity respects active sea level option', () =
   const fields = refreshFieldsAfterErosion({
     geographySeed: 3,
     prevailingWindDegrees: 90,
+    secondaryMaximumDegrees: 180,
     elevation,
     drainage,
     width,

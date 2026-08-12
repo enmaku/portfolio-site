@@ -36,7 +36,6 @@ test('Wind section is first and owns prevailing plus secondary maximum', () => {
   assert.equal(WORLD_BUILDER_GENERATION_CONTROL_SECTIONS[0].section, 'Wind')
   assert.deepEqual(controlKeysForSection('Wind'), [
     'prevailingWindDegrees',
-    'secondaryMaximumLinked',
     'secondaryMaximumDegrees',
   ])
   assert.equal(controlKeysForSection('Climate').includes('prevailingWindDegrees'), false)
@@ -44,13 +43,15 @@ test('Wind section is first and owns prevailing plus secondary maximum', () => {
 
 test('isGenerationControlDisabled gates secondary maximum while linked', () => {
   assert.equal(
-    isGenerationControlDisabled('secondaryMaximumDegrees', DEFAULT_WORLD_GENERATION_OPTIONS, {
+    isGenerationControlDisabled('secondaryMaximumDegrees', {
+      options: DEFAULT_WORLD_GENERATION_OPTIONS,
       secondaryMaximumLinked: true,
     }),
     true,
   )
   assert.equal(
-    isGenerationControlDisabled('secondaryMaximumDegrees', DEFAULT_WORLD_GENERATION_OPTIONS, {
+    isGenerationControlDisabled('secondaryMaximumDegrees', {
+      options: DEFAULT_WORLD_GENERATION_OPTIONS,
       secondaryMaximumLinked: false,
     }),
     false,
@@ -86,13 +87,16 @@ test('isGenerationControlDisabled gates meander refine child sliders only', () =
 
   for (const key of MEANDER_REFINE_DEPENDENT_CONTROL_KEYS) {
     assert.ok(findGenerationControlByKey(key))
-    assert.equal(isGenerationControlDisabled(key, disabledOptions), true)
-    assert.equal(isGenerationControlDisabled(key, enabledOptions), false)
+    assert.equal(isGenerationControlDisabled(key, { options: disabledOptions }), true)
+    assert.equal(isGenerationControlDisabled(key, { options: enabledOptions }), false)
   }
 
-  assert.equal(isGenerationControlDisabled('enableMeanderRefine', disabledOptions), false)
-  assert.equal(isGenerationControlDisabled('soilDrainageScale', disabledOptions), false)
-  assert.equal(isGenerationControlDisabled('navigableFlowCutoffScale', disabledOptions), false)
+  assert.equal(isGenerationControlDisabled('enableMeanderRefine', { options: disabledOptions }), false)
+  assert.equal(isGenerationControlDisabled('soilDrainageScale', { options: disabledOptions }), false)
+  assert.equal(
+    isGenerationControlDisabled('navigableFlowCutoffScale', { options: disabledOptions }),
+    false,
+  )
 })
 
 test('Resources section exposes mineral occurrence controls after the metal mine cap', () => {

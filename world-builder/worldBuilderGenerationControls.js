@@ -4,6 +4,10 @@ import { formatPrevailingWindDisplay } from './formatPrevailingWind.js'
 export const GEOGRAPHY_SEED_TOOLTIP =
   'Deterministic input to landmass generation. The same seed and settings always produce the same terrain; changing the seed picks a different world layout without altering the other controls.'
 
+/** @type {string} */
+export const SECONDARY_MAXIMUM_LINK_TOOLTIP =
+  'When linked, the secondary maximum tracks the prevailing wind at a fixed offset (default +90°). Unlink to aim the secondary lobe independently.'
+
 /**
  * Sidebar control metadata for world generation parameters, ordered by typical impact.
  * @type {ReadonlyArray<{
@@ -12,7 +16,7 @@ export const GEOGRAPHY_SEED_TOOLTIP =
  *     key: string,
  *     label: string,
  *     tooltip: string,
- *     kind: 'slider' | 'toggle' | 'number' | 'link-toggle',
+ *     kind: 'slider' | 'toggle' | 'number',
  *     min?: number,
  *     max?: number,
  *     step?: number,
@@ -34,14 +38,6 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         max: 359,
         step: 1,
         testId: 'world-builder-wind-slider',
-      },
-      {
-        key: 'secondaryMaximumLinked',
-        label: 'Link secondary maximum',
-        tooltip:
-          'When linked, the secondary maximum tracks the prevailing wind at a fixed offset (default +90°). Unlink to aim the secondary lobe independently.',
-        kind: 'link-toggle',
-        testId: 'world-builder-secondary-maximum-link',
       },
       {
         key: 'secondaryMaximumDegrees',
@@ -625,17 +621,14 @@ export const MEANDER_REFINE_DEPENDENT_CONTROL_KEYS = new Set([
 
 /**
  * @param {string} key
- * @param {import('./core/types.js').WorldGenerationOptions} options
+ * @param {{
+ *   options: import('./core/types.js').WorldGenerationOptions,
+ *   secondaryMaximumLinked?: boolean,
+ * }} context
  * @returns {boolean}
  */
-/**
- * @param {string} key
- * @param {import('./core/types.js').WorldGenerationOptions} options
- * @param {{ secondaryMaximumLinked?: boolean }} [windUi]
- * @returns {boolean}
- */
-export function isGenerationControlDisabled(key, options, windUi = {}) {
-  if (key === 'secondaryMaximumDegrees' && windUi.secondaryMaximumLinked) {
+export function isGenerationControlDisabled(key, { options, secondaryMaximumLinked } = {}) {
+  if (key === 'secondaryMaximumDegrees' && secondaryMaximumLinked) {
     return true
   }
   return MEANDER_REFINE_DEPENDENT_CONTROL_KEYS.has(key) && !options.enableMeanderRefine

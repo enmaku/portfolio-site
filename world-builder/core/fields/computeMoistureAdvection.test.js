@@ -42,7 +42,7 @@ test('computeMoistureAdvection makes the windward coast wetter than the interior
     elevation,
     width,
     height,
-    prevailingWindDegrees: 270,
+    transportBearingDegrees: 270,
   })
 
   const westEdge = row * width + landColStart
@@ -65,13 +65,13 @@ test('rotating the wind 180 degrees swaps which coast is wetter', () => {
     elevation,
     width,
     height,
-    prevailingWindDegrees: 270,
+    transportBearingDegrees: 270,
   })
   const eastWind = computeMoistureAdvection({
     elevation,
     width,
     height,
-    prevailingWindDegrees: 90,
+    transportBearingDegrees: 90,
   })
 
   assert.ok(westWind[westEdge] > westWind[eastEdge])
@@ -86,7 +86,7 @@ test('computeMoistureAdvection is deterministic for the same inputs', () => {
     elevation,
     width,
     height,
-    prevailingWindDegrees: 225,
+    transportBearingDegrees: 225,
   }
 
   const first = computeMoistureAdvection(params)
@@ -100,7 +100,7 @@ test('computeMoistureAdvection preserves golden checksums for representative see
     const height = 64
     const doc = generatePhysicalTerrainBaseline({
       geographySeed,
-      prevailingWindDegrees: 90,
+      transportBearingDegrees: 90,
       width,
       height,
     })
@@ -108,7 +108,7 @@ test('computeMoistureAdvection preserves golden checksums for representative see
       elevation: doc.fields.elevation,
       width,
       height,
-      prevailingWindDegrees: 90,
+      transportBearingDegrees: 90,
     })
     assert.strictEqual(
       rasterChecksum(advection),

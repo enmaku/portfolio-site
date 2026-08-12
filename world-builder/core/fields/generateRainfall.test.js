@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { generateRainfall } from './generateRainfall.js'
+import { resolveSecondaryMaximumDegrees } from './prevailingWindField.js'
 
 const params = {
   geographySeed: 42,
   width: 16,
   height: 16,
   prevailingWindDegrees: 90,
+  secondaryMaximumDegrees: 180,
   elevation: new Float32Array(16 * 16).fill(0.5),
 }
 
@@ -76,8 +78,16 @@ test('generateRainfall responds to prevailing wind direction over a ridge', () =
   const height = 32
   const elevation = buildRidgeElevation(width, height, 16)
   const ridgeParams = { geographySeed: 7, width, height, elevation }
-  const westWind = generateRainfall({ ...ridgeParams, prevailingWindDegrees: 270 })
-  const eastWind = generateRainfall({ ...ridgeParams, prevailingWindDegrees: 90 })
+  const westWind = generateRainfall({
+    ...ridgeParams,
+    prevailingWindDegrees: 270,
+    secondaryMaximumDegrees: 0,
+  })
+  const eastWind = generateRainfall({
+    ...ridgeParams,
+    prevailingWindDegrees: 90,
+    secondaryMaximumDegrees: 180,
+  })
   assert.ok(totalAbsDiff(westWind, eastWind) > 1)
 })
 
@@ -97,27 +107,10 @@ test('generateRainfall changes when secondary maximum bearing changes', () => {
   assert.ok(totalAbsDiff(linked, opposite) > 0.5)
 })
 
-test('generateRainfall omits secondary maximum as prevailing plus 90', () => {
-  const width = 24
-  const height = 24
-  const elevation = buildRidgeElevation(width, height, 12)
-  const prevailingWindDegrees = 200
-  const omitted = generateRainfall({
-    geographySeed: 11,
-    width,
-    height,
-    elevation,
-    prevailingWindDegrees,
-  })
-  const explicit = generateRainfall({
-    geographySeed: 11,
-    width,
-    height,
-    elevation,
-    prevailingWindDegrees,
-    secondaryMaximumDegrees: (prevailingWindDegrees + 90) % 360,
-  })
-  assert.deepEqual(Array.from(omitted), Array.from(explicit))
+test('resolveSecondaryMaximumDegrees defaults missing secondary to prevailing plus 90', () => {
+  assert.equal(resolveSecondaryMaximumDegrees(200), 290)
+  assert.equal(resolveSecondaryMaximumDegrees(200, undefined), 290)
+  assert.equal(resolveSecondaryMaximumDegrees(200, 45), 45)
 })
 
 test('generateRainfall rose differs from a prevailing-only schedule stand-in', () => {

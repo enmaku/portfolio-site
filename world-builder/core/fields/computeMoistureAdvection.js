@@ -25,7 +25,7 @@ const MAX_FETCH_FRACTION = 0.5
  * @param {Float32Array} params.elevation
  * @param {number} params.width
  * @param {number} params.height
- * @param {number} params.prevailingWindDegrees
+ * @param {number} params.transportBearingDegrees
  * @param {number} [params.seaLevel]
  * @returns {Float32Array}
  */
@@ -33,12 +33,12 @@ export function computeMoistureAdvection({
   elevation,
   width,
   height,
-  prevailingWindDegrees,
+  transportBearingDegrees,
   seaLevel = SEA_LEVEL,
 }) {
   const ocean = isOceanCell(elevation, width, height, seaLevel)
   const coastDistance = computeLandCoastDistance(elevation, width, height, seaLevel)
-  const { upwindX, upwindY } = prevailingWindUpwindVector(prevailingWindDegrees)
+  const { upwindX, upwindY } = prevailingWindUpwindVector(transportBearingDegrees)
 
   const maxFetchCells = Math.max(8, Math.round(width * MAX_FETCH_FRACTION))
   const advectionDecayCells = Math.max(4, width * ADVECTION_DECAY_FRACTION)

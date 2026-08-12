@@ -9,7 +9,7 @@ import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
  * @param {Object} params
  * @param {number} params.geographySeed
  * @param {number} params.prevailingWindDegrees
- * @param {number} [params.secondaryMaximumDegrees]
+ * @param {number} params.secondaryMaximumDegrees
  * @param {Float32Array} params.elevation
  * @param {Float32Array} params.drainage
  * @param {number} params.width
@@ -28,18 +28,13 @@ export function refreshFieldsAfterErosion({
   options,
 }) {
   const temperature = generateTemperature({ geographySeed, width, height, elevation, options })
-  const prevailing = normalizeWindDegrees(prevailingWindDegrees)
-  const secondary =
-    secondaryMaximumDegrees === undefined
-      ? normalizeWindDegrees(prevailing + 90)
-      : normalizeWindDegrees(secondaryMaximumDegrees)
   const rainfall = generateRainfall({
     geographySeed,
     width,
     height,
     elevation,
-    prevailingWindDegrees: prevailing,
-    secondaryMaximumDegrees: secondary,
+    prevailingWindDegrees: normalizeWindDegrees(prevailingWindDegrees),
+    secondaryMaximumDegrees: normalizeWindDegrees(secondaryMaximumDegrees),
     options,
   })
   const resolved = resolveWorldGenerationOptions(options)

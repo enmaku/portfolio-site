@@ -10,7 +10,7 @@ test('buildWindRosePreviewModel bins schedule bearings into polar weights', () =
   })
   assert.equal(model.weights.length, WIND_ROSE_PREVIEW_BINS)
   assert.equal(model.displayWeights.length, WIND_ROSE_PREVIEW_BINS)
-  assert.equal(model.bearings.length, 20)
+  assert.equal(model.lobes.length, 11)
   assert.ok(model.weights.some((weight) => weight > 0))
   const weightSum = model.weights.reduce((sum, weight) => sum + weight, 0)
   assert.ok(Math.abs(weightSum - 1) < 1e-9)

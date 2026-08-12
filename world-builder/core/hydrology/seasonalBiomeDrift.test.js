@@ -62,6 +62,7 @@ function meanAnnualClimateBiomeDrift(optionOverrides) {
     const refreshed = refreshFieldsAfterErosion({
       geographySeed: state.geographySeed,
       prevailingWindDegrees: state.prevailingWindDegrees,
+      secondaryMaximumDegrees: state.secondaryMaximumDegrees,
       elevation: state.workingElevation,
       drainage,
       width,

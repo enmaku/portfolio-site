@@ -16,8 +16,7 @@ export const WIND_ROSE_PREVIEW_BINS = 36
  *   labels: string[],
  *   weights: number[],
  *   displayWeights: number[],
- *   bearings: number[],
- *   kinds: string[],
+ *   lobes: import('./core/fields/buildWindRoseSchedule.js').WindRoseLobe[],
  * }}
  */
 export function buildWindRosePreviewModel({
@@ -25,23 +24,22 @@ export function buildWindRosePreviewModel({
   prevailingWindDegrees,
   secondaryMaximumDegrees,
 }) {
-  const { bearings, kinds } = buildWindRoseSchedule({
+  const { lobes } = buildWindRoseSchedule({
     geographySeed,
     prevailingWindDegrees,
     secondaryMaximumDegrees,
   })
   const weights = new Array(WIND_ROSE_PREVIEW_BINS).fill(0)
-  const sampleWeight = 1 / bearings.length
-  for (const bearing of bearings) {
-    const bin = Math.floor(normalizeWindDegrees(bearing) / (360 / WIND_ROSE_PREVIEW_BINS)) %
+  for (const lobe of lobes) {
+    const bin =
+      Math.floor(normalizeWindDegrees(lobe.bearing) / (360 / WIND_ROSE_PREVIEW_BINS)) %
       WIND_ROSE_PREVIEW_BINS
-    weights[bin] += sampleWeight
+    weights[bin] += lobe.weight
   }
   return {
     labels: Array.from({ length: WIND_ROSE_PREVIEW_BINS }, () => ''),
     weights,
     displayWeights: weights.map((weight) => Math.sqrt(weight)),
-    bearings,
-    kinds,
+    lobes,
   }
 }

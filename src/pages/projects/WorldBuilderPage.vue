@@ -109,7 +109,7 @@
                   <q-toggle
                     v-if="control.kind === 'toggle'"
                     :model-value="Boolean(controlValue(control.key))"
-                    :disable="isGenerationControlDisabled(control.key, generationOptions)"
+                    :disable="isGenerationControlDisabled(control.key, { options: generationOptions })"
                     :data-testid="control.testId"
                     color="primary"
                     @update:model-value="onToggleChange(control.key, $event)"
@@ -119,7 +119,7 @@
                     class="generation-control__slider full-width"
                     dense
                     :model-value="controlValue(control.key)"
-                    :disable="isGenerationControlDisabled(control.key, generationOptions)"
+                    :disable="isGenerationControlDisabled(control.key, { options: generationOptions })"
                     :data-testid="control.testId"
                     :min="control.min"
                     :max="control.max"
@@ -551,7 +551,8 @@ const {
 } = colonization
 
 function isWindControlDisabled(key) {
-  return isGenerationControlDisabled(key, generationOptions.value, {
+  return isGenerationControlDisabled(key, {
+    options: generationOptions.value,
     secondaryMaximumLinked: Boolean(controlValue('secondaryMaximumLinked')),
   })
 }
