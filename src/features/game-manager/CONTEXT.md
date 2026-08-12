@@ -70,13 +70,13 @@ _Avoid_: “Library” (ambiguous); preset **group configurations** (out of scop
 
 ### Game detail
 
-A full-screen detail view opened from a **collection** shelf item. Opens immediately on shelf-known facts (title, art, basic counts); for catalog-backed items it then refreshes fuller **catalog** metadata into a rich curated view, with retry if that refresh fails. **Custom collection entries** use stored custom fields only. Bottom action starts a **play session** (“Start new session”), which continues in the same full-screen session flow (`setup` → `playing` → `scoring`). A failed catalog refresh does not block starting a sitting—the shelf identity is enough.
+A full-screen detail view opened from a **collection** shelf item. Opens immediately on shelf-known facts (title, art, basic counts); for catalog-backed items it then refreshes fuller **catalog** metadata into a rich curated view, with retry if that refresh fails. **Custom collection entries** use stored custom fields only. Bottom action starts a **play session** (“Start new session”), which continues in the same full-screen session flow (`setup` → `playing` via linked Timer → `scoring`). A failed catalog refresh does not block starting a sitting—the shelf identity is enough.
 
 _Avoid_: Treating the shelf row itself as the only place game facts appear; starting sessions from the **Sessions** surface’s add control; requiring a successful catalog fetch before “Start new session”; nesting **game detail** as a small dialog over the shelf while the rest of the sitting is full-screen.
 
 ### Play session
 
-One game, one sitting: a chosen **collection** item (**catalog entry** or **custom collection entry** reference), its **present players**, optional timing export, **session score** (when entered), and a **play session state**. Creation begins from **game detail** (“Start new session”); the durable record appears then (typically in `setup`) so incomplete sittings can be resumed. An **account owner** may keep many incomplete sessions at once and resume any of them. “Save” on the scoring step means enter `complete` with a full **session score**, not first creation of the row.
+One game, one sitting: a chosen **collection** item (**catalog entry** or **custom collection entry** reference), its **present players**, **timer export** (once past **game end** into **scoring**), **session score** (when entered), and a **play session state**. Creation begins from **game detail** (“Start new session”); the durable record appears then (typically in `setup`) so incomplete sittings can be resumed. An **account owner** may keep many incomplete sessions at once and resume any of them. “Save” on the scoring step means enter `complete` with a full **session score**, not first creation of the row.
 
 _Avoid_: Multi-game nights as a single session; preset groups as the attendance model; play sessions for titles not on the **collection** shelf; creating sittings from a Sessions-page + control; delaying durability until final Save.
 
@@ -108,13 +108,13 @@ Named preset rosters or recurring table setups. Out of scope for v1—attendance
 
 ### Recorded player
 
-A durable person identity under an **account owner**’s history (stable id + display name + color), as captured across **play sessions**. Distinct from Firebase Auth until **player claim** links them. Color is always present (defaulted when needed). Display name and color are live on the identity—edits apply when viewing past sessions too (sessions reference the person; they don’t freeze the label).
+A durable person identity under an **account owner**’s history (stable id + display name + color), as captured across **play sessions**. Distinct from Firebase Auth until **player claim** links them. Color is always present (defaulted when needed). Display name and color are live on the identity—edits in People / roster management apply when viewing past sessions too (sessions reference the person; they don’t freeze the label). Mid-timer rename/recolor on a **manager-linked timer** is session-local via the **timer export**, not an automatic identity write-through.
 
 _Avoid_: Equating with a live **saved player** row only; discarding history because someone was added as a **one-off guest**; treating each night’s name string as an immutable historical artifact.
 
 ### Present player
 
-Someone included in a specific **play session**—usually drawn from **saved players**, plus any **one-off guests**. The people picker in `setup` lists **saved players** (none pre-checked) with selection controls and an add-person path (guest / **persist to roster**). At least one **present player** is required before leaving `setup` into `playing`. That `setup` list seeds the future **manager-linked timer**; until that handoff exists, it remains the table through the `playing` interstitial (no roster editor there). When a real **game end** export returns, its roster becomes the starting **present players** for `scoring`. On the scoring step the owner may still add people or **drop out** before Save. A session cannot enter `complete` with zero **present players**.
+Someone included in a specific **play session**—usually drawn from **saved players**, plus any **one-off guests**. The people picker in `setup` lists **saved players** (none pre-checked) with selection controls and an add-person path (guest / **persist to roster**). At least one **present player** is required before leaving `setup` into `playing`. That `setup` list seeds the **manager-linked timer**. Once wired, leaving `setup` launches Timer immediately (no GM playing hub); until that handoff exists, the `playing` interstitial holds the table (no roster editor there). When a real **game end** export arrives, its roster (stable ids on seats that still carry them) becomes the starting **present players** for `scoring`. On the scoring step the owner may still add people or **drop out** before Save. A session cannot enter `complete` with zero **present players**.
 
 _Avoid_: Requiring final attendance before the night starts; a second full roster editor on the timer interstitial; dumping every unpinned **recorded player** onto the picker by default; advancing into `playing` with nobody selected.
 
@@ -176,9 +176,9 @@ A **play session** in `complete` with a chosen **score entry mode** and full **s
 
 ### Play session state
 
-Lifecycle position of a **play session**: `setup`, `playing`, `scoring`, or `complete`. The owned-game creation path is forward along that order without skipping **playing**: people pick in `setup`, timer (or timer interstitial) in `playing`, scores/options in `scoring`, then `complete` on Save. Entering `complete` requires a chosen **score entry mode** and a full **session score** for that mode (every **present player** scored for **points**, or marked for **outcomes**). Once `complete`, viewing or editing scores does not move the sitting back to `scoring`. Early stops remain **partial play sessions** until **session deletion**.
+Lifecycle position of a **play session**: `setup`, `playing`, `scoring`, or `complete`. The owned-game creation path is forward along that order without skipping **playing**: people pick in `setup`, always launch the **manager-linked timer** in `playing`, **game end** attaches a **timer export** and **continues to scoring**, then `complete` on Save. Entering `complete` requires a chosen **score entry mode** and a full **session score** for that mode (every **present player** scored for **points**, or marked for **outcomes**). Once `complete`, viewing or editing scores does not move the sitting back to `scoring`. Early stops remain **partial play sessions** until **session deletion**.
 
-_Avoid_: Treating states as freely jumbleable labels; making `complete` immutable except by delete-and-recreate; marking `complete` with half-filled scores; a separate skip-timer creation path in this flow; demoting `complete` to `scoring` just to show the score editor.
+_Avoid_: Treating states as freely jumbleable labels; making `complete` immutable except by delete-and-recreate; marking `complete` with half-filled scores; reaching **scoring** without **game end** / **timer export** once wired; demoting `complete` to `scoring` just to show the score editor.
 
 ### Session score
 
@@ -203,9 +203,9 @@ _Avoid_: Soft-delete/restore flows in v1.
 
 ### Points per minute
 
-A **v1 statistics** rate for a person at a game: their **points** score divided by session duration. Duration comes only from a **manager-linked timer** export; no manual duration in v1. Until that handoff exists, PPM simply does not appear.
+An **individual** **v1 statistics** rate for a **recorded player** at a game—not a single table-wide figure. Each person’s **points** are divided by **that person’s banked time** from a **manager-linked timer** export (time they spent on their own turns), so slow deliberate play can be compared with fast-and-loose play. No manual duration in v1. Until that handoff exists—or a seat lacks usable **banked time** (> 0 after banking any open turn at **game end**)—PPM simply does not appear for that person. Sitting wall-clock **total game elapsed** may still ride along on the export as session context; it is not the PPM denominator.
 
-_Avoid_: Manual duration entry in v1; inventing duration from wall-clock guesses.
+_Avoid_: Manual duration entry in v1; inventing duration from wall-clock guesses; presenting PPM as one group metric for the whole table; using shared sitting `durationMs` as the PPM denominator; treating summed table banked time as a substitute for per-person banked time.
 
 ### Personal best
 
@@ -221,17 +221,37 @@ _Avoid_: Win rate, head-to-head, trends, and group leaderboards in v1; a single 
 
 ### Timer leg
 
-The optional stretch of a **play session** spent in **Game Timer** as a **manager-linked timer**, begun from Game Manager after `setup` and finished via **game end**. Until that handoff exists, `playing` is a placeholder interstitial with Finish game.
+The stretch of a **play session** spent in **Game Timer** as a **manager-linked timer**, begun from Game Manager after `setup` by always launching the Game Timer surface in linked mode, and finished only via **game end** (which **continues to scoring** with a **timer export**). There is no Manager-side “continue to scoring without timing” once wired. Leaving the timer without **game end** keeps the sitting in `playing` as a **partial play session**—no export, no auto-advance to **scoring**. Re-opening while still `playing` resumes surviving linked timer state; if that state is gone, re-seed from **present players** as a new attempt (clean times)—never two parallel timer legs on one sitting. At most one active linked binding across all sittings; starting another requires confirmed takeover (prior sitting stays `playing` partial; prior **room** ends if it was hosting). After **game end**, the **timer leg** is finished for that sitting—no re-entry from **scoring** in v1; the Game Timer surface’s linked binding clears so later timer-only opens are standalone. Add/clear remain available as host escape hatches in **more options** (no extra linked-only hard locks). Until that handoff exists, `playing` is a placeholder interstitial with Finish game (stands in for **game end**). Once wired, there is no lasting GM playing hub—setup launches Timer directly.
+
+### Last sync posture
+
+Remembered **host** vs local (non-host) preference for opening a **manager-linked timer** under Game Manager. Cold start with no memory stays local until the owner hosts; afterward, new **timer leg** launches restore that last Game Manager timer posture across sittings/games. Survives **game end** (stickier than in-progress **room** refresh resume alone). When that posture is **host**, launch uses the same Game Timer **stable host suffix preference** / host-start path as standalone so the usual **room code** and **join link** keep working week to week—the same code space as standalone Game Timer on that browser, not a separate Game Manager hub id.
+
+_Avoid_: Assuming standalone leave-cleared room persistence already provides cross-sitting host memory; treating guest-join as the usual owner launch posture; inventing a separate random room-code scheme for linked launches that breaks last week’s links.
+
+### Launch config
+
+Inbound data that seeds a **manager-linked timer** from a **play session**. V1 requires ordered seats of stable person id + name + color (and any minimal timer fields needed). Must remain open to later carrying per-game timer session options (hard pass, pass-order, etc.) without a breaking product story—those per-game defaults are out of scope for now.
+
+_Avoid_: Defining launch config as “roster only forever”; resetting facilitator timer prefs on every linked launch in a way that blocks future inbound overrides.
 
 ### Manager-linked timer
 
-A **Game Timer** sitting started from a **play session** so **present players** seed the timer roster and **game end** can return timing data plus the timer’s final roster as the starting **present players** for scoring. Standalone timer use remains auth-free and unchanged.
+A **Game Timer** sitting started from a **play session** so **present players** seed the timer roster (stable person id + name + color per seat) and **game end** can hand timing data plus the timer’s final roster—ids preserved on survivors—as the starting **present players** for scoring. The **account owner** runs it on the Game Timer project surface in linked mode (not a long-term embedded timer shell inside Game Manager); leaving `setup` launches that surface immediately; the sitting waits in `playing` until **game end** **continues to scoring**. Launch replaces any leftover local timer roster with the seeded **present players**; v1 leaves Hard pass / fullscreen / timing-strip prefs as ordinary timer preferences (future **launch config** may override per game). Linked chrome demotes add/clear/settings/**new game with same players** into **more options** because the roster is expected to arrive already configured. Standalone timer use remains auth-free and unchanged (including its usual chrome).
 
-_Avoid_: Requiring Game Manager for ordinary timing. (Launch/return transport deferred.)
+_Avoid_: Requiring Game Manager for ordinary timing; rewriting standalone timer chrome to match the linked kebab; matching export seats to scoring by name/order alone when ids were known; forcing the **timer leg** to be single-device; always auto-hosting or always forcing local on every **timer leg** launch; permanently replacing the Game Timer project UI with a Manager-only timer fork for the host; embedding Game Manager **persist to roster** UI inside Timer for escape-hatch adds. (Launch/return *mechanics* deferred; owner same-browser handoff is required.)
+
+### Timer export
+
+Compact timing artifact attached to a **play session** after **game end**, derived from the final Game Timer **snapshot** but not the live **snapshot** itself. Includes final roster (stable person ids where known, name, color as shown on the timer—session-local labels), per-player **banked time**, and sitting `durationMs` (**total game elapsed**). Export labels seed this sitting’s scoring table; they do not by themselves rewrite **recorded player** identities.
+
+_Avoid_: Persisting P2P / turn-runtime **snapshot** fields in the **manager store**; calling the stored artifact a **snapshot**; treating mid-timer rename as People-management identity edit.
 
 ### Game end
 
-The manager-aware timer action that finishes a **manager-linked timer** and exports a final **snapshot** (timing plus roster) for the awaiting **play session**—distinct from starting a **new game with same players** inside the timer. Until the real timer is wired, Finish game on the interstitial advances to scoring using the `setup` **present players**.
+The manager-aware timer action that finishes a **manager-linked timer** and attaches a compact **timer export** (derived from the final **snapshot**: timing plus roster) for the awaiting **play session**—distinct from starting a **new game with same players** inside the timer. In the linked chrome it lives in the top-right **more options** menu below a separator under clear users / add user / settings / **new game with same players**, and is available to the **host** only (not **guests**). Confirmed before commit (include ending the shared **room** when hosting; omit that clause when local-only); the **host** **continues to scoring** only after the export is durably attached (retry on failure; prefer ending the **room** only after attach succeeds). **Guests** get ordinary host-ended **room** treatment when the **room** does end—not Game Manager scoring. Until the real timer is wired, Finish game on the interstitial stands in for **game end** (advances to scoring using the `setup` **present players**).
+
+_Avoid_: Saying the owner “returns” to scoring after the timer leg; reopening a **manager-linked timer** for the same sitting after **game end** in v1; **continuing to scoring** without a durable **timer export** once wired; completing launch/**game end**/scoring handoff from a non-owner browser; **continuing to scoring** while signed out.
 
 ### Online-first
 
@@ -245,7 +265,9 @@ _Avoid_: Burying people management only inside session flows; a desktop-first da
 
 ## Flagged ambiguities
 
-- **Manager-linked timer** launch/return transport — deferred intentionally; `playing` uses a placeholder interstitial until then.
+- Per-**collection** game remembered timer session options (hard pass, pass-order, …) — future; v1 keeps ordinary Game Timer prefs on linked launch and must not foreclose inbound overrides via **launch config**.
+- **Game end** vs **stable host suffix preference** — ending the linked **room** must not strand reclaim of the usual Game Timer **room code**; transport/data details deferred but product requires last week’s **join link** to keep working.
+- **Manager-linked timer** launch/return transport mechanics — deferred; product boundary fixed: **account owner** same-browser handoff; **guests** are Timer-**room** only.
 - Apple / Facebook sign-in — deferred until those providers are enabled.
 
 ## Example dialogue
@@ -257,7 +279,10 @@ _Avoid_: Burying people management only inside session flows; a desktop-first da
 > **Designer:** “Pick **saved players**, add Sam as a **one-off guest** or **persist to roster**, then **Start game** once at least one **present player** is selected.”
 
 > **Owner:** “The timer isn’t built yet.”  
-> **Designer:** “`playing` is a placeholder; **Finish game** still advances to scoring. Later, **game end** from a **manager-linked timer** will hand back timing and the timer roster as scoring’s starting table.”
+> **Designer:** “`playing` is a placeholder; **Finish game** stands in for **game end**. Wired path always launches Timer; only **game end** **continues to scoring** with a **timer export**.”
+
+> **Owner:** “Will my usual timer join link still work?”  
+> **Designer:** “Yes—same Game Timer **room code** space and **stable host suffix preference**; linked chrome doesn’t invent a second hub id.”
 
 > **Owner:** “I backed out before Save.”  
 > **Designer:** “That’s a **partial play session**—resume from **Sessions** at the same step, or **session deletion** if it was a mistake.”
