@@ -100,7 +100,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     sail,
     freshwater,
     population,
-    explorationFog,
     routes,
   } = resourceRasterSprites
 
@@ -167,7 +166,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(sail)
   viewport.addChild(freshwater)
   viewport.addChild(population)
-  viewport.addChild(explorationFog)
   for (const layerId of RESOURCE_RASTER_OVERLAY_LAYER_IDS) {
     if (
       layerId === 'arable' ||
@@ -176,7 +174,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       layerId === 'sail' ||
       layerId === 'freshwater' ||
       layerId === 'population' ||
-      layerId === 'explorationFog' ||
       layerId === 'routes'
     ) {
       continue
@@ -274,7 +271,6 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
       sail: () => refreshResourceRasterOverlay('sail', currentWorldDocument),
       freshwater: () => refreshResourceRasterOverlay('freshwater', currentWorldDocument),
       population: () => refreshResourceRasterOverlay('population', currentWorldDocument),
-      explorationFog: () => refreshResourceRasterOverlay('explorationFog', currentWorldDocument),
       routes: () => refreshResourceRasterOverlay('routes', currentWorldDocument),
       wealth: () => refreshResourceRasterOverlay('wealth', currentWorldDocument),
       portTolls: () => refreshResourceRasterOverlay('portTolls', currentWorldDocument),

@@ -192,25 +192,6 @@ export function resolvePopulationRasterLayerVisible(visibility, worldDocument) {
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @returns {boolean}
  */
-export function resolveExplorationFogRasterLayerVisible(visibility, worldDocument) {
-  if (!isResourceOverlayVisible(visibility, 'explorationFog')) {
-    return false
-  }
-  if (worldDocument.colonizationPhase !== 'running') {
-    return false
-  }
-  const visited = worldDocument.visitedCells
-  if (!(visited instanceof Uint8Array) || visited.length !== worldDocument.gridWidth * worldDocument.gridHeight) {
-    return visited != null && Array.isArray(visited) && visited.some((value) => value === 0)
-  }
-  return visited.some((value) => value === 0)
-}
-
-/**
- * @param {Record<string, boolean>} visibility
- * @param {import('../core/types.js').WorldDocument} worldDocument
- * @returns {boolean}
- */
 export function resolveRoutesRasterLayerVisible(visibility, worldDocument) {
   const routesVisible =
     isResourceOverlayVisible(visibility, 'routes') ||

@@ -65,7 +65,6 @@ import { useWorldBuilderOverlayState } from './useWorldBuilderOverlayState.js'
 const COLONIZATION_OVERLAY_IDS = new Set([
   'population',
   'settlements',
-  'explorationFog',
   'routes',
   'wealth',
   'portTolls',
@@ -75,12 +74,12 @@ const COLONIZATION_OVERLAY_IDS = new Set([
   'loyalty',
 ])
 
-/** Auto-enabled on setup → running (begin colonization); wealth / control / loyalty / economy inspect stay off until the user opts in. */
+/** Auto-enabled on setup → running (begin colonization); wealth / loyalty / economy inspect stay off until the user opts in. */
 const COLONIZATION_OVERLAYS_AUTO_ENABLED_ON_RUNNING = new Set([
   'population',
   'settlements',
-  'explorationFog',
   'routes',
+  'factionTerritory',
 ])
 
 /** Lazy-load the renderer viewport factory; deferred so Vue never owns renderer logic. */
@@ -204,7 +203,7 @@ export function useWorldBuilderPageController(options) {
       return
     }
     // Only when colonization begins (setup → running). Restoring an already-running
-    // session must keep persisted overlay visibility (including exploration fog off).
+    // session must keep persisted overlay visibility.
     if (previousPhase !== COLONIZATION_PHASE_SETUP) {
       return
     }

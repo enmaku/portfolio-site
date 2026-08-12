@@ -61,7 +61,7 @@ export const COLONIZATION_EPOCH_FINALIZE_STEPS = Object.freeze([{ id: 'map', lab
 /** @type {number} */
 export const COLONIZATION_EPOCH_FINALIZE_STEP_COUNT = COLONIZATION_EPOCH_FINALIZE_STEPS.length
 
-/** @typedef {'session' | 'rehydrate' | 'merge' | 'population' | 'visited' | 'routes' | 'overlays'} ColonizationEpochMapSubstepId */
+/** @typedef {'session' | 'rehydrate' | 'merge' | 'population' | 'routes' | 'overlays'} ColonizationEpochMapSubstepId */
 
 /** @type {ReadonlyArray<{ id: ColonizationEpochMapSubstepId, label: string }>} */
 export const COLONIZATION_EPOCH_MAP_SUBSTEPS = Object.freeze([
@@ -69,7 +69,6 @@ export const COLONIZATION_EPOCH_MAP_SUBSTEPS = Object.freeze([
   { id: 'rehydrate', label: 'Rehydrate' },
   { id: 'merge', label: 'Merge' },
   { id: 'population', label: 'Population' },
-  { id: 'visited', label: 'Visited' },
   { id: 'routes', label: 'Routes' },
   { id: 'overlays', label: 'Overlays' },
 ])

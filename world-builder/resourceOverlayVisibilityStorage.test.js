@@ -71,12 +71,12 @@ test('loadPersistedResourceOverlayVisibility prefers dedicated storage key', () 
 test('loadPersistedResourceOverlayVisibility migrates legacy settings blob once', () => {
   const storage = createMemoryStorage({
     'portfolio-world-builder-settings': JSON.stringify({
-      resourceOverlayVisibility: { explorationFog: true },
+      resourceOverlayVisibility: { routes: true },
     }),
   })
 
   const loaded = loadPersistedResourceOverlayVisibility(storage)
-  assert.strictEqual(loaded.explorationFog, true)
+  assert.strictEqual(loaded.routes, true)
 })
 
 test('loadPersistedResourceOverlayVisibility returns defaults when storage is empty', () => {

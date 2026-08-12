@@ -14,7 +14,7 @@ function createMockSettingsStore() {
   }
 }
 
-test('toggleVisibility syncs explorationFog overlay state', () => {
+test('toggleVisibility syncs routes overlay state', () => {
   const scope = effectScope(true)
   try {
     /** @type {import('../../world-builder/resourceOverlayState.js').ResourceOverlayPageState[]} */
@@ -30,12 +30,12 @@ test('toggleVisibility syncs explorationFog overlay state', () => {
       }),
     )
 
-    ctx.toggleVisibility('explorationFog', true)
-    assert.strictEqual(ctx.visibility.value.explorationFog, true)
-    assert.strictEqual(syncedStates.at(-1)?.visibility.explorationFog, true)
-
     ctx.toggleVisibility('routes', true)
     assert.strictEqual(ctx.visibility.value.routes, true)
+    assert.strictEqual(syncedStates.at(-1)?.visibility.routes, true)
+
+    ctx.toggleVisibility('settlements', true)
+    assert.strictEqual(ctx.visibility.value.settlements, true)
   } finally {
     scope.stop()
   }

@@ -1,5 +1,4 @@
 import { buildArableOverlayRgba } from './buildArableOverlayCanvas.js'
-import { buildExplorationFogOverlayRgba } from './buildExplorationFogOverlayRgba.js'
 import { buildFreshwaterOverlayRgba } from './buildFreshwaterOverlayRgba.js'
 import { buildRoutesOverlayRgba } from './buildRoadOverlayRgba.js'
 import { buildWealthOverlayRgba } from './buildWealthOverlayRgba.js'
@@ -19,7 +18,6 @@ import {
   resolveArableRasterLayerVisible,
   resolveFreshwaterRasterLayerVisible,
   resolvePopulationRasterLayerVisible,
-  resolveExplorationFogRasterLayerVisible,
   resolveRoutesRasterLayerVisible,
   resolveResourceRasterLayerVisible,
   resolveSailRasterLayerVisible,
@@ -85,12 +83,6 @@ export const RESOURCE_RASTER_OVERLAY_REGISTRY = {
     resolveVisible: (visibility, worldDocument) =>
       resolvePopulationRasterLayerVisible(visibility, worldDocument),
     buildRgba: (worldDocument) => buildPopulationOverlayRgba(worldDocument),
-  },
-  explorationFog: {
-    id: 'explorationFog',
-    resolveVisible: (visibility, worldDocument) =>
-      resolveExplorationFogRasterLayerVisible(visibility, worldDocument),
-    buildRgba: (worldDocument) => buildExplorationFogOverlayRgba(worldDocument),
   },
   routes: {
     id: 'routes',

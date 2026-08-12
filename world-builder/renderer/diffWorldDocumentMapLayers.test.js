@@ -124,7 +124,7 @@ test('diffWorldDocumentMapLayers detects hydrology and lake mask changes', () =>
   assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, nextRivers), ['rivers'])
 })
 
-test('diffWorldDocumentMapLayers detects exploration fog visit raster changes', () => {
+test('diffWorldDocumentMapLayers ignores visit raster changes without a fog overlay', () => {
   const previous = baseDocument({
     colonizationPhase: 'running',
     visitedCells: new Uint8Array(16),
@@ -134,7 +134,7 @@ test('diffWorldDocumentMapLayers detects exploration fog visit raster changes', 
     visitedCells: Uint8Array.from({ length: 16 }, (_, index) => (index === 3 ? 1 : 0)),
   })
 
-  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), ['explorationFog'])
+  assert.deepStrictEqual(diffWorldDocumentMapLayers(previous, next), [])
 })
 
 test('diffWorldDocumentMapLayers detects road segment changes', () => {

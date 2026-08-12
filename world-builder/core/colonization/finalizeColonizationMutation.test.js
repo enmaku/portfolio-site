@@ -46,7 +46,6 @@ test('finalizeColonizationMutation applies map layers including wealth before se
     'rehydrate',
     'mergeDocument',
     'applyLayer:population',
-    'applyLayer:explorationFog',
     'applyLayer:routes',
     'applyLayer:wealth',
     'applyLayer:factionTerritory',

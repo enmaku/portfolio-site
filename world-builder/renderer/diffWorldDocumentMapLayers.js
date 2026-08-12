@@ -215,9 +215,6 @@ export function diffWorldDocumentMapLayers(previous, next) {
   ) {
     changedLayers.push('population')
   }
-  if (typedArrayContentChanged(previous.visitedCells, next.visitedCells)) {
-    changedLayers.push('explorationFog')
-  }
   if (roadSegmentsChanged(previous.roads, next.roads)) {
     changedLayers.push('routes')
   }

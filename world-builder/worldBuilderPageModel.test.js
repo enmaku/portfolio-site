@@ -347,7 +347,7 @@ test('formatHydrologyMetricValue renders null as n/a', () => {
 
 test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
   const definitions = createResourceOverlayDefinitions()
-  assert.strictEqual(definitions.length, 13 + 2 + COMMODITY_IDS.length)
+  assert.strictEqual(definitions.length, 12 + 2 + COMMODITY_IDS.length)
   assert.deepStrictEqual(
     definitions.map((definition) => ({ id: definition.id, kind: definition.kind })),
     [
@@ -359,7 +359,6 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'freshwater', kind: 'raster' },
       { id: 'population', kind: 'raster' },
       { id: 'settlements', kind: 'nodes' },
-      { id: 'explorationFog', kind: 'raster' },
       { id: 'routes', kind: 'raster' },
       { id: 'wealth', kind: 'raster' },
       { id: 'portTolls', kind: 'raster' },

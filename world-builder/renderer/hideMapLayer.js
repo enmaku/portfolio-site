@@ -18,7 +18,6 @@ const NODE_OVERLAY_CLEAR_KEYS = Object.freeze({
  *   sail: import('pixi.js').Sprite,
  *   freshwater: import('pixi.js').Sprite,
  *   population: import('pixi.js').Sprite,
- *   explorationFog: import('pixi.js').Sprite,
  *   routes: import('pixi.js').Sprite,
  *   wealth: import('pixi.js').Sprite,
  *   portTolls: import('pixi.js').Sprite,

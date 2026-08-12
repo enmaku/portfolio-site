@@ -259,12 +259,12 @@ test('toggleVisibility persists only overlay booleans to isolated storage', () =
     })
     const { ctx } = mountOverlayState(scope, { visibilityStorage })
 
-    ctx.toggleVisibility('explorationFog', true)
+    ctx.toggleVisibility('routes', true)
 
     const dedicated = JSON.parse(
       visibilityStorage.getItem(RESOURCE_OVERLAY_VISIBILITY_STORAGE_KEY) ?? '{}',
     )
-    assert.strictEqual(dedicated.explorationFog, true)
+    assert.strictEqual(dedicated.routes, true)
     assert.strictEqual(
       JSON.parse(visibilityStorage.getItem('portfolio-world-builder-settings') ?? '{}').epoch,
       undefined,

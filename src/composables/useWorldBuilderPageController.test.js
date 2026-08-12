@@ -855,7 +855,6 @@ test('terrain authoring hides and disables colonization overlays', async () => {
     const colonizationOverlayIds = [
       'population',
       'settlements',
-      'explorationFog',
       'routes',
       'factionTerritory',
       'loyalty',
@@ -883,11 +882,10 @@ test('terrain authoring hides and disables colonization overlays', async () => {
       assert.ok(!ctx.statusBar.value.overlayDefs.some((definition) => definition.id === overlayId))
     }
     assert.ok(!ctx.statusBar.value.overlayDefs.some((definition) => definition.id === 'settlementIds'))
-    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
+    for (const overlayId of ['population', 'settlements', 'routes', 'factionTerritory']) {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
-    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.factionTerritory, false)
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.loyalty, false)
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.settlementIds, undefined)
 
@@ -945,7 +943,7 @@ test('restoring a running session does not force auto overlays on', async () => 
     await waitUntil(() => ctx.worldDocument.value != null, 'colonization world document')
 
     assert.strictEqual(ctx.colonization.colonizationPhase.value, COLONIZATION_PHASE_RUNNING)
-    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
+    for (const overlayId of ['population', 'settlements', 'routes', 'factionTerritory']) {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], false)
     }
   } finally {
@@ -986,11 +984,10 @@ test('start restores running colonization from colonization cache after beginCol
     await ctx.colonization.beginColonization()
     await nextTick()
 
-    for (const overlayId of ['population', 'settlements', 'explorationFog', 'routes']) {
+    for (const overlayId of ['population', 'settlements', 'routes', 'factionTerritory']) {
       assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value[overlayId], true)
     }
     assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.wealth, false)
-    assert.strictEqual(ctx.overlays.resourceOverlayVisibility.value.factionTerritory, false)
     assert.strictEqual(
       colonizationCache.getRecord()?.session.colonizationPhase,
       COLONIZATION_PHASE_RUNNING,

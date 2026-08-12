@@ -25,7 +25,7 @@ const COMMODITY_PRICE_DEFS = COMMODITY_IDS.map((commodityId) => ({
 
 test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', () => {
   const definitions = createResourceOverlayDefinitions()
-  assert.strictEqual(definitions.length, 13 + 2 + COMMODITY_IDS.length)
+  assert.strictEqual(definitions.length, 12 + 2 + COMMODITY_IDS.length)
   assert.deepStrictEqual(
     definitions.map((definition) => ({
       id: definition.id,
@@ -41,7 +41,6 @@ test('createResourceOverlayDefinitions lists canonical overlay ids and kinds', (
       { id: 'freshwater', kind: 'raster', vectorLayerId: undefined },
       { id: 'population', kind: 'raster', vectorLayerId: undefined },
       { id: 'settlements', kind: 'nodes', vectorLayerId: 'settlementNodes' },
-      { id: 'explorationFog', kind: 'raster', vectorLayerId: undefined },
       { id: 'routes', kind: 'raster', vectorLayerId: undefined },
       { id: 'wealth', kind: 'raster', vectorLayerId: undefined },
       { id: 'portTolls', kind: 'raster', vectorLayerId: undefined },
@@ -63,7 +62,6 @@ test('createResourceOverlayIds returns canonical overlay ids in order', () => {
     'freshwater',
     'population',
     'settlements',
-    'explorationFog',
     'routes',
     'wealth',
     'portTolls',

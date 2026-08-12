@@ -56,7 +56,7 @@
 | `useWorldBuilderOverlayState.test.js` | `overlay-composable` | toggleVisibility updates owner state and syncs viewport; +5 additional cases | None — runs under npm run test:world-builder |
 | `useWorldBuilderPageController.test.js` | `page-controller` | Pipeline cancellation semantics; Seed determinism; colonization phase machine; epoch step wiring | None — runs under npm run test:world-builder |
 | `useWorldBuilderPageController.increment2.test.js` | `page-controller` | Sim status panel after epoch 0; epoch step updates status fields | None — runs under npm run test:world-builder |
-| `useWorldBuilderOverlayState.increment2.test.js` | `overlay-composable` | explorationFog and roads overlay toggle sync | None — runs under npm run test:world-builder |
+| `useWorldBuilderOverlayState.increment2.test.js` | `overlay-composable` | routes and settlements overlay toggle sync | None — runs under npm run test:world-builder |
 
 ### `world-builder/core/`
 

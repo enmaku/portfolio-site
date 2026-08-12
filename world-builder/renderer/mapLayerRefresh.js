@@ -1,6 +1,6 @@
 import { COMMODITY_PRICE_OVERLAY_IDS } from '../resourceOverlayIds.js'
 
-/** @typedef {'terrain' | 'contours' | 'arable' | 'timber' | 'metals' | 'sail' | 'freshwater' | 'population' | 'explorationFog' | 'routes' | 'wealth' | 'portTolls' | 'factionTax' | 'commodityPriceGrain' | 'commodityPriceFish' | 'commodityPriceSalt' | 'commodityPriceTimber' | 'commodityPriceBaseMetals' | 'commodityPriceCopper' | 'commodityPriceSilver' | 'commodityPriceGold' | 'commodityPriceDiamonds' | 'factionTerritory' | 'loyalty' | 'rivers' | 'lakes' | 'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes' | 'settlementIdLabels' | 'recentConquestMarkers'} MapLayerId */
+/** @typedef {'terrain' | 'contours' | 'arable' | 'timber' | 'metals' | 'sail' | 'freshwater' | 'population' | 'routes' | 'wealth' | 'portTolls' | 'factionTax' | 'commodityPriceGrain' | 'commodityPriceFish' | 'commodityPriceSalt' | 'commodityPriceTimber' | 'commodityPriceBaseMetals' | 'commodityPriceCopper' | 'commodityPriceSilver' | 'commodityPriceGold' | 'commodityPriceDiamonds' | 'factionTerritory' | 'loyalty' | 'rivers' | 'lakes' | 'coastalNodes' | 'metalNodes' | 'saltNodes' | 'settlementNodes' | 'settlementIdLabels' | 'recentConquestMarkers'} MapLayerId */
 
 /** @type {readonly MapLayerId[]} */
 export const ALL_MAP_LAYER_IDS = [
@@ -12,7 +12,6 @@ export const ALL_MAP_LAYER_IDS = [
   'sail',
   'freshwater',
   'population',
-  'explorationFog',
   'routes',
   'wealth',
   'portTolls',

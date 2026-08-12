@@ -99,17 +99,6 @@ function createPopulationFixture() {
   }
 }
 
-function createExplorationFogFixture() {
-  const visitedCells = new Uint8Array(64)
-  visitedCells[36] = 1
-  return {
-    gridWidth: 8,
-    gridHeight: 8,
-    colonizationPhase: 'running',
-    visitedCells,
-  }
-}
-
 function createRoutesFixture() {
   return {
     gridWidth: 8,
@@ -364,23 +353,21 @@ test('refreshResourceRasterOverlayCanvas performs at most one RGBA build per lay
               ? createFreshwaterFixture()
               : resourceId === 'population'
                 ? createPopulationFixture()
-                : resourceId === 'explorationFog'
-                  ? createExplorationFogFixture()
-                  : resourceId === 'routes'
-                    ? createRoutesFixture()
-                    : resourceId === 'wealth'
-                      ? createWealthFixture()
-                      : resourceId === 'portTolls'
-                        ? createPortTollsFixture()
-                        : resourceId === 'factionTax'
-                          ? createFactionTaxFixture()
-                          : resourceId.startsWith('commodityPrice')
-                            ? createCommodityPriceFixture()
-                            : resourceId === 'factionTerritory'
-                              ? createFactionTerritoryFixture()
-                              : resourceId === 'loyalty'
-                                ? createLoyaltyFixture()
-                                : createSailFixture()
+                : resourceId === 'routes'
+                  ? createRoutesFixture()
+                  : resourceId === 'wealth'
+                    ? createWealthFixture()
+                    : resourceId === 'portTolls'
+                      ? createPortTollsFixture()
+                      : resourceId === 'factionTax'
+                        ? createFactionTaxFixture()
+                        : resourceId.startsWith('commodityPrice')
+                          ? createCommodityPriceFixture()
+                          : resourceId === 'factionTerritory'
+                            ? createFactionTerritoryFixture()
+                            : resourceId === 'loyalty'
+                              ? createLoyaltyFixture()
+                              : createSailFixture()
     const visibility = applyResourceOverlayVisibility(
       createDefaultResourceOverlayVisibility(),
       resourceId,

@@ -26,7 +26,7 @@ test('campaign kit overlay presets enable only the page overlays', () => {
   assert.equal(settlements.settlements, true)
   assert.equal(settlements.routes, true)
   assert.equal(settlements.arable, false)
-  assert.equal(settlements.explorationFog, false)
+  assert.equal(settlements.factionTerritory, false)
   assert.equal(settlements.wealth, false)
 
   const resources = campaignKitResourcesMapVisibility()

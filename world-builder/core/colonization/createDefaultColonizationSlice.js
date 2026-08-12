@@ -44,7 +44,7 @@
  * @property {Record<string, Array<{ x: number, y: number }>>} primaryClaim
  * @property {Float32Array | null} populationCollapseRaster Derived in-memory overlay raster; never persisted.
  * @property {object[]} notableFigures
- * @property {Uint8Array | null} visitedCells In-memory exploration fog raster; never persisted.
+ * @property {Uint8Array | null} visitedCells In-memory visit-status raster for exploration fog; never persisted.
  * @property {object[]} expeditions Active and completed expedition records.
  * @property {boolean} frontierExhausted All logistics nodes founded or exhausted.
  * @property {import('./roads/roadNetwork.js').RoadSegment[]} roads Persisted overland link geometry.
