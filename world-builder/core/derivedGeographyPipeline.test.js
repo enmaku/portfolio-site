@@ -245,7 +245,7 @@ test('runPipelineStep hydrology records substep timings on state', () => {
   state = runPipelineStep(state, 'hydrology')
 
   assert.ok(state.hydrologySubstepTimings)
-  assert.strictEqual(state.hydrologySubstepTimings.length, 9)
+  assert.strictEqual(state.hydrologySubstepTimings.length, 10)
 })
 
 test('runPipelineStep hydrology runs hydrologyRefine by default', () => {
@@ -265,7 +265,7 @@ test('runPipelineStep hydrology runs hydrologyRefine by default', () => {
 test('full pipeline generation report includes hydrology substep timings', () => {
   const doc = runFullDerivedGeographyPipeline(params)
   assert.ok(doc.generationReport?.hydrologySubstepTimings)
-  assert.strictEqual(doc.generationReport.hydrologySubstepTimings.length, 9)
+  assert.strictEqual(doc.generationReport.hydrologySubstepTimings.length, 10)
 })
 
 test('full pipeline includes lakeMeta and hydrology breach stats', () => {
