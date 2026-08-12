@@ -45,6 +45,7 @@ import {
  * @typedef {Object} ExpeditionNetworkPhaseOptions
  * @property {ExpeditionNetworkPhaseHooks} [hooks]
  * @property {() => Promise<void>} [yieldToUi]
+ * @property {(cue: import('../mapFxCues.js').MapFxCue) => void | Promise<void>} [onMapFx]
  */
 
 /**
@@ -388,6 +389,10 @@ function processExpeditionAdvance(state, expedition, epoch, roadCellMask, dryLan
     state.foundingEvents.push({
       kind: 'settlement_founded',
       epoch,
+      settlementId: founded.historyEntry.settlementId,
+      x: founded.historyEntry.x,
+      y: founded.historyEntry.y,
+      originSettlementId: founded.historyEntry.originSettlementId,
     })
     state.nextExpeditions.push({
       ...updated,
@@ -408,11 +413,12 @@ function processExpeditionAdvance(state, expedition, epoch, roadCellMask, dryLan
  *   roadCellMask: Uint8Array,
  *   hooks?: ExpeditionNetworkPhaseHooks,
  *   yieldToUi?: () => Promise<void>,
+ *   onMapFx?: (cue: import('../mapFxCues.js').MapFxCue) => void | Promise<void>,
  * }} params
  * @returns {Promise<Pick<ExpeditionAdvanceState, 'slice' | 'worldDocument' | 'foundingEvents'>>}
  */
 async function advanceActiveExpeditions(params) {
-  const { slice, worldDocument, epoch, roadCellMask, hooks, yieldToUi } = params
+  const { slice, worldDocument, epoch, roadCellMask, hooks, yieldToUi, onMapFx } = params
   /** @type {ExpeditionAdvanceState} */
   const state = {
     slice: { ...slice },
@@ -430,6 +436,7 @@ async function advanceActiveExpeditions(params) {
     emitNetworkSubstepItem(hooks, 2, 'advance', expeditionIndex + 1, expeditionItemCount)
     await yieldToUi?.()
 
+    const foundingBefore = state.foundingEvents.length
     processExpeditionAdvance(
       state,
       expeditions[expeditionIndex],
@@ -438,6 +445,19 @@ async function advanceActiveExpeditions(params) {
       dryLandMask,
       sailMask,
     )
+
+    if (state.foundingEvents.length > foundingBefore) {
+      const event = state.foundingEvents[state.foundingEvents.length - 1]
+      await onMapFx?.({
+        type: 'settlement_founded',
+        epoch: event.epoch ?? epoch,
+        phaseId: 'network',
+        settlementId: event.settlementId,
+        x: Number(event.x) || 0,
+        y: Number(event.y) || 0,
+        originSettlementId: event.originSettlementId,
+      })
+    }
   }
 
   return {
@@ -450,7 +470,7 @@ async function advanceActiveExpeditions(params) {
 /**
  * @param {import('../createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../../types.js').WorldDocument} worldDocument
- * @param {{ hooks?: ExpeditionNetworkPhaseHooks, yieldToUi?: () => Promise<void> }} [options]
+ * @param {ExpeditionNetworkPhaseOptions} [options]
  * @returns {Promise<NetworkPhaseResult>}
  */
 export async function applyExpeditionNetworkPhase(slice, worldDocument, options = {}) {
@@ -460,6 +480,7 @@ export async function applyExpeditionNetworkPhase(slice, worldDocument, options 
 
   const hooks = options.hooks
   const yieldToUi = options.yieldToUi
+  const onMapFx = options.onMapFx
   const geographySeed = worldDocument.geographySeed ?? 0
   const nextEpoch = slice.epoch + 1
   const prepared = prepareNetworkPhaseState(slice, worldDocument)
@@ -484,7 +505,7 @@ export async function applyExpeditionNetworkPhase(slice, worldDocument, options 
     geographySeed,
     nextEpoch,
     frontierExhausted,
-    { hooks, yieldToUi },
+    { hooks, yieldToUi, onMapFx },
   )
   emitNetworkSubstep(hooks, 'substep-complete', 1, 'dispatch')
   await yieldToUi?.()
@@ -498,6 +519,7 @@ export async function applyExpeditionNetworkPhase(slice, worldDocument, options 
     roadCellMask,
     hooks,
     yieldToUi,
+    onMapFx,
   })
   currentSlice = advanced.slice
   currentDoc = advanced.worldDocument

@@ -22,6 +22,7 @@ const MAP_FINALIZE_STEP_INDEX = COLONIZATION_EPOCH_FINALIZE_STEPS.findIndex(
  * @property {() => WorldDocument | null} mergeDocument
  * @property {(doc: WorldDocument, layerId: MapLayerId) => void | Promise<void>} applyLayer
  * @property {() => void | Promise<void>} onComplete
+ * @property {(doc: WorldDocument) => void} [publishMergedDocument] Mid-tick map doc publish for live overlays
  */
 
 /**

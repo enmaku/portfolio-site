@@ -245,6 +245,7 @@ export function useWorldBuilderPageController(options) {
     getViewport: () => mapLifecycle?.getViewport() ?? null,
     getGeographyDocument: () => generation?.worldDocument.value ?? null,
     onSliceChanged: syncColonizationDocumentToMap,
+    isFactionTerritoryOverlayVisible: () => overlay.visibility.value.factionTerritory === true,
     colonizationMapPorts: {
       persistSession: () => {
         settingsStore.setColonizationSession?.(colonization.slice.value)
@@ -266,9 +267,10 @@ export function useWorldBuilderPageController(options) {
         colonizationWorldDocument.value = merged
         return merged
       },
-      applyLayer: (doc, layerId) => {
-        void mapLifecycle?.applyWorldDocument(doc, { changedLayers: [layerId] })
+      publishMergedDocument: (doc) => {
+        colonizationWorldDocument.value = doc
       },
+      applyLayer: (doc, layerId) => mapLifecycle?.applyWorldDocument(doc, { changedLayers: [layerId] }),
       onComplete: async () => {
         syncColonizationOverlayVisibility()
         await persistColonizationSessionIfNeeded()

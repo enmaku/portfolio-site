@@ -355,6 +355,9 @@ export async function installViewportMocks() {
           viewportSpyState.drawnTexts = []
           return removed
         }
+        destroy() {
+          this.children = []
+        }
       },
       Text: class {
         /**

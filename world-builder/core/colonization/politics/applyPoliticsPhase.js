@@ -34,6 +34,7 @@ import {
 } from './softPower/scoreSoftPower.js'
 import { advanceSoftPowerStreaks } from './softPower/softPowerStreaks.js'
 import { isTaxedFactionMember } from './softPower/taxedMembers.js'
+import { createControlOverlayRefreshCue } from '../mapFxCues.js'
 
 /**
  * @typedef {Object} PoliticsSubstepPayload
@@ -53,6 +54,11 @@ import { isTaxedFactionMember } from './softPower/taxedMembers.js'
  * @typedef {Object} PoliticsPhaseOptions
  * @property {PoliticsPhaseHooks} [hooks]
  * @property {() => Promise<void>} [yieldToUi]
+ * @property {(cue: import('../mapFxCues.js').MapFxCue, live: {
+ *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
+ *   primaryClaim?: Record<string, Array<{ x: number, y: number }>>,
+ * }) => void | Promise<void>} [onMapFx]
+ * @property {() => Record<string, Array<{ x: number, y: number }>> | undefined} [primaryClaimForFx]
  */
 
 /**
@@ -94,10 +100,34 @@ function createPoliticsItemProgress(hooks, substepId, itemCount) {
  * }>}
  */
 export async function applyPoliticsPhase(params, options = {}) {
-  const { hooks, yieldToUi } = options
+  const { hooks, yieldToUi, onMapFx, primaryClaimForFx } = options
   const events = []
   let next = params.slice
   let justLatched = false
+
+  /**
+   * Paint control overlay as soon as factional control state changes.
+   */
+  async function emitControlRefresh() {
+    if (!onMapFx) return
+    const primaryClaim = primaryClaimForFx?.() ?? params.primaryClaim ?? next.primaryClaim
+    await onMapFx(
+      createControlOverlayRefreshCue({
+        epoch: next.epoch,
+        phaseId: 'politics',
+        primaryClaim,
+      }),
+      { slice: next, primaryClaim },
+    )
+  }
+
+  /**
+   * @param {string} substepId
+   */
+  async function completePoliticsSubstep(substepId) {
+    emitPoliticsSubstep(hooks, 'substep-complete', substepId)
+    await yieldToUi?.()
+  }
 
   emitPoliticsSubstep(hooks, 'substep-start', 'latch')
   await yieldToUi?.()
@@ -213,6 +243,7 @@ export async function applyPoliticsPhase(params, options = {}) {
     next = { ...next, ...streaked.state }
     membershipProgress.report()
     await yieldToUi?.()
+    await emitControlRefresh()
 
     const membership = await applyFactionMembershipEvents(
       {
@@ -228,13 +259,16 @@ export async function applyPoliticsPhase(params, options = {}) {
           membershipProgress.report()
         },
         yieldToUi,
+        onControlChanged: async (updated) => {
+          next = updated
+          await emitControlRefresh()
+        },
       },
     )
     next = membership.slice
     events.push(...membership.events)
   }
-  emitPoliticsSubstep(hooks, 'substep-complete', 'membership')
-  await yieldToUi?.()
+  await completePoliticsSubstep('membership')
 
   emitPoliticsSubstep(hooks, 'substep-start', 'pressure')
   await yieldToUi?.()
@@ -265,9 +299,11 @@ export async function applyPoliticsPhase(params, options = {}) {
     )
     next = pressure.slice
     events.push(...pressure.events)
+    if (pressure.events.length > 0) {
+      await emitControlRefresh()
+    }
   }
-  emitPoliticsSubstep(hooks, 'substep-complete', 'pressure')
-  await yieldToUi?.()
+  await completePoliticsSubstep('pressure')
 
   emitPoliticsSubstep(hooks, 'substep-start', 'conflict')
   await yieldToUi?.()
@@ -298,13 +334,16 @@ export async function applyPoliticsPhase(params, options = {}) {
         onSelectProgress: (itemIndex, itemCount) => {
           emitPoliticsSubstep(hooks, 'substep-item', 'conflict', itemIndex, itemCount)
         },
+        onControlChanged: async (updated) => {
+          next = updated
+          await emitControlRefresh()
+        },
       })
       next = conflict.slice
       events.push(...conflict.events)
     }
   }
-  emitPoliticsSubstep(hooks, 'substep-complete', 'conflict')
-  await yieldToUi?.()
+  await completePoliticsSubstep('conflict')
 
   emitPoliticsSubstep(hooks, 'substep-start', 'absorption')
   await yieldToUi?.()
@@ -331,9 +370,11 @@ export async function applyPoliticsPhase(params, options = {}) {
     )
     next = absorption.slice
     events.push(...absorption.events)
+    if (absorption.events.length > 0) {
+      await emitControlRefresh()
+    }
   }
-  emitPoliticsSubstep(hooks, 'substep-complete', 'absorption')
-  await yieldToUi?.()
+  await completePoliticsSubstep('absorption')
 
   emitPoliticsSubstep(hooks, 'substep-start', 'palette')
   await yieldToUi?.()
@@ -345,8 +386,8 @@ export async function applyPoliticsPhase(params, options = {}) {
       softPowerPaintBySettlementId: next.softPowerPaintBySettlementId,
     }),
   }
-  emitPoliticsSubstep(hooks, 'substep-complete', 'palette')
-  await yieldToUi?.()
+  await emitControlRefresh()
+  await completePoliticsSubstep('palette')
 
   return { slice: next, events }
 }

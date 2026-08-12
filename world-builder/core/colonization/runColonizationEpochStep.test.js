@@ -193,3 +193,94 @@ test('runColonizationEpochStep reports politics substep indices in order', async
 
   assert.deepStrictEqual(politicsSubstepStarts, [0, 1, 2, 3, 4, 5])
 })
+
+test('runColonizationEpochStep emits claims control_overlay_refresh with live primaryClaim', async () => {
+  const running = await commitRunningSlice()
+  running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
+    ...entry,
+    exhausted: true,
+  }))
+  /** @type {string[]} */
+  const cueTypes = []
+  /** @type {object | null} */
+  let claimsCue = null
+
+  await runColonizationEpochStep(running, richGeographyDoc(), {
+    yieldToUi: async () => {},
+    handlers: {
+      onMapFx(cue, live) {
+        cueTypes.push(cue.type)
+        if (cue.type === 'control_overlay_refresh' && cue.phaseId === 'claims') {
+          claimsCue = cue
+          assert.ok(live.slice)
+          assert.ok(live.primaryClaim)
+          assert.strictEqual(cue.primaryClaim, live.primaryClaim)
+        }
+      },
+    },
+  })
+
+  assert.ok(claimsCue, `expected claims control refresh among ${cueTypes.join(',')}`)
+  assert.ok(cueTypes.includes('control_overlay_refresh'))
+})
+
+test('runColonizationEpochStep emits politics control_overlay_refresh during membership mutations', async () => {
+  const running = await commitRunningSlice()
+  running.logisticsNodeSurvey = (running.logisticsNodeSurvey ?? []).map((entry) => ({
+    ...entry,
+    exhausted: true,
+  }))
+  /** @type {string[]} */
+  const politicsPhases = []
+
+  await runColonizationEpochStep(running, richGeographyDoc(), {
+    yieldToUi: async () => {},
+    handlers: {
+      onMapFx(cue) {
+        if (cue.type === 'control_overlay_refresh' && cue.phaseId === 'politics') {
+          politicsPhases.push('politics')
+        }
+      },
+    },
+  })
+
+  assert.ok(
+    politicsPhases.length >= 1,
+    'expected at least one politics control overlay refresh',
+  )
+})
+
+test('runColonizationEpochStep does not blank control overlay during network advance', async () => {
+  const running = await commitRunningSlice()
+  running.primaryClaim = {
+    [running.settlements[0].id]: [{ x: running.settlements[0].x, y: running.settlements[0].y }],
+  }
+  /** @type {Array<{ phaseId?: string, primaryClaim?: object }>} */
+  const controlCues = []
+
+  await runColonizationEpochStep(running, richGeographyDoc(), {
+    yieldToUi: async () => {},
+    handlers: {
+      onMapFx(cue) {
+        if (cue.type === 'control_overlay_refresh') {
+          controlCues.push(cue)
+          if (cue.phaseId === 'network') {
+            assert.ok(
+              cue.primaryClaim && Object.keys(cue.primaryClaim).length > 0,
+              'network control refresh must not use empty primaryClaim',
+            )
+          }
+        }
+      },
+    },
+  })
+
+  assert.equal(
+    controlCues.some((cue) => cue.phaseId === 'network'),
+    false,
+    'founding must not force a mid-network control refresh (claims phase owns claim geometry)',
+  )
+  const claimsCue = controlCues.find((cue) => cue.phaseId === 'claims')
+  assert.ok(claimsCue, 'expected claims-phase control refresh')
+  assert.ok(claimsCue.primaryClaim && Object.keys(claimsCue.primaryClaim).length > 0)
+})

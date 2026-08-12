@@ -35,7 +35,9 @@ export function createColonizationEpochContext(slice, worldDocument) {
     slice,
     worldDocument,
     events: [],
-    primaryClaim: {},
+    /** Seed from prior epoch so mid-tick overlays never paint empty claims before claims phase. */
+    primaryClaim:
+      slice.primaryClaim && typeof slice.primaryClaim === 'object' ? { ...slice.primaryClaim } : {},
     ownerByCell: undefined,
     survivalBySettlementId: {},
     effectiveDeliveredBySettlementId: {},
@@ -71,6 +73,10 @@ export function runColonizationEpochClaimsPhase(ctx) {
   })
   ctx.ownerByCell = claimMap.ownerByCell
   ctx.primaryClaim = serializeClaimMap(claimMap)
+  ctx.slice = {
+    ...ctx.slice,
+    primaryClaim: ctx.primaryClaim,
+  }
 }
 
 /**
@@ -79,7 +85,12 @@ export function runColonizationEpochClaimsPhase(ctx) {
  * trade is stashed on the context for the survival phase.
  *
  * @param {ColonizationEpochContext} ctx
- * @param {{ trade?: { hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks, yieldToUi?: () => Promise<void> } }} [options]
+ * @param {{
+ *   trade?: {
+ *     hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks,
+ *     yieldToUi?: () => Promise<void>,
+ *   },
+ * }} [options]
  * @returns {Promise<void>}
  */
 export async function runColonizationEpochTradePhase(ctx, options = {}) {
@@ -93,6 +104,7 @@ export async function runColonizationEpochTradePhase(ctx, options = {}) {
     },
     options.trade,
   )
+
   const trade = await clearRealmTrade(input, options.trade)
 
   ctx.tradeClearingActive = trade.active === true
@@ -273,6 +285,11 @@ export async function runColonizationEpochCollapsePhase(ctx, options = {}) {
  *   politics?: {
  *     hooks?: import('./politics/applyPoliticsPhase.js').PoliticsPhaseHooks,
  *     yieldToUi?: () => Promise<void>,
+ *     onMapFx?: (cue: import('./mapFxCues.js').MapFxCue, live: {
+ *       slice: import('./createDefaultColonizationSlice.js').ColonizationSlice,
+ *       primaryClaim?: Record<string, Array<{ x: number, y: number }>>,
+ *     }) => void | Promise<void>,
+ *     primaryClaimForFx?: () => Record<string, Array<{ x: number, y: number }>> | undefined,
  *   },
  * }} [options]
  */
@@ -288,6 +305,8 @@ export async function runColonizationEpochPoliticsPhase(ctx, options = {}) {
     {
       hooks: options.politics?.hooks,
       yieldToUi: options.politics?.yieldToUi,
+      onMapFx: options.politics?.onMapFx,
+      primaryClaimForFx: options.politics?.primaryClaimForFx,
     },
   )
   ctx.slice = politics.slice

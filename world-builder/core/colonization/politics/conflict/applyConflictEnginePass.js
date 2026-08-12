@@ -28,6 +28,7 @@ import { selectResourceConquests } from './selectResourceConquest.js'
  *   corridorDependentBySettlementId?: Record<string, boolean>,
  *   yieldToUi?: () => Promise<void>,
  *   onSelectProgress?: (itemIndex: number, itemCount: number) => void,
+ *   onControlChanged?: (slice: object) => void | Promise<void>,
  * }} params
  * @returns {Promise<{ slice: object, events: object[], busyFactionIds: Set<string> }>}
  */
@@ -79,6 +80,7 @@ export async function applyConflictEnginePass(params) {
     events.push(...resolved.events)
     for (const id of resolved.participatingFactionIds) busyFactionIds.add(id)
     capacityBySettlementId = buildCapacities(next, params.martialInputBySettlementId ?? {})
+    await params.onControlChanged?.(next)
     await params.yieldToUi?.()
   }
 
@@ -100,6 +102,9 @@ export async function applyConflictEnginePass(params) {
   next = rebellion.slice
   events.push(...rebellion.events)
   for (const id of rebellion.participatingFactionIds) busyFactionIds.add(id)
+  if (rebellion.events.length > 0) {
+    await params.onControlChanged?.(next)
+  }
   await params.yieldToUi?.()
 
   return { slice: next, events, busyFactionIds }

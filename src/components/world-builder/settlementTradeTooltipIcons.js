@@ -1,16 +1,11 @@
 import { h } from 'vue'
 import {
   mdiAccount,
-  mdiBarley,
   mdiCircleSlice1,
-  mdiDiamondStone,
-  mdiFish,
-  mdiGold,
-  mdiPineTree,
   mdiSack,
   mdiSale,
-  mdiShaker,
 } from '@quasar/extras/mdi-v7'
+import { COMMODITY_ICON_STYLES } from '../../../world-builder/renderer/commodityIconCatalog.js'
 
 const ICON_SIZE = 18
 
@@ -52,40 +47,48 @@ export function factionTaxIcon() {
   return mdiIcon('Faction tax', mdiSale, '#C48B5A')
 }
 
+/**
+ * @param {keyof typeof COMMODITY_ICON_STYLES} commodityId
+ */
+function commodityIcon(commodityId) {
+  const style = COMMODITY_ICON_STYLES[commodityId]
+  return mdiIcon(style.accessibleName, style.path, style.fill)
+}
+
 export function wheatIcon() {
-  return mdiIcon('Grain', mdiBarley, '#D4A84B')
+  return commodityIcon('grain')
 }
 
 export function fishIcon() {
-  return mdiIcon('Fish', mdiFish, '#4A9FD4')
+  return commodityIcon('fish')
 }
 
 export function saltIcon() {
-  return mdiIcon('Salt', mdiShaker, '#E8ECF0')
+  return commodityIcon('salt')
 }
 
 export function timberIcon() {
-  return mdiIcon('Timber', mdiPineTree, '#6B8F3C')
+  return commodityIcon('timber')
 }
 
 export function baseMetalsIcon() {
-  return mdiIcon('Base metals', mdiGold, '#8E9094')
+  return commodityIcon('baseMetals')
 }
 
 export function copperIcon() {
-  return mdiIcon('Copper', mdiGold, '#B87333')
+  return commodityIcon('copper')
 }
 
 export function silverIcon() {
-  return mdiIcon('Silver', mdiGold, '#C0C5CE')
+  return commodityIcon('silver')
 }
 
 export function goldIcon() {
-  return mdiIcon('Gold', mdiGold, '#D4AF37')
+  return commodityIcon('gold')
 }
 
 export function diamondsIcon() {
-  return mdiIcon('Diamonds', mdiDiamondStone, '#A8D4F0')
+  return commodityIcon('diamonds')
 }
 
 /** @type {Readonly<Record<string, () => ReturnType<typeof mdiIcon>>>} */
@@ -102,14 +105,8 @@ export const COMMODITY_ICONS = Object.freeze({
 })
 
 /** @type {Readonly<Record<string, string>>} */
-export const COMMODITY_ACCESSIBLE_NAMES = Object.freeze({
-  grain: 'Grain',
-  fish: 'Fish',
-  salt: 'Salt',
-  timber: 'Timber',
-  baseMetals: 'Base metals',
-  copper: 'Copper',
-  silver: 'Silver',
-  gold: 'Gold',
-  diamonds: 'Diamonds',
-})
+export const COMMODITY_ACCESSIBLE_NAMES = Object.freeze(
+  Object.fromEntries(
+    Object.entries(COMMODITY_ICON_STYLES).map(([id, style]) => [id, style.accessibleName]),
+  ),
+)

@@ -187,6 +187,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   viewport.addChild(settlementOverlay)
   viewport.addChild(recentConquestOverlay)
   viewport.addChild(settlementIdOverlay)
+
   viewport
     .drag()
     .pinch()
