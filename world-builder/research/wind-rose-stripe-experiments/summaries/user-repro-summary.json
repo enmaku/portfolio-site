@@ -1,0 +1,201 @@
+{
+  "reportPath": "/private/var/folders/hh/fm128ckj7rxfbqywhwrkl_0r0000gn/T/wind-rain-shadow-exp-n9SdGu/out/user-repro.html",
+  "genMs": 1235.6713340000001,
+  "reproduces": true,
+  "detection": {
+    "windDegrees": 295,
+    "downwind": {
+      "dx": 0.9063077870366498,
+      "dy": 0.4226182617406996
+    },
+    "longCliffCount": 44,
+    "maxCliffRun": 125,
+    "topCliffs": [
+      {
+        "x0": 408,
+        "y0": 432,
+        "length": 125,
+        "grad": 0.7394298017024994
+      },
+      {
+        "x0": 488,
+        "y0": 464,
+        "length": 107,
+        "grad": 0.4926256537437439
+      },
+      {
+        "x0": 872,
+        "y0": 288,
+        "length": 105,
+        "grad": 0.871679425239563
+      },
+      {
+        "x0": 208,
+        "y0": 704,
+        "length": 97,
+        "grad": 0.8654177784919739
+      },
+      {
+        "x0": 504,
+        "y0": 472,
+        "length": 94,
+        "grad": 0.7926997244358063
+      },
+      {
+        "x0": 888,
+        "y0": 296,
+        "length": 89,
+        "grad": 0.778688982129097
+      },
+      {
+        "x0": 352,
+        "y0": 776,
+        "length": 88,
+        "grad": 0.872254952788353
+      },
+      {
+        "x0": 696,
+        "y0": 528,
+        "length": 84,
+        "grad": 0.7296013832092285
+      },
+      {
+        "x0": 424,
+        "y0": 440,
+        "length": 82,
+        "grad": 0.7756893634796143
+      },
+      {
+        "x0": 264,
+        "y0": 736,
+        "length": 82,
+        "grad": 0.8564865440130234
+      },
+      {
+        "x0": 720,
+        "y0": 960,
+        "length": 80,
+        "grad": 0.8807975128293037
+      },
+      {
+        "x0": 864,
+        "y0": 280,
+        "length": 79,
+        "grad": 0.8751993551850319
+      },
+      {
+        "x0": 224,
+        "y0": 712,
+        "length": 79,
+        "grad": 0.8592641353607178
+      },
+      {
+        "x0": 728,
+        "y0": 264,
+        "length": 77,
+        "grad": 0.6732306480407715
+      },
+      {
+        "x0": 520,
+        "y0": 480,
+        "length": 73,
+        "grad": 0.7945593297481537
+      },
+      {
+        "x0": 904,
+        "y0": 304,
+        "length": 72,
+        "grad": 0.5574178323149681
+      }
+    ],
+    "reproducesHardWindEdges": true,
+    "reproducesThinWetStripes": true,
+    "maxEdgeRun": 125,
+    "maxThinWetRun": 0,
+    "longEdgeCount": 44,
+    "thinWetStripeCount": 0,
+    "topEdges": [
+      {
+        "x0": 408,
+        "y0": 432,
+        "length": 125,
+        "grad": 0.7394298017024994
+      },
+      {
+        "x0": 488,
+        "y0": 464,
+        "length": 107,
+        "grad": 0.4926256537437439
+      },
+      {
+        "x0": 872,
+        "y0": 288,
+        "length": 105,
+        "grad": 0.871679425239563
+      },
+      {
+        "x0": 208,
+        "y0": 704,
+        "length": 97,
+        "grad": 0.8654177784919739
+      },
+      {
+        "x0": 504,
+        "y0": 472,
+        "length": 94,
+        "grad": 0.7926997244358063
+      },
+      {
+        "x0": 888,
+        "y0": 296,
+        "length": 89,
+        "grad": 0.778688982129097
+      },
+      {
+        "x0": 352,
+        "y0": 776,
+        "length": 88,
+        "grad": 0.872254952788353
+      },
+      {
+        "x0": 696,
+        "y0": 528,
+        "length": 84,
+        "grad": 0.7296013832092285
+      },
+      {
+        "x0": 424,
+        "y0": 440,
+        "length": 82,
+        "grad": 0.7756893634796143
+      },
+      {
+        "x0": 264,
+        "y0": 736,
+        "length": 82,
+        "grad": 0.8564865440130234
+      },
+      {
+        "x0": 720,
+        "y0": 960,
+        "length": 80,
+        "grad": 0.8807975128293037
+      },
+      {
+        "x0": 864,
+        "y0": 280,
+        "length": 79,
+        "grad": 0.8751993551850319
+      }
+    ],
+    "topThinWet": []
+  },
+  "settings": {
+    "geographySeed": 1370491305,
+    "prevailingWindDegrees": 295,
+    "rainShadowStrength": 0.4,
+    "moistureAdvectionStrength": 0.85,
+    "rainfallAmountScale": 1.9,
+    "biomeEdgeNoiseStrength": 1
+  }
+}

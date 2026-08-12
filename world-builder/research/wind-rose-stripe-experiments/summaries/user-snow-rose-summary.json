@@ -1,0 +1,70 @@
+{
+  "geographySeed": 1370491305,
+  "prevailingWindDegrees": 295,
+  "secondary": 25,
+  "meanAbsDelta": 0.0332130128817462,
+  "cases": [
+    {
+      "id": "baseline",
+      "title": "Single prevailing 295°",
+      "stats": {
+        "capCells": 111461,
+        "mean": 1.5652704742735102,
+        "min": 0.6000000238418579,
+        "max": 1.600000023841858,
+        "scourFrac": 0.004656337194175541,
+        "boostFrac": 0.9706713559002701
+      },
+      "asym": {
+        "westMean": 1.5601188745807908,
+        "eastMean": 1.5695352712640782,
+        "delta": -0.00941639668328742,
+        "westN": 50482,
+        "eastN": 60979
+      }
+    },
+    {
+      "id": "fixed-lobes",
+      "title": "Fixed lobes only (7×295° + 4×25°)",
+      "stats": {
+        "capCells": 111461,
+        "mean": 1.559199135353508,
+        "min": 0.5999999642372131,
+        "max": 1.600000262260437,
+        "scourFrac": 0.007087680892868357,
+        "boostFrac": 0.9827832156539058
+      },
+      "asym": {
+        "westMean": 1.5563898072532814,
+        "eastMean": 1.5615248622620441,
+        "delta": -0.005135055008762768,
+        "westN": 50482,
+        "eastN": 60979
+      }
+    },
+    {
+      "id": "rose",
+      "title": "Full rose 35/20/45 N=20",
+      "stats": {
+        "capCells": 111461,
+        "mean": 1.5581546588423216,
+        "min": 0.7305001616477966,
+        "max": 1.6000001430511475,
+        "scourFrac": 0.0007356833331838042,
+        "boostFrac": 0.9959627134154547
+      },
+      "asym": {
+        "westMean": 1.5587351492078363,
+        "eastMean": 1.557674094801719,
+        "delta": 0.0010610544061173677,
+        "westN": 50482,
+        "eastN": 60979
+      }
+    }
+  ],
+  "scheduleCounts": {
+    "prevailing": 7,
+    "secondary": 4,
+    "random": 9
+  }
+}

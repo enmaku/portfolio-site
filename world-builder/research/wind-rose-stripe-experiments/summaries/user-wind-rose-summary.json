@@ -1,0 +1,225 @@
+{
+  "reportPath": "/private/var/folders/hh/fm128ckj7rxfbqywhwrkl_0r0000gn/T/wind-rain-shadow-exp-n9SdGu/out/user-wind-rose.html",
+  "prevailingWindDegrees": 295,
+  "baseline": {
+    "cliffs": 44,
+    "maxCliff": 125
+  },
+  "best": {
+    "id": "every-3rd-wild",
+    "title": "Every 3rd year orthogonal (cycle prevailing/ortho/opp)",
+    "cliffs": 1,
+    "maxCliff": 87
+  },
+  "cases": [
+    {
+      "id": "baseline",
+      "title": "Baseline — 100% prevailing",
+      "cliffs": 44,
+      "maxCliff": 125,
+      "reproduces": true,
+      "ms": 15395.554708,
+      "hist": [
+        {
+          "bearing": 295,
+          "n": 20,
+          "frac": 1
+        }
+      ],
+      "slug": "rose-baseline"
+    },
+    {
+      "id": "opp-80-20",
+      "title": "Primary + opposite (80/20)",
+      "cliffs": 29,
+      "maxCliff": 118,
+      "reproduces": true,
+      "ms": 15644.326166,
+      "hist": [
+        {
+          "bearing": 295,
+          "n": 15,
+          "frac": 0.75
+        },
+        {
+          "bearing": 115,
+          "n": 5,
+          "frac": 0.25
+        }
+      ],
+      "slug": "rose-opp-80-20"
+    },
+    {
+      "id": "opp-60-40",
+      "title": "Primary + opposite (60/40)",
+      "cliffs": 22,
+      "maxCliff": 118,
+      "reproduces": true,
+      "ms": 15445.192332999999,
+      "hist": [
+        {
+          "bearing": 295,
+          "n": 12,
+          "frac": 0.6
+        },
+        {
+          "bearing": 115,
+          "n": 8,
+          "frac": 0.4
+        }
+      ],
+      "slug": "rose-opp-60-40"
+    },
+    {
+      "id": "opp-50-50",
+      "title": "Bidirectional (50/50)",
+      "cliffs": 20,
+      "maxCliff": 118,
+      "reproduces": true,
+      "ms": 16232.825167000003,
+      "hist": [
+        {
+          "bearing": 295,
+          "n": 11,
+          "frac": 0.55
+        },
+        {
+          "bearing": 115,
+          "n": 9,
+          "frac": 0.45
+        }
+      ],
+      "slug": "rose-opp-50-50"
+    },
+    {
+      "id": "tri-60-25-15",
+      "title": "Prevailing + opposite + orthogonal (60/25/15)",
+      "cliffs": 27,
+      "maxCliff": 103,
+      "reproduces": true,
+      "ms": 12050.908000000003,
+      "hist": [
+        {
+          "bearing": 295,
+          "n": 15,
+          "frac": 0.75
+        },
+        {
+          "bearing": 115,
+          "n": 3,
+          "frac": 0.15
+        },
+        {
+          "bearing": 25,
+          "n": 2,
+          "frac": 0.1
+        }
+      ],
+      "slug": "rose-tri-60-25-15"
+    },
+    {
+      "id": "tri-50-25-25",
+      "title": "Prevailing + two orthogonals (50/25/25)",
+      "cliffs": 15,
+      "maxCliff": 87,
+      "reproduces": true,
+      "ms": 11647.194166999994,
+      "hist": [
+        {
+          "bearing": 295,
+          "n": 11,
+          "frac": 0.55
+        },
+        {
+          "bearing": 25,
+          "n": 5,
+          "frac": 0.25
+        },
+        {
+          "bearing": 205,
+          "n": 4,
+          "frac": 0.2
+        }
+      ],
+      "slug": "rose-tri-50-25-25"
+    },
+    {
+      "id": "rose-like",
+      "title": "Wind-rose-like 4 lobes (45/25/18/12)",
+      "cliffs": 9,
+      "maxCliff": 87,
+      "reproduces": true,
+      "ms": 13003.673083000001,
+      "hist": [
+        {
+          "bearing": 295,
+          "n": 9,
+          "frac": 0.45
+        },
+        {
+          "bearing": 70,
+          "n": 5,
+          "frac": 0.25
+        },
+        {
+          "bearing": 115,
+          "n": 4,
+          "frac": 0.2
+        },
+        {
+          "bearing": 175,
+          "n": 2,
+          "frac": 0.1
+        }
+      ],
+      "slug": "rose-rose-like"
+    },
+    {
+      "id": "every-4th-opp",
+      "title": "Every 4th year opposite (75/25 cadence)",
+      "cliffs": 29,
+      "maxCliff": 118,
+      "reproduces": true,
+      "ms": 13554.836416000006,
+      "hist": [
+        {
+          "bearing": 295,
+          "n": 15,
+          "frac": 0.75
+        },
+        {
+          "bearing": 115,
+          "n": 5,
+          "frac": 0.25
+        }
+      ],
+      "slug": "rose-every-4th-opp"
+    },
+    {
+      "id": "every-3rd-wild",
+      "title": "Every 3rd year orthogonal (cycle prevailing/ortho/opp)",
+      "cliffs": 1,
+      "maxCliff": 87,
+      "reproduces": false,
+      "ms": 13109.17975000001,
+      "hist": [
+        {
+          "bearing": 295,
+          "n": 7,
+          "frac": 0.35
+        },
+        {
+          "bearing": 25,
+          "n": 7,
+          "frac": 0.35
+        },
+        {
+          "bearing": 115,
+          "n": 6,
+          "frac": 0.3
+        }
+      ],
+      "slug": "rose-every-3rd-wild"
+    }
+  ]
+}
