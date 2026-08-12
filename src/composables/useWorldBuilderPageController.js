@@ -548,6 +548,9 @@ export function useWorldBuilderPageController(options) {
   function onToggleChange(key, value) {
     withTerrainAuthoring(() => {
       settingsStore.setControl(key, value)
+      if (key === 'secondaryMaximumLinked') {
+        return
+      }
       regenerate()
     })
   }

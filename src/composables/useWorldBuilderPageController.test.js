@@ -38,7 +38,10 @@ const SIDE_EFFECT_METHOD_COVERAGE = {
     'supersede ignores stale step-complete world document from prior run',
     'rapid regenerate does not duplicate world document apply from stale worker',
   ],
-  onToggleChange: ['onToggleChange persists to settings and regenerates'],
+  onToggleChange: [
+    'onToggleChange persists to settings and regenerates',
+    'toggling secondaryMaximumLinked persists without regenerating',
+  ],
   onSliderInput: ['onSliderInput persists to settings without regenerating'],
   onSliderCommit: ['committing a slider value persists to settings and regenerates'],
   commitSeed: [
@@ -301,6 +304,35 @@ test('onToggleChange persists to settings and regenerates', async () => {
 
     assert.strictEqual(settingsStore.generationOptions.enableMeanderRefine, true)
     assert.strictEqual(worker.runCount(), runsAfterStart + 1)
+  } finally {
+    scope.stop()
+  }
+})
+
+test('toggling secondaryMaximumLinked persists without regenerating', async () => {
+  const scope = effectScope(true)
+  try {
+    const worker = createPendingWorker()
+    const { ctx, settingsStore } = mountController(scope, {
+      runDerivedGeographyInWorker: (params, callbacks) => worker.run(params, callbacks),
+    })
+
+    await ctx.start()
+    await nextTick()
+    const runsAfterStart = worker.runCount()
+    assert.strictEqual(settingsStore.secondaryMaximumLinked, true)
+
+    ctx.onToggleChange('secondaryMaximumLinked', false)
+    await nextTick()
+
+    assert.strictEqual(settingsStore.secondaryMaximumLinked, false)
+    assert.strictEqual(worker.runCount(), runsAfterStart)
+
+    ctx.onToggleChange('secondaryMaximumLinked', true)
+    await nextTick()
+
+    assert.strictEqual(settingsStore.secondaryMaximumLinked, true)
+    assert.strictEqual(worker.runCount(), runsAfterStart)
   } finally {
     scope.stop()
   }
