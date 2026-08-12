@@ -50,10 +50,6 @@
           aria-label="Link secondary maximum to prevailing"
           @click="onToggleLink"
         />
-        <WorldBuilderSettingHelp
-          :text="SECONDARY_MAXIMUM_LINK_TOOLTIP"
-          label="Link secondary maximum"
-        />
       </div>
     </div>
     <WorldBuilderWindRosePreview
@@ -66,10 +62,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import {
-  formatGenerationControlValue,
-  SECONDARY_MAXIMUM_LINK_TOOLTIP,
-} from '@world-builder/worldBuilderGenerationControls.js'
+import { formatGenerationControlValue } from '@world-builder/worldBuilderGenerationControls.js'
 import PrevailingWindArrow from './PrevailingWindArrow.vue'
 import WorldBuilderSettingHelp from './WorldBuilderSettingHelp.vue'
 import WorldBuilderWindRosePreview from './WorldBuilderWindRosePreview.vue'

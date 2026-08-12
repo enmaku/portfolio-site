@@ -4,10 +4,6 @@ import { formatPrevailingWindDisplay } from './formatPrevailingWind.js'
 export const GEOGRAPHY_SEED_TOOLTIP =
   'Deterministic input to landmass generation. The same seed and settings always produce the same terrain; changing the seed picks a different world layout without altering the other controls.'
 
-/** @type {string} */
-export const SECONDARY_MAXIMUM_LINK_TOOLTIP =
-  'When linked, the secondary maximum tracks the prevailing wind at a fixed offset (default +90°). Unlink to aim the secondary lobe independently.'
-
 /**
  * Sidebar control metadata for world generation parameters, ordered by typical impact.
  * @type {ReadonlyArray<{
@@ -43,7 +39,7 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
         key: 'secondaryMaximumDegrees',
         label: 'Secondary maximum',
         tooltip:
-          'Subordinate moisture-transport lobe on the wind rose. Linked by default at right angles to the prevailing wind.',
+          'Subordinate moisture-transport lobe on the wind rose. Linked by default at +90° from prevailing so it tracks as you aim the primary lobe; use the link control between the sliders to unlink and set an absolute secondary bearing (re-linking remembers the current offset).',
         kind: 'slider',
         min: 0,
         max: 359,
