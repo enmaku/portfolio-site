@@ -102,6 +102,21 @@ export function seasonRainfallMultiplier(season, options, yearMult) {
  * @param {number} params.yearMult
  * @returns {Float32Array}
  */
+/**
+ * @param {Object} params
+ * @param {Float32Array} params.baseRainfall
+ * @param {Float32Array} [params.meltContribution]
+ * @param {Float32Array} [params.soilDrainage]
+ * @param {number} [params.soilDrainageScale]
+ * @param {boolean[]} [params.ocean]
+ * @param {SeasonId} params.season
+ * @param {import('../types.js').WorldGenerationOptions} params.options
+ * @param {number} params.yearMult
+ * @param {Float32Array} [params.adjustedRainOut]
+ * @param {Float32Array} [params.scaledMeltOut]
+ * @param {Float32Array} [params.runoffOut]
+ * @returns {Float32Array}
+ */
 export function computeSeasonalRunoff({
   baseRainfall,
   meltContribution,
@@ -111,16 +126,25 @@ export function computeSeasonalRunoff({
   season,
   options,
   yearMult,
+  adjustedRainOut,
+  scaledMeltOut,
+  runoffOut,
 }) {
   const rainMult = seasonRainfallMultiplier(season, options, yearMult)
-  const adjustedRain = new Float32Array(baseRainfall.length)
+  const adjustedRain =
+    adjustedRainOut && adjustedRainOut.length === baseRainfall.length
+      ? adjustedRainOut
+      : new Float32Array(baseRainfall.length)
   for (let i = 0; i < baseRainfall.length; i += 1) {
     adjustedRain[i] = Math.min(1, Math.max(0, baseRainfall[i] * rainMult))
   }
 
   let melt = meltContribution
   if (season === 'melt' && meltContribution) {
-    const scaledMelt = new Float32Array(meltContribution.length)
+    const scaledMelt =
+      scaledMeltOut && scaledMeltOut.length === meltContribution.length
+        ? scaledMeltOut
+        : new Float32Array(meltContribution.length)
     for (let i = 0; i < meltContribution.length; i += 1) {
       scaledMelt[i] = meltContribution[i] * options.meltReleaseScale * yearMult
     }
@@ -135,6 +159,7 @@ export function computeSeasonalRunoff({
     soilDrainage,
     soilDrainageScale,
     ocean,
+    out: runoffOut,
   })
 }
 
@@ -151,6 +176,17 @@ export function computeSeasonalRunoff({
  * @param {number} params.yearMult
  * @returns {Float32Array}
  */
+/**
+ * @param {Object} params
+ * @param {Float32Array} params.baseRainfall
+ * @param {Uint8Array} params.snowCapMask
+ * @param {boolean[]} [params.ocean]
+ * @param {Float32Array} [params.windAccumFactor]
+ * @param {import('../types.js').WorldGenerationOptions} params.options
+ * @param {number} params.yearMult
+ * @param {Float32Array} [params.out]
+ * @returns {Float32Array}
+ */
 export function computeSeasonalSnowAccum({
   baseRainfall,
   snowCapMask,
@@ -158,11 +194,16 @@ export function computeSeasonalSnowAccum({
   windAccumFactor,
   options,
   yearMult,
+  out,
 }) {
-  const accum = new Float32Array(baseRainfall.length)
+  const accum =
+    out && out.length === baseRainfall.length ? out : new Float32Array(baseRainfall.length)
   const rate = options.snowAccumRate * yearMult * RUNOFF_TO_FLOW_UNITS * 0.08
   for (let i = 0; i < accum.length; i += 1) {
-    if (ocean?.[i] || !snowCapMask[i]) continue
+    if (ocean?.[i] || !snowCapMask[i]) {
+      accum[i] = 0
+      continue
+    }
     const windFactor = windAccumFactor ? windAccumFactor[i] : 1
     accum[i] = baseRainfall[i] * rate * windFactor
   }

@@ -6,6 +6,43 @@ import { computeMoistureAdvection } from './computeMoistureAdvection.js'
 import { normalizeWindDegrees } from './prevailingWindField.js'
 import { scaleForGridSize } from '../types.js'
 import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
+import { isOceanCell } from './applyClosedIslandRim.js'
+import { computeLandCoastDistance } from '../grid/gridTopology.js'
+
+/** @type {Map<string, Float32Array>} */
+const rainfallBaseCache = new Map()
+
+/**
+ * @param {number} geographySeed
+ * @param {number} width
+ * @param {number} height
+ * @param {number} frequency
+ * @param {number} persistence
+ * @param {number} seed
+ * @returns {Float32Array}
+ */
+function getRainfallFbmBase(geographySeed, width, height, frequency, persistence, seed) {
+  const key = `${geographySeed}|${width}x${height}|${frequency}|${persistence}|${seed}`
+  const cached = rainfallBaseCache.get(key)
+  if (cached) {
+    return cached
+  }
+  const base = generateFbm2d({
+    width,
+    height,
+    seed,
+    octaves: 5,
+    frequency,
+    persistence,
+  })
+  rainfallBaseCache.set(key, base)
+  return base
+}
+
+/** Clear FBM rainfall base cache (tests). */
+export function clearRainfallFbmBaseCache() {
+  rainfallBaseCache.clear()
+}
 
 /**
  * @param {Object} params
@@ -17,6 +54,8 @@ import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
  * @param {number} params.advectionStrength
  * @param {number} params.rainShadowStrength
  * @param {number} params.seaLevel
+ * @param {boolean[]} params.ocean
+ * @param {Float32Array | Int16Array | Uint16Array | number[]} params.coastDistance
  * @returns {Float32Array}
  */
 function rainfallForBearing({
@@ -28,6 +67,8 @@ function rainfallForBearing({
   advectionStrength,
   rainShadowStrength,
   seaLevel,
+  ocean,
+  coastDistance,
 }) {
   const blended = new Float32Array(base.length)
   if (advectionStrength > 0) {
@@ -37,6 +78,8 @@ function rainfallForBearing({
       height,
       transportBearingDegrees,
       seaLevel,
+      ocean,
+      coastDistance,
     })
     for (let i = 0; i < base.length; i += 1) {
       const multiplier = 1 + advectionStrength * (advection[i] * 2 - 1)
@@ -78,14 +121,9 @@ export function generateRainfall({
 }) {
   const resolved = resolveWorldGenerationOptions(options)
   const seed = deriveFieldSeed(geographySeed, 'rainfall')
-  const base = generateFbm2d({
-    width,
-    height,
-    seed,
-    octaves: 5,
-    frequency: scaleForGridSize(0.014 * resolved.rainfallFrequencyScale, width),
-    persistence: 0.5,
-  })
+  const frequency = scaleForGridSize(0.014 * resolved.rainfallFrequencyScale, width)
+  const persistence = 0.5
+  const base = getRainfallFbmBase(geographySeed, width, height, frequency, persistence, seed)
 
   const prevailing = normalizeWindDegrees(prevailingWindDegrees)
   const secondary = normalizeWindDegrees(secondaryMaximumDegrees)
@@ -99,6 +137,8 @@ export function generateRainfall({
   const advectionStrength = resolved.moistureAdvectionStrength
   const rainShadowStrength = resolved.rainShadowStrength
   const seaLevel = resolved.seaLevel
+  const ocean = isOceanCell(elevation, width, height, seaLevel)
+  const coastDistance = computeLandCoastDistance(elevation, width, height, seaLevel)
   const accumulated = new Float32Array(base.length)
 
   for (const lobe of lobes) {
@@ -111,6 +151,8 @@ export function generateRainfall({
       advectionStrength,
       rainShadowStrength,
       seaLevel,
+      ocean,
+      coastDistance,
     })
     for (let i = 0; i < accumulated.length; i += 1) {
       accumulated[i] += lobe.weight * sample[i]

@@ -28,6 +28,23 @@ const RUNOFF_TO_DEPTH = 0.0004
  */
 
 /**
+ * @param {Int32Array} lakeIdByCell
+ * @param {number} lakeCount
+ * @returns {number[][]}
+ */
+export function buildCellsByLakeId(lakeIdByCell, lakeCount) {
+  /** @type {number[][]} */
+  const cellsByLakeId = Array.from({ length: lakeCount }, () => [])
+  for (let idx = 0; idx < lakeIdByCell.length; idx += 1) {
+    const lakeId = lakeIdByCell[idx]
+    if (lakeId >= 0 && lakeId < lakeCount) {
+      cellsByLakeId[lakeId].push(idx)
+    }
+  }
+  return cellsByLakeId
+}
+
+/**
  * @param {Object} params
  * @param {Float32Array} params.elevation
  * @param {Float32Array} params.filledElevation
@@ -89,6 +106,12 @@ export function simulateSeasonalHydrology({
     prevailingWindDegrees,
   })
   const waterLevelByLake = new Float64Array(lakes.length)
+  const cellsByLakeId = buildCellsByLakeId(lakeIdByCell, lakes.length)
+
+  const adjustedRainScratch = new Float32Array(cellCount)
+  const scaledMeltScratch = new Float32Array(cellCount)
+  const seasonalRunoffScratch = new Float32Array(cellCount)
+  const snowAccumScratch = new Float32Array(cellCount)
 
   for (let lakeId = 0; lakeId < lakes.length; lakeId += 1) {
     const meta = updatedMeta[lakeId]
@@ -100,7 +123,7 @@ export function simulateSeasonalHydrology({
     meta.snowPack = 0
     meta.hasOverflowed = false
     waterLevelByLake[lakeId] = floor
-    applyLakeSurface(workingElevation, lakeIdByCell, lakeId, floor)
+    applyLakeSurface(workingElevation, cellsByLakeId[lakeId], floor)
   }
 
   let totalLevelDelta = 0
@@ -128,20 +151,10 @@ export function simulateSeasonalHydrology({
       height,
       runoffToDepth: RUNOFF_TO_DEPTH,
       crumbleCount: options.lakeBankCrumblePerYear,
+      cellsByLakeId,
     })
 
     for (const season of SEASON_ORDER) {
-      const seasonalRunoff = computeSeasonalRunoff({
-        baseRainfall: rainfall,
-        soilDrainage,
-        soilDrainageScale: options.soilDrainageScale,
-        ocean,
-        season,
-        options,
-        yearMult,
-      })
-      accumulateEffectiveRunoff(effectiveRunoff, seasonalRunoff, season)
-
       if (season === 'cold') {
         const snowAccum = computeSeasonalSnowAccum({
           baseRainfall: rainfall,
@@ -150,6 +163,7 @@ export function simulateSeasonalHydrology({
           windAccumFactor,
           options,
           yearMult,
+          out: snowAccumScratch,
         })
         for (let i = 0; i < cellCount; i += 1) {
           if (snowAccum[i] > 0) snowPackByCell[i] += snowAccum[i]
@@ -165,6 +179,20 @@ export function simulateSeasonalHydrology({
         }
         continue
       }
+
+      const seasonalRunoff = computeSeasonalRunoff({
+        baseRainfall: rainfall,
+        soilDrainage,
+        soilDrainageScale: options.soilDrainageScale,
+        ocean,
+        season,
+        options,
+        yearMult,
+        adjustedRainOut: adjustedRainScratch,
+        scaledMeltOut: scaledMeltScratch,
+        runoffOut: seasonalRunoffScratch,
+      })
+      accumulateEffectiveRunoff(effectiveRunoff, seasonalRunoff, season)
 
       if (season === 'melt') {
         releaseLandSnowMelt({
@@ -248,7 +276,7 @@ export function simulateSeasonalHydrology({
         waterLevelByLake[lakeId] = waterLevel
         meta.waterLevel = waterLevel
         meta.surfaceElevation = waterLevel
-        applyLakeSurface(workingElevation, lakeIdByCell, lakeId, waterLevel)
+        applyLakeSurface(workingElevation, cellsByLakeId[lakeId], waterLevel)
 
         totalLevelDelta += Math.abs(waterLevel - floor)
         lakesWithMeta += 1
@@ -362,14 +390,11 @@ function findSpillOutletCell(basinCells, lakeMask, elevation, width, height, spi
 
 /**
  * @param {Float32Array} workingElevation
- * @param {Int32Array} lakeIdByCell
- * @param {number} lakeId
+ * @param {readonly number[]} lakeCells
  * @param {number} surfaceElev
  */
-function applyLakeSurface(workingElevation, lakeIdByCell, lakeId, surfaceElev) {
-  for (let idx = 0; idx < lakeIdByCell.length; idx += 1) {
-    if (lakeIdByCell[idx] === lakeId) {
-      workingElevation[idx] = surfaceElev
-    }
+function applyLakeSurface(workingElevation, lakeCells, surfaceElev) {
+  for (const idx of lakeCells) {
+    workingElevation[idx] = surfaceElev
   }
 }

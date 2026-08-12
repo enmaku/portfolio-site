@@ -63,20 +63,23 @@ export const erosionStage = {
       height,
       options,
     })
+    const biomes = options.enableIntermediateStepPreviews
+      ? classifyBiomesFromFields(
+          previewFields,
+          width,
+          height,
+          options.seaLevel,
+          geographySeed,
+          options.biomeEdgeNoiseStrength,
+        )
+      : baselineDoc.biomes
     return {
       erodedElevation,
       erosionSnapshots: snapshots,
       erosionStepCount: stepCount,
       workingElevation: erodedElevation,
       fields: previewFields,
-      biomes: classifyBiomesFromFields(
-        previewFields,
-        width,
-        height,
-        options.seaLevel,
-        geographySeed,
-        options.biomeEdgeNoiseStrength,
-      ),
+      biomes,
       lastCompletedStep: /** @type {const} */ ('erosion'),
     }
   },

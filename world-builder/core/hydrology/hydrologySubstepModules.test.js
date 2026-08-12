@@ -121,6 +121,17 @@ test('hydrologyClimate module recomputes rainfall and temperature on eroded elev
   assert.ok(temperatureChanged)
 })
 
+test('hydrologyClimate reuses post-erosion climate fields when elevation buffer matches', () => {
+  const state = erodedState()
+  assert.strictEqual(state.fields.elevation, state.erodedElevation)
+
+  const { world } = composeSubsteps(state, 'hydrologyClimate')
+
+  assert.strictEqual(world.temperature, state.fields.temperature)
+  assert.strictEqual(world.rainfall, state.fields.rainfall)
+  assert.ok(world.snowCapMask instanceof Uint8Array)
+})
+
 test('hydrologyRoute module performs exactly one full flow solve and sets the sketch mask', () => {
   const { world, flowFieldSession, riverMaskPipeline } = composeSubsteps(
     erodedState(),

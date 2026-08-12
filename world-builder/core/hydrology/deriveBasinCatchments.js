@@ -51,9 +51,11 @@ export function buildLakeIdByCell(lakeMask, lakes, width, height) {
 
 /**
  * Map each land cell to the lake id whose basin receives its runoff.
+ * Downhill walks memoize the terminal sink onto every visited cell so shared
+ * flow paths are resolved once.
  * @param {Object} params
  * @param {Float32Array} params.elevation
- * @param {Uint8Array} params.lakeIdByCell
+ * @param {Int32Array | Uint8Array} params.lakeIdByCell
  * @param {number} params.width
  * @param {number} params.height
  * @param {number} [params.seaLevel]
@@ -74,6 +76,8 @@ export function deriveBasinCatchments({
   const lakeCount = lakeIdByCell.reduce((max, id) => Math.max(max, id + 1), 0)
   /** @type {number[][]} */
   const catchmentCellsByLake = Array.from({ length: lakeCount }, () => [])
+  /** @type {number[]} */
+  const path = []
 
   for (let idx = 0; idx < cellCount; idx += 1) {
     if (ocean[idx]) {
@@ -88,12 +92,15 @@ export function deriveBasinCatchments({
       continue
     }
 
+    if (catchmentIndex[idx] !== NO_SINK) {
+      continue
+    }
+
+    path.length = 0
     let current = idx
-    const visited = new Set()
     let terminal = NO_SINK
 
-    while (!visited.has(current)) {
-      visited.add(current)
+    while (true) {
       if (ocean[current]) {
         terminal = OCEAN_SINK
         break
@@ -103,16 +110,35 @@ export function deriveBasinCatchments({
         terminal = onLake
         break
       }
+      if (catchmentIndex[current] !== NO_SINK) {
+        terminal = catchmentIndex[current]
+        break
+      }
+
+      path.push(current)
       const downstream = downstreamIndex(current, width, flowDirection)
-      if (downstream < 0 || visited.has(downstream)) {
+      if (downstream < 0) {
+        break
+      }
+      let looping = false
+      for (let i = 0; i < path.length; i += 1) {
+        if (path[i] === downstream) {
+          looping = true
+          break
+        }
+      }
+      if (looping) {
         break
       }
       current = downstream
     }
 
-    catchmentIndex[idx] = terminal
-    if (terminal >= 0) {
-      catchmentCellsByLake[terminal].push(idx)
+    for (let i = 0; i < path.length; i += 1) {
+      const cellIdx = path[i]
+      catchmentIndex[cellIdx] = terminal
+      if (terminal >= 0) {
+        catchmentCellsByLake[terminal].push(cellIdx)
+      }
     }
   }
 

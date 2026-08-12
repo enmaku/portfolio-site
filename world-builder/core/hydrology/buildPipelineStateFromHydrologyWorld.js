@@ -1,6 +1,5 @@
 import { classifyBiomesWithHydrology } from '../classifyBiomesFromFields.js'
 import { refreshClimateScalarsAfterElevationMutation } from '../fields/refreshClimateScalarsAfterElevationMutation.js'
-import { applyLakeSurfacesFromMeta } from './lakeDisplayCoherence.js'
 import { getRiverMaskStage } from './riverMaskLifecycle.js'
 
 /**
@@ -20,9 +19,6 @@ export function buildPipelineStateFromHydrologyWorld(world, riverMaskPipeline) {
   const lakeIdByCell = world.lakeIdByCell
   const lakeMeta = world.lakeMeta
   const lakeMask = world.lakeMask
-  if (lakeIdByCell && lakeMeta && lakeMask) {
-    applyLakeSurfacesFromMeta(settledElevation, lakeIdByCell, lakeMeta, lakeMask, width, height)
-  }
 
   const previewFields = refreshClimateScalarsAfterElevationMutation({
     geographySeed: state.geographySeed,

@@ -181,26 +181,100 @@ export function findLeastResistancePath({
   const straightDist = Math.hypot(goalX - startX, goalY - startY)
   const visitLimit = Math.min(cellCount, Math.ceil((straightDist * 5 + 16) ** 2))
 
-  const gScore = new Float64Array(cellCount).fill(Number.POSITIVE_INFINITY)
-  const cameFrom = new Int32Array(cellCount).fill(-1)
-  const closed = new Uint8Array(cellCount)
+  const scratch = acquirePathfindingScratch(cellCount)
+  const { gScore, cameFrom, closed, stamp, generation } = scratch
 
-  /** @type {number[]} */
-  const open = []
+  /**
+   * @param {number} idx
+   */
+  function touch(idx) {
+    if (stamp[idx] !== generation) {
+      stamp[idx] = generation
+      gScore[idx] = Number.POSITIVE_INFINITY
+      cameFrom[idx] = -1
+      closed[idx] = 0
+    }
+  }
+
+  /**
+   * @param {number} idx
+   */
+  function fScore(idx) {
+    return gScore[idx] + heuristic(idx, goalX, goalY, width, elevation) * heuristicWeight
+  }
+
+  const heapIdx = scratch.heapIdx
+  const heapF = scratch.heapF
+  let heapSize = 0
+
+  /**
+   * @param {number} idx
+   * @param {number} f
+   */
+  function heapPush(idx, f) {
+    heapSize += 1
+    let pos = heapSize
+    while (pos > 1) {
+      const parent = pos >> 1
+      const parentF = heapF[parent]
+      const parentIdx = heapIdx[parent]
+      if (parentF < f || (parentF === f && parentIdx <= idx)) break
+      heapF[pos] = parentF
+      heapIdx[pos] = parentIdx
+      pos = parent
+    }
+    heapF[pos] = f
+    heapIdx[pos] = idx
+  }
+
+  /**
+   * @returns {number | undefined}
+   */
+  function heapPop() {
+    if (heapSize === 0) return undefined
+    const result = heapIdx[1]
+    const lastIdx = heapIdx[heapSize]
+    const lastF = heapF[heapSize]
+    heapSize -= 1
+    if (heapSize === 0) return result
+
+    let pos = 1
+    while (true) {
+      const left = pos << 1
+      const right = left + 1
+      if (left > heapSize) break
+      let best = left
+      if (
+        right <= heapSize &&
+        (heapF[right] < heapF[left] ||
+          (heapF[right] === heapF[left] && heapIdx[right] < heapIdx[left]))
+      ) {
+        best = right
+      }
+      if (
+        heapF[best] > lastF ||
+        (heapF[best] === lastF && heapIdx[best] >= lastIdx)
+      ) {
+        break
+      }
+      heapF[pos] = heapF[best]
+      heapIdx[pos] = heapIdx[best]
+      pos = best
+    }
+    heapF[pos] = lastF
+    heapIdx[pos] = lastIdx
+    return result
+  }
+
+  touch(fromIdx)
   gScore[fromIdx] = elevation[fromIdx]
-  open.push(fromIdx)
+  heapPush(fromIdx, fScore(fromIdx))
 
   let visits = 0
-  while (open.length > 0) {
-    open.sort((a, b) => {
-      const fa =
-        gScore[a] + heuristic(a, goalX, goalY, width, elevation) * heuristicWeight
-      const fb =
-        gScore[b] + heuristic(b, goalX, goalY, width, elevation) * heuristicWeight
-      return fa - fb
-    })
-    const current = open.shift()
+  while (heapSize > 0) {
+    const current = heapPop()
     if (current === undefined) break
+    touch(current)
     if (closed[current]) continue
     closed[current] = 1
     visits += 1
@@ -222,6 +296,7 @@ export function findLeastResistancePath({
         const ny = cy + dy
         if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
         const next = ny * width + nx
+        touch(next)
         if (ocean[next] || closed[next]) continue
 
         const stepLength = dx === 0 || dy === 0 ? 1 : Math.SQRT2
@@ -256,12 +331,57 @@ export function findLeastResistancePath({
 
         cameFrom[next] = current
         gScore[next] = tentative
-        open.push(next)
+        heapPush(next, fScore(next))
       }
     }
   }
 
   return null
+}
+
+/**
+ * @typedef {Object} PathfindingScratch
+ * @property {number} cellCount
+ * @property {number} generation
+ * @property {Int32Array} stamp
+ * @property {Float64Array} gScore
+ * @property {Int32Array} cameFrom
+ * @property {Uint8Array} closed
+ * @property {Int32Array} heapIdx
+ * @property {Float64Array} heapF
+ */
+
+/** @type {PathfindingScratch | null} */
+let pathfindingScratch = null
+
+/**
+ * @param {number} cellCount
+ * @returns {PathfindingScratch}
+ */
+function acquirePathfindingScratch(cellCount) {
+  if (!pathfindingScratch || pathfindingScratch.cellCount < cellCount) {
+    pathfindingScratch = {
+      cellCount,
+      generation: 0,
+      stamp: new Int32Array(cellCount),
+      gScore: new Float64Array(cellCount),
+      cameFrom: new Int32Array(cellCount),
+      closed: new Uint8Array(cellCount),
+      heapIdx: new Int32Array(cellCount + 2),
+      heapF: new Float64Array(cellCount + 2),
+    }
+  }
+  pathfindingScratch.generation += 1
+  if (pathfindingScratch.generation >= 0x7ffffffe) {
+    pathfindingScratch.stamp.fill(0)
+    pathfindingScratch.generation = 1
+  }
+  return pathfindingScratch
+}
+
+/** Reset pathfinding scratch (tests). */
+export function clearPathfindingScratch() {
+  pathfindingScratch = null
 }
 
 /**

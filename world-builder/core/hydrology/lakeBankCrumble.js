@@ -81,6 +81,7 @@ export function findLargestSeasonalLakeIds(lakes, lakeMeta, count = 1) {
  * @param {number} width
  * @param {number} height
  * @param {ReadonlySet<number>} [excludedOutletIdxs]
+ * @param {readonly number[]} [lakeCells] indexed lake body cells; avoids full-grid scan
  * @returns {{ outletIdx: number, outletElev: number }}
  */
 export function findLowestBankOutlet(
@@ -91,36 +92,98 @@ export function findLowestBankOutlet(
   width,
   height,
   excludedOutletIdxs = new Set(),
+  lakeCells,
 ) {
   let outletIdx = -1
   let outletElev = Number.POSITIVE_INFINITY
 
-  for (let idx = 0; idx < lakeIdByCell.length; idx += 1) {
-    if (lakeIdByCell[idx] !== lakeId) continue
-
-    const x = idx % width
-    const y = Math.floor(idx / width)
-    for (const [dx, dy] of D4_OFFSETS) {
-      const nx = x + dx
-      const ny = y + dy
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
-
-      const neighborIdx = ny * width + nx
-      if (lakeMask[neighborIdx] || lakeIdByCell[neighborIdx] === lakeId) continue
-      if (excludedOutletIdxs.has(neighborIdx)) continue
-
-      const neighborElev = elevation[neighborIdx]
-      if (
-        neighborElev < outletElev - FILL_EPSILON ||
-        (Math.abs(neighborElev - outletElev) <= FILL_EPSILON && (outletIdx < 0 || neighborIdx < outletIdx))
-      ) {
-        outletElev = neighborElev
-        outletIdx = neighborIdx
-      }
+  const scanCells = lakeCells ?? null
+  if (scanCells) {
+    for (const idx of scanCells) {
+      considerBankNeighbors(
+        idx,
+        lakeId,
+        lakeIdByCell,
+        lakeMask,
+        elevation,
+        width,
+        height,
+        excludedOutletIdxs,
+        (neighborIdx, neighborElev) => {
+          if (
+            neighborElev < outletElev - FILL_EPSILON ||
+            (Math.abs(neighborElev - outletElev) <= FILL_EPSILON &&
+              (outletIdx < 0 || neighborIdx < outletIdx))
+          ) {
+            outletElev = neighborElev
+            outletIdx = neighborIdx
+          }
+        },
+      )
+    }
+  } else {
+    for (let idx = 0; idx < lakeIdByCell.length; idx += 1) {
+      if (lakeIdByCell[idx] !== lakeId) continue
+      considerBankNeighbors(
+        idx,
+        lakeId,
+        lakeIdByCell,
+        lakeMask,
+        elevation,
+        width,
+        height,
+        excludedOutletIdxs,
+        (neighborIdx, neighborElev) => {
+          if (
+            neighborElev < outletElev - FILL_EPSILON ||
+            (Math.abs(neighborElev - outletElev) <= FILL_EPSILON &&
+              (outletIdx < 0 || neighborIdx < outletIdx))
+          ) {
+            outletElev = neighborElev
+            outletIdx = neighborIdx
+          }
+        },
+      )
     }
   }
 
   return { outletIdx, outletElev }
+}
+
+/**
+ * @param {number} idx
+ * @param {number} lakeId
+ * @param {Int32Array} lakeIdByCell
+ * @param {Uint8Array} lakeMask
+ * @param {Float32Array} elevation
+ * @param {number} width
+ * @param {number} height
+ * @param {ReadonlySet<number>} excludedOutletIdxs
+ * @param {(neighborIdx: number, neighborElev: number) => void} onCandidate
+ */
+function considerBankNeighbors(
+  idx,
+  lakeId,
+  lakeIdByCell,
+  lakeMask,
+  elevation,
+  width,
+  height,
+  excludedOutletIdxs,
+  onCandidate,
+) {
+  const x = idx % width
+  const y = Math.floor(idx / width)
+  for (const [dx, dy] of D4_OFFSETS) {
+    const nx = x + dx
+    const ny = y + dy
+    if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+
+    const neighborIdx = ny * width + nx
+    if (lakeMask[neighborIdx] || lakeIdByCell[neighborIdx] === lakeId) continue
+    if (excludedOutletIdxs.has(neighborIdx)) continue
+    onCandidate(neighborIdx, elevation[neighborIdx])
+  }
 }
 
 /**
@@ -150,6 +213,7 @@ function syncLakeSpillCoords(meta, lake, outletIdx, width) {
  * @param {Set<number>} params.overflowLakeIds
  * @param {number} params.width
  * @param {number} params.runoffToDepth
+ * @param {readonly number[]} [params.lakeCells]
  */
 export function applyLakeBankCrumble({
   lakeId,
@@ -165,6 +229,7 @@ export function applyLakeBankCrumble({
   overflowLakeIds,
   width,
   runoffToDepth,
+  lakeCells,
 }) {
   if (outletIdx < 0 || !Number.isFinite(outletElev)) return false
 
@@ -205,13 +270,30 @@ export function applyLakeBankCrumble({
   meta.waterLevel = waterLevel
   meta.surfaceElevation = waterLevel
 
-  for (let idx = 0; idx < lakeIdByCell.length; idx += 1) {
-    if (lakeIdByCell[idx] === lakeId) {
-      workingElevation[idx] = waterLevel
-    }
-  }
+  applyIndexedLakeSurface(workingElevation, lakeId, lakeIdByCell, lakeCells, waterLevel)
 
   return true
+}
+
+/**
+ * @param {Float32Array} workingElevation
+ * @param {number} lakeId
+ * @param {Int32Array} lakeIdByCell
+ * @param {readonly number[] | undefined} lakeCells
+ * @param {number} surfaceElev
+ */
+function applyIndexedLakeSurface(workingElevation, lakeId, lakeIdByCell, lakeCells, surfaceElev) {
+  if (lakeCells) {
+    for (const idx of lakeCells) {
+      workingElevation[idx] = surfaceElev
+    }
+    return
+  }
+  for (let idx = 0; idx < lakeIdByCell.length; idx += 1) {
+    if (lakeIdByCell[idx] === lakeId) {
+      workingElevation[idx] = surfaceElev
+    }
+  }
 }
 
 /**
@@ -230,6 +312,7 @@ export function applyLakeBankCrumble({
  * @param {number} params.height
  * @param {number} params.runoffToDepth
  * @param {number} [params.crumbleCount]
+ * @param {readonly (readonly number[])[]} [params.cellsByLakeId]
  * @returns {number}
  */
 export function applyAnnualLargestLakeBankCrumble({
@@ -246,11 +329,13 @@ export function applyAnnualLargestLakeBankCrumble({
   height,
   runoffToDepth,
   crumbleCount = 1,
+  cellsByLakeId,
 }) {
   const lakeIds = findLargestSeasonalLakeIds(lakes, lakeMeta, crumbleCount)
   let crumbled = 0
 
   for (const lakeId of lakeIds) {
+    const lakeCells = cellsByLakeId?.[lakeId]
     const excludedOutletIdxs = new Set(getBankCrumbleOutletIdxs(lakeMeta[lakeId]))
     const { outletIdx, outletElev } = findLowestBankOutlet(
       lakeId,
@@ -260,6 +345,7 @@ export function applyAnnualLargestLakeBankCrumble({
       width,
       height,
       excludedOutletIdxs,
+      lakeCells,
     )
 
     if (
@@ -277,6 +363,7 @@ export function applyAnnualLargestLakeBankCrumble({
         overflowLakeIds,
         width,
         runoffToDepth,
+        lakeCells,
       })
     ) {
       crumbled += 1

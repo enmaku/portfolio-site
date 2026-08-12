@@ -134,3 +134,42 @@ test('deriveBasinCatchments preserves golden catchment checksums for representat
     )
   }
 })
+
+test('deriveBasinCatchments memoizes shared downhill paths onto one terminal', () => {
+  const width = 6
+  const height = 6
+  const elevation = new Float32Array(width * height).fill(0.9)
+  for (const [x, y, elev] of [
+    [2, 2, 0.75],
+    [3, 2, 0.7],
+    [4, 2, 0.72],
+    [2, 3, 0.65],
+    [3, 3, 0.4],
+    [4, 3, 0.6],
+    [2, 4, 0.68],
+    [3, 4, 0.55],
+    [4, 4, 0.62],
+  ]) {
+    elevation[y * width + x] = elev
+  }
+  const lakeIdByCell = new Int32Array(width * height).fill(-1)
+  const lakeIdx = 3 * width + 3
+  lakeIdByCell[lakeIdx] = 0
+
+  const upstreamA = 2 * width + 2
+  const upstreamB = 3 * width + 2
+
+  const { catchmentIndex, catchmentCellsByLake } = deriveBasinCatchments({
+    elevation,
+    lakeIdByCell,
+    width,
+    height,
+    seaLevel: 0.15,
+  })
+
+  assert.equal(catchmentIndex[lakeIdx], 0)
+  assert.ok(catchmentCellsByLake[0].includes(upstreamA))
+  assert.ok(catchmentCellsByLake[0].includes(upstreamB))
+  assert.equal(catchmentIndex[upstreamA], 0)
+  assert.equal(catchmentIndex[upstreamB], 0)
+})
