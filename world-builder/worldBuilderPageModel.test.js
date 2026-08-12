@@ -23,6 +23,7 @@ import {
   formatSlopeAreaConcavityForDisplay,
   generationStepStatusColor,
   normalizeGeographySeed,
+  normalizeWindDegrees,
   shouldShowGenerationProgress,
   shouldShowBeginColonizationProgress,
   shouldShowEpochStepProgress,
@@ -109,6 +110,30 @@ test('createDefaultGenerationSettings resets sliders and seed-derived wind witho
     settings.prevailingWindDegrees,
     createControlsStateForSeed(geographySeed).prevailingWindDegrees,
   )
+  assert.strictEqual(settings.secondaryMaximumLinked, true)
+  assert.strictEqual(
+    settings.secondaryMaximumDegrees,
+    normalizeWindDegrees(settings.prevailingWindDegrees + 90),
+  )
+})
+
+test('createControlsStateForSeed includes linked secondary maximum at plus 90', () => {
+  const state = createControlsStateForSeed(999)
+  assert.strictEqual(state.secondaryMaximumLinked, true)
+  assert.strictEqual(
+    state.secondaryMaximumDegrees,
+    normalizeWindDegrees(state.prevailingWindDegrees + 90),
+  )
+})
+
+test('buildDerivedGeographyParams forwards secondary maximum degrees', () => {
+  const params = buildDerivedGeographyParams(123, 270, DEFAULT_WORLD_GENERATION_OPTIONS, 10)
+  assert.strictEqual(params.secondaryMaximumDegrees, 10)
+})
+
+test('buildDerivedGeographyParams defaults secondary maximum to prevailing plus 90', () => {
+  const params = buildDerivedGeographyParams(123, 270, DEFAULT_WORLD_GENERATION_OPTIONS)
+  assert.strictEqual(params.secondaryMaximumDegrees, 0)
 })
 
 test('normalizeGeographySeed converts signed 32-bit values to unsigned', () => {

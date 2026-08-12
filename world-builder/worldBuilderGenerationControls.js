@@ -4,6 +4,10 @@ import { formatPrevailingWindDisplay } from './formatPrevailingWind.js'
 export const GEOGRAPHY_SEED_TOOLTIP =
   'Deterministic input to landmass generation. The same seed and settings always produce the same terrain; changing the seed picks a different world layout without altering the other controls.'
 
+/** @type {string} */
+export const SECONDARY_MAXIMUM_LINK_TOOLTIP =
+  'When linked, the secondary maximum tracks the prevailing wind at a fixed offset (default +90°). Unlink to aim the secondary lobe independently.'
+
 /**
  * Sidebar control metadata for world generation parameters, ordered by typical impact.
  * @type {ReadonlyArray<{
@@ -21,6 +25,33 @@ export const GEOGRAPHY_SEED_TOOLTIP =
  * }>}
  */
 export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
+  {
+    section: 'Wind',
+    controls: [
+      {
+        key: 'prevailingWindDegrees',
+        label: 'Prevailing wind',
+        tooltip:
+          'Dominant moisture-transport bearing for the wind rose. Rotating this aims the primary wet/dry contrast across the landmass.',
+        kind: 'slider',
+        min: 0,
+        max: 359,
+        step: 1,
+        testId: 'world-builder-wind-slider',
+      },
+      {
+        key: 'secondaryMaximumDegrees',
+        label: 'Secondary maximum',
+        tooltip:
+          'Subordinate moisture-transport lobe on the wind rose. Linked by default at right angles to the prevailing wind.',
+        kind: 'slider',
+        min: 0,
+        max: 359,
+        step: 1,
+        testId: 'world-builder-secondary-maximum-slider',
+      },
+    ],
+  },
   {
     section: 'Land & sea',
     controls: [
@@ -145,21 +176,10 @@ export const WORLD_BUILDER_GENERATION_CONTROL_SECTIONS = [
     section: 'Climate',
     controls: [
       {
-        key: 'prevailingWindDegrees',
-        label: 'Prevailing wind',
-        tooltip:
-          'Direction moisture crosses the landmass before rain-shadow drying. Rotating wind shifts which mountain ranges stay wet versus dry.',
-        kind: 'slider',
-        min: 0,
-        max: 359,
-        step: 1,
-        testId: 'world-builder-wind-slider',
-      },
-      {
         key: 'rainShadowStrength',
         label: 'Rain shadow strength',
         tooltip:
-          'How strongly leeward terrain dries behind upwind mountains. Higher values sharpen wet and dry belts flanking major ranges.',
+          'How strongly leeward terrain dries behind upwind mountains along the prevailing wind. Higher values sharpen wet and dry belts flanking major ranges.',
         kind: 'slider',
         min: 0,
         max: 2,
@@ -601,10 +621,16 @@ export const MEANDER_REFINE_DEPENDENT_CONTROL_KEYS = new Set([
 
 /**
  * @param {string} key
- * @param {import('./core/types.js').WorldGenerationOptions} options
+ * @param {{
+ *   options: import('./core/types.js').WorldGenerationOptions,
+ *   secondaryMaximumLinked?: boolean,
+ * }} context
  * @returns {boolean}
  */
-export function isGenerationControlDisabled(key, options) {
+export function isGenerationControlDisabled(key, { options, secondaryMaximumLinked } = {}) {
+  if (key === 'secondaryMaximumDegrees' && secondaryMaximumLinked) {
+    return true
+  }
   return MEANDER_REFINE_DEPENDENT_CONTROL_KEYS.has(key) && !options.enableMeanderRefine
 }
 
@@ -614,8 +640,11 @@ export function isGenerationControlDisabled(key, options) {
  * @returns {string}
  */
 export function formatGenerationControlValue(key, value) {
-  if (key === 'prevailingWindDegrees') {
+  if (key === 'prevailingWindDegrees' || key === 'secondaryMaximumDegrees') {
     return formatPrevailingWindDisplay(value)
+  }
+  if (key === 'secondaryMaximumLinked') {
+    return value ? 'Linked' : 'Unlinked'
   }
   if (key === 'enableMeanderRefine') {
     return value ? 'On' : 'Off'

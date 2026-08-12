@@ -17,7 +17,7 @@ test('applyRainShadow reduces rainfall leeward of a ridge for east wind', () => 
     elevation,
     width,
     height,
-    prevailingWindDegrees: 270,
+    transportBearingDegrees: 270,
   })
 
   const windwardIdx = 2 * width + 1

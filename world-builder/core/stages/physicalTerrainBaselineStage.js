@@ -9,6 +9,7 @@ export const physicalTerrainBaselineStage = {
   inputs: {
     geographySeed: (state) => state.geographySeed,
     prevailingWindDegrees: (state) => state.prevailingWindDegrees,
+    secondaryMaximumDegrees: (state) => state.secondaryMaximumDegrees,
     options: (state) => state.options,
     width: (state) => state.width,
     height: (state) => state.height,
@@ -18,6 +19,7 @@ export const physicalTerrainBaselineStage = {
     const {
       geographySeed,
       prevailingWindDegrees,
+      secondaryMaximumDegrees,
       options,
       width,
       height,
@@ -25,6 +27,7 @@ export const physicalTerrainBaselineStage = {
     const baselineDoc = generatePhysicalTerrainBaseline({
       geographySeed,
       prevailingWindDegrees,
+      secondaryMaximumDegrees,
       width,
       height,
       options,

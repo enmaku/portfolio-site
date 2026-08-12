@@ -14,6 +14,7 @@ test('refreshFieldsAfterErosion recomputes all fields from eroded elevation', ()
   const fields = refreshFieldsAfterErosion({
     geographySeed: 42,
     prevailingWindDegrees: 90,
+    secondaryMaximumDegrees: 180,
     elevation,
     drainage,
     width,
@@ -37,6 +38,7 @@ test('refreshFieldsAfterErosion uses prevailing wind for rainfall', () => {
   const wind0 = refreshFieldsAfterErosion({
     geographySeed: 7,
     prevailingWindDegrees: 0,
+    secondaryMaximumDegrees: 90,
     elevation,
     drainage,
     width,
@@ -45,6 +47,7 @@ test('refreshFieldsAfterErosion uses prevailing wind for rainfall', () => {
   const wind180 = refreshFieldsAfterErosion({
     geographySeed: 7,
     prevailingWindDegrees: 180,
+    secondaryMaximumDegrees: 270,
     elevation,
     drainage,
     width,
@@ -57,6 +60,7 @@ test('refreshFieldsAfterErosion uses prevailing wind for rainfall', () => {
     height,
     elevation,
     prevailingWindDegrees: 0,
+    secondaryMaximumDegrees: 90,
   })
   const directRain180 = generateRainfall({
     geographySeed: 7,
@@ -64,6 +68,7 @@ test('refreshFieldsAfterErosion uses prevailing wind for rainfall', () => {
     height,
     elevation,
     prevailingWindDegrees: 180,
+    secondaryMaximumDegrees: 270,
   })
 
   assert.deepStrictEqual(wind0.rainfall, directRain0)
@@ -79,6 +84,50 @@ test('refreshFieldsAfterErosion uses prevailing wind for rainfall', () => {
   assert.strictEqual(differs, true)
 })
 
+test('refreshFieldsAfterErosion forwards secondary maximum into rainfall', () => {
+  const width = 16
+  const height = 16
+  const elevation = new Float32Array(width * height).fill(0.6)
+  elevation[4 * width + 4] = 0.85
+  const drainage = new Float32Array(width * height)
+  const base = {
+    geographySeed: 7,
+    prevailingWindDegrees: 270,
+    elevation,
+    drainage,
+    width,
+    height,
+  }
+
+  const linked = refreshFieldsAfterErosion({ ...base, secondaryMaximumDegrees: 0 })
+  const opposite = refreshFieldsAfterErosion({ ...base, secondaryMaximumDegrees: 90 })
+  const directLinked = generateRainfall({
+    geographySeed: 7,
+    width,
+    height,
+    elevation,
+    prevailingWindDegrees: 270,
+    secondaryMaximumDegrees: 0,
+  })
+  const directOpposite = generateRainfall({
+    geographySeed: 7,
+    width,
+    height,
+    elevation,
+    prevailingWindDegrees: 270,
+    secondaryMaximumDegrees: 90,
+  })
+
+  assert.deepStrictEqual(linked.rainfall, directLinked)
+  assert.deepStrictEqual(opposite.rainfall, directOpposite)
+
+  let rainfallL1 = 0
+  for (let i = 0; i < linked.rainfall.length; i += 1) {
+    rainfallL1 += Math.abs(linked.rainfall[i] - opposite.rainfall[i])
+  }
+  assert.ok(rainfallL1 > 0.25)
+})
+
 test('refreshFieldsAfterErosion temperature tracks elevation', () => {
   const width = 8
   const height = 8
@@ -89,6 +138,7 @@ test('refreshFieldsAfterErosion temperature tracks elevation', () => {
   const lowFields = refreshFieldsAfterErosion({
     geographySeed: 1,
     prevailingWindDegrees: 45,
+    secondaryMaximumDegrees: 135,
     elevation: low,
     drainage,
     width,
@@ -97,6 +147,7 @@ test('refreshFieldsAfterErosion temperature tracks elevation', () => {
   const highFields = refreshFieldsAfterErosion({
     geographySeed: 1,
     prevailingWindDegrees: 45,
+    secondaryMaximumDegrees: 135,
     elevation: high,
     drainage,
     width,
@@ -119,6 +170,7 @@ test('refreshFieldsAfterErosion salinity respects active sea level option', () =
   const fields = refreshFieldsAfterErosion({
     geographySeed: 3,
     prevailingWindDegrees: 90,
+    secondaryMaximumDegrees: 180,
     elevation,
     drainage,
     width,

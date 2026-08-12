@@ -27,6 +27,7 @@ export function buildPipelineStateFromHydrologyWorld(world, riverMaskPipeline) {
   const previewFields = refreshClimateScalarsAfterElevationMutation({
     geographySeed: state.geographySeed,
     prevailingWindDegrees: state.prevailingWindDegrees,
+    secondaryMaximumDegrees: state.secondaryMaximumDegrees,
     elevation: settledElevation,
     drainage: world.settledDrainage,
     width,

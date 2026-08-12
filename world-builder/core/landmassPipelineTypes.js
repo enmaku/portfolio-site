@@ -15,6 +15,7 @@ export const LANDMASS_PIPELINE_STEP_IDS = [
  * @typedef {Object} DerivedGeographyPipelineState
  * @property {number} geographySeed
  * @property {number} prevailingWindDegrees
+ * @property {number} secondaryMaximumDegrees
  * @property {import('./types.js').WorldGenerationOptions} options
  * @property {number} width
  * @property {number} height

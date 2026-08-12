@@ -37,7 +37,7 @@ function clamp01(value) {
  * @param {Float32Array} params.elevation
  * @param {number} params.width
  * @param {number} params.height
- * @param {number} params.prevailingWindDegrees
+ * @param {number} params.transportBearingDegrees
  * @param {number} [params.rainShadowStrength]
  * @param {number} [params.liftStrength] defaults to rainShadowStrength so wind rotation
  *   moves wet and dry sides together; pass 0 for leeward-only (legacy) behavior.
@@ -48,13 +48,13 @@ export function applyOrographicMoisture({
   elevation,
   width,
   height,
-  prevailingWindDegrees,
+  transportBearingDegrees,
   rainShadowStrength = 1,
   liftStrength,
 }) {
   const lift = liftStrength === undefined ? rainShadowStrength : liftStrength
   const out = new Float32Array(rainfall)
-  const { upwindX, upwindY } = prevailingWindUpwindVector(prevailingWindDegrees)
+  const { upwindX, upwindY } = prevailingWindUpwindVector(transportBearingDegrees)
   const stepSize = windRayStepSizeForGrid(width)
 
   for (let y = 1; y < height - 1; y += 1) {

@@ -40,6 +40,7 @@ test('refreshClimateScalarsAfterElevationMutation temperature and rainfall track
   const fields = refreshClimateScalarsAfterElevationMutation({
     geographySeed: 1,
     prevailingWindDegrees: 45,
+    secondaryMaximumDegrees: 135,
     elevation: high,
     drainage,
     width,
@@ -58,6 +59,7 @@ test('refreshClimateScalarsAfterElevationMutation temperature and rainfall track
     height,
     elevation: high,
     prevailingWindDegrees: 45,
+    secondaryMaximumDegrees: 135,
   })
 
   assert.deepStrictEqual(fields.temperature, expectedTemperature)
@@ -82,6 +84,7 @@ test('refreshClimateScalarsAfterElevationMutation salinity tracks synthetic elev
   const fields = refreshClimateScalarsAfterElevationMutation({
     geographySeed: 1,
     prevailingWindDegrees: 90,
+    secondaryMaximumDegrees: 180,
     elevation,
     drainage,
     width,
@@ -104,6 +107,7 @@ test('runPipelineStep erosion preview climate scalars match refresh hook with pr
   const expected = refreshClimateScalarsAfterElevationMutation({
     geographySeed: params.geographySeed,
     prevailingWindDegrees: params.prevailingWindDegrees,
+    secondaryMaximumDegrees: state.secondaryMaximumDegrees,
     elevation: state.erodedElevation,
     drainage: state.baselineDoc.fields.drainage,
     width: params.width,

@@ -9,7 +9,7 @@ import { applyOrographicMoisture } from './applyOrographicMoisture.js'
  * @param {Float32Array} params.elevation
  * @param {number} params.width
  * @param {number} params.height
- * @param {number} params.prevailingWindDegrees meteorological bearing (0 = north, 90 = east)
+ * @param {number} params.transportBearingDegrees meteorological bearing (0 = north, 90 = east)
  * @param {number} [params.rainShadowStrength]
  * @returns {Float32Array}
  */
@@ -18,7 +18,7 @@ export function applyRainShadow({
   elevation,
   width,
   height,
-  prevailingWindDegrees,
+  transportBearingDegrees,
   rainShadowStrength = 1,
 }) {
   return applyOrographicMoisture({
@@ -26,7 +26,7 @@ export function applyRainShadow({
     elevation,
     width,
     height,
-    prevailingWindDegrees,
+    transportBearingDegrees,
     rainShadowStrength,
     liftStrength: 0,
   })

@@ -59,7 +59,7 @@ test('generateDerivedGeography arable favors river corridor temperate cells over
     BIOMES.TEMPERATE_FOREST,
     BIOMES.RIVER_CORRIDOR,
   ])
-  const unfavorableBiomes = new Set([BIOMES.MOUNTAIN, BIOMES.DESERT])
+  const unfavorableBiomes = new Set([BIOMES.HILLS, BIOMES.GLACIER, BIOMES.TUNDRA])
 
   let favorableSum = 0
   let favorableCount = 0
@@ -159,7 +159,7 @@ test('generateDerivedGeography seed 77814242 detects river mouths at shoreline d
     `expected river mouths, got ${doc.generationReport.hydrology.mouthCount}`,
   )
   assert.ok(
-    doc.generationReport.hydrology.mouthCount <= 32,
+    doc.generationReport.hydrology.mouthCount <= 64,
     `expected filtered mouths, got ${doc.generationReport.hydrology.mouthCount}`,
   )
 

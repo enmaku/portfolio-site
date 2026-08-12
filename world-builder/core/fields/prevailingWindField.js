@@ -1,4 +1,35 @@
 /**
+ * @param {number} degrees
+ * @returns {number} integer degrees in [0, 360)
+ */
+export function normalizeWindDegrees(degrees) {
+  const rounded = Math.round(degrees)
+  return ((rounded % 360) + 360) % 360
+}
+
+/**
+ * @param {number} prevailingWindDegrees
+ * @param {number} [linkOffsetDegrees=90]
+ * @returns {number}
+ */
+export function resolveLinkedSecondaryMaximum(prevailingWindDegrees, linkOffsetDegrees = 90) {
+  return normalizeWindDegrees(prevailingWindDegrees + linkOffsetDegrees)
+}
+
+/**
+ * Resolve authored secondary maximum; missing values default to prevailing + 90°.
+ * @param {number} prevailingWindDegrees
+ * @param {number} [secondaryMaximumDegrees]
+ * @returns {number}
+ */
+export function resolveSecondaryMaximumDegrees(prevailingWindDegrees, secondaryMaximumDegrees) {
+  if (secondaryMaximumDegrees === undefined) {
+    return resolveLinkedSecondaryMaximum(prevailingWindDegrees)
+  }
+  return normalizeWindDegrees(secondaryMaximumDegrees)
+}
+
+/**
  * Shared prevailing-wind geometry used by rainfall advection, orographic moisture,
  * and seasonal snow. Bearing is meteorological: 0 = north, 90 = east, naming the
  * direction the wind originates from. The returned vector points upwind (toward

@@ -13,6 +13,9 @@ import {
   normalizeGeographySeed,
   normalizeWindDegrees,
   parseGeographySeedInput,
+  windStateAfterPrevailingChange,
+  windStateAfterSeedApply,
+  windStateAfterSetSecondaryLinked,
 } from '@world-builder/worldBuilderPageModel.js'
 import { createDefaultOverlayDisplaySettings } from '@world-builder/worldBuilderOverlayControls.js'
 
@@ -31,6 +34,9 @@ function parseStoredGeographySeed(value) {
   return normalizeGeographySeed(parsed)
 }
 
+/**
+ * @param {import('pinia').Store<'worldBuilderSettings'>} store
+ */
 function ensureGeographySeedInitialized(store) {
   if (store.geographySeed !== null) {
     return
@@ -38,12 +44,30 @@ function ensureGeographySeedInitialized(store) {
   const initial = createControlsStateForSeed(createRandomGeographySeed())
   store.geographySeed = initial.geographySeed
   store.prevailingWindDegrees = initial.prevailingWindDegrees
+  store.secondaryMaximumDegrees = initial.secondaryMaximumDegrees
+  store.secondaryMaximumLinked = initial.secondaryMaximumLinked
+}
+
+/**
+ * @param {import('pinia').Store<'worldBuilderSettings'>} store
+ * @param {{
+ *   prevailingWindDegrees: number,
+ *   secondaryMaximumDegrees: number,
+ *   secondaryMaximumLinked: boolean,
+ * }} wind
+ */
+function applyWindState(store, wind) {
+  store.prevailingWindDegrees = wind.prevailingWindDegrees
+  store.secondaryMaximumDegrees = wind.secondaryMaximumDegrees
+  store.secondaryMaximumLinked = wind.secondaryMaximumLinked
 }
 
 export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', {
   state: () => ({
     geographySeed: null,
     prevailingWindDegrees: 0,
+    secondaryMaximumDegrees: 90,
+    secondaryMaximumLinked: true,
     generationOptions: createDefaultGenerationOptions(),
     overlayDisplaySettings: createDefaultOverlayDisplaySettings(),
     colonizationSession: createDefaultColonizationSlice(),
@@ -54,6 +78,8 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
     pick: [
       'geographySeed',
       'prevailingWindDegrees',
+      'secondaryMaximumDegrees',
+      'secondaryMaximumLinked',
       'generationOptions',
       'overlayDisplaySettings',
       'colonizationSession',
@@ -65,6 +91,11 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
     afterHydrate: ({ store }) => {
       store.geographySeed = parseStoredGeographySeed(store.geographySeed)
       store.prevailingWindDegrees = normalizeWindDegrees(store.prevailingWindDegrees)
+      store.secondaryMaximumDegrees = normalizeWindDegrees(
+        store.secondaryMaximumDegrees ?? store.prevailingWindDegrees + 90,
+      )
+      store.secondaryMaximumLinked =
+        store.secondaryMaximumLinked === undefined ? true : Boolean(store.secondaryMaximumLinked)
       store.generationOptions = resolveWorldGenerationOptions(store.generationOptions)
       store.overlayDisplaySettings = {
         ...createDefaultOverlayDisplaySettings(),
@@ -85,14 +116,49 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
       if (parsed === null) {
         return
       }
-      const initial = createControlsStateForSeed(parsed)
-      this.geographySeed = initial.geographySeed
-      this.prevailingWindDegrees = initial.prevailingWindDegrees
+      const wind = windStateAfterSeedApply(parsed, {
+        prevailingWindDegrees: this.prevailingWindDegrees,
+        secondaryMaximumDegrees: this.secondaryMaximumDegrees,
+        secondaryMaximumLinked: this.secondaryMaximumLinked,
+      })
+      this.geographySeed = createControlsStateForSeed(parsed).geographySeed
+      applyWindState(this, wind)
     },
 
     setControl(key, value) {
       if (key === 'prevailingWindDegrees') {
-        this.prevailingWindDegrees = normalizeWindDegrees(value)
+        applyWindState(
+          this,
+          windStateAfterPrevailingChange(
+            {
+              prevailingWindDegrees: this.prevailingWindDegrees,
+              secondaryMaximumDegrees: this.secondaryMaximumDegrees,
+              secondaryMaximumLinked: this.secondaryMaximumLinked,
+            },
+            value,
+          ),
+        )
+        return
+      }
+      if (key === 'secondaryMaximumDegrees') {
+        if (this.secondaryMaximumLinked) {
+          return
+        }
+        this.secondaryMaximumDegrees = normalizeWindDegrees(value)
+        return
+      }
+      if (key === 'secondaryMaximumLinked') {
+        applyWindState(
+          this,
+          windStateAfterSetSecondaryLinked(
+            {
+              prevailingWindDegrees: this.prevailingWindDegrees,
+              secondaryMaximumDegrees: this.secondaryMaximumDegrees,
+              secondaryMaximumLinked: this.secondaryMaximumLinked,
+            },
+            Boolean(value),
+          ),
+        )
         return
       }
       this.generationOptions = {
@@ -116,7 +182,11 @@ export const useWorldBuilderSettingsStore = defineStore('worldBuilderSettings', 
     resetToDefaults() {
       ensureGeographySeedInitialized(this)
       const defaults = createDefaultGenerationSettings(this.geographySeed)
-      this.prevailingWindDegrees = defaults.prevailingWindDegrees
+      applyWindState(this, {
+        prevailingWindDegrees: defaults.prevailingWindDegrees,
+        secondaryMaximumDegrees: defaults.secondaryMaximumDegrees,
+        secondaryMaximumLinked: defaults.secondaryMaximumLinked,
+      })
       this.generationOptions = defaults.generationOptions
       this.overlayDisplaySettings = createDefaultOverlayDisplaySettings()
     },

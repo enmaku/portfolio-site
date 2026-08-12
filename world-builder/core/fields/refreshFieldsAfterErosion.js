@@ -1,13 +1,15 @@
 import { generateTemperature } from './generateTemperature.js'
 import { generateRainfall } from './generateRainfall.js'
 import { deriveSalinityFromOcean } from './deriveSalinityFromOcean.js'
+import { normalizeWindDegrees } from './prevailingWindField.js'
 import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
 
 /**
- * Recompute climate scalar fields after erosion; prevailing wind unchanged.
+ * Recompute climate scalar fields after erosion; wind rose bearings unchanged.
  * @param {Object} params
  * @param {number} params.geographySeed
  * @param {number} params.prevailingWindDegrees
+ * @param {number} params.secondaryMaximumDegrees
  * @param {Float32Array} params.elevation
  * @param {Float32Array} params.drainage
  * @param {number} params.width
@@ -18,6 +20,7 @@ import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
 export function refreshFieldsAfterErosion({
   geographySeed,
   prevailingWindDegrees,
+  secondaryMaximumDegrees,
   elevation,
   drainage,
   width,
@@ -30,7 +33,8 @@ export function refreshFieldsAfterErosion({
     width,
     height,
     elevation,
-    prevailingWindDegrees,
+    prevailingWindDegrees: normalizeWindDegrees(prevailingWindDegrees),
+    secondaryMaximumDegrees: normalizeWindDegrees(secondaryMaximumDegrees),
     options,
   })
   const resolved = resolveWorldGenerationOptions(options)

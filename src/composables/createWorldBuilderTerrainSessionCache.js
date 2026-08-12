@@ -52,6 +52,7 @@ export function createWorldBuilderTerrainSessionCache(ports) {
     return buildTerrainCacheFingerprint({
       geographySeed: settingsStore.geographySeed ?? 0,
       prevailingWindDegrees: settingsStore.prevailingWindDegrees,
+      secondaryMaximumDegrees: settingsStore.secondaryMaximumDegrees,
       generationOptions: settingsStore.generationOptions,
     })
   }

@@ -154,7 +154,7 @@ test('rain shadow lower rainfall yields lower downstream accumulation', () => {
     elevation,
     width,
     height,
-    prevailingWindDegrees: 270,
+    transportBearingDegrees: 270,
     rainShadowStrength: 1,
   })
 

@@ -19,6 +19,14 @@ Comparison reference for **landmass pipeline** design (fields-first geography, h
 
 **Takeaway:** Adopt DF’s geographic engine (scalar fields → biomes → erosion/rivers → named regions → reject until valid). World Builder adds the playlist’s **logistics pass** (ox paradox, haul-shed, population ceiling, strategic resources) on top.
 
+## Wind rose / rainfall stripes
+
+Investigation of wind-aligned biome ruler stripes and the **wind rose** rainfall composition.
+
+- Decision: [ADR 0024 — wind rose rainfall](../../docs/adr/0024-world-builder-wind-rose-rainfall.md)
+- Glossary: [`../CONTEXT.md`](../CONTEXT.md) (**Wind rose**, **Prevailing wind**, **Secondary maximum**)
+- Runtime: `world-builder/core/fields/buildWindRoseSchedule.js`, `generateRainfall.js`, Wind section UI on the World Builder page
+
 ## Worldbuilding Insights (YouTube playlist)
 
 Primary reference for the **culture engine** and logistics-first map thinking.

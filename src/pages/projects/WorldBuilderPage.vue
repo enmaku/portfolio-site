@@ -76,55 +76,50 @@
               :key="section.section"
               :label="section.section"
               dense
+              :default-opened="section.section === 'Wind'"
               header-class="text-caption text-weight-medium"
             >
-              <div
-                v-for="control in section.controls"
-                :key="control.key"
-                class="generation-control q-mb-md"
-              >
-                <div class="row items-center no-wrap q-gutter-xs q-mb-xs">
-                  <span class="text-caption">
-                    {{ control.label }}:
-                    {{ formatGenerationControlValue(control.key, controlValue(control.key)) }}
-                  </span>
-                  <WorldBuilderSettingHelp
-                    :text="control.tooltip"
-                    :label="control.label"
-                  />
-                </div>
-                <q-toggle
-                  v-if="control.kind === 'toggle'"
-                  :model-value="Boolean(controlValue(control.key))"
-                  :disable="isGenerationControlDisabled(control.key, generationOptions)"
-                  :data-testid="control.testId"
-                  color="primary"
-                  @update:model-value="onToggleChange(control.key, $event)"
-                />
-                <q-slider
-                  v-else-if="control.key !== 'prevailingWindDegrees'"
-                  class="generation-control__slider full-width"
-                  dense
-                  :model-value="controlValue(control.key)"
-                  :disable="isGenerationControlDisabled(control.key, generationOptions)"
-                  :data-testid="control.testId"
-                  :min="control.min"
-                  :max="control.max"
-                  :step="control.step"
-                  label
-                  color="primary"
-                  @update:model-value="onSliderInput(control.key, $event)"
-                  @change="onSliderCommit(control.key, $event)"
-                />
+              <WorldBuilderWindControls
+                v-if="section.section === 'Wind'"
+                :controls="section.controls"
+                :control-value="controlValue"
+                :is-control-disabled="isWindControlDisabled"
+                :on-slider-input="onSliderInput"
+                :on-slider-commit="onSliderCommit"
+                :on-link-change="onSecondaryLinkChange"
+                :geography-seed="settingsStore.geographySeed ?? 0"
+                :secondary-maximum-linked="Boolean(controlValue('secondaryMaximumLinked'))"
+              />
+              <template v-else>
                 <div
-                  v-else
-                  class="row items-center no-wrap q-gutter-xs"
+                  v-for="control in section.controls"
+                  :key="control.key"
+                  class="generation-control q-mb-md"
                 >
+                  <div class="row items-center no-wrap q-gutter-xs q-mb-xs">
+                    <span class="text-caption">
+                      {{ control.label }}:
+                      {{ formatGenerationControlValue(control.key, controlValue(control.key)) }}
+                    </span>
+                    <WorldBuilderSettingHelp
+                      :text="control.tooltip"
+                      :label="control.label"
+                    />
+                  </div>
+                  <q-toggle
+                    v-if="control.kind === 'toggle'"
+                    :model-value="Boolean(controlValue(control.key))"
+                    :disable="isGenerationControlDisabled(control.key, { options: generationOptions })"
+                    :data-testid="control.testId"
+                    color="primary"
+                    @update:model-value="onToggleChange(control.key, $event)"
+                  />
                   <q-slider
-                    class="col generation-control__slider"
+                    v-else
+                    class="generation-control__slider full-width"
                     dense
                     :model-value="controlValue(control.key)"
-                    :disable="isGenerationControlDisabled(control.key, generationOptions)"
+                    :disable="isGenerationControlDisabled(control.key, { options: generationOptions })"
                     :data-testid="control.testId"
                     :min="control.min"
                     :max="control.max"
@@ -134,12 +129,8 @@
                     @update:model-value="onSliderInput(control.key, $event)"
                     @change="onSliderCommit(control.key, $event)"
                   />
-                  <PrevailingWindArrow
-                    data-testid="world-builder-wind-arrow"
-                    :degrees="controlValue(control.key)"
-                  />
                 </div>
-              </div>
+              </template>
             </q-expansion-item>
             <q-expansion-item
               label="Map overlays"
@@ -447,7 +438,6 @@ import {
 } from '@world-builder/worldBuilderPageModel.js'
 import { useWorldBuilderPageController } from '../../composables/useWorldBuilderPageController.js'
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
-import PrevailingWindArrow from '../../components/world-builder/PrevailingWindArrow.vue'
 import WorldBuilderColonistSettingsPanel from '../../components/world-builder/WorldBuilderColonistSettingsPanel.vue'
 import WorldBuilderRealmEconomyPanel from '../../components/world-builder/WorldBuilderRealmEconomyPanel.vue'
 import WorldBuilderSettlementTradeTooltip from '../../components/world-builder/WorldBuilderSettlementTradeTooltip.js'
@@ -455,12 +445,14 @@ import WorldBuilderPoliticalMarkerTooltip from '../../components/world-builder/W
 import WorldBuilderSimStatusPanel from '../../components/world-builder/WorldBuilderSimStatusPanel.vue'
 import WorldBuilderSettingHelp from '../../components/world-builder/WorldBuilderSettingHelp.vue'
 import WorldBuilderStatusPanel from '../../components/world-builder/WorldBuilderStatusPanel.vue'
+import WorldBuilderWindControls from '../../components/world-builder/WorldBuilderWindControls.vue'
 
 const $q = useQuasar()
 
 const mapHostRef = ref(null)
 const controlSections = WORLD_BUILDER_GENERATION_CONTROL_SECTIONS
 const overlayControlDefinitions = WORLD_BUILDER_OVERLAY_CONTROL_DEFINITIONS
+const settingsStore = useWorldBuilderSettingsStore()
 
 const {
   seedInput,
@@ -490,7 +482,7 @@ const {
   destroy,
 } = useWorldBuilderPageController({
   getMapHost: () => mapHostRef.value,
-  settingsStore: useWorldBuilderSettingsStore(),
+  settingsStore,
   onGenerationError(message) {
     $q.notify({
       type: 'negative',
@@ -557,6 +549,17 @@ const {
   politicalMarkerScreenPosition,
   setSettlementFocus,
 } = colonization
+
+function isWindControlDisabled(key) {
+  return isGenerationControlDisabled(key, {
+    options: generationOptions.value,
+    secondaryMaximumLinked: Boolean(controlValue('secondaryMaximumLinked')),
+  })
+}
+
+function onSecondaryLinkChange(linked) {
+  onToggleChange('secondaryMaximumLinked', linked)
+}
 
 onMounted(start)
 onUnmounted(destroy)

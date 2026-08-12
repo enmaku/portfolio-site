@@ -345,6 +345,7 @@ test('runHydrologySubsteps climate refresh recomputes rainfall and temperature o
   const refreshed = refreshFieldsAfterErosion({
     geographySeed: state.geographySeed,
     prevailingWindDegrees: state.prevailingWindDegrees,
+    secondaryMaximumDegrees: state.secondaryMaximumDegrees,
     elevation: state.erodedElevation,
     drainage: state.baselineDoc.fields.drainage,
     width: state.width,
@@ -538,6 +539,7 @@ test('runHydrologySubsteps places settled mouth nodes at ocean drainage cells', 
   const refreshed = refreshFieldsAfterErosion({
     geographySeed: state.geographySeed,
     prevailingWindDegrees: state.prevailingWindDegrees,
+    secondaryMaximumDegrees: state.secondaryMaximumDegrees,
     elevation: state.erodedElevation,
     drainage: state.baselineDoc.fields.drainage,
     width: hydrologyState.width,

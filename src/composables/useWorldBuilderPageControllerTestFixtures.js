@@ -27,6 +27,8 @@ export function createFakeSettingsStore(initial = {}) {
   const store = {
     geographySeed: 7,
     prevailingWindDegrees: 90,
+    secondaryMaximumDegrees: 180,
+    secondaryMaximumLinked: true,
     generationOptions: { ...DEFAULT_WORLD_GENERATION_OPTIONS },
     overlayDisplaySettings: { arableMinimumProductivity: 0.1 },
     colonizationSession: createDefaultColonizationSlice(),
@@ -44,6 +46,14 @@ export function createFakeSettingsStore(initial = {}) {
     setControl(key, value) {
       if (key === 'prevailingWindDegrees') {
         this.prevailingWindDegrees = value
+        return
+      }
+      if (key === 'secondaryMaximumDegrees') {
+        this.secondaryMaximumDegrees = value
+        return
+      }
+      if (key === 'secondaryMaximumLinked') {
+        this.secondaryMaximumLinked = Boolean(value)
         return
       }
       this.generationOptions = { ...this.generationOptions, [key]: value }

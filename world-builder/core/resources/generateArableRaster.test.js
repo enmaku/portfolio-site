@@ -17,9 +17,9 @@ function rasterChecksum(arr, stride = 97) {
 }
 
 const ARABLE_GOLDEN_CHECKSUMS = new Map([
-  [12345, 135210065],
-  [31842, 1339296373],
-  [DEFAULT_GEOGRAPHY_SEED, 944196086],
+  [12345, 610854849],
+  [31842, 1998302948],
+  [DEFAULT_GEOGRAPHY_SEED, 963810165],
 ])
 
 /**

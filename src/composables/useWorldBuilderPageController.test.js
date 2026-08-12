@@ -731,6 +731,7 @@ test('start restores locked terrain from cache without running the worker', asyn
       fingerprint: buildTerrainCacheFingerprint({
         geographySeed: settingsStore.geographySeed,
         prevailingWindDegrees: settingsStore.prevailingWindDegrees,
+        secondaryMaximumDegrees: settingsStore.secondaryMaximumDegrees,
         generationOptions: settingsStore.generationOptions,
       }),
       worldDocument: landmass,
