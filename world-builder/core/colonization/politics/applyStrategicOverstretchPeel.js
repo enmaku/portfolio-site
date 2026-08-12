@@ -19,6 +19,7 @@ import { openLegacyRivalry } from './rivalryEdges.js'
  * @param {{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
  *   worldDocument: object,
+ *   graphCache?: import('../tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  * }} params
  * @returns {{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
@@ -42,6 +43,7 @@ export function applyStrategicOverstretchPeel(params) {
     inlandSailExpeditionRange:
       next.colonistSettings.inlandSailExpeditionRange *
       next.colonistSettings.threeDayHaulDistance,
+    graphCache: params.graphCache,
   })
 
   /** @type {Record<string, number>} */

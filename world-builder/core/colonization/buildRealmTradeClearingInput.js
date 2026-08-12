@@ -9,7 +9,7 @@ import { refreshSettlementMaritimeRoles } from './refreshSettlementMaritimeRoles
 import { sumFishProductionOnCells } from './fish/sumFishProductionOnCells.js'
 import { computeSettlementProduction } from '../economy/productionAccounting.js'
 import { TRADE_ACTIVATION_MIN_SETTLEMENTS } from '../economy/tradeClearing/clearRealmTrade.js'
-import { buildCandidateTradeGraph } from './tradeGraph/buildCandidateRoutes.js'
+import { getOrBuildCandidateTradeGraph } from './tradeGraph/candidateTradeGraphCache.js'
 
 /**
  * @typedef {import('../economy/commodityCatalog.js').CommodityId} CommodityId
@@ -23,6 +23,7 @@ import { buildCandidateTradeGraph } from './tradeGraph/buildCandidateRoutes.js'
  *   slice: ColonizationSlice,
  *   worldDocument: WorldDocument,
  *   primaryClaim: Record<string, Array<{ x: number, y: number }>>,
+ *   graphCache?: import('./tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  * }} params
  * @param {{
  *   hooks?: import('../economy/tradeClearing/runTradeClearing.js').TradeClearingHooks,
@@ -31,7 +32,7 @@ import { buildCandidateTradeGraph } from './tradeGraph/buildCandidateRoutes.js'
  * @returns {Promise<RealmTradeClearingInput>}
  */
 export async function buildRealmTradeClearingInput(params, options = {}) {
-  const { slice, worldDocument, primaryClaim } = params
+  const { slice, worldDocument, primaryClaim, graphCache } = params
   const { hooks, yieldToUi } = options
   refreshSettlementMaritimeRoles(slice, worldDocument)
   const living = livingSettlements(slice.settlements)
@@ -117,7 +118,7 @@ export async function buildRealmTradeClearingInput(params, options = {}) {
       maritimeRole: settlement.maritimeRole ?? 'none',
     }))
     const threeDayHaulDistance = slice.colonistSettings.threeDayHaulDistance
-    graph = buildCandidateTradeGraph({
+    graph = getOrBuildCandidateTradeGraph(graphCache, {
       settlements: graphSettlements,
       gridWidth,
       gridHeight,

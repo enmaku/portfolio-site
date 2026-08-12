@@ -21,6 +21,7 @@ import { isVassalLocallyIndependent, resolveVassalDefection } from './resolveVas
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
  *   worldDocument: object,
  *   survivalBySettlementId?: Record<string, object>,
+ *   graphCache?: import('../tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  * }} params
  * @returns {{
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
@@ -39,6 +40,7 @@ export function applyVassalDefections(params) {
     inlandSailExpeditionRange:
       next.colonistSettings.inlandSailExpeditionRange *
       next.colonistSettings.threeDayHaulDistance,
+    graphCache: params.graphCache,
   }).components
 
   /** @type {Map<string, string>} */

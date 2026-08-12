@@ -17,6 +17,8 @@ import { resolveSailTraversableMask } from './expeditionRouting.js'
  * @property {number} epoch
  * @property {number} assignmentIndex zero-based dispatch order within the epoch
  * @property {Uint8Array | null} roadCellMask
+ * @property {Uint8Array} [dryLandMask]
+ * @property {Uint8Array | null} [sailMask]
  * @property {import('./expeditionConstants.js').ExpeditionMode} mode
  */
 
@@ -43,8 +45,8 @@ export function planExpeditionDispatch(params) {
   )
   const resolvedMode = mode
 
-  const dryLandMask = buildDryLandTraversableMask(doc)
-  const sailMask = resolveSailTraversableMask(doc)
+  const dryLandMask = params.dryLandMask ?? buildDryLandTraversableMask(doc)
+  const sailMask = params.sailMask !== undefined ? params.sailMask : resolveSailTraversableMask(doc)
   const bearing = random() * Math.PI * 2
   const origin = { x: settlement.x, y: settlement.y }
   const landContext = { doc, dryLandMask, visitRaster, roadCellMask }

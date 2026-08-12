@@ -35,6 +35,7 @@ export const MEMBERSHIP_EVENT_PROGRESS_STAGE_COUNT = 9
  *   justLatched?: boolean,
  *   survivalBySettlementId?: Record<string, object>,
  *   softPowerScores?: Record<string, { dominantFactionId?: string | null }>,
+ *   graphCache?: import('../tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  * }} params
  * @param {{
  *   onProgress?: () => void,
@@ -87,6 +88,7 @@ export async function applyFactionMembershipEvents(params, options = {}) {
           next.colonistSettings.threeDayHaulDistance,
         colonistSettings: next.colonistSettings,
         primaryClaim,
+        graphCache: params.graphCache,
       })
 
       if (params.justLatched || evaluation.maritimePeelSettlementIds.length > 0) {
@@ -103,6 +105,7 @@ export async function applyFactionMembershipEvents(params, options = {}) {
         const queued = fractureAndQueueStaggeredMints({
           slice: next,
           worldDocument: params.worldDocument,
+          graphCache: params.graphCache,
         })
         next = queued.slice
         changed = true
@@ -141,6 +144,7 @@ export async function applyFactionMembershipEvents(params, options = {}) {
     const overstretch = applyStrategicOverstretchPeel({
       slice: next,
       worldDocument: params.worldDocument,
+      graphCache: params.graphCache,
     })
     next = overstretch.slice
     events.push(...overstretch.events)
@@ -153,6 +157,7 @@ export async function applyFactionMembershipEvents(params, options = {}) {
       slice: next,
       worldDocument: params.worldDocument,
       survivalBySettlementId: params.survivalBySettlementId ?? {},
+      graphCache: params.graphCache,
     })
     next = defections.slice
     events.push(...defections.events)
@@ -195,6 +200,7 @@ export async function applyFactionMembershipEvents(params, options = {}) {
       slice: next,
       worldDocument: params.worldDocument,
       survivalBySettlementId: params.survivalBySettlementId ?? {},
+      graphCache: params.graphCache,
     })
     next = unaligned.slice
     events.push(...unaligned.events)
@@ -316,6 +322,7 @@ function fractureAndQueueStaggeredMints(params) {
     inlandSailExpeditionRange:
       next.colonistSettings.inlandSailExpeditionRange *
       next.colonistSettings.threeDayHaulDistance,
+    graphCache: params.graphCache,
   }).components
 
   const senior = [...(next.factions ?? [])]
@@ -383,6 +390,7 @@ function fractureAndQueueStaggeredMints(params) {
     inlandSailExpeditionRange:
       next.colonistSettings.inlandSailExpeditionRange *
       next.colonistSettings.threeDayHaulDistance,
+    graphCache: params.graphCache,
   }).components
   for (const component of unalignedComponents) {
     if (existingKeys.has(component.key)) continue
@@ -594,6 +602,7 @@ function resolveLoneUnaligned(params) {
     inlandSailExpeditionRange:
       next.colonistSettings.inlandSailExpeditionRange *
       next.colonistSettings.threeDayHaulDistance,
+    graphCache: params.graphCache,
   }).components
   /** @type {Map<string, string>} */
   const componentBySettlement = new Map()

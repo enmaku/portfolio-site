@@ -9,9 +9,11 @@ import {
   resolveVisitRaster,
 } from '../visitStatus/visitRaster.js'
 import {
+  buildNetworkLivingClaimState,
   evaluateFirstViableCorridorCandidate,
   listCorridorFoundingCandidates,
 } from './evaluateCorridorFounding.js'
+import { incorporatePinIntoLivingClaimState, computePrimaryClaimMapAddingPin } from '../computePrimaryClaimMap.js'
 import { LOGISTICS_NODE_VISIT_DISC_RADIUS } from './expeditionConstants.js'
 import { advanceBearingExpedition } from './advanceBearingExpedition.js'
 import { allocateExpeditionSlots } from './allocateExpeditionSlots.js'
@@ -122,6 +124,8 @@ function emitNetworkSubstepItem(
  *   slice: import('../createDefaultColonizationSlice.js').ColonizationSlice,
  *   worldDocument: import('../../types.js').WorldDocument,
  *   roadCellMask: Uint8Array,
+ *   dryLandMask: Uint8Array,
+ *   sailMask: Uint8Array | null,
  * }}
  */
 function prepareNetworkPhaseState(slice, worldDocument) {
@@ -142,7 +146,15 @@ function prepareNetworkPhaseState(slice, worldDocument) {
     currentDoc.gridWidth,
     currentDoc.gridHeight,
   )
-  return { slice: currentSlice, worldDocument: currentDoc, roadCellMask }
+  const dryLandMask = buildDryLandTraversableMask(currentDoc)
+  const sailMask = resolveSailTraversableMask(currentDoc)
+  return {
+    slice: currentSlice,
+    worldDocument: currentDoc,
+    roadCellMask,
+    dryLandMask,
+    sailMask,
+  }
 }
 
 /**
@@ -175,7 +187,12 @@ function finalizeNetworkPhaseResult(slice, worldDocument, frontierExhausted, fou
  * @param {number} geographySeed
  * @param {number} epoch
  * @param {boolean} frontierExhausted
- * @param {{ hooks?: ExpeditionNetworkPhaseHooks, yieldToUi?: () => Promise<void> }} [options]
+ * @param {{
+ *   hooks?: ExpeditionNetworkPhaseHooks,
+ *   yieldToUi?: () => Promise<void>,
+ *   dryLandMask: Uint8Array,
+ *   sailMask: Uint8Array | null,
+ * }} options
  * @returns {Promise<import('../createDefaultColonizationSlice.js').ColonizationSlice>}
  */
 async function dispatchExpeditionsWithBudget(
@@ -184,16 +201,14 @@ async function dispatchExpeditionsWithBudget(
   geographySeed,
   epoch,
   frontierExhausted,
-  options = {},
+  options,
 ) {
-  const { hooks, yieldToUi } = options
+  const { hooks, yieldToUi, dryLandMask, sailMask } = options
   const visitRaster = slice.visitedCells
   const roadCellMask = buildLandRouteCellMask(slice.roads, doc.gridWidth, doc.gridHeight)
   /** @type {import('./expeditionConstants.js').ExpeditionRecord[]} */
   const expeditions = [...resolveExpeditions(slice.expeditions)]
 
-  const dryLandMask = buildDryLandTraversableMask(doc)
-  const sailMask = resolveSailTraversableMask(doc)
   const landFrontierEdges = computeFrontierBoundaryEdges(
     visitRaster,
     dryLandMask,
@@ -290,6 +305,8 @@ async function dispatchExpeditionsWithBudget(
       epoch,
       assignmentIndex,
       roadCellMask,
+      dryLandMask,
+      sailMask,
     })
     if (planned) {
       expeditions.push(planned)
@@ -305,9 +322,18 @@ async function dispatchExpeditionsWithBudget(
  * @param {number} epoch
  * @param {Uint8Array} roadCellMask
  * @param {Uint8Array} dryLandMask
- * @param {Uint8Array} sailMask
+ * @param {Uint8Array | null} sailMask
+ * @param {import('../computePrimaryClaimMap.js').LivingPrimaryClaimState} livingClaimState
  */
-function processExpeditionAdvance(state, expedition, epoch, roadCellMask, dryLandMask, sailMask) {
+function processExpeditionAdvance(
+  state,
+  expedition,
+  epoch,
+  roadCellMask,
+  dryLandMask,
+  sailMask,
+  livingClaimState,
+) {
   if (expedition.status !== 'active') {
     state.nextExpeditions.push(expedition)
     return
@@ -354,6 +380,12 @@ function processExpeditionAdvance(state, expedition, epoch, roadCellMask, dryLan
     state.slice.roads,
     expedition.mode,
     expedition.settlementId,
+    {
+      livingClaimState,
+      roadCellMask,
+      dryLandMask,
+      sailMask,
+    },
   )
 
   if (evaluation && 'rejected' in evaluation) {
@@ -386,6 +418,27 @@ function processExpeditionAdvance(state, expedition, epoch, roadCellMask, dryLan
         founded.worldDocument.logisticsNodeSurvey ?? founded.slice.logisticsNodeSurvey,
     }
     state.worldDocument = founded.worldDocument
+    const foundedSettlement = state.slice.settlements.find(
+      (entry) => entry.id === founded.historyEntry.settlementId,
+    )
+    if (foundedSettlement) {
+      const added = computePrimaryClaimMapAddingPin({
+        base: livingClaimState,
+        candidatePin: foundedSettlement,
+        budget: state.slice.colonistSettings.threeDayHaulDistance,
+        gridWidth: state.worldDocument.gridWidth,
+        gridHeight: state.worldDocument.gridHeight,
+        movementCost: state.worldDocument.movementCost,
+        roadCellMask,
+      })
+      incorporatePinIntoLivingClaimState(livingClaimState, {
+        pin: foundedSettlement,
+        travelTime: added.candidateTravelTime,
+        budget: state.slice.colonistSettings.threeDayHaulDistance,
+        gridWidth: state.worldDocument.gridWidth,
+        gridHeight: state.worldDocument.gridHeight,
+      })
+    }
     state.foundingEvents.push({
       kind: 'settlement_founded',
       epoch,
@@ -411,6 +464,8 @@ function processExpeditionAdvance(state, expedition, epoch, roadCellMask, dryLan
  *   worldDocument: import('../../types.js').WorldDocument,
  *   epoch: number,
  *   roadCellMask: Uint8Array,
+ *   dryLandMask: Uint8Array,
+ *   sailMask: Uint8Array | null,
  *   hooks?: ExpeditionNetworkPhaseHooks,
  *   yieldToUi?: () => Promise<void>,
  *   onMapFx?: (cue: import('../mapFxCues.js').MapFxCue) => void | Promise<void>,
@@ -418,7 +473,17 @@ function processExpeditionAdvance(state, expedition, epoch, roadCellMask, dryLan
  * @returns {Promise<Pick<ExpeditionAdvanceState, 'slice' | 'worldDocument' | 'foundingEvents'>>}
  */
 async function advanceActiveExpeditions(params) {
-  const { slice, worldDocument, epoch, roadCellMask, hooks, yieldToUi, onMapFx } = params
+  const {
+    slice,
+    worldDocument,
+    epoch,
+    roadCellMask,
+    dryLandMask,
+    sailMask,
+    hooks,
+    yieldToUi,
+    onMapFx,
+  } = params
   /** @type {ExpeditionAdvanceState} */
   const state = {
     slice: { ...slice },
@@ -427,8 +492,13 @@ async function advanceActiveExpeditions(params) {
     nextExpeditions: [],
   }
 
-  const dryLandMask = buildDryLandTraversableMask(state.worldDocument)
-  const sailMask = resolveSailTraversableMask(state.worldDocument)
+  const livingClaimState = buildNetworkLivingClaimState({
+    settlements: state.slice.settlements,
+    colonistSettings: state.slice.colonistSettings,
+    worldDocument: state.worldDocument,
+    roads: state.slice.roads,
+    roadCellMask,
+  })
   const expeditions = resolveExpeditions(slice.expeditions)
   const expeditionItemCount = expeditions.length
 
@@ -444,6 +514,7 @@ async function advanceActiveExpeditions(params) {
       roadCellMask,
       dryLandMask,
       sailMask,
+      livingClaimState,
     )
 
     if (state.foundingEvents.length > foundingBefore) {
@@ -487,6 +558,8 @@ export async function applyExpeditionNetworkPhase(slice, worldDocument, options 
   let currentSlice = prepared.slice
   let currentDoc = prepared.worldDocument
   const roadCellMask = prepared.roadCellMask
+  const dryLandMask = prepared.dryLandMask
+  const sailMask = prepared.sailMask
 
   /** @type {object[]} */
   const foundingEvents = []
@@ -505,7 +578,7 @@ export async function applyExpeditionNetworkPhase(slice, worldDocument, options 
     geographySeed,
     nextEpoch,
     frontierExhausted,
-    { hooks, yieldToUi, onMapFx },
+    { hooks, yieldToUi, dryLandMask, sailMask },
   )
   emitNetworkSubstep(hooks, 'substep-complete', 1, 'dispatch')
   await yieldToUi?.()
@@ -517,6 +590,8 @@ export async function applyExpeditionNetworkPhase(slice, worldDocument, options 
     worldDocument: currentDoc,
     epoch: nextEpoch,
     roadCellMask,
+    dryLandMask,
+    sailMask,
     hooks,
     yieldToUi,
     onMapFx,

@@ -92,6 +92,7 @@ function createPoliticsItemProgress(hooks, substepId, itemCount) {
  *   resourceScoreBySettlementId?: Record<string, number>,
  *   martialInputBySettlementId?: Record<string, object>,
  *   baseMetalsLbBySettlementId?: Record<string, number>,
+ *   graphCache?: import('../tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  * }} params
  * @param {PoliticsPhaseOptions} [options]
  * @returns {Promise<{
@@ -142,6 +143,7 @@ export async function applyPoliticsPhase(params, options = {}) {
         next.colonistSettings.threeDayHaulDistance,
       colonistSettings: next.colonistSettings,
       primaryClaim: params.primaryClaim ?? next.primaryClaim,
+      graphCache: params.graphCache,
     })
 
     if (evaluation.latched) {
@@ -197,6 +199,7 @@ export async function applyPoliticsPhase(params, options = {}) {
         inlandSailExpeditionRange:
           next.colonistSettings.inlandSailExpeditionRange *
           next.colonistSettings.threeDayHaulDistance,
+        graphCache: params.graphCache,
       },
       {
         onItem: () => {
@@ -253,6 +256,7 @@ export async function applyPoliticsPhase(params, options = {}) {
         justLatched,
         survivalBySettlementId,
         softPowerScores,
+        graphCache: params.graphCache,
       },
       {
         onProgress: () => {
@@ -358,6 +362,7 @@ export async function applyPoliticsPhase(params, options = {}) {
       {
         slice: next,
         worldDocument: params.worldDocument,
+        graphCache: params.graphCache,
         survivalBySettlementId,
         warOutcomes: params.warOutcomes,
       },

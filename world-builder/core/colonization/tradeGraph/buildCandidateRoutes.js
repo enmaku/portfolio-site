@@ -46,12 +46,17 @@ import {
  */
 
 /**
+ * @typedef {'all' | 'land'} CandidateTradeGraphModes
+ */
+
+/**
  * @typedef {Object} BuildCandidateTradeGraphParams
  * @property {TradeRouteSettlement[]} settlements
  * @property {number} gridWidth
  * @property {number} gridHeight
  * @property {number} threeDayHaulDistance Haul-shed travel-time budget (one full haul).
  * @property {number} [inlandSailExpeditionRange] Max inland-water candidate path length.
+ * @property {CandidateTradeGraphModes} [modes] `all` (default) or `land` (road + overland only).
  * @property {Float32Array | null} [movementCost]
  * @property {Float32Array | null} [elevation]
  * @property {import('../../colonization/roads/roadNetwork.js').RoadSegment[] | null} [roads]
@@ -74,6 +79,7 @@ export function buildCandidateTradeGraph(params) {
   const gridHeight = Math.trunc(params?.gridHeight ?? 0)
   const budget = Number(params?.threeDayHaulDistance)
   const settlements = resolveLivingSettlements(params?.settlements)
+  const modes = params?.modes === 'land' ? 'land' : 'all'
 
   if (settlements.length < 2 || gridWidth <= 0 || gridHeight <= 0 || !(budget > 0)) {
     return { edges: [] }
@@ -82,7 +88,10 @@ export function buildCandidateTradeGraph(params) {
   const movementCost = params?.movementCost ?? null
   const elevation = params?.elevation ?? null
   const roadMask = buildLandRouteCellMask(resolveRoadSegments(params?.roads), gridWidth, gridHeight)
-  const sailMasks = resolveSailContext(params, gridWidth, gridHeight)
+  const includeWater = modes === 'all'
+  const sailMasks = includeWater
+    ? resolveSailContext(params, gridWidth, gridHeight)
+    : { sailMask: null, dryLandMask: null, doc: null }
 
   /** @type {Map<string, TradeRouteEdge>} */
   const edgesById = new Map()
@@ -108,25 +117,27 @@ export function buildCandidateTradeGraph(params) {
     edgesById,
   })
 
-  collectInlandWaterCandidates({
-    settlements,
-    gridWidth,
-    gridHeight,
-    budget,
-    inlandSailExpeditionRange: Number(params?.inlandSailExpeditionRange) || 0,
-    elevation,
-    sailMasks,
-    edgesById,
-  })
+  if (includeWater) {
+    collectInlandWaterCandidates({
+      settlements,
+      gridWidth,
+      gridHeight,
+      budget,
+      inlandSailExpeditionRange: Number(params?.inlandSailExpeditionRange) || 0,
+      elevation,
+      sailMasks,
+      edgesById,
+    })
 
-  collectOpenSeaCandidates({
-    settlements,
-    gridWidth,
-    gridHeight,
-    budget,
-    sailMasks,
-    edgesById,
-  })
+    collectOpenSeaCandidates({
+      settlements,
+      gridWidth,
+      gridHeight,
+      budget,
+      sailMasks,
+      edgesById,
+    })
+  }
 
   const edges = [...edgesById.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
   return { edges }
@@ -337,18 +348,39 @@ function collectInlandWaterCandidates({
 
 /**
  * Geometric shortest-path distance over sail-overlay cells (8-connected), capped by maxRange.
+ * When `targetIndices` is set, stops once every listed cell has been dequeued (shortest
+ * distances to that set are final); other cells may remain unfinished.
  *
  * @param {number} originIndex
  * @param {Uint8Array} sailMask
  * @param {number} width
  * @param {number} height
  * @param {number} maxRange
+ * @param {{ targetIndices?: number[] }} [options]
  * @returns {Float64Array} distance per cell; Infinity when off-sail or unreachable within range
  */
-function computeSailPathDistances(originIndex, sailMask, width, height, maxRange) {
+export function computeSailPathDistances(
+  originIndex,
+  sailMask,
+  width,
+  height,
+  maxRange,
+  options = undefined,
+) {
   const cellCount = width * height
   const distance = new Float64Array(cellCount).fill(Number.POSITIVE_INFINITY)
   if (sailMask[originIndex] !== 1 || !(maxRange > 0)) return distance
+
+  const targetIndices = Array.isArray(options?.targetIndices) ? options.targetIndices : null
+  /** @type {Set<number> | null} */
+  let remainingTargets = null
+  if (targetIndices && targetIndices.length > 0) {
+    remainingTargets = new Set()
+    for (const index of targetIndices) {
+      const i = Math.trunc(index)
+      if (i >= 0 && i < cellCount) remainingTargets.add(i)
+    }
+  }
 
   distance[originIndex] = 0
   /** @type {Array<{ index: number, dist: number }>} */
@@ -358,6 +390,10 @@ function computeSailPathDistances(originIndex, sailMask, width, height, maxRange
     const current = popMinDistance(heap)
     if (!current) break
     if (current.dist > distance[current.index]) continue
+    if (remainingTargets) {
+      remainingTargets.delete(current.index)
+      if (remainingTargets.size === 0) break
+    }
     if (current.dist >= maxRange) continue
     const cx = current.index % width
     const cy = Math.floor(current.index / width)
@@ -398,6 +434,7 @@ function collectOpenSeaCandidates({ settlements, gridWidth, gridHeight, budget, 
   if (ports.length < 2) return
   const { sailMask } = sailMasks
   const useSailPaths = Boolean(sailMask) && gridWidth > 0 && gridHeight > 0
+  const portIndices = ports.map((port) => port.y * gridWidth + port.x)
 
   for (let i = 0; i < ports.length; i += 1) {
     const from = ports[i]
@@ -408,6 +445,7 @@ function collectOpenSeaCandidates({ settlements, gridWidth, gridHeight, budget, 
           gridWidth,
           gridHeight,
           Number.POSITIVE_INFINITY,
+          { targetIndices: portIndices },
         )
       : null
     for (let j = i + 1; j < ports.length; j += 1) {
@@ -485,7 +523,7 @@ function pairKey(a, b) {
  * @param {number} height
  * @returns {Float64Array} distance per cell; Infinity when off-network or unreachable
  */
-function computeRoadPathDistances(originIndex, roadMask, width, height) {
+export function computeRoadPathDistances(originIndex, roadMask, width, height) {
   const cellCount = width * height
   const distance = new Float64Array(cellCount).fill(Number.POSITIVE_INFINITY)
   if (roadMask[originIndex] !== 1) return distance

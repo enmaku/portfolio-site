@@ -1,5 +1,10 @@
 import { computeHaulShedTravelTimes } from '../computeHaulShedIsochrone.js'
-import { computePrimaryClaimMap, serializeClaimMap } from '../computePrimaryClaimMap.js'
+import {
+  buildLivingPrimaryClaimState,
+  computePrimaryClaimMap,
+  computePrimaryClaimMapAddingPin,
+  serializeClaimMap,
+} from '../computePrimaryClaimMap.js'
 import {
   claimedCellsHaveFreshwater,
   deriveFreshwaterAvailabilityFromDocument,
@@ -8,7 +13,11 @@ import { findLogisticsNodeAt } from '../logisticsNodes/scoreLogisticsNodes.js'
 import { buildLandRouteCellMask } from '../roads/roadNetwork.js'
 import { computeClaimProduction } from '../../economy/founding/computeClaimProduction.js'
 import { computeLocalPrices, priceFormationDemand } from '../../economy/localPrices.js'
-import { buildCandidateTradeGraph } from '../tradeGraph/buildCandidateRoutes.js'
+import { computeRoadPathDistances } from '../tradeGraph/buildCandidateRoutes.js'
+import {
+  routeCargoCapacityLb,
+  transportCostCpPerLb,
+} from '../../economy/tradeGraph/routeEconomics.js'
 import { modeGroup } from '../../economy/tradeClearing/pathSearch.js'
 import { evaluateTradeAwareFounding } from '../../economy/founding/evaluateTradeAwareFounding.js'
 import {
@@ -16,7 +25,6 @@ import {
   isMaritimeExpeditionMode,
   resolveExpeditionMode,
 } from './expeditionConstants.js'
-import { classifySettlementMaritimeRole } from './classifySettlementMaritimeRole.js'
 import { isSettlementSailReachable } from './selectSailExpeditionStep.js'
 
 /** Minimum travel-time separation for a new pin: one day of the three-day haul budget. */
@@ -27,6 +35,14 @@ export const SETTLEMENT_FOUNDING_MIN_HAUL_DAY_FRACTION = 1 / 3
  * @property {number} x
  * @property {number} y
  * @property {import('../logisticsNodes/scoreLogisticsNodes.js').LogisticsNodeSurveyEntry} node
+ */
+
+/**
+ * @typedef {Object} FoundingNetworkContext
+ * @property {import('../computePrimaryClaimMap.js').LivingPrimaryClaimState} [livingClaimState]
+ * @property {Uint8Array} [roadCellMask]
+ * @property {Uint8Array | null} [dryLandMask]
+ * @property {Uint8Array | null} [sailMask]
  */
 
 /**
@@ -64,35 +80,71 @@ export function listCorridorFoundingCandidates(traveledCells, survey) {
  *   roads?: import('../roads/roadNetwork.js').RoadSegment[],
  *   roadMultiplier?: number,
  *   originSettlementId?: string,
+ *   livingClaimState?: import('../computePrimaryClaimMap.js').LivingPrimaryClaimState | null,
+ *   roadCellMask?: Uint8Array | null,
+ *   dryLandMask?: Uint8Array | null,
+ *   sailMask?: Uint8Array | null,
  * }} params
  * @returns {boolean}
  */
 export function isProvisionalClaimViable(params) {
   const { candidate, settlements, colonistSettings, worldDocument, roads, roadMultiplier } = params
   const candidateId = `candidate-${candidate.x}-${candidate.y}`
-  const pins = [
-    ...settlements.filter((settlement) => settlement.status !== 'ruin'),
-    {
-      id: candidateId,
-      x: candidate.x,
-      y: candidate.y,
-      status: 'living',
-    },
-  ]
-  const roadCellMask = buildLandRouteCellMask(
-    roads ?? worldDocument.roads,
-    worldDocument.gridWidth,
-    worldDocument.gridHeight,
-  )
-  const claimMap = computePrimaryClaimMap({
-    pins,
-    budget: colonistSettings.threeDayHaulDistance,
-    gridWidth: worldDocument.gridWidth,
-    gridHeight: worldDocument.gridHeight,
-    movementCost: worldDocument.movementCost,
-    roadCellMask,
-    roadMultiplier,
-  })
+  const roadCellMask =
+    params.roadCellMask ??
+    buildLandRouteCellMask(
+      roads ?? worldDocument.roads,
+      worldDocument.gridWidth,
+      worldDocument.gridHeight,
+    )
+  const budget = colonistSettings.threeDayHaulDistance
+  const livingPins = settlements.filter((settlement) => settlement.status !== 'ruin')
+
+  /** @type {import('../computePrimaryClaimMap.js').PrimaryClaimMap} */
+  let claimMap
+  /** @type {Float64Array | undefined} */
+  let parentTravelTime
+  if (params.livingClaimState) {
+    const added = computePrimaryClaimMapAddingPin({
+      base: params.livingClaimState,
+      candidatePin: {
+        id: candidateId,
+        x: candidate.x,
+        y: candidate.y,
+        status: 'living',
+      },
+      budget,
+      gridWidth: worldDocument.gridWidth,
+      gridHeight: worldDocument.gridHeight,
+      movementCost: worldDocument.movementCost,
+      roadCellMask,
+      roadMultiplier,
+    })
+    claimMap = {
+      ownerByCell: added.ownerByCell,
+      cellsBySettlementId: added.cellsBySettlementId,
+    }
+  } else {
+    const pins = [
+      ...livingPins,
+      {
+        id: candidateId,
+        x: candidate.x,
+        y: candidate.y,
+        status: 'living',
+      },
+    ]
+    claimMap = computePrimaryClaimMap({
+      pins,
+      budget,
+      gridWidth: worldDocument.gridWidth,
+      gridHeight: worldDocument.gridHeight,
+      movementCost: worldDocument.movementCost,
+      roadCellMask,
+      roadMultiplier,
+    })
+  }
+
   const claimedCells = claimMap.cellsBySettlementId[candidateId] ?? []
   if (claimedCells.length === 0) {
     return false
@@ -123,8 +175,22 @@ export function isProvisionalClaimViable(params) {
   const parentLocalPrices = parent
     ? parentMarketPrices(parentCells, parent, worldDocument, colonistSettings)
     : {}
+  if (parent && params.livingClaimState?.travelTimeByPinId?.[parent.id]) {
+    parentTravelTime = params.livingClaimState.travelTimeByPinId[parent.id]
+  }
   const foundingLink = parent
-    ? resolveFoundingLink({ parent, candidate, candidateId, worldDocument, colonistSettings, roads })
+    ? resolveFoundingLink({
+        parent,
+        candidate,
+        candidateId,
+        worldDocument,
+        colonistSettings,
+        roads,
+        roadCellMask,
+        parentTravelTime,
+        dryLandMask: params.dryLandMask,
+        sailMask: params.sailMask,
+      })
     : null
 
   const result = evaluateTradeAwareFounding({
@@ -160,7 +226,8 @@ function parentMarketPrices(parentCells, parent, worldDocument, colonistSettings
 }
 
 /**
- * Cheapest single geography link between parent and candidate for the founding check.
+ * Cheapest land geography link between parent and candidate for the founding check.
+ * Prefer road when both pins are road-connected; otherwise overland haul-shed time.
  *
  * @param {{
  *   parent: { id: string, x: number, y: number, population?: number },
@@ -169,52 +236,80 @@ function parentMarketPrices(parentCells, parent, worldDocument, colonistSettings
  *   worldDocument: import('../../types.js').WorldDocument,
  *   colonistSettings: { threeDayHaulDistance: number, inlandSailExpeditionRange?: number },
  *   roads?: import('../roads/roadNetwork.js').RoadSegment[],
+ *   roadCellMask?: Uint8Array | null,
+ *   parentTravelTime?: Float64Array | null,
+ *   dryLandMask?: Uint8Array | null,
+ *   sailMask?: Uint8Array | null,
  * }} params
  * @returns {import('../../economy/founding/evaluateTradeAwareFounding.js').FoundingLink | null}
  */
-function resolveFoundingLink(params) {
-  const { parent, candidate, candidateId, worldDocument, colonistSettings, roads } = params
+export function resolveFoundingLink(params) {
+  const {
+    parent,
+    candidate,
+    worldDocument,
+    colonistSettings,
+    roads,
+    parentTravelTime,
+  } = params
   const haulDistance = colonistSettings.threeDayHaulDistance
-  const graph = buildCandidateTradeGraph({
-    settlements: [
-      {
-        id: parent.id,
-        x: parent.x,
-        y: parent.y,
-        population: Math.max(0, parent.population ?? 0),
-        maritimeRole: classifySettlementMaritimeRole(worldDocument, parent),
-      },
-      {
-        id: candidateId,
-        x: candidate.x,
-        y: candidate.y,
-        population: DAUGHTER_OUTPOST_HEADCOUNT,
-        maritimeRole: classifySettlementMaritimeRole(worldDocument, candidate),
-      },
-    ],
-    gridWidth: worldDocument.gridWidth,
-    gridHeight: worldDocument.gridHeight,
-    threeDayHaulDistance: haulDistance,
-    inlandSailExpeditionRange: (colonistSettings.inlandSailExpeditionRange ?? 0) * haulDistance,
-    movementCost: worldDocument.movementCost,
-    elevation: worldDocument.fields?.elevation,
-    roads: roads ?? worldDocument.roads,
-    lakeMask: worldDocument.lakeMask,
-    riverCorridorMask: worldDocument.riverCorridorMask,
-  })
-  if (graph.edges.length === 0) {
-    return null
-  }
-  let best = graph.edges[0]
-  for (const edge of graph.edges) {
-    if (edge.transportCostCpPerLb < best.transportCostCpPerLb) {
-      best = edge
+  const gridWidth = worldDocument.gridWidth
+  const gridHeight = worldDocument.gridHeight
+  const roadCellMask =
+    params.roadCellMask ??
+    buildLandRouteCellMask(roads ?? worldDocument.roads, gridWidth, gridHeight)
+  const parentPop = Math.max(0, parent.population ?? 0)
+  const candidatePop = DAUGHTER_OUTPOST_HEADCOUNT
+  const parentIndex = parent.y * gridWidth + parent.x
+  const candidateIndex = candidate.y * gridWidth + candidate.x
+
+  /** @type {{ mode: 'road' | 'overland', haulDistanceFraction: number } | null} */
+  let chosen = null
+
+  if (roadCellMask[parentIndex] === 1 && roadCellMask[candidateIndex] === 1) {
+    const distances = computeRoadPathDistances(
+      parentIndex,
+      roadCellMask,
+      gridWidth,
+      gridHeight,
+    )
+    const distance = distances[candidateIndex]
+    if (Number.isFinite(distance)) {
+      chosen = { mode: 'road', haulDistanceFraction: distance / haulDistance }
     }
   }
+
+  if (!chosen) {
+    const travel =
+      parentTravelTime ??
+      computeHaulShedTravelTimes({
+        origin: { x: parent.x, y: parent.y },
+        budget: haulDistance,
+        gridWidth,
+        gridHeight,
+        movementCost: worldDocument.movementCost,
+        roadCellMask,
+      })
+    const time = travel[candidateIndex]
+    if (Number.isFinite(time) && time <= haulDistance) {
+      chosen = { mode: 'overland', haulDistanceFraction: time / haulDistance }
+    }
+  }
+
+  if (!chosen) return null
+
   return {
-    transportCostCpPerLb: best.transportCostCpPerLb,
-    capacityLb: best.capacityLb,
-    importToll: modeGroup(best.mode) === 'water',
+    transportCostCpPerLb: transportCostCpPerLb({
+      mode: chosen.mode,
+      haulDistanceFraction: chosen.haulDistanceFraction,
+      directionalFriction: 1,
+    }),
+    capacityLb: routeCargoCapacityLb({
+      populationA: parentPop,
+      populationB: candidatePop,
+      mode: chosen.mode,
+    }),
+    importToll: modeGroup(chosen.mode) === 'water',
   }
 }
 
@@ -235,6 +330,7 @@ export function computeOneDayHaulDistance(threeDayHaulDistance) {
  *   worldDocument: import('../../types.js').WorldDocument,
  *   roads?: import('../roads/roadNetwork.js').RoadSegment[],
  *   roadMultiplier?: number,
+ *   roadCellMask?: Uint8Array | null,
  * }} params
  * @returns {boolean}
  */
@@ -255,11 +351,13 @@ export function isSettlementFoundingSpacingSatisfied(params) {
     return true
   }
 
-  const roadCellMask = buildLandRouteCellMask(
-    roads ?? worldDocument.roads,
-    worldDocument.gridWidth,
-    worldDocument.gridHeight,
-  )
+  const roadCellMask =
+    params.roadCellMask ??
+    buildLandRouteCellMask(
+      roads ?? worldDocument.roads,
+      worldDocument.gridWidth,
+      worldDocument.gridHeight,
+    )
   const travelTime = computeHaulShedTravelTimes({
     origin: { x, y },
     budget: colonistSettings.threeDayHaulDistance,
@@ -293,6 +391,7 @@ export function isSettlementFoundingSpacingSatisfied(params) {
  * @param {import('../roads/roadNetwork.js').RoadSegment[]} [roads]
  * @param {import('./expeditionConstants.js').ExpeditionMode} [expeditionMode]
  * @param {string} [originSettlementId] Founding parent whose local prices and link gate imports.
+ * @param {FoundingNetworkContext} [networkContext]
  * @returns {{ candidate: FoundingCandidate } | { rejected: FoundingCandidate } | null}
  */
 export function evaluateFirstViableCorridorCandidate(
@@ -303,8 +402,16 @@ export function evaluateFirstViableCorridorCandidate(
   roads,
   expeditionMode = 'land',
   originSettlementId,
+  networkContext = undefined,
 ) {
   let firstRejected = null
+  const roadCellMask =
+    networkContext?.roadCellMask ??
+    buildLandRouteCellMask(
+      roads ?? worldDocument.roads,
+      worldDocument.gridWidth,
+      worldDocument.gridHeight,
+    )
   for (const candidate of candidates) {
     if (
       !isSettlementFoundingSpacingSatisfied({
@@ -314,13 +421,18 @@ export function evaluateFirstViableCorridorCandidate(
         colonistSettings,
         worldDocument,
         roads,
+        roadCellMask,
       })
     ) {
       continue
     }
     if (
       isMaritimeExpeditionMode(resolveExpeditionMode(expeditionMode)) &&
-      !isSettlementSailReachable(worldDocument, { x: candidate.x, y: candidate.y })
+      !(
+        networkContext?.sailMask
+          ? networkContext.sailMask[candidate.y * worldDocument.gridWidth + candidate.x] === 1
+          : isSettlementSailReachable(worldDocument, { x: candidate.x, y: candidate.y })
+      )
     ) {
       continue
     }
@@ -331,6 +443,10 @@ export function evaluateFirstViableCorridorCandidate(
       worldDocument,
       roads,
       originSettlementId,
+      livingClaimState: networkContext?.livingClaimState,
+      roadCellMask,
+      dryLandMask: networkContext?.dryLandMask,
+      sailMask: networkContext?.sailMask,
     })
     if (viable) {
       return { candidate }
@@ -343,6 +459,38 @@ export function evaluateFirstViableCorridorCandidate(
     return { rejected: firstRejected }
   }
   return null
+}
+
+/**
+ * Build living claim competition state for network founding (call once per advance).
+ *
+ * @param {{
+ *   settlements: object[],
+ *   colonistSettings: { threeDayHaulDistance: number },
+ *   worldDocument: import('../../types.js').WorldDocument,
+ *   roads?: import('../roads/roadNetwork.js').RoadSegment[],
+ *   roadCellMask?: Uint8Array | null,
+ *   roadMultiplier?: number,
+ * }} params
+ * @returns {import('../computePrimaryClaimMap.js').LivingPrimaryClaimState}
+ */
+export function buildNetworkLivingClaimState(params) {
+  const roadCellMask =
+    params.roadCellMask ??
+    buildLandRouteCellMask(
+      params.roads ?? params.worldDocument.roads,
+      params.worldDocument.gridWidth,
+      params.worldDocument.gridHeight,
+    )
+  return buildLivingPrimaryClaimState({
+    pins: params.settlements,
+    budget: params.colonistSettings.threeDayHaulDistance,
+    gridWidth: params.worldDocument.gridWidth,
+    gridHeight: params.worldDocument.gridHeight,
+    movementCost: params.worldDocument.movementCost,
+    roadCellMask,
+    roadMultiplier: params.roadMultiplier,
+  })
 }
 
 /**

@@ -13,6 +13,7 @@ import { computeLogisticsConnectivityComponents } from './computeLogisticsConnec
  *   threeDayHaulDistance: number,
  *   roads?: object[] | null,
  *   inlandSailExpeditionRange?: number,
+ *   graphCache?: import('../tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  * }} params
  * @param {{
  *   onItem?: () => void,
@@ -42,6 +43,7 @@ export async function annotateSurvivalFactionDependence(params, options = {}) {
     threeDayHaulDistance: params.threeDayHaulDistance,
     roads: params.roads,
     inlandSailExpeditionRange: params.inlandSailExpeditionRange,
+    graphCache: params.graphCache,
   }).components
 
   /** @type {Map<string, string>} */

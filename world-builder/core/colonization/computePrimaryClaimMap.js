@@ -20,6 +20,16 @@ import { buildLandRouteCellMask } from './roads/roadNetwork.js'
  */
 
 /**
+ * Living-pin claim competition state for provisional founding (bestTime stash).
+ *
+ * @typedef {Object} LivingPrimaryClaimState
+ * @property {(string | null)[]} ownerByCell
+ * @property {Float32Array} bestTime
+ * @property {Record<string, GridCell[]>} cellsBySettlementId
+ * @property {Record<string, Float64Array>} travelTimeByPinId
+ */
+
+/**
  * Exclusive nearest-pin-by-travel-time ownership within each pin's haul-shed.
  * Ruins and non-living pins are ignored.
  *
@@ -35,6 +45,28 @@ import { buildLandRouteCellMask } from './roads/roadNetwork.js'
  * @returns {PrimaryClaimMap}
  */
 export function computePrimaryClaimMap(params) {
+  const state = buildLivingPrimaryClaimState(params)
+  return {
+    ownerByCell: state.ownerByCell,
+    cellsBySettlementId: state.cellsBySettlementId,
+  }
+}
+
+/**
+ * Build ownership + bestTime + per-pin isochrones for living pins.
+ *
+ * @param {{
+ *   pins: ClaimPin[],
+ *   budget: number,
+ *   gridWidth: number,
+ *   gridHeight: number,
+ *   movementCost?: Float32Array | null,
+ *   roadMultiplier?: number,
+ *   roadCellMask?: Uint8Array | null,
+ * }} params
+ * @returns {LivingPrimaryClaimState}
+ */
+export function buildLivingPrimaryClaimState(params) {
   const { pins, budget, gridWidth, gridHeight, movementCost, roadMultiplier, roadCellMask } =
     params
   const cellCount = gridWidth * gridHeight
@@ -43,6 +75,8 @@ export function computePrimaryClaimMap(params) {
   const bestTime = new Float32Array(cellCount).fill(Number.POSITIVE_INFINITY)
   /** @type {Record<string, GridCell[]>} */
   const cellsBySettlementId = {}
+  /** @type {Record<string, Float64Array>} */
+  const travelTimeByPinId = {}
 
   const livingPins = pins.filter((pin) => pin.status !== 'ruin')
   for (const pin of livingPins) {
@@ -56,6 +90,7 @@ export function computePrimaryClaimMap(params) {
       roadMultiplier,
       roadCellMask,
     })
+    travelTimeByPinId[pin.id] = travelTime
 
     for (let i = 0; i < cellCount; i += 1) {
       const time = travelTime[i]
@@ -64,7 +99,6 @@ export function computePrimaryClaimMap(params) {
         bestTime[i] = time
         ownerByCell[i] = pin.id
       } else if (time === bestTime[i] && ownerByCell[i] != null && pin.id < ownerByCell[i]) {
-        // Stable tie-break: lexicographically smaller settlement id wins.
         ownerByCell[i] = pin.id
       }
     }
@@ -78,7 +112,125 @@ export function computePrimaryClaimMap(params) {
     }
   }
 
-  return { ownerByCell, cellsBySettlementId }
+  return { ownerByCell, bestTime, cellsBySettlementId, travelTimeByPinId }
+}
+
+/**
+ * Flood only the candidate pin against a precomputed living-pin competition state.
+ *
+ * @param {{
+ *   base: LivingPrimaryClaimState,
+ *   candidatePin: ClaimPin,
+ *   budget: number,
+ *   gridWidth: number,
+ *   gridHeight: number,
+ *   movementCost?: Float32Array | null,
+ *   roadMultiplier?: number,
+ *   roadCellMask?: Uint8Array | null,
+ * }} params
+ * @returns {PrimaryClaimMap & { bestTime: Float32Array, candidateTravelTime: Float64Array }}
+ */
+export function computePrimaryClaimMapAddingPin(params) {
+  const {
+    base,
+    candidatePin,
+    budget,
+    gridWidth,
+    gridHeight,
+    movementCost,
+    roadMultiplier,
+    roadCellMask,
+  } = params
+  const cellCount = gridWidth * gridHeight
+  const ownerByCell = base.ownerByCell.slice()
+  const bestTime = new Float32Array(base.bestTime)
+  /** @type {Record<string, GridCell[]>} */
+  const cellsBySettlementId = {}
+  for (const id of Object.keys(base.cellsBySettlementId)) {
+    cellsBySettlementId[id] = []
+  }
+  cellsBySettlementId[candidatePin.id] = []
+
+  const candidateTravelTime = computeHaulShedTravelTimes({
+    origin: { x: candidatePin.x, y: candidatePin.y },
+    budget,
+    gridWidth,
+    gridHeight,
+    movementCost,
+    roadMultiplier,
+    roadCellMask,
+  })
+
+  for (let i = 0; i < cellCount; i += 1) {
+    const time = candidateTravelTime[i]
+    if (!Number.isFinite(time) || time > budget) continue
+    if (time < bestTime[i] || (time === bestTime[i] && ownerByCell[i] == null)) {
+      bestTime[i] = time
+      ownerByCell[i] = candidatePin.id
+    } else if (
+      time === bestTime[i] &&
+      ownerByCell[i] != null &&
+      candidatePin.id < ownerByCell[i]
+    ) {
+      ownerByCell[i] = candidatePin.id
+    }
+  }
+
+  for (let y = 0; y < gridHeight; y += 1) {
+    for (let x = 0; x < gridWidth; x += 1) {
+      const owner = ownerByCell[y * gridWidth + x]
+      if (owner == null) continue
+      if (!cellsBySettlementId[owner]) cellsBySettlementId[owner] = []
+      cellsBySettlementId[owner].push({ x, y })
+    }
+  }
+
+  return { ownerByCell, cellsBySettlementId, bestTime, candidateTravelTime }
+}
+
+/**
+ * Fold a newly founded pin into the living claim stash (mutates `base`).
+ *
+ * @param {LivingPrimaryClaimState} base
+ * @param {{
+ *   pin: ClaimPin,
+ *   travelTime: Float64Array,
+ *   budget: number,
+ *   gridWidth: number,
+ *   gridHeight: number,
+ * }} params
+ * @returns {LivingPrimaryClaimState}
+ */
+export function incorporatePinIntoLivingClaimState(base, params) {
+  const { pin, travelTime, budget, gridWidth, gridHeight } = params
+  const cellCount = gridWidth * gridHeight
+  base.travelTimeByPinId[pin.id] = travelTime
+  for (let i = 0; i < cellCount; i += 1) {
+    const time = travelTime[i]
+    if (!Number.isFinite(time) || time > budget) continue
+    if (time < base.bestTime[i] || (time === base.bestTime[i] && base.ownerByCell[i] == null)) {
+      base.bestTime[i] = time
+      base.ownerByCell[i] = pin.id
+    } else if (
+      time === base.bestTime[i] &&
+      base.ownerByCell[i] != null &&
+      pin.id < base.ownerByCell[i]
+    ) {
+      base.ownerByCell[i] = pin.id
+    }
+  }
+  /** @type {Record<string, GridCell[]>} */
+  const cellsBySettlementId = {}
+  for (let y = 0; y < gridHeight; y += 1) {
+    for (let x = 0; x < gridWidth; x += 1) {
+      const owner = base.ownerByCell[y * gridWidth + x]
+      if (owner == null) continue
+      if (!cellsBySettlementId[owner]) cellsBySettlementId[owner] = []
+      cellsBySettlementId[owner].push({ x, y })
+    }
+  }
+  base.cellsBySettlementId = cellsBySettlementId
+  return base
 }
 
 /**

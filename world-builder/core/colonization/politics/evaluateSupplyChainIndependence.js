@@ -4,7 +4,7 @@
  */
 
 import { computeHaulShedIsochrone } from '../computeHaulShedIsochrone.js'
-import { buildCandidateTradeGraph } from '../tradeGraph/buildCandidateRoutes.js'
+import { getOrBuildCandidateTradeGraph } from '../tradeGraph/candidateTradeGraphCache.js'
 import { computeClaimProduction } from '../../economy/founding/computeClaimProduction.js'
 import { survivalFoodDemandLb } from '../../economy/survivalDemand.js'
 import { geometricHaulShedCirclesOverlap } from './computeLogisticsConnectivityComponents.js'
@@ -26,6 +26,7 @@ import { geometricHaulShedCirclesOverlap } from './computeLogisticsConnectivityC
  *   inlandSailExpeditionRange?: number,
  *   colonistSettings?: { yieldModifier?: string, populationDensity?: number },
  *   primaryClaim?: Record<string, Array<{ x: number, y: number }>>,
+ *   graphCache?: import('../tradeGraph/candidateTradeGraphCache.js').CandidateTradeGraphCache,
  * }} params
  * @returns {SupplyChainIndependenceResult}
  */
@@ -47,6 +48,7 @@ export function evaluateSupplyChainIndependence(params) {
     threeDayHaulDistance: radius,
     roads: params?.roads,
     inlandSailExpeditionRange: params?.inlandSailExpeditionRange,
+    graphCache: params?.graphCache,
   })
 
   let landBranch = false
@@ -151,7 +153,7 @@ function collectRoadOrSailPairs(params) {
   if (!doc || params.settlements.length < 2 || !(params.threeDayHaulDistance > 0)) {
     return pairs
   }
-  const graph = buildCandidateTradeGraph({
+  const graph = getOrBuildCandidateTradeGraph(params.graphCache, {
     settlements: params.settlements,
     gridWidth: doc.gridWidth,
     gridHeight: doc.gridHeight,
