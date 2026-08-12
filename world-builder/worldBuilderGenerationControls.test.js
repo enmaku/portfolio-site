@@ -32,6 +32,31 @@ function controlKeysForSection(sectionName) {
   return section.controls.map((control) => control.key)
 }
 
+test('Wind section is first and owns prevailing plus secondary maximum', () => {
+  assert.equal(WORLD_BUILDER_GENERATION_CONTROL_SECTIONS[0].section, 'Wind')
+  assert.deepEqual(controlKeysForSection('Wind'), [
+    'prevailingWindDegrees',
+    'secondaryMaximumLinked',
+    'secondaryMaximumDegrees',
+  ])
+  assert.equal(controlKeysForSection('Climate').includes('prevailingWindDegrees'), false)
+})
+
+test('isGenerationControlDisabled gates secondary maximum while linked', () => {
+  assert.equal(
+    isGenerationControlDisabled('secondaryMaximumDegrees', DEFAULT_WORLD_GENERATION_OPTIONS, {
+      secondaryMaximumLinked: true,
+    }),
+    true,
+  )
+  assert.equal(
+    isGenerationControlDisabled('secondaryMaximumDegrees', DEFAULT_WORLD_GENERATION_OPTIONS, {
+      secondaryMaximumLinked: false,
+    }),
+    false,
+  )
+})
+
 test('meander refine toggle precedes its dependent sliders in Erosion & hydrology', () => {
   const keys = controlKeysForSection('Erosion & hydrology')
   const soilDrainageIndex = keys.indexOf('soilDrainageScale')

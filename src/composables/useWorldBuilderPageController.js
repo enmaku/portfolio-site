@@ -286,6 +286,7 @@ export function useWorldBuilderPageController(options) {
       parsedSeed,
       settingsStore.prevailingWindDegrees,
       settingsStore.generationOptions,
+      settingsStore.secondaryMaximumDegrees,
     )
   }
 
@@ -518,6 +519,12 @@ export function useWorldBuilderPageController(options) {
   function controlValue(key) {
     if (key === 'prevailingWindDegrees') {
       return settingsStore.prevailingWindDegrees
+    }
+    if (key === 'secondaryMaximumDegrees') {
+      return settingsStore.secondaryMaximumDegrees
+    }
+    if (key === 'secondaryMaximumLinked') {
+      return settingsStore.secondaryMaximumLinked
     }
     return settingsStore.generationOptions[key]
   }

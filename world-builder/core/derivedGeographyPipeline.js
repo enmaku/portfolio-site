@@ -16,6 +16,7 @@ import {
   runLandmassPipelineWithRetryShared,
 } from './landmassPipelineRunner.js'
 import { resolveWorldGenerationOptions } from './worldGenerationOptions.js'
+import { normalizeWindDegrees } from './fields/prevailingWindField.js'
 
 export {
   LANDMASS_PIPELINE_STAGE_CONTRACTS,
@@ -65,11 +66,16 @@ export function createInitialPipelineState(params) {
   const height = params.height ?? DEFAULT_GRID_SIZE
   const geographySeed = params.geographySeed | 0
   const prevailingWindDegrees = normalizeWindDegrees(params.prevailingWindDegrees)
+  const secondaryMaximumDegrees =
+    params.secondaryMaximumDegrees === undefined
+      ? normalizeWindDegrees(prevailingWindDegrees + 90)
+      : normalizeWindDegrees(params.secondaryMaximumDegrees)
   const options = resolveWorldGenerationOptions(params.options)
 
   return {
     geographySeed: geographySeed >= 0 ? geographySeed : geographySeed + 4294967296,
     prevailingWindDegrees,
+    secondaryMaximumDegrees,
     options,
     width,
     height,
@@ -182,12 +188,4 @@ export function runFullDerivedGeographyPipeline(params) {
     throw new Error(result.errorMessage ?? 'Landmass pipeline failed')
   }
   return result.worldDocument
-}
-
-/**
- * @param {number} degrees
- */
-function normalizeWindDegrees(degrees) {
-  const rounded = Math.round(degrees)
-  return ((rounded % 360) + 360) % 360
 }

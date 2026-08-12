@@ -29,30 +29,38 @@ export function createDefaultGenerationOptions() {
  * @returns {{
  *   geographySeed: number,
  *   prevailingWindDegrees: number,
+ *   secondaryMaximumDegrees: number,
+ *   secondaryMaximumLinked: boolean,
  *   generationOptions: import('./core/types.js').WorldGenerationOptions,
  * }}
  */
 export function createDefaultControlsState() {
-  const { geographySeed, prevailingWindDegrees } = createControlsStateForSeed(DEFAULT_GEOGRAPHY_SEED)
+  const wind = createControlsStateForSeed(DEFAULT_GEOGRAPHY_SEED)
   return {
-    geographySeed,
-    prevailingWindDegrees,
+    geographySeed: wind.geographySeed,
+    prevailingWindDegrees: wind.prevailingWindDegrees,
+    secondaryMaximumDegrees: wind.secondaryMaximumDegrees,
+    secondaryMaximumLinked: wind.secondaryMaximumLinked,
     generationOptions: createDefaultGenerationOptions(),
   }
 }
 
 /**
- * Default generation sliders and seed-derived prevailing wind; geography seed unchanged.
+ * Default generation sliders and seed-derived wind; geography seed unchanged.
  * @param {number} geographySeed
  * @returns {{
  *   prevailingWindDegrees: number,
+ *   secondaryMaximumDegrees: number,
+ *   secondaryMaximumLinked: boolean,
  *   generationOptions: import('./core/types.js').WorldGenerationOptions,
  * }}
  */
 export function createDefaultGenerationSettings(geographySeed) {
-  const { prevailingWindDegrees } = createControlsStateForSeed(geographySeed)
+  const wind = createControlsStateForSeed(geographySeed)
   return {
-    prevailingWindDegrees,
+    prevailingWindDegrees: wind.prevailingWindDegrees,
+    secondaryMaximumDegrees: wind.secondaryMaximumDegrees,
+    secondaryMaximumLinked: wind.secondaryMaximumLinked,
     generationOptions: createDefaultGenerationOptions(),
   }
 }
@@ -61,12 +69,24 @@ export function createDefaultGenerationSettings(geographySeed) {
  * @param {number} geographySeed
  * @param {number} prevailingWindDegrees
  * @param {import('./core/types.js').WorldGenerationOptions} options
+ * @param {number} [secondaryMaximumDegrees]
  * @returns {import('./core/types.js').DerivedGeographyParams}
  */
-export function buildDerivedGeographyParams(geographySeed, prevailingWindDegrees, options) {
+export function buildDerivedGeographyParams(
+  geographySeed,
+  prevailingWindDegrees,
+  options,
+  secondaryMaximumDegrees,
+) {
+  const prevailing = normalizeWindDegrees(prevailingWindDegrees)
+  const secondary =
+    secondaryMaximumDegrees === undefined
+      ? normalizeWindDegrees(prevailing + 90)
+      : normalizeWindDegrees(secondaryMaximumDegrees)
   return {
     geographySeed,
-    prevailingWindDegrees: normalizeWindDegrees(prevailingWindDegrees),
+    prevailingWindDegrees: prevailing,
+    secondaryMaximumDegrees: secondary,
     options: { ...options },
   }
 }
@@ -89,13 +109,21 @@ export function normalizeGeographySeed(geographySeed) {
 
 /**
  * @param {number} geographySeed
- * @returns {{ geographySeed: number, prevailingWindDegrees: number }}
+ * @returns {{
+ *   geographySeed: number,
+ *   prevailingWindDegrees: number,
+ *   secondaryMaximumDegrees: number,
+ *   secondaryMaximumLinked: boolean,
+ * }}
  */
 export function createControlsStateForSeed(geographySeed) {
   const signedSeed = geographySeed | 0
+  const prevailingWindDegrees = derivePrevailingWindFromSeed(signedSeed)
   return {
     geographySeed: normalizeGeographySeed(geographySeed),
-    prevailingWindDegrees: derivePrevailingWindFromSeed(signedSeed),
+    prevailingWindDegrees,
+    secondaryMaximumDegrees: normalizeWindDegrees(prevailingWindDegrees + 90),
+    secondaryMaximumLinked: true,
   }
 }
 
@@ -118,6 +146,91 @@ export function parseGeographySeedInput(rawSeed) {
 export function normalizeWindDegrees(degrees) {
   const rounded = Math.round(degrees)
   return ((rounded % 360) + 360) % 360
+}
+
+/**
+ * @param {number} prevailingWindDegrees
+ * @param {number} [linkOffsetDegrees=90]
+ * @returns {number}
+ */
+export function resolveLinkedSecondaryMaximum(prevailingWindDegrees, linkOffsetDegrees = 90) {
+  return normalizeWindDegrees(prevailingWindDegrees + linkOffsetDegrees)
+}
+
+/**
+ * @param {number} prevailingWindDegrees
+ * @param {number} secondaryMaximumDegrees
+ * @returns {number}
+ */
+export function captureSecondaryLinkOffset(prevailingWindDegrees, secondaryMaximumDegrees) {
+  return normalizeWindDegrees(secondaryMaximumDegrees - prevailingWindDegrees)
+}
+
+/**
+ * @param {{
+ *   prevailingWindDegrees: number,
+ *   secondaryMaximumDegrees: number,
+ *   secondaryMaximumLinked: boolean,
+ * }} state
+ * @param {number} nextPrevailingDegrees
+ */
+export function windStateAfterPrevailingChange(state, nextPrevailingDegrees) {
+  const prevailingWindDegrees = normalizeWindDegrees(nextPrevailingDegrees)
+  if (!state.secondaryMaximumLinked) {
+    return {
+      ...state,
+      prevailingWindDegrees,
+    }
+  }
+  const offset = captureSecondaryLinkOffset(
+    state.prevailingWindDegrees,
+    state.secondaryMaximumDegrees,
+  )
+  return {
+    ...state,
+    prevailingWindDegrees,
+    secondaryMaximumDegrees: resolveLinkedSecondaryMaximum(prevailingWindDegrees, offset),
+  }
+}
+
+/**
+ * @param {{
+ *   prevailingWindDegrees: number,
+ *   secondaryMaximumDegrees: number,
+ *   secondaryMaximumLinked: boolean,
+ * }} state
+ * @param {boolean} linked
+ */
+export function windStateAfterSetSecondaryLinked(state, linked) {
+  return {
+    ...state,
+    secondaryMaximumLinked: Boolean(linked),
+    secondaryMaximumDegrees: normalizeWindDegrees(state.secondaryMaximumDegrees),
+  }
+}
+
+/**
+ * @param {number} geographySeed
+ * @param {{
+ *   prevailingWindDegrees: number,
+ *   secondaryMaximumDegrees: number,
+ *   secondaryMaximumLinked: boolean,
+ * }} state
+ */
+export function windStateAfterSeedApply(geographySeed, state) {
+  const initial = createControlsStateForSeed(geographySeed)
+  if (state.secondaryMaximumLinked) {
+    return {
+      prevailingWindDegrees: initial.prevailingWindDegrees,
+      secondaryMaximumDegrees: initial.secondaryMaximumDegrees,
+      secondaryMaximumLinked: true,
+    }
+  }
+  return {
+    prevailingWindDegrees: initial.prevailingWindDegrees,
+    secondaryMaximumDegrees: normalizeWindDegrees(state.secondaryMaximumDegrees),
+    secondaryMaximumLinked: false,
+  }
 }
 
 /**

@@ -9,7 +9,7 @@ import { PIPELINE_STAGE_DERIVED_GEOGRAPHY, PIPELINE_STAGE_PHYSICAL_TERRAIN_BASEL
  * @returns {import('./types.js').WorldDocument}
  */
 export function buildWorldDocumentFromPipelineState(state) {
-  const { width, height, geographySeed, prevailingWindDegrees } = state
+  const { width, height, geographySeed, prevailingWindDegrees, secondaryMaximumDegrees } = state
   const baseline = state.baselineDoc
   if (!baseline) throw new Error('Pipeline state missing baseline document')
 
@@ -34,6 +34,7 @@ export function buildWorldDocumentFromPipelineState(state) {
   return {
     geographySeed,
     prevailingWindDegrees,
+    secondaryMaximumDegrees,
     gridWidth: width,
     gridHeight: height,
     fields,

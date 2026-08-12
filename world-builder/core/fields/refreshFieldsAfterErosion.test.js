@@ -79,6 +79,50 @@ test('refreshFieldsAfterErosion uses prevailing wind for rainfall', () => {
   assert.strictEqual(differs, true)
 })
 
+test('refreshFieldsAfterErosion forwards secondary maximum into rainfall', () => {
+  const width = 16
+  const height = 16
+  const elevation = new Float32Array(width * height).fill(0.6)
+  elevation[4 * width + 4] = 0.85
+  const drainage = new Float32Array(width * height)
+  const base = {
+    geographySeed: 7,
+    prevailingWindDegrees: 270,
+    elevation,
+    drainage,
+    width,
+    height,
+  }
+
+  const linked = refreshFieldsAfterErosion({ ...base, secondaryMaximumDegrees: 0 })
+  const opposite = refreshFieldsAfterErosion({ ...base, secondaryMaximumDegrees: 90 })
+  const directLinked = generateRainfall({
+    geographySeed: 7,
+    width,
+    height,
+    elevation,
+    prevailingWindDegrees: 270,
+    secondaryMaximumDegrees: 0,
+  })
+  const directOpposite = generateRainfall({
+    geographySeed: 7,
+    width,
+    height,
+    elevation,
+    prevailingWindDegrees: 270,
+    secondaryMaximumDegrees: 90,
+  })
+
+  assert.deepStrictEqual(linked.rainfall, directLinked)
+  assert.deepStrictEqual(opposite.rainfall, directOpposite)
+
+  let rainfallL1 = 0
+  for (let i = 0; i < linked.rainfall.length; i += 1) {
+    rainfallL1 += Math.abs(linked.rainfall[i] - opposite.rainfall[i])
+  }
+  assert.ok(rainfallL1 > 0.25)
+})
+
 test('refreshFieldsAfterErosion temperature tracks elevation', () => {
   const width = 8
   const height = 8

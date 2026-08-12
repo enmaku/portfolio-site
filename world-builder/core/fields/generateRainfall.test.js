@@ -52,10 +52,7 @@ test('generateRainfall preserves spatial pattern when rainfallAmountScale change
   assert.ok(doubled[wetIdx] > doubled[dryIdx])
 })
 
-test('generateRainfall responds to prevailing wind direction over a ridge', () => {
-  const width = 32
-  const height = 32
-  const ridgeCol = 16
+function buildRidgeElevation(width, height, ridgeCol) {
   const elevation = new Float32Array(width * height).fill(0.45)
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
@@ -63,15 +60,88 @@ test('generateRainfall responds to prevailing wind direction over a ridge', () =
       elevation[y * width + x] = Math.max(0.3, 0.95 - distance * 0.08)
     }
   }
+  return elevation
+}
 
+function totalAbsDiff(a, b) {
+  let total = 0
+  for (let i = 0; i < a.length; i += 1) {
+    total += Math.abs(a[i] - b[i])
+  }
+  return total
+}
+
+test('generateRainfall responds to prevailing wind direction over a ridge', () => {
+  const width = 32
+  const height = 32
+  const elevation = buildRidgeElevation(width, height, 16)
   const ridgeParams = { geographySeed: 7, width, height, elevation }
   const westWind = generateRainfall({ ...ridgeParams, prevailingWindDegrees: 270 })
   const eastWind = generateRainfall({ ...ridgeParams, prevailingWindDegrees: 90 })
+  assert.ok(totalAbsDiff(westWind, eastWind) > 1)
+})
 
-  let totalDifference = 0
-  for (let i = 0; i < westWind.length; i += 1) {
-    totalDifference += Math.abs(westWind[i] - eastWind[i])
+test('generateRainfall changes when secondary maximum bearing changes', () => {
+  const width = 32
+  const height = 32
+  const elevation = buildRidgeElevation(width, height, 16)
+  const base = {
+    geographySeed: 7,
+    width,
+    height,
+    elevation,
+    prevailingWindDegrees: 270,
   }
+  const linked = generateRainfall({ ...base, secondaryMaximumDegrees: 0 })
+  const opposite = generateRainfall({ ...base, secondaryMaximumDegrees: 90 })
+  assert.ok(totalAbsDiff(linked, opposite) > 0.5)
+})
 
-  assert.ok(totalDifference > 1)
+test('generateRainfall omits secondary maximum as prevailing plus 90', () => {
+  const width = 24
+  const height = 24
+  const elevation = buildRidgeElevation(width, height, 12)
+  const prevailingWindDegrees = 200
+  const omitted = generateRainfall({
+    geographySeed: 11,
+    width,
+    height,
+    elevation,
+    prevailingWindDegrees,
+  })
+  const explicit = generateRainfall({
+    geographySeed: 11,
+    width,
+    height,
+    elevation,
+    prevailingWindDegrees,
+    secondaryMaximumDegrees: (prevailingWindDegrees + 90) % 360,
+  })
+  assert.deepEqual(Array.from(omitted), Array.from(explicit))
+})
+
+test('generateRainfall rose differs from a prevailing-only schedule stand-in', () => {
+  const width = 32
+  const height = 32
+  const elevation = buildRidgeElevation(width, height, 16)
+  const prevailingWindDegrees = 270
+  const rose = generateRainfall({
+    geographySeed: 7,
+    width,
+    height,
+    elevation,
+    prevailingWindDegrees,
+    secondaryMaximumDegrees: 0,
+  })
+  // Collapsing secondary onto prevailing still leaves scatter; forcing secondary
+  // opposite of prevailing must move the field if the rose is averaged.
+  const collapsed = generateRainfall({
+    geographySeed: 7,
+    width,
+    height,
+    elevation,
+    prevailingWindDegrees,
+    secondaryMaximumDegrees: prevailingWindDegrees,
+  })
+  assert.ok(totalAbsDiff(rose, collapsed) > 0.25)
 })

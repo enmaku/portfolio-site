@@ -14,6 +14,7 @@ export const hydrologyClimateSubstep = {
   inputs: {
     geographySeed: (world) => world.state.geographySeed,
     prevailingWindDegrees: (world) => world.state.prevailingWindDegrees,
+    secondaryMaximumDegrees: (world) => world.state.secondaryMaximumDegrees,
     options: (world) => world.state.options,
     width: (world) => world.width,
     height: (world) => world.height,
@@ -21,10 +22,20 @@ export const hydrologyClimateSubstep = {
     baselineDrainage: (world) => baselineDrainageFromState(world.state),
   },
   outputKeys: ['temperature', 'rainfall', 'snowCapMask', 'meltContribution'],
-  run({ geographySeed, prevailingWindDegrees, options, width, height, erodedElevation, baselineDrainage }) {
+  run({
+    geographySeed,
+    prevailingWindDegrees,
+    secondaryMaximumDegrees,
+    options,
+    width,
+    height,
+    erodedElevation,
+    baselineDrainage,
+  }) {
     const climateFields = refreshFieldsAfterErosion({
       geographySeed,
       prevailingWindDegrees,
+      secondaryMaximumDegrees,
       elevation: erodedElevation,
       drainage: baselineDrainage,
       width,

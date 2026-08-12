@@ -21,10 +21,11 @@ Comparison reference for **landmass pipeline** design (fields-first geography, h
 
 ## Wind rose / rainfall stripes
 
-Investigation of wind-aligned biome ruler stripes and the **wind rose** rainfall composition (ADR 0024).
+Investigation of wind-aligned biome ruler stripes and the **wind rose** rainfall composition.
 
-- Archive: [`wind-rose-stripe-experiments/`](./wind-rose-stripe-experiments/) (schedule prototype, UI mockup, metric summaries)
 - Decision: [ADR 0024 — wind rose rainfall](../../docs/adr/0024-world-builder-wind-rose-rainfall.md)
+- Glossary: [`../CONTEXT.md`](../CONTEXT.md) (**Wind rose**, **Prevailing wind**, **Secondary maximum**)
+- Runtime: `world-builder/core/fields/buildWindRoseSchedule.js`, `generateRainfall.js`, Wind section UI on the World Builder page
 
 ## Worldbuilding Insights (YouTube playlist)
 

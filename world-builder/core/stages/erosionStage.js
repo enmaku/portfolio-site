@@ -13,6 +13,7 @@ export const erosionStage = {
   inputs: {
     geographySeed: (state) => state.geographySeed,
     prevailingWindDegrees: (state) => state.prevailingWindDegrees,
+    secondaryMaximumDegrees: (state) => state.secondaryMaximumDegrees,
     options: (state) => state.options,
     width: (state) => state.width,
     height: (state) => state.height,
@@ -39,6 +40,7 @@ export const erosionStage = {
     const {
       geographySeed,
       prevailingWindDegrees,
+      secondaryMaximumDegrees,
       options,
       width,
       height,
@@ -54,6 +56,7 @@ export const erosionStage = {
     const previewFields = refreshClimateScalarsAfterElevationMutation({
       geographySeed,
       prevailingWindDegrees,
+      secondaryMaximumDegrees,
       elevation: erodedElevation,
       drainage: baselineDoc.fields.drainage,
       width,

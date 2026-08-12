@@ -8,6 +8,7 @@ import {
  * @param {{
  *   geographySeed: number,
  *   prevailingWindDegrees: number,
+ *   secondaryMaximumDegrees?: number,
  *   generationOptions: Record<string, unknown>,
  * }} input
  * @returns {string}
@@ -16,6 +17,7 @@ export function buildTerrainCacheFingerprint(input) {
   return JSON.stringify({
     geographySeed: input.geographySeed,
     prevailingWindDegrees: input.prevailingWindDegrees,
+    secondaryMaximumDegrees: input.secondaryMaximumDegrees,
     generationOptions: input.generationOptions,
   })
 }

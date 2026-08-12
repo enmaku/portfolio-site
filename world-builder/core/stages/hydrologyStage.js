@@ -10,6 +10,7 @@ export const hydrologyStage = {
   inputs: {
     geographySeed: (state) => state.geographySeed,
     prevailingWindDegrees: (state) => state.prevailingWindDegrees,
+    secondaryMaximumDegrees: (state) => state.secondaryMaximumDegrees,
     options: (state) => state.options,
     width: (state) => state.width,
     height: (state) => state.height,

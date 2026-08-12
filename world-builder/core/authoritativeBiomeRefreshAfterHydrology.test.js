@@ -37,9 +37,9 @@ function byteRasterChecksum(arr, stride = 97) {
 const NON_SEASONAL_PIPELINE_GOLDEN_CHECKSUMS = {
   geographySeed: 12345,
   elevation: 1794626407,
-  drainage: 868138137,
+  drainage: 1059142182,
   temperature: 2118061058,
-  rainfall: 30514195,
+  rainfall: 1044047867,
   salinity: 746831041,
   biomes: 48146,
 }

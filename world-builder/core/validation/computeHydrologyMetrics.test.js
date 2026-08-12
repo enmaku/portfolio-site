@@ -272,5 +272,5 @@ test('computeHydrologyMetrics slope-area concavity preserves golden checksum on 
   })
 
   assert.ok(metrics.slopeAreaConcavitySamples.length > 0)
-  assert.strictEqual(concavityChecksum(metrics.slopeAreaConcavitySamples), -1375724)
+  assert.strictEqual(concavityChecksum(metrics.slopeAreaConcavitySamples), -829714)
 })

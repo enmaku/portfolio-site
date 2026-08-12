@@ -8,6 +8,7 @@ import {
   LANDMASS_PIPELINE_STAGE_MODULES,
   LANDMASS_PIPELINE_STAGE_MODULE_BY_ID,
 } from './landmassPipelineStageModules.js'
+import { normalizeWindDegrees } from './fields/prevailingWindField.js'
 import { selectLandmassStageInput } from './stages/moduleTypes.js'
 
 export { LANDMASS_PIPELINE_STEP_IDS }
@@ -77,6 +78,11 @@ export function buildPipelineStateForHydrologySubsteps(input) {
   return {
     geographySeed: /** @type {number} */ (input.geographySeed),
     prevailingWindDegrees: /** @type {number} */ (input.prevailingWindDegrees),
+    secondaryMaximumDegrees: /** @type {number} */ (
+      input.secondaryMaximumDegrees === undefined
+        ? normalizeWindDegrees(/** @type {number} */ (input.prevailingWindDegrees) + 90)
+        : input.secondaryMaximumDegrees
+    ),
     options: /** @type {import('./types.js').WorldGenerationOptions} */ (input.options),
     width: /** @type {number} */ (input.width),
     height: /** @type {number} */ (input.height),

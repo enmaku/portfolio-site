@@ -1,4 +1,13 @@
 /**
+ * @param {number} degrees
+ * @returns {number} integer degrees in [0, 360)
+ */
+export function normalizeWindDegrees(degrees) {
+  const rounded = Math.round(degrees)
+  return ((rounded % 360) + 360) % 360
+}
+
+/**
  * Shared prevailing-wind geometry used by rainfall advection, orographic moisture,
  * and seasonal snow. Bearing is meteorological: 0 = north, 90 = east, naming the
  * direction the wind originates from. The returned vector points upwind (toward

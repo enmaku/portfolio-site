@@ -242,6 +242,7 @@
  * @typedef {Object} WorldDocument
  * @property {number} geographySeed
  * @property {number} prevailingWindDegrees
+ * @property {number} [secondaryMaximumDegrees]
  * @property {number} gridWidth
  * @property {number} gridHeight
  * @property {ScalarFields} fields
@@ -354,6 +355,7 @@
  * @typedef {Object} PhysicalTerrainBaselineParams
  * @property {number} geographySeed
  * @property {number} prevailingWindDegrees
+ * @property {number} [secondaryMaximumDegrees]
  * @property {number} [width]
  * @property {number} [height]
  * @property {Partial<WorldGenerationOptions>} [options]
