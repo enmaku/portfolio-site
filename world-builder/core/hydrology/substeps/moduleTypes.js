@@ -12,6 +12,7 @@
  * @property {FlowFieldSession} flowFieldSession
  * @property {RiverMaskPipeline} riverMaskPipeline
  * @property {(progress: number) => void} onProgress
+ * @property {() => void | Promise<void>} [yield]
  */
 
 /**

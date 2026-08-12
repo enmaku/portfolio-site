@@ -54,10 +54,26 @@ function withTestIds(steps, prefix) {
  *   percent: number,
  *   steps: ReadonlyArray<{ id: string, label: string, status: string }>,
  *   hydrologySubsteps: ReadonlyArray<{ id: string, label: string, status: string }>,
+ *   nestedParentId?: string,
  * }} input
  * @returns {StatusBarViewModel}
  */
-export function buildGenerationStatusSection({ percent, steps, hydrologySubsteps }) {
+export function buildGenerationStatusSection({
+  percent,
+  steps,
+  hydrologySubsteps,
+  nestedParentId = 'hydrology',
+}) {
+  /** @type {Record<string, ReturnType<typeof withTestIds>>} */
+  const nestedByParentId = {}
+  if (hydrologySubsteps.length > 0) {
+    nestedByParentId[nestedParentId] = withTestIds(
+      hydrologySubsteps,
+      nestedParentId === 'hydrology'
+        ? 'world-builder-hydrology-substep-'
+        : `world-builder-${nestedParentId}-substep-`,
+    )
+  }
   return {
     mode: 'generation',
     percent,
@@ -65,9 +81,7 @@ export function buildGenerationStatusSection({ percent, steps, hydrologySubsteps
     indeterminate: false,
     panelTestId: PANEL_TEST_ID.generation,
     steps: withTestIds(steps, 'world-builder-generation-step-'),
-    nestedByParentId: {
-      hydrology: withTestIds(hydrologySubsteps, 'world-builder-hydrology-substep-'),
-    },
+    nestedByParentId,
     overlayDefs: [],
   }
 }

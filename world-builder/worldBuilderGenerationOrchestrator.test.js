@@ -6,6 +6,7 @@ import {
   reduceGenerationProgressOnStepComplete,
   reduceGenerationProgressOnStepStart,
   reduceGenerationProgressOnSubstepComplete,
+  reduceGenerationProgressOnSubstepProgress,
   reduceGenerationProgressOnSubstepStart,
   startDerivedGeographyGeneration,
 } from './worldBuilderGenerationOrchestrator.js'
@@ -23,9 +24,11 @@ test('createInitialGenerationProgress starts idle before any pipeline step', () 
     activeStepIndex: -1,
     completedStepIndex: -1,
     label: '',
+    activeNestedParentStepId: null,
     activeHydrologySubstepIndex: -1,
     completedHydrologySubstepIndex: -1,
     skippedHydrologySubstepIds: [],
+    activeItemProgress: null,
   })
 })
 
@@ -55,6 +58,25 @@ test('reduceGenerationProgressOnSubstepStart tracks active hydrology substep', (
   assert.strictEqual(next.activeHydrologySubstepIndex, 2)
 })
 
+test('reduceGenerationProgressOnSubstepProgress records active item percent', () => {
+  const progress = reduceGenerationProgressOnSubstepStart(
+    reduceGenerationProgressOnStepStart(createInitialGenerationProgress(), {
+      stepIndex: 0,
+      stepCount: 6,
+      label: 'Baseline',
+      stepId: 'physicalTerrainBaseline',
+    }),
+    { substepIndex: 1, parentStepId: 'physicalTerrainBaseline' },
+  )
+  const next = reduceGenerationProgressOnSubstepProgress(progress, {
+    substepIndex: 1,
+    parentStepId: 'physicalTerrainBaseline',
+    progress: 0.45,
+  })
+  assert.strictEqual(next.activeItemProgress?.phasePercent, 45)
+  assert.strictEqual(next.activeNestedParentStepId, 'physicalTerrainBaseline')
+})
+
 test('reduceGenerationProgressOnSubstepComplete records skipped hydrology substeps', () => {
   const progress = reduceGenerationProgressOnSubstepStart(
     reduceGenerationProgressOnStepStart(createInitialGenerationProgress(), {
@@ -69,6 +91,7 @@ test('reduceGenerationProgressOnSubstepComplete records skipped hydrology subste
     substepIndex: 1,
     substepId: 'hydrologyRefine',
     skipped: true,
+    parentStepId: 'hydrology',
   })
   assert.strictEqual(next.completedHydrologySubstepIndex, 1)
   assert.deepStrictEqual(next.skippedHydrologySubstepIds, ['hydrologyRefine'])
@@ -296,7 +319,48 @@ test('startDerivedGeographyGeneration ignores callbacks from stale runs', () => 
   assert.strictEqual(progressCount, 0)
 })
 
-test('startDerivedGeographyGeneration rejects ineligible step-complete previews for non-validation steps', () => {
+test('startDerivedGeographyGeneration applies baseline rainfall lobe progress previews', () => {
+  const controller = createGenerationRunController()
+  /** @type {import('./core/types.js').WorldDocument[]} */
+  const documents = []
+
+  const previewDoc = {
+    gridWidth: 2,
+    gridHeight: 2,
+    biomes: new Uint8Array(4),
+    displayBiomes: new Uint8Array(4),
+    fields: { elevation: new Float32Array(4) },
+  }
+
+  startDerivedGeographyGeneration({
+    controller,
+    params: { geographySeed: 1, prevailingWindDegrees: 90, options: {} },
+    runDerivedGeographyInWorker(_params, callbacks) {
+      callbacks.onSubstepProgress?.({
+        stepId: 'physicalTerrainBaseline',
+        parentStepId: 'physicalTerrainBaseline',
+        substepId: 'baselineRainfall',
+        substepIndex: 1,
+        substepCount: 3,
+        label: 'Rainfall',
+        progress: 0.5,
+        worldDocument: previewDoc,
+      })
+      callbacks.onComplete?.()
+      return { cancel() {} }
+    },
+    handlers: {
+      onWorldDocument(doc) {
+        documents.push(doc)
+      },
+    },
+  })
+
+  assert.strictEqual(documents.length, 1)
+  assert.strictEqual(documents[0], previewDoc)
+})
+
+test('startDerivedGeographyGeneration applies eligible mid-pipeline step-complete previews', () => {
   const controller = createGenerationRunController()
   /** @type {import('./core/types.js').WorldDocument[]} */
   const documents = []
@@ -319,6 +383,13 @@ test('startDerivedGeographyGeneration rejects ineligible step-complete previews 
         label: 'Erosion',
         worldDocument: previewDoc,
       })
+      callbacks.onStepComplete?.({
+        stepId: 'fieldRefresh',
+        stepIndex: 3,
+        stepCount: 6,
+        label: 'Field refresh',
+        worldDocument: previewDoc,
+      })
       callbacks.onComplete?.()
       return { cancel() {} }
     },
@@ -329,7 +400,8 @@ test('startDerivedGeographyGeneration rejects ineligible step-complete previews 
     },
   })
 
-  assert.strictEqual(documents.length, 0)
+  assert.strictEqual(documents.length, 1)
+  assert.strictEqual(documents[0], previewDoc)
 })
 
 test('startDerivedGeographyGeneration does not push world document on metadata-only terminals', () => {
@@ -439,6 +511,14 @@ test('startDerivedGeographyGeneration applies preview policy from generation pol
   )
   assert.strictEqual(
     shouldApplyStepPreviewToMap({ delivery: 'step-complete', stepId: 'erosion', worldDocument: previewEligible }),
+    true,
+  )
+  assert.strictEqual(
+    shouldApplyStepPreviewToMap({
+      delivery: 'step-complete',
+      stepId: 'fieldRefresh',
+      worldDocument: previewEligible,
+    }),
     false,
   )
 
@@ -717,7 +797,7 @@ test('burst step-complete previews join single-flight map lifecycle without dupl
   await Promise.all(mapUpdates)
 
   assert.strictEqual(createCount, 1)
-  assert.strictEqual(updateCount, 0)
+  assert.strictEqual(updateCount, 2)
   assert.strictEqual(fitToWorldCount, 0)
   assert.strictEqual(lifecycle.getViewport() != null, true)
 })

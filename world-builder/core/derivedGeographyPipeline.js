@@ -114,7 +114,7 @@ export function createInitialPipelineState(params) {
  * @param {DerivedGeographyPipelineState} state
  * @param {DerivedGeographyStepId} stepId
  * @param {PipelineStepOptions} [options]
- * @returns {DerivedGeographyPipelineState}
+ * @returns {DerivedGeographyPipelineState | Promise<DerivedGeographyPipelineState>}
  */
 export function runPipelineStep(state, stepId, options = {}) {
   const module = LANDMASS_PIPELINE_STAGE_MODULE_BY_ID[stepId]
@@ -125,11 +125,19 @@ export function runPipelineStep(state, stepId, options = {}) {
   const output = module.shouldSkip?.(state)
     ? module.runSkipped(input)
     : module.run(input, options)
-  assertLandmassStageOutputs(stepId, output)
-  return {
-    ...state,
-    ...output,
+
+  const finish = (resolvedOutput) => {
+    assertLandmassStageOutputs(stepId, resolvedOutput)
+    return {
+      ...state,
+      ...resolvedOutput,
+    }
   }
+
+  if (isThenable(output)) {
+    return output.then(finish)
+  }
+  return finish(output)
 }
 
 /**
@@ -141,7 +149,12 @@ export function shouldAttachLandmassStepPreview(stepId, options) {
   if (options.enableIntermediateStepPreviews) {
     return true
   }
-  return stepId === 'validation'
+  return (
+    stepId === 'physicalTerrainBaseline' ||
+    stepId === 'erosion' ||
+    stepId === 'hydrology' ||
+    stepId === 'validation'
+  )
 }
 
 /**

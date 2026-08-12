@@ -268,8 +268,22 @@ test('isMapPreviewWorldDocumentDelivery rejects step-complete without world docu
   )
 })
 
-test('isMapPreviewWorldDocumentDelivery rejects non-validation step-complete even with world document', () => {
-  for (const stepId of ['physicalTerrainBaseline', 'erosion', 'hydrology', 'fieldRefresh', 'coastAndResources']) {
+test('isMapPreviewWorldDocumentDelivery accepts mid-pipeline step-complete with world document', () => {
+  for (const stepId of ['physicalTerrainBaseline', 'erosion', 'hydrology', 'validation']) {
+    assert.strictEqual(
+      isMapPreviewWorldDocumentDelivery({
+        delivery: 'step-complete',
+        stepId,
+        worldDocument: SAMPLE_DOC,
+      }),
+      true,
+      stepId,
+    )
+  }
+})
+
+test('isMapPreviewWorldDocumentDelivery rejects coast and fieldRefresh step-complete even with world document', () => {
+  for (const stepId of ['fieldRefresh', 'coastAndResources']) {
     assert.strictEqual(
       isMapPreviewWorldDocumentDelivery({
         delivery: 'step-complete',
@@ -280,6 +294,63 @@ test('isMapPreviewWorldDocumentDelivery rejects non-validation step-complete eve
       stepId,
     )
   }
+})
+
+test('isMapPreviewWorldDocumentDelivery accepts baseline elevation and rainfall previews', () => {
+  assert.strictEqual(
+    isMapPreviewWorldDocumentDelivery({
+      delivery: 'substep-complete',
+      stepId: 'physicalTerrainBaseline',
+      substepId: 'baselineElevation',
+      worldDocument: SAMPLE_DOC,
+    }),
+    true,
+  )
+  assert.strictEqual(
+    isMapPreviewWorldDocumentDelivery({
+      delivery: 'substep-progress',
+      stepId: 'physicalTerrainBaseline',
+      substepId: 'baselineRainfall',
+      worldDocument: SAMPLE_DOC,
+    }),
+    true,
+  )
+})
+
+test('isMapPreviewWorldDocumentDelivery accepts hydrology redraw substep-complete with world document', () => {
+  assert.strictEqual(
+    isMapPreviewWorldDocumentDelivery({
+      delivery: 'substep-complete',
+      stepId: 'hydrology',
+      substepId: 'hydrologyPaint',
+      worldDocument: SAMPLE_DOC,
+    }),
+    true,
+  )
+})
+
+test('isMapPreviewWorldDocumentDelivery rejects hydrologyClimate substep-complete', () => {
+  assert.strictEqual(
+    isMapPreviewWorldDocumentDelivery({
+      delivery: 'substep-complete',
+      stepId: 'hydrology',
+      substepId: 'hydrologyClimate',
+      worldDocument: SAMPLE_DOC,
+    }),
+    false,
+  )
+})
+
+test('isMapPreviewWorldDocumentDelivery rejects hydrologyFinalize substep-complete', () => {
+  assert.strictEqual(
+    isMapPreviewWorldDocumentDelivery({
+      delivery: 'substep-complete',
+      stepId: 'hydrology',
+      substepId: 'hydrologyFinalize',
+      worldDocument: SAMPLE_DOC,
+    }),
+    false,
+  )
 })
 
 test('isMapPreviewWorldDocumentDelivery accepts exhausted terminal with world document', () => {

@@ -46,7 +46,7 @@ test('worker job completes successfully through shared landmass pipeline runner'
   assert.ok(result.worldDocument)
   assert.ok(messages.includes('start:physicalTerrainBaseline'))
   assert.ok(messages.includes('complete:validation:true'))
-  assert.ok(messages.includes('complete:erosion:false'))
+  assert.ok(messages.includes('complete:erosion:true'))
 })
 
 test('worker job reports cancelled when shouldCancel is set mid-run', async () => {
@@ -65,13 +65,15 @@ test('worker job reports cancelled when shouldCancel is set mid-run', async () =
 })
 
 test('worker job reports cancelled when hydrology substep cancellation is requested', async () => {
-  let completedSubsteps = 0
+  let completedHydrologySubsteps = 0
   const result = await runLandmassPipeline(workerParams, {
-    onSubstepComplete() {
-      completedSubsteps += 1
+    onSubstepComplete(payload) {
+      if ((payload.parentStepId ?? payload.stepId) === 'hydrology') {
+        completedHydrologySubsteps += 1
+      }
     },
     shouldCancel() {
-      return completedSubsteps >= 2
+      return completedHydrologySubsteps >= 2
     },
   })
 
@@ -122,7 +124,7 @@ test('worker job reports exhausted when validation retries are exhausted', async
   assert.notStrictEqual(result.worldDocument.fields.elevation[0], -999)
 })
 
-test('worker job omits intermediate previews unless explicitly enabled', async () => {
+test('worker job attaches baseline erosion hydrology and validation previews by default', async () => {
   /** @type {boolean[]} */
   const hasDoc = []
   await runLandmassPipeline(workerParams, {
@@ -131,7 +133,7 @@ test('worker job omits intermediate previews unless explicitly enabled', async (
     },
   })
 
-  assert.deepStrictEqual(hasDoc, [false, false, false, false, false, true])
+  assert.deepStrictEqual(hasDoc, [true, true, true, false, false, true])
 })
 
 test('worker messaging posts slim step-complete payloads on success path', async () => {
@@ -175,15 +177,17 @@ test('worker messaging posts cancelled terminal without pipeline state on step-c
 })
 
 test('worker messaging posts slim payloads when hydrology cancellation is requested', async () => {
-  let completedSubsteps = 0
+  let completedHydrologySubsteps = 0
   const { posted, callbacks } = collectWorkerMessages({
-    isCancelled: () => completedSubsteps >= 2,
+    isCancelled: () => completedHydrologySubsteps >= 2,
   })
 
   const result = await runLandmassPipeline(workerParams, {
     ...callbacks,
     onSubstepComplete(payload) {
-      completedSubsteps += 1
+      if ((payload.parentStepId ?? payload.stepId) === 'hydrology') {
+        completedHydrologySubsteps += 1
+      }
       callbacks.onSubstepComplete?.(payload)
     },
   })

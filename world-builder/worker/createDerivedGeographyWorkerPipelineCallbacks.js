@@ -13,9 +13,10 @@ import {
 export function createDerivedGeographyWorkerPipelineCallbacks({ postMessage, isCancelled }) {
   return {
     shouldCancel: isCancelled,
-    yield: () => new Promise((resolve) => {
-      setTimeout(resolve, 0)
-    }),
+    yield: () =>
+      new Promise((resolve) => {
+        setTimeout(resolve, 0)
+      }),
     onStepStart(payload) {
       if (isCancelled()) return
       postMessage({
@@ -31,7 +32,7 @@ export function createDerivedGeographyWorkerPipelineCallbacks({ postMessage, isC
       if (isCancelled()) return
       postMessage({
         type: 'substep-start',
-        stepId: 'hydrology',
+        stepId: payload.parentStepId ?? 'hydrology',
         ...payload,
       })
     },
@@ -39,7 +40,7 @@ export function createDerivedGeographyWorkerPipelineCallbacks({ postMessage, isC
       if (isCancelled()) return
       postMessage({
         type: 'substep-progress',
-        stepId: 'hydrology',
+        stepId: payload.parentStepId ?? 'hydrology',
         ...payload,
       })
     },
@@ -47,7 +48,7 @@ export function createDerivedGeographyWorkerPipelineCallbacks({ postMessage, isC
       if (isCancelled()) return
       postMessage({
         type: 'substep-complete',
-        stepId: 'hydrology',
+        stepId: payload.parentStepId ?? 'hydrology',
         ...payload,
       })
     },

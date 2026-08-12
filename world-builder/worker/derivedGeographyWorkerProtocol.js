@@ -169,11 +169,11 @@ export function isSlimWorkerStepCompleteMessage(message) {
 
 /**
  * Whether a worker world-document delivery should refresh the map preview.
- * Only validation `step-complete` and `exhausted` terminals carry preview documents.
  *
  * @param {{
- *   delivery: 'step-complete' | 'exhausted',
- *   stepId?: DerivedGeographyStepId,
+ *   delivery: 'step-complete' | 'substep-complete' | 'substep-progress' | 'exhausted',
+ *   stepId?: DerivedGeographyStepId | string,
+ *   substepId?: string,
  *   worldDocument?: import('../core/types.js').WorldDocument | null | undefined,
  * }} payload
  * @returns {boolean}
@@ -186,7 +186,30 @@ export function isMapPreviewWorldDocumentDelivery(payload) {
     return true
   }
   if (payload.delivery === 'step-complete') {
-    return payload.stepId === 'validation'
+    return (
+      payload.stepId === 'physicalTerrainBaseline' ||
+      payload.stepId === 'erosion' ||
+      payload.stepId === 'hydrology' ||
+      payload.stepId === 'validation'
+    )
+  }
+  if (payload.delivery === 'substep-complete') {
+    return (
+      payload.substepId === 'baselineElevation' ||
+      payload.substepId === 'baselineRainfall' ||
+      payload.substepId === 'hydrologyFill' ||
+      payload.substepId === 'hydrologySeasonal' ||
+      payload.substepId === 'hydrologyRoute' ||
+      payload.substepId === 'hydrologyExtract' ||
+      payload.substepId === 'hydrologyRefine' ||
+      payload.substepId === 'hydrologyPaint'
+    )
+  }
+  if (payload.delivery === 'substep-progress') {
+    return (
+      payload.substepId === 'baselineElevation' ||
+      payload.substepId === 'baselineRainfall'
+    )
   }
   return false
 }

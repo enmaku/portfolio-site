@@ -253,3 +253,21 @@ test('hydrologyPaint module reports inner progress through the shared onProgress
   assert.ok(progress.some((value) => value > 0 && value < 1))
   assert.strictEqual(progress[progress.length - 1], 1)
 })
+
+test('hydrologyFinalize module refreshes climate and biomes after paint', () => {
+  const { world: paintedWorld, riverMaskPipeline } = composeSubsteps(
+    erodedState(),
+    'hydrologyPaint',
+  )
+  const finalize = HYDROLOGY_SUBSTEP_MODULE_BY_ID.hydrologyFinalize
+  /** @type {number[]} */
+  const progress = []
+  const output = finalize.run(selectHydrologySubstepInput(finalize, paintedWorld), {
+    flowFieldSession: createFlowFieldSession(),
+    riverMaskPipeline,
+    onProgress: (value) => progress.push(value),
+  })
+  assert.ok(output.fields?.rainfall)
+  assert.ok(output.biomes)
+  assert.ok(progress.includes(1))
+})

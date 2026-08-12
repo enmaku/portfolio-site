@@ -3,6 +3,7 @@ import { generateRainfall } from './generateRainfall.js'
 import { deriveSalinityFromOcean } from './deriveSalinityFromOcean.js'
 import { normalizeWindDegrees } from './prevailingWindField.js'
 import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
+import { isThenable } from '../asyncValue.js'
 
 /**
  * Recompute climate scalar fields after erosion; wind rose bearings unchanged.
@@ -15,7 +16,9 @@ import { resolveWorldGenerationOptions } from '../worldGenerationOptions.js'
  * @param {number} params.width
  * @param {number} params.height
  * @param {Partial<import('../types.js').WorldGenerationOptions>} [params.options]
- * @returns {import('../types.js').ScalarFields}
+ * @param {(progress: number) => void} [params.onProgress] rainfall lobe progress 0..1
+ * @param {() => void | Promise<void>} [params.yield]
+ * @returns {import('../types.js').ScalarFields | Promise<import('../types.js').ScalarFields>}
  */
 export function refreshFieldsAfterErosion({
   geographySeed,
@@ -26,9 +29,13 @@ export function refreshFieldsAfterErosion({
   width,
   height,
   options,
+  onProgress,
+  yield: yieldFn,
 }) {
   const temperature = generateTemperature({ geographySeed, width, height, elevation, options })
-  const rainfall = generateRainfall({
+  const resolved = resolveWorldGenerationOptions(options)
+
+  const rainfallResult = generateRainfall({
     geographySeed,
     width,
     height,
@@ -36,14 +43,25 @@ export function refreshFieldsAfterErosion({
     prevailingWindDegrees: normalizeWindDegrees(prevailingWindDegrees),
     secondaryMaximumDegrees: normalizeWindDegrees(secondaryMaximumDegrees),
     options,
-  })
-  const resolved = resolveWorldGenerationOptions(options)
-  const salinity = deriveSalinityFromOcean({
-    elevation,
-    width,
-    height,
-    seaLevel: resolved.seaLevel,
+    onProgress,
+    yield: yieldFn,
   })
 
-  return { elevation, temperature, rainfall, drainage, salinity }
+  const finish = (rainfall) => ({
+    elevation,
+    temperature,
+    rainfall,
+    drainage,
+    salinity: deriveSalinityFromOcean({
+      elevation,
+      width,
+      height,
+      seaLevel: resolved.seaLevel,
+    }),
+  })
+
+  if (isThenable(rainfallResult)) {
+    return rainfallResult.then(finish)
+  }
+  return finish(rainfallResult)
 }

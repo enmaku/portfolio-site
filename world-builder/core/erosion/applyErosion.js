@@ -28,15 +28,22 @@ const D8_DIST = [1.414, 1, 1.414, 1, 1, 1.414, 1, 1.414]
  * @param {number} params.height
  * @param {number} params.geographySeed
  * @param {Partial<import('../types.js').WorldGenerationOptions>} [params.options]
- * @returns {{ elevation: Float32Array, snapshots: Float32Array[], stepCount: number }}
+ * @param {(progress: number) => void} [params.onProgress] 0..1 across erosion steps
+ * @param {() => void | Promise<void>} [params.yield]
+ * @returns {{ elevation: Float32Array, snapshots: Float32Array[], stepCount: number } | Promise<{ elevation: Float32Array, snapshots: Float32Array[], stepCount: number }>}
  */
-export function applyErosion({
-  elevation,
-  width,
-  height,
-  geographySeed,
-  options,
-}) {
+export function applyErosion(params) {
+  if (typeof params.yield === 'function') {
+    return applyErosionAsync(params)
+  }
+  return applyErosionSync(params)
+}
+
+/**
+ * @param {Object} params
+ */
+function applyErosionSync(params) {
+  const { elevation, width, height, geographySeed, options, onProgress } = params
   const resolved = resolveWorldGenerationOptions(options)
   const stepCount = resolved.erosionStepCount
   const seaLevel = resolved.seaLevel
@@ -48,64 +55,109 @@ export function applyErosion({
   const peakThreshold = 0.72
 
   for (let step = 0; step < stepCount; step += 1) {
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const idx = y * width + x
-        const elev = out[idx]
-        if (elev < seaLevel) continue
-
-        let steepestDrop = 0
-        let steepestIdx = -1
-
-        for (let d = 0; d < D8_OFFSETS.length; d += 1) {
-          const nx = x + D8_OFFSETS[d][0]
-          const ny = y + D8_OFFSETS[d][1]
-          let neighborElev
-          if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
-            if (!canDrainIntoRimCell(elev, seaLevel)) continue
-            neighborElev = RIM_ELEVATION
-          } else {
-            const nIdx = ny * width + nx
-            if (
-              (out[nIdx] < seaLevel || isRimCell(nIdx, width, height)) &&
-              !canDrainIntoRimCell(elev, seaLevel)
-            ) {
-              continue
-            }
-            neighborElev = out[nIdx]
-          }
-
-          const drop = (elev - neighborElev) / D8_DIST[d]
-          if (drop > steepestDrop) {
-            steepestDrop = drop
-            steepestIdx =
-              nx >= 0 && ny >= 0 && nx < width && ny < height ? ny * width + nx : -1
-          }
-        }
-
-        if (steepestDrop <= 0) continue
-
-        const tieBreak = random() * 0.0005
-        const wear = channelWear * steepestDrop + tieBreak
-        out[idx] = Math.max(seaLevel, out[idx] - wear)
-        if (steepestIdx >= 0 && out[steepestIdx] >= seaLevel) {
-          out[steepestIdx] = Math.max(seaLevel, out[steepestIdx] - wear * 0.35)
-        }
-
-        if (elev >= peakThreshold && isLocalHigh(out, width, height, x, y)) {
-          out[idx] = Math.max(seaLevel, out[idx] - peakWear)
-        }
-      }
-    }
-
+    runErosionStep(out, width, height, seaLevel, channelWear, peakWear, peakThreshold, random)
     const isSnapshotStep =
       (step + 1) % EROSION_SNAPSHOT_INTERVAL === 0 || step === stepCount - 1
     if (isSnapshotStep) {
       snapshots.push(new Float32Array(out))
     }
+    onProgress?.((step + 1) / stepCount)
   }
 
   return { elevation: out, snapshots, stepCount }
+}
+
+/**
+ * @param {Object} params
+ */
+async function applyErosionAsync(params) {
+  const { elevation, width, height, geographySeed, options, onProgress, yield: yieldFn } = params
+  const resolved = resolveWorldGenerationOptions(options)
+  const stepCount = resolved.erosionStepCount
+  const seaLevel = resolved.seaLevel
+  const out = new Float32Array(elevation)
+  const snapshots = []
+  const random = createSeededRandom(deriveFieldSeed(geographySeed, 'erosion'))
+  const channelWear = resolved.erosionChannelWear
+  const peakWear = resolved.erosionPeakWear
+  const peakThreshold = 0.72
+
+  for (let step = 0; step < stepCount; step += 1) {
+    runErosionStep(out, width, height, seaLevel, channelWear, peakWear, peakThreshold, random)
+    const isSnapshotStep =
+      (step + 1) % EROSION_SNAPSHOT_INTERVAL === 0 || step === stepCount - 1
+    if (isSnapshotStep) {
+      snapshots.push(new Float32Array(out))
+    }
+    onProgress?.((step + 1) / stepCount)
+    if ((step + 1) % EROSION_SNAPSHOT_INTERVAL === 0 || step === stepCount - 1) {
+      await yieldFn?.()
+    }
+  }
+
+  return { elevation: out, snapshots, stepCount }
+}
+
+/**
+ * @param {Float32Array} out
+ * @param {number} width
+ * @param {number} height
+ * @param {number} seaLevel
+ * @param {number} channelWear
+ * @param {number} peakWear
+ * @param {number} peakThreshold
+ * @param {() => number} random
+ */
+function runErosionStep(out, width, height, seaLevel, channelWear, peakWear, peakThreshold, random) {
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const idx = y * width + x
+      const elev = out[idx]
+      if (elev < seaLevel) continue
+
+      let steepestDrop = 0
+      let steepestIdx = -1
+
+      for (let d = 0; d < D8_OFFSETS.length; d += 1) {
+        const nx = x + D8_OFFSETS[d][0]
+        const ny = y + D8_OFFSETS[d][1]
+        let neighborElev
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) {
+          if (!canDrainIntoRimCell(elev, seaLevel)) continue
+          neighborElev = RIM_ELEVATION
+        } else {
+          const nIdx = ny * width + nx
+          if (
+            (out[nIdx] < seaLevel || isRimCell(nIdx, width, height)) &&
+            !canDrainIntoRimCell(elev, seaLevel)
+          ) {
+            continue
+          }
+          neighborElev = out[nIdx]
+        }
+
+        const drop = (elev - neighborElev) / D8_DIST[d]
+        if (drop > steepestDrop) {
+          steepestDrop = drop
+          steepestIdx =
+            nx >= 0 && ny >= 0 && nx < width && ny < height ? ny * width + nx : -1
+        }
+      }
+
+      if (steepestDrop <= 0) continue
+
+      const tieBreak = random() * 0.0005
+      const wear = channelWear * steepestDrop + tieBreak
+      out[idx] = Math.max(seaLevel, out[idx] - wear)
+      if (steepestIdx >= 0 && out[steepestIdx] >= seaLevel) {
+        out[steepestIdx] = Math.max(seaLevel, out[steepestIdx] - wear * 0.35)
+      }
+
+      if (elev >= peakThreshold && isLocalHigh(out, width, height, x, y)) {
+        out[idx] = Math.max(seaLevel, out[idx] - peakWear)
+      }
+    }
+  }
 }
 
 /**
