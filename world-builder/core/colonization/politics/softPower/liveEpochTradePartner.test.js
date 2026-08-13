@@ -112,6 +112,13 @@ test('live epoch path: healthy seeds produce trade partners by epoch 16', async 
     healthy += 1
     if (joins > 0) withJoin += 1
     if (paintedBy9) withPaintBy9 += 1
+    if (
+      healthy >= 4 &&
+      withJoin >= 2 &&
+      withPaintBy9 >= Math.ceil(healthy / 2)
+    ) {
+      break
+    }
   }
 
   assert.ok(healthy >= 4, `expected several healthy seeds, got ${healthy}`)

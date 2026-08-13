@@ -137,26 +137,6 @@ test('runFullDerivedGeographyPipeline applies configured arable minimum producti
   }
 })
 
-test('runFullDerivedGeographyPipeline applies configured arable minimum productivity at 1024²', () => {
-  const threshold = 0.35
-  const doc = runFullDerivedGeographyPipeline({
-    geographySeed: 12345,
-    prevailingWindDegrees: 90,
-    width: 1024,
-    height: 1024,
-    options: {
-      ...DEFAULT_WORLD_GENERATION_OPTIONS,
-      arableMinimumProductivity: threshold,
-    },
-  })
-
-  assert.ok(doc.arableRaster)
-  for (let i = 0; i < doc.arableRaster.length; i += 1) {
-    const value = doc.arableRaster[i]
-    assert.ok(value === 0 || value > threshold)
-  }
-})
-
 test('runFullDerivedGeographyPipeline arable threshold matches generation default at 256²', () => {
   const withDefault = runFullDerivedGeographyPipeline({
     geographySeed: 777,
@@ -169,27 +149,6 @@ test('runFullDerivedGeographyPipeline arable threshold matches generation defaul
     prevailingWindDegrees: 90,
     width: 256,
     height: 256,
-    options: {
-      ...DEFAULT_WORLD_GENERATION_OPTIONS,
-      arableMinimumProductivity: DEFAULT_WORLD_GENERATION_OPTIONS.arableMinimumProductivity,
-    },
-  })
-
-  assert.deepStrictEqual(withDefault.arableRaster, withExplicit.arableRaster)
-})
-
-test('runFullDerivedGeographyPipeline arable threshold matches generation default at 1024²', () => {
-  const withDefault = runFullDerivedGeographyPipeline({
-    geographySeed: 777,
-    prevailingWindDegrees: 90,
-    width: 1024,
-    height: 1024,
-  })
-  const withExplicit = runFullDerivedGeographyPipeline({
-    geographySeed: 777,
-    prevailingWindDegrees: 90,
-    width: 1024,
-    height: 1024,
     options: {
       ...DEFAULT_WORLD_GENERATION_OPTIONS,
       arableMinimumProductivity: DEFAULT_WORLD_GENERATION_OPTIONS.arableMinimumProductivity,

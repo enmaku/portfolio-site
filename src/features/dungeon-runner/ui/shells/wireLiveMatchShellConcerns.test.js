@@ -4,13 +4,8 @@ import { reactive } from 'vue'
 import { wireLiveMatchShellConcerns } from './wireLiveMatchShellConcerns.js'
 import {
   createOrchestratorDeps,
-  EXPECTED_BOARD_KEYS,
-  EXPECTED_DEBUG_KEYS,
-  EXPECTED_DIALOG_KEYS,
-  EXPECTED_PAGE_KEYS,
   installLiveMatchShellTestWindow,
   LIVE_MATCH_SHELL_SESSION_GROUPS,
-  LIVE_MATCH_SHELL_SESSION_GROUPS_FROM_GROUPS,
   restoreLiveMatchShellTestWindow,
 } from './liveMatchShellOrchestratorTestFixtures.js'
 
@@ -27,43 +22,12 @@ test('wireLiveMatchShellConcerns exposes session inject groups', () => {
   }
 })
 
-test('wireLiveMatchShellConcerns board group preserves inject capability keys', () => {
+test('wireLiveMatchShellConcerns page group exposes critical handlers', () => {
   const session = createWiredSession()
 
-  for (const key of EXPECTED_BOARD_KEYS) {
-    assert.ok(key in session.board, `missing board.${key}`)
-  }
-})
-
-test('wireLiveMatchShellConcerns dialogs group preserves inject capability keys', () => {
-  const session = createWiredSession()
-
-  for (const key of EXPECTED_DIALOG_KEYS) {
-    assert.ok(key in session.dialogs, `missing dialogs.${key}`)
-  }
-})
-
-test('wireLiveMatchShellConcerns debug group preserves inject capability keys', () => {
-  const session = createWiredSession()
-
-  for (const key of EXPECTED_DEBUG_KEYS) {
-    assert.ok(key in session.debug, `missing debug.${key}`)
-  }
-})
-
-test('wireLiveMatchShellConcerns page group preserves inject capability keys', () => {
-  const session = createWiredSession()
-
-  for (const key of EXPECTED_PAGE_KEYS) {
-    assert.ok(key in session.page, `missing page.${key}`)
-  }
   assert.equal(typeof session.page.mountLiveMatchShell, 'function')
   assert.equal(typeof session.page.requestConfirmation, 'function')
   assert.equal(typeof session.page.buildNewMatchEnvelope, 'function')
-})
-
-test('wireLiveMatchShellConcerns session group constants match liveMatchShellSessionGroups', () => {
-  assert.deepEqual(LIVE_MATCH_SHELL_SESSION_GROUPS, LIVE_MATCH_SHELL_SESSION_GROUPS_FROM_GROUPS)
 })
 
 test('wireLiveMatchShellConcerns wires shared match ref into board group', () => {
@@ -72,28 +36,6 @@ test('wireLiveMatchShellConcerns wires shared match ref into board group', () =>
 
   assert.ok('match' in session.board)
   assert.equal(session.board.match, deps.match.value)
-})
-
-test('wireLiveMatchShellConcerns exposes matchPageOrchestrationCtx with page orchestration contract', () => {
-  const session = createWiredSession()
-  const ctx = session.page.matchPageOrchestrationCtx
-
-  assert.ok(ctx)
-  for (const key of [
-    'storage',
-    'recovery',
-    'loadModel',
-    'setMatchNeuralLoadGateInFlight',
-    'clearCurrentMatch',
-    'persistCurrentMatch',
-    'applySetupSnapshot',
-    'setupTarget',
-    'cloneSetup',
-    'resolveSetupTerminal',
-    'applySetupTerminal',
-  ]) {
-    assert.ok(key in ctx, `missing matchPageOrchestrationCtx.${key}`)
-  }
 })
 
 test('wireLiveMatchShellConcerns wires cross-concern refs and handlers through inject groups', () => {

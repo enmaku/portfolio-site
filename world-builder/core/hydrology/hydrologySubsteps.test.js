@@ -619,7 +619,14 @@ test('fillLakes returns priority-flood spill outlets after breach evaluation', (
   assert.ok(filledElevation[2 * width + 2] <= elevation[2 * width + 2] + 1e-4)
 })
 
+/** @type {Map<string, ReturnType<typeof runHydrologySubsteps>>} */
+const hydrologyForSeedCache = new Map()
+
 function runHydrologyForSeed(geographySeed, options = DEFAULT_WORLD_GENERATION_OPTIONS) {
+  const cacheKey = `${geographySeed}:${JSON.stringify(options)}`
+  const cached = hydrologyForSeedCache.get(cacheKey)
+  if (cached) return cached
+
   let state = createInitialPipelineState({
     geographySeed,
     prevailingWindDegrees: 90,
@@ -629,7 +636,9 @@ function runHydrologyForSeed(geographySeed, options = DEFAULT_WORLD_GENERATION_O
   })
   state = runPipelineStep(state, 'physicalTerrainBaseline')
   state = runPipelineStep(state, 'erosion')
-  return runHydrologySubsteps(state)
+  const result = runHydrologySubsteps(state)
+  hydrologyForSeedCache.set(cacheKey, result)
+  return result
 }
 
 test('runHydrologySubsteps skips hydrologyRefine when enableMeanderRefine is false', () => {

@@ -18,15 +18,6 @@ const params = {
   height: 256,
 }
 
-test('generateDerivedGeography defaults to 1024 grid', () => {
-  const doc = generateDerivedGeography({
-    geographySeed: 42,
-    prevailingWindDegrees: 180,
-  })
-  assert.strictEqual(doc.gridWidth, DEFAULT_GRID_SIZE)
-  assert.strictEqual(doc.gridHeight, DEFAULT_GRID_SIZE)
-})
-
 test('generateDerivedGeography emits landmass pipeline fields and hydrology report', () => {
   const doc = generateDerivedGeography(params)
   const cellCount = params.width * params.height
@@ -130,9 +121,10 @@ test('generateDerivedGeography default seed produces visible river network on fu
   const doc = generateDerivedGeography({
     geographySeed: DEFAULT_GEOGRAPHY_SEED,
     prevailingWindDegrees: 90,
-    width: DEFAULT_GRID_SIZE,
-    height: DEFAULT_GRID_SIZE,
   })
+
+  assert.strictEqual(doc.gridWidth, DEFAULT_GRID_SIZE)
+  assert.strictEqual(doc.gridHeight, DEFAULT_GRID_SIZE)
 
   const maskCount = countMarkedCells(doc.simulationRiverMask)
 

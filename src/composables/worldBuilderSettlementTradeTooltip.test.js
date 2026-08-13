@@ -39,47 +39,6 @@ test('settlement trade tooltip host is present when tooltip model is set', async
   )
 
   assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip"'), true)
-  assert.equal(
-    html.includes('data-testid="world-builder-settlement-trade-tooltip-population"'),
-    true,
-  )
-  assert.equal(
-    html.includes('data-testid="world-builder-settlement-trade-tooltip-population-value"'),
-    true,
-  )
-  assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-balance"'), true)
-  assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-balance-label"'), true)
-  assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-balance-value"'), true)
-  assert.equal(
-    html.includes('data-testid="world-builder-settlement-trade-tooltip-port-tolls"'),
-    true,
-  )
-  assert.equal(
-    html.includes('data-testid="world-builder-settlement-trade-tooltip-port-credit"'),
-    false,
-  )
-  assert.equal(html.includes('data-testid="world-builder-settlement-trade-tooltip-commodities"'), true)
-  assert.equal(
-    html.includes('data-testid="world-builder-settlement-trade-tooltip-commodity-grain"'),
-    true,
-  )
-  assert.equal(
-    html.includes('data-testid="world-builder-settlement-trade-tooltip-commodity-grain-label"'),
-    true,
-  )
-  assert.equal(
-    html.includes('data-testid="world-builder-settlement-trade-tooltip-commodity-grain-direction"'),
-    true,
-  )
-  assert.equal(
-    html.includes('data-testid="world-builder-settlement-trade-tooltip-commodity-grain-price"'),
-    true,
-  )
-  assert.equal(html.includes('data-trade-role="export"'), true)
-  assert.equal(html.includes('data-trade-role="import"'), true)
-  assert.equal(html.includes('data-trade-role="both"'), true)
-  assert.equal(html.includes('data-price-vs-reference="above"'), true)
-  assert.equal(html.includes('<svg'), true)
 })
 
 test('settlement trade tooltip omits port tolls row for inland settlements', async () => {

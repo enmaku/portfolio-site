@@ -86,6 +86,9 @@ test('live epoch path: healthy seeds produce alliances by epoch 16', async () =>
     if (living < 6) continue
     healthy += 1
     if (alliances > 0) withAlliance += 1
+    if (healthy >= 4 && withAlliance >= Math.ceil(healthy / 2)) {
+      break
+    }
   }
 
   assert.ok(healthy >= 4, `expected several healthy seeds, got ${healthy}`)

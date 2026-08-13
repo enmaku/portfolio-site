@@ -10,15 +10,10 @@ const params = {
   height: 256,
 }
 
-test('generatePhysicalTerrainBaseline defaults to 1024 grid', () => {
-  const doc = generatePhysicalTerrainBaseline({
-    geographySeed: 42,
-    prevailingWindDegrees: 180,
-  })
-  assert.strictEqual(doc.gridWidth, DEFAULT_GRID_SIZE)
-  assert.strictEqual(doc.gridHeight, DEFAULT_GRID_SIZE)
+test('DEFAULT_GRID_SIZE is 1024', () => {
   assert.strictEqual(DEFAULT_GRID_SIZE, 1024)
 })
+
 test('generatePhysicalTerrainBaseline records physical terrain baseline stage metadata', () => {
   const doc = generatePhysicalTerrainBaseline(params)
 
