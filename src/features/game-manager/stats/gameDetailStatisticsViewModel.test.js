@@ -43,9 +43,10 @@ test('game detail statistics includes sittings, play time, win share, and person
     { id: 'sam', name: 'Sam', color: '#2' },
   ]
   const sessions = [
-    session({ id: '1' }),
+    session({ id: '1', createdAt: 100 }),
     session({
       id: '2',
+      createdAt: 200,
       state: 'playing',
       score: null,
       timerExport: { durationMs: 20_000, seats: [{ recordedPlayerId: 'ada', bankedMs: 10_000 }] },
@@ -70,6 +71,13 @@ test('game detail statistics includes sittings, play time, win share, and person
   assert.ok(typeof ada.pointsPerMinute === 'number')
   assert.equal(ada.sessionWins, 1)
   assert.equal(ada.winPercentage, 1)
+  assert.equal(vm.history.length, 2)
+  assert.equal(vm.history[0].sessionId, '2')
+  assert.equal(vm.history[0].state, 'playing')
+  assert.equal(vm.history[0].presentPlayerCount, 1)
+  assert.equal(vm.history[1].sessionId, '1')
+  assert.equal(vm.history[1].state, 'complete')
+  assert.equal(vm.history[1].presentPlayerCount, 2)
 })
 
 test('game detail people ordered by sessions desc, then wins desc, then name', () => {

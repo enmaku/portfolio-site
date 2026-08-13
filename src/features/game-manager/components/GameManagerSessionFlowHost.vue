@@ -14,6 +14,7 @@
       :people="people"
       @close="onClose"
       @start-session="onStartSession"
+      @open-session="onOpenSessionFromDetail"
     />
 
     <GameManagerSessionSetupPanel
@@ -114,6 +115,13 @@ onUnmounted(() => {
 
 async function onStartSession() {
   await flow.startNewSession()
+}
+
+async function onOpenSessionFromDetail(sessionId) {
+  const session = (sessions.value || []).find((s) => s.id === sessionId)
+  if (!session) return
+  flow.closeGameDetail()
+  await flow.resumeSession(session, 'collection')
 }
 
 async function onStartGame() {

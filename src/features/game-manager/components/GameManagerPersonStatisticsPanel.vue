@@ -48,7 +48,11 @@
 
         <q-separator class="q-my-md" />
 
-        <q-expansion-item label="Games" data-testid="gm-person-stats-games">
+        <q-expansion-item
+          group="gm-person-stats"
+          label="Games"
+          data-testid="gm-person-stats-games"
+        >
           <div class="column no-wrap q-gutter-y-sm q-pb-sm">
             <div
               v-for="game in vm.games"
@@ -104,9 +108,8 @@
           </div>
         </q-expansion-item>
 
-        <q-separator class="q-my-md" />
-
         <q-expansion-item
+          group="gm-person-stats"
           class="gm-person-stats-history"
           label="History"
           data-testid="gm-person-stats-history"

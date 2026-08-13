@@ -12,6 +12,7 @@ import {
   playCountForPersonAtGame,
   playTimeMsFromSessions,
   pointsPerMinuteForPersonAtGame,
+  pointsPerMinuteRate,
   sessionWinPersonIds,
   winPercentageForPerson,
   winShareRows,
@@ -87,6 +88,31 @@ test('points per minute uses that person banked time from timer export', () => {
     }),
   ]
   assert.equal(pointsPerMinuteForPersonAtGame(withBanked, 'ada', gameKey), 1)
+})
+
+test('points per minute is 0 for zero or negative scores', () => {
+  assert.equal(pointsPerMinuteRate(0, 60_000), 0)
+  assert.equal(pointsPerMinuteRate(-12, 60_000), 0)
+  assert.equal(pointsPerMinuteRate(-5, null), 0)
+
+  const sittings = [
+    session({
+      score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { ada: -8 } },
+      timerExport: {
+        durationMs: 60_000,
+        seats: [{ recordedPlayerId: 'ada', name: 'Ada', color: '#1', bankedMs: 30_000 }],
+      },
+    }),
+    session({
+      id: 's2',
+      score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { ada: 0 } },
+      timerExport: {
+        durationMs: 60_000,
+        seats: [{ recordedPlayerId: 'ada', name: 'Ada', color: '#1', bankedMs: 30_000 }],
+      },
+    }),
+  ]
+  assert.equal(pointsPerMinuteForPersonAtGame(sittings, 'ada', gameKey), 0)
 })
 
 test('sessionWinPersonIds: incomplete sessions yield no winners', () => {

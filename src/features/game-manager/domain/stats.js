@@ -55,15 +55,29 @@ export function averageScoreForPersonAtGame(sessions, recordedPlayerId, gameKey)
   return sum / values.length
 }
 
+/**
+ * Single-sitting points-per-minute rate.
+ * Zero or negative points count as 0; positive points need usable banked time.
+ * @param {unknown} score
+ * @param {unknown} bankedMs
+ * @returns {number | null}
+ */
+export function pointsPerMinuteRate(score, bankedMs) {
+  if (typeof score !== 'number' || !Number.isFinite(score)) return null
+  if (score <= 0) return 0
+  if (typeof bankedMs !== 'number' || !Number.isFinite(bankedMs) || !(bankedMs > 0)) return null
+  return score / (bankedMs / 60000)
+}
+
 export function pointsPerMinuteForPersonAtGame(sessions, recordedPlayerId, gameKey) {
   const rates = []
   for (const s of sessionsForPersonAtGame(sessions, recordedPlayerId, gameKey)) {
     if (normalizeScoreEntryMode(s.score?.mode) !== SCORE_ENTRY_MODES.POINTS) continue
     const n = s.score.perPlayer?.[recordedPlayerId]
     const bankedMs = bankedMsForPerson(s.timerExport, recordedPlayerId)
-    if (typeof n !== 'number' || !Number.isFinite(n)) continue
-    if (typeof bankedMs !== 'number' || !(bankedMs > 0)) continue
-    rates.push(n / (bankedMs / 60000))
+    const rate = pointsPerMinuteRate(n, bankedMs)
+    if (rate == null) continue
+    rates.push(rate)
   }
   if (!rates.length) return null
   return rates.reduce((a, b) => a + b, 0) / rates.length

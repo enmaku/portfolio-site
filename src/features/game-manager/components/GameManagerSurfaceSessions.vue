@@ -14,6 +14,7 @@
         <q-expansion-item
           v-for="group in gameGroups"
           :key="group.key"
+          group="gm-sessions-games"
           class="gm-session-game rounded-borders overflow-hidden"
           expand-separator
           header-class="gm-session-game__header"

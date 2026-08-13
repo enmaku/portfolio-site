@@ -60,6 +60,24 @@ test('points session statistics: per-person scores, times, PPM, callouts; no tab
   assert.equal(sam.outcome, undefined)
 })
 
+test('session statistics points per minute is 0 for zero or negative scores', () => {
+  const current = session({
+    score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { ada: -4, sam: 0 } },
+    timerExport: {
+      durationMs: 120_000,
+      seats: [
+        { recordedPlayerId: 'ada', bankedMs: 60_000 },
+        { recordedPlayerId: 'sam', bankedMs: 60_000 },
+      ],
+    },
+  })
+  const vm = buildSessionStatisticsViewModel({ session: current, sessions: [current] })
+  const ada = vm.players.find((p) => p.personId === 'ada')
+  const sam = vm.players.find((p) => p.personId === 'sam')
+  assert.equal(ada.pointsPerMinute, 0)
+  assert.equal(sam.pointsPerMinute, 0)
+})
+
 test('outcomes session statistics: outcomes and winners; no points chrome', () => {
   const current = session({
     score: {

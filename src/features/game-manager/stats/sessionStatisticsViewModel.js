@@ -1,6 +1,7 @@
 import {
   isFirstPlayAtGame,
   isPersonalBestInSession,
+  pointsPerMinuteRate,
   sessionWinPersonIds,
 } from '../domain/stats.js'
 import { SCORE_ENTRY_MODES, normalizeScoreEntryMode } from '../domain/playSession.js'
@@ -50,19 +51,10 @@ export function buildSessionStatisticsViewModel({ session, sessions }) {
 
       if (mode === SCORE_ENTRY_MODES.POINTS) {
         const score = session.score?.perPlayer?.[personId]
-        let pointsPerMinute = null
-        if (
-          typeof score === 'number' &&
-          Number.isFinite(score) &&
-          typeof bankedMs === 'number' &&
-          bankedMs > 0
-        ) {
-          pointsPerMinute = score / (bankedMs / 60000)
-        }
         return {
           ...base,
           score: typeof score === 'number' && Number.isFinite(score) ? score : null,
-          pointsPerMinute,
+          pointsPerMinute: pointsPerMinuteRate(score, bankedMs),
           isPersonalBest: gameKey
             ? isPersonalBestInSession(sessions, personId, gameKey, session)
             : false,

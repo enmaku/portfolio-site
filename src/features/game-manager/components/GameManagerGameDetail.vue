@@ -29,6 +29,7 @@
 
       <template v-if="playStats">
         <q-expansion-item
+          group="gm-game-detail"
           label="Details"
           data-testid="gm-game-detail-details-expansion"
         >
@@ -92,6 +93,7 @@
         </q-expansion-item>
 
         <q-expansion-item
+          group="gm-game-detail"
           default-opened
           label="Stats"
           data-testid="gm-game-detail-play-stats-expansion"
@@ -174,6 +176,37 @@
                 </div>
               </div>
             </div>
+          </div>
+        </q-expansion-item>
+
+        <q-expansion-item
+          v-if="playStats.history.length"
+          group="gm-game-detail"
+          class="gm-game-detail-history"
+          label="History"
+          data-testid="gm-game-detail-history"
+        >
+          <div class="column no-wrap">
+            <q-item
+              v-for="row in playStats.history"
+              :key="row.sessionId"
+              clickable
+              v-ripple
+              class="gm-game-detail-history-row"
+              :data-testid="`gm-game-detail-history-row-${row.sessionId}`"
+              @click="$emit('open-session', row.sessionId)"
+            >
+              <q-item-section>
+                <q-item-label>{{ formatWhen(row.sortMs) }}</q-item-label>
+                <q-item-label caption>
+                  {{ row.presentPlayerCount }}
+                  {{ row.presentPlayerCount === 1 ? 'player' : 'players' }}
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-badge outline :color="statusColor(row.state)" :label="row.state" />
+              </q-item-section>
+            </q-item>
           </div>
         </q-expansion-item>
       </template>
@@ -276,7 +309,7 @@ const props = defineProps({
   people: { type: Array, default: () => [] },
 })
 
-defineEmits(['close', 'start-session'])
+defineEmits(['close', 'start-session', 'open-session'])
 
 const attribution = CATALOG_ATTRIBUTION
 const enrich = ref(null)
@@ -408,6 +441,21 @@ function formatPpm(n) {
   return n >= 10 ? n.toFixed(0) : n.toFixed(1)
 }
 
+function formatWhen(ms) {
+  if (!ms) return 'Unknown time'
+  return new Date(ms).toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+function statusColor(state) {
+  if (state === 'complete') return 'positive'
+  if (state === 'scoring') return 'warning'
+  if (state === 'playing') return 'primary'
+  return 'grey'
+}
+
 async function loadEnrich() {
   const item = props.item
   if (!item || item.kind !== 'catalog' || !item.catalogEntryId) {
@@ -463,5 +511,11 @@ watch(
   gap: 2px;
   margin-top: 2px;
   line-height: 1.25;
+}
+
+.gm-game-detail-history-row {
+  min-height: 64px;
+  padding-left: 0;
+  padding-right: 0;
 }
 </style>

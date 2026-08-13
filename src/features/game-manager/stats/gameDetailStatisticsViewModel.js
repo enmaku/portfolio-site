@@ -8,6 +8,7 @@ import {
   winPercentageForPerson,
   winShareRows,
 } from '../domain/stats.js'
+import { sessionSortMs } from '../sessions/sessionsListViewModel.js'
 
 function gameMatches(sessionGame, gameKey) {
   if (!sessionGame || !gameKey) return false
@@ -73,10 +74,23 @@ export function buildGameDetailStatisticsViewModel({ gameKey, people, sessions }
       return String(a.name).localeCompare(String(b.name))
     })
 
+  const history = atGame
+    .map((session) => {
+      const present = (session.presentPlayers || []).filter((p) => p && !p.removed)
+      return {
+        sessionId: session.id,
+        sortMs: sessionSortMs(session),
+        state: session.state || 'setup',
+        presentPlayerCount: present.length,
+      }
+    })
+    .sort((a, b) => b.sortMs - a.sortMs)
+
   return {
     sittings: atGame.length,
     playTimeMs: playTimeMsFromSessions(atGame),
     winShareRows: winShare,
     people: personRows,
+    history,
   }
 }
