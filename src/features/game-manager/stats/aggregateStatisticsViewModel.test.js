@@ -100,16 +100,42 @@ test('aggregate statistics headlines, win share, h-index, and per-person rows', 
   assert.equal(ada.pointsPerMinute, undefined)
 })
 
-test('aggregate people ordered by sessions desc, then wins desc, then name', () => {
+test('aggregate people ordered by wins desc, then sessions desc, then name', () => {
   const people = [
     { id: 'zoe', name: 'Zoe', color: '#3' },
     { id: 'ada', name: 'Ada', color: '#1' },
     { id: 'sam', name: 'Sam', color: '#2' },
     { id: 'ben', name: 'Ben', color: '#4' },
   ]
+  // ben 3w/3s; ada 1w/2s; sam 1w/2s; zoe 0w/3s — wins-first → ben, ada, sam, zoe
+  // (sessions-first would be ben, zoe, ada, sam)
   const sessions = [
     session({
       id: '1',
+      presentPlayers: [
+        { recordedPlayerId: 'ben', name: 'Ben', color: '#4' },
+        { recordedPlayerId: 'zoe', name: 'Zoe', color: '#3' },
+      ],
+      score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { ben: 10, zoe: 5 } },
+    }),
+    session({
+      id: '2',
+      presentPlayers: [
+        { recordedPlayerId: 'ben', name: 'Ben', color: '#4' },
+        { recordedPlayerId: 'zoe', name: 'Zoe', color: '#3' },
+      ],
+      score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { ben: 12, zoe: 4 } },
+    }),
+    session({
+      id: '3',
+      presentPlayers: [
+        { recordedPlayerId: 'ben', name: 'Ben', color: '#4' },
+        { recordedPlayerId: 'zoe', name: 'Zoe', color: '#3' },
+      ],
+      score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { ben: 8, zoe: 3 } },
+    }),
+    session({
+      id: '4',
       presentPlayers: [
         { recordedPlayerId: 'ada', name: 'Ada', color: '#1' },
         { recordedPlayerId: 'sam', name: 'Sam', color: '#2' },
@@ -117,38 +143,18 @@ test('aggregate people ordered by sessions desc, then wins desc, then name', () 
       score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { ada: 50, sam: 40 } },
     }),
     session({
-      id: '2',
+      id: '5',
       presentPlayers: [
         { recordedPlayerId: 'ada', name: 'Ada', color: '#1' },
         { recordedPlayerId: 'sam', name: 'Sam', color: '#2' },
       ],
       score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { ada: 20, sam: 40 } },
     }),
-    session({
-      id: '3',
-      presentPlayers: [
-        { recordedPlayerId: 'zoe', name: 'Zoe', color: '#3' },
-        { recordedPlayerId: 'ben', name: 'Ben', color: '#4' },
-      ],
-      score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { zoe: 10, ben: 5 } },
-    }),
-    session({
-      id: '4',
-      presentPlayers: [{ recordedPlayerId: 'zoe', name: 'Zoe', color: '#3' }],
-      score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { zoe: 1 } },
-    }),
-    session({
-      id: '5',
-      presentPlayers: [{ recordedPlayerId: 'zoe', name: 'Zoe', color: '#3' }],
-      score: { mode: SCORE_ENTRY_MODES.POINTS, perPlayer: { zoe: 2 } },
-    }),
   ]
-  // zoe: 3 sessions, 3 wins; ada: 2 sessions, 1 win; sam: 2 sessions, 1 win; ben: 1 session, 0 wins
-  // tie ada/sam on sessions+wins → alphabetical Ada before Sam
   const vm = buildAggregateStatisticsViewModel({ people, sessions, gamesInCollection: 1 })
   assert.deepEqual(
     vm.people.map((p) => p.personId),
-    ['zoe', 'ada', 'sam', 'ben'],
+    ['ben', 'ada', 'sam', 'zoe'],
   )
 })
 

@@ -13,7 +13,7 @@
       />
     </q-card-section>
 
-    <q-card-section class="col q-pt-none gm-flow-panel__scroll column q-gutter-md">
+    <q-card-section class="col q-pt-none gm-flow-panel__scroll column q-gutter-y-md">
       <div>
         <div class="text-subtitle2 q-mb-sm">Score entry mode</div>
         <q-btn-toggle
@@ -75,7 +75,7 @@
       </div>
     </q-card-section>
 
-    <q-card-actions class="gm-flow-panel__actions q-pa-md row items-center no-wrap q-gutter-sm">
+    <q-card-actions class="gm-flow-panel__actions q-pa-md row items-center no-wrap gm-session-scoring-actions">
       <q-btn
         v-if="canReturnToTimer"
         unelevated
@@ -235,23 +235,27 @@ function onSave() {
 
 <style scoped>
 .gm-session-scoring-seats {
-  display: grid;
-  grid-template-columns: fit-content(50%) minmax(0, 1fr);
-  row-gap: 8px;
-  column-gap: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
 }
 
 .gm-session-scoring-seat {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: subgrid;
+  display: flex;
   align-items: center;
-  column-gap: 10px;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 8px 10px;
   border-radius: 8px;
 }
 
 .gm-session-scoring-name {
+  flex: 0 1 auto;
+  max-width: 50%;
   min-width: 0;
   color: #fff;
   font-size: 1.05rem;
@@ -265,7 +269,12 @@ function onSave() {
 }
 
 .gm-session-scoring-field {
+  flex: 1 1 0;
   min-width: 0;
+  width: auto;
+}
+
+.gm-session-scoring-field :deep(.q-field) {
   width: 100%;
 }
 
@@ -303,5 +312,9 @@ function onSave() {
 
 .gm-session-scoring-back :deep(.q-icon) {
   font-size: 1.35em;
+}
+
+.gm-session-scoring-actions {
+  gap: 8px;
 }
 </style>

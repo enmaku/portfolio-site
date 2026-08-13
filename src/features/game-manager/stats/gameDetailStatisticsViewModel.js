@@ -69,8 +69,8 @@ export function buildGameDetailStatisticsViewModel({ gameKey, people, sessions }
     })
     .filter(Boolean)
     .sort((a, b) => {
-      if (b.playCount !== a.playCount) return b.playCount - a.playCount
       if (b.sessionWins !== a.sessionWins) return b.sessionWins - a.sessionWins
+      if (b.playCount !== a.playCount) return b.playCount - a.playCount
       return String(a.name).localeCompare(String(b.name))
     })
 

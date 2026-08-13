@@ -22,9 +22,29 @@
           label="Sign out"
           data-testid="gm-auth-sign-out-btn"
           :loading="actionPending"
-          @click="onSignOut"
+          @click="signOutConfirmOpen = true"
         />
       </q-card-section>
+
+      <q-dialog v-model="signOutConfirmOpen" persistent>
+        <q-card class="gm-dialog-card gm-dialog-card--narrow">
+          <q-card-section class="text-h6">Sign out?</q-card-section>
+          <q-card-section class="q-pt-none text-body2">
+            Sign out of Game Manager on this device?
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="Cancel" color="grey" data-testid="gm-auth-sign-out-cancel" @click="cancelSignOut" />
+            <q-btn
+              unelevated
+              label="Sign out"
+              color="primary"
+              data-testid="gm-auth-sign-out-confirm"
+              :loading="actionPending"
+              @click="confirmSignOut"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
     </template>
 
     <template v-else>
@@ -128,6 +148,7 @@ const email = ref('')
 const password = ref('')
 const actionPending = ref(false)
 const errorMessage = ref('')
+const signOutConfirmOpen = ref(false)
 
 const canSubmitEmail = computed(() => email.value.trim().length > 0 && password.value.length > 0)
 
@@ -160,8 +181,13 @@ function onCreateAccount() {
   return runAuthAction(() => createAccountWithEmailPassword(email.value.trim(), password.value))
 }
 
-function onSignOut() {
-  return runAuthAction(() => signOut())
+function cancelSignOut() {
+  signOutConfirmOpen.value = false
+}
+
+async function confirmSignOut() {
+  await runAuthAction(() => signOut())
+  signOutConfirmOpen.value = false
 }
 </script>
 

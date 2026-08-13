@@ -110,11 +110,13 @@
             <div
               v-for="person in model.people"
               :key="person.personId"
-              class="q-px-sm q-py-xs gm-stats-person"
+              class="gm-stats-person"
               :data-testid="`gm-stats-person-${person.personId}`"
             >
-              <div class="text-body1 text-weight-medium">{{ person.name }}</div>
-              <div class="gm-stats-person-metrics text-caption text-grey-6">
+              <div class="gm-stats-person-name" :style="personNameStyle(person)">
+                {{ person.name }}
+              </div>
+              <div class="gm-stats-person-metrics" :style="personMetricsStyle(person)">
                 <div class="row items-start">
                   <div class="col-4">sessions: {{ person.sittingsPlayed }}</div>
                   <div class="col-4">games: {{ person.gamesPlayed }}</div>
@@ -144,14 +146,18 @@
 <script setup>
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from 'chart.js'
 import { computed, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { Doughnut } from 'vue-chartjs'
+import { playerBarTrackColor } from '../../game-timer/core.js'
 import { useGameManagerStats } from '../composables/useGameManagerStats.js'
 import { buildWinShareChart } from '../stats/buildWinShareChart.js'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
 const FALLBACK_COLORS = ['#1976d2', '#26a69a', '#ef6c00', '#8e24aa', '#546e7a', '#c62828']
+const PERSON_FALLBACK_COLOR = '#78909c'
 
+const $q = useQuasar()
 const { model, loading, reload } = useGameManagerStats()
 
 onMounted(() => {
@@ -191,6 +197,20 @@ function segmentColor(index) {
   return FALLBACK_COLORS[index % FALLBACK_COLORS.length]
 }
 
+function personColor(person) {
+  return typeof person?.color === 'string' && person.color ? person.color : PERSON_FALLBACK_COLOR
+}
+
+function personNameStyle(person) {
+  return { backgroundColor: personColor(person) }
+}
+
+function personMetricsStyle(person) {
+  return {
+    backgroundColor: playerBarTrackColor(personColor(person), $q.dark.isActive),
+  }
+}
+
 function formatDuration(ms) {
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return '0m'
   const totalSec = Math.round(ms / 1000)
@@ -218,14 +238,35 @@ function formatDuration(ms) {
 
 .gm-stats-person {
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+.gm-stats-person-name {
+  padding: 8px 10px;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-shadow:
+    -1.5px 0 0 #000,
+    1.5px 0 0 #000,
+    0 -1.5px 0 #000,
+    0 1.5px 0 #000;
 }
 
 .gm-stats-person-metrics {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-top: 2px;
+  padding: 8px 10px;
   line-height: 1.25;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-shadow:
+    -1.5px 0 0 #000,
+    1.5px 0 0 #000,
+    0 -1.5px 0 #000,
+    0 1.5px 0 #000;
 }
 </style>

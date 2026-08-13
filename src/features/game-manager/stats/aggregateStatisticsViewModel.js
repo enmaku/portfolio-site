@@ -82,8 +82,8 @@ export function buildAggregateStatisticsViewModel({ people, sessions, gamesInCol
     })
     .filter(Boolean)
     .sort((a, b) => {
-      if (b.sittingsPlayed !== a.sittingsPlayed) return b.sittingsPlayed - a.sittingsPlayed
       if (b.sessionWins !== a.sessionWins) return b.sessionWins - a.sessionWins
+      if (b.sittingsPlayed !== a.sittingsPlayed) return b.sittingsPlayed - a.sittingsPlayed
       return String(a.name).localeCompare(String(b.name))
     })
 

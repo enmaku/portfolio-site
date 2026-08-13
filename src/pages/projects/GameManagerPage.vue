@@ -31,7 +31,7 @@
           aria-label="Sign out"
           data-testid="gm-page-sign-out-btn"
           :loading="signOutPending"
-          @click="onSignOut"
+          @click="signOutConfirmOpen = true"
         />
       </div>
 
@@ -92,6 +92,32 @@
           </q-card-actions>
         </q-card>
       </q-dialog>
+
+      <q-dialog v-model="signOutConfirmOpen" persistent>
+        <q-card class="gm-dialog-card gm-dialog-card--narrow">
+          <q-card-section class="text-h6">Sign out?</q-card-section>
+          <q-card-section class="q-pt-none text-body2">
+            Sign out of Game Manager on this device?
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn
+              flat
+              label="Cancel"
+              color="grey"
+              data-testid="gm-page-sign-out-cancel"
+              @click="signOutConfirmOpen = false"
+            />
+            <q-btn
+              unelevated
+              label="Sign out"
+              color="primary"
+              data-testid="gm-page-sign-out-confirm"
+              :loading="signOutPending"
+              @click="confirmSignOut"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
     </template>
   </q-page>
 </template>
@@ -118,6 +144,7 @@ const { isAccountOwner, loading, signOut } = useGameManagerAuth()
 
 const activeSurface = ref('collection')
 const signOutPending = ref(false)
+const signOutConfirmOpen = ref(false)
 const helpOpen = ref(false)
 const attribution = CATALOG_ATTRIBUTION
 const route = useRoute()
@@ -160,10 +187,11 @@ watch(
   { immediate: true },
 )
 
-async function onSignOut() {
+async function confirmSignOut() {
   signOutPending.value = true
   try {
     await signOut()
+    signOutConfirmOpen.value = false
   } finally {
     signOutPending.value = false
   }
