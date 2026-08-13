@@ -330,6 +330,19 @@
               :disable="llmGenerateDisabled"
               @click="generateLlmSettlementNames"
             />
+            <q-input
+              :model-value="llmRegionWriteup"
+              type="textarea"
+              autogrow
+              dense
+              outlined
+              readonly
+              label="Region writeup"
+              hint="Notable settlements after Generate names"
+              class="q-mt-sm"
+              input-style="max-height: 16rem; overflow-y: auto"
+              data-testid="world-builder-llm-region-writeup"
+            />
             <div
               v-if="llmLastError"
               class="text-negative text-caption q-mt-sm"
@@ -598,6 +611,7 @@ const {
 const {
   flavorPrompt: llmFlavorPrompt,
   namesOverlayVisible: llmNamesOverlayVisible,
+  regionWriteup: llmRegionWriteup,
   isGenerateRunning: isLlmGenerateRunning,
   generateDisabled: llmGenerateDisabled,
   lastError: llmLastError,

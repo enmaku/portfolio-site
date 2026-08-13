@@ -32,7 +32,7 @@ function annotatedHistoryForSettlement(slice, settlementId) {
 }
 
 /**
- * Compact per-settlement packets for Gemini place-name generation.
+ * Per-settlement packets for Gemini place-name / region-writeup prompts.
  *
  * @param {import('../core/colonization/createDefaultColonizationSlice.js').ColonizationSlice} slice
  * @param {import('../core/types.js').WorldDocument} worldDocument

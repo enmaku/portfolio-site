@@ -2,7 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { generateSettlementNamesWithGemini } from '../features/world-builder/llm/generateSettlementNames.js'
 
 /**
- * Spike UI: flavor prompt + Gemini settlement/faction names + map overlay.
+ * Spike UI: flavor prompt + Gemini settlement/faction names + region writeup + map overlay.
  *
  * @param {{
  *   getSlice: () => import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice,
@@ -21,6 +21,7 @@ export function useWorldBuilderLlmSettlementNames(options) {
   const namesOverlayVisible = ref(false)
   const namesBySettlementId = ref(/** @type {Record<string, string>} */ ({}))
   const namesByFactionId = ref(/** @type {Record<string, string>} */ ({}))
+  const regionWriteup = ref('')
   const generatePhase = ref(/** @type {'idle' | 'running'} */ ('idle'))
   const lastError = ref(/** @type {string | null} */ (null))
 
@@ -53,13 +54,14 @@ export function useWorldBuilderLlmSettlementNames(options) {
       if (!worldDocument) {
         throw new Error('No world document loaded')
       }
-      const names = await generateSettlementNamesWithGemini({
+      const result = await generateSettlementNamesWithGemini({
         slice: options.getSlice(),
         worldDocument,
         flavorPrompt: flavorPrompt.value,
       })
-      namesBySettlementId.value = names.settlements
-      namesByFactionId.value = names.factions
+      namesBySettlementId.value = result.settlements
+      namesByFactionId.value = result.factions
+      regionWriteup.value = result.regionWriteup
       namesOverlayVisible.value = true
       syncNamesToViewport()
     } catch (err) {
@@ -80,6 +82,7 @@ export function useWorldBuilderLlmSettlementNames(options) {
     namesOverlayVisible,
     namesBySettlementId,
     namesByFactionId,
+    regionWriteup,
     isGenerateRunning,
     generateDisabled,
     lastError,

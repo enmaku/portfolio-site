@@ -1,0 +1,273 @@
+{
+  "meta": {
+    "geographySeed": 42,
+    "prevailingWindDegrees": 90,
+    "defaultGeographySeedConstant": 0,
+    "epochSteps": 3,
+    "flavor": "pirates",
+    "epoch": 3,
+    "settlementCount": 28,
+    "factionCount": 12,
+    "rivalryEdgeCount": 4,
+    "foundingLanding": {
+      "x": 270,
+      "y": 256
+    },
+    "createdAt": "2026-08-13T11:03:36.888Z"
+  },
+  "rows": [
+    {
+      "id": "baseline",
+      "promptApproxTokens": 10624,
+      "genLatencyMs": 20070,
+      "judge": {
+        "baseline": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 5,
+          "factionDistinctiveness": 4
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 5,
+          "factionDistinctiveness": 4
+        },
+        "better": "tie",
+        "rationale": "Set A and Set B are completely identical in both settlement names and faction names. Both sets excel at the pirate theme, ground settlement names logically in biome cues (e.g., tundra and swamp naming elements), and provide distinct nautical/buccaneer faction titles."
+      }
+    },
+    {
+      "id": "no_history",
+      "promptApproxTokens": 8099,
+      "genLatencyMs": 19745,
+      "judge": {
+        "baseline": {
+          "flavorFit": 5,
+          "diversity": 5,
+          "groundedness": 5,
+          "factionDistinctiveness": 5
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 3,
+          "factionDistinctiveness": 4
+        },
+        "better": "baseline",
+        "rationale": "Both sets excel at capturing the requested pirate theme with evocative maritime and rogue terminology. However, Set A is significantly better grounded in the map's biome cues. Set B includes geographic misnomers such as 'Icebound Atoll' for a Tundra biome (atolls are warm-water coral structures) and reuses real-world historical pirate names like 'Port Royal'. Set A cleverly adapts pirate flavor to harsh cold and forest biomes (e.g. 'Pinescar' for Taiga, 'Mire-Grave' for Swamp, 'Walrus Spit' and 'Rime-Shanty' for Tundra, and 'Cutthroat Clearing' for an inland non-port village)."
+      }
+    },
+    {
+      "id": "no_economy",
+      "promptApproxTokens": 5645,
+      "genLatencyMs": 19923,
+      "judge": {
+        "baseline": {
+          "flavorFit": 5,
+          "diversity": 4.5,
+          "groundedness": 4.5,
+          "factionDistinctiveness": 4.5
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 5,
+          "groundedness": 5,
+          "factionDistinctiveness": 5
+        },
+        "better": "variant",
+        "rationale": "Both sets excel at delivering rich pirate-themed flavor, but Set A is exceptional at integrating biome traits with maritime terminology (e.g., 'Spruce-Keel' in Taiga, 'Frost-Shanty' and 'Blubber-Creek' in Tundra, 'Rotfen Bay' in Swamp). Furthermore, Set A explicitly connects faction names to their regional origins (e.g., 'Privateers of Timberjaw' originating from the settlement 'Timberjaw'), making the world feel significantly more coherent and grounded."
+      }
+    },
+    {
+      "id": "no_politics",
+      "promptApproxTokens": 8947,
+      "genLatencyMs": 23954,
+      "judge": {
+        "baseline": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 5,
+          "factionDistinctiveness": 4
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 5,
+          "groundedness": 5,
+          "factionDistinctiveness": 5
+        },
+        "better": "variant",
+        "rationale": "Both sets capture the nautical pirate flavor exceptionally well and tailor settlement names accurately to terrain cues (e.g., hill features like Tor/Ridge/Crag, tundra features like Frost/Rime/Ice, and swamp features like Rotbog/Mire). However, Set A wins narrowly due to superior faction distinctiveness and morphological variety. Set A gives all 12 factions a completely unique organizational term (Pact, Alliance, Syndicate, League, Armada, Guild, Confederacy, Scourge, Fleet, Raiders, Freebooters, Cartel), whereas Set B repeats terms like Fleet and Syndicate. Set A's settlement names also feel slightly more natural and evocative (e.g., 'Pitch-and-Spar', 'Deadman Cay', 'Smuggler's Tor')."
+      }
+    },
+    {
+      "id": "geo_only",
+      "promptApproxTokens": 1582,
+      "genLatencyMs": 17307,
+      "judge": {
+        "baseline": {
+          "flavorFit": 4,
+          "diversity": 3,
+          "groundedness": 4,
+          "factionDistinctiveness": 4
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 5,
+          "groundedness": 5,
+          "factionDistinctiveness": 5
+        },
+        "better": "variant",
+        "rationale": "Set A captures the pirate theme with subtle, highly atmospheric maritime and nautical terminology that feels naturally integrated into settlement names. Its groundedness is exceptional, honoring biomes (e.g., Frostfang Spit and Rimepoint for Tundra, Pinescar Inlet for Taiga, Charcoal Ridge for the inland non-port village) and history signals without becoming overly cliché. Set B is decent, but relies on somewhat heavy-handed or cartoonish pirate tropes (e.g., 'Scurvywood', 'Tar-Pot', 'Keelhaul') and relies heavily on hyphenated compounds, resulting in lower structural diversity."
+      }
+    },
+    {
+      "id": "ids_flavor_only",
+      "promptApproxTokens": 840,
+      "genLatencyMs": 13848,
+      "judge": {
+        "baseline": {
+          "flavorFit": 5,
+          "diversity": 5,
+          "groundedness": 5,
+          "factionDistinctiveness": 5
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 3,
+          "groundedness": 2,
+          "factionDistinctiveness": 4
+        },
+        "better": "baseline",
+        "rationale": "Set A is exceptionally well-grounded in the map cues, skillfully blending pirate flavor with specific biomes (e.g., 'Frostkeel', 'Walrus Spit', and 'Rime-Shanty' for Tundra, 'Pinescar' for Taiga, 'Mire-Grave' for Swamp) and respecting maritime roles (naming the non-maritime inland settlement 'Cutthroat Clearing'). Set B, by contrast, suffers from severe biome mismatches, such as naming an inland Taiga settlement 'Plunder Atoll'. Set A also exhibits much better morphological diversity, whereas Set B relies heavily on repetitive possessive construction patterns ('Noun's Noun') and repeated suffix words like 'Spit' and 'Reach'."
+      }
+    },
+    {
+      "id": "no_antirepeat",
+      "promptApproxTokens": 10524,
+      "genLatencyMs": 14756,
+      "judge": {
+        "baseline": {
+          "flavorFit": 5,
+          "diversity": 5,
+          "groundedness": 4,
+          "factionDistinctiveness": 4
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 5,
+          "factionDistinctiveness": 5
+        },
+        "better": "variant",
+        "rationale": "Both sets nail the pirate flavor exceptionally well. Set B is superior overall because of its incredible groundedness: several faction names directly reflect their capital settlement names (e.g., League of Port Fortune at Port Fortune, Scrimshaw Raiders at Scrimshaw Cove, Saltscar Privateers at Saltscar Isle, Freeport Freebooters at Freeport Haven). This creates a cohesive world structure that grounds the political history of the map."
+      }
+    },
+    {
+      "id": "history_kit_only",
+      "promptApproxTokens": 8717,
+      "genLatencyMs": 19534,
+      "judge": {
+        "baseline": {
+          "flavorFit": 5,
+          "diversity": 5,
+          "groundedness": 5,
+          "factionDistinctiveness": 5
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 4,
+          "factionDistinctiveness": 5
+        },
+        "better": "baseline",
+        "rationale": "Both sets capture the pirate author flavor exceptionally well, providing colorful nautical and rogue-themed names. Set A is slightly superior due to better biome groundedness (e.g. 'Pinescar' and 'Scurvywood' for Taiga, 'Smuggler Crag' for Hills, 'Mire-Grave' for Swamp) whereas Set B has minor mismatches such as placing 'Rime Reef' in a Taiga biome settlement. Set A also shows slightly higher morphological diversity in settlement construction."
+      }
+    },
+    {
+      "id": "imports_exports_only",
+      "promptApproxTokens": 6133,
+      "genLatencyMs": 17405,
+      "judge": {
+        "baseline": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 5,
+          "factionDistinctiveness": 5
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 5,
+          "factionDistinctiveness": 3
+        },
+        "better": "baseline",
+        "rationale": "Both sets capture the pirate flavor exceptionally well and demonstrate superb biome groundedness (e.g., tundra settlements incorporating ice/rime/walrus motifs, taiga incorporating pine/timber, swamps using mire/bilgewater, and landlocked settlements omitting maritime suffixes). Set A has slightly cleaner settlement names, but its faction names strictly follow a repetitive template where every faction is simply '[Capital Settlement Name] + [Group Noun]' (e.g. Blackwater Confederacy, Iron Anchor League, Corsair Syndicate). Set B excels in faction distinctiveness, creating evocative, distinct polity names (like The Iron Tide Brotherhood, Kraken Coast Syndicate, and Scuttled Crew Alliance) that feel like standalone historical pirate organizations."
+      }
+    },
+    {
+      "id": "politics_membership_only",
+      "promptApproxTokens": 9663,
+      "genLatencyMs": 18762,
+      "judge": {
+        "baseline": {
+          "flavorFit": 5,
+          "diversity": 5,
+          "groundedness": 5,
+          "factionDistinctiveness": 5
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 4,
+          "factionDistinctiveness": 4
+        },
+        "better": "baseline",
+        "rationale": "Both sets capture the pirate theme very well, but Set A is outstanding in its groundedness and creativity. Set A seamlessly blends pirate flavor with biome cues (e.g. 'Iron-Ice Inlet' and 'Walrus Spit' in Tundra, 'Pinescar' and 'Scurvywood' in Taiga, 'Mire-Grave' in Swamp, and 'Cutthroat Clearing' for the lone non-maritime inland settlement). Set B falls back on somewhat cliché pirate tropes ('Port Malice', 'Crow's Nest', 'Smuggler's Run'). Set A's faction names also feel more distinct and grounded in local logistics."
+      }
+    },
+    {
+      "id": "truncate_history_3",
+      "promptApproxTokens": 10151,
+      "genLatencyMs": 15433,
+      "judge": {
+        "baseline": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 5,
+          "factionDistinctiveness": 4
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 5,
+          "factionDistinctiveness": 5
+        },
+        "better": "variant",
+        "rationale": "Both sets excel at capturing the pirate flavor and grounding their settlement names closely to the cues in the biome sheet (e.g., tundra settlements receiving icy/frost themes, swamp getting mire/mud, and taiga featuring timber/pines). Set A is slightly better overall because its settlement names feel more organically phrased (e.g., 'Crow's Nest Pass' vs B's 'Crow Nest Peak') and its faction titles have superior political distinctiveness (such as 'Kraken's Oath Confederacy' and 'Scourge of the Outer Coves', whereas Set B repeats 'Fleet' and 'Syndicate'). Set A loses one diversity point for repeating the prefix 'Frostfang' on two settlements, but remains the stronger set."
+      }
+    },
+    {
+      "id": "dedupe_strip_nulls",
+      "promptApproxTokens": 9911,
+      "genLatencyMs": 18669,
+      "judge": {
+        "baseline": {
+          "flavorFit": 5,
+          "diversity": 5,
+          "groundedness": 5,
+          "factionDistinctiveness": 5
+        },
+        "variant": {
+          "flavorFit": 5,
+          "diversity": 4,
+          "groundedness": 4,
+          "factionDistinctiveness": 5
+        },
+        "better": "baseline",
+        "rationale": "Both sets nail the pirate theme with fantastic nautical, rogueish, and maritime terminology. Set A wins on morphological diversity and groundedness. Set B relies quite heavily on hyphenated compound structures (Brine-Spit, Crow-Pines, Salt-Bark, Gallows-on-Sea, Saw-Tooth, Skuttle-Nook). Set A does a superior job adapting to settlement tiers and non-maritime cues, such as using 'Cutthroat Clearing' for the single non-maritime inland taiga village and using humble terms like 'Camp' and 'Shanty' for villages."
+      }
+    }
+  ],
+  "createdAt": "2026-08-13T11:29:02.850Z"
+}

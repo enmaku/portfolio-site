@@ -59,6 +59,13 @@ world-builder/research/youtube-subtitles/*.en.txt
 world-builder/research/youtube-subtitles/raw/*
 !world-builder/research/youtube-subtitles/raw/.gitkeep
 
+# World Builder — LLM name prompt ablation bulky fixtures / run outputs
+world-builder/research/llm-name-prompt-ablation/annotations-full.json
+world-builder/research/llm-name-prompt-ablation/results/*
+world-builder/research/llm-name-prompt-ablation/judgments/*
+!world-builder/research/llm-name-prompt-ablation/results/.gitkeep
+!world-builder/research/llm-name-prompt-ablation/judgments/.gitkeep
+
 # World Builder — local sensitivity analysis runs
 world-builder/research/sensitivity-results/*
 !world-builder/research/sensitivity-results/.gitkeep

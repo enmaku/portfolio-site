@@ -1,0 +1,16 @@
+{
+  "geographySeed": 42,
+  "prevailingWindDegrees": 90,
+  "defaultGeographySeedConstant": 0,
+  "epochSteps": 3,
+  "flavor": "pirates",
+  "epoch": 3,
+  "settlementCount": 28,
+  "factionCount": 12,
+  "rivalryEdgeCount": 4,
+  "foundingLanding": {
+    "x": 270,
+    "y": 256
+  },
+  "createdAt": "2026-08-13T11:03:36.888Z"
+}
