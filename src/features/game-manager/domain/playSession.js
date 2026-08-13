@@ -10,7 +10,7 @@ export const SCORE_ENTRY_MODES = Object.freeze({
 const FORWARD = {
   setup: new Set(['playing']),
   playing: new Set(['scoring']),
-  scoring: new Set(['complete']),
+  scoring: new Set(['complete', 'playing']),
   complete: new Set([]),
 }
 
@@ -110,6 +110,16 @@ export function addPresentPlayer(session, player) {
 export function transitionPlaySessionState(session, next) {
   if (session.state === 'complete' && next === 'scoring') {
     return { ...session, state: 'scoring' }
+  }
+
+  if (session.state === 'complete' && next === 'playing') {
+    if (!normalizeTimerExport(session.timerExport)) {
+      throw new Error('Cannot return to playing without a timer export')
+    }
+    if (session.presentPlayers.length < 1) {
+      throw new Error('Cannot start playing without at least one present player')
+    }
+    return { ...session, state: 'playing' }
   }
 
   const allowed = FORWARD[session.state]

@@ -33,6 +33,26 @@ test('applyLaunchConfig replaces leftover roster and keeps session option prefs'
   assert.equal(store.timingStripMode, 'non-player')
 })
 
+test('applyLaunchConfig restores bankedMs and durationMs from timer export', () => {
+  setActivePinia(createPinia())
+  const store = useGameTimerStore()
+  const before = Date.now()
+  store.applyLaunchConfig({
+    durationMs: 15_000,
+    seats: [
+      { recordedPlayerId: 'rp-a', name: 'Ada', color: '#aa0000', bankedMs: 7_000 },
+      { recordedPlayerId: 'rp-b', name: 'Bob', color: '#00aa00', bankedMs: 0 },
+    ],
+  })
+  const after = Date.now()
+  assert.equal(store.players[0].bankedMs, 7_000)
+  assert.deepEqual(store.players[0].bankedMsByRound, { '1': 7_000 })
+  assert.equal(store.players[1].bankedMs, 0)
+  assert.ok(typeof store.totalGameStartedAt === 'number')
+  assert.ok(store.totalGameStartedAt <= before - 15_000 + 5)
+  assert.ok(store.totalGameStartedAt >= after - 15_000 - 5)
+})
+
 test('addPlayer can carry recordedPlayerId when provided', () => {
   setActivePinia(createPinia())
   const store = useGameTimerStore()

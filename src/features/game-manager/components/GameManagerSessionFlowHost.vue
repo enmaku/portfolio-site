@@ -10,6 +10,8 @@
       v-if="showingDetail"
       :item="gameDetailItem"
       :starting="busy"
+      :sessions="sessions"
+      :people="people"
       @close="onClose"
       @start-session="onStartSession"
     />
@@ -40,12 +42,17 @@
       v-else-if="flowPanel === 'scoring'"
       :session="activeSession"
       :busy="busy"
-      :peek-next-color="flow.peekNextColor"
-      :upsert-person="flow.upsertPerson"
-      :add-attendance="flow.addAttendance"
-      :drop-player="flow.dropPlayer"
       @close="onClose"
+      @back="onBackToTimer"
       @save="onSave"
+    />
+
+    <GameManagerSessionStatisticsPanel
+      v-else-if="flowPanel === 'sessionStats'"
+      :session="activeSession"
+      :sessions="sessions"
+      @close="onClose"
+      @edit="onEditSessionStats"
     />
   </div>
 </template>
@@ -57,6 +64,7 @@ import GameManagerGameDetail from './GameManagerGameDetail.vue'
 import GameManagerSessionPlayingPanel from './GameManagerSessionPlayingPanel.vue'
 import GameManagerSessionScoringPanel from './GameManagerSessionScoringPanel.vue'
 import GameManagerSessionSetupPanel from './GameManagerSessionSetupPanel.vue'
+import GameManagerSessionStatisticsPanel from './GameManagerSessionStatisticsPanel.vue'
 
 const flow = inject(GAME_MANAGER_SESSION_FLOW_KEY)
 if (!flow) {
@@ -66,6 +74,8 @@ if (!flow) {
 const gameDetailItem = computed(() => flow.gameDetailItem.value)
 const busy = computed(() => flow.busy.value)
 const activeSession = computed(() => flow.activeSession.value)
+const sessions = computed(() => flow.sessions?.value || [])
+const people = computed(() => flow.people?.value || flow.savedPeople?.value || [])
 const savedPeople = computed(() => flow.savedPeople.value)
 const flowPanel = computed(() => flow.flowPanel.value)
 const showingDetail = computed(() => flow.gameDetailOpen.value)
@@ -114,7 +124,15 @@ async function onFinishGame() {
   await flow.finishGame()
 }
 
+async function onBackToTimer() {
+  await flow.returnToLinkedTimer()
+}
+
 async function onSave(score) {
   await flow.saveAndComplete(score)
+}
+
+function onEditSessionStats() {
+  flow.editCompleteSessionScores()
 }
 </script>

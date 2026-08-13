@@ -1,18 +1,30 @@
 import { computed, ref, shallowRef } from 'vue'
-import { buildLaunchConfigFromPresentPlayers } from '../domain/timerHandoff.js'
+import {
+  buildLaunchConfigFromPresentPlayers,
+  buildLaunchConfigFromTimerExport,
+} from '../domain/timerHandoff.js'
 
 /**
  * Orchestrates Game detail + play session full-screen steps.
  * @param {{
  *   sessionsApi: ReturnType<typeof import('./useGameManagerSessions.js').useGameManagerSessions>,
  *   activeSurface: import('vue').Ref<string>,
- *   timerLink?: { enterLinkedTimer: (input: { playSessionId: string, launchConfig: object }) => Promise<unknown> },
+ *   timerLink?: {
+ *     enterLinkedTimer: (input: {
+ *       playSessionId: string,
+ *       launchConfig: object,
+ *       forceApplySeats?: boolean,
+ *     }) => Promise<unknown>,
+ *   },
  * }} deps
  */
 export function useGameManagerSessionFlow({ sessionsApi, activeSurface, timerLink }) {
   const {
     activeSession,
+    sessions,
+    people,
     savedPeople,
+    collectionItems,
     createSessionFromShelf,
     selectSession,
     transition,
@@ -28,9 +40,9 @@ export function useGameManagerSessionFlow({ sessionsApi, activeSurface, timerLin
 
   const gameDetailItem = shallowRef(null)
   const gameDetailOpen = ref(false)
-  /** @type {import('vue').Ref<null | 'setup' | 'playing' | 'scoring'>} */
+  /** @type {import('vue').Ref<null | 'setup' | 'playing' | 'scoring' | 'sessionStats'>} */
   const flowPanel = ref(null)
-  /** @type {import('vue').Ref<'collection' | 'sessions'>} */
+  /** @type {import('vue').Ref<'collection' | 'sessions' | 'people'>} */
   const returnSurface = ref('collection')
   const busy = ref(false)
   const error = ref(null)
@@ -71,7 +83,7 @@ export function useGameManagerSessionFlow({ sessionsApi, activeSurface, timerLin
 
   /**
    * @param {object} session
-   * @param {'collection' | 'sessions'} [fromSurface]
+   * @param {'collection' | 'sessions' | 'people'} [fromSurface]
    */
   async function resumeSession(session, fromSurface = 'sessions') {
     if (!session?.id || busy.value) return
@@ -81,7 +93,7 @@ export function useGameManagerSessionFlow({ sessionsApi, activeSurface, timerLin
     try {
       await selectSession(session.id)
       if (session.state === 'complete') {
-        flowPanel.value = 'scoring'
+        flowPanel.value = 'sessionStats'
         return
       }
       if (session.state === 'playing') {
@@ -173,18 +185,57 @@ export function useGameManagerSessionFlow({ sessionsApi, activeSurface, timerLin
       if (!alreadyComplete) {
         await transition('complete')
       }
-      flowPanel.value = null
-      await selectSession(null)
       if (activeSurface) {
         activeSurface.value = 'sessions'
       }
       await reload()
+      flowPanel.value = 'sessionStats'
     } catch (e) {
       error.value = e
       throw e
     } finally {
       busy.value = false
     }
+  }
+
+  /**
+   * Return from score entry to the manager-linked timer, restoring the attached timer export.
+   * Works for in-progress scoring and for editing a complete sitting.
+   */
+  async function returnToLinkedTimer() {
+    const session = activeSession.value
+    if (!session || busy.value) return
+    if (session.state !== 'scoring' && session.state !== 'complete') return
+    const launchConfig = buildLaunchConfigFromTimerExport(session.timerExport)
+    if (!launchConfig) return
+    busy.value = true
+    error.value = null
+    try {
+      await transition('playing')
+      if (timerLink?.enterLinkedTimer) {
+        await timerLink.enterLinkedTimer({
+          playSessionId: session.id,
+          launchConfig,
+          forceApplySeats: true,
+        })
+        flowPanel.value = null
+        return
+      }
+      flowPanel.value = 'playing'
+    } catch (e) {
+      error.value = e
+      throw e
+    } finally {
+      busy.value = false
+    }
+  }
+
+  /**
+   * Open score entry for a complete sitting without leaving durable complete state.
+   */
+  function editCompleteSessionScores() {
+    if (!activeSession.value || activeSession.value.state !== 'complete') return
+    flowPanel.value = 'scoring'
   }
 
   /**
@@ -216,7 +267,10 @@ export function useGameManagerSessionFlow({ sessionsApi, activeSurface, timerLin
     busy,
     error,
     activeSession,
+    sessions,
+    people,
     savedPeople,
+    collectionItems,
     openGameDetail,
     closeGameDetail,
     startNewSession,
@@ -224,7 +278,9 @@ export function useGameManagerSessionFlow({ sessionsApi, activeSurface, timerLin
     leaveFlow,
     startGame,
     finishGame,
+    returnToLinkedTimer,
     saveAndComplete,
+    editCompleteSessionScores,
     openScoringFromTimerContinue,
     setAttendance,
     addAttendance,

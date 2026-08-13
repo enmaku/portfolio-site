@@ -44,6 +44,31 @@ export function buildLaunchConfigFromPresentPlayers(presentPlayers) {
 }
 
 /**
+ * Restore a linked timer from a stored **timer export** (roster + banked times + duration).
+ * @param {unknown} timerExport
+ * @returns {(LaunchConfig & { durationMs: number, seats: Array<LaunchConfigSeat & { bankedMs: number }> }) | null}
+ */
+export function buildLaunchConfigFromTimerExport(timerExport) {
+  const normalized = normalizeTimerExport(timerExport)
+  if (!normalized) return null
+  return {
+    durationMs: normalized.durationMs,
+    seats: normalized.seats.map((s) => {
+      /** @type {LaunchConfigSeat & { bankedMs: number }} */
+      const seat = {
+        name: s.name,
+        color: s.color,
+        bankedMs: s.bankedMs,
+      }
+      if (typeof s.recordedPlayerId === 'string' && s.recordedPlayerId) {
+        seat.recordedPlayerId = s.recordedPlayerId
+      }
+      return seat
+    }),
+  }
+}
+
+/**
  * @param {unknown} raw
  * @returns {TimerExport | null}
  */

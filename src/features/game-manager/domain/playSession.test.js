@@ -158,6 +158,36 @@ test('complete session can reopen to scoring', () => {
   assert.equal(session.state, 'scoring')
 })
 
+test('scoring can return to playing for timer re-entry', () => {
+  let session = createPlaySession({
+    id: 's4b',
+    game: { kind: 'catalog', catalogEntryId: '1', title: 'X' },
+    presentPlayers: [present('p1')],
+  })
+  session = toScoring(session)
+  assert.ok(session.timerExport)
+  session = transitionPlaySessionState(session, 'playing')
+  assert.equal(session.state, 'playing')
+  assert.ok(session.timerExport)
+})
+
+test('complete can return to playing for timer re-entry when editing', () => {
+  let session = createPlaySession({
+    id: 's4c',
+    game: { kind: 'catalog', catalogEntryId: '1', title: 'X' },
+    presentPlayers: [present('p1')],
+  })
+  session = toScoring(session)
+  session = setPlaySessionScore(session, {
+    mode: SCORE_ENTRY_MODES.POINTS,
+    perPlayer: { p1: 7 },
+  })
+  session = transitionPlaySessionState(session, 'complete')
+  session = transitionPlaySessionState(session, 'playing')
+  assert.equal(session.state, 'playing')
+  assert.ok(session.timerExport)
+})
+
 test('empty present players cannot complete even with points filled', () => {
   let session = createPlaySession({
     id: 's5',

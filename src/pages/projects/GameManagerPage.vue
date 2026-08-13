@@ -61,7 +61,7 @@
           class="gm-nav-bar__tabs text-grey-5"
         >
           <q-tab name="collection" icon="collections_bookmark" label="Collection" />
-          <q-tab name="people" icon="groups" label="People" />
+          <q-tab name="people" icon="groups" label="Players" />
           <q-tab name="sessions" icon="event_note" label="Sessions" />
           <q-tab name="stats" icon="bar_chart" label="Stats" />
         </q-tabs>

@@ -1,26 +1,41 @@
 import { shallowRef, ref, watch } from 'vue'
-import { listManagerPeople, listManagerPlaySessions } from '../firebase/managerStore.js'
+import {
+  listManagerCollection,
+  listManagerPeople,
+  listManagerPlaySessions,
+} from '../firebase/managerStore.js'
 import { useGameManagerAuth } from './useGameManagerAuth.js'
-import { buildStatsRows } from '../stats/statsViewModel.js'
+import { buildAggregateStatisticsViewModel } from '../stats/aggregateStatisticsViewModel.js'
 
 export function useGameManagerStats() {
   const { user } = useGameManagerAuth()
-  const rows = shallowRef([])
+  const model = shallowRef(
+    buildAggregateStatisticsViewModel({ people: [], sessions: [], gamesInCollection: 0 }),
+  )
   const loading = ref(false)
 
   async function reload() {
     const uid = user.value?.uid
     if (!uid) {
-      rows.value = []
+      model.value = buildAggregateStatisticsViewModel({
+        people: [],
+        sessions: [],
+        gamesInCollection: 0,
+      })
       return
     }
     loading.value = true
     try {
-      const [people, sessions] = await Promise.all([
+      const [people, sessions, collection] = await Promise.all([
         listManagerPeople(uid),
         listManagerPlaySessions(uid),
+        listManagerCollection(uid),
       ])
-      rows.value = buildStatsRows(people, sessions)
+      model.value = buildAggregateStatisticsViewModel({
+        people,
+        sessions,
+        gamesInCollection: collection.length,
+      })
     } finally {
       loading.value = false
     }
@@ -34,5 +49,5 @@ export function useGameManagerStats() {
     { immediate: true },
   )
 
-  return { rows, loading, reload }
+  return { model, loading, reload }
 }

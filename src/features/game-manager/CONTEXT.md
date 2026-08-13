@@ -72,7 +72,9 @@ _Avoid_: “Library” (ambiguous); preset **group configurations** (out of scop
 
 A full-screen detail view opened from a **collection** shelf item. Opens immediately on shelf-known facts (title, art, basic counts); for catalog-backed items it then refreshes fuller **catalog** metadata into a rich curated view, with retry if that refresh fails. **Custom collection entries** use stored custom fields only. Bottom action starts a **play session** (“Start new session”), which continues in the same full-screen session flow (`setup` → `playing` via linked Timer → `scoring`). A failed catalog refresh does not block starting a sitting—the shelf identity is enough.
 
-_Avoid_: Treating the shelf row itself as the only place game facts appear; starting sessions from the **Sessions** surface’s add control; requiring a successful catalog fetch before “Start new session”; nesting **game detail** as a small dialog over the shelf while the rest of the sitting is full-screen.
+Content is grouped for titles with at least one **play session**: expansion sections **Details** (catalog / shelf facts) and **Stats** (this title’s play history—sittings, **play time**, **win share**, expandable per-person-at-this-game figures such as sittings, **banked time**, **session win**s, **win percentage**, and—when **points** history exists—**personal best**, average score, and **points per minute**). **Stats** opens by default; **Details** stays collapsed until opened. Visualization-first inside **Stats**. Until the first **play session** for this title, omit the **Stats** expansion and show the catalog / shelf body flat (no lone **Details** expansion chrome).
+
+_Avoid_: Treating the shelf row itself as the only place game facts appear; starting sessions from the **Sessions** surface’s add control; requiring a successful catalog fetch before “Start new session”; nesting **game detail** as a small dialog over the shelf while the rest of the sitting is full-screen; dumping a long per-game list onto the **Stats** tab; showing an empty **Stats** expansion for never-played titles; wrapping never-played detail in a single orphan **Details** expansion.
 
 ### Play session
 
@@ -114,7 +116,7 @@ _Avoid_: Equating with a live **saved player** row only; discarding history beca
 
 ### Present player
 
-Someone included in a specific **play session**—usually drawn from **saved players**, plus any **one-off guests**. The people picker in `setup` lists **saved players** (none pre-checked) with selection controls and an add-person path (guest / **persist to roster**). At least one **present player** is required before leaving `setup` into `playing`. That `setup` list seeds the **manager-linked timer**. Once wired, leaving `setup` launches Timer immediately (no GM playing hub); until that handoff exists, the `playing` interstitial holds the table (no roster editor there). When a real **game end** export arrives, its roster (stable ids on seats that still carry them) becomes the starting **present players** for `scoring`. On the scoring step the owner may still add people or **drop out** before Save. A session cannot enter `complete` with zero **present players**.
+Someone included in a specific **play session**—usually drawn from **saved players**, plus any **one-off guests**. The people picker in `setup` lists **saved players** (none pre-checked) with selection controls and an add-person path (guest / **persist to roster**). At least one **present player** is required before leaving `setup` into `playing`. That `setup` list seeds the **manager-linked timer**. Once wired, leaving `setup` launches Timer immediately (no GM playing hub); until that handoff exists, the `playing` interstitial holds the table (no roster editor there). When a real **game end** export arrives, its roster (stable ids on seats that still carry them) becomes the **present players** for `scoring`. Scoring enters scores for that fixed table—no add-person or **drop out** there. A session cannot enter `complete` with zero **present players**.
 
 _Avoid_: Requiring final attendance before the night starts; a second full roster editor on the timer interstitial; dumping every unpinned **recorded player** onto the picker by default; advancing into `playing` with nobody selected.
 
@@ -142,9 +144,9 @@ _Avoid_: Equating roster remove with erasing history; deleting every session the
 
 ### Removed player
 
-A tombstone seat on a past **play session** after **person deletion**—marks that someone was there without retaining their former identity for stats or **player claim**.
+A tombstone seat on a past **play session** after **person deletion**—marks that someone was there without retaining their former identity for stats or **player claim**. Excluded from **win share**, per-person expandables, and person-scoped stats; the sitting still counts toward session counts and **play time**.
 
-_Avoid_: Pretending the seat never existed; keeping claimable history after the owner chose deletion.
+_Avoid_: Pretending the seat never existed; keeping claimable history after the owner chose deletion; an “Unknown” / Removed slice on **win share** pies.
 
 ### Person match prompt
 
@@ -172,13 +174,22 @@ A **play session** retained without a finished **session score**—left before `
 
 ### Complete play session
 
-A **play session** in `complete` with a chosen **score entry mode** and full **session score** for that mode. Viewing or fixing scores uses the scoring UI without leaving `complete`; Save while already complete updates the **session score** and stays `complete`.
+A **play session** in `complete` with a chosen **score entry mode** and full **session score** for that mode. The default view is **session statistics**; a small edit control opens score entry without leaving `complete`. Saving score changes updates the **session score**, stays `complete`, and returns to **session statistics**.
 
 ### Play session state
 
-Lifecycle position of a **play session**: `setup`, `playing`, `scoring`, or `complete`. The owned-game creation path is forward along that order without skipping **playing**: people pick in `setup`, always launch the **manager-linked timer** in `playing`, **game end** attaches a **timer export** and **continues to scoring**, then `complete` on Save. Entering `complete` requires a chosen **score entry mode** and a full **session score** for that mode (every **present player** scored for **points**, or marked for **outcomes**). Once `complete`, viewing or editing scores does not move the sitting back to `scoring`. Early stops remain **partial play sessions** until **session deletion**.
+Lifecycle position of a **play session**: `setup`, `playing`, `scoring`, or `complete`. The owned-game creation path is forward along that order without skipping **playing**: people pick in `setup`, always launch the **manager-linked timer** in `playing`, **game end** attaches a **timer export** and **continues to scoring**, then `complete` on Save. From score entry (`scoring`, or editing a `complete` sitting) the owner may step back to `playing` to reopen the **timer leg** (hydrated from the **timer export**). Entering `complete` requires a chosen **score entry mode** and a full **session score** for that mode (every **present player** scored for **points**, or marked for **outcomes**). Once `complete`, the owner reviews **session statistics** by default; editing scores is an explicit side path that does not demote the sitting to `scoring` as the lasting state—but returning to the timer from that edit path does demote to `playing`. Early stops remain **partial play sessions** until **session deletion**.
 
-_Avoid_: Treating states as freely jumbleable labels; making `complete` immutable except by delete-and-recreate; marking `complete` with half-filled scores; reaching **scoring** without **game end** / **timer export** once wired; demoting `complete` to `scoring` just to show the score editor.
+_Avoid_: Treating states as freely jumbleable labels; making `complete` immutable except by delete-and-recreate; marking `complete` with half-filled scores; reaching **scoring** without **game end** / **timer export** once wired; treating score entry as the default reopen view for `complete`.
+
+### Session statistics
+
+The post-save / reopen view for one **complete play session**: that sitting’s **session score** (mode-honest), **play time** (sitting wall-clock), per-person **banked time**, and callouts when they apply. Shown after Save and when opening a `complete` sitting from **Sessions**. Incomplete sittings (`setup` / `playing` / `scoring`) open the ordinary flow panel for that state—not **session statistics**. Edit opens score entry; it is not the default. No table-wide house-record or badge gallery in v1. Prefer charts and visual callouts over a plain score table when they clarify the sitting (e.g. score comparison, time breakdown).
+
+- **Points** sittings: each **present player**’s score (no table-wide sum of everyone’s points), **points per minute**, **personal best** and **first play** callouts.
+- **Outcomes** sittings: win/loss/draw marks and **session win**s, **play time**, **banked time**, **first play** callouts—no points totals, **points per minute**, or **personal best**.
+
+_Avoid_: Opening `complete` sittings straight into score entry; opening incomplete sittings into **session statistics**; treating **session statistics** as a substitute for **aggregate statistics**; using **banked time** as the sitting’s total duration; showing empty points/PPM/PB rows for **outcomes** sittings; presenting Σ of competing scores as a sitting “total”; baking layout assumptions that forbid a later shareable results graphic.
 
 ### Session score
 
@@ -195,6 +206,12 @@ Shared / cooperative group totals are deferred for a later coop-oriented UI.
 
 _Avoid_: A game-rules engine; forcing every game into points-only entry; a shared-score mode in the current scoring UI.
 
+### Session win
+
+Who won a **complete play session**, for **aggregate statistics** and winner callouts. Under **outcomes**, each **present player** marked win counts (draw is not a win). Under **points**, each **present player** tied for the highest numeric score counts as a **session win** (shared wins when tied). No separate winner field in v1. Feeds **win share**, not a pie labeled “win rate.”
+
+_Avoid_: Inferring winners from **partial play sessions**; requiring an explicit winner mark on top of **points**; counting draws as wins; golf-style lowest-score wins in v1.
+
 ### Session deletion
 
 Permanently removing a **play session** from the **manager store** (and its contribution to aggregates) when the record was a mistake or unwanted. No soft-archive in v1. The main abandon path for unwanted partial sittings created from **game detail**.
@@ -203,25 +220,89 @@ _Avoid_: Soft-delete/restore flows in v1.
 
 ### Points per minute
 
-An **individual** **v1 statistics** rate for a **recorded player** at a game—not a single table-wide figure. Each person’s **points** are divided by **that person’s banked time** from a **manager-linked timer** export (time they spent on their own turns), so slow deliberate play can be compared with fast-and-loose play. No manual duration in v1. Until that handoff exists—or a seat lacks usable **banked time** (> 0 after banking any open turn at **game end**)—PPM simply does not appear for that person. Sitting wall-clock **total game elapsed** may still ride along on the export as session context; it is not the PPM denominator.
+An **individual** **v1 statistics** rate for a **recorded player** at a game—not a single table-wide figure. Each person’s **points** are divided by **that person’s banked time** from a **manager-linked timer** export (time they spent on their own turns), so slow deliberate play can be compared with fast-and-loose play. No manual duration in v1. Until that handoff exists—or a seat lacks usable **banked time** (> 0 after banking any open turn at **game end**)—PPM simply does not appear for that person. Sitting **play time** (wall-clock) may still show as session context; it is never the PPM denominator.
 
-_Avoid_: Manual duration entry in v1; inventing duration from wall-clock guesses; presenting PPM as one group metric for the whole table; using shared sitting `durationMs` as the PPM denominator; treating summed table banked time as a substitute for per-person banked time.
+_Avoid_: Manual duration entry in v1; inventing duration from wall-clock guesses; presenting PPM as one group metric for the whole table; using **play time** as the PPM denominator; treating summed table banked time as a substitute for per-person banked time.
 
 ### Personal best
 
-For **points**, the highest numeric score that person has recorded at a given game. V1 treats higher as better; lower-is-better games are out of scope.
+For **points**, the highest numeric score that **recorded player** has recorded at a given game. V1 treats higher as better; lower-is-better games are out of scope. On **session statistics**, call out when this sitting sets a new **personal best** for that person at that game. A **first play** is never also called out as a **personal best**—the debut score establishes the baseline without a PB callout.
 
-_Avoid_: Golf-style inversions in v1; picking “best” manually per sitting.
+_Avoid_: Golf-style inversions in v1; picking “best” manually per sitting; a single shelf-wide best that mixes unrelated titles; treating a debut sitting as a **personal best** callout.
+
+### First play
+
+A **recorded player**’s first **play session** at a given game under this **account owner** (partials count, same as **play count**). On **session statistics**, call out when this sitting is that person’s **first play** at the title.
+
+_Avoid_: Requiring `complete` before counting a first; Me-only firsts that ignore other **recorded players**; a separate badge collection product in v1.
+
+### Aggregate statistics
+
+The **Stats** tab’s primary content: table-wide summaries across this **account owner**’s history (all **recorded players**, all games)—**sessions recorded**, **games played**, **games in collection**, total **play time**, overall **win share**, **H-index**, and expandable per-person breakdowns. Per-title play charts live on **game detail** (**Stats** expansion), not as a long game list on this tab. Presentation is **visualization-first**: charts carry the story; dense tables are secondary (e.g. inside expandables), not the default reading experience.
+
+**Sessions recorded** counts every **play session** (including partials). **Games played** is distinct titles with at least one **play session** (partials count). **Games in collection** is shelf size, independent of plays. **Session win** / **win share** charts use **complete play sessions** only. Total **play time** sums sitting wall-clock from usable **timer export**s (`durationMs`)—no export, no credited time. Per-person time breakdowns use that person’s **banked time**.
+
+Expandable per-person rows (for **recorded players** with history) include: sittings played, distinct **games played**, total **banked time**, **session win** count, **win percentage**, and personal **H-index**. Not cross-game average score or **points per minute** (those stay per-game on **game detail** / **session statistics**).
+
+V1 ships those aggregates (including table-level and per-person **H-index** with a short explainer). Deferred: period filters, location / player-count pies, score timelines, heat maps, cost-per-play, head-to-head, badge collections, and share/export of stats images (eventual goal—v1 must not paint into a corner that blocks a later shareable results or Stats graphic). With no **play sessions** yet, the tab still shows headline metrics (zeros / empty chart states) and **games in collection**; chart blocks may explain that there is no play history yet—do not replace the whole tab with a single placeholder.
+
+_Avoid_: Making the Stats tab primarily a browsable person×game list, spreadsheet of numbers, or long per-game catalog; Me-only Insights that hide other **recorded players**; counting **partial play sessions** toward **session win**; inventing **play time** without a **timer export**; treating summed **banked time** as total **play time**; labeling **win share** pies as “win rate”; cross-game blended average score or PPM on the Stats tab; a full-tab empty state that hides **games in collection** until the first play.
+
+### Sessions recorded
+
+Headline count of **play sessions** under this **account owner**, including **partial play sessions**.
+
+### Games played
+
+Headline count of distinct games (**collection** titles) with at least one **play session**, including partials.
+
+_Avoid_: Requiring `complete` before a title counts; conflating with **games in collection**.
+
+### Games in collection
+
+Headline count of items on the **collection** shelf—ownership size, not play activity.
+
+_Avoid_: Using shelf size as a proxy for **games played**.
+
+### Win share
+
+How **session win** awards are distributed across **recorded players**—for the whole history or for one game (on **game detail** **Stats**). Pie slices are each person’s fraction of all **session win** credits on **complete play sessions** (shared ties each count; slices sum to the whole). **Removed player** seats contribute no slice and no credit. Distinct from a person’s **win percentage** (their **session win**s ÷ their **complete play sessions**), which appears in expandable per-person detail.
+
+_Avoid_: Calling this “win rate” in primary UI; sizing pie slices by personal win percentage; an “Unknown” pie slice for tombstones.
+
+### Win percentage
+
+For one **recorded player**, **session win**s divided by that person’s **complete play sessions** (optionally scoped to one game in per-game breakdowns). Not what the **win share** pie slices represent.
+
+_Avoid_: Using “win percentage” and “win share” interchangeably in UI copy.
+
+### H-index
+
+A breadth-and-depth play metric: the largest N such that there are N distinct games each with at least N **play sessions** (partials count). On **aggregate statistics**, show the **account owner**’s table-level **H-index** (games under this history) with a brief explainer. Expandable per-person detail may also show each **recorded player**’s personal **H-index** (games where that person was a **present player**, same N-of-N rule).
+
+_Avoid_: Treating **H-index** as a win-skill rating; requiring `complete` before a sitting counts toward it; building an achievement-level / fives-dimes-centuries system around it in v1.
+
+### Play time
+
+Wall-clock duration of a sitting (**total game elapsed** / `durationMs` on the **timer export**). Used whenever stats speak of total time, time on a game, or session length “by all players.”
+
+_Avoid_: Using per-person **banked time** (or the sum of banked times) as **play time**.
+
+### Banked time
+
+Time a **present player** spent on their own turns, from the **timer export**. Used for per-person breakdowns and as the denominator for **points per minute**.
+
+_Avoid_: Presenting **banked time** as the sitting’s total duration.
 
 ### V1 statistics
 
-Simple derived summaries over stored **play sessions**, primarily **per person per collection game** (how that **recorded player** did at a given title). Includes **play count** (counts **partial play sessions** regardless of **score entry mode**). **Personal best** and **average score** use only sittings scored with **points**; **points per minute** additionally requires timer-exported duration. **Outcomes** contribute to **play count** only. Personal-stats browsing lists every **recorded player** who has history under this **account owner**, whether or not they are pinned as a **saved player**.
+Derived summaries over stored **play sessions**. The **Stats** surface leads with visualization-first **aggregate statistics** (table-wide only). Per-title play history lives on **game detail** (**Stats** expansion). **People** keeps person-centric history (that **recorded player**’s sittings and per-game figures)—roster + “how did Sam do?”, not a second copy of the Stats charts. **Session statistics** covers one finished sitting. Per-person-per-game figures (**play count**, **personal best**, **average score**, **points per minute**) support **People**, **game detail**, and session callouts. **Play count** counts **partial play sessions** regardless of **score entry mode**. **Personal best** and **average score** use only sittings scored with **points**; **points per minute** additionally requires per-person **banked time**. **Outcomes** contribute to **play count** and to **session win** tallies where marked, but invent no points. **Win share** charts use **session win** over **complete play sessions** only; credited **play time** requires a **timer export** wall-clock.
 
-_Avoid_: Win rate, head-to-head, trends, and group leaderboards in v1; a single shelf-wide personal best that mixes unrelated titles; inventing per-person points from **outcomes**; hiding guest history from stats because they were never pinned to the roster.
+_Avoid_: A single shelf-wide personal best that mixes unrelated titles; inventing per-person points from **outcomes**; hiding guest history from stats because they were never pinned to the roster; head-to-head ladders and long trend dashboards as v1 Stats tab centerpiece; calling **win share** “win rate” in primary copy; duplicating the same **aggregate statistics** charts on **People**; listing every played title as a block on the **Stats** tab.
 
 ### Timer leg
 
-The stretch of a **play session** spent in **Game Timer** as a **manager-linked timer**, begun from Game Manager after `setup` by always launching the Game Timer surface in linked mode, and finished only via **game end** (which **continues to scoring** with a **timer export**). There is no Manager-side “continue to scoring without timing” once wired. Leaving the timer without **game end** keeps the sitting in `playing` as a **partial play session**—no export, no auto-advance to **scoring**. Re-opening while still `playing` resumes surviving linked timer state; if that state is gone, re-seed from **present players** as a new attempt (clean times)—never two parallel timer legs on one sitting. At most one active linked binding across all sittings; starting another requires confirmed takeover (prior sitting stays `playing` partial; prior **room** ends if it was hosting). After **game end**, the **timer leg** is finished for that sitting—no re-entry from **scoring** in v1; the Game Timer surface’s linked binding clears so later timer-only opens are standalone. Add/clear remain available as host escape hatches in **more options** (no extra linked-only hard locks). Until that handoff exists, `playing` is a placeholder interstitial with Finish game (stands in for **game end**). Once wired, there is no lasting GM playing hub—setup launches Timer directly.
+The stretch of a **play session** spent in **Game Timer** as a **manager-linked timer**, begun from Game Manager after `setup` by always launching the Game Timer surface in linked mode, and finished via **game end** (which **continues to scoring** with a **timer export**). There is no Manager-side “continue to scoring without timing” once wired. Leaving the timer without **game end** keeps the sitting in `playing` as a **partial play session**—no export, no auto-advance to **scoring**. Re-opening while still `playing` resumes surviving linked timer state; if that state is gone, re-seed from **present players** as a new attempt (clean times)—never two parallel timer legs on one sitting. At most one active linked binding across all sittings; starting another requires confirmed takeover (prior sitting stays `playing` partial; prior **room** ends if it was hosting). From **scoring** (including score entry while editing a **complete** sitting), the owner may step back into the **timer leg** for that sitting; Game Manager demotes the session to `playing` and re-opens the linked timer hydrated from the attached **timer export** (roster, **banked time**, and **play time**). A later **game end** replaces that export and returns to **scoring**. After a successful **game end** handoff the prior linked binding clears so later timer-only opens are standalone until the owner re-enters from scoring or starts another sitting. Add/clear remain available as host escape hatches in **more options** (no extra linked-only hard locks). Until that handoff exists, `playing` is a placeholder interstitial with Finish game (stands in for **game end**). Once wired, there is no lasting GM playing hub—setup launches Timer directly.
 
 ### Last sync posture
 
@@ -243,7 +324,7 @@ _Avoid_: Requiring Game Manager for ordinary timing; rewriting standalone timer 
 
 ### Timer export
 
-Compact timing artifact attached to a **play session** after **game end**, derived from the final Game Timer **snapshot** but not the live **snapshot** itself. Includes final roster (stable person ids where known, name, color as shown on the timer—session-local labels), per-player **banked time**, and sitting `durationMs` (**total game elapsed**). Export labels seed this sitting’s scoring table; they do not by themselves rewrite **recorded player** identities.
+Compact timing artifact attached to a **play session** after **game end**, derived from the final Game Timer **snapshot** but not the live **snapshot** itself. Includes final roster (stable person ids where known, name, color as shown on the timer—session-local labels), per-player **banked time**, and sitting `durationMs` (**play time** / **total game elapsed**). Export labels seed this sitting’s scoring table; they do not by themselves rewrite **recorded player** identities.
 
 _Avoid_: Persisting P2P / turn-runtime **snapshot** fields in the **manager store**; calling the stored artifact a **snapshot**; treating mid-timer rename as People-management identity edit.
 
@@ -251,7 +332,7 @@ _Avoid_: Persisting P2P / turn-runtime **snapshot** fields in the **manager stor
 
 The manager-aware timer action that finishes a **manager-linked timer** and attaches a compact **timer export** (derived from the final **snapshot**: timing plus roster) for the awaiting **play session**—distinct from starting a **new game with same players** inside the timer. In the linked chrome it lives in the top-right **more options** menu below a separator under clear users / add user / settings / **new game with same players**, and is available to the **host** only (not **guests**). Confirmed before commit (include ending the shared **room** when hosting; omit that clause when local-only); the **host** **continues to scoring** only after the export is durably attached (retry on failure; prefer ending the **room** only after attach succeeds). **Guests** get ordinary host-ended **room** treatment when the **room** does end—not Game Manager scoring. Until the real timer is wired, Finish game on the interstitial stands in for **game end** (advances to scoring using the `setup` **present players**).
 
-_Avoid_: Saying the owner “returns” to scoring after the timer leg; reopening a **manager-linked timer** for the same sitting after **game end** in v1; **continuing to scoring** without a durable **timer export** once wired; completing launch/**game end**/scoring handoff from a non-owner browser; **continuing to scoring** while signed out.
+_Avoid_: Saying the owner “returns” to scoring after the timer leg; **continuing to scoring** without a durable **timer export** once wired; completing launch/**game end**/scoring handoff from a non-owner browser; **continuing to scoring** while signed out.
 
 ### Online-first
 
@@ -259,9 +340,9 @@ Game Manager expects connectivity for auth, **manager store**, and **catalog** a
 
 ### Manager surfaces
 
-Primary mobile areas of Game Manager: **Collection** (shelf browse and **game detail**), **People** (**saved players** and **recorded players** with history), **Sessions** (**play sessions**—resume incomplete, review complete; not a creation entry), and **Stats**, plus account/sign-in. Desktop shell remains out of scope for v1.
+Primary mobile areas of Game Manager: **Collection** (shelf browse and **game detail**), **People** (**saved players**, **recorded players**, and person-centric play history), **Sessions** (**play sessions**—resume incomplete, open **session statistics** for complete; not a creation entry), and **Stats** (**aggregate statistics**), plus account/sign-in. Desktop shell remains out of scope for v1.
 
-_Avoid_: Burying people management only inside session flows; a desktop-first dashboard layout for v1; a Sessions-page + control as the way to start sittings.
+_Avoid_: Burying people management only inside session flows; a desktop-first dashboard layout for v1; a Sessions-page + control as the way to start sittings; making **People** a second Stats dashboard.
 
 ## Flagged ambiguities
 
@@ -269,6 +350,7 @@ _Avoid_: Burying people management only inside session flows; a desktop-first da
 - **Game end** vs **stable host suffix preference** — ending the linked **room** must not strand reclaim of the usual Game Timer **room code**; transport/data details deferred but product requires last week’s **join link** to keep working.
 - **Manager-linked timer** launch/return transport mechanics — deferred; product boundary fixed: **account owner** same-browser handoff; **guests** are Timer-**room** only.
 - Apple / Facebook sign-in — deferred until those providers are enabled.
+- Share/export of **session statistics** or **aggregate statistics** graphics — deferred; keep v1 presentation share-friendly later without shipping share now.
 
 ## Example dialogue
 
@@ -286,3 +368,21 @@ _Avoid_: Burying people management only inside session flows; a desktop-first da
 
 > **Owner:** “I backed out before Save.”  
 > **Designer:** “That’s a **partial play session**—resume from **Sessions** at the same step, or **session deletion** if it was a mistake.”
+
+> **Owner:** “We just saved Wingspan—what do I see?”  
+> **Designer:** “**Session statistics**: scores, **play time**, each person’s **banked time** / PPM, and **personal best** or **first play** callouts. Edit if you need to fix scores.”
+
+> **Owner:** “Total points for the table?”  
+> **Designer:** “No—each person’s score only. We don’t sum competing totals.”
+
+> **Owner:** “I want charts, not spreadsheets.”  
+> **Designer:** “**Aggregate statistics** and **session statistics** are visualization-first; tables are secondary detail.”
+
+> **Owner:** “I tapped an unfinished session.”  
+> **Designer:** “You go back into setup, playing, or scoring—**session statistics** is only for `complete`.”
+
+> **Owner:** “Can I share tonight’s results?”  
+> **Designer:** “Not in this pass—but we won’t design **session statistics** in a way that blocks a later share graphic.”
+
+> **Owner:** “Show me our Wingspan history from the box page.”  
+> **Designer:** “After you’ve played it, **game detail** opens with **Stats** expanded and **Details** collapsed. Never played: flat catalog body, no **Stats** section. The **Stats** tab stays table-wide.”

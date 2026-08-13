@@ -121,17 +121,25 @@ export const useGameTimerStore = defineStore('gameTimer', {
 
     /**
      * Replace roster/times from a manager launch config; keep session option prefs.
-     * @param {{ seats?: Array<{ recordedPlayerId?: string, name: string, color: string }> }} launchConfig
+     * Optional per-seat `bankedMs` and top-level `durationMs` restore a prior timer export.
+     * @param {{
+     *   seats?: Array<{ recordedPlayerId?: string, name: string, color: string, bankedMs?: number }>,
+     *   durationMs?: number,
+     * }} launchConfig
      */
     applyLaunchConfig(launchConfig) {
       const seats = Array.isArray(launchConfig?.seats) ? launchConfig.seats : []
       this.players = seats.map((seat) => {
+        const bankedMs =
+          typeof seat.bankedMs === 'number' && Number.isFinite(seat.bankedMs) && seat.bankedMs >= 0
+            ? seat.bankedMs
+            : 0
         const player = {
           id: createPlayerId(),
           name: (seat.name || 'Player').trim() || 'Player',
           color: seat.color || nextDefaultColor([]),
-          bankedMs: 0,
-          bankedMsByRound: {},
+          bankedMs,
+          bankedMsByRound: bankedMs > 0 ? { '1': bankedMs } : {},
         }
         if (typeof seat.recordedPlayerId === 'string' && seat.recordedPlayerId) {
           player.recordedPlayerId = seat.recordedPlayerId
@@ -146,7 +154,12 @@ export const useGameTimerStore = defineStore('gameTimer', {
         '1': this.players.map((p) => p.id),
       }
       this.hardPassOrderByRound = {}
-      this.totalGameStartedAt = null
+      const durationMs = launchConfig?.durationMs
+      if (typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs > 0) {
+        this.totalGameStartedAt = Date.now() - durationMs
+      } else {
+        this.totalGameStartedAt = null
+      }
     },
 
     /** Replace `players` and save order for the active round (e.g. drag-and-drop). */

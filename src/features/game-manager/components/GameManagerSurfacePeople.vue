@@ -40,10 +40,20 @@
             </div>
           </template>
 
-          <div class="gm-person-row row items-center no-wrap q-px-md" :style="rowStyle(person)">
-            <q-avatar size="36px" :style="{ backgroundColor: person.color }" class="q-mr-md" />
-            <div class="col text-body1 text-weight-medium">{{ person.name }}</div>
-          </div>
+          <q-item
+            clickable
+            v-ripple
+            class="gm-person-row"
+            :style="rowStyle(person)"
+            @click="openPersonStats(person)"
+          >
+            <q-item-section avatar>
+              <q-avatar size="36px" :style="{ backgroundColor: person.color }" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="text-body1 text-weight-medium">{{ person.name }}</q-item-label>
+            </q-item-section>
+          </q-item>
         </q-slide-item>
       </div>
     </div>
@@ -59,6 +69,15 @@
         @click="openAdd"
       />
     </div>
+
+    <GameManagerPersonStatisticsPanel
+      v-if="statsPerson"
+      :person="statsPerson"
+      :sessions="sessions"
+      :collection-items="collectionItems"
+      @close="statsPerson = null"
+      @open-session="openHistorySession"
+    />
 
     <q-dialog v-model="editorOpen">
       <q-card class="gm-dialog-card gm-dialog-card--narrow">
@@ -122,9 +141,16 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
+import { GAME_MANAGER_SESSION_FLOW_KEY } from '../composables/sessionFlowKey.js'
 import { useGameManagerPeople } from '../composables/useGameManagerPeople.js'
 import { PERSON_DEFAULT_COLORS } from '../people/peopleViewModel.js'
+import GameManagerPersonStatisticsPanel from './GameManagerPersonStatisticsPanel.vue'
+
+const flow = inject(GAME_MANAGER_SESSION_FLOW_KEY)
+if (!flow) {
+  throw new Error('GameManagerSurfacePeople requires session flow provide')
+}
 
 const { people, error, peekNextColor, addOrSelectPerson, updatePerson, deletePerson } =
   useGameManagerPeople()
@@ -135,6 +161,10 @@ const draftName = ref('')
 const draftColor = ref(PERSON_DEFAULT_COLORS[0])
 const deleteConfirmOpen = ref(false)
 const deleteTarget = ref(null)
+const statsPerson = ref(null)
+
+const sessions = computed(() => flow.sessions?.value || [])
+const collectionItems = computed(() => flow.collectionItems?.value || [])
 
 const errorMessage = computed(() => {
   if (!error.value) return ''
@@ -146,6 +176,16 @@ function rowStyle(person) {
     background: `linear-gradient(90deg, ${person.color}33 0%, rgba(255,255,255,0.04) 48%)`,
     minHeight: '64px',
   }
+}
+
+function openPersonStats(person) {
+  statsPerson.value = person
+}
+
+function openHistorySession(sessionId) {
+  const session = sessions.value.find((s) => s.id === sessionId)
+  if (!session) return
+  void flow.resumeSession(session, 'people')
 }
 
 function openAdd() {
@@ -191,3 +231,9 @@ async function confirmDelete() {
   cancelDelete()
 }
 </script>
+
+<style scoped>
+.gm-person-row {
+  min-height: 64px;
+}
+</style>

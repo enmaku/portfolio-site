@@ -25,9 +25,9 @@ import {
  */
 export function createManagerTimerLinkController(deps) {
   /**
-   * @param {{ playSessionId: string, launchConfig: { seats: unknown[] } }} input
+   * @param {{ playSessionId: string, launchConfig: { seats: unknown[] }, forceApplySeats?: boolean }} input
    */
-  async function enterLinkedTimer({ playSessionId, launchConfig }) {
+  async function enterLinkedTimer({ playSessionId, launchConfig, forceApplySeats = false }) {
     const existing = deps.getLinkState()
     const kind = resolveLinkEntryKind(existing, playSessionId)
 
@@ -35,7 +35,7 @@ export function createManagerTimerLinkController(deps) {
       deps.leaveSession()
     }
 
-    if (shouldApplyLaunchSeats(kind)) {
+    if (forceApplySeats || shouldApplyLaunchSeats(kind)) {
       deps.beginLink({ playSessionId, launchConfig })
       deps.applyLaunchConfig(launchConfig)
     }

@@ -100,6 +100,24 @@ test('resume same session does not re-apply seats', async () => {
   assert.equal(h.navigations[0].query[GM_SESSION_QUERY_KEY], 'ps-1')
 })
 
+test('forceApplySeats rehydrates even on resume', async () => {
+  const h = createHarness({
+    active: true,
+    playSessionId: 'ps-1',
+    launchConfig: { seats },
+  })
+  const restored = [
+    { recordedPlayerId: 'p1', name: 'Ada', color: '#111111', bankedMs: 3_000 },
+  ]
+  const result = await h.controller.enterLinkedTimer({
+    playSessionId: 'ps-1',
+    launchConfig: { seats: restored, durationMs: 9_000 },
+    forceApplySeats: true,
+  })
+  assert.equal(result.kind, 'resume')
+  assert.deepEqual(h.appliedSeats, [restored])
+})
+
 test('takeover ends hosting room then replaces link and seats', async () => {
   const h = createHarness({
     active: true,
