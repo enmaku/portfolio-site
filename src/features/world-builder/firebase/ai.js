@@ -226,7 +226,7 @@ export async function createSettlementNamesModel(options = {}) {
   await ensureFirebaseAppCheck(app)
   const ai = getAI(app, { backend: new GoogleAIBackend() })
   return getGenerativeModel(ai, {
-    model: 'gemini-flash-latest',
+    model: 'gemini-3.5-flash-lite',
     generationConfig: {
       temperature: 0.9,
       responseMimeType: 'application/json',
@@ -246,7 +246,7 @@ export async function createSettlementNameJudgeModel() {
   await ensureFirebaseAppCheck(app)
   const ai = getAI(app, { backend: new GoogleAIBackend() })
   return getGenerativeModel(ai, {
-    model: 'gemini-flash-latest',
+    model: 'gemini-3.5-flash-lite',
     generationConfig: {
       temperature: 0.2,
       responseMimeType: 'application/json',
