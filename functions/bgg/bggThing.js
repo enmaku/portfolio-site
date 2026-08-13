@@ -1,4 +1,3 @@
-const admin = require('firebase-admin')
 const { fetchBgg } = require('./fetchBgg')
 const { normalizeBggThingListXml } = require('./normalize')
 
@@ -10,6 +9,7 @@ const BGG_THING_CACHE_COLLECTION = 'bggThingCache'
  * @returns {FirebaseFirestore.Firestore}
  */
 function getFirestore() {
+  const admin = require('firebase-admin')
   if (!admin.apps.length) {
     admin.initializeApp()
   }
