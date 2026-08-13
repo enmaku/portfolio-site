@@ -87,16 +87,19 @@ export const useGameTimerStore = defineStore('gameTimer', {
   actions: {
     /**
      * Append a player and register them in the current round’s order.
-     * @param {{ name?: string, color?: string }} [payload]
+     * @param {{ name?: string, color?: string, recordedPlayerId?: string }} [payload]
      * @returns {string} New player id.
      */
-    addPlayer({ name, color } = {}) {
+    addPlayer({ name, color, recordedPlayerId } = {}) {
       const player = {
         id: createPlayerId(),
         name: (name ?? `Player ${this.players.length + 1}`).trim() || `Player ${this.players.length + 1}`,
         color: color ?? nextDefaultColor(this.players),
         bankedMs: 0,
         bankedMsByRound: {},
+      }
+      if (typeof recordedPlayerId === 'string' && recordedPlayerId) {
+        player.recordedPlayerId = recordedPlayerId
       }
       this.players.push(player)
       const k = String(this.round)
@@ -114,6 +117,49 @@ export const useGameTimerStore = defineStore('gameTimer', {
         this.playerOrderByRound[nextR] = [...nextOrder, player.id]
       }
       return player.id
+    },
+
+    /**
+     * Replace roster/times from a manager launch config; keep session option prefs.
+     * Optional per-seat `bankedMs` and top-level `durationMs` restore a prior timer export.
+     * @param {{
+     *   seats?: Array<{ recordedPlayerId?: string, name: string, color: string, bankedMs?: number }>,
+     *   durationMs?: number,
+     * }} launchConfig
+     */
+    applyLaunchConfig(launchConfig) {
+      const seats = Array.isArray(launchConfig?.seats) ? launchConfig.seats : []
+      this.players = seats.map((seat) => {
+        const bankedMs =
+          typeof seat.bankedMs === 'number' && Number.isFinite(seat.bankedMs) && seat.bankedMs >= 0
+            ? seat.bankedMs
+            : 0
+        const player = {
+          id: createPlayerId(),
+          name: (seat.name || 'Player').trim() || 'Player',
+          color: seat.color || nextDefaultColor([]),
+          bankedMs,
+          bankedMsByRound: bankedMs > 0 ? { '1': bankedMs } : {},
+        }
+        if (typeof seat.recordedPlayerId === 'string' && seat.recordedPlayerId) {
+          player.recordedPlayerId = seat.recordedPlayerId
+        }
+        return player
+      })
+      this.activePlayerId = null
+      this.turnStartedAt = null
+      this.turnStartedRound = null
+      this.round = 1
+      this.playerOrderByRound = {
+        '1': this.players.map((p) => p.id),
+      }
+      this.hardPassOrderByRound = {}
+      const durationMs = launchConfig?.durationMs
+      if (typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs > 0) {
+        this.totalGameStartedAt = Date.now() - durationMs
+      } else {
+        this.totalGameStartedAt = null
+      }
     },
 
     /** Replace `players` and save order for the active round (e.g. drag-and-drop). */

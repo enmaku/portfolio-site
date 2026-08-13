@@ -39,7 +39,7 @@
       </div>
       <div class="gt-round-bar__right row no-wrap items-center q-gutter-x-xs">
         <q-btn
-          v-if="canShufflePlayers"
+          v-if="chromeModel.showTopBarShuffle"
           flat
           round
           size="md"
@@ -47,11 +47,12 @@
           color="grey-5"
           class="gt-round-bar__new-game gt-round-bar__hit"
           aria-label="Randomize player order"
+          data-testid="gt-shuffle-players"
           :loading="isPlayerOrderShuffling"
           @click="shufflePlayers"
         />
         <q-btn
-          v-else-if="showStartNewGame"
+          v-else-if="chromeModel.showTopBarNewGame"
           flat
           round
           size="md"
@@ -59,10 +60,71 @@
           color="grey-5"
           class="gt-round-bar__new-game gt-round-bar__hit"
           aria-label="Start new game with same players"
+          data-testid="gt-start-new-game"
           :disable="isPlayerOrderShuffling"
           @click="newGameDialogOpen = true"
         />
         <q-btn
+          v-if="chromeModel.showMoreOptions"
+          flat
+          round
+          size="md"
+          icon="more_vert"
+          color="grey-5"
+          class="gt-round-bar__settings gt-round-bar__hit"
+          aria-label="More options"
+          data-testid="gt-more-options"
+          :disable="isPlayerOrderShuffling"
+        >
+          <q-menu anchor="bottom right" self="top right" :offset="[0, 6]">
+            <q-list style="min-width: 220px" dense>
+              <q-item v-close-popup clickable data-testid="gt-more-clear-users" @click="emitClearUsers">
+                <q-item-section>Clear users</q-item-section>
+              </q-item>
+              <q-item v-close-popup clickable data-testid="gt-more-add-user" @click="emitAddUser">
+                <q-item-section>Add user</q-item-section>
+              </q-item>
+              <q-item
+                v-close-popup
+                clickable
+                data-testid="gt-more-settings"
+                @click="settingsDialogOpen = true"
+              >
+                <q-item-section>Settings</q-item-section>
+              </q-item>
+              <q-item
+                v-if="chromeModel.showMoreOptionsShuffle"
+                v-close-popup
+                clickable
+                data-testid="gt-more-shuffle-players"
+                :disable="isPlayerOrderShuffling"
+                @click="shufflePlayers"
+              >
+                <q-item-section>Randomize player order</q-item-section>
+              </q-item>
+              <q-item
+                v-close-popup
+                clickable
+                data-testid="gt-more-new-game"
+                @click="newGameDialogOpen = true"
+              >
+                <q-item-section>New game with same players</q-item-section>
+              </q-item>
+              <q-separator />
+              <q-item
+                v-if="chromeModel.showGameEnd"
+                v-close-popup
+                clickable
+                data-testid="gt-more-game-end"
+                @click="gameEndDialogOpen = true"
+              >
+                <q-item-section>End game</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-btn>
+        <q-btn
+          v-else-if="chromeModel.showSettingsCog"
           flat
           round
           size="md"
@@ -70,6 +132,7 @@
           color="grey-5"
           class="gt-round-bar__settings gt-round-bar__hit"
           aria-label="Game timer settings"
+          data-testid="gt-settings-cog"
           :disable="isPlayerOrderShuffling"
         >
           <q-menu anchor="bottom right" self="top right" :offset="[0, 6]">
@@ -107,6 +170,35 @@
       <span class="gt-round-bar__session-value text-mono">{{ timingStripValue }}</span>
     </button>
 
+    <q-dialog v-model="settingsDialogOpen" @before-hide="blurActiveElement">
+      <q-card class="gt-dialog-card gt-dialog-card--narrow" data-testid="gt-settings-dialog">
+        <q-card-section class="text-h6">Settings</q-card-section>
+        <q-card-section class="q-pt-none gt-settings-menu">
+          <template v-if="settingsModel.showRoundRules">
+            <div class="text-subtitle2 text-weight-medium q-mb-sm">Round rules</div>
+            <q-toggle v-model="hardPassEnabledModel" color="primary" label="Hard pass" />
+            <div class="text-caption text-grey-6 q-mb-md q-ml-sm">
+              Hard pass removes a player from the current round.
+            </div>
+            <div class="q-pl-md q-mb-sm">
+              <q-toggle
+                v-model="hardPassOrderNextRoundModel"
+                color="primary"
+                :disable="!hardPassEnabled"
+                label="Pass order determines round order"
+              />
+            </div>
+          </template>
+          <div v-if="settingsModel.showFullscreen">
+            <q-toggle v-model="fullscreenModel" color="primary" label="Fullscreen" />
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Done" color="primary" v-close-popup data-testid="gt-settings-dialog-done" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
     <q-dialog v-model="newGameDialogOpen" persistent>
       <q-card class="gt-dialog-card gt-dialog-card--narrow">
         <q-card-section class="text-h6">Start new game?</q-card-section>
@@ -117,6 +209,25 @@
         <q-card-actions align="right">
           <q-btn flat label="Cancel" color="grey" @click="newGameDialogOpen = false" />
           <q-btn unelevated label="Start new game" color="primary" @click="confirmStartNewGame" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="gameEndDialogOpen" persistent>
+      <q-card class="gt-dialog-card gt-dialog-card--narrow">
+        <q-card-section class="text-h6">End game?</q-card-section>
+        <q-card-section class="q-pt-none text-body2">
+          Continue to scoring with the current timer results. If you are hosting a room, the room ends for everyone.
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" color="grey" @click="gameEndDialogOpen = false" />
+          <q-btn
+            unelevated
+            label="Continue to scoring"
+            color="primary"
+            data-testid="gt-confirm-game-end"
+            @click="confirmGameEnd"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -144,22 +255,37 @@ import {
   isP2PSessionActive,
 } from '../p2p/session.js'
 import { useGameTimerStore } from '../../../stores/gameTimer.js'
+import { useGameManagerTimerLinkStore } from '../../../stores/gameManagerTimerLink.js'
 import { getGameTimerSettingsModel } from '../settingsModel.js'
+import { getManagerLinkedChromeModel } from '../linkedChromeModel.js'
 import { useProjectShellBrowserFullscreenChrome } from '../../../layouts/projects/projectShellFullscreenChrome.js'
+
+const emit = defineEmits(['add-user', 'clear-users', 'request-game-end'])
 
 const { isGuest } = useGameTimerP2P()
 const { isPlayerOrderShuffling } = usePlayerOrderShufflePresentation()
 const fullscreenChromeExposed = useProjectShellBrowserFullscreenChrome()
 const store = useGameTimerStore()
+const linkStore = useGameManagerTimerLinkStore()
 const now = useGameTimerNow(1000)
 const { round, players, hardPassEnabled, hardPassOrderNextRound, fullscreenEnabled, timingStripMode } =
   storeToRefs(store)
+const { isManagerLinked } = storeToRefs(linkStore)
 const hasPlayers = computed(() => players.value.length > 0)
-const showStartNewGame = computed(() => !isGuest.value && hasPlayers.value)
 const canShufflePlayers = computed(
   () => !isGuest.value && canShufflePlayerOrder(store.$state),
 )
+const chromeModel = computed(() =>
+  getManagerLinkedChromeModel({
+    isManagerLinked: isManagerLinked.value,
+    isGuest: isGuest.value,
+    canShuffle: canShufflePlayers.value,
+    hasPlayers: hasPlayers.value,
+  }),
+)
 const newGameDialogOpen = ref(false)
+const gameEndDialogOpen = ref(false)
+const settingsDialogOpen = ref(false)
 const canGoPreviousRound = computed(
   () => hasPlayers.value && round.value > 1 && !isPlayerOrderShuffling.value,
 )
@@ -206,9 +332,29 @@ const fullscreenModel = computed({
   set: (v) => store.setFullscreenEnabled(Boolean(v)),
 })
 
+function blurActiveElement() {
+  const el = document.activeElement
+  if (el && el !== document.body && typeof el.blur === 'function') {
+    el.blur()
+  }
+}
+
 function confirmStartNewGame() {
   store.startNewGameSamePlayers()
   newGameDialogOpen.value = false
+}
+
+function emitAddUser() {
+  emit('add-user')
+}
+
+function emitClearUsers() {
+  emit('clear-users')
+}
+
+function confirmGameEnd() {
+  gameEndDialogOpen.value = false
+  emit('request-game-end')
 }
 
 async function shufflePlayers() {

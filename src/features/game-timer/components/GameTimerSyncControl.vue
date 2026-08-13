@@ -164,9 +164,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
 import { buildGameTimerRoomShareUrl, normalizeRoomSuffixInput } from '../p2p/roomId.js'
+import { useGameManagerTimerLinkStore } from '../../../stores/gameManagerTimerLink.js'
 
 const $q = useQuasar()
 const menuRef = ref(/** @type {{ hide?: () => void } | null} */ (null))
+const timerLinkStore = useGameManagerTimerLinkStore()
 const {
   phase,
   suffix,
@@ -320,6 +322,7 @@ function copyRoomUrl() {
 function onLeave() {
   hideMenu()
   leaveSession()
+  timerLinkStore.setLastSyncPosture('local')
 }
 </script>
 

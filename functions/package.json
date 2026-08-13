@@ -1,0 +1,16 @@
+{
+  "name": "portfolio-site-functions",
+  "description": "Firebase Cloud Functions for portfolio-site (Game Manager BGG catalog proxy)",
+  "private": true,
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.3.0"
+  }
+}

@@ -1,0 +1,145 @@
+// Game Manager UI classes — imported from app.scss
+
+.gm-dialog-card {
+  border-radius: 12px;
+}
+
+.gm-dialog-card--narrow {
+  min-width: 280px;
+}
+
+.gm-dialog-card--wide {
+  min-width: min(100vw - 32px, 420px);
+  width: min(100vw - 32px, 420px);
+}
+
+.gm-catalog-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  min-height: 0;
+  background: $dark-page;
+}
+
+/** Full-page session flow (detail / setup / scoring) — stays inside project-shell phone frame. */
+.gm-flow-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: $dark-page;
+}
+
+.body--light .gm-flow-overlay {
+  background: #fff;
+}
+
+.body--light .gm-catalog-panel {
+  background: #fff;
+}
+
+.gm-catalog-panel__body {
+  min-height: 0;
+}
+
+.gm-catalog-panel__actions {
+  flex-shrink: 0;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 599px) {
+  .gm-dialog-card--narrow {
+    min-width: min(100vw - 32px, 360px);
+  }
+}
+
+.gm-actions-bar {
+  flex-shrink: 0;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  background: inherit;
+}
+
+.gm-actions-bar__fixed-btn {
+  flex-shrink: 0;
+}
+
+.gm-surface {
+  position: relative;
+  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.gm-surface__scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y pinch-zoom;
+}
+
+.gm-empty {
+  max-width: 280px;
+}
+
+.gm-row-thumb {
+  width: 40px;
+  height: 56px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.body--light .gm-row-thumb {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.gm-slide {
+  margin-bottom: 8px;
+}
+
+.gm-flow-panel {
+  background: $dark-page;
+  height: 100%;
+  max-height: 100%;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.body--light .gm-flow-panel {
+  background: #fff;
+}
+
+.gm-flow-panel__header {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.gm-flow-panel__scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gm-flow-panel__description {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.gm-flow-panel__actions {
+  flex-shrink: 0;
+  min-width: 0;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}

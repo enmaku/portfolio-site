@@ -74,6 +74,7 @@
             <q-expansion-item
               v-for="section in controlSections"
               :key="section.section"
+              group="wb-generation-controls"
               :label="section.section"
               dense
               :default-opened="section.section === 'Wind'"
@@ -133,6 +134,7 @@
               </template>
             </q-expansion-item>
             <q-expansion-item
+              group="wb-generation-controls"
               label="Map overlays"
               dense
               header-class="text-caption text-weight-medium"

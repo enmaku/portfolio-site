@@ -1,6 +1,10 @@
 <template>
   <q-page class="gt-page column fit no-wrap">
-    <GameTimerRoundBar />
+    <GameTimerRoundBar
+      @add-user="openAddDialog"
+      @clear-users="resetConfirmOpen = true"
+      @request-game-end="onRequestGameEnd"
+    />
 
     <div
       v-if="!players.length"
@@ -21,8 +25,9 @@
     </div>
 
     <div
-      v-if="!isGuest"
+      v-if="!isGuest && !chromeModel.hideAddClearFabs"
       class="gt-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm q-gutter-x-sm"
+      data-testid="gt-actions-bar"
     >
       <q-btn
         v-if="players.length"
@@ -32,6 +37,7 @@
         icon="playlist_remove"
         aria-label="Remove all players"
         class="gt-actions-bar__fixed-btn"
+        data-testid="gt-clear-users-fab"
         @click="resetConfirmOpen = true"
       />
       <GameTimerTurnControls v-if="hasHeldTurn" class="col" />
@@ -42,12 +48,20 @@
         icon="add"
         aria-label="Add player"
         class="gt-actions-bar__fixed-btn"
+        data-testid="gt-add-user-fab"
         :disable="hasMultipleRoundsFlag || isPlayerOrderShuffling"
         @click="openAddDialog"
       />
     </div>
     <div
-      v-else-if="hasHeldTurn"
+      v-else-if="!isGuest && chromeModel.hideAddClearFabs && hasHeldTurn"
+      class="gt-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm"
+      data-testid="gt-actions-bar-turn-only"
+    >
+      <GameTimerTurnControls class="col" />
+    </div>
+    <div
+      v-else-if="isGuest && hasHeldTurn"
       class="gt-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm"
     >
       <GameTimerTurnControls class="col" />
@@ -106,6 +120,8 @@ import { useProjectShellBrowserFullscreen } from '../../layouts/projects/composa
 import { useNoSleep } from '../../features/game-timer/composables/useNoSleep.js'
 import { usePlayerOrderShufflePresentation } from '../../features/game-timer/composables/usePlayerOrderShufflePresentation.js'
 import { nextDefaultColor, hasMultipleRounds } from '../../features/game-timer/core.js'
+import { getManagerLinkedChromeModel } from '../../features/game-timer/linkedChromeModel.js'
+import { canShufflePlayerOrder } from '../../features/game-timer/playerOrderShuffle.js'
 import {
   GAME_TIMER_ROOM_QUERY_KEY,
   isValidRoomSuffix,
@@ -113,20 +129,35 @@ import {
 } from '../../features/game-timer/p2p/roomId.js'
 import { joinRoom } from '../../features/game-timer/p2p/session.js'
 import { useGameTimerStore } from '../../stores/gameTimer.js'
+import { useGameManagerTimerLinkStore } from '../../stores/gameManagerTimerLink.js'
+import { useManagerLinkedGameEnd } from '../../features/game-manager/composables/useManagerLinkedGameEnd.js'
+import { GM_SESSION_QUERY_KEY } from '../../features/game-manager/domain/timerLinkOrchestration.js'
 
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
 const { isGuest } = useGameTimerP2P()
 const store = useGameTimerStore()
+const linkStore = useGameManagerTimerLinkStore()
 const { players, activePlayerId, fullscreenEnabled } = storeToRefs(store)
+const { isManagerLinked } = storeToRefs(linkStore)
 const { isPlayerOrderShuffling } = usePlayerOrderShufflePresentation()
+const { confirmGameEnd } = useManagerLinkedGameEnd({ router })
 
 const hasMultipleRoundsFlag = computed(() =>
   hasMultipleRounds({
     round: store.round,
     playerOrderByRound: store.playerOrderByRound,
     players: players.value,
+  }),
+)
+
+const chromeModel = computed(() =>
+  getManagerLinkedChromeModel({
+    isManagerLinked: isManagerLinked.value,
+    isGuest: isGuest.value,
+    canShuffle: !isGuest.value && canShufflePlayerOrder(store.$state),
+    hasPlayers: players.value.length > 0,
   }),
 )
 
@@ -143,20 +174,34 @@ useProjectShellBrowserFullscreen({
 })
 
 onMounted(() => {
-  const raw = route.query[GAME_TIMER_ROOM_QUERY_KEY]
-  if (raw === undefined || raw === null) return
-  const str = Array.isArray(raw) ? raw[0] : raw
-  if (!String(str).trim()) return
-
   const nextQuery = { ...route.query }
-  delete nextQuery[GAME_TIMER_ROOM_QUERY_KEY]
-  router.replace({
-    path: route.path,
-    query: nextQuery,
-    hash: route.hash,
-  })
+  let queryChanged = false
 
-  const code = normalizeRoomSuffixInput(str)
+  const gmRaw = route.query[GM_SESSION_QUERY_KEY]
+  if (gmRaw !== undefined && gmRaw !== null) {
+    delete nextQuery[GM_SESSION_QUERY_KEY]
+    queryChanged = true
+  }
+
+  const raw = route.query[GAME_TIMER_ROOM_QUERY_KEY]
+  const roomStr =
+    raw === undefined || raw === null ? '' : String(Array.isArray(raw) ? raw[0] : raw).trim()
+  if (roomStr) {
+    delete nextQuery[GAME_TIMER_ROOM_QUERY_KEY]
+    queryChanged = true
+  }
+
+  if (queryChanged) {
+    router.replace({
+      path: route.path,
+      query: nextQuery,
+      hash: route.hash,
+    })
+  }
+
+  if (!roomStr) return
+
+  const code = normalizeRoomSuffixInput(roomStr)
   if (!isValidRoomSuffix(code)) {
     $q.notify({
       type: 'warning',
@@ -194,6 +239,10 @@ function confirmAdd() {
 function confirmResetAll() {
   store.clearAllPlayers()
   resetConfirmOpen.value = false
+}
+
+async function onRequestGameEnd() {
+  await confirmGameEnd()
 }
 </script>
 

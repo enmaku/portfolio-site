@@ -82,7 +82,7 @@ Drawer and toolbar label for the `/about` route—the **résumé data** / about 
 
 ### Projects drawer sections
 
-“Mobile” and “Desktop” groupings in the portfolio Projects menu (drawer on small viewports, toolbar dropdown on desktop). **Mobile** lists phone-framed play **projects** (Game Timer, Movie Vote, Dungeon Runner). **Desktop** lists full-width **project** surfaces that are not the phone-framed play UI—starting with the Dungeon Runner **match outcome dashboard**.
+“Mobile” and “Desktop” groupings in the portfolio Projects menu (drawer on small viewports, toolbar dropdown on desktop). **Mobile** lists phone-framed play **projects** (Game Timer, Movie Vote, Dungeon Runner, Game Manager). **Desktop** lists full-width **project** surfaces that are not the phone-framed play UI—starting with the Dungeon Runner **match outcome dashboard**.
 
 ### Detached project launch
 

@@ -41,6 +41,16 @@ const routes = [
     ],
   },
   {
+    path: '/projects/game-manager',
+    component: () => import('layouts/projects/ProjectShellLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/projects/GameManagerPage.vue'),
+      },
+    ],
+  },
+  {
     path: '/projects/movie-vote',
     component: () => import('layouts/projects/ProjectShellLayout.vue'),
     children: [
