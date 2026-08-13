@@ -296,6 +296,48 @@
               <q-tooltip>Download campaign kit</q-tooltip>
             </q-btn>
           </div>
+          <div
+            v-if="timeControlsActive"
+            class="q-mb-md"
+            data-testid="world-builder-llm-names-panel"
+          >
+            <q-input
+              v-model="llmFlavorPrompt"
+              type="textarea"
+              autogrow
+              dense
+              outlined
+              label="Name flavor"
+              hint="Theme for Gemini place names (elven, dwarven, pirates, …)"
+              class="q-mb-sm"
+              data-testid="world-builder-llm-flavor"
+            />
+            <q-toggle
+              :model-value="llmNamesOverlayVisible"
+              label="Names overlay"
+              dense
+              class="q-mb-sm"
+              data-testid="world-builder-llm-names-overlay"
+              @update:model-value="setLlmNamesOverlayVisible"
+            />
+            <q-btn
+              unelevated
+              color="secondary"
+              class="full-width"
+              label="Generate names"
+              data-testid="world-builder-llm-generate-names"
+              :loading="isLlmGenerateRunning"
+              :disable="llmGenerateDisabled"
+              @click="generateLlmSettlementNames"
+            />
+            <div
+              v-if="llmLastError"
+              class="text-negative text-caption q-mt-sm"
+              data-testid="world-builder-llm-error"
+            >
+              {{ llmLastError }}
+            </div>
+          </div>
           <q-banner
             v-if="showValidationFailureIndicator"
             :data-testid="WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID"
@@ -542,6 +584,7 @@ const {
   beginColonization,
   epochStep,
   exportCampaignKit,
+  llmSettlementNames,
   resetColonization,
   setColonistSetting,
   resetColonistSettings,
@@ -551,6 +594,16 @@ const {
   politicalMarkerScreenPosition,
   setSettlementFocus,
 } = colonization
+
+const {
+  flavorPrompt: llmFlavorPrompt,
+  namesOverlayVisible: llmNamesOverlayVisible,
+  isGenerateRunning: isLlmGenerateRunning,
+  generateDisabled: llmGenerateDisabled,
+  lastError: llmLastError,
+  generateSettlementNames: generateLlmSettlementNames,
+  setNamesOverlayVisible: setLlmNamesOverlayVisible,
+} = llmSettlementNames
 
 function isWindControlDisabled(key) {
   return isGenerationControlDisabled(key, {

@@ -14,6 +14,7 @@ import {
   drawSettlementIdLabels,
   drawSettlementNodes,
 } from './drawMapNodeOverlays.js'
+import { drawFactionNamesLegend } from './drawFactionNamesLegend.js'
 import {
   buildFactionTerritoryHoverIndex,
   factionTerritoryHighlightKey,
@@ -115,8 +116,16 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const settlementOverlay = new Graphics()
   const settlementIdOverlay = new Container()
   const recentConquestOverlay = new Graphics()
+  /** Screen-space LLM faction legend (not pan/zoomed with the world). */
+  const factionNamesLegendOverlay = new Container()
   /** Campaign kit export only — never toggled from the overlay bar. */
   let settlementIdLabelsEnabled = false
+  /** Spike: LLM custom place names (independent of kit map-number labels). */
+  let customSettlementNamesVisible = false
+  /** @type {Record<string, string>} */
+  let customSettlementNamesById = {}
+  /** @type {Record<string, string>} */
+  let customFactionNamesById = {}
   let resourceOverlayVisibility = createDefaultResourceOverlayVisibility()
   let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
   /**
@@ -156,6 +165,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   })
 
   app.stage.addChild(viewport)
+  app.stage.addChild(factionNamesLegendOverlay)
   viewport.addChild(terrain)
   viewport.addChild(contours)
   viewport.addChild(arable)
@@ -250,6 +260,10 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
 
   const resizeObserver = new ResizeObserver(() => {
     syncViewportToHost(viewport, hostEl, viewport.worldWidth, viewport.worldHeight)
+    if (customSettlementNamesVisible) {
+      refreshMapLayers(['settlementIdLabels'])
+      return
+    }
     renderFrame()
   })
   resizeObserver.observe(hostEl)
@@ -292,13 +306,25 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         drawSaltNodes(saltOverlay, GraphicsPath, currentWorldDocument, resourceOverlayVisibility),
       settlementNodes: () =>
         drawSettlementNodes(settlementOverlay, currentWorldDocument, resourceOverlayVisibility),
-      settlementIdLabels: () =>
+      settlementIdLabels: () => {
         drawSettlementIdLabels(
           settlementIdOverlay,
           Text,
           currentWorldDocument,
           settlementIdLabelsEnabled,
-        ),
+          {
+            customNamesVisible: customSettlementNamesVisible,
+            customNamesBySettlementId: customSettlementNamesById,
+          },
+        )
+        drawFactionNamesLegend(factionNamesLegendOverlay, Graphics, Text, {
+          visible: customSettlementNamesVisible,
+          worldDocument: currentWorldDocument,
+          namesByFactionId: customFactionNamesById,
+          screenWidth: hostEl.clientWidth || app.screen.width,
+          screenHeight: hostEl.clientHeight || app.screen.height,
+        })
+      },
       recentConquestMarkers: () =>
         drawRecentConquestMarkers(
           recentConquestOverlay,
@@ -622,6 +648,39 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
         return
       }
       settlementIdLabelsEnabled = next
+      refreshMapLayers(['settlementIdLabels'])
+    },
+
+    /**
+     * Spike: set LLM-generated settlement place names for the names overlay.
+     * @param {Record<string, string>} namesById
+     */
+    setCustomSettlementNames(namesById) {
+      customSettlementNamesById =
+        namesById && typeof namesById === 'object' ? { ...namesById } : {}
+      refreshMapLayers(['settlementIdLabels'])
+    },
+
+    /**
+     * Spike: set LLM-generated faction names for the names overlay legend.
+     * @param {Record<string, string>} namesById
+     */
+    setCustomFactionNames(namesById) {
+      customFactionNamesById =
+        namesById && typeof namesById === 'object' ? { ...namesById } : {}
+      refreshMapLayers(['settlementIdLabels'])
+    },
+
+    /**
+     * Spike: show/hide custom settlement names on the map.
+     * @param {boolean} visible
+     */
+    setCustomSettlementNamesVisible(visible) {
+      const next = visible === true
+      if (customSettlementNamesVisible === next) {
+        return
+      }
+      customSettlementNamesVisible = next
       refreshMapLayers(['settlementIdLabels'])
     },
 

@@ -32,6 +32,14 @@
       href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
+<% if (ctx.dev) { %>
+    <script>
+      // Firebase App Check debug provider — must run before firebase/app-check loads.
+      // Prefer a registered UUID via VITE_FIREBASE_APPCHECK_DEBUG_TOKEN (set in ai.js);
+      // this `true` flag lets the SDK mint/print a token on first App Check init.
+      self.FIREBASE_APPCHECK_DEBUG_TOKEN = true
+    </script>
+    <% } %>
   </head>
   <body>
     <!-- quasar:entry-point -->

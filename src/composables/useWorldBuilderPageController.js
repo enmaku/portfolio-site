@@ -60,7 +60,7 @@ import {
 } from '../utils/worldBuilderColonizationCache.js'
 import { createWorldBuilderTerrainSessionCache } from './createWorldBuilderTerrainSessionCache.js'
 import { useWorldBuilderColonization } from './useWorldBuilderColonization.js'
-import { useWorldBuilderCampaignKitExport } from './useWorldBuilderCampaignKitExport.js'
+import { useWorldBuilderCampaignKitAndLlmNames } from './useWorldBuilderCampaignKitAndLlmNames.js'
 import { useWorldBuilderGeneration } from './useWorldBuilderGeneration.js'
 import { useWorldBuilderOverlayState } from './useWorldBuilderOverlayState.js'
 
@@ -409,7 +409,7 @@ export function useWorldBuilderPageController(options) {
     return phase === COLONIZATION_PHASE_SETUP || phase === COLONIZATION_PHASE_RUNNING
   })
 
-  const campaignKit = useWorldBuilderCampaignKitExport({
+  const { campaignKit, llmSettlementNames } = useWorldBuilderCampaignKitAndLlmNames({
     getViewport: () => mapLifecycle?.getViewport() ?? null,
     getOverlayDisplaySettings: () => ({
       arableMinimumProductivity: overlay.overlayDisplaySetting('arableMinimumProductivity'),
@@ -417,12 +417,11 @@ export function useWorldBuilderPageController(options) {
     syncOverlayToViewport: () => overlay.syncToViewport(),
     getSlice: () => colonization.slice.value,
     getWorldDocument: () => colonizationWorldDocument.value ?? geographyWorldDocument.value,
-    canExport: () => colonization.timeControlsActive.value === true,
-    isOtherWorkBusy: () =>
-      colonization.isEpochStepRunning.value ||
-      colonization.isBeginColonizationRunning.value ||
-      colonization.isRehydrationRunning.value ||
-      isSessionRestorePending.value,
+    timeControlsActive: () => colonization.timeControlsActive.value === true,
+    isEpochStepRunning: () => colonization.isEpochStepRunning.value,
+    isBeginColonizationRunning: () => colonization.isBeginColonizationRunning.value,
+    isRehydrationRunning: () => colonization.isRehydrationRunning.value,
+    isSessionRestorePending: () => isSessionRestorePending.value,
   })
 
   const colonizationBusyPhase = computed(() =>
@@ -754,6 +753,7 @@ export function useWorldBuilderPageController(options) {
       colonizationTimeControlsDisabled,
       isCampaignKitExportRunning: campaignKit.isCampaignKitExportRunning,
       exportCampaignKit: campaignKit.exportCampaignKit,
+      llmSettlementNames,
       enterColonizationSetup,
       backToTerrain,
       beginColonization: colonization.beginColonization,

@@ -141,11 +141,25 @@ export function clearRecentConquestMarkers(overlay) {
  * @param {typeof import('pixi.js').Text} TextCtor
  * @param {import('../core/types.js').WorldDocument} worldDocument
  * @param {boolean} kitEnabled
+ * @param {{
+ *   customNamesVisible?: boolean,
+ *   customNamesBySettlementId?: Record<string, string> | null,
+ * }} [options]
  */
-export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnabled) {
+export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnabled, options) {
   clearSettlementIdLabels(overlay)
 
-  if (!resolveSettlementIdLabelsDrawn(kitEnabled, worldDocument)) {
+  const customNamesVisible = options?.customNamesVisible === true
+  const customNamesBySettlementId = options?.customNamesBySettlementId ?? null
+  const drawCustomNames =
+    customNamesVisible &&
+    customNamesBySettlementId != null &&
+    Object.keys(customNamesBySettlementId).length > 0
+
+  if (!drawCustomNames && !resolveSettlementIdLabelsDrawn(kitEnabled, worldDocument)) {
+    return
+  }
+  if (drawCustomNames && !worldDocument.settlements?.length) {
     return
   }
 
@@ -160,8 +174,18 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
     ) {
       continue
     }
+    const customName =
+      drawCustomNames && typeof settlement.id === 'string'
+        ? customNamesBySettlementId[settlement.id]
+        : null
+    const text =
+      typeof customName === 'string' && customName.trim()
+        ? customName.trim()
+        : drawCustomNames
+          ? `#${settlement.mapNumber}`
+          : String(settlement.mapNumber)
     const label = new TextCtor({
-      text: String(settlement.mapNumber),
+      text,
       style: {
         fontFamily: 'Arial',
         fontSize: SETTLEMENT_ID_LABEL_FONT_SIZE,
