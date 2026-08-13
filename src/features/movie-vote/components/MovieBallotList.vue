@@ -10,8 +10,6 @@
         tag="div"
         class="mv-draggable"
         :animation="200"
-        :delay="450"
-        :delay-on-touch-only="true"
         :touch-start-threshold="8"
         direction="vertical"
         :disabled="myVoteSubmitted"
