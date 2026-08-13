@@ -3,7 +3,7 @@
 **Date:** 2026-08-13  
 **Fixture:** geography seed `42`, 1024×1024, 3 epoch steps after begin, flavor `pirates`  
 **Settlements / factions at epoch 3:** 28 / 12 (4 rivalry edges)  
-**Generator + judge:** `gemini-flash-latest` via Firebase AI Logic (serialized calls, ≥45s cooldown)
+**Generator + judge:** `gemini-flash-latest` (resolved to Gemini 3.6 Flash) via Firebase AI Logic (serialized calls, ≥45s cooldown). Later live UI default: `gemini-3.5-flash-lite` — see Follow-up below.
 
 ## Method
 
@@ -122,6 +122,12 @@ Expected size: on the order of **`geo_only` (~1.6k) to light-history (~6–9k)**
 - Judge is the same model family as the generator; preference for some slim variants over baseline may include noise or “cleaner prompt → punchier names” bias.
 - Early colonization history is thin; history’s value may grow on older worlds.
 - UI Generate button still uses the **full** payload until a follow-up deliberately adopts the slim shape.
+
+## Follow-up: model choice (2026-08-13)
+
+Live spike moved from `gemini-flash-latest` (**Gemini 3.6 Flash**) to **`gemini-3.5-flash-lite`**.
+
+On project `enmaku-worldbuilder` free tier, full Flash SKUs (2.5 / 3 / 3.5 / 3.6) sit at **20 RPD**; **3.1 / 3.5 Flash Lite** sit at **500 RPD** (and higher RPM). Informal live checks after the switch: naming + region writeup quality felt **very similar**, with **noticeably lower latency** and far more headroom for iteration. Prefer pinning Lite for this workload unless a later blind compare says otherwise.
 
 ## Artifacts
 
