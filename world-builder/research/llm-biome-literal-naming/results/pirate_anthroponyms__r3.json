@@ -1,0 +1,119 @@
+{
+  "id": "pirate_anthroponyms__r3",
+  "variantId": "pirate_anthroponyms",
+  "label": "Flavor-locked pirate personal placenames",
+  "rep": 3,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10613,
+  "latencyMs": 5150,
+  "responseChars": 4451,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Calico’s Rest",
+      "settlement-240-197-1": "Bonnygrave",
+      "settlement-179-349-1": "Teachmere",
+      "settlement-133-296-1": "Vane’s Mercy",
+      "settlement-249-512-1": "Anne’s Fluke",
+      "settlement-351-149-1": "Nine Fathoms",
+      "settlement-269-325-1": "Black Benediction",
+      "settlement-307-236-1": "Dead Man’s Drop",
+      "settlement-164-215-1": "Gallows Point",
+      "settlement-179-427-2": "Scurvy’s End",
+      "settlement-212-486-2": "Cutlass Bay",
+      "settlement-431-508-2": "Ketch’s Hollow",
+      "settlement-110-346-2": "Smuggler’s Notch",
+      "settlement-95-378-2": "Salt-Tooth",
+      "settlement-383-533-2": "Morgan’s Bluff",
+      "settlement-304-385-2": "Rogue’s Perch",
+      "settlement-333-90-2": "Barnacle Deep",
+      "settlement-347-189-2": "Jolly Roost",
+      "settlement-213-175-2": "Rumrunner’s Key",
+      "settlement-38-206-3": "Crow’s Nest",
+      "settlement-120-198-3": "Scourge Harbor",
+      "settlement-13-341-3": "Bilgewater",
+      "settlement-83-286-3": "Kraken’s Tooth",
+      "settlement-203-386-3": "Shiverpeak",
+      "settlement-355-274-3": "Broadside",
+      "settlement-371-445-3": "Tether’s End",
+      "settlement-668-488-3": "Grogport",
+      "settlement-222-248-3": "Mutiny Reach"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Syndicate",
+      "faction-settlement-249-512-1-apoikia": "Freebooters of the Pale",
+      "faction-settlement-383-533-2-apoikia": "Corsair League",
+      "faction-settlement-355-274-3-apoikia": "Brotherhood of the Black Spot",
+      "faction-settlement-668-488-3-apoikia": "Scourge Confederation",
+      "faction-settlement-240-197-1-spawn-3": "Scurvy Reapers",
+      "faction-settlement-179-349-1-spawn-3": "Marooned Compact",
+      "faction-settlement-133-296-1-spawn-3": "Galleon Guard",
+      "faction-settlement-351-149-1-spawn-3": "Drowned Syndicate",
+      "faction-settlement-269-325-1-spawn-3": "Buccaneer Conclave",
+      "faction-settlement-307-236-1-spawn-3": "Cutthroat Coalition",
+      "faction-settlement-164-215-1-spawn-3": "Privateer Hegemony"
+    }
+  },
+  "sampleNames": [
+    "Calico’s Rest",
+    "Bonnygrave",
+    "Teachmere",
+    "Vane’s Mercy",
+    "Anne’s Fluke",
+    "Nine Fathoms",
+    "Black Benediction",
+    "Dead Man’s Drop",
+    "Gallows Point",
+    "Scurvy’s End",
+    "Cutlass Bay",
+    "Ketch’s Hollow"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 2,
+    "suffixHitCount": 7,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.07142857142857142,
+    "suffixHitRate": 0.25,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "salt": 1,
+      "peak": 1
+    },
+    "suffixFrequency": {
+      "point": 1,
+      "end": 2,
+      "hollow": 1,
+      "deep": 1,
+      "port": 1,
+      "reach": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Salt-Tooth",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Grassland"
+      },
+      {
+        "settlementId": "settlement-203-386-3",
+        "name": "Shiverpeak",
+        "stems": [
+          "peak"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:06:36.189Z"
+}

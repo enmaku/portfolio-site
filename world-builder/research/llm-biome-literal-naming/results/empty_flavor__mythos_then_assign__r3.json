@@ -1,0 +1,102 @@
+{
+  "id": "empty_flavor__mythos_then_assign__r3",
+  "variantId": "mythos_then_assign",
+  "label": "Invent a mythos list first, then assign",
+  "tag": "empty_flavor",
+  "rep": 3,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10618,
+  "latencyMs": 5065,
+  "responseChars": 4132,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Kark",
+      "settlement-240-197-1": "Zul",
+      "settlement-179-349-1": "Draken",
+      "settlement-133-296-1": "Skor",
+      "settlement-249-512-1": "Vane",
+      "settlement-351-149-1": "Grog",
+      "settlement-269-325-1": "Morg",
+      "settlement-307-236-1": "Rath",
+      "settlement-164-215-1": "Tarn",
+      "settlement-179-427-2": "Gnash",
+      "settlement-212-486-2": "Flint",
+      "settlement-431-508-2": "Scour",
+      "settlement-110-346-2": "Brine",
+      "settlement-95-378-2": "Knell",
+      "settlement-383-533-2": "Glint",
+      "settlement-304-385-2": "Spite",
+      "settlement-333-90-2": "Pike",
+      "settlement-347-189-2": "Scurf",
+      "settlement-213-175-2": "Sunder",
+      "settlement-38-206-3": "Rift",
+      "settlement-120-198-3": "Gale",
+      "settlement-13-341-3": "Scab",
+      "settlement-83-286-3": "Wreck",
+      "settlement-203-386-3": "Gloat",
+      "settlement-355-274-3": "Cleave",
+      "settlement-371-445-3": "Oaf",
+      "settlement-668-488-3": "Hook",
+      "settlement-222-248-3": "Ruse"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "Blackwake",
+      "faction-settlement-249-512-1-apoikia": "Salt-Tooth",
+      "faction-settlement-383-533-2-apoikia": "Gore-League",
+      "faction-settlement-355-274-3-apoikia": "Red-Scarf",
+      "faction-settlement-668-488-3-apoikia": "Iron-Hull",
+      "faction-settlement-240-197-1-spawn-3": "Grave-Grip",
+      "faction-settlement-179-349-1-spawn-3": "Bone-Fleet",
+      "faction-settlement-133-296-1-spawn-3": "Storm-Crow",
+      "faction-settlement-351-149-1-spawn-3": "Dagger-Hand",
+      "faction-settlement-269-325-1-spawn-3": "Rogue-Reach",
+      "faction-settlement-307-236-1-spawn-3": "Tide-Scour",
+      "faction-settlement-164-215-1-spawn-3": "Cut-Throat"
+    }
+  },
+  "sampleNames": [
+    "Kark",
+    "Zul",
+    "Draken",
+    "Skor",
+    "Vane",
+    "Grog",
+    "Morg",
+    "Rath",
+    "Tarn",
+    "Gnash",
+    "Flint",
+    "Scour"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 0,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "brine": 1
+    },
+    "suffixFrequency": {},
+    "flagged": [
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Brine",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:09:56.956Z"
+}

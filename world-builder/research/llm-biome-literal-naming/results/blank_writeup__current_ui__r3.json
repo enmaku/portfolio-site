@@ -1,0 +1,221 @@
+{
+  "id": "blank_writeup__current_ui__r3",
+  "variantId": "current_ui",
+  "label": "Current live UI soft anti-literal wording",
+  "tag": "blank_writeup",
+  "rep": 3,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11037,
+  "latencyMs": 7722,
+  "responseChars": 6989,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Frostwatch",
+      "settlement-179-349-1": "Gullpoint",
+      "settlement-133-296-1": "Pinefall",
+      "settlement-249-512-1": "Corvallis",
+      "settlement-351-149-1": "Tundrasend",
+      "settlement-269-325-1": "Sunderreach",
+      "settlement-307-236-1": "Brinecrest",
+      "settlement-164-215-1": "Boreal",
+      "settlement-179-427-2": "Highridge",
+      "settlement-212-486-2": "Mireend",
+      "settlement-431-508-2": "Kestrel",
+      "settlement-110-346-2": "Deepwood",
+      "settlement-95-378-2": "Verdant",
+      "settlement-383-533-2": "Solitude",
+      "settlement-304-385-2": "Timberline",
+      "settlement-333-90-2": "Glacius",
+      "settlement-347-189-2": "Shorefall",
+      "settlement-213-175-2": "Maris",
+      "settlement-38-206-3": "Borealis",
+      "settlement-120-198-3": "Nivalis",
+      "settlement-13-341-3": "Sylva",
+      "settlement-83-286-3": "Arboris",
+      "settlement-203-386-3": "Pelagia",
+      "settlement-355-274-3": "Littoral",
+      "settlement-371-445-3": "Aethel",
+      "settlement-668-488-3": "Ostia",
+      "settlement-222-248-3": "Cymru"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Sovereign Coalition",
+      "faction-settlement-249-512-1-apoikia": "The Corvallis League",
+      "faction-settlement-383-533-2-apoikia": "The Solitude Protectorate",
+      "faction-settlement-355-274-3-apoikia": "The Littoral Concord",
+      "faction-settlement-668-488-3-apoikia": "The Ostian Ascendancy",
+      "faction-settlement-240-197-1-spawn-3": "The Frostwatch Directorate",
+      "faction-settlement-179-349-1-spawn-3": "The Gullpoint Dominion",
+      "faction-settlement-133-296-1-spawn-3": "The Pinefall Syndicate",
+      "faction-settlement-351-149-1-spawn-3": "The Tundrasend Remnant",
+      "faction-settlement-269-325-1-spawn-3": "The Sunderreach Republic",
+      "faction-settlement-307-236-1-spawn-3": "The Brinecrest Assembly",
+      "faction-settlement-164-215-1-spawn-3": "The Boreal Union"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Frostwatch",
+    "Gullpoint",
+    "Pinefall",
+    "Corvallis",
+    "Tundrasend",
+    "Sunderreach",
+    "Brinecrest",
+    "Boreal",
+    "Highridge",
+    "Mireend",
+    "Kestrel"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 9,
+    "suffixHitCount": 10,
+    "calqueCount": 7,
+    "ownBiomeEchoCount": 1,
+    "stemHitRate": 0.32142857142857145,
+    "suffixHitRate": 0.35714285714285715,
+    "calqueRate": 0.25,
+    "ownBiomeEchoRate": 0.03571428571428571,
+    "stemFrequency": {
+      "oak": 1,
+      "frost": 1,
+      "gull": 1,
+      "pine": 1,
+      "tundra": 1,
+      "brine": 1,
+      "mire": 1,
+      "wood": 1,
+      "timber": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "watch": 1,
+      "point": 1,
+      "fall": 2,
+      "end": 2,
+      "reach": 1,
+      "crest": 1,
+      "ridge": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Frostwatch",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [
+          "watch"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-179-349-1",
+        "name": "Gullpoint",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [
+          "point"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Pinefall",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [
+          "fall"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-351-149-1",
+        "name": "Tundrasend",
+        "stems": [
+          "tundra"
+        ],
+        "suffixes": [
+          "end"
+        ],
+        "ownBiome": true,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-307-236-1",
+        "name": "Brinecrest",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [
+          "crest"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mireend",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [
+          "end"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Deepwood",
+        "stems": [
+          "wood"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-304-385-2",
+        "name": "Timberline",
+        "stems": [
+          "timber"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:18:26.564Z"
+}

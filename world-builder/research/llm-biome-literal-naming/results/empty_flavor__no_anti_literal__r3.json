@@ -1,0 +1,222 @@
+{
+  "id": "empty_flavor__no_anti_literal__r3",
+  "variantId": "no_anti_literal",
+  "label": "No anti-literal lines (antirepeat only)",
+  "tag": "empty_flavor",
+  "rep": 3,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10557,
+  "latencyMs": 5702,
+  "responseChars": 4397,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Scurvy Reach",
+      "settlement-240-197-1": "Frostbite Cove",
+      "settlement-179-349-1": "Gull's Spite",
+      "settlement-133-296-1": "Deadman's Pine",
+      "settlement-249-512-1": "Krakenport",
+      "settlement-351-149-1": "Ice-Tooth",
+      "settlement-269-325-1": "Cutthroat Bay",
+      "settlement-307-236-1": "Salt-Gallows",
+      "settlement-164-215-1": "Brine-Hold",
+      "settlement-179-427-2": "Smuggler's Hill",
+      "settlement-212-486-2": "Mire-Rat",
+      "settlement-431-508-2": "Plunder Ridge",
+      "settlement-110-346-2": "Black-Log",
+      "settlement-95-378-2": "Toll-Meadow",
+      "settlement-383-533-2": "Rum-Run",
+      "settlement-304-385-2": "Shanty-Deep",
+      "settlement-333-90-2": "Grog-Hollow",
+      "settlement-347-189-2": "Shark-Fin",
+      "settlement-213-175-2": "Wreck-Point",
+      "settlement-38-206-3": "Flint-Shack",
+      "settlement-120-198-3": "Scab-Island",
+      "settlement-13-341-3": "Bilge-Log",
+      "settlement-83-286-3": "Mast-End",
+      "settlement-203-386-3": "Anchor-Drop",
+      "settlement-355-274-3": "Freeboot-Bay",
+      "settlement-371-445-3": "Privateer's Roost",
+      "settlement-668-488-3": "Buccaneer's Basin",
+      "settlement-222-248-3": "Doubloon-Dip"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "Scourge League",
+      "faction-settlement-383-533-2-apoikia": "Black-Flag Brotherhood",
+      "faction-settlement-355-274-3-apoikia": "Corsair Syndicate",
+      "faction-settlement-668-488-3-apoikia": "Marauder Concord",
+      "faction-settlement-240-197-1-spawn-3": "Reaver Coalition",
+      "faction-settlement-179-349-1-spawn-3": "Gull-Wing Pact",
+      "faction-settlement-133-296-1-spawn-3": "Salt-Blood Clan",
+      "faction-settlement-351-149-1-spawn-3": "Frost-Corsairs",
+      "faction-settlement-269-325-1-spawn-3": "Cutlass Assembly",
+      "faction-settlement-307-236-1-spawn-3": "Toll-Taker Swarm",
+      "faction-settlement-164-215-1-spawn-3": "Tundra-Raiders"
+    }
+  },
+  "sampleNames": [
+    "Scurvy Reach",
+    "Frostbite Cove",
+    "Gull's Spite",
+    "Deadman's Pine",
+    "Krakenport",
+    "Ice-Tooth",
+    "Cutthroat Bay",
+    "Salt-Gallows",
+    "Brine-Hold",
+    "Smuggler's Hill",
+    "Mire-Rat",
+    "Plunder Ridge"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 10,
+    "suffixHitCount": 9,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.35714285714285715,
+    "suffixHitRate": 0.32142857142857145,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "frost": 1,
+      "gull": 1,
+      "pine": 1,
+      "ice": 1,
+      "salt": 1,
+      "brine": 1,
+      "hill": 1,
+      "mire": 1,
+      "meadow": 1,
+      "island": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "port": 1,
+      "hold": 1,
+      "ridge": 1,
+      "run": 1,
+      "deep": 1,
+      "hollow": 1,
+      "point": 1,
+      "end": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Frostbite Cove",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-179-349-1",
+        "name": "Gull's Spite",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Deadman's Pine",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-351-149-1",
+        "name": "Ice-Tooth",
+        "stems": [
+          "ice"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-307-236-1",
+        "name": "Salt-Gallows",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-164-215-1",
+        "name": "Brine-Hold",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [
+          "hold"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-179-427-2",
+        "name": "Smuggler's Hill",
+        "stems": [
+          "hill"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Hills"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mire-Rat",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Toll-Meadow",
+        "stems": [
+          "meadow"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Grassland"
+      },
+      {
+        "settlementId": "settlement-120-198-3",
+        "name": "Scab-Island",
+        "stems": [
+          "island"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:08:37.331Z"
+}

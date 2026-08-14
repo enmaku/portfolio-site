@@ -1,0 +1,142 @@
+{
+  "id": "ids_flavor_shell__r2",
+  "variantId": "ids_flavor_shell",
+  "label": "Ids/politics shell only (no biome/economy/history)",
+  "rep": 2,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 2128,
+  "latencyMs": 5128,
+  "responseChars": 4427,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Skull Harbor",
+      "settlement-240-197-1": "Dead Man's Point",
+      "settlement-179-349-1": "Cutthroat Reef",
+      "settlement-133-296-1": "Gallows Bay",
+      "settlement-249-512-1": "Scurvy Reach",
+      "settlement-351-149-1": "Blackflag Cove",
+      "settlement-269-325-1": "Smuggler's Notch",
+      "settlement-307-236-1": "Kraken's Maw",
+      "settlement-164-215-1": "Iron Anchor",
+      "settlement-179-427-2": "Saltwrack",
+      "settlement-212-486-2": "Barnacle Spire",
+      "settlement-431-508-2": "Rum Punch",
+      "settlement-110-346-2": "Tithe Isle",
+      "settlement-95-378-2": "Sharksfin",
+      "settlement-383-533-2": "Mutiny Hollow",
+      "settlement-304-385-2": "Flintlock",
+      "settlement-333-90-2": "Corsair's Rest",
+      "settlement-347-189-2": "Bounty Key",
+      "settlement-213-175-2": "Privateer's End",
+      "settlement-38-206-3": "Davy's Locker",
+      "settlement-120-198-3": "Brine Shallows",
+      "settlement-13-341-3": "Plunder Bank",
+      "settlement-83-286-3": "Siren's Call",
+      "settlement-203-386-3": "Boarding Hook",
+      "settlement-355-274-3": "Wraith's Wake",
+      "settlement-371-445-3": "Grog Alley",
+      "settlement-668-488-3": "Bilge Water",
+      "settlement-222-248-3": "Cannon Ridge"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "Brethren of the Coast",
+      "faction-settlement-383-533-2-apoikia": "Scourge Syndicate",
+      "faction-settlement-355-274-3-apoikia": "Dread Fleet",
+      "faction-settlement-668-488-3-apoikia": "Freebooter League",
+      "faction-settlement-240-197-1-spawn-3": "Ghost Ship Coalition",
+      "faction-settlement-179-349-1-spawn-3": "Marauder Cabal",
+      "faction-settlement-133-296-1-spawn-3": "Reaver Accord",
+      "faction-settlement-351-149-1-spawn-3": "Black Galleon Trust",
+      "faction-settlement-269-325-1-spawn-3": "Corsair Union",
+      "faction-settlement-307-236-1-spawn-3": "Stormchaser Horde",
+      "faction-settlement-164-215-1-spawn-3": "Tidebreaker Syndicate"
+    }
+  },
+  "sampleNames": [
+    "Skull Harbor",
+    "Dead Man's Point",
+    "Cutthroat Reef",
+    "Gallows Bay",
+    "Scurvy Reach",
+    "Blackflag Cove",
+    "Smuggler's Notch",
+    "Kraken's Maw",
+    "Iron Anchor",
+    "Saltwrack",
+    "Barnacle Spire",
+    "Rum Punch"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 4,
+    "suffixHitCount": 5,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.14285714285714285,
+    "suffixHitRate": 0.17857142857142858,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "iron": 1,
+      "salt": 1,
+      "isle": 1,
+      "brine": 1
+    },
+    "suffixFrequency": {
+      "point": 1,
+      "reach": 1,
+      "hollow": 1,
+      "end": 1,
+      "ridge": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-164-215-1",
+        "name": "Iron Anchor",
+        "stems": [
+          "iron"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-179-427-2",
+        "name": "Saltwrack",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Hills"
+      },
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Tithe Isle",
+        "stems": [
+          "isle"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-120-198-3",
+        "name": "Brine Shallows",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:04:23.841Z"
+}

@@ -1,0 +1,120 @@
+{
+  "id": "strip_geo_trade_cues__r3",
+  "variantId": "strip_geo_trade_cues",
+  "label": "Remove biome/trade fields from annotations",
+  "rep": 3,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 5302,
+  "latencyMs": 5390,
+  "responseChars": 4459,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Deadman's Point",
+      "settlement-240-197-1": "Cutlass Bay",
+      "settlement-179-349-1": "Smuggler's Notch",
+      "settlement-133-296-1": "Salt-Tooth",
+      "settlement-249-512-1": "Gallows Reach",
+      "settlement-351-149-1": "Black-Cask",
+      "settlement-269-325-1": "Kraken's Fall",
+      "settlement-307-236-1": "Rumrunner's Reef",
+      "settlement-164-215-1": "Scurvy Cove",
+      "settlement-179-427-2": "Wreckers' Spit",
+      "settlement-212-486-2": "Barnacle Bluff",
+      "settlement-431-508-2": "Privateer's Perch",
+      "settlement-110-346-2": "Flintlock",
+      "settlement-95-378-2": "Bilgewater",
+      "settlement-383-533-2": "Bounty Bay",
+      "settlement-304-385-2": "Grogport",
+      "settlement-333-90-2": "Marooner's Bay",
+      "settlement-347-189-2": "Siren's Watch",
+      "settlement-213-175-2": "Scourge Isle",
+      "settlement-38-206-3": "Sharksfin",
+      "settlement-120-198-3": "Tricorn",
+      "settlement-13-341-3": "Fathom's End",
+      "settlement-83-286-3": "Anchorfall",
+      "settlement-203-386-3": "Sloop's Hollow",
+      "settlement-355-274-3": "Plunderport",
+      "settlement-371-445-3": "Red Flag",
+      "settlement-668-488-3": "Viper's Key",
+      "settlement-222-248-3": "Galleon's Graveyard"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Brotherhood of the Black Flag",
+      "faction-settlement-249-512-1-apoikia": "The Crimson Armada",
+      "faction-settlement-383-533-2-apoikia": "Scourge Coast Syndicate",
+      "faction-settlement-355-274-3-apoikia": "Corsair League",
+      "faction-settlement-668-488-3-apoikia": "Freebooter Concordat",
+      "faction-settlement-240-197-1-spawn-3": "Mutineer's Republic",
+      "faction-settlement-179-349-1-spawn-3": "Reaver's Reach",
+      "faction-settlement-133-296-1-spawn-3": "Salt-Scourged Pact",
+      "faction-settlement-351-149-1-spawn-3": "Abyssal Corsairs",
+      "faction-settlement-269-325-1-spawn-3": "Sovereign Swashbucklers",
+      "faction-settlement-307-236-1-spawn-3": "Buccaneer Directorate",
+      "faction-settlement-164-215-1-spawn-3": "Privateer Combine"
+    }
+  },
+  "sampleNames": [
+    "Deadman's Point",
+    "Cutlass Bay",
+    "Smuggler's Notch",
+    "Salt-Tooth",
+    "Gallows Reach",
+    "Black-Cask",
+    "Kraken's Fall",
+    "Rumrunner's Reef",
+    "Scurvy Cove",
+    "Wreckers' Spit",
+    "Barnacle Bluff",
+    "Privateer's Perch"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 2,
+    "suffixHitCount": 9,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.07142857142857142,
+    "suffixHitRate": 0.32142857142857145,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "salt": 1,
+      "isle": 1
+    },
+    "suffixFrequency": {
+      "point": 1,
+      "reach": 1,
+      "fall": 2,
+      "port": 2,
+      "watch": 1,
+      "end": 1,
+      "hollow": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Salt-Tooth",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-213-175-2",
+        "name": "Scourge Isle",
+        "stems": [
+          "isle"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:03:15.623Z"
+}

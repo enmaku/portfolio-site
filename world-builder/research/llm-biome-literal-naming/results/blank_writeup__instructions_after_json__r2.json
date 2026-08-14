@@ -1,0 +1,106 @@
+{
+  "id": "blank_writeup__instructions_after_json__r2",
+  "variantId": "instructions_after_json",
+  "label": "Anti-literal instructions AFTER the JSON (recency)",
+  "tag": "blank_writeup",
+  "rep": 2,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11120,
+  "latencyMs": 7887,
+  "responseChars": 7316,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Valen",
+      "settlement-240-197-1": "Karr",
+      "settlement-179-349-1": "Oakhaven",
+      "settlement-133-296-1": "Sunder",
+      "settlement-249-512-1": "Corinth",
+      "settlement-351-149-1": "Voss",
+      "settlement-269-325-1": "Aethel",
+      "settlement-307-236-1": "Dahlia",
+      "settlement-164-215-1": "Jorund",
+      "settlement-179-427-2": "Marn",
+      "settlement-212-486-2": "Tallis",
+      "settlement-431-508-2": "Garrick",
+      "settlement-110-346-2": "Orlov",
+      "settlement-95-378-2": "Bress",
+      "settlement-383-533-2": "Solas",
+      "settlement-304-385-2": "Drak",
+      "settlement-333-90-2": "Korth",
+      "settlement-347-189-2": "Sybilla",
+      "settlement-213-175-2": "Nesta",
+      "settlement-38-206-3": "Kohl",
+      "settlement-120-198-3": "Zell",
+      "settlement-13-341-3": "Vhane",
+      "settlement-83-286-3": "Brant",
+      "settlement-203-386-3": "Jara",
+      "settlement-355-274-3": "Isolde",
+      "settlement-371-445-3": "Cassian",
+      "settlement-668-488-3": "Rhea",
+      "settlement-222-248-3": "Maren"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "Valendian Reach",
+      "faction-settlement-249-512-1-apoikia": "Corinthian League",
+      "faction-settlement-383-533-2-apoikia": "Solas Dominion",
+      "faction-settlement-355-274-3-apoikia": "Isoldian Compact",
+      "faction-settlement-668-488-3-apoikia": "Rhean Protectorate",
+      "faction-settlement-240-197-1-spawn-3": "Karran Ascendancy",
+      "faction-settlement-179-349-1-spawn-3": "Oakhaven Sovereignty",
+      "faction-settlement-133-296-1-spawn-3": "Sunder Syndicate",
+      "faction-settlement-351-149-1-spawn-3": "Voss Concordat",
+      "faction-settlement-269-325-1-spawn-3": "Aethelian Assembly",
+      "faction-settlement-307-236-1-spawn-3": "Dahlian Covenant",
+      "faction-settlement-164-215-1-spawn-3": "Jorundian Directorate"
+    }
+  },
+  "sampleNames": [
+    "Valen",
+    "Karr",
+    "Oakhaven",
+    "Sunder",
+    "Corinth",
+    "Voss",
+    "Aethel",
+    "Dahlia",
+    "Jorund",
+    "Marn",
+    "Tallis",
+    "Garrick"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 1,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1
+    },
+    "suffixFrequency": {
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-179-349-1",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:21:23.444Z"
+}

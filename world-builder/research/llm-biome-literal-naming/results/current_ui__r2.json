@@ -1,0 +1,109 @@
+{
+  "id": "current_ui__r2",
+  "variantId": "current_ui",
+  "label": "Current live UI soft anti-literal wording",
+  "rep": 2,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10695,
+  "latencyMs": 5369,
+  "responseChars": 4484,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Tortuga's Reach",
+      "settlement-240-197-1": "Barrow's End",
+      "settlement-179-349-1": "Capstan's Rest",
+      "settlement-133-296-1": "Grogport",
+      "settlement-249-512-1": "Dead Man's Cay",
+      "settlement-351-149-1": "Scuttle Point",
+      "settlement-269-325-1": "Black Flag Cove",
+      "settlement-307-236-1": "Cutlass Bay",
+      "settlement-164-215-1": "Scurvy Harbor",
+      "settlement-179-427-2": "Privateer's Deep",
+      "settlement-212-486-2": "Smuggler's Notch",
+      "settlement-431-508-2": "Rumrunner's Bluff",
+      "settlement-110-346-2": "Kraken's Jaw",
+      "settlement-95-378-2": "Plunder's Drift",
+      "settlement-383-533-2": "Brigand's Reef",
+      "settlement-304-385-2": "Salt-Tear Inlet",
+      "settlement-333-90-2": "Hook's Point",
+      "settlement-347-189-2": "Corsair's Watch",
+      "settlement-213-175-2": "Freebooter's Haven",
+      "settlement-38-206-3": "Mutiny's Hold",
+      "settlement-120-198-3": "Jolly Roger",
+      "settlement-13-341-3": "Siren's Song",
+      "settlement-83-286-3": "Scallywag's Roost",
+      "settlement-203-386-3": "Doubloon Bay",
+      "settlement-355-274-3": "Galleon's Graveyard",
+      "settlement-371-445-3": "Barnacle Bay",
+      "settlement-668-488-3": "Parrot's Perch",
+      "settlement-222-248-3": "Anchor's Drop"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Brotherhood",
+      "faction-settlement-249-512-1-apoikia": "Brethren of the Coast",
+      "faction-settlement-383-533-2-apoikia": "Scourge of the Horizon",
+      "faction-settlement-355-274-3-apoikia": "The Black Flag Syndicate",
+      "faction-settlement-668-488-3-apoikia": "Freebooter League",
+      "faction-settlement-240-197-1-spawn-3": "Scurvy Dogs",
+      "faction-settlement-179-349-1-spawn-3": "Cutlass Confederacy",
+      "faction-settlement-133-296-1-spawn-3": "Grog Lords",
+      "faction-settlement-351-149-1-spawn-3": "Marauder Cabal",
+      "faction-settlement-269-325-1-spawn-3": "Privateer Accord",
+      "faction-settlement-307-236-1-spawn-3": "Buccaneer Council",
+      "faction-settlement-164-215-1-spawn-3": "Corsair Vanguard"
+    }
+  },
+  "sampleNames": [
+    "Tortuga's Reach",
+    "Barrow's End",
+    "Capstan's Rest",
+    "Grogport",
+    "Dead Man's Cay",
+    "Scuttle Point",
+    "Black Flag Cove",
+    "Cutlass Bay",
+    "Scurvy Harbor",
+    "Privateer's Deep",
+    "Smuggler's Notch",
+    "Rumrunner's Bluff"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 9,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.32142857142857145,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "salt": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "end": 1,
+      "port": 1,
+      "point": 2,
+      "deep": 1,
+      "watch": 1,
+      "haven": 1,
+      "hold": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-304-385-2",
+        "name": "Salt-Tear Inlet",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T18:56:25.173Z"
+}

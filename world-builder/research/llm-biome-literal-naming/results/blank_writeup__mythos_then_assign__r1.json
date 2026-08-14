@@ -1,0 +1,102 @@
+{
+  "id": "blank_writeup__mythos_then_assign__r1",
+  "variantId": "mythos_then_assign",
+  "label": "Invent a mythos list first, then assign",
+  "tag": "blank_writeup",
+  "rep": 1,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11126,
+  "latencyMs": 8069,
+  "responseChars": 7404,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Aurelia",
+      "settlement-240-197-1": "Balthazar",
+      "settlement-179-349-1": "Coriolis",
+      "settlement-133-296-1": "Dorian",
+      "settlement-249-512-1": "Evadne",
+      "settlement-351-149-1": "Fenwick",
+      "settlement-269-325-1": "Gideon",
+      "settlement-307-236-1": "Hadrian",
+      "settlement-164-215-1": "Isolde",
+      "settlement-179-427-2": "Jubal",
+      "settlement-212-486-2": "Khelos",
+      "settlement-431-508-2": "Lysander",
+      "settlement-110-346-2": "Meridia",
+      "settlement-95-378-2": "Nesta",
+      "settlement-383-533-2": "Orlo",
+      "settlement-304-385-2": "Persephone",
+      "settlement-333-90-2": "Quintus",
+      "settlement-347-189-2": "Rowena",
+      "settlement-213-175-2": "Sylas",
+      "settlement-38-206-3": "Thalassa",
+      "settlement-120-198-3": "Ulric",
+      "settlement-13-341-3": "Valerius",
+      "settlement-83-286-3": "Wenceslaus",
+      "settlement-203-386-3": "Xandra",
+      "settlement-355-274-3": "Yvaine",
+      "settlement-371-445-3": "Zephyrin",
+      "settlement-668-488-3": "Althaea",
+      "settlement-222-248-3": "Basile"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "House Aurel",
+      "faction-settlement-249-512-1-apoikia": "League of Evadne",
+      "faction-settlement-383-533-2-apoikia": "Orlo Protectorate",
+      "faction-settlement-355-274-3-apoikia": "Yvaine Syndicate",
+      "faction-settlement-668-488-3-apoikia": "Althaean Concord",
+      "faction-settlement-240-197-1-spawn-3": "Balthazarian Remnant",
+      "faction-settlement-179-349-1-spawn-3": "Coriolis Collective",
+      "faction-settlement-133-296-1-spawn-3": "Dorian Directorate",
+      "faction-settlement-351-149-1-spawn-3": "Fenwick Ascendancy",
+      "faction-settlement-269-325-1-spawn-3": "Gideon Pact",
+      "faction-settlement-307-236-1-spawn-3": "Hadrian Assembly",
+      "faction-settlement-164-215-1-spawn-3": "Isoldian Union"
+    }
+  },
+  "sampleNames": [
+    "Aurelia",
+    "Balthazar",
+    "Coriolis",
+    "Dorian",
+    "Evadne",
+    "Fenwick",
+    "Gideon",
+    "Hadrian",
+    "Isolde",
+    "Jubal",
+    "Khelos",
+    "Lysander"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 0,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "fen": 1
+    },
+    "suffixFrequency": {},
+    "flagged": [
+      {
+        "settlementId": "settlement-351-149-1",
+        "name": "Fenwick",
+        "stems": [
+          "fen"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:20:18.094Z"
+}

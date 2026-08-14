@@ -1,0 +1,105 @@
+{
+  "id": "empty_flavor__person_event_mandate__r3",
+  "variantId": "person_event_mandate",
+  "label": "Mandate person/event etymology for every name",
+  "tag": "empty_flavor",
+  "rep": 3,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10604,
+  "latencyMs": 5110,
+  "responseChars": 4238,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Krov",
+      "settlement-240-197-1": "Scurvy Cove",
+      "settlement-179-349-1": "Vane",
+      "settlement-133-296-1": "Marrow",
+      "settlement-249-512-1": "Corsair's Reach",
+      "settlement-351-149-1": "Dredge",
+      "settlement-269-325-1": "Bale",
+      "settlement-307-236-1": "Jib",
+      "settlement-164-215-1": "Skiff",
+      "settlement-179-427-2": "Grog",
+      "settlement-212-486-2": "Bilge",
+      "settlement-431-508-2": "Cutlass",
+      "settlement-110-346-2": "Plunder",
+      "settlement-95-378-2": "Keel",
+      "settlement-383-533-2": "Brine",
+      "settlement-304-385-2": "Prow",
+      "settlement-333-90-2": "Shackles",
+      "settlement-347-189-2": "Scourge",
+      "settlement-213-175-2": "Sloop",
+      "settlement-38-206-3": "Mutiny",
+      "settlement-120-198-3": "Galleon",
+      "settlement-13-341-3": "Swab",
+      "settlement-83-286-3": "Fathom",
+      "settlement-203-386-3": "Anchor",
+      "settlement-355-274-3": "Tithe",
+      "settlement-371-445-3": "Booty",
+      "settlement-668-488-3": "Flint",
+      "settlement-222-248-3": "Rum"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Syndicate",
+      "faction-settlement-249-512-1-apoikia": "Blackflag Confederacy",
+      "faction-settlement-383-533-2-apoikia": "Dread Fleet",
+      "faction-settlement-355-274-3-apoikia": "Scourge League",
+      "faction-settlement-668-488-3-apoikia": "Rogue Horizon",
+      "faction-settlement-240-197-1-spawn-3": "Salt-Tooth Reavers",
+      "faction-settlement-179-349-1-spawn-3": "Grave-Wave Clan",
+      "faction-settlement-133-296-1-spawn-3": "Iron-Hull Brotherhood",
+      "faction-settlement-351-149-1-spawn-3": "Siren's Teeth",
+      "faction-settlement-269-325-1-spawn-3": "Abyssal Corsairs",
+      "faction-settlement-307-236-1-spawn-3": "Shark-Skin Pact",
+      "faction-settlement-164-215-1-spawn-3": "Kraken's Bane"
+    }
+  },
+  "sampleNames": [
+    "Krov",
+    "Scurvy Cove",
+    "Vane",
+    "Marrow",
+    "Corsair's Reach",
+    "Dredge",
+    "Bale",
+    "Jib",
+    "Skiff",
+    "Grog",
+    "Bilge",
+    "Cutlass"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 2,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.07142857142857142,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "brine": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "edge": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-383-533-2",
+        "name": "Brine",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:11:16.124Z"
+}

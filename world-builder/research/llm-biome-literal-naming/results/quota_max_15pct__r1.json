@@ -1,0 +1,105 @@
+{
+  "id": "quota_max_15pct__r1",
+  "variantId": "quota_max_15pct",
+  "label": "At most 15% of names may echo terrain/goods",
+  "rep": 1,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10649,
+  "latencyMs": 5563,
+  "responseChars": 4368,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Capstan's End",
+      "settlement-240-197-1": "Kallos",
+      "settlement-179-349-1": "Vane",
+      "settlement-133-296-1": "Galleon's Wake",
+      "settlement-249-512-1": "Onyx Reach",
+      "settlement-351-149-1": "Marrow's Teeth",
+      "settlement-269-325-1": "Scourge",
+      "settlement-307-236-1": "Riven",
+      "settlement-164-215-1": "Toll Bar",
+      "settlement-179-427-2": "Verid",
+      "settlement-212-486-2": "Grave's End",
+      "settlement-431-508-2": "Scurvy Point",
+      "settlement-110-346-2": "Kessler",
+      "settlement-95-378-2": "Sovereign's Drop",
+      "settlement-383-533-2": "Brine",
+      "settlement-304-385-2": "Pike's Fall",
+      "settlement-333-90-2": "Black Flag Landing",
+      "settlement-347-189-2": "Meridia",
+      "settlement-213-175-2": "Corsair's Rest",
+      "settlement-38-206-3": "Nox",
+      "settlement-120-198-3": "Scurlock",
+      "settlement-13-341-3": "Astar",
+      "settlement-83-286-3": "Dead Man's Creek",
+      "settlement-203-386-3": "Varek",
+      "settlement-355-274-3": "Smuggler's Notch",
+      "settlement-371-445-3": "Thule",
+      "settlement-668-488-3": "Sunderland",
+      "settlement-222-248-3": "Holloway"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "League of the Black Flag",
+      "faction-settlement-383-533-2-apoikia": "Scourge Syndicate",
+      "faction-settlement-355-274-3-apoikia": "Reavers of the Deep",
+      "faction-settlement-668-488-3-apoikia": "Corsair Compact",
+      "faction-settlement-240-197-1-spawn-3": "Mutineer Conclave",
+      "faction-settlement-179-349-1-spawn-3": "Salt-Scoured Brotherhood",
+      "faction-settlement-133-296-1-spawn-3": "Freebooter Alliance",
+      "faction-settlement-351-149-1-spawn-3": "Galleon Lords",
+      "faction-settlement-269-325-1-spawn-3": "Privateer Council",
+      "faction-settlement-307-236-1-spawn-3": "Plunderers' Guild",
+      "faction-settlement-164-215-1-spawn-3": "Cutlass Confederacy"
+    }
+  },
+  "sampleNames": [
+    "Capstan's End",
+    "Kallos",
+    "Vane",
+    "Galleon's Wake",
+    "Onyx Reach",
+    "Marrow's Teeth",
+    "Scourge",
+    "Riven",
+    "Toll Bar",
+    "Verid",
+    "Grave's End",
+    "Scurvy Point"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 5,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.17857142857142858,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "brine": 1
+    },
+    "suffixFrequency": {
+      "end": 2,
+      "reach": 1,
+      "point": 1,
+      "fall": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-383-533-2",
+        "name": "Brine",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T18:58:11.773Z"
+}

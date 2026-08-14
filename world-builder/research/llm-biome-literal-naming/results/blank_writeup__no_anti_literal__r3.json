@@ -1,0 +1,155 @@
+{
+  "id": "blank_writeup__no_anti_literal__r3",
+  "variantId": "no_anti_literal",
+  "label": "No anti-literal lines (antirepeat only)",
+  "tag": "blank_writeup",
+  "rep": 3,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11037,
+  "latencyMs": 7993,
+  "responseChars": 7561,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Barrow",
+      "settlement-179-349-1": "Kestrel",
+      "settlement-133-296-1": "Voss",
+      "settlement-249-512-1": "Soll",
+      "settlement-351-149-1": "Haldor",
+      "settlement-269-325-1": "Thorn",
+      "settlement-307-236-1": "Brine",
+      "settlement-164-215-1": "Nesta",
+      "settlement-179-427-2": "Dunwall",
+      "settlement-212-486-2": "Mire",
+      "settlement-431-508-2": "Highmark",
+      "settlement-110-346-2": "Pine",
+      "settlement-95-378-2": "Verdant",
+      "settlement-383-533-2": "Corinth",
+      "settlement-304-385-2": "Frost",
+      "settlement-333-90-2": "Gale",
+      "settlement-347-189-2": "Sands",
+      "settlement-213-175-2": "Maris",
+      "settlement-38-206-3": "Krynn",
+      "settlement-120-198-3": "Jora",
+      "settlement-13-341-3": "Sylva",
+      "settlement-83-286-3": "Cael",
+      "settlement-203-386-3": "Portus",
+      "settlement-355-274-3": "Astor",
+      "settlement-371-445-3": "Meridia",
+      "settlement-668-488-3": "Orr",
+      "settlement-222-248-3": "Wynn"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Corellian League",
+      "faction-settlement-249-512-1-apoikia": "House Soll",
+      "faction-settlement-383-533-2-apoikia": "The Corinthian Concord",
+      "faction-settlement-355-274-3-apoikia": "The Astor Protectorate",
+      "faction-settlement-668-488-3-apoikia": "The Orr Syndicate",
+      "faction-settlement-240-197-1-spawn-3": "The Barrow Reclamation",
+      "faction-settlement-179-349-1-spawn-3": "The Kestrel Freehold",
+      "faction-settlement-133-296-1-spawn-3": "The Voss Ascendancy",
+      "faction-settlement-351-149-1-spawn-3": "The Haldor Remnant",
+      "faction-settlement-269-325-1-spawn-3": "The Thorn Dominion",
+      "faction-settlement-307-236-1-spawn-3": "The Brine Coalition",
+      "faction-settlement-164-215-1-spawn-3": "The Nesta Union"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Barrow",
+    "Kestrel",
+    "Voss",
+    "Soll",
+    "Haldor",
+    "Thorn",
+    "Brine",
+    "Nesta",
+    "Dunwall",
+    "Mire",
+    "Highmark"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 5,
+    "suffixHitCount": 2,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.17857142857142858,
+    "suffixHitRate": 0.07142857142857142,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1,
+      "brine": 1,
+      "mire": 1,
+      "pine": 1,
+      "frost": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "mark": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-307-236-1",
+        "name": "Brine",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mire",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Pine",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-304-385-2",
+        "name": "Frost",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:19:14.330Z"
+}

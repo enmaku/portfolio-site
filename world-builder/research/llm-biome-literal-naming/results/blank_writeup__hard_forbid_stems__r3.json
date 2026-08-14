@@ -1,0 +1,107 @@
+{
+  "id": "blank_writeup__hard_forbid_stems__r3",
+  "variantId": "hard_forbid_stems",
+  "label": "Hard forbid listed biome/trade stems in any name",
+  "tag": "blank_writeup",
+  "rep": 3,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11182,
+  "latencyMs": 7722,
+  "responseChars": 6911,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Valen",
+      "settlement-240-197-1": "Karn",
+      "settlement-179-349-1": "Voss",
+      "settlement-133-296-1": "Oakhaven",
+      "settlement-249-512-1": "Aethelgard",
+      "settlement-351-149-1": "Sollis",
+      "settlement-269-325-1": "Maris",
+      "settlement-307-236-1": "Orlov",
+      "settlement-164-215-1": "Driftsend",
+      "settlement-179-427-2": "Barrow",
+      "settlement-212-486-2": "Myre",
+      "settlement-431-508-2": "Redding",
+      "settlement-110-346-2": "Kress",
+      "settlement-95-378-2": "Dahlia",
+      "settlement-383-533-2": "Ardent",
+      "settlement-304-385-2": "Silt",
+      "settlement-333-90-2": "Thule",
+      "settlement-347-189-2": "Calder",
+      "settlement-213-175-2": "Lund",
+      "settlement-38-206-3": "Boreal",
+      "settlement-120-198-3": "Veritas",
+      "settlement-13-341-3": "Corin",
+      "settlement-83-286-3": "Hallow",
+      "settlement-203-386-3": "Stellan",
+      "settlement-355-274-3": "Riva",
+      "settlement-371-445-3": "Nesta",
+      "settlement-668-488-3": "Pryor",
+      "settlement-222-248-3": "Ember"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Dominion of Valen",
+      "faction-settlement-249-512-1-apoikia": "Aethelgard League",
+      "faction-settlement-383-533-2-apoikia": "Ardent Concord",
+      "faction-settlement-355-274-3-apoikia": "Rivan Ascendancy",
+      "faction-settlement-668-488-3-apoikia": "Pryor Directorate",
+      "faction-settlement-240-197-1-spawn-3": "Karn Syndicate",
+      "faction-settlement-179-349-1-spawn-3": "Voss Republic",
+      "faction-settlement-133-296-1-spawn-3": "Oakhaven Sovereignty",
+      "faction-settlement-351-149-1-spawn-3": "Sollis Collective",
+      "faction-settlement-269-325-1-spawn-3": "Maris Coalition",
+      "faction-settlement-307-236-1-spawn-3": "Orlov Assembly",
+      "faction-settlement-164-215-1-spawn-3": "Driftsend Union"
+    }
+  },
+  "sampleNames": [
+    "Valen",
+    "Karn",
+    "Voss",
+    "Oakhaven",
+    "Aethelgard",
+    "Sollis",
+    "Maris",
+    "Orlov",
+    "Driftsend",
+    "Barrow",
+    "Myre",
+    "Redding"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 2,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.07142857142857142,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "end": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:20:02.021Z"
+}

@@ -1,0 +1,102 @@
+{
+  "id": "blank_flavor__combined_hard_after_json__r3",
+  "variantId": "combined_hard_after_json",
+  "label": "Hard forbid + quota + after JSON",
+  "tag": "blank_flavor",
+  "rep": 3,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10649,
+  "latencyMs": 11096,
+  "responseChars": 4161,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Ostra",
+      "settlement-240-197-1": "Varn",
+      "settlement-179-349-1": "Karn",
+      "settlement-133-296-1": "Belen",
+      "settlement-249-512-1": "Sula",
+      "settlement-351-149-1": "Draz",
+      "settlement-269-325-1": "Zore",
+      "settlement-307-236-1": "Palo",
+      "settlement-164-215-1": "Muri",
+      "settlement-179-427-2": "Hallow",
+      "settlement-212-486-2": "Brin",
+      "settlement-431-508-2": "Jora",
+      "settlement-110-346-2": "Kall",
+      "settlement-95-378-2": "Nox",
+      "settlement-383-533-2": "Orr",
+      "settlement-304-385-2": "Elin",
+      "settlement-333-90-2": "Tark",
+      "settlement-347-189-2": "Sarn",
+      "settlement-213-175-2": "Velt",
+      "settlement-38-206-3": "Liss",
+      "settlement-120-198-3": "Zar",
+      "settlement-13-341-3": "Pryth",
+      "settlement-83-286-3": "Kren",
+      "settlement-203-386-3": "Yul",
+      "settlement-355-274-3": "Fen",
+      "settlement-371-445-3": "Dor",
+      "settlement-668-488-3": "Rix",
+      "settlement-222-248-3": "Tav"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Amber Reach",
+      "faction-settlement-249-512-1-apoikia": "Sulan Dominion",
+      "faction-settlement-383-533-2-apoikia": "Orrite League",
+      "faction-settlement-355-274-3-apoikia": "Fen Confederacy",
+      "faction-settlement-668-488-3-apoikia": "Rix Pact",
+      "faction-settlement-240-197-1-spawn-3": "Varnish Crown",
+      "faction-settlement-179-349-1-spawn-3": "Karn Syndicate",
+      "faction-settlement-133-296-1-spawn-3": "Belen Ascendancy",
+      "faction-settlement-351-149-1-spawn-3": "Draz Collective",
+      "faction-settlement-269-325-1-spawn-3": "Zore Concord",
+      "faction-settlement-307-236-1-spawn-3": "Palor Directorate",
+      "faction-settlement-164-215-1-spawn-3": "Muridian Union"
+    }
+  },
+  "sampleNames": [
+    "Ostra",
+    "Varn",
+    "Karn",
+    "Belen",
+    "Sula",
+    "Draz",
+    "Zore",
+    "Palo",
+    "Muri",
+    "Hallow",
+    "Brin",
+    "Jora"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 0,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "fen": 1
+    },
+    "suffixFrequency": {},
+    "flagged": [
+      {
+        "settlementId": "settlement-355-274-3",
+        "name": "Fen",
+        "stems": [
+          "fen"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:16:57.734Z"
+}

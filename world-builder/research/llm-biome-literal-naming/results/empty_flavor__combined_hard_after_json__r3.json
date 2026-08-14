@@ -1,0 +1,122 @@
+{
+  "id": "empty_flavor__combined_hard_after_json__r3",
+  "variantId": "combined_hard_after_json",
+  "label": "Hard forbid + quota + after JSON",
+  "tag": "empty_flavor",
+  "rep": 3,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10653,
+  "latencyMs": 6155,
+  "responseChars": 4411,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Scurvy Reach",
+      "settlement-240-197-1": "Cutlass Bay",
+      "settlement-179-349-1": "Deadman's Cove",
+      "settlement-133-296-1": "Grogport",
+      "settlement-249-512-1": "Smuggler's Eye",
+      "settlement-351-149-1": "Brinehollow",
+      "settlement-269-325-1": "Freebooter's Leap",
+      "settlement-307-236-1": "Kraken's Tooth",
+      "settlement-164-215-1": "Flintlock",
+      "settlement-179-427-2": "Black-Jack Point",
+      "settlement-212-486-2": "Scourge",
+      "settlement-431-508-2": "Salt-Tooth",
+      "settlement-110-346-2": "Red Wake",
+      "settlement-95-378-2": "Marooner's Rock",
+      "settlement-383-533-2": "Barnacle Bay",
+      "settlement-304-385-2": "Corsair's Rest",
+      "settlement-333-90-2": "Wreckers' Roost",
+      "settlement-347-189-2": "Sloop's End",
+      "settlement-213-175-2": "Anchor's Drop",
+      "settlement-38-206-3": "Privateer's Perch",
+      "settlement-120-198-3": "Gallows Point",
+      "settlement-13-341-3": "Mutiny",
+      "settlement-83-286-3": "Davy Jones' Locker",
+      "settlement-203-386-3": "Siren's Call",
+      "settlement-355-274-3": "Plunderport",
+      "settlement-371-445-3": "Rum Punch",
+      "settlement-668-488-3": "Crowsnest",
+      "settlement-222-248-3": "Pegleg"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Dread Syndicate",
+      "faction-settlement-249-512-1-apoikia": "Corsair League",
+      "faction-settlement-383-533-2-apoikia": "Black Flag Brotherhood",
+      "faction-settlement-355-274-3-apoikia": "Scourge Armada",
+      "faction-settlement-668-488-3-apoikia": "Freebooter Republic",
+      "faction-settlement-240-197-1-spawn-3": "Crimson Horizon",
+      "faction-settlement-179-349-1-spawn-3": "Marooner Ascendancy",
+      "faction-settlement-133-296-1-spawn-3": "Grog-Swillers",
+      "faction-settlement-351-149-1-spawn-3": "Scurvy Dogs",
+      "faction-settlement-269-325-1-spawn-3": "Smuggler's Cartel",
+      "faction-settlement-307-236-1-spawn-3": "Kraken Cult",
+      "faction-settlement-164-215-1-spawn-3": "Cutthroat Coalition"
+    }
+  },
+  "sampleNames": [
+    "Scurvy Reach",
+    "Cutlass Bay",
+    "Deadman's Cove",
+    "Grogport",
+    "Smuggler's Eye",
+    "Brinehollow",
+    "Freebooter's Leap",
+    "Kraken's Tooth",
+    "Flintlock",
+    "Black-Jack Point",
+    "Scourge",
+    "Salt-Tooth"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 2,
+    "suffixHitCount": 7,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.07142857142857142,
+    "suffixHitRate": 0.25,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "brine": 1,
+      "salt": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "port": 2,
+      "hollow": 1,
+      "point": 2,
+      "end": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-351-149-1",
+        "name": "Brinehollow",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [
+          "hollow"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-431-508-2",
+        "name": "Salt-Tooth",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Hills"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:11:57.015Z"
+}

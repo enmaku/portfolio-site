@@ -1,0 +1,131 @@
+{
+  "id": "few_shot_good_bad__r3",
+  "variantId": "few_shot_good_bad",
+  "label": "Few-shot good vs bad examples",
+  "rep": 3,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10646,
+  "latencyMs": 3969,
+  "responseChars": 3202,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Corsair's Reach",
+      "settlement-240-197-1": "Brine's End",
+      "settlement-179-349-1": "Black Galleon",
+      "settlement-133-296-1": "Scurvy Bay",
+      "settlement-249-512-1": "Dead Man's Point",
+      "settlement-351-149-1": "Skull Spit",
+      "settlement-269-325-1": "Mermaid's Cry",
+      "settlement-307-236-1": "Rum Punch",
+      "settlement-164-215-1": "Cutlass Reef",
+      "settlement-179-427-2": "Captains' Rest",
+      "settlement-212-486-2": "Smuggler's Cove",
+      "settlement-431-508-2": "Grog Hollow",
+      "settlement-110-346-2": "Anchor Drop",
+      "settlement-95-378-2": "Mutiny Bay",
+      "settlement-383-533-2": "Plunder Isle",
+      "settlement-304-385-2": "Parrot's Perch",
+      "settlement-333-90-2": "Kraken's Maw",
+      "settlement-347-189-2": "Siren's Song",
+      "settlement-213-175-2": "Doubloon Depth",
+      "settlement-38-206-3": "Swabber's Jetty",
+      "settlement-120-198-3": "Scorpion Spit",
+      "settlement-13-341-3": "Barnacle Bay",
+      "settlement-83-286-3": "Bilge Water",
+      "settlement-203-386-3": "Jolly Roger",
+      "settlement-355-274-3": "Shark Tooth",
+      "settlement-371-445-3": "Privateer's Pride",
+      "settlement-668-488-3": "Marooner's Rock",
+      "settlement-222-248-3": "Sea Dog's Haunt"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Brotherhood of the Black Flag",
+      "faction-settlement-249-512-1-apoikia": "The Crimson Fleet",
+      "faction-settlement-383-533-2-apoikia": "Scourge of the Seven Seas",
+      "faction-settlement-355-274-3-apoikia": "Corsair Syndicate",
+      "faction-settlement-668-488-3-apoikia": "The Scalawag League",
+      "faction-settlement-240-197-1-spawn-3": "Rebel Buccaneers",
+      "faction-settlement-179-349-1-spawn-3": "Freebooters of the Mist",
+      "faction-settlement-133-296-1-spawn-3": "The Kraken Cult",
+      "faction-settlement-351-149-1-spawn-3": "Salt-Crusted Pact",
+      "faction-settlement-269-325-1-spawn-3": "Ghost Ship Armada",
+      "faction-settlement-307-236-1-spawn-3": "Scurvy Scum Coalition",
+      "faction-settlement-164-215-1-spawn-3": "Mutineers of the Deep"
+    }
+  },
+  "sampleNames": [
+    "Corsair's Reach",
+    "Brine's End",
+    "Black Galleon",
+    "Scurvy Bay",
+    "Dead Man's Point",
+    "Skull Spit",
+    "Mermaid's Cry",
+    "Rum Punch",
+    "Cutlass Reef",
+    "Captains' Rest",
+    "Smuggler's Cove",
+    "Grog Hollow"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 3,
+    "suffixHitCount": 4,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.10714285714285714,
+    "suffixHitRate": 0.14285714285714285,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "brine": 1,
+      "isle": 1,
+      "sea": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "end": 1,
+      "point": 1,
+      "hollow": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Brine's End",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [
+          "end"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-383-533-2",
+        "name": "Plunder Isle",
+        "stems": [
+          "isle"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-222-248-3",
+        "name": "Sea Dog's Haunt",
+        "stems": [
+          "sea"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T18:59:17.831Z"
+}

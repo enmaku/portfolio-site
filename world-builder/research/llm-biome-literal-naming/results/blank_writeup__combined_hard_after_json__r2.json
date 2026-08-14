@@ -1,0 +1,106 @@
+{
+  "id": "blank_writeup__combined_hard_after_json__r2",
+  "variantId": "combined_hard_after_json",
+  "label": "Hard forbid + quota + after JSON",
+  "tag": "blank_writeup",
+  "rep": 2,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11161,
+  "latencyMs": 7990,
+  "responseChars": 7660,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Valenor",
+      "settlement-240-197-1": "Karn",
+      "settlement-179-349-1": "Oakhaven",
+      "settlement-133-296-1": "Corvallis",
+      "settlement-249-512-1": "Aethelgard",
+      "settlement-351-149-1": "Brell",
+      "settlement-269-325-1": "Sorius",
+      "settlement-307-236-1": "Dorian",
+      "settlement-164-215-1": "Cassia",
+      "settlement-179-427-2": "Alera",
+      "settlement-212-486-2": "Varos",
+      "settlement-431-508-2": "Garrick",
+      "settlement-110-346-2": "Thorne",
+      "settlement-95-378-2": "Maris",
+      "settlement-383-533-2": "Caelum",
+      "settlement-304-385-2": "Vane",
+      "settlement-333-90-2": "Orin",
+      "settlement-347-189-2": "Liora",
+      "settlement-213-175-2": "Kael",
+      "settlement-38-206-3": "Sybilla",
+      "settlement-120-198-3": "Alric",
+      "settlement-13-341-3": "Brant",
+      "settlement-83-286-3": "Hestia",
+      "settlement-203-386-3": "Tallis",
+      "settlement-355-274-3": "Eland",
+      "settlement-371-445-3": "Morwen",
+      "settlement-668-488-3": "Isolde",
+      "settlement-222-248-3": "Gideon"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Valenor Concord",
+      "faction-settlement-249-512-1-apoikia": "The Aethelgard League",
+      "faction-settlement-383-533-2-apoikia": "Caelum Ascendancy",
+      "faction-settlement-355-274-3-apoikia": "Eland Protectorate",
+      "faction-settlement-668-488-3-apoikia": "Isolde Syndicate",
+      "faction-settlement-240-197-1-spawn-3": "Karn Dominion",
+      "faction-settlement-179-349-1-spawn-3": "Oakhaven Covenant",
+      "faction-settlement-133-296-1-spawn-3": "Corvallis Assembly",
+      "faction-settlement-351-149-1-spawn-3": "Brell Directorate",
+      "faction-settlement-269-325-1-spawn-3": "Sorius Compact",
+      "faction-settlement-307-236-1-spawn-3": "Dorian Collective",
+      "faction-settlement-164-215-1-spawn-3": "Cassia Republic"
+    }
+  },
+  "sampleNames": [
+    "Valenor",
+    "Karn",
+    "Oakhaven",
+    "Corvallis",
+    "Aethelgard",
+    "Brell",
+    "Sorius",
+    "Dorian",
+    "Cassia",
+    "Alera",
+    "Varos",
+    "Garrick"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 1,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1
+    },
+    "suffixFrequency": {
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-179-349-1",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:22:12.829Z"
+}

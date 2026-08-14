@@ -26,7 +26,10 @@ export function buildSettlementNamePrompt(options) {
     'One faction entry per faction in the input. Use the exact factionId values.',
     'Settlement names should feel like fantasy map labels: short, pronounceable, place-like (towns, ports, strongholds).',
     'Faction names should feel like realms, houses, leagues, or peoples — short and map-legend worthy.',
-    'Use biome, faction membership, wealth, trade, tolls, and history as inspiration — do not narrate in the name fields; just name.',
+    'HARD CONSTRAINT: No settlement name may contain any of these substrings (case-insensitive): taiga, tundra, scrub, coast, bog, mire, marsh, swamp, wood, woods, forest, pine, oak, timber, frost, ice, snow, hill, hills, mountain, dune, dust, salt, brine, copper, iron, sea, tide, wave, shore, grain, fish.',
+    'Forbidden pattern: <BiomeOrGood><Town|Port|Watch|Hold|End|Gate|Hollow|Reach|Ville> — e.g. Taigaport, Scrubwatch, Coppersville, Frosthold, Oakhaven, Pinehollow, Brinewatch, Tundrasend.',
+    'At least 85% of settlement names must be invented personal, dynastic, event, or opaque proper placenames (Georgetown, Virginia, Christmas Island, or short coined words like Valen / Karn). The simulation does not supply founders, saints, battles, or myths — invent those from whole cloth.',
+    'Biome, maritimeRole, imports, exports, supplies, and wants are logistics metadata, not naming templates.',
   ]
 
   if (includeAntiRepetition) {
@@ -52,6 +55,9 @@ export function buildSettlementNamePrompt(options) {
       : `No special author flavor; use grounded fantasy place-name and polity-name style${includeRegionWriteup ? ', and clear campaign voice for the writeup' : ''}.`,
     'Annotated world data:',
     JSON.stringify(options.annotations),
+    'CRITICAL FINAL CHECK (read after the JSON; overrides calquing the fields above):',
+    'Scan every settlement name. If it contains a banned stem or matches the forbidden biome-compound pattern, replace it with an invented proper name before returning.',
+    'Do not return Oakhaven, Frostwatch, Pinehollow, Brinewatch, Taigaport, Scrubtown, or similar.',
   )
 
   return parts.join('\n\n')

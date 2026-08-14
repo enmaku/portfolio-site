@@ -1,0 +1,141 @@
+{
+  "id": "person_event_mandate__r2",
+  "variantId": "person_event_mandate",
+  "label": "Mandate person/event etymology for every name",
+  "rep": 2,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10604,
+  "latencyMs": 5167,
+  "responseChars": 4196,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Corviva",
+      "settlement-240-197-1": "Vane",
+      "settlement-179-349-1": "Krynn",
+      "settlement-133-296-1": "Maris",
+      "settlement-249-512-1": "Oakhaven",
+      "settlement-351-149-1": "Scurvy",
+      "settlement-269-325-1": "Rook",
+      "settlement-307-236-1": "Brine",
+      "settlement-164-215-1": "Dredge",
+      "settlement-179-427-2": "Gallow",
+      "settlement-212-486-2": "Pike",
+      "settlement-431-508-2": "Sands",
+      "settlement-110-346-2": "Shack",
+      "settlement-95-378-2": "Keel",
+      "settlement-383-533-2": "Gale",
+      "settlement-304-385-2": "Skiff",
+      "settlement-333-90-2": "Scur",
+      "settlement-347-189-2": "Flint",
+      "settlement-213-175-2": "Mast",
+      "settlement-38-206-3": "Cask",
+      "settlement-120-198-3": "Hook",
+      "settlement-13-341-3": "Stern",
+      "settlement-83-286-3": "Plank",
+      "settlement-203-386-3": "Wave",
+      "settlement-355-274-3": "Tide",
+      "settlement-371-445-3": "Oar",
+      "settlement-668-488-3": "Anchor",
+      "settlement-222-248-3": "Sloop"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "Crimson Covenant",
+      "faction-settlement-249-512-1-apoikia": "Scourge League",
+      "faction-settlement-383-533-2-apoikia": "Black Flag",
+      "faction-settlement-355-274-3-apoikia": "Salt Brotherhood",
+      "faction-settlement-668-488-3-apoikia": "Iron Armada",
+      "faction-settlement-240-197-1-spawn-3": "Rogue Syndicate",
+      "faction-settlement-179-349-1-spawn-3": "Corsair Cartel",
+      "faction-settlement-133-296-1-spawn-3": "Reaver Guild",
+      "faction-settlement-351-149-1-spawn-3": "Marauder Cabal",
+      "faction-settlement-269-325-1-spawn-3": "Freebooter Alliance",
+      "faction-settlement-307-236-1-spawn-3": "Bucanneer Trust",
+      "faction-settlement-164-215-1-spawn-3": "Privateer Assembly"
+    }
+  },
+  "sampleNames": [
+    "Corviva",
+    "Vane",
+    "Krynn",
+    "Maris",
+    "Oakhaven",
+    "Scurvy",
+    "Rook",
+    "Brine",
+    "Dredge",
+    "Gallow",
+    "Pike",
+    "Sands"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 4,
+    "suffixHitCount": 2,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.14285714285714285,
+    "suffixHitRate": 0.07142857142857142,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1,
+      "brine": 1,
+      "wave": 1,
+      "tide": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "edge": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-249-512-1",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-307-236-1",
+        "name": "Brine",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-203-386-3",
+        "name": "Wave",
+        "stems": [
+          "wave"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-355-274-3",
+        "name": "Tide",
+        "stems": [
+          "tide"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:01:43.127Z"
+}

@@ -1,0 +1,143 @@
+{
+  "id": "ids_flavor_shell__r3",
+  "variantId": "ids_flavor_shell",
+  "label": "Ids/politics shell only (no biome/economy/history)",
+  "rep": 3,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 2128,
+  "latencyMs": 5304,
+  "responseChars": 4371,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Deadman's Cove",
+      "settlement-240-197-1": "Gallows Point",
+      "settlement-179-349-1": "Saltwhip",
+      "settlement-133-296-1": "Bilge",
+      "settlement-249-512-1": "Kraken's Maw",
+      "settlement-351-149-1": "Scuttle Bay",
+      "settlement-269-325-1": "Blackreef",
+      "settlement-307-236-1": "Cutlass Reach",
+      "settlement-164-215-1": "Scurvy Point",
+      "settlement-179-427-2": "Rustport",
+      "settlement-212-486-2": "Drown-John",
+      "settlement-431-508-2": "Tidefall",
+      "settlement-110-346-2": "Flintlock",
+      "settlement-95-378-2": "Marrow Cay",
+      "settlement-383-533-2": "Wreckers' Roost",
+      "settlement-304-385-2": "Barnacle",
+      "settlement-333-90-2": "Sharkfin",
+      "settlement-347-189-2": "Grogport",
+      "settlement-213-175-2": "Rum Haven",
+      "settlement-38-206-3": "Smuggler's Notch",
+      "settlement-120-198-3": "Pestle",
+      "settlement-13-341-3": "Carcass Island",
+      "settlement-83-286-3": "Viper's Drop",
+      "settlement-203-386-3": "Plunder Point",
+      "settlement-355-274-3": "Mizzen",
+      "settlement-371-445-3": "Doubloon",
+      "settlement-668-488-3": "Hook Island",
+      "settlement-222-248-3": "Siren's Song"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Fleet",
+      "faction-settlement-249-512-1-apoikia": "Brotherhood of the Black Flag",
+      "faction-settlement-383-533-2-apoikia": "Scourge Syndicate",
+      "faction-settlement-355-274-3-apoikia": "Freebooter League",
+      "faction-settlement-668-488-3-apoikia": "Reaver Coalition",
+      "faction-settlement-240-197-1-spawn-3": "Null Armada",
+      "faction-settlement-179-349-1-spawn-3": "Saltwater Syndicate",
+      "faction-settlement-133-296-1-spawn-3": "Scurvy Corsairs",
+      "faction-settlement-351-149-1-spawn-3": "Bloodwave Armada",
+      "faction-settlement-269-325-1-spawn-3": "Dreadwake",
+      "faction-settlement-307-236-1-spawn-3": "Ironhook Concordat",
+      "faction-settlement-164-215-1-spawn-3": "Tide-Scourged"
+    }
+  },
+  "sampleNames": [
+    "Deadman's Cove",
+    "Gallows Point",
+    "Saltwhip",
+    "Bilge",
+    "Kraken's Maw",
+    "Scuttle Bay",
+    "Blackreef",
+    "Cutlass Reach",
+    "Scurvy Point",
+    "Rustport",
+    "Drown-John",
+    "Tidefall"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 4,
+    "suffixHitCount": 8,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.14285714285714285,
+    "suffixHitRate": 0.2857142857142857,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "salt": 1,
+      "tide": 1,
+      "island": 2
+    },
+    "suffixFrequency": {
+      "point": 3,
+      "reach": 1,
+      "port": 2,
+      "fall": 1,
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-179-349-1",
+        "name": "Saltwhip",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-431-508-2",
+        "name": "Tidefall",
+        "stems": [
+          "tide"
+        ],
+        "suffixes": [
+          "fall"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Hills"
+      },
+      {
+        "settlementId": "settlement-13-341-3",
+        "name": "Carcass Island",
+        "stems": [
+          "island"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-668-488-3",
+        "name": "Hook Island",
+        "stems": [
+          "island"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:04:37.151Z"
+}

@@ -1,0 +1,124 @@
+{
+  "id": "mythos_then_assign__r3",
+  "variantId": "mythos_then_assign",
+  "label": "Invent a mythos list first, then assign",
+  "rep": 3,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10618,
+  "latencyMs": 5073,
+  "responseChars": 4204,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Krynn",
+      "settlement-240-197-1": "Skarn",
+      "settlement-179-349-1": "Grog",
+      "settlement-133-296-1": "Vane",
+      "settlement-249-512-1": "Zulk",
+      "settlement-351-149-1": "Pike",
+      "settlement-269-325-1": "Roost",
+      "settlement-307-236-1": "Glint",
+      "settlement-164-215-1": "Brine",
+      "settlement-179-427-2": "Keel",
+      "settlement-212-486-2": "Mire",
+      "settlement-431-508-2": "Dreg",
+      "settlement-110-346-2": "Wreck",
+      "settlement-95-378-2": "Gull",
+      "settlement-383-533-2": "Scurf",
+      "settlement-304-385-2": "Fluke",
+      "settlement-333-90-2": "Spar",
+      "settlement-347-189-2": "Gaff",
+      "settlement-213-175-2": "Bight",
+      "settlement-38-206-3": "Sump",
+      "settlement-120-198-3": "Scab",
+      "settlement-13-341-3": "Rust",
+      "settlement-83-286-3": "Bilk",
+      "settlement-203-386-3": "Plack",
+      "settlement-355-274-3": "Shank",
+      "settlement-371-445-3": "Cleat",
+      "settlement-668-488-3": "Tack",
+      "settlement-222-248-3": "Mote"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "Crimson Corsairs",
+      "faction-settlement-249-512-1-apoikia": "Salt-Scourge League",
+      "faction-settlement-383-533-2-apoikia": "Freebooters of Skarn",
+      "faction-settlement-355-274-3-apoikia": "Black-Flag Syndicate",
+      "faction-settlement-668-488-3-apoikia": "Iron-Hook Clan",
+      "faction-settlement-240-197-1-spawn-3": "Marooned Mutineers",
+      "faction-settlement-179-349-1-spawn-3": "Grog-Swillers",
+      "faction-settlement-133-296-1-spawn-3": "Scourge of Vane",
+      "faction-settlement-351-149-1-spawn-3": "Tide-Runners",
+      "faction-settlement-269-325-1-spawn-3": "Dagger-Coast Raiders",
+      "faction-settlement-307-236-1-spawn-3": "Blood-Wave Brood",
+      "faction-settlement-164-215-1-spawn-3": "Scurvy Dogs"
+    }
+  },
+  "sampleNames": [
+    "Krynn",
+    "Skarn",
+    "Grog",
+    "Vane",
+    "Zulk",
+    "Pike",
+    "Roost",
+    "Glint",
+    "Brine",
+    "Keel",
+    "Mire",
+    "Dreg"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 3,
+    "suffixHitCount": 0,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.10714285714285714,
+    "suffixHitRate": 0,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "brine": 1,
+      "mire": 1,
+      "gull": 1
+    },
+    "suffixFrequency": {},
+    "flagged": [
+      {
+        "settlementId": "settlement-164-215-1",
+        "name": "Brine",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mire",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Gull",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Grassland"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T18:59:57.186Z"
+}

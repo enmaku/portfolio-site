@@ -1,0 +1,107 @@
+{
+  "id": "blank_writeup__combined_hard_after_json__r1",
+  "variantId": "combined_hard_after_json",
+  "label": "Hard forbid + quota + after JSON",
+  "tag": "blank_writeup",
+  "rep": 1,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11161,
+  "latencyMs": 8469,
+  "responseChars": 7409,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Kallos",
+      "settlement-240-197-1": "Morvath",
+      "settlement-179-349-1": "Coris",
+      "settlement-133-296-1": "Oakhaven",
+      "settlement-249-512-1": "Valen",
+      "settlement-351-149-1": "Elian",
+      "settlement-269-325-1": "Jorund",
+      "settlement-307-236-1": "Brell",
+      "settlement-164-215-1": "Aethel",
+      "settlement-179-427-2": "Hallowell",
+      "settlement-212-486-2": "Voss",
+      "settlement-431-508-2": "Garrick",
+      "settlement-110-346-2": "Darrow",
+      "settlement-95-378-2": "Cyrus",
+      "settlement-383-533-2": "Thorne",
+      "settlement-304-385-2": "Vane",
+      "settlement-333-90-2": "Soren",
+      "settlement-347-189-2": "Kaelen",
+      "settlement-213-175-2": "Orson",
+      "settlement-38-206-3": "Brant",
+      "settlement-120-198-3": "Radek",
+      "settlement-13-341-3": "Tallis",
+      "settlement-83-286-3": "Milo",
+      "settlement-203-386-3": "Nesta",
+      "settlement-355-274-3": "Skel",
+      "settlement-371-445-3": "Rowan",
+      "settlement-668-488-3": "Kurn",
+      "settlement-222-248-3": "Pryor"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Dominion of Kallos",
+      "faction-settlement-249-512-1-apoikia": "Valenic League",
+      "faction-settlement-383-533-2-apoikia": "Thornish Reach",
+      "faction-settlement-355-274-3-apoikia": "Skelic Directorate",
+      "faction-settlement-668-488-3-apoikia": "Kurnic Concordat",
+      "faction-settlement-240-197-1-spawn-3": "Morvathian Remnant",
+      "faction-settlement-179-349-1-spawn-3": "Corisian Freehold",
+      "faction-settlement-133-296-1-spawn-3": "Oakhaven Covenant",
+      "faction-settlement-351-149-1-spawn-3": "Elian Enclave",
+      "faction-settlement-269-325-1-spawn-3": "Jorund Syndicate",
+      "faction-settlement-307-236-1-spawn-3": "Brellian Protectorate",
+      "faction-settlement-164-215-1-spawn-3": "Aethelgard Union"
+    }
+  },
+  "sampleNames": [
+    "Kallos",
+    "Morvath",
+    "Coris",
+    "Oakhaven",
+    "Valen",
+    "Elian",
+    "Jorund",
+    "Brell",
+    "Aethel",
+    "Hallowell",
+    "Voss",
+    "Garrick"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 2,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.07142857142857142,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "well": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:21:56.835Z"
+}

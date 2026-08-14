@@ -1,0 +1,144 @@
+{
+  "id": "blank_flavor__current_ui__r1",
+  "variantId": "current_ui",
+  "label": "Current live UI soft anti-literal wording",
+  "tag": "blank_flavor",
+  "rep": 1,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10690,
+  "latencyMs": 5328,
+  "responseChars": 4228,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Varnhold",
+      "settlement-179-349-1": "Kell",
+      "settlement-133-296-1": "Thalos",
+      "settlement-249-512-1": "Corvosa",
+      "settlement-351-149-1": "Hral",
+      "settlement-269-325-1": "Eress",
+      "settlement-307-236-1": "Zar",
+      "settlement-164-215-1": "Malkor",
+      "settlement-179-427-2": "Barrow",
+      "settlement-212-486-2": "Mire",
+      "settlement-431-508-2": "Highcrest",
+      "settlement-110-346-2": "Pine",
+      "settlement-95-378-2": "Verid",
+      "settlement-383-533-2": "Soline",
+      "settlement-304-385-2": "Rime",
+      "settlement-333-90-2": "Frost",
+      "settlement-347-189-2": "Cael",
+      "settlement-213-175-2": "Belan",
+      "settlement-38-206-3": "Nox",
+      "settlement-120-198-3": "Olar",
+      "settlement-13-341-3": "Skov",
+      "settlement-83-286-3": "Dorn",
+      "settlement-203-386-3": "Tor",
+      "settlement-355-274-3": "Pel",
+      "settlement-371-445-3": "Ash",
+      "settlement-668-488-3": "Lira",
+      "settlement-222-248-3": "Voss"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Aurean Empire",
+      "faction-settlement-249-512-1-apoikia": "The Thalassian League",
+      "faction-settlement-383-533-2-apoikia": "House Vane",
+      "faction-settlement-355-274-3-apoikia": "The Sunken Conclave",
+      "faction-settlement-668-488-3-apoikia": "The Ashen Accord",
+      "faction-settlement-240-197-1-spawn-3": "The Tundra Reach",
+      "faction-settlement-179-349-1-spawn-3": "The Iron Coast",
+      "faction-settlement-133-296-1-spawn-3": "The Sylvan Directorate",
+      "faction-settlement-351-149-1-spawn-3": "The Pale Dominion",
+      "faction-settlement-269-325-1-spawn-3": "The Tideborn",
+      "faction-settlement-307-236-1-spawn-3": "The Zephyrian Coalition",
+      "faction-settlement-164-215-1-spawn-3": "The Frostbound Guild"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Varnhold",
+    "Kell",
+    "Thalos",
+    "Corvosa",
+    "Hral",
+    "Eress",
+    "Zar",
+    "Malkor",
+    "Barrow",
+    "Mire",
+    "Highcrest"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 4,
+    "suffixHitCount": 3,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.14285714285714285,
+    "suffixHitRate": 0.10714285714285714,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1,
+      "mire": 1,
+      "pine": 1,
+      "frost": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "hold": 1,
+      "crest": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mire",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Pine",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-333-90-2",
+        "name": "Frost",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:13:05.176Z"
+}

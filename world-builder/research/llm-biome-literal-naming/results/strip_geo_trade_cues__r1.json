@@ -1,0 +1,126 @@
+{
+  "id": "strip_geo_trade_cues__r1",
+  "variantId": "strip_geo_trade_cues",
+  "label": "Remove biome/trade fields from annotations",
+  "rep": 1,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 5302,
+  "latencyMs": 5225,
+  "responseChars": 4426,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Deadman's Cleft",
+      "settlement-240-197-1": "Cutthroat Cay",
+      "settlement-179-349-1": "Gallows Bay",
+      "settlement-133-296-1": "Smuggler's Notch",
+      "settlement-249-512-1": "Kraken's Maw",
+      "settlement-351-149-1": "Scourge Point",
+      "settlement-269-325-1": "Blackreef",
+      "settlement-307-236-1": "Rum Punch",
+      "settlement-164-215-1": "Scurvy Harbor",
+      "settlement-179-427-2": "Doubloon",
+      "settlement-212-486-2": "Barnacle Rock",
+      "settlement-431-508-2": "Siren's Rest",
+      "settlement-110-346-2": "Capsize",
+      "settlement-95-378-2": "Salt-Tooth",
+      "settlement-383-533-2": "Bilgewater",
+      "settlement-304-385-2": "Marooner's Bluff",
+      "settlement-333-90-2": "Sharksfin",
+      "settlement-347-189-2": "Privateer's Perch",
+      "settlement-213-175-2": "Flintlock",
+      "settlement-38-206-3": "Anchorfall",
+      "settlement-120-198-3": "Skiff Island",
+      "settlement-13-341-3": "Wreck Beach",
+      "settlement-83-286-3": "Plunder Point",
+      "settlement-203-386-3": "Swabber's Hole",
+      "settlement-355-274-3": "Mutiny",
+      "settlement-371-445-3": "Corsair's Creep",
+      "settlement-668-488-3": "Bone Island",
+      "settlement-222-248-3": "Scuttle Bay"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "Brotherhood of the Black Flag",
+      "faction-settlement-383-533-2-apoikia": "Scourge Coast Syndicate",
+      "faction-settlement-355-274-3-apoikia": "The Freebooter League",
+      "faction-settlement-668-488-3-apoikia": "Rogue Wave Collective",
+      "faction-settlement-240-197-1-spawn-3": "Cutthroat Cabal",
+      "faction-settlement-179-349-1-spawn-3": "Dread Fleet",
+      "faction-settlement-133-296-1-spawn-3": "Reaver Coalition",
+      "faction-settlement-351-149-1-spawn-3": "Corsair Assembly",
+      "faction-settlement-269-325-1-spawn-3": "Marauder Vanguard",
+      "faction-settlement-307-236-1-spawn-3": "Buccaneer Union",
+      "faction-settlement-164-215-1-spawn-3": "Outlaw Armada"
+    }
+  },
+  "sampleNames": [
+    "Deadman's Cleft",
+    "Cutthroat Cay",
+    "Gallows Bay",
+    "Smuggler's Notch",
+    "Kraken's Maw",
+    "Scourge Point",
+    "Blackreef",
+    "Rum Punch",
+    "Scurvy Harbor",
+    "Doubloon",
+    "Barnacle Rock",
+    "Siren's Rest"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 3,
+    "suffixHitCount": 3,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.10714285714285714,
+    "suffixHitRate": 0.10714285714285714,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "salt": 1,
+      "island": 2
+    },
+    "suffixFrequency": {
+      "point": 2,
+      "fall": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Salt-Tooth",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Grassland"
+      },
+      {
+        "settlementId": "settlement-120-198-3",
+        "name": "Skiff Island",
+        "stems": [
+          "island"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-668-488-3",
+        "name": "Bone Island",
+        "stems": [
+          "island"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:02:49.260Z"
+}

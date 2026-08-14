@@ -1,0 +1,104 @@
+{
+  "id": "empty_flavor__combined_hard_after_json__r2",
+  "variantId": "combined_hard_after_json",
+  "label": "Hard forbid + quota + after JSON",
+  "tag": "empty_flavor",
+  "rep": 2,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10653,
+  "latencyMs": 5433,
+  "responseChars": 4190,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Karn",
+      "settlement-240-197-1": "Brim",
+      "settlement-179-349-1": "Vane",
+      "settlement-133-296-1": "Zor",
+      "settlement-249-512-1": "Grog",
+      "settlement-351-149-1": "Drak",
+      "settlement-269-325-1": "Scurv",
+      "settlement-307-236-1": "Pyre",
+      "settlement-164-215-1": "Wreck",
+      "settlement-179-427-2": "Glint",
+      "settlement-212-486-2": "Plunder",
+      "settlement-431-508-2": "Grave",
+      "settlement-110-346-2": "Gull",
+      "settlement-95-378-2": "Keel",
+      "settlement-383-533-2": "Dredge",
+      "settlement-304-385-2": "Flint",
+      "settlement-333-90-2": "Spar",
+      "settlement-347-189-2": "Roux",
+      "settlement-213-175-2": "Marrow",
+      "settlement-38-206-3": "Scab",
+      "settlement-120-198-3": "Bilge",
+      "settlement-13-341-3": "Sunder",
+      "settlement-83-286-3": "Hook",
+      "settlement-203-386-3": "Chum",
+      "settlement-355-274-3": "Scur",
+      "settlement-371-445-3": "Gaff",
+      "settlement-668-488-3": "Mug",
+      "settlement-222-248-3": "Shroud"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Black Wake",
+      "faction-settlement-249-512-1-apoikia": "Crimson Scourge",
+      "faction-settlement-383-533-2-apoikia": "Skull Bay Syndicate",
+      "faction-settlement-355-274-3-apoikia": "The Iron Plunderers",
+      "faction-settlement-668-488-3-apoikia": "Cutlass League",
+      "faction-settlement-240-197-1-spawn-3": "Ghost Fleet",
+      "faction-settlement-179-349-1-spawn-3": "Dead Men's Reach",
+      "faction-settlement-133-296-1-spawn-3": "Marauder Brood",
+      "faction-settlement-351-149-1-spawn-3": "Blood Reef Pact",
+      "faction-settlement-269-325-1-spawn-3": "Siren's Hoard",
+      "faction-settlement-307-236-1-spawn-3": "Corsair Cartel",
+      "faction-settlement-164-215-1-spawn-3": "Rogue Horizon"
+    }
+  },
+  "sampleNames": [
+    "Karn",
+    "Brim",
+    "Vane",
+    "Zor",
+    "Grog",
+    "Drak",
+    "Scurv",
+    "Pyre",
+    "Wreck",
+    "Glint",
+    "Plunder",
+    "Grave"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 1,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "gull": 1
+    },
+    "suffixFrequency": {
+      "edge": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Gull",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:11:42.855Z"
+}

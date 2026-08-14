@@ -1,0 +1,110 @@
+{
+  "id": "soft_plus_hard__r3",
+  "variantId": "soft_plus_hard",
+  "label": "Current soft lines + hard forbid stems",
+  "rep": 3,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10739,
+  "latencyMs": 5971,
+  "responseChars": 4536,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Blackwater Reach",
+      "settlement-240-197-1": "Vane's Roost",
+      "settlement-179-349-1": "Calico's End",
+      "settlement-133-296-1": "Skullsund",
+      "settlement-249-512-1": "Dead Man's Point",
+      "settlement-351-149-1": "Ketch's Hold",
+      "settlement-269-325-1": "Gallows Bay",
+      "settlement-307-236-1": "Cutlass Point",
+      "settlement-164-215-1": "Morgan's Bluff",
+      "settlement-179-427-2": "Smuggler's Notch",
+      "settlement-212-486-2": "Siren's Deep",
+      "settlement-431-508-2": "Buccaneer's Leap",
+      "settlement-110-346-2": "Jolly Roger",
+      "settlement-95-378-2": "Marauder's Quay",
+      "settlement-383-533-2": "Scurvy's Fall",
+      "settlement-304-385-2": "Privateer's Cove",
+      "settlement-333-90-2": "Flint's Pride",
+      "settlement-347-189-2": "Rackham's Reach",
+      "settlement-213-175-2": "Corsair's Rest",
+      "settlement-38-206-3": "Barbarossa's Gate",
+      "settlement-120-198-3": "Plunder's Pride",
+      "settlement-13-341-3": "Booty's Bluff",
+      "settlement-83-286-3": "Pillage's Hollow",
+      "settlement-203-386-3": "Ransack's Watch",
+      "settlement-355-274-3": "Freebooter's Bay",
+      "settlement-371-445-3": "Pardoner's Peak",
+      "settlement-668-488-3": "Swabber's Gulch",
+      "settlement-222-248-3": "Marooner's Spit"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Brethren of the Coast",
+      "faction-settlement-249-512-1-apoikia": "The Crimson Syndicate",
+      "faction-settlement-383-533-2-apoikia": "The Dread Armada",
+      "faction-settlement-355-274-3-apoikia": "The Scallywag League",
+      "faction-settlement-668-488-3-apoikia": "The Black Flag Republic",
+      "faction-settlement-240-197-1-spawn-3": "The Cutlass Coalition",
+      "faction-settlement-179-349-1-spawn-3": "The Freebooter Concord",
+      "faction-settlement-133-296-1-spawn-3": "The Corsair Brotherhood",
+      "faction-settlement-351-149-1-spawn-3": "The Privateer Enclave",
+      "faction-settlement-269-325-1-spawn-3": "The Marauder Assembly",
+      "faction-settlement-307-236-1-spawn-3": "The Buccaneer Syndicate",
+      "faction-settlement-164-215-1-spawn-3": "The Kraken Fellowship"
+    }
+  },
+  "sampleNames": [
+    "Blackwater Reach",
+    "Vane's Roost",
+    "Calico's End",
+    "Skullsund",
+    "Dead Man's Point",
+    "Ketch's Hold",
+    "Gallows Bay",
+    "Cutlass Point",
+    "Morgan's Bluff",
+    "Smuggler's Notch",
+    "Siren's Deep",
+    "Buccaneer's Leap"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 11,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.39285714285714285,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "peak": 1
+    },
+    "suffixFrequency": {
+      "reach": 2,
+      "end": 1,
+      "point": 2,
+      "hold": 1,
+      "deep": 1,
+      "fall": 1,
+      "gate": 1,
+      "hollow": 1,
+      "watch": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-371-445-3",
+        "name": "Pardoner's Peak",
+        "stems": [
+          "peak"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:05:55.950Z"
+}

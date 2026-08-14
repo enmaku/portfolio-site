@@ -1,0 +1,130 @@
+{
+  "id": "instructions_after_json__r3",
+  "variantId": "instructions_after_json",
+  "label": "Anti-literal instructions AFTER the JSON (recency)",
+  "rep": 3,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10612,
+  "latencyMs": 5625,
+  "responseChars": 4437,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Karr's Cove",
+      "settlement-240-197-1": "Widow's Drop",
+      "settlement-179-349-1": "Gallows Reach",
+      "settlement-133-296-1": "Cutthroat's Point",
+      "settlement-249-512-1": "Dead Man's Harbor",
+      "settlement-351-149-1": "Smuggler's Notch",
+      "settlement-269-325-1": "Rotten Keel",
+      "settlement-307-236-1": "Black Flag",
+      "settlement-164-215-1": "Rogue's Roost",
+      "settlement-179-427-2": "Mutiny's End",
+      "settlement-212-486-2": "Scourge",
+      "settlement-431-508-2": "Privateer's Hold",
+      "settlement-110-346-2": "Brinegrave",
+      "settlement-95-378-2": "Shark's Tooth",
+      "settlement-383-533-2": "Marauder's Bay",
+      "settlement-304-385-2": "Scurvy Point",
+      "settlement-333-90-2": "Plunder's Path",
+      "settlement-347-189-2": "Corsair's Rest",
+      "settlement-213-175-2": "Siren's Call",
+      "settlement-38-206-3": "Bilge Rat",
+      "settlement-120-198-3": "Vanguard's Reef",
+      "settlement-13-341-3": "Skull Island",
+      "settlement-83-286-3": "Rum Hollow",
+      "settlement-203-386-3": "Bone Island",
+      "settlement-355-274-3": "Bounty's Edge",
+      "settlement-371-445-3": "Kraken's Maw",
+      "settlement-668-488-3": "Wreckers' Spit",
+      "settlement-222-248-3": "Cutlass Reach"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "Blackflag Syndicate",
+      "faction-settlement-383-533-2-apoikia": "Sovereign Corsairs",
+      "faction-settlement-355-274-3-apoikia": "Dread Fleet",
+      "faction-settlement-668-488-3-apoikia": "Ironhook League",
+      "faction-settlement-240-197-1-spawn-3": "Scourge Brotherhood",
+      "faction-settlement-179-349-1-spawn-3": "Freebooter Combine",
+      "faction-settlement-133-296-1-spawn-3": "Reaver Coalition",
+      "faction-settlement-351-149-1-spawn-3": "Stormchaser Union",
+      "faction-settlement-269-325-1-spawn-3": "Bloodwave Republic",
+      "faction-settlement-307-236-1-spawn-3": "Marauder Concord",
+      "faction-settlement-164-215-1-spawn-3": "Privateer Council"
+    }
+  },
+  "sampleNames": [
+    "Karr's Cove",
+    "Widow's Drop",
+    "Gallows Reach",
+    "Cutthroat's Point",
+    "Dead Man's Harbor",
+    "Smuggler's Notch",
+    "Rotten Keel",
+    "Black Flag",
+    "Rogue's Roost",
+    "Mutiny's End",
+    "Scourge",
+    "Privateer's Hold"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 3,
+    "suffixHitCount": 8,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.10714285714285714,
+    "suffixHitRate": 0.2857142857142857,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "brine": 1,
+      "island": 2
+    },
+    "suffixFrequency": {
+      "reach": 2,
+      "point": 2,
+      "end": 1,
+      "hold": 1,
+      "hollow": 1,
+      "edge": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Brinegrave",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-13-341-3",
+        "name": "Skull Island",
+        "stems": [
+          "island"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-203-386-3",
+        "name": "Bone Island",
+        "stems": [
+          "island"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:01:16.847Z"
+}

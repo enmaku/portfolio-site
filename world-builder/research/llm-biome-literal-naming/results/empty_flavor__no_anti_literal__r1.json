@@ -1,0 +1,199 @@
+{
+  "id": "empty_flavor__no_anti_literal__r1",
+  "variantId": "no_anti_literal",
+  "label": "No anti-literal lines (antirepeat only)",
+  "tag": "empty_flavor",
+  "rep": 1,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10557,
+  "latencyMs": 6051,
+  "responseChars": 4438,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Scurvy Reach",
+      "settlement-240-197-1": "Frostbite Cove",
+      "settlement-179-349-1": "Gull's Spite",
+      "settlement-133-296-1": "Deadman's Creek",
+      "settlement-249-512-1": "Tollkeep's Bane",
+      "settlement-351-149-1": "Brinehollow",
+      "settlement-269-325-1": "Black-Anchor",
+      "settlement-307-236-1": "Cutthroat Bight",
+      "settlement-164-215-1": "Wraith's Keel",
+      "settlement-179-427-2": "Smuggler's Ridge",
+      "settlement-212-486-2": "Mire-Grip",
+      "settlement-431-508-2": "Plunder-Hill",
+      "settlement-110-346-2": "Grog-Hold",
+      "settlement-95-378-2": "Booty-Meadow",
+      "settlement-383-533-2": "Salt-Tooth",
+      "settlement-304-385-2": "Rum-Run",
+      "settlement-333-90-2": "Gale-Wreck",
+      "settlement-347-189-2": "Privateer's Perch",
+      "settlement-213-175-2": "Scourge Point",
+      "settlement-38-206-3": "Shark-Fin",
+      "settlement-120-198-3": "Kraken's Maw",
+      "settlement-13-341-3": "Doubloon Deep",
+      "settlement-83-286-3": "Mutiny Woods",
+      "settlement-203-386-3": "Corsair's Dock",
+      "settlement-355-274-3": "Buccaneer's Bluff",
+      "settlement-371-445-3": "Swabby's Rest",
+      "settlement-668-488-3": "Pillage Port",
+      "settlement-222-248-3": "Plank-Walk"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "Skull-Coast Syndicate",
+      "faction-settlement-383-533-2-apoikia": "Brethren of the Black Flag",
+      "faction-settlement-355-274-3-apoikia": "Scourge Brotherhood",
+      "faction-settlement-668-488-3-apoikia": "Rogue Wave Coalition",
+      "faction-settlement-240-197-1-spawn-3": "Freebooter League",
+      "faction-settlement-179-349-1-spawn-3": "Siren's Call",
+      "faction-settlement-133-296-1-spawn-3": "Marauder Cabal",
+      "faction-settlement-351-149-1-spawn-3": "Galleon's Ghost",
+      "faction-settlement-269-325-1-spawn-3": "Blood-Tide Pact",
+      "faction-settlement-307-236-1-spawn-3": "Cutlass Republic",
+      "faction-settlement-164-215-1-spawn-3": "Privateer Kin"
+    }
+  },
+  "sampleNames": [
+    "Scurvy Reach",
+    "Frostbite Cove",
+    "Gull's Spite",
+    "Deadman's Creek",
+    "Tollkeep's Bane",
+    "Brinehollow",
+    "Black-Anchor",
+    "Cutthroat Bight",
+    "Wraith's Keel",
+    "Smuggler's Ridge",
+    "Mire-Grip",
+    "Plunder-Hill"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 8,
+    "suffixHitCount": 8,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.2857142857142857,
+    "suffixHitRate": 0.2857142857142857,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "frost": 1,
+      "gull": 1,
+      "brine": 1,
+      "mire": 1,
+      "hill": 1,
+      "meadow": 1,
+      "salt": 1,
+      "wood": 1,
+      "woods": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "hollow": 1,
+      "ridge": 1,
+      "hold": 1,
+      "run": 1,
+      "point": 1,
+      "deep": 1,
+      "port": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Frostbite Cove",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-179-349-1",
+        "name": "Gull's Spite",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-351-149-1",
+        "name": "Brinehollow",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [
+          "hollow"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mire-Grip",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-431-508-2",
+        "name": "Plunder-Hill",
+        "stems": [
+          "hill"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Hills"
+      },
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Booty-Meadow",
+        "stems": [
+          "meadow"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Grassland"
+      },
+      {
+        "settlementId": "settlement-383-533-2",
+        "name": "Salt-Tooth",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-83-286-3",
+        "name": "Mutiny Woods",
+        "stems": [
+          "wood",
+          "woods"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:08:10.078Z"
+}

@@ -1,0 +1,106 @@
+{
+  "id": "blank_writeup__mythos_then_assign__r3",
+  "variantId": "mythos_then_assign",
+  "label": "Invent a mythos list first, then assign",
+  "tag": "blank_writeup",
+  "rep": 3,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11126,
+  "latencyMs": 8029,
+  "responseChars": 6770,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Valen",
+      "settlement-240-197-1": "Krell",
+      "settlement-179-349-1": "Oakhaven",
+      "settlement-133-296-1": "Sylph",
+      "settlement-249-512-1": "Aethel",
+      "settlement-351-149-1": "Barrow",
+      "settlement-269-325-1": "Corin",
+      "settlement-307-236-1": "Dorian",
+      "settlement-164-215-1": "Ember",
+      "settlement-179-427-2": "Gideon",
+      "settlement-212-486-2": "Harlan",
+      "settlement-431-508-2": "Isolde",
+      "settlement-110-346-2": "Jareth",
+      "settlement-95-378-2": "Kiran",
+      "settlement-383-533-2": "Lyra",
+      "settlement-304-385-2": "Morwen",
+      "settlement-333-90-2": "Nesta",
+      "settlement-347-189-2": "Orson",
+      "settlement-213-175-2": "Phaedra",
+      "settlement-38-206-3": "Quint",
+      "settlement-120-198-3": "Rowan",
+      "settlement-13-341-3": "Sybilla",
+      "settlement-83-286-3": "Tristan",
+      "settlement-203-386-3": "Ulric",
+      "settlement-355-274-3": "Vesper",
+      "settlement-371-445-3": "Wyatt",
+      "settlement-668-488-3": "Xander",
+      "settlement-222-248-3": "Yvaine"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "House Valen",
+      "faction-settlement-249-512-1-apoikia": "Aethel League",
+      "faction-settlement-383-533-2-apoikia": "Lyra Reach",
+      "faction-settlement-355-274-3-apoikia": "Vesper Concord",
+      "faction-settlement-668-488-3-apoikia": "Xander Coalition",
+      "faction-settlement-240-197-1-spawn-3": "Krell Remnant",
+      "faction-settlement-179-349-1-spawn-3": "Oakhaven Covenant",
+      "faction-settlement-133-296-1-spawn-3": "Sylph Dominion",
+      "faction-settlement-351-149-1-spawn-3": "Barrow Ascendancy",
+      "faction-settlement-269-325-1-spawn-3": "Corin Authority",
+      "faction-settlement-307-236-1-spawn-3": "Dorian Order",
+      "faction-settlement-164-215-1-spawn-3": "Ember Syndicate"
+    }
+  },
+  "sampleNames": [
+    "Valen",
+    "Krell",
+    "Oakhaven",
+    "Sylph",
+    "Aethel",
+    "Barrow",
+    "Corin",
+    "Dorian",
+    "Ember",
+    "Gideon",
+    "Harlan",
+    "Isolde"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 1,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1
+    },
+    "suffixFrequency": {
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-179-349-1",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:20:51.302Z"
+}

@@ -1,0 +1,172 @@
+{
+  "id": "no_anti_literal__r1",
+  "variantId": "no_anti_literal",
+  "label": "No anti-literal lines (antirepeat only)",
+  "rep": 1,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10557,
+  "latencyMs": 4528,
+  "responseChars": 3189,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Galleon's End",
+      "settlement-240-197-1": "Frostbite Cove",
+      "settlement-179-349-1": "Scurvy Reach",
+      "settlement-133-296-1": "Deadman's Creek",
+      "settlement-249-512-1": "Smuggler's Deep",
+      "settlement-351-149-1": "Brinehold",
+      "settlement-269-325-1": "Cutthroat Bay",
+      "settlement-307-236-1": "Blackreef",
+      "settlement-164-215-1": "Prowler's Point",
+      "settlement-179-427-2": "Grog Hill",
+      "settlement-212-486-2": "Mire-Grip",
+      "settlement-431-508-2": "Plunder Crest",
+      "settlement-110-346-2": "Kettle-Sovereign",
+      "settlement-95-378-2": "Rum-Runners' Landing",
+      "settlement-383-533-2": "Salt-Tooth",
+      "settlement-304-385-2": "Scuttle Point",
+      "settlement-333-90-2": "Gull's Crypt",
+      "settlement-347-189-2": "Freebooter's Quay",
+      "settlement-213-175-2": "Shark-Tooth",
+      "settlement-38-206-3": "Barnacle Bay",
+      "settlement-120-198-3": "Booty Hollow",
+      "settlement-13-341-3": "Privateer's Haven",
+      "settlement-83-286-3": "Kraken's Watch",
+      "settlement-203-386-3": "Siren's Call",
+      "settlement-355-274-3": "Anchor's Drop",
+      "settlement-371-445-3": "Tithe Cove",
+      "settlement-668-488-3": "Bilge-Water",
+      "settlement-222-248-3": "Jolly Roger"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Fleet",
+      "faction-settlement-249-512-1-apoikia": "The Brotherhood of the Black Flag",
+      "faction-settlement-383-533-2-apoikia": "Scallywag Syndicate",
+      "faction-settlement-355-274-3-apoikia": "Corsair League",
+      "faction-settlement-668-488-3-apoikia": "Marauder Confederation",
+      "faction-settlement-240-197-1-spawn-3": "Buccaneer Brotherhood",
+      "faction-settlement-179-349-1-spawn-3": "Salt-Dog Coalition",
+      "faction-settlement-133-296-1-spawn-3": "Outlaw Vanguard",
+      "faction-settlement-351-149-1-spawn-3": "Reaver Republic",
+      "faction-settlement-269-325-1-spawn-3": "Freebooter Assembly",
+      "faction-settlement-307-236-1-spawn-3": "Wave-Rider Host",
+      "faction-settlement-164-215-1-spawn-3": "Plunderer Enclave"
+    }
+  },
+  "sampleNames": [
+    "Galleon's End",
+    "Frostbite Cove",
+    "Scurvy Reach",
+    "Deadman's Creek",
+    "Smuggler's Deep",
+    "Brinehold",
+    "Cutthroat Bay",
+    "Blackreef",
+    "Prowler's Point",
+    "Grog Hill",
+    "Mire-Grip",
+    "Plunder Crest"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 6,
+    "suffixHitCount": 10,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.21428571428571427,
+    "suffixHitRate": 0.35714285714285715,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "frost": 1,
+      "brine": 1,
+      "hill": 1,
+      "mire": 1,
+      "salt": 1,
+      "gull": 1
+    },
+    "suffixFrequency": {
+      "end": 1,
+      "reach": 1,
+      "deep": 1,
+      "hold": 1,
+      "point": 2,
+      "crest": 1,
+      "hollow": 1,
+      "haven": 1,
+      "watch": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Frostbite Cove",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-351-149-1",
+        "name": "Brinehold",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [
+          "hold"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-179-427-2",
+        "name": "Grog Hill",
+        "stems": [
+          "hill"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Hills"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mire-Grip",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-383-533-2",
+        "name": "Salt-Tooth",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-333-90-2",
+        "name": "Gull's Crypt",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T18:56:51.257Z"
+}

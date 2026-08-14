@@ -1,0 +1,192 @@
+{
+  "id": "blank_flavor__current_ui__r3",
+  "variantId": "current_ui",
+  "label": "Current live UI soft anti-literal wording",
+  "tag": "blank_flavor",
+  "rep": 3,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10690,
+  "latencyMs": 5318,
+  "responseChars": 4249,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Varnhold",
+      "settlement-179-349-1": "Pelias",
+      "settlement-133-296-1": "Karn",
+      "settlement-249-512-1": "Corvath",
+      "settlement-351-149-1": "Iceridge",
+      "settlement-269-325-1": "Brell",
+      "settlement-307-236-1": "Dorian",
+      "settlement-164-215-1": "Frostfall",
+      "settlement-179-427-2": "Highmark",
+      "settlement-212-486-2": "Mireend",
+      "settlement-431-508-2": "Tormun",
+      "settlement-110-346-2": "Pinehollow",
+      "settlement-95-378-2": "Greenfields",
+      "settlement-383-533-2": "Solas",
+      "settlement-304-385-2": "Ember",
+      "settlement-333-90-2": "Whitepeak",
+      "settlement-347-189-2": "Sunder",
+      "settlement-213-175-2": "Meris",
+      "settlement-38-206-3": "Boreal",
+      "settlement-120-198-3": "Kaldor",
+      "settlement-13-341-3": "Thorne",
+      "settlement-83-286-3": "Bracken",
+      "settlement-203-386-3": "Lir",
+      "settlement-355-274-3": "Veritas",
+      "settlement-371-445-3": "Sarn",
+      "settlement-668-488-3": "Alvord",
+      "settlement-222-248-3": "Cove"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Iron Accord",
+      "faction-settlement-249-512-1-apoikia": "Corvathian League",
+      "faction-settlement-383-533-2-apoikia": "House Solas",
+      "faction-settlement-355-274-3-apoikia": "Veridian Dominion",
+      "faction-settlement-668-488-3-apoikia": "Alvord Coalition",
+      "faction-settlement-240-197-1-spawn-3": "Varn Reach",
+      "faction-settlement-179-349-1-spawn-3": "Pelian Syndicate",
+      "faction-settlement-133-296-1-spawn-3": "Karn Enclave",
+      "faction-settlement-351-149-1-spawn-3": "Iceridge Clan",
+      "faction-settlement-269-325-1-spawn-3": "Brellian Protectorate",
+      "faction-settlement-307-236-1-spawn-3": "Dorian Republic",
+      "faction-settlement-164-215-1-spawn-3": "Frostfall Assembly"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Varnhold",
+    "Pelias",
+    "Karn",
+    "Corvath",
+    "Iceridge",
+    "Brell",
+    "Dorian",
+    "Frostfall",
+    "Highmark",
+    "Mireend",
+    "Tormun"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 7,
+    "suffixHitCount": 7,
+    "calqueCount": 5,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.25,
+    "suffixHitRate": 0.25,
+    "calqueRate": 0.17857142857142858,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1,
+      "ice": 1,
+      "frost": 1,
+      "mire": 1,
+      "pine": 1,
+      "field": 1,
+      "peak": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "hold": 1,
+      "ridge": 1,
+      "fall": 1,
+      "mark": 1,
+      "end": 1,
+      "hollow": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-351-149-1",
+        "name": "Iceridge",
+        "stems": [
+          "ice"
+        ],
+        "suffixes": [
+          "ridge"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-164-215-1",
+        "name": "Frostfall",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [
+          "fall"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mireend",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [
+          "end"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Pinehollow",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [
+          "hollow"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Greenfields",
+        "stems": [
+          "field"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Grassland"
+      },
+      {
+        "settlementId": "settlement-333-90-2",
+        "name": "Whitepeak",
+        "stems": [
+          "peak"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:13:31.387Z"
+}

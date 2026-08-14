@@ -1,0 +1,107 @@
+{
+  "id": "combined_hard_after_json__r2",
+  "variantId": "combined_hard_after_json",
+  "label": "Hard forbid + quota + after JSON",
+  "rep": 2,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10653,
+  "latencyMs": 4007,
+  "responseChars": 3075,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Galleon's Reach",
+      "settlement-240-197-1": "Skiff's End",
+      "settlement-179-349-1": "Brine's Tooth",
+      "settlement-133-296-1": "Black Plank",
+      "settlement-249-512-1": "Corsair's Rest",
+      "settlement-351-149-1": "Anchorfall",
+      "settlement-269-325-1": "Scurvy's Point",
+      "settlement-307-236-1": "Cutlass Bay",
+      "settlement-164-215-1": "Rook's Hollow",
+      "settlement-179-427-2": "Grog's Roost",
+      "settlement-212-486-2": "Rumrun",
+      "settlement-431-508-2": "Mutiny",
+      "settlement-110-346-2": "Deadman's Cay",
+      "settlement-95-378-2": "Scuttle",
+      "settlement-383-533-2": "Capstan",
+      "settlement-304-385-2": "Smuggler's Notch",
+      "settlement-333-90-2": "Barnacle",
+      "settlement-347-189-2": "Flint",
+      "settlement-213-175-2": "Shackles",
+      "settlement-38-206-3": "Booty",
+      "settlement-120-198-3": "Swab",
+      "settlement-13-341-3": "Keelhaul",
+      "settlement-83-286-3": "Bumboo",
+      "settlement-203-386-3": "Masthead",
+      "settlement-355-274-3": "Prow",
+      "settlement-371-445-3": "Rigging",
+      "settlement-668-488-3": "Sextant",
+      "settlement-222-248-3": "Crow's Nest"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Fleet",
+      "faction-settlement-249-512-1-apoikia": "Brotherhood of the Black Flag",
+      "faction-settlement-383-533-2-apoikia": "Corsair Syndicate",
+      "faction-settlement-355-274-3-apoikia": "Freebooter League",
+      "faction-settlement-668-488-3-apoikia": "Reaver Concord",
+      "faction-settlement-240-197-1-spawn-3": "Scallywag Coalition",
+      "faction-settlement-179-349-1-spawn-3": "Marauder Cabal",
+      "faction-settlement-133-296-1-spawn-3": "Smuggler Ring",
+      "faction-settlement-351-149-1-spawn-3": "Cutthroat Accord",
+      "faction-settlement-269-325-1-spawn-3": "Buccaneer Swarm",
+      "faction-settlement-307-236-1-spawn-3": "Saltwater Syndicate",
+      "faction-settlement-164-215-1-spawn-3": "Plunderer Alliance"
+    }
+  },
+  "sampleNames": [
+    "Galleon's Reach",
+    "Skiff's End",
+    "Brine's Tooth",
+    "Black Plank",
+    "Corsair's Rest",
+    "Anchorfall",
+    "Scurvy's Point",
+    "Cutlass Bay",
+    "Rook's Hollow",
+    "Grog's Roost",
+    "Rumrun",
+    "Mutiny"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 6,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.21428571428571427,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "brine": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "end": 1,
+      "fall": 1,
+      "point": 1,
+      "hollow": 1,
+      "run": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-179-349-1",
+        "name": "Brine's Tooth",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:05:02.294Z"
+}

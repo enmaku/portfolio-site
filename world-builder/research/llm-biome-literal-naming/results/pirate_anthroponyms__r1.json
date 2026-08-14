@@ -1,0 +1,107 @@
+{
+  "id": "pirate_anthroponyms__r1",
+  "variantId": "pirate_anthroponyms",
+  "label": "Flavor-locked pirate personal placenames",
+  "rep": 1,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10613,
+  "latencyMs": 5742,
+  "responseChars": 4494,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Calico’s Rest",
+      "settlement-240-197-1": "Bonnygrave",
+      "settlement-179-349-1": "Teachmere",
+      "settlement-133-296-1": "Vane’s Mercy",
+      "settlement-249-512-1": "Anne’s Fluke",
+      "settlement-351-149-1": "Nine Fathoms",
+      "settlement-269-325-1": "Black Benediction",
+      "settlement-307-236-1": "Cutlass Point",
+      "settlement-164-215-1": "Deadlight",
+      "settlement-179-427-2": "Grog’s End",
+      "settlement-212-486-2": "Saltwater Shroud",
+      "settlement-431-508-2": "Scurvy’s Hollow",
+      "settlement-110-346-2": "Ketch’s Haunt",
+      "settlement-95-378-2": "Morgan’s Plack",
+      "settlement-383-533-2": "Smuggler’s Notch",
+      "settlement-304-385-2": "Barnacle Bay",
+      "settlement-333-90-2": "Gallows Bight",
+      "settlement-347-189-2": "Plunderport",
+      "settlement-213-175-2": "Siren’s Spite",
+      "settlement-38-206-3": "Scourge Cove",
+      "settlement-120-198-3": "Pardoner’s Rock",
+      "settlement-13-341-3": "Rumrunner’s Deep",
+      "settlement-83-286-3": "Bilge Water",
+      "settlement-203-386-3": "Sharks’ Tooth",
+      "settlement-355-274-3": "Privateer’s Drop",
+      "settlement-371-445-3": "Davy’s Locker",
+      "settlement-668-488-3": "Mutiny Reach",
+      "settlement-222-248-3": "Crowsnest"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Syndicate",
+      "faction-settlement-249-512-1-apoikia": "The Black Flag Confederacy",
+      "faction-settlement-383-533-2-apoikia": "Brethren of the Coast",
+      "faction-settlement-355-274-3-apoikia": "The Corsair League",
+      "faction-settlement-668-488-3-apoikia": "Scourge of the Horizon",
+      "faction-settlement-240-197-1-spawn-3": "The Salt-Toll Scourge",
+      "faction-settlement-179-349-1-spawn-3": "Freebooters of the Gale",
+      "faction-settlement-133-296-1-spawn-3": "The Iron Keel Armada",
+      "faction-settlement-351-149-1-spawn-3": "Marauders of the Shroud",
+      "faction-settlement-269-325-1-spawn-3": "The Tide-Sworn Pact",
+      "faction-settlement-307-236-1-spawn-3": "Driftwood Syndicate",
+      "faction-settlement-164-215-1-spawn-3": "The Scuttled Crown"
+    }
+  },
+  "sampleNames": [
+    "Calico’s Rest",
+    "Bonnygrave",
+    "Teachmere",
+    "Vane’s Mercy",
+    "Anne’s Fluke",
+    "Nine Fathoms",
+    "Black Benediction",
+    "Cutlass Point",
+    "Deadlight",
+    "Grog’s End",
+    "Saltwater Shroud",
+    "Scurvy’s Hollow"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 6,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.21428571428571427,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "salt": 1
+    },
+    "suffixFrequency": {
+      "point": 1,
+      "end": 1,
+      "hollow": 1,
+      "port": 1,
+      "deep": 1,
+      "reach": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Saltwater Shroud",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:06:09.696Z"
+}

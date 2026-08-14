@@ -1,0 +1,118 @@
+{
+  "meta": {
+    "geographySeed": 42,
+    "prevailingWindDegrees": 90,
+    "defaultGeographySeedConstant": 0,
+    "epochSteps": 3,
+    "flavor": "",
+    "epoch": 3,
+    "settlementCount": 28,
+    "factionCount": 12,
+    "rivalryEdgeCount": 4,
+    "foundingLanding": {
+      "x": 270,
+      "y": 256
+    },
+    "createdAt": "2026-08-13T11:03:36.888Z",
+    "tag": "blank_writeup",
+    "includeRegionWriteup": true,
+    "model": "gemini-3.5-flash-lite",
+    "cooldownMs": 8000,
+    "repeats": 3,
+    "scoring": "scoreBiomeLiteralNames heuristic"
+  },
+  "ranking": [
+    {
+      "id": "blank_writeup__hard_forbid_stems",
+      "variantId": "hard_forbid_stems",
+      "label": "Hard forbid listed biome/trade stems in any name",
+      "tag": "blank_writeup",
+      "flavor": "(empty)",
+      "includeRegionWriteup": true,
+      "repeats": 3,
+      "meanCalqueRate": 0.011904761904761904,
+      "meanStemHitRate": 0.011904761904761904,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.023809523809523808
+    },
+    {
+      "id": "blank_writeup__mythos_then_assign",
+      "variantId": "mythos_then_assign",
+      "label": "Invent a mythos list first, then assign",
+      "tag": "blank_writeup",
+      "flavor": "(empty)",
+      "includeRegionWriteup": true,
+      "repeats": 3,
+      "meanCalqueRate": 0.011904761904761904,
+      "meanStemHitRate": 0.023809523809523808,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.011904761904761904
+    },
+    {
+      "id": "blank_writeup__instructions_after_json",
+      "variantId": "instructions_after_json",
+      "label": "Anti-literal instructions AFTER the JSON (recency)",
+      "tag": "blank_writeup",
+      "flavor": "(empty)",
+      "includeRegionWriteup": true,
+      "repeats": 3,
+      "meanCalqueRate": 0.03571428571428571,
+      "meanStemHitRate": 0.03571428571428571,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.03571428571428571
+    },
+    {
+      "id": "blank_writeup__combined_hard_after_json",
+      "variantId": "combined_hard_after_json",
+      "label": "Hard forbid + quota + after JSON",
+      "tag": "blank_writeup",
+      "flavor": "(empty)",
+      "includeRegionWriteup": true,
+      "repeats": 3,
+      "meanCalqueRate": 0.03571428571428571,
+      "meanStemHitRate": 0.03571428571428571,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.047619047619047616
+    },
+    {
+      "id": "blank_writeup__soft_plus_hard",
+      "variantId": "soft_plus_hard",
+      "label": "Current soft lines + hard forbid stems",
+      "tag": "blank_writeup",
+      "flavor": "(empty)",
+      "includeRegionWriteup": true,
+      "repeats": 3,
+      "meanCalqueRate": 0.03571428571428571,
+      "meanStemHitRate": 0.047619047619047616,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.047619047619047616
+    },
+    {
+      "id": "blank_writeup__no_anti_literal",
+      "variantId": "no_anti_literal",
+      "label": "No anti-literal lines (antirepeat only)",
+      "tag": "blank_writeup",
+      "flavor": "(empty)",
+      "includeRegionWriteup": true,
+      "repeats": 3,
+      "meanCalqueRate": 0.11904761904761903,
+      "meanStemHitRate": 0.25,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.19047619047619047
+    },
+    {
+      "id": "blank_writeup__current_ui",
+      "variantId": "current_ui",
+      "label": "Current live UI soft anti-literal wording",
+      "tag": "blank_writeup",
+      "flavor": "(empty)",
+      "includeRegionWriteup": true,
+      "repeats": 3,
+      "meanCalqueRate": 0.15476190476190477,
+      "meanStemHitRate": 0.21428571428571427,
+      "meanOwnBiomeEchoRate": 0.023809523809523808,
+      "meanSuffixHitRate": 0.2261904761904762
+    }
+  ],
+  "createdAt": "2026-08-13T19:23:17.362Z"
+}

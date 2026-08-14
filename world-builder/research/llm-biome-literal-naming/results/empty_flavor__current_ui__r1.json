@@ -1,0 +1,107 @@
+{
+  "id": "empty_flavor__current_ui__r1",
+  "variantId": "current_ui",
+  "label": "Current live UI soft anti-literal wording",
+  "tag": "empty_flavor",
+  "rep": 1,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10695,
+  "latencyMs": 5816,
+  "responseChars": 4468,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Tortuga's Reach",
+      "settlement-240-197-1": "Ketchum",
+      "settlement-179-349-1": "Blackwake",
+      "settlement-133-296-1": "Cutlass Bay",
+      "settlement-249-512-1": "Deadman's Cay",
+      "settlement-351-149-1": "Scuttle Point",
+      "settlement-269-325-1": "Rogue's Folly",
+      "settlement-307-236-1": "Privateer's Rest",
+      "settlement-164-215-1": "Marauder's Hook",
+      "settlement-179-427-2": "Galleon's End",
+      "settlement-212-486-2": "Buccaneer's Bluff",
+      "settlement-431-508-2": "Smuggler's Notch",
+      "settlement-110-346-2": "Pardoner's Reef",
+      "settlement-95-378-2": "Plunder's Pride",
+      "settlement-383-533-2": "Scurvy's Point",
+      "settlement-304-385-2": "Freebooter's Deep",
+      "settlement-333-90-2": "Davy's Locker",
+      "settlement-347-189-2": "Bounty Cove",
+      "settlement-213-175-2": "Grog's Basin",
+      "settlement-38-206-3": "Jolly Roger",
+      "settlement-120-198-3": "Swabber's Hole",
+      "settlement-13-341-3": "Salt-Tooth",
+      "settlement-83-286-3": "Rumrunner's Camp",
+      "settlement-203-386-3": "Baron's Spit",
+      "settlement-355-274-3": "Crow's Nest",
+      "settlement-371-445-3": "Capstan's Spin",
+      "settlement-668-488-3": "Brigantine",
+      "settlement-222-248-3": "Bilgewater"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "Brethren of the Coast",
+      "faction-settlement-383-533-2-apoikia": "The Scourge League",
+      "faction-settlement-355-274-3-apoikia": "Sovereign Privateers",
+      "faction-settlement-668-488-3-apoikia": "The Black Flag Syndicate",
+      "faction-settlement-240-197-1-spawn-3": "Corsair Cabal",
+      "faction-settlement-179-349-1-spawn-3": "Freebooter's Accord",
+      "faction-settlement-133-296-1-spawn-3": "Sea-Wolf Dynasty",
+      "faction-settlement-351-149-1-spawn-3": "The Dread Armada",
+      "faction-settlement-269-325-1-spawn-3": "Marauder's Hoard",
+      "faction-settlement-307-236-1-spawn-3": "Vanguard of the Reef",
+      "faction-settlement-164-215-1-spawn-3": "Buccaneer Conclave"
+    }
+  },
+  "sampleNames": [
+    "Tortuga's Reach",
+    "Ketchum",
+    "Blackwake",
+    "Cutlass Bay",
+    "Deadman's Cay",
+    "Scuttle Point",
+    "Rogue's Folly",
+    "Privateer's Rest",
+    "Marauder's Hook",
+    "Galleon's End",
+    "Buccaneer's Bluff",
+    "Smuggler's Notch"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 5,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.17857142857142858,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "salt": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "point": 2,
+      "end": 1,
+      "deep": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-13-341-3",
+        "name": "Salt-Tooth",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:07:28.776Z"
+}

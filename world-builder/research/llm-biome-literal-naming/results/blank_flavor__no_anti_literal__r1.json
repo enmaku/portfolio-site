@@ -1,0 +1,241 @@
+{
+  "id": "blank_flavor__no_anti_literal__r1",
+  "variantId": "no_anti_literal",
+  "label": "No anti-literal lines (antirepeat only)",
+  "tag": "blank_flavor",
+  "rep": 1,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10552,
+  "latencyMs": 5102,
+  "responseChars": 4202,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Frostreach",
+      "settlement-179-349-1": "Siltmar",
+      "settlement-133-296-1": "Pinehollow",
+      "settlement-249-512-1": "Highport",
+      "settlement-351-149-1": "Krynn",
+      "settlement-269-325-1": "Gullwing",
+      "settlement-307-236-1": "Brine",
+      "settlement-164-215-1": "Veldt",
+      "settlement-179-427-2": "Torv",
+      "settlement-212-486-2": "Mire",
+      "settlement-431-508-2": "Cairn",
+      "settlement-110-346-2": "Barrow",
+      "settlement-95-378-2": "Meadowend",
+      "settlement-383-533-2": "Shoal",
+      "settlement-304-385-2": "Deepwood",
+      "settlement-333-90-2": "Glace",
+      "settlement-347-189-2": "Wavecrest",
+      "settlement-213-175-2": "Bellport",
+      "settlement-38-206-3": "Sleet",
+      "settlement-120-198-3": "Rime",
+      "settlement-13-341-3": "Timberline",
+      "settlement-83-286-3": "Moss",
+      "settlement-203-386-3": "Flint",
+      "settlement-355-274-3": "Cliffend",
+      "settlement-371-445-3": "Spit",
+      "settlement-668-488-3": "Ness",
+      "settlement-222-248-3": "Sandspit"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "Aethelgard",
+      "faction-settlement-249-512-1-apoikia": "Thalassian League",
+      "faction-settlement-383-533-2-apoikia": "The Pale Reach",
+      "faction-settlement-355-274-3-apoikia": "Sunken Crown",
+      "faction-settlement-668-488-3-apoikia": "Vanguard",
+      "faction-settlement-240-197-1-spawn-3": "Borealis",
+      "faction-settlement-179-349-1-spawn-3": "Dune People",
+      "faction-settlement-133-296-1-spawn-3": "Sylvan Concord",
+      "faction-settlement-351-149-1-spawn-3": "Tundra Clan",
+      "faction-settlement-269-325-1-spawn-3": "Gull Folk",
+      "faction-settlement-307-236-1-spawn-3": "Saltmarch",
+      "faction-settlement-164-215-1-spawn-3": "Steppe Union"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Frostreach",
+    "Siltmar",
+    "Pinehollow",
+    "Highport",
+    "Krynn",
+    "Gullwing",
+    "Brine",
+    "Veldt",
+    "Torv",
+    "Mire",
+    "Cairn"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 11,
+    "suffixHitCount": 8,
+    "calqueCount": 6,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.39285714285714285,
+    "suffixHitRate": 0.2857142857142857,
+    "calqueRate": 0.21428571428571427,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1,
+      "frost": 1,
+      "pine": 1,
+      "gull": 1,
+      "brine": 1,
+      "mire": 1,
+      "meadow": 1,
+      "wood": 1,
+      "wave": 1,
+      "timber": 1,
+      "fen": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "reach": 1,
+      "hollow": 1,
+      "port": 2,
+      "end": 2,
+      "crest": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Frostreach",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [
+          "reach"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Pinehollow",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [
+          "hollow"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-269-325-1",
+        "name": "Gullwing",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-307-236-1",
+        "name": "Brine",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mire",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Meadowend",
+        "stems": [
+          "meadow"
+        ],
+        "suffixes": [
+          "end"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Grassland"
+      },
+      {
+        "settlementId": "settlement-304-385-2",
+        "name": "Deepwood",
+        "stems": [
+          "wood"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-347-189-2",
+        "name": "Wavecrest",
+        "stems": [
+          "wave"
+        ],
+        "suffixes": [
+          "crest"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-13-341-3",
+        "name": "Timberline",
+        "stems": [
+          "timber"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-355-274-3",
+        "name": "Cliffend",
+        "stems": [
+          "fen"
+        ],
+        "suffixes": [
+          "end"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:13:44.493Z"
+}

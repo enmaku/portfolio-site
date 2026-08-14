@@ -1,0 +1,132 @@
+{
+  "id": "blank_writeup__current_ui__r1",
+  "variantId": "current_ui",
+  "label": "Current live UI soft anti-literal wording",
+  "tag": "blank_writeup",
+  "rep": 1,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11037,
+  "latencyMs": 8728,
+  "responseChars": 7486,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Barrow",
+      "settlement-179-349-1": "Kestrel",
+      "settlement-133-296-1": "Sartoria",
+      "settlement-249-512-1": "Verid",
+      "settlement-351-149-1": "Morvath",
+      "settlement-269-325-1": "Solas",
+      "settlement-307-236-1": "Orison",
+      "settlement-164-215-1": "Dorian",
+      "settlement-179-427-2": "Alhama",
+      "settlement-212-486-2": "Fenmore",
+      "settlement-431-508-2": "Rihann",
+      "settlement-110-346-2": "Tallis",
+      "settlement-95-378-2": "Corv",
+      "settlement-383-533-2": "Maris",
+      "settlement-304-385-2": "Voss",
+      "settlement-333-90-2": "Zorell",
+      "settlement-347-189-2": "Vandir",
+      "settlement-213-175-2": "Oakhaven Outpost",
+      "settlement-38-206-3": "Brak",
+      "settlement-120-198-3": "Hallow",
+      "settlement-13-341-3": "Nesta",
+      "settlement-83-286-3": "Arden",
+      "settlement-203-386-3": "Pryor",
+      "settlement-355-274-3": "Eland",
+      "settlement-371-445-3": "Cyrus",
+      "settlement-668-488-3": "Belan",
+      "settlement-222-248-3": "Cael"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Founding Concord",
+      "faction-settlement-249-512-1-apoikia": "The Veridian League",
+      "faction-settlement-383-533-2-apoikia": "Maris Commonwealth",
+      "faction-settlement-355-274-3-apoikia": "Eland Ascendancy",
+      "faction-settlement-668-488-3-apoikia": "Belan Protectorate",
+      "faction-settlement-240-197-1-spawn-3": "Barrow Directorate",
+      "faction-settlement-179-349-1-spawn-3": "Kestrel Crown",
+      "faction-settlement-133-296-1-spawn-3": "Sartorian Reach",
+      "faction-settlement-351-149-1-spawn-3": "Morvath Syndicate",
+      "faction-settlement-269-325-1-spawn-3": "Solas Compact",
+      "faction-settlement-307-236-1-spawn-3": "Orison Assembly",
+      "faction-settlement-164-215-1-spawn-3": "Dorian Directorate"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Barrow",
+    "Kestrel",
+    "Sartoria",
+    "Verid",
+    "Morvath",
+    "Solas",
+    "Orison",
+    "Dorian",
+    "Alhama",
+    "Fenmore",
+    "Rihann"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 3,
+    "suffixHitCount": 2,
+    "calqueCount": 2,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.10714285714285714,
+    "suffixHitRate": 0.07142857142857142,
+    "calqueRate": 0.07142857142857142,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 2,
+      "fen": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "outpost": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Fenmore",
+        "stems": [
+          "fen"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-213-175-2",
+        "name": "Oakhaven Outpost",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "outpost"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:17:52.743Z"
+}

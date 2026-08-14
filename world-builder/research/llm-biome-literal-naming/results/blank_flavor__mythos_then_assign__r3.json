@@ -1,0 +1,121 @@
+{
+  "id": "blank_flavor__mythos_then_assign__r3",
+  "variantId": "mythos_then_assign",
+  "label": "Invent a mythos list first, then assign",
+  "tag": "blank_flavor",
+  "rep": 3,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10614,
+  "latencyMs": 5473,
+  "responseChars": 4054,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Valen",
+      "settlement-240-197-1": "Karn",
+      "settlement-179-349-1": "Oakhaven",
+      "settlement-133-296-1": "Drakon",
+      "settlement-249-512-1": "Soll",
+      "settlement-351-149-1": "Voss",
+      "settlement-269-325-1": "Eir",
+      "settlement-307-236-1": "Thor",
+      "settlement-164-215-1": "Bael",
+      "settlement-179-427-2": "Mor",
+      "settlement-212-486-2": "Cyr",
+      "settlement-431-508-2": "Rynn",
+      "settlement-110-346-2": "Zul",
+      "settlement-95-378-2": "Tarr",
+      "settlement-383-533-2": "Fend",
+      "settlement-304-385-2": "Jor",
+      "settlement-333-90-2": "Kest",
+      "settlement-347-189-2": "Pha",
+      "settlement-213-175-2": "Xan",
+      "settlement-38-206-3": "Vand",
+      "settlement-120-198-3": "Ghol",
+      "settlement-13-341-3": "Nym",
+      "settlement-83-286-3": "Sark",
+      "settlement-203-386-3": "Brak",
+      "settlement-355-274-3": "Liss",
+      "settlement-371-445-3": "Zar",
+      "settlement-668-488-3": "Thal",
+      "settlement-222-248-3": "Orr"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "Aethelgard",
+      "faction-settlement-249-512-1-apoikia": "Krynn",
+      "faction-settlement-383-533-2-apoikia": "Orisin",
+      "faction-settlement-355-274-3-apoikia": "Sarn",
+      "faction-settlement-668-488-3-apoikia": "Doria",
+      "faction-settlement-240-197-1-spawn-3": "Vandor",
+      "faction-settlement-179-349-1-spawn-3": "Zal",
+      "faction-settlement-133-296-1-spawn-3": "Ikor",
+      "faction-settlement-351-149-1-spawn-3": "Tharn",
+      "faction-settlement-269-325-1-spawn-3": "Belm",
+      "faction-settlement-307-236-1-spawn-3": "Garr",
+      "faction-settlement-164-215-1-spawn-3": "Syl"
+    }
+  },
+  "sampleNames": [
+    "Valen",
+    "Karn",
+    "Oakhaven",
+    "Drakon",
+    "Soll",
+    "Voss",
+    "Eir",
+    "Thor",
+    "Bael",
+    "Mor",
+    "Cyr",
+    "Rynn"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 2,
+    "suffixHitCount": 2,
+    "calqueCount": 2,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.07142857142857142,
+    "suffixHitRate": 0.07142857142857142,
+    "calqueRate": 0.07142857142857142,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1,
+      "fen": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "end": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-179-349-1",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-383-533-2",
+        "name": "Fend",
+        "stems": [
+          "fen"
+        ],
+        "suffixes": [
+          "end"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:15:32.867Z"
+}

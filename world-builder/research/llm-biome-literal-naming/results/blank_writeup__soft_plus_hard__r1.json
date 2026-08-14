@@ -1,0 +1,107 @@
+{
+  "id": "blank_writeup__soft_plus_hard__r1",
+  "variantId": "soft_plus_hard",
+  "label": "Current soft lines + hard forbid stems",
+  "tag": "blank_writeup",
+  "rep": 1,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11081,
+  "latencyMs": 8476,
+  "responseChars": 7698,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Valenrica",
+      "settlement-240-197-1": "Orlov",
+      "settlement-179-349-1": "Kestral",
+      "settlement-133-296-1": "Oakhaven",
+      "settlement-249-512-1": "Solaria",
+      "settlement-351-149-1": "Drift",
+      "settlement-269-325-1": "Meridian",
+      "settlement-307-236-1": "Bellamy",
+      "settlement-164-215-1": "Voss",
+      "settlement-179-427-2": "Dundee",
+      "settlement-212-486-2": "Maris",
+      "settlement-431-508-2": "Corinth",
+      "settlement-110-346-2": "Ashland",
+      "settlement-95-378-2": "Galloway",
+      "settlement-383-533-2": "Theron",
+      "settlement-304-385-2": "Hallowell",
+      "settlement-333-90-2": "Boreas",
+      "settlement-347-189-2": "Sartor",
+      "settlement-213-175-2": "Ilyria",
+      "settlement-38-206-3": "Niles",
+      "settlement-120-198-3": "Karr",
+      "settlement-13-341-3": "Sloan",
+      "settlement-83-286-3": "Vane",
+      "settlement-203-386-3": "Zaragoza",
+      "settlement-355-274-3": "Sovereign",
+      "settlement-371-445-3": "Aethel",
+      "settlement-668-488-3": "Gideon",
+      "settlement-222-248-3": "Althea"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Dominion of Valenrica",
+      "faction-settlement-249-512-1-apoikia": "The Solarian League",
+      "faction-settlement-383-533-2-apoikia": "The Theron Protectorate",
+      "faction-settlement-355-274-3-apoikia": "Sovereign Concord",
+      "faction-settlement-668-488-3-apoikia": "Gideon Syndicate",
+      "faction-settlement-240-197-1-spawn-3": "Orlov Ascendancy",
+      "faction-settlement-179-349-1-spawn-3": "Kestral Republic",
+      "faction-settlement-133-296-1-spawn-3": "The Oakhaven Accord",
+      "faction-settlement-351-149-1-spawn-3": "Drift Council",
+      "faction-settlement-269-325-1-spawn-3": "Meridian Directorate",
+      "faction-settlement-307-236-1-spawn-3": "Bellamy Freehold",
+      "faction-settlement-164-215-1-spawn-3": "Voss Collective"
+    }
+  },
+  "sampleNames": [
+    "Valenrica",
+    "Orlov",
+    "Kestral",
+    "Oakhaven",
+    "Solaria",
+    "Drift",
+    "Meridian",
+    "Bellamy",
+    "Voss",
+    "Dundee",
+    "Maris",
+    "Corinth"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 2,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.07142857142857142,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "well": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:22:45.297Z"
+}

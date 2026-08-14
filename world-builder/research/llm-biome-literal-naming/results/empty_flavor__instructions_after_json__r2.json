@@ -1,0 +1,112 @@
+{
+  "id": "empty_flavor__instructions_after_json__r2",
+  "variantId": "instructions_after_json",
+  "label": "Anti-literal instructions AFTER the JSON (recency)",
+  "tag": "empty_flavor",
+  "rep": 2,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10612,
+  "latencyMs": 4269,
+  "responseChars": 3207,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Karg's Rest",
+      "settlement-240-197-1": "Dead-Eye Bay",
+      "settlement-179-349-1": "Marrow Point",
+      "settlement-133-296-1": "Gallows Reef",
+      "settlement-249-512-1": "Smuggler's Reach",
+      "settlement-351-149-1": "Scurvy Spit",
+      "settlement-269-325-1": "Cutthroat Cay",
+      "settlement-307-236-1": "Scuttle Cove",
+      "settlement-164-215-1": "Rackham's Hold",
+      "settlement-179-427-2": "Grog Hollow",
+      "settlement-212-486-2": "Black-Spot Basin",
+      "settlement-431-508-2": "Brigand's Bluff",
+      "settlement-110-346-2": "Mutiny Reach",
+      "settlement-95-378-2": "Plunder Point",
+      "settlement-383-533-2": "Kraken's Teeth",
+      "settlement-304-385-2": "Siren's Watch",
+      "settlement-333-90-2": "Shackles End",
+      "settlement-347-189-2": "Privateer's Keel",
+      "settlement-213-175-2": "Dagger Deep",
+      "settlement-38-206-3": "Scourge Haven",
+      "settlement-120-198-3": "Wreckers' Roost",
+      "settlement-13-341-3": "Cut-Throat Key",
+      "settlement-83-286-3": "Bilge Water",
+      "settlement-203-386-3": "Rum Runner's Den",
+      "settlement-355-274-3": "Corsair's Crag",
+      "settlement-371-445-3": "Swabber's Slot",
+      "settlement-668-488-3": "Freebooter's Bay",
+      "settlement-222-248-3": "Picaroon's Port"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Brotherhood",
+      "faction-settlement-249-512-1-apoikia": "Scourge Coast Syndicate",
+      "faction-settlement-383-533-2-apoikia": "The Black Flag League",
+      "faction-settlement-355-274-3-apoikia": "Freebooter Assembly",
+      "faction-settlement-668-488-3-apoikia": "Corsair Confederation",
+      "faction-settlement-240-197-1-spawn-3": "Mutineer Directorate",
+      "faction-settlement-179-349-1-spawn-3": "Reef-runner Union",
+      "faction-settlement-133-296-1-spawn-3": "Iron-Hull Armada",
+      "faction-settlement-351-149-1-spawn-3": "Scurvy-Dog Clan",
+      "faction-settlement-269-325-1-spawn-3": "Cutlass Collective",
+      "faction-settlement-307-236-1-spawn-3": "Grog-Sovereigns",
+      "faction-settlement-164-215-1-spawn-3": "Privateer Vanguard"
+    }
+  },
+  "sampleNames": [
+    "Karg's Rest",
+    "Dead-Eye Bay",
+    "Marrow Point",
+    "Gallows Reef",
+    "Smuggler's Reach",
+    "Scurvy Spit",
+    "Cutthroat Cay",
+    "Scuttle Cove",
+    "Rackham's Hold",
+    "Grog Hollow",
+    "Black-Spot Basin",
+    "Brigand's Bluff"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 11,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.39285714285714285,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "crag": 1
+    },
+    "suffixFrequency": {
+      "point": 2,
+      "reach": 2,
+      "hold": 1,
+      "hollow": 1,
+      "watch": 1,
+      "end": 1,
+      "deep": 1,
+      "haven": 1,
+      "port": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-355-274-3",
+        "name": "Corsair's Crag",
+        "stems": [
+          "crag"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:10:22.642Z"
+}

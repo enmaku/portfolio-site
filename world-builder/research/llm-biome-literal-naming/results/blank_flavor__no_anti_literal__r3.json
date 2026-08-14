@@ -1,0 +1,271 @@
+{
+  "id": "blank_flavor__no_anti_literal__r3",
+  "variantId": "no_anti_literal",
+  "label": "No anti-literal lines (antirepeat only)",
+  "tag": "blank_flavor",
+  "rep": 3,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10552,
+  "latencyMs": 5849,
+  "responseChars": 4284,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Frostreach",
+      "settlement-179-349-1": "Siltmere",
+      "settlement-133-296-1": "Pinehollow",
+      "settlement-249-512-1": "Emberport",
+      "settlement-351-149-1": "Brimstone",
+      "settlement-269-325-1": "Highwater",
+      "settlement-307-236-1": "Wavecrest",
+      "settlement-164-215-1": "Iceridge",
+      "settlement-179-427-2": "Stonehelm",
+      "settlement-212-486-2": "Bogwater",
+      "settlement-431-508-2": "Kragmor",
+      "settlement-110-346-2": "Deepwood",
+      "settlement-95-378-2": "Sunlakes",
+      "settlement-383-533-2": "Gullwing",
+      "settlement-304-385-2": "Timberfall",
+      "settlement-333-90-2": "Glacialis",
+      "settlement-347-189-2": "Saltdock",
+      "settlement-213-175-2": "Baywatch",
+      "settlement-38-206-3": "Borealis",
+      "settlement-120-198-3": "Tundras edge",
+      "settlement-13-341-3": "Verdant",
+      "settlement-83-286-3": "Silent Grove",
+      "settlement-203-386-3": "Shoreend",
+      "settlement-355-274-3": "Stormbreak",
+      "settlement-371-445-3": "Wildstrand",
+      "settlement-668-488-3": "Tidewater",
+      "settlement-222-248-3": "Cove"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "Grand Dominion",
+      "faction-settlement-249-512-1-apoikia": "Aegis League",
+      "faction-settlement-383-533-2-apoikia": "Seakins",
+      "faction-settlement-355-274-3-apoikia": "Vanguard",
+      "faction-settlement-668-488-3-apoikia": "Pelagic Union",
+      "faction-settlement-240-197-1-spawn-3": "Boreal Tribes",
+      "faction-settlement-179-349-1-spawn-3": "Silt Coalition",
+      "faction-settlement-133-296-1-spawn-3": "Sylphan Conclave",
+      "faction-settlement-351-149-1-spawn-3": "Frostborn",
+      "faction-settlement-269-325-1-spawn-3": "Ascendant Order",
+      "faction-settlement-307-236-1-spawn-3": "Tidalist Republic",
+      "faction-settlement-164-215-1-spawn-3": "Glacial Syndicate"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Frostreach",
+    "Siltmere",
+    "Pinehollow",
+    "Emberport",
+    "Brimstone",
+    "Highwater",
+    "Wavecrest",
+    "Iceridge",
+    "Stonehelm",
+    "Bogwater",
+    "Kragmor"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 13,
+    "suffixHitCount": 10,
+    "calqueCount": 7,
+    "ownBiomeEchoCount": 1,
+    "stemHitRate": 0.4642857142857143,
+    "suffixHitRate": 0.35714285714285715,
+    "calqueRate": 0.25,
+    "ownBiomeEchoRate": 0.03571428571428571,
+    "stemFrequency": {
+      "oak": 1,
+      "frost": 1,
+      "pine": 1,
+      "wave": 1,
+      "ice": 1,
+      "bog": 1,
+      "wood": 1,
+      "lake": 1,
+      "gull": 1,
+      "timber": 1,
+      "salt": 1,
+      "tundra": 1,
+      "tide": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "reach": 1,
+      "hollow": 1,
+      "port": 1,
+      "crest": 1,
+      "ridge": 1,
+      "fall": 1,
+      "watch": 1,
+      "edge": 1,
+      "end": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Frostreach",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [
+          "reach"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Pinehollow",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [
+          "hollow"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-307-236-1",
+        "name": "Wavecrest",
+        "stems": [
+          "wave"
+        ],
+        "suffixes": [
+          "crest"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-164-215-1",
+        "name": "Iceridge",
+        "stems": [
+          "ice"
+        ],
+        "suffixes": [
+          "ridge"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Bogwater",
+        "stems": [
+          "bog"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Deepwood",
+        "stems": [
+          "wood"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Sunlakes",
+        "stems": [
+          "lake"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Grassland"
+      },
+      {
+        "settlementId": "settlement-383-533-2",
+        "name": "Gullwing",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-304-385-2",
+        "name": "Timberfall",
+        "stems": [
+          "timber"
+        ],
+        "suffixes": [
+          "fall"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-347-189-2",
+        "name": "Saltdock",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-120-198-3",
+        "name": "Tundras edge",
+        "stems": [
+          "tundra"
+        ],
+        "suffixes": [
+          "edge"
+        ],
+        "ownBiome": true,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-668-488-3",
+        "name": "Tidewater",
+        "stems": [
+          "tide"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:14:11.756Z"
+}

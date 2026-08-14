@@ -1,0 +1,108 @@
+{
+  "id": "instructions_after_json__r2",
+  "variantId": "instructions_after_json",
+  "label": "Anti-literal instructions AFTER the JSON (recency)",
+  "rep": 2,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10612,
+  "latencyMs": 5584,
+  "responseChars": 4409,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Karr's Rib",
+      "settlement-240-197-1": "Drown-Jack",
+      "settlement-179-349-1": "Gull's Spite",
+      "settlement-133-296-1": "Red-Hook",
+      "settlement-249-512-1": "Mara's Teeth",
+      "settlement-351-149-1": "Scurvy Point",
+      "settlement-269-325-1": "Dead-Eye",
+      "settlement-307-236-1": "Vane's Reach",
+      "settlement-164-215-1": "Barrow's End",
+      "settlement-179-427-2": "Cutthroat Cove",
+      "settlement-212-486-2": "Bilge-Water",
+      "settlement-431-508-2": "Gallows Bay",
+      "settlement-110-346-2": "Smuggler's Drop",
+      "settlement-95-378-2": "Widow's Weep",
+      "settlement-383-533-2": "Black-Sands",
+      "settlement-304-385-2": "Siren's Call",
+      "settlement-333-90-2": "Scourge",
+      "settlement-347-189-2": "Jolly-Roger",
+      "settlement-213-175-2": "Barnacle",
+      "settlement-38-206-3": "Flint's Hollow",
+      "settlement-120-198-3": "Pardoner's Rock",
+      "settlement-13-341-3": "Skiff's Fall",
+      "settlement-83-286-3": "Grog-Town",
+      "settlement-203-386-3": "Castaway",
+      "settlement-355-274-3": "Privateer's Perch",
+      "settlement-371-445-3": "Kraken's Maw",
+      "settlement-668-488-3": "Rum-Run",
+      "settlement-222-248-3": "Shackles"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Syndicate",
+      "faction-settlement-249-512-1-apoikia": "Iron-Keel League",
+      "faction-settlement-383-533-2-apoikia": "The Brethren of the Coast",
+      "faction-settlement-355-274-3-apoikia": "Scourge Republic",
+      "faction-settlement-668-488-3-apoikia": "Freebooter Assembly",
+      "faction-settlement-240-197-1-spawn-3": "Drown-Jack Outcasts",
+      "faction-settlement-179-349-1-spawn-3": "Gull's Spite Armada",
+      "faction-settlement-133-296-1-spawn-3": "Red-Hook Corsairs",
+      "faction-settlement-351-149-1-spawn-3": "Scurvy Union",
+      "faction-settlement-269-325-1-spawn-3": "Dead-Eye Marauders",
+      "faction-settlement-307-236-1-spawn-3": "Vane's Vanguard",
+      "faction-settlement-164-215-1-spawn-3": "Barrow's Raiders"
+    }
+  },
+  "sampleNames": [
+    "Karr's Rib",
+    "Drown-Jack",
+    "Gull's Spite",
+    "Red-Hook",
+    "Mara's Teeth",
+    "Scurvy Point",
+    "Dead-Eye",
+    "Vane's Reach",
+    "Barrow's End",
+    "Cutthroat Cove",
+    "Bilge-Water",
+    "Gallows Bay"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 7,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.25,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "gull": 1
+    },
+    "suffixFrequency": {
+      "point": 1,
+      "reach": 1,
+      "end": 1,
+      "hollow": 1,
+      "fall": 1,
+      "town": 1,
+      "run": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-179-349-1",
+        "name": "Gull's Spite",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:01:03.220Z"
+}

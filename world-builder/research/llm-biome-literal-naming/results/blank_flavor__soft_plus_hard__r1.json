@@ -1,0 +1,106 @@
+{
+  "id": "blank_flavor__soft_plus_hard__r1",
+  "variantId": "soft_plus_hard",
+  "label": "Current soft lines + hard forbid stems",
+  "tag": "blank_flavor",
+  "rep": 1,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10735,
+  "latencyMs": 5156,
+  "responseChars": 4250,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Valen",
+      "settlement-179-349-1": "Keth",
+      "settlement-133-296-1": "Orlan",
+      "settlement-249-512-1": "Morvath",
+      "settlement-351-149-1": "Eir",
+      "settlement-269-325-1": "Dorian",
+      "settlement-307-236-1": "Sula",
+      "settlement-164-215-1": "Tallis",
+      "settlement-179-427-2": "Bram",
+      "settlement-212-486-2": "Varos",
+      "settlement-431-508-2": "Cael",
+      "settlement-110-346-2": "Nesta",
+      "settlement-95-378-2": "Riva",
+      "settlement-383-533-2": "Isol",
+      "settlement-304-385-2": "Jorund",
+      "settlement-333-90-2": "Phaedra",
+      "settlement-347-189-2": "Soren",
+      "settlement-213-175-2": "Vesper",
+      "settlement-38-206-3": "Bastian",
+      "settlement-120-198-3": "Garrick",
+      "settlement-13-341-3": "Helena",
+      "settlement-83-286-3": "Loran",
+      "settlement-203-386-3": "Tarsus",
+      "settlement-355-274-3": "Zada",
+      "settlement-371-445-3": "Nyx",
+      "settlement-668-488-3": "Aethel",
+      "settlement-222-248-3": "Kira"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Aurelian Dominion",
+      "faction-settlement-249-512-1-apoikia": "House Vane",
+      "faction-settlement-383-533-2-apoikia": "The Zephyrian League",
+      "faction-settlement-355-274-3-apoikia": "The Thalassian Republic",
+      "faction-settlement-668-488-3-apoikia": "The Solari Concord",
+      "faction-settlement-240-197-1-spawn-3": "The Northern Host",
+      "faction-settlement-179-349-1-spawn-3": "The Iron Vanguard",
+      "faction-settlement-133-296-1-spawn-3": "The Ashen Syndicate",
+      "faction-settlement-351-149-1-spawn-3": "The Frostborn Clan",
+      "faction-settlement-269-325-1-spawn-3": "The Crimson Order",
+      "faction-settlement-307-236-1-spawn-3": "The Silver Directorate",
+      "faction-settlement-164-215-1-spawn-3": "The Zenith Union"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Valen",
+    "Keth",
+    "Orlan",
+    "Morvath",
+    "Eir",
+    "Dorian",
+    "Sula",
+    "Tallis",
+    "Bram",
+    "Varos",
+    "Cael"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 1,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1
+    },
+    "suffixFrequency": {
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:17:10.892Z"
+}

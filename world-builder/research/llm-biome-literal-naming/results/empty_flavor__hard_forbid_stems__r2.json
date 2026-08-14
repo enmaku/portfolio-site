@@ -1,0 +1,119 @@
+{
+  "id": "empty_flavor__hard_forbid_stems__r2",
+  "variantId": "hard_forbid_stems",
+  "label": "Hard forbid listed biome/trade stems in any name",
+  "tag": "empty_flavor",
+  "rep": 2,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10674,
+  "latencyMs": 5444,
+  "responseChars": 4532,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Tortuga's Teeth",
+      "settlement-240-197-1": "Skully's Deep",
+      "settlement-179-349-1": "Blackbeard's Roost",
+      "settlement-133-296-1": "Cutlass Cleft",
+      "settlement-249-512-1": "Privateer's Drop",
+      "settlement-351-149-1": "Scurvy Point",
+      "settlement-269-325-1": "Kraken's Spit",
+      "settlement-307-236-1": "Galleon's Graveyard",
+      "settlement-164-215-1": "Rumrunner's Rock",
+      "settlement-179-427-2": "Mutineer's Leap",
+      "settlement-212-486-2": "Smuggler's Sump",
+      "settlement-431-508-2": "Plunderer's Peak",
+      "settlement-110-346-2": "Bounty's End",
+      "settlement-95-378-2": "Corsair's Crevice",
+      "settlement-383-533-2": "Buccaneer's Bluff",
+      "settlement-304-385-2": "Marauder's Mesa",
+      "settlement-333-90-2": "Freebooter's Folly",
+      "settlement-347-189-2": "Siren's Song",
+      "settlement-213-175-2": "Pardoner's Prow",
+      "settlement-38-206-3": "Davy Jones' Den",
+      "settlement-120-198-3": "Brigand's Berth",
+      "settlement-13-341-3": "Privateer's Perch",
+      "settlement-83-286-3": "Corsair's Corner",
+      "settlement-203-386-3": "Pegleg's Point",
+      "settlement-355-274-3": "Swashbuckler's Spit",
+      "settlement-371-445-3": "Cutthroat's Cay",
+      "settlement-668-488-3": "Privateer's Puddle",
+      "settlement-222-248-3": "Rum-Runners' Ridge"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Syndicate",
+      "faction-settlement-249-512-1-apoikia": "Ironhook Confederacy",
+      "faction-settlement-383-533-2-apoikia": "Black Flag Directorate",
+      "faction-settlement-355-274-3-apoikia": "Scourge Coalition",
+      "faction-settlement-668-488-3-apoikia": "Reaver Republic",
+      "faction-settlement-240-197-1-spawn-3": "Marauder Vanguard",
+      "faction-settlement-179-349-1-spawn-3": "Skulker Assembly",
+      "faction-settlement-133-296-1-spawn-3": "Plunderer League",
+      "faction-settlement-351-149-1-spawn-3": "Freebooter Trust",
+      "faction-settlement-269-325-1-spawn-3": "Corsair Dominion",
+      "faction-settlement-307-236-1-spawn-3": "Buccaneer Directorate",
+      "faction-settlement-164-215-1-spawn-3": "Cutthroat Union"
+    }
+  },
+  "sampleNames": [
+    "Tortuga's Teeth",
+    "Skully's Deep",
+    "Blackbeard's Roost",
+    "Cutlass Cleft",
+    "Privateer's Drop",
+    "Scurvy Point",
+    "Kraken's Spit",
+    "Galleon's Graveyard",
+    "Rumrunner's Rock",
+    "Mutineer's Leap",
+    "Smuggler's Sump",
+    "Plunderer's Peak"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 2,
+    "suffixHitCount": 5,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.07142857142857142,
+    "suffixHitRate": 0.17857142857142858,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "peak": 1,
+      "ice": 1
+    },
+    "suffixFrequency": {
+      "deep": 1,
+      "point": 2,
+      "end": 1,
+      "ridge": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-431-508-2",
+        "name": "Plunderer's Peak",
+        "stems": [
+          "peak"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Hills"
+      },
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Corsair's Crevice",
+        "stems": [
+          "ice"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Grassland"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:09:04.337Z"
+}

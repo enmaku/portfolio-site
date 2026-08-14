@@ -1,0 +1,109 @@
+{
+  "id": "blank_flavor__instructions_after_json__r1",
+  "variantId": "instructions_after_json",
+  "label": "Anti-literal instructions AFTER the JSON (recency)",
+  "tag": "blank_flavor",
+  "rep": 1,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10608,
+  "latencyMs": 5420,
+  "responseChars": 4429,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oryn's Pier",
+      "settlement-240-197-1": "Voss-Kael",
+      "settlement-179-349-1": "Sunderreach",
+      "settlement-133-296-1": "Haver’s Watch",
+      "settlement-249-512-1": "Aethel’s Landing",
+      "settlement-351-149-1": "Brann’s Folly",
+      "settlement-269-325-1": "KOR-VANE",
+      "settlement-307-236-1": "Thalos-End",
+      "settlement-164-215-1": "Garlan’s Rest",
+      "settlement-179-427-2": "Malakor",
+      "settlement-212-486-2": "Dorian’s Fen",
+      "settlement-431-508-2": "Erlkönig",
+      "settlement-110-346-2": "Bannock’s Outpost",
+      "settlement-95-378-2": "Isengard",
+      "settlement-383-533-2": "Sybilla's Reach",
+      "settlement-304-385-2": "Kaelen’s Hope",
+      "settlement-333-90-2": "Gorgon’s Tooth",
+      "settlement-347-189-2": "Valen’s Gate",
+      "settlement-213-175-2": "Hallow-Moor",
+      "settlement-38-206-3": "Maren’s Hearth",
+      "settlement-120-198-3": "Kraven’s Nest",
+      "settlement-13-341-3": "Soren’s Crossing",
+      "settlement-83-286-3": "Drakenspire",
+      "settlement-203-386-3": "Rhel’s Bay",
+      "settlement-355-274-3": "Theron’s Mark",
+      "settlement-371-445-3": "Orin-Var",
+      "settlement-668-488-3": "Caelen’s Sound",
+      "settlement-222-248-3": "Yvaine’s Shallows"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Dominion",
+      "faction-settlement-249-512-1-apoikia": "Aethelgard League",
+      "faction-settlement-383-533-2-apoikia": "House Sybilla",
+      "faction-settlement-355-274-3-apoikia": "Theron’s Covenant",
+      "faction-settlement-668-488-3-apoikia": "Caelen Directorate",
+      "faction-settlement-240-197-1-spawn-3": "Voss Confederation",
+      "faction-settlement-179-349-1-spawn-3": "Sunderreach Syndicate",
+      "faction-settlement-133-296-1-spawn-3": "Haverian Ascendancy",
+      "faction-settlement-351-149-1-spawn-3": "Brann’s Realm",
+      "faction-settlement-269-325-1-spawn-3": "Kor-Vane Directorate",
+      "faction-settlement-307-236-1-spawn-3": "Thalos Concordat",
+      "faction-settlement-164-215-1-spawn-3": "Garlan’s Watch"
+    }
+  },
+  "sampleNames": [
+    "Oryn's Pier",
+    "Voss-Kael",
+    "Sunderreach",
+    "Haver’s Watch",
+    "Aethel’s Landing",
+    "Brann’s Folly",
+    "KOR-VANE",
+    "Thalos-End",
+    "Garlan’s Rest",
+    "Malakor",
+    "Dorian’s Fen",
+    "Erlkönig"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 7,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.25,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "fen": 1
+    },
+    "suffixFrequency": {
+      "reach": 2,
+      "watch": 1,
+      "end": 1,
+      "outpost": 1,
+      "gate": 1,
+      "mark": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Dorian’s Fen",
+        "stems": [
+          "fen"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:15:46.291Z"
+}

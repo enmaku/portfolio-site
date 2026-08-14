@@ -1,0 +1,118 @@
+{
+  "id": "empty_flavor__hard_forbid_stems__r1",
+  "variantId": "hard_forbid_stems",
+  "label": "Hard forbid listed biome/trade stems in any name",
+  "tag": "empty_flavor",
+  "rep": 1,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10674,
+  "latencyMs": 5552,
+  "responseChars": 4555,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Blackbeard's Roost",
+      "settlement-240-197-1": "Ketch's Hold",
+      "settlement-179-349-1": "Deadman's Drop",
+      "settlement-133-296-1": "Galleon's Graveyard",
+      "settlement-249-512-1": "Tortuga's Pride",
+      "settlement-351-149-1": "Cutlass Cove",
+      "settlement-269-325-1": "Rumrunner's Reef",
+      "settlement-307-236-1": "Privateer's Pitch",
+      "settlement-164-215-1": "Smuggler's Skip",
+      "settlement-179-427-2": "Scallywag's Spire",
+      "settlement-212-486-2": "Mutineer's Mud",
+      "settlement-431-508-2": "Brigantine's Bluff",
+      "settlement-110-346-2": "Marooner's Mead",
+      "settlement-95-378-2": "Corsair's Corner",
+      "settlement-383-533-2": "Buccaneer's Bounty",
+      "settlement-304-385-2": "Plunderer's Peak",
+      "settlement-333-90-2": "Freebooter's Folly",
+      "settlement-347-189-2": "Sloop's Solace",
+      "settlement-213-175-2": "Schooner's Slip",
+      "settlement-38-206-3": "Pardoner's Point",
+      "settlement-120-198-3": "Picaroon's Perch",
+      "settlement-13-341-3": "Flibustier's Fall",
+      "settlement-83-286-3": "Atheling's Alley",
+      "settlement-203-386-3": "Rover's Retreat",
+      "settlement-355-274-3": "Seafarer's Sanctuary",
+      "settlement-371-445-3": "Grogmaker's Gap",
+      "settlement-668-488-3": "Swashbuckler's Stripe",
+      "settlement-222-248-3": "Privateer's Plack"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "Brotherhood of the Black Flag",
+      "faction-settlement-383-533-2-apoikia": "Sovereign Scourge",
+      "faction-settlement-355-274-3-apoikia": "Reaver Confederacy",
+      "faction-settlement-668-488-3-apoikia": "Galleon Syndicate",
+      "faction-settlement-240-197-1-spawn-3": "Mutinous Coalition",
+      "faction-settlement-179-349-1-spawn-3": "Corsair Cartel",
+      "faction-settlement-133-296-1-spawn-3": "Freebooter Concord",
+      "faction-settlement-351-149-1-spawn-3": "Smuggler's Ring",
+      "faction-settlement-269-325-1-spawn-3": "Privateer Dominion",
+      "faction-settlement-307-236-1-spawn-3": "Marauder Assembly",
+      "faction-settlement-164-215-1-spawn-3": "Outlaw Directorate"
+    }
+  },
+  "sampleNames": [
+    "Blackbeard's Roost",
+    "Ketch's Hold",
+    "Deadman's Drop",
+    "Galleon's Graveyard",
+    "Tortuga's Pride",
+    "Cutlass Cove",
+    "Rumrunner's Reef",
+    "Privateer's Pitch",
+    "Smuggler's Skip",
+    "Scallywag's Spire",
+    "Mutineer's Mud",
+    "Brigantine's Bluff"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 2,
+    "suffixHitCount": 3,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.07142857142857142,
+    "suffixHitRate": 0.10714285714285714,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "peak": 1,
+      "sea": 1
+    },
+    "suffixFrequency": {
+      "hold": 1,
+      "point": 1,
+      "fall": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-304-385-2",
+        "name": "Plunderer's Peak",
+        "stems": [
+          "peak"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-355-274-3",
+        "name": "Seafarer's Sanctuary",
+        "stems": [
+          "sea"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:08:50.888Z"
+}

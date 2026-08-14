@@ -1,0 +1,118 @@
+{
+  "id": "blank_flavor__soft_plus_hard__r3",
+  "variantId": "soft_plus_hard",
+  "label": "Current soft lines + hard forbid stems",
+  "tag": "blank_flavor",
+  "rep": 3,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10735,
+  "latencyMs": 4929,
+  "responseChars": 4178,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Valen",
+      "settlement-179-349-1": "Kallos",
+      "settlement-133-296-1": "Soll",
+      "settlement-249-512-1": "Corinth",
+      "settlement-351-149-1": "Melis",
+      "settlement-269-325-1": "Aethel",
+      "settlement-307-236-1": "Dorian",
+      "settlement-164-215-1": "Soren",
+      "settlement-179-427-2": "Beren",
+      "settlement-212-486-2": "Riva",
+      "settlement-431-508-2": "Garlan",
+      "settlement-110-346-2": "Loran",
+      "settlement-95-378-2": "Kiran",
+      "settlement-383-533-2": "Thal",
+      "settlement-304-385-2": "Varos",
+      "settlement-333-90-2": "Cael",
+      "settlement-347-189-2": "Ivor",
+      "settlement-213-175-2": "Phaen",
+      "settlement-38-206-3": "Eron",
+      "settlement-120-198-3": "Oren",
+      "settlement-13-341-3": "Tars",
+      "settlement-83-286-3": "Miron",
+      "settlement-203-386-3": "Vane",
+      "settlement-355-274-3": "Zoran",
+      "settlement-371-445-3": "Nerin",
+      "settlement-668-488-3": "Arian",
+      "settlement-222-248-3": "Toral"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Iron Accord",
+      "faction-settlement-249-512-1-apoikia": "Vesper League",
+      "faction-settlement-383-533-2-apoikia": "House Marten",
+      "faction-settlement-355-274-3-apoikia": "Sovereign Coast",
+      "faction-settlement-668-488-3-apoikia": "High Reach",
+      "faction-settlement-240-197-1-spawn-3": "Northern Mark",
+      "faction-settlement-179-349-1-spawn-3": "Duchy of Bel",
+      "faction-settlement-133-296-1-spawn-3": "Wilder Clan",
+      "faction-settlement-351-149-1-spawn-3": "Frost Crown",
+      "faction-settlement-269-325-1-spawn-3": "Sunfall Dominion",
+      "faction-settlement-307-236-1-spawn-3": "Free Cities",
+      "faction-settlement-164-215-1-spawn-3": "Astor Enclave"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Valen",
+    "Kallos",
+    "Soll",
+    "Corinth",
+    "Melis",
+    "Aethel",
+    "Dorian",
+    "Soren",
+    "Beren",
+    "Riva",
+    "Garlan"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 2,
+    "suffixHitCount": 1,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.07142857142857142,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1,
+      "iron": 1
+    },
+    "suffixFrequency": {
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-83-286-3",
+        "name": "Miron",
+        "stems": [
+          "iron"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:17:37.105Z"
+}

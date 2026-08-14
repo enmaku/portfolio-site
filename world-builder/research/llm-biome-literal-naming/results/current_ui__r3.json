@@ -1,0 +1,107 @@
+{
+  "id": "current_ui__r3",
+  "variantId": "current_ui",
+  "label": "Current live UI soft anti-literal wording",
+  "rep": 3,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10695,
+  "latencyMs": 5550,
+  "responseChars": 4445,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Tortuga's Reach",
+      "settlement-240-197-1": "Krag's Tooth",
+      "settlement-179-349-1": "Blackhook",
+      "settlement-133-296-1": "Cutlass Bay",
+      "settlement-249-512-1": "Maroon Deep",
+      "settlement-351-149-1": "Scourge Point",
+      "settlement-269-325-1": "Grog Alley",
+      "settlement-307-236-1": "Privateer's Rest",
+      "settlement-164-215-1": "Dead Man's Cay",
+      "settlement-179-427-2": "Scurvy Ridge",
+      "settlement-212-486-2": "Smuggler's Notch",
+      "settlement-431-508-2": "Brigand's Bluff",
+      "settlement-110-346-2": "Corsair's Leap",
+      "settlement-95-378-2": "Plunder Point",
+      "settlement-383-533-2": "Freebooter's Bay",
+      "settlement-304-385-2": "Mutiny Reach",
+      "settlement-333-90-2": "Ransack",
+      "settlement-347-189-2": "Sharksbite",
+      "settlement-213-175-2": "Booty's End",
+      "settlement-38-206-3": "Pillage",
+      "settlement-120-198-3": "Davy's Locker",
+      "settlement-13-341-3": "Gallows Haven",
+      "settlement-83-286-3": "Jolly Roger",
+      "settlement-203-386-3": "Salt-Tear",
+      "settlement-355-274-3": "Rumrunner's Cove",
+      "settlement-371-445-3": "Buccaneer's Basin",
+      "settlement-668-488-3": "Cut-Throat Quay",
+      "settlement-222-248-3": "Barbarossa"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "Brethren of the Coast",
+      "faction-settlement-383-533-2-apoikia": "Scourge Syndicate",
+      "faction-settlement-355-274-3-apoikia": "Black Flag Confederacy",
+      "faction-settlement-668-488-3-apoikia": "Freebooter League",
+      "faction-settlement-240-197-1-spawn-3": "Scurvy Reapers",
+      "faction-settlement-179-349-1-spawn-3": "Corsair Syndicate",
+      "faction-settlement-133-296-1-spawn-3": "Privateer Vanguard",
+      "faction-settlement-351-149-1-spawn-3": "Mutineers of the Deep",
+      "faction-settlement-269-325-1-spawn-3": "Smuggler's Cabal",
+      "faction-settlement-307-236-1-spawn-3": "Marauder's Pride",
+      "faction-settlement-164-215-1-spawn-3": "Ironhook Order"
+    }
+  },
+  "sampleNames": [
+    "Tortuga's Reach",
+    "Krag's Tooth",
+    "Blackhook",
+    "Cutlass Bay",
+    "Maroon Deep",
+    "Scourge Point",
+    "Grog Alley",
+    "Privateer's Rest",
+    "Dead Man's Cay",
+    "Scurvy Ridge",
+    "Smuggler's Notch",
+    "Brigand's Bluff"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 8,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.2857142857142857,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "salt": 1
+    },
+    "suffixFrequency": {
+      "reach": 2,
+      "deep": 1,
+      "point": 2,
+      "ridge": 1,
+      "end": 1,
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-203-386-3",
+        "name": "Salt-Tear",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T18:56:38.725Z"
+}

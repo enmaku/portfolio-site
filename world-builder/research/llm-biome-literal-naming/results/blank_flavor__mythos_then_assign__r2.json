@@ -1,0 +1,106 @@
+{
+  "id": "blank_flavor__mythos_then_assign__r2",
+  "variantId": "mythos_then_assign",
+  "label": "Invent a mythos list first, then assign",
+  "tag": "blank_flavor",
+  "rep": 2,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10614,
+  "latencyMs": 5547,
+  "responseChars": 4178,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Valen",
+      "settlement-240-197-1": "Oakhaven",
+      "settlement-179-349-1": "Krell",
+      "settlement-133-296-1": "Dorian",
+      "settlement-249-512-1": "Soll",
+      "settlement-351-149-1": "Morvath",
+      "settlement-269-325-1": "Thalos",
+      "settlement-307-236-1": "Vond",
+      "settlement-164-215-1": "Orr",
+      "settlement-179-427-2": "Brin",
+      "settlement-212-486-2": "GILDOR",
+      "settlement-431-508-2": "Aethel",
+      "settlement-110-346-2": "Zar",
+      "settlement-95-378-2": "Kaelen",
+      "settlement-383-533-2": "Nox",
+      "settlement-304-385-2": "Solis",
+      "settlement-333-90-2": "Rynn",
+      "settlement-347-189-2": "Bael",
+      "settlement-213-175-2": "Cael",
+      "settlement-38-206-3": "Tallis",
+      "settlement-120-198-3": "Ivor",
+      "settlement-13-341-3": "Marek",
+      "settlement-83-286-3": "Vane",
+      "settlement-203-386-3": "Garrin",
+      "settlement-355-274-3": "Jora",
+      "settlement-371-445-3": "Darek",
+      "settlement-668-488-3": "Sven",
+      "settlement-222-248-3": "Vara"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Iron Crest",
+      "faction-settlement-249-512-1-apoikia": "Sun-Reign",
+      "faction-settlement-383-533-2-apoikia": "Abyssal Concord",
+      "faction-settlement-355-274-3-apoikia": "Frost League",
+      "faction-settlement-668-488-3-apoikia": "Stonewatch",
+      "faction-settlement-240-197-1-spawn-3": "Ashen Hegemony",
+      "faction-settlement-179-349-1-spawn-3": "Viper Syndicate",
+      "faction-settlement-133-296-1-spawn-3": "Silver Vanguard",
+      "faction-settlement-351-149-1-spawn-3": "Dawn Dominion",
+      "faction-settlement-269-325-1-spawn-3": "Ember Pact",
+      "faction-settlement-307-236-1-spawn-3": "Crimson Throne",
+      "faction-settlement-164-215-1-spawn-3": "Gilded Coalition"
+    }
+  },
+  "sampleNames": [
+    "Valen",
+    "Oakhaven",
+    "Krell",
+    "Dorian",
+    "Soll",
+    "Morvath",
+    "Thalos",
+    "Vond",
+    "Orr",
+    "Brin",
+    "GILDOR",
+    "Aethel"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 1,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1
+    },
+    "suffixFrequency": {
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:15:19.390Z"
+}

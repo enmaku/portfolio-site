@@ -1,0 +1,133 @@
+{
+  "id": "empty_flavor__instructions_after_json__r3",
+  "variantId": "instructions_after_json",
+  "label": "Anti-literal instructions AFTER the JSON (recency)",
+  "tag": "empty_flavor",
+  "rep": 3,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10612,
+  "latencyMs": 5623,
+  "responseChars": 4453,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Krell's Teeth",
+      "settlement-240-197-1": "Widow's Drop",
+      "settlement-179-349-1": "Scurvy Reach",
+      "settlement-133-296-1": "Mutiny's End",
+      "settlement-249-512-1": "Gallows Cay",
+      "settlement-351-149-1": "Deadman's Cove",
+      "settlement-269-325-1": "Black-Gull Spit",
+      "settlement-307-236-1": "Cutlass Bay",
+      "settlement-164-215-1": "Brine-Ruin",
+      "settlement-179-427-2": "Vane's Roost",
+      "settlement-212-486-2": "Mire-Cask",
+      "settlement-431-508-2": "Rogue's Knoll",
+      "settlement-110-346-2": "Pardoner's Reef",
+      "settlement-95-378-2": "Marooner's Bluff",
+      "settlement-383-533-2": "Grog-Sump",
+      "settlement-304-385-2": "Corsair's Notch",
+      "settlement-333-90-2": "Smuggler's Jaw",
+      "settlement-347-189-2": "Rum-Run",
+      "settlement-213-175-2": "Scoundrel's Point",
+      "settlement-38-206-3": "Ketch-Hollow",
+      "settlement-120-198-3": "Kraken's Bait",
+      "settlement-13-341-3": "Barnacle's Rest",
+      "settlement-83-286-3": "Freebooter's Leap",
+      "settlement-203-386-3": "Doubloon Deep",
+      "settlement-355-274-3": "Swabber's Spit",
+      "settlement-371-445-3": "Privateer's Perch",
+      "settlement-668-488-3": "Sharks-Tooth",
+      "settlement-222-248-3": "Bilge-Water"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "Brotherhood of the Black Flag",
+      "faction-settlement-383-533-2-apoikia": "Corsair Syndicate",
+      "faction-settlement-355-274-3-apoikia": "Freebooter League",
+      "faction-settlement-668-488-3-apoikia": "Scourge of the Tides",
+      "faction-settlement-240-197-1-spawn-3": "Reaver Coalition",
+      "faction-settlement-179-349-1-spawn-3": "Marauder Concord",
+      "faction-settlement-133-296-1-spawn-3": "Scurvy Union",
+      "faction-settlement-351-149-1-spawn-3": "Buccaneer Cabal",
+      "faction-settlement-269-325-1-spawn-3": "Privateer Consortium",
+      "faction-settlement-307-236-1-spawn-3": "Gallows Folk",
+      "faction-settlement-164-215-1-spawn-3": "Mutineer Horde"
+    }
+  },
+  "sampleNames": [
+    "Krell's Teeth",
+    "Widow's Drop",
+    "Scurvy Reach",
+    "Mutiny's End",
+    "Gallows Cay",
+    "Deadman's Cove",
+    "Black-Gull Spit",
+    "Cutlass Bay",
+    "Brine-Ruin",
+    "Vane's Roost",
+    "Mire-Cask",
+    "Rogue's Knoll"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 3,
+    "suffixHitCount": 6,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.10714285714285714,
+    "suffixHitRate": 0.21428571428571427,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "gull": 1,
+      "brine": 1,
+      "mire": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "end": 1,
+      "run": 1,
+      "point": 1,
+      "hollow": 1,
+      "deep": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-269-325-1",
+        "name": "Black-Gull Spit",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-164-215-1",
+        "name": "Brine-Ruin",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mire-Cask",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:10:36.270Z"
+}

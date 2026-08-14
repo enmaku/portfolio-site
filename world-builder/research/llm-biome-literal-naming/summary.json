@@ -1,0 +1,169 @@
+{
+  "meta": {
+    "geographySeed": 42,
+    "prevailingWindDegrees": 90,
+    "defaultGeographySeedConstant": 0,
+    "epochSteps": 3,
+    "flavor": "pirates",
+    "epoch": 3,
+    "settlementCount": 28,
+    "factionCount": 12,
+    "rivalryEdgeCount": 4,
+    "foundingLanding": {
+      "x": 270,
+      "y": 256
+    },
+    "createdAt": "2026-08-13T11:03:36.888Z",
+    "model": "gemini-3.5-flash-lite",
+    "cooldownMs": 8000,
+    "repeats": 3,
+    "scoring": "scoreBiomeLiteralNames heuristic"
+  },
+  "ranking": [
+    {
+      "id": "combined_hard_after_json",
+      "label": "Hard forbid + quota + after JSON",
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.023809523809523808,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.08333333333333333
+    },
+    {
+      "id": "soft_plus_hard",
+      "label": "Current soft lines + hard forbid stems",
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.023809523809523808,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.2023809523809524
+    },
+    {
+      "id": "redact_biome",
+      "label": "Biome field redacted to [redacted]",
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.03571428571428571,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.14285714285714285
+    },
+    {
+      "id": "hard_forbid_stems",
+      "label": "Hard forbid listed biome/trade stems in any name",
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.047619047619047616,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.2380952380952381
+    },
+    {
+      "id": "quota_max_15pct",
+      "label": "At most 15% of names may echo terrain/goods",
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.047619047619047616,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.15476190476190474
+    },
+    {
+      "id": "instructions_after_json",
+      "label": "Anti-literal instructions AFTER the JSON (recency)",
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.047619047619047616,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.2619047619047619
+    },
+    {
+      "id": "pirate_anthroponyms",
+      "label": "Flavor-locked pirate personal placenames",
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.059523809523809514,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.2380952380952381
+    },
+    {
+      "id": "current_ui",
+      "label": "Current live UI soft anti-literal wording",
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.07142857142857141,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.2738095238095238
+    },
+    {
+      "id": "strip_geo_trade_cues",
+      "label": "Remove biome/trade fields from annotations",
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.08333333333333333,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.19047619047619047
+    },
+    {
+      "id": "mythos_then_assign",
+      "label": "Invent a mythos list first, then assign",
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.09523809523809523,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.03571428571428571
+    },
+    {
+      "id": "phonetic_toponymy",
+      "label": "Phonetic toponyms without English meaning",
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.11904761904761903,
+      "meanOwnBiomeEchoRate": 0.011904761904761904,
+      "meanSuffixHitRate": 0.25
+    },
+    {
+      "id": "person_event_mandate",
+      "label": "Mandate person/event etymology for every name",
+      "repeats": 3,
+      "meanCalqueRate": 0.011904761904761904,
+      "meanStemHitRate": 0.059523809523809514,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.11904761904761905
+    },
+    {
+      "id": "no_anti_literal",
+      "label": "No anti-literal lines (antirepeat only)",
+      "repeats": 3,
+      "meanCalqueRate": 0.011904761904761904,
+      "meanStemHitRate": 0.2023809523809524,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.2738095238095238
+    },
+    {
+      "id": "ignore_biome_fields",
+      "label": "Explicitly ignore biome/import/export fields for naming",
+      "repeats": 3,
+      "meanCalqueRate": 0.023809523809523808,
+      "meanStemHitRate": 0.11904761904761903,
+      "meanOwnBiomeEchoRate": 0.011904761904761904,
+      "meanSuffixHitRate": 0.2738095238095238
+    },
+    {
+      "id": "ids_flavor_shell",
+      "label": "Ids/politics shell only (no biome/economy/history)",
+      "repeats": 3,
+      "meanCalqueRate": 0.023809523809523808,
+      "meanStemHitRate": 0.14285714285714285,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.21428571428571427
+    },
+    {
+      "id": "few_shot_good_bad",
+      "label": "Few-shot good vs bad examples",
+      "repeats": 3,
+      "meanCalqueRate": 0.03571428571428571,
+      "meanStemHitRate": 0.14285714285714285,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.19047619047619047
+    }
+  ],
+  "createdAt": "2026-08-13T19:06:36.191Z"
+}

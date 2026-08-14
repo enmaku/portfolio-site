@@ -1,0 +1,138 @@
+{
+  "id": "mythos_then_assign__r2",
+  "variantId": "mythos_then_assign",
+  "label": "Invent a mythos list first, then assign",
+  "rep": 2,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10618,
+  "latencyMs": 5164,
+  "responseChars": 4136,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Krov",
+      "settlement-240-197-1": "Vane",
+      "settlement-179-349-1": "Skiff",
+      "settlement-133-296-1": "Grog",
+      "settlement-249-512-1": "Scurvy",
+      "settlement-351-149-1": "Plank",
+      "settlement-269-325-1": "Brine",
+      "settlement-307-236-1": "Hook",
+      "settlement-164-215-1": "Cutlass",
+      "settlement-179-427-2": "Bilge",
+      "settlement-212-486-2": "Pike",
+      "settlement-431-508-2": "Flint",
+      "settlement-110-346-2": "Cask",
+      "settlement-95-378-2": "Dagger",
+      "settlement-383-533-2": "Gull",
+      "settlement-304-385-2": "Mast",
+      "settlement-333-90-2": "Tide",
+      "settlement-347-189-2": "Ruff",
+      "settlement-213-175-2": "Sloop",
+      "settlement-38-206-3": "Keel",
+      "settlement-120-198-3": "Helm",
+      "settlement-13-341-3": "Swell",
+      "settlement-83-286-3": "Gaff",
+      "settlement-203-386-3": "Warp",
+      "settlement-355-274-3": "Mire",
+      "settlement-371-445-3": "Gale",
+      "settlement-668-488-3": "Spars",
+      "settlement-222-248-3": "Jib"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "Blackwake",
+      "faction-settlement-249-512-1-apoikia": "Bloodtide",
+      "faction-settlement-383-533-2-apoikia": "Salt-Tooth",
+      "faction-settlement-355-274-3-apoikia": "Gore-Reach",
+      "faction-settlement-668-488-3-apoikia": "Iron-Hull",
+      "faction-settlement-240-197-1-spawn-3": "Dead-Eye",
+      "faction-settlement-179-349-1-spawn-3": "Scum-Reach",
+      "faction-settlement-133-296-1-spawn-3": "Rot-Sovereignty",
+      "faction-settlement-351-149-1-spawn-3": "Marrow-Corsairs",
+      "faction-settlement-269-325-1-spawn-3": "Skull-Coast",
+      "faction-settlement-307-236-1-spawn-3": "Hag-Reef",
+      "faction-settlement-164-215-1-spawn-3": "Rust-Fleet"
+    }
+  },
+  "sampleNames": [
+    "Krov",
+    "Vane",
+    "Skiff",
+    "Grog",
+    "Scurvy",
+    "Plank",
+    "Brine",
+    "Hook",
+    "Cutlass",
+    "Bilge",
+    "Pike",
+    "Flint"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 4,
+    "suffixHitCount": 1,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.14285714285714285,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "brine": 1,
+      "gull": 1,
+      "tide": 1,
+      "mire": 1
+    },
+    "suffixFrequency": {
+      "well": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-269-325-1",
+        "name": "Brine",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-383-533-2",
+        "name": "Gull",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-333-90-2",
+        "name": "Tide",
+        "stems": [
+          "tide"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-355-274-3",
+        "name": "Mire",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T18:59:44.107Z"
+}

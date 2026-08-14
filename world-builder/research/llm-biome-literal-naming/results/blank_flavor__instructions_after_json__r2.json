@@ -1,0 +1,118 @@
+{
+  "id": "blank_flavor__instructions_after_json__r2",
+  "variantId": "instructions_after_json",
+  "label": "Anti-literal instructions AFTER the JSON (recency)",
+  "tag": "blank_flavor",
+  "rep": 2,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10608,
+  "latencyMs": 3894,
+  "responseChars": 2910,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Kallos",
+      "settlement-179-349-1": "Varn",
+      "settlement-133-296-1": "Eldrin",
+      "settlement-249-512-1": "Solis",
+      "settlement-351-149-1": "Mire",
+      "settlement-269-325-1": "Telos",
+      "settlement-307-236-1": "Orin",
+      "settlement-164-215-1": "Nox",
+      "settlement-179-427-2": "Gilden",
+      "settlement-212-486-2": "Ash",
+      "settlement-431-508-2": "Vael",
+      "settlement-110-346-2": "Drak",
+      "settlement-95-378-2": "Kaelen",
+      "settlement-383-533-2": "Thalos",
+      "settlement-304-385-2": "Phaera",
+      "settlement-333-90-2": "Bael",
+      "settlement-347-189-2": "Rhy",
+      "settlement-213-175-2": "Cora",
+      "settlement-38-206-3": "Doran",
+      "settlement-120-198-3": "Jor",
+      "settlement-13-341-3": "Zor",
+      "settlement-83-286-3": "Tark",
+      "settlement-203-386-3": "Hael",
+      "settlement-355-274-3": "Vorn",
+      "settlement-371-445-3": "Syd",
+      "settlement-668-488-3": "Meris",
+      "settlement-222-248-3": "Lira"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Iron Dominion",
+      "faction-settlement-249-512-1-apoikia": "Solis League",
+      "faction-settlement-383-533-2-apoikia": "Thalorian Realm",
+      "faction-settlement-355-274-3-apoikia": "Vorn Collective",
+      "faction-settlement-668-488-3-apoikia": "Merisan Assembly",
+      "faction-settlement-240-197-1-spawn-3": "Kallos Pact",
+      "faction-settlement-179-349-1-spawn-3": "Varn Concordat",
+      "faction-settlement-133-296-1-spawn-3": "Eldrin Union",
+      "faction-settlement-351-149-1-spawn-3": "Mire Syndicate",
+      "faction-settlement-269-325-1-spawn-3": "Telosian Directorate",
+      "faction-settlement-307-236-1-spawn-3": "Orin Coalition",
+      "faction-settlement-164-215-1-spawn-3": "Noxian Ascendancy"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Kallos",
+    "Varn",
+    "Eldrin",
+    "Solis",
+    "Mire",
+    "Telos",
+    "Orin",
+    "Nox",
+    "Gilden",
+    "Ash",
+    "Vael"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 2,
+    "suffixHitCount": 1,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.07142857142857142,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1,
+      "mire": 1
+    },
+    "suffixFrequency": {
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-351-149-1",
+        "name": "Mire",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:15:58.189Z"
+}

@@ -1,0 +1,144 @@
+{
+  "id": "ids_flavor_shell__r1",
+  "variantId": "ids_flavor_shell",
+  "label": "Ids/politics shell only (no biome/economy/history)",
+  "rep": 1,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 2128,
+  "latencyMs": 6365,
+  "responseChars": 4386,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Skullport",
+      "settlement-240-197-1": "Gallows Bay",
+      "settlement-179-349-1": "Cutlass Cleft",
+      "settlement-133-296-1": "Marrow Reef",
+      "settlement-249-512-1": "Black Tides",
+      "settlement-351-149-1": "Siren's Spit",
+      "settlement-269-325-1": "Kraken's Maw",
+      "settlement-307-236-1": "Brine Hollow",
+      "settlement-164-215-1": "Deadman's Atoll",
+      "settlement-179-427-2": "Rum Punch",
+      "settlement-212-486-2": "Scuttle Point",
+      "settlement-431-508-2": "Saltwrack",
+      "settlement-110-346-2": "Hook Island",
+      "settlement-95-378-2": "Barnacle Roost",
+      "settlement-383-533-2": "Dagger Shallows",
+      "settlement-304-385-2": "Flintlock",
+      "settlement-333-90-2": "Smuggler's Notch",
+      "settlement-347-189-2": "Bilge Water",
+      "settlement-213-175-2": "Tricorn",
+      "settlement-38-206-3": "Anchor's End",
+      "settlement-120-198-3": "Doubloon",
+      "settlement-13-341-3": "Peg Leg",
+      "settlement-83-286-3": "Parrot's Perch",
+      "settlement-203-386-3": "Sharksfin",
+      "settlement-355-274-3": "Ghost Galleon",
+      "settlement-371-445-3": "Crowsnest",
+      "settlement-668-488-3": "Mutiny Reach",
+      "settlement-222-248-3": "Whalebone"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "Brethren of the Coast",
+      "faction-settlement-383-533-2-apoikia": "Corsair Syndicate",
+      "faction-settlement-355-274-3-apoikia": "The Dread Fleet",
+      "faction-settlement-668-488-3-apoikia": "Scourge League",
+      "faction-settlement-240-197-1-spawn-3": "Gallows Kin",
+      "faction-settlement-179-349-1-spawn-3": "Marauder Cabal",
+      "faction-settlement-133-296-1-spawn-3": "Blackflag Republic",
+      "faction-settlement-351-149-1-spawn-3": "Siren Syndicate",
+      "faction-settlement-269-325-1-spawn-3": "Kraken Masters",
+      "faction-settlement-307-236-1-spawn-3": "Saltwater Pact",
+      "faction-settlement-164-215-1-spawn-3": "Freebooter Union"
+    }
+  },
+  "sampleNames": [
+    "Skullport",
+    "Gallows Bay",
+    "Cutlass Cleft",
+    "Marrow Reef",
+    "Black Tides",
+    "Siren's Spit",
+    "Kraken's Maw",
+    "Brine Hollow",
+    "Deadman's Atoll",
+    "Rum Punch",
+    "Scuttle Point",
+    "Saltwrack"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 4,
+    "suffixHitCount": 5,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.14285714285714285,
+    "suffixHitRate": 0.17857142857142858,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "tide": 1,
+      "brine": 1,
+      "salt": 1,
+      "island": 1
+    },
+    "suffixFrequency": {
+      "port": 1,
+      "hollow": 1,
+      "point": 1,
+      "end": 1,
+      "reach": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-249-512-1",
+        "name": "Black Tides",
+        "stems": [
+          "tide"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-307-236-1",
+        "name": "Brine Hollow",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [
+          "hollow"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-431-508-2",
+        "name": "Saltwrack",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Hills"
+      },
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Hook Island",
+        "stems": [
+          "island"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:04:10.712Z"
+}

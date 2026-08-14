@@ -1,0 +1,262 @@
+{
+  "id": "blank_flavor__no_anti_literal__r2",
+  "variantId": "no_anti_literal",
+  "label": "No anti-literal lines (antirepeat only)",
+  "tag": "blank_flavor",
+  "rep": 2,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10552,
+  "latencyMs": 5405,
+  "responseChars": 4330,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Frostport",
+      "settlement-179-349-1": "Emberstrand",
+      "settlement-133-296-1": "Pinehollow",
+      "settlement-249-512-1": "Valenreach",
+      "settlement-351-149-1": "Brimstone",
+      "settlement-269-325-1": "Meridian",
+      "settlement-307-236-1": "Whitecrest",
+      "settlement-164-215-1": "Glacialis",
+      "settlement-179-427-2": "Highridge",
+      "settlement-212-486-2": "Mirewatch",
+      "settlement-431-508-2": "Suncrest",
+      "settlement-110-346-2": "Timberfall",
+      "settlement-95-378-2": "Greenfields",
+      "settlement-383-533-2": "Tidebreak",
+      "settlement-304-385-2": "Deepwood",
+      "settlement-333-90-2": "Borean",
+      "settlement-347-189-2": "Stormbay",
+      "settlement-213-175-2": "Silverport",
+      "settlement-38-206-3": "Icemark",
+      "settlement-120-198-3": "Palehold",
+      "settlement-13-341-3": "Brambleside",
+      "settlement-83-286-3": "Sylvanis",
+      "settlement-203-386-3": "Seawatch",
+      "settlement-355-274-3": "Gullwing",
+      "settlement-371-445-3": "Coralline",
+      "settlement-668-488-3": "Aethelgard",
+      "settlement-222-248-3": "Saltend"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Aurelian Dominion",
+      "faction-settlement-249-512-1-apoikia": "Kaladrian League",
+      "faction-settlement-383-533-2-apoikia": "The Seaborne Concord",
+      "faction-settlement-355-274-3-apoikia": "House Vane",
+      "faction-settlement-668-488-3-apoikia": "Vaskaran Coalition",
+      "faction-settlement-240-197-1-spawn-3": "Borealis Guard",
+      "faction-settlement-179-349-1-spawn-3": "Pyre Union",
+      "faction-settlement-133-296-1-spawn-3": "The Emerald Directorate",
+      "faction-settlement-351-149-1-spawn-3": "Tundra Compact",
+      "faction-settlement-269-325-1-spawn-3": "Thalassian Republic",
+      "faction-settlement-307-236-1-spawn-3": "Alabaster Syndicate",
+      "faction-settlement-164-215-1-spawn-3": "Yromir Order"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Frostport",
+    "Emberstrand",
+    "Pinehollow",
+    "Valenreach",
+    "Brimstone",
+    "Meridian",
+    "Whitecrest",
+    "Glacialis",
+    "Highridge",
+    "Mirewatch",
+    "Suncrest"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 12,
+    "suffixHitCount": 14,
+    "calqueCount": 8,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.42857142857142855,
+    "suffixHitRate": 0.5,
+    "calqueRate": 0.2857142857142857,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1,
+      "frost": 1,
+      "pine": 1,
+      "mire": 1,
+      "timber": 1,
+      "field": 1,
+      "tide": 1,
+      "wood": 1,
+      "ice": 1,
+      "sea": 1,
+      "gull": 1,
+      "salt": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "port": 2,
+      "hollow": 1,
+      "reach": 1,
+      "crest": 2,
+      "ridge": 1,
+      "watch": 2,
+      "fall": 1,
+      "mark": 1,
+      "hold": 1,
+      "end": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Frostport",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [
+          "port"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Pinehollow",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [
+          "hollow"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mirewatch",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [
+          "watch"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Timberfall",
+        "stems": [
+          "timber"
+        ],
+        "suffixes": [
+          "fall"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Greenfields",
+        "stems": [
+          "field"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Grassland"
+      },
+      {
+        "settlementId": "settlement-383-533-2",
+        "name": "Tidebreak",
+        "stems": [
+          "tide"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-304-385-2",
+        "name": "Deepwood",
+        "stems": [
+          "wood"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-38-206-3",
+        "name": "Icemark",
+        "stems": [
+          "ice"
+        ],
+        "suffixes": [
+          "mark"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-203-386-3",
+        "name": "Seawatch",
+        "stems": [
+          "sea"
+        ],
+        "suffixes": [
+          "watch"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-355-274-3",
+        "name": "Gullwing",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-222-248-3",
+        "name": "Saltend",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [
+          "end"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:13:57.903Z"
+}

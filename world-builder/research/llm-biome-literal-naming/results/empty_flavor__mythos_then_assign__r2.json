@@ -1,0 +1,104 @@
+{
+  "id": "empty_flavor__mythos_then_assign__r2",
+  "variantId": "mythos_then_assign",
+  "label": "Invent a mythos list first, then assign",
+  "tag": "empty_flavor",
+  "rep": 2,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10618,
+  "latencyMs": 5399,
+  "responseChars": 4194,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Krov",
+      "settlement-240-197-1": "Vane",
+      "settlement-179-349-1": "Skiff",
+      "settlement-133-296-1": "Grog",
+      "settlement-249-512-1": "Marrow",
+      "settlement-351-149-1": "Brine",
+      "settlement-269-325-1": "Scurv",
+      "settlement-307-236-1": "Hook",
+      "settlement-164-215-1": "Pike",
+      "settlement-179-427-2": "Plank",
+      "settlement-212-486-2": "Dredge",
+      "settlement-431-508-2": "Swab",
+      "settlement-110-346-2": "Spar",
+      "settlement-95-378-2": "Keel",
+      "settlement-383-533-2": "Gale",
+      "settlement-304-385-2": "Ruff",
+      "settlement-333-90-2": "Warp",
+      "settlement-347-189-2": "Bilge",
+      "settlement-213-175-2": "Flint",
+      "settlement-38-206-3": "Cut",
+      "settlement-120-198-3": "Sunder",
+      "settlement-13-341-3": "Ruse",
+      "settlement-83-286-3": "Gouge",
+      "settlement-203-386-3": "Sly",
+      "settlement-355-274-3": "Shack",
+      "settlement-371-445-3": "Tack",
+      "settlement-668-488-3": "Patch",
+      "settlement-222-248-3": "Yoke"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Black Wake",
+      "faction-settlement-249-512-1-apoikia": "Blood Reef Syndicate",
+      "faction-settlement-383-533-2-apoikia": "Skulls of the Deep",
+      "faction-settlement-355-274-3-apoikia": "Corsair Cabal",
+      "faction-settlement-668-488-3-apoikia": "Ironhook League",
+      "faction-settlement-240-197-1-spawn-3": "Gallows Kin",
+      "faction-settlement-179-349-1-spawn-3": "Scourge Armada",
+      "faction-settlement-133-296-1-spawn-3": "Dagger Claws",
+      "faction-settlement-351-149-1-spawn-3": "Cutlass Brotherhood",
+      "faction-settlement-269-325-1-spawn-3": "Salt-Tooth Pact",
+      "faction-settlement-307-236-1-spawn-3": "Marauder Enclave",
+      "faction-settlement-164-215-1-spawn-3": "Grave-Tide Swarm"
+    }
+  },
+  "sampleNames": [
+    "Krov",
+    "Vane",
+    "Skiff",
+    "Grog",
+    "Marrow",
+    "Brine",
+    "Scurv",
+    "Hook",
+    "Pike",
+    "Plank",
+    "Dredge",
+    "Swab"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 1,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "brine": 1
+    },
+    "suffixFrequency": {
+      "edge": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-351-149-1",
+        "name": "Brine",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:09:43.887Z"
+}

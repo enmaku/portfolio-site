@@ -1,0 +1,106 @@
+{
+  "id": "blank_writeup__no_anti_literal__r2",
+  "variantId": "no_anti_literal",
+  "label": "No anti-literal lines (antirepeat only)",
+  "tag": "blank_writeup",
+  "rep": 2,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11037,
+  "latencyMs": 7968,
+  "responseChars": 7349,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Beleriand",
+      "settlement-240-197-1": "Corvallis",
+      "settlement-179-349-1": "Etheldred",
+      "settlement-133-296-1": "Vandemar",
+      "settlement-249-512-1": "Oakhaven",
+      "settlement-351-149-1": "Jovian",
+      "settlement-269-325-1": "Lysander",
+      "settlement-307-236-1": "Solitude",
+      "settlement-164-215-1": "Gideon",
+      "settlement-179-427-2": "Meridien",
+      "settlement-212-486-2": "Aethelgard",
+      "settlement-431-508-2": "Highmount",
+      "settlement-110-346-2": "Orlov",
+      "settlement-95-378-2": "Veritas",
+      "settlement-383-533-2": "Maris",
+      "settlement-304-385-2": "Kaldor",
+      "settlement-333-90-2": "Boreas",
+      "settlement-347-189-2": "Calais",
+      "settlement-213-175-2": "Haverford",
+      "settlement-38-206-3": "Zalator",
+      "settlement-120-198-3": "Ostia",
+      "settlement-13-341-3": "Dumar",
+      "settlement-83-286-3": "Sylvania",
+      "settlement-203-386-3": "Thessaly",
+      "settlement-355-274-3": "Belmont",
+      "settlement-371-445-3": "Valen",
+      "settlement-668-488-3": "Toulon",
+      "settlement-222-248-3": "Rhodes"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "House Beleriand",
+      "faction-settlement-249-512-1-apoikia": "Oakhaven League",
+      "faction-settlement-383-533-2-apoikia": "Maris Syndicate",
+      "faction-settlement-355-274-3-apoikia": "Belmont Coalition",
+      "faction-settlement-668-488-3-apoikia": "Toulon Mandate",
+      "faction-settlement-240-197-1-spawn-3": "Corvallis Dominion",
+      "faction-settlement-179-349-1-spawn-3": "Etheldred Crown",
+      "faction-settlement-133-296-1-spawn-3": "Vandemar Compact",
+      "faction-settlement-351-149-1-spawn-3": "Jovian Republic",
+      "faction-settlement-269-325-1-spawn-3": "Lysander Protectorate",
+      "faction-settlement-307-236-1-spawn-3": "Solitude Directorate",
+      "faction-settlement-164-215-1-spawn-3": "Gideon Assembly"
+    }
+  },
+  "sampleNames": [
+    "Beleriand",
+    "Corvallis",
+    "Etheldred",
+    "Vandemar",
+    "Oakhaven",
+    "Jovian",
+    "Lysander",
+    "Solitude",
+    "Gideon",
+    "Meridien",
+    "Aethelgard",
+    "Highmount"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 1,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1
+    },
+    "suffixFrequency": {
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-249-512-1",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:18:58.329Z"
+}

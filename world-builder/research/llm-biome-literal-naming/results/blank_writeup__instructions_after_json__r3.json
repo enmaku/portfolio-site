@@ -1,0 +1,106 @@
+{
+  "id": "blank_writeup__instructions_after_json__r3",
+  "variantId": "instructions_after_json",
+  "label": "Anti-literal instructions AFTER the JSON (recency)",
+  "tag": "blank_writeup",
+  "rep": 3,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11120,
+  "latencyMs": 8913,
+  "responseChars": 7905,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Aurelia",
+      "settlement-240-197-1": "Karn",
+      "settlement-179-349-1": "Jorund",
+      "settlement-133-296-1": "Oakhaven",
+      "settlement-249-512-1": "Belisarius",
+      "settlement-351-149-1": "Vond",
+      "settlement-269-325-1": "Corinth",
+      "settlement-307-236-1": "Maris",
+      "settlement-164-215-1": "Doric",
+      "settlement-179-427-2": "Hester",
+      "settlement-212-486-2": "Meridian",
+      "settlement-431-508-2": "Althea",
+      "settlement-110-346-2": "Gideon",
+      "settlement-95-378-2": "Cyrus",
+      "settlement-383-533-2": "Thalassa",
+      "settlement-304-385-2": "Nesta",
+      "settlement-333-90-2": "Varus",
+      "settlement-347-189-2": "Orlov",
+      "settlement-213-175-2": "Soll",
+      "settlement-38-206-3": "Balthar",
+      "settlement-120-198-3": "Sybilla",
+      "settlement-13-341-3": "Tallis",
+      "settlement-83-286-3": "Morrow",
+      "settlement-203-386-3": "Evelyn",
+      "settlement-355-274-3": "Demetrius",
+      "settlement-371-445-3": "Kassia",
+      "settlement-668-488-3": "Zephyr",
+      "settlement-222-248-3": "Rhea"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Aurelian Dominion",
+      "faction-settlement-249-512-1-apoikia": "The Belisarian League",
+      "faction-settlement-383-533-2-apoikia": "Thalassian Concord",
+      "faction-settlement-355-274-3-apoikia": "Demetrian Ascendancy",
+      "faction-settlement-668-488-3-apoikia": "Zephyrian Republic",
+      "faction-settlement-240-197-1-spawn-3": "Karnate Remnant",
+      "faction-settlement-179-349-1-spawn-3": "Jorund Freehold",
+      "faction-settlement-133-296-1-spawn-3": "Oakhaven Sovereignty",
+      "faction-settlement-351-149-1-spawn-3": "Vondic Protectorate",
+      "faction-settlement-269-325-1-spawn-3": "Corinthian Coalition",
+      "faction-settlement-307-236-1-spawn-3": "Marisian Syndicate",
+      "faction-settlement-164-215-1-spawn-3": "Doric Directorate"
+    }
+  },
+  "sampleNames": [
+    "Aurelia",
+    "Karn",
+    "Jorund",
+    "Oakhaven",
+    "Belisarius",
+    "Vond",
+    "Corinth",
+    "Maris",
+    "Doric",
+    "Hester",
+    "Meridian",
+    "Althea"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 1,
+    "calqueCount": 1,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.03571428571428571,
+    "calqueRate": 0.03571428571428571,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1
+    },
+    "suffixFrequency": {
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:21:40.361Z"
+}

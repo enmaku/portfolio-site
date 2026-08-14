@@ -1,0 +1,294 @@
+{
+  "id": "blank_writeup__no_anti_literal__r1",
+  "variantId": "no_anti_literal",
+  "label": "No anti-literal lines (antirepeat only)",
+  "tag": "blank_writeup",
+  "rep": 1,
+  "flavor": "",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11037,
+  "latencyMs": 7790,
+  "responseChars": 6943,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Frostwatch",
+      "settlement-179-349-1": "Meridian",
+      "settlement-133-296-1": "Pineheart",
+      "settlement-249-512-1": "Aethelgard",
+      "settlement-351-149-1": "Whitepeak",
+      "settlement-269-325-1": "Vail",
+      "settlement-307-236-1": "Orcrest",
+      "settlement-164-215-1": "Grimwald",
+      "settlement-179-427-2": "Highridge",
+      "settlement-212-486-2": "Blackmire",
+      "settlement-431-508-2": "Sunder",
+      "settlement-110-346-2": "Deepwood",
+      "settlement-95-378-2": "Greenfield",
+      "settlement-383-533-2": "Stormwatch",
+      "settlement-304-385-2": "Silverspine",
+      "settlement-333-90-2": "Borealis",
+      "settlement-347-189-2": "Crestview",
+      "settlement-213-175-2": "Bayport",
+      "settlement-38-206-3": "Winterfell",
+      "settlement-120-198-3": "Glacius",
+      "settlement-13-341-3": "Timberline",
+      "settlement-83-286-3": "Woodend",
+      "settlement-203-386-3": "Seaview",
+      "settlement-355-274-3": "Suncrest",
+      "settlement-371-445-3": "Riverbend",
+      "settlement-668-488-3": "Wavecrest",
+      "settlement-222-248-3": "Tidefall"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Sovereign Realm",
+      "faction-settlement-249-512-1-apoikia": "The Aethelgard League",
+      "faction-settlement-383-533-2-apoikia": "Stormwatch Protectorate",
+      "faction-settlement-355-274-3-apoikia": "Suncrest Dominion",
+      "faction-settlement-668-488-3-apoikia": "Wavecrest Concord",
+      "faction-settlement-240-197-1-spawn-3": "Frostwatch Coalition",
+      "faction-settlement-179-349-1-spawn-3": "Meridian Union",
+      "faction-settlement-133-296-1-spawn-3": "Pineheart Alliance",
+      "faction-settlement-351-149-1-spawn-3": "Whitepeak Assembly",
+      "faction-settlement-269-325-1-spawn-3": "Vail Federation",
+      "faction-settlement-307-236-1-spawn-3": "Orcrest League",
+      "faction-settlement-164-215-1-spawn-3": "Grimwald Accord"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Frostwatch",
+    "Meridian",
+    "Pineheart",
+    "Aethelgard",
+    "Whitepeak",
+    "Vail",
+    "Orcrest",
+    "Grimwald",
+    "Highridge",
+    "Blackmire",
+    "Sunder"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 15,
+    "suffixHitCount": 13,
+    "calqueCount": 8,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.5357142857142857,
+    "suffixHitRate": 0.4642857142857143,
+    "calqueRate": 0.2857142857142857,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1,
+      "frost": 1,
+      "pine": 2,
+      "peak": 1,
+      "mire": 1,
+      "wood": 2,
+      "field": 1,
+      "winter": 1,
+      "timber": 1,
+      "sea": 1,
+      "river": 1,
+      "wave": 1,
+      "tide": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "watch": 2,
+      "heart": 1,
+      "crest": 3,
+      "ridge": 1,
+      "field": 1,
+      "port": 1,
+      "end": 2,
+      "fall": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Frostwatch",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [
+          "watch"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Pineheart",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [
+          "heart"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-351-149-1",
+        "name": "Whitepeak",
+        "stems": [
+          "peak"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Blackmire",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Deepwood",
+        "stems": [
+          "wood"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Greenfield",
+        "stems": [
+          "field"
+        ],
+        "suffixes": [
+          "field"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Grassland"
+      },
+      {
+        "settlementId": "settlement-304-385-2",
+        "name": "Silverspine",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-38-206-3",
+        "name": "Winterfell",
+        "stems": [
+          "winter"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-13-341-3",
+        "name": "Timberline",
+        "stems": [
+          "timber"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-83-286-3",
+        "name": "Woodend",
+        "stems": [
+          "wood"
+        ],
+        "suffixes": [
+          "end"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-203-386-3",
+        "name": "Seaview",
+        "stems": [
+          "sea"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-371-445-3",
+        "name": "Riverbend",
+        "stems": [
+          "river"
+        ],
+        "suffixes": [
+          "end"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-668-488-3",
+        "name": "Wavecrest",
+        "stems": [
+          "wave"
+        ],
+        "suffixes": [
+          "crest"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-222-248-3",
+        "name": "Tidefall",
+        "stems": [
+          "tide"
+        ],
+        "suffixes": [
+          "fall"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:18:42.360Z"
+}

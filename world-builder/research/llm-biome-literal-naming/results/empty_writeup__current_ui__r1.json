@@ -1,0 +1,132 @@
+{
+  "id": "empty_writeup__current_ui__r1",
+  "variantId": "current_ui",
+  "label": "Current live UI soft anti-literal wording",
+  "tag": "empty_writeup",
+  "rep": 1,
+  "flavor": "pirates",
+  "includeRegionWriteup": true,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 11037,
+  "latencyMs": 8752,
+  "responseChars": 8129,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Tortuga's Reach",
+      "settlement-240-197-1": "Galleon's End",
+      "settlement-179-349-1": "Blackflag Bay",
+      "settlement-133-296-1": "Corsair's Perch",
+      "settlement-249-512-1": "Marauder's Reach",
+      "settlement-351-149-1": "Scallywag Cove",
+      "settlement-269-325-1": "Buccaneer's Bluff",
+      "settlement-307-236-1": "Privateer's Point",
+      "settlement-164-215-1": "Cutlass Hook",
+      "settlement-179-427-2": "Smuggler's Notch",
+      "settlement-212-486-2": "Freebooter's Mire",
+      "settlement-431-508-2": "Plunderer's Ridge",
+      "settlement-110-346-2": "Roamer's Reach",
+      "settlement-95-378-2": "Raider's Meadow",
+      "settlement-383-533-2": "Sea-Rover's Rest",
+      "settlement-304-385-2": "Picaroon's Pier",
+      "settlement-333-90-2": "Freebooter's Hold",
+      "settlement-347-189-2": "Ketch's Landing",
+      "settlement-213-175-2": "Sloop's Spit",
+      "settlement-38-206-3": "Brigantine's Bluff",
+      "settlement-120-198-3": "Frigate's Folly",
+      "settlement-13-341-3": "Privateer's Pitch",
+      "settlement-83-286-3": "Corsair's Keep",
+      "settlement-203-386-3": "Marauder's Mugs",
+      "settlement-355-274-3": "Scoundrel's Sound",
+      "settlement-371-445-3": "Bounty Bay",
+      "settlement-668-488-3": "Plunder's Pride",
+      "settlement-222-248-3": "Swabber's Spit"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Brotherhood of the Black Flag",
+      "faction-settlement-249-512-1-apoikia": "The Crimson League",
+      "faction-settlement-383-533-2-apoikia": "The Saltwater Syndicate",
+      "faction-settlement-355-274-3-apoikia": "The Skull and Crossbones Assembly",
+      "faction-settlement-668-488-3-apoikia": "The Corsair Conclave",
+      "faction-settlement-240-197-1-spawn-3": "The Frozen Plunderers",
+      "faction-settlement-179-349-1-spawn-3": "The Rogue Wave Syndicate",
+      "faction-settlement-133-296-1-spawn-3": "The Timber Corsair Guild",
+      "faction-settlement-351-149-1-spawn-3": "The Icebound Marauders",
+      "faction-settlement-269-325-1-spawn-3": "The Deep Sea Corsairs",
+      "faction-settlement-307-236-1-spawn-3": "The Horizon Raiders",
+      "faction-settlement-164-215-1-spawn-3": "The Frostbite Freebooters"
+    }
+  },
+  "sampleNames": [
+    "Tortuga's Reach",
+    "Galleon's End",
+    "Blackflag Bay",
+    "Corsair's Perch",
+    "Marauder's Reach",
+    "Scallywag Cove",
+    "Buccaneer's Bluff",
+    "Privateer's Point",
+    "Cutlass Hook",
+    "Smuggler's Notch",
+    "Freebooter's Mire",
+    "Plunderer's Ridge"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 3,
+    "suffixHitCount": 7,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.10714285714285714,
+    "suffixHitRate": 0.25,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "mire": 1,
+      "meadow": 1,
+      "sea": 1
+    },
+    "suffixFrequency": {
+      "reach": 3,
+      "end": 1,
+      "point": 1,
+      "ridge": 1,
+      "hold": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Freebooter's Mire",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-95-378-2",
+        "name": "Raider's Meadow",
+        "stems": [
+          "meadow"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Grassland"
+      },
+      {
+        "settlementId": "settlement-383-533-2",
+        "name": "Sea-Rover's Rest",
+        "stems": [
+          "sea"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:12:53.444Z"
+}

@@ -1,0 +1,100 @@
+{
+  "id": "combined_hard_after_json__r3",
+  "variantId": "combined_hard_after_json",
+  "label": "Hard forbid + quota + after JSON",
+  "rep": 3,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10653,
+  "latencyMs": 5103,
+  "responseChars": 4219,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Jark",
+      "settlement-240-197-1": "Vane",
+      "settlement-179-349-1": "Krag",
+      "settlement-133-296-1": "Ock",
+      "settlement-249-512-1": "Zul",
+      "settlement-351-149-1": "Skiff",
+      "settlement-269-325-1": "Brim",
+      "settlement-307-236-1": "Chet",
+      "settlement-164-215-1": "Morn",
+      "settlement-179-427-2": "Grist",
+      "settlement-212-486-2": "Scur",
+      "settlement-431-508-2": "Pike",
+      "settlement-110-346-2": "Rix",
+      "settlement-95-378-2": "Dreg",
+      "settlement-383-533-2": "Flint",
+      "settlement-304-385-2": "Wreck",
+      "settlement-333-90-2": "Slob",
+      "settlement-347-189-2": "Gaff",
+      "settlement-213-175-2": "Knarr",
+      "settlement-38-206-3": "Zorn",
+      "settlement-120-198-3": "Bight",
+      "settlement-13-341-3": "Fathom",
+      "settlement-83-286-3": "Plunder",
+      "settlement-203-386-3": "Keel",
+      "settlement-355-274-3": "Scour",
+      "settlement-371-445-3": "Bilge",
+      "settlement-668-488-3": "Scurf",
+      "settlement-222-248-3": "Gull"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Black Banner Syndicate",
+      "faction-settlement-249-512-1-apoikia": "Cutthroat Coalition",
+      "faction-settlement-383-533-2-apoikia": "Gallows Brotherhood",
+      "faction-settlement-355-274-3-apoikia": "Crimson Armada",
+      "faction-settlement-668-488-3-apoikia": "Scrap-Scull League",
+      "faction-settlement-240-197-1-spawn-3": "Frostbite Mutineers",
+      "faction-settlement-179-349-1-spawn-3": "Deadman's Reaches",
+      "faction-settlement-133-296-1-spawn-3": "Rogue Galleon Fleet",
+      "faction-settlement-351-149-1-spawn-3": "Salt-Scourge Guild",
+      "faction-settlement-269-325-1-spawn-3": "Corsair Cabal",
+      "faction-settlement-307-236-1-spawn-3": "Dunkirk Scuttlers",
+      "faction-settlement-164-215-1-spawn-3": "Plunder-Kin"
+    }
+  },
+  "sampleNames": [
+    "Jark",
+    "Vane",
+    "Krag",
+    "Ock",
+    "Zul",
+    "Skiff",
+    "Brim",
+    "Chet",
+    "Morn",
+    "Grist",
+    "Scur",
+    "Pike"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 0,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "gull": 1
+    },
+    "suffixFrequency": {},
+    "flagged": [
+      {
+        "settlementId": "settlement-222-248-3",
+        "name": "Gull",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:05:15.402Z"
+}

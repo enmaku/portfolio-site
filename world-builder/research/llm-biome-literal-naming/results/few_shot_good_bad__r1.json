@@ -1,0 +1,142 @@
+{
+  "id": "few_shot_good_bad__r1",
+  "variantId": "few_shot_good_bad",
+  "label": "Few-shot good vs bad examples",
+  "rep": 1,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10646,
+  "latencyMs": 5378,
+  "responseChars": 4464,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Captain’s Teeth",
+      "settlement-240-197-1": "Frostbite Cove",
+      "settlement-179-349-1": "Rogue’s Landing",
+      "settlement-133-296-1": "Black-Gale Reach",
+      "settlement-249-512-1": "Dead Man’s Eye",
+      "settlement-351-149-1": "Scurvy Point",
+      "settlement-269-325-1": "Cutlass Bay",
+      "settlement-307-236-1": "Salt-Stain Jetty",
+      "settlement-164-215-1": "Marauder’s Hold",
+      "settlement-179-427-2": "Smuggler’s Rest",
+      "settlement-212-486-2": "Mire-Cask",
+      "settlement-431-508-2": "Rumrunner’s Bluff",
+      "settlement-110-346-2": "Brine-Tooth",
+      "settlement-95-378-2": "Grog Alley",
+      "settlement-383-533-2": "Scourge Horizon",
+      "settlement-304-385-2": "Keelhaul",
+      "settlement-333-90-2": "Gallows Spit",
+      "settlement-347-189-2": "Kraken’s Bait",
+      "settlement-213-175-2": "False Reef",
+      "settlement-38-206-3": "Bilgewater",
+      "settlement-120-198-3": "Barnacle Rock",
+      "settlement-13-341-3": "Parrot’s Perch",
+      "settlement-83-286-3": "Anchorless",
+      "settlement-203-386-3": "Swabber’s Hollow",
+      "settlement-355-274-3": "Siren’s Call",
+      "settlement-371-445-3": "Doubloon",
+      "settlement-668-488-3": "Privateer’s Haven",
+      "settlement-222-248-3": "Jolly Roger"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "League of the Black Flag",
+      "faction-settlement-383-533-2-apoikia": "Corsair Syndicate",
+      "faction-settlement-355-274-3-apoikia": "The Scourge Coast",
+      "faction-settlement-668-488-3-apoikia": "Brotherhood of the Deep",
+      "faction-settlement-240-197-1-spawn-3": "Frost-Bitten Corsairs",
+      "faction-settlement-179-349-1-spawn-3": "Rebel Sail",
+      "faction-settlement-133-296-1-spawn-3": "Gale-Force Coalition",
+      "faction-settlement-351-149-1-spawn-3": "Icebound Raiders",
+      "faction-settlement-269-325-1-spawn-3": "The Cutlass Republic",
+      "faction-settlement-307-236-1-spawn-3": "Salt-Tide Lords",
+      "faction-settlement-164-215-1-spawn-3": "Tundra Freebooters"
+    }
+  },
+  "sampleNames": [
+    "Captain’s Teeth",
+    "Frostbite Cove",
+    "Rogue’s Landing",
+    "Black-Gale Reach",
+    "Dead Man’s Eye",
+    "Scurvy Point",
+    "Cutlass Bay",
+    "Salt-Stain Jetty",
+    "Marauder’s Hold",
+    "Smuggler’s Rest",
+    "Mire-Cask",
+    "Rumrunner’s Bluff"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 4,
+    "suffixHitCount": 5,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.14285714285714285,
+    "suffixHitRate": 0.17857142857142858,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "frost": 1,
+      "salt": 1,
+      "mire": 1,
+      "brine": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "point": 1,
+      "hold": 1,
+      "hollow": 1,
+      "haven": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Frostbite Cove",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-307-236-1",
+        "name": "Salt-Stain Jetty",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mire-Cask",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Brine-Tooth",
+        "stems": [
+          "brine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T18:58:52.503Z"
+}

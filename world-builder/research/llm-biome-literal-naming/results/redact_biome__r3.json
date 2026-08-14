@@ -1,0 +1,105 @@
+{
+  "id": "redact_biome__r3",
+  "variantId": "redact_biome",
+  "label": "Biome field redacted to [redacted]",
+  "rep": 3,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10588,
+  "latencyMs": 5506,
+  "responseChars": 4340,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Port Scar",
+      "settlement-240-197-1": "Cutlass Reach",
+      "settlement-179-349-1": "Grog End",
+      "settlement-133-296-1": "Scurvy Bay",
+      "settlement-249-512-1": "Deadman's Cove",
+      "settlement-351-149-1": "Ketch Hole",
+      "settlement-269-325-1": "Smuggler's Hook",
+      "settlement-307-236-1": "Black Flag",
+      "settlement-164-215-1": "Rum Row",
+      "settlement-179-427-2": "Plunder Point",
+      "settlement-212-486-2": "Bilge Water",
+      "settlement-431-508-2": "Kraken's Jaw",
+      "settlement-110-346-2": "Sharksfin",
+      "settlement-95-378-2": "Tricorn",
+      "settlement-383-533-2": "Gallows Spit",
+      "settlement-304-385-2": "Anchorfall",
+      "settlement-333-90-2": "Barnacle",
+      "settlement-347-189-2": "Davy's Locker",
+      "settlement-213-175-2": "Gunpowder",
+      "settlement-38-206-3": "Saltpeter",
+      "settlement-120-198-3": "Mutiny",
+      "settlement-13-341-3": "Brigantine",
+      "settlement-83-286-3": "Crowsnest",
+      "settlement-203-386-3": "Freeboot",
+      "settlement-355-274-3": "Capstan",
+      "settlement-371-445-3": "Privateer",
+      "settlement-668-488-3": "Sextant",
+      "settlement-222-248-3": "Swab"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Armada",
+      "faction-settlement-249-512-1-apoikia": "Scourge Syndicate",
+      "faction-settlement-383-533-2-apoikia": "Brethren of the Coast",
+      "faction-settlement-355-274-3-apoikia": "Blackwake League",
+      "faction-settlement-668-488-3-apoikia": "Dread Corsairs",
+      "faction-settlement-240-197-1-spawn-3": "Mutineer Conclave",
+      "faction-settlement-179-349-1-spawn-3": "Rogue Galleons",
+      "faction-settlement-133-296-1-spawn-3": "Salt-Tooth Pact",
+      "faction-settlement-351-149-1-spawn-3": "Freebooter Union",
+      "faction-settlement-269-325-1-spawn-3": "Scurvy Lords",
+      "faction-settlement-307-236-1-spawn-3": "Skull and Bone",
+      "faction-settlement-164-215-1-spawn-3": "Grog-Hounds"
+    }
+  },
+  "sampleNames": [
+    "Port Scar",
+    "Cutlass Reach",
+    "Grog End",
+    "Scurvy Bay",
+    "Deadman's Cove",
+    "Ketch Hole",
+    "Smuggler's Hook",
+    "Black Flag",
+    "Rum Row",
+    "Plunder Point",
+    "Bilge Water",
+    "Kraken's Jaw"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 4,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.14285714285714285,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "salt": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "end": 1,
+      "point": 1,
+      "fall": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-38-206-3",
+        "name": "Saltpeter",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:03:56.344Z"
+}

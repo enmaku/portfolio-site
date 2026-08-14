@@ -1,0 +1,103 @@
+{
+  "id": "mythos_then_assign__r1",
+  "variantId": "mythos_then_assign",
+  "label": "Invent a mythos list first, then assign",
+  "rep": 1,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10618,
+  "latencyMs": 5105,
+  "responseChars": 4118,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Krag",
+      "settlement-240-197-1": "Skiff",
+      "settlement-179-349-1": "Grog",
+      "settlement-133-296-1": "Brim",
+      "settlement-249-512-1": "Vane",
+      "settlement-351-149-1": "Zorn",
+      "settlement-269-325-1": "Glint",
+      "settlement-307-236-1": "Scab",
+      "settlement-164-215-1": "Flint",
+      "settlement-179-427-2": "Hag",
+      "settlement-212-486-2": "Scurf",
+      "settlement-431-508-2": "Bilge",
+      "settlement-110-346-2": "Mire",
+      "settlement-95-378-2": "Thrum",
+      "settlement-383-533-2": "Rack",
+      "settlement-304-385-2": "Plank",
+      "settlement-333-90-2": "Hook",
+      "settlement-347-189-2": "Sly",
+      "settlement-213-175-2": "Dredge",
+      "settlement-38-206-3": "Chum",
+      "settlement-120-198-3": "Knot",
+      "settlement-13-341-3": "Gaff",
+      "settlement-83-286-3": "Swill",
+      "settlement-203-386-3": "Mast",
+      "settlement-355-274-3": "Rend",
+      "settlement-371-445-3": "Silt",
+      "settlement-668-488-3": "Gore",
+      "settlement-222-248-3": "Tack"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "Bloody Hand",
+      "faction-settlement-249-512-1-apoikia": "Salt Fleet",
+      "faction-settlement-383-533-2-apoikia": "Black Flag",
+      "faction-settlement-355-274-3-apoikia": "Iron Keel",
+      "faction-settlement-668-488-3-apoikia": "Scourge",
+      "faction-settlement-240-197-1-spawn-3": "Ghost Sail",
+      "faction-settlement-179-349-1-spawn-3": "Dead Man",
+      "faction-settlement-133-296-1-spawn-3": "Tide Lord",
+      "faction-settlement-351-149-1-spawn-3": "Shark Skin",
+      "faction-settlement-269-325-1-spawn-3": "Bone Deck",
+      "faction-settlement-307-236-1-spawn-3": "Wave Cutter",
+      "faction-settlement-164-215-1-spawn-3": "Red Wake"
+    }
+  },
+  "sampleNames": [
+    "Krag",
+    "Skiff",
+    "Grog",
+    "Brim",
+    "Vane",
+    "Zorn",
+    "Glint",
+    "Scab",
+    "Flint",
+    "Hag",
+    "Scurf",
+    "Bilge"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 2,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.07142857142857142,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "mire": 1
+    },
+    "suffixFrequency": {
+      "edge": 1,
+      "end": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-110-346-2",
+        "name": "Mire",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T18:59:30.940Z"
+}

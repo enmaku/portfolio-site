@@ -1,0 +1,182 @@
+{
+  "id": "blank_flavor__current_ui__r2",
+  "variantId": "current_ui",
+  "label": "Current live UI soft anti-literal wording",
+  "tag": "blank_flavor",
+  "rep": 2,
+  "flavor": "",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10690,
+  "latencyMs": 4884,
+  "responseChars": 4285,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Oakhaven",
+      "settlement-240-197-1": "Frostwatch",
+      "settlement-179-349-1": "Meridian",
+      "settlement-133-296-1": "Pinefall",
+      "settlement-249-512-1": "Aethelgard",
+      "settlement-351-149-1": "Borealis",
+      "settlement-269-325-1": "Sunder",
+      "settlement-307-236-1": "Coronis",
+      "settlement-164-215-1": "Thule",
+      "settlement-179-427-2": "Highridge",
+      "settlement-212-486-2": "Mireend",
+      "settlement-431-508-2": "Verid",
+      "settlement-110-346-2": "Kallos",
+      "settlement-95-378-2": "Valen",
+      "settlement-383-533-2": "Duneside",
+      "settlement-304-385-2": "Silvershore",
+      "settlement-333-90-2": "Hallowell",
+      "settlement-347-189-2": "Emberton",
+      "settlement-213-175-2": "Redport",
+      "settlement-38-206-3": "Greyhold",
+      "settlement-120-198-3": "Stormreach",
+      "settlement-13-341-3": "Blackwood",
+      "settlement-83-286-3": "Deepvale",
+      "settlement-203-386-3": "Suncrest",
+      "settlement-355-274-3": "Clearwater",
+      "settlement-371-445-3": "Westreach",
+      "settlement-668-488-3": "Grandport",
+      "settlement-222-248-3": "Lowen"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Aurelian Dominion",
+      "faction-settlement-249-512-1-apoikia": "Cormorant League",
+      "faction-settlement-383-533-2-apoikia": "House Vane",
+      "faction-settlement-355-274-3-apoikia": "The Sunken Crown",
+      "faction-settlement-668-488-3-apoikia": "Iron Coast Syndicate",
+      "faction-settlement-240-197-1-spawn-3": "Boreal Tribes",
+      "faction-settlement-179-349-1-spawn-3": "Meridian Concord",
+      "faction-settlement-133-296-1-spawn-3": "Sylvan Pact",
+      "faction-settlement-351-149-1-spawn-3": "Frostborn",
+      "faction-settlement-269-325-1-spawn-3": "Tidal Guard",
+      "faction-settlement-307-236-1-spawn-3": "Coronese Assembly",
+      "faction-settlement-164-215-1-spawn-3": "Thule Protectorate"
+    }
+  },
+  "sampleNames": [
+    "Oakhaven",
+    "Frostwatch",
+    "Meridian",
+    "Pinefall",
+    "Aethelgard",
+    "Borealis",
+    "Sunder",
+    "Coronis",
+    "Thule",
+    "Highridge",
+    "Mireend",
+    "Verid"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 6,
+    "suffixHitCount": 13,
+    "calqueCount": 4,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.21428571428571427,
+    "suffixHitRate": 0.4642857142857143,
+    "calqueRate": 0.14285714285714285,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "oak": 1,
+      "frost": 1,
+      "pine": 1,
+      "mire": 1,
+      "dune": 1,
+      "wood": 1
+    },
+    "suffixFrequency": {
+      "haven": 1,
+      "watch": 1,
+      "fall": 1,
+      "ridge": 1,
+      "end": 1,
+      "shore": 1,
+      "well": 1,
+      "port": 2,
+      "hold": 1,
+      "reach": 2,
+      "crest": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-founding-270-256",
+        "name": "Oakhaven",
+        "stems": [
+          "oak"
+        ],
+        "suffixes": [
+          "haven"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Frostwatch",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [
+          "watch"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Pinefall",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [
+          "fall"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mireend",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [
+          "end"
+        ],
+        "ownBiome": false,
+        "isCalque": true,
+        "biome": "Swamp"
+      },
+      {
+        "settlementId": "settlement-383-533-2",
+        "name": "Duneside",
+        "stems": [
+          "dune"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-13-341-3",
+        "name": "Blackwood",
+        "stems": [
+          "wood"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:13:18.065Z"
+}

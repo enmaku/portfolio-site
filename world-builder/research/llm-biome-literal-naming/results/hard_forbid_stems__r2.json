@@ -1,0 +1,104 @@
+{
+  "id": "hard_forbid_stems__r2",
+  "variantId": "hard_forbid_stems",
+  "label": "Hard forbid listed biome/trade stems in any name",
+  "rep": 2,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10674,
+  "latencyMs": 5513,
+  "responseChars": 4499,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Tortuga's Tooth",
+      "settlement-240-197-1": "Deadman's Drop",
+      "settlement-179-349-1": "Cutthroat Cay",
+      "settlement-133-296-1": "Galleon's Graveyard",
+      "settlement-249-512-1": "Blackbeard's Bastion",
+      "settlement-351-149-1": "Skulls Reach",
+      "settlement-269-325-1": "Rogue's Reef",
+      "settlement-307-236-1": "Marauder's Mizzen",
+      "settlement-164-215-1": "Scurvy Spit",
+      "settlement-179-427-2": "Buccaneer's Bluff",
+      "settlement-212-486-2": "Corsair's Cove",
+      "settlement-431-508-2": "Plunder Point",
+      "settlement-110-346-2": "Privateer's Perch",
+      "settlement-95-378-2": "Smuggler's Spite",
+      "settlement-383-533-2": "Keelhaul Key",
+      "settlement-304-385-2": "Mutiny's Mock",
+      "settlement-333-90-2": "Cutlass Crag",
+      "settlement-347-189-2": "Rumrunner's Rock",
+      "settlement-213-175-2": "Brigantine's Berth",
+      "settlement-38-206-3": "Sloop's Slip",
+      "settlement-120-198-3": "Scourge's Sound",
+      "settlement-13-341-3": "Powder Keg",
+      "settlement-83-286-3": "Scuttle Spire",
+      "settlement-203-386-3": "Anchor's Agony",
+      "settlement-355-274-3": "Shark's Snout",
+      "settlement-371-445-3": "Swashbuckler's Step",
+      "settlement-668-488-3": "Flintlock's Fall",
+      "settlement-222-248-3": "Kraken's Kiss"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Brotherhood",
+      "faction-settlement-249-512-1-apoikia": "Scourge Syndicate",
+      "faction-settlement-383-533-2-apoikia": "Freebooter Coalition",
+      "faction-settlement-355-274-3-apoikia": "Black Flag Confederacy",
+      "faction-settlement-668-488-3-apoikia": "Reaver Armada",
+      "faction-settlement-240-197-1-spawn-3": "Cutthroat Assembly",
+      "faction-settlement-179-349-1-spawn-3": "Marauder Concord",
+      "faction-settlement-133-296-1-spawn-3": "Corsair Union",
+      "faction-settlement-351-149-1-spawn-3": "Smuggler Guild",
+      "faction-settlement-269-325-1-spawn-3": "Plunderer League",
+      "faction-settlement-307-236-1-spawn-3": "Buccaneer Council",
+      "faction-settlement-164-215-1-spawn-3": "Privateer Dominion"
+    }
+  },
+  "sampleNames": [
+    "Tortuga's Tooth",
+    "Deadman's Drop",
+    "Cutthroat Cay",
+    "Galleon's Graveyard",
+    "Blackbeard's Bastion",
+    "Skulls Reach",
+    "Rogue's Reef",
+    "Marauder's Mizzen",
+    "Scurvy Spit",
+    "Buccaneer's Bluff",
+    "Corsair's Cove",
+    "Plunder Point"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 3,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.10714285714285714,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "crag": 1
+    },
+    "suffixFrequency": {
+      "reach": 1,
+      "point": 1,
+      "fall": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-333-90-2",
+        "name": "Cutlass Crag",
+        "stems": [
+          "crag"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T18:57:45.041Z"
+}

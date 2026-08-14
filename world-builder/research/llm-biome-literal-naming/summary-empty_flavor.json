@@ -1,0 +1,131 @@
+{
+  "meta": {
+    "geographySeed": 42,
+    "prevailingWindDegrees": 90,
+    "defaultGeographySeedConstant": 0,
+    "epochSteps": 3,
+    "flavor": "pirates",
+    "epoch": 3,
+    "settlementCount": 28,
+    "factionCount": 12,
+    "rivalryEdgeCount": 4,
+    "foundingLanding": {
+      "x": 270,
+      "y": 256
+    },
+    "createdAt": "2026-08-13T11:03:36.888Z",
+    "tag": "empty_flavor",
+    "includeRegionWriteup": false,
+    "model": "gemini-3.5-flash-lite",
+    "cooldownMs": 8000,
+    "repeats": 3,
+    "scoring": "scoreBiomeLiteralNames heuristic"
+  },
+  "ranking": [
+    {
+      "id": "empty_flavor__mythos_then_assign",
+      "variantId": "mythos_then_assign",
+      "label": "Invent a mythos list first, then assign",
+      "tag": "empty_flavor",
+      "flavor": "pirates",
+      "includeRegionWriteup": false,
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.023809523809523808,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.011904761904761904
+    },
+    {
+      "id": "empty_flavor__person_event_mandate",
+      "variantId": "person_event_mandate",
+      "label": "Mandate person/event etymology for every name",
+      "tag": "empty_flavor",
+      "flavor": "pirates",
+      "includeRegionWriteup": false,
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.023809523809523808,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.14285714285714288
+    },
+    {
+      "id": "empty_flavor__soft_plus_hard",
+      "variantId": "soft_plus_hard",
+      "label": "Current soft lines + hard forbid stems",
+      "tag": "empty_flavor",
+      "flavor": "pirates",
+      "includeRegionWriteup": false,
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.023809523809523808,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.17857142857142858
+    },
+    {
+      "id": "empty_flavor__current_ui",
+      "variantId": "current_ui",
+      "label": "Current live UI soft anti-literal wording",
+      "tag": "empty_flavor",
+      "flavor": "pirates",
+      "includeRegionWriteup": false,
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.047619047619047616,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.2261904761904762
+    },
+    {
+      "id": "empty_flavor__hard_forbid_stems",
+      "variantId": "hard_forbid_stems",
+      "label": "Hard forbid listed biome/trade stems in any name",
+      "tag": "empty_flavor",
+      "flavor": "pirates",
+      "includeRegionWriteup": false,
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.059523809523809514,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.19047619047619047
+    },
+    {
+      "id": "empty_flavor__instructions_after_json",
+      "variantId": "instructions_after_json",
+      "label": "Anti-literal instructions AFTER the JSON (recency)",
+      "tag": "empty_flavor",
+      "flavor": "pirates",
+      "includeRegionWriteup": false,
+      "repeats": 3,
+      "meanCalqueRate": 0,
+      "meanStemHitRate": 0.059523809523809514,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.2857142857142857
+    },
+    {
+      "id": "empty_flavor__combined_hard_after_json",
+      "variantId": "combined_hard_after_json",
+      "label": "Hard forbid + quota + after JSON",
+      "tag": "empty_flavor",
+      "flavor": "pirates",
+      "includeRegionWriteup": false,
+      "repeats": 3,
+      "meanCalqueRate": 0.011904761904761904,
+      "meanStemHitRate": 0.03571428571428571,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.10714285714285714
+    },
+    {
+      "id": "empty_flavor__no_anti_literal",
+      "variantId": "no_anti_literal",
+      "label": "No anti-literal lines (antirepeat only)",
+      "tag": "empty_flavor",
+      "flavor": "pirates",
+      "includeRegionWriteup": false,
+      "repeats": 3,
+      "meanCalqueRate": 0.023809523809523808,
+      "meanStemHitRate": 0.32142857142857145,
+      "meanOwnBiomeEchoRate": 0,
+      "meanSuffixHitRate": 0.30952380952380953
+    }
+  ],
+  "createdAt": "2026-08-13T19:12:38.201Z"
+}

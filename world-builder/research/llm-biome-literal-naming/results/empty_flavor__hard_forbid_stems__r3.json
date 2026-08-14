@@ -1,0 +1,110 @@
+{
+  "id": "empty_flavor__hard_forbid_stems__r3",
+  "variantId": "hard_forbid_stems",
+  "label": "Hard forbid listed biome/trade stems in any name",
+  "tag": "empty_flavor",
+  "rep": 3,
+  "flavor": "pirates",
+  "includeRegionWriteup": false,
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10674,
+  "latencyMs": 5284,
+  "responseChars": 4509,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Capstan's End",
+      "settlement-240-197-1": "Deadman's Cay",
+      "settlement-179-349-1": "Cutlass Reach",
+      "settlement-133-296-1": "Smuggler's Notch",
+      "settlement-249-512-1": "Black-Flag Spire",
+      "settlement-351-149-1": "Scourge Point",
+      "settlement-269-325-1": "Kraken's Maw",
+      "settlement-307-236-1": "Rumrunner's Roost",
+      "settlement-164-215-1": "Gallows Spit",
+      "settlement-179-427-2": "Privateer's Bluff",
+      "settlement-212-486-2": "Marooner's Bay",
+      "settlement-431-508-2": "Scurvy Peak",
+      "settlement-110-346-2": "Plunder's Ridge",
+      "settlement-95-378-2": "Corsair's Drop",
+      "settlement-383-533-2": "Buccaneer's Bight",
+      "settlement-304-385-2": "Mutiny's Edge",
+      "settlement-333-90-2": "Pardoner's Rock",
+      "settlement-347-189-2": "Freebooter's Spit",
+      "settlement-213-175-2": "Picaroon's Cove",
+      "settlement-38-206-3": "Sloop's Rest",
+      "settlement-120-198-3": "Brigantine's Anchor",
+      "settlement-13-341-3": "Galleon's Graveyard",
+      "settlement-83-286-3": "Schooner's Hollow",
+      "settlement-203-386-3": "Cutter's Reef",
+      "settlement-355-274-3": "Corsair's Reach",
+      "settlement-371-445-3": "Privateer's Perch",
+      "settlement-668-488-3": "Smuggler's Spit",
+      "settlement-222-248-3": "Rover's Run"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Brotherhood",
+      "faction-settlement-249-512-1-apoikia": "Scourge Syndicate",
+      "faction-settlement-383-533-2-apoikia": "Black Flag Coalition",
+      "faction-settlement-355-274-3-apoikia": "Freebooter Concord",
+      "faction-settlement-668-488-3-apoikia": "Corsair Directorate",
+      "faction-settlement-240-197-1-spawn-3": "Marauder Cabal",
+      "faction-settlement-179-349-1-spawn-3": "Privateer League",
+      "faction-settlement-133-296-1-spawn-3": "Buccaneer Vanguard",
+      "faction-settlement-351-149-1-spawn-3": "Cutlass Collective",
+      "faction-settlement-269-325-1-spawn-3": "Reaver Alliance",
+      "faction-settlement-307-236-1-spawn-3": "Smuggler Assembly",
+      "faction-settlement-164-215-1-spawn-3": "Mutineer Dominion"
+    }
+  },
+  "sampleNames": [
+    "Capstan's End",
+    "Deadman's Cay",
+    "Cutlass Reach",
+    "Smuggler's Notch",
+    "Black-Flag Spire",
+    "Scourge Point",
+    "Kraken's Maw",
+    "Rumrunner's Roost",
+    "Gallows Spit",
+    "Privateer's Bluff",
+    "Marooner's Bay",
+    "Scurvy Peak"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 1,
+    "suffixHitCount": 8,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.03571428571428571,
+    "suffixHitRate": 0.2857142857142857,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "peak": 1
+    },
+    "suffixFrequency": {
+      "end": 1,
+      "reach": 2,
+      "point": 1,
+      "ridge": 1,
+      "edge": 1,
+      "hollow": 1,
+      "run": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-431-508-2",
+        "name": "Scurvy Peak",
+        "stems": [
+          "peak"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Hills"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T19:09:17.628Z"
+}

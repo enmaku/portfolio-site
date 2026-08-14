@@ -1,0 +1,179 @@
+{
+  "id": "no_anti_literal__r2",
+  "variantId": "no_anti_literal",
+  "label": "No anti-literal lines (antirepeat only)",
+  "rep": 2,
+  "flavor": "pirates",
+  "model": "gemini-3.5-flash-lite",
+  "promptApproxTokens": 10557,
+  "latencyMs": 4879,
+  "responseChars": 3174,
+  "names": {
+    "settlements": {
+      "settlement-founding-270-256": "Galleon’s Rest",
+      "settlement-240-197-1": "Frosthook",
+      "settlement-179-349-1": "Dead-Eye Cleft",
+      "settlement-133-296-1": "Pine-Tooth",
+      "settlement-249-512-1": "Salt-Scour",
+      "settlement-351-149-1": "Gull’s Doom",
+      "settlement-269-325-1": "Wave-Toll",
+      "settlement-307-236-1": "Marauder’s Roost",
+      "settlement-164-215-1": "Scurvy Peak",
+      "settlement-179-427-2": "Booty Ridge",
+      "settlement-212-486-2": "Mire-Grip",
+      "settlement-431-508-2": "Cutlass Bluff",
+      "settlement-110-346-2": "Smuggler’s Notch",
+      "settlement-95-378-2": "Plunder Reach",
+      "settlement-383-533-2": "Barnacle Bay",
+      "settlement-304-385-2": "Ketch Hollow",
+      "settlement-333-90-2": "Whale-Bone",
+      "settlement-347-189-2": "Scorpion Spit",
+      "settlement-213-175-2": "Rogue’s Landing",
+      "settlement-38-206-3": "Grog Spout",
+      "settlement-120-198-3": "Shackleton’s Hold",
+      "settlement-13-341-3": "Brigand’s Bight",
+      "settlement-83-286-3": "Kraken’s Den",
+      "settlement-203-386-3": "Sloop Shoals",
+      "settlement-355-274-3": "Privateer’s Point",
+      "settlement-371-445-3": "Black-Flag Bay",
+      "settlement-668-488-3": "Wreckers’ Cay",
+      "settlement-222-248-3": "Anchor’s End"
+    },
+    "factions": {
+      "faction-founding-settlement-founding-270-256": "The Crimson Fleet",
+      "faction-settlement-249-512-1-apoikia": "The Salt-Tooth Syndicate",
+      "faction-settlement-383-533-2-apoikia": "Scourge League",
+      "faction-settlement-355-274-3-apoikia": "The Iron-Hook Brotherhood",
+      "faction-settlement-668-488-3-apoikia": "Buccaneer Concord",
+      "faction-settlement-240-197-1-spawn-3": "The Black-Spot Clade",
+      "faction-settlement-179-349-1-spawn-3": "Dead-Eye Vanguard",
+      "faction-settlement-133-296-1-spawn-3": "Corsair Assembly",
+      "faction-settlement-351-149-1-spawn-3": "Marauder Coalition",
+      "faction-settlement-269-325-1-spawn-3": "Freebooter Pact",
+      "faction-settlement-307-236-1-spawn-3": "Plunderer Alliance",
+      "faction-settlement-164-215-1-spawn-3": "Reaver Syndicate"
+    }
+  },
+  "sampleNames": [
+    "Galleon’s Rest",
+    "Frosthook",
+    "Dead-Eye Cleft",
+    "Pine-Tooth",
+    "Salt-Scour",
+    "Gull’s Doom",
+    "Wave-Toll",
+    "Marauder’s Roost",
+    "Scurvy Peak",
+    "Booty Ridge",
+    "Mire-Grip",
+    "Cutlass Bluff"
+  ],
+  "score": {
+    "total": 28,
+    "stemHitCount": 7,
+    "suffixHitCount": 6,
+    "calqueCount": 0,
+    "ownBiomeEchoCount": 0,
+    "stemHitRate": 0.25,
+    "suffixHitRate": 0.21428571428571427,
+    "calqueRate": 0,
+    "ownBiomeEchoRate": 0,
+    "stemFrequency": {
+      "frost": 1,
+      "pine": 1,
+      "salt": 1,
+      "gull": 1,
+      "wave": 1,
+      "peak": 1,
+      "mire": 1
+    },
+    "suffixFrequency": {
+      "ridge": 1,
+      "reach": 1,
+      "hollow": 1,
+      "hold": 1,
+      "point": 1,
+      "end": 1
+    },
+    "flagged": [
+      {
+        "settlementId": "settlement-240-197-1",
+        "name": "Frosthook",
+        "stems": [
+          "frost"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-133-296-1",
+        "name": "Pine-Tooth",
+        "stems": [
+          "pine"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Taiga"
+      },
+      {
+        "settlementId": "settlement-249-512-1",
+        "name": "Salt-Scour",
+        "stems": [
+          "salt"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-351-149-1",
+        "name": "Gull’s Doom",
+        "stems": [
+          "gull"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-269-325-1",
+        "name": "Wave-Toll",
+        "stems": [
+          "wave"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Coast"
+      },
+      {
+        "settlementId": "settlement-164-215-1",
+        "name": "Scurvy Peak",
+        "stems": [
+          "peak"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Tundra"
+      },
+      {
+        "settlementId": "settlement-212-486-2",
+        "name": "Mire-Grip",
+        "stems": [
+          "mire"
+        ],
+        "suffixes": [],
+        "ownBiome": false,
+        "isCalque": false,
+        "biome": "Swamp"
+      }
+    ]
+  },
+  "createdAt": "2026-08-13T18:57:04.139Z"
+}
