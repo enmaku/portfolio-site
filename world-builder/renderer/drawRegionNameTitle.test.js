@@ -21,6 +21,8 @@ class FakeContainer {
 class FakeGraphics {
   constructor() {
     this.rects = []
+    /** @type {Record<string, Function>} */
+    this.handlers = {}
   }
   roundRect(x, y, width, height) {
     this.rects.push({ x, y, width, height })
@@ -31,6 +33,12 @@ class FakeGraphics {
   }
   stroke() {
     return this
+  }
+  on(event, handler) {
+    this.handlers[event] = handler
+  }
+  emit(event, payload = {}) {
+    this.handlers[event]?.(payload)
   }
   destroy() {}
 }
@@ -43,19 +51,33 @@ class FakeText {
     this.x = 0
     this.y = 0
     this.anchor = { set: () => {} }
+    /** @type {Record<string, Function>} */
+    this.handlers = {}
+  }
+  on(event, handler) {
+    this.handlers[event] = handler
+  }
+  emit(event, payload = {}) {
+    this.handlers[event]?.(payload)
   }
   destroy() {}
 }
 
-test('drawRegionNameTitle hides the overlay when no region name is set', () => {
+test('drawRegionNameTitle shows a selectable placeholder when the realm is unnamed', () => {
   const overlay = new FakeContainer()
+  /** @type {object[]} */
+  const edits = []
   drawRegionNameTitle(overlay, FakeGraphics, FakeText, {
     visible: true,
     regionName: '   ',
     screenWidth: 800,
+    untitledLabel: 'untitled',
+    onEdit: (payload) => edits.push(payload),
   })
-  assert.equal(overlay.visible, false)
-  assert.equal(overlay.children.length, 0)
+  assert.equal(overlay.visible, true)
+  assert.ok(overlay.children.length >= 2)
+  overlay.children[0].emit('pointertap', { stopPropagation() {} })
+  assert.deepEqual(edits, [{ kind: 'realm' }])
 })
 
 test('drawRegionNameTitle hides the overlay when the names overlay is off', () => {

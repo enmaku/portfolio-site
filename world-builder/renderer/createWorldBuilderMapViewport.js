@@ -131,6 +131,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   let customFactionNamesById = {}
   /** @type {string} */
   let customRegionName = ''
+  /** @type {((payload: import('./attachNameOverlayEditHandler.js').NameOverlayEditTarget) => void) | null} */
+  let customNameEditHandler = null
   /** @type {Set<string>} */
   let customSettlementNameHighlightIds = new Set()
   let resourceOverlayVisibility = createDefaultResourceOverlayVisibility()
@@ -324,6 +326,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
             customNamesVisible: customSettlementNamesVisible,
             customNamesBySettlementId: customSettlementNamesById,
             highlightedSettlementIds: customSettlementNameHighlightIds,
+            onEdit: customNameEditHandler,
           },
         )
         drawFactionNamesLegend(factionNamesLegendOverlay, Graphics, Text, {
@@ -332,11 +335,13 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
           namesByFactionId: customFactionNamesById,
           screenWidth: hostEl.clientWidth || app.screen.width,
           screenHeight: hostEl.clientHeight || app.screen.height,
+          onEdit: customNameEditHandler,
         })
         drawRegionNameTitle(regionNameTitleOverlay, Graphics, Text, {
           visible: customSettlementNamesVisible,
           regionName: customRegionName,
           screenWidth: hostEl.clientWidth || app.screen.width,
+          onEdit: customNameEditHandler,
         })
       },
       recentConquestMarkers: () =>
@@ -703,6 +708,13 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     setCustomRegionName(regionName) {
       customRegionName = typeof regionName === 'string' ? regionName.trim() : ''
       refreshMapLayers(['settlementIdLabels'])
+    },
+
+    /**
+     * @param {((payload: import('./attachNameOverlayEditHandler.js').NameOverlayEditTarget) => void) | null | undefined} handler
+     */
+    onCustomNameEdit(handler) {
+      customNameEditHandler = typeof handler === 'function' ? handler : null
     },
 
     /**

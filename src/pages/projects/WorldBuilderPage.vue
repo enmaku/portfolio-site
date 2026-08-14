@@ -296,61 +296,10 @@
               <q-tooltip>Download campaign kit</q-tooltip>
             </q-btn>
           </div>
-          <div
+          <WorldBuilderLlmNamesPanel
             v-if="timeControlsActive"
-            class="q-mb-md"
-            data-testid="world-builder-llm-names-panel"
-          >
-            <q-input
-              v-model="llmFlavorPrompt"
-              type="textarea"
-              autogrow
-              dense
-              outlined
-              label="Name flavor"
-              hint="Theme for Gemini place names (elven, dwarven, pirates, …)"
-              class="q-mb-sm"
-              data-testid="world-builder-llm-flavor"
-            />
-            <q-toggle
-              :model-value="llmNamesOverlayVisible"
-              label="Names overlay"
-              dense
-              class="q-mb-sm"
-              data-testid="world-builder-llm-names-overlay"
-              @update:model-value="setLlmNamesOverlayVisible"
-            />
-            <q-btn
-              unelevated
-              color="secondary"
-              class="full-width"
-              label="Generate names"
-              data-testid="world-builder-llm-generate-names"
-              :loading="isLlmGenerateRunning"
-              :disable="llmGenerateDisabled"
-              @click="generateLlmSettlementNames"
-            />
-            <q-input
-              :model-value="llmRegionWriteup"
-              type="textarea"
-              autogrow
-              dense
-              outlined
-              readonly
-              label="Region writeup"
-              hint="Notable settlements after Generate names"
-              class="q-mt-sm"
-              input-style="max-height: 16rem; overflow-y: auto"
-              data-testid="world-builder-llm-region-writeup"
-            />
-            <div
-              v-if="llmLastError"
-              class="text-negative text-caption q-mt-sm"
-              data-testid="world-builder-llm-error"
-            >
-              {{ llmLastError }}
-            </div>
-          </div>
+            :names="llmSettlementNames"
+          />
           <q-banner
             v-if="showValidationFailureIndicator"
             :data-testid="WORLD_BUILDER_VALIDATION_EXHAUSTED_INDICATOR_TEST_ID"
@@ -495,6 +444,7 @@ import {
 } from '@world-builder/worldBuilderPageModel.js'
 import { useWorldBuilderPageController } from '../../composables/useWorldBuilderPageController.js'
 import { useWorldBuilderSettingsStore } from '../../stores/worldBuilderSettings.js'
+import WorldBuilderLlmNamesPanel from '../../components/world-builder/WorldBuilderLlmNamesPanel.vue'
 import WorldBuilderColonistSettingsPanel from '../../components/world-builder/WorldBuilderColonistSettingsPanel.vue'
 import WorldBuilderRealmEconomyPanel from '../../components/world-builder/WorldBuilderRealmEconomyPanel.vue'
 import WorldBuilderSettlementTradeTooltip from '../../components/world-builder/WorldBuilderSettlementTradeTooltip.js'
@@ -607,17 +557,6 @@ const {
   politicalMarkerScreenPosition,
   setSettlementFocus,
 } = colonization
-
-const {
-  flavorPrompt: llmFlavorPrompt,
-  namesOverlayVisible: llmNamesOverlayVisible,
-  regionWriteup: llmRegionWriteup,
-  isGenerateRunning: isLlmGenerateRunning,
-  generateDisabled: llmGenerateDisabled,
-  lastError: llmLastError,
-  generateSettlementNames: generateLlmSettlementNames,
-  setNamesOverlayVisible: setLlmNamesOverlayVisible,
-} = llmSettlementNames
 
 function isWindControlDisabled(key) {
   return isGenerationControlDisabled(key, {

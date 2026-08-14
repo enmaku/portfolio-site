@@ -1,3 +1,4 @@
+import { attachNameOverlayEditHandler } from './attachNameOverlayEditHandler.js'
 import {
   SETTLEMENT_ID_LABEL_COLOR,
   SETTLEMENT_ID_LABEL_OUTLINE_COLOR,
@@ -24,21 +25,31 @@ export function clearRegionNameTitle(overlay) {
  * @param {import('pixi.js').Container} overlay
  * @param {typeof import('pixi.js').Graphics} GraphicsCtor
  * @param {typeof import('pixi.js').Text} TextCtor
- * @param {{ visible: boolean, regionName?: string | null, screenWidth: number }} options
+ * @param {{
+ *   visible: boolean,
+ *   regionName?: string | null,
+ *   screenWidth: number,
+ *   untitledLabel?: string,
+ *   onEdit?: ((payload: import('./attachNameOverlayEditHandler.js').NameOverlayEditTarget) => void) | null,
+ * }} options
  */
 export function drawRegionNameTitle(overlay, GraphicsCtor, TextCtor, options) {
   clearRegionNameTitle(overlay)
 
   const regionName = typeof options.regionName === 'string' ? options.regionName.trim() : ''
-  if (!options.visible || !regionName) {
+  if (!options.visible) {
     overlay.visible = false
     return
   }
 
   overlay.visible = true
+  const untitledLabel =
+    typeof options.untitledLabel === 'string' && options.untitledLabel.trim()
+      ? options.untitledLabel.trim()
+      : 'Name this realm'
 
   const label = new TextCtor({
-    text: regionName,
+    text: regionName || untitledLabel,
     style: {
       fontFamily: 'Georgia, serif',
       fontSize: TITLE_FONT_SIZE,
@@ -59,10 +70,12 @@ export function drawRegionNameTitle(overlay, GraphicsCtor, TextCtor, options) {
   panel.roundRect(originX, TITLE_MARGIN_TOP, panelWidth, panelHeight, 6)
   panel.fill({ color: 0x0d1117, alpha: 0.78 })
   panel.stroke({ color: 0x000000, width: 1, alpha: 0.9 })
+  attachNameOverlayEditHandler(panel, { kind: 'realm' }, options.onEdit)
   overlay.addChild(panel)
 
   label.anchor.set(0.5, 0.5)
   label.x = originX + panelWidth / 2
   label.y = TITLE_MARGIN_TOP + panelHeight / 2
+  attachNameOverlayEditHandler(label, { kind: 'realm' }, options.onEdit)
   overlay.addChild(label)
 }

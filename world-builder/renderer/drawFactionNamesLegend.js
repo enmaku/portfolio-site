@@ -4,6 +4,7 @@ import {
   FACTION_TERRITORY_UNALIGNED_RGB,
 } from './buildFactionTerritoryOverlayRgba.js'
 import { factionHasTerritoryColorByControl } from '../core/colonization/politics/softPower/factionalControl.js'
+import { attachNameOverlayEditHandler } from './attachNameOverlayEditHandler.js'
 import {
   SETTLEMENT_ID_LABEL_COLOR,
   SETTLEMENT_ID_LABEL_OUTLINE_COLOR,
@@ -56,6 +57,7 @@ export function factionNamesLegendRgb(factionId, worldDocument) {
  *   namesByFactionId?: Record<string, string> | null,
  *   screenWidth: number,
  *   screenHeight: number,
+ *   onEdit?: ((payload: import('./attachNameOverlayEditHandler.js').NameOverlayEditTarget) => void) | null,
  * }} options
  */
 export function drawFactionNamesLegend(overlay, GraphicsCtor, TextCtor, options) {
@@ -147,11 +149,21 @@ export function drawFactionNamesLegend(overlay, GraphicsCtor, TextCtor, options)
     swatch.rect(x, y, LEGEND_SWATCH, LEGEND_SWATCH)
     swatch.fill({ color })
     swatch.stroke({ color: 0x000000, width: 1, alpha: 0.95 })
+    attachNameOverlayEditHandler(
+      swatch,
+      { kind: 'faction', id: row.faction.id },
+      options.onEdit,
+    )
     overlay.addChild(swatch)
 
     row.label.x = x + LEGEND_SWATCH + LEGEND_GAP
     row.label.y = originY + LEGEND_PAD + index * LEGEND_ROW_H + LEGEND_ROW_H / 2
     row.label.anchor.set(0, 0.5)
+    attachNameOverlayEditHandler(
+      row.label,
+      { kind: 'faction', id: row.faction.id },
+      options.onEdit,
+    )
     overlay.addChild(row.label)
   })
 }

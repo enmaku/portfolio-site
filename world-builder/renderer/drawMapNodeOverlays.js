@@ -21,6 +21,7 @@ import {
   wasAlliedLastEpoch,
   wasConqueredLastEpoch,
 } from './settlementNodeMarkers.js'
+import { attachNameOverlayEditHandler } from './attachNameOverlayEditHandler.js'
 import {
   resolveMetalsOverlayDrawn,
   resolveSaltNodeOverlayDrawn,
@@ -146,18 +147,16 @@ export function clearRecentConquestMarkers(overlay) {
  *   customNamesVisible?: boolean,
  *   customNamesBySettlementId?: Record<string, string> | null,
  *   highlightedSettlementIds?: ReadonlySet<string> | Iterable<string> | null,
+ *   onEdit?: ((payload: import('./attachNameOverlayEditHandler.js').NameOverlayEditTarget) => void) | null,
  * }} [options]
  */
 export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnabled, options) {
   clearSettlementIdLabels(overlay)
 
   const customNamesVisible = options?.customNamesVisible === true
-  const customNamesBySettlementId = options?.customNamesBySettlementId ?? null
+  const customNamesBySettlementId = options?.customNamesBySettlementId ?? {}
   const highlightedSettlementIds = new Set(options?.highlightedSettlementIds ?? [])
-  const drawCustomNames =
-    customNamesVisible &&
-    customNamesBySettlementId != null &&
-    Object.keys(customNamesBySettlementId).length > 0
+  const drawCustomNames = customNamesVisible
 
   if (!drawCustomNames && !resolveSettlementIdLabelsDrawn(kitEnabled, worldDocument)) {
     return
@@ -208,6 +207,9 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
     label.anchor.set(0, 0.5)
     label.x = settlement.x + 0.5 + settlementIdLabelOffsetX(settlement, factions, settlements)
     label.y = settlement.y + 0.5
+    if (drawCustomNames && typeof settlement.id === 'string') {
+      attachNameOverlayEditHandler(label, { kind: 'settlement', id: settlement.id }, options?.onEdit)
+    }
     overlay.addChild(label)
   }
 }

@@ -525,6 +525,7 @@ export function useWorldBuilderPageController(options) {
   async function resetColonization() {
     const result = await colonization.resetColonization()
     if (result) {
+      llmSettlementNames.resetAllNames()
       await discardLockedTerrain()
     }
     return result
@@ -660,6 +661,7 @@ export function useWorldBuilderPageController(options) {
         onViewportReady: () => {
           overlay.syncToViewport()
           colonization.syncLandingVisuals()
+          llmSettlementNames.syncNamesToViewport()
         },
       })
 

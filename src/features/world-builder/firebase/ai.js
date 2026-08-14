@@ -48,18 +48,34 @@ const SETTLEMENT_NAMES_RESPONSE_SCHEMA = Schema.object({
   },
 })
 
-/** Live UI: names + required regional writeup in one response. */
-const SETTLEMENT_NAMES_WITH_WRITEUP_RESPONSE_SCHEMA = Schema.object({
-  properties: {
-    settlements: Schema.array({ items: SETTLEMENT_NAME_ROW_SCHEMA }),
-    factions: Schema.array({ items: FACTION_NAME_ROW_SCHEMA }),
-    factionProfiles: Schema.array({ items: FACTION_PROFILE_ROW_SCHEMA }),
-    regionName: Schema.string(),
-    overview: Schema.string(),
-    notableSettlements: Schema.array({ items: NOTABLE_SETTLEMENT_ROW_SCHEMA }),
-    writeupSettlementIds: Schema.array({ items: Schema.string() }),
-  },
-})
+const WRITEUP_ONLY_PROPERTIES = {
+  factionProfiles: Schema.array({ items: FACTION_PROFILE_ROW_SCHEMA }),
+  overview: Schema.string(),
+  notableSettlements: Schema.array({ items: NOTABLE_SETTLEMENT_ROW_SCHEMA }),
+  writeupSettlementIds: Schema.array({ items: Schema.string() }),
+}
+
+/**
+ * Live UI: names + required regional writeup in one response. Name fields stay
+ * required so a partially named catalog still forces entries for missing ids;
+ * a fully named catalog drops them from the schema entirely.
+ *
+ * @param {import('../../../../world-builder/llm/settlementNameCatalog.js').SettlementNameGenerationMode} generationMode
+ */
+function settlementNamesWithWriteupSchema(generationMode) {
+  if (generationMode === 'complete') {
+    return Schema.object({ properties: { ...WRITEUP_ONLY_PROPERTIES } })
+  }
+  return Schema.object({
+    properties: {
+      settlements: Schema.array({ items: SETTLEMENT_NAME_ROW_SCHEMA }),
+      factions: Schema.array({ items: FACTION_NAME_ROW_SCHEMA }),
+      regionName: Schema.string(),
+      ...WRITEUP_ONLY_PROPERTIES,
+    },
+    ...(generationMode === 'partial' ? { optionalProperties: ['regionName'] } : {}),
+  })
+}
 
 const NAME_JUDGE_RESPONSE_SCHEMA = Schema.object({
   properties: {
@@ -227,7 +243,10 @@ export async function ensureFirebaseAppCheck(app) {
 
 /**
  * Gemini Developer API model for World Builder settlement-name experiments.
- * @param {{ includeRegionWriteup?: boolean }} [options]
+ * @param {{
+ *   includeRegionWriteup?: boolean,
+ *   generationMode?: import('../../../../world-builder/llm/settlementNameCatalog.js').SettlementNameGenerationMode,
+ * }} [options]
  * @returns {Promise<import('firebase/ai').GenerativeModel>}
  */
 export async function createSettlementNamesModel(options = {}) {
@@ -241,7 +260,7 @@ export async function createSettlementNamesModel(options = {}) {
       temperature: 0.9,
       responseMimeType: 'application/json',
       responseSchema: includeRegionWriteup
-        ? SETTLEMENT_NAMES_WITH_WRITEUP_RESPONSE_SCHEMA
+        ? settlementNamesWithWriteupSchema(options.generationMode)
         : SETTLEMENT_NAMES_RESPONSE_SCHEMA,
     },
   })
