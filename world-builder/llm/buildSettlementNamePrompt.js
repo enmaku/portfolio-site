@@ -24,7 +24,7 @@ export function buildSettlementNamePrompt(options) {
   const parts = [
     'You invent fantasy names for settlements and factions on a procedural map, then (when asked) write a campaign-facing regional synopsis.',
     includeRegionWriteup
-      ? 'Return JSON matching the schema: { settlements: [{ settlementId, mapNumber, name }], factions: [{ factionId, name }], factionProfiles: [{ factionId, summary }], overview: string, notableSettlements: [{ settlementId, mapNumber, name, description }], writeupSettlementIds: string[] }.'
+      ? 'Return JSON matching the schema: { settlements: [{ settlementId, mapNumber, name }], factions: [{ factionId, name }], factionProfiles: [{ factionId, summary }], regionName: string, overview: string, notableSettlements: [{ settlementId, mapNumber, name, description }], writeupSettlementIds: string[] }.'
       : 'Return JSON matching the schema: { settlements: [{ settlementId, mapNumber, name }], factions: [{ factionId, name }] }.',
     'One settlement entry per settlement in the input — including ruins (status=ruin). Use the exact settlementId values from settlements[].id.',
     'One faction entry per faction in the input. Use the exact factionId values from factions[].id.',
@@ -46,10 +46,12 @@ export function buildSettlementNamePrompt(options) {
 
   if (includeRegionWriteup) {
     parts.push(
-      'Also write a campaign-facing region synopsis in the same response. overview, notableSettlements, factionProfiles, and writeupSettlementIds are required — do not omit any, and do not leave notableSettlements / factionProfiles / writeupSettlementIds empty.',
+      'Also write a campaign-facing region synopsis in the same response. regionName, overview, notableSettlements, factionProfiles, and writeupSettlementIds are required — do not omit any, and do not leave notableSettlements / factionProfiles / writeupSettlementIds empty.',
       'Canon baseline: map geometry, settlement coordinates/map numbers, faction membership, routes, tradeFlows, rivalries, and chronicle events are true. Treat them as the historical skeleton.',
       'Narrative permission: you may invent rulers, treaties, skirmishes, institutions, customs, motives, and local legends that connect those facts, as long as you do not contradict recorded chronicle events, current membership/rivalries, routes, trade flows, or visible geography/political control.',
-      'overview: 2–4 sentences on the region — who holds power, how trade flows, what tensions matter. Use the names you assigned.',
+      'regionName: one name for the whole mapped region/realm, in the same flavor as the settlement and faction names. Short enough for a map title (1–4 words); an article like "The" is fine. Prefer an evocative invented proper name (dynastic, mythic, or opaque) over a geological or biome descriptor.',
+      'Only lean on physical description for regionName when the map has a genuinely striking singular feature — one dominant glacial peak, a vast inland sea, a landmass shattered into an archipelago — and even then weave it into a proper name rather than labeling the biome. Never name the region after a settlement or faction you just named.',
+      'overview: 2–4 sentences on the region — who holds power, how trade flows, what tensions matter. Use the names you assigned, and refer to the region by its regionName.',
       'factionProfiles: one short summary per living faction (1–3 sentences): territorial character, economic base, political posture, and a concrete vulnerability or rivalry. Use assigned faction names.',
       'notableSettlements: typically 4–8 places (fewer only if the map is small). Prefer capitals, major ports, road hubs, border marches, historically distinctive sites, and occasionally a ruin that still shapes the region’s story.',
       'Each notable entry: exact settlementId; mapNumber when known; the same name you assigned; 2–4 sentences. For living sites, include one strategic advantage, one dependency/vulnerability, and one concrete relationship to another named place. For ruins, explain what they once were and how their abandonment still matters (trade diversion, superstition, border scar). Use superlatives only when rank fields support them (popRank / wealthRank / tollRank; rank 1 = highest among living settlements).',
@@ -114,14 +116,16 @@ function flavorLooksLikePublishedSetting(flavor) {
 }
 
 /**
+ * @param {string} regionName
  * @param {string} overview
  * @param {Array<{ settlementId: string, mapNumber: number | null, name: string, description: string }>} notableSettlements
  * @param {Array<{ factionId: string, summary: string }>} factionProfiles
  * @returns {string}
  */
-function formatRegionWriteupDisplay(overview, notableSettlements, factionProfiles) {
+function formatRegionWriteupDisplay(regionName, overview, notableSettlements, factionProfiles) {
   /** @type {string[]} */
   const displayParts = []
+  if (regionName) displayParts.push(regionName)
   if (overview) displayParts.push(overview)
   if (factionProfiles.length > 0) {
     displayParts.push(
@@ -146,6 +150,7 @@ function formatRegionWriteupDisplay(overview, notableSettlements, factionProfile
  * @returns {{
  *   settlements: Record<string, string>,
  *   factions: Record<string, string>,
+ *   regionName: string,
  *   overview: string,
  *   notableSettlements: Array<{ settlementId: string, mapNumber: number | null, name: string, description: string }>,
  *   factionProfiles: Array<{ factionId: string, summary: string }>,
@@ -157,6 +162,7 @@ export function parseSettlementNameResponse(text) {
   /** @type {{
    *   settlements?: Array<{ settlementId?: string, name?: string }>,
    *   factions?: Array<{ factionId?: string, name?: string }>,
+   *   regionName?: string,
    *   overview?: string,
    *   notableSettlements?: Array<{
    *     settlementId?: string,
@@ -187,6 +193,7 @@ export function parseSettlementNameResponse(text) {
     factions[row.factionId] = name
   }
 
+  const regionName = typeof parsed.regionName === 'string' ? parsed.regionName.trim() : ''
   const overview = typeof parsed.overview === 'string' ? parsed.overview.trim() : ''
 
   /** @type {Array<{ settlementId: string, mapNumber: number | null, name: string, description: string }>} */
@@ -231,10 +238,16 @@ export function parseSettlementNameResponse(text) {
   return {
     settlements,
     factions,
+    regionName,
     overview,
     notableSettlements,
     factionProfiles,
     writeupSettlementIds: [...writeupIdSet],
-    regionWriteup: formatRegionWriteupDisplay(overview, notableSettlements, factionProfiles),
+    regionWriteup: formatRegionWriteupDisplay(
+      regionName,
+      overview,
+      notableSettlements,
+      factionProfiles,
+    ),
   }
 }

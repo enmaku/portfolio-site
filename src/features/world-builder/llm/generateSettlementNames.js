@@ -17,6 +17,7 @@ import { blobToGenerativeInlinePart } from './mapImageForGemini.js'
  * @returns {Promise<{
  *   settlements: Record<string, string>,
  *   factions: Record<string, string>,
+ *   regionName: string,
  *   overview: string,
  *   notableSettlements: Array<{ settlementId: string, mapNumber: number | null, name: string, description: string }>,
  *   factionProfiles: Array<{ factionId: string, summary: string }>,
@@ -32,6 +33,7 @@ export async function generateSettlementNamesWithGemini(options) {
     return {
       settlements: {},
       factions: {},
+      regionName: '',
       overview: '',
       notableSettlements: [],
       factionProfiles: [],

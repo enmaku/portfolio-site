@@ -352,7 +352,14 @@ export async function installViewportMocks() {
         removeChildren() {
           const removed = this.children
           this.children = []
-          viewportSpyState.drawnTexts = []
+          const removedRecords = new Set(
+            removed.map((child) => child?.spyTextRecord).filter(Boolean),
+          )
+          if (removedRecords.size > 0) {
+            viewportSpyState.drawnTexts = viewportSpyState.drawnTexts.filter(
+              (record) => !removedRecords.has(record),
+            )
+          }
           return removed
         }
         destroy() {
@@ -376,6 +383,7 @@ export async function installViewportMocks() {
             fill: typeof this.style.fill === 'number' ? this.style.fill : null,
           })
           const record = viewportSpyState.drawnTexts.at(-1)
+          this.spyTextRecord = record
           Object.defineProperty(this, 'x', {
             get() {
               return record.x

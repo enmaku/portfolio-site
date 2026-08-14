@@ -15,6 +15,7 @@ import {
   drawSettlementNodes,
 } from './drawMapNodeOverlays.js'
 import { drawFactionNamesLegend } from './drawFactionNamesLegend.js'
+import { drawRegionNameTitle } from './drawRegionNameTitle.js'
 import {
   buildFactionTerritoryHoverIndex,
   factionTerritoryHighlightKey,
@@ -118,6 +119,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   const recentConquestOverlay = new Graphics()
   /** Screen-space LLM faction legend (not pan/zoomed with the world). */
   const factionNamesLegendOverlay = new Container()
+  /** Screen-space LLM region title (top-center, not pan/zoomed). */
+  const regionNameTitleOverlay = new Container()
   /** Campaign kit export only — never toggled from the overlay bar. */
   let settlementIdLabelsEnabled = false
   /** Spike: LLM custom place names (independent of kit map-number labels). */
@@ -126,6 +129,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   let customSettlementNamesById = {}
   /** @type {Record<string, string>} */
   let customFactionNamesById = {}
+  /** @type {string} */
+  let customRegionName = ''
   /** @type {Set<string>} */
   let customSettlementNameHighlightIds = new Set()
   let resourceOverlayVisibility = createDefaultResourceOverlayVisibility()
@@ -168,6 +173,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
 
   app.stage.addChild(viewport)
   app.stage.addChild(factionNamesLegendOverlay)
+  app.stage.addChild(regionNameTitleOverlay)
   viewport.addChild(terrain)
   viewport.addChild(contours)
   viewport.addChild(arable)
@@ -326,6 +332,11 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
           namesByFactionId: customFactionNamesById,
           screenWidth: hostEl.clientWidth || app.screen.width,
           screenHeight: hostEl.clientHeight || app.screen.height,
+        })
+        drawRegionNameTitle(regionNameTitleOverlay, Graphics, Text, {
+          visible: customSettlementNamesVisible,
+          regionName: customRegionName,
+          screenWidth: hostEl.clientWidth || app.screen.width,
         })
       },
       recentConquestMarkers: () =>
@@ -682,6 +693,15 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     setCustomFactionNames(namesById) {
       customFactionNamesById =
         namesById && typeof namesById === 'object' ? { ...namesById } : {}
+      refreshMapLayers(['settlementIdLabels'])
+    },
+
+    /**
+     * Spike: set the LLM-generated region/realm title shown top-center.
+     * @param {string | null | undefined} regionName
+     */
+    setCustomRegionName(regionName) {
+      customRegionName = typeof regionName === 'string' ? regionName.trim() : ''
       refreshMapLayers(['settlementIdLabels'])
     },
 

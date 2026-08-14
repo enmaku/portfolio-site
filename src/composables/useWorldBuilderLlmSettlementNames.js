@@ -17,6 +17,7 @@ import {
  *   getViewport: () => {
  *     setCustomSettlementNames?: (namesById: Record<string, string>) => void,
  *     setCustomFactionNames?: (namesById: Record<string, string>) => void,
+ *     setCustomRegionName?: (regionName: string) => void,
  *     setCustomSettlementNamesVisible?: (visible: boolean) => void,
  *     setCustomSettlementNameHighlights?: (settlementIds: Iterable<string>) => void,
  *   } | null,
@@ -30,6 +31,7 @@ export function useWorldBuilderLlmSettlementNames(options) {
   const namesBySettlementId = ref(/** @type {Record<string, string>} */ ({}))
   const namesByFactionId = ref(/** @type {Record<string, string>} */ ({}))
   const writeupMentionedSettlementIds = ref(/** @type {string[]} */ ([]))
+  const regionName = ref('')
   const regionWriteup = ref('')
   const generatePhase = ref(/** @type {'idle' | 'running'} */ ('idle'))
   const lastError = ref(/** @type {string | null} */ (null))
@@ -46,6 +48,7 @@ export function useWorldBuilderLlmSettlementNames(options) {
     const viewport = options.getViewport()
     viewport?.setCustomSettlementNames?.(namesBySettlementId.value)
     viewport?.setCustomFactionNames?.(namesByFactionId.value)
+    viewport?.setCustomRegionName?.(regionName.value)
     viewport?.setCustomSettlementNameHighlights?.(writeupMentionedSettlementIds.value)
     viewport?.setCustomSettlementNamesVisible?.(namesOverlayVisible.value)
   }
@@ -101,6 +104,7 @@ export function useWorldBuilderLlmSettlementNames(options) {
       })
       namesBySettlementId.value = result.settlements
       namesByFactionId.value = result.factions
+      regionName.value = result.regionName
       regionWriteup.value = result.regionWriteup
       writeupMentionedSettlementIds.value = collectWriteupMentionedSettlementIds(result)
       namesOverlayVisible.value = true
@@ -123,6 +127,7 @@ export function useWorldBuilderLlmSettlementNames(options) {
     namesOverlayVisible,
     namesBySettlementId,
     namesByFactionId,
+    regionName,
     regionWriteup,
     isGenerateRunning,
     generateDisabled,
