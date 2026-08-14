@@ -29,6 +29,9 @@ export const SETTLEMENT_NODE_HOVER_RADIUS =
 /** Yellow fill for settlement ID labels (matches living pins). */
 export const SETTLEMENT_ID_LABEL_COLOR = SETTLEMENT_NODE_OVERLAY_COLOR
 
+/** Red fill for settlement names mentioned in the region writeup. */
+export const SETTLEMENT_ID_LABEL_WRITEUP_HIGHLIGHT_COLOR = 0xe53935
+
 /** Thin black outline around settlement ID label glyphs. */
 export const SETTLEMENT_ID_LABEL_OUTLINE_COLOR = 0x000000
 

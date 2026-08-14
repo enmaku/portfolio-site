@@ -48,6 +48,7 @@ const SETTLEMENT_NAMES_WITH_WRITEUP_RESPONSE_SCHEMA = Schema.object({
     factions: Schema.array({ items: FACTION_NAME_ROW_SCHEMA }),
     overview: Schema.string(),
     notableSettlements: Schema.array({ items: NOTABLE_SETTLEMENT_ROW_SCHEMA }),
+    writeupSettlementIds: Schema.array({ items: Schema.string() }),
   },
 })
 

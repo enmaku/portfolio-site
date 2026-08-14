@@ -10,6 +10,7 @@ import {
   SETTLEMENT_ID_LABEL_FONT_SIZE,
   SETTLEMENT_ID_LABEL_OUTLINE_COLOR,
   SETTLEMENT_ID_LABEL_OUTLINE_WIDTH,
+  SETTLEMENT_ID_LABEL_WRITEUP_HIGHLIGHT_COLOR,
   SETTLEMENT_NODE_OVERLAY_COLOR,
   SETTLEMENT_NODE_RUIN_OVERLAY_COLOR,
   SETTLEMENT_PIN_OUTLINE_COLOR,
@@ -144,6 +145,7 @@ export function clearRecentConquestMarkers(overlay) {
  * @param {{
  *   customNamesVisible?: boolean,
  *   customNamesBySettlementId?: Record<string, string> | null,
+ *   highlightedSettlementIds?: ReadonlySet<string> | Iterable<string> | null,
  * }} [options]
  */
 export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnabled, options) {
@@ -151,6 +153,7 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
 
   const customNamesVisible = options?.customNamesVisible === true
   const customNamesBySettlementId = options?.customNamesBySettlementId ?? null
+  const highlightedSettlementIds = new Set(options?.highlightedSettlementIds ?? [])
   const drawCustomNames =
     customNamesVisible &&
     customNamesBySettlementId != null &&
@@ -184,12 +187,18 @@ export function drawSettlementIdLabels(overlay, TextCtor, worldDocument, kitEnab
         : drawCustomNames
           ? `#${settlement.mapNumber}`
           : String(settlement.mapNumber)
+    const highlighted =
+      drawCustomNames &&
+      typeof settlement.id === 'string' &&
+      highlightedSettlementIds.has(settlement.id)
     const label = new TextCtor({
       text,
       style: {
         fontFamily: 'Arial',
         fontSize: SETTLEMENT_ID_LABEL_FONT_SIZE,
-        fill: SETTLEMENT_ID_LABEL_COLOR,
+        fill: highlighted
+          ? SETTLEMENT_ID_LABEL_WRITEUP_HIGHLIGHT_COLOR
+          : SETTLEMENT_ID_LABEL_COLOR,
         stroke: {
           color: SETTLEMENT_ID_LABEL_OUTLINE_COLOR,
           width: SETTLEMENT_ID_LABEL_OUTLINE_WIDTH,

@@ -126,6 +126,8 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
   let customSettlementNamesById = {}
   /** @type {Record<string, string>} */
   let customFactionNamesById = {}
+  /** @type {Set<string>} */
+  let customSettlementNameHighlightIds = new Set()
   let resourceOverlayVisibility = createDefaultResourceOverlayVisibility()
   let arableMinimumProductivity = DEFAULT_ARABLE_OVERLAY_MINIMUM_PRODUCTIVITY
   /**
@@ -315,6 +317,7 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
           {
             customNamesVisible: customSettlementNamesVisible,
             customNamesBySettlementId: customSettlementNamesById,
+            highlightedSettlementIds: customSettlementNameHighlightIds,
           },
         )
         drawFactionNamesLegend(factionNamesLegendOverlay, Graphics, Text, {
@@ -658,6 +661,17 @@ export async function createWorldBuilderMapViewport(hostEl, worldDocument) {
     setCustomSettlementNames(namesById) {
       customSettlementNamesById =
         namesById && typeof namesById === 'object' ? { ...namesById } : {}
+      refreshMapLayers(['settlementIdLabels'])
+    },
+
+    /**
+     * Spike: settlement ids whose custom names should render highlighted (writeup mentions).
+     * @param {Iterable<string> | null | undefined} settlementIds
+     */
+    setCustomSettlementNameHighlights(settlementIds) {
+      customSettlementNameHighlightIds = new Set(
+        settlementIds == null ? [] : [...settlementIds].filter((id) => typeof id === 'string'),
+      )
       refreshMapLayers(['settlementIdLabels'])
     },
 
