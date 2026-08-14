@@ -33,17 +33,6 @@
             Rank every movie. {{ voteProgressLabel }}
           </div>
           <MovieBallotList class="col mv-page__ballot" />
-          <div class="mv-page__vote-footer">
-            <q-btn
-              unelevated
-              color="primary"
-              no-caps
-              class="full-width"
-              label="Done voting"
-              :disable="myVoteSubmitted"
-              @click="onDoneVoting"
-            />
-          </div>
         </template>
         <div v-else class="q-pa-lg text-center text-body2 text-grey-5" data-testid="mv-vote-watch">
           <p class="q-mb-sm">You’re watching this round — not casting a ballot.</p>
@@ -58,6 +47,21 @@
           @reset="onResetResults"
         />
       </template>
+    </div>
+
+    <div
+      v-if="phase === 'voting' && iAmRequiredVoter"
+      class="mv-actions-bar full-width q-px-md q-pt-sm"
+    >
+      <q-btn
+        unelevated
+        color="primary"
+        no-caps
+        class="full-width"
+        label="Done voting"
+        :disable="myVoteSubmitted"
+        @click="onDoneVoting"
+      />
     </div>
 
     <div
@@ -239,20 +243,10 @@ onMounted(() => {
   max-width: 100%;
 }
 
-.mv-page__vote-footer {
-  flex: 0 0 auto;
-  align-self: stretch;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  padding: 16px;
-}
-
 .mv-actions-bar {
   flex-shrink: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
 }
 
 .mv-actions-bar__fixed-btn {
