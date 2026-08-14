@@ -219,9 +219,11 @@ export function buildSettlementNameAnnotations(slice, worldDocument) {
   const wealthRank = rankDescending(wealthRows)
   const tollRank = rankDescending(tollRows)
   const livingCount = living.length
+  const ruinCount = kit.settlements.length - livingCount
 
-  const settlements = living.map((dossier) => {
+  const settlements = kit.settlements.map((dossier) => {
     const id = dossier.settlementId
+    const isRuin = dossier.status === 'ruin'
     const faction = (kit.politics?.factions ?? []).find((f) => f.id === dossier.factionId)
     const capitalMapNumber = faction
       ? mapNumberById.get(faction.capitalSettlementId) ?? null
@@ -231,17 +233,18 @@ export function buildSettlementNameAnnotations(slice, worldDocument) {
       n: dossier.mapNumber,
       x: dossier.coordinates?.x ?? null,
       y: dossier.coordinates?.y ?? null,
-      tier: dossier.tier,
-      pop: dossier.population,
-      popRank: popRank.get(id) ?? null,
-      wealthRank: wealthRank.get(id) ?? null,
-      tollRank: tollRank.get(id) ?? null,
-      maritime: dossier.maritimeRole,
+      status: isRuin ? 'ruin' : undefined,
+      tier: isRuin ? undefined : dossier.tier,
+      pop: isRuin ? undefined : dossier.population,
+      popRank: isRuin ? undefined : (popRank.get(id) ?? null),
+      wealthRank: isRuin ? undefined : (wealthRank.get(id) ?? null),
+      tollRank: isRuin ? undefined : (tollRank.get(id) ?? null),
+      maritime: isRuin ? undefined : dossier.maritimeRole,
       founded: dossier.foundedEpoch,
-      factionId: dossier.factionId,
-      band: dossier.membershipBand,
-      tradePartner: dossier.isTradePartner === true ? true : undefined,
-      capitalN: capitalMapNumber,
+      factionId: isRuin ? undefined : dossier.factionId,
+      band: isRuin ? undefined : dossier.membershipBand,
+      tradePartner: !isRuin && dossier.isTradePartner === true ? true : undefined,
+      capitalN: isRuin ? undefined : capitalMapNumber,
     })
   })
 
@@ -270,6 +273,7 @@ export function buildSettlementNameAnnotations(slice, worldDocument) {
     grid: { w: Number(worldDocument.gridWidth) || 0, h: Number(worldDocument.gridHeight) || 0 },
     mapAxes: 'north=top/y0; x→east; y→south',
     livingCount,
+    ruinCount: ruinCount > 0 ? ruinCount : undefined,
     factions,
     rivalries,
     chronicle: buildChronicle(slice),

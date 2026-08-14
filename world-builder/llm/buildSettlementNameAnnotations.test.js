@@ -112,3 +112,64 @@ test('buildSettlementNameAnnotations stays lean and ranked', () => {
   assert.equal(annotations.routes.length, 1)
   assert.deepEqual(annotations.factions[0].capitalN, 1)
 })
+
+test('buildSettlementNameAnnotations includes ruins with status only', () => {
+  const slice = createDefaultColonizationSlice()
+  slice.colonizationPhase = 'running'
+  slice.epoch = 5
+  slice.settlements = [
+    {
+      id: 'alive',
+      mapNumber: 1,
+      x: 5,
+      y: 5,
+      status: 'living',
+      tier: 'town',
+      population: 900,
+      foundedEpoch: 0,
+      factionId: 'f1',
+    },
+    {
+      id: 'dead',
+      mapNumber: 2,
+      x: 20,
+      y: 20,
+      status: 'ruin',
+      tier: 'town',
+      population: 0,
+      foundedEpoch: 1,
+      factionId: null,
+    },
+  ]
+  slice.factions = [
+    {
+      id: 'f1',
+      capitalSettlementId: 'alive',
+      settlementIds: ['alive'],
+      status: 'active',
+      emergedEpoch: 0,
+    },
+  ]
+  slice.historyLog = [
+    { kind: 'founding', epoch: 0 },
+    { kind: 'settlement_abandoned', epoch: 4, settlementId: 'dead' },
+  ]
+  slice.primaryClaim = { alive: [{ x: 5, y: 5 }] }
+  slice.tradeAccounts = { obligations: [], balancesBySettlementId: { alive: 10 } }
+
+  const annotations = buildSettlementNameAnnotations(slice, {
+    gridWidth: 40,
+    gridHeight: 40,
+    biomes: new Uint8Array(40 * 40),
+    saltNodes: [],
+    metalNodes: [],
+  })
+
+  assert.equal(annotations.settlements.length, 2)
+  assert.equal(annotations.ruinCount, 1)
+  const ruin = annotations.settlements.find((row) => row.id === 'dead')
+  assert.equal(ruin.status, 'ruin')
+  assert.equal(ruin.pop, undefined)
+  assert.equal(ruin.factionId, undefined)
+  assert.equal(ruin.n, 2)
+})

@@ -34,14 +34,14 @@ function paintSettlementMarkers(ctx, settlements, gridWidth, gridHeight) {
 
   for (const settlement of settlements) {
     if (typeof settlement?.x !== 'number' || typeof settlement?.y !== 'number') continue
-    if (settlement.status === 'ruin') continue
+    const isRuin = settlement.status === 'ruin'
     const cx = settlement.x + 0.5
     const cy = settlement.y + 0.5
-    ctx.fillStyle = 'rgba(20, 20, 24, 0.92)'
+    ctx.fillStyle = isRuin ? 'rgba(120, 120, 128, 0.9)' : 'rgba(20, 20, 24, 0.92)'
     ctx.beginPath()
     ctx.arc(cx, cy, pinRadius, 0, Math.PI * 2)
     ctx.fill()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.strokeStyle = isRuin ? 'rgba(220, 220, 230, 0.75)' : 'rgba(255, 255, 255, 0.9)'
     ctx.lineWidth = Math.max(0.7, pinRadius * 0.35)
     ctx.stroke()
 
