@@ -1,7 +1,9 @@
 import {
   factionTerritoryPaletteIndex,
   factionTerritoryRgb,
+  FACTION_TERRITORY_UNALIGNED_RGB,
 } from './buildFactionTerritoryOverlayRgba.js'
+import { factionHasTerritoryColorByControl } from '../core/colonization/politics/softPower/factionalControl.js'
 import {
   SETTLEMENT_ID_LABEL_COLOR,
   SETTLEMENT_ID_LABEL_OUTLINE_COLOR,
@@ -21,6 +23,25 @@ export function clearFactionNamesLegend(overlay) {
   for (const child of removed) {
     child.destroy({ children: true })
   }
+}
+
+/**
+ * Legend swatch RGB matching faction territory fill (gray for singleton control).
+ *
+ * @param {string} factionId
+ * @param {import('../core/types.js').WorldDocument} worldDocument
+ * @returns {number[]}
+ */
+export function factionNamesLegendRgb(factionId, worldDocument) {
+  const controlOpts = {
+    settlements: worldDocument.settlements,
+    factions: worldDocument.factions,
+    softPowerPaintBySettlementId: worldDocument.softPowerPaintBySettlementId ?? {},
+  }
+  if (!factionHasTerritoryColorByControl(factionId, controlOpts)) {
+    return [...FACTION_TERRITORY_UNALIGNED_RGB]
+  }
+  return factionTerritoryRgb(factionId, worldDocument.factions)
 }
 
 /**
@@ -45,13 +66,24 @@ export function drawFactionNamesLegend(overlay, GraphicsCtor, TextCtor, options)
     return
   }
 
+  const controlOpts = {
+    settlements: options.worldDocument.settlements,
+    factions: options.worldDocument.factions,
+    softPowerPaintBySettlementId: options.worldDocument.softPowerPaintBySettlementId ?? {},
+  }
+
   const factions = (options.worldDocument.factions ?? [])
     .filter((faction) => faction && typeof faction.id === 'string' && faction.status !== 'extinct')
     .slice()
     .sort((a, b) => {
-      const ai = factionTerritoryPaletteIndex(a.id, options.worldDocument.factions)
-      const bi = factionTerritoryPaletteIndex(b.id, options.worldDocument.factions)
-      if (ai !== bi) return ai - bi
+      const aColored = factionHasTerritoryColorByControl(a.id, controlOpts)
+      const bColored = factionHasTerritoryColorByControl(b.id, controlOpts)
+      if (aColored !== bColored) return aColored ? -1 : 1
+      if (aColored && bColored) {
+        const ai = factionTerritoryPaletteIndex(a.id, options.worldDocument.factions)
+        const bi = factionTerritoryPaletteIndex(b.id, options.worldDocument.factions)
+        if (ai !== bi) return ai - bi
+      }
       return String(a.id).localeCompare(String(b.id))
     })
 
@@ -67,10 +99,17 @@ export function drawFactionNamesLegend(overlay, GraphicsCtor, TextCtor, options)
 
   let maxTextWidth = 0
   for (const faction of factions) {
-    const paletteIndex = factionTerritoryPaletteIndex(faction.id, options.worldDocument.factions)
+    const colored = factionHasTerritoryColorByControl(faction.id, controlOpts)
+    const paletteIndex = colored
+      ? factionTerritoryPaletteIndex(faction.id, options.worldDocument.factions)
+      : null
     const customName =
       typeof namesByFactionId[faction.id] === 'string' ? namesByFactionId[faction.id].trim() : ''
-    const labelText = customName ? `${paletteIndex}  ${customName}` : String(paletteIndex)
+    const labelText = colored
+      ? customName
+        ? `${paletteIndex}  ${customName}`
+        : String(paletteIndex)
+      : customName || '—'
     const label = new TextCtor({
       text: labelText,
       style: {
@@ -84,7 +123,7 @@ export function drawFactionNamesLegend(overlay, GraphicsCtor, TextCtor, options)
       },
     })
     maxTextWidth = Math.max(maxTextWidth, label.width)
-    rows.push({ faction, paletteIndex, label })
+    rows.push({ faction, colored, paletteIndex, label })
   }
 
   const contentWidth = LEGEND_SWATCH + LEGEND_GAP + maxTextWidth
@@ -102,7 +141,7 @@ export function drawFactionNamesLegend(overlay, GraphicsCtor, TextCtor, options)
   rows.forEach((row, index) => {
     const y = originY + LEGEND_PAD + index * LEGEND_ROW_H + (LEGEND_ROW_H - LEGEND_SWATCH) / 2
     const x = originX + LEGEND_PAD
-    const rgb = factionTerritoryRgb(row.faction.id, options.worldDocument.factions)
+    const rgb = factionNamesLegendRgb(row.faction.id, options.worldDocument)
     const color = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]
     const swatch = new GraphicsCtor()
     swatch.rect(x, y, LEGEND_SWATCH, LEGEND_SWATCH)

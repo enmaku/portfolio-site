@@ -2,7 +2,11 @@ import { computed, ref, watch } from 'vue'
 import { generateSettlementNamesWithGemini } from '../features/world-builder/llm/generateSettlementNames.js'
 import { canvasToJpegBlob } from '../features/world-builder/llm/mapImageForGemini.js'
 import { collectWriteupMentionedSettlementIds } from '../../world-builder/llm/collectWriteupMentionedSettlementIds.js'
-import { buildLlmContextMapCanvas } from '../../world-builder/llm/buildLlmContextMapCanvas.js'
+import {
+  buildLlmPhysicalMapCanvas,
+  buildLlmPoliticalMapCanvas,
+  mergeWorldDocumentForLlmMaps,
+} from '../../world-builder/llm/buildLlmContextMapCanvas.js'
 
 /**
  * Spike UI: flavor prompt + Gemini settlement/faction names + region writeup + map overlay.
@@ -51,18 +55,30 @@ export function useWorldBuilderLlmSettlementNames(options) {
   })
 
   /**
-   * Offscreen terrain + routes + settlement pins for Gemini (no live viewport mutation).
+   * Offscreen physical (+ optional political) JPEGs for Gemini.
    *
    * @param {import('../../world-builder/core/types.js').WorldDocument} worldDocument
    * @param {import('../../world-builder/core/colonization/createDefaultColonizationSlice.js').ColonizationSlice} slice
-   * @returns {Promise<Blob>}
+   * @returns {Promise<Blob[]>}
    */
-  async function buildContextMapJpeg(worldDocument, slice) {
-    const canvas = buildLlmContextMapCanvas(worldDocument, {
+  async function buildContextMapJpegs(worldDocument, slice) {
+    const merged = mergeWorldDocumentForLlmMaps(worldDocument, slice)
+    /** @type {Blob[]} */
+    const images = []
+    const physical = buildLlmPhysicalMapCanvas(merged, {
       roads: slice.roads,
       settlements: slice.settlements,
     })
-    return canvasToJpegBlob(canvas)
+    images.push(await canvasToJpegBlob(physical))
+
+    const political = buildLlmPoliticalMapCanvas(merged, {
+      roads: slice.roads,
+      settlements: slice.settlements,
+    })
+    if (political) {
+      images.push(await canvasToJpegBlob(political))
+    }
+    return images
   }
 
   async function generateSettlementNames() {
@@ -76,12 +92,12 @@ export function useWorldBuilderLlmSettlementNames(options) {
         throw new Error('No world document loaded')
       }
       const slice = options.getSlice()
-      const mapImage = await buildContextMapJpeg(worldDocument, slice)
+      const mapImages = await buildContextMapJpegs(worldDocument, slice)
       const result = await generateSettlementNamesWithGemini({
         slice,
         worldDocument,
         flavorPrompt: flavorPrompt.value,
-        mapImage,
+        mapImages,
       })
       namesBySettlementId.value = result.settlements
       namesByFactionId.value = result.factions

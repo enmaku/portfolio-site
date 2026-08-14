@@ -8,6 +8,7 @@
  *   includeAntiRepetition?: boolean,
  *   includeRegionWriteup?: boolean,
  *   includeMapImage?: boolean,
+ *   includePoliticalMap?: boolean,
  * }} options
  * @returns {string}
  */
@@ -17,77 +18,79 @@ export function buildSettlementNamePrompt(options) {
   const includeAntiRepetition = options.includeAntiRepetition !== false
   const includeRegionWriteup = options.includeRegionWriteup === true
   const includeMapImage = options.includeMapImage === true
+  const includePoliticalMap = options.includePoliticalMap === true
 
   /** @type {string[]} */
   const parts = [
-    'You invent fantasy names for settlements and factions on a procedural map.',
+    'You invent fantasy names for settlements and factions on a procedural map, then (when asked) write a campaign-facing regional synopsis.',
     includeRegionWriteup
-      ? 'Return JSON matching the schema: { settlements: [{ settlementId, mapNumber, name }], factions: [{ factionId, name }], overview: string, notableSettlements: [{ settlementId, mapNumber, name, description }], writeupSettlementIds: string[] }.'
+      ? 'Return JSON matching the schema: { settlements: [{ settlementId, mapNumber, name }], factions: [{ factionId, name }], factionProfiles: [{ factionId, summary }], overview: string, notableSettlements: [{ settlementId, mapNumber, name, description }], writeupSettlementIds: string[] }.'
       : 'Return JSON matching the schema: { settlements: [{ settlementId, mapNumber, name }], factions: [{ factionId, name }] }.',
-    'One settlement entry per settlement in the input. Use the exact settlementId values.',
-    'One faction entry per faction in the input. Use the exact factionId values.',
+    'One settlement entry per settlement in the input. Use the exact settlementId values from settlements[].id.',
+    'One faction entry per faction in the input. Use the exact factionId values from factions[].id.',
     'Settlement names should feel like fantasy map labels: short, pronounceable, place-like (towns, ports, strongholds).',
     'Faction names should feel like realms, houses, leagues, or peoples — short and map-legend worthy.',
     'HARD CONSTRAINT: No settlement name may contain any of these substrings (case-insensitive): taiga, tundra, scrub, coast, bog, mire, marsh, swamp, wood, woods, forest, pine, oak, timber, frost, ice, snow, hill, hills, mountain, dune, dust, salt, brine, copper, iron, sea, tide, wave, shore, grain, fish.',
     'Forbidden pattern: <BiomeOrGood><Town|Port|Watch|Hold|End|Gate|Hollow|Reach|Ville> — e.g. Taigaport, Scrubwatch, Coppersville, Frosthold, Oakhaven, Pinehollow, Brinewatch, Tundrasend.',
-    'At least 85% of settlement names must be invented personal, dynastic, event, or opaque proper placenames (Georgetown, Virginia, Christmas Island, or short coined words like Valen / Karn). The simulation does not supply founders, saints, battles, or myths — invent those from whole cloth.',
-    'Biome, maritimeRole, imports, exports, supplies, and wants are logistics metadata, not naming templates.',
+    'At least 85% of settlement names must be invented personal, dynastic, event, or opaque proper placenames (Georgetown, Virginia, Christmas Island, or short coined words like Valen / Karn). Prefer proper names over biome calques.',
+    'Logistics fields (maritime, ranks, tradeFlows) are evidence for story and role — not naming templates. Generated names are outputs, never evidence about geography.',
   ]
 
   if (includeAntiRepetition) {
     parts.push(
-      'Avoid repetitive morphology across the set: do not reuse the same suffix, prefix, or compound pattern for many names (e.g. not a run of *-skerry / *-haven / *-hold). Vary structure — single words, different compounds, occasional descriptive phrases — while staying on-theme.',
+      'Avoid repetitive morphology across the set: do not reuse the same suffix, prefix, or compound pattern for many names. Vary structure while staying on-theme.',
       'Within a shared flavor, suggest kinship through tone and vocabulary, not by cloning one template with swapped first halves.',
     )
   }
 
   if (includeRegionWriteup) {
     parts.push(
-      'Also write a campaign-facing region synopsis in the same response. overview, notableSettlements, and writeupSettlementIds are all required — do not omit any, and do not leave notableSettlements or writeupSettlementIds empty.',
-      'overview: 2–4 sentences on the region as a whole — who holds power, how trade flows, and what tensions matter. Use the names you just assigned.',
-      'notableSettlements: pick the most notable / important places (typically 4–8, fewer only if the map is small). Capitals, major ports, wealth hubs, road chokepoints, and historically distinctive places first.',
-      'Each notable entry: exact settlementId; mapNumber when known; the same name you assigned in settlements; description of 2–4 plain-English sentences — character, why it matters, relationships/histories grounded in the annotated data and visible geography. Do not invent political events absent from history/rivalry data; you may infer geographic character (passes, coasts, bottlenecks, hinterlands) from the map and coordinates.',
-      'Do not list every settlement under notableSettlements, but overview alone is not enough — you must include the notable settlement descriptions.',
-      'writeupSettlementIds: exact settlementId strings for every settlement you actually discuss in overview or notableSettlements. Include only those settlement ids — never invent ids, and never add a settlement merely because its name appears inside a faction name.',
-      'Geography: north is the top of the map (y = 0); x increases east; y increases south. Use settlement x/y, faction centroids, routeLinks/routes, and the attached map together. Understand each faction’s territory from its member settlements’ positions — not from biome stereotypes (ice/snow ≠ north).',
-      'Tell a convincing story of place: road hubs, coastal approaches, mountain gaps, and rival borders should shape names and writeup when the map or routes support them. Cardinal words are fine when they match that reading; skip them when a proper name serves better. Avoid stamped templates (“Eastern Sovereign Alliance”, “Northern Maritime League”) repeated across factions.',
+      'Also write a campaign-facing region synopsis in the same response. overview, notableSettlements, factionProfiles, and writeupSettlementIds are required — do not omit any, and do not leave notableSettlements / factionProfiles / writeupSettlementIds empty.',
+      'Canon baseline: map geometry, settlement coordinates/map numbers, faction membership, routes, tradeFlows, rivalries, and chronicle events are true. Treat them as the historical skeleton.',
+      'Narrative permission: you may invent rulers, treaties, skirmishes, institutions, customs, motives, and local legends that connect those facts, as long as you do not contradict recorded chronicle events, current membership/rivalries, routes, trade flows, or visible geography/political control.',
+      'overview: 2–4 sentences on the region — who holds power, how trade flows, what tensions matter. Use the names you assigned.',
+      'factionProfiles: one short summary per living faction (1–3 sentences): territorial character, economic base, political posture, and a concrete vulnerability or rivalry. Use assigned faction names.',
+      'notableSettlements: typically 4–8 places (fewer only if the map is small). Prefer capitals, major ports, road hubs, border marches, and historically distinctive sites.',
+      'Each notable entry: exact settlementId; mapNumber when known; the same name you assigned; 2–4 sentences. For each, include one strategic advantage, one dependency/vulnerability, and one concrete relationship to another named place. Use superlatives only when rank fields support them (popRank / wealthRank / tollRank; rank 1 = highest).',
+      'writeupSettlementIds: exact settlementId strings for every settlement discussed in overview or notableSettlements. Never invent ids.',
+      'Geography: north is the top of the map images (y = 0); x increases east; y increases south. Ice/snow biomes are not latitude. Read territory from the political map when present. Avoid stamped cardinal templates across many factions (“Eastern Sovereign Alliance”, “Northern Maritime League”).',
     )
     if (includeMapImage) {
       parts.push(
-        'A full-resolution context map is attached (biome terrain, land routes as gray lines, dark settlement pins). North is the top of the image. Read terrain and route geometry; combine with the JSON coordinates and routeLinks — do not invent landmarks that contradict what you see.',
+        'Map 1 (physical): biome terrain, elevation contours, gray land routes, dark pins with yellow map numbers. Use it for coasts, passes, corridors, and relative placement.',
+      )
+    }
+    if (includePoliticalMap) {
+      parts.push(
+        'Map 2 (political): faction-control territory colors over dim terrain, routes, and the same map numbers. Color swatches are political control hinterlands — read borders, enclaves, and who sits on which corridor from this image.',
       )
     }
   }
 
   parts.push(
     flavor
-      ? `Author flavor / theme (apply strongly to naming style for both settlements and factions${includeRegionWriteup ? ', and to writeup prose voice' : ''}): ${flavor}`
+      ? `Author flavor / theme (apply strongly to naming style for settlements and factions${includeRegionWriteup ? ', and to writeup prose voice' : ''}): ${flavor}`
       : `No special author flavor; use grounded fantasy place-name and polity-name style${includeRegionWriteup ? ', and clear campaign voice for the writeup' : ''}.`,
   )
 
-  if (flavor) {
+  if (flavorLooksLikePublishedSetting(flavor)) {
     parts.push(
-      'HARD CONSTRAINT — published-setting flavors: If the flavor names or evokes a known published world (Golarion/Pathfinder, Faerûn/Forgotten Realms, Tolkien/Middle-earth, Westeros, Elder Scrolls, Warhammer, etc.), match that setting’s naming phonetics and cultural feel ONLY. Do not use any canonical place, city, nation, region, landmark, deity-as-placename, or polity name from that IP.',
-      'That ban applies to both settlement names and faction names. Invent original labels that sound like they belong on an unpublished map of that world.',
-      'Golarion examples that are FORBIDDEN (non-exhaustive): Absalom, Absalom Station, Oppara, Sothis, Katapesh, Quantium, Magnimar, Korvosa, Westcrown, Egorian, Skywatch, Vigil, Nerosyan, Almas, Highhelm, Taldor, Cheliax, Andoran, Qadira, Osirion, Nex, Geb, Numeria, Varisia, Inner Sea, Mwangi, Eye of Abendego.',
-      'Tolkien examples that are FORBIDDEN (non-exhaustive): The Shire, Hobbiton, Rivendell, Lothlórien, Orthanc, Isengard, Minas Tirith, Mordor, Gondor, Rohan, Moria, Erebor, Lothlorien.',
-      'Faerûn examples that are FORBIDDEN (non-exhaustive): Waterdeep, Baldur’s Gate, Neverwinter, Candlekeep, Calimport, Zhentil Keep, Myth Drannor, Icewind Dale, Sword Coast.',
-      'If a draft name is a real published gazetteer entry for that flavor, discard it and invent a different original name before returning.',
+      'HARD CONSTRAINT — published-setting flavors: Match that setting’s naming phonetics and cultural feel ONLY. Do not use any canonical place, city, nation, region, landmark, deity-as-placename, or polity name from that IP (settlements or factions).',
+      'Invent original labels that sound like they belong on an unpublished map of that world. Phonetic homage is allowed; copying canon is not.',
     )
   }
 
   parts.push(
-    'Annotated world data (mapAxes, coordinates, routes/routeLinks, history, economy):',
+    'Annotated world data (compact JSON). settlements[].id is settlementId; settlements[].n is mapNumber; ranks are 1 = highest among living settlements:',
     JSON.stringify(options.annotations),
-    'CRITICAL FINAL CHECK (read after the JSON; overrides calquing the fields above):',
-    'Scan every settlement name. If it contains a banned stem or matches the forbidden biome-compound pattern, replace it with an invented proper name before returning.',
-    'Do not return Oakhaven, Frostwatch, Pinehollow, Brinewatch, Taigaport, Scrubtown, or similar.',
-    'Scan faction names for repetitive cardinal+Alliance/League templates; if several look stamped from one mold, rewrite toward distinctive proper names grounded in their places and histories.',
+    'CRITICAL FINAL CHECK:',
+    'Replace any settlement name that uses a banned stem or biome-compound pattern with an invented proper name.',
+    'If several faction names look stamped from one cardinal+Alliance/League mold, rewrite toward distinctive proper names grounded in place and chronicle.',
   )
 
-  if (flavor) {
+  if (flavorLooksLikePublishedSetting(flavor)) {
     parts.push(
-      'Also scan every settlement and faction name for canonical published-setting gazetteer entries matching the flavor. Replace any hit (Absalom, Taldor, Sothis, Nex, The Shire, Orthanc, Waterdeep, etc.) with an original phonetically fitting name. Phonetic homage is allowed; copying canon is not.',
+      'Scan settlement and faction names for canonical published gazetteer hits matching the flavor; replace any hit with an original phonetically fitting name.',
     )
   }
 
@@ -95,14 +98,37 @@ export function buildSettlementNamePrompt(options) {
 }
 
 /**
+ * @param {string} flavor
+ * @returns {boolean}
+ */
+function flavorLooksLikePublishedSetting(flavor) {
+  if (!flavor) return false
+  const text = flavor.toLowerCase()
+  return (
+    /golarion|pathfinder|faer[uû]n|forgotten realms|tolkien|middle[- ]earth|westeros|game of thrones|elder scrolls|skyrim|morrowind|warhammer|dragonlance|dark sun|eberron|greyhawk|krynn/.test(
+      text,
+    )
+  )
+}
+
+/**
  * @param {string} overview
  * @param {Array<{ settlementId: string, mapNumber: number | null, name: string, description: string }>} notableSettlements
+ * @param {Array<{ factionId: string, summary: string }>} factionProfiles
  * @returns {string}
  */
-function formatRegionWriteupDisplay(overview, notableSettlements) {
+function formatRegionWriteupDisplay(overview, notableSettlements, factionProfiles) {
   /** @type {string[]} */
   const displayParts = []
   if (overview) displayParts.push(overview)
+  if (factionProfiles.length > 0) {
+    displayParts.push(
+      factionProfiles
+        .map((row) => row.summary)
+        .filter(Boolean)
+        .join('\n\n'),
+    )
+  }
   for (const row of notableSettlements) {
     const heading =
       row.name ||
@@ -110,7 +136,7 @@ function formatRegionWriteupDisplay(overview, notableSettlements) {
     const mapBit = row.mapNumber != null && row.name ? ` (#${row.mapNumber})` : ''
     displayParts.push(`${heading}${mapBit}\n${row.description}`)
   }
-  return displayParts.join('\n\n')
+  return displayParts.filter(Boolean).join('\n\n')
 }
 
 /**
@@ -120,6 +146,7 @@ function formatRegionWriteupDisplay(overview, notableSettlements) {
  *   factions: Record<string, string>,
  *   overview: string,
  *   notableSettlements: Array<{ settlementId: string, mapNumber: number | null, name: string, description: string }>,
+ *   factionProfiles: Array<{ factionId: string, summary: string }>,
  *   writeupSettlementIds: string[],
  *   regionWriteup: string,
  * }}
@@ -135,6 +162,7 @@ export function parseSettlementNameResponse(text) {
    *     name?: string,
    *     description?: string,
    *   }>,
+   *   factionProfiles?: Array<{ factionId?: string, summary?: string }>,
    *   writeupSettlementIds?: unknown[],
    * }} */
   const parsed = JSON.parse(text)
@@ -169,9 +197,21 @@ export function parseSettlementNameResponse(text) {
     notableSettlements.push({
       settlementId: row.settlementId,
       mapNumber: typeof row.mapNumber === 'number' ? row.mapNumber : null,
-      name:
-        (typeof row.name === 'string' ? row.name.trim() : '') || assignedName,
+      name: (typeof row.name === 'string' ? row.name.trim() : '') || assignedName,
       description,
+    })
+  }
+
+  /** @type {Array<{ factionId: string, summary: string }>} */
+  const factionProfiles = []
+  for (const row of parsed.factionProfiles ?? []) {
+    if (typeof row?.factionId !== 'string') continue
+    const summary = typeof row.summary === 'string' ? row.summary.trim() : ''
+    if (!summary) continue
+    const factionName = factions[row.factionId]
+    factionProfiles.push({
+      factionId: row.factionId,
+      summary: factionName ? `${factionName}\n${summary}` : summary,
     })
   }
 
@@ -191,7 +231,8 @@ export function parseSettlementNameResponse(text) {
     factions,
     overview,
     notableSettlements,
+    factionProfiles,
     writeupSettlementIds: [...writeupIdSet],
-    regionWriteup: formatRegionWriteupDisplay(overview, notableSettlements),
+    regionWriteup: formatRegionWriteupDisplay(overview, notableSettlements, factionProfiles),
   }
 }

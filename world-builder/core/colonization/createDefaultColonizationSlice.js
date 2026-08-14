@@ -205,7 +205,7 @@ export const COLONIZATION_RECOMPUTE_ON_HYDRATE_KEYS = /** @type {const} */ ([
   'primaryClaim',
 ])
 
-export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 100
+export const DEFAULT_THREE_DAY_HAUL_DISTANCE = 150
 /** Upper bound for author scale calibration. */
 export const MAX_THREE_DAY_HAUL_DISTANCE = 300
 export const DEFAULT_STARTING_POPULATION = 100

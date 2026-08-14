@@ -33,6 +33,13 @@ const NOTABLE_SETTLEMENT_ROW_SCHEMA = Schema.object({
   optionalProperties: ['mapNumber', 'name'],
 })
 
+const FACTION_PROFILE_ROW_SCHEMA = Schema.object({
+  properties: {
+    factionId: Schema.string(),
+    summary: Schema.string(),
+  },
+})
+
 /** Names-only (ablation / naming experiments without writeup). */
 const SETTLEMENT_NAMES_RESPONSE_SCHEMA = Schema.object({
   properties: {
@@ -46,6 +53,7 @@ const SETTLEMENT_NAMES_WITH_WRITEUP_RESPONSE_SCHEMA = Schema.object({
   properties: {
     settlements: Schema.array({ items: SETTLEMENT_NAME_ROW_SCHEMA }),
     factions: Schema.array({ items: FACTION_NAME_ROW_SCHEMA }),
+    factionProfiles: Schema.array({ items: FACTION_PROFILE_ROW_SCHEMA }),
     overview: Schema.string(),
     notableSettlements: Schema.array({ items: NOTABLE_SETTLEMENT_ROW_SCHEMA }),
     writeupSettlementIds: Schema.array({ items: Schema.string() }),
