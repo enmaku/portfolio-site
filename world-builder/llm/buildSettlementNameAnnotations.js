@@ -241,6 +241,7 @@ export function buildSettlementNameAnnotations(slice, worldDocument) {
       tollRank: isRuin ? undefined : (tollRank.get(id) ?? null),
       maritime: isRuin ? undefined : dossier.maritimeRole,
       founded: dossier.foundedEpoch,
+      originN: dossier.originMapNumber,
       factionId: isRuin ? undefined : dossier.factionId,
       band: isRuin ? undefined : dossier.membershipBand,
       tradePartner: !isRuin && dossier.isTradePartner === true ? true : undefined,

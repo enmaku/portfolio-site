@@ -48,6 +48,7 @@ test('buildSettlementNameAnnotations stays lean and ranked', () => {
       population: 1200,
       maritimeRole: 'none',
       foundedEpoch: 2,
+      originSettlementId: 's1',
       factionId: 'f1',
       membershipBand: 'member',
     },
@@ -101,6 +102,8 @@ test('buildSettlementNameAnnotations stays lean and ranked', () => {
   assert.equal(annotations.settlements[0].id, 's1')
   assert.equal(annotations.settlements[0].n, 1)
   assert.equal(annotations.settlements[0].popRank, 1)
+  assert.equal(annotations.settlements[0].originN, undefined)
+  assert.equal(annotations.settlements[1].originN, 1)
   assert.equal(annotations.settlements[0].wealth, undefined)
   assert.equal(annotations.settlements[0].supplies, undefined)
   assert.equal(annotations.settlements[0].history, undefined)

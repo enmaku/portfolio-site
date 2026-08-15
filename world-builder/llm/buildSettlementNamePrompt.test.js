@@ -22,15 +22,33 @@ test('buildSettlementNamePrompt empty mode asks for a full name set', () => {
   assert.doesNotMatch(prompt, /Missing names to invent/)
 })
 
-test('buildSettlementNamePrompt forbids reusing illustrative example names as outputs', () => {
+test('buildSettlementNamePrompt explains settlement founding origins', () => {
+  const prompt = buildSettlementNamePrompt({
+    annotations: {
+      settlements: [
+        { id: 's1', n: 1 },
+        { id: 's2', n: 2, originN: 1 },
+      ],
+      factions: [],
+    },
+    generationMode: 'empty',
+  })
+  assert.match(prompt, /originN is the map number of the settlement whose expedition founded it/)
+  assert.match(prompt, /"originN":1/)
+})
+
+test('buildSettlementNamePrompt states naming constraints without illustrative output names', () => {
   const prompt = buildSettlementNamePrompt({
     annotations,
     includeRegionWriteup: true,
     generationMode: 'empty',
   })
-  assert.match(prompt, /Do not use the illustrative example names/)
-  assert.match(prompt, /never name anything Valen, Karn/)
-  assert.match(prompt, /Replace any newly invented name that is Valen, Karn/)
+  assert.match(prompt, /Treat all wording in these instructions as metalinguistic guidance/)
+  assert.match(prompt, /one feature overwhelmingly defines the identity/)
+  assert.doesNotMatch(
+    prompt,
+    /Valen|Karn|Georgetown|Virginia|Christmas Island|Taigaport|Scrubwatch|Frosthold|Oakhaven|Eastern Sovereign Alliance|Northern Maritime League|shattered/,
+  )
 })
 
 test('buildSettlementNamePrompt partial mode sends provided names and missing ids', () => {

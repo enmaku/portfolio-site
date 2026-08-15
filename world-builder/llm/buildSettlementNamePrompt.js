@@ -108,19 +108,19 @@ export function buildSettlementNamePrompt(options) {
             'Also write a campaign-facing region synopsis in the same response. regionName, overview, notableSettlements, factionProfiles, and writeupSettlementIds are required when those names are still missing — do not omit writeup fields, and do not leave notableSettlements / factionProfiles / writeupSettlementIds empty.',
           ]),
       'Canon baseline: map geometry, settlement coordinates/map numbers, faction membership, routes, tradeFlows, rivalries, and chronicle events are true. Treat them as the historical skeleton.',
-      'Narrative permission: you may invent rulers, treaties, skirmishes, institutions, customs, motives, and local legends that connect those facts, as long as you do not contradict recorded chronicle events, current membership/rivalries, routes, trade flows, or visible geography/political control.',
+      'Narrative permission: you may invent connective historical, political, cultural, and personal detail around the factual skeleton, as long as you do not contradict recorded chronicle events, current membership/rivalries, routes, trade flows, or visible geography/political control.',
       ...(generationMode === 'complete'
         ? []
         : [
-            'regionName: one name for the whole mapped region/realm, in the same flavor as the settlement and faction names. Short enough for a map title (1–4 words); an article like "The" is fine. Prefer an evocative invented proper name (dynastic, mythic, or opaque) over a geological or biome descriptor.',
-            'Only lean on physical description for regionName when the map has a genuinely striking singular feature — one dominant glacial peak, a vast inland sea, a landmass shattered into an archipelago — and even then weave it into a proper name rather than labeling the biome. Never name the region after a settlement or faction you just named.',
+            'regionName: one name for the whole mapped region/realm, in the same flavor as the settlement and faction names. Use a map-title-length proper name of 1–4 words, optionally with an article. Prefer cultural, historical, or opaque resonance over direct environmental description.',
+            'Let physical geography influence regionName only when one feature overwhelmingly defines the identity of the entire mapped region. Encode that influence obliquely in a proper name; do not directly label terrain, geology, climate, landform structure, or biome. Never name the region after a settlement or faction you just named.',
           ]),
       'overview: 2–4 sentences on the region — who holds power, how trade flows, what tensions matter. Use the provided and newly assigned names, and refer to the region by its regionName.',
       'factionProfiles: one short summary per living faction (1–3 sentences): territorial character, economic base, political posture, and a concrete vulnerability or rivalry. Use assigned faction names.',
-      'notableSettlements: typically 4–8 places (fewer only if the map is small). Prefer capitals, major ports, road hubs, border marches, historically distinctive sites, and occasionally a ruin that still shapes the region’s story.',
-      'Each notable entry: exact settlementId; mapNumber when known; the same name already assigned or just invented for that id; 2–4 sentences. For living sites, include one strategic advantage, one dependency/vulnerability, and one concrete relationship to another named place. For ruins, explain what they once were and how their abandonment still matters (trade diversion, superstition, border scar). Use superlatives only when rank fields support them (popRank / wealthRank / tollRank; rank 1 = highest among living settlements).',
+      'notableSettlements: typically 4–8 places (fewer only if the map is small). Select places for political importance, network centrality, frontier relevance, historical distinctiveness, or continuing regional consequence; include a ruin only when its legacy remains significant.',
+      'Each notable entry: exact settlementId; mapNumber when known; the same name already assigned or just invented for that id; 2–4 sentences. For living sites, include one strategic advantage, one dependency or vulnerability, and one concrete relationship to another named place. For ruins, explain its former role and the present-day consequence of its abandonment. Use superlatives only when rank fields support them (popRank / wealthRank / tollRank; rank 1 = highest among living settlements).',
       'writeupSettlementIds: exact settlementId strings for every settlement discussed in overview or notableSettlements. Never invent ids.',
-      'Geography: north is the top of the map images (y = 0); x increases east; y increases south. Ice/snow biomes are not latitude. Read territory from the political map when present. Avoid stamped cardinal templates across many factions (“Eastern Sovereign Alliance”, “Northern Maritime League”).',
+      'Geography: north is the top of the map images (y = 0); x increases east; y increases south. Ice/snow biomes are not latitude. Read territory from the political map when present. Do not build faction names by combining a cardinal direction with generic political-form vocabulary.',
     )
     if (includeMapImage) {
       parts.push(
@@ -150,7 +150,7 @@ export function buildSettlementNamePrompt(options) {
   }
 
   parts.push(
-    'Annotated world data (compact JSON). settlements[].id is settlementId; settlements[].n is mapNumber; ranks are 1 = highest among living settlements:',
+    'Annotated world data (compact JSON). settlements[].id is settlementId; settlements[].n is mapNumber; settlements[].originN is the map number of the settlement whose expedition founded it; ranks are 1 = highest among living settlements:',
     JSON.stringify(options.annotations),
   )
 
@@ -162,10 +162,10 @@ export function buildSettlementNamePrompt(options) {
   } else {
     parts.push(
       'CRITICAL FINAL CHECK:',
-      'Replace any newly invented settlement name that uses a banned stem or biome-compound pattern with an invented proper name.',
-      'Replace any newly invented name that is Valen, Karn, Georgetown, Virginia, Christmas Island, or a transparent variant of those instruction examples.',
-      'Every newly named status=ruin settlement must have a name that clearly reads as abandoned, ruined, ghost-town, haunted, or war-scarred — not a living town label.',
-      'If several newly invented faction names look stamped from one cardinal+Alliance/League mold, rewrite toward distinctive proper names grounded in place and chronicle.',
+      'Replace any newly invented settlement name built from environmental or economic vocabulary, or from a descriptive common noun joined to a generic settlement-form suffix.',
+      'Replace any newly invented name that copies, compounds, or morphologically derives from wording in these instructions.',
+      'Every newly named status=ruin settlement must immediately read as a place that is no longer inhabited, not as a living settlement.',
+      'If several newly invented faction names share one cardinal-direction or generic-political-form template, rewrite them as structurally distinct proper names grounded in place and chronicle.',
     )
     if (generationMode === 'partial') {
       parts.push(
@@ -189,13 +189,13 @@ export function buildSettlementNamePrompt(options) {
  */
 function settlementNameStyleRules() {
   return [
-    'Living settlement names should feel like fantasy map labels: short, pronounceable, place-like (towns, ports, strongholds).',
-    'Ruin names must still be place-like map labels, but should read as abandoned, ruined, ghost-town, haunted, cursed, war-ravaged, or otherwise post-settlement — shaped by flavor when present (e.g. mystical desolation, plague-scarred, battlefield wreck). Prefer names that sound abandoned without relying on banned biome/goods stems.',
-    'Faction names should feel like realms, houses, leagues, or peoples — short and map-legend worthy.',
-    'HARD CONSTRAINT: No settlement name may contain any of these substrings (case-insensitive): taiga, tundra, scrub, coast, bog, mire, marsh, swamp, wood, woods, forest, pine, oak, timber, frost, ice, snow, hill, hills, mountain, dune, dust, salt, brine, copper, iron, sea, tide, wave, shore, grain, fish.',
-    'Forbidden pattern: <BiomeOrGood><Town|Port|Watch|Hold|End|Gate|Hollow|Reach|Ville> — e.g. Taigaport, Scrubwatch, Coppersville, Frosthold, Oakhaven, Pinehollow, Brinewatch, Tundrasend.',
-    'At least 85% of living settlement names must be invented personal, dynastic, event, or opaque proper placenames (Georgetown, Virginia, Christmas Island, or short coined words like Valen / Karn). Prefer proper names over biome calques. Ruin names may lean more openly abandoned/haunted while staying map-label short.',
-    'HARD CONSTRAINT: Do not use the illustrative example names above as outputs — never name anything Valen, Karn, Georgetown, Virginia, or Christmas Island (or transparent variants like Valensport / House Karn). Invent different original labels.',
+    'Living settlement names must be short, pronounceable proper names that read naturally as map labels.',
+    'Ruin names must remain concise proper place names while making the site’s post-inhabitation status immediately legible. Let the requested flavor determine the character of that loss without using environmental or economic description as the name.',
+    'Faction names must be short political proper names that read naturally in a map legend.',
+    'HARD CONSTRAINT: Settlement names must not use ordinary descriptive vocabulary for biome, terrain, climate, cardinal direction, natural resources, commodities, or geographic position as name stems.',
+    'Do not construct a settlement name by joining a physical or economic descriptor to a generic settlement-form suffix.',
+    'At least 85% of living settlement names must be culturally derived or opaque proper names with no transparent lexical relationship to geography or production.',
+    'HARD CONSTRAINT: Treat all wording in these instructions as metalinguistic guidance, never as source vocabulary for names. Do not copy, compound, or morph instruction terms into output names.',
     'Logistics fields (maritime, ranks, tradeFlows) are evidence for story and role — not naming templates. Generated names are outputs, never evidence about geography.',
   ]
 }
