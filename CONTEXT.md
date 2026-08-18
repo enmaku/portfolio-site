@@ -82,7 +82,7 @@ Drawer and toolbar label for the `/about` route—the **résumé data** / about 
 
 ### Projects drawer sections
 
-“Mobile” and “Desktop” groupings in the portfolio Projects menu (drawer on small viewports, toolbar dropdown on desktop). **Mobile** lists phone-framed play **projects** (Game Timer, Movie Vote, Dungeon Runner, Game Manager). **Desktop** lists full-width **project** surfaces that are not the phone-framed play UI—starting with the Dungeon Runner **match outcome dashboard**.
+“Mobile” and “Desktop” groupings in the portfolio Projects menu (drawer on small viewports, toolbar dropdown on desktop). **Mobile** lists phone-framed play **projects** (Game Timer, Movie Vote, Dungeon Runner, Game Manager, Time Tracker). **Desktop** lists full-width **project** surfaces that are not the phone-framed play UI—starting with the Dungeon Runner **match outcome dashboard**.
 
 ### Detached project launch
 
@@ -98,7 +98,7 @@ Canonical HTTPS base for the deployed site (`focusdisorder.com`), used when buil
 
 A path marked **paste-unfurl eligible** in the share metadata catalog: it gets its own **shared link summary** and crawler-readable HTML so chat and social previews read sensibly despite client-side routing.
 
-The eligible set is home (`/`), **About (navigation)** (`/about`), **Game Timer**, **Movie Vote**, **Dungeon Runner**, and the Dungeon Runner **match outcome dashboard**—only routes meant to be pasted publicly.
+The eligible set is home (`/`), **About (navigation)** (`/about`), **Game Timer**, **Movie Vote**, **Dungeon Runner**, the Dungeon Runner **match outcome dashboard**, **Game Manager**, and **Time Tracker**—only routes meant to be pasted publicly. The **client invoice page** is not **paste-unfurl eligible**.
 
 _Avoid_: “OG route,” “SEO page” unless the audience expects those terms; treating every routed page as shareable when it only needs a tab title.
 
@@ -152,13 +152,13 @@ _Avoid_: Conflating with immersive **project** layouts.
 
 ### Project shell
 
-Full-viewport layout for interactive **projects** (no portfolio masthead), giving controls and timers the full screen. **Game Timer**, **Movie Vote**, and **Dungeon Runner** share one shell (immersive chrome, trapped browser back). On wide viewports the same shell applies a **desktop phone frame** around the app instead of stretching it edge-to-edge.
+Full-viewport layout for interactive **projects** (no portfolio masthead), giving controls and timers the full screen. **Game Timer**, **Movie Vote**, **Dungeon Runner**, **Game Manager**, and **Time Tracker** share one shell (immersive chrome, trapped browser back). On wide viewports the same shell applies a **desktop phone frame** around the app instead of stretching it edge-to-edge.
 
 _Avoid_: “Fullscreen layout” when meaning **project shell** (confuses with the **browser fullscreen toggle**).
 
 ### Browser fullscreen toggle
 
-Optional **project** chrome control that requests whole-tab browser fullscreen (exits the **desktop phone frame** letterbox on wide viewports). Shared **project shell** capability—each **mobile** **project** that uses the phone-framed play UI exposes the same toggle behavior and persists its own on/off preference independently (**per-app** persistence, not one shared site-wide flag). The preference is **display-only**: it survives leave-room, clear-session, new match, and phase changes—only an explicit user toggle or a failed browser request changes it. **Host** and **guest** alike control their own toggle—it is personal display preference, not **room** authority. **Game Timer**, **Movie Vote**, and **Dungeon Runner** all offer it in each project's settings chrome. **Desktop** **project** surfaces (e.g. **Dungeon Runner Stats**) do not—those routes are full-width analytics, not phone-framed play.
+Optional **project** chrome control that requests whole-tab browser fullscreen (exits the **desktop phone frame** letterbox on wide viewports). Shared **project shell** capability—each **mobile** **project** that uses the phone-framed play UI exposes the same toggle behavior and persists its own on/off preference independently (**per-app** persistence, not one shared site-wide flag). The preference is **display-only**: it survives leave-room, clear-session, new match, and phase changes—only an explicit user toggle or a failed browser request changes it. **Host** and **guest** alike control their own toggle—it is personal display preference, not **room** authority. **Game Timer**, **Movie Vote**, **Dungeon Runner**, and **Time Tracker** all offer it in each project's settings chrome. **Desktop** **project** surfaces (e.g. **Dungeon Runner Stats**) do not—those routes are full-width analytics, not phone-framed play.
 
 _Avoid_: One global fullscreen preference across **projects**; treating it as **Game Timer** domain logic; offering it on **Desktop** **project** routes; confusing with **project shell** layout itself; resetting the preference when clearing session or room state.
 
