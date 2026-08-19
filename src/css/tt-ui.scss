@@ -1,0 +1,185 @@
+.tt-dialog-card {
+  border-radius: 12px;
+  min-width: 280px;
+}
+
+.tt-datetime-field.q-field--outlined.q-field--readonly .q-field__control:before {
+  border-style: solid;
+}
+
+.tt-actions-bar {
+  flex-shrink: 0;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+.tt-surface {
+  position: relative;
+  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tt-surface__scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tt-timer {
+  min-height: 0;
+}
+
+.tt-timer-stage {
+  container-type: size;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.45rem 0.7rem;
+}
+
+.tt-timer-face-slot {
+  width: 94%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tt-timer-face {
+  --tt-accent-track: rgba(255, 152, 64, 0.35);
+  --tt-accent-fill: #ff9a3c;
+  --tt-accent-fill-complete: #ff6d00;
+  --tt-accent-btn: #e65100;
+  --tt-accent-btn-hover: #ff6d00;
+  --tt-accent-ink: #fff4e5;
+  --tt-accent-marker: #ffe0b2;
+  position: relative;
+  flex: 0 0 auto;
+  width: min(94cqw, 100cqh);
+  aspect-ratio: 1;
+  font-size: min(94cqw, 100cqh);
+}
+
+.body--light .tt-timer-face {
+  --tt-accent-track: rgba(230, 81, 0, 0.28);
+  --tt-accent-fill: #fb8c00;
+  --tt-accent-fill-complete: #ef6c00;
+  --tt-accent-btn: #ef6c00;
+  --tt-accent-btn-hover: #f57c00;
+  --tt-accent-ink: #fff8f1;
+  --tt-accent-marker: #e65100;
+}
+
+.tt-timer-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.tt-timer-ring__track,
+.tt-timer-ring__fill {
+  stroke-width: 7.5;
+}
+
+.tt-timer-ring__track {
+  stroke: var(--tt-accent-track);
+}
+
+.tt-timer-ring__fill {
+  stroke: var(--tt-accent-fill);
+  stroke-linecap: butt;
+  transition: stroke 0.2s ease;
+}
+
+.tt-timer-face--complete .tt-timer-ring__fill {
+  stroke: var(--tt-accent-fill-complete);
+}
+
+.tt-timer-ring__start {
+  fill: var(--tt-accent-marker);
+}
+
+.tt-timer-ring__now {
+  fill: var(--tt-accent-ink);
+  stroke: var(--tt-accent-fill-complete);
+  stroke-width: 1.4;
+}
+
+.tt-timer-face > .q-btn.tt-timer-play {
+  position: absolute !important;
+  inset: 12%;
+  width: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  padding: 0 !important;
+  font-size: inherit !important;
+  background: var(--tt-accent-btn) !important;
+  color: var(--tt-accent-ink) !important;
+  box-shadow: none !important;
+}
+
+.tt-timer-play .q-btn__content {
+  width: 100%;
+  height: 100%;
+  padding: 0 !important;
+  font-size: inherit !important;
+}
+
+.tt-timer-play:hover:not(.disabled):not([disabled]),
+.tt-timer-play:focus-visible {
+  background: var(--tt-accent-btn-hover) !important;
+}
+
+.tt-timer-play.disabled,
+.tt-timer-play[disabled] {
+  opacity: 0.42;
+}
+
+.tt-timer-play__inner {
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0.07em 0.05em 0.06em;
+  font-size: inherit !important;
+  gap: 0.035em;
+}
+
+.tt-timer-elapsed {
+  font-size: 0.11em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.tt-timer-amount {
+  font-size: 0.07em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  opacity: 0.92;
+}
+
+.tt-timer-face > .q-btn.tt-timer-play .q-icon,
+.tt-timer-icon {
+  font-size: 0.22em !important;
+  width: 1em;
+  height: 1em;
+  margin: 0;
+}
+
+.tt-timer-icon--play {
+  margin-left: 0.06em;
+}

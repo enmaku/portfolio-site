@@ -117,7 +117,7 @@ import GameTimerRoundBar from '../../features/game-timer/components/GameTimerRou
 import GameTimerTurnControls from '../../features/game-timer/components/GameTimerTurnControls.vue'
 import { useGameTimerP2P } from '../../features/game-timer/composables/useGameTimerP2P.js'
 import { useProjectShellBrowserFullscreen } from '../../layouts/projects/composables/useProjectShellBrowserFullscreen.js'
-import { useNoSleep } from '../../features/game-timer/composables/useNoSleep.js'
+import { useNoSleep } from '../../composables/keepDisplayOn/useNoSleep.js'
 import { usePlayerOrderShufflePresentation } from '../../features/game-timer/composables/usePlayerOrderShufflePresentation.js'
 import { nextDefaultColor, hasMultipleRounds } from '../../features/game-timer/core.js'
 import { getManagerLinkedChromeModel } from '../../features/game-timer/linkedChromeModel.js'

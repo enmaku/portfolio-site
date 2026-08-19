@@ -86,6 +86,16 @@ export const SHARE_CATALOG = [
     favicon: 'meeple',
   },
   {
+    routePath: '/projects/time-tracker',
+    pasteUnfurl: true,
+    shareSlug: 'projects/time-tracker',
+    title: 'Time Tracker',
+    description:
+      'Track time against named projects, optionally group work under clients, and issue simple invoices.',
+    ogImage: 'icons/favicon-schedule.svg',
+    favicon: 'schedule',
+  },
+  {
     routePath: '/projects/dungeon-runner/stats',
     pasteUnfurl: true,
     shareSlug: 'projects/dungeon-runner/stats',
