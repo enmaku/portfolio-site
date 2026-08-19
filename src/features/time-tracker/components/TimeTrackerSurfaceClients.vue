@@ -93,19 +93,22 @@
           />
           <q-btn
             dense
+            round
             outline
-            no-caps
-            label="Copy link"
+            icon="link"
+            aria-label="Copy link"
             data-testid="tt-client-copy-link"
             @click="copyLink(client)"
           />
           <q-btn
             dense
-            outline
-            no-caps
-            label="New link"
+            round
+            flat
+            size="sm"
+            icon="refresh"
+            aria-label="New link"
             data-testid="tt-client-regen-link"
-            @click="workspace.regenerateClientLink(client.id)"
+            @click="onRegenLink(client)"
           />
         </div>
       </div>
@@ -114,7 +117,7 @@
       <q-btn fab color="primary" icon="add" data-testid="tt-client-add" @click="openAdd" />
     </div>
 
-    <q-dialog v-model="editorOpen">
+    <q-dialog v-model="editorOpen" persistent>
       <q-card class="tt-dialog-card">
         <q-card-section>
           <q-input v-model="draftName" outlined dense label="Name" data-testid="tt-client-name" />
@@ -243,11 +246,46 @@ async function onGenerate(clientId) {
   }
 }
 
-function copyLink(client) {
+function invoiceLinkHref(secret) {
   const href = router.resolve({
-    path: `/projects/time-tracker/c/${client.invoiceLinkSecret}`,
+    path: `/projects/time-tracker/c/${secret}`,
   }).href
-  const absolute = new URL(href, window.location.origin).toString()
-  void navigator.clipboard.writeText(absolute)
+  return new URL(href, window.location.origin).toString()
+}
+
+async function copyInvoiceLink(secret) {
+  await navigator.clipboard.writeText(invoiceLinkHref(secret))
+}
+
+async function copyLink(client) {
+  try {
+    await copyInvoiceLink(client.invoiceLinkSecret)
+    $q.notify({ type: 'positive', message: 'Invoice link copied' })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err instanceof Error ? err.message : 'Could not copy invoice link',
+    })
+  }
+}
+
+async function onRegenLink(client) {
+  try {
+    const secret = await workspace.regenerateClientLink(client.id)
+    try {
+      await copyInvoiceLink(secret)
+      $q.notify({ type: 'positive', message: 'New invoice link created and copied' })
+    } catch {
+      $q.notify({
+        type: 'negative',
+        message: 'New invoice link created, but it could not be copied',
+      })
+    }
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err instanceof Error ? err.message : 'Could not create a new invoice link',
+    })
+  }
 }
 </script>

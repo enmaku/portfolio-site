@@ -3,6 +3,10 @@
   min-width: 280px;
 }
 
+.tt-datetime-field.q-field--outlined.q-field--readonly .q-field__control:before {
+  border-style: solid;
+}
+
 .tt-surface {
   position: relative;
   min-height: 100%;
@@ -24,7 +28,7 @@
   align-items: stretch;
   justify-content: space-around;
   flex-shrink: 0;
-  padding: 0.45rem 0.25rem max(0.65rem, env(safe-area-inset-bottom, 0px));
+  padding: 0.35rem 0.2rem max(0.55rem, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -32,25 +36,35 @@
   border-top-color: rgba(0, 0, 0, 0.08);
 }
 
-.tt-nav__item {
+.tt-nav__item.q-btn {
   flex: 1;
-  display: flex;
+  min-width: 0;
+  min-height: 4.75rem;
+  height: auto;
+  padding: 0.45rem 0.2rem 0.4rem;
+  opacity: 0.55;
+}
+
+.tt-nav__item.q-btn .q-btn__content {
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
-  min-width: 0;
-  min-height: 52px;
-  padding: 0.4rem 0.15rem;
-  opacity: 0.55;
+  justify-content: center;
+  gap: 0.28rem;
 }
 
 .tt-nav__item--active {
   opacity: 1;
 }
 
+.tt-nav__item .q-icon.tt-nav__icon {
+  font-size: 2.15rem;
+}
+
 .tt-nav__label {
-  font-size: 0.7rem;
-  line-height: 1.1;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
   text-align: center;
   white-space: nowrap;
 }

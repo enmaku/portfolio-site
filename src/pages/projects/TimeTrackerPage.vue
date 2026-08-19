@@ -85,12 +85,12 @@
           :data-testid="`tt-nav-${item.id}`"
           @click="workspace.setActiveSurface(item.id)"
         >
-          <q-icon :name="item.icon" size="1.35rem" />
+          <q-icon :name="item.icon" class="tt-nav__icon" />
           <span class="tt-nav__label">{{ item.label }}</span>
         </q-btn>
       </nav>
 
-      <q-dialog v-model="colorDialogOpen">
+      <q-dialog v-model="colorDialogOpen" persistent>
         <q-card class="tt-dialog-card">
           <q-card-section class="text-h6">Timer color</q-card-section>
           <q-card-section>

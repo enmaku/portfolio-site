@@ -28,7 +28,7 @@
       <q-btn fab color="primary" icon="add" data-testid="tt-history-add" @click="openManual" />
     </div>
 
-    <q-dialog v-model="editorOpen">
+    <q-dialog v-model="editorOpen" persistent>
       <q-card class="tt-dialog-card">
         <q-card-section class="column q-gutter-y-sm">
           <q-select
@@ -42,8 +42,8 @@
             dense
             label="Project"
           />
-          <q-input v-model="draft.startedAt" type="datetime-local" outlined dense label="Start" />
-          <q-input v-model="draft.endedAt" type="datetime-local" outlined dense label="End" />
+          <TimeTrackerDateTimeField v-model="draft.startedAt" label="Start" />
+          <TimeTrackerDateTimeField v-model="draft.endedAt" label="End" />
           <q-input v-model="draft.description" outlined dense label="Description" />
         </q-card-section>
         <q-card-actions align="right">
@@ -77,8 +77,9 @@
 import { computed, inject, onBeforeUnmount, reactive, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { TIME_TRACKER_WORKSPACE_KEY } from '../composables/trackerSurfaces.js'
-import { formatDurationMs } from '../formatDisplay.js'
+import { formatDurationMs, parseLocalDateTimeInput, toLocalDateTimeInput } from '../formatDisplay.js'
 import { historyViewModel } from '../history/historyViewModel.js'
+import TimeTrackerDateTimeField from './TimeTrackerDateTimeField.vue'
 
 const $q = useQuasar()
 const workspace = inject(TIME_TRACKER_WORKSPACE_KEY)
@@ -114,13 +115,11 @@ function projectName(projectId) {
 }
 
 function toLocalInput(ms) {
-  const date = new Date(ms)
-  const pad = (value) => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  return toLocalDateTimeInput(ms)
 }
 
 function fromLocalInput(value) {
-  return new Date(value).getTime()
+  return parseLocalDateTimeInput(value)
 }
 
 function openManual() {

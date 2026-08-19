@@ -21,7 +21,7 @@
       <q-btn fab color="primary" icon="add" data-testid="tt-project-add" @click="openAdd" />
     </div>
 
-    <q-dialog v-model="editorOpen">
+    <q-dialog v-model="editorOpen" persistent>
       <q-card class="tt-dialog-card">
         <q-card-section class="column q-gutter-y-sm">
           <q-input v-model="draft.name" outlined dense label="Name" data-testid="tt-project-name" />
