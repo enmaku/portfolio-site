@@ -180,9 +180,11 @@ test('getGameManagerAuth returns auth when Firebase is configured', authMockTest
   })
 
   await withFirebaseEnv({}, async () => {
-    const { getGameManagerAuth } = await import(`./auth.js?configured=${Date.now()}`)
-    assert.equal(getGameManagerAuth(), mockAuth)
-    assert.equal(getGameManagerAuth(), mockAuth, 'returns cached auth instance')
+    const { getPortfolioAuth } = await import(
+      `../../account-owner/firebase/auth.js?configured=${Date.now()}`
+    )
+    assert.equal(getPortfolioAuth(), mockAuth)
+    assert.equal(getPortfolioAuth(), mockAuth, 'returns cached auth instance')
   })
 })
 
@@ -212,7 +214,9 @@ test('signInWithGooglePopup delegates to firebase/auth when configured', authMoc
   })
 
   await withFirebaseEnv({}, async () => {
-    const { signInWithGooglePopup } = await import(`./auth.js?google=${Date.now()}`)
+    const { signInWithGooglePopup } = await import(
+      `../../account-owner/firebase/auth.js?google=${Date.now()}`
+    )
     const user = await signInWithGooglePopup()
     assert.equal(popupCalled, true)
     assert.equal(user?.uid, 'google-user')

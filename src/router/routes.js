@@ -51,6 +51,20 @@ const routes = [
     ],
   },
   {
+    path: '/projects/time-tracker',
+    component: () => import('layouts/projects/ProjectShellLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/projects/TimeTrackerPage.vue'),
+      },
+      {
+        path: 'c/:secret',
+        component: () => import('pages/projects/TimeTrackerClientInvoicePage.vue'),
+      },
+    ],
+  },
+  {
     path: '/projects/movie-vote',
     component: () => import('layouts/projects/ProjectShellLayout.vue'),
     children: [
