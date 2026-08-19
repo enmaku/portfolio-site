@@ -1,30 +1,33 @@
 <template>
   <div class="tt-surface" data-testid="tt-surface-history">
-    <div class="tt-surface__scroll q-pa-md">
-      <q-item v-if="history.pinned" data-testid="tt-history-running">
-        <q-item-section>
-          <q-item-label>{{ projectName(history.pinned.projectId) }}</q-item-label>
-          <q-item-label caption>{{ formatDurationMs(livePinnedMs) }}</q-item-label>
-        </q-item-section>
-      </q-item>
-      <q-item
-        v-for="row in history.rows"
-        :key="row.id"
-        clickable
-        :disable="!row.mutable"
-        :data-testid="`tt-history-row-${row.id}`"
-        @click="row.mutable && openEdit(row)"
-      >
-        <q-item-section>
-          <q-item-label>{{ projectName(row.projectId) }}</q-item-label>
-          <q-item-label caption>
-            {{ formatDurationMs(row.durationMs) }}
-            <span v-if="row.description"> · {{ row.description }}</span>
-          </q-item-label>
-        </q-item-section>
-      </q-item>
+    <div class="tt-surface__scroll">
+      <q-list padding>
+        <q-item v-if="history.pinned" data-testid="tt-history-running">
+          <q-item-section>
+            <q-item-label>{{ projectName(history.pinned.projectId) }}</q-item-label>
+            <q-item-label caption>{{ formatDurationMs(livePinnedMs) }}</q-item-label>
+          </q-item-section>
+        </q-item>
+        <q-item
+          v-for="row in history.rows"
+          :key="row.id"
+          clickable
+          v-ripple
+          :disable="!row.mutable"
+          :data-testid="`tt-history-row-${row.id}`"
+          @click="row.mutable && openEdit(row)"
+        >
+          <q-item-section>
+            <q-item-label>{{ projectName(row.projectId) }}</q-item-label>
+            <q-item-label caption>
+              {{ formatDurationMs(row.durationMs) }}
+              <span v-if="row.description"> · {{ row.description }}</span>
+            </q-item-label>
+          </q-item-section>
+        </q-item>
+      </q-list>
     </div>
-    <div class="row justify-end q-pa-md">
+    <div class="tt-actions-bar row items-center justify-end q-px-md q-pt-sm">
       <q-btn fab color="primary" icon="add" data-testid="tt-history-add" @click="openManual" />
     </div>
 

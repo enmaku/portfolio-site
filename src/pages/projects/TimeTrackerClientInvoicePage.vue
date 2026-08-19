@@ -6,56 +6,78 @@
     <div v-else-if="!payload" class="col flex flex-center q-pa-md text-body2 text-grey-5">
       This invoice link is not valid.
     </div>
-    <div v-else class="col tt-surface__scroll q-pa-md">
-      <div class="text-h6 q-mb-xs">{{ payload.lookup.clientName || payload.lookup.clientId }}</div>
-      <div class="text-caption text-grey-5 q-mb-md">
-        {{ payload.invoices[0]?.issuerName || '' }}
-      </div>
-      <div class="text-subtitle1 q-mb-md" data-testid="tt-client-unpaid-balance">
-        {{ formatUsdFromCents(unpaidBalanceCents(payload.invoices)) }}
-      </div>
-      <q-btn
-        class="q-mb-md"
-        unelevated
-        no-caps
-        color="primary"
-        label="Mark all as paid"
-        data-testid="tt-client-page-pay-all"
-        @click="onPayAll"
-      />
-      <q-expansion-item
-        v-for="invoice in payload.invoices"
-        :key="invoice.id"
-        :data-testid="`tt-client-invoice-${invoice.id}`"
-      >
-        <template #header>
-          <q-item-section>
-            <q-item-label>#{{ invoice.invoiceNumber }}</q-item-label>
-            <q-item-label caption>
-              {{ formatUsdFromCents(invoice.invoiceTotalCents) }} · {{ paymentStatus(invoice) }}
-            </q-item-label>
-          </q-item-section>
-        </template>
-        <div class="q-px-md q-pb-md">
-          <div v-for="group in expansionFor(invoice).projects" :key="group.id" class="q-mb-sm">
-            <div class="text-subtitle2">{{ group.name }}</div>
-            <div v-for="entry in group.timeEntries" :key="entry.id" class="text-caption text-grey-5">
-              {{ formatDurationMs(entry.durationMs) }} · {{ formatUsdFromCents(entry.amountCents) }}
-              <span v-if="entry.description"> · {{ entry.description }}</span>
-            </div>
-          </div>
-          <div class="row q-gutter-sm">
-            <q-btn
-              dense
-              outline
-              no-caps
-              label="Mark paid"
-              @click="onPaid(invoice.id, invoice.invoiceTotalCents)"
-            />
-            <q-btn dense outline no-caps label="Mark unpaid" @click="onPaid(invoice.id, 0)" />
-          </div>
+    <div v-else class="col column no-wrap tt-surface">
+      <q-toolbar class="col-auto">
+        <q-toolbar-title>
+          {{ payload.lookup.clientName || payload.lookup.clientId }}
+        </q-toolbar-title>
+      </q-toolbar>
+      <div class="col tt-surface__scroll q-pa-md">
+        <div class="text-caption text-grey-5 q-mb-md">
+          {{ payload.invoices[0]?.issuerName || '' }}
         </div>
-      </q-expansion-item>
+        <div class="text-subtitle1 q-mb-md" data-testid="tt-client-unpaid-balance">
+          {{ formatUsdFromCents(unpaidBalanceCents(payload.invoices)) }}
+        </div>
+        <q-btn
+          class="q-mb-md"
+          unelevated
+          no-caps
+          color="primary"
+          label="Mark all as paid"
+          data-testid="tt-client-page-pay-all"
+          @click="onPayAll"
+        />
+        <q-list>
+                  <q-expansion-item
+                    v-for="invoice in payload.invoices"
+                    :key="invoice.id"
+                    :data-testid="`tt-client-invoice-${invoice.id}`"
+                  >
+                    <template #header>
+                      <q-item-section>
+                        <q-item-label>#{{ invoice.invoiceNumber }}</q-item-label>
+                        <q-item-label caption>
+                          {{ formatUsdFromCents(invoice.invoiceTotalCents) }} ·
+                          {{ paymentStatus(invoice) }}
+                        </q-item-label>
+                      </q-item-section>
+                    </template>
+                    <q-list dense>
+                      <q-item v-for="group in expansionFor(invoice).projects" :key="group.id">
+                        <q-item-section>
+                          <q-item-label>{{ group.name }}</q-item-label>
+                          <q-item-label
+                            v-for="entry in group.timeEntries"
+                            :key="entry.id"
+                            caption
+                          >
+                            {{ formatDurationMs(entry.durationMs) }} ·
+                            {{ formatUsdFromCents(entry.amountCents) }}
+                            <span v-if="entry.description"> · {{ entry.description }}</span>
+                          </q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                    <q-card-actions>
+                      <q-btn
+                        dense
+                        outline
+                        no-caps
+                        label="Mark paid"
+                        @click="onPaid(invoice.id, invoice.invoiceTotalCents)"
+                      />
+                      <q-btn
+                        dense
+                        outline
+                        no-caps
+                        label="Mark unpaid"
+                        @click="onPaid(invoice.id, 0)"
+                      />
+                    </q-card-actions>
+                  </q-expansion-item>
+                </q-list>
+      </div>
     </div>
   </q-page>
 </template>

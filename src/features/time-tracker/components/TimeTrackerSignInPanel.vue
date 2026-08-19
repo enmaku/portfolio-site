@@ -36,7 +36,7 @@
 
           <q-separator class="q-my-xs" />
 
-          <form class="column q-gutter-y-md" @submit.prevent="onEmailSignIn">
+          <q-form class="column q-gutter-y-md" @submit="onEmailSignIn">
             <q-input
               v-model="email"
               type="email"
@@ -80,7 +80,7 @@
               :disable="!canSubmitEmail"
               @click="onCreateAccount"
             />
-          </form>
+          </q-form>
         </div>
       </q-card-section>
     </template>

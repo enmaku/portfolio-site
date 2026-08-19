@@ -9,8 +9,8 @@
     </div>
 
     <template v-else>
-      <div class="row items-center no-wrap q-px-md q-pt-md q-pb-sm">
-        <div class="text-h6 text-weight-medium col">Time Tracker</div>
+      <q-toolbar class="tt-page__header">
+        <q-toolbar-title>Time Tracker</q-toolbar-title>
         <q-btn
           flat
           dense
@@ -20,39 +20,52 @@
           data-testid="tt-settings-cog"
         >
           <q-menu anchor="bottom right" self="top right" :offset="[0, 6]">
-            <div class="q-pa-md" style="min-width: 260px">
-              <q-toggle
-                v-if="fullscreenChromeExposed"
-                v-model="fullscreenModel"
-                color="primary"
-                label="Fullscreen"
-                data-testid="tt-fullscreen-toggle"
-              />
-              <q-input
-                :model-value="issuerNameDraft"
-                outlined
-                dense
-                class="q-mt-sm"
-                label="Issuer name"
-                data-testid="tt-issuer-name"
-                @update:model-value="onIssuerNameInput"
-              />
-              <div class="row items-center no-wrap q-gutter-sm q-mt-md">
-                <div
-                  class="tt-color-swatch"
-                  :style="{ backgroundColor: timerColor }"
-                  data-testid="tt-timer-color-swatch"
-                />
-                <q-btn
-                  outline
-                  dense
-                  no-caps
-                  label="Choose color"
-                  data-testid="tt-timer-color-btn"
-                  @click="colorDialogOpen = true"
-                />
-              </div>
-            </div>
+            <q-list style="min-width: 260px">
+              <q-item v-if="fullscreenChromeExposed" tag="label">
+                <q-item-section>
+                  <q-item-label>Fullscreen</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-toggle
+                    v-model="fullscreenModel"
+                    color="primary"
+                    data-testid="tt-fullscreen-toggle"
+                  />
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section>
+                  <q-input
+                    :model-value="issuerNameDraft"
+                    outlined
+                    dense
+                    label="Issuer name"
+                    data-testid="tt-issuer-name"
+                    @update:model-value="onIssuerNameInput"
+                  />
+                </q-item-section>
+              </q-item>
+              <q-item>
+                <q-item-section avatar>
+                  <q-avatar
+                    square
+                    size="20px"
+                    :style="{ backgroundColor: timerColor }"
+                    data-testid="tt-timer-color-swatch"
+                  />
+                </q-item-section>
+                <q-item-section>
+                  <q-btn
+                    outline
+                    dense
+                    no-caps
+                    label="Choose color"
+                    data-testid="tt-timer-color-btn"
+                    @click="colorDialogOpen = true"
+                  />
+                </q-item-section>
+              </q-item>
+            </q-list>
           </q-menu>
         </q-btn>
         <q-btn
@@ -65,30 +78,42 @@
           :loading="signOutPending"
           @click="signOutConfirmOpen = true"
         />
-      </div>
+      </q-toolbar>
 
-      <div class="col tt-page__panels">
-        <TimeTrackerSurfaceTimer v-if="workspace.state.activeSurface === 'timer'" />
-        <TimeTrackerSurfaceHistory v-else-if="workspace.state.activeSurface === 'history'" />
-        <TimeTrackerSurfaceProjects v-else-if="workspace.state.activeSurface === 'projects'" />
-        <TimeTrackerSurfaceClients v-else-if="workspace.state.activeSurface === 'clients'" />
-      </div>
+      <q-tab-panels v-model="activeSurface" animated class="col tt-page__panels">
+        <q-tab-panel name="timer" class="q-pa-none">
+          <TimeTrackerSurfaceTimer />
+        </q-tab-panel>
+        <q-tab-panel name="history" class="q-pa-none">
+          <TimeTrackerSurfaceHistory />
+        </q-tab-panel>
+        <q-tab-panel name="projects" class="q-pa-none">
+          <TimeTrackerSurfaceProjects />
+        </q-tab-panel>
+        <q-tab-panel name="clients" class="q-pa-none">
+          <TimeTrackerSurfaceClients />
+        </q-tab-panel>
+      </q-tab-panels>
 
-      <nav class="tt-nav" data-testid="tt-tracker-nav">
-        <q-btn
+      <q-tabs
+        v-model="activeSurface"
+        dense
+        no-caps
+        align="justify"
+        active-color="primary"
+        indicator-color="primary"
+        class="tt-nav-bar text-grey-5"
+        data-testid="tt-tracker-nav"
+      >
+        <q-tab
           v-for="item in TRACKER_SURFACES"
           :key="item.id"
-          flat
-          no-caps
-          class="tt-nav__item"
-          :class="{ 'tt-nav__item--active': workspace.state.activeSurface === item.id }"
+          :name="item.id"
+          :icon="item.icon"
+          :label="item.label"
           :data-testid="`tt-nav-${item.id}`"
-          @click="workspace.setActiveSurface(item.id)"
-        >
-          <q-icon :name="item.icon" class="tt-nav__icon" />
-          <span class="tt-nav__label">{{ item.label }}</span>
-        </q-btn>
-      </nav>
+        />
+      </q-tabs>
 
       <q-dialog v-model="colorDialogOpen" persistent>
         <q-card class="tt-dialog-card">
@@ -170,6 +195,11 @@ const fullscreenChromeExposed = useProjectShellBrowserFullscreenChrome()
 
 provide(TIME_TRACKER_WORKSPACE_KEY, workspace)
 
+const activeSurface = computed({
+  get: () => workspace.state.activeSurface,
+  set: (next) => workspace.setActiveSurface(next),
+})
+
 const fullscreenModel = computed({
   get: () => fullscreenEnabled.value,
   set: (next) => settingsStore.setFullscreenEnabled(next),
@@ -241,14 +271,28 @@ async function confirmSignOut() {
   overflow: hidden;
 }
 
+.tt-page__header {
+  flex-shrink: 0;
+}
+
 .tt-page__panels {
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
-  position: relative;
 
-  :deep(.tt-surface) {
+  :deep(.q-tab-panel) {
     height: 100%;
+    overflow: hidden;
   }
+}
+
+.tt-nav-bar {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.body--light .tt-nav-bar {
+  border-top-color: rgba(0, 0, 0, 0.08);
 }
 </style>

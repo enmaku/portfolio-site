@@ -1,23 +1,26 @@
 <template>
   <div class="tt-surface" data-testid="tt-surface-projects">
-    <div class="tt-surface__scroll q-pa-md">
-      <q-item
-        v-for="project in state.projects"
-        :key="project.id"
-        clickable
-        :data-testid="`tt-project-${project.id}`"
-        @click="openEdit(project)"
-      >
-        <q-item-section>
-          <q-item-label>{{ project.name }}</q-item-label>
-          <q-item-label caption>
-            {{ clientName(project.clientId) }}
-            <span v-if="project.billable"> · {{ formatUsd(project.hourlyRateUsd) }}/hr</span>
-          </q-item-label>
-        </q-item-section>
-      </q-item>
+    <div class="tt-surface__scroll">
+      <q-list padding>
+        <q-item
+          v-for="project in state.projects"
+          :key="project.id"
+          clickable
+          v-ripple
+          :data-testid="`tt-project-${project.id}`"
+          @click="openEdit(project)"
+        >
+          <q-item-section>
+            <q-item-label>{{ project.name }}</q-item-label>
+            <q-item-label caption>
+              {{ clientName(project.clientId) }}
+              <span v-if="project.billable"> · {{ formatUsd(project.hourlyRateUsd) }}/hr</span>
+            </q-item-label>
+          </q-item-section>
+        </q-item>
+      </q-list>
     </div>
-    <div class="row justify-end q-pa-md">
+    <div class="tt-actions-bar row items-center justify-end q-px-md q-pt-sm">
       <q-btn fab color="primary" icon="add" data-testid="tt-project-add" @click="openAdd" />
     </div>
 

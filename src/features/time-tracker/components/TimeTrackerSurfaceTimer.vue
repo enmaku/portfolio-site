@@ -1,6 +1,6 @@
 <template>
   <div class="tt-surface tt-timer" data-testid="tt-surface-timer">
-    <div class="tt-timer__fields q-px-md q-pt-md">
+    <div class="q-px-md q-pt-md">
       <q-select
         :model-value="state.selectedProjectId"
         :options="projectOptions"
@@ -28,7 +28,7 @@
         @update:model-value="workspace.setDescription($event)"
       />
     </div>
-    <div class="tt-timer__stage">
+    <div class="tt-timer-stage">
       <div class="tt-timer-face-slot">
         <div
           class="tt-timer-face"
@@ -68,7 +68,7 @@
             <q-icon
               class="tt-timer-icon"
               :class="{ 'tt-timer-icon--play': !state.runningTimer }"
-              :name="state.runningTimer ? 'pause' : 'play_arrow'"
+              :name="state.runningTimer ? 'stop' : 'play_arrow'"
             />
             <div v-if="sessionAmountLabel" class="tt-timer-amount" data-testid="tt-timer-session-amount">
               {{ sessionAmountLabel }}

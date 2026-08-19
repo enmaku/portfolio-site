@@ -1,119 +1,141 @@
 <template>
   <div class="tt-surface" data-testid="tt-surface-clients">
     <div class="tt-surface__scroll q-pa-md">
-      <div v-for="client in state.clients" :key="client.id" class="q-mb-md">
-        <q-item clickable :data-testid="`tt-client-${client.id}`" @click="openEdit(client)">
-          <q-item-section>
-            <q-item-label>{{ client.name }}</q-item-label>
-          </q-item-section>
-        </q-item>
-        <div class="row q-px-md q-pb-sm" :data-testid="`tt-client-money-${client.id}`">
-          <div
-            v-for="row in moneyRows(client.id)"
-            :key="row.key"
-            class="col-3 column"
-            :data-testid="`tt-client-money-${client.id}-${row.key}`"
-          >
-            <div class="text-caption text-grey-5">{{ row.label }}</div>
-            <div class="text-body2">{{ formatUsdFromCents(row.cents) }}</div>
-          </div>
-        </div>
-        <q-expansion-item
-          v-for="invoice in invoicesFor(client.id)"
-          :key="invoice.id"
-          :data-testid="`tt-invoice-${invoice.id}`"
-        >
-          <template #header>
-            <q-item-section>
-              <q-item-label>#{{ invoice.invoiceNumber }}</q-item-label>
-              <q-item-label caption>
-                {{ formatUsdFromCents(invoice.invoiceTotalCents) }} · {{ paymentStatus(invoice) }}
-              </q-item-label>
-            </q-item-section>
-          </template>
-          <div
-            v-for="group in expansionFor(invoice).projects"
-            :key="group.id"
-            class="q-px-md q-pb-sm"
-          >
-            <div class="text-subtitle2">{{ group.name }}</div>
-            <div
-              v-for="entry in group.timeEntries"
-              :key="entry.id"
-              class="text-caption text-grey-5"
-            >
-              {{ formatDurationMs(entry.durationMs) }} · {{ formatUsdFromCents(entry.amountCents) }}
-              <span v-if="entry.description"> · {{ entry.description }}</span>
-            </div>
-          </div>
-          <div class="row q-gutter-sm q-px-md q-pb-md">
-            <q-btn
-              dense
-              outline
-              no-caps
-              label="Mark paid"
-              data-testid="tt-invoice-pay"
-              @click="workspace.updateInvoicePaid(invoice.id, invoice.invoiceTotalCents)"
-            />
-            <q-btn
-              dense
-              outline
-              no-caps
-              label="Mark unpaid"
-              data-testid="tt-invoice-unpay"
-              @click="workspace.updateInvoicePaid(invoice.id, 0)"
-            />
-            <q-btn
-              dense
-              outline
-              no-caps
-              label="Delete invoice"
-              data-testid="tt-invoice-delete"
-              @click="workspace.removeInvoice(invoice.id)"
-            />
-          </div>
-        </q-expansion-item>
-        <div class="row q-gutter-sm q-px-md q-pb-sm">
-          <q-btn
-            dense
-            unelevated
-            no-caps
-            color="primary"
-            label="Generate invoice"
-            data-testid="tt-invoice-generate"
-            @click="onGenerate(client.id)"
-          />
-          <q-btn
-            dense
-            outline
-            no-caps
-            label="Mark all as paid"
-            data-testid="tt-client-pay-all"
-            @click="workspace.payAllForClient(client.id)"
-          />
-          <q-btn
-            dense
-            round
-            outline
-            icon="link"
-            aria-label="Copy link"
-            data-testid="tt-client-copy-link"
-            @click="copyLink(client)"
-          />
-          <q-btn
-            dense
-            round
+      <q-card
+            v-for="client in state.clients"
+            :key="client.id"
             flat
-            size="sm"
-            icon="refresh"
-            aria-label="New link"
-            data-testid="tt-client-regen-link"
-            @click="onRegenLink(client)"
-          />
-        </div>
-      </div>
+            bordered
+            class="q-mb-md"
+          >
+            <q-item clickable v-ripple :data-testid="`tt-client-${client.id}`" @click="openEdit(client)">
+              <q-item-section>
+                <q-item-label>{{ client.name }}</q-item-label>
+              </q-item-section>
+            </q-item>
+            <q-markup-table flat dense separator="none">
+              <thead>
+                <tr>
+                  <th
+                    v-for="row in moneyRows(client.id)"
+                    :key="`${client.id}-${row.key}-h`"
+                    class="text-left text-caption text-grey-5 text-weight-regular"
+                  >
+                    {{ row.label }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :data-testid="`tt-client-money-${client.id}`">
+                  <td
+                    v-for="row in moneyRows(client.id)"
+                    :key="row.key"
+                    :data-testid="`tt-client-money-${client.id}-${row.key}`"
+                  >
+                    {{ formatUsdFromCents(row.cents) }}
+                  </td>
+                </tr>
+              </tbody>
+            </q-markup-table>
+            <q-list>
+              <q-expansion-item
+                v-for="invoice in invoicesFor(client.id)"
+                :key="invoice.id"
+                :data-testid="`tt-invoice-${invoice.id}`"
+              >
+                <template #header>
+                  <q-item-section>
+                    <q-item-label>#{{ invoice.invoiceNumber }}</q-item-label>
+                    <q-item-label caption>
+                      {{ formatUsdFromCents(invoice.invoiceTotalCents) }} · {{ paymentStatus(invoice) }}
+                    </q-item-label>
+                  </q-item-section>
+                </template>
+                <q-list dense>
+                  <q-item v-for="group in expansionFor(invoice).projects" :key="group.id">
+                    <q-item-section>
+                      <q-item-label>{{ group.name }}</q-item-label>
+                      <q-item-label
+                        v-for="entry in group.timeEntries"
+                        :key="entry.id"
+                        caption
+                      >
+                        {{ formatDurationMs(entry.durationMs) }} · {{ formatUsdFromCents(entry.amountCents) }}
+                        <span v-if="entry.description"> · {{ entry.description }}</span>
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+                <q-card-actions>
+                  <q-btn
+                    dense
+                    outline
+                    no-caps
+                    label="Mark paid"
+                    data-testid="tt-invoice-pay"
+                    @click="workspace.updateInvoicePaid(invoice.id, invoice.invoiceTotalCents)"
+                  />
+                  <q-btn
+                    dense
+                    outline
+                    no-caps
+                    label="Mark unpaid"
+                    data-testid="tt-invoice-unpay"
+                    @click="workspace.updateInvoicePaid(invoice.id, 0)"
+                  />
+                  <q-btn
+                    dense
+                    outline
+                    no-caps
+                    label="Delete invoice"
+                    data-testid="tt-invoice-delete"
+                    @click="workspace.removeInvoice(invoice.id)"
+                  />
+                </q-card-actions>
+              </q-expansion-item>
+            </q-list>
+            <q-card-actions>
+              <q-btn
+                dense
+                unelevated
+                no-caps
+                color="primary"
+                label="Generate invoice"
+                data-testid="tt-invoice-generate"
+                @click="onGenerate(client.id)"
+              />
+              <q-btn
+                dense
+                outline
+                no-caps
+                label="Mark all as paid"
+                data-testid="tt-client-pay-all"
+                @click="workspace.payAllForClient(client.id)"
+              />
+              <q-space />
+              <q-btn
+                dense
+                round
+                outline
+                icon="link"
+                aria-label="Copy link"
+                data-testid="tt-client-copy-link"
+                @click="copyLink(client)"
+              />
+              <q-btn
+                dense
+                round
+                flat
+                size="sm"
+                icon="refresh"
+                aria-label="New link"
+                data-testid="tt-client-regen-link"
+                @click="onRegenLink(client)"
+              />
+            </q-card-actions>
+          </q-card>
     </div>
-    <div class="row justify-end q-pa-md">
+    <div class="tt-actions-bar row items-center justify-end q-px-md q-pt-sm">
       <q-btn fab color="primary" icon="add" data-testid="tt-client-add" @click="openAdd" />
     </div>
 
@@ -151,7 +173,7 @@
 
 <script setup>
 import { inject, ref } from 'vue'
-import { useQuasar } from 'quasar'
+import { copyToClipboard, useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { TIME_TRACKER_WORKSPACE_KEY } from '../composables/trackerSurfaces.js'
 import { clientMoneySummary, paymentStatus } from '../domain/invoices.js'
@@ -254,7 +276,7 @@ function invoiceLinkHref(secret) {
 }
 
 async function copyInvoiceLink(secret) {
-  await navigator.clipboard.writeText(invoiceLinkHref(secret))
+  await copyToClipboard(invoiceLinkHref(secret))
 }
 
 async function copyLink(client) {
