@@ -148,3 +148,57 @@ test('changing project while running files the current time entry and starts a n
   assert.equal(workspace.state.runningTimer.projectId, 'id-2')
   assert.equal(workspace.state.runningTimer.startedAt, 8_000)
 })
+
+test('load restores issuer name, tab, and selected project from the UI session', async () => {
+  const store = memoryStore()
+  const ui = {
+    issuerName: 'Jane',
+    activeSurface: 'clients',
+    selectedProjectId: 'id-2',
+    description: 'notes',
+    runningTimer: null,
+  }
+  const writes = []
+  let ids = 0
+  const workspace = createTimeTrackerWorkspace({
+    store,
+    storage: memoryStorage(),
+    now: () => 1,
+    randomId: () => `id-${++ids}`,
+    randomSecret: () => 'secret-1',
+    readUi: () => ui,
+    writeUi: (_uid, patch) => {
+      writes.push(patch)
+      Object.assign(ui, patch)
+    },
+  })
+  await workspace.load('uid-1', { displayName: 'Ada' })
+  const first = await workspace.createProject({ name: 'Alpha' })
+  const second = await workspace.createProject({ name: 'Beta' })
+  ui.selectedProjectId = second.id
+  await workspace.load('uid-1', { displayName: 'Ada' })
+  assert.equal(workspace.state.settings.issuerName, 'Jane')
+  assert.equal(workspace.state.activeSurface, 'clients')
+  assert.equal(workspace.state.selectedProjectId, second.id)
+  assert.equal(workspace.state.description, 'notes')
+  assert.notEqual(workspace.state.selectedProjectId, first.id)
+  assert.ok(writes.length > 0)
+})
+
+test('setIssuerName writes the UI session before the tracker store', async () => {
+  const store = memoryStore()
+  const writes = []
+  const workspace = createTimeTrackerWorkspace({
+    store,
+    storage: memoryStorage(),
+    now: () => 1,
+    randomId: () => 'id-1',
+    randomSecret: () => 'secret-1',
+    writeUi: (_uid, patch) => writes.push(patch),
+  })
+  await workspace.load('uid-1', {})
+  await workspace.setIssuerName('  Jane  ')
+  assert.equal(workspace.state.settings.issuerName, 'Jane')
+  assert.equal(writes.at(-1)?.issuerName, 'Jane')
+  assert.equal(store.bag.settings.issuerName, 'Jane')
+})

@@ -26,6 +26,12 @@ import {
   loadRunningTimer,
   saveRunningTimer,
 } from '../runningTimerPersistence.js'
+import {
+  normalizeActiveSurface,
+  normalizeRunningTimer,
+  resolveIssuerName,
+  resolveSelectedProjectId,
+} from '../sessionPrefs.js'
 
 function lastProjectKey(uid) {
   return `time-tracker:last-project:${uid}`
@@ -40,6 +46,8 @@ function lastProjectKey(uid) {
  *   now: () => number,
  *   randomId: () => string,
  *   randomSecret: () => string,
+ *   readUi?: (uid: string) => object | null,
+ *   writeUi?: (uid: string, patch: object) => void,
  * }} deps
  */
 export function createTimeTrackerWorkspace(deps) {
@@ -77,6 +85,17 @@ export function createTimeTrackerWorkspace(deps) {
     deps.storage.setItem(lastProjectKey(state.uid), state.selectedProjectId)
   }
 
+  function persistUi() {
+    if (!state.uid || !deps.writeUi) return
+    deps.writeUi(state.uid, {
+      issuerName: state.settings.issuerName,
+      activeSurface: state.activeSurface,
+      selectedProjectId: state.selectedProjectId,
+      description: state.description,
+      runningTimer: state.runningTimer,
+    })
+  }
+
   async function replaceProject(project) {
     await deps.store.upsertProject(requireUid(), project.id, project)
     state.projects = state.projects.map((item) => (item.id === project.id ? project : item))
@@ -100,30 +119,37 @@ export function createTimeTrackerWorkspace(deps) {
     state.timeEntries = timeEntries
     state.invoices = invoices
 
-    if (!existingSettings) {
-      state.settings = {
-        issuerName: defaultIssuerName(user),
-        nextInvoiceNumber: 1,
-      }
+    const ui = deps.readUi?.(uid) || null
+    const issuerName = resolveIssuerName({
+      hasSession: Boolean(ui),
+      sessionName: ui?.issuerName,
+      storeName: existingSettings?.issuerName,
+      defaultName: defaultIssuerName(user),
+    })
+    const nextInvoiceNumber = Number(existingSettings?.nextInvoiceNumber) || 1
+    state.settings = { issuerName, nextInvoiceNumber }
+    if (!existingSettings || issuerName !== String(existingSettings.issuerName || '')) {
       await deps.store.upsertOwnerSettings(uid, state.settings)
-    } else {
-      state.settings = {
-        issuerName: String(existingSettings.issuerName || ''),
-        nextInvoiceNumber: Number(existingSettings.nextInvoiceNumber) || 1,
-      }
     }
 
-    state.runningTimer = loadRunningTimer({ ownerUid: uid, storage: deps.storage })
+    if (ui?.activeSurface) state.activeSurface = normalizeActiveSurface(ui.activeSurface)
+
+    const fromUi = normalizeRunningTimer(ui?.runningTimer)
+    state.runningTimer = fromUi || loadRunningTimer({ ownerUid: uid, storage: deps.storage })
+    const projectIds = projects.map((project) => project.id)
     if (state.runningTimer) {
       state.selectedProjectId = state.runningTimer.projectId
       state.description = state.runningTimer.description || ''
     } else {
       const last = deps.storage.getItem(lastProjectKey(uid))
-      state.selectedProjectId =
-        (last && projects.some((project) => project.id === last) ? last : null) ||
-        projects[0]?.id ||
-        null
+      state.selectedProjectId = resolveSelectedProjectId({
+        preferredId: ui?.selectedProjectId || null,
+        fallbackId: last,
+        projectIds,
+      })
+      state.description = String(ui?.description || '')
     }
+    persistUi()
   }
 
   async function play() {
@@ -137,6 +163,7 @@ export function createTimeTrackerWorkspace(deps) {
       description: state.description,
     })
     persistRunning()
+    persistUi()
   }
 
   async function fileCompleted(completed) {
@@ -153,6 +180,7 @@ export function createTimeTrackerWorkspace(deps) {
     await fileCompleted(completed)
     state.runningTimer = null
     persistRunning()
+    persistUi()
   }
 
   async function selectProject(projectId) {
@@ -169,6 +197,7 @@ export function createTimeTrackerWorkspace(deps) {
     }
     state.selectedProjectId = projectId
     persistLastProject()
+    persistUi()
   }
 
   function setDescription(description) {
@@ -177,6 +206,12 @@ export function createTimeTrackerWorkspace(deps) {
       state.runningTimer = { ...state.runningTimer, description }
       persistRunning()
     }
+    persistUi()
+  }
+
+  function setActiveSurface(surfaceId) {
+    state.activeSurface = normalizeActiveSurface(surfaceId)
+    persistUi()
   }
 
   async function createProjectRecord({ name }) {
@@ -186,6 +221,7 @@ export function createTimeTrackerWorkspace(deps) {
     if (!state.selectedProjectId) {
       state.selectedProjectId = project.id
       persistLastProject()
+      persistUi()
     }
     return project
   }
@@ -227,6 +263,7 @@ export function createTimeTrackerWorkspace(deps) {
     if (state.selectedProjectId === projectId) {
       state.selectedProjectId = state.projects[0]?.id || null
       persistLastProject()
+      persistUi()
     }
   }
 
@@ -410,6 +447,7 @@ export function createTimeTrackerWorkspace(deps) {
 
   async function setIssuerName(issuerName) {
     state.settings = { ...state.settings, issuerName: String(issuerName || '').trim() }
+    persistUi()
     await deps.store.upsertOwnerSettings(requireUid(), state.settings)
   }
 
@@ -447,6 +485,7 @@ export function createTimeTrackerWorkspace(deps) {
     removeInvoice,
     regenerateClientLink,
     setIssuerName,
+    setActiveSurface,
     signOutPause,
   }
 }

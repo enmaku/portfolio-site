@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { useTimeTrackerSettingsStore } from '../../../stores/timeTrackerSettings.js'
 import { createClientInvoiceSecret } from '../domain/clientInvoiceLink.js'
 import * as trackerStore from '../firebase/trackerStore.js'
 import { createTimeTrackerWorkspace } from '../workspace/createTimeTrackerWorkspace.js'
@@ -7,6 +8,7 @@ import { createTimeTrackerWorkspace } from '../workspace/createTimeTrackerWorksp
  * Live Time Tracker workspace used by the signed-in surfaces.
  */
 export function useTimeTrackerWorkspace() {
+  const settingsStore = useTimeTrackerSettingsStore()
   const state = reactive({
     uid: null,
     clients: [],
@@ -26,5 +28,11 @@ export function useTimeTrackerWorkspace() {
     now: () => Date.now(),
     randomId: () => crypto.randomUUID(),
     randomSecret: () => createClientInvoiceSecret(),
+    readUi: (uid) => settingsStore.prefsFor(uid),
+    writeUi: (uid, patch) =>
+      settingsStore.patchOwnerPrefs(uid, {
+        timerColor: settingsStore.timerColor,
+        ...patch,
+      }),
   })
 }

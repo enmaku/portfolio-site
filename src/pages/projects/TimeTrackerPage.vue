@@ -35,9 +35,23 @@
                 class="q-mt-sm"
                 label="Issuer name"
                 data-testid="tt-issuer-name"
-                @update:model-value="issuerNameDraft = $event"
-                @blur="workspace.setIssuerName(issuerNameDraft)"
+                @update:model-value="onIssuerNameInput"
               />
+              <div class="row items-center no-wrap q-gutter-sm q-mt-md">
+                <div
+                  class="tt-color-swatch"
+                  :style="{ backgroundColor: timerColor }"
+                  data-testid="tt-timer-color-swatch"
+                />
+                <q-btn
+                  outline
+                  dense
+                  no-caps
+                  label="Choose color"
+                  data-testid="tt-timer-color-btn"
+                  @click="colorDialogOpen = true"
+                />
+              </div>
             </div>
           </q-menu>
         </q-btn>
@@ -69,12 +83,30 @@
           class="tt-nav__item"
           :class="{ 'tt-nav__item--active': workspace.state.activeSurface === item.id }"
           :data-testid="`tt-nav-${item.id}`"
-          @click="workspace.state.activeSurface = item.id"
+          @click="workspace.setActiveSurface(item.id)"
         >
           <q-icon :name="item.icon" size="1.35rem" />
           <span class="tt-nav__label">{{ item.label }}</span>
         </q-btn>
       </nav>
+
+      <q-dialog v-model="colorDialogOpen">
+        <q-card class="tt-dialog-card">
+          <q-card-section class="text-h6">Timer color</q-card-section>
+          <q-card-section>
+            <q-color
+              v-model="timerColorModel"
+              default-view="palette"
+              format-model="hex"
+              class="full-width"
+              data-testid="tt-timer-color-picker"
+            />
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn unelevated no-caps color="primary" label="Done" @click="colorDialogOpen = false" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
 
       <q-dialog v-model="signOutConfirmOpen" persistent>
         <q-card class="tt-dialog-card">
@@ -130,9 +162,10 @@ const workspace = useTimeTrackerWorkspace()
 const workspaceLoading = ref(false)
 const signOutPending = ref(false)
 const signOutConfirmOpen = ref(false)
+const colorDialogOpen = ref(false)
 const issuerNameDraft = ref('')
 const settingsStore = useTimeTrackerSettingsStore()
-const { fullscreenEnabled } = storeToRefs(settingsStore)
+const { fullscreenEnabled, timerColor } = storeToRefs(settingsStore)
 const fullscreenChromeExposed = useProjectShellBrowserFullscreenChrome()
 
 provide(TIME_TRACKER_WORKSPACE_KEY, workspace)
@@ -140,6 +173,11 @@ provide(TIME_TRACKER_WORKSPACE_KEY, workspace)
 const fullscreenModel = computed({
   get: () => fullscreenEnabled.value,
   set: (next) => settingsStore.setFullscreenEnabled(next),
+})
+
+const timerColorModel = computed({
+  get: () => timerColor.value,
+  set: (next) => settingsStore.setTimerColor(next, user.value?.uid),
 })
 
 useProjectShellBrowserFullscreen({
@@ -157,6 +195,7 @@ watch(
     workspaceLoading.value = true
     try {
       await workspace.load(uid, user.value)
+      settingsStore.applyOwner(uid)
       issuerNameDraft.value = workspace.state.settings.issuerName
     } catch (err) {
       $q.notify({
@@ -169,6 +208,18 @@ watch(
   },
   { immediate: true },
 )
+
+async function onIssuerNameInput(value) {
+  issuerNameDraft.value = value
+  try {
+    await workspace.setIssuerName(value)
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err instanceof Error ? err.message : 'Could not save issuer name',
+    })
+  }
+}
 
 async function confirmSignOut() {
   signOutPending.value = true

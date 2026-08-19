@@ -96,15 +96,27 @@ _Avoid_: Implying a guarantee on every OS or browser; leaving the display awake 
 
 ### Settings cog
 
-Top-bar settings control in the same chrome location as **Game Timer**. Holds the **browser fullscreen toggle** (personal, per-app; see portfolio **browser fullscreen toggle**) and the **issuer name**.
+Top-bar settings control in the same chrome location as **Game Timer**. Holds the **browser fullscreen toggle** (personal, per-app; see portfolio **browser fullscreen toggle**), the **issuer name**, and **timer color**.
 
 _Avoid_: A second fullscreen control on the **Timer** face; sharing Game Timer’s fullscreen preference; putting **David J. Perry** or **Focus Disorder** in settings as a default **issuer name**.
 
+### Timer color
+
+Accent of the **Timer** play/pause face and hour ring. Chosen from the **settings cog** palette (same picker as Game Timer player colour). Defaults to orange. Kept in the on-device UI session (Pinia) with the rest of the live chrome—not in the **tracker store**.
+
+_Avoid_: Per-**project** colours in v1; storing **timer color** on the **account owner** in Firestore.
+
 ### Issuer name
 
-The **account owner**’s name shown as the originator on **invoices** and the **client invoice page**. Set in the **settings cog**. Defaults from the Firebase display name when one exists; otherwise empty until set. Never defaults to **David J. Perry** or **Focus Disorder**.
+The **account owner**’s name shown as the originator on **invoices** and the **client invoice page**. Set in the **settings cog**. Defaults from the Firebase display name when one exists; otherwise empty until set. Never defaults to **David J. Perry** or **Focus Disorder**. The typed value is kept in the on-device UI session immediately, and also written to the **tracker store** so **invoices** can show it.
 
-_Avoid_: Site brand as letterhead; per-invoice letterhead in v1; blocking **invoice generation** on an empty **issuer name**.
+_Avoid_: Site brand as letterhead; per-invoice letterhead in v1; blocking **invoice generation** on an empty **issuer name**; saving **issuer name** only on field blur.
+
+### UI session
+
+On-device Pinia snapshot of the live Time Tracker chrome for this **account owner**: **timer color**, **issuer name**, current **tracker surface**, selected **project**, **Timer** **description**, and **running timer**. Reload restores it. **Clients**, **projects**, **time entries**, and **invoices** stay in the **tracker store**.
+
+_Avoid_: Treating Pinia as a second copy of billed history; sharing one **account owner**’s **running timer** or selection with another on the same device.
 
 ### Online-first
 
@@ -234,7 +246,8 @@ _Avoid_: Leaving leaked links valid forever; rotating on a timer with no owner a
 - Changing **project** on the **Timer** while running completes the current **time entry** and starts a new one on the new **project**.
 - Switching **tracker surfaces** does not pause a **running timer**. The **running timer** persists across refresh and backgrounding; pause writes to the **tracker store** when online. It appears pinned on **History** but cannot be edited or deleted until pause.
 - **Keep display on** engages while a **running timer** is active.
-- **Issuer name** is the originator on **invoices**; it is not site branding.
+- **Timer color** and the rest of the **UI session** are device preferences for this **account owner**.
+- **Issuer name** is the originator on **invoices**; it is not site branding. It is kept in the **UI session** and in the **tracker store**.
 - The **client invoice page** is how a **client** sees **invoices**, the **unpaid balance**, and records **amount paid**; the **account owner** can do the same from **Clients**, and holds the **client invoice link** (with **link regeneration**).
 - **Client deletion** is blocked while **invoices** exist; otherwise **projects** become unassigned.
 - **Project deletion** is blocked while any **time entries** remain.
@@ -257,10 +270,12 @@ _Avoid_: Leaving leaked links valid forever; rotating on a timer with no owner a
 - **Hourly rate** on an **invoice**: Resolved — **project** rate at **invoice generation**, frozen at preview confirm. Issued **invoices** are not rewritten when the **project** rate changes.
 - **Client invoice page** access: Resolved — unauthenticated **client invoice link** (capability URL); **link regeneration** invalidates the old bookmark. [ADR 0027](../../../docs/adr/0027-time-tracker-client-invoice-capability-url.md).
 - **Client deletion** / **project deletion**: Resolved — no cascade, no archive. **Client deletion** requires zero **invoices**, then unassigns **projects**. **Project deletion** requires zero **time entries**.
-- **Running timer**: Resolved — persisted start + **project**; surfaces don’t pause it; store/invoices stay **online-first**. **Keep display on** while running. **Settings cog** (Game Timer placement) holds **browser fullscreen toggle**. Pinned on **History**, not editable until pause.
+- **Running timer**: Resolved — persisted start + **project**; surfaces don’t pause it; store/invoices stay **online-first**. **Keep display on** while running. **Settings cog** (Game Timer placement) holds **browser fullscreen toggle** and **timer color**. Pinned on **History**, not editable until pause.
+- **Timer color**: Resolved — orange by default; palette picker in **settings cog**; kept in the **UI session** (Pinia) per **account owner**. Invalid picker values do not reset it.
+- **UI session**: Resolved — Pinia holds **timer color**, **issuer name**, current **tracker surface**, selected **project**, **description**, and **running timer**. Firestore remains the **tracker store**.
 - **Description** on the **Timer**: Resolved — optional, editable during the run, stored on pause; **History** edits it after complete.
 - **Client** fields: Resolved — display name only in v1.
-- **Issuer name**: Resolved — settings field, default Firebase display name if any, never **David J. Perry** / **Focus Disorder**. Empty does not block **invoice generation**.
+- **Issuer name**: Resolved — settings field, default Firebase display name if any, never **David J. Perry** / **Focus Disorder**. Empty does not block **invoice generation**. Typed value is kept in the **UI session** immediately and written to the **tracker store**.
 - Product name: Resolved — **Time Tracker** for v1.
 - New **project** **billable** / **hourly rate**: Resolved — not **billable** by default; **billable** requires a rate > 0; **billable** off only when no **time entries** are invoiced. Rate may still change for future **invoices**.
 - Overlapping **time entries**: Resolved — allowed; each row still needs start before end. No split/reject/warn in v1.

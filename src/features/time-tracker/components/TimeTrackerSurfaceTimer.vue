@@ -36,6 +36,7 @@
             'tt-timer-face--running': Boolean(state.runningTimer),
             'tt-timer-face--complete': ring.completedHours >= 1,
           }"
+          :style="accentStyle"
         >
         <svg class="tt-timer-ring" viewBox="0 0 100 100" aria-hidden="true">
           <circle class="tt-timer-ring__track" cx="50" cy="50" r="42" fill="none" />
@@ -82,11 +83,18 @@
 
 <script setup>
 import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useQuasar } from 'quasar'
+import { useTimeTrackerSettingsStore } from '../../../stores/timeTrackerSettings.js'
 import { TIME_TRACKER_WORKSPACE_KEY } from '../composables/trackerSurfaces.js'
 import { sessionAmountCents } from '../domain/invoices.js'
 import { formatDurationMs, formatUsdFromCents } from '../formatDisplay.js'
+import { timerAccentVars } from '../timerAccent.js'
 import { ringCircumference, ringPoint, timerHourRing } from '../timerHourRing.js'
 
+const $q = useQuasar()
+const settingsStore = useTimeTrackerSettingsStore()
+const { timerColor } = storeToRefs(settingsStore)
 const workspace = inject(TIME_TRACKER_WORKSPACE_KEY)
 const state = workspace.state
 const now = ref(Date.now())
@@ -111,6 +119,7 @@ const sessionAmountLabel = computed(() => {
   if (cents == null) return null
   return formatUsdFromCents(cents)
 })
+const accentStyle = computed(() => timerAccentVars(timerColor.value, $q.dark.isActive))
 const ring = computed(() => timerHourRing(elapsedMs.value))
 const fillDash = computed(() => {
   const circ = ringCircumference()
