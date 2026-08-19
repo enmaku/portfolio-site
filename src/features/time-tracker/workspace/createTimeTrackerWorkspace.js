@@ -250,6 +250,7 @@ export function createTimeTrackerWorkspace(deps) {
       clientId,
       timeEntries: state.timeEntries.filter((entry) => entry.projectId === projectId),
     })
+    if (next === current) return
     await replaceProject(next)
   }
 

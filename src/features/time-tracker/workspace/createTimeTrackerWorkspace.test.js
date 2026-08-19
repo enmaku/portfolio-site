@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { saveProjectEditor } from '../projects/projectEditor.js'
 import { createTimeTrackerWorkspace } from './createTimeTrackerWorkspace.js'
 
 function memoryStore() {
@@ -201,4 +202,44 @@ test('setIssuerName writes the UI session before the tracker store', async () =>
   assert.equal(workspace.state.settings.issuerName, 'Jane')
   assert.equal(writes.at(-1)?.issuerName, 'Jane')
   assert.equal(store.bag.settings.issuerName, 'Jane')
+})
+
+test('project editor can change hourly rate after time entries are invoiced', async () => {
+  const store = memoryStore()
+  let ids = 0
+  const workspace = createTimeTrackerWorkspace({
+    store,
+    storage: memoryStorage(),
+    now: () => 3_600_000,
+    randomId: () => `id-${++ids}`,
+    randomSecret: () => 'secret-1',
+  })
+  await workspace.load('uid-1', {})
+  const client = await workspace.createClient({ name: 'Acme' })
+  const project = await workspace.createProject({ name: 'Aether' })
+  await workspace.updateProjectClient(project.id, client.id)
+  await workspace.updateProjectBilling(project.id, { billable: true, hourlyRateUsd: 12 })
+  await workspace.addManualTimeEntry({
+    projectId: project.id,
+    startedAt: 0,
+    endedAt: 3_600_000,
+  })
+  await workspace.generateInvoice({ clientId: client.id })
+
+  const baseline = workspace.state.projects.find((item) => item.id === project.id)
+  await saveProjectEditor(workspace, {
+    projectId: project.id,
+    baseline,
+    draft: {
+      name: 'Aether',
+      clientId: client.id,
+      billable: true,
+      hourlyRateUsd: 15,
+    },
+  })
+
+  const next = workspace.state.projects.find((item) => item.id === project.id)
+  assert.equal(next.hourlyRateUsd, 15)
+  assert.equal(next.clientId, client.id)
+  assert.equal(next.billable, true)
 })

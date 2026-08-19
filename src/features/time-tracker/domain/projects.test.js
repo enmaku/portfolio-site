@@ -79,6 +79,16 @@ test('assigning a client is blocked when invoiced time entries exist on the proj
   assert.equal(next.clientId, 'c1')
 })
 
+test('keeping the same client is not a client change when time entries are invoiced', () => {
+  const project = { ...createProject({ id: 'p1', name: 'Work' }), clientId: 'c1' }
+  const next = assignProjectClient(project, {
+    clientId: 'c1',
+    timeEntries: [{ invoiceId: 'inv1' }],
+  })
+  assert.equal(next, project)
+  assert.equal(next.clientId, 'c1')
+})
+
 test('deleting a client with no invoices unassigns its projects', () => {
   const client = createClient({ id: 'c1', name: ' Acme ' })
   assert.equal(client.name, 'Acme')

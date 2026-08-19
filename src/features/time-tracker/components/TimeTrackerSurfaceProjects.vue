@@ -35,12 +35,19 @@
             option-label="name"
             emit-value
             map-options
-            clearable
+            :clearable="!editorLocks.client"
+            :disable="editorLocks.client"
             outlined
             dense
             label="Client"
+            data-testid="tt-project-client"
           />
-          <q-toggle v-model="draft.billable" label="Billable" data-testid="tt-project-billable" />
+          <q-toggle
+            v-model="draft.billable"
+            :disable="editorLocks.billable"
+            label="Billable"
+            data-testid="tt-project-billable"
+          />
           <q-input
             v-model.number="draft.hourlyRateUsd"
             type="number"
@@ -83,6 +90,7 @@ import { computed, inject, reactive, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { TIME_TRACKER_WORKSPACE_KEY } from '../composables/trackerSurfaces.js'
 import { formatUsd } from '../formatDisplay.js'
+import { projectEditorFieldLocks, saveProjectEditor } from '../projects/projectEditor.js'
 
 const $q = useQuasar()
 const workspace = inject(TIME_TRACKER_WORKSPACE_KEY)
@@ -90,6 +98,7 @@ const state = workspace.state
 const editorOpen = ref(false)
 const editingId = ref(null)
 const saving = ref(false)
+const baseline = ref(null)
 const draft = reactive({
   name: '',
   clientId: null,
@@ -98,6 +107,13 @@ const draft = reactive({
 })
 
 const clientOptions = computed(() => [{ id: null, name: '—' }, ...state.clients])
+const editorLocks = computed(() => {
+  if (!editingId.value) return { client: false, billable: false }
+  return projectEditorFieldLocks({
+    billable: baseline.value?.billable,
+    timeEntries: state.timeEntries.filter((entry) => entry.projectId === editingId.value),
+  })
+})
 
 function clientName(clientId) {
   return state.clients.find((client) => client.id === clientId)?.name || ''
@@ -105,6 +121,7 @@ function clientName(clientId) {
 
 function openAdd() {
   editingId.value = null
+  baseline.value = null
   draft.name = ''
   draft.clientId = null
   draft.billable = false
@@ -114,6 +131,7 @@ function openAdd() {
 
 function openEdit(project) {
   editingId.value = project.id
+  baseline.value = { ...project }
   draft.name = project.name
   draft.clientId = project.clientId
   draft.billable = project.billable
@@ -138,25 +156,13 @@ async function runEditorAction(action) {
 
 function onSave() {
   if (!draft.name.trim()) return
-  return runEditorAction(async () => {
-    if (editingId.value) {
-      await workspace.renameProject(editingId.value, draft.name)
-      await workspace.updateProjectClient(editingId.value, draft.clientId)
-      await workspace.updateProjectBilling(editingId.value, {
-        billable: draft.billable,
-        hourlyRateUsd: draft.hourlyRateUsd,
-      })
-      return
-    }
-    const project = await workspace.createProject({ name: draft.name })
-    if (draft.clientId) await workspace.updateProjectClient(project.id, draft.clientId)
-    if (draft.billable) {
-      await workspace.updateProjectBilling(project.id, {
-        billable: true,
-        hourlyRateUsd: draft.hourlyRateUsd,
-      })
-    }
-  })
+  return runEditorAction(() =>
+    saveProjectEditor(workspace, {
+      projectId: editingId.value,
+      baseline: baseline.value,
+      draft,
+    }),
+  )
 }
 
 function onDelete() {

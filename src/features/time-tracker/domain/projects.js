@@ -106,16 +106,24 @@ export function setProjectBillable(project, input) {
   return { ...project, billable: false }
 }
 
+function normalizeClientId(clientId) {
+  return clientId ? String(clientId) : null
+}
+
 /**
  * @param {TrackerProject} project
  * @param {{ clientId: string | null, timeEntries?: InvoiceLockable[] }} input
  * @returns {TrackerProject}
  */
 export function assignProjectClient(project, input) {
+  const clientId = normalizeClientId(input.clientId)
+  if (normalizeClientId(project.clientId) === clientId) {
+    return project
+  }
   if (!canChangeProjectClient({ timeEntries: input.timeEntries ?? [] })) {
     throw new Error('Cannot change project client while time entries are on an invoice')
   }
-  return { ...project, clientId: input.clientId ? String(input.clientId) : null }
+  return { ...project, clientId }
 }
 
 /**
