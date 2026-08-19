@@ -24,7 +24,7 @@
     <q-dialog v-model="editorOpen">
       <q-card class="tt-dialog-card">
         <q-card-section class="column q-gutter-y-sm">
-          <q-input v-model="draft.name" outlined dense data-testid="tt-project-name" />
+          <q-input v-model="draft.name" outlined dense label="Name" data-testid="tt-project-name" />
           <q-select
             v-model="draft.clientId"
             :options="clientOptions"
@@ -35,21 +35,40 @@
             clearable
             outlined
             dense
+            label="Client"
           />
-          <q-toggle v-model="draft.billable" data-testid="tt-project-billable" />
+          <q-toggle v-model="draft.billable" label="Billable" data-testid="tt-project-billable" />
           <q-input
             v-model.number="draft.hourlyRateUsd"
             type="number"
             outlined
             dense
+            label="Hourly rate"
             :disable="!draft.billable"
             data-testid="tt-project-rate"
           />
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn v-if="editingId" flat color="negative" data-testid="tt-project-delete" @click="onDelete" />
-          <q-btn flat v-close-popup />
-          <q-btn unelevated color="primary" data-testid="tt-project-save" @click="onSave" />
+          <q-btn
+            v-if="editingId"
+            flat
+            no-caps
+            color="negative"
+            label="Delete"
+            data-testid="tt-project-delete"
+            @click="onDelete"
+          />
+          <q-btn flat no-caps color="grey" label="Cancel" v-close-popup />
+          <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            label="Save"
+            data-testid="tt-project-save"
+            :disable="!draft.name.trim()"
+            :loading="saving"
+            @click="onSave"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -58,13 +77,16 @@
 
 <script setup>
 import { computed, inject, reactive, ref } from 'vue'
+import { useQuasar } from 'quasar'
 import { TIME_TRACKER_WORKSPACE_KEY } from '../composables/trackerSurfaces.js'
 import { formatUsd } from '../formatDisplay.js'
 
+const $q = useQuasar()
 const workspace = inject(TIME_TRACKER_WORKSPACE_KEY)
 const state = workspace.state
 const editorOpen = ref(false)
 const editingId = ref(null)
+const saving = ref(false)
 const draft = reactive({
   name: '',
   clientId: null,
@@ -96,15 +118,33 @@ function openEdit(project) {
   editorOpen.value = true
 }
 
-async function onSave() {
-  if (editingId.value) {
-    await workspace.renameProject(editingId.value, draft.name)
-    await workspace.updateProjectClient(editingId.value, draft.clientId)
-    await workspace.updateProjectBilling(editingId.value, {
-      billable: draft.billable,
-      hourlyRateUsd: draft.hourlyRateUsd,
+async function runEditorAction(action) {
+  saving.value = true
+  try {
+    await action()
+    editorOpen.value = false
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err instanceof Error ? err.message : 'Could not save project',
     })
-  } else {
+  } finally {
+    saving.value = false
+  }
+}
+
+function onSave() {
+  if (!draft.name.trim()) return
+  return runEditorAction(async () => {
+    if (editingId.value) {
+      await workspace.renameProject(editingId.value, draft.name)
+      await workspace.updateProjectClient(editingId.value, draft.clientId)
+      await workspace.updateProjectBilling(editingId.value, {
+        billable: draft.billable,
+        hourlyRateUsd: draft.hourlyRateUsd,
+      })
+      return
+    }
     const project = await workspace.createProject({ name: draft.name })
     if (draft.clientId) await workspace.updateProjectClient(project.id, draft.clientId)
     if (draft.billable) {
@@ -113,13 +153,11 @@ async function onSave() {
         hourlyRateUsd: draft.hourlyRateUsd,
       })
     }
-  }
-  editorOpen.value = false
+  })
 }
 
-async function onDelete() {
+function onDelete() {
   if (!editingId.value) return
-  await workspace.removeProject(editingId.value)
-  editorOpen.value = false
+  return runEditorAction(() => workspace.removeProject(editingId.value))
 }
 </script>

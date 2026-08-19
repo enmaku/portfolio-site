@@ -196,12 +196,17 @@ export function deleteInvoiceLink(secret) {
 /**
  * @param {string} uid
  * @param {string} secret
+ * @param {string} clientId
  */
-export async function listInvoicesForLinkSecret(uid, secret) {
+export async function listInvoicesForLinkSecret(uid, secret, clientId) {
   const db = getTimeTrackerFirestore()
   if (!db) return []
   const snap = await getDocs(
-    query(collection(db, `${timeTrackerOwnerPath(uid)}/invoices`), where('linkSecret', '==', secret)),
+    query(
+      collection(db, `${timeTrackerOwnerPath(uid)}/invoices`),
+      where('clientId', '==', clientId),
+      where('linkSecret', '==', secret),
+    ),
   )
   return snap.docs.map((item) => ({ id: item.id, ...item.data() }))
 }

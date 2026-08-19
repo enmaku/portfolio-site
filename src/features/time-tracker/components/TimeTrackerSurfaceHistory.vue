@@ -40,15 +40,33 @@
             map-options
             outlined
             dense
+            label="Project"
           />
-          <q-input v-model="draft.startedAt" type="datetime-local" outlined dense />
-          <q-input v-model="draft.endedAt" type="datetime-local" outlined dense />
-          <q-input v-model="draft.description" outlined dense />
+          <q-input v-model="draft.startedAt" type="datetime-local" outlined dense label="Start" />
+          <q-input v-model="draft.endedAt" type="datetime-local" outlined dense label="End" />
+          <q-input v-model="draft.description" outlined dense label="Description" />
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn v-if="editingId" flat color="negative" data-testid="tt-history-delete" @click="onDelete" />
-          <q-btn flat v-close-popup />
-          <q-btn unelevated color="primary" data-testid="tt-history-save" @click="onSave" />
+          <q-btn
+            v-if="editingId"
+            flat
+            no-caps
+            color="negative"
+            label="Delete"
+            data-testid="tt-history-delete"
+            @click="onDelete"
+          />
+          <q-btn flat no-caps color="grey" label="Cancel" v-close-popup />
+          <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            label="Save"
+            data-testid="tt-history-save"
+            :disable="!draft.projectId || !draft.startedAt || !draft.endedAt"
+            :loading="saving"
+            @click="onSave"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -57,14 +75,17 @@
 
 <script setup>
 import { computed, inject, onBeforeUnmount, reactive, ref } from 'vue'
+import { useQuasar } from 'quasar'
 import { TIME_TRACKER_WORKSPACE_KEY } from '../composables/trackerSurfaces.js'
 import { formatDurationMs } from '../formatDisplay.js'
 import { historyViewModel } from '../history/historyViewModel.js'
 
+const $q = useQuasar()
 const workspace = inject(TIME_TRACKER_WORKSPACE_KEY)
 const state = workspace.state
 const editorOpen = ref(false)
 const editingId = ref(null)
+const saving = ref(false)
 const draft = reactive({
   projectId: '',
   startedAt: '',
@@ -121,21 +142,38 @@ function openEdit(row) {
   editorOpen.value = true
 }
 
-async function onSave() {
+async function runEditorAction(action) {
+  saving.value = true
+  try {
+    await action()
+    editorOpen.value = false
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err instanceof Error ? err.message : 'Could not save time entry',
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
+function onSave() {
+  if (!draft.projectId || !draft.startedAt || !draft.endedAt) return
   const payload = {
     projectId: draft.projectId,
     startedAt: fromLocalInput(draft.startedAt),
     endedAt: fromLocalInput(draft.endedAt),
     description: draft.description,
   }
-  if (editingId.value) await workspace.editTimeEntry(editingId.value, payload)
-  else await workspace.addManualTimeEntry(payload)
-  editorOpen.value = false
+  return runEditorAction(() =>
+    editingId.value
+      ? workspace.editTimeEntry(editingId.value, payload)
+      : workspace.addManualTimeEntry(payload),
+  )
 }
 
-async function onDelete() {
+function onDelete() {
   if (!editingId.value) return
-  await workspace.removeTimeEntry(editingId.value)
-  editorOpen.value = false
+  return runEditorAction(() => workspace.removeTimeEntry(editingId.value))
 }
 </script>

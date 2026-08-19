@@ -17,7 +17,9 @@
       <q-btn
         class="q-mb-md"
         unelevated
+        no-caps
         color="primary"
+        label="Mark all as paid"
         data-testid="tt-client-page-pay-all"
         @click="onPayAll"
       />
@@ -43,8 +45,14 @@
             </div>
           </div>
           <div class="row q-gutter-sm">
-            <q-btn dense outline @click="onPaid(invoice.id, invoice.invoiceTotalCents)" />
-            <q-btn dense outline @click="onPaid(invoice.id, 0)" />
+            <q-btn
+              dense
+              outline
+              no-caps
+              label="Mark paid"
+              @click="onPaid(invoice.id, invoice.invoiceTotalCents)"
+            />
+            <q-btn dense outline no-caps label="Mark unpaid" @click="onPaid(invoice.id, 0)" />
           </div>
         </div>
       </q-expansion-item>
@@ -53,7 +61,8 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { ref, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
 import { paymentStatus, payAllInvoices, setAmountPaid, unpaidBalanceCents } from '../../features/time-tracker/domain/invoices.js'
 import { formatDurationMs, formatUsdFromCents } from '../../features/time-tracker/formatDisplay.js'
@@ -65,27 +74,43 @@ import {
 import { invoiceExpansionViewModel } from '../../features/time-tracker/invoices/invoiceExpansionViewModel.js'
 
 const route = useRoute()
+const $q = useQuasar()
 const loading = ref(true)
 const payload = ref(null)
 
 async function reload() {
   const secret = String(route.params.secret || '')
   const lookup = await getInvoiceLink(secret)
-  if (!lookup?.ownerUid) {
+  if (!lookup?.ownerUid || !lookup.clientId) {
     payload.value = null
     return
   }
-  const invoices = await listInvoicesForLinkSecret(lookup.ownerUid, secret)
+  const invoices = await listInvoicesForLinkSecret(lookup.ownerUid, secret, lookup.clientId)
   payload.value = { lookup, invoices, secret }
 }
 
-onMounted(async () => {
+async function loadPage() {
+  loading.value = true
   try {
     await reload()
+  } catch (err) {
+    payload.value = null
+    $q.notify({
+      type: 'negative',
+      message: err instanceof Error ? err.message : 'Could not load invoices',
+    })
   } finally {
     loading.value = false
   }
-})
+}
+
+watch(
+  () => route.params.secret,
+  () => {
+    void loadPage()
+  },
+  { immediate: true },
+)
 
 function expansionFor(invoice) {
   return invoiceExpansionViewModel({

@@ -78,9 +78,9 @@ _Avoid_: Tags; required notes before play; treating **description** as a differe
 
 ### Timer
 
-The **tracker surface** with the play/pause control. Play starts a **time entry** on the selected **project**; pause completes that **time entry**. Play starts a new **time entry**, even on the same **project**. At most one **time entry** is running. Defaults to the last-selected **project**; if none exists, the control is empty and play is disabled. Changing **project** while running completes the current **time entry** and starts a new one on the newly selected **project**. Switching **tracker surfaces** does not pause. Optional **description** can be set or changed here while running.
+The **tracker surface** with the play/pause control. Play starts a **time entry** on the selected **project**; pause completes that **time entry**. Play starts a new **time entry**, even on the same **project**. At most one **time entry** is running. Defaults to the last-selected **project**; if none exists, the control is empty and play is disabled. Changing **project** while running completes the current **time entry** and starts a new one on the newly selected **project**. Switching **tracker surfaces** does not pause. Optional **description** can be set or changed here while running. When the selected **project** is **billable** with an **hourly rate**, the face also shows this run’s amount (duration × **hourly rate**, nearest cent)—the same money math as **invoice generation**.
 
-_Avoid_: Treating the **Timer** as the only place **time entries** exist; multiple simultaneous running **time entries**; resume-as-same-row after pause; retconning a running **time entry**’s **project** without splitting.
+_Avoid_: Treating the **Timer** as the only place **time entries** exist; multiple simultaneous running **time entries**; resume-as-same-row after pause; retconning a running **time entry**’s **project** without splitting; showing an amount on a non-**billable** **project**; treating the live amount as an **invoice**.
 
 ### Running timer
 
@@ -160,9 +160,15 @@ _Avoid_: Treating paid as an irreversible seal; conflating “marked paid” wit
 
 ### Unpaid balance
 
-For one **client**, the USD still due: remaining (**invoice total** minus **amount paid**) summed across that **client**’s not-fully-paid **invoices**. Shown on the **client invoice page** and to the **account owner** on **Clients**.
+For one **client**, the USD still due: remaining (**invoice total** minus **amount paid**) summed across that **client**’s not-fully-paid **invoices**. Shown on the **client invoice page**, and as **unpaid** in the **client money summary** on **Clients**.
 
 _Avoid_: A site-wide balance across all **clients**; treating fully paid **invoices** as still due.
+
+### Client money summary
+
+Four USD amounts on **Clients** for one **client**: **total** (**paid** + **unpaid** + **uninvoiced**), **paid** (**amount paid** on that **client**’s **invoices**, not more than each **invoice total**), **unpaid** (the **unpaid balance**—invoiced but still due), and **uninvoiced** (current **hourly rate** applied to uninvoiced **billable** **time entries** for that **client**, the same set **invoice generation** would pick with no date range).
+
+_Avoid_: Including non-**billable** time or a **running timer**; mixing other **clients**; putting this four-way split on the **client invoice page** (that page still shows **unpaid balance** only).
 
 ### Pay all invoices
 
@@ -218,6 +224,7 @@ _Avoid_: Leaving leaked links valid forever; rotating on a timer with no owner a
 - **Invoice deletion** of an **unpaid invoice** releases its **time entries** so they can be edited or placed on another **invoice**. Paid and **partially paid** **invoices** must be marked unpaid before deletion.
 - Both the **client** and the **account owner** can change an **invoice**’s **amount paid** (and thus **payment status**), including **pay all invoices** for that **client**.
 - **Unpaid balance** is per **client**, not across the **account owner**’s whole book.
+- **Client money summary** on **Clients** shows **total**, **paid**, **unpaid**, and **uninvoiced** for that **client**.
 - **Billable** **projects** with no **client** cannot contribute **time entries** to an **invoice** until a **client** is attached.
 - Non-**billable** **projects** never contribute **time entries** to an **invoice**.
 - **Invoice generation** includes only uninvoiced **billable** **time entries** for that **client**, optionally filtered by date range (default: all outstanding), after a confirmed preview.

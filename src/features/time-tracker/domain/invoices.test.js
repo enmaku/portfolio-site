@@ -6,6 +6,7 @@ import {
   PAYMENT_STATUS,
   attachInvoiceToTimeEntries,
   canDeleteInvoice,
+  clientMoneySummary,
   confirmInvoice,
   lineAmountCents,
   nextInvoiceNumber,
@@ -14,6 +15,7 @@ import {
   previewInvoice,
   qualifyingTimeEntries,
   releaseTimeEntries,
+  sessionAmountCents,
   setAmountPaid,
   unpaidBalanceCents,
 } from './invoices.js'
@@ -28,6 +30,23 @@ function billedProject(id, clientId, rate) {
 test('line amounts round duration times hourly rate to the nearest cent', () => {
   assert.equal(lineAmountCents(3_600_000, 150), 15_000)
   assert.equal(lineAmountCents(1_800_000, 100), 5_000)
+})
+
+test('session amount is live duration times hourly rate only for billable projects', () => {
+  const billed = billedProject('p1', 'c1', 100)
+  assert.equal(sessionAmountCents({ elapsedMs: 3_600_000, project: billed }), 10_000)
+  assert.equal(sessionAmountCents({ elapsedMs: 0, project: billed }), 0)
+  assert.equal(
+    sessionAmountCents({ elapsedMs: 3_600_000, project: createProject({ id: 'p2', name: 'p2' }) }),
+    null,
+  )
+  assert.equal(
+    sessionAmountCents({
+      elapsedMs: 3_600_000,
+      project: { ...billed, billable: true, hourlyRateUsd: 0 },
+    }),
+    null,
+  )
 })
 
 test('invoice generation includes only uninvoiced billable entries for that client', () => {
@@ -127,6 +146,77 @@ test('payment status and unpaid balance follow amount paid versus invoice total'
   const over = setAmountPaid(invoice, 12_000)
   assert.equal(paymentStatus(over), PAYMENT_STATUS.PAID)
   assert.equal(unpaidBalanceCents([partial, paid]), 6_000)
+})
+
+test('client money summary splits paid, unpaid invoiced, and uninvoiced billable time', () => {
+  const projects = [
+    billedProject('p1', 'c1', 100),
+    billedProject('p2', 'c2', 100),
+    createProject({ id: 'p3', name: 'p3', clientId: 'c1' }),
+  ]
+  const entries = [
+    createTimeEntry({
+      id: 'open',
+      projectId: 'p1',
+      startedAt: 0,
+      endedAt: 3_600_000,
+    }),
+    createTimeEntry({
+      id: 'other-client',
+      projectId: 'p2',
+      startedAt: 0,
+      endedAt: 3_600_000,
+    }),
+    createTimeEntry({
+      id: 'non-billable',
+      projectId: 'p3',
+      startedAt: 0,
+      endedAt: 3_600_000,
+    }),
+    createTimeEntry({
+      id: 'already-invoiced',
+      projectId: 'p1',
+      startedAt: 10_000,
+      endedAt: 3_610_000,
+      invoiceId: 'inv-paid',
+    }),
+  ]
+  const invoices = [
+    { id: 'inv-partial', clientId: 'c1', invoiceTotalCents: 10_000, amountPaidCents: 4_000 },
+    { id: 'inv-paid', clientId: 'c1', invoiceTotalCents: 5_000, amountPaidCents: 5_000 },
+    { id: 'inv-other', clientId: 'c2', invoiceTotalCents: 9_000, amountPaidCents: 0 },
+  ]
+  assert.deepEqual(
+    clientMoneySummary({
+      clientId: 'c1',
+      invoices,
+      timeEntries: entries,
+      projects,
+    }),
+    {
+      totalCents: 25_000,
+      paidCents: 9_000,
+      unpaidCents: 6_000,
+      uninvoicedCents: 10_000,
+    },
+  )
+})
+
+test('client money summary is zero when a client has no billable work', () => {
+  assert.deepEqual(
+    clientMoneySummary({
+      clientId: 'c1',
+      invoices: [],
+      timeEntries: [],
+      projects: [],
+    }),
+    {
+      totalCents: 0,
+      paidCents: 0,
+      unpaidCents: 0,
+      uninvoicedCents: 0,
+    },
+  )
 })
 
 test('pay all invoices settles every not-fully-paid invoice for a client', () => {

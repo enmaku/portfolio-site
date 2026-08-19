@@ -18,6 +18,18 @@ export function lineAmountCents(durationMsValue, hourlyRateUsd) {
 }
 
 /**
+ * @param {{ elapsedMs?: number, project?: { billable?: boolean, hourlyRateUsd?: number } | null }} input
+ * @returns {number | null}
+ */
+export function sessionAmountCents(input) {
+  const project = input?.project
+  if (!project?.billable) return null
+  const rate = Number(project.hourlyRateUsd)
+  if (!Number.isFinite(rate) || rate <= 0) return null
+  return lineAmountCents(Math.max(0, Number(input.elapsedMs) || 0), rate)
+}
+
+/**
  * @param {number} lastNumber
  * @returns {number}
  */
@@ -142,6 +154,58 @@ export function unpaidBalanceCents(invoices) {
     if (paymentStatus(invoice) === PAYMENT_STATUS.PAID) return sum
     return sum + Math.max(0, invoice.invoiceTotalCents - (invoice.amountPaidCents || 0))
   }, 0)
+}
+
+/**
+ * @param {Array<{ invoiceTotalCents: number, amountPaidCents: number }>} invoices
+ */
+export function paidAmountCents(invoices) {
+  return (invoices ?? []).reduce((sum, invoice) => {
+    const paid = Math.max(0, Number(invoice.amountPaidCents) || 0)
+    const total = Math.max(0, Number(invoice.invoiceTotalCents) || 0)
+    return sum + Math.min(paid, total)
+  }, 0)
+}
+
+/**
+ * @param {{
+ *   timeEntries?: object[],
+ *   projects?: Array<{ id: string, clientId: string | null, billable: boolean, hourlyRateUsd: number }>,
+ *   clientId: string,
+ * }} input
+ */
+export function uninvoicedAmountCents(input) {
+  const projects = input.projects ?? []
+  const projectById = new Map(projects.map((project) => [project.id, project]))
+  return qualifyingTimeEntries(input).reduce((sum, entry) => {
+    const project = projectById.get(entry.projectId)
+    return sum + lineAmountCents(durationMs(entry), project.hourlyRateUsd)
+  }, 0)
+}
+
+/**
+ * @param {{
+ *   clientId: string,
+ *   invoices?: Array<{ clientId: string, invoiceTotalCents: number, amountPaidCents: number }>,
+ *   timeEntries?: object[],
+ *   projects?: object[],
+ * }} input
+ */
+export function clientMoneySummary(input) {
+  const invoices = (input.invoices ?? []).filter((invoice) => invoice.clientId === input.clientId)
+  const paidCents = paidAmountCents(invoices)
+  const unpaidCents = unpaidBalanceCents(invoices)
+  const uninvoicedCents = uninvoicedAmountCents({
+    timeEntries: input.timeEntries,
+    projects: input.projects,
+    clientId: input.clientId,
+  })
+  return {
+    totalCents: paidCents + unpaidCents + uninvoicedCents,
+    paidCents,
+    unpaidCents,
+    uninvoicedCents,
+  }
 }
 
 /**

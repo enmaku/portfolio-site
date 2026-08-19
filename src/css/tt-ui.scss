@@ -55,8 +55,162 @@
   white-space: nowrap;
 }
 
-.tt-play {
-  width: 9.5rem;
-  height: 9.5rem;
-  border-radius: 50%;
+.tt-timer {
+  min-height: 0;
+}
+
+.tt-timer__fields {
+  flex: 0 0 auto;
+}
+
+.tt-timer__stage {
+  container-type: size;
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.45rem 0.7rem;
+}
+
+.tt-timer-face-slot {
+  width: 94%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tt-timer-face {
+  --tt-orange-track: rgba(255, 152, 64, 0.35);
+  --tt-orange-fill: #ff9a3c;
+  --tt-orange-fill-complete: #ff6d00;
+  --tt-orange-btn: #e65100;
+  --tt-orange-btn-hover: #ff6d00;
+  --tt-orange-ink: #fff4e5;
+  --tt-orange-marker: #ffe0b2;
+  position: relative;
+  flex: 0 0 auto;
+  width: min(94cqw, 100cqh);
+  aspect-ratio: 1;
+  font-size: min(94cqw, 100cqh);
+}
+
+.body--light .tt-timer-face {
+  --tt-orange-track: rgba(230, 81, 0, 0.28);
+  --tt-orange-fill: #fb8c00;
+  --tt-orange-fill-complete: #ef6c00;
+  --tt-orange-btn: #ef6c00;
+  --tt-orange-btn-hover: #f57c00;
+  --tt-orange-ink: #fff8f1;
+  --tt-orange-marker: #e65100;
+}
+
+.tt-timer-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.tt-timer-ring__track,
+.tt-timer-ring__fill {
+  stroke-width: 7.5;
+}
+
+.tt-timer-ring__track {
+  stroke: var(--tt-orange-track);
+}
+
+.tt-timer-ring__fill {
+  stroke: var(--tt-orange-fill);
+  stroke-linecap: butt;
+  transition: stroke 0.2s ease;
+}
+
+.tt-timer-face--complete .tt-timer-ring__fill {
+  stroke: var(--tt-orange-fill-complete);
+}
+
+.tt-timer-ring__start {
+  fill: var(--tt-orange-marker);
+}
+
+.tt-timer-ring__now {
+  fill: var(--tt-orange-ink);
+  stroke: var(--tt-orange-fill-complete);
+  stroke-width: 1.4;
+}
+
+.tt-timer-face > .q-btn.tt-timer-play {
+  position: absolute !important;
+  inset: 12%;
+  width: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  padding: 0 !important;
+  font-size: inherit !important;
+  background: var(--tt-orange-btn) !important;
+  color: var(--tt-orange-ink) !important;
+  box-shadow: none !important;
+}
+
+.tt-timer-play .q-btn__content {
+  width: 100%;
+  height: 100%;
+  padding: 0 !important;
+  font-size: inherit !important;
+}
+
+.tt-timer-play:hover:not(.disabled):not([disabled]),
+.tt-timer-play:focus-visible {
+  background: var(--tt-orange-btn-hover) !important;
+}
+
+.tt-timer-play.disabled,
+.tt-timer-play[disabled] {
+  opacity: 0.42;
+}
+
+.tt-timer-play__inner {
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0.07em 0.05em 0.06em;
+  font-size: inherit !important;
+  gap: 0.035em;
+}
+
+.tt-timer-elapsed {
+  font-size: 0.11em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.tt-timer-amount {
+  font-size: 0.07em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  opacity: 0.92;
+}
+
+.tt-timer-face > .q-btn.tt-timer-play .q-icon,
+.tt-timer-icon {
+  font-size: 0.22em !important;
+  width: 1em;
+  height: 1em;
+  margin: 0;
+}
+
+.tt-timer-icon--play {
+  margin-left: 0.06em;
 }

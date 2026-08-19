@@ -5,9 +5,19 @@
         <q-item clickable :data-testid="`tt-client-${client.id}`" @click="openEdit(client)">
           <q-item-section>
             <q-item-label>{{ client.name }}</q-item-label>
-            <q-item-label caption>{{ formatUsdFromCents(balanceFor(client.id)) }}</q-item-label>
           </q-item-section>
         </q-item>
+        <div class="row q-px-md q-pb-sm" :data-testid="`tt-client-money-${client.id}`">
+          <div
+            v-for="row in moneyRows(client.id)"
+            :key="row.key"
+            class="col-3 column"
+            :data-testid="`tt-client-money-${client.id}-${row.key}`"
+          >
+            <div class="text-caption text-grey-5">{{ row.label }}</div>
+            <div class="text-body2">{{ formatUsdFromCents(row.cents) }}</div>
+          </div>
+        </div>
         <q-expansion-item
           v-for="invoice in invoicesFor(client.id)"
           :key="invoice.id"
@@ -40,23 +50,63 @@
             <q-btn
               dense
               outline
+              no-caps
+              label="Mark paid"
               data-testid="tt-invoice-pay"
               @click="workspace.updateInvoicePaid(invoice.id, invoice.invoiceTotalCents)"
             />
             <q-btn
               dense
               outline
+              no-caps
+              label="Mark unpaid"
               data-testid="tt-invoice-unpay"
               @click="workspace.updateInvoicePaid(invoice.id, 0)"
             />
-            <q-btn dense outline data-testid="tt-invoice-delete" @click="workspace.removeInvoice(invoice.id)" />
+            <q-btn
+              dense
+              outline
+              no-caps
+              label="Delete invoice"
+              data-testid="tt-invoice-delete"
+              @click="workspace.removeInvoice(invoice.id)"
+            />
           </div>
         </q-expansion-item>
         <div class="row q-gutter-sm q-px-md q-pb-sm">
-          <q-btn dense unelevated color="primary" data-testid="tt-invoice-generate" @click="onGenerate(client.id)" />
-          <q-btn dense outline data-testid="tt-client-pay-all" @click="workspace.payAllForClient(client.id)" />
-          <q-btn dense outline data-testid="tt-client-copy-link" @click="copyLink(client)" />
-          <q-btn dense outline data-testid="tt-client-regen-link" @click="workspace.regenerateClientLink(client.id)" />
+          <q-btn
+            dense
+            unelevated
+            no-caps
+            color="primary"
+            label="Generate invoice"
+            data-testid="tt-invoice-generate"
+            @click="onGenerate(client.id)"
+          />
+          <q-btn
+            dense
+            outline
+            no-caps
+            label="Mark all as paid"
+            data-testid="tt-client-pay-all"
+            @click="workspace.payAllForClient(client.id)"
+          />
+          <q-btn
+            dense
+            outline
+            no-caps
+            label="Copy link"
+            data-testid="tt-client-copy-link"
+            @click="copyLink(client)"
+          />
+          <q-btn
+            dense
+            outline
+            no-caps
+            label="New link"
+            data-testid="tt-client-regen-link"
+            @click="workspace.regenerateClientLink(client.id)"
+          />
         </div>
       </div>
     </div>
@@ -67,12 +117,29 @@
     <q-dialog v-model="editorOpen">
       <q-card class="tt-dialog-card">
         <q-card-section>
-          <q-input v-model="draftName" outlined dense data-testid="tt-client-name" />
+          <q-input v-model="draftName" outlined dense label="Name" data-testid="tt-client-name" />
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn v-if="editingId" flat color="negative" data-testid="tt-client-delete" @click="onDelete" />
-          <q-btn flat v-close-popup />
-          <q-btn unelevated color="primary" data-testid="tt-client-save" @click="onSave" />
+          <q-btn
+            v-if="editingId"
+            flat
+            no-caps
+            color="negative"
+            label="Delete"
+            data-testid="tt-client-delete"
+            @click="onDelete"
+          />
+          <q-btn flat no-caps color="grey" label="Cancel" v-close-popup />
+          <q-btn
+            unelevated
+            no-caps
+            color="primary"
+            label="Save"
+            data-testid="tt-client-save"
+            :disable="!draftName.trim()"
+            :loading="saving"
+            @click="onSave"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -81,25 +148,39 @@
 
 <script setup>
 import { inject, ref } from 'vue'
+import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { TIME_TRACKER_WORKSPACE_KEY } from '../composables/trackerSurfaces.js'
-import { paymentStatus, unpaidBalanceCents } from '../domain/invoices.js'
+import { clientMoneySummary, paymentStatus } from '../domain/invoices.js'
 import { formatDurationMs, formatUsdFromCents } from '../formatDisplay.js'
 import { invoiceExpansionViewModel } from '../invoices/invoiceExpansionViewModel.js'
 
+const $q = useQuasar()
 const workspace = inject(TIME_TRACKER_WORKSPACE_KEY)
 const state = workspace.state
 const router = useRouter()
 const editorOpen = ref(false)
 const editingId = ref(null)
 const draftName = ref('')
+const saving = ref(false)
 
 function invoicesFor(clientId) {
   return state.invoices.filter((invoice) => invoice.clientId === clientId)
 }
 
-function balanceFor(clientId) {
-  return unpaidBalanceCents(invoicesFor(clientId))
+function moneyRows(clientId) {
+  const summary = clientMoneySummary({
+    clientId,
+    invoices: state.invoices,
+    timeEntries: state.timeEntries,
+    projects: state.projects,
+  })
+  return [
+    { key: 'total', label: 'Total', cents: summary.totalCents },
+    { key: 'paid', label: 'Paid', cents: summary.paidCents },
+    { key: 'unpaid', label: 'Unpaid', cents: summary.unpaidCents },
+    { key: 'uninvoiced', label: 'Uninvoiced', cents: summary.uninvoicedCents },
+  ]
 }
 
 function expansionFor(invoice) {
@@ -122,20 +203,44 @@ function openEdit(client) {
   editorOpen.value = true
 }
 
-async function onSave() {
-  if (editingId.value) await workspace.renameClient(editingId.value, draftName.value)
-  else await workspace.createClient({ name: draftName.value })
-  editorOpen.value = false
+async function runEditorAction(action) {
+  saving.value = true
+  try {
+    await action()
+    editorOpen.value = false
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err instanceof Error ? err.message : 'Could not save client',
+    })
+  } finally {
+    saving.value = false
+  }
 }
 
-async function onDelete() {
+function onSave() {
+  if (!draftName.value.trim()) return
+  return runEditorAction(() =>
+    editingId.value
+      ? workspace.renameClient(editingId.value, draftName.value)
+      : workspace.createClient({ name: draftName.value }),
+  )
+}
+
+function onDelete() {
   if (!editingId.value) return
-  await workspace.removeClient(editingId.value)
-  editorOpen.value = false
+  return runEditorAction(() => workspace.removeClient(editingId.value))
 }
 
 async function onGenerate(clientId) {
-  await workspace.generateInvoice({ clientId })
+  try {
+    await workspace.generateInvoice({ clientId })
+  } catch (err) {
+    $q.notify({
+      type: 'negative',
+      message: err instanceof Error ? err.message : 'Could not generate invoice',
+    })
+  }
 }
 
 function copyLink(client) {

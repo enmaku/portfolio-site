@@ -25,6 +25,7 @@
                 v-if="fullscreenChromeExposed"
                 v-model="fullscreenModel"
                 color="primary"
+                label="Fullscreen"
                 data-testid="tt-fullscreen-toggle"
               />
               <q-input
@@ -32,6 +33,7 @@
                 outlined
                 dense
                 class="q-mt-sm"
+                label="Issuer name"
                 data-testid="tt-issuer-name"
                 @update:model-value="issuerNameDraft = $event"
                 @blur="workspace.setIssuerName(issuerNameDraft)"
@@ -78,10 +80,19 @@
         <q-card class="tt-dialog-card">
           <q-card-section>Sign out of Time Tracker on this device?</q-card-section>
           <q-card-actions align="right">
-            <q-btn flat data-testid="tt-sign-out-cancel" @click="signOutConfirmOpen = false" />
+            <q-btn
+              flat
+              no-caps
+              color="grey"
+              label="Cancel"
+              data-testid="tt-sign-out-cancel"
+              @click="signOutConfirmOpen = false"
+            />
             <q-btn
               unelevated
+              no-caps
               color="primary"
+              label="Sign out"
               data-testid="tt-sign-out-confirm"
               :loading="signOutPending"
               @click="confirmSignOut"
@@ -147,6 +158,11 @@ watch(
     try {
       await workspace.load(uid, user.value)
       issuerNameDraft.value = workspace.state.settings.issuerName
+    } catch (err) {
+      $q.notify({
+        type: 'negative',
+        message: err instanceof Error ? err.message : 'Could not load Time Tracker',
+      })
     } finally {
       workspaceLoading.value = false
     }
