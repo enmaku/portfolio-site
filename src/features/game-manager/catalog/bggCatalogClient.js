@@ -13,6 +13,7 @@
  * @property {number | null} [averageRating]
  * @property {number | null} [bayesAverage]
  * @property {number | null} [boardGameRank]
+ * @property {string | null} [thumbnailUrl]
  */
 
 /**

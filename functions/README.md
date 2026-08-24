@@ -14,7 +14,7 @@ HTTPS `onRequest` functions (GET, CORS enabled):
 
 Responses are JSON with normalized catalog shapes (see `src/features/game-manager/catalog/normalizeBgg.js`).
 
-Search hits: `{ catalogEntryId, title, yearPublished, type, usersRated, averageRating, bayesAverage, boardGameRank }[]` under `{ results }`. The SPA ranks locally from these fields and does not call `bggThing` during typeahead (thumbnails deferred).
+Search hits: `{ catalogEntryId, title, yearPublished, type, usersRated, averageRating, bayesAverage, boardGameRank, thumbnailUrl }[]` under `{ results }`. The SPA ranks locally from these fields. Typeahead uses `thumbnailUrl` from the hit (no extra `bggThumb` call). First query token must be at least 2 characters; later tokens may be 1 character. Firestore lookup is unbounded (no candidate cap); results are capped at 20. Missing `thumbnailUrl`s on that page are filled with one BGG `/thing` batch (no stats) and merged onto catalog docs before the response; hits that already have a URL skip BGG.
 
 `bggThing` response: `{ entry, entries }` (same normalized thing shape). Cache-first against `bggThingCache/{id}` with `entry` + `cachedAtMs`. Fresh docs (under 24h) skip BGG entirely. Misses/expired ids are fetched once with `stats=1`, then batch-written; expired docs are overwritten, not deleted. Cap remains 20 ids per request.
 
@@ -26,14 +26,14 @@ Catalog documents are maintained by local scripts (`npm run bgg-update` / `bgg:r
 
 ### Deploy (Secret Manager)
 
-`bggThing` and `bggThumb` need the BGG application token:
+`bggSearch`, `bggThing`, and `bggThumb` need the BGG application token:
 
 ```bash
 firebase functions:secrets:set GAME_MANAGER_API_KEY
 firebase deploy --only functions
 ```
 
-`bggSearch` uses the Admin SDK against Firestore and does **not** bind `GAME_MANAGER_API_KEY`.
+`bggSearch` binds `GAME_MANAGER_API_KEY` only to fill missing thumbnails on the 20 returned hits; catalog docs that already have `thumbnailUrl` never call BGG.
 `bggThumb` binds the secret only for cache-miss upstream fetches; cache hits never call BGG.
 
 Do **not** expose BGG credentials in Vite `VITE_*` env.

@@ -19,7 +19,7 @@ export const SEARCH_STOPWORDS = new Set([
   'with',
 ])
 
-export const PREFIX_MIN_LEN = 2
+export const PREFIX_MIN_LEN = 1
 export const PREFIX_MAX_LEN = 12
 
 /**

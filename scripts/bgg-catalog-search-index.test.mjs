@@ -18,13 +18,14 @@ test('titleTokens drops stopwords', () => {
 })
 
 test('edgeNgrams builds length-bounded prefixes', () => {
-  assert.deepEqual(edgeNgrams('wing'), ['wi', 'win', 'wing'])
-  assert.deepEqual(edgeNgrams('ab'), ['ab'])
-  assert.deepEqual(edgeNgrams('a'), [])
+  assert.deepEqual(edgeNgrams('wing'), ['w', 'wi', 'win', 'wing'])
+  assert.deepEqual(edgeNgrams('ab'), ['a', 'ab'])
+  assert.deepEqual(edgeNgrams('a'), ['a'])
 })
 
 test('buildSearchPrefixes covers article-skipped word starts', () => {
   const prefixes = buildSearchPrefixes('The Matrix')
+  assert.ok(prefixes.includes('m'))
   assert.ok(prefixes.includes('ma'))
   assert.ok(prefixes.includes('matrix'))
   assert.ok(!prefixes.includes('the'))
@@ -61,6 +62,7 @@ test('catalogSearchDocFromRankRow builds Model A doc', () => {
   })
   assert.equal(doc.bggId, '266192')
   assert.equal(doc.rank, 38)
+  assert.ok(doc.searchPrefixes.includes('w'))
   assert.ok(doc.searchPrefixes.includes('wing'))
   assert.ok(doc.searchPrefixes.includes('wingspan'))
 })

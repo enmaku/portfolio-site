@@ -36,4 +36,22 @@ test('firestorePayloadFromCatalogDoc nulls missing optionals', () => {
   assert.equal(payload.rank, null)
   assert.equal(payload.yearPublished, null)
   assert.deepEqual(payload.searchPrefixes, [])
+  assert.equal('thumbnailUrl' in payload, false)
+})
+
+test('firestorePayloadFromCatalogDoc includes thumbnailUrl only when set', () => {
+  const withThumb = firestorePayloadFromCatalogDoc({
+    bggId: '13',
+    name: 'Catan',
+    searchPrefixes: [],
+    thumbnailUrl: 'https://cdn/catan.jpg',
+  })
+  assert.equal(withThumb.thumbnailUrl, 'https://cdn/catan.jpg')
+  const emptyThumb = firestorePayloadFromCatalogDoc({
+    bggId: '13',
+    name: 'Catan',
+    searchPrefixes: [],
+    thumbnailUrl: null,
+  })
+  assert.equal('thumbnailUrl' in emptyThumb, false)
 })

@@ -53,20 +53,13 @@
           <q-item-section avatar>
             <div class="gm-row-thumb flex flex-center">
               <q-img
-                v-if="thumbUrls[hit.catalogEntryId]"
-                :src="thumbUrls[hit.catalogEntryId]"
+                v-if="hit.thumbnailUrl"
+                :src="hit.thumbnailUrl"
                 width="40px"
                 height="56px"
                 fit="cover"
                 spinner-color="primary"
                 loading="lazy"
-              />
-              <q-circular-progress
-                v-else-if="thumbsLoading"
-                indeterminate
-                size="22px"
-                color="grey-6"
-                track-color="transparent"
               />
               <q-icon v-else name="casino" size="md" color="grey-5" />
             </div>
@@ -107,11 +100,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { CATALOG_ATTRIBUTION } from '../catalog/catalogAttribution.js'
-import {
-  fetchBggCatalogThumbs,
-  isBggCatalogConfigured,
-  searchBggCatalog,
-} from '../catalog/bggCatalogClient.js'
+import { isBggCatalogConfigured, searchBggCatalog } from '../catalog/bggCatalogClient.js'
 import { rankCatalogSearchHits } from '../catalog/rankCatalogSearch.js'
 
 const props = defineProps({
@@ -133,8 +122,6 @@ const attribution = CATALOG_ATTRIBUTION
 const query = ref('')
 const suggestions = ref([])
 const loading = ref(false)
-const thumbsLoading = ref(false)
-const thumbUrls = ref(/** @type {Record<string, string>} */ ({}))
 const lastSearchedQuery = ref('')
 const inputRef = ref(null)
 
@@ -157,61 +144,47 @@ function onQueryInput(value) {
 
 const trimmedQuery = computed(() => String(query.value ?? '').trim())
 
+/**
+ * First whitespace-separated token (search starts when this is ≥ 2 chars).
+ * @param {string} raw
+ * @returns {string}
+ */
+function firstQueryToken(raw) {
+  return String(raw ?? '')
+    .trim()
+    .split(/\s+/)
+    .find((t) => t.length > 0) || ''
+}
+
+const searchReady = computed(() => firstQueryToken(trimmedQuery.value).length >= 2)
+
 const showNoResults = computed(
   () =>
     configured.value &&
-    trimmedQuery.value.length >= 2 &&
+    searchReady.value &&
     !loading.value &&
     lastSearchedQuery.value === trimmedQuery.value &&
     suggestions.value.length === 0,
 )
 
-const showCustomOption = computed(() => trimmedQuery.value.length >= 2 && !loading.value)
+const showCustomOption = computed(() => searchReady.value && !loading.value)
 
 const showSuggestionPanel = computed(() => {
-  if (trimmedQuery.value.length < 2) return false
+  if (!searchReady.value) return false
   return loading.value || suggestions.value.length > 0 || showNoResults.value || showCustomOption.value
 })
-
-/**
- * @param {{ catalogEntryId: string }[]} hits
- * @param {AbortSignal} signal
- */
-async function loadThumbsForHits(hits, signal) {
-  const ids = [
-    ...new Set(hits.map((hit) => String(hit.catalogEntryId || '').trim()).filter((id) => /^\d+$/.test(id))),
-  ]
-  if (ids.length === 0) return
-  thumbsLoading.value = true
-  try {
-    const art = await fetchBggCatalogThumbs(ids, { signal })
-    if (signal.aborted || !art.ok) return
-    /** @type {Record<string, string>} */
-    const next = { ...thumbUrls.value }
-    for (const row of art.results) {
-      if (row.catalogEntryId && row.thumbnailUrl) {
-        next[row.catalogEntryId] = row.thumbnailUrl
-      }
-    }
-    thumbUrls.value = next
-  } finally {
-    if (!signal.aborted) thumbsLoading.value = false
-  }
-}
 
 async function runSearch() {
   const q = trimmedQuery.value
   if (abort) abort.abort()
-  if (q.length < 2) {
+  if (!searchReady.value) {
     suggestions.value = []
-    thumbsLoading.value = false
     lastSearchedQuery.value = ''
     return
   }
 
   if (!configured.value) {
     suggestions.value = []
-    thumbsLoading.value = false
     lastSearchedQuery.value = q
     return
   }
@@ -225,7 +198,6 @@ async function runSearch() {
     const rawHits = result.ok ? result.results : []
     suggestions.value = rankCatalogSearchHits(rawHits, q, { limit: 20 })
     lastSearchedQuery.value = q
-    void loadThumbsForHits(suggestions.value, signal)
   } catch {
     if (signal.aborted) return
     suggestions.value = []
@@ -238,8 +210,6 @@ async function runSearch() {
 function resetQueryState() {
   query.value = ''
   suggestions.value = []
-  thumbUrls.value = {}
-  thumbsLoading.value = false
   lastSearchedQuery.value = ''
 }
 
@@ -252,7 +222,7 @@ async function pickCatalog(hit) {
     catalogEntryId: hit.catalogEntryId,
     title: hit.title,
     yearPublished: hit.yearPublished ?? null,
-    thumbnailUrl: hit.thumbnailUrl || thumbUrls.value[hit.catalogEntryId] || null,
+    thumbnailUrl: hit.thumbnailUrl || null,
   })
   resetQueryState()
 }
@@ -260,7 +230,7 @@ async function pickCatalog(hit) {
 /** @param {string} title */
 function pickCustom(title) {
   const trimmed = title.trim()
-  if (trimmed.length < 2) return
+  if (firstQueryToken(trimmed).length < 2) return
   emit('select', {
     source: 'custom',
     title: trimmed,

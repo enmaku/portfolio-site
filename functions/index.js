@@ -12,6 +12,8 @@ exports.bggSearch = onRequest(
   {
     cors: true,
     region,
+    memory: '512MiB',
+    secrets: [gameManagerApiKey],
   },
   bggSearchHandler,
 )

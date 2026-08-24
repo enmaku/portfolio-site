@@ -74,7 +74,7 @@ function loadAdmin() {
  * @returns {object}
  */
 export function firestorePayloadFromCatalogDoc(doc) {
-  return {
+  const payload = {
     bggId: doc.bggId,
     name: doc.name,
     yearPublished: doc.yearPublished ?? null,
@@ -85,6 +85,9 @@ export function firestorePayloadFromCatalogDoc(doc) {
     searchPrefixes: Array.isArray(doc.searchPrefixes) ? doc.searchPrefixes : [],
     updatedAt: new Date().toISOString(),
   }
+  const thumbnailUrl = String(doc.thumbnailUrl || '').trim()
+  if (thumbnailUrl) payload.thumbnailUrl = thumbnailUrl
+  return payload
 }
 
 async function readCatalogDocs(jsonlPath) {

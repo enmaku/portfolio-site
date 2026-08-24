@@ -20,6 +20,7 @@ import {
   BGG_CATALOG_GAMES_COLLECTION,
   firestorePayloadFromCatalogDoc,
 } from './bgg-upload-catalog-search-index.mjs'
+import { fetchThumbnailUrlsForIds } from './lib/bggCatalogThumbnails.mjs'
 import { diffCatalogDocMaps, loadCatalogDocMapFromRanksCsv } from './lib/bggCatalogSearchDiff.mjs'
 import { BGG_DATA_DIR, downloadBggRanksCsvWithReauth } from './lib/bggRanksDump.mjs'
 import {
@@ -51,7 +52,7 @@ async function applyCatalogDiff(db, diff) {
 
   let upserts = 0
   for (const doc of [...diff.added, ...diff.changed]) {
-    writer.set(col.doc(String(doc.bggId)), firestorePayloadFromCatalogDoc(doc))
+    writer.set(col.doc(String(doc.bggId)), firestorePayloadFromCatalogDoc(doc), { merge: true })
     upserts += 1
     if (upserts % LOG_EVERY === 0) {
       console.error(`  queued upserts ${upserts}/${diff.added.length + diff.changed.length}`)
@@ -69,6 +70,31 @@ async function applyCatalogDiff(db, diff) {
 
   await writer.close()
   return { upserts, deletes }
+}
+
+/**
+ * @param {import('firebase-admin/firestore').Firestore} db
+ * @param {object[]} added
+ */
+async function applyAddedThumbnails(db, added) {
+  const ids = [...new Set((added || []).map((doc) => String(doc.bggId || '').trim()).filter((id) => /^\d+$/.test(id)))]
+  if (ids.length === 0) return 0
+  const apiKey = envValue('GAME_MANAGER_API_KEY')
+  if (!apiKey) {
+    throw new Error('GAME_MANAGER_API_KEY is required to fetch thumbnails for added games')
+  }
+  console.error(`Fetching thumbnails for ${ids.length} added game(s)…`)
+  const urlById = await fetchThumbnailUrlsForIds(apiKey, ids)
+  const col = db.collection(BGG_CATALOG_GAMES_COLLECTION)
+  const writer = db.bulkWriter()
+  let written = 0
+  for (const [id, url] of urlById) {
+    if (typeof url !== 'string' || !url) continue
+    writer.set(col.doc(String(id)), { thumbnailUrl: url }, { merge: true })
+    written += 1
+  }
+  await writer.close()
+  return written
 }
 
 function writeDiffArtifact(diff) {
@@ -146,6 +172,8 @@ async function main() {
   console.error(`Applying diff to ${projectId} / ${BGG_CATALOG_GAMES_COLLECTION}…`)
   const result = await applyCatalogDiff(db, diff)
   console.error(`Applied upserts=${result.upserts} deletes=${result.deletes}`)
+  const thumbs = await applyAddedThumbnails(db, diff.added)
+  if (thumbs) console.error(`Wrote thumbnailUrl for ${thumbs} added game(s)`)
 
   copyFileSync(INCOMING_CSV_PATH, CSV_PATH)
   copyFileSync(INCOMING_CSV_PATH, SYNCED_CSV_PATH)
