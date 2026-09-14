@@ -9,7 +9,7 @@
   "scripts": {
     "lint": "eslint -c ./eslint.config.js \"./src*/**/*.{js,cjs,mjs,vue}\" \"world-builder/**/*.js\"",
     "format": "prettier --write \"**/*.{js,vue,scss,html,md,json}\" --ignore-path .gitignore",
-    "test": "node --experimental-test-module-mocks --test \"src/composables/**/*.test.js\" \"src/utils/**/*.test.js\" \"src/features/**/*.test.js\" \"src/features/**/*.test.mjs\" \"src/layouts/**/*.test.js\" \"src/share-metadata.test.js\" \"src/router/**/*.test.js\" \"world-builder/**/*.test.js\" \"scripts/generate-share-pages.test.mjs\" \"scripts/sync-dungeon-runner-model.test.mjs\" \"scripts/dungeon-runner-model-catalog.test.mjs\" \"scripts/convert-dungeon-runner-h5.test.mjs\" \"scripts/dungeon-runner-model-artifacts.test.mjs\" \"scripts/check-firebase-rtdb.test.mjs\" \"scripts/bgg-catalog-search-index.test.mjs\" \"scripts/bgg-upload-catalog-search-index.test.mjs\" \"scripts/bgg-catalog-search-diff.test.mjs\" \"scripts/bgg-fetch-catalog-thumbnails.test.mjs\" \"functions/bgg/catalogQuery.test.js\" \"functions/bgg/bggThumb.test.js\" \"functions/bgg/bggThing.test.js\"",
+    "test": "node --experimental-test-module-mocks --test \"src/composables/**/*.test.js\" \"src/utils/**/*.test.js\" \"src/features/**/*.test.js\" \"src/features/**/*.test.mjs\" \"src/layouts/**/*.test.js\" \"src/share-metadata.test.js\" \"src/router/**/*.test.js\" \"world-builder/**/*.test.js\" \"scripts/generate-share-pages.test.mjs\" \"scripts/sync-dungeon-runner-model.test.mjs\" \"scripts/dungeon-runner-model-catalog.test.mjs\" \"scripts/convert-dungeon-runner-h5.test.mjs\" \"scripts/dungeon-runner-model-artifacts.test.mjs\" \"scripts/check-firebase-rtdb.test.mjs\" \"scripts/bgg-catalog-search-index.test.mjs\" \"scripts/bgg-upload-catalog-search-index.test.mjs\" \"scripts/bgg-catalog-search-diff.test.mjs\" \"scripts/bgg-fetch-catalog-thumbnails.test.mjs\" \"scripts/bgg-seed-short-searches.test.mjs\" \"scripts/bgg-seed-top-searches.test.mjs\" \"functions/bgg/catalogQuery.test.js\" \"functions/bgg/bggThumb.test.js\" \"functions/bgg/bggThing.test.js\"",
     "test:world-builder": "npm run check:world-builder-file-size && node --experimental-test-module-mocks --test \"world-builder/**/*.test.js\"",
     "test:world-builder:coverage": "node --experimental-test-module-mocks --experimental-test-coverage --test-coverage-include='world-builder/core/**/*.js' --test-coverage-include='world-builder/renderer/**/*.js' --test-coverage-include='world-builder/worker/**/*.js' --test-coverage-include='world-builder/*.js' --test-coverage-exclude='**/*.test.js' --test \"world-builder/**/*.test.js\"",
     "test:database-rules": "firebase emulators:exec --only database \"node --test database.rules.test.mjs\"",
@@ -19,6 +19,8 @@
     "bgg:ranks:download": "node ./scripts/bgg-download-ranks.mjs download",
     "bgg:ranks:build-index": "node ./scripts/bgg-build-catalog-search-index.mjs",
     "bgg:ranks:fetch-thumbs": "node ./scripts/bgg-fetch-catalog-thumbnails.mjs",
+    "bgg:ranks:seed-short-searches": "node ./scripts/bgg-seed-short-searches.mjs",
+    "bgg:ranks:seed-top-searches": "node ./scripts/bgg-seed-top-searches.mjs",
     "bgg:ranks:upload-index": "node ./scripts/bgg-upload-catalog-search-index.mjs",
     "bgg:ranks:sync": "node ./scripts/bgg-sync-catalog-search-index.mjs",
     "bgg-update": "node ./scripts/bgg-sync-catalog-search-index.mjs",
