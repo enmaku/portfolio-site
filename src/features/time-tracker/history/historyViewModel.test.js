@@ -31,6 +31,50 @@ test('history pins the running timer above completed rows and marks it immutable
   assert.equal(model.rows[0].mutable, true)
 })
 
+test('history rows expose earnings only for per-job projects with recorded amounts', () => {
+  const perJob = setProjectBillable(createProject({ id: 'p1', name: 'Per job' }), {
+    billable: true,
+    perJobBillable: true,
+  })
+  const hourly = setProjectBillable(createProject({ id: 'p2', name: 'Hourly' }), {
+    billable: true,
+    hourlyRateUsd: 100,
+  })
+  const entries = [
+    createTimeEntry({
+      id: 'e1',
+      projectId: 'p1',
+      startedAt: 1_000,
+      endedAt: 2_000,
+      earningsUsdCents: 500,
+    }),
+    createTimeEntry({
+      id: 'e2',
+      projectId: 'p1',
+      startedAt: 3_000,
+      endedAt: 4_000,
+      earningsUsdCents: null,
+    }),
+    createTimeEntry({
+      id: 'e3',
+      projectId: 'p2',
+      startedAt: 5_000,
+      endedAt: 6_000,
+      earningsUsdCents: 900,
+    }),
+  ]
+  const model = historyViewModel({
+    timeEntries: entries,
+    projects: [perJob, hourly],
+    runningTimer: null,
+    now: 9_000,
+  })
+  const byId = new Map(model.rows.map((row) => [row.id, row]))
+  assert.equal(byId.get('e1').earningsUsdCents, 500)
+  assert.equal(byId.get('e2').earningsUsdCents, null)
+  assert.equal(byId.get('e3').earningsUsdCents, null)
+})
+
 test('invoice expansion nests project aggregates under the invoice then time entries', () => {
   const projects = [
     setProjectBillable({ ...createProject({ id: 'p1', name: 'Alpha' }), clientId: 'c1' }, {

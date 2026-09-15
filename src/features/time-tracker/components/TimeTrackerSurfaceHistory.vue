@@ -21,6 +21,9 @@
             <q-item-label>{{ projectName(row.projectId) }}</q-item-label>
             <q-item-label caption>
               {{ formatDurationMs(row.durationMs) }}
+              <span v-if="row.earningsUsdCents != null">
+                · {{ formatUsdFromCents(row.earningsUsdCents) }}
+              </span>
               <span v-if="row.description"> · {{ row.description }}</span>
             </q-item-label>
           </q-item-section>
@@ -48,6 +51,17 @@
           <TimeTrackerDateTimeField v-model="draft.startedAt" label="Start" />
           <TimeTrackerDateTimeField v-model="draft.endedAt" label="End" />
           <q-input v-model="draft.description" outlined dense label="Description" />
+          <q-input
+            v-if="draftShowsEarnings"
+            v-model="draft.earningsInput"
+            type="number"
+            step="0.01"
+            min="0"
+            outlined
+            dense
+            label="Earnings (USD)"
+            data-testid="tt-history-earnings"
+          />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn
@@ -80,7 +94,15 @@
 import { computed, inject, onBeforeUnmount, reactive, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { TIME_TRACKER_WORKSPACE_KEY } from '../composables/trackerSurfaces.js'
-import { formatDurationMs, parseLocalDateTimeInput, toLocalDateTimeInput } from '../formatDisplay.js'
+import { isPerJobBillable } from '../domain/projects.js'
+import {
+  centsToUsdInput,
+  formatDurationMs,
+  formatUsdFromCents,
+  parseLocalDateTimeInput,
+  toLocalDateTimeInput,
+  usdInputToCents,
+} from '../formatDisplay.js'
 import { historyViewModel } from '../history/historyViewModel.js'
 import TimeTrackerDateTimeField from './TimeTrackerDateTimeField.vue'
 
@@ -95,6 +117,7 @@ const draft = reactive({
   startedAt: '',
   endedAt: '',
   description: '',
+  earningsInput: '',
 })
 const now = ref(Date.now())
 const tick = setInterval(() => {
@@ -105,10 +128,15 @@ onBeforeUnmount(() => clearInterval(tick))
 const history = computed(() =>
   historyViewModel({
     timeEntries: state.timeEntries,
+    projects: state.projects,
     runningTimer: state.runningTimer,
     now: now.value,
   }),
 )
+const draftShowsEarnings = computed(() => {
+  const project = state.projects.find((item) => item.id === draft.projectId)
+  return isPerJobBillable(project)
+})
 const livePinnedMs = computed(() =>
   history.value.pinned ? now.value - history.value.pinned.startedAt : 0,
 )
@@ -132,15 +160,18 @@ function openManual() {
   draft.startedAt = toLocalInput(end - 3_600_000)
   draft.endedAt = toLocalInput(end)
   draft.description = ''
+  draft.earningsInput = ''
   editorOpen.value = true
 }
 
 function openEdit(row) {
+  const entry = state.timeEntries.find((item) => item.id === row.id)
   editingId.value = row.id
   draft.projectId = row.projectId
   draft.startedAt = toLocalInput(row.startedAt)
   draft.endedAt = toLocalInput(row.endedAt)
   draft.description = row.description || ''
+  draft.earningsInput = centsToUsdInput(entry?.earningsUsdCents)
   editorOpen.value = true
 }
 
@@ -166,6 +197,7 @@ function onSave() {
     startedAt: fromLocalInput(draft.startedAt),
     endedAt: fromLocalInput(draft.endedAt),
     description: draft.description,
+    earningsUsdCents: draftShowsEarnings.value ? usdInputToCents(draft.earningsInput) : null,
   }
   return runEditorAction(() =>
     editingId.value

@@ -243,3 +243,188 @@ test('project editor can change hourly rate after time entries are invoiced', as
   assert.equal(next.clientId, client.id)
   assert.equal(next.billable, true)
 })
+
+test('pause on per-job stores frozen endedAt and earnings', async () => {
+  const store = memoryStore()
+  let now = 1_000
+  let ids = 0
+  const workspace = createTimeTrackerWorkspace({
+    store,
+    storage: memoryStorage(),
+    now: () => now,
+    randomId: () => `id-${++ids}`,
+    randomSecret: () => 'secret-1',
+  })
+  await workspace.load('uid-1', {})
+  const project = await workspace.createProject({ name: 'Per job' })
+  await workspace.updateProjectBilling(project.id, { billable: true, perJobBillable: true })
+  await workspace.play()
+  now = 5_000
+  await workspace.pause({ endedAt: 4_500, earningsUsdCents: 2_500 })
+  now = 9_000
+  const entry = Object.values(store.bag.timeEntries)[0]
+  assert.equal(entry.endedAt, 4_500)
+  assert.equal(entry.earningsUsdCents, 2_500)
+})
+
+test('pause on per-job with omitted earnings stores null', async () => {
+  const store = memoryStore()
+  let now = 1_000
+  const workspace = createTimeTrackerWorkspace({
+    store,
+    storage: memoryStorage(),
+    now: () => now,
+    randomId: () => 'id-1',
+    randomSecret: () => 'secret-1',
+  })
+  await workspace.load('uid-1', {})
+  const project = await workspace.createProject({ name: 'Per job' })
+  await workspace.updateProjectBilling(project.id, { billable: true, perJobBillable: true })
+  await workspace.play()
+  now = 5_000
+  await workspace.pause({ endedAt: 5_000 })
+  const entry = Object.values(store.bag.timeEntries)[0]
+  assert.equal(entry.earningsUsdCents, null)
+})
+
+test('pause on hourly ignores passed earnings', async () => {
+  const store = memoryStore()
+  let now = 1_000
+  const workspace = createTimeTrackerWorkspace({
+    store,
+    storage: memoryStorage(),
+    now: () => now,
+    randomId: () => 'id-1',
+    randomSecret: () => 'secret-1',
+  })
+  await workspace.load('uid-1', {})
+  const project = await workspace.createProject({ name: 'Hourly' })
+  await workspace.updateProjectBilling(project.id, { billable: true, hourlyRateUsd: 50 })
+  await workspace.play()
+  now = 5_000
+  await workspace.pause({ endedAt: 5_000, earningsUsdCents: 500 })
+  const entry = Object.values(store.bag.timeEntries)[0]
+  assert.equal(entry.earningsUsdCents, null)
+})
+
+test('selectProject while running files per-job earnings on the completed entry', async () => {
+  const store = memoryStore()
+  let now = 1_000
+  let ids = 0
+  const workspace = createTimeTrackerWorkspace({
+    store,
+    storage: memoryStorage(),
+    now: () => now,
+    randomId: () => `id-${++ids}`,
+    randomSecret: () => 'secret-1',
+  })
+  await workspace.load('uid-1', {})
+  const perJob = await workspace.createProject({ name: 'Per job' })
+  const other = await workspace.createProject({ name: 'Other' })
+  await workspace.updateProjectBilling(perJob.id, { billable: true, perJobBillable: true })
+  await workspace.selectProject(perJob.id)
+  await workspace.play()
+  now = 8_000
+  await workspace.selectProject(other.id, { at: 7_500, completedEarningsUsdCents: 900 })
+  const entry = Object.values(store.bag.timeEntries)[0]
+  assert.equal(entry.endedAt, 7_500)
+  assert.equal(entry.earningsUsdCents, 900)
+})
+
+test('editTimeEntry clears earnings when moving from per-job to hourly', async () => {
+  const store = memoryStore()
+  let ids = 0
+  const workspace = createTimeTrackerWorkspace({
+    store,
+    storage: memoryStorage(),
+    now: () => 1,
+    randomId: () => `id-${++ids}`,
+    randomSecret: () => 'secret-1',
+  })
+  await workspace.load('uid-1', {})
+  const perJob = await workspace.createProject({ name: 'Per job' })
+  const hourly = await workspace.createProject({ name: 'Hourly' })
+  await workspace.updateProjectBilling(perJob.id, { billable: true, perJobBillable: true })
+  await workspace.updateProjectBilling(hourly.id, { billable: true, hourlyRateUsd: 40 })
+  const entry = await workspace.addManualTimeEntry({
+    projectId: perJob.id,
+    startedAt: 0,
+    endedAt: 3_600_000,
+    earningsUsdCents: 1_000,
+  })
+  await workspace.editTimeEntry(entry.id, { projectId: hourly.id })
+  const next = workspace.state.timeEntries.find((item) => item.id === entry.id)
+  assert.equal(next.earningsUsdCents, null)
+})
+
+test('generateInvoice excludes per-job entries', async () => {
+  const store = memoryStore()
+  let ids = 0
+  const workspace = createTimeTrackerWorkspace({
+    store,
+    storage: memoryStorage(),
+    now: () => 3_600_000,
+    randomId: () => `id-${++ids}`,
+    randomSecret: () => 'secret-1',
+  })
+  await workspace.load('uid-1', {})
+  const client = await workspace.createClient({ name: 'Acme' })
+  const hourly = await workspace.createProject({ name: 'Hourly' })
+  const perJob = await workspace.createProject({ name: 'Per job' })
+  await workspace.updateProjectClient(hourly.id, client.id)
+  await workspace.updateProjectClient(perJob.id, client.id)
+  await workspace.updateProjectBilling(hourly.id, { billable: true, hourlyRateUsd: 100 })
+  await workspace.updateProjectBilling(perJob.id, { billable: true, perJobBillable: true })
+  await workspace.addManualTimeEntry({
+    projectId: hourly.id,
+    startedAt: 0,
+    endedAt: 3_600_000,
+  })
+  await workspace.addManualTimeEntry({
+    projectId: perJob.id,
+    startedAt: 0,
+    endedAt: 3_600_000,
+    earningsUsdCents: 5_000,
+  })
+  const invoice = await workspace.generateInvoice({ clientId: client.id })
+  assert.equal(invoice.lines.length, 1)
+  assert.equal(invoice.invoiceTotalCents, 10_000)
+})
+
+test('updateProjectBilling persists perJobBillable', async () => {
+  const store = memoryStore()
+  const workspace = createTimeTrackerWorkspace({
+    store,
+    storage: memoryStorage(),
+    now: () => 1,
+    randomId: () => 'id-1',
+    randomSecret: () => 'secret-1',
+  })
+  await workspace.load('uid-1', {})
+  const project = await workspace.createProject({ name: 'Work' })
+  await workspace.updateProjectBilling(project.id, { billable: true, perJobBillable: true })
+  const next = workspace.state.projects.find((item) => item.id === project.id)
+  assert.equal(next.perJobBillable, true)
+})
+
+test('load normalizes missing perJobBillable and earningsUsdCents', async () => {
+  const store = memoryStore()
+  store.bag.projects['p1'] = { id: 'p1', name: 'A', clientId: null, billable: true, hourlyRateUsd: 10 }
+  store.bag.timeEntries['e1'] = {
+    id: 'e1',
+    projectId: 'p1',
+    startedAt: 0,
+    endedAt: 1_000,
+    description: '',
+  }
+  const workspace = createTimeTrackerWorkspace({
+    store,
+    storage: memoryStorage(),
+    now: () => 1,
+    randomId: () => 'id-1',
+    randomSecret: () => 'secret-1',
+  })
+  await workspace.load('uid-1', {})
+  assert.equal(workspace.state.projects[0].perJobBillable, false)
+  assert.equal(workspace.state.timeEntries[0].earningsUsdCents, null)
+})

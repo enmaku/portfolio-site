@@ -11,6 +11,8 @@ export const TRACKER_SURFACE_IDS = TRACKER_SURFACES.map((item) => item.id)
  *   description: string,
  *   runningTimer: { projectId: string, startedAt: number, description: string } | null,
  *   timerColor: string,
+ *   showUnpaidInvoicesInStatistics: boolean,
+ *   includeUninvoicedInStatistics: boolean,
  * }}
  */
 export function defaultOwnerPrefs() {
@@ -21,6 +23,8 @@ export function defaultOwnerPrefs() {
     description: '',
     runningTimer: null,
     timerColor: DEFAULT_TIMER_COLOR,
+    showUnpaidInvoicesInStatistics: false,
+    includeUninvoicedInStatistics: false,
   }
 }
 
@@ -56,6 +60,11 @@ export function normalizeOwnerPrefs(raw) {
   const selected = /** @type {{ selectedProjectId?: unknown }} */ (src).selectedProjectId
   const surface = /** @type {{ activeSurface?: unknown }} */ (src).activeSurface
   const color = /** @type {{ timerColor?: unknown }} */ (src).timerColor
+  const showUnpaid = /** @type {{ showUnpaidInvoicesInStatistics?: unknown }} */ (src)
+    .showUnpaidInvoicesInStatistics === true
+  const includeUninvoicedRaw =
+    /** @type {{ includeUninvoicedInStatistics?: unknown }} */ (src).includeUninvoicedInStatistics ===
+    true
   return {
     issuerName: String(/** @type {{ issuerName?: unknown }} */ (src).issuerName || ''),
     activeSurface: normalizeActiveSurface(surface),
@@ -63,6 +72,8 @@ export function normalizeOwnerPrefs(raw) {
     description: String(/** @type {{ description?: unknown }} */ (src).description || ''),
     runningTimer: normalizeRunningTimer(/** @type {{ runningTimer?: unknown }} */ (src).runningTimer),
     timerColor: parseTimerColor(color) ?? DEFAULT_TIMER_COLOR,
+    showUnpaidInvoicesInStatistics: showUnpaid,
+    includeUninvoicedInStatistics: showUnpaid && includeUninvoicedRaw,
   }
 }
 

@@ -11,7 +11,11 @@ import {
   createProject,
   createTimeEntry,
   defaultIssuerName,
+  earningsUsdCentsForProjectReassign,
+  earningsUsdCentsForSave,
   nextInvoiceNumber,
+  normalizeProject,
+  normalizeTimeEntry,
   payAllInvoices,
   previewInvoice,
   releaseTimeEntries,
@@ -115,8 +119,8 @@ export function createTimeTrackerWorkspace(deps) {
       deps.store.getOwnerSettings(uid),
     ])
     state.clients = clients
-    state.projects = projects
-    state.timeEntries = timeEntries
+    state.projects = projects.map((project) => normalizeProject(project))
+    state.timeEntries = timeEntries.map((entry) => normalizeTimeEntry(entry))
     state.invoices = invoices
 
     const ui = deps.readUi?.(uid) || null
@@ -166,31 +170,41 @@ export function createTimeTrackerWorkspace(deps) {
     persistUi()
   }
 
-  async function fileCompleted(completed) {
+  async function fileCompleted(completed, options = {}) {
     if (completed.discarded || !completed.timeEntry) return
+    const project = state.projects.find((item) => item.id === completed.timeEntry.projectId)
     const id = deps.randomId()
-    const entry = createTimeEntry({ id, ...completed.timeEntry })
+    const entry = createTimeEntry({
+      id,
+      ...completed.timeEntry,
+      earningsUsdCents: earningsUsdCentsForSave({
+        project,
+        requested: options.earningsUsdCents,
+      }),
+    })
     await deps.store.upsertTimeEntry(requireUid(), id, entry)
     state.timeEntries = [...state.timeEntries, entry]
   }
 
-  async function pause() {
+  async function pause(options = {}) {
     if (!state.runningTimer) return
-    const completed = completeRunningTimer(state.runningTimer, { endedAt: deps.now() })
-    await fileCompleted(completed)
+    const endedAt = options.endedAt ?? deps.now()
+    const completed = completeRunningTimer(state.runningTimer, { endedAt })
+    await fileCompleted(completed, { earningsUsdCents: options.earningsUsdCents })
     state.runningTimer = null
     persistRunning()
     persistUi()
   }
 
-  async function selectProject(projectId) {
+  async function selectProject(projectId, options = {}) {
     if (state.runningTimer && projectId !== state.runningTimer.projectId) {
+      const at = options.at ?? deps.now()
       const { completed, nextRunning } = switchRunningTimerProject(state.runningTimer, {
         projectId,
-        at: deps.now(),
+        at,
         description: '',
       })
-      await fileCompleted(completed)
+      await fileCompleted(completed, { earningsUsdCents: options.completedEarningsUsdCents })
       state.runningTimer = nextRunning
       state.description = ''
       persistRunning()
@@ -232,12 +246,13 @@ export function createTimeTrackerWorkspace(deps) {
     await replaceProject({ ...current, name: createProject({ id: projectId, name }).name })
   }
 
-  async function updateProjectBilling(projectId, { billable, hourlyRateUsd }) {
+  async function updateProjectBilling(projectId, { billable, hourlyRateUsd, perJobBillable }) {
     const current = state.projects.find((project) => project.id === projectId)
     if (!current) throw new Error('Project not found')
     const next = setProjectBillable(current, {
       billable,
       hourlyRateUsd,
+      perJobBillable,
       timeEntries: state.timeEntries.filter((entry) => entry.projectId === projectId),
     })
     await replaceProject(next)
@@ -321,7 +336,15 @@ export function createTimeTrackerWorkspace(deps) {
   }
 
   async function addManualTimeEntry(input) {
-    const entry = createTimeEntry({ id: deps.randomId(), ...input })
+    const project = state.projects.find((item) => item.id === input.projectId)
+    const entry = createTimeEntry({
+      id: deps.randomId(),
+      ...input,
+      earningsUsdCents: earningsUsdCentsForSave({
+        project,
+        requested: input.earningsUsdCents,
+      }),
+    })
     await deps.store.upsertTimeEntry(requireUid(), entry.id, entry)
     state.timeEntries = [...state.timeEntries, entry]
     return entry
@@ -331,7 +354,21 @@ export function createTimeTrackerWorkspace(deps) {
     const current = state.timeEntries.find((entry) => entry.id === entryId)
     if (!current) throw new Error('Time entry not found')
     assertTimeEntryMutable(current)
-    const entry = createTimeEntry({ ...current, ...patch, id: entryId, invoiceId: null })
+    const fromProject = state.projects.find((item) => item.id === current.projectId)
+    const toProject = state.projects.find((item) => item.id === (patch.projectId ?? current.projectId))
+    const earningsUsdCents = earningsUsdCentsForProjectReassign({
+      fromProject,
+      toProject,
+      previous: current.earningsUsdCents,
+      requested: patch.earningsUsdCents,
+    })
+    const entry = createTimeEntry({
+      ...current,
+      ...patch,
+      id: entryId,
+      invoiceId: null,
+      earningsUsdCents,
+    })
     await deps.store.upsertTimeEntry(requireUid(), entryId, entry)
     state.timeEntries = state.timeEntries.map((item) => (item.id === entryId ? entry : item))
   }

@@ -11,6 +11,7 @@ const billed = {
   ...createProject({ id: 'p1', name: 'Aether', clientId: 'c1' }),
   billable: true,
   hourlyRateUsd: 12,
+  perJobBillable: false,
 }
 
 test('project editor locks client and billable when time entries are on an invoice', () => {
@@ -18,14 +19,30 @@ test('project editor locks client and billable when time entries are on an invoi
   assert.deepEqual(projectEditorFieldLocks({ billable: true, timeEntries: invoiced }), {
     client: true,
     billable: true,
+    perJob: true,
   })
   assert.deepEqual(projectEditorFieldLocks({ billable: false, timeEntries: invoiced }), {
     client: true,
     billable: false,
+    perJob: false,
   })
   assert.deepEqual(projectEditorFieldLocks({ billable: true, timeEntries: [] }), {
     client: false,
     billable: false,
+    perJob: false,
+  })
+})
+
+test('dirty project editor patch includes perJobBillable in billing', () => {
+  const patch = dirtyProjectEditorPatch(billed, {
+    name: 'Aether',
+    clientId: 'c1',
+    billable: true,
+    hourlyRateUsd: 12,
+    perJobBillable: true,
+  })
+  assert.deepEqual(patch, {
+    billing: { billable: true, hourlyRateUsd: 12, perJobBillable: true },
   })
 })
 
@@ -35,8 +52,11 @@ test('dirty project editor patch omits unchanged client and billing', () => {
     clientId: 'c1',
     billable: true,
     hourlyRateUsd: 15,
+    perJobBillable: false,
   })
-  assert.deepEqual(patch, { billing: { billable: true, hourlyRateUsd: 15 } })
+  assert.deepEqual(patch, {
+    billing: { billable: true, hourlyRateUsd: 15, perJobBillable: false },
+  })
 })
 
 test('dirty project editor patch includes only the fields that changed', () => {
@@ -46,6 +66,7 @@ test('dirty project editor patch includes only the fields that changed', () => {
       clientId: 'c1',
       billable: true,
       hourlyRateUsd: 12,
+      perJobBillable: false,
     }),
     { name: 'Aether Prime' },
   )
@@ -55,6 +76,7 @@ test('dirty project editor patch includes only the fields that changed', () => {
       clientId: null,
       billable: true,
       hourlyRateUsd: 12,
+      perJobBillable: false,
     }),
     { clientId: null },
   )
@@ -64,11 +86,12 @@ test('dirty project editor patch includes only the fields that changed', () => {
       clientId: 'c1',
       billable: true,
       hourlyRateUsd: 20,
+      perJobBillable: false,
     }),
     {
       name: 'New',
       clientId: 'c1',
-      billing: { billable: true, hourlyRateUsd: 20 },
+      billing: { billable: true, hourlyRateUsd: 20, perJobBillable: false },
     },
   )
 })
@@ -94,7 +117,10 @@ test('saveProjectEditor updates hourly rate without writing the unchanged client
       clientId: 'c1',
       billable: true,
       hourlyRateUsd: 15,
+      perJobBillable: false,
     },
   })
-  assert.deepEqual(calls, [['billing', 'p1', { billable: true, hourlyRateUsd: 15 }]])
+  assert.deepEqual(calls, [
+    ['billing', 'p1', { billable: true, hourlyRateUsd: 15, perJobBillable: false }],
+  ])
 })

@@ -1,4 +1,5 @@
-import { durationMs } from './timeEntries.js'
+import { isHourlyBillable, isPerJobBillable } from './projects.js'
+import { durationMs, recordedEarningsCents } from './timeEntries.js'
 
 export const PAYMENT_STATUS = {
   UNPAID: 'unpaid',
@@ -18,12 +19,12 @@ export function lineAmountCents(durationMsValue, hourlyRateUsd) {
 }
 
 /**
- * @param {{ elapsedMs?: number, project?: { billable?: boolean, hourlyRateUsd?: number } | null }} input
+ * @param {{ elapsedMs?: number, project?: { billable?: boolean, perJobBillable?: boolean, hourlyRateUsd?: number } | null }} input
  * @returns {number | null}
  */
 export function sessionAmountCents(input) {
   const project = input?.project
-  if (!project?.billable) return null
+  if (!isHourlyBillable(project)) return null
   const rate = Number(project.hourlyRateUsd)
   if (!Number.isFinite(rate) || rate <= 0) return null
   return lineAmountCents(Math.max(0, Number(input.elapsedMs) || 0), rate)
@@ -50,7 +51,7 @@ export function qualifyingTimeEntries(input) {
   return (input.timeEntries ?? []).filter((entry) => {
     if (entry.invoiceId) return false
     const project = projectById.get(entry.projectId)
-    if (!project?.billable) return false
+    if (!isHourlyBillable(project)) return false
     if (project.clientId !== input.clientId) return false
     if (input.range?.start != null && entry.startedAt < input.range.start) return false
     if (input.range?.end != null && entry.startedAt > input.range.end) return false
@@ -174,13 +175,79 @@ export function paidAmountCents(invoices) {
  *   clientId: string,
  * }} input
  */
-export function uninvoicedAmountCents(input) {
+export function uninvoicedHourlyAmountCents(input) {
   const projects = input.projects ?? []
   const projectById = new Map(projects.map((project) => [project.id, project]))
   return qualifyingTimeEntries(input).reduce((sum, entry) => {
     const project = projectById.get(entry.projectId)
     return sum + lineAmountCents(durationMs(entry), project.hourlyRateUsd)
   }, 0)
+}
+
+/**
+ * @param {{
+ *   timeEntries?: object[],
+ *   projects?: object[],
+ *   clientId: string,
+ * }} input
+ */
+export function perJobUninvoicedEarningsCents(input) {
+  const projectById = new Map((input.projects ?? []).map((project) => [project.id, project]))
+  return (input.timeEntries ?? []).reduce((sum, entry) => {
+    if (entry.invoiceId) return sum
+    const project = projectById.get(entry.projectId)
+    if (!isPerJobBillable(project) || project.clientId !== input.clientId) return sum
+    return sum + recordedEarningsCents(entry)
+  }, 0)
+}
+
+/**
+ * @param {{ lines?: Array<{ timeEntryId: string, amountCents: number }>, invoiceTotalCents: number, amountPaidCents: number }} invoice
+ * @param {string} timeEntryId
+ */
+export function paidAndUnpaidSliceCentsForEntry(invoice, timeEntryId) {
+  const lines = invoice?.lines ?? []
+  const line = lines.find((item) => item.timeEntryId === timeEntryId)
+  if (!line) {
+    return { paidCents: 0, unpaidCents: 0, lineCents: 0 }
+  }
+  const lineCents = Math.max(0, Number(line.amountCents) || 0)
+  const invoiceTotal = Math.max(0, Number(invoice.invoiceTotalCents) || 0)
+  const allocablePaid = Math.min(
+    Math.max(0, Number(invoice.amountPaidCents) || 0),
+    invoiceTotal,
+  )
+  if (invoiceTotal === 0 || lines.length === 0) {
+    return { paidCents: 0, unpaidCents: lineCents, lineCents }
+  }
+
+  const slices = lines.map((item) => {
+    const cents = Math.max(0, Number(item.amountCents) || 0)
+    const exact = (allocablePaid * cents) / invoiceTotal
+    const floor = Math.floor(exact)
+    return {
+      timeEntryId: item.timeEntryId,
+      lineCents: cents,
+      paidCents: floor,
+      remainder: exact - floor,
+    }
+  })
+  let remainderCents = allocablePaid - slices.reduce((sum, item) => sum + item.paidCents, 0)
+  const byRemainder = [...slices].sort(
+    (left, right) => right.remainder - left.remainder || left.timeEntryId.localeCompare(right.timeEntryId),
+  )
+  for (let index = 0; remainderCents > 0 && index < byRemainder.length; index += 1) {
+    byRemainder[index].paidCents += 1
+    remainderCents -= 1
+  }
+
+  const target = slices.find((item) => item.timeEntryId === timeEntryId)
+  if (!target) {
+    return { paidCents: 0, unpaidCents: lineCents, lineCents }
+  }
+  const matched = byRemainder.find((item) => item.timeEntryId === timeEntryId) || target
+  const paidCents = matched.paidCents
+  return { paidCents, unpaidCents: lineCents - paidCents, lineCents }
 }
 
 /**
@@ -195,11 +262,17 @@ export function clientMoneySummary(input) {
   const invoices = (input.invoices ?? []).filter((invoice) => invoice.clientId === input.clientId)
   const paidCents = paidAmountCents(invoices)
   const unpaidCents = unpaidBalanceCents(invoices)
-  const uninvoicedCents = uninvoicedAmountCents({
-    timeEntries: input.timeEntries,
-    projects: input.projects,
-    clientId: input.clientId,
-  })
+  const uninvoicedCents =
+    uninvoicedHourlyAmountCents({
+      timeEntries: input.timeEntries,
+      projects: input.projects,
+      clientId: input.clientId,
+    }) +
+    perJobUninvoicedEarningsCents({
+      timeEntries: input.timeEntries,
+      projects: input.projects,
+      clientId: input.clientId,
+    })
   return {
     totalCents: paidCents + unpaidCents + uninvoicedCents,
     paidCents,

@@ -24,7 +24,7 @@ _Avoid_: Confusing with Game Timer **room** state in Realtime Database; sharing 
 
 ### Tracker surfaces
 
-Primary mobile areas of Time Tracker: **Timer**, **History**, **Projects**, and **Clients**, plus account/sign-in. The **client invoice page** is separate—it is not one of these surfaces.
+Primary mobile areas of Time Tracker: **Timer**, **History**, **Projects**, **Clients**, and **Statistics**, plus account/sign-in. The **client invoice page** is separate—it is not one of these surfaces.
 
 _Avoid_: A desktop-first dashboard layout for v1.
 
@@ -42,7 +42,7 @@ _Avoid_: Cascading delete of **projects**, **time entries**, or **invoices**; an
 
 ### Project
 
-A named body of work the **account owner** attributes time to. Has zero or one **client**; a **client** is not required. A **client** may be attached, switched, or cleared after **time entries** already exist, so long as none of those entries are on an **invoice**. May be **billable** at a per-project **hourly rate**. Distinct from a portfolio-site **project** (a mini-app on this site).
+A named body of work the **account owner** attributes time to. Has zero or one **client**; a **client** is not required. A **client** may be attached, switched, or cleared after **time entries** already exist, so long as none of those entries are on an **invoice**. May be **billable** in **hourly** or **per-job billable** **billing mode**. Distinct from a portfolio-site **project** (a mini-app on this site).
 
 _Avoid_: Job, engagement, workspace; Toggl **tasks** (sub-projects)—out of scope for v1; requiring a **client** before time can be tracked; silently rewriting a **project**’s **client** while its **time entries** sit on an **invoice**.
 
@@ -54,21 +54,39 @@ _Avoid_: Cascading delete of **time entries**; an archived-**project** state in 
 
 ### Billable
 
-A **project** setting, off by default. When on, time on that **project** can be charged at its **hourly rate** and included on **invoices**. Turning **billable** on requires an **hourly rate** greater than zero. A **project** may have a **client** and not be **billable**, or be **billable** with no **client** (those **time entries** cannot be invoiced until a **client** is attached). **Billable** may be cleared only when none of the **project**’s **time entries** are on an **invoice**.
+A **project** setting, off by default. When on, the **project** uses one **billing mode**: **hourly** (default) or **per-job billable**. Turning **billable** on requires either an **hourly rate** greater than zero or **per-job billable** on. A **project** may have a **client** and not be **billable**. **Billable** may be cleared only when none of the **project**’s **time entries** are on an **invoice**. **Per-job billable** preference is kept if **billable** is later turned off, same as **hourly rate**.
 
-_Avoid_: Per-entry billable flags in v1; charging time on a non-billable **project**; defaulting new **projects** to **billable**.
+_Avoid_: Per-entry billable flags; charging time on a non-billable **project**; defaulting new **projects** to **billable**.
+
+### Billing mode
+
+How a **billable** **project** turns time into money: **hourly** or **per-job billable**. Mutually exclusive. Chosen on the **project** editor; switching **billing mode** is allowed only when none of that **project**’s **time entries** are on an **invoice**. Switching does not retroactively change existing **time entries**.
+
+_Avoid_: Mixing both modes on one **project**; applying a new mode to past **time entries**.
+
+### Per-job billable
+
+A **billing mode** for **billable** **projects**. **Per job** toggle on the **project** editor to the right of **Billable**, enabled only when **billable** is on. **Hourly rate** is not used. Each **time entry** may carry optional **earnings**. **Time entries** on **per-job billable** **projects** are never included in **invoice generation**, regardless of **client**. The **Timer** does not show a live dollar amount during a run on such a **project**. On the **Projects** list, shown as **Per job** instead of an **hourly rate**.
+
+_Avoid_: Job; flat fee; treating **per-job billable** as a separate kind of **project**; invoicing **per-job billable** time.
 
 ### Hourly rate
 
-USD charged per hour on a **billable** **project**. Required and greater than zero while **billable** is on; kept if **billable** is later turned off. Set on the **project**, not on the **client** or the **time entry**. Applied at **invoice generation** from the **project**’s current rate and frozen on that **invoice** at confirm. Later **hourly rate** edits do not change issued **invoices**. V1 uses one currency (USD) for rates, **invoice totals**, and **amount paid**.
+USD charged per hour on a **billable** **project** in **hourly** **billing mode**. Required and greater than zero while **billable** is on and **per-job billable** is off; kept on the **project** if **billable** is later turned off or **billing mode** switches to **per-job billable**. Set on the **project**, not on the **client** or the **time entry**. Applied at **invoice generation** from the **project**’s current rate and frozen on that **invoice** at confirm. Later **hourly rate** edits do not change issued **invoices**. V1 uses one currency (USD) for rates, **earnings**, **invoice totals**, and **amount paid**.
 
-_Avoid_: Per-client or per-entry rates in v1; mixed currencies; rewriting issued **invoices** when the **project** rate changes; historical per-entry rates.
+_Avoid_: Per-client rates; mixed currencies; rewriting issued **invoices** when the **project** rate changes; historical per-entry rates on **hourly** **projects**.
 
 ### Time entry
 
-A record of tracked time attributed to exactly one **project**, with a start, an end (start must be before end), and an optional **description**. Duration is start-to-end, not a separate field. Created by the **Timer** (play starts it, pause completes it) or by **manual time entry**. Belongs to at most one **invoice**. The **account owner** can edit **project**, start, end, and **description**, or delete it, from **History** only when it is not on an **invoice**. Overlapping **time entries** are allowed.
+A record of tracked time attributed to exactly one **project**, with a start, an end (start must be before end), and an optional **description**. Duration is start-to-end, not a separate field. On **per-job billable** **projects**, may also carry optional **earnings**. Created by the **Timer** (play starts it, pause completes it) or by **manual time entry**. Belongs to at most one **invoice**. The **account owner** can edit **project**, start, end, **description**, and **earnings** (on **per-job billable** **projects** only), or delete it, from **History** only when it is not on an **invoice**. Overlapping **time entries** are allowed.
 
 _Avoid_: Timer session; timesheet row; putting the same **time entry** on two **invoices**; editing a **time entry** while it is on an **invoice**; treating pause as a gap inside one **time entry**; per-entry billable flags; editing duration as a third source of truth; rejecting overlaps.
+
+### Earnings
+
+Optional USD amount on a **time entry** for a **per-job billable** **project**. Blank means not recorded yet and counts as zero dollars in money totals until set. Explicit zero means zero dollars earned. Set or skipped in an earnings prompt when the **Timer** completes a run on a **per-job billable** **project** (including when changing **project** while running completes the prior run). Editable on **History** for completed entries and on **manual time entry** create/edit. Reassigning a **time entry** to another **project** keeps **earnings** only when both old and new **projects** are **per-job billable**; otherwise **earnings** are cleared. Non-negative; two decimal places. Does not affect whether the **time entry**’s duration counts toward hours totals or **statistics** **$/hr** denominators.
+
+_Avoid_: Fee; rate; treating blank and zero as the same meaning; requiring **earnings** before completing a **time entry**; **earnings** on **hourly** **projects** or non-**billable** **projects**.
 
 ### Description
 
@@ -78,15 +96,15 @@ _Avoid_: Tags; required notes before play; treating **description** as a differe
 
 ### Timer
 
-The **tracker surface** with the play/pause control. Play starts a **time entry** on the selected **project**; pause completes that **time entry**. Play starts a new **time entry**, even on the same **project**. At most one **time entry** is running. Defaults to the last-selected **project**; if none exists, the control is empty and play is disabled. Changing **project** while running completes the current **time entry** and starts a new one on the newly selected **project**. Switching **tracker surfaces** does not pause. Optional **description** can be set or changed here while running. When the selected **project** is **billable** with an **hourly rate**, the face also shows this run’s amount (duration × **hourly rate**, nearest cent)—the same money math as **invoice generation**.
+The **tracker surface** with the play/pause control. Play starts a **time entry** on the selected **project**; pause completes that **time entry**. Play starts a new **time entry**, even on the same **project**. At most one **time entry** is running. Defaults to the last-selected **project**; if none exists, the control is empty and play is disabled. Changing **project** while running completes the current **time entry** and starts a new one on the newly selected **project**. Switching **tracker surfaces** does not pause. Optional **description** can be set or changed here while running. When the selected **project** is **billable** in **hourly** **billing mode**, the face also shows this run’s amount (duration × **hourly rate**, nearest cent)—the same money math as **invoice generation**. **Per-job billable** **projects** do not show a live amount during the run.
 
-_Avoid_: Treating the **Timer** as the only place **time entries** exist; multiple simultaneous running **time entries**; resume-as-same-row after pause; retconning a running **time entry**’s **project** without splitting; showing an amount on a non-**billable** **project**; treating the live amount as an **invoice**.
+_Avoid_: Treating the **Timer** as the only place **time entries** exist; multiple simultaneous running **time entries**; resume-as-same-row after pause; retconning a running **time entry**’s **project** without splitting; showing an amount on a non-**billable** **project** or on **per-job billable** **projects**; treating the live amount as an **invoice**.
 
 ### Running timer
 
-The in-progress **time entry** on the **Timer**: selected **project**, start timestamp, and optional **description**. Persisted so refresh and backgrounding restore it. Pause writes the completed **time entry** when the **tracker store** is reachable, except a run shorter than one second is discarded (no **History** row). On sign-out, Time Tracker tries to pause and write; if that fails, the **running timer** is kept for that **account owner** on the device and restored at next sign-in. A different **account owner** on the same device does not see it.
+The in-progress **time entry** on the **Timer**: selected **project**, start timestamp, and optional **description**. Persisted so refresh and backgrounding restore it. Pause writes the completed **time entry** when the **tracker store** is reachable, except a run shorter than one second is discarded (no **History** row). Completing a run on a **per-job billable** **project** may show an **earnings** prompt before the row is final in **History**. On sign-out, Time Tracker tries to pause and write; if that fails, the **running timer** is kept for that **account owner** on the device and restored at next sign-in. A different **account owner** on the same device does not see it.
 
-_Avoid_: Queuing **History** edits or **invoice generation** while offline; treating tab memory alone as the record of a run; discarding a run because of a sign-out mis-tap; showing one owner’s **running timer** to another.
+_Avoid_: Queuing **History** edits or **invoice generation** while offline; treating tab memory alone as the record of a run; discarding a run because of a sign-out mis-tap; showing one owner’s **running timer** to another; blocking pause until **earnings** are entered.
 
 ### Keep display on
 
@@ -96,9 +114,9 @@ _Avoid_: Implying a guarantee on every OS or browser; leaving the display awake 
 
 ### Settings cog
 
-Top-bar settings control in the same chrome location as **Game Timer**. Holds the **browser fullscreen toggle** (personal, per-app; see portfolio **browser fullscreen toggle**), the **issuer name**, and **timer color**.
+Top-bar settings control in the same chrome location as **Game Timer**. Holds the **browser fullscreen toggle** (personal, per-app; see portfolio **browser fullscreen toggle**), the **issuer name**, **timer color**, and **statistics** revenue toggles for **hourly** **projects** only.
 
-_Avoid_: A second fullscreen control on the **Timer** face; sharing Game Timer’s fullscreen preference; putting **David J. Perry** or **Focus Disorder** in settings as a default **issuer name**.
+_Avoid_: A second fullscreen control on the **Timer** face; sharing Game Timer’s fullscreen preference; putting **David J. Perry** or **Focus Disorder** in settings as a default **issuer name**; **statistics** toggles affecting **per-job billable** **earnings**.
 
 ### Timer color
 
@@ -114,7 +132,7 @@ _Avoid_: Site brand as letterhead; per-invoice letterhead in v1; blocking **invo
 
 ### UI session
 
-On-device Pinia snapshot of the live Time Tracker chrome for this **account owner**: **timer color**, **issuer name**, current **tracker surface**, selected **project**, **Timer** **description**, and **running timer**. Reload restores it. **Clients**, **projects**, **time entries**, and **invoices** stay in the **tracker store**.
+On-device Pinia snapshot of the live Time Tracker chrome for this **account owner**: **timer color**, **issuer name**, **statistics revenue toggles**, current **tracker surface**, selected **project**, **Timer** **description**, and **running timer**. Reload restores it. **Clients**, **projects**, **time entries**, and **invoices** stay in the **tracker store**.
 
 _Avoid_: Treating Pinia as a second copy of billed history; sharing one **account owner**’s **running timer** or selection with another on the same device.
 
@@ -126,15 +144,33 @@ _Avoid_: Full offline **History** / **Clients** sync in v1.
 
 ### History
 
-The **tracker surface** with a scrollable list of **time entries**. A **running timer** is pinned at the top (project, start, live duration)—visible, not editable, not deletable until pause files it. The **account owner** opens an uninvoiced completed entry to edit **project**, start, end, and **description**, or to delete it, and creates **manual time entries** here (same fields). Entries that are on an **invoice** are visible and not editable, including delete.
+The **tracker surface** with a scrollable list of **time entries**. A **running timer** is pinned at the top (project, start, live duration)—visible, not editable, not deletable until pause files it. Completed **per-job billable** rows show recorded **earnings** when set; blank **earnings** show nothing extra on the row. The **account owner** opens an uninvoiced completed entry to edit **project**, start, end, **description**, and **earnings** (on **per-job billable** **projects**), or to delete it, and creates **manual time entries** here (same fields). Entries that are on an **invoice** are visible and not editable, including delete.
 
-_Avoid_: Burying past time only inside **Projects** or **Clients**; requiring the **Timer** to add time after the fact; editing invoiced rows in place.
+_Avoid_: Burying past time only inside **Projects** or **Clients**; requiring the **Timer** to add time after the fact; editing invoiced rows in place; a pending-earnings indicator on rows with blank **earnings**.
 
 ### Manual time entry
 
-Creating a **time entry** by specifying **project**, start, end, and optional **description** on **History**, without running the **Timer**.
+Creating a **time entry** by specifying **project**, start, end, optional **description**, and optional **earnings** (on **per-job billable** **projects**) on **History**, without running the **Timer**.
 
 _Avoid_: Timer-only logging; calling this a different kind of record from a **time entry** started on the **Timer**.
+
+### Statistics
+
+The **tracker surface** to the right of **Clients** with a basic earnings and hours report for a selected **statistics period**. Shows total money earned, total hours worked, overall **$/hr** (`—` when total hours are zero), pie charts and breakdown tables by **client** and by **project**, each with hours, income, and **$/hr**. The **client** chart and table appear when the **account owner** has at least one **client**; **projects** with no **client** aggregate under **No client**. The **project** chart and table always appear. Breakdown tables sort by hours descending. **Per-job billable** money always comes from recorded **earnings** on **time entries** in the period. **Hourly** money in the report depends on **statistics revenue toggles**. Hours include all **time entries** in the period regardless of **billable** status or toggles; blank or zero **earnings** still count toward hours and **$/hr** denominators. A **running timer** is excluded until pause completes the **time entry**. An empty period shows zero money and hours with empty charts and **$/hr** `—`. **Custom range** rejects an end date before the start date.
+
+_Avoid_: Dashboard; analytics suite; reports outside Time Tracker; invoice management on this surface.
+
+### Statistics period
+
+The date range for a **statistics** report: weekly (current calendar week, Monday–Sunday), monthly (current calendar month, default), yearly (current calendar year), custom range (inclusive start and end dates), or all time. Boundaries use the device local timezone. A **time entry** is in scope when its start falls inside the range; its full duration counts toward hours (not prorated to the overlap). Filters which **time entries** contribute hours and which **per-job** **earnings** and **hourly** line amounts are in scope.
+
+_Avoid_: Fiscal quarter presets in v1; separate “billing period” unrelated to the chosen range; prorating **time entry** duration across period boundaries.
+
+### Statistics revenue toggles
+
+**Settings cog** options that affect **hourly** revenue in **statistics** only—not **per-job billable** **earnings**. Both default off; kept in the **UI session** per **account owner**. **Show unpaid invoices in statistics**: when on, include each in-scope **time entry**’s frozen line amount from its **invoice** when that line is not yet covered by **amount paid** (for **partially paid** **invoices**, **amount paid** is allocated across line items in proportion to line amount). **Include uninvoiced** (sub-item under that toggle, disabled when the parent is off; turning the parent off also turns this off): when on, also include uninvoiced **hourly** **billable** **time entries** in the period at each **project**’s current **hourly rate** (same formula as **client money summary** uninvoiced). When both are off, **hourly** money in **statistics** reflects only the paid slice of each in-scope invoiced line item.
+
+_Avoid_: Toggles that change **per-job** totals; treating uninvoiced **per-job** time as imputed income; storing these toggles in the **tracker store**.
 
 ### Invoice
 
@@ -178,9 +214,9 @@ _Avoid_: A site-wide balance across all **clients**; treating fully paid **invoi
 
 ### Client money summary
 
-Four USD amounts on **Clients** for one **client**: **total** (**paid** + **unpaid** + **uninvoiced**), **paid** (**amount paid** on that **client**’s **invoices**, not more than each **invoice total**), **unpaid** (the **unpaid balance**—invoiced but still due), and **uninvoiced** (current **hourly rate** applied to uninvoiced **billable** **time entries** for that **client**, the same set **invoice generation** would pick with no date range).
+Four USD amounts on **Clients** for one **client**: **total** (**paid** + **unpaid** + **uninvoiced**), **paid** (**amount paid** on that **client**’s **invoices**, not more than each **invoice total**), **unpaid** (the **unpaid balance**—invoiced but still due), and **uninvoiced** (uninvoiced **hourly** **billable** **time entries** for that **client** at each **project**’s current **hourly rate**, the same set **invoice generation** would pick with no date range, **plus** recorded **earnings** on uninvoiced **per-job billable** **time entries** for that **client**—blank **earnings** count as zero). **Paid** and **unpaid** remain **invoice**-only; **per-job billable** work never appears on the **client invoice page**.
 
-_Avoid_: Including non-**billable** time or a **running timer**; mixing other **clients**; putting this four-way split on the **client invoice page** (that page still shows **unpaid balance** only).
+_Avoid_: Including non-**billable** time or a **running timer**; mixing other **clients**; putting this four-way split on the **client invoice page** (that page still shows **unpaid balance** only); imputing **per-job** income for blank **earnings**.
 
 ### Pay all invoices
 
@@ -190,9 +226,9 @@ _Avoid_: Allocating a custom lump across **invoices** in v1; a processor checkou
 
 ### Invoice generation
 
-The **account owner** creating an **invoice** for one **client** from uninvoiced **billable** **time entries** on that **client**’s **projects**. An optional date range limits which entries are included; with no range, all outstanding qualifying entries are included. **Hourly rate** is taken from each **project** at this moment and frozen on the **invoice** when the owner confirms the preview.
+The **account owner** creating an **invoice** for one **client** from uninvoiced **billable** **time entries** on that **client**’s **projects** in **hourly** **billing mode**. **Per-job billable** **time entries** are never qualifying. An optional date range limits which entries are included; with no range, all outstanding qualifying entries are included. **Hourly rate** is taken from each **project** at this moment and frozen on the **invoice** when the owner confirms the preview.
 
-_Avoid_: Per-row checkbox picking in v1; including non-**billable** or already-invoiced **time entries**; creating an **invoice** with no qualifying **time entries**; leaving issued **invoice** amounts tied to a live **project** rate.
+_Avoid_: Per-row checkbox picking in v1; including non-**billable**, **per-job billable**, or already-invoiced **time entries**; creating an **invoice** with no qualifying **time entries**; leaving issued **invoice** amounts tied to a live **project** rate.
 
 ### Invoice expansion
 
@@ -239,7 +275,8 @@ _Avoid_: Leaving leaked links valid forever; rotating on a timer with no owner a
 - **Client money summary** on **Clients** shows **total**, **paid**, **unpaid**, and **uninvoiced** for that **client**.
 - **Billable** **projects** with no **client** cannot contribute **time entries** to an **invoice** until a **client** is attached.
 - Non-**billable** **projects** never contribute **time entries** to an **invoice**.
-- **Invoice generation** includes only uninvoiced **billable** **time entries** for that **client**, optionally filtered by date range (default: all outstanding), after a confirmed preview.
+- **Invoice generation** includes only uninvoiced **billable** **time entries** in **hourly** **billing mode** for that **client**, optionally filtered by date range (default: all outstanding), after a confirmed preview. **Per-job billable** **time entries** are excluded.
+- A **billable** **project** is either **hourly** or **per-job billable**. Switching **billing mode** follows the same **invoice** lock as turning **billable** off.
 - An **invoice** is presented as an **invoice expansion**: **invoice** → **project** aggregates → **time entries**.
 - **Time entries** from the **Timer** and from **manual time entry** are the same kind of record; both appear on **History**.
 - Pause completes the current **time entry**; the next play creates a new one. At most one **time entry** runs at a time.
@@ -277,7 +314,16 @@ _Avoid_: Leaving leaked links valid forever; rotating on a timer with no owner a
 - **Client** fields: Resolved — display name only in v1.
 - **Issuer name**: Resolved — settings field, default Firebase display name if any, never **David J. Perry** / **Focus Disorder**. Empty does not block **invoice generation**. Typed value is kept in the **UI session** immediately and written to the **tracker store**.
 - Product name: Resolved — **Time Tracker** for v1.
-- New **project** **billable** / **hourly rate**: Resolved — not **billable** by default; **billable** requires a rate > 0; **billable** off only when no **time entries** are invoiced. Rate may still change for future **invoices**.
+- New **project** **billable** / **hourly rate**: Resolved — not **billable** by default; **hourly** **billing mode** requires a rate > 0; **billable** off only when no **time entries** are invoiced. Rate may still change for future **invoices**.
+- **Billing mode** / **per-job billable**: Resolved — sub-mode of **billable**; toggle right of **Billable**; **hourly** is default; **per-job billable** drops **hourly rate** and never invoices; switch blocked when any **time entry** on the **project** is on an **invoice**; no retroactive changes to existing **time entries**; **Timer** shows live amount only for **hourly**.
+- **Earnings**: Resolved — optional USD on **per-job billable** **time entries**; blank ≠ explicit zero; prompt on **Timer** complete (including **project** switch); **History** and **manual time entry** use the same field; blank/zero **earnings** still count the **time entry**’s hours in totals and **$/hr** denominators.
+- **Statistics** / **statistics revenue toggles**: Resolved — new **tracker surface** after **Clients**; toggles affect **hourly** revenue timing only (paid → +unpaid invoices → +uninvoiced); **per-job** **earnings** always from recorded amounts in the period, unaffected by toggles.
+- **Statistics period**: Resolved — local timezone; weekly Mon–Sun / monthly / yearly / custom inclusive / all time; entry in scope when **startedAt** falls in range; full duration counts; **hourly** invoiced lines use frozen amounts with proportional **amount paid** allocation on **partially paid** **invoices**.
+- **Per-job** on **Clients**: Resolved — recorded **earnings** on **per-job billable** **time entries** roll into **uninvoiced** in **client money summary**; **paid**/**unpaid** stay **invoice**-only; **client invoice page** unchanged.
+- **Statistics** breakdowns: Resolved — **client** chart when any **client** exists, with **No client** bucket; **project** chart always; tables sorted by hours descending; **running timer** excluded.
+- **Per-job** display / **billable** on: Resolved — **Per job** label on toggle and **Projects** list; **History** rows show **earnings** only when set; **billable** on requires rate or **per-job billable**; **per-job billable** preference kept when **billable** off.
+- **Earnings** on **project** change: Resolved — keep when **per-job** → **per-job**; clear when leaving **per-job billable**; blank when entering **per-job** from **hourly** or non-**billable**.
+- **Statistics revenue toggles** / empty report: Resolved — **Include uninvoiced** nested under parent, disabled and reset when parent off; toggles in **UI session**; headline **$/hr** is `—` at zero hours; empty period shows zeros and empty charts; invalid **custom range** blocked.
 - Overlapping **time entries**: Resolved — allowed; each row still needs start before end. No split/reject/warn in v1.
 - Duration to money: Resolved — exact duration × **hourly rate**, nearest cent per **time entry**; totals are sums. No time-increment rounding in v1.
 - **Running timer** on sign-out: Resolved — pause-and-write if online; otherwise keep for that **account owner** on the device. Not visible to another account.

@@ -10,6 +10,7 @@ import {
   confirmInvoice,
   lineAmountCents,
   nextInvoiceNumber,
+  paidAndUnpaidSliceCentsForEntry,
   payAllInvoices,
   paymentStatus,
   previewInvoice,
@@ -47,6 +48,30 @@ test('session amount is live duration times hourly rate only for billable projec
     }),
     null,
   )
+  const perJob = setProjectBillable(createProject({ id: 'p3', name: 'p3' }), {
+    billable: true,
+    perJobBillable: true,
+    hourlyRateUsd: 100,
+  })
+  assert.equal(sessionAmountCents({ elapsedMs: 3_600_000, project: perJob }), null)
+})
+
+test('qualifyingTimeEntries omits per-job billable entries', () => {
+  const hourly = billedProject('p1', 'c1', 100)
+  const perJob = setProjectBillable({ ...createProject({ id: 'p2', name: 'p2' }), clientId: 'c1' }, {
+    billable: true,
+    perJobBillable: true,
+  })
+  const entries = [
+    createTimeEntry({ id: 'e1', projectId: 'p1', startedAt: 0, endedAt: 3_600_000 }),
+    createTimeEntry({ id: 'e2', projectId: 'p2', startedAt: 0, endedAt: 3_600_000 }),
+  ]
+  const qualified = qualifyingTimeEntries({
+    timeEntries: entries,
+    projects: [hourly, perJob],
+    clientId: 'c1',
+  })
+  assert.deepEqual(qualified.map((entry) => entry.id), ['e1'])
 })
 
 test('invoice generation includes only uninvoiced billable entries for that client', () => {
@@ -200,6 +225,55 @@ test('client money summary splits paid, unpaid invoiced, and uninvoiced billable
       uninvoicedCents: 10_000,
     },
   )
+})
+
+test('client money summary uninvoiced includes recorded per-job earnings', () => {
+  const perJob = setProjectBillable({ ...createProject({ id: 'p1', name: 'p1' }), clientId: 'c1' }, {
+    billable: true,
+    perJobBillable: true,
+  })
+  const entries = [
+    createTimeEntry({
+      id: 'e1',
+      projectId: 'p1',
+      startedAt: 0,
+      endedAt: 3_600_000,
+      earningsUsdCents: 5_000,
+    }),
+    createTimeEntry({
+      id: 'e2',
+      projectId: 'p1',
+      startedAt: 0,
+      endedAt: 3_600_000,
+      earningsUsdCents: null,
+    }),
+  ]
+  const summary = clientMoneySummary({
+    clientId: 'c1',
+    invoices: [],
+    timeEntries: entries,
+    projects: [perJob],
+  })
+  assert.equal(summary.uninvoicedCents, 5_000)
+  assert.equal(summary.paidCents, 0)
+  assert.equal(summary.unpaidCents, 0)
+})
+
+test('paidAndUnpaidSliceCentsForEntry allocates partial payment proportionally', () => {
+  const invoice = {
+    invoiceTotalCents: 10_000,
+    amountPaidCents: 3_000,
+    lines: [
+      { timeEntryId: 'e1', amountCents: 6_000 },
+      { timeEntryId: 'e2', amountCents: 4_000 },
+    ],
+  }
+  const first = paidAndUnpaidSliceCentsForEntry(invoice, 'e1')
+  const second = paidAndUnpaidSliceCentsForEntry(invoice, 'e2')
+  assert.equal(first.paidCents + second.paidCents, 3_000)
+  assert.equal(first.lineCents, 6_000)
+  assert.equal(second.lineCents, 4_000)
+  assert.equal(first.unpaidCents, first.lineCents - first.paidCents)
 })
 
 test('client money summary is zero when a client has no billable work', () => {

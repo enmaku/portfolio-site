@@ -9,9 +9,11 @@ function normalizeClientId(clientId) {
  */
 export function projectEditorFieldLocks(input) {
   const timeEntries = input?.timeEntries ?? []
+  const billingLocked = Boolean(input?.billable) && !canTurnBillableOff({ timeEntries })
   return {
     client: !canChangeProjectClient({ timeEntries }),
-    billable: Boolean(input?.billable) && !canTurnBillableOff({ timeEntries }),
+    billable: billingLocked,
+    perJob: billingLocked,
   }
 }
 
@@ -21,12 +23,14 @@ export function projectEditorFieldLocks(input) {
  *   clientId: string | null,
  *   billable: boolean,
  *   hourlyRateUsd: number,
+ *   perJobBillable: boolean,
  * } | null} baseline
  * @param {{
  *   name: string,
  *   clientId: string | null,
  *   billable: boolean,
  *   hourlyRateUsd: number,
+ *   perJobBillable: boolean,
  * }} draft
  */
 export function dirtyProjectEditorPatch(baseline, draft) {
@@ -34,19 +38,24 @@ export function dirtyProjectEditorPatch(baseline, draft) {
   const clientId = normalizeClientId(draft?.clientId)
   const billable = Boolean(draft?.billable)
   const hourlyRateUsd = Number(draft?.hourlyRateUsd)
+  const perJobBillable = Boolean(draft?.perJobBillable)
 
   if (!baseline) {
     const patch = { name }
     if (clientId) patch.clientId = clientId
-    if (billable) patch.billing = { billable: true, hourlyRateUsd }
+    if (billable) patch.billing = { billable: true, hourlyRateUsd, perJobBillable }
     return patch
   }
 
   const patch = {}
   if (name !== baseline.name) patch.name = name
   if (clientId !== normalizeClientId(baseline.clientId)) patch.clientId = clientId
-  if (billable !== Boolean(baseline.billable) || hourlyRateUsd !== Number(baseline.hourlyRateUsd)) {
-    patch.billing = { billable, hourlyRateUsd }
+  if (
+    billable !== Boolean(baseline.billable) ||
+    hourlyRateUsd !== Number(baseline.hourlyRateUsd) ||
+    perJobBillable !== Boolean(baseline.perJobBillable)
+  ) {
+    patch.billing = { billable, hourlyRateUsd, perJobBillable }
   }
   return patch
 }

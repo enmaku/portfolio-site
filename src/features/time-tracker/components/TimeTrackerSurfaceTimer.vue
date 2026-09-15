@@ -78,6 +78,12 @@
         </div>
       </div>
     </div>
+
+    <TimeTrackerEarningsDialog
+      :open="earningsDialogOpen"
+      @continue="onEarningsContinue"
+      @skip="onEarningsSkip"
+    />
   </div>
 </template>
 
@@ -88,9 +94,11 @@ import { useQuasar } from 'quasar'
 import { useTimeTrackerSettingsStore } from '../../../stores/timeTrackerSettings.js'
 import { TIME_TRACKER_WORKSPACE_KEY } from '../composables/trackerSurfaces.js'
 import { sessionAmountCents } from '../domain/invoices.js'
+import { isPerJobBillable } from '../domain/projects.js'
 import { formatDurationMs, formatUsdFromCents } from '../formatDisplay.js'
 import { timerAccentVars } from '../timerAccent.js'
 import { ringCircumference, ringPoint, timerHourRing } from '../timerHourRing.js'
+import TimeTrackerEarningsDialog from './TimeTrackerEarningsDialog.vue'
 
 const $q = useQuasar()
 const settingsStore = useTimeTrackerSettingsStore()
@@ -98,6 +106,8 @@ const { timerColor } = storeToRefs(settingsStore)
 const workspace = inject(TIME_TRACKER_WORKSPACE_KEY)
 const state = workspace.state
 const now = ref(Date.now())
+const earningsDialogOpen = ref(false)
+const pendingCompletion = ref(null)
 let tick = null
 
 const projectOptions = computed(() => state.projects)
@@ -137,12 +147,57 @@ onBeforeUnmount(() => {
   if (tick) clearInterval(tick)
 })
 
+async function completeRunningAction({ type, endedAt, projectId }) {
+  const running = state.runningTimer
+  if (!running) return
+  const project = state.projects.find((item) => item.id === running.projectId)
+  const duration = endedAt - running.startedAt
+  if (duration < 1000) {
+    if (type === 'pause') await workspace.pause({ endedAt })
+    else await workspace.selectProject(projectId, { at: endedAt })
+    return
+  }
+  if (isPerJobBillable(project)) {
+    pendingCompletion.value = { type, endedAt, projectId }
+    earningsDialogOpen.value = true
+    return
+  }
+  if (type === 'pause') await workspace.pause({ endedAt })
+  else await workspace.selectProject(projectId, { at: endedAt })
+}
+
+async function onEarningsContinue(earningsUsdCents) {
+  earningsDialogOpen.value = false
+  const pending = pendingCompletion.value
+  pendingCompletion.value = null
+  if (!pending) return
+  if (pending.type === 'pause') {
+    await workspace.pause({ endedAt: pending.endedAt, earningsUsdCents })
+    return
+  }
+  await workspace.selectProject(pending.projectId, {
+    at: pending.endedAt,
+    completedEarningsUsdCents: earningsUsdCents,
+  })
+}
+
+async function onEarningsSkip() {
+  await onEarningsContinue(null)
+}
+
 async function onSelectProject(projectId) {
+  if (state.runningTimer && projectId !== state.runningTimer.projectId) {
+    await completeRunningAction({ type: 'selectProject', endedAt: Date.now(), projectId })
+    return
+  }
   await workspace.selectProject(projectId)
 }
 
 async function onPlayPause() {
-  if (state.runningTimer) await workspace.pause()
-  else await workspace.play()
+  if (state.runningTimer) {
+    await completeRunningAction({ type: 'pause', endedAt: Date.now() })
+    return
+  }
+  await workspace.play()
 }
 </script>

@@ -14,7 +14,8 @@
             <q-item-label>{{ project.name }}</q-item-label>
             <q-item-label caption>
               {{ clientName(project.clientId) }}
-              <span v-if="project.billable"> · {{ formatUsd(project.hourlyRateUsd) }}/hr</span>
+              <span v-if="project.billable && project.perJobBillable"> · Per job</span>
+              <span v-else-if="project.billable"> · {{ formatUsd(project.hourlyRateUsd) }}/hr</span>
             </q-item-label>
           </q-item-section>
         </q-item>
@@ -42,19 +43,27 @@
             label="Client"
             data-testid="tt-project-client"
           />
-          <q-toggle
-            v-model="draft.billable"
-            :disable="editorLocks.billable"
-            label="Billable"
-            data-testid="tt-project-billable"
-          />
+          <div class="row items-center q-gutter-sm">
+            <q-toggle
+              v-model="draft.billable"
+              :disable="editorLocks.billable"
+              label="Billable"
+              data-testid="tt-project-billable"
+            />
+            <q-toggle
+              v-model="draft.perJobBillable"
+              :disable="!draft.billable || editorLocks.perJob"
+              label="Per job"
+              data-testid="tt-project-per-job"
+            />
+          </div>
           <q-input
             v-model.number="draft.hourlyRateUsd"
             type="number"
             outlined
             dense
             label="Hourly rate"
-            :disable="!draft.billable"
+            :disable="!draft.billable || draft.perJobBillable"
             data-testid="tt-project-rate"
           />
         </q-card-section>
@@ -75,7 +84,7 @@
             color="primary"
             label="Save"
             data-testid="tt-project-save"
-            :disable="!draft.name.trim()"
+            :disable="!canSaveProject"
             :loading="saving"
             @click="onSave"
           />
@@ -103,12 +112,13 @@ const draft = reactive({
   name: '',
   clientId: null,
   billable: false,
+  perJobBillable: false,
   hourlyRateUsd: 0,
 })
 
 const clientOptions = computed(() => [{ id: null, name: '—' }, ...state.clients])
 const editorLocks = computed(() => {
-  if (!editingId.value) return { client: false, billable: false }
+  if (!editingId.value) return { client: false, billable: false, perJob: false }
   return projectEditorFieldLocks({
     billable: baseline.value?.billable,
     timeEntries: state.timeEntries.filter((entry) => entry.projectId === editingId.value),
@@ -125,6 +135,7 @@ function openAdd() {
   draft.name = ''
   draft.clientId = null
   draft.billable = false
+  draft.perJobBillable = false
   draft.hourlyRateUsd = 0
   editorOpen.value = true
 }
@@ -135,9 +146,17 @@ function openEdit(project) {
   draft.name = project.name
   draft.clientId = project.clientId
   draft.billable = project.billable
+  draft.perJobBillable = project.perJobBillable
   draft.hourlyRateUsd = project.hourlyRateUsd
   editorOpen.value = true
 }
+
+const canSaveProject = computed(() => {
+  if (!draft.name.trim()) return false
+  if (!draft.billable) return true
+  if (draft.perJobBillable) return true
+  return Number(draft.hourlyRateUsd) > 0
+})
 
 async function runEditorAction(action) {
   saving.value = true

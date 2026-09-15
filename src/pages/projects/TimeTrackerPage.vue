@@ -65,6 +65,33 @@
                   />
                 </q-item-section>
               </q-item>
+              <q-item tag="label">
+                <q-item-section>
+                  <q-item-label>Show unpaid invoices in statistics</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-toggle
+                    :model-value="statsUnpaidModel"
+                    color="primary"
+                    data-testid="tt-stats-unpaid-toggle"
+                    @update:model-value="onStatsUnpaidChange"
+                  />
+                </q-item-section>
+              </q-item>
+              <q-item tag="label" class="q-pl-lg">
+                <q-item-section>
+                  <q-item-label>Include uninvoiced</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-toggle
+                    :model-value="statsUninvoicedModel"
+                    color="primary"
+                    :disable="!statsUnpaidModel"
+                    data-testid="tt-stats-uninvoiced-toggle"
+                    @update:model-value="onStatsUninvoicedChange"
+                  />
+                </q-item-section>
+              </q-item>
             </q-list>
           </q-menu>
         </q-btn>
@@ -92,6 +119,9 @@
         </q-tab-panel>
         <q-tab-panel name="clients" class="q-pa-none">
           <TimeTrackerSurfaceClients />
+        </q-tab-panel>
+        <q-tab-panel name="statistics" class="q-pa-none">
+          <TimeTrackerSurfaceStatistics />
         </q-tab-panel>
       </q-tab-panels>
 
@@ -173,7 +203,9 @@ import TimeTrackerSignInPanel from '../../features/time-tracker/components/TimeT
 import TimeTrackerSurfaceClients from '../../features/time-tracker/components/TimeTrackerSurfaceClients.vue'
 import TimeTrackerSurfaceHistory from '../../features/time-tracker/components/TimeTrackerSurfaceHistory.vue'
 import TimeTrackerSurfaceProjects from '../../features/time-tracker/components/TimeTrackerSurfaceProjects.vue'
+import TimeTrackerSurfaceStatistics from '../../features/time-tracker/components/TimeTrackerSurfaceStatistics.vue'
 import TimeTrackerSurfaceTimer from '../../features/time-tracker/components/TimeTrackerSurfaceTimer.vue'
+import { defaultOwnerPrefs } from '../../features/time-tracker/sessionPrefs.js'
 import { useTimeTrackerAuth } from '../../features/time-tracker/composables/useTimeTrackerAuth.js'
 import {
   TIME_TRACKER_WORKSPACE_KEY,
@@ -209,6 +241,33 @@ const timerColorModel = computed({
   get: () => timerColor.value,
   set: (next) => settingsStore.setTimerColor(next, user.value?.uid),
 })
+
+const ownerPrefs = computed(() => {
+  const uid = user.value?.uid
+  if (!uid) return defaultOwnerPrefs()
+  return settingsStore.prefsFor(uid) ?? defaultOwnerPrefs()
+})
+
+const statsUnpaidModel = computed(() => ownerPrefs.value.showUnpaidInvoicesInStatistics)
+
+const statsUninvoicedModel = computed(() => ownerPrefs.value.includeUninvoicedInStatistics)
+
+function onStatsUnpaidChange(value) {
+  const uid = user.value?.uid
+  if (!uid) return
+  settingsStore.patchOwnerPrefs(uid, {
+    showUnpaidInvoicesInStatistics: value === true,
+    includeUninvoicedInStatistics: value === true ? ownerPrefs.value.includeUninvoicedInStatistics : false,
+  })
+}
+
+function onStatsUninvoicedChange(value) {
+  const uid = user.value?.uid
+  if (!uid) return
+  settingsStore.patchOwnerPrefs(uid, {
+    includeUninvoicedInStatistics: value === true,
+  })
+}
 
 useProjectShellBrowserFullscreen({
   enabled: fullscreenEnabled,
@@ -288,8 +347,37 @@ async function confirmSignOut() {
 
 .tt-nav-bar {
   flex-shrink: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: env(safe-area-inset-bottom, 0px);
+
+  :deep(.q-tabs__content) {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  :deep(.q-tab) {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 2px;
+  }
+
+  :deep(.q-tab__content) {
+    min-width: 0;
+    padding: 0;
+  }
+
+  :deep(.q-tab__label) {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.7rem;
+    line-height: 1.15;
+  }
 }
 
 .body--light .tt-nav-bar {

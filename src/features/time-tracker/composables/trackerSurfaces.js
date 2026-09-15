@@ -5,4 +5,5 @@ export const TRACKER_SURFACES = [
   { id: 'history', icon: 'history', label: 'History' },
   { id: 'projects', icon: 'folder', label: 'Projects' },
   { id: 'clients', icon: 'groups', label: 'Clients' },
+  { id: 'statistics', icon: 'pie_chart', label: 'Stats' },
 ]

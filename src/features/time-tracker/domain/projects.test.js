@@ -8,6 +8,8 @@ import {
   canTurnBillableOff,
   createClient,
   createProject,
+  isHourlyBillable,
+  isPerJobBillable,
   setProjectBillable,
   unassignProjectsForDeletedClient,
 } from './projects.js'
@@ -19,6 +21,7 @@ test('new projects are not billable and may have no client', () => {
     name: 'Personal',
     clientId: null,
     billable: false,
+    perJobBillable: false,
     hourlyRateUsd: 0,
   })
 })
@@ -31,14 +34,56 @@ test('turning billable on requires an hourly rate greater than zero', () => {
   assert.equal(billed.hourlyRateUsd, 150)
 })
 
-test('turning billable off keeps the stored hourly rate', () => {
+test('turning billable off keeps the stored hourly rate and per-job preference', () => {
   const billed = setProjectBillable(createProject({ id: 'p1', name: 'Work' }), {
     billable: true,
-    hourlyRateUsd: 150,
+    perJobBillable: true,
   })
   const off = setProjectBillable(billed, { billable: false })
   assert.equal(off.billable, false)
-  assert.equal(off.hourlyRateUsd, 150)
+  assert.equal(off.hourlyRateUsd, 0)
+  assert.equal(off.perJobBillable, true)
+})
+
+test('billable per-job on does not require an hourly rate', () => {
+  const project = createProject({ id: 'p1', name: 'Work' })
+  const billed = setProjectBillable(project, { billable: true, perJobBillable: true })
+  assert.equal(billed.billable, true)
+  assert.equal(billed.perJobBillable, true)
+})
+
+test('switching per-job while invoiced time entries exist is blocked', () => {
+  const billed = setProjectBillable(createProject({ id: 'p1', name: 'Work' }), {
+    billable: true,
+    hourlyRateUsd: 80,
+  })
+  assert.throws(
+    () =>
+      setProjectBillable(billed, {
+        billable: true,
+        perJobBillable: true,
+        timeEntries: [{ invoiceId: 'inv1' }],
+      }),
+    /invoice/,
+  )
+})
+
+test('isHourlyBillable and isPerJobBillable cover billing combinations', () => {
+  const nonBillable = createProject({ id: 'p1', name: 'A' })
+  assert.equal(isHourlyBillable(nonBillable), false)
+  assert.equal(isPerJobBillable(nonBillable), false)
+
+  const hourly = setProjectBillable(nonBillable, { billable: true, hourlyRateUsd: 50 })
+  assert.equal(isHourlyBillable(hourly), true)
+  assert.equal(isPerJobBillable(hourly), false)
+
+  const perJob = setProjectBillable(nonBillable, { billable: true, perJobBillable: true })
+  assert.equal(isHourlyBillable(perJob), false)
+  assert.equal(isPerJobBillable(perJob), true)
+
+  const offWithPerJobPref = setProjectBillable(perJob, { billable: false })
+  assert.equal(isHourlyBillable(offWithPerJobPref), false)
+  assert.equal(isPerJobBillable(offWithPerJobPref), false)
 })
 
 test('project deletion is blocked while any time entries remain', () => {

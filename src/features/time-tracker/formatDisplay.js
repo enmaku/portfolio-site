@@ -6,6 +6,29 @@ export function formatUsdFromCents(cents) {
   return formatUsd(Number(cents) / 100)
 }
 
+/**
+ * @param {unknown} raw
+ * @returns {number | null}
+ */
+export function usdInputToCents(raw) {
+  const text = String(raw ?? '').trim()
+  if (!text) return null
+  const dollars = Number(text)
+  if (!Number.isFinite(dollars) || dollars < 0) {
+    throw new Error('Earnings must be a valid amount')
+  }
+  return Math.round(dollars * 100)
+}
+
+/**
+ * @param {number | null | undefined} cents
+ * @returns {string}
+ */
+export function centsToUsdInput(cents) {
+  if (cents == null) return ''
+  return (Number(cents) / 100).toFixed(2)
+}
+
 export function formatDurationMs(ms) {
   const totalSec = Math.max(0, Math.floor(Number(ms) / 1000))
   const hours = Math.floor(totalSec / 3600)

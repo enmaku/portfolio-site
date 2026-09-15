@@ -4,6 +4,7 @@
  *   name: string,
  *   clientId: string | null,
  *   billable: boolean,
+ *   perJobBillable: boolean,
  *   hourlyRateUsd: number,
  * }} TrackerProject
  * @typedef {{ id: string, name: string }} TrackerClient
@@ -28,8 +29,41 @@ export function createProject(input) {
     name,
     clientId: input.clientId ? String(input.clientId) : null,
     billable: false,
+    perJobBillable: false,
     hourlyRateUsd: 0,
   }
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {TrackerProject}
+ */
+export function normalizeProject(raw) {
+  const base = createProject({
+    id: String(raw?.id || ''),
+    name: String(raw?.name || ''),
+    clientId: raw?.clientId ? String(raw.clientId) : null,
+  })
+  return {
+    ...base,
+    billable: raw?.billable === true,
+    perJobBillable: raw?.perJobBillable === true,
+    hourlyRateUsd: Number(raw?.hourlyRateUsd) || 0,
+  }
+}
+
+/**
+ * @param {{ billable?: boolean, perJobBillable?: boolean } | null | undefined} project
+ */
+export function isHourlyBillable(project) {
+  return Boolean(project?.billable) && !project?.perJobBillable
+}
+
+/**
+ * @param {{ billable?: boolean, perJobBillable?: boolean } | null | undefined} project
+ */
+export function isPerJobBillable(project) {
+  return Boolean(project?.billable) && Boolean(project?.perJobBillable)
 }
 
 /**
@@ -88,22 +122,40 @@ export function canTurnBillableOff(input) {
  * @param {{
  *   billable: boolean,
  *   hourlyRateUsd?: number,
+ *   perJobBillable?: boolean,
  *   timeEntries?: InvoiceLockable[],
  * }} input
  * @returns {TrackerProject}
  */
 export function setProjectBillable(project, input) {
-  if (input.billable) {
-    const rate = Number(input.hourlyRateUsd)
-    if (!(rate > 0)) {
-      throw new Error('Billable projects require an hourly rate greater than zero')
+  const billable = Boolean(input.billable)
+  const perJobBillable =
+    input.perJobBillable !== undefined ? Boolean(input.perJobBillable) : Boolean(project.perJobBillable)
+  const timeEntries = input.timeEntries ?? []
+  const billingModeChanging =
+    Boolean(project.billable) && billable && perJobBillable !== Boolean(project.perJobBillable)
+
+  if (!billable || billingModeChanging) {
+    if (!canTurnBillableOff({ timeEntries })) {
+      throw new Error('Cannot turn billable off while time entries are on an invoice')
     }
-    return { ...project, billable: true, hourlyRateUsd: rate }
   }
-  if (!canTurnBillableOff({ timeEntries: input.timeEntries ?? [] })) {
-    throw new Error('Cannot turn billable off while time entries are on an invoice')
+
+  if (!billable) {
+    return { ...project, billable: false }
   }
-  return { ...project, billable: false }
+
+  if (perJobBillable) {
+    const hourlyRateUsd =
+      input.hourlyRateUsd !== undefined ? Number(input.hourlyRateUsd) : project.hourlyRateUsd
+    return { ...project, billable: true, perJobBillable: true, hourlyRateUsd }
+  }
+
+  const rate = Number(input.hourlyRateUsd ?? project.hourlyRateUsd)
+  if (!(rate > 0)) {
+    throw new Error('Billable projects require an hourly rate greater than zero')
+  }
+  return { ...project, billable: true, perJobBillable: false, hourlyRateUsd: rate }
 }
 
 function normalizeClientId(clientId) {

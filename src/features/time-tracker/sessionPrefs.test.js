@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DEFAULT_TIMER_COLOR } from './timerAccent.js'
 import {
+  defaultOwnerPrefs,
   normalizeActiveSurface,
   normalizeOwnerPrefs,
   resolveIssuerName,
@@ -10,7 +11,23 @@ import {
 
 test('normalizeActiveSurface falls back to timer', () => {
   assert.equal(normalizeActiveSurface('history'), 'history')
+  assert.equal(normalizeActiveSurface('statistics'), 'statistics')
   assert.equal(normalizeActiveSurface('nope'), 'timer')
+})
+
+test('normalizeOwnerPrefs forces includeUninvoiced off when unpaid toggle is off', () => {
+  const prefs = normalizeOwnerPrefs({
+    showUnpaidInvoicesInStatistics: false,
+    includeUninvoicedInStatistics: true,
+  })
+  assert.equal(prefs.showUnpaidInvoicesInStatistics, false)
+  assert.equal(prefs.includeUninvoicedInStatistics, false)
+})
+
+test('default owner prefs keep statistics revenue toggles off', () => {
+  const prefs = defaultOwnerPrefs()
+  assert.equal(prefs.showUnpaidInvoicesInStatistics, false)
+  assert.equal(prefs.includeUninvoicedInStatistics, false)
 })
 
 test('resolveIssuerName prefers a persisted session including empty', () => {
