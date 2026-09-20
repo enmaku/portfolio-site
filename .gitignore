@@ -62,3 +62,4 @@ world-builder/research/youtube-subtitles/raw/*
 # World Builder — local sensitivity analysis runs
 world-builder/research/sensitivity-results/*
 !world-builder/research/sensitivity-results/.gitkeep
+.aider*
