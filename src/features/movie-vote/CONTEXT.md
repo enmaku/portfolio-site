@@ -12,7 +12,9 @@ _Avoid_: Using “phase” for star-room connectivity posture—that is **connec
 
 ### Suggest phase
 
-Everyone contributes **movie picks** and marks readiness without locking the group tally yet.
+Everyone contributes **movie picks** and marks readiness without locking the group tally yet. Every **participant** sees all current **movie picks** as they arrive: their own at normal emphasis, others’ muted/gray—no **participant name** labels on the picks.
+
+_Avoid_: Showing only one’s own picks; attributing picks by **participant name**.
 
 ### Voting phase
 
@@ -60,7 +62,7 @@ Deduping overlapping **picks** into unique **ballot movies** ahead of ranking (T
 
 ### Host participant removal
 
-Host-only action, available during **suggest phase** only, that deletes a **guest** **participant** seat from the **room** (drafts, readiness, and any **ranking** for that seat are discarded) and ejects that **guest** from the session. Confirmation required. Rejoin after removal is a new seat (new **participant name** prompt)—not resume of the removed **participant id**. Does not apply to the **host participant seat**. During **voting phase**, **host participant removal** and **clear guests** are unavailable; a required voter who disconnects mid-vote blocks **results phase** until they reconnect and submit a **ranking**.
+Host-only action, available during **suggest phase** only, that deletes a **guest** **participant** seat from the **room** (drafts, readiness, and any **ranking** for that seat are discarded) and ejects that **guest** from the session. Confirmation required. Rejoin after removal is a new seat (new **participant name** prompt)—not resume of the removed **participant id**. Does not apply to the **host participant seat**. During **voting phase**, **host participant removal** and **clear guests** are unavailable; a voter who disconnects mid-vote blocks automatic **results phase** advance unless the **host** uses **force-finish voting**.
 
 _Avoid_: Soft-mute or “drop from quorum only” as the trash action; allowing the **host** to remove their own seat this way; mid-vote host ejection as an escape hatch.
 
@@ -94,31 +96,53 @@ _Avoid_: Treating the host as “not a **participant**” in copy about counts.
 
 Guest → host bundle of provisional **movie picks** plus suggest-phase signals during **suggest phase**.
 
+### Session stickiness
+
+Accidental disconnect or refresh resumes the same **participant id**, **participant name**, **movie picks**, **ready flag**, and **ranking** via **stable client identity**. Cleared only by voluntary **room exit** or the **host** ending hosting. **Host participant removal** is not sticky—rejoin after eject is a new seat.
+
+_Avoid_: Treating **host participant removal** as quorum-only cleanup; clearing identity on mere disconnect; requiring a host re-invite after refresh.
+
 ### Guest reconnect coherence (Movie Vote)
 
-On **guest** refresh or reattach, **stable client identity** on hello remaps to the same **participant id** when the **host** preserves the binding; the **host** re-attaches **draft payload**, **participant name**, **quorum requirement**, and **ranking** to that seat and rebroadcasts **room** authority. The **guest** mirrors public state—local ballot or vote copies are provisional until acknowledged. After **host participant removal**, that binding is gone—rejoin is a new seat.
+On **guest** refresh or reattach, **stable client identity** on hello remaps to the same **participant id** when the **host** preserves the binding; the **host** re-attaches **draft payload**, **participant name**, and **ranking** to that seat and rebroadcasts **room** authority. The **guest** mirrors public state—local ballot or vote copies are provisional until acknowledged. After **host participant removal**, that binding is gone—rejoin is a new seat.
 
 _Avoid_: Promoting local **ballot order**, **ranking**, or tallies as truth before the next **host** broadcast; treating host-removed seats as resumable on reconnect.
 
 ### Ready flag
 
-Per-**participant** indicator that they finished nominating while drafts can still change.
+Per-**participant** indicator that they finished nominating while drafts can still change. May be set anytime during **suggest phase**—not gated on **movie pick** count.
+
+_Avoid_: Blocking **ready flag** until two picks exist.
+
+### Suggest phase advance gate
+
+Automatic **suggest phase** → **voting phase** needs every seat’s **ready flag** set and **unique suggested movie count** ≥ 2. If every seat is ready but there is at most one candidate, show a **room**-wide toast—do not advance.
+
+_Avoid_: Blocking **ready flag** until two picks; silent fail when all-ready with ≤1 candidate.
+
+### Host phase controls
+
+Host-only actions that move the **room** between **suggest phase**, **voting phase**, and **results phase** in either direction. Backward clears incompatible state: **voting** → **suggest** drops **rankings** and reopens **movie picks**; **results** → **voting** reopens the ballot for new **rankings**.
+
+_Avoid_: Letting **guests** change **phase**; leaving stale **rankings** or **election outcome** after moving back.
+
+### Force-finish voting
+
+Via **host phase controls**, the **host** may enter **results phase** before every seat has submitted a **ranking**. Incomplete **rankings** are discarded and excluded from the tally.
+
+_Avoid_: Counting incomplete **rankings**; treating **force-finish voting** as **room exit**.
 
 ### Quorum controls
 
-Host-only section of the room hosting dialog (alongside the room code and hosting actions) listing each **participant** by **participant name**, with a **progress status** cue (nomination / ready / ballot—not connection online/offline), **quorum requirement** toggles, **host participant removal**, and **clear guests**. The list and progress cues stay visible through **voting phase**; toggles and remove actions are **suggest phase** only. The list is hidden in **results phase**. Guests do not manage this list.
+Host-only section of the room hosting dialog (alongside the room code and hosting actions) listing each **participant** by **participant name**, with a **progress status** cue (nomination / ready / ballot—not connection online/offline), **host participant removal**, **clear guests**, and **host phase controls**. The list and progress cues stay visible through **voting phase**; remove actions are **suggest phase** only. The list is hidden in **results phase**. Every seat always counts toward **participant quorum**—no optional seats. Guests do not manage this list.
 
-_Avoid_: Exposing remove/toggle controls to guests; calling this a “user list”; relying on connection online/offline as the primary seat cue once **progress status** is shown.
+_Avoid_: Exposing remove controls to guests; calling this a “user list”; relying on connection online/offline as the primary seat cue once **progress status** is shown; **quorum requirement** toggles.
 
-### Quorum requirement
+### Participant quorum
 
-Per-**participant** host-controlled flag for whether that seat counts toward **quorum**. Defaults **on** for every new **participant** seat (including the **host participant seat**); the **host** may turn it off for any seat including their own (facilitate / nominate without being a required voter). The **host** cannot use **host participant removal** on their own seat. Edits only via **quorum controls** during **suggest phase**.
+Every seat—including the **host participant seat**—must set **ready flag**, must submit a **ranking** for automatic advance, and counts in tallies. Blocks automatic **suggest phase** → **voting phase** while any seat’s **ready flag** is unset, even if that seat is offline. Only **host participant removal** / **clear guests** during **suggest phase**, or that **participant**’s voluntary **room exit**, lifts a stuck seat from the wait-set. Automatic **voting phase** → **results phase** waits for every **ranking**; **host phase controls** may **force-finish voting**.
 
-When **on**, the seat must be ready before **suggest phase** → **voting phase**, must submit a **ranking** before **voting phase** → **results phase**, and continues to block those advances even when its **guest online signal** is false—only the **host** clearing the flag or **host participant removal** / **clear guests** during **suggest phase**, or that **participant**’s own voluntary **room exit**, lifts the block. Required seats are not auto-removed for mere disconnect. During **voting phase**, a required voter who disconnects (without voluntary **room exit**) blocks **results phase** until they reconnect and cast—there is no host ejection escape hatch mid-vote.
-
-When **off**, the seat may still contribute **movie picks** during **suggest phase** but is not a voter in **voting phase** and does not block either advance; optional seats may still be dropped automatically after a disconnect grace. After **voting phase** begins, optional seats remain in the **room** and watch progress/**results** without a ballot. When **suggest phase** advances, **ballot compilation** includes every current **movie pick** present in the **room**—including from optional seats that are not ready. Leaving **suggest phase** also requires at least two seats with **quorum requirement** on.
-
-_Avoid_: Treating “online right now” as interchangeable with **quorum requirement**; auto-advancing when the currently connected subset is all ready or all voted while required seats are still absent; defaulting new seats off so the **host** must remember to opt people in; treating off as full voting collaborator or as pure spectator with no nominations; auto-ejecting optional seats when voting starts.
+_Avoid_: Optional seats; treating “online right now” as interchangeable with readiness; auto-advancing without absent seats.
 
 ### Ballot order
 
@@ -136,15 +160,27 @@ Host aggregates participant payloads into **room**-level authority (**phase**, *
 
 Participant’s ordering of ballot ids (preferred first).
 
+### Drag handle reorder
+
+Right-edge handle on nomination and **ranking** lists; only the handle initiates reorder. Elsewhere on the row scrolls or does nothing—no press-and-hold.
+
+_Avoid_: Whole-row drag; press-and-hold to reorder.
+
 ### Voting method
 
-Which standard single-winner rule the **host** selects for this **room**—**instant-runoff voting**, **Borda count**, **Dowdall method**, **Condorcet method**, **Copeland method**, **Coombs method**, or **Baldwin method**—each implemented by its usual textbook definition, not a project-specific hybrid. The **host** may change it only during **suggest phase**; it is locked when **voting phase** begins.
+Which standard single-winner rule the **host** selects for this **room**—**instant-runoff voting**, **Borda count**, **Dowdall method**, **Condorcet method**, **Copeland method**, **Coombs method**, or **Baldwin method**—each implemented by its usual textbook definition, not a project-specific hybrid. Editable only while in **suggest phase** (including after backward **host phase controls**); locked in **voting phase** and **results phase**.
 
 _Avoid_: Invented tally names, “ranked-points” as a stand-in for **Borda count** or **IRV**, or labeling every method “IRV” in UI; letting **guests** change the method.
 
 ### Voting method settings
 
 Top-bar settings control for **voting method**: the **host** edits during **suggest phase** only; **guests** see the current choice read-only so rules are visible before **ranking**. Default for a new **room** is **instant-runoff voting**. The same settings menu also holds the **browser fullscreen toggle** (personal display preference for **host** and **guest**—see [**Portfolio site**](../../../CONTEXT.md)).
+
+### Voting method explainer (guest)
+
+Dedicated read-only surface on the main **guest** UI with the same explainer as **host** **voting method settings** help, plus expandable per-method plain-language notes. Visible during **suggest phase** through **voting phase**.
+
+_Avoid_: Burying method explanation only in settings; jargon without expansion.
 
 ### Instant-runoff voting (IRV)
 
@@ -262,9 +298,7 @@ _Avoid_: Treating **room exit** like **resetSessionSoft** (join/resume hygiene);
 
 ### Vote progress
 
-Submitted vs total **ranking** counts among seats with **quorum requirement** on, surfaced while ballots are still arriving.
-
-_Avoid_: Counting optional (quorum-off) seats in the voting denominator.
+Submitted vs total **ranking** counts among all **participant** seats, surfaced while ballots are still arriving.
 
 ### Declared tie
 
@@ -281,20 +315,20 @@ _Avoid_: **Black’s method**, **Borda tiebreak**, subset runoffs, or any second
 - **Phase** (collaborative flow) and **connection status** (shell **connection posture**) are two independent contracts—do not merge them in UI, diagnostics, or persisted **room** fields.
 - **Room exit survival** differs from Game Timer: Movie Vote wipes **room** authority; Game Timer keeps the facilitator **roster**—see [**Star-room P2P**](../p2p/CONTEXT.md) **room exit**.
 - A **participant** submits many **movie picks** during **suggest phase**, shipped incrementally inside **draft payloads** guarded by **ready flags**.
-- Every **participant** has a **participant name** (entry gate) and a **quorum requirement** (default on); **quorum controls** are **host**-only during **suggest phase**.
-- **Quorum requirement** gates both collaborative advances and who votes; **guest online signal** / **strict guest presence** must not silently drop required seats from those gates. Optional seats may still auto-drop after disconnect grace; required seats need **host participant removal**, **clear guests**, or voluntary **room exit**.
+- Every **participant** has a **participant name** (entry gate); **quorum controls** are **host**-only; every seat is in **participant quorum**.
+- **Participant quorum** gates automatic collaborative advances; stuck seats need **host participant removal**, **clear guests**, voluntary **room exit**, **host phase controls**, or **force-finish voting**. **Guest online signal** / **strict guest presence** must not silently drop seats from those gates.
 - The **host** is a **participant** via the **host participant seat**; **guests** receive **participant id** seat labels from the **host** while **stable client identity** is the canonical browser principal for reconnect and per-**participant** persistence.
-- **Room**-level authority (**phase**, **ballot order**, **ballot compilation**) is **host**-owned; **participant**-scoped state (**draft payload**, **ready flag**, **ranking**, **participant name**, **quorum requirement**) is **participant**-owned or host-managed as above while the **host** still aggregates for compilation and tally.
-- The **host** is never reassigned for a **room**; **host abrupt disconnect** does not end the **room** for **guests**—**connection posture** stays `guest_connected`, last **room** authority remains, **host**-only moves wait, and **guest online signal** / readiness tallies follow **strict guest presence** rules until **host reclaim**—except where Movie Vote **quorum requirement** explicitly keeps offline required seats in the wait-set.
+- **Room**-level authority (**phase**, **ballot order**, **ballot compilation**) is **host**-owned; **participant**-scoped state (**draft payload**, **ready flag**, **ranking**, **participant name**) is **participant**-owned or host-managed as above while the **host** still aggregates for compilation and tally.
+- The **host** is never reassigned for a **room**; **host abrupt disconnect** does not end the **room** for **guests**—**connection posture** stays `guest_connected`, last **room** authority remains, **host**-only moves wait, and **guest online signal** / readiness tallies follow **strict guest presence** rules until **host reclaim**—except where Movie Vote **participant quorum** explicitly keeps offline seats in the wait-set.
 - What collaborators must agree on in a **room** has a single authoritative shared copy; each browser mirrors that copy locally for UI rather than treating local state as a competing source of truth. **Host** state rebroadcasts use **monotonic authority broadcast** **seq**; **guests** never apply regressive **room** authority.
-- **Unique suggested movie count** summarizes nomination breadth before compilation locks **ballot order**.
-- Compilation reduces picks to mutually distinct **ballot movies** keyed by TMDB id or **normalized custom title**, including picks from optional seats present at advance.
-- **Voting phase** consumes exactly the compiled ballot; each seat with **quorum requirement** on submits one **ranking**; optional seats watch without ballots.
+- **Unique suggested movie count** summarizes nomination breadth before compilation locks **ballot order**; **suggest phase advance gate** requires it ≥ 2 alongside every **ready flag**.
+- Compilation reduces picks to mutually distinct **ballot movies** keyed by TMDB id or **normalized custom title**, including picks from seats present at advance.
+- **Voting phase** consumes exactly the compiled ballot; each **participant** submits one **ranking**.
 - The **host** persists the official election outcome (**rounds log** when applicable, winner or **declared tie**) into **room**-level authority when entering **results phase**; that record is the collective result the **room** shows.
-- The active **voting method** is **room**-level configuration chosen by the **host** during **suggest phase**, broadcast to **guests**, and locked when **voting phase** starts; tally uses standard rules for that method only.
+- The active **voting method** is **room**-level configuration chosen by the **host** during **suggest phase**, broadcast to **guests**, and locked in **voting phase** and **results phase**; tally uses standard rules for that method only.
 - Any deadlock under those rules ends in **declared tie**—never an automatic crossover to another **voting method** (**no algorithmic tiebreak**).
 - Election rules and tie policy: [ADR 0004](../../../docs/adr/0004-movie-vote-multi-method-elections.md) (supersedes [ADR 0003](../../../docs/adr/0003-movie-vote-ranked-points-per-irv-round.md)).
-- **Quorum controls** locked after **suggest phase**: [ADR 0023](../../../docs/adr/0023-movie-vote-quorum-controls-suggest-only.md).
+- **Host phase controls**, **force-finish voting**, and **participant quorum** supersede the mid-vote stuckness / optional-seat parts of [ADR 0023](../../../docs/adr/0023-movie-vote-quorum-controls-suggest-only.md); **host participant removal** / **clear guests** remain **suggest phase** only (ADR 0023 remainder). Record the supersession in a follow-up ADR when implementing.
 
 ## Example dialogue
 
@@ -320,10 +354,7 @@ _Avoid_: **Black’s method**, **Borda tiebreak**, subset runoffs, or any second
 > **Maintainer:** “**Stable client identity** tells **host** to **resume** the existing **participant id** slot once **draft payloads** / votes replay.”
 
 > **Host:** “Five of us set up the vote, then Dave’s phone died before ready—don’t start without him.”  
-> **Maintainer:** “Dave stays **quorum requirement** on and keeps blocking until you **host participant removal** him in **quorum controls**, or he reconnects and readies. Going offline must not shrink the ready set.”
-
-> **Host:** “Sam is only nominating—she shouldn’t block us or vote.”  
-> **Maintainer:** “Turn **quorum requirement** off: she can nominate, her picks compile if present, she watches **voting phase** with no ballot.”
+> **Maintainer:** “Dave’s seat keeps blocking until you **host participant removal** him in **quorum controls**, or he reconnects and readies. Going offline must not shrink the ready set.”
 
 ## Flagged ambiguities
 
@@ -340,17 +371,19 @@ _Avoid_: **Black’s method**, **Borda tiebreak**, subset runoffs, or any second
 - **Borda top tie** completion: Resolved — **declared tie** only.
 - **Tiebreak policy (all methods)**: Resolved — **no algorithmic tiebreak**; **declared tie** only.
 - **Condorcet cycle** `tieWinnerIds`: Resolved — **Smith set** members only.
-- **Voting method settings** visibility: Resolved — **host** edits in **suggest phase**; **guests** read-only.
+- **Voting method settings** visibility: Resolved — **host** edits in **suggest phase**; **guests** read-only in settings plus **voting method explainer (guest)** on the main UI.
 - **Default voting method**: Resolved — **instant-runoff voting** for a new **room**.
 - **Results replay per method**: Resolved — **IRV** and **Coombs method**: multi-round **rounds log** (first-preference vs last-place counts); **Baldwin method**: multi-round **rounds log** with Borda-on-survivors totals (not single-pass **Borda count** UX); **Borda count** and **Dowdall method**: single scoreboard each (harmonic vs classic Borda weights); **Condorcet method**: winner or tie card plus optional compact **pairwise matrix** (win / loss / pairwise tie per cell, poster thumbnails on axes).
-- **When the host may change voting method**: Resolved — **suggest phase** only; locked at **voting phase** entry.
+- **When the host may change voting method**: Resolved — editable only in **suggest phase** including after backward **host phase controls**; locked in **voting phase** and **results phase**.
 - “Phase” overload: Resolved — **phase** means **suggest** / **voting** / **results**; **connection status** means `idle` / `connecting` / … for the star-room shell (Game Timer still labels that **session phase**).
-- **Offline vs ready gate**: Resolved — required seats keep blocking when offline; presence must not auto-advance without them.
-- **Quorum requirement default**: Resolved — on for every new seat; host may opt any seat out (including host).
-- **Optional seat powers**: Resolved — may nominate; not a voter; watch during **voting**/**results**; do not block advances.
-- **Quorum controls availability**: Resolved — **suggest phase** only; mid-vote disconnect of a required voter waits for reconnect+cast (no host eject).
-- **Auto-remove offline seats**: Resolved — not for required seats; optional seats may still grace-drop.
-- **Minimum voters**: Resolved — at least two **quorum requirement** on seats before leaving **suggest phase**.
+- **Offline vs ready gate**: Resolved — seats in **participant quorum** keep blocking when offline; presence must not auto-advance without them.
+- **Quorum requirement / optional seats**: Resolved — removed; every seat is in **participant quorum**.
+- **Quorum controls availability**: Resolved — **host participant removal** / **clear guests** are **suggest phase** only; mid-vote disconnect waits unless **force-finish voting**.
+- **Force-finish voting**: Resolved — **host** via **host phase controls** may enter **results phase** before every **ranking**; incomplete **rankings** discarded/excluded.
+- **Auto-remove offline seats**: Resolved — never auto-remove (optional seats gone).
+- **Minimum voters**: Resolved — at least two **participant** seats before leaving **suggest phase**.
+- **Ready flag vs nomination count**: Resolved — **ready flag** anytime during **suggest phase**; **suggest phase advance gate** requires **unique suggested movie count** ≥ 2; **room**-wide toast when all-ready with ≤1 candidate.
+- **Drag handle reorder**: Resolved — right-edge handle only; no whole-row drag or press-and-hold.
 - **Participant name**: Resolved — required unique (trim, case-insensitive) gate before host/join completes; sticky per **stable client identity** in the **room**; no rename UI this pass.
 - **Host remove / clear**: Resolved — eject guest seat(s) with confirmation; rejoin is new seat; host seat stays on **clear guests**.
-- **Voluntary room exit**: Resolved — drops that seat immediately even if it was required.
+- **Voluntary room exit**: Resolved — drops that seat immediately even if it was in **participant quorum**.
