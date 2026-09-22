@@ -266,6 +266,18 @@ async function hostBroadcastStatePersist() {
     st.setUniqueSuggestedMovieCount(
       typeof payload.uniqueSuggestedMovieCount === 'number' ? payload.uniqueSuggestedMovieCount : 0,
     )
+    if (payload.phase === 'suggest' && payload.suggestPicksByParticipant) {
+      /** @type {import('../types.js').MoviePick[]} */
+      const others = []
+      for (const [id, picks] of Object.entries(payload.suggestPicksByParticipant)) {
+        if (id === HOST_PARTICIPANT_ID) continue
+        if (!Array.isArray(picks)) continue
+        for (const pick of picks) others.push({ ...pick })
+      }
+      st.othersDraftPicks = others
+    } else if (payload.phase !== 'suggest') {
+      st.othersDraftPicks = []
+    }
   } catch {
     void 0
   }
@@ -980,6 +992,24 @@ export function hostPhaseGoVoting() {
   const voterIds = [HOST_PARTICIPANT_ID]
   for (const [pid] of guestDrafts) voterIds.push(pid)
   lastRoomNotice = null
+  store.setVotingState(movies, orderIds, voterIds)
+  hostBroadcastState()
+  return true
+}
+
+/** Host phase: reopen voting from the existing ballot (results → voting). */
+export function hostPhaseReturnToVoting() {
+  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return false
+  const store = useMovieVoteStore()
+  if (store.phase !== 'results') return false
+  const movies = store.ballotMovies
+  const orderIds = store.ballotOrderIds
+  if (!Array.isArray(movies) || !Array.isArray(orderIds)) return false
+  if (orderIds.length < MIN_DISTINCT_SUGGESTIONS_FOR_READY) return false
+  const voterIds =
+    Array.isArray(store.voterIds) && store.voterIds.length > 0
+      ? [...store.voterIds]
+      : [HOST_PARTICIPANT_ID, ...guestDrafts.keys()]
   store.setVotingState(movies, orderIds, voterIds)
   hostBroadcastState()
   return true

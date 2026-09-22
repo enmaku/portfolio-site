@@ -217,11 +217,19 @@ export function drainMovieVoteHostResetToSuggestProbeForTests() {
  */
 function applyInboundPublicPayload(payload) {
   const s = useMovieVoteStore()
+  const prevPhase = s.phase
   applyingRemote = true
   try {
     s.applyPublicPayload(payload)
   } finally {
     applyingRemote = false
+  }
+  // Align inbox ready with authority after return-to-suggest (stale ready:true blocks host updates).
+  const returnedToSuggest =
+    (prevPhase === 'voting' || prevPhase === 'results') && s.phase === 'suggest'
+  if (returnedToSuggest && shouldGuestSyncDraft(s)) {
+    cancelGuestDraftDebounce()
+    pushGuestDraftPayload()
   }
 }
 

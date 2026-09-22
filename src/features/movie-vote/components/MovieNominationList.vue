@@ -201,7 +201,7 @@ function confirmDelete() {
 }
 
 .mv-nom-row--other {
-  opacity: 0.55;
+  opacity: 0.35;
   background: rgba(128, 128, 128, 0.06);
 }
 

@@ -3,7 +3,7 @@ import test from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
 
-test('applyPublicPayload: returning to suggest from results clears ready but keeps local picks', () => {
+test('applyPublicPayload: start-over from results wipes local picks when seat pickCount is 0', () => {
   setActivePinia(createPinia())
   const store = useMovieVoteStore()
   store.phase = 'results'
@@ -30,10 +30,148 @@ test('applyPublicPayload: returning to suggest from results clears ready but kee
     electionOutcome: null,
     uniqueSuggestedMovieCount: 0,
     votingMethod: 'irv',
+    suggestPicksByParticipant: { __host__: [] },
+  })
+
+  assert.equal(store.readyToVote, false)
+  assert.deepEqual(store.myDraftPicks, [])
+})
+
+test('applyPublicPayload: results → voting with same ballot clears myVoteSubmitted', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setMyParticipantId('guest-1')
+  const movies = [
+    {
+      publicId: 'm-a',
+      source: 'custom',
+      tmdbId: null,
+      customKey: 'a',
+      title: 'A',
+      posterPath: null,
+      overview: '',
+    },
+    {
+      publicId: 'm-b',
+      source: 'custom',
+      tmdbId: null,
+      customKey: 'b',
+      title: 'B',
+      posterPath: null,
+      overview: '',
+    },
+  ]
+  store.setVotingState(movies, ['m-a', 'm-b'], ['__host__', 'guest-1'])
+  store.submitVote(['m-b', 'm-a'])
+  store.phase = 'results'
+  store.electionOutcome = {
+    votingMethod: 'irv',
+    winnerId: 'm-b',
+    tieWinnerIds: null,
+    rounds: [],
+  }
+  assert.equal(store.myVoteSubmitted, true)
+
+  store.applyPublicPayload({
+    phase: 'voting',
+    participants: [
+      { id: '__host__', ready: true, pickCount: 1 },
+      { id: 'guest-1', ready: true, pickCount: 1 },
+    ],
+    ballotMovies: movies,
+    ballotOrderIds: ['m-a', 'm-b'],
+    voteProgress: { submitted: 0, total: 2 },
+    electionOutcome: null,
+    uniqueSuggestedMovieCount: 0,
+    votingMethod: 'irv',
+  })
+
+  assert.equal(store.phase, 'voting')
+  assert.equal(store.myVoteSubmitted, false)
+  assert.deepEqual(store.myRanking, ['m-a', 'm-b'])
+})
+
+test('applyPublicPayload: voting refresh with same ballot keeps myVoteSubmitted', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setMyParticipantId('guest-1')
+  const movies = [
+    {
+      publicId: 'm-a',
+      source: 'custom',
+      tmdbId: null,
+      customKey: 'a',
+      title: 'A',
+      posterPath: null,
+      overview: '',
+    },
+    {
+      publicId: 'm-b',
+      source: 'custom',
+      tmdbId: null,
+      customKey: 'b',
+      title: 'B',
+      posterPath: null,
+      overview: '',
+    },
+  ]
+  store.setVotingState(movies, ['m-a', 'm-b'], ['__host__', 'guest-1'])
+  store.submitVote(['m-b', 'm-a'])
+
+  store.applyPublicPayload({
+    phase: 'voting',
+    participants: [
+      { id: '__host__', ready: true, pickCount: 1 },
+      { id: 'guest-1', ready: true, pickCount: 1 },
+    ],
+    ballotMovies: movies,
+    ballotOrderIds: ['m-a', 'm-b'],
+    voteProgress: { submitted: 1, total: 2 },
+    electionOutcome: null,
+    uniqueSuggestedMovieCount: 0,
+    votingMethod: 'irv',
+  })
+
+  assert.equal(store.myVoteSubmitted, true)
+  assert.deepEqual(store.myRanking, ['m-b', 'm-a'])
+})
+
+test('applyPublicPayload: preserve-picks return keeps local picks from authority map', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.phase = 'results'
+  store.readyToVote = true
+  store.setMyParticipantId('guest-1')
+  const mine = {
+    localId: '1',
+    source: 'custom',
+    tmdbId: null,
+    customKey: 'keep',
+    title: 'Keep',
+    posterPath: null,
+    overview: '',
+  }
+  store.myDraftPicks = [mine]
+
+  store.applyPublicPayload({
+    phase: 'suggest',
+    participants: [{ id: 'guest-1', ready: false, pickCount: 1 }],
+    ballotMovies: null,
+    ballotOrderIds: null,
+    voteProgress: null,
+    electionOutcome: null,
+    uniqueSuggestedMovieCount: 1,
+    votingMethod: 'irv',
+    suggestPicksByParticipant: {
+      __host__: [],
+      'guest-1': [mine],
+    },
   })
 
   assert.equal(store.readyToVote, false)
   assert.equal(store.myDraftPicks.length, 1)
+  assert.equal(store.myDraftPicks[0]?.localId, '1')
+  assert.equal(store.myDraftPicks[0]?.title, 'Keep')
 })
 
 test('applyPublicPayload: legacy irvResult inbound populates electionOutcome', () => {
