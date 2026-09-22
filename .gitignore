@@ -32,6 +32,8 @@ yarn-error.log*
 *.sln
 /artifacts/*
 /.tmp*/*
+.agents/
+skills-lock.json
 
 # local env (secrets); keep .env.example committed
 .env
