@@ -54,3 +54,17 @@ Quasar/Vite reads **`/workspace/.env`** at dev-server startup (`import.meta.env.
 **Persistence across agents:** `.env` survives on the same cloud workspace as long as the VM volume is retained. It is **not** in git — fresh environments need `.env` recreated (paste from Cursor Secrets or Firebase Console). Do not commit `.env`.
 
 **Game Timer RTDB errors with secrets “set” but app failing:** usually (a) no `.env` on disk, (b) dev server started before `.env` existed, (c) wrong `VITE_FIREBASE_DATABASE_URL` (must be **Realtime Database**, not Firestore), or (d) `database.rules.json` not deployed (`npx firebase-tools deploy --only database --project <project-id>`).
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (`gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical roles map 1:1 to tracker labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context layout: root `CONTEXT-MAP.md` points at per-context `CONTEXT.md` files; ADRs in `docs/adr/`. See `docs/agents/domain.md`.
