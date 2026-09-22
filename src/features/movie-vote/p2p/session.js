@@ -28,14 +28,14 @@ import {
 } from '../core.js'
 import {
   applyGuestInboxUpdate,
-  isQuorumRequired,
   resetGuestDraftsForSuggestRound,
 } from '../guestDraft.js'
 import { buildMovieVotePublicPayload } from '../publicPayload.js'
 import { withParticipantPresence } from '../participantPresence.js'
 import { normalizeParticipantName } from '../participantName.js'
 import { hydrateHostWireFromRtdb, pruneNamelessGuestDrafts } from '../hostRtdbHydrate.js'
-import { runElection } from '../election.js'
+import { finishVotingIfComplete, forceFinishVoting } from '../finishVoting.js'
+import { nextInsufficientMoviesNotice } from '../roomNotice.js'
 import {
   runGuestStarReconnectLoop,
   runHostStarReconnectLoop,
@@ -118,15 +118,9 @@ const MIN_DISTINCT_SUGGESTIONS_FOR_READY = 2
  */
 function allParticipantsReadyReason() {
   const store = useMovieVoteStore()
-  const hostRequired = store.myQuorumRequired !== false
-  if (hostRequired && !store.readyToVote) return 'host_not_ready'
-  const distinct = distinctSuggestedMovieCount()
-  if (distinct < MIN_DISTINCT_SUGGESTIONS_FOR_READY) {
-    return `distinct_movies_${distinct}_lt_${MIN_DISTINCT_SUGGESTIONS_FOR_READY}`
-  }
-  let requiredSeats = hostRequired ? 1 : 0
+  if (!store.readyToVote) return 'host_not_ready'
+  let requiredSeats = 1
   for (const [pid, g] of guestDrafts) {
-    if (!isQuorumRequired(g)) continue
     requiredSeats += 1
     if (!g.ready) return `guest_not_ready:${pid}`
   }
@@ -224,6 +218,27 @@ function buildPublicPayload() {
   return buildMovieVotePublicPayload(store, guestDrafts)
 }
 
+/** @type {{ kind: string, id: number } | null} */
+let lastRoomNotice = null
+let lastSeenRoomNoticeId = /** @type {number | null} */ (null)
+
+/**
+ * @param {import('../types.js').MovieVotePublicPayload} payload
+ */
+function applyPublicPayloadWithRoomNotice(payload) {
+  const notice = payload?.roomNotice
+  if (
+    notice &&
+    notice.kind === 'insufficient_movies' &&
+    typeof notice.id === 'number' &&
+    notice.id !== lastSeenRoomNoticeId
+  ) {
+    lastSeenRoomNoticeId = notice.id
+    notifyP2P('Need at least two different movies before voting.', 'warning')
+  }
+  handlers.applyPublicPayload(payload)
+}
+
 let hostStateBroadcastProbe = 0
 
 function hostBroadcastState() {
@@ -242,12 +257,27 @@ async function hostBroadcastStatePersist() {
     stableIdToParticipant,
     activeGuestStableIds,
   })
+  if (lastRoomNotice) {
+    payload.roomNotice = lastRoomNotice
+  }
   try {
     const st = useMovieVoteStore()
     st.setParticipants(payload.participants)
     st.setUniqueSuggestedMovieCount(
       typeof payload.uniqueSuggestedMovieCount === 'number' ? payload.uniqueSuggestedMovieCount : 0,
     )
+    if (payload.phase === 'suggest' && payload.suggestPicksByParticipant) {
+      /** @type {import('../types.js').MoviePick[]} */
+      const others = []
+      for (const [id, picks] of Object.entries(payload.suggestPicksByParticipant)) {
+        if (id === HOST_PARTICIPANT_ID) continue
+        if (!Array.isArray(picks)) continue
+        for (const pick of picks) others.push({ ...pick })
+      }
+      st.othersDraftPicks = others
+    } else if (payload.phase !== 'suggest') {
+      st.othersDraftPicks = []
+    }
   } catch {
     void 0
   }
@@ -265,6 +295,19 @@ function tryCompileBallot() {
   if (store.phase !== 'suggest') return
   if (allParticipantsReadyReason()) return
 
+  const uniqueCount = distinctSuggestedMovieCount()
+  if (uniqueCount <= 1) {
+    lastRoomNotice = nextInsufficientMoviesNotice({
+      allReady: true,
+      uniqueCount,
+      prevNotice: lastRoomNotice,
+    })
+    notifyP2P('Need at least two different movies before voting.', 'warning')
+    if (lastRoomNotice) lastSeenRoomNoticeId = lastRoomNotice.id
+    hostBroadcastState()
+    return
+  }
+
   /** @type {import('../types.js').MoviePick[]} */
   const allPicks = store.myDraftPicks.map((p) => ({ ...p }))
   for (const [, g] of guestDrafts) {
@@ -272,15 +315,23 @@ function tryCompileBallot() {
   }
   const movies = compileBallotMovies(allPicks)
   if (movies.length < MIN_DISTINCT_SUGGESTIONS_FOR_READY) {
+    lastRoomNotice = nextInsufficientMoviesNotice({
+      allReady: true,
+      uniqueCount: movies.length,
+      prevNotice: lastRoomNotice,
+    })
     notifyP2P('Need at least two different movies before voting.', 'warning')
+    if (lastRoomNotice) lastSeenRoomNoticeId = lastRoomNotice.id
+    hostBroadcastState()
     return
   }
 
+  lastRoomNotice = null
   const orderIds = movies.map((m) => m.publicId)
   const voterIds = []
-  if (store.myQuorumRequired !== false) voterIds.push(HOST_PARTICIPANT_ID)
-  for (const [pid, g] of guestDrafts) {
-    if (isQuorumRequired(g)) voterIds.push(pid)
+  voterIds.push(HOST_PARTICIPANT_ID)
+  for (const [pid] of guestDrafts) {
+    voterIds.push(pid)
   }
   store.setVotingState(movies, orderIds, voterIds)
   hostBroadcastState()
@@ -288,17 +339,7 @@ function tryCompileBallot() {
 
 function tryFinishVoting() {
   const store = useMovieVoteStore()
-  if (store.phase !== 'voting') return
-  const { voterIds, votesByParticipant, ballotOrderIds } = store
-  if (!voterIds.length) return
-  for (const id of voterIds) {
-    const r = votesByParticipant[id]
-    if (!r || r.length !== ballotOrderIds.length) return
-  }
-
-  const rankings = voterIds.map((id) => votesByParticipant[id])
-  const result = runElection(store.votingMethod, rankings, [...ballotOrderIds])
-  store.setElectionOutcome(result)
+  if (!finishVotingIfComplete(store)) return
   hostBroadcastState()
 }
 
@@ -402,7 +443,7 @@ const guestInboundWire = createGuestInboundWire({
     lastSeenSeq = n
     roomAuthoritySeq.value = n
   },
-  applyPublicPayload: (payload) => handlers.applyPublicPayload(payload),
+  applyPublicPayload: (payload) => applyPublicPayloadWithRoomNotice(payload),
   onGuestHostEnded: handleGuestHostEnded,
   setMyParticipantId: (id) => useMovieVoteStore().setMyParticipantId(id),
 })
@@ -484,6 +525,7 @@ function destroyWireOnly() {
  * @typedef {object} MovieVoteP2POutboundSync
  * @property {() => void} hostLocalChanged
  * @property {() => void} hostResetToSuggest
+ * @property {() => void} hostReturnToSuggestPreservePicks
  * @property {() => void} hostVotingMethodChanged
  * @property {() => void} guestPushDraft
  * @property {(ranking: string[]) => void} guestSubmitVote
@@ -500,6 +542,14 @@ const movieVoteP2POutboundSync = {
   hostResetToSuggest() {
     if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
     resetGuestDraftsForSuggestRound(guestDrafts)
+    hostBroadcastState()
+  },
+  hostReturnToSuggestPreservePicks() {
+    if (!core.isHostRole() || sessionPhase.value !== 'hosting') return
+    for (const [pid, g] of guestDrafts) {
+      guestDrafts.set(pid, { ...g, ready: false })
+    }
+    lastRoomNotice = null
     hostBroadcastState()
   },
   hostVotingMethodChanged() {
@@ -554,7 +604,7 @@ function guestReconnectLoop(suffix, gen) {
       notifyP2P(`Reconnecting… attempt ${attempt} of ${max}`, 'warning'),
     destroyWireOnly,
     establishGuest: () => establishGuestSession(suffix),
-    clearRoomPersistence,
+    clearRoomPersistence: () => {},
     notifyGuestReconnectFailed: () =>
       notifyP2P('Could not reconnect. Use Host room / Join room to try again.', 'negative'),
     teardownSession,
@@ -574,7 +624,7 @@ function hostReconnectLoop(suffix, gen) {
       notifyP2P(`Reconnecting as host… attempt ${attempt} of ${max}`, 'warning'),
     destroyWireOnly,
     establishHost: () => finishHostSession(suffix),
-    clearRoomPersistence,
+    clearRoomPersistence: () => {},
     notifyHostReconnectFailed: () =>
       notifyP2P('Could not restore hosting. Start a new room or try again later.', 'negative'),
     teardownSession,
@@ -593,7 +643,7 @@ async function hydrateHostFromRtdb(suffix) {
     parseState,
     parseWelcome,
     wireState,
-    applyPublicPayload: (p) => handlers.applyPublicPayload(p),
+    applyPublicPayload: (p) => applyPublicPayloadWithRoomNotice(p),
     getVotingMethod: () => useMovieVoteStore().votingMethod,
     applyHostSeatMeta: (hostMeta) => {
       const st = useMovieVoteStore()
@@ -793,7 +843,16 @@ export async function joinRoom(rawSuffix, opts = {}) {
   }
 
   const st = useMovieVoteStore()
-  st.resetSessionSoft()
+  let stickyResume = false
+  try {
+    const rs = useMovieVoteRoomSessionStore()
+    stickyResume = Boolean(rs.role && rs.suffix && rs.suffix === suffix)
+  } catch {
+    stickyResume = false
+  }
+  if (!stickyResume) {
+    st.resetSessionSoft()
+  }
   st.setMyParticipantName(participantName)
   st.setMyQuorumRequired(true)
 
@@ -903,4 +962,64 @@ export function clearGuestParticipants() {
 
 export function isMovieVoteP2PSessionActive() {
   return sessionPhase.value === 'hosting' || sessionPhase.value === 'guest_connected'
+}
+
+/** Host phase: suggest with preserved picks (skip wipe). */
+export function hostPhaseReturnToSuggest() {
+  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return false
+  const store = useMovieVoteStore()
+  store.returnToSuggestPreservePicks()
+  for (const [pid, g] of guestDrafts) {
+    guestDrafts.set(pid, { ...g, ready: false })
+  }
+  lastRoomNotice = null
+  hostBroadcastState()
+  return true
+}
+
+/** Host phase: enter voting with ≥2 compiled movies; all seats are voters; skips all-ready gate. */
+export function hostPhaseGoVoting() {
+  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return false
+  const store = useMovieVoteStore()
+  /** @type {import('../types.js').MoviePick[]} */
+  const allPicks = store.myDraftPicks.map((p) => ({ ...p }))
+  for (const [, g] of guestDrafts) {
+    for (const p of g.picks) allPicks.push({ ...p })
+  }
+  const movies = compileBallotMovies(allPicks)
+  if (movies.length < MIN_DISTINCT_SUGGESTIONS_FOR_READY) return false
+  const orderIds = movies.map((m) => m.publicId)
+  const voterIds = [HOST_PARTICIPANT_ID]
+  for (const [pid] of guestDrafts) voterIds.push(pid)
+  lastRoomNotice = null
+  store.setVotingState(movies, orderIds, voterIds)
+  hostBroadcastState()
+  return true
+}
+
+/** Host phase: reopen voting from the existing ballot (results → voting). */
+export function hostPhaseReturnToVoting() {
+  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return false
+  const store = useMovieVoteStore()
+  if (store.phase !== 'results') return false
+  const movies = store.ballotMovies
+  const orderIds = store.ballotOrderIds
+  if (!Array.isArray(movies) || !Array.isArray(orderIds)) return false
+  if (orderIds.length < MIN_DISTINCT_SUGGESTIONS_FOR_READY) return false
+  const voterIds =
+    Array.isArray(store.voterIds) && store.voterIds.length > 0
+      ? [...store.voterIds]
+      : [HOST_PARTICIPANT_ID, ...guestDrafts.keys()]
+  store.setVotingState(movies, orderIds, voterIds)
+  hostBroadcastState()
+  return true
+}
+
+/** Host phase: force-finish voting into results. */
+export function hostPhaseGoResults() {
+  if (!core.isHostRole() || sessionPhase.value !== 'hosting') return false
+  const store = useMovieVoteStore()
+  if (!forceFinishVoting(store)) return false
+  hostBroadcastState()
+  return true
 }

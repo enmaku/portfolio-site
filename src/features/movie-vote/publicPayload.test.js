@@ -135,7 +135,7 @@ test('buildMovieVotePublicPayload reflects cleared guest ready flags', () => {
   assert.equal(payload.participants.find((p) => p.id === 'g1')?.ready, false)
 })
 
-test('public payload participant summaries include name and quorumRequired', () => {
+test('public payload participant summaries always quorumRequired true and publish ready', () => {
   const guestDrafts = new Map([
     ['g1', { picks: [{ localId: '1', title: 'A', source: 'custom' }], ready: true, name: 'Sam', quorumRequired: false }],
     ['g2', { picks: [], ready: false, name: 'Alex', quorumRequired: true }],
@@ -161,14 +161,14 @@ test('public payload participant summaries include name and quorumRequired', () 
   assert.equal(host?.name, 'Dana')
   assert.equal(host?.quorumRequired, true)
   assert.equal(sam?.name, 'Sam')
-  assert.equal(sam?.quorumRequired, false)
-  assert.equal(sam?.ready, false, 'optional seats never publish ready')
+  assert.equal(sam?.quorumRequired, true)
+  assert.equal(sam?.ready, true)
   assert.equal(sam?.pickCount, 1)
   assert.equal(alex?.name, 'Alex')
   assert.equal(alex?.quorumRequired, true)
 })
 
-test('public payload host ready is false when host quorum is off', () => {
+test('public payload host ready publishes even when myQuorumRequired was false', () => {
   const payload = buildMovieVotePublicPayload(
     {
       phase: 'suggest',
@@ -185,8 +185,8 @@ test('public payload host ready is false when host quorum is off', () => {
     new Map(),
   )
   const host = payload.participants.find((p) => p.id === '__host__')
-  assert.equal(host?.quorumRequired, false)
-  assert.equal(host?.ready, false)
+  assert.equal(host?.quorumRequired, true)
+  assert.equal(host?.ready, true)
 })
 
 test('public payload omits guest drafts with empty names', () => {
@@ -247,4 +247,88 @@ test('public payload voteProgress totals follow frozen voterIds', () => {
     ]),
   )
   assert.deepEqual(payload.voteProgress, { submitted: 1, total: 2 })
+})
+
+test('payload forces quorumRequired true even when host and guest optional flags set', () => {
+  const guestDrafts = new Map([
+    ['g1', { picks: [], ready: true, name: 'Sam', quorumRequired: false }],
+  ])
+  const payload = buildMovieVotePublicPayload(
+    {
+      phase: 'suggest',
+      readyToVote: true,
+      myDraftPicks: [],
+      myParticipantName: 'Dana',
+      myQuorumRequired: false,
+      ballotMovies: [],
+      ballotOrderIds: [],
+      voteProgress: null,
+      electionOutcome: null,
+      votingMethod: 'irv',
+    },
+    guestDrafts,
+  )
+  for (const p of payload.participants) {
+    assert.equal(p.quorumRequired, true, `${p.id} must be quorumRequired`)
+  }
+  assert.equal(payload.participants.find((p) => p.id === '__host__')?.ready, true)
+  assert.equal(payload.participants.find((p) => p.id === 'g1')?.ready, true)
+})
+
+test('suggest payload includes suggestPicksByParticipant for host and guests', () => {
+  const hostPick = {
+    localId: 'h1',
+    source: 'custom',
+    tmdbId: null,
+    title: 'HostFilm',
+    posterPath: null,
+    overview: '',
+  }
+  const guestPick = {
+    localId: 'g1p',
+    source: 'custom',
+    tmdbId: null,
+    title: 'GuestFilm',
+    posterPath: null,
+    overview: '',
+  }
+  const guestDrafts = new Map([
+    ['g1', { picks: [guestPick], ready: false, name: 'Sam', quorumRequired: true }],
+  ])
+  const payload = buildMovieVotePublicPayload(
+    {
+      phase: 'suggest',
+      readyToVote: false,
+      myDraftPicks: [hostPick],
+      myParticipantName: 'Dana',
+      myQuorumRequired: true,
+      ballotMovies: [],
+      ballotOrderIds: [],
+      voteProgress: null,
+      electionOutcome: null,
+      votingMethod: 'irv',
+    },
+    guestDrafts,
+  )
+  assert.ok(payload.suggestPicksByParticipant)
+  assert.deepEqual(payload.suggestPicksByParticipant?.__host__, [hostPick])
+  assert.deepEqual(payload.suggestPicksByParticipant?.g1, [guestPick])
+  const voting = buildMovieVotePublicPayload(
+    {
+      phase: 'voting',
+      readyToVote: true,
+      myDraftPicks: [hostPick],
+      myParticipantName: 'Dana',
+      myQuorumRequired: true,
+      ballotMovies: [],
+      ballotOrderIds: [],
+      voterIds: ['__host__'],
+      votesByParticipant: {},
+      voteProgress: null,
+      electionOutcome: null,
+      votingMethod: 'irv',
+    },
+    guestDrafts,
+  )
+  assert.equal(voting.suggestPicksByParticipant == null, true)
 })

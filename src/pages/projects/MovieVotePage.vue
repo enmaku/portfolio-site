@@ -4,40 +4,35 @@
 
     <div class="col mv-page__scroll column">
       <template v-if="phase === 'suggest'">
+        <MovieVoteVotingMethodExplainer v-if="isGuest" />
         <MovieSearchField @select="onPickMovie" />
-        <div v-if="!myDraftPicks.length" class="q-pa-lg text-center text-body2 text-grey-5">
+        <div v-if="!hasAnyPicks" class="q-pa-lg text-center text-body2 text-grey-5">
           <template v-if="roomShowsOthersSuggestionHint">
             <p class="q-mb-sm">You haven’t added any movies.</p>
-            <p class="q-mb-none">Someone else already suggested titles — add more if you like, or mark ready once there are two different movies in the pool.</p>
+            <p class="q-mb-none">Someone else already suggested titles — add more if you like, or mark ready anytime.</p>
           </template>
           <template v-else>
             <p class="q-mb-sm">No movies in your list yet.</p>
-            <p class="q-mb-none">Search above to add suggestions, then drag to reorder.</p>
+            <p class="q-mb-none">Search above to add suggestions, then drag the handle to reorder.</p>
           </template>
         </div>
         <MovieNominationList v-else class="col" />
-        <div v-if="isInSession && iAmRequiredVoter" class="q-px-md q-pb-md">
+        <div v-if="isInSession" class="q-px-md q-pb-md">
           <q-toggle
             v-model="readyModel"
             color="primary"
             label="Ready to vote"
-            :disable="!roomCanMarkReadyForVote"
             data-testid="mv-ready-toggle"
           />
         </div>
       </template>
 
       <template v-else-if="phase === 'voting'">
-        <template v-if="iAmRequiredVoter">
-          <div class="q-px-md q-pt-md text-body2 text-grey-6">
-            Rank every movie. {{ voteProgressLabel }}
-          </div>
-          <MovieBallotList class="col mv-page__ballot" />
-        </template>
-        <div v-else class="q-pa-lg text-center text-body2 text-grey-5" data-testid="mv-vote-watch">
-          <p class="q-mb-sm">You’re watching this round — not casting a ballot.</p>
-          <p class="q-mb-none">{{ voteProgressLabel }}</p>
+        <MovieVoteVotingMethodExplainer v-if="isGuest" />
+        <div class="q-px-md q-pt-md text-body2 text-grey-6">
+          Rank every movie. {{ voteProgressLabel }}
         </div>
+        <MovieBallotList class="col mv-page__ballot" />
       </template>
 
       <template v-else-if="phase === 'results'">
@@ -50,7 +45,7 @@
     </div>
 
     <div
-      v-if="phase === 'voting' && iAmRequiredVoter"
+      v-if="phase === 'voting'"
       class="mv-actions-bar full-width q-px-md q-pt-sm"
     >
       <q-btn
@@ -104,6 +99,7 @@ import MovieNominationList from '../../features/movie-vote/components/MovieNomin
 import MovieSearchField from '../../features/movie-vote/components/MovieSearchField.vue'
 import MovieVoteResultsComposer from '../../features/movie-vote/components/MovieVoteResultsComposer.vue'
 import MovieVoteTopBar from '../../features/movie-vote/components/MovieVoteTopBar.vue'
+import MovieVoteVotingMethodExplainer from '../../features/movie-vote/components/MovieVoteVotingMethodExplainer.vue'
 import { useMovieVoteP2P } from '../../features/movie-vote/composables/useMovieVoteP2P.js'
 import {
   MOVIE_VOTE_ROOM_QUERY_KEY,
@@ -112,7 +108,6 @@ import {
 } from '../../features/movie-vote/p2p/roomId.js'
 import { useProjectShellBrowserFullscreen } from '../../layouts/projects/composables/useProjectShellBrowserFullscreen.js'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
-import { HOST_PARTICIPANT_ID } from '../../features/movie-vote/core.js'
 
 const $q = useQuasar()
 const route = useRoute()
@@ -121,12 +116,11 @@ const store = useMovieVoteStore()
 const {
   phase,
   myDraftPicks,
+  othersDraftPicks,
   myVoteSubmitted,
   voteProgress,
   uniqueSuggestedMovieCount,
   fullscreenEnabled,
-  myParticipantId,
-  participants,
 } = storeToRefs(store)
 
 const { isGuest, isInSession, promptAndJoinRoom } = useMovieVoteP2P()
@@ -137,12 +131,13 @@ useProjectShellBrowserFullscreen({
   notify: $q.notify,
 })
 
-/** Distinct movies in the room (TMDB-deduped) meet the minimum to mark ready. */
-const roomCanMarkReadyForVote = computed(() => uniqueSuggestedMovieCount.value >= 2)
+const hasAnyPicks = computed(
+  () => myDraftPicks.value.length > 0 || othersDraftPicks.value.length > 0,
+)
 
 /** Empty local list but someone has suggested at least one title (copy hint). */
 const roomShowsOthersSuggestionHint = computed(
-  () => isInSession.value && uniqueSuggestedMovieCount.value >= 1,
+  () => isInSession.value && uniqueSuggestedMovieCount.value >= 1 && !myDraftPicks.value.length,
 )
 
 const readyModel = computed({
@@ -154,13 +149,6 @@ const voteProgressLabel = computed(() => {
   const v = voteProgress.value
   if (!v) return ''
   return `${v.submitted} / ${v.total} voted`
-})
-
-const iAmRequiredVoter = computed(() => {
-  const pid = myParticipantId.value ?? HOST_PARTICIPANT_ID
-  const row = participants.value.find((p) => p.id === pid)
-  if (row) return row.quorumRequired !== false
-  return store.myQuorumRequired !== false
 })
 
 const clearConfirmOpen = ref(false)

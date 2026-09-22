@@ -13,21 +13,18 @@ test('suggest: no_picks until picks exist', () => {
   )
 })
 
-test('suggest: ready when required seat is ready', () => {
+test('suggest: ready when seat is ready, regardless of quorumRequired', () => {
   assert.deepEqual(
     participantProgressStatus({ phase: 'suggest', pickCount: 0, ready: true, quorumRequired: true }),
     { key: 'ready' },
   )
-})
-
-test('suggest: optional seats stay on has_picks even if ready is stale', () => {
   assert.deepEqual(
     participantProgressStatus({ phase: 'suggest', pickCount: 1, ready: true, quorumRequired: false }),
-    { key: 'has_picks' },
+    { key: 'ready' },
   )
 })
 
-test('voting: not_voted / voted for required voters', () => {
+test('voting: always voted / not_voted based on hasVoted', () => {
   assert.deepEqual(
     participantProgressStatus({ phase: 'voting', quorumRequired: true, hasVoted: false }),
     { key: 'not_voted' },
@@ -38,10 +35,14 @@ test('voting: not_voted / voted for required voters', () => {
   )
 })
 
-test('voting: optional seats are watchers', () => {
+test('voting: optional seats use not_voted / voted, no watching', () => {
   assert.deepEqual(
     participantProgressStatus({ phase: 'voting', quorumRequired: false, hasVoted: false }),
-    { key: 'watching' },
+    { key: 'not_voted' },
+  )
+  assert.deepEqual(
+    participantProgressStatus({ phase: 'voting', quorumRequired: false, hasVoted: true }),
+    { key: 'voted' },
   )
 })
 

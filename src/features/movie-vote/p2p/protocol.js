@@ -20,6 +20,20 @@ export const MSG_MV_DRAFT = 'mv-d'
 /** Guest → host: final IRV ranking */
 export const MSG_MV_VOTE = 'mv-vt'
 
+/** Distinguishes otherwise-identical guest inbox writes (RTDB skips equal set()). */
+let guestInboxWriteSeq = 0
+
+/** @returns {number} */
+function nextGuestInboxWriteSeq() {
+  guestInboxWriteSeq += 1
+  return guestInboxWriteSeq
+}
+
+/** @returns {void} */
+export function resetGuestInboxWriteSeqForTests() {
+  guestInboxWriteSeq = 0
+}
+
 /**
  * @param {unknown} data
  * @returns {data is Record<string, unknown>}
@@ -157,7 +171,7 @@ export function parseState(data) {
  * @param {string} participantId
  */
 export function encodeDraft(picks, ready, participantId) {
-  return { v: 1, type: MSG_MV_DRAFT, participantId, picks, ready }
+  return { v: 1, type: MSG_MV_DRAFT, participantId, picks, ready, w: nextGuestInboxWriteSeq() }
 }
 
 /**
@@ -181,7 +195,7 @@ export function parseDraft(data) {
  * @param {string[]} ranking
  */
 export function encodeVote(participantId, ranking) {
-  return { v: 1, type: MSG_MV_VOTE, participantId, ranking }
+  return { v: 1, type: MSG_MV_VOTE, participantId, ranking, w: nextGuestInboxWriteSeq() }
 }
 
 /**

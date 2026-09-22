@@ -18,28 +18,27 @@ test('createGuestDraft defaults quorum on and ready false', () => {
   })
 })
 
-test('createGuestDraft forces ready false when optional', () => {
-  assert.equal(createGuestDraft({ quorumRequired: false, ready: true }).ready, false)
+test('participant quorum: createGuestDraft ignores optional and keeps ready', () => {
+  const draft = createGuestDraft({ quorumRequired: false, ready: true })
+  assert.equal(draft.quorumRequired, true)
+  assert.equal(draft.ready, true)
 })
 
-test('isQuorumRequired defaults missing to true', () => {
+test('participant quorum: isQuorumRequired always true', () => {
+  assert.equal(isQuorumRequired(), true)
   assert.equal(isQuorumRequired(undefined), true)
-  assert.equal(isQuorumRequired({ quorumRequired: false }), false)
+  assert.equal(isQuorumRequired({ quorumRequired: false }), true)
 })
 
-test('retainsSeatWhenOffline matches required-seat stickiness', () => {
-  assert.equal(retainsSeatWhenOffline(undefined), true)
-  assert.equal(retainsSeatWhenOffline({ quorumRequired: true }), true)
-  assert.equal(retainsSeatWhenOffline({ quorumRequired: false }), false)
+test('participant quorum: retainsSeatWhenOffline always true', () => {
+  assert.equal(retainsSeatWhenOffline(), true)
+  assert.equal(retainsSeatWhenOffline(createGuestDraft({ quorumRequired: false })), true)
 })
 
-test('withGuestQuorum clears ready when turning optional', () => {
-  const next = withGuestQuorum(
-    createGuestDraft({ name: 'Sam', ready: true, quorumRequired: true }),
-    false,
-  )
-  assert.equal(next.quorumRequired, false)
-  assert.equal(next.ready, false)
+test('participant quorum: withGuestQuorum keeps quorum and ready', () => {
+  const next = withGuestQuorum(createGuestDraft({ name: 'Sam', ready: true }), false)
+  assert.equal(next.quorumRequired, true)
+  assert.equal(next.ready, true)
   assert.equal(next.name, 'Sam')
 })
 
@@ -58,14 +57,14 @@ test('applyGuestInboxUpdate ignores crafted quorum and name on entry', () => {
   assert.equal(next.picks.length, 1)
 })
 
-test('applyGuestInboxUpdate keeps optional seats non-ready', () => {
+test('applyGuestInboxUpdate allows ready true even if prev was optional-shaped', () => {
   const prev = createGuestDraft({ name: 'Sam', quorumRequired: false })
   const next = applyGuestInboxUpdate(prev, { picks: [], ready: true })
-  assert.equal(next.ready, false)
-  assert.equal(next.quorumRequired, false)
+  assert.equal(next.ready, true)
+  assert.equal(next.quorumRequired, true)
 })
 
-test('resetGuestDraftsForSuggestRound clears picks and ready, keeps name/quorum', () => {
+test('resetGuestDraftsForSuggestRound clears picks and ready, keeps name, quorum always on', () => {
   /** @type {Map<string, import('./types.js').MovieVoteGuestDraft>} */
   const guestDrafts = new Map([
     [
@@ -85,6 +84,6 @@ test('resetGuestDraftsForSuggestRound clears picks and ready, keeps name/quorum'
     picks: [],
     ready: false,
     name: 'Sam',
-    quorumRequired: false,
+    quorumRequired: true,
   })
 })

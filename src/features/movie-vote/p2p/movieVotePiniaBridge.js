@@ -48,6 +48,7 @@ const SYNC_ACTION_NAMES = new Set([
   'resetForRoomExit',
   'resetSessionSoft',
   'resetToSuggest',
+  'returnToSuggestPreservePicks',
 ])
 
 const GUEST_DRAFT_DEBOUNCE_MS = 320
@@ -216,11 +217,19 @@ export function drainMovieVoteHostResetToSuggestProbeForTests() {
  */
 function applyInboundPublicPayload(payload) {
   const s = useMovieVoteStore()
+  const prevPhase = s.phase
   applyingRemote = true
   try {
     s.applyPublicPayload(payload)
   } finally {
     applyingRemote = false
+  }
+  // Align inbox ready with authority after return-to-suggest (stale ready:true blocks host updates).
+  const returnedToSuggest =
+    (prevPhase === 'voting' || prevPhase === 'results') && s.phase === 'suggest'
+  if (returnedToSuggest && shouldGuestSyncDraft(s)) {
+    cancelGuestDraftDebounce()
+    pushGuestDraftPayload()
   }
 }
 
@@ -318,6 +327,10 @@ export function movieVoteP2PPlugin(ctx) {
         if (name === 'resetToSuggest') {
           hostResetToSuggestProbe.push('resetToSuggest')
           wire.hostResetToSuggest()
+          return
+        }
+        if (name === 'returnToSuggestPreservePicks') {
+          wire.hostReturnToSuggestPreservePicks()
           return
         }
         if (s.phase !== 'suggest') return

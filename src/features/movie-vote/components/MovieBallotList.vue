@@ -1,7 +1,7 @@
 <template>
   <div class="mv-ballot">
     <div class="q-px-md q-pb-xs text-caption text-grey-6">
-      Drag to rank (top = 1st choice). Tap a row for details.
+      Drag the handle to rank (top = 1st choice). Tap a row for details.
     </div>
     <div class="mv-ballot__inner q-pa-sm">
       <Draggable
@@ -9,9 +9,8 @@
         item-key="publicId"
         tag="div"
         class="mv-draggable"
+        handle=".mv-drag-handle"
         :animation="200"
-        :delay="450"
-        :delay-on-touch-only="true"
         :touch-start-threshold="8"
         direction="vertical"
         :disabled="myVoteSubmitted"
@@ -42,6 +41,16 @@
               <div v-if="ballotMetaLine(element)" class="text-caption text-grey-6 ellipsis">
                 {{ ballotMetaLine(element) }}
               </div>
+            </div>
+            <div
+              v-if="!myVoteSubmitted"
+              class="mv-drag-handle col-auto row flex-center q-ml-sm"
+              data-testid="mv-drag-handle"
+              role="button"
+              aria-label="Drag to reorder"
+              @click.stop
+            >
+              <q-icon name="drag_indicator" size="sm" color="grey-5" />
             </div>
           </div>
         </template>
@@ -145,6 +154,19 @@ function openDetail(m) {
 
 .body--light .mv-ballot-row {
   background: rgba(0, 0, 0, 0.04);
+}
+
+.mv-drag-handle {
+  flex-shrink: 0;
+  min-width: 36px;
+  min-height: 36px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.mv-drag-handle:active {
+  cursor: grabbing;
 }
 
 .mv-movie-row-title {

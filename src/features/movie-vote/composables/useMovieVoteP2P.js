@@ -5,6 +5,10 @@
 import { computed } from 'vue'
 import {
   clearGuestParticipants,
+  hostPhaseGoResults,
+  hostPhaseGoVoting,
+  hostPhaseReturnToSuggest,
+  hostPhaseReturnToVoting,
   isMovieVoteP2PSessionActive,
   joinRoom,
   leaveSession,
@@ -36,6 +40,10 @@ import { promptAndJoinRoom } from './movieVoteNameEntry.js'
  *   setParticipantQuorumRequired: typeof setParticipantQuorumRequired,
  *   removeGuestParticipant: typeof removeGuestParticipant,
  *   clearGuestParticipants: typeof clearGuestParticipants,
+ *   hostPhaseReturnToSuggest: typeof hostPhaseReturnToSuggest,
+ *   hostPhaseReturnToVoting: typeof hostPhaseReturnToVoting,
+ *   hostPhaseGoVoting: typeof hostPhaseGoVoting,
+ *   hostPhaseGoResults: typeof hostPhaseGoResults,
  *   promptAndJoinRoom: typeof promptAndJoinRoom,
  *   roomAuthoritySeq: typeof roomAuthoritySeq,
  * }}
@@ -59,6 +67,10 @@ export function useMovieVoteP2P() {
     setParticipantQuorumRequired,
     removeGuestParticipant,
     clearGuestParticipants,
+    hostPhaseReturnToSuggest,
+    hostPhaseReturnToVoting,
+    hostPhaseGoVoting,
+    hostPhaseGoResults,
     promptAndJoinRoom,
     roomAuthoritySeq,
   }

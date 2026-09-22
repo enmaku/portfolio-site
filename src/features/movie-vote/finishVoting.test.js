@@ -8,7 +8,7 @@ import test from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
 import { HOST_PARTICIPANT_ID } from './core.js'
-import { runElection } from './election.js'
+import { finishVotingIfComplete, forceFinishVoting } from './finishVoting.js'
 import {
   isBaldwinMultiRoundResult,
   isBordaScoreboardResult,
@@ -30,24 +30,6 @@ function ballotMovie(publicId, title = publicId) {
     posterPath: null,
     overview: '',
   }
-}
-
-/**
- * @param {ReturnType<typeof useMovieVoteStore>} store
- * @returns {boolean}
- */
-function finishVotingIfComplete(store) {
-  if (store.phase !== 'voting') return false
-  const { voterIds, votesByParticipant, ballotOrderIds } = store
-  if (!voterIds.length) return false
-  for (const id of voterIds) {
-    const r = votesByParticipant[id]
-    if (!r || r.length !== ballotOrderIds.length) return false
-  }
-  const rankings = voterIds.map((id) => votesByParticipant[id])
-  const result = runElection(store.votingMethod, rankings, [...ballotOrderIds])
-  store.setElectionOutcome(result)
-  return true
 }
 
 test('finish path: waits until every voter has a full ranking', () => {
@@ -289,4 +271,22 @@ test('finish path: legacy ranked-points method string runs IRV', () => {
   assert.equal(finishVotingIfComplete(store), true)
   assert.equal(store.electionOutcome?.votingMethod, 'irv')
   assert.equal(store.electionOutcome?.winnerId, 'x')
+})
+
+test('forceFinishVoting: tallies only complete rankings and drops incomplete', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setMyParticipantId(HOST_PARTICIPANT_ID)
+  store.setVotingState(
+    [ballotMovie('a'), ballotMovie('b')],
+    ['a', 'b'],
+    [HOST_PARTICIPANT_ID, 'guest1'],
+  )
+  store.submitMyVoteLocal(['a', 'b'])
+  store.mergeGuestVote('guest1', ['a'])
+  assert.equal(forceFinishVoting(store), true)
+  assert.equal(store.phase, 'results')
+  assert.equal(store.electionOutcome?.winnerId, 'a')
+  assert.equal('guest1' in store.votesByParticipant, false)
+  assert.ok(store.votesByParticipant[HOST_PARTICIPANT_ID])
 })

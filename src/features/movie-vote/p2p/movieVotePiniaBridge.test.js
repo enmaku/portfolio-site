@@ -132,6 +132,55 @@ test('guest inbound state applies phase ballot and ready via bridge', () => {
   assert.deepEqual(drainMovieVoteP2PSyncProbeForTests(), [])
 })
 
+test('guest inbound return to suggest pushes draft so ready can sync again', () => {
+  resetMovieVoteGuestDraftDebounceForTests()
+  resetMovieVoteP2PSyncProbeForTests()
+  suppressGuestDraftPushForTests(true)
+
+  try {
+    const store = installMovieVotePinia()
+    store.setMyParticipantId('guest-1')
+    sessionPhase.value = 'guest_connected'
+    drainGuestDraftPushProbeForTests()
+
+    applyInboundMovieVotePayloadForTests({
+      phase: 'voting',
+      participants: [
+        { id: HOST_PARTICIPANT_ID, ready: true, pickCount: 2 },
+        { id: 'guest-1', ready: true, pickCount: 1 },
+      ],
+      ballotMovies: [ballotMovie('m-a'), ballotMovie('m-b')],
+      ballotOrderIds: ['m-a', 'm-b'],
+      voteProgress: { submitted: 0, total: 2 },
+      electionOutcome: null,
+      uniqueSuggestedMovieCount: 0,
+      votingMethod: 'irv',
+    })
+    assert.equal(drainGuestDraftPushProbeForTests(), 0)
+
+    applyInboundMovieVotePayloadForTests(
+      suggestPhasePayload({
+        participants: [
+          { id: HOST_PARTICIPANT_ID, ready: false, pickCount: 1 },
+          { id: 'guest-1', ready: false, pickCount: 1 },
+        ],
+        uniqueSuggestedMovieCount: 2,
+        suggestPicksByParticipant: {
+          [HOST_PARTICIPANT_ID]: [customPick('h1', 'Host Film')],
+          'guest-1': [customPick('g1', 'Guest Film')],
+        },
+      }),
+    )
+
+    assert.equal(store.phase, 'suggest')
+    assert.equal(store.readyToVote, false)
+    assert.equal(drainGuestDraftPushProbeForTests(), 1)
+    assert.deepEqual(drainMovieVoteP2PSyncProbeForTests(), [])
+  } finally {
+    resetMovieVoteGuestDraftDebounceForTests()
+  }
+})
+
 test('host RTDB hydrate applies public payload through bound handlers', () => {
   resetMovieVoteP2PSyncProbeForTests()
   const store = installMovieVotePinia()

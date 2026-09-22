@@ -77,7 +77,7 @@ async function waitForReconnectExhaustion(readPhase) {
 }
 
 test(
-  'fatal reconnect exhaustion clears persistence and returns tab to idle',
+  'fatal reconnect exhaustion retains sticky room session identity and returns tab to idle',
   postureTests,
   async () => {
     mock.reset()
@@ -121,8 +121,9 @@ test(
 
       assert.equal(sessionPhase.value, 'idle')
       assert.equal(sessionSuffix.value, null)
-      assert.equal(room.role, null)
-      assert.equal(room.suffix, null)
+      assert.equal(room.role, 'guest', 'exhaustion keeps sticky role')
+      assert.equal(room.suffix, 'FATAL1', 'exhaustion keeps sticky suffix')
+      assert.equal(room.participantName, 'Guest', 'exhaustion keeps sticky name')
     })
   },
 )

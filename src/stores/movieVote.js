@@ -9,7 +9,6 @@ import {
   isRankingForBallot,
   pickDedupeKey,
 } from '../features/movie-vote/core.js'
-import { isDeclaredElectionTie } from '../features/movie-vote/election.js'
 import { migrateLegacyPersistedElectionOutcome } from '../features/movie-vote/electionOutcomePersistMigration.js'
 import {
   DEFAULT_VOTING_METHOD,
@@ -51,6 +50,8 @@ export const useMovieVoteStore = defineStore('movieVote', {
     /** @type {import('../features/movie-vote/votingMethod.js').VotingMethod} */
     votingMethod: DEFAULT_VOTING_METHOD,
     fullscreenEnabled: false,
+    /** @type {MoviePick[]} */
+    othersDraftPicks: [],
   }),
 
   actions: {
@@ -144,9 +145,36 @@ export const useMovieVoteStore = defineStore('movieVote', {
         this.voteProgress = null
         if (wasVoting || wasResults) {
           this.readyToVote = false
-          this.myDraftPicks = []
+        }
+        const picksByParticipant = p.suggestPicksByParticipant
+        const selfId = this.myParticipantId
+        if (picksByParticipant && typeof picksByParticipant === 'object') {
+          /** @type {MoviePick[]} */
+          const others = []
+          for (const [id, picks] of Object.entries(picksByParticipant)) {
+            if (id === selfId) continue
+            if (!Array.isArray(picks)) continue
+            for (const pick of picks) others.push(clonePick(pick))
+          }
+          this.othersDraftPicks = others
+        } else {
+          this.othersDraftPicks = []
+        }
+        if (wasVoting || wasResults) {
+          const selfRow = selfId ? p.participants.find((x) => x.id === selfId) : null
+          if (selfRow && selfRow.pickCount === 0) {
+            // Start-over / wipe: authority reports no picks for this seat.
+            this.myDraftPicks = []
+          } else if (
+            picksByParticipant &&
+            selfId &&
+            Array.isArray(picksByParticipant[selfId])
+          ) {
+            this.myDraftPicks = picksByParticipant[selfId].map(clonePick)
+          }
         }
       } else if (p.ballotMovies && p.ballotOrderIds) {
+        this.othersDraftPicks = []
         const incomingIds = [...p.ballotOrderIds]
         const prevIds = this.ballotOrderIds
         const ballotChanged =
@@ -155,14 +183,16 @@ export const useMovieVoteStore = defineStore('movieVote', {
         this.ballotMovies = p.ballotMovies.map((m) => ({ ...m }))
         this.ballotOrderIds = incomingIds
 
-        if (p.phase === 'voting' && ballotChanged) {
-          this.myVoteSubmitted = false
-        }
-        if (p.phase === 'voting' && !this.myVoteSubmitted) {
+        if (p.phase === 'voting') {
           const enteringVoting = !wasVoting
-          const rankingInvalid = !isRankingForBallot(this.myRanking, incomingIds)
-          if (enteringVoting || ballotChanged || rankingInvalid) {
-            this.myRanking = [...incomingIds]
+          if (enteringVoting || ballotChanged) {
+            this.myVoteSubmitted = false
+          }
+          if (!this.myVoteSubmitted) {
+            const rankingInvalid = !isRankingForBallot(this.myRanking, incomingIds)
+            if (enteringVoting || ballotChanged || rankingInvalid) {
+              this.myRanking = [...incomingIds]
+            }
           }
         }
       }
@@ -175,9 +205,6 @@ export const useMovieVoteStore = defineStore('movieVote', {
         typeof p.uniqueSuggestedMovieCount === 'number' ? p.uniqueSuggestedMovieCount : 0,
       )
       this.votingMethod = normalizeVotingMethod(p.votingMethod)
-      if (p.phase === 'results' && electionOutcome && !isDeclaredElectionTie(electionOutcome)) {
-        this.myDraftPicks = []
-      }
       const pid = this.myParticipantId
       if (pid) {
         const row = this.participants.find((x) => x.id === pid)
@@ -271,9 +298,6 @@ export const useMovieVoteStore = defineStore('movieVote', {
     setElectionOutcome(result) {
       this.phase = 'results'
       this.electionOutcome = result
-      if (!isDeclaredElectionTie(result)) {
-        this.myDraftPicks = []
-      }
     },
 
     resetForRoomExit() {
@@ -283,6 +307,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.myParticipantName = ''
       this.myQuorumRequired = true
       this.participants = []
+      this.othersDraftPicks = []
       this.ballotMovies = []
       this.ballotOrderIds = []
       this.myRanking = []
@@ -304,7 +329,9 @@ export const useMovieVoteStore = defineStore('movieVote', {
     resetSessionSoft() {
       this.phase = 'suggest'
       this.readyToVote = false
+      this.myParticipantId = null
       this.participants = []
+      this.othersDraftPicks = []
       this.ballotMovies = []
       this.ballotOrderIds = []
       this.myRanking = []
@@ -321,6 +348,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.phase = 'suggest'
       this.readyToVote = false
       this.myDraftPicks = []
+      this.othersDraftPicks = []
       this.ballotMovies = []
       this.ballotOrderIds = []
       this.myRanking = []
@@ -332,6 +360,22 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.participants = []
       this.uniqueSuggestedMovieCount = 0
     },
+
+    /** Host phase: return to suggest keeping myDraftPicks; clear ballot/votes/outcome. */
+    returnToSuggestPreservePicks() {
+      this.phase = 'suggest'
+      this.readyToVote = false
+      this.othersDraftPicks = []
+      this.ballotMovies = []
+      this.ballotOrderIds = []
+      this.myRanking = []
+      this.myVoteSubmitted = false
+      this.voterIds = []
+      this.votesByParticipant = {}
+      this.electionOutcome = null
+      this.voteProgress = null
+      this.uniqueSuggestedMovieCount = 0
+    },
   },
 
   persist: {
@@ -340,6 +384,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       'myDraftPicks',
       'phase',
       'readyToVote',
+      'myParticipantId',
       'ballotMovies',
       'ballotOrderIds',
       'myRanking',

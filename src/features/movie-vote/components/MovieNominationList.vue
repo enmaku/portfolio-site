@@ -2,13 +2,13 @@
   <div ref="listRootRef" class="mv-nom-list">
     <div class="mv-nom-list__inner q-pa-sm">
       <Draggable
+        v-if="draggablePicks.length"
         v-model="draggablePicks"
         item-key="localId"
         tag="div"
         class="mv-draggable"
+        handle=".mv-drag-handle"
         :animation="200"
-        :delay="450"
-        :delay-on-touch-only="true"
         :touch-start-threshold="8"
         direction="vertical"
         ghost-class="mv-sortable-ghost"
@@ -50,10 +50,46 @@
                   {{ pickMetaLine(pick) }}
                 </div>
               </div>
+              <div
+                class="mv-drag-handle col-auto row flex-center q-ml-sm"
+                data-testid="mv-drag-handle"
+                role="button"
+                aria-label="Drag to reorder"
+                @click.stop
+              >
+                <q-icon name="drag_indicator" size="sm" color="grey-5" />
+              </div>
             </div>
           </q-slide-item>
         </template>
       </Draggable>
+
+      <div
+        v-for="(pick, idx) in othersDraftPicks"
+        :key="`${pick.localId}-${idx}`"
+        class="mv-nom-row mv-nom-row--other row items-center no-wrap q-px-md q-py-sm q-mb-sm rounded-borders"
+        data-testid="mv-other-pick"
+        @click="openDetail(pick)"
+      >
+        <q-img
+          v-if="thumbs[pick.localId]"
+          :src="thumbs[pick.localId]"
+          width="48px"
+          height="72px"
+          fit="cover"
+          class="rounded-borders q-mr-md"
+          style="flex-shrink: 0"
+          spinner-color="primary"
+          loading="lazy"
+        />
+        <q-icon v-else name="movie" size="lg" class="q-mr-sm" color="grey-5" />
+        <div class="col min-width-0">
+          <div class="text-body1 text-weight-medium mv-movie-row-title">{{ pick.title }}</div>
+          <div v-if="pickMetaLine(pick)" class="text-caption text-grey-6 ellipsis">
+            {{ pickMetaLine(pick) }}
+          </div>
+        </div>
+      </div>
     </div>
 
     <MovieDetailDialog v-model="detailOpen" :movie="detailMovie" />
@@ -82,7 +118,7 @@ import { formatMovieMetaLine, posterUrl } from '../tmdb.js'
 import MovieDetailDialog from './MovieDetailDialog.vue'
 
 const store = useMovieVoteStore()
-const { myDraftPicks } = storeToRefs(store)
+const { myDraftPicks, othersDraftPicks } = storeToRefs(store)
 
 const draggablePicks = computed({
   get: () => store.myDraftPicks,
@@ -100,10 +136,10 @@ const listRootRef = ref(null)
 const thumbs = ref(/** @type {Record<string, string>} */ ({}))
 
 watch(
-  myDraftPicks,
-  async (picks) => {
+  [myDraftPicks, othersDraftPicks],
+  async ([mine, others]) => {
     const next = { ...thumbs.value }
-    for (const p of picks) {
+    for (const p of [...mine, ...others]) {
       if (p.posterPath && !next[p.localId]) {
         next[p.localId] = posterUrl(p.posterPath, 'w92') ?? ''
       }
@@ -164,8 +200,30 @@ function confirmDelete() {
   min-height: 56px;
 }
 
+.mv-nom-row--other {
+  opacity: 0.35;
+  background: rgba(128, 128, 128, 0.06);
+}
+
 .body--light .mv-nom-row {
   background: rgba(0, 0, 0, 0.04);
+}
+
+.body--light .mv-nom-row--other {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.mv-drag-handle {
+  flex-shrink: 0;
+  min-width: 36px;
+  min-height: 36px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.mv-drag-handle:active {
+  cursor: grabbing;
 }
 
 .mv-movie-row-title {

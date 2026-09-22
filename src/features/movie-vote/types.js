@@ -84,6 +84,8 @@
  * @property {import('./electionOutcomeTypes.js').ElectionOutcome | null} [irvResult] Deprecated inbound-only alias for {@link electionOutcome} (one release).
  * @property {number} [uniqueSuggestedMovieCount] Distinct titles across all draft picks (suggest phase); 0 otherwise.
  * @property {VotingMethod} [votingMethod] Active single-winner rule for this room; defaults to instant-runoff when omitted (legacy payloads).
+ * @property {Record<string, MoviePick[]> | null} [suggestPicksByParticipant] Suggest-phase picks keyed by participant id (no names on picks); null/omit outside suggest.
+ * @property {{ kind: string, id: number } | null} [roomNotice] Room-wide notice (e.g. insufficient movies); null/omit when none.
  */
 
 export {}
