@@ -12,18 +12,18 @@
       <q-separator />
       <q-card-section class="mv-quorum-help-card__body col scroll text-body2">
         <p class="q-mt-none q-mb-md">
-          Who must finish nominating and vote before the room can move on. Everyone can still suggest
-          movies.
+          Every seat must finish nominating and cast a ballot before the room can move on
+          automatically. Everyone can still suggest movies.
         </p>
 
         <div class="text-subtitle2 q-mb-sm">Controls</div>
         <ul class="mv-quorum-help-list q-mb-md">
-          <li>
-            <strong>Toggle</strong> — on: must mark ready and cast a ballot. Off: can nominate and
-            watch; does not block the room.
-          </li>
           <li><strong>Trash</strong> — remove that guest (suggest phase only).</li>
           <li><strong>Clear guests</strong> — remove every guest; you stay as host.</li>
+          <li>
+            <strong>Phase</strong> — move the room between suggest, voting, and results. Entering
+            results early finishes with complete ballots only.
+          </li>
         </ul>
 
         <div class="text-subtitle2 q-mb-sm">Status icons</div>
@@ -55,7 +55,6 @@ const statusRows = [
   { key: 'ready', icon: 'how_to_vote', color: 'positive', blurb: 'Ready to vote' },
   { key: 'not_voted', icon: 'ballot', color: 'grey-5', blurb: 'Voting — hasn’t voted yet' },
   { key: 'voted', icon: 'ballot', color: 'positive', blurb: 'Voting — voted' },
-  { key: 'watching', icon: 'visibility', color: 'grey-5', blurb: 'Watching (not a required voter)' },
 ]
 </script>
 

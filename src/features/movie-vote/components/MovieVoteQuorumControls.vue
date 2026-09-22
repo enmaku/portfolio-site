@@ -34,31 +34,20 @@
         <q-item-section>
           <q-item-label class="ellipsis">{{ row.name || '—' }}</q-item-label>
         </q-item-section>
-        <q-item-section v-if="editable" side class="mv-quorum-controls__side">
-          <div class="row items-center no-wrap q-gutter-x-xs">
-            <div class="mv-quorum-controls__remove-slot">
-              <q-btn
-                v-if="!row.isHost"
-                flat
-                round
-                dense
-                icon="delete"
-                color="negative"
-                size="md"
-                data-testid="mv-quorum-remove"
-                aria-label="Remove participant"
-                @click.stop="confirmRemove(row)"
-              >
-                <q-tooltip>Remove from room</q-tooltip>
-              </q-btn>
-            </div>
-            <q-toggle
-              dense
-              :model-value="row.quorumRequired"
-              data-testid="mv-quorum-toggle"
-              @update:model-value="(v) => emit('toggle-quorum', row.id, v)"
-            />
-          </div>
+        <q-item-section v-if="editable && !row.isHost" side class="mv-quorum-controls__side">
+          <q-btn
+            flat
+            round
+            dense
+            icon="delete"
+            color="negative"
+            size="md"
+            data-testid="mv-quorum-remove"
+            aria-label="Remove participant"
+            @click.stop="confirmRemove(row)"
+          >
+            <q-tooltip>Remove from room</q-tooltip>
+          </q-btn>
         </q-item-section>
       </q-item>
     </q-list>
@@ -89,7 +78,7 @@ const props = defineProps({
   editable: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['toggle-quorum', 'remove-guest', 'clear-guests'])
+const emit = defineEmits(['remove-guest', 'clear-guests'])
 
 const $q = useQuasar()
 const helpOpen = ref(false)
@@ -98,7 +87,6 @@ const hasGuests = computed(() => props.rows.some((r) => r.id !== HOST_PARTICIPAN
 
 /** @type {Record<string, { icon: string, color: string }>} */
 const PROGRESS_CHROME = {
-  watching: { icon: 'visibility', color: 'grey-5' },
   voted: { icon: 'ballot', color: 'positive' },
   not_voted: { icon: 'ballot', color: 'grey-5' },
   ready: { icon: 'how_to_vote', color: 'positive' },
@@ -154,15 +142,6 @@ function confirmClearGuests() {
 .mv-quorum-controls__side {
   flex-shrink: 0;
   padding-left: 8px !important;
-}
-
-.mv-quorum-controls__remove-slot {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
 }
 
 .mv-quorum-controls__action-btn {

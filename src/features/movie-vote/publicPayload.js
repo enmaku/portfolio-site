@@ -3,7 +3,6 @@
  */
 
 import { HOST_PARTICIPANT_ID, uniqueMoviesInPicks } from './core.js'
-import { isQuorumRequired } from './guestDraft.js'
 import { normalizeParticipantName } from './participantName.js'
 import { normalizeVotingMethod } from './votingMethod.js'
 
@@ -34,25 +33,23 @@ function distinctSuggestedMovieCountFromPicks(picks) {
  */
 export function buildMovieVotePublicPayload(store, guestDrafts) {
   const hostName = normalizeParticipantName(store.myParticipantName ?? '')
-  const hostQuorum = store.myQuorumRequired !== false
   const participants = [
     {
       id: HOST_PARTICIPANT_ID,
       name: hostName,
-      quorumRequired: hostQuorum,
-      ready: hostQuorum ? store.readyToVote : false,
+      quorumRequired: true,
+      ready: Boolean(store.readyToVote),
       pickCount: store.myDraftPicks.length,
     },
   ]
   for (const [id, g] of guestDrafts) {
     const name = normalizeParticipantName(g.name ?? '')
     if (!name) continue
-    const quorumRequired = isQuorumRequired(g)
     participants.push({
       id,
       name,
-      quorumRequired,
-      ready: quorumRequired ? Boolean(g.ready) : false,
+      quorumRequired: true,
+      ready: Boolean(g.ready),
       pickCount: g.picks.length,
     })
   }
@@ -61,6 +58,19 @@ export function buildMovieVotePublicPayload(store, guestDrafts) {
   const allPicks = [...store.myDraftPicks]
   for (const [, g] of guestDrafts) {
     for (const p of g.picks) allPicks.push(p)
+  }
+
+  /** @type {Record<string, import('./types.js').MoviePick[]> | null} */
+  let suggestPicksByParticipant = null
+  if (suggest) {
+    /** @type {Record<string, import('./types.js').MoviePick[]>} */
+    const picksById = { [HOST_PARTICIPANT_ID]: [...store.myDraftPicks] }
+    for (const [id, g] of guestDrafts) {
+      const name = normalizeParticipantName(g.name ?? '')
+      if (!name) continue
+      picksById[id] = [...g.picks]
+    }
+    suggestPicksByParticipant = picksById
   }
 
   /** @type {{ submitted: number, total: number } | null} */
@@ -86,5 +96,6 @@ export function buildMovieVotePublicPayload(store, guestDrafts) {
     electionOutcome: store.electionOutcome,
     uniqueSuggestedMovieCount: suggest ? distinctSuggestedMovieCountFromPicks(allPicks) : 0,
     votingMethod: normalizeVotingMethod(store.votingMethod),
+    suggestPicksByParticipant,
   }
 }

@@ -48,6 +48,7 @@ const SYNC_ACTION_NAMES = new Set([
   'resetForRoomExit',
   'resetSessionSoft',
   'resetToSuggest',
+  'returnToSuggestPreservePicks',
 ])
 
 const GUEST_DRAFT_DEBOUNCE_MS = 320
@@ -318,6 +319,10 @@ export function movieVoteP2PPlugin(ctx) {
         if (name === 'resetToSuggest') {
           hostResetToSuggestProbe.push('resetToSuggest')
           wire.hostResetToSuggest()
+          return
+        }
+        if (name === 'returnToSuggestPreservePicks') {
+          wire.hostReturnToSuggestPreservePicks()
           return
         }
         if (s.phase !== 'suggest') return

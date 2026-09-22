@@ -397,7 +397,7 @@ test(
 )
 
 test(
-  'host fatal reconnect exhaustion clears persistence without deliberate room end',
+  'host fatal reconnect exhaustion retains sticky persistence without deliberate room end',
   facadeReconnectTests,
   async () => {
     mock.reset()
@@ -467,7 +467,8 @@ test(
       assert.equal(sessionPhase.value, 'idle', 'host fatal exhaustion')
 
       assert.equal(sessionSuffix.value, null)
-      assert.equal(hostRoom.role, null)
+      assert.equal(hostRoom.role, 'host', 'sticky role retained')
+      assert.equal(hostRoom.suffix, suffix, 'sticky suffix retained')
       assert.equal(
         harness.sets.some((s) => s.path.endsWith('/ended')),
         false,

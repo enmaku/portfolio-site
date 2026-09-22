@@ -1,12 +1,49 @@
 <template>
-  <MovieVoteQuorumControls
-    v-if="visible"
-    :rows="quorumRows"
-    :editable="editable"
-    @toggle-quorum="onToggleQuorum"
-    @remove-guest="removeGuestParticipant"
-    @clear-guests="clearGuestParticipants"
-  />
+  <div class="column q-gutter-md mv-host-session-panel">
+    <MovieVoteQuorumControls
+      v-if="quorumVisible"
+      :rows="quorumRows"
+      :editable="editable"
+      @remove-guest="removeGuestParticipant"
+      @clear-guests="clearGuestParticipants"
+    />
+    <div class="column q-gutter-sm" data-testid="mv-host-phase-controls">
+      <div class="text-subtitle2">Phase</div>
+      <q-btn
+        outline
+        no-caps
+        color="grey-7"
+        class="full-width"
+        padding="12px 16px"
+        label="Suggest"
+        data-testid="mv-host-phase-suggest"
+        :disable="collabPhase === 'suggest'"
+        @click="hostPhaseReturnToSuggest"
+      />
+      <q-btn
+        outline
+        no-caps
+        color="grey-7"
+        class="full-width"
+        padding="12px 16px"
+        label="Voting"
+        data-testid="mv-host-phase-voting"
+        :disable="collabPhase === 'voting'"
+        @click="hostPhaseGoVoting"
+      />
+      <q-btn
+        outline
+        no-caps
+        color="grey-7"
+        class="full-width"
+        padding="12px 16px"
+        label="Results"
+        data-testid="mv-host-phase-results"
+        :disable="collabPhase === 'results'"
+        @click="hostPhaseGoResults"
+      />
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -25,10 +62,15 @@ const {
   votesByParticipant,
   ballotOrderIds,
 } = storeToRefs(store)
-const { setParticipantQuorumRequired, removeGuestParticipant, clearGuestParticipants } =
-  useMovieVoteP2P()
+const {
+  removeGuestParticipant,
+  clearGuestParticipants,
+  hostPhaseReturnToSuggest,
+  hostPhaseGoVoting,
+  hostPhaseGoResults,
+} = useMovieVoteP2P()
 
-const visible = computed(() => collabPhase.value === 'suggest' || collabPhase.value === 'voting')
+const quorumVisible = computed(() => collabPhase.value === 'suggest' || collabPhase.value === 'voting')
 const editable = computed(() => collabPhase.value === 'suggest')
 
 const quorumRows = computed(() =>
@@ -40,12 +82,4 @@ const quorumRows = computed(() =>
     ballotOrderIds: ballotOrderIds.value,
   }),
 )
-
-/**
- * @param {string} participantId
- * @param {boolean} required
- */
-function onToggleQuorum(participantId, required) {
-  setParticipantQuorumRequired(participantId, required)
-}
 </script>

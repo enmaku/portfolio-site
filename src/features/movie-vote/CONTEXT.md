@@ -328,7 +328,7 @@ _Avoid_: **Black’s method**, **Borda tiebreak**, subset runoffs, or any second
 - The active **voting method** is **room**-level configuration chosen by the **host** during **suggest phase**, broadcast to **guests**, and locked in **voting phase** and **results phase**; tally uses standard rules for that method only.
 - Any deadlock under those rules ends in **declared tie**—never an automatic crossover to another **voting method** (**no algorithmic tiebreak**).
 - Election rules and tie policy: [ADR 0004](../../../docs/adr/0004-movie-vote-multi-method-elections.md) (supersedes [ADR 0003](../../../docs/adr/0003-movie-vote-ranked-points-per-irv-round.md)).
-- **Host phase controls**, **force-finish voting**, and **participant quorum** supersede the mid-vote stuckness / optional-seat parts of [ADR 0023](../../../docs/adr/0023-movie-vote-quorum-controls-suggest-only.md); **host participant removal** / **clear guests** remain **suggest phase** only (ADR 0023 remainder). Record the supersession in a follow-up ADR when implementing.
+- **Host phase controls**, **force-finish voting**, and **participant quorum**: [ADR 0028](../../../docs/adr/0028-movie-vote-host-phase-and-participant-quorum.md) (supersedes mid-vote stuckness / optional-seat parts of [ADR 0023](../../../docs/adr/0023-movie-vote-quorum-controls-suggest-only.md); **host participant removal** / **clear guests** remain **suggest phase** only).
 
 ## Example dialogue
 

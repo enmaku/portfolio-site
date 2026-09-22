@@ -29,6 +29,7 @@
             {{ entry.label }}
           </h3>
           <p class="text-body2 q-my-none q-mb-xs">{{ entry.chooseThis }}</p>
+          <p class="text-body2 text-grey-7 q-my-none q-mb-xs">{{ entry.howItWorks }}</p>
           <a
             :href="entry.wikipediaUrl"
             class="text-body2 text-primary"

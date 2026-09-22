@@ -12,45 +12,39 @@
  * @returns {import('./types.js').MovieVoteGuestDraft}
  */
 export function createGuestDraft(opts = {}) {
-  const quorumRequired = opts.quorumRequired !== false
   return {
     picks: Array.isArray(opts.picks) ? opts.picks : [],
-    ready: quorumRequired ? Boolean(opts.ready) : false,
+    ready: Boolean(opts.ready),
     name: typeof opts.name === 'string' ? opts.name : '',
-    quorumRequired,
+    quorumRequired: true,
   }
 }
 
 /**
- * @param {import('./types.js').MovieVoteGuestDraft | null | undefined} draft
  * @returns {boolean}
  */
-export function isQuorumRequired(draft) {
-  return draft?.quorumRequired !== false
+export function isQuorumRequired() {
+  return true
 }
 
 /**
  * Seat-retention policy for disconnect grace. Required seats stick offline;
  * optional seats may be auto-dropped. Distinct from presence timers.
  *
- * @param {import('./types.js').MovieVoteGuestDraft | null | undefined} draft
  * @returns {boolean}
  */
-export function retainsSeatWhenOffline(draft) {
-  return isQuorumRequired(draft)
+export function retainsSeatWhenOffline() {
+  return true
 }
 
 /**
  * @param {import('./types.js').MovieVoteGuestDraft} draft
- * @param {boolean} required
  * @returns {import('./types.js').MovieVoteGuestDraft}
  */
-export function withGuestQuorum(draft, required) {
-  const nextRequired = Boolean(required)
+export function withGuestQuorum(draft) {
   return {
     ...draft,
-    quorumRequired: nextRequired,
-    ready: nextRequired ? Boolean(draft.ready) : false,
+    quorumRequired: true,
   }
 }
 
@@ -63,12 +57,11 @@ export function withGuestQuorum(draft, required) {
  */
 export function applyGuestInboxUpdate(prev, entry) {
   const base = prev ?? createGuestDraft()
-  const quorumRequired = isQuorumRequired(base)
   return {
     picks: entry.picks,
-    ready: quorumRequired ? Boolean(entry.ready) : false,
+    ready: Boolean(entry.ready),
     name: base.name,
-    quorumRequired,
+    quorumRequired: true,
   }
 }
 
@@ -83,7 +76,6 @@ export function resetGuestDraftsForSuggestRound(guestDrafts) {
       pid,
       createGuestDraft({
         name: typeof g.name === 'string' ? g.name : '',
-        quorumRequired: isQuorumRequired(g),
         picks: [],
         ready: false,
       }),

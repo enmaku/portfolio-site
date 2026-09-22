@@ -51,6 +51,8 @@ export const useMovieVoteStore = defineStore('movieVote', {
     /** @type {import('../features/movie-vote/votingMethod.js').VotingMethod} */
     votingMethod: DEFAULT_VOTING_METHOD,
     fullscreenEnabled: false,
+    /** @type {MoviePick[]} */
+    othersDraftPicks: [],
   }),
 
   actions: {
@@ -144,9 +146,23 @@ export const useMovieVoteStore = defineStore('movieVote', {
         this.voteProgress = null
         if (wasVoting || wasResults) {
           this.readyToVote = false
-          this.myDraftPicks = []
+        }
+        const picksByParticipant = p.suggestPicksByParticipant
+        if (picksByParticipant && typeof picksByParticipant === 'object') {
+          const selfId = this.myParticipantId
+          /** @type {MoviePick[]} */
+          const others = []
+          for (const [id, picks] of Object.entries(picksByParticipant)) {
+            if (id === selfId) continue
+            if (!Array.isArray(picks)) continue
+            for (const pick of picks) others.push(clonePick(pick))
+          }
+          this.othersDraftPicks = others
+        } else {
+          this.othersDraftPicks = []
         }
       } else if (p.ballotMovies && p.ballotOrderIds) {
+        this.othersDraftPicks = []
         const incomingIds = [...p.ballotOrderIds]
         const prevIds = this.ballotOrderIds
         const ballotChanged =
@@ -321,6 +337,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.phase = 'suggest'
       this.readyToVote = false
       this.myDraftPicks = []
+      this.othersDraftPicks = []
       this.ballotMovies = []
       this.ballotOrderIds = []
       this.myRanking = []
@@ -332,6 +349,21 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.participants = []
       this.uniqueSuggestedMovieCount = 0
     },
+
+    /** Host phase: return to suggest keeping myDraftPicks; clear ballot/votes/outcome. */
+    returnToSuggestPreservePicks() {
+      this.phase = 'suggest'
+      this.readyToVote = false
+      this.ballotMovies = []
+      this.ballotOrderIds = []
+      this.myRanking = []
+      this.myVoteSubmitted = false
+      this.voterIds = []
+      this.votesByParticipant = {}
+      this.electionOutcome = null
+      this.voteProgress = null
+      this.uniqueSuggestedMovieCount = 0
+    },
   },
 
   persist: {
@@ -340,6 +372,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       'myDraftPicks',
       'phase',
       'readyToVote',
+      'myParticipantId',
       'ballotMovies',
       'ballotOrderIds',
       'myRanking',
