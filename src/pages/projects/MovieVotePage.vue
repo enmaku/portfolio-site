@@ -13,7 +13,7 @@
           </template>
           <template v-else>
             <p class="q-mb-sm">No movies in your list yet.</p>
-            <p class="q-mb-none">Search above to add suggestions, then drag the handle to reorder.</p>
+            <p class="q-mb-none">Search above to add suggestions.</p>
           </template>
         </div>
         <MovieNominationList v-else class="col" />
