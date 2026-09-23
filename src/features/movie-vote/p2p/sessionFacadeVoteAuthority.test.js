@@ -699,14 +699,14 @@ test(
 )
 
 test(
-  'results wait until all quorum-required voters submit; optional excluded from progress',
+  'results wait until every participant submits a ranking',
   voteAuthorityTests,
   async () => {
     mock.reset()
 
     const hostStableId = 'MVHOSTWAIT1'
     const guestStableId = 'MVGUESTWAIT1'
-    const optionalStableId = 'MVGUESTWAITO'
+    const guest2StableId = 'MVGUESTWAIT2'
     const suffix = 'WAIT01'
 
     mock.module('../../p2p/identity.js', {
@@ -725,7 +725,7 @@ test(
 
     await withFirebaseEnv(async () => {
       const sessionMod = await importMovieVoteSession(`vote-wait-${Date.now()}`)
-      const { startAsHost, sessionPhase, setParticipantQuorumRequired } = sessionMod
+      const { startAsHost, sessionPhase } = sessionMod
       const { store, outbound } = bindHostStoreHandlers(sessionMod)
 
       await startAsHost({ participantName: 'Host', maxAttempts: 3 })
@@ -751,37 +751,43 @@ test(
       })
 
       const guestOnlineRoot = `movieVoteRooms/${suffix}/guestOnline`
-      for (const sid of [guestStableId, optionalStableId]) {
+      for (const sid of [guestStableId, guest2StableId]) {
         simulateHostInboxMessage(
           harness,
           'movieVoteRooms',
           suffix,
           sid,
-          encodeHello(sid, sid === guestStableId ? 'ReqGuest' : 'OptGuest'),
+          encodeHello(sid, sid === guestStableId ? 'GuestA' : 'GuestB'),
         )
         harness.emitChildAdded(guestOnlineRoot, sid)
         harness.emitValue(`${guestOnlineRoot}/${sid}`, true)
       }
       hostSyncParticipantsFromRoom(outbound)
 
-      const [requiredPid, optionalPid] = guestParticipantIds(store)
-      assert.ok(requiredPid)
-      assert.ok(optionalPid)
-      setParticipantQuorumRequired(optionalPid, false)
+      const [guestAPid, guestBPid] = guestParticipantIds(store)
+      assert.ok(guestAPid)
+      assert.ok(guestBPid)
 
-      simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, {
-        v: 1,
-        type: MSG_MV_DRAFT,
-        participantId: requiredPid,
-        ready: true,
-      })
+      for (const [sid, pid] of [
+        [guestStableId, guestAPid],
+        [guest2StableId, guestBPid],
+      ]) {
+        simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, sid, {
+          v: 1,
+          type: MSG_MV_DRAFT,
+          participantId: pid,
+          ready: true,
+        })
+      }
       store.setReadyToVote(true)
       hostSyncParticipantsFromRoom(outbound)
 
       assert.equal(store.phase, 'voting')
-      assert.deepEqual(store.voterIds.sort(), [HOST_PARTICIPANT_ID, requiredPid].sort())
-      assert.equal(store.voteProgress?.total, 2)
-      assert.ok(!store.voterIds.includes(optionalPid))
+      assert.deepEqual(
+        store.voterIds.sort(),
+        [HOST_PARTICIPANT_ID, guestAPid, guestBPid].sort(),
+      )
+      assert.equal(store.voteProgress?.total, 3)
 
       store.submitMyVoteLocal([...store.ballotOrderIds])
       hostSyncParticipantsFromRoom(outbound)
@@ -793,7 +799,17 @@ test(
         'movieVoteRooms',
         suffix,
         guestStableId,
-        encodeVote(requiredPid, store.ballotOrderIds),
+        encodeVote(guestAPid, store.ballotOrderIds),
+      )
+      assert.equal(store.phase, 'voting')
+      assert.equal(store.voteProgress?.submitted, 2)
+
+      simulateHostInboxMessage(
+        harness,
+        'movieVoteRooms',
+        suffix,
+        guest2StableId,
+        encodeVote(guestBPid, store.ballotOrderIds),
       )
       assert.equal(store.phase, 'results')
     })

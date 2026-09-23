@@ -56,5 +56,5 @@ test('voting rows prefer voterIds for progress when present', () => {
     },
   })
   assert.equal(rows[0]?.progress?.key, 'voted')
-  assert.equal(rows[1]?.progress?.key, 'watching')
+  assert.equal(rows[1]?.progress?.key, 'not_voted')
 })

@@ -446,7 +446,7 @@ test(
 )
 
 test(
-  'host drops offline optional guest after guestOnline grace',
+  'host keeps offline guest after guestOnline grace under participant quorum',
   rtdbLifecycleTests,
   async () => {
     mock.reset()
@@ -471,8 +471,8 @@ test(
     })
 
     await withFirebaseEnv(async () => {
-      const sessionMod = await importSession(`optional-grace-${Date.now()}`)
-      const { startAsHost, sessionPhase, setParticipantQuorumRequired } = sessionMod
+      const sessionMod = await importSession(`offline-grace-${Date.now()}`)
+      const { startAsHost, sessionPhase } = sessionMod
       const { store, outbound } = await installLifecyclePinia(sessionMod)
 
       await startAsHost({ participantName: 'Host', maxAttempts: 3 })
@@ -485,15 +485,15 @@ test(
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, true)
       hostSyncParticipantsFromRoom(outbound)
 
-      const guestPid = guestParticipantIds(store)[0]
-      assert.ok(guestPid)
-      setParticipantQuorumRequired(guestPid, false)
+      const guestIdsAfterJoin = guestParticipantIds(store)
+      assert.equal(guestIdsAfterJoin.length, 1)
 
       harness.emitValue(`${guestOnlineRoot}/${guestStableId}`, false)
       mock.timers.tick(45_000)
       hostSyncParticipantsFromRoom(outbound)
 
-      assert.equal(guestParticipantIds(store).length, 0)
+      assert.equal(guestParticipantIds(store).length, 1)
+      assert.deepEqual(guestParticipantIds(store), guestIdsAfterJoin)
     })
 
     mock.timers.reset()
@@ -652,7 +652,7 @@ test(
 )
 
 test(
-  'compile voterIds exclude quorum-off guests and include their picks',
+  'compile voterIds include every guest and their picks once all participants are ready',
   rtdbLifecycleTests,
   async () => {
     mock.reset()
@@ -677,8 +677,8 @@ test(
     })
 
     await withFirebaseEnv(async () => {
-      const sessionMod = await importSession(`optional-voter-${Date.now()}`)
-      const { startAsHost, sessionPhase, setParticipantQuorumRequired } = sessionMod
+      const sessionMod = await importSession(`all-voters-${Date.now()}`)
+      const { startAsHost, sessionPhase } = sessionMod
       const { store, outbound } = await installLifecyclePinia(sessionMod)
 
       await startAsHost({ participantName: 'Host', maxAttempts: 3 })
@@ -710,8 +710,6 @@ test(
       assert.ok(guestA)
       assert.ok(guestB)
 
-      setParticipantQuorumRequired(guestB, false)
-
       simulateHostInboxMessage(harness, 'movieVoteRooms', suffix, guestStableId, {
         v: 1,
         type: MSG_MV_DRAFT,
@@ -733,7 +731,7 @@ test(
         v: 1,
         type: MSG_MV_DRAFT,
         participantId: guestB,
-        ready: false,
+        ready: true,
         picks: [
           {
             localId: 'g2',
@@ -751,12 +749,11 @@ test(
       hostSyncParticipantsFromRoom(outbound)
 
       assert.equal(store.phase, 'voting')
-      assert.deepEqual(store.voterIds.sort(), [HOST_PARTICIPANT_ID, guestA].sort())
-      assert.ok(store.ballotOrderIds.some((id) => id.includes('gamma') || store.ballotMovies.some((m) => m.title === 'Gamma')))
+      assert.deepEqual(store.voterIds.sort(), [HOST_PARTICIPANT_ID, guestA, guestB].sort())
       assert.ok(store.ballotMovies.some((m) => m.title === 'Gamma'))
-      const optionalRow = store.participants.find((p) => p.id === guestB)
-      assert.equal(optionalRow?.quorumRequired, false)
-      assert.equal(optionalRow?.ready, false)
+      const guestBRow = store.participants.find((p) => p.id === guestB)
+      assert.equal(guestBRow?.quorumRequired, true)
+      assert.equal(guestBRow?.ready, true)
     })
   },
 )

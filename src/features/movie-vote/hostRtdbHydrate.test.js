@@ -53,8 +53,8 @@ test('seedGuestDraftsFromParticipants restores name and quorum after host hydrat
     new Set(['g1', 'g2']),
   )
   assert.equal(guestDrafts.get('g1')?.name, 'Brian')
-  assert.equal(guestDrafts.get('g1')?.quorumRequired, false)
-  assert.equal(guestDrafts.get('g1')?.ready, false)
+  assert.equal(guestDrafts.get('g1')?.quorumRequired, true)
+  assert.equal(guestDrafts.get('g1')?.ready, true)
   assert.equal(guestDrafts.get('g1')?.picks.length, 1)
   assert.equal(guestDrafts.get('g2')?.name, 'Sam')
   assert.equal(guestDrafts.get('g2')?.quorumRequired, true)
@@ -114,5 +114,5 @@ test('hostSeatMetaFromParticipants reads host name and quorum', () => {
   const meta = hostSeatMetaFromParticipants([
     { id: HOST_PARTICIPANT_ID, name: 'Dave', quorumRequired: false, ready: true, pickCount: 0 },
   ])
-  assert.deepEqual(meta, { name: 'Dave', quorumRequired: false })
+  assert.deepEqual(meta, { name: 'Dave', quorumRequired: true })
 })

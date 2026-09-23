@@ -32,7 +32,7 @@ function baseDeps(overrides = {}) {
   }
 }
 
-test('scheduleParticipantRemoval calls removeParticipantFromVote after grace when hosting', () => {
+test('scheduleParticipantRemoval keeps offline seats under participant quorum', () => {
   /** @type {string[]} */
   const removed = []
   const deps = baseDeps({
@@ -40,12 +40,12 @@ test('scheduleParticipantRemoval calls removeParticipantFromVote after grace whe
   })
   const wire = createGuestOnlineWire(deps)
   deps.wireState.stableIdToParticipant.set('stable-1', 'guest-1')
-  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: true, name: 'Sam', quorumRequired: false })
+  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: true, name: 'Sam', quorumRequired: true })
 
   wire.scheduleParticipantRemoval('guest-1')
 
-  assert.deepEqual(removed, ['guest-1'])
-  assert.equal(deps.wireState.guestDrafts.has('guest-1'), false)
+  assert.deepEqual(removed, [])
+  assert.equal(deps.wireState.guestDrafts.has('guest-1'), true)
 })
 
 test('scheduleParticipantRemoval skips required seats even after grace', () => {
@@ -82,23 +82,13 @@ test('scheduleParticipantRemoval skips removal while guest stable id is still on
   assert.equal(deps.wireState.guestDrafts.has('guest-1'), true)
 })
 
-test('cancelParticipantRemoval clears pending grace timer', () => {
-  /** @type {number[]} */
-  const cancelled = []
-  const deps = baseDeps({
-    scheduleTimer: (fn) => {
-      void fn
-      return 42
-    },
-    cancelTimer: (id) => cancelled.push(id),
-  })
+test('cancelParticipantRemoval is safe when no grace timer is pending', () => {
+  const deps = baseDeps()
   const wire = createGuestOnlineWire(deps)
   deps.wireState.stableIdToParticipant.set('stable-1', 'guest-1')
-  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: true, name: 'Sam', quorumRequired: false })
+  deps.wireState.guestDrafts.set('guest-1', { picks: [], ready: true, name: 'Sam', quorumRequired: true })
 
-  wire.scheduleParticipantRemoval('guest-1')
   wire.cancelParticipantRemoval('guest-1')
 
-  assert.deepEqual(cancelled, [42])
   assert.equal(deps.wireState.pendingRemovalTimers.has('guest-1'), false)
 })
