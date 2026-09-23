@@ -61,6 +61,7 @@
 <script setup>
 import { computed, inject, onMounted, onUnmounted } from 'vue'
 import { GAME_MANAGER_SESSION_FLOW_KEY } from '../composables/sessionFlowKey.js'
+import { useGameManagerBackLayer } from '../composables/useGameManagerBrowserBack.js'
 import GameManagerGameDetail from './GameManagerGameDetail.vue'
 import GameManagerSessionPlayingPanel from './GameManagerSessionPlayingPanel.vue'
 import GameManagerSessionScoringPanel from './GameManagerSessionScoringPanel.vue'
@@ -95,6 +96,8 @@ function onClose() {
   blurActiveElement()
   flow.leaveFlow()
 }
+
+useGameManagerBackLayer(overlayOpen, onClose, 'gm-session-flow')
 
 function onDocumentKeydown(event) {
   if (event.key !== 'Escape' || !overlayOpen.value) return

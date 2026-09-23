@@ -15,6 +15,7 @@ import { leaveSession, startAsHost } from '../../game-timer/p2p/session.js'
  *   router?: ReturnType<typeof useRouter>,
  *   leaveSessionFn?: typeof leaveSession,
  *   startAsHostFn?: typeof startAsHost,
+ *   allowNavigationAway?: () => void,
  * }=} [options]
  */
 export function useManagerTimerLink(options = {}) {
@@ -24,6 +25,7 @@ export function useManagerTimerLink(options = {}) {
   const { isHosting } = useGameTimerP2P()
   const leaveSessionFn = options.leaveSessionFn ?? leaveSession
   const startAsHostFn = options.startAsHostFn ?? startAsHost
+  const allowNavigationAway = options.allowNavigationAway
 
   const controller = createManagerTimerLinkController({
     getLinkState: () => ({
@@ -40,6 +42,7 @@ export function useManagerTimerLink(options = {}) {
     leaveSession: () => leaveSessionFn(),
     startAsHost: () => startAsHostFn(),
     navigate: (route) => {
+      allowNavigationAway?.()
       void router.push(route)
     },
   })

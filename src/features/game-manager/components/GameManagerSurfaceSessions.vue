@@ -106,6 +106,7 @@
 import { computed, inject, ref } from 'vue'
 import { collectionItemThumbUrl } from '../collection/collectionViewModel.js'
 import { GAME_MANAGER_SESSION_FLOW_KEY } from '../composables/sessionFlowKey.js'
+import { useGameManagerBackLayerRef } from '../composables/useGameManagerBrowserBack.js'
 import { buildSessionGameGroups, sessionSortMs } from '../sessions/sessionsListViewModel.js'
 
 const props = defineProps({
@@ -123,6 +124,8 @@ const gameGroups = computed(() => buildSessionGameGroups(sessions.value))
 
 const deleteConfirmOpen = ref(false)
 const deleteTarget = ref(null)
+
+useGameManagerBackLayerRef(deleteConfirmOpen, 'gm-sessions-delete')
 
 function thumbForGame(game) {
   if (!game) return null

@@ -135,6 +135,10 @@ import GameManagerSurfaceSessions from '../../features/game-manager/components/G
 import GameManagerSurfaceStats from '../../features/game-manager/components/GameManagerSurfaceStats.vue'
 import { GAME_MANAGER_SESSION_FLOW_KEY } from '../../features/game-manager/composables/sessionFlowKey.js'
 import { useGameManagerAuth } from '../../features/game-manager/composables/useGameManagerAuth.js'
+import {
+  provideGameManagerBrowserBack,
+  useGameManagerBackLayerRef,
+} from '../../features/game-manager/composables/useGameManagerBrowserBack.js'
 import { useGameManagerSessionFlow } from '../../features/game-manager/composables/useGameManagerSessionFlow.js'
 import { useGameManagerSessions } from '../../features/game-manager/composables/useGameManagerSessions.js'
 import { useManagerTimerLink } from '../../features/game-manager/composables/useManagerTimerLink.js'
@@ -150,8 +154,15 @@ const attribution = CATALOG_ATTRIBUTION
 const route = useRoute()
 const router = useRouter()
 
+const browserBack = provideGameManagerBrowserBack()
+useGameManagerBackLayerRef(helpOpen, 'gm-help-dialog')
+useGameManagerBackLayerRef(signOutConfirmOpen, 'gm-sign-out-dialog')
+
 const sessionsApi = useGameManagerSessions()
-const timerLink = useManagerTimerLink({ router })
+const timerLink = useManagerTimerLink({
+  router,
+  allowNavigationAway: () => browserBack.allowNextLeave(),
+})
 const sessionFlow = useGameManagerSessionFlow({
   sessionsApi,
   activeSurface,
