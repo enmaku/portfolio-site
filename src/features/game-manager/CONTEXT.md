@@ -12,9 +12,9 @@ _Avoid_: Calling it a mode of **Game Timer**; treating timer-only use as incompl
 
 ### Mobile-first project shell
 
-Game Manager’s initial **project shell**, optimized for phone use. Hosts the **manager surfaces**.
+Game Manager’s initial **project shell**, optimized for phone use. Hosts the **manager surfaces**. On phones, the system back gesture closes the topmost layered UI (dialogs and full-screen panels) and never navigates away from Game Manager to another route—including a prior **Game Timer** leg.
 
-_Avoid_: Assuming the mobile layout is the only forever surface for **manager capability**.
+_Avoid_: Assuming the mobile layout is the only forever surface for **manager capability**; treating browser back as “leave Game Manager” or “return to **Game Timer**.”
 
 ### Desktop project shell
 

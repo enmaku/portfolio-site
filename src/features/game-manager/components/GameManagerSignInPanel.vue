@@ -132,6 +132,7 @@
 import { computed, ref } from 'vue'
 import MeepleIcon from '../../../components/MeepleIcon.vue'
 import { useGameManagerAuth } from '../composables/useGameManagerAuth.js'
+import { useGameManagerBackLayerRef } from '../composables/useGameManagerBrowserBack.js'
 
 const {
   user,
@@ -149,6 +150,8 @@ const password = ref('')
 const actionPending = ref(false)
 const errorMessage = ref('')
 const signOutConfirmOpen = ref(false)
+
+useGameManagerBackLayerRef(signOutConfirmOpen, 'gm-auth-sign-out')
 
 const canSubmitEmail = computed(() => email.value.trim().length > 0 && password.value.length > 0)
 

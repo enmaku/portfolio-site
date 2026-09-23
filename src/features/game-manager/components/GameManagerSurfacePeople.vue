@@ -143,6 +143,10 @@
 <script setup>
 import { computed, inject, ref } from 'vue'
 import { GAME_MANAGER_SESSION_FLOW_KEY } from '../composables/sessionFlowKey.js'
+import {
+  useGameManagerBackLayerNullable,
+  useGameManagerBackLayerRef,
+} from '../composables/useGameManagerBrowserBack.js'
 import { useGameManagerPeople } from '../composables/useGameManagerPeople.js'
 import { PERSON_DEFAULT_COLORS } from '../people/peopleViewModel.js'
 import GameManagerPersonStatisticsPanel from './GameManagerPersonStatisticsPanel.vue'
@@ -162,6 +166,10 @@ const draftColor = ref(PERSON_DEFAULT_COLORS[0])
 const deleteConfirmOpen = ref(false)
 const deleteTarget = ref(null)
 const statsPerson = ref(null)
+
+useGameManagerBackLayerNullable(statsPerson, 'gm-person-stats')
+useGameManagerBackLayerRef(editorOpen, 'gm-person-editor')
+useGameManagerBackLayerRef(deleteConfirmOpen, 'gm-person-delete')
 
 const sessions = computed(() => flow.sessions?.value || [])
 const collectionItems = computed(() => flow.collectionItems?.value || [])

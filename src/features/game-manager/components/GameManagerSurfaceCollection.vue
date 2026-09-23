@@ -177,6 +177,9 @@ import {
   sortCollectionItemsByTitle,
 } from '../collection/collectionViewModel.js'
 import { GAME_MANAGER_SESSION_FLOW_KEY } from '../composables/sessionFlowKey.js'
+import {
+  useGameManagerBackLayerRef,
+} from '../composables/useGameManagerBrowserBack.js'
 import { useGameManagerCollection } from '../composables/useGameManagerCollection.js'
 import GameManagerCatalogSearchPanel from './GameManagerCatalogSearchPanel.vue'
 
@@ -193,6 +196,10 @@ const editTarget = ref(null)
 const editTitle = ref('')
 const deleteConfirmOpen = ref(false)
 const deleteTarget = ref(null)
+
+useGameManagerBackLayerRef(searchOpen, 'gm-collection-search')
+useGameManagerBackLayerRef(editDialogOpen, 'gm-collection-edit')
+useGameManagerBackLayerRef(deleteConfirmOpen, 'gm-collection-delete')
 
 const shelfItems = computed(() => sortCollectionItemsByTitle(items.value))
 
