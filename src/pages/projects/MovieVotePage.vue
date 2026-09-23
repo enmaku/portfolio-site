@@ -12,7 +12,7 @@
             <p class="q-mb-none">Someone else already suggested titles — add more if you like, or mark ready anytime.</p>
           </template>
           <template v-else>
-            <p class="q-mb-sm">No movies in your list yet.</p>
+            <p class="q-mb-sm">No movies suggested yet.</p>
             <p class="q-mb-none">Search above to add suggestions.</p>
           </template>
         </div>
