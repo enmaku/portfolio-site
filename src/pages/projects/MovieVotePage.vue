@@ -2,7 +2,7 @@
   <q-page class="mv-page column fit no-wrap">
     <MovieVoteTopBar />
 
-    <div class="col mv-page__scroll column">
+    <div class="col mv-page__scroll column no-wrap">
       <template v-if="phase === 'suggest'">
         <MovieVoteVotingMethodExplainer v-if="isGuest" />
         <MovieSearchField @select="onPickMovie" />
