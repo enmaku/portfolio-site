@@ -17,14 +17,6 @@
           </template>
         </div>
         <MovieNominationList v-else class="col" />
-        <div v-if="isInSession" class="q-px-md q-pb-md">
-          <q-toggle
-            v-model="readyModel"
-            color="primary"
-            label="Ready to vote"
-            data-testid="mv-ready-toggle"
-          />
-        </div>
       </template>
 
       <template v-else-if="phase === 'voting'">
@@ -60,10 +52,11 @@
     </div>
 
     <div
-      v-if="phase === 'suggest' && myDraftPicks.length"
-      class="mv-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm"
+      v-if="phase === 'suggest' && (isInSession || myDraftPicks.length)"
+      class="mv-actions-bar row items-center no-wrap full-width q-px-md q-pt-sm q-gutter-x-sm"
     >
       <q-btn
+        v-if="myDraftPicks.length"
         fab-mini
         outline
         color="grey-5"
@@ -71,6 +64,14 @@
         aria-label="Clear all my movies"
         class="mv-actions-bar__fixed-btn"
         @click="clearConfirmOpen = true"
+      />
+      <q-toggle
+        v-if="isInSession"
+        v-model="readyModel"
+        color="primary"
+        label="Ready to vote"
+        class="col"
+        data-testid="mv-ready-toggle"
       />
     </div>
 
