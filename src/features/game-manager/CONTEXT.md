@@ -134,23 +134,17 @@ _Avoid_: Treating one-off as “throw away the person after the night”; skippi
 
 ### Persist to roster
 
-The choice, while adding someone, to also pin them as a **saved player** for quick re-selection—same **recorded player** identity, not a second person. Unpinning later only removes the roster pin; history stays until an explicit **person deletion**.
+The choice, while adding someone, to also pin them as a **saved player** for quick re-selection—same **recorded player** identity, not a second person. Unpinning later only removes the roster pin. **Person deletion** hides that **recorded player** from usable people; the history stays.
 
 ### Person deletion
 
-An explicit action that removes a **recorded player** from the **account owner**’s usable people — never the **self player** — leaving **removed player** placeholders on the owner’s past seats. A claimant linked to that player still reads those sittings, and someone added afterward is a new **recorded player**.
+An explicit action that hides a **recorded player** from the **account owner**’s usable people — the Players list and the people picker — never the **self player**. That **recorded player** remains, so **play sessions**, scores, the **timer export**, and stats stay as they were, including on a sitting still in progress. There is no control to show them again. A claimant linked to that player still reads those sittings. Someone added afterward, even with the same name, is a new **recorded player**.
 
-_Avoid_: Equating roster remove with erasing history; deleting every session the person touched; leaving broken references with no placeholder; deleting the **self player**; a separate control that drops a **player claim** and leaves the roster row in place.
-
-### Removed player
-
-A tombstone seat in the **account owner**’s view of a past **play session** after **person deletion**, marking that someone was there without keeping their identity for the owner’s stats or a new **player claim**. The claimant of that **linked recorded player** still sees the seat as it was; the sitting still counts toward the owner’s session counts and **play time**, but not the owner’s **win share** or person-scoped stats.
-
-_Avoid_: Pretending the seat never existed; offering the owner’s tombstone for a new **player claim**; an “Unknown” / Removed slice on **win share** pies; hiding the sitting from the claimant who already had it.
+_Avoid_: Equating this with erasing history; rewriting seats into placeholders; dropping that person from stats or **win share**; deleting every session the person touched; deleting the **self player**; restoring them to usable people; a separate control that drops a **player claim** and leaves the roster row in place; a **removed player**.
 
 ### Person match prompt
 
-When the **account owner** types a name that matches an existing **recorded player** or **saved player**, Game Manager suggests that identity for confirmation (or lets them create a new person)—no silent merge.
+When the **account owner** types a name that matches a **recorded player** or **saved player** who is still among usable people, Game Manager suggests that identity for confirmation (or lets them create a new person)—no silent merge. A **recorded player** hidden by **person deletion** is not offered.
 
 _Avoid_: Auto-merging on normalized name alone; making free-typed names always brand-new without offering a match.
 
@@ -176,9 +170,9 @@ _Avoid_: Copying sittings into the claimant’s store; sharing the **collection*
 
 ### Claim link
 
-The stable offer of one **unlinked recorded player** for **player claim**, naming that **account owner**’s store and that **recorded player**. It stays valid until **player claim** succeeds, and opening it does not complete the claim.
+The stable offer of one **unlinked recorded player** for **player claim**, naming that **account owner**’s store and that **recorded player**. It stays valid until **player claim** succeeds or **person deletion** hides that **recorded player**, and opening it does not complete the claim.
 
-_Avoid_: A rotating secret; an expiring invitation; a **claim link** for the **self player**; treating the link as the claim itself.
+_Avoid_: A rotating secret; an expiring invitation; a **claim link** for the **self player**; treating the link as the claim itself; a **claim link** that still works after **person deletion**.
 
 ### Partial play session
 
@@ -278,9 +272,9 @@ _Avoid_: Using shelf size as a proxy for **games played**.
 
 ### Win share
 
-How **session win** awards are distributed across **recorded players**—for the whole history or for one game (on **game detail** **Stats**). Pie slices are each person’s fraction of all **session win** credits on **complete play sessions** (shared ties each count; slices sum to the whole). **Removed player** seats contribute no slice and no credit. Distinct from a person’s **win percentage** (their **session win**s ÷ their **complete play sessions**), which appears in expandable per-person detail.
+How **session win** awards are distributed across **recorded players**—for the whole history or for one game (on **game detail** **Stats**). Pie slices are each person’s fraction of all **session win** credits on **complete play sessions** (shared ties each count; slices sum to the whole). A **recorded player** hidden by **person deletion** still takes their slice. Distinct from a person’s **win percentage** (their **session win**s ÷ their **complete play sessions**), which appears in expandable per-person detail.
 
-_Avoid_: Calling this “win rate” in primary UI; sizing pie slices by personal win percentage; an “Unknown” pie slice for tombstones.
+_Avoid_: Calling this “win rate” in primary UI; sizing pie slices by personal win percentage; an “Unknown” pie slice.
 
 ### Win percentage
 
@@ -406,4 +400,7 @@ _Avoid_: Burying people management only inside session flows; a desktop-first da
 > **Designer:** “Until your **self player** exists, Game Manager only asks for that player’s name and color. You can’t skip it. Once that player exists, it doesn’t ask again, and you can’t delete them.”
 
 > **Owner:** “I deleted Brian after he claimed.”  
-> **Designer:** “He disappears from your people and your stats. Past seats on your view become **removed player**s. He still reads those sittings. A Brian you add later is a new **unlinked recorded player**.”
+> **Designer:** “He leaves your Players list and the people picker. The sittings stay as they were, including your stats. He still reads those sittings. A Brian you add later is a new **unlinked recorded player**.”
+
+> **Owner:** “I hid Casey before he opened the link.”
+> **Designer:** “The **claim link** no longer works. His old sittings still show him, and he does not come back to the list.”
