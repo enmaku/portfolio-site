@@ -158,7 +158,7 @@ _Avoid_: Auto-merging on normalized name alone; making free-typed names always b
 
 The one **recorded player** in an **account owner**’s own store that is linked to that same account. Immediately after first sign-in, and on any later sign-in until it exists, Game Manager asks for that player’s name and color and will not continue without it; afterward it can be edited like any other **recorded player** and cannot be deleted.
 
-_Avoid_: Skipping or dismissing that prompt; more than one **self player** in a store; a claim URL for that row; treating the sign-in display name as a **recorded player** by itself.
+_Avoid_: Skipping or dismissing that prompt; more than one **self player** in a store; a **claim link** for that row; treating the sign-in display name as a **recorded player** by itself.
 
 ### Unlinked recorded player
 
@@ -170,9 +170,15 @@ A **recorded player** tied to one authenticated account. The **self player** is 
 
 ### Player claim
 
-A cooperative handoff where an **unlinked recorded player** in one **account owner**’s store becomes a **linked recorded player** tied to another person’s Firebase Auth identity. The claimant can then read the **play sessions** in that store where that **recorded player** was a **present player**, including later changes to those sittings. The claimant does not gain the **collection**. Within one owner’s store, a **recorded player** links to at most one account. One account may be the linked identity of **recorded players** in many owners’ stores.
+A cooperative handoff where an **unlinked recorded player** in one **account owner**’s store becomes a **linked recorded player** tied to another person’s Firebase Auth identity. The signed-in claimant completes it by confirming; a brand-new account creates a **self player** first. The claimant can then read the **play sessions** in that store where that **recorded player** was a **present player**, including later changes to those sittings. The claimant does not gain the **collection**. Within one owner’s store, a **recorded player** links to at most one account. One account may be the linked identity of **recorded players** in many owners’ stores.
 
 _Avoid_: Copying sittings into the claimant’s store; sharing the **collection**; treating a device as the boundary; requiring the guest to have the app on the night they first play.
+
+### Claim link
+
+The stable offer of one **unlinked recorded player** for **player claim**, naming that **account owner**’s store and that **recorded player**. It stays valid until **player claim** succeeds, and opening it does not complete the claim.
+
+_Avoid_: A rotating secret; an expiring invitation; a **claim link** for the **self player**; treating the link as the claim itself.
 
 ### Partial play session
 
@@ -394,7 +400,7 @@ _Avoid_: Burying people management only inside session flows; a desktop-first da
 > **Designer:** “After you’ve played it, **game detail** opens with **Stats** expanded and **Details** collapsed. Never played: flat catalog body, no **Stats** section. The **Stats** tab stays table-wide.”
 
 > **Owner:** “Brian should see the nights he played here, including ones I already logged.”  
-> **Designer:** “Send him a **player claim** for that **unlinked recorded player**. After he claims, he reads those **play sessions** in your store — the same sittings, so your later score fix is what he sees. He does not get your **collection**. He still can’t see nights he wasn’t a **present player**.”
+> **Designer:** “Send him the **claim link** for that **unlinked recorded player**. He confirms while signed in. If this sign-in creates his account, he makes his **self player** first. Opening the link does not claim it. After he confirms, he reads those **play sessions** in your store — the same sittings, so your later score fix is what he sees. He does not get your **collection**.”
 
 > **Owner:** “I just signed in on my laptop.”  
 > **Designer:** “Until your **self player** exists, Game Manager only asks for that player’s name and color. You can’t skip it. Once that player exists, it doesn’t ask again, and you can’t delete them.”
