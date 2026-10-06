@@ -30,9 +30,9 @@ _Avoid_: “Backend” or “store” in product language; coupling **capability
 
 ### Account owner
 
-The signed-in person whose durable Game Manager data this is; sole reader/writer of their **manager store** in v1. They may facilitate a **play session** without being a **present player**. Firebase Auth via Google or email/password; email need not be verified before use.
+The signed-in person whose durable Game Manager data this is. They write their **manager store** and can read all of it. They may facilitate a **play session** without being a **present player**. Firebase Auth via Google or email/password; email need not be verified before use. **Player claim** lets another account read **play sessions** in this store where the **linked recorded player** was a **present player**; that account is not an **account owner** of the store.
 
-_Avoid_: “User” alone (too vague across the portfolio); anonymous Firebase identities as owners; requiring the owner to sit every recorded game; blocking email/password owners on verification in v1.
+_Avoid_: “User” alone (too vague across the portfolio); anonymous Firebase identities as owners; requiring the owner to sit every recorded game; blocking email/password owners on verification in v1; calling a claimant the **account owner** of the store they claimed from.
 
 ### Sign-in provider
 
@@ -138,15 +138,15 @@ The choice, while adding someone, to also pin them as a **saved player** for qui
 
 ### Person deletion
 
-An explicit action that removes a **recorded player** identity from the **account owner**’s usable people. Past **play sessions** keep a seat via a **removed player** placeholder (not a silent scrub of history, and not a cascade delete of those nights). Distinct from unpinning a **saved player**.
+An explicit action that removes a **recorded player** from the **account owner**’s usable people — never the **self player** — leaving **removed player** placeholders on the owner’s past seats. A claimant linked to that player still reads those sittings, and someone added afterward is a new **recorded player**.
 
-_Avoid_: Equating roster remove with erasing history; deleting every session the person touched; leaving broken references with no placeholder.
+_Avoid_: Equating roster remove with erasing history; deleting every session the person touched; leaving broken references with no placeholder; deleting the **self player**; a separate control that drops a **player claim** and leaves the roster row in place.
 
 ### Removed player
 
-A tombstone seat on a past **play session** after **person deletion**—marks that someone was there without retaining their former identity for stats or **player claim**. Excluded from **win share**, per-person expandables, and person-scoped stats; the sitting still counts toward session counts and **play time**.
+A tombstone seat in the **account owner**’s view of a past **play session** after **person deletion**, marking that someone was there without keeping their identity for the owner’s stats or a new **player claim**. The claimant of that **linked recorded player** still sees the seat as it was; the sitting still counts toward the owner’s session counts and **play time**, but not the owner’s **win share** or person-scoped stats.
 
-_Avoid_: Pretending the seat never existed; keeping claimable history after the owner chose deletion; an “Unknown” / Removed slice on **win share** pies.
+_Avoid_: Pretending the seat never existed; offering the owner’s tombstone for a new **player claim**; an “Unknown” / Removed slice on **win share** pies; hiding the sitting from the claimant who already had it.
 
 ### Person match prompt
 
@@ -154,19 +154,25 @@ When the **account owner** types a name that matches an existing **recorded play
 
 _Avoid_: Auto-merging on normalized name alone; making free-typed names always brand-new without offering a match.
 
+### Self player
+
+The one **recorded player** in an **account owner**’s own store that is linked to that same account. Immediately after first sign-in, and on any later sign-in until it exists, Game Manager asks for that player’s name and color and will not continue without it; afterward it can be edited like any other **recorded player** and cannot be deleted.
+
+_Avoid_: Skipping or dismissing that prompt; more than one **self player** in a store; a claim URL for that row; treating the sign-in display name as a **recorded player** by itself.
+
 ### Unlinked recorded player
 
-A **recorded player** not yet tied to an authenticated identity via **player claim**.
+A **recorded player** not yet tied to an authenticated identity via **player claim**. The **self player** is not **unlinked**.
 
 ### Linked recorded player
 
-A **recorded player** whose identity has been tied to an authenticated account through **player claim**. Future; not built in v1.
+A **recorded player** tied to one authenticated account. The **self player** is linked to the **account owner** of that store. Any other **linked recorded player** is tied through **player claim**.
 
 ### Player claim
 
-A future, cooperative handoff where an **unlinked recorded player**’s history under one **account owner** becomes linked to another person’s Firebase Auth identity so those records (and later nights logged for that person) can surface in the claimant’s Game Manager. Not built in v1; ids and history must not foreclose it.
+A cooperative handoff where an **unlinked recorded player** in one **account owner**’s store becomes a **linked recorded player** tied to another person’s Firebase Auth identity. The claimant can then read the **play sessions** in that store where that **recorded player** was a **present player**, including later changes to those sittings. The claimant does not gain the **collection**. Within one owner’s store, a **recorded player** links to at most one account. One account may be the linked identity of **recorded players** in many owners’ stores.
 
-_Avoid_: Implementing cross-account sync in v1; requiring the guest to have the app on the night they first play.
+_Avoid_: Copying sittings into the claimant’s store; sharing the **collection**; treating a device as the boundary; requiring the guest to have the app on the night they first play.
 
 ### Partial play session
 
@@ -386,3 +392,12 @@ _Avoid_: Burying people management only inside session flows; a desktop-first da
 
 > **Owner:** “Show me our Wingspan history from the box page.”  
 > **Designer:** “After you’ve played it, **game detail** opens with **Stats** expanded and **Details** collapsed. Never played: flat catalog body, no **Stats** section. The **Stats** tab stays table-wide.”
+
+> **Owner:** “Brian should see the nights he played here, including ones I already logged.”  
+> **Designer:** “Send him a **player claim** for that **unlinked recorded player**. After he claims, he reads those **play sessions** in your store — the same sittings, so your later score fix is what he sees. He does not get your **collection**. He still can’t see nights he wasn’t a **present player**.”
+
+> **Owner:** “I just signed in on my laptop.”  
+> **Designer:** “Until your **self player** exists, Game Manager only asks for that player’s name and color. You can’t skip it. Once that player exists, it doesn’t ask again, and you can’t delete them.”
+
+> **Owner:** “I deleted Brian after he claimed.”  
+> **Designer:** “He disappears from your people and your stats. Past seats on your view become **removed player**s. He still reads those sittings. A Brian you add later is a new **unlinked recorded player**.”
