@@ -20,7 +20,7 @@
       />
     </div>
 
-    <div class="col column q-px-md q-pb-md gm-catalog-panel__body" style="overflow-y: auto">
+    <div class="col column no-wrap q-px-md q-pb-md gm-catalog-panel__body gm-person-stats-scroll">
       <template v-if="vm">
         <div
           class="q-px-sm q-py-xs gm-person-stats-block"
@@ -255,6 +255,12 @@ function formatPpm(n) {
 </script>
 
 <style scoped>
+.gm-person-stats-scroll {
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 .gm-person-stats-block {
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.03);

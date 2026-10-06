@@ -26,7 +26,6 @@
       :peek-next-color="flow.peekNextColor"
       :upsert-person="flow.upsertPerson"
       :set-attendance="flow.setAttendance"
-      :add-attendance="flow.addAttendance"
       @close="onClose"
       @start-game="onStartGame"
     />

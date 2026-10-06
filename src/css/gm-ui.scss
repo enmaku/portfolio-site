@@ -55,14 +55,8 @@
   }
 }
 
-.gm-actions-bar {
-  flex-shrink: 0;
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
-  background: inherit;
-}
-
-.gm-actions-bar__fixed-btn {
-  flex-shrink: 0;
+.gm-surface-fab {
+  z-index: 2;
 }
 
 .gm-surface {
@@ -80,6 +74,10 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y pinch-zoom;
+}
+
+.gm-surface__scroll--with-fab {
+  padding-bottom: 88px;
 }
 
 .gm-empty {

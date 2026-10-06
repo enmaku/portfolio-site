@@ -1,6 +1,6 @@
 <template>
   <div data-testid="gm-surface-collection" class="gm-surface">
-    <div class="gm-surface__scroll q-pa-md">
+    <div class="gm-surface__scroll gm-surface__scroll--with-fab q-pa-md">
       <div
         v-if="error"
         class="text-negative text-caption q-mb-sm"
@@ -72,17 +72,15 @@
       </div>
     </div>
 
-    <div class="gm-actions-bar row items-center justify-end q-px-md q-pt-sm">
-      <q-btn
-        fab
-        color="primary"
-        icon="add"
-        aria-label="Add game"
-        class="gm-actions-bar__fixed-btn"
-        data-testid="gm-collection-add-fab"
-        @click="searchOpen = true"
-      />
-    </div>
+    <q-btn
+      fab
+      color="primary"
+      icon="add"
+      aria-label="Add game"
+      class="absolute-bottom-right q-ma-md gm-surface-fab"
+      data-testid="gm-collection-add-fab"
+      @click="searchOpen = true"
+    />
 
     <GameManagerCatalogSearchPanel
       v-if="searchOpen"

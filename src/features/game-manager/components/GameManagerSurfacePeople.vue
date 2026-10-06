@@ -1,6 +1,6 @@
 <template>
   <div data-testid="gm-surface-people" class="gm-surface">
-    <div class="gm-surface__scroll q-pa-md">
+    <div class="gm-surface__scroll gm-surface__scroll--with-fab q-pa-md">
       <div
         v-if="error"
         class="text-negative text-caption q-mb-sm"
@@ -47,28 +47,23 @@
             :style="rowStyle(person)"
             @click="openPersonStats(person)"
           >
-            <q-item-section avatar>
-              <q-avatar size="36px" :style="{ backgroundColor: person.color }" />
-            </q-item-section>
             <q-item-section>
-              <q-item-label class="text-body1 text-weight-medium">{{ person.name }}</q-item-label>
+              <q-item-label class="gm-person-row__name ellipsis">{{ person.name }}</q-item-label>
             </q-item-section>
           </q-item>
         </q-slide-item>
       </div>
     </div>
 
-    <div class="gm-actions-bar row items-center justify-end q-px-md q-pt-sm">
-      <q-btn
-        fab
-        color="primary"
-        icon="add"
-        aria-label="Add person"
-        class="gm-actions-bar__fixed-btn"
-        data-testid="gm-people-add-fab"
-        @click="openAdd"
-      />
-    </div>
+    <q-btn
+      fab
+      color="primary"
+      icon="add"
+      aria-label="Add person"
+      class="absolute-bottom-right q-ma-md gm-surface-fab"
+      data-testid="gm-people-add-fab"
+      @click="openAdd"
+    />
 
     <GameManagerPersonStatisticsPanel
       v-if="statsPerson"
@@ -142,6 +137,8 @@
 
 <script setup>
 import { computed, inject, ref } from 'vue'
+import { useQuasar } from 'quasar'
+import { playerBarTrackColor } from '../../game-timer/core.js'
 import { GAME_MANAGER_SESSION_FLOW_KEY } from '../composables/sessionFlowKey.js'
 import {
   useGameManagerBackLayerNullable,
@@ -150,6 +147,8 @@ import {
 import { useGameManagerPeople } from '../composables/useGameManagerPeople.js'
 import { PERSON_DEFAULT_COLORS } from '../people/peopleViewModel.js'
 import GameManagerPersonStatisticsPanel from './GameManagerPersonStatisticsPanel.vue'
+
+const $q = useQuasar()
 
 const flow = inject(GAME_MANAGER_SESSION_FLOW_KEY)
 if (!flow) {
@@ -180,9 +179,9 @@ const errorMessage = computed(() => {
 })
 
 function rowStyle(person) {
+  const color = typeof person?.color === 'string' && person.color ? person.color : '#78909c'
   return {
-    background: `linear-gradient(90deg, ${person.color}33 0%, rgba(255,255,255,0.04) 48%)`,
-    minHeight: '64px',
+    backgroundColor: playerBarTrackColor(color, $q.dark.isActive),
   }
 }
 
@@ -242,6 +241,18 @@ async function confirmDelete() {
 
 <style scoped>
 .gm-person-row {
-  min-height: 64px;
+  min-height: 72px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.body--light .gm-person-row {
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.gm-person-row__name {
+  color: inherit;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.25;
 }
 </style>

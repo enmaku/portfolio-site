@@ -243,9 +243,11 @@ function onSave() {
 }
 
 .gm-session-scoring-seat {
-  display: flex;
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 11rem);
   align-items: center;
-  gap: 10px;
+  justify-content: start;
+  column-gap: 10px;
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -254,9 +256,10 @@ function onSave() {
 }
 
 .gm-session-scoring-name {
-  flex: 0 1 auto;
-  max-width: 50%;
+  width: 100%;
+  max-width: 7.5rem;
   min-width: 0;
+  overflow: hidden;
   color: #fff;
   font-size: 1.05rem;
   font-weight: 700;
@@ -269,9 +272,9 @@ function onSave() {
 }
 
 .gm-session-scoring-field {
-  flex: 1 1 0;
+  width: 100%;
+  max-width: 11rem;
   min-width: 0;
-  width: auto;
 }
 
 .gm-session-scoring-field :deep(.q-field) {

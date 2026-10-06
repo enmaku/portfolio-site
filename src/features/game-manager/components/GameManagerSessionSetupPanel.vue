@@ -16,30 +16,32 @@
     <q-card-section class="col q-pt-none gm-flow-panel__scroll">
       <div class="text-body2 text-grey-6 q-mb-md">Select who is at the table.</div>
 
-      <q-list v-if="rosterRows.length" bordered separator class="rounded-borders q-mb-md">
+      <div v-if="rosterRows.length" class="gm-setup-roster q-mb-md">
         <q-item
           v-for="row in rosterRows"
           :key="row.id"
+          v-ripple
           tag="label"
+          class="gm-setup-person"
+          :style="personRowStyle(row)"
           :data-testid="`gm-session-setup-person-${row.id}`"
         >
           <q-item-section avatar>
             <q-checkbox
-              :model-value="selectedIds.includes(row.id)"
-              dense
+              :model-value="selectedIdSet.has(row.id)"
+              color="white"
+              keep-color
+              size="lg"
               :data-testid="`gm-session-setup-check-${row.id}`"
-              @update:model-value="(v) => togglePerson(row, v)"
+              @update:model-value="(checked) => togglePerson(row, checked)"
             />
           </q-item-section>
-          <q-item-section avatar>
-            <div class="gm-person-swatch" :style="{ background: row.color }" />
-          </q-item-section>
           <q-item-section>
-            <q-item-label>{{ row.name }}</q-item-label>
-            <q-item-label v-if="row.guest" caption>Guest</q-item-label>
+            <q-item-label class="gm-setup-person__name ellipsis">{{ row.name }}</q-item-label>
+            <q-item-label v-if="row.guest" caption class="gm-setup-person__guest">Guest</q-item-label>
           </q-item-section>
         </q-item>
-      </q-list>
+      </div>
 
       <div v-else class="text-body2 text-grey-6 q-mb-md" data-testid="gm-session-setup-empty-roster">
         No saved players yet. Add someone below.
@@ -99,16 +101,17 @@
         color="primary"
         label="Start game"
         data-testid="gm-session-setup-start-game"
-        :disable="!canStart || busy"
-        :loading="busy"
-        @click="$emit('start-game')"
+        :disable="!canStart || busy || starting"
+        :loading="busy || starting"
+        @click="onStart"
       />
     </q-card-actions>
   </q-card>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { createLatestAttendanceWrite } from '../sessions/latestAttendanceWrite.js'
 
 const props = defineProps({
   session: { type: Object, default: null },
@@ -118,20 +121,42 @@ const props = defineProps({
   peekNextColor: { type: Function, required: true },
   upsertPerson: { type: Function, required: true },
   setAttendance: { type: Function, required: true },
-  addAttendance: { type: Function, required: true },
 })
 
-defineEmits(['close', 'start-game'])
+const emit = defineEmits(['close', 'start-game'])
 
 const draftName = ref('')
 const persistToRoster = ref(true)
 const adding = ref(false)
+const starting = ref(false)
+const selectedIds = ref([])
+/** @type {import('vue').Ref<Map<string, { id: string, name: string, color: string, saved?: boolean }>>} */
+const seatSources = ref(new Map())
 
-const selectedIds = computed(() =>
-  (props.session?.presentPlayers || []).map((p) => p.recordedPlayerId).filter(Boolean),
-)
+function idsFromSession(session) {
+  return (session?.presentPlayers || []).map((player) => player.recordedPlayerId).filter(Boolean)
+}
+
+function sameIds(left, right) {
+  if (left.length !== right.length) return false
+  const rightSet = new Set(right)
+  return left.every((id) => rightSet.has(id))
+}
+
+const attendance = createLatestAttendanceWrite((ids) => writeSelection(ids))
+
+const selectedIdSet = computed(() => new Set(selectedIds.value))
 
 const canStart = computed(() => selectedIds.value.length >= 1)
+
+watch(
+  () => [props.session?.id, props.session?.presentPlayers],
+  () => {
+    if (attendance.pending) return
+    selectedIds.value = idsFromSession(props.session)
+  },
+  { immediate: true },
+)
 
 const rosterRows = computed(() => {
   const byId = new Map()
@@ -149,8 +174,30 @@ const rosterRows = computed(() => {
       })
     }
   }
+  for (const person of seatSources.value.values()) {
+    if (!byId.has(person.id)) {
+      byId.set(person.id, {
+        id: person.id,
+        name: person.name,
+        color: person.color,
+        guest: person.saved === false,
+      })
+    }
+  }
   return [...byId.values()]
 })
+
+function personRowStyle(row) {
+  const color = typeof row.color === 'string' && row.color ? row.color : '#78909c'
+  return { backgroundColor: color }
+}
+
+function rememberPerson(person) {
+  if (!person?.id) return
+  const next = new Map(seatSources.value)
+  next.set(person.id, person)
+  seatSources.value = next
+}
 
 const matchSuggestions = computed(() => {
   const name = draftName.value.trim()
@@ -163,7 +210,7 @@ async function writeSelection(ids) {
   for (const id of ids) {
     const saved = (props.savedPeople || []).find((p) => p.id === id)
     const existing = (props.session?.presentPlayers || []).find((p) => p.recordedPlayerId === id)
-    const source = saved || existing
+    const source = saved || existing || seatSources.value.get(id)
     if (!source) continue
     seats.push({
       recordedPlayerId: id,
@@ -174,20 +221,30 @@ async function writeSelection(ids) {
   await props.setAttendance(seats)
 }
 
-async function togglePerson(row, checked) {
+function queueSelection(ids) {
+  const snapshot = [...ids]
+  return attendance.push(snapshot).catch(() => {
+    if (!attendance.pending && sameIds(selectedIds.value, snapshot)) {
+      selectedIds.value = idsFromSession(props.session)
+    }
+  })
+}
+
+function togglePerson(row, checked) {
   const next = new Set(selectedIds.value)
   if (checked) next.add(row.id)
   else next.delete(row.id)
-  await writeSelection([...next])
+  selectedIds.value = [...next]
+  void queueSelection(selectedIds.value)
 }
 
-async function addExisting(match) {
-  await props.addAttendance({
-    recordedPlayerId: match.id,
-    name: match.name,
-    color: match.color,
-  })
+function addExisting(match) {
+  rememberPerson(match)
   draftName.value = ''
+  if (!selectedIds.value.includes(match.id)) {
+    selectedIds.value = [...selectedIds.value, match.id]
+  }
+  void queueSelection(selectedIds.value)
 }
 
 async function addNew() {
@@ -201,23 +258,74 @@ async function addNew() {
       persistToRoster: persistToRoster.value,
     })
     if (person) {
-      await props.addAttendance({
-        recordedPlayerId: person.id,
-        name: person.name,
-        color: person.color,
-      })
+      rememberPerson(person)
+      if (!selectedIds.value.includes(person.id)) {
+        selectedIds.value = [...selectedIds.value, person.id]
+      }
+      await queueSelection(selectedIds.value)
     }
     draftName.value = ''
   } finally {
     adding.value = false
   }
 }
+
+async function onStart() {
+  if (starting.value || !canStart.value) return
+  starting.value = true
+  try {
+    await attendance.flush()
+    if (!canStart.value) return
+    emit('start-game')
+  } catch {
+    if (!attendance.pending) {
+      selectedIds.value = idsFromSession(props.session)
+    }
+  } finally {
+    starting.value = false
+  }
+}
 </script>
 
 <style scoped>
-.gm-person-swatch {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+.gm-setup-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gm-setup-person {
+  min-height: 72px;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+.gm-setup-person__name,
+.gm-setup-person__guest {
+  color: #fff;
+  text-shadow:
+    -1.5px 0 0 #000,
+    1.5px 0 0 #000,
+    0 -1.5px 0 #000,
+    0 1.5px 0 #000;
+}
+
+.gm-setup-person__name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.gm-setup-person :deep(.q-checkbox__bg) {
+  border-width: 2px;
+  box-shadow:
+    -1px 0 0 #000,
+    1px 0 0 #000,
+    0 -1px 0 #000,
+    0 1px 0 #000;
+}
+
+.gm-setup-person :deep(.q-checkbox__svg) {
+  color: #111;
 }
 </style>
