@@ -48,6 +48,10 @@ const routes = [
         path: '',
         component: () => import('pages/projects/GameManagerPage.vue'),
       },
+      {
+        path: 'prototype/player-claim-ui',
+        component: () => import('../features/game-manager/components/PlayerClaimUIPrototype.vue'),
+      },
     ],
   },
   {
