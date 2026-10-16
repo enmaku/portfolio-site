@@ -449,6 +449,7 @@ const router = useRouter()
 const variant = ref('people-a')
 const showClaimLinkDialog = ref(false)
 const personMenuOpen = ref(false)
+const selectedPerson = ref(null)
 const claimLink = ref(
   'https://portfolio.example.com/claim?owner=owner@example.com&player=jordan-id',
 )
@@ -522,6 +523,11 @@ function openEditSlide(detail, person) {
 
 function openClaimSlide(detail, person) {
   detail.reset()
+  $q.notify({
+    message: `Share claim link for ${person.name}`,
+    color: 'info',
+    timeout: 1000,
+  })
   showClaimLinkDialog.value = true
 }
 
@@ -535,6 +541,7 @@ function requestDelete(detail, person) {
 }
 
 function showPersonMenu(person) {
+  selectedPerson.value = person
   personMenuOpen.value = true
 }
 
