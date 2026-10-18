@@ -140,7 +140,7 @@ The choice, while adding someone, to also pin them as a **saved player** for qui
 
 An explicit action that hides a **recorded player** from the **account owner**’s usable people — the Players list and the people picker — never the **self player**. That **recorded player** remains, so **play sessions**, scores, the **timer export**, and stats stay as they were, including on a sitting still in progress. There is no control to show them again. A claimant linked to that player still reads those sittings. Someone added afterward, even with the same name, is a new **recorded player**.
 
-_Avoid_: Equating this with erasing history; rewriting seats into placeholders; dropping that person from stats or **win share**; deleting every session the person touched; deleting the **self player**; restoring them to usable people; a separate control that drops a **player claim** and leaves the roster row in place; a **removed player**.
+_Avoid_: Equating this with erasing history; rewriting seats into placeholders; dropping that person from stats or **win share**; deleting every session the person touched; deleting the **self player**; restoring them to usable people; a separate control that drops a **player claim** and leaves the roster row in place.
 
 ### Person match prompt
 
