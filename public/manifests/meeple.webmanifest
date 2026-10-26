@@ -6,8 +6,8 @@
   "start_url": "../projects/game-manager/",
   "scope": "../projects/game-manager/",
   "display": "standalone",
-  "theme_color": "#121212",
-  "background_color": "#121212",
+  "theme_color": "#14801a",
+  "background_color": "#14801a",
   "icons": [
     {
       "src": "../icons/apps/meeple-192.png",

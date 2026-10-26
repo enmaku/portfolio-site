@@ -86,6 +86,7 @@
  * @property {VotingMethod} [votingMethod] Active single-winner rule for this room; defaults to instant-runoff when omitted (legacy payloads).
  * @property {Record<string, MoviePick[]> | null} [suggestPicksByParticipant] Suggest-phase picks keyed by participant id (no names on picks); null/omit outside suggest.
  * @property {{ kind: string, id: number } | null} [roomNotice] Room-wide notice (e.g. insufficient movies); null/omit when none.
+ * @property {number} [resetEpoch] Vote generation; increments when the host clears the vote so guests drop stale local picks.
  */
 
 export {}

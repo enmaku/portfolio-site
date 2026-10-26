@@ -169,9 +169,18 @@ export function parseState(data) {
  * @param {import('../types.js').MoviePick[]} picks
  * @param {boolean} ready
  * @param {string} participantId
+ * @param {number} [resetEpoch] Vote generation the picks were nominated under.
  */
-export function encodeDraft(picks, ready, participantId) {
-  return { v: 1, type: MSG_MV_DRAFT, participantId, picks, ready, w: nextGuestInboxWriteSeq() }
+export function encodeDraft(picks, ready, participantId, resetEpoch = 0) {
+  return {
+    v: 1,
+    type: MSG_MV_DRAFT,
+    participantId,
+    picks,
+    ready,
+    resetEpoch: typeof resetEpoch === 'number' ? resetEpoch : 0,
+    w: nextGuestInboxWriteSeq(),
+  }
 }
 
 /**
@@ -187,6 +196,7 @@ export function parseDraft(data) {
     participantId: data.participantId,
     ready: data.ready,
     picks: /** @type {import('../types.js').MoviePick[]} */ (picks),
+    resetEpoch: typeof data.resetEpoch === 'number' ? data.resetEpoch : 0,
   }
 }
 

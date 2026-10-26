@@ -6,8 +6,8 @@
   "start_url": "../projects/movie-vote/",
   "scope": "../projects/movie-vote/",
   "display": "standalone",
-  "theme_color": "#121212",
-  "background_color": "#121212",
+  "theme_color": "#0E3FA9",
+  "background_color": "#0E3FA9",
   "icons": [
     {
       "src": "../icons/apps/movie-192.png",

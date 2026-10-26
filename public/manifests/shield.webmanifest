@@ -6,8 +6,8 @@
   "start_url": "../projects/dungeon-runner/",
   "scope": "../projects/dungeon-runner/",
   "display": "standalone",
-  "theme_color": "#121212",
-  "background_color": "#121212",
+  "theme_color": "#a65a08",
+  "background_color": "#a65a08",
   "icons": [
     {
       "src": "../icons/apps/shield-192.png",

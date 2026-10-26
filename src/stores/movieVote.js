@@ -19,6 +19,25 @@ export const useMovieVoteStore = defineStore('movieVote', {
   state: () => ({
     /** @type {MovieVotePhase} */
     phase: 'suggest',
+    /**
+     * Vote generation that `myDraftPicks` belongs to. Bumped only when a vote is
+     * cleared (`resetToSuggest`), so returning guests can tell stale picks apart
+     * from picks for the current nomination round.
+     */
+    resetEpoch: 0,
+    /**
+     * Latest `resetEpoch` observed from room authority this page load. `null` until the
+     * host's first broadcast arrives, which is what keeps a returning guest from
+     * uploading persisted picks before authority has spoken.
+     * @type {number | null}
+     */
+    roomResetEpoch: null,
+    /**
+     * Room whose vote `resetEpoch` describes. Drafts bound to a different room cannot
+     * belong to the current vote, so they never leak across rooms.
+     * @type {string | null}
+     */
+    resetEpochRoom: null,
     /** @type {MoviePick[]} */
     myDraftPicks: [],
     readyToVote: false,
@@ -126,12 +145,41 @@ export const useMovieVoteStore = defineStore('movieVote', {
     },
 
     /**
+     * Align local draft picks with the room's vote generation.
+     *
+     * Picks are only trustworthy for the room they were bound to. Persisted picks
+     * carry no binding, and a different room or a higher authority epoch means the
+     * vote they belonged to has moved on, so authority wins and they are dropped.
+     *
+     * @param {number | undefined} incoming
+     * @param {string | null} roomSuffix
+     * @returns {boolean} true when local picks were dropped as stale
+     */
+    _adoptAuthorityEpoch(incoming, roomSuffix) {
+      const epoch =
+        typeof incoming === 'number' && Number.isFinite(incoming) && incoming >= 0
+          ? Math.floor(incoming)
+          : 0
+      this.roomResetEpoch = epoch
+      const unboundOrOtherRoom = Boolean(roomSuffix) && this.resetEpochRoom !== roomSuffix
+      const stale = unboundOrOtherRoom || epoch > this.resetEpoch
+      if (roomSuffix) this.resetEpochRoom = roomSuffix
+      if (!stale) return false
+      this.resetEpoch = epoch
+      this.myDraftPicks = []
+      this.readyToVote = false
+      return true
+    },
+
+    /**
      * Apply host broadcast (guest or host refresh).
      * @param {import('../features/movie-vote/types.js').MovieVotePublicPayload} p
+     * @param {{ roomSuffix?: string | null }} [ctx]
      */
-    applyPublicPayload(p) {
+    applyPublicPayload(p, ctx = {}) {
       const wasVoting = this.phase === 'voting'
       const wasResults = this.phase === 'results'
+      this._adoptAuthorityEpoch(p.resetEpoch, ctx.roomSuffix ?? null)
       this.phase = p.phase
       this.setParticipants(p.participants)
       if (p.phase === 'suggest') {
@@ -318,6 +366,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
       this.voteProgress = null
       this.uniqueSuggestedMovieCount = 0
       this.votingMethod = DEFAULT_VOTING_METHOD
+      this.roomResetEpoch = null
     },
 
     /**
@@ -347,6 +396,8 @@ export const useMovieVoteStore = defineStore('movieVote', {
     resetToSuggest() {
       this.phase = 'suggest'
       this.readyToVote = false
+      this.resetEpoch += 1
+      this.roomResetEpoch = this.resetEpoch
       this.myDraftPicks = []
       this.othersDraftPicks = []
       this.ballotMovies = []
@@ -382,6 +433,8 @@ export const useMovieVoteStore = defineStore('movieVote', {
     key: 'portfolio-movie-vote',
     pick: [
       'myDraftPicks',
+      'resetEpoch',
+      'resetEpochRoom',
       'phase',
       'readyToVote',
       'myParticipantId',

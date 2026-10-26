@@ -126,6 +126,15 @@ export function hostSeatMetaFromParticipants(participants) {
 }
 
 /**
+ * Durable vote generation a host last published for a room.
+ * @param {unknown} raw
+ * @returns {number}
+ */
+export function parseRoomResetEpoch(raw) {
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 0
+}
+
+/**
  * Restore host wire maps + store seat meta from RTDB after reconnect / claim.
  *
  * @param {string} suffix
@@ -142,6 +151,7 @@ export function hostSeatMetaFromParticipants(participants) {
  *   },
  *   applyPublicPayload: (p: import('./types.js').MovieVotePublicPayload) => void,
  *   getVotingMethod: () => string,
+ *   applyRoomResetEpoch: (epoch: number) => void,
  *   applyHostSeatMeta: (meta: { name: string, quorumRequired: boolean }) => void,
  * }} deps
  * @returns {Promise<{ nextSeq: number | null }>}
@@ -160,6 +170,8 @@ export async function hydrateHostWireFromRtdb(suffix, deps) {
   if (parsed) {
     nextSeq = parsed.seq
   }
+  const epochSnap = await deps.get(deps.roomChild(suffix, 'resetEpoch'))
+  deps.applyRoomResetEpoch(parseRoomResetEpoch(epochSnap.val()))
   try {
     applyHostStoreFromRtdbHydrate(parsed, {
       applyPublicPayload: deps.applyPublicPayload,

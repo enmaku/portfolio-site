@@ -8,6 +8,7 @@ import {
   bindMovieVoteP2PHandlers,
   isMovieVoteP2PSessionActive,
   sessionPhase,
+  sessionSuffix,
 } from './session.js'
 
 let applyingRemote = false
@@ -128,8 +129,22 @@ function shouldGuestSyncDraft(store) {
   return (
     sessionPhase.value === 'guest_connected' &&
     store.phase === 'suggest' &&
-    Boolean(store.myParticipantId)
+    Boolean(store.myParticipantId) &&
+    draftPicksBelongToRoomEpoch(store)
   )
+}
+
+/**
+ * A guest may only upload `myDraftPicks` when they were created for the room's
+ * current vote generation; otherwise they are leftovers from a cleared vote.
+ * @param {ReturnType<typeof useMovieVoteStore>} store
+ * @returns {boolean}
+ */
+function draftPicksBelongToRoomEpoch(store) {
+  const suffix = sessionSuffix.value
+  if (!suffix || store.resetEpochRoom !== suffix) return false
+  if (store.roomResetEpoch === null) return false
+  return store.resetEpoch === store.roomResetEpoch
 }
 
 /** @returns {void} */
@@ -220,7 +235,7 @@ function applyInboundPublicPayload(payload) {
   const prevPhase = s.phase
   applyingRemote = true
   try {
-    s.applyPublicPayload(payload)
+    s.applyPublicPayload(payload, { roomSuffix: sessionSuffix.value })
   } finally {
     applyingRemote = false
   }

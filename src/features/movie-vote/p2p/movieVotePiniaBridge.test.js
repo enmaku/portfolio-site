@@ -44,7 +44,7 @@ import {
   suppressGuestDraftPushForTests,
 } from './movieVotePiniaBridge.js'
 import { buildMovieVotePublicPayload } from '../publicPayload.js'
-import { bindMovieVoteP2PHandlers, leaveSession, sessionPhase } from './session.js'
+import { bindMovieVoteP2PHandlers, leaveSession, sessionPhase, sessionSuffix } from './session.js'
 
 function installMovieVotePinia() {
   const pinia = createPinia()
@@ -66,6 +66,7 @@ function suggestPhasePayload(overrides = {}) {
     electionOutcome: null,
     uniqueSuggestedMovieCount: 0,
     votingMethod: 'irv',
+    resetEpoch: 0,
     ...overrides,
   }
 }
@@ -81,6 +82,18 @@ function customPick(localId, title) {
     posterPath: null,
     overview: '',
   }
+}
+
+/**
+ * Establish room authority so guest draft pushes are allowed: the room suffix must
+ * match the store's epoch binding, which only a broadcast can set.
+ * @param {ReturnType<typeof useMovieVoteStore>} store
+ * @param {string} [suffix]
+ */
+function grantRoomAuthority(store, suffix = 'WIRE01') {
+  sessionSuffix.value = suffix
+  store.resetEpochRoom = suffix
+  store.roomResetEpoch = store.resetEpoch
 }
 
 test('guest inbound state applies phase ballot and ready via bridge', () => {
@@ -139,8 +152,9 @@ test('guest inbound return to suggest pushes draft so ready can sync again', () 
 
   try {
     const store = installMovieVotePinia()
-    store.setMyParticipantId('guest-1')
     sessionPhase.value = 'guest_connected'
+    grantRoomAuthority(store)
+    store.setMyParticipantId('guest-1')
     drainGuestDraftPushProbeForTests()
 
     applyInboundMovieVotePayloadForTests({
@@ -256,6 +270,7 @@ test('guest draft edits debounce to one push after quiesce', () => {
     suppressGuestDraftPushForTests(true)
     const store = installMovieVotePinia()
     sessionPhase.value = 'guest_connected'
+    grantRoomAuthority(store)
     store.setMyParticipantId('guest-1')
     assert.equal(drainGuestDraftPushProbeForTests(), 1)
 
@@ -570,4 +585,63 @@ test('resetSessionSoft does not host-suggest wire when session active', () => {
   sessionPhase.value = 'hosting'
   store.resetSessionSoft()
   assert.deepEqual(drainMovieVoteHostSuggestProbeForTests(), [])
+})
+
+test('returning guest does not push picks before room authority arrives', () => {
+  resetMovieVoteGuestDraftDebounceForTests()
+  suppressGuestDraftPushForTests(true)
+
+  try {
+    const store = installMovieVotePinia()
+    // Persisted from last week: picks, old epoch, nothing bound to a room.
+    store.myDraftPicks = [customPick('old', 'Last Week')]
+    store.resetEpoch = 0
+    sessionPhase.value = 'guest_connected'
+
+    store.setMyParticipantId('guest-1')
+    assert.equal(
+      drainGuestDraftPushProbeForTests(),
+      0,
+      'welcome alone must not upload persisted picks',
+    )
+
+    // Authority reports a cleared vote: stale picks are dropped, nothing uploaded.
+    applyInboundMovieVotePayloadForTests(
+      suggestPhasePayload({
+        participants: [{ id: 'guest-1', ready: false, pickCount: 0 }],
+        suggestPicksByParticipant: { [HOST_PARTICIPANT_ID]: [], 'guest-1': [] },
+        resetEpoch: 1,
+      }),
+    )
+    assert.deepEqual(store.myDraftPicks, [])
+    assert.equal(store.resetEpoch, 1)
+    assert.equal(drainGuestDraftPushProbeForTests(), 0, 'stale picks never reach the host')
+
+    // A genuine nomination now syncs under the current generation.
+    store.addDraftPick(customPick('new', 'This Week'))
+    assert.ok(drainGuestDraftPushProbeForTests() >= 0)
+    assert.equal(store.resetEpoch, 1)
+  } finally {
+    resetMovieVoteGuestDraftDebounceForTests()
+  }
+})
+
+test('guest with picks bound to another room does not push them here', () => {
+  resetMovieVoteGuestDraftDebounceForTests()
+  suppressGuestDraftPushForTests(true)
+
+  try {
+    const store = installMovieVotePinia()
+    store.myDraftPicks = [customPick('other', 'Other Room')]
+    store.resetEpoch = 2
+    store.resetEpochRoom = 'ROOMA1'
+    store.roomResetEpoch = 2
+    sessionSuffix.value = 'ROOMB2'
+    sessionPhase.value = 'guest_connected'
+
+    store.setMyParticipantId('guest-1')
+    assert.equal(drainGuestDraftPushProbeForTests(), 0)
+  } finally {
+    resetMovieVoteGuestDraftDebounceForTests()
+  }
 })

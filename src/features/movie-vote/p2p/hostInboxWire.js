@@ -57,6 +57,7 @@ function normalizePicks(picks) {
  * @param {(participantId: string, entry: { picks: import('../types.js').MoviePick[], ready: boolean }) => void} deps.applyGuestDraft Inbox may author picks/ready only
  * @param {(participantId: string, ranking: string[]) => boolean} deps.applyGuestVote
  * @param {() => string} deps.getHostParticipantName
+ * @param {() => number} deps.getRoomResetEpoch Current vote generation for the room.
  * @param {(stableId: string) => void} deps.clearGuestKick
  */
 export function createHostInboxWire(deps) {
@@ -166,6 +167,8 @@ export function createHostInboxWire(deps) {
     const draft = parseDraft(raw)
     if (draft) {
       if (draft.participantId !== expectedPid) return
+      // A draft from an earlier vote generation is leftover state, not a nomination.
+      if (draft.resetEpoch < deps.getRoomResetEpoch()) return
       deps.applyGuestDraft(expectedPid, {
         picks: normalizePicks(draft.picks),
         ready: draft.ready,

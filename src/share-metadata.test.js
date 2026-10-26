@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 import routes, { portfolioDocumentTitle } from './router/routes.js'
 import {
+  APP_ICON_COLORS,
   APP_ICON_SIZES,
   FAVICON_IDS,
   INSTALLABLE_APPS,
@@ -187,6 +188,28 @@ test('installable app manifest hrefs point at shipped public manifests', async (
     for (const key of /** @type {const} */ (['id', 'start_url', 'scope'])) {
       assert.equal(new URL(manifest[key], manifestUrl).pathname, appRoot, `${key} must resolve to ${appRoot}`)
     }
+  }
+})
+
+test('installable app manifests paint the icon color', async () => {
+  const manifestsDir = fileURLToPath(new URL('../public/manifests', import.meta.url))
+  for (const app of INSTALLABLE_APPS) {
+    const manifest = JSON.parse(await readFile(`${manifestsDir}/${app.iconId}.webmanifest`, 'utf8'))
+    assert.equal(app.iconColor, APP_ICON_COLORS[app.iconId])
+    assert.match(app.iconColor, /^#[0-9a-fA-F]{6}$/)
+    assert.equal(manifest.theme_color, app.iconColor, `${app.iconId} theme_color`)
+    assert.equal(manifest.background_color, app.iconColor, `${app.iconId} background_color`)
+  }
+})
+
+test('launcher icon sources are separate from route favicons', () => {
+  const iconsDir = fileURLToPath(new URL('../public/icons', import.meta.url))
+  for (const app of INSTALLABLE_APPS) {
+    assert.equal(
+      existsSync(`${iconsDir}/app-icon-${app.iconId}.svg`),
+      true,
+      `missing public/icons/app-icon-${app.iconId}.svg`,
+    )
   }
 })
 

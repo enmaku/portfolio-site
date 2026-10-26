@@ -236,7 +236,7 @@ function applyPublicPayloadWithRoomNotice(payload) {
     lastSeenRoomNoticeId = notice.id
     notifyP2P('Need at least two different movies before voting.', 'warning')
   }
-  handlers.applyPublicPayload(payload)
+  handlers.applyPublicPayload(payload, { roomSuffix: sessionSuffix.value })
 }
 
 let hostStateBroadcastProbe = 0
@@ -283,11 +283,13 @@ async function hostBroadcastStatePersist() {
   }
   const msg = encodeState(payload, ++nextSeq)
   roomAuthoritySeq.value = nextSeq
+  const epochWrite = setRtdb(roomChild(sessionSuffix.value, 'resetEpoch'), payload.resetEpoch ?? 0)
   try {
     await setRtdb(roomChild(sessionSuffix.value, 'state'), msg)
   } catch {
     void 0
   }
+  epochWrite.catch(() => {})
 }
 
 function tryCompileBallot() {
@@ -429,6 +431,7 @@ const hostInboxWire = createHostInboxWire({
   applyGuestDraft: applyGuestDraftFromInbox,
   applyGuestVote: applyGuestVoteFromInbox,
   getHostParticipantName: () => useMovieVoteStore().myParticipantName ?? '',
+  getRoomResetEpoch: () => useMovieVoteStore().resetEpoch,
   clearGuestKick: (stableId) => {
     const suffix = sessionSuffix.value
     if (!suffix) return
@@ -564,7 +567,12 @@ const movieVoteP2POutboundSync = {
     const row = store.participants.find((p) => p.id === pid)
     const required = row ? row.quorumRequired !== false : true
     core.writeGuestInbox(
-      encodeDraft(store.myDraftPicks, required ? store.readyToVote : false, pid),
+      encodeDraft(
+        store.myDraftPicks,
+        required ? store.readyToVote : false,
+        pid,
+        store.resetEpoch,
+      ),
     )
   },
   guestSubmitVote(ranking) {
@@ -645,6 +653,12 @@ async function hydrateHostFromRtdb(suffix) {
     wireState,
     applyPublicPayload: (p) => applyPublicPayloadWithRoomNotice(p),
     getVotingMethod: () => useMovieVoteStore().votingMethod,
+    applyRoomResetEpoch: (epoch) => {
+      const st = useMovieVoteStore()
+      st.resetEpoch = epoch
+      st.roomResetEpoch = epoch
+      st.resetEpochRoom = suffix
+    },
     applyHostSeatMeta: (hostMeta) => {
       const st = useMovieVoteStore()
       if (hostMeta.name) st.setMyParticipantName(hostMeta.name)
@@ -790,7 +804,6 @@ export async function startAsHost(opts = {}) {
   const store = useMovieVoteStore()
   store.setMyParticipantName(participantName)
   store.setMyQuorumRequired(true)
-
   const fixedSuffixes = hostStartSuffixOrder()
 
   let lastErr = /** @type {Error | null} */ (null)

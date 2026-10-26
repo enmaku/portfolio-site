@@ -41,3 +41,9 @@ test('encodeDraft consecutive identical drafts produce distinct inbox payloads',
   assert.notDeepEqual(a, b)
   assert.deepEqual(parseDraft(a), parseDraft(b))
 })
+
+test('encodeDraft carries the reset epoch and parseDraft defaults legacy drafts to 0', () => {
+  assert.equal(parseDraft(encodeDraft([], false, 'guest-1', 4))?.resetEpoch, 4)
+  // Pre-epoch guest still running old code writes a draft with no marker.
+  assert.equal(parseDraft({ type: 'mv-d', participantId: 'g', ready: true })?.resetEpoch, 0)
+})

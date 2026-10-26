@@ -6,4 +6,6 @@ export const ROOM_CLAIM_RESET_PATHS = Object.freeze([
   'state',
   'ended',
   'hostVisible',
+  // Vote generation survives host store loss, so stale guest drafts stay rejectable.
+  'resetEpoch',
 ])

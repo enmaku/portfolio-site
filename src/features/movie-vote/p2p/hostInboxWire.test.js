@@ -22,6 +22,7 @@ function baseDeps(overrides = {}) {
     applyGuestDraft: () => {},
     applyGuestVote: () => false,
     getHostParticipantName: () => 'Host',
+    getRoomResetEpoch: () => 0,
     clearGuestKick: () => {},
     ...overrides,
   }

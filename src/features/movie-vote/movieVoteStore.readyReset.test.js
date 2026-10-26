@@ -3,6 +3,19 @@ import test from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { useMovieVoteStore } from '../../stores/movieVote.js'
 
+/** @returns {import('./types.js').MoviePick} */
+function pick(localId, title) {
+  return {
+    localId,
+    source: 'custom',
+    tmdbId: null,
+    customKey: title.toLowerCase(),
+    title,
+    posterPath: null,
+    overview: '',
+  }
+}
+
 test('applyPublicPayload: start-over from results wipes local picks when seat pickCount is 0', () => {
   setActivePinia(createPinia())
   const store = useMovieVoteStore()
@@ -334,4 +347,132 @@ test('resetToSuggest still wipes myDraftPicks', () => {
   store.resetToSuggest()
   assert.deepEqual(store.myDraftPicks, [])
   assert.equal(store.phase, 'suggest')
+})
+
+test('resetToSuggest bumps resetEpoch; returnToSuggestPreservePicks does not', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  assert.equal(store.resetEpoch, 0)
+
+  store.returnToSuggestPreservePicks()
+  assert.equal(store.resetEpoch, 0, 'preserve-picks path must not start a new generation')
+
+  store.resetToSuggest()
+  assert.equal(store.resetEpoch, 1)
+  assert.equal(store.roomResetEpoch, 1)
+})
+
+test('applyPublicPayload: epoch already seen keeps this round picks', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  const mine = pick('keep', 'Keep')
+  store.setMyParticipantId('guest-1')
+  store.myDraftPicks = [mine]
+  store.resetEpoch = 3
+  store.resetEpochRoom = 'ROOM01'
+
+  store.applyPublicPayload(
+    {
+      phase: 'suggest',
+      participants: [{ id: 'guest-1', ready: false, pickCount: 1 }],
+      ballotMovies: null,
+      ballotOrderIds: null,
+      voteProgress: null,
+      electionOutcome: null,
+      uniqueSuggestedMovieCount: 1,
+      votingMethod: 'irv',
+      suggestPicksByParticipant: { __host__: [], 'guest-1': [mine] },
+      resetEpoch: 3,
+    },
+    { roomSuffix: 'ROOM01' },
+  )
+
+  assert.deepEqual(store.myDraftPicks, [mine])
+  assert.equal(store.roomResetEpoch, 3)
+})
+
+test('applyPublicPayload: legacy blob with no epoch joins a cleared room and drops picks', () => {
+  // Pre-epoch persisted blob: picks survive but no resetEpoch/resetEpochRoom keys exist.
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.myDraftPicks = [pick('legacy', 'Last Week')]
+  store.setMyParticipantId('guest-1')
+  assert.equal(store.resetEpoch, 0)
+  assert.equal(store.resetEpochRoom, null)
+
+  store.applyPublicPayload(
+    {
+      phase: 'suggest',
+      participants: [{ id: 'guest-1', ready: false, pickCount: 0 }],
+      ballotMovies: null,
+      ballotOrderIds: null,
+      voteProgress: null,
+      electionOutcome: null,
+      uniqueSuggestedMovieCount: 0,
+      votingMethod: 'irv',
+      suggestPicksByParticipant: { __host__: [], 'guest-1': [] },
+      resetEpoch: 2,
+    },
+    { roomSuffix: 'ROOM01' },
+  )
+
+  assert.deepEqual(store.myDraftPicks, [])
+  assert.equal(store.resetEpoch, 2)
+  assert.equal(store.resetEpochRoom, 'ROOM01')
+})
+
+test('applyPublicPayload: unbound legacy picks drop even when the room is at epoch 0', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.myDraftPicks = [pick('legacy0', 'Never Nominated Here')]
+  store.setMyParticipantId('guest-1')
+  assert.equal(store.resetEpochRoom, null)
+
+  store.applyPublicPayload(
+    {
+      phase: 'suggest',
+      participants: [{ id: 'guest-1', ready: false, pickCount: 0 }],
+      ballotMovies: null,
+      ballotOrderIds: null,
+      voteProgress: null,
+      electionOutcome: null,
+      uniqueSuggestedMovieCount: 0,
+      votingMethod: 'irv',
+      suggestPicksByParticipant: { __host__: [], 'guest-1': [] },
+      resetEpoch: 0,
+    },
+    { roomSuffix: 'ROOM01' },
+  )
+
+  assert.deepEqual(store.myDraftPicks, [], 'unbound picks cannot belong to this room')
+  assert.equal(store.resetEpochRoom, 'ROOM01')
+})
+
+test('applyPublicPayload: picks bound to another room never leak into a new room', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.myDraftPicks = [pick('room-a', 'Room A Film')]
+  store.setMyParticipantId('guest-1')
+  store.resetEpoch = 2
+  store.resetEpochRoom = 'ROOMA1'
+  store.roomResetEpoch = 2
+
+  store.applyPublicPayload(
+    {
+      phase: 'suggest',
+      participants: [{ id: 'guest-1', ready: false, pickCount: 0 }],
+      ballotMovies: null,
+      ballotOrderIds: null,
+      voteProgress: null,
+      electionOutcome: null,
+      uniqueSuggestedMovieCount: 0,
+      votingMethod: 'irv',
+      suggestPicksByParticipant: { __host__: [], 'guest-1': [] },
+      resetEpoch: 2,
+    },
+    { roomSuffix: 'ROOMB2' },
+  )
+
+  assert.deepEqual(store.myDraftPicks, [], 'epoch match must not carry picks across rooms')
+  assert.equal(store.resetEpochRoom, 'ROOMB2')
 })

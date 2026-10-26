@@ -97,5 +97,6 @@ export function buildMovieVotePublicPayload(store, guestDrafts) {
     uniqueSuggestedMovieCount: suggest ? distinctSuggestedMovieCountFromPicks(allPicks) : 0,
     votingMethod: normalizeVotingMethod(store.votingMethod),
     suggestPicksByParticipant,
+    resetEpoch: typeof store.resetEpoch === 'number' ? store.resetEpoch : 0,
   }
 }

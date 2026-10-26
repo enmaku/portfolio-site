@@ -158,13 +158,24 @@ const INSTALLABLE_ROUTE_PATHS = [
 /** PNG icon sizes required for installable apps. */
 export const APP_ICON_SIZES = [192, 512]
 
-/** Install UI chrome color for every app. */
-export const APP_THEME_COLOR = '#121212'
+/**
+ * Launcher icon fill per app, keyed by icon id. Doubles as the manifest's
+ * `theme_color` / `background_color` so the install splash matches the icon.
+ * Every value holds a white glyph at 4.5:1 or better.
+ */
+export const APP_ICON_COLORS = {
+  timer: '#0e7d74',
+  movie: '#0E3FA9',
+  shield: '#a65a08',
+  meeple: '#14801a',
+  schedule: '#c91818',
+}
 
 /**
  * @typedef {object} InstallableApp
  * @property {string} routePath    Router path of the app.
  * @property {string} iconId       Favicon id shared by the route and the PNG app icons.
+ * @property {string} iconColor    Launcher icon fill; also the manifest theme/background color.
  * @property {string} name         Manifest `name`.
  * @property {string} shortName    Manifest `short_name`.
  * @property {string} description  Manifest `description`.
@@ -185,9 +196,12 @@ export const INSTALLABLE_APPS = INSTALLABLE_ROUTE_PATHS.map((routePath) => {
   const entry = shareEntryByPath.get(routePath)
   if (!entry) throw new Error(`installable app missing catalog row: ${routePath}`)
   const slug = routePath.replace(/^\/+/, '')
+  const iconColor = APP_ICON_COLORS[entry.favicon]
+  if (!iconColor) throw new Error(`installable app missing launcher color: ${entry.favicon}`)
   return {
     routePath,
     iconId: entry.favicon,
+    iconColor,
     name: entry.title,
     shortName: entry.title,
     description: entry.description,
