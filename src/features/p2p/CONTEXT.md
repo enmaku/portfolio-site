@@ -86,6 +86,10 @@ Product-specific RTDB namespace (`gameTimerRooms/`, `movieVoteRooms/`) so **room
 
 Canonical `/projects/…` URL carrying a `room` query parameter whose value is the **room suffix** guests paste after hosts share it.
 
+### Room join QR code
+
+Scannable rendering of the **join link** shown beneath the **room code** row in the hosting UI so a phone can join without typing. Host-facing only—guests already in the **room** get no code of their own. The code is always dark modules on a light field, never inverted for dark theme.
+
 ### Hub (host)
 
 Star-topology center for a **room**—the same collaborator role as **host**; **guest** browsers attach to the **host**’s RTDB subtree.

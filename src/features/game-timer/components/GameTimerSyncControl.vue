@@ -99,6 +99,7 @@
                   @click="copyRoomUrl"
                 />
               </div>
+              <RoomJoinQr :url="roomShareUrl" :room-code="suffix ?? ''" />
               <q-btn
                 outline
                 no-caps
@@ -164,6 +165,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useGameTimerP2P } from '../composables/useGameTimerP2P.js'
 import { buildGameTimerRoomShareUrl, normalizeRoomSuffixInput } from '../p2p/roomId.js'
+import RoomJoinQr from '../../p2p/components/RoomJoinQr.vue'
 import { useGameManagerTimerLinkStore } from '../../../stores/gameManagerTimerLink.js'
 
 const $q = useQuasar()
@@ -184,6 +186,11 @@ const joinOpen = ref(false)
 const joinCodeInput = ref('')
 
 const isBusy = computed(() => phase.value === 'connecting' || phase.value === 'reconnecting')
+
+/** Join link for the current room; also encoded into the hosting QR code. */
+const roomShareUrl = computed(() =>
+  suffix.value ? buildGameTimerRoomShareUrl(suffix.value) : '',
+)
 
 const guestSyncOk = computed(
   () => remoteHostPresent.value && remoteHostTabVisible.value,
@@ -304,8 +311,8 @@ function copyCode() {
 }
 
 function copyRoomUrl() {
-  if (!suffix.value) return
-  const url = buildGameTimerRoomShareUrl(suffix.value)
+  if (!roomShareUrl.value) return
+  const url = roomShareUrl.value
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(url).then(() => {
       $q.notify({

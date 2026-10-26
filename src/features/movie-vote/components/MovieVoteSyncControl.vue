@@ -95,6 +95,7 @@
                   @click.stop="copyRoomUrl"
                 />
               </div>
+              <RoomJoinQr :url="roomShareUrl" :room-code="suffix ?? ''" />
 
               <q-btn
                 outline
@@ -203,6 +204,7 @@ import { useQuasar } from 'quasar'
 import { useMovieVoteP2P } from '../composables/useMovieVoteP2P.js'
 import { buildMovieVoteRoomShareUrl, normalizeRoomSuffixInput } from '../p2p/roomId.js'
 import { normalizeParticipantName } from '../participantName.js'
+import RoomJoinQr from '../../p2p/components/RoomJoinQr.vue'
 import MovieVoteHostSessionPanel from './MovieVoteHostSessionPanel.vue'
 
 const $q = useQuasar()
@@ -223,6 +225,11 @@ const joinCodeInput = ref('')
 const nameInput = ref('')
 
 const isBusy = computed(() => phase.value === 'connecting' || phase.value === 'reconnecting')
+
+/** Join link for the current room; also encoded into the hosting QR code. */
+const roomShareUrl = computed(() =>
+  suffix.value ? buildMovieVoteRoomShareUrl(suffix.value) : '',
+)
 
 const syncIcon = computed(() => {
   if (phase.value === 'guest_connected') return 'check_circle'
@@ -339,8 +346,8 @@ function copyCode() {
 }
 
 function copyRoomUrl() {
-  if (!suffix.value) return
-  const url = buildMovieVoteRoomShareUrl(suffix.value)
+  if (!roomShareUrl.value) return
+  const url = roomShareUrl.value
   navigator.clipboard?.writeText(url).then(() => {
     $q.notify({ type: 'positive', message: 'Room link copied', timeout: 1500, position: 'top' })
   })
