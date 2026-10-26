@@ -124,15 +124,15 @@ _Avoid_: “Share key” as a second name developers must keep in sync with path
 
 What a user sees in a preview card when someone pastes a URL: title, short description, and preview image tied to one **shareable route**.
 
-### Hash route
+### App route
 
-The in-application URL form (`#/…`) used by the SPA router for **projects** and most navigation.
+The path form (`/projects/game-timer`) used by the SPA router for **projects** and all navigation. History mode means the path is also the document URL.
 
-### Canonical non-hash URL
+### Legacy hash URL
 
-The path without `#` for a **shareable route**; crawlers read static HTML with preview tags, then the browser is sent to the matching **hash route** (query string preserved for join links).
+The retired `#/…` URL form. Old bookmarks and join links are rewritten to the equivalent **app route** on boot, preserving the query string for join links.
 
-_Avoid_: Maintaining a second ad hoc list of which paths trampoline—the same **paste-unfurl eligible** set drives static preview HTML and runtime redirect.
+_Avoid_: Emitting `#/` links in new code — nothing generates them anymore.
 
 ### Résumé data
 
@@ -192,15 +192,15 @@ _Avoid_: Assuming in-tab meta tag updates alone fix every preview provider.
 - **Projects drawer sections** organize how **projects** appear in navigation without changing their public routes.
 - Each **paste-unfurl eligible** path is a **shareable route** with exactly one **shared link summary**; **paste unfurl** surfaces those fields to link previews.
 - The **share metadata catalog** is the authority for **shared link summary** fields and **route document chrome** on **shareable routes**; router paths align with catalog paths rather than parallel ids.
-- **Paste-unfurl eligible** paths (except home) share one canonical→**hash route** mapping for runtime redirect and static preview HTML.
+- **Paste-unfurl eligible** paths (except home) get static preview HTML at build time; the browser loads that URL directly because it is already the **app route**.
 - **Public site origin** anchors absolute preview metadata and default join URLs when the runtime location is unknown.
 - User-facing navigation labels **projects** consistently with public routes (`/projects/…`).
 - **Focus Disorder** scopes how the deployed site introduces itself externally; **David J. Perry** remains the authored-by line.
 
 ## Example dialogue
 
-> **Dev:** “If marketing pastes `/projects/game-timer` without `#`, how do observers still land in the SPA?”  
-> **Domain owner:** “We treat that **canonical non-hash URL** as a trampoline into the matching **hash route**; previews use the **shareable route** metadata for the summary card.”
+> **Dev:** “If marketing pastes `/projects/game-timer`, how do observers still land in the SPA?”  
+> **Domain owner:** “That path is the **app route** and a real generated page, so the browser boots straight into it; previews use the **shareable route** metadata for the summary card. Only retired `#/…` links need rewriting.”
 
 > **Dev:** “Should the masthead say **Focus Disorder**?”  
 > **Domain owner:** “No — toolbar stays **David J. Perry**; **Focus Disorder** is primarily for previews and positioning of the deployed **site**. They’re deliberately split.”

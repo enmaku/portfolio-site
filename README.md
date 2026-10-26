@@ -7,7 +7,7 @@ Personal site for **David J. Perry**, deployed as [Focus Disorder](https://focus
 | Layer | Choice |
 | --- | --- |
 | UI | Vue 3, Quasar 2, Pinia |
-| Routing | Vue Router (hash mode — static hosting friendly) |
+| Routing | Vue Router (history mode — per-app install scopes on static hosting) |
 | Realtime | Firebase Realtime Database (RTDB) |
 | ML (Dungeon Runner) | TensorFlow.js |
 | Map viewport (World Builder) | PixiJS 8, pixi-viewport (lazy-loaded on route) |
@@ -21,7 +21,7 @@ npm install
 quasar dev
 ```
 
-Open the dev server URL Quasar prints (typically `http://localhost:9000`). Routes use hash mode (`/#/`, `/#/about`, `/#/projects/...`).
+Open the dev server URL Quasar prints (typically `http://localhost:9000`). Routes use history mode (`/`, `/about`, `/projects/...`). Retired `#/…` links are rewritten on boot.
 
 ### Environment variables
 
@@ -51,7 +51,7 @@ Restart `quasar dev` after changing `.env`.
 
 **Projects** open in a dedicated shell without the portfolio masthead. Join links use `?room=<code>` on multiplayer project paths (Game Timer, Movie Vote).
 
-Static portfolio pages and projects share one SPA. Hash routing keeps deployment simple on GitHub Pages; shareable routes get crawler-readable HTML at build time (see [ADR 0001](docs/adr/0001-hash-spa-with-static-link-previews.md)).
+Static portfolio pages and projects share one SPA. History routing gives each app its own path and a narrow install scope, while shareable routes still get crawler-readable HTML at build time (see [ADR 0001](docs/adr/0001-history-spa-with-static-link-previews.md)).
 
 ## Navigating the codebase
 
@@ -209,4 +209,4 @@ npm run test:world-builder
 
 ## Quasar configuration
 
-See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js). Notable local choices: hash router mode, `publicPath` from `GH_PAGES_BASE` for CI.
+See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js). Notable local choices: history router mode, `publicPath` from `GH_PAGES_BASE` for CI.

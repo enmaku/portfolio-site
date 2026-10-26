@@ -144,7 +144,7 @@ test('installable apps are the mobile nav routes with distinct identities', () =
   assert.equal(new Set(ids).size, ids.length)
   for (const app of INSTALLABLE_APPS) {
     const slug = app.routePath.replace(/^\/+/, '')
-    assert.equal(app.manifestId, `${slug}/`)
+    assert.equal(app.manifestId, `../${slug}/`)
     assert.equal(app.startUrl, `../${slug}/`)
     assert.equal(app.scope, `../${slug}/`)
     assert.equal(app.startUrl.includes('#'), false)
@@ -178,6 +178,14 @@ test('installable app manifest hrefs point at shipped public manifests', async (
       manifest.icons.map((icon) => icon.sizes),
       APP_ICON_SIZES.map((size) => `${size}x${size}`),
     )
+
+    // Every manifest URL resolves against the manifest itself, so `id` must
+    // land on the app root too — a mismatch reads as a broken app identity.
+    const manifestUrl = `https://example.test/manifests/${app.iconId}.webmanifest`
+    const appRoot = new URL(`/projects/${app.routePath.split('/').pop()}/`, manifestUrl).pathname
+    for (const key of /** @type {const} */ (['id', 'start_url', 'scope'])) {
+      assert.equal(new URL(manifest[key], manifestUrl).pathname, appRoot, `${key} must resolve to ${appRoot}`)
+    }
   }
 })
 

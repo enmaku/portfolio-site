@@ -10,7 +10,7 @@ Single-package Vue 3 / Quasar 2 SPA (`portfolio-site`). No custom backend — Fi
 
 | Service | Command | URL | Notes |
 | --- | --- | --- | --- |
-| Dev server (required) | `npx quasar dev` or `npm run dev` | `http://localhost:9000/#/` | **Use the hash URL** (`/#/`, `/#/about`, …). Router is hash mode; opening bare `http://localhost:9000/` can show a blank page in the Desktop browser. |
+| Dev server (required) | `npx quasar dev` or `npm run dev` | `http://localhost:9000/` | Router is history mode, so paths are plain (`/`, `/about`, `/projects/game-timer`). Vite's dev server resolves them without extra config. |
 | Dev (slow FS / VMs) | `npm run dev:poll` | same | Enables Chokidar polling; equivalent to `quasar dev` with `CHOKIDAR_USEPOLLING=1`. |
 
 Only the Quasar dev server is required for gallery/about and most local dev. Firebase and TMDB env vars are optional unless testing those features (see `.env.example`).

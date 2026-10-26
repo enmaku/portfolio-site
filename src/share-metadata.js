@@ -181,7 +181,7 @@ export const INSTALLABLE_APPS = INSTALLABLE_ROUTE_PATHS.map((routePath) => {
     name: entry.title,
     shortName: entry.title,
     description: entry.description,
-    manifestId: `${slug}/`,
+    manifestId: `../${slug}/`,
     startUrl: `../${slug}/`,
     scope: `../${slug}/`,
     manifestHref: `manifests/${entry.favicon}.webmanifest`,

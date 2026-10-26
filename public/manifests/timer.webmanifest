@@ -1,5 +1,5 @@
 {
-  "id": "projects/game-timer/",
+  "id": "../projects/game-timer/",
   "name": "Game Timer",
   "short_name": "Game Timer",
   "description": "Shared multiplayer countdown timers for tabletop games. Host a room, share the code, keep everyone in sync.",

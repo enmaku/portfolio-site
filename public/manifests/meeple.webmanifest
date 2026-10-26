@@ -1,5 +1,5 @@
 {
-  "id": "projects/game-manager/",
+  "id": "../projects/game-manager/",
   "name": "Game Manager",
   "short_name": "Game Manager",
   "description": "Track your board game collection, table companions, play sessions, and personal records.",

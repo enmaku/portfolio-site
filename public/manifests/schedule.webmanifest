@@ -1,5 +1,5 @@
 {
-  "id": "projects/time-tracker/",
+  "id": "../projects/time-tracker/",
   "name": "Time Tracker",
   "short_name": "Time Tracker",
   "description": "Track time against named projects, optionally group work under clients, and issue simple invoices.",
