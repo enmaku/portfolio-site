@@ -1,10 +1,10 @@
 {
-  "id": "/projects/game-timer/",
+  "id": "projects/game-timer/",
   "name": "Game Timer",
   "short_name": "Game Timer",
   "description": "Shared multiplayer countdown timers for tabletop games. Host a room, share the code, keep everyone in sync.",
   "start_url": "../projects/game-timer/",
-  "scope": "../",
+  "scope": "../projects/game-timer/",
   "display": "standalone",
   "theme_color": "#121212",
   "background_color": "#121212",

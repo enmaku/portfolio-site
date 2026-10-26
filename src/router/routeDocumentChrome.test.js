@@ -142,7 +142,7 @@ test('applyRouteDocumentChrome applies home catalog row', () => {
   applyRouteDocumentChrome({ path: '/' })
 
   assert.equal(document.title, entry.title)
-  assert.equal(favicon.href, `icons/favicon-${entry.favicon}.svg`)
+  assert.equal(favicon.href, `/icons/favicon-${entry.favicon}.svg`)
 })
 
 test('applyRouteDocumentChrome sets catalog title and favicon for known paths', () => {
@@ -153,7 +153,7 @@ test('applyRouteDocumentChrome sets catalog title and favicon for known paths', 
   applyRouteDocumentChrome({ path: '/about' })
 
   assert.equal(document.title, entry.title)
-  assert.equal(favicon.href, `icons/favicon-${entry.favicon}.svg`)
+  assert.equal(favicon.href, `/icons/favicon-${entry.favicon}.svg`)
 })
 
 test('applyRouteDocumentChrome syncs OG tags for catalog paths', () => {
@@ -164,7 +164,11 @@ test('applyRouteDocumentChrome syncs OG tags for catalog paths', () => {
   applyRouteDocumentChrome({ path: '/projects/game-timer' })
 
   assert.equal(metas.get('property:og:title')?.content, entry.title)
-  assert.equal(metas.get('name:twitter:image')?.content, entry.ogImage)
+  assert.equal(metas.get('name:twitter:image')?.content, `https://example.test/${entry.ogImage}`)
+  assert.equal(
+    metas.get('property:og:url')?.content,
+    'https://example.test/projects/game-timer',
+  )
 })
 
 test('applyRouteDocumentChrome uses site defaults for unknown paths', () => {
@@ -174,7 +178,7 @@ test('applyRouteDocumentChrome uses site defaults for unknown paths', () => {
   applyRouteDocumentChrome({ path: '/does-not-exist' })
 
   assert.equal(document.title, portfolioDocumentTitle)
-  assert.equal(favicon.href, 'icons/favicon-default.svg')
+  assert.equal(favicon.href, '/icons/favicon-default.svg')
   assert.equal(metas.get('property:og:title')?.content, ogTitleBefore)
 })
 
@@ -186,8 +190,8 @@ test('applyRouteDocumentChrome points the manifest link at the active app', () =
 
     const manifest = head.children.find((el) => el.id === 'portfolio-manifest')
     const appleIcon = head.children.find((el) => el.id === 'portfolio-apple-touch-icon')
-    assert.equal(manifest?.href, app.manifestHref)
-    assert.equal(appleIcon?.href, `icons/apps/${app.iconId}-192.png`)
+    assert.equal(manifest?.href, `/${app.manifestHref}`)
+    assert.equal(appleIcon?.href, `/icons/apps/${app.iconId}-192.png`)
   }
 
   const manifestIds = head.children

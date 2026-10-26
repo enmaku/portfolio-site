@@ -1,10 +1,10 @@
 {
-  "id": "/projects/dungeon-runner/",
+  "id": "projects/dungeon-runner/",
   "name": "Dungeon Runner",
   "short_name": "Dungeon Runner",
   "description": "Play Welcome to the Dungeon against configurable AI opponents with deterministic browser-only simulation.",
   "start_url": "../projects/dungeon-runner/",
-  "scope": "../",
+  "scope": "../projects/dungeon-runner/",
   "display": "standalone",
   "theme_color": "#121212",
   "background_color": "#121212",

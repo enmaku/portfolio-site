@@ -143,9 +143,23 @@ test('installable apps are the mobile nav routes with distinct identities', () =
   const ids = INSTALLABLE_APPS.map((app) => app.manifestId)
   assert.equal(new Set(ids).size, ids.length)
   for (const app of INSTALLABLE_APPS) {
-    assert.equal(app.manifestId, `${app.routePath}/`)
+    const slug = app.routePath.replace(/^\/+/, '')
+    assert.equal(app.manifestId, `${slug}/`)
+    assert.equal(app.startUrl, `../${slug}/`)
+    assert.equal(app.scope, `../${slug}/`)
     assert.equal(app.startUrl.includes('#'), false)
-    assert.equal(app.startUrl.includes('/#/'), false)
+  }
+})
+
+test('installable app scopes are path-scoped and mutually non-overlapping', () => {
+  const roots = INSTALLABLE_APPS.map((app) => new URL(app.scope, `https://example.com/manifests/x`).pathname)
+  for (const [index, root] of roots.entries()) {
+    assert.equal(root.endsWith('/'), true, root)
+    assert.notEqual(root, '/', 'a site-wide scope blocks installing the other apps')
+    for (const [otherIndex, other] of roots.entries()) {
+      if (otherIndex === index) continue
+      assert.equal(other.startsWith(root), false, `${root} claims ${other}`)
+    }
   }
 })
 
@@ -158,6 +172,7 @@ test('installable app manifest hrefs point at shipped public manifests', async (
     assert.equal(manifest.id, app.manifestId)
     assert.equal(manifest.name, app.name)
     assert.equal(manifest.start_url, app.startUrl)
+    assert.equal(manifest.scope, app.scope)
     assert.equal(manifest.display, 'standalone')
     assert.deepEqual(
       manifest.icons.map((icon) => icon.sizes),

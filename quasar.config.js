@@ -41,7 +41,7 @@ export default defineConfig((/* ctx */) => {
         node: 'node22',
       },
 
-      vueRouterMode: 'hash', // history mode needs server rewrites; hash works on static hosts like GitHub Pages
+      vueRouterMode: 'history', // GitHub Pages serves 404.html as the SPA fallback for dynamic routes
       publicPath: pagesBase,
       vueRouterBase: pagesBase,
       // vueDevtools,

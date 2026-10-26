@@ -40,30 +40,14 @@ function setTitle(html, title) {
   return html.replace('</head>', `    ${next}\n  </head>`)
 }
 
-/** @param {string} value */
-function escapeJs(value) {
-  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
-}
-
-/**
- * Relative prefix from a generated page back to the site base.
- * Pages live at `<base><shareSlug>/index.html`, so depth is the slug segment count.
- * @param {string} shareSlug
- * @returns {string}
- */
-function basePrefix(shareSlug) {
-  const depth = shareSlug.split('/').filter(Boolean).length
-  return depth === 0 ? '' : '../'.repeat(depth)
-}
-
 /**
  * @param {string} html
  * @param {import('../../share-metadata.js').InstallableApp} app
- * @param {string} prefix
+ * @param {string} pagesBase
  */
-function applyInstallTags(html, app, prefix) {
-  const href = `${prefix}${app.manifestHref}`
-  const appleTouchIcon = `${prefix}${appIconPath(app.iconId, 192)}`
+function applyInstallTags(html, app, pagesBase) {
+  const href = `${pagesBase}${app.manifestHref}`
+  const appleTouchIcon = `${pagesBase}${appIconPath(app.iconId, 192)}`
   const tags = [
     `<link id="portfolio-manifest" rel="manifest" href="${escapeAttr(href)}" />`,
     `<link id="portfolio-apple-touch-icon" rel="apple-touch-icon" href="${escapeAttr(appleTouchIcon)}" />`,
@@ -83,7 +67,6 @@ export function buildShareHtml(html, entry, options) {
   const absoluteUrl = (relPath) => `${options.siteOrigin}${options.pagesBase}${String(relPath).replace(/^\/+/, '')}`
   const shareUrl = absoluteUrl(entry.shareSlug)
   const ogImageUrl = absoluteUrl(entry.ogImage)
-  const hashTarget = entry.routePath === '/' ? `${options.pagesBase}#/` : `${options.pagesBase}#${entry.routePath}`
 
   let output = html
   output = setTitle(output, entry.title)
@@ -100,8 +83,7 @@ export function buildShareHtml(html, entry, options) {
   output = output.replace('</head>', `    <link rel="canonical" href="${escapeAttr(shareUrl)}" />\n  </head>`)
 
   const app = getInstallableAppForPath(entry.routePath)
-  if (app) output = applyInstallTags(output, app, basePrefix(entry.shareSlug))
+  if (app) output = applyInstallTags(output, app, options.pagesBase)
 
-  const redirectTag = `<script>(function(){if(window.location.hash)return;var target='${escapeJs(hashTarget)}';var qs=new URLSearchParams(window.location.search);if(qs.toString()){target=target+'?'+qs.toString();}window.location.replace(target);})();</script>`
-  return output.replace(/<body(\s[^>]*)?>/i, (match) => `${match}\n    ${redirectTag}`)
+  return output
 }

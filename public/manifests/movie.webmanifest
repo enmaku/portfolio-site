@@ -1,10 +1,10 @@
 {
-  "id": "/projects/movie-vote/",
+  "id": "projects/movie-vote/",
   "name": "Movie Vote",
   "short_name": "Movie Vote",
   "description": "Collaboratively pick a movie with friends. Nominate titles, rank your favorites, and let instant-runoff voting decide.",
   "start_url": "../projects/movie-vote/",
-  "scope": "../",
+  "scope": "../projects/movie-vote/",
   "display": "standalone",
   "theme_color": "#121212",
   "background_color": "#121212",

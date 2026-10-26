@@ -2,24 +2,15 @@
  * Vue Router factory (Quasar wrapper). History mode follows `VUE_ROUTER_MODE` / SSR env.
  */
 import { defineRouter } from '#q-app/wrappers'
-import {
-  createRouter,
-  createMemoryHistory,
-  createWebHistory,
-  createWebHashHistory,
-} from 'vue-router'
+import { createRouter, createMemoryHistory, createWebHistory } from 'vue-router'
 import routes from './routes'
 import { applyRouteDocumentChrome } from './routeDocumentChrome.js'
-import { redirectCanonicalPathToHashRoute } from '../features/share/canonicalHashRedirect.js'
+import { migrateHashUrl } from '../features/share/legacyHashRedirect.js'
 
 export default defineRouter(function (/* { store, ssrContext } */) {
-  redirectCanonicalPathToHashRoute()
+  migrateHashUrl()
 
-  const createHistory = process.env.SERVER
-    ? createMemoryHistory
-    : process.env.VUE_ROUTER_MODE === 'history'
-      ? createWebHistory
-      : createWebHashHistory
+  const createHistory = process.env.SERVER ? createMemoryHistory : createWebHistory
 
   const Router = createRouter({
     scrollBehavior: () => ({ left: 0, top: 0 }),

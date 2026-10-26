@@ -1,15 +1,14 @@
 /**
  * Emit per-route HTML entry points into `dist/spa/` so link-preview crawlers
- * see route-specific <title>, description, and Open Graph tags even though
- * the app itself is a hash-routed SPA.
+ * see route-specific <title>, description, and Open Graph tags in history mode.
  *
- * Each generated page:
- *   1. Ships the correct meta tags for that route.
- *   2. Includes an inline redirect that sends real browsers to the equivalent
- *      hash URL so the SPA router takes over.
+ * Each generated page ships the correct meta tags for that route and is served
+ * as a real 200 OK by GitHub Pages, so the SPA router boots straight into it.
+ * A copy of the app shell is also written to `404.html`, which GitHub Pages
+ * serves for routes that cannot be pre-generated (dynamic params, unknown paths).
  *
- * Uses `GH_PAGES_BASE` (same env the Quasar build reads) so OG URLs and the
- * redirect target respect the GitHub Pages project base path. Uses
+ * Uses `GH_PAGES_BASE` (same env the Quasar build reads) so OG URLs and asset
+ * links respect the GitHub Pages project base path. Uses
  * `SITE_ORIGIN` (CI sets the live domain; local default is `PUBLIC_SITE_ORIGIN`) to build absolute OG
  * URLs, since most preview crawlers require absolute URLs.
  */
@@ -64,6 +63,13 @@ async function main() {
     await fs.writeFile(outFile, buildShareHtml(baseHtml, entry, options), 'utf8')
     console.log(`generate-share-pages: wrote ${path.relative(ROOT, outFile)}`)
   }
+
+  // History mode needs a fallback for routes that cannot be pre-generated
+  // (dynamic params, unknown paths). GitHub Pages serves `404.html` for any
+  // unmatched path, so a copy of the shell lets the SPA router take over.
+  const fallbackPath = path.join(DIST, '404.html')
+  await fs.writeFile(fallbackPath, rootHtml, 'utf8')
+  console.log(`generate-share-pages: wrote ${path.relative(ROOT, fallbackPath)}`)
 
   console.log(
     `generate-share-pages: site origin ${SITE_ORIGIN}, pages base ${PAGES_BASE}`,

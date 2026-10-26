@@ -160,25 +160,30 @@ export const APP_THEME_COLOR = '#121212'
  * @property {string} description  Manifest `description`.
  * @property {string} manifestId   Manifest identity; distinct per app so browsers install them separately.
  * @property {string} startUrl     Manifest `start_url`, relative to the manifest URL.
+ * @property {string} scope        Manifest `scope`, relative to the manifest URL.
  * @property {string} manifestHref Manifest path relative to the site base.
  */
 
 /**
- * App identity must be a path URL: the browser strips fragments from `start_url` when
- * deriving identity, so a `#/` URL would make every app share the site's identity.
+ * Manifest paths are relative to `manifests/`, and identity must be a path URL:
+ * the browser strips fragments from `start_url` when deriving identity, so a
+ * `#/` URL would make every app share the site's identity. Scopes must not
+ * overlap, or an installed app claims the other apps' pages and blocks install.
  * @type {InstallableApp[]}
  */
 export const INSTALLABLE_APPS = INSTALLABLE_ROUTE_PATHS.map((routePath) => {
   const entry = shareEntryByPath.get(routePath)
   if (!entry) throw new Error(`installable app missing catalog row: ${routePath}`)
+  const slug = routePath.replace(/^\/+/, '')
   return {
     routePath,
     iconId: entry.favicon,
     name: entry.title,
     shortName: entry.title,
     description: entry.description,
-    manifestId: `${routePath}/`,
-    startUrl: `../${routePath.replace(/^\/+/, '')}/`,
+    manifestId: `${slug}/`,
+    startUrl: `../${slug}/`,
+    scope: `../${slug}/`,
     manifestHref: `manifests/${entry.favicon}.webmanifest`,
   }
 })

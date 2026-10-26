@@ -1,10 +1,10 @@
 {
-  "id": "/projects/time-tracker/",
+  "id": "projects/time-tracker/",
   "name": "Time Tracker",
   "short_name": "Time Tracker",
   "description": "Track time against named projects, optionally group work under clients, and issue simple invoices.",
   "start_url": "../projects/time-tracker/",
-  "scope": "../",
+  "scope": "../projects/time-tracker/",
   "display": "standalone",
   "theme_color": "#121212",
   "background_color": "#121212",

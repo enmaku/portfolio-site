@@ -9,6 +9,14 @@ import { portfolioDocumentTitle } from './routes.js'
 
 const faviconIdSet = new Set(FAVICON_IDS)
 
+/** Site base path (`publicPath`), so head links resolve from any route depth. */
+const BASE_PATH = import.meta.env?.BASE_URL ?? '/'
+
+/** @param {string} relPath Path relative to the site base. @returns {string} */
+function baseUrl(relPath) {
+  return `${BASE_PATH.replace(/\/+$/, '/')}${relPath.replace(/^\/+/, '')}`
+}
+
 /**
  * @param {string | undefined} raw
  * @returns {string}
@@ -23,7 +31,7 @@ export function resolveRouteFaviconId(raw) {
 function applyFavicon(faviconId) {
   if (typeof document === 'undefined') return
   const id = resolveRouteFaviconId(faviconId)
-  const href = `icons/favicon-${id}.svg`
+  const href = baseUrl(`icons/favicon-${id}.svg`)
   const el = document.getElementById('portfolio-favicon')
   if (el?.getAttribute?.('href') !== href) {
     el?.setAttribute?.('href', href)
@@ -31,8 +39,8 @@ function applyFavicon(faviconId) {
 }
 
 /**
- * The document URL stays at the site root during hash navigation, so the
- * manifest link has to follow the active route rather than the initial page.
+ * Manifest and icon links are relative to the site base, but history-mode
+ * routes have their own path depth, so resolve them against `publicPath`.
  * @param {import('../share-metadata.js').InstallableApp | null} app
  */
 function applyInstallChrome(app) {
@@ -44,12 +52,13 @@ function applyInstallChrome(app) {
     return
   }
 
+  const manifestHref = baseUrl(app.manifestHref)
   const manifestEl = ensureLink('portfolio-manifest', 'manifest', head)
-  if (manifestEl?.getAttribute?.('href') !== app.manifestHref) {
-    manifestEl?.setAttribute?.('href', app.manifestHref)
+  if (manifestEl?.getAttribute?.('href') !== manifestHref) {
+    manifestEl?.setAttribute?.('href', manifestHref)
   }
 
-  const iconHref = appIconPath(app.iconId, 192)
+  const iconHref = baseUrl(appIconPath(app.iconId, 192))
   const appleIconEl = ensureLink('portfolio-apple-touch-icon', 'apple-touch-icon', head)
   if (appleIconEl?.getAttribute?.('href') !== iconHref) {
     appleIconEl?.setAttribute?.('href', iconHref)
@@ -77,17 +86,18 @@ function ensureLink(id, rel, head) {
  */
 function applySharePreviewTags(entry) {
   if (typeof document === 'undefined' || !entry.pasteUnfurl) return
-  const canonicalUrl = `${window.location.origin}${entry.routePath}`
+  const canonicalUrl = `${window.location.origin}${baseUrl(entry.routePath.replace(/^\/+/, ''))}`
+  const ogImageUrl = `${window.location.origin}${baseUrl(entry.ogImage)}`
 
   setMetaContent('name', 'description', entry.description)
   setMetaContent('property', 'og:site_name', SHARE_SITE_NAME)
   setMetaContent('property', 'og:title', entry.title)
   setMetaContent('property', 'og:description', entry.description)
-  setMetaContent('property', 'og:image', entry.ogImage)
+  setMetaContent('property', 'og:image', ogImageUrl)
   setMetaContent('property', 'og:url', canonicalUrl)
   setMetaContent('name', 'twitter:title', entry.title)
   setMetaContent('name', 'twitter:description', entry.description)
-  setMetaContent('name', 'twitter:image', entry.ogImage)
+  setMetaContent('name', 'twitter:image', ogImageUrl)
   setCanonicalHref(canonicalUrl)
 }
 
