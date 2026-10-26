@@ -113,11 +113,34 @@
           </template>
 
           <template v-else-if="phase === 'guest_connected'">
-            <div class="column q-gutter-md">
+            <div class="column gt-sync-menu__guest-block">
               <div class="column q-gutter-sm">
                 <span class="text-body2 text-grey-6">Room</span>
-                <code class="gt-sync-menu__code gt-sync-menu__code-display">{{ suffix }}</code>
+                <div class="row items-center no-wrap q-gutter-x-sm">
+                  <code class="gt-sync-menu__code gt-sync-menu__code-display col">{{ suffix }}</code>
+                  <q-btn
+                    flat
+                    round
+                    icon="content_copy"
+                    size="md"
+                    color="grey-6"
+                    class="gt-sync-menu__copy-btn"
+                    aria-label="Copy room code"
+                    @click="copyCode"
+                  />
+                  <q-btn
+                    flat
+                    round
+                    icon="link"
+                    size="md"
+                    color="grey-6"
+                    class="gt-sync-menu__copy-btn"
+                    aria-label="Copy room link"
+                    @click="copyRoomUrl"
+                  />
+                </div>
               </div>
+              <RoomJoinQr :url="roomShareUrl" :room-code="suffix ?? ''" />
               <div v-if="guestSyncOk" class="text-body2 text-positive">In sync</div>
               <div v-else-if="!remoteHostPresent" class="text-body2 text-warning">Host tab offline — waiting</div>
               <div v-else class="text-body2 text-warning">Host tab in background</div>
@@ -384,7 +407,8 @@ function onLeave() {
   margin-top: 4px;
 }
 
-.gt-sync-menu-shell .gt-sync-menu__hosting-block {
+.gt-sync-menu-shell .gt-sync-menu__hosting-block,
+.gt-sync-menu-shell .gt-sync-menu__guest-block {
   display: flex;
   flex-direction: column;
   gap: 20px;

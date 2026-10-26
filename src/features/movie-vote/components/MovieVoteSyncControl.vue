@@ -112,11 +112,32 @@
           </template>
 
           <template v-else-if="phase === 'guest_connected'">
-            <div class="column q-gutter-md">
+            <div class="column mv-sync-menu__guest-block">
               <div class="column q-gutter-sm">
                 <span class="text-body2 text-grey-6">Room</span>
-                <code class="mv-sync-menu__code mv-sync-menu__code-display">{{ suffix }}</code>
+                <div class="row items-center no-wrap q-gutter-x-sm">
+                  <code class="mv-sync-menu__code mv-sync-menu__code-display col">{{ suffix }}</code>
+                  <q-btn
+                    flat
+                    round
+                    icon="content_copy"
+                    size="md"
+                    color="grey-6"
+                    aria-label="Copy room code"
+                    @click.stop="copyCode"
+                  />
+                  <q-btn
+                    flat
+                    round
+                    icon="link"
+                    size="md"
+                    color="grey-6"
+                    aria-label="Copy room link"
+                    @click.stop="copyRoomUrl"
+                  />
+                </div>
               </div>
+              <RoomJoinQr :url="roomShareUrl" :room-code="suffix ?? ''" />
               <div v-if="remoteHostTabVisible" class="text-body2 text-positive">Connected</div>
               <div v-else class="text-body2 text-warning">Host tab in background</div>
               <q-btn
@@ -394,7 +415,8 @@ function onLeave() {
   width: min(520px, calc(100vw - 32px));
 }
 
-.mv-sync-menu-shell .mv-sync-menu__hosting-block {
+.mv-sync-menu-shell .mv-sync-menu__hosting-block,
+.mv-sync-menu-shell .mv-sync-menu__guest-block {
   display: flex;
   flex-direction: column;
   gap: 20px;

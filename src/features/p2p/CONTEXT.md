@@ -88,7 +88,7 @@ Canonical `/projects/…` URL carrying a `room` query parameter whose value is t
 
 ### Room join QR code
 
-Scannable rendering of the **join link** shown beneath the **room code** row in the hosting UI so a phone can join without typing. Host-facing only—guests already in the **room** get no code of their own. The code is always dark modules on a light field, never inverted for dark theme.
+Scannable rendering of the **join link** shown beneath the **room code** row in the **room** menu so a phone can join without typing. **Host** and **guest** both see it—a **guest** can pass the **room code** along to someone else at the table. The code is always dark modules on a light field, never inverted for dark theme.
 
 ### Hub (host)
 
