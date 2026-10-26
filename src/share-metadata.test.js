@@ -12,6 +12,7 @@ import {
   PASTE_UNFURL_ROUTES,
   SHARE_CATALOG,
   SITE_NAME,
+  getInstallableAppForPath,
   getShareEntryForPath,
 } from './share-metadata.js'
 
@@ -222,6 +223,12 @@ test('getShareEntryForPath returns catalog rows for known paths', () => {
   for (const entry of SHARE_CATALOG) {
     assert.equal(getShareEntryForPath(entry.routePath), entry)
   }
+})
+
+test('share and install lookups tolerate trailing slashes from static hosts', () => {
+  assert.equal(getShareEntryForPath('/projects/game-timer/')?.routePath, '/projects/game-timer')
+  assert.equal(getInstallableAppForPath('/projects/game-timer/')?.routePath, '/projects/game-timer')
+  assert.equal(getShareEntryForPath('/')?.routePath, '/')
 })
 
 test('router paths exclude cardpreview', () => {

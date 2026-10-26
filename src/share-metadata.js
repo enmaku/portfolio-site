@@ -121,11 +121,21 @@ export const SHARE_CATALOG = [
 const shareEntryByPath = new Map(SHARE_CATALOG.map((entry) => [entry.routePath, entry]))
 
 /**
+ * Static hosts redirect directory URLs to a trailing slash, so history-mode
+ * paths can arrive as `/projects/game-timer/`. Normalize before lookup.
+ * @param {string} path
+ * @returns {string}
+ */
+function normalizeRoutePath(path) {
+  return path.length > 1 ? path.replace(/\/+$/, '') : path
+}
+
+/**
  * @param {string} path Router path (no hash, no publicPath).
  * @returns {ShareCatalogEntry | null}
  */
 export function getShareEntryForPath(path) {
-  return shareEntryByPath.get(path) ?? null
+  return shareEntryByPath.get(normalizeRoutePath(path)) ?? null
 }
 
 /** Subfolder paste-unfurl HTML (excludes home — root `index.html` only). */
@@ -195,7 +205,7 @@ const installableAppByPath = new Map(INSTALLABLE_APPS.map((app) => [app.routePat
  * @returns {InstallableApp | null}
  */
 export function getInstallableAppForPath(path) {
-  return installableAppByPath.get(path) ?? null
+  return installableAppByPath.get(normalizeRoutePath(path)) ?? null
 }
 
 /**
