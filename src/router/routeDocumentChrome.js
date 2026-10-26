@@ -1,4 +1,10 @@
-import { FAVICON_IDS, getShareEntryForPath, SHARE_SITE_NAME } from '../share-metadata.js'
+import {
+  FAVICON_IDS,
+  appIconPath,
+  getInstallableAppForPath,
+  getShareEntryForPath,
+  SHARE_SITE_NAME,
+} from '../share-metadata.js'
 import { portfolioDocumentTitle } from './routes.js'
 
 const faviconIdSet = new Set(FAVICON_IDS)
@@ -22,6 +28,48 @@ function applyFavicon(faviconId) {
   if (el?.getAttribute?.('href') !== href) {
     el?.setAttribute?.('href', href)
   }
+}
+
+/**
+ * The document URL stays at the site root during hash navigation, so the
+ * manifest link has to follow the active route rather than the initial page.
+ * @param {import('../share-metadata.js').InstallableApp | null} app
+ */
+function applyInstallChrome(app) {
+  if (typeof document === 'undefined') return
+  const head = document.head
+  if (!app) {
+    document.getElementById('portfolio-manifest')?.remove?.()
+    document.getElementById('portfolio-apple-touch-icon')?.remove?.()
+    return
+  }
+
+  const manifestEl = ensureLink('portfolio-manifest', 'manifest', head)
+  if (manifestEl?.getAttribute?.('href') !== app.manifestHref) {
+    manifestEl?.setAttribute?.('href', app.manifestHref)
+  }
+
+  const iconHref = appIconPath(app.iconId, 192)
+  const appleIconEl = ensureLink('portfolio-apple-touch-icon', 'apple-touch-icon', head)
+  if (appleIconEl?.getAttribute?.('href') !== iconHref) {
+    appleIconEl?.setAttribute?.('href', iconHref)
+  }
+}
+
+/**
+ * @param {string} id
+ * @param {string} rel
+ * @param {HTMLElement | null} head
+ */
+function ensureLink(id, rel, head) {
+  const existing = document.getElementById(id)
+  if (existing) return existing
+  if (!head?.appendChild || typeof document.createElement !== 'function') return null
+  const el = document.createElement('link')
+  el.id = id
+  el.rel = rel
+  head.appendChild(el)
+  return el
 }
 
 /**
@@ -69,9 +117,11 @@ export function applyRouteDocumentChrome(to) {
   if (entry) {
     document.title = entry.title
     applyFavicon(entry.favicon)
+    applyInstallChrome(getInstallableAppForPath(to.path))
     applySharePreviewTags(entry)
     return
   }
   document.title = portfolioDocumentTitle
   applyFavicon('default')
+  applyInstallChrome(null)
 }

@@ -1,0 +1,25 @@
+{
+  "id": "/projects/dungeon-runner/",
+  "name": "Dungeon Runner",
+  "short_name": "Dungeon Runner",
+  "description": "Play Welcome to the Dungeon against configurable AI opponents with deterministic browser-only simulation.",
+  "start_url": "../projects/dungeon-runner/",
+  "scope": "../",
+  "display": "standalone",
+  "theme_color": "#121212",
+  "background_color": "#121212",
+  "icons": [
+    {
+      "src": "../icons/apps/shield-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "../icons/apps/shield-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

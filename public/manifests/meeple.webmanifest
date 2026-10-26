@@ -1,0 +1,25 @@
+{
+  "id": "/projects/game-manager/",
+  "name": "Game Manager",
+  "short_name": "Game Manager",
+  "description": "Track your board game collection, table companions, play sessions, and personal records.",
+  "start_url": "../projects/game-manager/",
+  "scope": "../",
+  "display": "standalone",
+  "theme_color": "#121212",
+  "background_color": "#121212",
+  "icons": [
+    {
+      "src": "../icons/apps/meeple-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "../icons/apps/meeple-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

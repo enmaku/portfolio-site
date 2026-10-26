@@ -1,0 +1,25 @@
+{
+  "id": "/projects/game-timer/",
+  "name": "Game Timer",
+  "short_name": "Game Timer",
+  "description": "Shared multiplayer countdown timers for tabletop games. Host a room, share the code, keep everyone in sync.",
+  "start_url": "../projects/game-timer/",
+  "scope": "../",
+  "display": "standalone",
+  "theme_color": "#121212",
+  "background_color": "#121212",
+  "icons": [
+    {
+      "src": "../icons/apps/timer-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "../icons/apps/timer-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

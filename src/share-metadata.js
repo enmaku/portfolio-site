@@ -135,3 +135,70 @@ export const PASTE_UNFURL_ROUTES = SHARE_CATALOG.filter(
 
 /** Unique favicon ids referenced by the catalog. */
 export const FAVICON_IDS = [...new Set(SHARE_CATALOG.map((entry) => entry.favicon))]
+
+/** Route paths whose apps install as standalone home-screen apps ("Mobile" nav section). */
+const INSTALLABLE_ROUTE_PATHS = [
+  '/projects/game-timer',
+  '/projects/movie-vote',
+  '/projects/dungeon-runner',
+  '/projects/game-manager',
+  '/projects/time-tracker',
+]
+
+/** PNG icon sizes required for installable apps. */
+export const APP_ICON_SIZES = [192, 512]
+
+/** Install UI chrome color for every app. */
+export const APP_THEME_COLOR = '#121212'
+
+/**
+ * @typedef {object} InstallableApp
+ * @property {string} routePath    Router path of the app.
+ * @property {string} iconId       Favicon id shared by the route and the PNG app icons.
+ * @property {string} name         Manifest `name`.
+ * @property {string} shortName    Manifest `short_name`.
+ * @property {string} description  Manifest `description`.
+ * @property {string} manifestId   Manifest identity; distinct per app so browsers install them separately.
+ * @property {string} startUrl     Manifest `start_url`, relative to the manifest URL.
+ * @property {string} manifestHref Manifest path relative to the site base.
+ */
+
+/**
+ * App identity must be a path URL: the browser strips fragments from `start_url` when
+ * deriving identity, so a `#/` URL would make every app share the site's identity.
+ * @type {InstallableApp[]}
+ */
+export const INSTALLABLE_APPS = INSTALLABLE_ROUTE_PATHS.map((routePath) => {
+  const entry = shareEntryByPath.get(routePath)
+  if (!entry) throw new Error(`installable app missing catalog row: ${routePath}`)
+  return {
+    routePath,
+    iconId: entry.favicon,
+    name: entry.title,
+    shortName: entry.title,
+    description: entry.description,
+    manifestId: `${routePath}/`,
+    startUrl: `../${routePath.replace(/^\/+/, '')}/`,
+    manifestHref: `manifests/${entry.favicon}.webmanifest`,
+  }
+})
+
+const installableAppByPath = new Map(INSTALLABLE_APPS.map((app) => [app.routePath, app]))
+
+/**
+ * @param {string} path Router path.
+ * @returns {InstallableApp | null}
+ */
+export function getInstallableAppForPath(path) {
+  return installableAppByPath.get(path) ?? null
+}
+
+/**
+ * Icon path relative to the site base.
+ * @param {string} iconId
+ * @param {number} size
+ * @returns {string}
+ */
+export function appIconPath(iconId, size) {
+  return `icons/apps/${iconId}-${size}.png`
+}

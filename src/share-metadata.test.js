@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import sharp from 'sharp'
 import routes, { portfolioDocumentTitle } from './router/routes.js'
 import {
+  APP_ICON_SIZES,
   FAVICON_IDS,
+  INSTALLABLE_APPS,
   PASTE_UNFURL_ROUTES,
   SHARE_CATALOG,
   SITE_NAME,
@@ -123,6 +127,56 @@ test('home is paste-unfurl in catalog but not in PASTE_UNFURL_ROUTES', () => {
 test('FAVICON_IDS lists each catalog favicon exactly once', () => {
   const fromCatalog = [...new Set(SHARE_CATALOG.map((entry) => entry.favicon))].sort()
   assert.deepEqual([...FAVICON_IDS].sort(), fromCatalog)
+})
+
+test('installable apps are the mobile nav routes with distinct identities', () => {
+  assert.deepEqual(
+    INSTALLABLE_APPS.map((app) => app.routePath),
+    [
+      '/projects/game-timer',
+      '/projects/movie-vote',
+      '/projects/dungeon-runner',
+      '/projects/game-manager',
+      '/projects/time-tracker',
+    ],
+  )
+  const ids = INSTALLABLE_APPS.map((app) => app.manifestId)
+  assert.equal(new Set(ids).size, ids.length)
+  for (const app of INSTALLABLE_APPS) {
+    assert.equal(app.manifestId, `${app.routePath}/`)
+    assert.equal(app.startUrl.includes('#'), false)
+    assert.equal(app.startUrl.includes('/#/'), false)
+  }
+})
+
+test('installable app manifest hrefs point at shipped public manifests', async () => {
+  const manifestsDir = fileURLToPath(new URL('../public/manifests', import.meta.url))
+  for (const app of INSTALLABLE_APPS) {
+    const file = `${manifestsDir}/${app.iconId}.webmanifest`
+    assert.equal(existsSync(file), true, `missing public/manifests/${app.iconId}.webmanifest`)
+    const manifest = JSON.parse(await readFile(file, 'utf8'))
+    assert.equal(manifest.id, app.manifestId)
+    assert.equal(manifest.name, app.name)
+    assert.equal(manifest.start_url, app.startUrl)
+    assert.equal(manifest.display, 'standalone')
+    assert.deepEqual(
+      manifest.icons.map((icon) => icon.sizes),
+      APP_ICON_SIZES.map((size) => `${size}x${size}`),
+    )
+  }
+})
+
+test('installable app icons ship at manifest-declared sizes', async () => {
+  const iconsDir = fileURLToPath(new URL('../public/icons/apps', import.meta.url))
+  for (const app of INSTALLABLE_APPS) {
+    for (const size of APP_ICON_SIZES) {
+      const file = `${iconsDir}/${app.iconId}-${size}.png`
+      assert.equal(existsSync(file), true, `missing public/icons/apps/${app.iconId}-${size}.png`)
+      const meta = await sharp(file).metadata()
+      assert.equal(meta.width, size)
+      assert.equal(meta.height, size)
+    }
+  }
 })
 
 test('each catalog favicon id has a public SVG asset', () => {

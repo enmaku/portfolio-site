@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { FAVICON_IDS, getShareEntryForPath } from '../share-metadata.js'
+import { FAVICON_IDS, INSTALLABLE_APPS, getShareEntryForPath } from '../share-metadata.js'
 import { portfolioDocumentTitle } from './routes.js'
 import {
   applyRouteDocumentChrome,
@@ -15,7 +15,7 @@ test('resolveRouteFaviconId accepts catalog ids and falls back to default', () =
   assert.equal(resolveRouteFaviconId(undefined), 'default')
 })
 
-/** @returns {{ document: Document, favicon: HTMLLinkElement, metas: Map<string, HTMLMetaElement> }} */
+/** @returns {{ document: Document, favicon: HTMLLinkElement, metas: Map<string, HTMLMetaElement>, head: { children: any[] } }} */
 function installDocumentStub() {
   /** @type {Map<string, HTMLMetaElement>} */
   const metas = new Map()
@@ -30,10 +30,52 @@ function installDocumentStub() {
     },
   }
 
+  /** @type {any[]} */
+  const headChildren = []
+  /** @type {Map<string, any>} */
+  const linksById = new Map()
+
   const documentStub = {
     title: '',
+    head: {
+      appendChild(el) {
+        headChildren.push(el)
+        if (el.id) linksById.set(el.id, el)
+      },
+    },
+    createElement(tagName) {
+      return {
+        tagName: tagName.toUpperCase(),
+        id: '',
+        rel: '',
+        removed: false,
+        _href: '',
+        get href() {
+          return this._href
+        },
+        set href(value) {
+          this._href = value
+        },
+        getAttribute(name) {
+          if (name === 'href') return this._href
+          if (name === 'rel') return this.rel
+          return null
+        },
+        setAttribute(name, value) {
+          if (name === 'href') this._href = value
+          if (name === 'rel') this.rel = value
+        },
+        remove() {
+          this.removed = true
+          if (this.id) linksById.delete(this.id)
+          const idx = headChildren.indexOf(this)
+          if (idx >= 0) headChildren.splice(idx, 1)
+        },
+      }
+    },
     getElementById(id) {
-      return id === 'portfolio-favicon' ? favicon : null
+      if (id === 'portfolio-favicon') return favicon
+      return linksById.get(id) ?? null
     },
     querySelector(selector) {
       const metaMatch = selector.match(/^meta\[(name|property)="([^"]+)"\]$/)
@@ -82,7 +124,7 @@ function installDocumentStub() {
   globalThis.document = documentStub
   globalThis.window = { location: { origin: 'https://example.test' } }
 
-  return { document: documentStub, favicon, metas }
+  return { document: documentStub, favicon, metas, head: { children: headChildren } }
 }
 
 test.afterEach(() => {
@@ -134,4 +176,33 @@ test('applyRouteDocumentChrome uses site defaults for unknown paths', () => {
   assert.equal(document.title, portfolioDocumentTitle)
   assert.equal(favicon.href, 'icons/favicon-default.svg')
   assert.equal(metas.get('property:og:title')?.content, ogTitleBefore)
+})
+
+test('applyRouteDocumentChrome points the manifest link at the active app', () => {
+  const { head } = installDocumentStub()
+
+  for (const app of INSTALLABLE_APPS) {
+    applyRouteDocumentChrome({ path: app.routePath })
+
+    const manifest = head.children.find((el) => el.id === 'portfolio-manifest')
+    const appleIcon = head.children.find((el) => el.id === 'portfolio-apple-touch-icon')
+    assert.equal(manifest?.href, app.manifestHref)
+    assert.equal(appleIcon?.href, `icons/apps/${app.iconId}-192.png`)
+  }
+
+  const manifestIds = head.children
+    .filter((el) => el.id === 'portfolio-manifest')
+    .map((el) => el.href)
+  assert.equal(manifestIds.length, 1, 'manifest link should be reused, not duplicated')
+})
+
+test('applyRouteDocumentChrome drops install links outside installable apps', () => {
+  const { head } = installDocumentStub()
+
+  applyRouteDocumentChrome({ path: '/projects/game-timer' })
+  assert.ok(head.children.some((el) => el.id === 'portfolio-manifest'))
+
+  applyRouteDocumentChrome({ path: '/projects/world-builder' })
+  assert.equal(head.children.some((el) => el.id === 'portfolio-manifest'), false)
+  assert.equal(head.children.some((el) => el.id === 'portfolio-apple-touch-icon'), false)
 })
