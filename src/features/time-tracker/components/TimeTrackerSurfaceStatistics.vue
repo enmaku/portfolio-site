@@ -60,6 +60,11 @@
           </div>
         </div>
 
+        <TimeTrackerStatsBar
+          :bucket-series="report.bucketSeries"
+          test-id="tt-stats-earnings-bar"
+        />
+
         <section v-if="report.showClientBreakdown" class="tt-stats-section">
           <div class="text-subtitle2">By client</div>
           <div class="tt-stats-pies">
@@ -117,8 +122,10 @@ import { TIME_TRACKER_WORKSPACE_KEY } from '../composables/trackerSurfaces.js'
 import { formatDurationMs, formatUsd, formatUsdFromCents } from '../formatDisplay.js'
 import { defaultOwnerPrefs } from '../sessionPrefs.js'
 import { buildStatisticsReport } from '../statistics/buildStatisticsReport.js'
-import { resolveStatisticsPeriod } from '../statistics/resolveStatisticsPeriod.js'
-import { STATS_PIE_COLORS } from '../statistics/statsPieColors.js'
+import { fixedBucketUnitForPreset, resolveStatisticsPeriod } from '../statistics/resolveStatisticsPeriod.js'
+import { chooseBucketUnit } from '../statistics/statisticsBucketization.js'
+import { STATS_CHART_COLORS } from '../statistics/statsChartColors.js'
+import TimeTrackerStatsBar from './TimeTrackerStatsBar.vue'
 import TimeTrackerStatsBreakdownTable from './TimeTrackerStatsBreakdownTable.vue'
 import TimeTrackerStatsPie from './TimeTrackerStatsPie.vue'
 
@@ -131,17 +138,30 @@ const customStart = ref('')
 const customEnd = ref('')
 
 const periodOptions = [
+  { label: 'Daily', value: 'day' },
+  { label: 'Last 24 hours', value: 'last24h' },
   { label: 'Weekly', value: 'week' },
+  { label: 'Last 7 days', value: 'last7d' },
   { label: 'Monthly', value: 'month' },
+  { label: 'Last 30 days', value: 'last30d' },
   { label: 'Yearly', value: 'year' },
-  { label: 'Custom range', value: 'custom' },
   { label: 'All time', value: 'all' },
+  { label: 'Custom range', value: 'custom' },
 ]
 
 const ownerPrefs = computed(() => {
   const uid = state.uid
   if (!uid) return defaultOwnerPrefs()
   return settingsStore.prefsFor(uid) ?? defaultOwnerPrefs()
+})
+
+const earliestEntryStartMs = computed(() => {
+  let earliest = null
+  for (const entry of state.timeEntries) {
+    if (!Number.isFinite(entry.startedAt)) continue
+    if (earliest == null || entry.startedAt < earliest) earliest = entry.startedAt
+  }
+  return earliest
 })
 
 const resolvedPeriod = computed(() => {
@@ -152,7 +172,17 @@ const resolvedPeriod = computed(() => {
     now: Date.now(),
     customStartMs,
     customEndMs,
+    earliestEntryStartMs: earliestEntryStartMs.value,
   })
+})
+
+const bucketUnit = computed(() => {
+  const period = resolvedPeriod.value
+  if (!period.ok) return 'day'
+  return (
+    fixedBucketUnitForPreset(preset.value) ??
+    chooseBucketUnit({ startMs: period.startMs, endMs: period.endMs })
+  )
 })
 
 const emptyReport = {
@@ -162,6 +192,14 @@ const emptyReport = {
   showClientBreakdown: false,
   clientRows: [],
   projectRows: [],
+  bucketSeries: {
+    unit: 'day',
+    labels: [],
+    titles: [],
+    bucketStartMs: [],
+    series: [],
+    otherValuesCents: [],
+  },
 }
 
 const report = computed(() => {
@@ -172,6 +210,7 @@ const report = computed(() => {
     clients: state.clients,
     invoices: state.invoices,
     range: resolvedPeriod.value,
+    bucketUnit: bucketUnit.value,
     includeUnpaidInvoices: ownerPrefs.value.showUnpaidInvoicesInStatistics,
     includeUninvoiced: ownerPrefs.value.includeUninvoicedInStatistics,
   })
@@ -201,7 +240,7 @@ function mapRows(rows, nameForId) {
     hoursMs: row.hoursMs,
     incomeCents: row.incomeCents,
     dollarsPerHour: row.dollarsPerHour,
-    color: STATS_PIE_COLORS[index % STATS_PIE_COLORS.length],
+    color: STATS_CHART_COLORS[index % STATS_CHART_COLORS.length],
   }))
 }
 

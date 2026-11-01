@@ -16,12 +16,15 @@ function endOfLocalDay(date) {
   return next
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
 /**
  * @param {{
- *   preset: 'week' | 'month' | 'year' | 'custom' | 'all',
+ *   preset: 'day' | 'last24h' | 'week' | 'last7d' | 'month' | 'last30d' | 'year' | 'custom' | 'all',
  *   now?: number,
  *   customStartMs?: number | null,
  *   customEndMs?: number | null,
+ *   earliestEntryStartMs?: number | null,
  * }} input
  */
 export function resolveStatisticsPeriod(input) {
@@ -30,7 +33,11 @@ export function resolveStatisticsPeriod(input) {
   const preset = input?.preset ?? 'month'
 
   if (preset === 'all') {
-    return { ok: true, startMs: Number.NEGATIVE_INFINITY, endMs: Number.POSITIVE_INFINITY }
+    const earliest = input?.earliestEntryStartMs
+    if (!Number.isFinite(earliest)) {
+      return { ok: true, startMs: Number.NEGATIVE_INFINITY, endMs: Number.POSITIVE_INFINITY }
+    }
+    return { ok: true, startMs: Number(earliest), endMs: now }
   }
 
   if (preset === 'custom') {
@@ -45,6 +52,22 @@ export function resolveStatisticsPeriod(input) {
       return { ok: false }
     }
     return { ok: true, startMs: start.getTime(), endMs: end.getTime() }
+  }
+
+  if (preset === 'day') {
+    const start = startOfLocalDay(date)
+    return { ok: true, startMs: start.getTime(), endMs: endOfLocalDay(start).getTime() }
+  }
+
+  if (preset === 'last24h') {
+    return { ok: true, startMs: now - DAY_MS, endMs: now }
+  }
+
+  if (preset === 'last7d' || preset === 'last30d') {
+    const days = preset === 'last7d' ? 7 : 30
+    const start = startOfLocalDay(date)
+    start.setDate(start.getDate() - (days - 1))
+    return { ok: true, startMs: start.getTime(), endMs: endOfLocalDay(date).getTime() }
   }
 
   if (preset === 'week') {
@@ -66,4 +89,19 @@ export function resolveStatisticsPeriod(input) {
   const start = new Date(date.getFullYear(), date.getMonth(), 1)
   const end = endOfLocalDay(new Date(date.getFullYear(), date.getMonth() + 1, 0))
   return { ok: true, startMs: start.getTime(), endMs: end.getTime() }
+}
+
+/**
+ * Subdivision a fixed preset always uses, or `null` when the span decides.
+ *
+ * @param {string} preset
+ * @returns {'hour' | 'day' | 'month' | 'year' | null}
+ */
+export function fixedBucketUnitForPreset(preset) {
+  if (preset === 'day' || preset === 'last24h') return 'hour'
+  if (preset === 'week' || preset === 'last7d' || preset === 'month' || preset === 'last30d') {
+    return 'day'
+  }
+  if (preset === 'year') return 'month'
+  return null
 }
