@@ -18,6 +18,28 @@ function endOfLocalDay(date) {
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
+export const STATISTICS_PERIOD_PRESET_IDS = [
+  'day',
+  'last24h',
+  'week',
+  'last7d',
+  'month',
+  'last30d',
+  'year',
+  'all',
+  'custom',
+]
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function normalizeStatisticsPreset(value) {
+  return STATISTICS_PERIOD_PRESET_IDS.includes(/** @type {string} */ (value))
+    ? /** @type {string} */ (value)
+    : 'month'
+}
+
 /**
  * @param {{
  *   preset: 'day' | 'last24h' | 'week' | 'last7d' | 'month' | 'last30d' | 'year' | 'custom' | 'all',

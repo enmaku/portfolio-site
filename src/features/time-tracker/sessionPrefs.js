@@ -1,4 +1,5 @@
 import { TRACKER_SURFACES } from './composables/trackerSurfaces.js'
+import { normalizeStatisticsPreset } from './statistics/resolveStatisticsPeriod.js'
 import { DEFAULT_TIMER_COLOR, parseTimerColor } from './timerAccent.js'
 
 export const TRACKER_SURFACE_IDS = TRACKER_SURFACES.map((item) => item.id)
@@ -13,6 +14,7 @@ export const TRACKER_SURFACE_IDS = TRACKER_SURFACES.map((item) => item.id)
  *   timerColor: string,
  *   showUnpaidInvoicesInStatistics: boolean,
  *   includeUninvoicedInStatistics: boolean,
+ *   statisticsPreset: string,
  * }}
  */
 export function defaultOwnerPrefs() {
@@ -25,6 +27,7 @@ export function defaultOwnerPrefs() {
     timerColor: DEFAULT_TIMER_COLOR,
     showUnpaidInvoicesInStatistics: false,
     includeUninvoicedInStatistics: false,
+    statisticsPreset: 'month',
   }
 }
 
@@ -74,6 +77,9 @@ export function normalizeOwnerPrefs(raw) {
     timerColor: parseTimerColor(color) ?? DEFAULT_TIMER_COLOR,
     showUnpaidInvoicesInStatistics: showUnpaid,
     includeUninvoicedInStatistics: showUnpaid && includeUninvoicedRaw,
+    statisticsPreset: normalizeStatisticsPreset(
+      /** @type {{ statisticsPreset?: unknown }} */ (src).statisticsPreset,
+    ),
   }
 }
 

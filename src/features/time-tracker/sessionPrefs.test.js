@@ -68,6 +68,18 @@ test('resolveSelectedProjectId prefers a still-valid selection', () => {
   )
 })
 
+test('normalizeOwnerPrefs defaults statistics preset to month', () => {
+  assert.equal(defaultOwnerPrefs().statisticsPreset, 'month')
+  assert.equal(normalizeOwnerPrefs({}).statisticsPreset, 'month')
+  assert.equal(normalizeOwnerPrefs({ statisticsPreset: 'nope' }).statisticsPreset, 'month')
+})
+
+test('normalizeOwnerPrefs keeps a known statistics preset', () => {
+  for (const preset of ['week', 'month', 'year', 'custom', 'all']) {
+    assert.equal(normalizeOwnerPrefs({ statisticsPreset: preset }).statisticsPreset, preset)
+  }
+})
+
 test('normalizeOwnerPrefs fills defaults and keeps a valid timer color', () => {
   const prefs = normalizeOwnerPrefs({
     issuerName: 'Jane',

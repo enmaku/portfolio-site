@@ -133,7 +133,21 @@ const workspace = inject(TIME_TRACKER_WORKSPACE_KEY)
 const state = workspace.state
 const settingsStore = useTimeTrackerSettingsStore()
 
-const preset = ref('month')
+const ownerPrefs = computed(() => {
+  const uid = state.uid
+  if (!uid) return defaultOwnerPrefs()
+  return settingsStore.prefsFor(uid) ?? defaultOwnerPrefs()
+})
+
+const preset = computed({
+  get: () => ownerPrefs.value.statisticsPreset,
+  set: (next) => {
+    const uid = state.uid
+    if (!uid) return
+    settingsStore.patchOwnerPrefs(uid, { statisticsPreset: next })
+  },
+})
+
 const customStart = ref('')
 const customEnd = ref('')
 
@@ -148,12 +162,6 @@ const periodOptions = [
   { label: 'All time', value: 'all' },
   { label: 'Custom range', value: 'custom' },
 ]
-
-const ownerPrefs = computed(() => {
-  const uid = state.uid
-  if (!uid) return defaultOwnerPrefs()
-  return settingsStore.prefsFor(uid) ?? defaultOwnerPrefs()
-})
 
 const earliestEntryStartMs = computed(() => {
   let earliest = null
