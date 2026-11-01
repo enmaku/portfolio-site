@@ -8,7 +8,7 @@
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from 'chart.js'
 import { computed } from 'vue'
 import { Doughnut } from 'vue-chartjs'
-import { STATS_PIE_COLORS } from '../statistics/statsPieColors.js'
+import { STATS_CHART_COLORS } from '../statistics/statsChartColors.js'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -25,7 +25,7 @@ const chartData = computed(() => ({
   datasets: [
     {
       data: props.values,
-      backgroundColor: props.labels.map((_, index) => STATS_PIE_COLORS[index % STATS_PIE_COLORS.length]),
+      backgroundColor: props.labels.map((_, index) => STATS_CHART_COLORS[index % STATS_CHART_COLORS.length]),
       borderWidth: 0,
     },
   ],
