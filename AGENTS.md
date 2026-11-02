@@ -30,8 +30,11 @@ Verify with `file src/assets/photos/10010.jpg` — should report `JPEG image dat
 Standard commands from [README.md](README.md):
 
 - `npm run lint`
-- `npm test`
+- `npm test` (~30s)
 - `npm run build` → `dist/spa`
+
+Scoped runs, when to run the full suite, and the Firebase socket-stall trap are covered
+by [.cursor/rules/run-tests.mdc](.cursor/rules/run-tests.mdc). Read it before running tests.
 
 Firebase rules tests (`npm run test:database-rules`, `test:firestore-rules`) need the Firebase CLI and emulators; not required for routine app dev.
 

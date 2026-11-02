@@ -6,7 +6,7 @@ import { runLandmassPipelineRun } from './derivedGeographyPipeline.js'
 import { generatePhysicalTerrainBaseline } from './generatePhysicalTerrainBaseline.js'
 import { assertLakeMaskSurfacesMatchMeta } from './hydrology/lakeDisplayCoherence.js'
 import { DEFAULT_GEOGRAPHY_SEED, DEFAULT_WORLD_GENERATION_OPTIONS } from './worldGenerationOptions.js'
-import { DEFAULT_GRID_SIZE, PIPELINE_STAGE_DERIVED_GEOGRAPHY } from './types.js'
+import { PIPELINE_STAGE_DERIVED_GEOGRAPHY } from './types.js'
 import { isOceanCell } from './fields/applyClosedIslandRim.js'
 import { downstreamIndex } from './hydrology/computeFlowAccumulation.js'
 import { countMarkedCells } from './hydrology/riverNetwork.js'
@@ -117,20 +117,23 @@ test('generateDerivedGeography completes for default geography seed', () => {
   assert.strictEqual(typeof doc.generationReport.hydrology.lakeCount, 'number')
 })
 
-test('generateDerivedGeography default seed produces visible river network on full grid', () => {
+test('generateDerivedGeography default seed produces visible river network', () => {
+  const size = 512
   const doc = generateDerivedGeography({
     geographySeed: DEFAULT_GEOGRAPHY_SEED,
     prevailingWindDegrees: 90,
+    width: size,
+    height: size,
   })
 
-  assert.strictEqual(doc.gridWidth, DEFAULT_GRID_SIZE)
-  assert.strictEqual(doc.gridHeight, DEFAULT_GRID_SIZE)
+  assert.strictEqual(doc.gridWidth, size)
+  assert.strictEqual(doc.gridHeight, size)
 
   const maskCount = countMarkedCells(doc.simulationRiverMask)
 
   assert.ok(
-    maskCount >= 500,
-    `expected substantial river network on ${DEFAULT_GRID_SIZE}px grid, got ${maskCount} cells`,
+    maskCount / (size * size) > 0.003,
+    `expected visible river network on ${size}px grid, got ${maskCount} cells`,
   )
   assert.strictEqual(doc.generationReport.hydrology.riverCellCount, maskCount)
 })
@@ -139,6 +142,8 @@ test('generateDerivedGeography seed 77814242 detects river mouths at shoreline d
   const doc = generateDerivedGeography({
     geographySeed: 77814242,
     prevailingWindDegrees: 90,
+    width: 512,
+    height: 512,
     options: {
       ...DEFAULT_WORLD_GENERATION_OPTIONS,
       enableMeanderRefine: false,

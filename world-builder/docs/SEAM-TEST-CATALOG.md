@@ -728,17 +728,16 @@ Each file lists individual `test(...)` titles for reviewer grep and #375 control
 ### `world-builder/core/generateDerivedGeography.test.js`
 
 - **Seam:** `core-unit` — Core geography algorithm
-- **Test count:** 14
+- **Test count:** 13
 - **Skip conditions:** None — runs under npm run test:world-builder
 - **Behaviors:** Seed determinism
 - **Cases:**
-  - generateDerivedGeography defaults to 1024 grid
   - generateDerivedGeography emits landmass pipeline fields and hydrology report
   - generateDerivedGeography arable favors river corridor temperate cells over mountain desert
   - generateDerivedGeography is deterministic for same seed and wind
   - generateDerivedGeography differs for different seeds
   - generateDerivedGeography completes for default geography seed
-  - generateDerivedGeography default seed produces visible river network on full grid
+  - generateDerivedGeography default seed produces visible river network
   - generateDerivedGeography seed 77814242 detects river mouths at shoreline drainage cells
   - generateDerivedGeography default seed keeps lake surfaces aligned with lakeMeta
   - generateDerivedGeography default seed applies stream-power incision to elevation

@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { installOfflineFirebaseMocks } from '../test/offlineFirebaseMocks.js'
+
+await installOfflineFirebaseMocks()
 
 const REQUIRED_FIREBASE_ENV = {
   VITE_FIREBASE_API_KEY: 'test-api-key',

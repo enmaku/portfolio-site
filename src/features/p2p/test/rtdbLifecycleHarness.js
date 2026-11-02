@@ -118,6 +118,8 @@ export async function installRtdbLifecycleMocks(opts = {}) {
   mock.module('firebase/database', {
     namedExports: {
       ...actual,
+      ref: (dbOrPath, maybePath) => buildRef(maybePath ?? dbOrPath),
+      child: (parent, path) => buildRef(`${refPath(parent)}/${path}`),
       get: async (ref) => {
         if (ref.key === 'hostPing') {
           return {

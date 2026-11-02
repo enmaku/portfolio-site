@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import { afterEach, mock, test } from 'node:test'
+import { installOfflineFirebaseMocks } from '../test/offlineFirebaseMocks.js'
+
+const offlineFirebase = await installOfflineFirebaseMocks()
 
 const REQUIRED_FIREBASE_ENV = {
   VITE_FIREBASE_API_KEY: 'test-api-key',
@@ -342,27 +345,19 @@ test('setRtdb returns a promise without throwing synchronously when configured',
   })
 })
 
-afterEach(() => {
+afterEach(async () => {
   mock.reset()
+  offlineFirebase.refs.length = 0
+  offlineFirebase.removes.length = 0
+  await installOfflineFirebaseMocks(offlineFirebase)
 })
 
 test(
   'setRtdb calls Firebase set with sanitized payload',
   { skip: !mock.module },
   async () => {
-    const actual = await import('firebase/database')
-    /** @type {Array<{ value: unknown }>} */
-    const setCalls = []
-    mock.module('firebase/database', {
-      namedExports: {
-        ...actual,
-        set: async (_ref, value) => {
-          setCalls.push({ value })
-        },
-      },
-    })
-
     await withFirebaseEnv({}, async () => {
+      const { ref } = await import('firebase/database')
       const { createRtdbCore } = await import(
         `./createRtdbCore.js?set=${Date.now()}`
       )
@@ -370,15 +365,14 @@ test(
         configuredBehavior: 'throw',
         label: TEST_LABEL,
       })
-      const ref = actual.ref(getDatabase(), 'test/set-sanitize')
-      await setRtdb(ref, {
+      await setRtdb(ref(getDatabase(), 'test/set-sanitize'), {
         players: [{ id: 'a', bankedMsByRound: undefined }],
         activePlayerId: null,
         totalGameStartedAt: undefined,
         round: 1,
       })
-      assert.equal(setCalls.length, 1)
-      assert.deepEqual(setCalls[0].value, {
+      assert.equal(offlineFirebase.refs.length, 1)
+      assert.deepEqual(offlineFirebase.refs[0].value, {
         players: [{ id: 'a' }],
         activePlayerId: null,
         round: 1,
