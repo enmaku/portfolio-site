@@ -65,29 +65,6 @@
           test-id="tt-stats-earnings-bar"
         />
 
-        <section v-if="report.showClientBreakdown" class="tt-stats-section">
-          <div class="text-subtitle2">By client</div>
-          <div class="tt-stats-pies">
-            <div class="tt-stats-pie-block">
-              <div class="text-caption text-grey-6 text-center">Hours</div>
-              <TimeTrackerStatsPie
-                :labels="clientHourLabels"
-                :values="clientHourValues"
-                test-id="tt-stats-client-hours-pie"
-              />
-            </div>
-            <div class="tt-stats-pie-block">
-              <div class="text-caption text-grey-6 text-center">Income</div>
-              <TimeTrackerStatsPie
-                :labels="clientIncomeLabels"
-                :values="clientIncomeValues"
-                test-id="tt-stats-client-income-pie"
-              />
-            </div>
-          </div>
-          <TimeTrackerStatsBreakdownTable :rows="clientTableRows" test-id="tt-stats-client-table" />
-        </section>
-
         <section class="tt-stats-section">
           <div class="text-subtitle2">By project</div>
           <div class="tt-stats-pies">
@@ -96,6 +73,7 @@
               <TimeTrackerStatsPie
                 :labels="projectHourLabels"
                 :values="projectHourValues"
+                :colors="projectColors"
                 test-id="tt-stats-project-hours-pie"
               />
             </div>
@@ -104,11 +82,37 @@
               <TimeTrackerStatsPie
                 :labels="projectIncomeLabels"
                 :values="projectIncomeValues"
+                :colors="projectColors"
                 test-id="tt-stats-project-income-pie"
               />
             </div>
           </div>
           <TimeTrackerStatsBreakdownTable :rows="projectTableRows" test-id="tt-stats-project-table" />
+        </section>
+
+        <section v-if="report.showClientBreakdown" class="tt-stats-section">
+          <div class="text-subtitle2">By client</div>
+          <div class="tt-stats-pies">
+            <div class="tt-stats-pie-block">
+              <div class="text-caption text-grey-6 text-center">Hours</div>
+              <TimeTrackerStatsPie
+                :labels="clientHourLabels"
+                :values="clientHourValues"
+                :colors="clientColors"
+                test-id="tt-stats-client-hours-pie"
+              />
+            </div>
+            <div class="tt-stats-pie-block">
+              <div class="text-caption text-grey-6 text-center">Income</div>
+              <TimeTrackerStatsPie
+                :labels="clientIncomeLabels"
+                :values="clientIncomeValues"
+                :colors="clientColors"
+                test-id="tt-stats-client-income-pie"
+              />
+            </div>
+          </div>
+          <TimeTrackerStatsBreakdownTable :rows="clientTableRows" test-id="tt-stats-client-table" />
         </section>
       </div>
     </div>
@@ -124,7 +128,7 @@ import { defaultOwnerPrefs } from '../sessionPrefs.js'
 import { buildStatisticsReport } from '../statistics/buildStatisticsReport.js'
 import { fixedBucketUnitForPreset, resolveStatisticsPeriod } from '../statistics/resolveStatisticsPeriod.js'
 import { chooseBucketUnit } from '../statistics/statisticsBucketization.js'
-import { STATS_CHART_COLORS } from '../statistics/statsChartColors.js'
+import { statsRowColor } from '../statistics/statsChartColors.js'
 import TimeTrackerStatsBar from './TimeTrackerStatsBar.vue'
 import TimeTrackerStatsBreakdownTable from './TimeTrackerStatsBreakdownTable.vue'
 import TimeTrackerStatsPie from './TimeTrackerStatsPie.vue'
@@ -241,19 +245,24 @@ function projectName(projectId) {
   return state.projects.find((project) => project.id === projectId)?.name || projectId
 }
 
-function mapRows(rows, nameForId) {
+function mapRows(rows, nameForId, colorOffset) {
   return rows.map((row, index) => ({
     key: row.id ?? 'none',
     name: nameForId(row.id),
     hoursMs: row.hoursMs,
     incomeCents: row.incomeCents,
     dollarsPerHour: row.dollarsPerHour,
-    color: STATS_CHART_COLORS[index % STATS_CHART_COLORS.length],
+    color: statsRowColor(index, colorOffset),
   }))
 }
 
-const clientTableRows = computed(() => mapRows(report.value.clientRows, clientName))
-const projectTableRows = computed(() => mapRows(report.value.projectRows, projectName))
+const projectTableRows = computed(() => mapRows(report.value.projectRows, projectName, 0))
+const clientTableRows = computed(() =>
+  mapRows(report.value.clientRows, clientName, report.value.projectRows.length),
+)
+
+const projectColors = computed(() => projectTableRows.value.map((row) => row.color))
+const clientColors = computed(() => clientTableRows.value.map((row) => row.color))
 
 const clientHourLabels = computed(() => clientTableRows.value.map((row) => row.name))
 const clientHourValues = computed(() => clientTableRows.value.map((row) => row.hoursMs / 3_600_000))

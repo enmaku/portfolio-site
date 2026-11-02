@@ -8,13 +8,13 @@
 import { ArcElement, Chart as ChartJS, Legend, Tooltip } from 'chart.js'
 import { computed } from 'vue'
 import { Doughnut } from 'vue-chartjs'
-import { STATS_CHART_COLORS } from '../statistics/statsChartColors.js'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
 const props = defineProps({
   labels: { type: Array, required: true },
   values: { type: Array, required: true },
+  colors: { type: Array, required: true },
   testId: { type: String, required: true },
 })
 
@@ -25,7 +25,7 @@ const chartData = computed(() => ({
   datasets: [
     {
       data: props.values,
-      backgroundColor: props.labels.map((_, index) => STATS_CHART_COLORS[index % STATS_CHART_COLORS.length]),
+      backgroundColor: props.colors,
       borderWidth: 0,
     },
   ],

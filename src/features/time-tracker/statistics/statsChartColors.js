@@ -21,6 +21,17 @@ export const STATS_CHART_COLORS = [
   '#ffff99',
 ]
 
+/**
+ * Palette color for the row at `index`, after skipping the first `offset` slots so a
+ * second breakdown picks up colors the first one did not use.
+ *
+ * @param {number} index
+ * @param {number} [offset]
+ */
+export function statsRowColor(index, offset = 0) {
+  return STATS_CHART_COLORS[(offset + index) % STATS_CHART_COLORS.length]
+}
+
 /** Segment for project ranks past the palette, in the stacked bar chart only. */
 export const STATS_OTHER_COLOR = '#9e9e9e'
 
