@@ -1,23 +1,24 @@
 /**
- * ColorBrewer qualitative Set3 (12 classes), sharing the palette family used by the
- * World Builder faction territory overlay. The lightest Set3 entries are darkened so
- * fills stay legible on the Time Tracker's dark surface.
+ * ColorBrewer qualitative Paired (12 classes). More saturated than the World Builder's
+ * Set3, which keeps stacked segments and pie slices distinct on the dark surface.
+ * Ordered saturated-first so a small number of series gets the strongest colors and
+ * the pale half of each pair is only reached once the saturated six run out.
  *
- * Source: https://colorbrewer2.org/?type=qualitative&scheme=Set3&n=12
+ * Source: https://colorbrewer2.org/?type=qualitative&scheme=Paired&n=12
  */
 export const STATS_CHART_COLORS = [
-  '#8dd3c7',
-  '#b5a642',
-  '#bebada',
-  '#fb8072',
-  '#80b1d3',
-  '#fdb462',
-  '#b3de69',
-  '#d98fc0',
-  '#d9d9d9',
-  '#bc80bd',
-  '#8dbf76',
-  '#c9a227',
+  '#1f78b4',
+  '#33a02c',
+  '#e31a1c',
+  '#ff7f00',
+  '#6a3d9a',
+  '#b15928',
+  '#a6cee3',
+  '#b2df8a',
+  '#fb9a99',
+  '#fdbf6f',
+  '#cab2d6',
+  '#ffff99',
 ]
 
 /** Segment for project ranks past the palette, in the stacked bar chart only. */
