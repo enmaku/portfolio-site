@@ -40,6 +40,21 @@ export function formatDurationMs(ms) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
+const entryDate = new Intl.DateTimeFormat('en-US', {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+})
+
+/**
+ * @param {number} ms
+ * @returns {string} e.g. "Fri, Oct 23 2026"
+ */
+export function formatEntryDate(ms) {
+  return entryDate.format(new Date(ms)).replace(/,\s*(\d{4})$/, ' $1')
+}
+
 const LOCAL_DATE_TIME_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/
 
 /**

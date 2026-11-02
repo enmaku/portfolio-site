@@ -7,6 +7,9 @@
             <q-item-label>{{ projectName(history.pinned.projectId) }}</q-item-label>
             <q-item-label caption>{{ formatDurationMs(livePinnedMs) }}</q-item-label>
           </q-item-section>
+          <q-item-section side class="tt-history-date">
+            {{ formatEntryDate(history.pinned.startedAt) }}
+          </q-item-section>
         </q-item>
         <q-item
           v-for="row in history.rows"
@@ -26,6 +29,9 @@
               </span>
               <span v-if="row.description"> · {{ row.description }}</span>
             </q-item-label>
+          </q-item-section>
+          <q-item-section side class="tt-history-date">
+            {{ formatEntryDate(row.startedAt) }}
           </q-item-section>
         </q-item>
       </q-list>
@@ -98,6 +104,7 @@ import { isPerJobBillable } from '../domain/projects.js'
 import {
   centsToUsdInput,
   formatDurationMs,
+  formatEntryDate,
   formatUsdFromCents,
   parseLocalDateTimeInput,
   toLocalDateTimeInput,

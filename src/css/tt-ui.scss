@@ -28,6 +28,12 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.tt-history-date {
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .tt-timer {
   min-height: 0;
 }

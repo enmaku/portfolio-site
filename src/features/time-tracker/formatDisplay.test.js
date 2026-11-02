@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   centsToUsdInput,
+  formatEntryDate,
   formatLocalDateTimeLabel,
   parseLocalDateTimeInput,
   toLocalDateTimeInput,
@@ -38,4 +39,8 @@ test('formatLocalDateTimeLabel is a 12-hour label without a T separator', () => 
   assert.equal(label.includes('T'), false)
   assert.match(label, /PM/)
   assert.match(label, /10:05/)
+})
+
+test('formatEntryDate is a weekday, abbreviated month, and year without a comma before it', () => {
+  assert.equal(formatEntryDate(new Date(2026, 9, 23, 10, 0).getTime()), 'Fri, Oct 23 2026')
 })
