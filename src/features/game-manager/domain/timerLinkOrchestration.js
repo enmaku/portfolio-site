@@ -4,6 +4,8 @@
 
 export const GM_SESSION_QUERY_KEY = 'gmSession'
 export const GM_CONTINUE_QUERY_KEY = 'gmContinue'
+/** In-scope Game Manager URL for the owner timer leg. */
+export const GAME_MANAGER_LINKED_TIMER_PATH = '/projects/game-manager/timer'
 
 /**
  * @param {{ active?: boolean, playSessionId?: string | null } | null | undefined} existing
@@ -43,7 +45,7 @@ export function shouldAutoHost(lastSyncPosture) {
  */
 export function buildGameTimerLinkedRoute({ playSessionId }) {
   return {
-    path: '/projects/game-timer',
+    path: GAME_MANAGER_LINKED_TIMER_PATH,
     query: {
       [GM_SESSION_QUERY_KEY]: playSessionId,
     },

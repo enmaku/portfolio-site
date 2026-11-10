@@ -44,8 +44,8 @@ test('shouldAutoHost follows last sync posture', () => {
   assert.equal(shouldAutoHost('local'), false)
 })
 
-test('buildGameTimerLinkedRoute includes gmSession query', () => {
+test('buildGameTimerLinkedRoute uses the in-scope Game Manager timer path', () => {
   const route = buildGameTimerLinkedRoute({ playSessionId: 'ps-1' })
-  assert.equal(route.path, '/projects/game-timer')
+  assert.equal(route.path, '/projects/game-manager/timer')
   assert.equal(route.query[GM_SESSION_QUERY_KEY], 'ps-1')
 })

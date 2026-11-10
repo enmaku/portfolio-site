@@ -219,7 +219,16 @@ const installableAppByPath = new Map(INSTALLABLE_APPS.map((app) => [app.routePat
  * @returns {InstallableApp | null}
  */
 export function getInstallableAppForPath(path) {
-  return installableAppByPath.get(normalizeRoutePath(path)) ?? null
+  const normalized = normalizeRoutePath(path)
+  const exact = installableAppByPath.get(normalized)
+  if (exact) return exact
+  let best = null
+  for (const app of INSTALLABLE_APPS) {
+    if (normalized.startsWith(`${app.routePath}/`)) {
+      if (!best || app.routePath.length > best.routePath.length) best = app
+    }
+  }
+  return best
 }
 
 /**

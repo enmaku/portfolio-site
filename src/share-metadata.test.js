@@ -254,6 +254,20 @@ test('share and install lookups tolerate trailing slashes from static hosts', ()
   assert.equal(getShareEntryForPath('/')?.routePath, '/')
 })
 
+test('getInstallableAppForPath prefix-matches nested app routes', () => {
+  assert.equal(
+    getInstallableAppForPath('/projects/game-manager/timer')?.routePath,
+    '/projects/game-manager',
+  )
+  assert.equal(
+    getInstallableAppForPath('/projects/time-tracker/c/example-secret')?.routePath,
+    '/projects/time-tracker',
+  )
+  assert.equal(getInstallableAppForPath('/projects/game-timer')?.routePath, '/projects/game-timer')
+  assert.equal(getInstallableAppForPath('/projects/game-timer-extra'), null)
+  assert.equal(getShareEntryForPath('/projects/game-manager/timer'), null)
+})
+
 test('router paths exclude cardpreview', () => {
   assert.equal(ROUTER_PATHS.has('/cardpreview'), false)
 })

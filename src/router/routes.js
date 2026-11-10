@@ -48,6 +48,10 @@ const routes = [
         path: '',
         component: () => import('pages/projects/GameManagerPage.vue'),
       },
+      {
+        path: 'timer',
+        component: () => import('pages/projects/GameTimerPage.vue'),
+      },
     ],
   },
   {

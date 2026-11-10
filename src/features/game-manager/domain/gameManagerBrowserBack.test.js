@@ -11,6 +11,7 @@ import {
 test('isGameManagerPath accepts manager root and nested paths', () => {
   assert.equal(isGameManagerPath('/projects/game-manager'), true)
   assert.equal(isGameManagerPath('/projects/game-manager/'), true)
+  assert.equal(isGameManagerPath('/projects/game-manager/timer'), true)
   assert.equal(isGameManagerPath('/projects/game-timer'), false)
   assert.equal(isGameManagerPath('/'), false)
   assert.equal(isGameManagerPath(''), false)
@@ -52,6 +53,13 @@ test('shouldBlockGameManagerRouteLeave blocks timer and portfolio unless armed',
   assert.equal(
     shouldBlockGameManagerRouteLeave({
       toPath: '/projects/game-manager',
+      allowLeave: false,
+    }),
+    false,
+  )
+  assert.equal(
+    shouldBlockGameManagerRouteLeave({
+      toPath: '/projects/game-manager/timer',
       allowLeave: false,
     }),
     false,

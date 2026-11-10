@@ -210,3 +210,20 @@ test('applyRouteDocumentChrome drops install links outside installable apps', ()
   assert.equal(head.children.some((el) => el.id === 'portfolio-manifest'), false)
   assert.equal(head.children.some((el) => el.id === 'portfolio-apple-touch-icon'), false)
 })
+
+test('applyRouteDocumentChrome keeps Game Manager install chrome on the linked timer path', () => {
+  const { document, favicon, head, metas } = installDocumentStub()
+  const ogTitleBefore = metas.get('property:og:title')?.content
+  const app = INSTALLABLE_APPS.find((entry) => entry.routePath === '/projects/game-manager')
+  assert.ok(app)
+
+  applyRouteDocumentChrome({ path: '/projects/game-manager/timer' })
+
+  assert.equal(document.title, app.name)
+  assert.equal(favicon.href, `/icons/favicon-${app.iconId}.svg`)
+  const manifest = head.children.find((el) => el.id === 'portfolio-manifest')
+  const appleIcon = head.children.find((el) => el.id === 'portfolio-apple-touch-icon')
+  assert.equal(manifest?.href, `/${app.manifestHref}`)
+  assert.equal(appleIcon?.href, `/icons/apps/${app.iconId}-192.png`)
+  assert.equal(metas.get('property:og:title')?.content, ogTitleBefore)
+})

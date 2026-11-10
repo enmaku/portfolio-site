@@ -107,7 +107,7 @@ test('owner journey handoff spine: launch then game-end to scoring', async () =>
   assert.equal(timerStore.players.length, 2)
   assert.equal(timerStore.players[0].recordedPlayerId, 'p1')
   assert.equal(routes.length, 1)
-  assert.equal(routes[0].path, '/projects/game-timer')
+  assert.equal(routes[0].path, '/projects/game-manager/timer')
   assert.equal(routes[0].query[GM_SESSION_QUERY_KEY], 'ps-journey')
 
   timerStore.totalGameStartedAt = 1_000

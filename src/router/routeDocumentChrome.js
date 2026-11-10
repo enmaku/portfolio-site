@@ -124,11 +124,18 @@ function setCanonicalHref(href) {
 export function applyRouteDocumentChrome(to) {
   if (typeof document === 'undefined') return
   const entry = getShareEntryForPath(to.path)
+  const app = getInstallableAppForPath(to.path)
   if (entry) {
     document.title = entry.title
     applyFavicon(entry.favicon)
-    applyInstallChrome(getInstallableAppForPath(to.path))
+    applyInstallChrome(app)
     applySharePreviewTags(entry)
+    return
+  }
+  if (app) {
+    document.title = app.name
+    applyFavicon(app.iconId)
+    applyInstallChrome(app)
     return
   }
   document.title = portfolioDocumentTitle
