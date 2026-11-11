@@ -6,9 +6,11 @@ import { createRouter, createMemoryHistory, createWebHistory } from 'vue-router'
 import routes from './routes'
 import { applyRouteDocumentChrome } from './routeDocumentChrome.js'
 import { migrateHashUrl } from '../features/share/legacyHashRedirect.js'
+import { repairVueRouterHistoryState } from '../composables/vueRouterHistoryState.js'
 
 export default defineRouter(function (/* { store, ssrContext } */) {
   migrateHashUrl()
+  repairVueRouterHistoryState()
 
   const createHistory = process.env.SERVER ? createMemoryHistory : createWebHistory
 

@@ -13,6 +13,7 @@ import {
   watch,
 } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
+import { pushMergedHistoryState } from '../../../composables/vueRouterHistoryState.js'
 import {
   claimLayerOnStack,
   releaseLayerFromStack,
@@ -51,7 +52,7 @@ export function provideGameManagerBrowserBack() {
     const next = claimLayerOnStack(stack.value, { id, close })
     if (next === stack.value) return
     stack.value = next
-    history.pushState(LAYER_HISTORY_STATE, '')
+    pushMergedHistoryState(LAYER_HISTORY_STATE)
   }
 
   /**

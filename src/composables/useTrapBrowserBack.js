@@ -1,10 +1,11 @@
 import { onMounted, onUnmounted } from 'vue'
+import { pushMergedHistoryState } from './vueRouterHistoryState.js'
 
 /** @type {{ portfolioProjectBrowserBackTrap: true }} */
 const TRAP_HISTORY_STATE = { portfolioProjectBrowserBackTrap: true }
 
 function onTrapPopState() {
-  history.pushState(TRAP_HISTORY_STATE, '')
+  pushMergedHistoryState(TRAP_HISTORY_STATE)
 }
 
 /**
@@ -14,7 +15,7 @@ function onTrapPopState() {
 export function useTrapBrowserBack() {
   onMounted(() => {
     if (typeof window === 'undefined') return
-    history.pushState(TRAP_HISTORY_STATE, '')
+    pushMergedHistoryState(TRAP_HISTORY_STATE)
     window.addEventListener('popstate', onTrapPopState)
   })
 

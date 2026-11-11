@@ -2,6 +2,7 @@ import exifr from 'exifr'
 import { nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 
 import { usePointerDragScroll } from 'src/composables/usePointerDragScroll.js'
+import { pushMergedHistoryState } from 'src/composables/vueRouterHistoryState.js'
 import { exifSummaryLines, exifToRows } from 'src/utils/exifFormat.js'
 
 const googlePhotosUrl = 'https://photos.app.goo.gl/pjuSWsZbgcp3eC7o6'
@@ -164,7 +165,7 @@ export function usePhotoGallery() {
       y: window.scrollY,
     }
     previewHistoryPushed.value = true
-    history.pushState(PREVIEW_HISTORY_STATE, '')
+    pushMergedHistoryState(PREVIEW_HISTORY_STATE)
     dialogOpen.value = true
 
     const exif = await loadExif(photo.src)
