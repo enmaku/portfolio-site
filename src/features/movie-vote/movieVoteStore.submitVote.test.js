@@ -90,3 +90,71 @@ test('setMyRanking does not change ranking after submit', () => {
   store.setMyRanking(['a', 'b'])
   assert.deepEqual(store.myRanking, ['b', 'a'])
 })
+
+test('retractVote host path removes own vote and unlocks ballot', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setMyParticipantId(HOST_PARTICIPANT_ID)
+  store.setVotingState(
+    [ballotMovie('a'), ballotMovie('b')],
+    ['a', 'b'],
+    [HOST_PARTICIPANT_ID, 'guest-1'],
+  )
+  assert.equal(store.submitVote(['b', 'a']), true)
+  assert.deepEqual(store.voteProgress, { submitted: 1, total: 2 })
+
+  assert.equal(store.retractVote(), true)
+  assert.equal(store.myVoteSubmitted, false)
+  assert.deepEqual(store.votesByParticipant, {})
+  assert.deepEqual(store.voteProgress, { submitted: 0, total: 2 })
+  // Keeps their ranking so they can tweak rather than start over.
+  assert.deepEqual(store.myRanking, ['b', 'a'])
+})
+
+test('retractVote guest path unlocks ballot and keeps ranking', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setMyParticipantId('guest-1')
+  store.setVotingState(
+    [ballotMovie('a'), ballotMovie('b')],
+    ['a', 'b'],
+    [HOST_PARTICIPANT_ID, 'guest-1'],
+  )
+  assert.equal(store.submitVote(['b', 'a']), true)
+
+  assert.equal(store.retractVote(), true)
+  assert.equal(store.myVoteSubmitted, false)
+  assert.deepEqual(store.myRanking, ['b', 'a'])
+})
+
+test('retractVote is a no-op when not submitted or outside voting', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setMyParticipantId(HOST_PARTICIPANT_ID)
+  store.setVotingState([ballotMovie('a'), ballotMovie('b')], ['a', 'b'], [HOST_PARTICIPANT_ID])
+  assert.equal(store.retractVote(), false)
+
+  store.phase = 'results'
+  store.myVoteSubmitted = true
+  assert.equal(store.retractVote(), false)
+  assert.equal(store.myVoteSubmitted, true)
+})
+
+test('removeGuestVote host path drops only that seat and updates progress', () => {
+  setActivePinia(createPinia())
+  const store = useMovieVoteStore()
+  store.setMyParticipantId(HOST_PARTICIPANT_ID)
+  store.setVotingState(
+    [ballotMovie('a'), ballotMovie('b')],
+    ['a', 'b'],
+    [HOST_PARTICIPANT_ID, 'guest-1'],
+  )
+  store.submitVote(['a', 'b'])
+  store.mergeGuestVote('guest-1', ['b', 'a'])
+  assert.deepEqual(store.voteProgress, { submitted: 2, total: 2 })
+
+  store.removeGuestVote('guest-1')
+  assert.deepEqual(Object.keys(store.votesByParticipant), [HOST_PARTICIPANT_ID])
+  assert.deepEqual(store.voteProgress, { submitted: 1, total: 2 })
+  assert.deepEqual(store.voterIds, [HOST_PARTICIPANT_ID, 'guest-1'])
+})

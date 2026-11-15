@@ -3,7 +3,7 @@
  */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { encodeDraft, encodeHello, encodeVote } from './protocol.js'
+import { encodeDraft, encodeHello, encodeRetractVote, encodeVote } from './protocol.js'
 import { createMovieVoteWireState } from './movieVoteWireState.js'
 import { createHostInboxWire } from './hostInboxWire.js'
 
@@ -21,6 +21,7 @@ function baseDeps(overrides = {}) {
     cancelParticipantRemoval: () => {},
     applyGuestDraft: () => {},
     applyGuestVote: () => false,
+    applyGuestRetractVote: () => false,
     getHostParticipantName: () => 'Host',
     getRoomResetEpoch: () => 0,
     clearGuestKick: () => {},
@@ -205,4 +206,48 @@ test('hello message path awaits Persist for new seat', async () => {
 
   assert.equal(persistCount, 1)
   assert.equal(deps.wireState.stableIdToParticipant.has('stable-msg'), true)
+})
+
+test('accepted guest vote retraction broadcasts without trying to finish voting', () => {
+  /** @type {string[]} */
+  const retracted = []
+  let broadcastCount = 0
+  let finishCount = 0
+  const deps = baseDeps({
+    applyGuestRetractVote: (pid) => {
+      retracted.push(pid)
+      return true
+    },
+    hostBroadcastState: () => {
+      broadcastCount += 1
+    },
+    tryFinishVoting: () => {
+      finishCount += 1
+    },
+  })
+  const wire = createHostInboxWire(deps)
+  deps.wireState.stableIdToParticipant.set('stable-1', 'guest-1')
+
+  wire.handleHostInboxMessage('stable-1', encodeRetractVote('guest-1'))
+
+  assert.deepEqual(retracted, ['guest-1'])
+  assert.equal(broadcastCount, 1)
+  assert.equal(finishCount, 0)
+})
+
+test('guest cannot retract another seat\'s vote', () => {
+  /** @type {string[]} */
+  const retracted = []
+  const deps = baseDeps({
+    applyGuestRetractVote: (pid) => {
+      retracted.push(pid)
+      return true
+    },
+  })
+  const wire = createHostInboxWire(deps)
+  deps.wireState.stableIdToParticipant.set('stable-1', 'guest-1')
+
+  wire.handleHostInboxMessage('stable-1', encodeRetractVote('guest-2'))
+
+  assert.deepEqual(retracted, [])
 })

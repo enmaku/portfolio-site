@@ -10,6 +10,17 @@
         @complete="onReplayComplete"
       />
 
+      <q-btn
+        v-if="showReplay"
+        unelevated
+        color="primary"
+        no-caps
+        class="full-width q-mt-md"
+        icon="emoji_events"
+        :label="seeWinnerLabel"
+        @click="openWinner"
+      />
+
       <ResultsSummaryShell
         v-if="showFinal"
         :model="summaryModel"
@@ -20,6 +31,17 @@
         v-if="showPairwiseMatrix"
         :model="pairwiseModel"
         :ballot-movies="ballotMovies"
+      />
+
+      <q-btn
+        v-if="showFinal && canShowBreakdown"
+        flat
+        color="primary"
+        no-caps
+        class="full-width q-mt-md"
+        icon="bar_chart"
+        label="See vote results"
+        @click="openBreakdown"
       />
 
       <q-btn
@@ -36,6 +58,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMovieVoteResultsPresentation } from '../composables/useMovieVoteResultsPresentation.js'
 import { useMovieVoteP2P } from '../composables/useMovieVoteP2P.js'
@@ -61,7 +84,10 @@ const {
   summaryModel,
   replayModel,
   pairwiseModel,
+  canShowBreakdown,
   onReplayComplete,
+  openWinner,
+  openBreakdown,
 } = useMovieVoteResultsPresentation({
   electionOutcome,
   ballotMovies,
@@ -69,6 +95,10 @@ const {
   roomSuffix,
   roomAuthoritySeq,
 })
+
+const seeWinnerLabel = computed(() =>
+  summaryModel.value.variant === 'declaredTie' ? 'See winners' : 'See winner',
+)
 </script>
 
 <style scoped lang="scss">

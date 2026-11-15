@@ -126,3 +126,88 @@ test('room suffix change hydrates consumed seq from sessionStorage', async () =>
     globalThis.sessionStorage = prev
   }
 })
+
+test('openBreakdown from summary shows replay and holds there after it completes', async () => {
+  const storage = mockSessionStorage()
+  const prev = globalThis.sessionStorage
+  globalThis.sessionStorage = storage
+  const scope = effectScope(true)
+  try {
+    const ctx = scope.run(() => mountPresentation(scope))
+    await nextTick()
+    ctx.onReplayComplete()
+    await nextTick()
+    assert.equal(ctx.showFinal.value, true)
+    assert.equal(ctx.canShowBreakdown.value, true)
+
+    ctx.openBreakdown()
+    await nextTick()
+    assert.equal(ctx.showReplay.value, true)
+    assert.equal(ctx.showFinal.value, false)
+
+    // Replay finishing on its own must not bounce a viewer who asked for the breakdown.
+    ctx.onReplayComplete()
+    await nextTick()
+    assert.equal(ctx.showReplay.value, true)
+    assert.equal(ctx.showFinal.value, false)
+
+    // Room rebroadcasts must not kick them out either.
+    ctx.electionOutcome.value = { ...irvOutcome }
+    ctx.roomAuthoritySeq.value = 8
+    await nextTick()
+    assert.equal(ctx.showReplay.value, true)
+    assert.equal(ctx.showFinal.value, false)
+
+    ctx.openWinner()
+    await nextTick()
+    assert.equal(ctx.showReplay.value, false)
+    assert.equal(ctx.showFinal.value, true)
+  } finally {
+    scope.stop()
+    globalThis.sessionStorage = prev
+  }
+})
+
+test('openWinner during the automatic replay skips to the summary and marks it seen', async () => {
+  const storage = mockSessionStorage()
+  const prev = globalThis.sessionStorage
+  globalThis.sessionStorage = storage
+  const scope = effectScope(true)
+  try {
+    const ctx = scope.run(() => mountPresentation(scope))
+    await nextTick()
+    assert.equal(ctx.showReplay.value, true)
+
+    ctx.openWinner()
+    await nextTick()
+    assert.equal(ctx.showReplay.value, false)
+    assert.equal(ctx.showFinal.value, true)
+    assert.equal(storage.data['mv-results-replay-seq:ROOM1'], '7')
+  } finally {
+    scope.stop()
+    globalThis.sessionStorage = prev
+  }
+})
+
+test('no breakdown button for pairwise methods without a rounds replay', async () => {
+  const storage = mockSessionStorage()
+  const prev = globalThis.sessionStorage
+  globalThis.sessionStorage = storage
+  const scope = effectScope(true)
+  try {
+    const ctx = scope.run(() =>
+      mountPresentation(scope, {
+        electionOutcome: { ...irvOutcome, votingMethod: 'condorcet' },
+      }),
+    )
+    await nextTick()
+    assert.equal(ctx.canShowBreakdown.value, false)
+    ctx.openBreakdown()
+    await nextTick()
+    assert.equal(ctx.showReplay.value, false)
+    assert.equal(ctx.showFinal.value, true)
+  } finally {
+    scope.stop()
+    globalThis.sessionStorage = prev
+  }
+})

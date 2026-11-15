@@ -233,9 +233,20 @@ export function drainMovieVoteHostResetToSuggestProbeForTests() {
 function applyInboundPublicPayload(payload) {
   const s = useMovieVoteStore()
   const prevPhase = s.phase
+  const prevEpoch = s.resetEpoch
+  const prevReady = s.readyToVote
+  // A pending guest draft push means the host has not seen our latest ready intent yet;
+  // its broadcast row for this seat is stale and must not clobber the local toggle.
+  const guestDraftPending =
+    sessionPhase.value === 'guest_connected' && guestDraftTimer !== undefined
   applyingRemote = true
   try {
     s.applyPublicPayload(payload, { roomSuffix: sessionSuffix.value })
+    const stillSameSuggestRound =
+      prevPhase === 'suggest' && s.phase === 'suggest' && s.resetEpoch === prevEpoch
+    if (guestDraftPending && stillSameSuggestRound && s.readyToVote !== prevReady) {
+      s.readyToVote = prevReady
+    }
   } finally {
     applyingRemote = false
   }
@@ -289,7 +300,7 @@ export function movieVoteP2PPlugin(ctx) {
   actionHookInstalled.add(store)
 
   store.$onAction(({ name, after, args }) => {
-    after(() => {
+    after((result) => {
       if (applyingRemote) return
 
       const s = useMovieVoteStore()
@@ -313,6 +324,16 @@ export function movieVoteP2PPlugin(ctx) {
           wire.guestSubmitVote(ranking)
         } else if (sessionPhase.value === 'hosting') {
           hostAfterSubmitProbe.push('afterVoteSubmit')
+          wire.hostAfterVoteSubmit()
+        }
+        return
+      }
+
+      if (name === 'retractVote') {
+        if (result !== true || !isMovieVoteP2PSessionActive()) return
+        if (sessionPhase.value === 'guest_connected') {
+          wire.guestRetractVote()
+        } else if (sessionPhase.value === 'hosting') {
           wire.hostAfterVoteSubmit()
         }
         return

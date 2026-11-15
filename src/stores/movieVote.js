@@ -300,6 +300,32 @@ export const useMovieVoteStore = defineStore('movieVote', {
       return true
     },
 
+    /**
+     * Withdraw a submitted ranking so it can be edited again. Keeps `myRanking` so the
+     * voter tweaks their order instead of starting over. Host drops its own tally entry;
+     * guest unlocks locally and the bridge tells the host.
+     * @returns {boolean}
+     */
+    retractVote() {
+      if (this.phase !== 'voting' || !this.myVoteSubmitted) return false
+      const pid = this.myParticipantId ?? HOST_PARTICIPANT_ID
+      this.myVoteSubmitted = false
+      if (pid === HOST_PARTICIPANT_ID) this.removeGuestVote(pid)
+      return true
+    },
+
+    /**
+     * Host: drop one seat's ranking while keeping them a voter.
+     * @param {string} participantId
+     */
+    removeGuestVote(participantId) {
+      if (!(participantId in this.votesByParticipant)) return
+      const rest = { ...this.votesByParticipant }
+      delete rest[participantId]
+      this.votesByParticipant = rest
+      this._updateVoteProgress()
+    },
+
     /** Host records own vote */
     submitMyVoteLocal(ranking) {
       const pid = this.myParticipantId ?? HOST_PARTICIPANT_ID

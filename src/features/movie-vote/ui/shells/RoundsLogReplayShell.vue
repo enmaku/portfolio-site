@@ -56,6 +56,8 @@ const props = defineProps({
 const emit = defineEmits(['complete'])
 
 const DISPLAY_MS = 2000
+/** Extra time on the final standings before handing off to the winner card. */
+const FINAL_HOLD_MS = 6000
 const EXIT_MS = 780
 const BETWEEN_MS = 480
 const INTRO_MS = 280
@@ -212,6 +214,8 @@ async function runSequence(myRun) {
     }
   }
 
+  await sleep(FINAL_HOLD_MS)
+  if (myRun !== runId) return
   emit('complete')
 }
 

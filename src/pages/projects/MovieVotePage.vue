@@ -40,14 +40,12 @@
       v-if="phase === 'voting'"
       class="mv-actions-bar full-width q-px-md q-pt-sm"
     >
-      <q-btn
-        unelevated
+      <q-toggle
+        v-model="doneVotingModel"
         color="primary"
-        no-caps
-        class="full-width"
         label="Done voting"
-        :disable="myVoteSubmitted"
-        @click="onDoneVoting"
+        class="full-width"
+        data-testid="mv-done-voting-toggle"
       />
     </div>
 
@@ -118,7 +116,6 @@ const {
   phase,
   myDraftPicks,
   othersDraftPicks,
-  myVoteSubmitted,
   voteProgress,
   uniqueSuggestedMovieCount,
   fullscreenEnabled,
@@ -165,12 +162,18 @@ function confirmClearMovies() {
   clearConfirmOpen.value = false
 }
 
-function onDoneVoting() {
-  const ranking = [...store.myRanking]
-  if (!store.submitVote(ranking)) {
-    $q.notify({ type: 'warning', message: 'Rank every movie.', position: 'top' })
-  }
-}
+const doneVotingModel = computed({
+  get: () => store.myVoteSubmitted,
+  set: (v) => {
+    if (!v) {
+      store.retractVote()
+      return
+    }
+    if (!store.submitVote([...store.myRanking])) {
+      $q.notify({ type: 'warning', message: 'Rank every movie.', position: 'top' })
+    }
+  },
+})
 
 function onResetResults() {
   store.resetToSuggest()

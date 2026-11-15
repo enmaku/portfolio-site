@@ -47,6 +47,7 @@ import {
   encodeHostVisibility,
   encodeState,
   encodeVote,
+  encodeRetractVote,
   parseHostVisibility,
   parseState,
   parseWelcome,
@@ -376,6 +377,19 @@ function applyGuestVoteFromInbox(participantId, ranking) {
   return true
 }
 
+/**
+ * @param {string} participantId
+ * @returns {boolean}
+ */
+function applyGuestRetractVoteFromInbox(participantId) {
+  const store = useMovieVoteStore()
+  if (store.phase !== 'voting') return false
+  if (!store.voterIds.includes(participantId)) return false
+  if (!(participantId in store.votesByParticipant)) return false
+  store.removeGuestVote(participantId)
+  return true
+}
+
 function handleGuestHostEnded() {
   notifyP2P('The host ended the room.', 'info')
   core.bumpReconnectGeneration()
@@ -430,6 +444,7 @@ const hostInboxWire = createHostInboxWire({
   cancelParticipantRemoval: guestOnlineWire.cancelParticipantRemoval,
   applyGuestDraft: applyGuestDraftFromInbox,
   applyGuestVote: applyGuestVoteFromInbox,
+  applyGuestRetractVote: applyGuestRetractVoteFromInbox,
   getHostParticipantName: () => useMovieVoteStore().myParticipantName ?? '',
   getRoomResetEpoch: () => useMovieVoteStore().resetEpoch,
   clearGuestKick: (stableId) => {
@@ -532,6 +547,7 @@ function destroyWireOnly() {
  * @property {() => void} hostVotingMethodChanged
  * @property {() => void} guestPushDraft
  * @property {(ranking: string[]) => void} guestSubmitVote
+ * @property {() => void} guestRetractVote
  * @property {() => void} hostAfterVoteSubmit
  */
 
@@ -581,6 +597,12 @@ const movieVoteP2POutboundSync = {
     const pid = store.myParticipantId
     if (!pid) return
     core.writeGuestInbox(encodeVote(pid, ranking))
+  },
+  guestRetractVote() {
+    if (core.isHostRole()) return
+    const pid = useMovieVoteStore().myParticipantId
+    if (!pid) return
+    core.writeGuestInbox(encodeRetractVote(pid))
   },
   hostAfterVoteSubmit() {
     if (sessionPhase.value !== 'hosting') return

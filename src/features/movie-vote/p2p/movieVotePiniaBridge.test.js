@@ -286,6 +286,42 @@ test('guest draft edits debounce to one push after quiesce', () => {
   }
 })
 
+test('guest ready toggle survives a host broadcast that lands inside the draft debounce', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  resetMovieVoteGuestDraftDebounceForTests()
+
+  try {
+    suppressGuestDraftPushForTests(true)
+    const store = installMovieVotePinia()
+    sessionPhase.value = 'guest_connected'
+    grantRoomAuthority(store)
+    store.setMyParticipantId('guest-1')
+    drainGuestDraftPushProbeForTests()
+
+    store.setReadyToVote(true)
+
+    // Another participant's change makes the host rebroadcast before our draft push
+    // fires; authority still shows this seat as not ready.
+    applyInboundMovieVotePayloadForTests(
+      suggestPhasePayload({
+        participants: [
+          { id: HOST_PARTICIPANT_ID, ready: false, pickCount: 1 },
+          { id: 'guest-1', ready: false, pickCount: 1 },
+          { id: 'guest-2', ready: false, pickCount: 2 },
+        ],
+      }),
+    )
+    assert.equal(store.readyToVote, true)
+
+    mock.timers.tick(320)
+    assert.equal(drainGuestDraftPushProbeForTests(), 1)
+    assert.equal(store.readyToVote, true)
+  } finally {
+    resetMovieVoteGuestDraftDebounceForTests()
+    mock.timers.reset()
+  }
+})
+
 /** @param {string} publicId */
 function ballotMovie(publicId) {
   return {

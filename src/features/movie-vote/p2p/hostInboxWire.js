@@ -4,6 +4,7 @@ import {
   parseDraft,
   parseHello,
   parseVote,
+  parseRetractVote,
   encodeHostVisibility,
 } from './protocol.js'
 import { generateAnonymousVoterId } from './roomId.js'
@@ -56,6 +57,7 @@ function normalizePicks(picks) {
  * @param {(pid: string) => void} deps.cancelParticipantRemoval
  * @param {(participantId: string, entry: { picks: import('../types.js').MoviePick[], ready: boolean }) => void} deps.applyGuestDraft Inbox may author picks/ready only
  * @param {(participantId: string, ranking: string[]) => boolean} deps.applyGuestVote
+ * @param {(participantId: string) => boolean} deps.applyGuestRetractVote
  * @param {() => string} deps.getHostParticipantName
  * @param {() => number} deps.getRoomResetEpoch Current vote generation for the room.
  * @param {(stableId: string) => void} deps.clearGuestKick
@@ -99,7 +101,10 @@ export function createHostInboxWire(deps) {
     if (existing) return existing
 
     const draft = parseDraft(raw)
-    const pid = draft?.participantId ?? parseVote(raw)?.participantId
+    const pid =
+      draft?.participantId ??
+      parseVote(raw)?.participantId ??
+      parseRetractVote(raw)?.participantId
     if (!pid) return null
     // Only hello may allocate seats. Orphan inbox drafts after eject/refresh must not
     // mint empty-name guests.
@@ -182,6 +187,15 @@ export function createHostInboxWire(deps) {
       if (deps.applyGuestVote(expectedPid, vote.ranking)) {
         deps.hostBroadcastState()
         deps.tryFinishVoting()
+      }
+      return
+    }
+
+    const retract = parseRetractVote(raw)
+    if (retract) {
+      if (retract.participantId !== expectedPid) return
+      if (deps.applyGuestRetractVote(expectedPid)) {
+        deps.hostBroadcastState()
       }
     }
   }

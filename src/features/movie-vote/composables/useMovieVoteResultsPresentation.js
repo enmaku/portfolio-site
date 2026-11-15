@@ -3,6 +3,7 @@ import { createPairwiseMatrixViewModel } from '../ui/createPairwiseMatrixViewMod
 import { createResultsSummaryViewModel } from '../ui/createResultsSummaryViewModel.js'
 import { createRoundsLogReplayViewModel } from '../ui/createRoundsLogReplayViewModel.js'
 import { resolveResultsPresentation } from '../ui/resultsPresentationPolicy.js'
+import { shouldAnimateRoundsReplay } from '../resultsScoreboard.js'
 import {
   readLastReplayedSeq,
   rememberReplayedSeq,
@@ -27,6 +28,8 @@ export function useMovieVoteResultsPresentation({
   const showReplay = ref(false)
   const showFinal = ref(false)
   const consumedReplaySeq = ref(null)
+  /** Viewer explicitly opened the breakdown; stays there until they choose the winner view. */
+  const breakdownPinned = ref(false)
 
   watch(
     roomSuffix,
@@ -66,6 +69,10 @@ export function useMovieVoteResultsPresentation({
     }),
   )
 
+  const canShowBreakdown = computed(
+    () => shouldAnimateRoundsReplay(electionOutcome.value) && replayModel.value.steps.length > 0,
+  )
+
   const showPairwiseMatrix = computed(
     () => showFinal.value && presentation.value.showPairwiseMatrixNow && pairwiseModel.value.mount,
   )
@@ -74,10 +81,13 @@ export function useMovieVoteResultsPresentation({
     [electionOutcome, presentation],
     () => {
       if (!electionOutcome.value) {
+        breakdownPinned.value = false
         showReplay.value = false
         showFinal.value = false
         return
       }
+
+      if (breakdownPinned.value) return
 
       const seq = roomAuthoritySeq.value
       const consumed = consumedReplaySeq.value
@@ -103,7 +113,14 @@ export function useMovieVoteResultsPresentation({
     { immediate: true },
   )
 
+  /** Automatic replay finished: advance to the winner unless the viewer asked to stay. */
   function onReplayComplete() {
+    if (breakdownPinned.value) return
+    openWinner()
+  }
+
+  function openWinner() {
+    breakdownPinned.value = false
     const suffix = roomSuffix.value
     const seq = roomAuthoritySeq.value
     if (suffix && typeof seq === 'number' && seq > 0) {
@@ -114,6 +131,13 @@ export function useMovieVoteResultsPresentation({
     showFinal.value = true
   }
 
+  function openBreakdown() {
+    if (!canShowBreakdown.value) return
+    breakdownPinned.value = true
+    showFinal.value = false
+    showReplay.value = true
+  }
+
   return {
     showReplay,
     showFinal,
@@ -121,6 +145,10 @@ export function useMovieVoteResultsPresentation({
     summaryModel,
     replayModel,
     pairwiseModel,
+    canShowBreakdown,
+    breakdownPinned,
     onReplayComplete,
+    openWinner,
+    openBreakdown,
   }
 }

@@ -19,6 +19,8 @@ export const MSG_MV_HELLO = 'mv-hi'
 export const MSG_MV_DRAFT = 'mv-d'
 /** Guest → host: final IRV ranking */
 export const MSG_MV_VOTE = 'mv-vt'
+/** Guest → host: withdraw a submitted ranking so it can be edited */
+export const MSG_MV_RETRACT_VOTE = 'mv-uv'
 
 /** Distinguishes otherwise-identical guest inbox writes (RTDB skips equal set()). */
 let guestInboxWriteSeq = 0
@@ -206,6 +208,23 @@ export function parseDraft(data) {
  */
 export function encodeVote(participantId, ranking) {
   return { v: 1, type: MSG_MV_VOTE, participantId, ranking, w: nextGuestInboxWriteSeq() }
+}
+
+/**
+ * @param {string} participantId
+ */
+export function encodeRetractVote(participantId) {
+  return { v: 1, type: MSG_MV_RETRACT_VOTE, participantId, w: nextGuestInboxWriteSeq() }
+}
+
+/**
+ * @param {unknown} data
+ * @returns {{ participantId: string } | null}
+ */
+export function parseRetractVote(data) {
+  if (!isRecord(data) || data.type !== MSG_MV_RETRACT_VOTE) return null
+  if (typeof data.participantId !== 'string') return null
+  return { participantId: data.participantId }
 }
 
 /**
