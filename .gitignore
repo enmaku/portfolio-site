@@ -23,7 +23,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # Editor directories and files
-.cursor/
 .vscode/
 .idea
 *.suo
@@ -32,7 +31,6 @@ yarn-error.log*
 *.sln
 /artifacts/*
 /.tmp*/*
-.agents/
 skills-lock.json
 
 # local env (secrets); keep .env.example committed

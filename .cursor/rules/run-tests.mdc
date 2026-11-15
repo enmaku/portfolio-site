@@ -1,0 +1,45 @@
+---
+description: How and when to run tests without wasting minutes
+alwaysApply: true
+---
+
+# Running tests
+
+The full suite is ~30s. Never run it after every edit — scope first.
+
+## During iteration
+
+Run the file you changed, then its owning sub-suite:
+
+```bash
+node --experimental-test-module-mocks --test src/features/game-timer/election.test.js
+node --experimental-test-module-mocks --test "src/features/game-timer/**/*.test.js"
+```
+
+Sub-suite globs: `src/features/<feature>/**`, `src/composables/**`, `src/layouts/**`,
+`src/router/**`, `world-builder/**`, `scripts/*.test.mjs`, `functions/bgg/*`.
+
+## Full suite
+
+`npm test` only before commit/PR, or when touching shared code (`src/stores/`,
+`src/features/p2p/`, `src/utils/`, `src/features/p2p/test/`). The test script enumerates
+every path explicitly, so it is the only thing that catches a file you forgot.
+
+## Expensive groups
+
+`world-builder` is ~24s of the ~30s total. Run it as its own step, never per-edit.
+
+## Never
+
+- **`--test-force-exit`.** It silently drops ~450 tests across 66 files and still exits 0.
+  A green run with a lower `ℹ tests` count is a failure.
+- Inferring success from truncated output. Check the `ℹ tests` / `ℹ pass` / `ℹ fail`
+  summary, and never `| tail` a run and treat empty output as passing.
+
+## If a run stalls
+
+A stall with no output at 0% CPU is a Firebase RTDB socket, not slowness. Waiting longer
+will not help. Re-run with `required_permissions: ["full_network"]`. Unit tests are
+supposed to mock Firebase via `src/features/p2p/test/offlineFirebaseMocks.js` or
+`src/features/p2p/test/rtdbLifecycleHarness.js` — a new hang means a test is reaching
+real `ref()`/`set()`, which should be fixed rather than worked around.
