@@ -1,0 +1,27 @@
+import * as C from './capture.mjs';
+const s = C.sleep;
+await C.closeAll(); await s(250);
+await C.ev('document.querySelector("#divBuild").scrollTop=0'); await s(250);
+await C.shot('60-build-column-top');
+const open = async (prefix, name, idx=0) => {
+  await C.closeAll(); await s(200);
+  await C.ev('document.querySelector("#divBuild").scrollTop=0'); await s(200);
+  const r = await C.ev(`(()=>{const bs=[...document.querySelectorAll('#divBuild .div-button')].filter(e=>e.innerText.startsWith(${JSON.stringify(prefix)}));
+    if(!bs[${idx}]) return 'NF:'+bs.length; bs[${idx}].click(); return 'OK';})()`);
+  await s(1200);
+  console.log(prefix, idx, r, await C.modalInfo());
+  await C.shot(name);
+};
+await open('Ancestry','62-ancestry-select');
+await open('Background','63-background-select');
+await open('Class','64-class-select');
+await open('Heritage','68-heritage-select');
+await open('Ancestry Feat','73-ancestry-feat');
+await open('Set Abilities','65-set-abilities');
+await open('Skill Training','66-skill-training');
+await open('Deity Skill','67-deity-skill');
+await open('Select Font','69-divine-font');
+await open('Select Doctrine','70-doctrine');
+await open("Select Deity's",'71-favored-weapon');
+await open('Select Cleric Sanctification','72-sanctification');
+await C.closeAll();
