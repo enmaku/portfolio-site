@@ -112,22 +112,13 @@ function seedCollaborationState(store) {
  *   store: ReturnType<typeof useMovieVoteStore>,
  *   expectedDraftLocalIds?: string[],
  *   expectedFullscreen?: boolean,
- *   expectedRoomSuffix?: string | null,
  * }} ctx
  */
 function assertMovieVoteRoomExitSurvival(ctx) {
   assert.equal(ctx.phase.value, 'idle', 'connection posture should be idle after room exit')
   assert.equal(ctx.suffix.value, null, 'session suffix should clear after room exit')
   assert.equal(ctx.room.role, null, 'persisted room role should clear after room exit')
-  if (ctx.expectedRoomSuffix === undefined) {
-    assert.equal(ctx.room.suffix, null, 'persisted room suffix should clear after room exit')
-  } else {
-    assert.equal(
-      ctx.room.suffix,
-      ctx.expectedRoomSuffix,
-      'persisted room suffix should match host reuse contract',
-    )
-  }
+  assert.equal(ctx.room.suffix, null, 'persisted room suffix should clear after room exit')
   assert.equal(ctx.store.phase, 'suggest', 'collaboration phase should reset to suggest')
   assert.equal(ctx.store.readyToVote, false, 'ready flag should clear after room exit')
   assert.equal(ctx.store.myParticipantId, null, 'participant seat should clear after room exit')
@@ -157,8 +148,8 @@ function assertMovieVoteRoomExitSurvival(ctx) {
   if (ctx.expectedDraftLocalIds) {
     assert.deepEqual(
       ctx.store.myDraftPicks.map((p) => p.localId),
-      ctx.expectedDraftLocalIds,
-      'personal draft picks should survive room exit',
+      [],
+      'personal draft picks are wiped on room exit (ADR 0030)',
     )
   }
   if (ctx.expectedFullscreen !== undefined) {
@@ -244,7 +235,12 @@ test(
       namedExports: {
         ...(await import('../../p2p/identity.js')),
         getStableClientId: () => hostStableId,
-        deriveStableHostSuffix: () => suffix,
+      },
+    })
+    mock.module('./roomId.js', {
+      namedExports: {
+        ...(await import('./roomId.js')),
+        generateRoomSuffix: () => suffix,
       },
     })
 
@@ -285,7 +281,6 @@ test(
         store,
         expectedDraftLocalIds: draftLocalIds,
         expectedFullscreen: true,
-        expectedRoomSuffix: suffix,
       })
     })
   },
@@ -456,3 +451,89 @@ test(
 )
 
 afterEach(rtdbAfterEach)
+
+test(
+  'restartHosting ends the old room, mints a different code, keeps the host name, wipes picks',
+  facadeRoomExitTests,
+  async () => {
+    mock.reset()
+
+    const codes = ['OLDAA1', 'NEWBB2']
+    mock.module('../../p2p/identity.js', {
+      namedExports: {
+        ...(await import('../../p2p/identity.js')),
+        getStableClientId: () => 'MVRESTARTHOST1',
+      },
+    })
+    mock.module('./roomId.js', {
+      namedExports: {
+        ...(await import('./roomId.js')),
+        generateRoomSuffix: () => codes.shift() ?? 'ZZZZZZ',
+      },
+    })
+
+    const harness = await installRtdbLifecycleMocks({
+      getHostPing: () => null,
+      getEnded: () => null,
+      getHostClientId: () => null,
+    })
+
+    await withFirebaseEnv(async () => {
+      const sessionMod = await importMovieVoteSession(`host-restart-${Date.now()}`)
+      const { startAsHost, restartHosting, sessionPhase, sessionSuffix } = sessionMod
+      const { store, room } = bindFacadeHandlers(sessionMod, {})
+
+      await startAsHost({ participantName: 'Host', maxAttempts: 3 })
+      store.addDraftPick(customPick('p1', 'Leftover'))
+      assert.equal(sessionSuffix.value, 'OLDAA1')
+      activeRtdbSetsClear(harness)
+
+      const result = await restartHosting()
+
+      assertDeliberateHostEndWirePaths(harness, 'OLDAA1')
+      assert.equal(result?.suffix, 'NEWBB2')
+      assert.equal(sessionPhase.value, 'hosting')
+      assert.equal(sessionSuffix.value, 'NEWBB2')
+      assert.equal(room.suffix, 'NEWBB2')
+      assert.equal(room.role, 'host')
+      assert.equal(store.myParticipantName, 'Host', 'host keeps their name on restart')
+      assert.deepEqual(store.myDraftPicks, [], 'picks are wiped on restart')
+    })
+  },
+)
+
+test(
+  'resume after reload starts clean when the persisted host room is ended or stale',
+  facadeRoomExitTests,
+  async () => {
+    for (const roomState of [
+      { ended: Date.now(), ping: Date.now() },
+      { ended: null, ping: Date.now() - 13 * 60 * 60 * 1000 },
+      { ended: null, ping: null },
+    ]) {
+      mock.reset()
+      const harness = await installRtdbLifecycleMocks({
+        getHostPing: () => roomState.ping,
+        getEnded: () => roomState.ended,
+        getHostClientId: () => 'MVSTALEHOST1',
+      })
+      await withFirebaseEnv(async () => {
+        const sessionMod = await importMovieVoteSession(`host-stale-${Date.now()}-${Math.random()}`)
+        const { resumeMovieVoteSessionIfNeeded, sessionPhase } = sessionMod
+        const { store, room } = bindFacadeHandlers(sessionMod, {})
+        room.setHost('STALE1', 'Old Host')
+        store.addDraftPick(customPick('s1', 'Last week'))
+        activeRtdbSetsClear(harness)
+
+        resumeMovieVoteSessionIfNeeded()
+        await new Promise((r) => setTimeout(r, 20))
+
+        assert.equal(sessionPhase.value, 'idle')
+        assert.equal(room.role, null)
+        assert.equal(room.suffix, null)
+        assert.equal(room.participantName, '')
+        assert.deepEqual(store.myDraftPicks, [])
+      })
+    }
+  },
+)

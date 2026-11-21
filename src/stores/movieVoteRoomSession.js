@@ -39,11 +39,6 @@ export const useMovieVoteRoomSessionStore = defineStore('movieVoteRoomSession', 
       this.suffix = null
       this.participantName = ''
     },
-
-    /** Host left deliberately; keep suffix so the same room code is reused next time. */
-    clearHostRole() {
-      this.role = null
-    },
   },
 
   persist: {

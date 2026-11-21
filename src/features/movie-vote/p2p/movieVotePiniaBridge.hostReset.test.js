@@ -41,7 +41,12 @@ test(
       namedExports: {
         ...(await import('../../p2p/identity.js')),
         getStableClientId: () => 'MVHOSTRESET1',
-        deriveStableHostSuffix: () => 'RESET1',
+      },
+    })
+    mock.module('./roomId.js', {
+      namedExports: {
+        ...(await import('./roomId.js')),
+        generateRoomSuffix: () => 'RESET1',
       },
     })
 

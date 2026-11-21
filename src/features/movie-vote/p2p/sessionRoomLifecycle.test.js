@@ -124,8 +124,8 @@ function assertMovieVoteRoomExitSurvival(ctx) {
   if (ctx.expectedDraftLocalIds) {
     assert.deepEqual(
       ctx.store.myDraftPicks.map((p) => p.localId),
-      ctx.expectedDraftLocalIds,
-      'personal draft picks should survive room exit',
+      [],
+      'personal draft picks are wiped on room exit (ADR 0030)',
     )
   }
   if (ctx.expectedFullscreen !== undefined) {
@@ -137,7 +137,7 @@ function assertMovieVoteRoomExitSurvival(ctx) {
   }
 }
 
-test('leaveSession clears collaboration but keeps personal drafts and fullscreen', () => {
+test('leaveSession clears collaboration but wipes personal drafts and keeps fullscreen', () => {
   setActivePinia(createPinia())
   const store = useMovieVoteStore()
   const room = useMovieVoteRoomSessionStore()

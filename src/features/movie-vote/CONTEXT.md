@@ -290,9 +290,15 @@ Local star-room shell posture for transport and listeners (`idle`, `connecting`,
 
 _Avoid_: Saying “phase” when you mean connectivity or reconnect banners.
 
+### Single-use room code
+
+A Movie Vote **room code** serves exactly one **room**. **Stop hosting**, **refresh room code**, and **start new vote** (while hosting) all end the **room** and, for the latter two, immediately host a new one under a new code; **guests** are removed and rejoin via the new join link. See [ADR 0030](../../../docs/adr/0030-movie-vote-single-use-room-codes.md).
+
+_Avoid_: Reusing or reclaiming an ended **room code**; the stable host suffix preference for Movie Vote.
+
 ### Room exit survival
 
-After **room exit**, all **room**-scoped collaboration resets—**phase**, **participants**, **ballot**, votes, results, **voting method** (back to default **instant-runoff voting**). Personal **movie pick** drafts and **browser fullscreen toggle** preference survive so a returning user is not forced to re-nominate from scratch.
+After **room exit**, all **room**-scoped collaboration resets—**phase**, **participants**, **ballot**, votes, results, **voting method** (back to default **instant-runoff voting**)—and so do the personal **movie pick** drafts and sticky **participant name**, so a new **room** starts clean ([ADR 0030](../../../docs/adr/0030-movie-vote-single-use-room-codes.md)). Only the **browser fullscreen toggle** preference survives.
 
 _Avoid_: Treating **room exit** like **resetSessionSoft** (join/resume hygiene); exit is a full collaborative wipe except personal prep and display prefs.
 

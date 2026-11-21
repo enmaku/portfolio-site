@@ -377,6 +377,7 @@ export const useMovieVoteStore = defineStore('movieVote', {
     resetForRoomExit() {
       this.phase = 'suggest'
       this.readyToVote = false
+      this.myDraftPicks = []
       this.myParticipantId = null
       this.myParticipantName = ''
       this.myQuorumRequired = true

@@ -40,7 +40,7 @@ import {
   runGuestStarReconnectLoop,
   runHostStarReconnectLoop,
 } from '../../p2p/starRoomShell.js'
-import { deriveStableHostSuffix, getStableClientId } from '../../p2p/identity.js'
+import { getStableClientId } from '../../p2p/identity.js'
 import {
   encodeDraft,
   encodeHello,
@@ -66,7 +66,11 @@ import { createHostSeatAdmin } from './hostSeatAdmin.js'
 import { createMovieVoteWireState } from './movieVoteWireState.js'
 import { registerMovieVoteTestWireAccess } from './session.testWireAccess.js'
 
-const STABLE_HOST_SUFFIX_APP = 'movievote'
+/**
+ * A persisted host role resumes after reload only while the room is un-ended and the host
+ * pinged within this window; otherwise the host starts clean (ADR 0030).
+ */
+export const HOST_RESUME_MAX_IDLE_MS = 12 * 60 * 60 * 1000
 
 /**
  * @typedef {object} MovieVoteP2PHandlers
@@ -775,6 +779,25 @@ export async function resumeAsHost(rawSuffix, maxAttempts = 10) {
   throw lastErr ?? new Error('Could not resume room')
 }
 
+/**
+ * @param {string} suffix
+ * @returns {Promise<boolean>} false only when the room is known ended or stale.
+ */
+async function isHostRoomFreshForResume(suffix) {
+  try {
+    const [endedSnap, pingSnap] = await Promise.all([
+      get(roomChild(suffix, 'ended')),
+      get(roomChild(suffix, 'hostPing')),
+    ])
+    if (endedSnap.val() != null) return false
+    const ping = pingSnap.val()
+    if (typeof ping !== 'number') return false
+    return Date.now() - ping <= HOST_RESUME_MAX_IDLE_MS
+  } catch {
+    return true
+  }
+}
+
 export function resumeMovieVoteSessionIfNeeded() {
   let rs
   try {
@@ -787,27 +810,19 @@ export function resumeMovieVoteSessionIfNeeded() {
   const { role, suffix } = rs
   if (role === 'host') {
     const name = rs.participantName || useMovieVoteStore().myParticipantName
-    if (name) useMovieVoteStore().setMyParticipantName(name)
-    resumeAsHost(suffix).catch(() => {})
+    void isHostRoomFreshForResume(suffix).then((fresh) => {
+      if (sessionPhase.value !== 'idle') return
+      if (!fresh) {
+        clearRoomPersistence()
+        resetLocalStateAfterRoomExit()
+        return
+      }
+      if (name) useMovieVoteStore().setMyParticipantName(name)
+      resumeAsHost(suffix).catch(() => {})
+    })
   } else {
     joinRoom(suffix, { participantName: rs.participantName || undefined }).catch(() => {})
   }
-}
-
-/**
- * @returns {string[]}
- */
-function hostStartSuffixOrder() {
-  const preferred = deriveStableHostSuffix(STABLE_HOST_SUFFIX_APP, 6)
-  const order = [preferred]
-  try {
-    const saved = useMovieVoteRoomSessionStore().suffix
-    const norm = saved ? normalizeRoomSuffixInput(saved) : ''
-    if (norm && isValidRoomSuffix(norm) && norm !== preferred) order.push(norm)
-  } catch {
-    void 0
-  }
-  return order
 }
 
 export async function startAsHost(opts = {}) {
@@ -826,12 +841,11 @@ export async function startAsHost(opts = {}) {
   const store = useMovieVoteStore()
   store.setMyParticipantName(participantName)
   store.setMyQuorumRequired(true)
-  const fixedSuffixes = hostStartSuffixOrder()
 
   let lastErr = /** @type {Error | null} */ (null)
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const suffix =
-      attempt < fixedSuffixes.length ? fixedSuffixes[attempt] : generateRoomSuffix(6)
+    // Single-use codes (ADR 0030): always random, never the stable host suffix.
+    const suffix = generateRoomSuffix(6)
 
     try {
       if (!(await core.tryClaimHostRoom(suffix))) {
@@ -966,21 +980,38 @@ function resetLocalStateAfterRoomExit() {
   }
 }
 
-export function leaveSession() {
-  core.bumpReconnectGeneration()
+/**
+ * Ends the hosted room in RTDB (guests see "host ended") when currently hosting.
+ */
+function endHostedRoomIfHosting() {
   if (core.isHostRole() && core.getPhase() === 'hosting' && core.getSuffix()) {
     const suffix = core.getSuffix()
     setRtdb(roomChild(suffix, 'ended'), Date.now()).catch(() => {})
     remove(roomChild(suffix, 'hostPing')).catch(() => {})
-    try {
-      useMovieVoteRoomSessionStore().clearHostRole()
-    } catch {
-      clearRoomPersistence()
-    }
-  } else {
-    clearRoomPersistence()
   }
+}
+
+export function leaveSession() {
+  core.bumpReconnectGeneration()
+  endHostedRoomIfHosting()
+  clearRoomPersistence()
   resetLocalStateAfterRoomExit()
+}
+
+/**
+ * Host-only: end the current room and immediately host a brand-new one with a fresh code,
+ * keeping the host's name (no re-prompt). Guests are booted; picks are wiped (ADR 0030).
+ * @returns {Promise<{ suffix: string } | null>} null when not hosting
+ */
+export async function restartHosting() {
+  if (!core.isHostRole() || core.getPhase() !== 'hosting') return null
+  const store = useMovieVoteStore()
+  const participantName = normalizeParticipantName(store.myParticipantName)
+  core.bumpReconnectGeneration()
+  endHostedRoomIfHosting()
+  clearRoomPersistence()
+  resetLocalStateAfterRoomExit()
+  return startAsHost({ participantName })
 }
 
 export function setParticipantQuorumRequired(participantId, required) {

@@ -96,7 +96,7 @@ Star-topology center for a **room**—the same collaborator role as **host**; **
 
 ### Stable host suffix preference
 
-Deterministic **room suffix** derived from **stable client identity** plus an app tag so returning hosts usually reclaim the same join code unless the **room** is already claimed.
+Deterministic **room suffix** derived from **stable client identity** plus an app tag so returning hosts usually reclaim the same join code unless the **room** is already claimed. **Movie Vote** opts out: its codes are single-use ([ADR 0030](../../../docs/adr/0030-movie-vote-single-use-room-codes.md)).
 
 When the preferred suffix is held by a different **host** principal, **Host room** silently tries the next candidate (saved suffix, then random)—no warning that the usual code was taken; auto-resolution beats alarming the **host** on a recoverable contest.
 

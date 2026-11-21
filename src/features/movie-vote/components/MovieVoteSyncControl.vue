@@ -79,11 +79,12 @@
                 <q-btn
                   flat
                   round
-                  icon="content_copy"
+                  icon="refresh"
                   size="md"
                   color="grey-6"
-                  aria-label="Copy room code"
-                  @click.stop="copyCode"
+                  aria-label="New room code"
+                  data-testid="mv-refresh-room"
+                  @click.stop="onRefreshCode"
                 />
                 <q-btn
                   flat
@@ -222,6 +223,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { useMovieVoteStore } from '../../../stores/movieVote.js'
 import { useMovieVoteP2P } from '../composables/useMovieVoteP2P.js'
 import { buildMovieVoteRoomShareUrl, normalizeRoomSuffixInput } from '../p2p/roomId.js'
 import { normalizeParticipantName } from '../participantName.js'
@@ -237,8 +239,10 @@ const {
   startAsHost,
   joinRoom,
   leaveSession,
+  restartHosting,
   resumeMovieVoteSessionIfNeeded,
 } = useMovieVoteP2P()
+const movieVoteStore = useMovieVoteStore()
 
 const hostOpen = ref(false)
 const joinOpen = ref(false)
@@ -372,6 +376,28 @@ function copyRoomUrl() {
   navigator.clipboard?.writeText(url).then(() => {
     $q.notify({ type: 'positive', message: 'Room link copied', timeout: 1500, position: 'top' })
   })
+}
+
+/** Seats other than the host's own. */
+function hasConnectedGuests() {
+  return movieVoteStore.participants.length > 1
+}
+
+function onRefreshCode() {
+  const run = () => {
+    restartHosting().catch(() => {})
+  }
+  if (!hasConnectedGuests()) {
+    run()
+    return
+  }
+  $q.dialog({
+    title: 'Get a new room code?',
+    message: 'Everyone currently in the room will be removed and the old link will stop working.',
+    cancel: true,
+    persistent: true,
+    ok: { label: 'New code', color: 'primary', unelevated: true, noCaps: true },
+  }).onOk(run)
 }
 
 function onLeave() {

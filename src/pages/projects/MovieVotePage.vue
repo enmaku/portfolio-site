@@ -121,7 +121,7 @@ const {
   fullscreenEnabled,
 } = storeToRefs(store)
 
-const { isGuest, isInSession, promptAndJoinRoom } = useMovieVoteP2P()
+const { isGuest, isHosting, isInSession, promptAndJoinRoom, restartHosting } = useMovieVoteP2P()
 
 useProjectShellBrowserFullscreen({
   enabled: fullscreenEnabled,
@@ -176,7 +176,20 @@ const doneVotingModel = computed({
 })
 
 function onResetResults() {
-  store.resetToSuggest()
+  if (!isHosting.value) {
+    store.resetToSuggest()
+    return
+  }
+  // Hosting: a new vote is a new room (single-use codes, ADR 0030).
+  $q.dialog({
+    title: 'Start a new vote?',
+    message: 'This creates a new room code and removes everyone from the current room.',
+    cancel: true,
+    persistent: true,
+    ok: { label: 'Start new vote', color: 'primary', unelevated: true, noCaps: true },
+  }).onOk(() => {
+    restartHosting().catch(() => {})
+  })
 }
 
 onMounted(() => {

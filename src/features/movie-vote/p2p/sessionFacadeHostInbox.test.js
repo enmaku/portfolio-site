@@ -94,7 +94,12 @@ test(
       namedExports: {
         ...(await import('../../p2p/identity.js')),
         getStableClientId: () => hostStableId,
-        deriveStableHostSuffix: () => suffix,
+      },
+    })
+    mock.module('./roomId.js', {
+      namedExports: {
+        ...(await import('./roomId.js')),
+        generateRoomSuffix: () => suffix,
       },
     })
 
@@ -160,7 +165,12 @@ test(
       namedExports: {
         ...(await import('../../p2p/identity.js')),
         getStableClientId: () => hostStableId,
-        deriveStableHostSuffix: () => suffix,
+      },
+    })
+    mock.module('./roomId.js', {
+      namedExports: {
+        ...(await import('./roomId.js')),
+        generateRoomSuffix: () => suffix,
       },
     })
 
@@ -222,7 +232,12 @@ test(
       namedExports: {
         ...(await import('../../p2p/identity.js')),
         getStableClientId: () => hostStableId,
-        deriveStableHostSuffix: () => suffix,
+      },
+    })
+    mock.module('./roomId.js', {
+      namedExports: {
+        ...(await import('./roomId.js')),
+        generateRoomSuffix: () => suffix,
       },
     })
 
@@ -302,7 +317,12 @@ test(
       namedExports: {
         ...(await import('../../p2p/identity.js')),
         getStableClientId: () => hostStableId,
-        deriveStableHostSuffix: () => suffix,
+      },
+    })
+    mock.module('./roomId.js', {
+      namedExports: {
+        ...(await import('./roomId.js')),
+        generateRoomSuffix: () => suffix,
       },
     })
 
@@ -361,7 +381,12 @@ test(
       namedExports: {
         ...(await import('../../p2p/identity.js')),
         getStableClientId: () => hostStableId,
-        deriveStableHostSuffix: () => suffix,
+      },
+    })
+    mock.module('./roomId.js', {
+      namedExports: {
+        ...(await import('./roomId.js')),
+        generateRoomSuffix: () => suffix,
       },
     })
 
@@ -423,7 +448,12 @@ test(
       namedExports: {
         ...(await import('../../p2p/identity.js')),
         getStableClientId: () => hostStableId,
-        deriveStableHostSuffix: () => suffix,
+      },
+    })
+    mock.module('./roomId.js', {
+      namedExports: {
+        ...(await import('./roomId.js')),
+        generateRoomSuffix: () => suffix,
       },
     })
 
@@ -476,7 +506,12 @@ test(
       namedExports: {
         ...(await import('../../p2p/identity.js')),
         getStableClientId: () => hostStableId,
-        deriveStableHostSuffix: () => suffix,
+      },
+    })
+    mock.module('./roomId.js', {
+      namedExports: {
+        ...(await import('./roomId.js')),
+        generateRoomSuffix: () => suffix,
       },
     })
 
