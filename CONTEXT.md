@@ -188,6 +188,16 @@ The fully filled, viewer-specific JSON the **sheet function** returns for one **
 
 _Avoid_: “Character” or “hero” (SoT’s term); calling the **Pathbuilder export** a sheet.
 
+### Features (CritCrafter viewer)
+
+The expansion at the bottom of the Stats screen listing a character's passive feats, class features and heritage, grouped by source and ordered by level. Passives never appear on the Actions screen.
+
+_Avoid_: “Passives” as a screen name; mixing passives into **Actions**.
+
+### Action source group
+
+A viewer expansion on the Actions screen that groups actions by where they come from (Class, Ancestry, General and Skill, Archetype, Familiar, Basic, Exploration, Skill actions), sorted inside by cost: free, one, two, three actions, then reaction.
+
 ## Relationships
 
 - The **portfolio site** includes the **photo gallery**, about content (**résumé data**), navigation, and routed **projects**.

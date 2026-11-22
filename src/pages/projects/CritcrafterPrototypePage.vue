@@ -7,14 +7,13 @@
  * Not production code: the real viewer renders a server-built CritCrafter sheet and does no math.
  * See docs/prototypes/critcrafter-viewer-layout.md.
  */
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import CostIcons from './CritcrafterCostIcons.vue'
 import RankPips from './CritcrafterRankPips.vue'
 import TraitChips from './CritcrafterTraitChips.vue'
 
 const route = useRoute()
-const router = useRouter()
 const VARIANTS = [
   { key: 'A', name: 'Fixed header, flat screens' },
   { key: 'B', name: 'Accordion density' },
@@ -24,18 +23,6 @@ const VARIANTS = [
 const variant = computed(() =>
   VARIANTS.some((v) => v.key === route.query.variant) ? route.query.variant : 'D',
 )
-function cycle(d) {
-  const i = VARIANTS.findIndex((v) => v.key === variant.value)
-  const next = VARIANTS[(i + d + VARIANTS.length) % VARIANTS.length].key
-  router.replace({ query: { ...route.query, variant: next } })
-}
-function onKey(e) {
-  if (/INPUT|TEXTAREA/.test(e.target?.tagName ?? '')) return
-  if (e.key === 'ArrowLeft') cycle(-1)
-  if (e.key === 'ArrowRight') cycle(1)
-}
-onMounted(() => window.addEventListener('keydown', onKey))
-onUnmounted(() => window.removeEventListener('keydown', onKey))
 
 const TABS = [
   { key: 'stats', label: 'Stats', icon: 'monitor_heart' },
@@ -447,13 +434,6 @@ const pick = (item) => { sheet.value = item }
         <q-icon :name="t.icon" size="24px" /><span>{{ t.label }}</span>
       </button>
     </nav>
-
-    <!-- prototype switcher -->
-    <div class="cc-switch row items-center no-wrap">
-      <q-btn flat round dense icon="chevron_left" @click="cycle(-1)" />
-      <span class="q-mx-sm text-caption">{{ variant }} — {{ VARIANTS.find((v) => v.key === variant).name }}</span>
-      <q-btn flat round dense icon="chevron_right" @click="cycle(1)" />
-    </div>
   </q-page>
 </template>
 
@@ -473,7 +453,6 @@ const pick = (item) => { sheet.value = item }
 .cc-tab { background: none; border: 0; color: var(--q-secondary); font-size: 11px; }
 .cc-tab.active { color: #fff; }
 .cc-tab.active .q-icon { background: var(--q-primary); border-radius: 12px; padding: 2px 14px; box-sizing: content-box; }
-.cc-switch { position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%); background: #fff; color: #111; border-radius: 20px; padding: 2px 6px; z-index: 9999; box-shadow: 0 2px 8px #0008; }
 .cc-exp { margin-bottom: 8px; }
 .cc-exp :deep(.cc-exp-head) { min-height: 56px; font-weight: 600; font-size: 15px; }
 .cc-exp :deep(.q-item__label--caption) { text-align: right; }
