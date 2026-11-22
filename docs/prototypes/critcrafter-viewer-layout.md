@@ -1,21 +1,21 @@
-# CritCrafter viewer: layout prototype (variant D chosen)
+# CritCrafter viewer: layout prototype
 
 Answer to the wayfinder ticket "Prototype: mobile layout and bottom navigation" (map: *CritCrafter character viewer: wayfinder map*).
 
-**Run it** (dev only; the route is not registered in production builds): `npm run dev`, open `/projects/critcrafter-prototype` (variant D is the default; `?variant=A|B|C|D`, or the floating pill / ←→ keys).
+**Run it** (dev only; the route is not registered in production builds): `npm run dev`, open `/projects/critcrafter-prototype`.
 
 **Files** (all throwaway-grade, hand-fed Lithrei Woeborn data, illustrative rules text):
 
-- `src/pages/projects/CritcrafterPrototypePage.vue`: the four variants and all state
+- `src/pages/projects/CritcrafterPrototypePage.vue`: the single chosen design and all state
 - `src/pages/projects/CritcrafterCostIcons.vue`, `CritcrafterRankPips.vue`, `CritcrafterTraitChips.vue`: small presentational pieces
 - `src/assets/critcrafter-prototype/action-*.png`: action glyphs copied from `strength-of-thousands/cards/templates`
 - Route: dev-only entry in `src/router/routes.js`
 
 Not production code. The real viewer renders a server-built CritCrafter sheet and does no lookup or derived-stat math; everything computed here (AC, skill bonuses, ranks) stands in for sheet fields.
 
-## Decisions (variant D)
+## Decisions
 
-Variant D is variant C (cards, floating bottom bar, bottom sheet) with the changes below. A (fixed header, flat lists), B (accordion density) and C are kept only for comparison.
+The chosen design (originally variant D of four) is cards, a floating bottom bar and a bottom sheet, with the details below. The rejected variants (A fixed header with flat lists, B accordion density, C plain cards) were removed from the page; they remain in git history.
 
 ### Shell and navigation
 
@@ -73,7 +73,7 @@ Real PF2e action glyph PNGs (single, two, three, reaction, free) from the SoT ca
 
 ## HP and rests (answer to "Prototype: HP tracking and rest tooling")
 
-Built into variant D of the same page (`?variant=D`, HP option A; options B and C remain reachable via `?hp=B|C` and are not chosen).
+Built into the same page. The chosen HP design (option A) is the only one kept; the inline-stepper and Stats-card alternatives were removed.
 
 - **HP**: the topper shows `current / max`; tapping it opens a keypad bottom sheet with Damage, Heal and Temp HP. Apply closes the sheet. Damage hits temp HP first; temp HP does not stack (highest wins); HP floors at 0. Healing is entered as plain healing (Treat Wounds is an ordinary action, not a rest).
 - **Shield HP**: shown in the shield row (`HP n/max`, red and BROKEN at or below BT). While the shield is raised, the keypad adds Damage Shield and Repair Shield (exact HP change, repair capped at max); tapping a raised shield row opens the keypad on Damage Shield. Row height is constant across lowered/raised.

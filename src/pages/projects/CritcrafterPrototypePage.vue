@@ -1,32 +1,20 @@
 <script setup>
 /**
- * REFERENCE PROTOTYPE (dev-only route) — wayfinder ticket "Prototype: mobile layout and bottom navigation".
- * Four layouts of the CritCrafter character viewer, switchable via `?variant=A|B|C|D` on
- * /projects/critcrafter-prototype. **D is the chosen design**; A–C are kept for comparison.
- * Hard-coded Lithrei Woeborn data (hand-derived numbers, illustrative rules text and costs/traits).
- * Variant D also hosts the HP / rest prototype (wayfinder ticket "Prototype: HP tracking and rest tooling"):
- * `?variant=D&hp=A|B|C` swaps three HP/temp HP/rest UIs. In-memory only.
- * Not production code: the real viewer renders a server-built CritCrafter sheet and does no math.
+ * REFERENCE PROTOTYPE (dev-only route /projects/critcrafter-prototype) for the CritCrafter character viewer.
+ * Answers the wayfinder tickets "Prototype: mobile layout and bottom navigation" and
+ * "Prototype: HP tracking and rest tooling". Hard-coded Lithrei Woeborn data (hand-derived numbers,
+ * illustrative rules text, costs and traits); all state is in memory.
+ * Not production code: the real viewer renders a server-built CritCrafter sheet and does no math, and
+ * persists table state in a Pinia store (localStorage by Pathbuilder id).
  * See docs/prototypes/critcrafter-viewer-layout.md.
  */
 import { computed, reactive, ref } from 'vue'
 import { useQuasar } from 'quasar'
-import { useRoute } from 'vue-router'
 import CostIcons from './CritcrafterCostIcons.vue'
 import RankPips from './CritcrafterRankPips.vue'
 import TraitChips from './CritcrafterTraitChips.vue'
 
-const route = useRoute()
 const $q = useQuasar()
-const VARIANTS = [
-  { key: 'A', name: 'Fixed header, flat screens' },
-  { key: 'B', name: 'Accordion density' },
-  { key: 'C', name: 'Cards + bottom sheet' },
-  { key: 'D', name: 'CHOSEN: C + pinned vitals, 1-col skills, right-aligned meta' },
-]
-const variant = computed(() =>
-  VARIANTS.some((v) => v.key === route.query.variant) ? route.query.variant : 'D',
-)
 
 const TABS = [
   { key: 'stats', label: 'Stats', icon: 'monitor_heart' },
@@ -186,12 +174,6 @@ const ac = computed(() => {
 })
 
 // ---------- HP / temp HP / rests (HP prototype; stand-in for Pinia + localStorage) ----------
-const HP_VARIANTS = [
-  { key: 'A', name: 'Tap HP: keypad sheet; rest in Stats' },
-  { key: 'B', name: 'Inline ±1/±5 in topper; rest in moon dialog' },
-  { key: 'C', name: 'HP card + rest on Stats' },
-]
-const hpVariant = computed(() => (HP_VARIANTS.some((v) => v.key === route.query.hp) ? route.query.hp : 'A'))
 
 const CON = 1
 const st = reactive({ hp: hero.hp, temp: 0, log: [] })
@@ -253,7 +235,6 @@ function confirmRest() {
   restPrompt.value = null
 }
 const hpSheet = ref(false)
-const restDialog = ref(false)
 const hpMode = ref('damage')
 const hpEntry = ref('')
 const hpKey = (k) => { if (k === '⌫') hpEntry.value = hpEntry.value.slice(0, -1); else if (hpEntry.value.length < 3) hpEntry.value += k }
@@ -276,7 +257,6 @@ const actions = [
   { name: 'Pointed Question', traits: ['Concentrate'], cost: ['single'], sub: 'Skill feat', text: 'Ask pointed questions of a subject. (illustrative)' },
 ]
 
-const open = reactive({ saves: true, abilities: false, defenses: true, skills: true, gear: true, spells: true, strikes: true, actions: true })
 const sheet = ref(null)
 const sheetOpen = computed({ get: () => !!sheet.value, set: (v) => { if (!v) sheet.value = null } })
 const pick = (item) => { sheet.value = item }
@@ -284,336 +264,108 @@ const pick = (item) => { sheet.value = item }
 
 <template>
   <q-page class="cc column no-wrap" style="height: 100dvh; background: var(--q-dark-page); color: rgba(255,255,255,.87)">
-    <!-- ================= VARIANT A: fixed header + flat screens ================= -->
-    <template v-if="variant === 'A'">
-      <header class="cc-head q-pa-sm">
-        <div class="text-subtitle1 text-weight-bold">{{ hero.name }}</div>
-        <div class="text-caption text-grey-5">{{ hero.line }}</div>
-        <div class="row q-gutter-xs q-mt-xs">
-          <q-chip dense color="accent" text-color="white">HP {{ hero.hp }}</q-chip>
-          <q-chip dense color="primary" text-color="white">AC {{ ac }}</q-chip>
-          <q-chip dense color="primary" text-color="white">Perc +{{ hero.perception }}</q-chip>
-          <q-chip dense color="secondary" text-color="white">Spd {{ hero.speed }}</q-chip>
-        </div>
-        <div v-if="shield" class="cc-shield text-caption" :class="{ 'cc-shield--off': !shield.raised }"><q-icon name="shield" size="14px" /> {{ shield.name }} · {{ shield.raised ? 'raised, +' + shield.ac + ' AC' : 'lowered' }} · Hardness {{ shield.hardness }} · HP {{ shield.hp }} · BT {{ shield.bt }}</div>
-      </header>
-      <div class="col scroll q-pa-sm">
-        <template v-if="tab === 'stats'">
-          <div class="cc-label">Saves</div>
-          <div class="row q-col-gutter-sm">
-            <div v-for="s in hero.saves" :key="s[0]" class="col-4"><div class="cc-box text-center"><div class="text-caption">{{ s[0] }}</div><div class="text-h6">+{{ s[1] }}</div><div class="text-caption text-grey-5">{{ s[2] }}</div></div></div>
-          </div>
-          <q-separator dark class="cc-sep" />
-          <div class="cc-label">Abilities</div>
-          <div class="row q-col-gutter-sm">
-            <div v-for="a in hero.abilities" :key="a[0]" class="col-4"><div class="cc-box text-center"><div class="text-caption">{{ a[0] }}</div><div class="text-h6">{{ a[1] >= 0 ? '+' : '' }}{{ a[1] }}</div></div></div>
-          </div>
-          <q-separator dark class="cc-sep" />
-          <div class="cc-label">DC &amp; attack</div>
-          <div class="row q-col-gutter-sm">
-            <div v-for="d in hero.dcs" :key="d[0]" class="col-4"><div class="cc-box text-center"><div class="text-caption">{{ d[0] }}</div><div class="text-h6">{{ d[1] }}</div></div></div>
-          </div>
-        </template>
-        <template v-else-if="tab === 'skills'">
-          <div v-for="s in skills" :key="s[0]" class="cc-row row items-center">
-            <span class="col ellipsis">{{ s[0] }}</span><RankPips :rank="s[2]" /><b class="cc-bonus">{{ s[1] >= 0 ? '+' : '' }}{{ s[1] }}</b>
-          </div>
-        </template>
-        <template v-else-if="tab === 'gear'">
-          <q-expansion-item v-for="l in gearGroups" :key="l.label" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" :label="l.label" :caption="groupCaption(l)">
-            <div v-for="g in l.list" :key="g.name" class="cc-row row no-wrap items-center" ><div class="col" style="min-width: 0"><div class="ellipsis">{{ g.name }}</div><div v-if="g.sub && !g.qty" class="text-grey-5 text-caption">{{ g.sub }}</div><TraitChips :traits="g.traits" /></div><span v-if="g.qty" class="cc-pips row no-wrap items-center" @click.stop="cycleUsed(g)">
-              <template v-if="g.qty <= 5"><q-icon v-for="i in g.qty" :key="i" :name="i <= g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="i <= g.used ? 'white' : 'grey-6'" /></template>
-              <span v-else class="text-body1"><q-icon :name="g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="g.used ? 'white' : 'grey-6'" /> {{ g.used }} / {{ g.qty }} used</span>
-            </span><span v-if="g.kind === 'weapon'" class="cc-hands row no-wrap items-center" :class="{ 'cc-hands--tap': g.versatile }" @click.stop="g.versatile && toggleGrip(g)"><q-icon v-for="i in g.grip" :key="i" name="pan_tool" size="20px" /><q-icon v-if="g.versatile" name="swap_horiz" size="16px" class="q-ml-xs" /></span><span v-if="g.kind === 'shield'" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.raised, 'cc-equip--locked': !g.on }" @click.stop="toggleRaise(g)"><q-icon :name="RAISE_ICON" size="30px" /></span><span v-if="g.kind" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.on }" @click.stop="toggleEquip(g)"><q-icon :name="EQUIP_ICON[g.kind]" size="30px" /></span></div>
-          </q-expansion-item>
-        </template>
-        <template v-else-if="tab === 'spells'">
-          <q-expansion-item v-for="l in spellLevels" :key="l.label" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" >
-            <template #header>
-              <q-item-section>{{ l.label }}</q-item-section>
-              <q-item-section side>
-                <span v-if="!l.max" class="text-caption text-grey-5">at will</span>
-                <span v-else class="cc-pips row no-wrap items-center" @click.stop="cycleUsed(l)">
-                  <q-icon v-for="i in l.max" :key="i" :name="i <= l.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="i <= l.used ? 'white' : 'grey-6'" />
-                </span>
-              </q-item-section>
-            </template>
-            <div v-for="s in l.list" :key="s.name" class="cc-row row no-wrap items-center" ><div class="col"><div>{{ s.name }}</div><TraitChips :traits="s.traits" /></div><CostIcons :cost="s.cost" /></div>
-          </q-expansion-item>
-        </template>
-        <template v-else>
-          <div v-for="g in actions" :key="g.name" class="cc-row"><div class="row no-wrap items-center"><b class="col">{{ g.name }}</b><span class="text-grey-5 text-caption q-mr-sm">{{ g.sub }}</span><CostIcons :cost="g.cost" /></div><div class="text-caption text-grey-5">{{ g.text }}</div><TraitChips :traits="g.traits" /></div>
-        </template>
+    <div class="cc-hero q-pa-md q-ma-sm" style="flex: none">
+      <div class="row items-baseline no-wrap">
+        <div class="text-h6 col ellipsis">{{ hero.name }}</div>
+        <div class="text-caption text-grey-4 q-ml-sm">Lv 2</div>
       </div>
-    </template>
+      <div class="text-caption text-grey-4 q-mb-sm">{{ hero.line }}</div>
+      <div class="row text-center items-center">
+        <div class="col-5 cc-hp" @click="hpSheet = true">
+          <div class="text-h4"><span :class="{ 'text-red-3': down }">{{ st.hp }}</span><span class="text-h6 text-grey-4"> / {{ maxHp }}</span></div>
+          <div class="text-caption">HP <span v-if="st.temp">· +{{ st.temp }} temp</span></div>
+        </div>
+        <div class="col"><div class="text-h5">{{ ac }}</div><div class="text-caption">AC</div></div>
+        <div class="col"><div class="text-h5">+{{ hero.perception }}</div><div class="text-caption">Perc</div></div>
+        <div class="col"><div class="text-h5">{{ hero.speed }}</div><div class="text-caption">Speed</div></div>
+      </div>
+      <div v-if="shield" class="cc-shield text-caption" :class="{ 'cc-shield--off': !shield.raised, 'cc-shield--tap': shield.raised }" @click="shield.raised && (hpMode = 'shielddmg', hpSheet = true)"><q-icon name="shield" size="14px" /> {{ shield.name }} · {{ shield.raised ? 'raised, +' + shield.ac + ' AC' : 'lowered' }} · Hardness {{ shield.hardness }} · HP <b :class="{ 'text-red-3': shieldBroken }">{{ shield.hp }}</b>/{{ shield.maxHp }} · BT {{ shield.bt }}<span v-if="shieldBroken"> · BROKEN</span></div>
+    </div>
+    <div class="col scroll q-px-sm q-pb-sm">
+      <template v-if="tab === 'stats'">
+        <div class="cc-label">Rest</div>
+        <div class="row no-wrap cc-rests q-mb-sm">
+          <q-btn v-for="r in RESTS" :key="r.kind" unelevated no-caps dense class="cc-step cc-rest col" :label="r.short" @click="askRest(r.kind)" />
+        </div>
+        <q-separator dark class="cc-sep" />
+      </template>
+      <template v-if="tab === 'stats'">
+        <div class="cc-label">Saves</div>
+        <div class="row q-col-gutter-sm">
+          <div v-for="s in hero.saves" :key="s[0]" class="col-4"><div class="cc-card text-center"><div class="text-caption">{{ s[0] }}</div><div class="text-h6">+{{ s[1] }}</div></div></div>
+        </div>
+        <q-separator dark class="cc-sep" />
+        <div class="cc-label">Abilities</div>
+        <div class="row q-col-gutter-sm">
+          <div v-for="a in hero.abilities" :key="a[0]" class="col-4"><div class="cc-card text-center"><div class="text-caption">{{ a[0] }}</div><div class="text-h6">{{ a[1] >= 0 ? '+' : '' }}{{ a[1] }}</div></div></div>
+        </div>
+        <q-separator dark class="cc-sep" />
+        <div class="cc-label">DC &amp; attack</div>
+        <div class="row q-col-gutter-sm">
+          <div v-for="d in hero.dcs" :key="d[0]" class="col-4"><div class="cc-card text-center"><div class="text-caption">{{ d[0] }}</div><div class="text-h6">{{ d[1] }}</div></div></div>
+        </div>
+      </template>
+      <template v-else-if="tab === 'skills'">
+        <div v-for="s in skills" :key="s[0]" class="cc-card q-mb-xs row no-wrap items-center">
+          <span class="col ellipsis">{{ s[0] }}</span><RankPips :rank="s[2]" /><b class="cc-bonus">{{ s[1] >= 0 ? '+' : '' }}{{ s[1] }}</b>
+        </div>
+      </template>
+      <template v-else-if="tab === 'gear'">
+        <q-expansion-item v-for="l in gearGroups" :key="l.label" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" :label="l.label" :caption="groupCaption(l)">
+          <div v-for="g in l.list" :key="g.name" class="cc-card q-mb-xs row no-wrap items-center" @click="pick(g)"><div class="col" style="min-width: 0"><div class="ellipsis">{{ g.name }}</div><div v-if="g.sub && !g.qty" class="text-grey-5 text-caption">{{ g.sub }}</div><TraitChips :traits="g.traits" /></div><span v-if="g.qty" class="cc-pips row no-wrap items-center" @click.stop="cycleUsed(g)">
+            <template v-if="g.qty <= 5"><q-icon v-for="i in g.qty" :key="i" :name="i <= g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="i <= g.used ? 'white' : 'grey-6'" /></template>
+            <span v-else class="text-body1"><q-icon :name="g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="g.used ? 'white' : 'grey-6'" /> {{ g.used }} / {{ g.qty }} used</span>
+          </span><span v-if="g.kind === 'weapon'" class="cc-hands row no-wrap items-center" :class="{ 'cc-hands--tap': g.versatile }" @click.stop="g.versatile && toggleGrip(g)"><q-icon v-if="g.versatile" name="swap_horiz" size="16px" class="q-mr-xs" /><q-icon v-for="i in g.grip" :key="i" name="pan_tool" size="20px" /></span><span v-if="g.kind === 'shield'" class="cc-hands row no-wrap items-center" :class="{ 'cc-hands--dim': g.buckler && !g.raised }"><q-icon name="pan_tool" size="20px" /></span><span v-if="g.kind === 'shield'" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.raised, 'cc-equip--locked': !g.on }" @click.stop="toggleRaise(g)"><q-icon :name="RAISE_ICON" size="30px" /></span><span v-if="g.kind" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.on }" @click.stop="toggleEquip(g)"><q-icon :name="EQUIP_ICON[g.kind]" size="30px" /></span></div>
+        </q-expansion-item>
+      </template>
+      <template v-else-if="tab === 'spells'">
+        <q-expansion-item v-for="l in spellLevels" :key="l.label" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" >
+          <template #header>
+            <q-item-section>{{ l.label }}</q-item-section>
+            <q-item-section side>
+              <span v-if="!l.max" class="text-caption text-grey-5">at will</span>
+              <span v-else class="cc-pips row no-wrap items-center" @click.stop="cycleUsed(l)">
+                <q-icon v-for="i in l.max" :key="i" :name="i <= l.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="i <= l.used ? 'white' : 'grey-6'" />
+              </span>
+            </q-item-section>
+          </template>
+          <div v-for="s in l.list" :key="s.name" class="cc-card q-mb-xs row no-wrap items-center" @click="pick({ name: s.name, sub: l.label, cost: s.cost, traits: s.traits, text: 'Spell card: range, targets, duration, heightened effects and full AoN text appear here. (illustrative)' })"><div class="col"><div>{{ s.name }}</div><TraitChips :traits="s.traits" /></div><CostIcons :cost="s.cost" /></div>
+        </q-expansion-item>
+      </template>
+      <template v-else>
+        <div v-for="g in actions" :key="g.name" class="cc-card q-mb-xs row no-wrap items-center" @click="pick(g)"><div class="col" style="min-width: 0"><div class="text-weight-bold ellipsis">{{ g.name }}</div><TraitChips :traits="g.traits" /></div><span class="text-grey-5 text-caption q-mr-sm">{{ g.sub }}</span><CostIcons :cost="g.cost" /></div>
+      </template>
+    </div>
+    <q-dialog v-model="sheetOpen" position="bottom">
+      <q-card class="cc-sheet" v-if="sheet">
+        <q-card-section><div class="row items-baseline no-wrap"><div class="text-h6 col">{{ sheet.name }}</div><div class="text-caption text-grey-5 text-right q-mr-sm">{{ sheet.sub }}</div><CostIcons :cost="sheet.cost" /></div><TraitChips :traits="sheet.traits" /><div class="q-mt-sm">{{ sheet.text }}</div></q-card-section>
+      </q-card>
+    </q-dialog>
 
-    <!-- ================= VARIANT B: accordion density ================= -->
-    <template v-else-if="variant === 'B'">
-      <div class="cc-strip row no-wrap items-center q-px-sm">
-        <span class="col ellipsis text-weight-bold">{{ hero.name }}</span>
-        <span class="q-ml-sm">❤ {{ hero.hp }}</span><span class="q-ml-sm">🛡 {{ ac }}</span><span class="q-ml-sm">👁 +{{ hero.perception }}</span>
-      </div>
-      <div class="q-px-sm"><div v-if="shield" class="cc-shield text-caption" :class="{ 'cc-shield--off': !shield.raised }"><q-icon name="shield" size="14px" /> {{ shield.name }} · {{ shield.raised ? 'raised, +' + shield.ac + ' AC' : 'lowered' }} · Hardness {{ shield.hardness }} · HP {{ shield.hp }} · BT {{ shield.bt }}</div></div>
-      <div class="col scroll">
-        <template v-if="tab === 'stats'">
-          <div class="cc-acc" @click="open.saves = !open.saves">Saves & DCs <q-icon :name="open.saves ? 'expand_less' : 'expand_more'" /></div>
-          <div v-if="open.saves" class="q-pa-sm">
-            <div v-for="s in hero.saves" :key="s[0]" class="cc-row row"><span class="col">{{ s[0] }} ({{ s[2] }})</span><b>+{{ s[1] }}</b></div>
-            <div v-for="d in hero.dcs" :key="d[0]" class="cc-row row"><span class="col">{{ d[0] }}</span><b>{{ d[1] }}</b></div>
-          </div>
-          <div class="cc-acc" @click="open.abilities = !open.abilities">Abilities <q-icon :name="open.abilities ? 'expand_less' : 'expand_more'" /></div>
-          <div v-if="open.abilities" class="q-pa-sm row">
-            <div v-for="a in hero.abilities" :key="a[0]" class="col-4 text-center q-py-xs">{{ a[0] }} <b>{{ a[1] >= 0 ? '+' : '' }}{{ a[1] }}</b></div>
-          </div>
-          <div class="cc-acc" @click="open.defenses = !open.defenses">Class features <q-icon :name="open.defenses ? 'expand_less' : 'expand_more'" /></div>
-          <div v-if="open.defenses" class="q-pa-sm text-caption text-grey-4">Life Mystery · Curse of Outpouring Life · Revelation Spells · Oracular Curse · Strategic Strike · Interrogation Methodology</div>
-        </template>
-        <template v-else-if="tab === 'skills'">
-          <div class="q-pa-sm row">
-            <div v-for="s in skills" :key="s[0]" class="col-12 cc-row row no-wrap items-center"><span class="col ellipsis">{{ s[0] }}</span><RankPips :rank="s[2]" /><b class="cc-bonus">{{ s[1] >= 0 ? '+' : '' }}{{ s[1] }}</b></div>
-          </div>
-        </template>
-        <template v-else-if="tab === 'gear'">
-          <q-expansion-item v-for="l in gearGroups" :key="l.label" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" :label="l.label" :caption="groupCaption(l)">
-            <div v-for="g in l.list" :key="g.name" class="cc-row row no-wrap items-center" ><div class="col" style="min-width: 0"><div class="ellipsis">{{ g.name }}</div><div v-if="g.sub && !g.qty" class="text-grey-5 text-caption">{{ g.sub }}</div><TraitChips :traits="g.traits" /></div><span v-if="g.qty" class="cc-pips row no-wrap items-center" @click.stop="cycleUsed(g)">
-              <template v-if="g.qty <= 5"><q-icon v-for="i in g.qty" :key="i" :name="i <= g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="i <= g.used ? 'white' : 'grey-6'" /></template>
-              <span v-else class="text-body1"><q-icon :name="g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="g.used ? 'white' : 'grey-6'" /> {{ g.used }} / {{ g.qty }} used</span>
-            </span><span v-if="g.kind === 'weapon'" class="cc-hands row no-wrap items-center" :class="{ 'cc-hands--tap': g.versatile }" @click.stop="g.versatile && toggleGrip(g)"><q-icon v-for="i in g.grip" :key="i" name="pan_tool" size="20px" /><q-icon v-if="g.versatile" name="swap_horiz" size="16px" class="q-ml-xs" /></span><span v-if="g.kind === 'shield'" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.raised, 'cc-equip--locked': !g.on }" @click.stop="toggleRaise(g)"><q-icon :name="RAISE_ICON" size="30px" /></span><span v-if="g.kind" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.on }" @click.stop="toggleEquip(g)"><q-icon :name="EQUIP_ICON[g.kind]" size="30px" /></span></div>
-          </q-expansion-item>
-        </template>
-        <template v-else-if="tab === 'spells'">
-          <q-expansion-item v-for="l in spellLevels" :key="l.label" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" >
-            <template #header>
-              <q-item-section>{{ l.label }}</q-item-section>
-              <q-item-section side>
-                <span v-if="!l.max" class="text-caption text-grey-5">at will</span>
-                <span v-else class="cc-pips row no-wrap items-center" @click.stop="cycleUsed(l)">
-                  <q-icon v-for="i in l.max" :key="i" :name="i <= l.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="i <= l.used ? 'white' : 'grey-6'" />
-                </span>
-              </q-item-section>
-            </template>
-            <div v-for="s in l.list" :key="s.name" class="cc-row row no-wrap items-center" ><div class="col"><div>{{ s.name }}</div><TraitChips :traits="s.traits" /></div><CostIcons :cost="s.cost" /></div>
-          </q-expansion-item>
-        </template>
-        <template v-else>
-          <div class="q-pa-sm"><div v-for="g in actions" :key="g.name" class="cc-row"><div class="row no-wrap items-center"><span class="col">{{ g.name }}</span><span class="text-grey-5 text-caption q-mr-sm">{{ g.sub }}</span><CostIcons :cost="g.cost" /></div><TraitChips :traits="g.traits" /></div></div>
-        </template>
-      </div>
-    </template>
-
-    <!-- ================= VARIANT D: C + pinned vitals + single-column skills + right-aligned meta ================= -->
-    <template v-else-if="variant === 'D'">
-      <div class="cc-hero q-pa-md q-ma-sm" style="flex: none">
-        <div class="row items-baseline no-wrap">
-          <div class="text-h6 col ellipsis">{{ hero.name }}</div>
-          <q-btn v-if="hpVariant === 'B'" flat round dense icon="bedtime" @click="restDialog = true" />
-          <div class="text-caption text-grey-4 q-ml-sm">Lv 2</div>
+    <q-dialog v-model="hpSheet" position="bottom">
+      <q-card class="cc-sheet"><q-card-section>
+        <q-btn-toggle v-model="hpMode" no-caps unelevated spread toggle-color="primary" color="dark" :options="[{ label: 'Damage', value: 'damage' }, { label: 'Heal', value: 'heal' }, { label: 'Temp HP', value: 'temp' }]" />
+        <q-btn-toggle v-if="shield && shield.raised" v-model="hpMode" class="q-mt-xs" no-caps unelevated spread toggle-color="primary" color="dark" :options="[{ label: 'Damage Shield', value: 'shielddmg' }, { label: 'Repair Shield', value: 'shieldfix' }]" />
+        <div class="text-h3 text-center q-my-sm" style="min-height: 56px">{{ hpEntry || '0' }}</div>
+        <div class="row q-col-gutter-xs">
+          <div v-for="k in ['1','2','3','4','5','6','7','8','9','⌫','0']" :key="k" class="col-4"><q-btn class="full-width cc-key" unelevated :label="k" @click="hpKey(k)" /></div>
+          <div class="col-4"><q-btn class="full-width cc-key" unelevated color="primary" label="Apply" @click="hpApply" /></div>
         </div>
-        <div class="text-caption text-grey-4 q-mb-sm">{{ hero.line }}</div>
-        <div v-if="hpVariant === 'A'" class="row text-center items-center">
-          <div class="col-5 cc-hp" @click="hpSheet = true">
-            <div class="text-h4"><span :class="{ 'text-red-3': down }">{{ st.hp }}</span><span class="text-h6 text-grey-4"> / {{ maxHp }}</span></div>
-            <div class="text-caption">HP <span v-if="st.temp">· +{{ st.temp }} temp</span></div>
-          </div>
-          <div class="col"><div class="text-h5">{{ ac }}</div><div class="text-caption">AC</div></div>
-          <div class="col"><div class="text-h5">+{{ hero.perception }}</div><div class="text-caption">Perc</div></div>
-          <div class="col"><div class="text-h5">{{ hero.speed }}</div><div class="text-caption">Speed</div></div>
-        </div>
-        <div v-else-if="hpVariant === 'B'">
-          <div class="row items-center no-wrap">
-            <q-btn dense unelevated class="cc-step" label="−5" @click="damage(5)" /><q-btn dense unelevated class="cc-step" label="−1" @click="damage(1)" />
-            <div class="col text-center cc-hp" @click="hpSheet = true">
-              <div class="text-h4"><span :class="{ 'text-red-3': down }">{{ st.hp }}</span><span class="text-h6 text-grey-4"> / {{ maxHp }}</span></div>
-              <div class="text-caption">HP <span v-if="st.temp">· +{{ st.temp }} temp</span> · tap for amount</div>
-            </div>
-            <q-btn dense unelevated class="cc-step" label="+1" @click="heal(1)" /><q-btn dense unelevated class="cc-step" label="+5" @click="heal(5)" />
-          </div>
-          <div class="row text-center q-mt-sm"><div class="col"><b>AC {{ ac }}</b></div><div class="col"><b>Perc +{{ hero.perception }}</b></div><div class="col"><b>Speed {{ hero.speed }}</b></div></div>
-        </div>
-        <div v-else class="row text-center">
-          <div class="col"><div class="text-h5" :class="{ 'text-red-3': down }">{{ st.hp }}<span v-if="st.temp" class="text-caption"> +{{ st.temp }}</span></div><div class="text-caption">HP</div></div>
-          <div class="col"><div class="text-h5">{{ ac }}</div><div class="text-caption">AC</div></div>
-          <div class="col"><div class="text-h5">+{{ hero.perception }}</div><div class="text-caption">Perc</div></div>
-          <div class="col"><div class="text-h5">{{ hero.speed }}</div><div class="text-caption">Speed</div></div>
-        </div>
-        <div v-if="shield" class="cc-shield text-caption" :class="{ 'cc-shield--off': !shield.raised, 'cc-shield--tap': shield.raised }" @click="shield.raised && (hpMode = 'shielddmg', hpSheet = true)"><q-icon name="shield" size="14px" /> {{ shield.name }} · {{ shield.raised ? 'raised, +' + shield.ac + ' AC' : 'lowered' }} · Hardness {{ shield.hardness }} · HP <b :class="{ 'text-red-3': shieldBroken }">{{ shield.hp }}</b>/{{ shield.maxHp }} · BT {{ shield.bt }}<span v-if="shieldBroken"> · BROKEN</span></div>
-      </div>
-      <div class="col scroll q-px-sm q-pb-sm">
-        <template v-if="tab === 'stats' && hpVariant === 'C'">
-          <div class="cc-label">Hit points</div>
-          <div class="cc-card q-mb-sm">
-            <div class="row items-center no-wrap q-mb-sm">
-              <div class="text-h5 col"><span :class="{ 'text-red-3': down }">{{ st.hp }}</span> / {{ maxHp }} <span v-if="st.temp" class="text-caption">+{{ st.temp }} temp</span></div>
-              <q-btn dense unelevated class="cc-step" label="−5" @click="damage(5)" /><q-btn dense unelevated class="cc-step" label="−1" @click="damage(1)" /><q-btn dense unelevated class="cc-step" label="+1" @click="heal(1)" /><q-btn dense unelevated class="cc-step" label="+5" @click="heal(5)" />
-            </div>
-            <div class="row q-mt-sm q-gutter-xs">
-            </div>
-          </div>
-        </template>
-        <template v-if="tab === 'stats' && hpVariant !== 'B'">
-          <div class="cc-label">Rest</div>
-          <div class="row no-wrap cc-rests q-mb-sm">
-            <q-btn v-for="r in RESTS" :key="r.kind" unelevated no-caps dense class="cc-step cc-rest col" :label="r.short" @click="askRest(r.kind)" />
-          </div>
-          <q-separator dark class="cc-sep" />
-        </template>
-        <template v-if="tab === 'stats'">
-          <div class="cc-label">Saves</div>
-          <div class="row q-col-gutter-sm">
-            <div v-for="s in hero.saves" :key="s[0]" class="col-4"><div class="cc-card text-center"><div class="text-caption">{{ s[0] }}</div><div class="text-h6">+{{ s[1] }}</div></div></div>
-          </div>
-          <q-separator dark class="cc-sep" />
-          <div class="cc-label">Abilities</div>
-          <div class="row q-col-gutter-sm">
-            <div v-for="a in hero.abilities" :key="a[0]" class="col-4"><div class="cc-card text-center"><div class="text-caption">{{ a[0] }}</div><div class="text-h6">{{ a[1] >= 0 ? '+' : '' }}{{ a[1] }}</div></div></div>
-          </div>
-          <q-separator dark class="cc-sep" />
-          <div class="cc-label">DC &amp; attack</div>
-          <div class="row q-col-gutter-sm">
-            <div v-for="d in hero.dcs" :key="d[0]" class="col-4"><div class="cc-card text-center"><div class="text-caption">{{ d[0] }}</div><div class="text-h6">{{ d[1] }}</div></div></div>
-          </div>
-        </template>
-        <template v-else-if="tab === 'skills'">
-          <div v-for="s in skills" :key="s[0]" class="cc-card q-mb-xs row no-wrap items-center">
-            <span class="col ellipsis">{{ s[0] }}</span><RankPips :rank="s[2]" /><b class="cc-bonus">{{ s[1] >= 0 ? '+' : '' }}{{ s[1] }}</b>
-          </div>
-        </template>
-        <template v-else-if="tab === 'gear'">
-          <q-expansion-item v-for="l in gearGroups" :key="l.label" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" :label="l.label" :caption="groupCaption(l)">
-            <div v-for="g in l.list" :key="g.name" class="cc-card q-mb-xs row no-wrap items-center" @click="pick(g)"><div class="col" style="min-width: 0"><div class="ellipsis">{{ g.name }}</div><div v-if="g.sub && !g.qty" class="text-grey-5 text-caption">{{ g.sub }}</div><TraitChips :traits="g.traits" /></div><span v-if="g.qty" class="cc-pips row no-wrap items-center" @click.stop="cycleUsed(g)">
-              <template v-if="g.qty <= 5"><q-icon v-for="i in g.qty" :key="i" :name="i <= g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="i <= g.used ? 'white' : 'grey-6'" /></template>
-              <span v-else class="text-body1"><q-icon :name="g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="g.used ? 'white' : 'grey-6'" /> {{ g.used }} / {{ g.qty }} used</span>
-            </span><span v-if="g.kind === 'weapon'" class="cc-hands row no-wrap items-center" :class="{ 'cc-hands--tap': g.versatile }" @click.stop="g.versatile && toggleGrip(g)"><q-icon v-if="g.versatile" name="swap_horiz" size="16px" class="q-mr-xs" /><q-icon v-for="i in g.grip" :key="i" name="pan_tool" size="20px" /></span><span v-if="g.kind === 'shield'" class="cc-hands row no-wrap items-center" :class="{ 'cc-hands--dim': g.buckler && !g.raised }"><q-icon name="pan_tool" size="20px" /></span><span v-if="g.kind === 'shield'" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.raised, 'cc-equip--locked': !g.on }" @click.stop="toggleRaise(g)"><q-icon :name="RAISE_ICON" size="30px" /></span><span v-if="g.kind" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.on }" @click.stop="toggleEquip(g)"><q-icon :name="EQUIP_ICON[g.kind]" size="30px" /></span></div>
-          </q-expansion-item>
-        </template>
-        <template v-else-if="tab === 'spells'">
-          <q-expansion-item v-for="l in spellLevels" :key="l.label" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" >
-            <template #header>
-              <q-item-section>{{ l.label }}</q-item-section>
-              <q-item-section side>
-                <span v-if="!l.max" class="text-caption text-grey-5">at will</span>
-                <span v-else class="cc-pips row no-wrap items-center" @click.stop="cycleUsed(l)">
-                  <q-icon v-for="i in l.max" :key="i" :name="i <= l.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="i <= l.used ? 'white' : 'grey-6'" />
-                </span>
-              </q-item-section>
-            </template>
-            <div v-for="s in l.list" :key="s.name" class="cc-card q-mb-xs row no-wrap items-center" @click="pick({ name: s.name, sub: l.label, cost: s.cost, traits: s.traits, text: 'Spell card: range, targets, duration, heightened effects and full AoN text appear here. (illustrative)' })"><div class="col"><div>{{ s.name }}</div><TraitChips :traits="s.traits" /></div><CostIcons :cost="s.cost" /></div>
-          </q-expansion-item>
-        </template>
-        <template v-else>
-          <div v-for="g in actions" :key="g.name" class="cc-card q-mb-xs row no-wrap items-center" @click="pick(g)"><div class="col" style="min-width: 0"><div class="text-weight-bold ellipsis">{{ g.name }}</div><TraitChips :traits="g.traits" /></div><span class="text-grey-5 text-caption q-mr-sm">{{ g.sub }}</span><CostIcons :cost="g.cost" /></div>
-        </template>
-      </div>
-      <q-dialog v-model="sheetOpen" position="bottom">
-        <q-card class="cc-sheet" v-if="sheet">
-          <q-card-section><div class="row items-baseline no-wrap"><div class="text-h6 col">{{ sheet.name }}</div><div class="text-caption text-grey-5 text-right q-mr-sm">{{ sheet.sub }}</div><CostIcons :cost="sheet.cost" /></div><TraitChips :traits="sheet.traits" /><div class="q-mt-sm">{{ sheet.text }}</div></q-card-section>
-        </q-card>
-      </q-dialog>
-    </template>
-
-    <!-- ================= VARIANT C: cards + bottom sheet ================= -->
-    <template v-else>
-      <div class="col scroll q-pa-sm">
-        <div class="cc-hero q-pa-md q-mb-sm">
-          <div class="text-h6">{{ hero.name }}</div>
-          <div class="text-caption text-grey-4 q-mb-sm">{{ hero.line }}</div>
-          <div class="row text-center">
-            <div class="col"><div class="text-h5">{{ hero.hp }}</div><div class="text-caption">HP</div></div>
-            <div class="col"><div class="text-h5">{{ ac }}</div><div class="text-caption">AC</div></div>
-            <div class="col"><div class="text-h5">+{{ hero.perception }}</div><div class="text-caption">Perc</div></div>
-            <div class="col"><div class="text-h5">{{ hero.speed }}</div><div class="text-caption">Speed</div></div>
-          </div>
-        <div v-if="shield" class="cc-shield text-caption" :class="{ 'cc-shield--off': !shield.raised }"><q-icon name="shield" size="14px" /> {{ shield.name }} · {{ shield.raised ? 'raised, +' + shield.ac + ' AC' : 'lowered' }} · Hardness {{ shield.hardness }} · HP {{ shield.hp }} · BT {{ shield.bt }}</div>
-        </div>
-        <template v-if="tab === 'stats'">
-          <div class="cc-label">Saves</div>
-          <div class="row q-col-gutter-sm">
-            <div v-for="s in hero.saves" :key="s[0]" class="col-4"><div class="cc-card text-center"><div class="text-caption">{{ s[0] }}</div><div class="text-h6">+{{ s[1] }}</div></div></div>
-          </div>
-          <q-separator dark class="cc-sep" />
-          <div class="cc-label">Abilities</div>
-          <div class="row q-col-gutter-sm">
-            <div v-for="a in hero.abilities" :key="a[0]" class="col-4"><div class="cc-card text-center"><div class="text-caption">{{ a[0] }}</div><div class="text-h6">{{ a[1] >= 0 ? '+' : '' }}{{ a[1] }}</div></div></div>
-          </div>
-          <q-separator dark class="cc-sep" />
-          <div class="cc-label">DC &amp; attack</div>
-          <div class="row q-col-gutter-sm">
-            <div v-for="d in hero.dcs" :key="d[0]" class="col-4"><div class="cc-card text-center"><div class="text-caption">{{ d[0] }}</div><div class="text-h6">{{ d[1] }}</div></div></div>
-          </div>
-        </template>
-        <template v-else-if="tab === 'skills'">
-          <div class="row q-col-gutter-xs">
-            <div v-for="s in skills" :key="s[0]" class="col-12"><div class="cc-card row no-wrap items-center"><span class="col ellipsis">{{ s[0] }}</span><RankPips :rank="s[2]" /><b class="cc-bonus">{{ s[1] >= 0 ? '+' : '' }}{{ s[1] }}</b></div></div>
-          </div>
-        </template>
-        <template v-else-if="tab === 'gear'">
-          <q-expansion-item v-for="l in gearGroups" :key="l.label" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" :label="l.label" :caption="groupCaption(l)">
-            <div v-for="g in l.list" :key="g.name" class="cc-card q-mb-xs row no-wrap items-center" @click="pick(g)"><div class="col" style="min-width: 0"><div class="ellipsis">{{ g.name }}</div><div v-if="g.sub && !g.qty" class="text-grey-5 text-caption">{{ g.sub }}</div><TraitChips :traits="g.traits" /></div><span v-if="g.qty" class="cc-pips row no-wrap items-center" @click.stop="cycleUsed(g)">
-              <template v-if="g.qty <= 5"><q-icon v-for="i in g.qty" :key="i" :name="i <= g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="i <= g.used ? 'white' : 'grey-6'" /></template>
-              <span v-else class="text-body1"><q-icon :name="g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="g.used ? 'white' : 'grey-6'" /> {{ g.used }} / {{ g.qty }} used</span>
-            </span><span v-if="g.kind === 'weapon'" class="cc-hands row no-wrap items-center" :class="{ 'cc-hands--tap': g.versatile }" @click.stop="g.versatile && toggleGrip(g)"><q-icon v-for="i in g.grip" :key="i" name="pan_tool" size="20px" /><q-icon v-if="g.versatile" name="swap_horiz" size="16px" class="q-ml-xs" /></span><span v-if="g.kind === 'shield'" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.raised, 'cc-equip--locked': !g.on }" @click.stop="toggleRaise(g)"><q-icon :name="RAISE_ICON" size="30px" /></span><span v-if="g.kind" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.on }" @click.stop="toggleEquip(g)"><q-icon :name="EQUIP_ICON[g.kind]" size="30px" /></span></div>
-          </q-expansion-item>
-        </template>
-        <template v-else-if="tab === 'spells'">
-          <q-expansion-item v-for="l in spellLevels" :key="l.label" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" >
-            <template #header>
-              <q-item-section>{{ l.label }}</q-item-section>
-              <q-item-section side>
-                <span v-if="!l.max" class="text-caption text-grey-5">at will</span>
-                <span v-else class="cc-pips row no-wrap items-center" @click.stop="cycleUsed(l)">
-                  <q-icon v-for="i in l.max" :key="i" :name="i <= l.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="i <= l.used ? 'white' : 'grey-6'" />
-                </span>
-              </q-item-section>
-            </template>
-            <div v-for="s in l.list" :key="s.name" class="cc-card q-mb-xs row no-wrap items-center" @click="pick({ name: s.name, sub: l.label, cost: s.cost, traits: s.traits, text: 'Spell card: range, targets, duration, heightened effects and full AoN text appear here. (illustrative)' })"><div class="col"><div>{{ s.name }}</div><TraitChips :traits="s.traits" /></div><CostIcons :cost="s.cost" /></div>
-          </q-expansion-item>
-        </template>
-        <template v-else>
-          <div v-for="g in actions" :key="g.name" class="cc-card q-mb-xs row no-wrap items-center" @click="pick(g)"><div class="col" style="min-width: 0"><div class="text-weight-bold ellipsis">{{ g.name }}</div><TraitChips :traits="g.traits" /></div><span class="text-grey-5 text-caption q-mr-sm">{{ g.sub }}</span><CostIcons :cost="g.cost" /></div>
-        </template>
-      </div>
-      <q-dialog v-model="sheetOpen" position="bottom">
-        <q-card class="cc-sheet" v-if="sheet">
-          <q-card-section><div class="text-h6">{{ sheet.name }}</div><div class="text-caption text-grey-5">{{ sheet.sub }}</div><CostIcons :cost="sheet.cost" /><TraitChips :traits="sheet.traits" /><div class="q-mt-sm">{{ sheet.text }}</div></q-card-section>
-        </q-card>
-      </q-dialog>
-    </template>
-
-    <!-- HP prototype dialogs + switcher (variant D only) -->
-    <template v-if="variant === 'D'">
-      <q-dialog v-model="hpSheet" position="bottom">
-        <q-card class="cc-sheet"><q-card-section>
-          <q-btn-toggle v-model="hpMode" no-caps unelevated spread toggle-color="primary" color="dark" :options="[{ label: 'Damage', value: 'damage' }, { label: 'Heal', value: 'heal' }, { label: 'Temp HP', value: 'temp' }]" />
-          <q-btn-toggle v-if="shield && shield.raised" v-model="hpMode" class="q-mt-xs" no-caps unelevated spread toggle-color="primary" color="dark" :options="[{ label: 'Damage Shield', value: 'shielddmg' }, { label: 'Repair Shield', value: 'shieldfix' }]" />
-          <div class="text-h3 text-center q-my-sm" style="min-height: 56px">{{ hpEntry || '0' }}</div>
-          <div class="row q-col-gutter-xs">
-            <div v-for="k in ['1','2','3','4','5','6','7','8','9','⌫','0']" :key="k" class="col-4"><q-btn class="full-width cc-key" unelevated :label="k" @click="hpKey(k)" /></div>
-            <div class="col-4"><q-btn class="full-width cc-key" unelevated color="primary" label="Apply" @click="hpApply" /></div>
-          </div>
-          <div class="text-caption text-grey-5 q-mt-sm">Damage hits temp HP first. Temp HP does not stack: highest wins. Treat Wounds etc.: enter the result as Heal. Shield damage and repair are entered as the exact HP change; repair caps at the shield's max HP.</div>
-        </q-card-section></q-card>
-      </q-dialog>
-      <q-dialog v-model="restDialog" position="bottom">
-        <q-card class="cc-sheet"><q-card-section>
-          <div class="text-h6 q-mb-sm">Rest &amp; recover</div>
-          <div class="column q-gutter-sm">
-            <q-btn v-for="r in RESTS" :key="r.kind" unelevated no-caps class="cc-key" align="left" :label="r.label + ': ' + r.blurb" @click="restDialog = false; askRest(r.kind)" />
-          </div>
-        </q-card-section></q-card>
-      </q-dialog>
+        <div class="text-caption text-grey-5 q-mt-sm">Damage hits temp HP first. Temp HP does not stack: highest wins. Treat Wounds etc.: enter the result as Heal. Shield damage and repair are entered as the exact HP change; repair caps at the shield's max HP.</div>
+      </q-card-section></q-card>
+    </q-dialog>
       <q-dialog :model-value="!!restPrompt" @update:model-value="restPrompt = null">
-        <q-card v-if="restPrompt" class="cc-sheet" style="border-radius: 16px; min-height: 0">
-          <q-card-section>
-            <div class="text-h6">{{ RESTS.find((r) => r.kind === restPrompt.kind).label }}</div>
-            <div class="q-my-sm">Regain {{ restHeal(restPrompt.kind) }} HP, lose temp HP, refill spell slots and the focus pool.</div>
-          </q-card-section>
-          <q-card-actions align="right"><q-btn flat label="Cancel" @click="restPrompt = null" /><q-btn unelevated color="primary" label="Rest" @click="confirmRest" /></q-card-actions>
-        </q-card>
-      </q-dialog>
-    </template>
+      <q-card v-if="restPrompt" class="cc-sheet" style="border-radius: 16px; min-height: 0">
+        <q-card-section>
+          <div class="text-h6">{{ RESTS.find((r) => r.kind === restPrompt.kind).label }}</div>
+          <div class="q-my-sm">Regain {{ restHeal(restPrompt.kind) }} HP, lose temp HP, refill spell slots and the focus pool.</div>
+        </q-card-section>
+        <q-card-actions align="right"><q-btn flat label="Cancel" @click="restPrompt = null" /><q-btn unelevated color="primary" label="Rest" @click="confirmRest" /></q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- shared bottom bar: the thing being tested -->
-    <nav class="cc-bar row no-wrap" :class="{ 'cc-bar--float': variant === 'C' || variant === 'D' }">
+    <nav class="cc-bar row no-wrap">
       <button v-for="t in TABS" :key="t.key" class="cc-tab col column items-center justify-center" :class="{ active: tab === t.key }" @click="tab = t.key">
         <q-icon :name="t.icon" size="24px" /><span>{{ t.label }}</span>
       </button>
@@ -623,17 +375,11 @@ const pick = (item) => { sheet.value = item }
 
 <style scoped>
 .cc { --cc-line: rgba(142, 141, 139, 0.3); }
-.cc-head { background: var(--q-dark); border-bottom: 1px solid var(--cc-line); }
-.cc-strip { height: 36px; background: var(--q-dark); font-size: 13px; }
 .cc-label { text-transform: uppercase; letter-spacing: .08em; font-size: 11px; color: var(--q-secondary); margin-bottom: 4px; }
-.cc-box, .cc-card { background: var(--q-dark); border: 1px solid var(--cc-line); border-radius: 10px; padding: 14px 14px; min-height: 56px; font-size: 16px; }
-.cc-row { padding: 14px 6px; min-height: 52px; font-size: 16px; border-bottom: 1px solid var(--cc-line); }
-.cc-acc { padding: 16px 14px; min-height: 56px; font-size: 16px; background: #3d484d; border-bottom: 1px solid var(--cc-line); display: flex; justify-content: space-between; font-weight: 600; }
-.cc-pill { background: var(--q-primary); border-radius: 22px; padding: 12px 18px; margin: 4px; font-size: 16px; }
+.cc-card { background: var(--q-dark); border: 1px solid var(--cc-line); border-radius: 10px; padding: 14px 14px; min-height: 56px; font-size: 16px; }
 .cc-hero { background: var(--q-primary); border-radius: 12px; }
 .cc-sheet { width: 100%; background: #3d484d; color: rgba(255,255,255,.87); border-radius: 16px 16px 0 0; min-height: 30vh; }
-.cc-bar { background: var(--q-dark); border-top: 1px solid var(--cc-line); height: 64px; flex: none; padding-bottom: env(safe-area-inset-bottom); }
-.cc-bar--float { margin: 0 8px 8px; border-radius: 18px; border: 1px solid var(--cc-line); }
+.cc-bar { background: var(--q-dark); height: 64px; flex: none; margin: 0 8px 8px; border-radius: 18px; border: 1px solid var(--cc-line); }
 .cc-tab { background: none; border: 0; color: var(--q-secondary); font-size: 11px; }
 .cc-tab.active { color: #fff; }
 .cc-tab.active .q-icon { background: var(--q-primary); border-radius: 12px; padding: 2px 14px; box-sizing: content-box; }
@@ -653,8 +399,6 @@ const pick = (item) => { sheet.value = item }
 .cc-bonus { min-width: 40px; text-align: right; margin-left: 8px; font-size: 17px; }
 .cc-equip--locked { pointer-events: none; opacity: 0.12; }
 .cc-hp { cursor: pointer; }
-.cc-bar-hp { height: 6px; border-radius: 3px; background: rgba(0, 0, 0, 0.35); margin-top: 4px; overflow: hidden; }
-.cc-bar-hp > div { height: 100%; background: #e8e6e3; }
 .cc-step { background: rgba(255, 255, 255, 0.14); color: #fff; min-width: 48px; min-height: 40px; margin: 0 2px; }
 .cc-rest { min-width: 0; padding: 0 4px; margin: 0 2px; font-size: 13px; }
 .cc-key { background: var(--q-dark); color: #fff; min-height: 52px; font-size: 18px; }
