@@ -5,7 +5,7 @@
  * /projects/critcrafter-prototype. **D is the chosen design**; A–C are kept for comparison.
  * Hard-coded Lithrei Woeborn data (hand-derived numbers, illustrative rules text and costs/traits).
  * Variant D also hosts the HP / rest prototype (wayfinder ticket "Prototype: HP tracking and rest tooling"):
- * `?variant=D&hp=A|B|C` swaps three HP/temp/conditions/rest UIs. In-memory only.
+ * `?variant=D&hp=A|B|C` swaps three HP/temp HP/rest UIs. In-memory only.
  * Not production code: the real viewer renders a server-built CritCrafter sheet and does no math.
  * See docs/prototypes/critcrafter-viewer-layout.md.
  */
@@ -185,18 +185,18 @@ const ac = computed(() => {
   return 10 + 0 + prof + item + sh
 })
 
-// ---------- HP / temp HP / conditions / rests (HP prototype; stand-in for Pinia + localStorage) ----------
+// ---------- HP / temp HP / rests (HP prototype; stand-in for Pinia + localStorage) ----------
 const HP_VARIANTS = [
   { key: 'A', name: 'Tap HP: keypad sheet; rest in Stats' },
   { key: 'B', name: 'Inline ±1/±5 in topper; rest in moon dialog' },
-  { key: 'C', name: 'HP card + conditions + rest on Stats' },
+  { key: 'C', name: 'HP card + rest on Stats' },
 ]
 const hpVariant = computed(() => (HP_VARIANTS.some((v) => v.key === route.query.hp) ? route.query.hp : 'A'))
 
-const LEVEL = 2, CON = 1
-const st = reactive({ hp: hero.hp, temp: 0, dying: 0, wounded: 0, doomed: 0, drained: 0, log: [] })
+const CON = 1
+const st = reactive({ hp: hero.hp, temp: 0, log: [] })
 const logMsg = (m) => { st.log.unshift(m); st.log.length = Math.min(st.log.length, 5) }
-const maxHp = computed(() => hero.hp - st.drained * LEVEL)
+const maxHp = computed(() => hero.hp)
 const down = computed(() => st.hp <= 0)
 const shieldBroken = computed(() => !!shield.value && shield.value.hp <= shield.value.bt)
 function damage(n) {
@@ -204,16 +204,12 @@ function damage(n) {
   let rest = n
   const soak = Math.min(st.temp, rest)
   st.temp -= soak; rest -= soak
-  const before = st.hp
   st.hp = Math.max(0, st.hp - rest)
-  if (before > 0 && st.hp === 0) { st.dying = 1 + st.wounded; logMsg(`Dropped to 0: dying ${st.dying}`) }
   logMsg(`−${n}${soak ? ` (${soak} from temp)` : ''}`)
 }
 function heal(n) {
   if (n <= 0) return
-  const wasDown = st.hp === 0
   st.hp = Math.min(maxHp.value, st.hp + n)
-  if (wasDown && st.hp > 0) { st.dying = 0; st.wounded = Math.min(4, st.wounded + 1); logMsg(`Back up: wounded ${st.wounded}`) }
   logMsg(`+${n}`)
 }
 function setTemp(n) { st.temp = Math.max(st.temp, n); logMsg(`Temp HP ${st.temp} (highest wins)`) }
@@ -225,11 +221,6 @@ function repairShield(n) {
   const sh = shield.value
   if (sh && n > 0) sh.hp = Math.min(sh.maxHp, sh.hp + n)
 }
-const stepCond = (k, max, d = 1) => { st[k] = (st[k] + d + max + 1) % (max + 1) }
-const CONDS = [
-  { key: 'dying', label: 'Dying', max: 4 }, { key: 'wounded', label: 'Wounded', max: 4 },
-  { key: 'doomed', label: 'Doomed', max: 3 }, { key: 'drained', label: 'Drained', max: 4 },
-]
 const focusPool = () => spellLevels.find((l) => l.label.startsWith('Focus'))
 function refocus() {
   const f = focusPool()
@@ -239,7 +230,7 @@ function refocus() {
   } else $q.notify({ message: 'Focus pool already full', timeout: 1500, position: 'top' })
 }
 // Rests (rules as given by the project owner): 8 h regains Con+1 HP, 24 h regains 2(Con+1), extended (1 week downtime) heals to full.
-// Every rest also refills the focus pool and spell slots, clears temp HP, lowers drained/doomed by 1.
+// Every rest also refills the focus pool and spell slots, clears temp HP.
 const RESTS = [
   { kind: 'refocus', short: 'Refocus', label: 'Refocus', blurb: '10 min, +1 focus point' },
   { kind: '8h', short: '8 h', label: 'Rest 8 h', blurb: `regain ${CON + 1} HP` },
@@ -255,13 +246,9 @@ const restHeal = (kind) => (kind === 'ext' ? maxHp.value : kind === '24h' ? 2 * 
 function confirmRest() {
   const opts = restPrompt.value
   const gain = restHeal(opts.kind)
-  const wasDown = st.hp === 0
   st.hp = Math.min(maxHp.value, st.hp + gain)
-  if (wasDown) { st.dying = 0; st.wounded = Math.min(4, st.wounded + 1) }
-  if (st.hp === maxHp.value) st.wounded = 0
   st.temp = 0
   spellLevels.forEach((l) => { l.used = 0 }) // slots and the focus pool both refill
-  st.drained = Math.max(0, st.drained - 1); st.doomed = Math.max(0, st.doomed - 1)
   logMsg(`${RESTS.find((r) => r.kind === opts.kind).label}: +${gain} HP, slots and focus refilled`)
   restPrompt.value = null
 }
@@ -449,9 +436,6 @@ const pick = (item) => { sheet.value = item }
           <div class="col"><div class="text-h5">+{{ hero.perception }}</div><div class="text-caption">Perc</div></div>
           <div class="col"><div class="text-h5">{{ hero.speed }}</div><div class="text-caption">Speed</div></div>
         </div>
-        <div v-if="hpVariant !== 'C'" class="row justify-center q-gutter-xs q-mt-xs">
-          <template v-for="c in CONDS" :key="c.key"><span v-if="st[c.key] > 0 || (c.key === 'dying' && down)" class="cc-cond" :class="{ 'cc-cond--bad': c.key === 'dying' }" @click="stepCond(c.key, c.max)">{{ c.label }} {{ st[c.key] || 1 }}</span></template>
-        </div>
         <div v-if="shield" class="cc-shield text-caption" :class="{ 'cc-shield--off': !shield.raised, 'cc-shield--tap': shield.raised }" @click="shield.raised && (hpMode = 'shielddmg', hpSheet = true)"><q-icon name="shield" size="14px" /> {{ shield.name }} · {{ shield.raised ? 'raised, +' + shield.ac + ' AC' : 'lowered' }} · Hardness {{ shield.hardness }} · HP <b :class="{ 'text-red-3': shieldBroken }">{{ shield.hp }}</b>/{{ shield.maxHp }} · BT {{ shield.bt }}<span v-if="shieldBroken"> · BROKEN</span></div>
       </div>
       <div class="col scroll q-px-sm q-pb-sm">
@@ -467,10 +451,6 @@ const pick = (item) => { sheet.value = item }
           </div>
         </template>
         <template v-if="tab === 'stats' && hpVariant !== 'B'">
-          <div v-if="hpVariant === 'C'" class="cc-label">Conditions</div>
-          <div v-if="hpVariant === 'C'" class="cc-card q-mb-sm">
-            <div v-for="c in CONDS" :key="c.key" class="row items-center no-wrap" style="min-height: 44px"><span class="col">{{ c.label }}</span><q-btn flat round dense icon="remove" @click="stepCond(c.key, c.max, -1)" /><b style="width: 24px; text-align: center">{{ st[c.key] }}</b><q-btn flat round dense icon="add" @click="stepCond(c.key, c.max, 1)" /></div>
-          </div>
           <div class="cc-label">Rest</div>
           <div class="row no-wrap cc-rests q-mb-sm">
             <q-btn v-for="r in RESTS" :key="r.kind" unelevated no-caps dense class="cc-step cc-rest col" :label="r.short" @click="askRest(r.kind)" />
@@ -610,7 +590,7 @@ const pick = (item) => { sheet.value = item }
             <div v-for="k in ['1','2','3','4','5','6','7','8','9','⌫','0']" :key="k" class="col-4"><q-btn class="full-width cc-key" unelevated :label="k" @click="hpKey(k)" /></div>
             <div class="col-4"><q-btn class="full-width cc-key" unelevated color="primary" label="Apply" @click="hpApply" /></div>
           </div>
-          <div class="text-caption text-grey-5 q-mt-sm">Damage hits temp HP first. At 0 you are dying (1 + wounded). Healing from 0 gives wounded +1. Temp HP does not stack: highest wins. Treat Wounds etc.: enter the result as Heal. Shield damage and repair are entered as the exact HP change; repair caps at the shield's max HP.</div>
+          <div class="text-caption text-grey-5 q-mt-sm">Damage hits temp HP first. Temp HP does not stack: highest wins. Treat Wounds etc.: enter the result as Heal. Shield damage and repair are entered as the exact HP change; repair caps at the shield's max HP.</div>
         </q-card-section></q-card>
       </q-dialog>
       <q-dialog v-model="restDialog" position="bottom">
@@ -619,8 +599,6 @@ const pick = (item) => { sheet.value = item }
           <div class="column q-gutter-sm">
             <q-btn v-for="r in RESTS" :key="r.kind" unelevated no-caps class="cc-key" align="left" :label="r.label + ': ' + r.blurb" @click="restDialog = false; askRest(r.kind)" />
           </div>
-          <div class="text-h6 q-mt-md q-mb-xs">Conditions</div>
-          <div v-for="c in CONDS" :key="c.key" class="row items-center no-wrap" style="min-height: 44px"><span class="col">{{ c.label }}</span><q-btn flat round dense icon="remove" @click="stepCond(c.key, c.max, -1)" /><b style="width: 24px; text-align: center">{{ st[c.key] }}</b><q-btn flat round dense icon="add" @click="stepCond(c.key, c.max, 1)" /></div>
         </q-card-section></q-card>
       </q-dialog>
       <q-dialog :model-value="!!restPrompt" @update:model-value="restPrompt = null">
@@ -680,6 +658,4 @@ const pick = (item) => { sheet.value = item }
 .cc-step { background: rgba(255, 255, 255, 0.14); color: #fff; min-width: 48px; min-height: 40px; margin: 0 2px; }
 .cc-rest { min-width: 0; padding: 0 4px; margin: 0 2px; font-size: 13px; }
 .cc-key { background: var(--q-dark); color: #fff; min-height: 52px; font-size: 18px; }
-.cc-cond { background: rgba(0, 0, 0, 0.35); border-radius: 12px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
-.cc-cond--bad { background: #8a2b2b; }
 </style>
