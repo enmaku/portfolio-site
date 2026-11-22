@@ -4,16 +4,20 @@
  * Four layouts of the CritCrafter character viewer, switchable via `?variant=A|B|C|D` on
  * /projects/critcrafter-prototype. **D is the chosen design**; A–C are kept for comparison.
  * Hard-coded Lithrei Woeborn data (hand-derived numbers, illustrative rules text and costs/traits).
+ * Variant D also hosts the HP / rest prototype (wayfinder ticket "Prototype: HP tracking and rest tooling"):
+ * `?variant=D&hp=A|B|C` swaps three HP/temp/conditions/rest UIs. In-memory only.
  * Not production code: the real viewer renders a server-built CritCrafter sheet and does no math.
  * See docs/prototypes/critcrafter-viewer-layout.md.
  */
 import { computed, reactive, ref } from 'vue'
+import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
 import CostIcons from './CritcrafterCostIcons.vue'
 import RankPips from './CritcrafterRankPips.vue'
 import TraitChips from './CritcrafterTraitChips.vue'
 
 const route = useRoute()
+const $q = useQuasar()
 const VARIANTS = [
   { key: 'A', name: 'Fixed header, flat screens' },
   { key: 'B', name: 'Accordion density' },
@@ -56,12 +60,14 @@ const gearGroups = reactive([
     gi('Branch Implement', '+4 · 1d8 S', 'Simple. Doubles as an implement; versatile grip: 1 or 2 hands. (illustrative text)', 0, { kind: 'weapon', on: false, hands: 1, grip: 1, versatile: true }),
     gi('Dagger', '+4 · 1d4 P', 'Simple. Agile, finesse, thrown. One hand. (illustrative text)', 0, { kind: 'weapon', on: false, hands: 1, grip: 1 }),
   ] },
-  { label: 'Armor & Shields', list: [
+  { label: 'Shields', list: [
+    gi('Steel Shield', 'Hardness 5 · HP 20', 'Raise a Shield: +2 circumstance AC until your next turn. (illustrative)', 0, { kind: 'shield', on: false, raised: false, ac: 2, hardness: 5, hp: 20, maxHp: 20, bt: 10 }),
+    gi('Buckler', 'Hardness 3 · HP 20', 'Raise a Shield: +1 circumstance AC until your next turn. (illustrative)', 0, { kind: 'shield', buckler: true, on: false, raised: false, ac: 1, hardness: 3, hp: 20, maxHp: 20, bt: 10 }),
+  ] },
+  { label: 'Armor', list: [
     gi('Armored Cloak', 'Light · AC +1', 'Light armor. Dex cap +2, check penalty 0. (illustrative)', 0, { kind: 'armor', on: true, ac: 1, trained: true }),
     gi('Chain Shirt', 'Medium · AC +2', 'Medium armor; you are untrained in it, so no proficiency bonus. (illustrative)', 0, { kind: 'armor', on: false, ac: 2, trained: false }),
     gi('Armored Skirt', 'Layers · AC +0', 'Worn alongside other armor, so it does not replace it. (illustrative)', 0, { kind: 'armor', on: false, ac: 0, over: true, trained: true }),
-    gi('Steel Shield', 'Hardness 5 · HP 20', 'Raise a Shield: +2 circumstance AC until your next turn. (illustrative)', 0, { kind: 'shield', on: false, raised: false, ac: 2, hardness: 5, hp: 20, bt: 10 }),
-    gi('Buckler', 'Hardness 3 · HP 20', 'Raise a Shield: +1 circumstance AC until your next turn. (illustrative)', 0, { kind: 'shield', on: false, raised: false, ac: 1, hardness: 3, hp: 20, bt: 10 }),
   ] },
   { label: 'Consumables', list: [
     gi('Rations', '×2', 'One person for a day.', 2), gi('Torch', '×5', 'Bright light 20 ft, 1 hour.', 5), gi('Chalk', '×10', 'Marks surfaces.', 10),
@@ -105,23 +111,43 @@ const allGear = computed(() => gearGroups.flatMap((g) => g.list))
 const shield = computed(() => allGear.value.find((g) => g.kind === 'shield' && g.on))
 const MAX_HANDS = 2
 const heldWeapons = computed(() => allGear.value.filter((g) => g.kind === 'weapon' && g.on))
-const handsInUse = computed(() => heldWeapons.value.reduce((n, g) => n + g.grip, 0))
-// Keep total hands <= 2: drop other held weapons (earliest in list first) until `g` fits.
+// Hands a shield occupies: a held shield takes one hand while equipped; a buckler is strapped to the forearm,
+// so it only takes the hand while raised (raising it puts weapons away until a hand is free).
+const shieldHands = (g) => (!g || !g.on ? 0 : g.buckler ? (g.raised ? 1 : 0) : 1)
+const weaponHands = computed(() => heldWeapons.value.reduce((n, g) => n + g.grip, 0))
+const handsInUse = computed(() => weaponHands.value + shieldHands(shield.value))
+const released = (names) => { if (names.length) $q.notify({ message: `Hands full: put away ${names.join(', ')}`, icon: 'backpack', timeout: 2200, position: 'top' }) }
+// A weapon (or wider grip) `g` just took hands: drop other held weapons first (earliest in list), then the shield.
 function enforceHands(g) {
+  const dropped = []
   const others = heldWeapons.value.filter((w) => w !== g)
-  let total = g.grip + others.reduce((n, w) => n + w.grip, 0)
   for (const w of others) {
-    if (total <= MAX_HANDS) break
-    w.on = false
-    total -= w.grip
+    if (handsInUse.value <= MAX_HANDS) break
+    w.on = false; dropped.push(w.name)
   }
+  const sh = shield.value
+  if (handsInUse.value > MAX_HANDS && sh) {
+    if (sh.buckler) sh.raised = false
+    else { sh.on = false; sh.raised = false }
+    dropped.push(sh.name + (sh.buckler ? ' (lowered)' : ''))
+  }
+  released(dropped)
+}
+// A shield just took a hand: drop held weapons (earliest in list first) until it fits.
+function fitShield() {
+  const dropped = []
+  for (const w of heldWeapons.value) {
+    if (handsInUse.value <= MAX_HANDS) break
+    w.on = false; dropped.push(w.name)
+  }
+  released(dropped)
 }
 function toggleGrip(g) {
   g.grip = g.grip === 1 ? 2 : 1
   if (g.on) enforceHands(g)
 }
 function groupCaption(l) {
-  if (l.label === 'Weapons') return `Hands ${handsInUse.value}/${MAX_HANDS}`
+  if (l.label === 'Weapons' || l.label === 'Shields') return `Hands ${handsInUse.value}/${MAX_HANDS}`
   return l.list.length + (l.list.length === 1 ? ' item' : ' items')
 }
 function toggleEquip(g) {
@@ -139,12 +165,15 @@ function toggleEquip(g) {
     const wasOn = g.on
     allGear.value.filter((a) => a.kind === 'shield').forEach((a) => { a.on = false; a.raised = false })
     g.on = !wasOn
+    if (g.on) fitShield()
     return
   }
   g.on = !g.on
 }
 function toggleRaise(g) {
-  if (g.on) g.raised = !g.raised
+  if (!g.on) return
+  g.raised = !g.raised
+  if (g.raised) fitShield() // a raised buckler takes the hand: put weapons away until it fits
 }
 // AC = 10 + Dex (0, cap ignored) + proficiency (unarmored/light trained = 4, untrained armor = 0) + best item bonus + raised shield
 const ac = computed(() => {
@@ -155,6 +184,105 @@ const ac = computed(() => {
   const sh = shield.value?.raised ? shield.value.ac : 0
   return 10 + 0 + prof + item + sh
 })
+
+// ---------- HP / temp HP / conditions / rests (HP prototype; stand-in for Pinia + localStorage) ----------
+const HP_VARIANTS = [
+  { key: 'A', name: 'Tap HP: keypad sheet; rest in Stats' },
+  { key: 'B', name: 'Inline ±1/±5 in topper; rest in moon dialog' },
+  { key: 'C', name: 'HP card + conditions + rest on Stats' },
+]
+const hpVariant = computed(() => (HP_VARIANTS.some((v) => v.key === route.query.hp) ? route.query.hp : 'A'))
+
+const LEVEL = 2, CON = 1
+const st = reactive({ hp: hero.hp, temp: 0, dying: 0, wounded: 0, doomed: 0, drained: 0, daily: false, log: [] })
+const logMsg = (m) => { st.log.unshift(m); st.log.length = Math.min(st.log.length, 5) }
+const maxHp = computed(() => hero.hp - st.drained * LEVEL)
+const down = computed(() => st.hp <= 0)
+const shieldBroken = computed(() => !!shield.value && shield.value.hp <= shield.value.bt)
+function damage(n) {
+  if (n <= 0) return
+  let rest = n
+  const soak = Math.min(st.temp, rest)
+  st.temp -= soak; rest -= soak
+  const before = st.hp
+  st.hp = Math.max(0, st.hp - rest)
+  if (before > 0 && st.hp === 0) { st.dying = 1 + st.wounded; logMsg(`Dropped to 0: dying ${st.dying}`) }
+  logMsg(`−${n}${soak ? ` (${soak} from temp)` : ''}`)
+}
+function heal(n) {
+  if (n <= 0) return
+  const wasDown = st.hp === 0
+  st.hp = Math.min(maxHp.value, st.hp + n)
+  if (wasDown && st.hp > 0) { st.dying = 0; st.wounded = Math.min(4, st.wounded + 1); logMsg(`Back up: wounded ${st.wounded}`) }
+  logMsg(`+${n}`)
+}
+function setTemp(n) { st.temp = Math.max(st.temp, n); logMsg(`Temp HP ${st.temp} (highest wins)`) }
+function damageShield(n) {
+  const sh = shield.value
+  if (sh && n > 0) sh.hp = Math.max(0, sh.hp - n)
+}
+function repairShield(n) {
+  const sh = shield.value
+  if (sh && n > 0) sh.hp = Math.min(sh.maxHp, sh.hp + n)
+}
+const stepCond = (k, max, d = 1) => { st[k] = (st[k] + d + max + 1) % (max + 1) }
+const CONDS = [
+  { key: 'dying', label: 'Dying', max: 4 }, { key: 'wounded', label: 'Wounded', max: 4 },
+  { key: 'doomed', label: 'Doomed', max: 3 }, { key: 'drained', label: 'Drained', max: 4 },
+]
+const focusPool = () => spellLevels.find((l) => l.label.startsWith('Focus'))
+function refocus() {
+  const f = focusPool()
+  if (f && f.used > 0) {
+    f.used -= 1
+    $q.notify({ message: '1 focus point regained', icon: 'auto_awesome', timeout: 1800, position: 'top' })
+  } else $q.notify({ message: 'Focus pool already full', timeout: 1500, position: 'top' })
+}
+// Rests (rules as given by the project owner): 8 h regains Con+1 HP, 24 h regains 2(Con+1), extended (1 week downtime) heals to full.
+// Every rest also refills the focus pool and spell slots, clears temp HP, lowers drained/doomed by 1.
+const RESTS = [
+  { kind: 'refocus', short: 'Refocus', label: 'Refocus', blurb: '10 min, +1 focus point' },
+  { kind: '8h', short: '8 h', label: 'Rest 8 h', blurb: `regain ${CON + 1} HP` },
+  { kind: '24h', short: '24 h', label: 'Rest 24 h', blurb: `regain ${2 * (CON + 1)} HP` },
+  { kind: 'ext', short: 'Extended', label: 'Extended rest', blurb: '1 week downtime, full HP' },
+]
+const restPrompt = ref(null)
+function askRest(kind) {
+  if (kind === 'refocus') return refocus()
+  restPrompt.value = { kind, daily: true, consumables: false }
+}
+const restHeal = (kind) => (kind === 'ext' ? maxHp.value : kind === '24h' ? 2 * (CON + 1) : CON + 1)
+function confirmRest() {
+  const opts = restPrompt.value
+  const gain = restHeal(opts.kind)
+  const wasDown = st.hp === 0
+  st.hp = Math.min(maxHp.value, st.hp + gain)
+  if (wasDown) { st.dying = 0; st.wounded = Math.min(4, st.wounded + 1) }
+  if (st.hp === maxHp.value) st.wounded = 0
+  st.temp = 0
+  spellLevels.forEach((l) => { l.used = 0 }) // slots and the focus pool both refill
+  st.drained = Math.max(0, st.drained - 1); st.doomed = Math.max(0, st.doomed - 1)
+  allGear.value.filter((g) => g.kind === 'shield').forEach((g) => { g.hp = opts.kind === 'ext' ? g.maxHp : Math.max(g.hp, g.bt) })
+  if (opts.daily) st.daily = false
+  if (opts.consumables) allGear.value.forEach((g) => { g.used = 0 })
+  logMsg(`${RESTS.find((r) => r.kind === opts.kind).label}: +${gain} HP, slots and focus refilled`)
+  restPrompt.value = null
+}
+const hpSheet = ref(false)
+const restDialog = ref(false)
+const hpMode = ref('damage')
+const hpEntry = ref('')
+const hpKey = (k) => { if (k === '⌫') hpEntry.value = hpEntry.value.slice(0, -1); else if (hpEntry.value.length < 3) hpEntry.value += k }
+function hpApply() {
+  const n = parseInt(hpEntry.value || '0', 10)
+  if (hpMode.value === 'damage') damage(n)
+  else if (hpMode.value === 'heal') heal(n)
+  else if (hpMode.value === 'temp') setTemp(n)
+  else if (hpMode.value === 'shielddmg') damageShield(n)
+  else if (hpMode.value === 'shieldfix') repairShield(n)
+  hpEntry.value = ''
+  hpSheet.value = false
+}
 const actions = [
   { name: 'Strike', traits: ['Attack'], cost: ['single'], sub: '', text: 'Attack with a weapon. MAP −5 / −10. (illustrative)' },
   { name: 'Cast a Spell', traits: ['Concentrate', 'Manipulate'], cost: ['single', 'to', 'three'], sub: '', text: 'Cast a spell from your repertoire. (illustrative)' },
@@ -294,18 +422,64 @@ const pick = (item) => { sheet.value = item }
       <div class="cc-hero q-pa-md q-ma-sm" style="flex: none">
         <div class="row items-baseline no-wrap">
           <div class="text-h6 col ellipsis">{{ hero.name }}</div>
-          <div class="text-caption text-grey-4">Lv 2</div>
+          <q-btn v-if="hpVariant === 'B'" flat round dense icon="bedtime" @click="restDialog = true" />
+          <div class="text-caption text-grey-4 q-ml-sm">Lv 2</div>
         </div>
         <div class="text-caption text-grey-4 q-mb-sm">{{ hero.line }}</div>
-        <div class="row text-center">
-          <div class="col"><div class="text-h5">{{ hero.hp }}</div><div class="text-caption">HP</div></div>
+        <div v-if="hpVariant === 'A'" class="row text-center items-center">
+          <div class="col-5 cc-hp" @click="hpSheet = true">
+            <div class="text-h4"><span :class="{ 'text-red-3': down }">{{ st.hp }}</span><span class="text-h6 text-grey-4"> / {{ maxHp }}</span></div>
+            <div class="text-caption">HP <span v-if="st.temp">· +{{ st.temp }} temp</span></div>
+          </div>
           <div class="col"><div class="text-h5">{{ ac }}</div><div class="text-caption">AC</div></div>
           <div class="col"><div class="text-h5">+{{ hero.perception }}</div><div class="text-caption">Perc</div></div>
           <div class="col"><div class="text-h5">{{ hero.speed }}</div><div class="text-caption">Speed</div></div>
         </div>
-      <div v-if="shield" class="cc-shield text-caption" :class="{ 'cc-shield--off': !shield.raised }"><q-icon name="shield" size="14px" /> {{ shield.name }} · {{ shield.raised ? 'raised, +' + shield.ac + ' AC' : 'lowered' }} · Hardness {{ shield.hardness }} · HP {{ shield.hp }} · BT {{ shield.bt }}</div>
+        <div v-else-if="hpVariant === 'B'">
+          <div class="row items-center no-wrap">
+            <q-btn dense unelevated class="cc-step" label="−5" @click="damage(5)" /><q-btn dense unelevated class="cc-step" label="−1" @click="damage(1)" />
+            <div class="col text-center cc-hp" @click="hpSheet = true">
+              <div class="text-h4"><span :class="{ 'text-red-3': down }">{{ st.hp }}</span><span class="text-h6 text-grey-4"> / {{ maxHp }}</span></div>
+              <div class="text-caption">HP <span v-if="st.temp">· +{{ st.temp }} temp</span> · tap for amount</div>
+            </div>
+            <q-btn dense unelevated class="cc-step" label="+1" @click="heal(1)" /><q-btn dense unelevated class="cc-step" label="+5" @click="heal(5)" />
+          </div>
+          <div class="row text-center q-mt-sm"><div class="col"><b>AC {{ ac }}</b></div><div class="col"><b>Perc +{{ hero.perception }}</b></div><div class="col"><b>Speed {{ hero.speed }}</b></div></div>
+        </div>
+        <div v-else class="row text-center">
+          <div class="col"><div class="text-h5" :class="{ 'text-red-3': down }">{{ st.hp }}<span v-if="st.temp" class="text-caption"> +{{ st.temp }}</span></div><div class="text-caption">HP</div></div>
+          <div class="col"><div class="text-h5">{{ ac }}</div><div class="text-caption">AC</div></div>
+          <div class="col"><div class="text-h5">+{{ hero.perception }}</div><div class="text-caption">Perc</div></div>
+          <div class="col"><div class="text-h5">{{ hero.speed }}</div><div class="text-caption">Speed</div></div>
+        </div>
+        <div v-if="hpVariant !== 'C'" class="row justify-center q-gutter-xs q-mt-xs">
+          <template v-for="c in CONDS" :key="c.key"><span v-if="st[c.key] > 0 || (c.key === 'dying' && down)" class="cc-cond" :class="{ 'cc-cond--bad': c.key === 'dying' }" @click="stepCond(c.key, c.max)">{{ c.label }} {{ st[c.key] || 1 }}</span></template>
+        </div>
+        <div v-if="shield" class="cc-shield text-caption" :class="{ 'cc-shield--off': !shield.raised, 'cc-shield--tap': shield.raised }" @click="shield.raised && (hpMode = 'shielddmg', hpSheet = true)"><q-icon name="shield" size="14px" /> {{ shield.name }} · {{ shield.raised ? 'raised, +' + shield.ac + ' AC' : 'lowered' }} · Hardness {{ shield.hardness }} · HP <b :class="{ 'text-red-3': shieldBroken }">{{ shield.hp }}</b>/{{ shield.maxHp }} · BT {{ shield.bt }}<span v-if="shieldBroken"> · BROKEN</span></div>
       </div>
       <div class="col scroll q-px-sm q-pb-sm">
+        <template v-if="tab === 'stats' && hpVariant === 'C'">
+          <div class="cc-label">Hit points</div>
+          <div class="cc-card q-mb-sm">
+            <div class="row items-center no-wrap q-mb-sm">
+              <div class="text-h5 col"><span :class="{ 'text-red-3': down }">{{ st.hp }}</span> / {{ maxHp }} <span v-if="st.temp" class="text-caption">+{{ st.temp }} temp</span></div>
+              <q-btn dense unelevated class="cc-step" label="−5" @click="damage(5)" /><q-btn dense unelevated class="cc-step" label="−1" @click="damage(1)" /><q-btn dense unelevated class="cc-step" label="+1" @click="heal(1)" /><q-btn dense unelevated class="cc-step" label="+5" @click="heal(5)" />
+            </div>
+            <div class="row q-mt-sm q-gutter-xs">
+            </div>
+          </div>
+        </template>
+        <template v-if="tab === 'stats' && hpVariant !== 'B'">
+          <div v-if="hpVariant === 'C'" class="cc-label">Conditions</div>
+          <div v-if="hpVariant === 'C'" class="cc-card q-mb-sm">
+            <div v-for="c in CONDS" :key="c.key" class="row items-center no-wrap" style="min-height: 44px"><span class="col">{{ c.label }}</span><q-btn flat round dense icon="remove" @click="stepCond(c.key, c.max, -1)" /><b style="width: 24px; text-align: center">{{ st[c.key] }}</b><q-btn flat round dense icon="add" @click="stepCond(c.key, c.max, 1)" /></div>
+          </div>
+          <div class="cc-label">Rest</div>
+          <div class="row no-wrap cc-rests q-mb-sm">
+            <q-btn v-for="r in RESTS" :key="r.kind" unelevated no-caps dense class="cc-step cc-rest col" :label="r.short" @click="askRest(r.kind)" />
+          </div>
+          <q-separator dark class="cc-sep" />
+        </template>
         <template v-if="tab === 'stats'">
           <div class="cc-label">Saves</div>
           <div class="row q-col-gutter-sm">
@@ -332,7 +506,7 @@ const pick = (item) => { sheet.value = item }
             <div v-for="g in l.list" :key="g.name" class="cc-card q-mb-xs row no-wrap items-center" @click="pick(g)"><div class="col" style="min-width: 0"><div class="ellipsis">{{ g.name }}</div><div v-if="g.sub && !g.qty" class="text-grey-5 text-caption">{{ g.sub }}</div><TraitChips :traits="g.traits" /></div><span v-if="g.qty" class="cc-pips row no-wrap items-center" @click.stop="cycleUsed(g)">
               <template v-if="g.qty <= 5"><q-icon v-for="i in g.qty" :key="i" :name="i <= g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="i <= g.used ? 'white' : 'grey-6'" /></template>
               <span v-else class="text-body1"><q-icon :name="g.used ? 'check_box' : 'check_box_outline_blank'" size="32px" :color="g.used ? 'white' : 'grey-6'" /> {{ g.used }} / {{ g.qty }} used</span>
-            </span><span v-if="g.kind === 'weapon'" class="cc-hands row no-wrap items-center" :class="{ 'cc-hands--tap': g.versatile }" @click.stop="g.versatile && toggleGrip(g)"><q-icon v-for="i in g.grip" :key="i" name="pan_tool" size="20px" /><q-icon v-if="g.versatile" name="swap_horiz" size="16px" class="q-ml-xs" /></span><span v-if="g.kind === 'shield'" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.raised, 'cc-equip--locked': !g.on }" @click.stop="toggleRaise(g)"><q-icon :name="RAISE_ICON" size="30px" /></span><span v-if="g.kind" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.on }" @click.stop="toggleEquip(g)"><q-icon :name="EQUIP_ICON[g.kind]" size="30px" /></span></div>
+            </span><span v-if="g.kind === 'weapon'" class="cc-hands row no-wrap items-center" :class="{ 'cc-hands--tap': g.versatile }" @click.stop="g.versatile && toggleGrip(g)"><q-icon v-if="g.versatile" name="swap_horiz" size="16px" class="q-mr-xs" /><q-icon v-for="i in g.grip" :key="i" name="pan_tool" size="20px" /></span><span v-if="g.kind === 'shield'" class="cc-hands row no-wrap items-center" :class="{ 'cc-hands--dim': g.buckler && !g.raised }"><q-icon name="pan_tool" size="20px" /></span><span v-if="g.kind === 'shield'" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.raised, 'cc-equip--locked': !g.on }" @click.stop="toggleRaise(g)"><q-icon :name="RAISE_ICON" size="30px" /></span><span v-if="g.kind" class="cc-equip row items-center justify-center" :class="{ 'cc-equip--on': g.on }" @click.stop="toggleEquip(g)"><q-icon :name="EQUIP_ICON[g.kind]" size="30px" /></span></div>
           </q-expansion-item>
         </template>
         <template v-else-if="tab === 'spells'">
@@ -428,6 +602,43 @@ const pick = (item) => { sheet.value = item }
       </q-dialog>
     </template>
 
+    <!-- HP prototype dialogs + switcher (variant D only) -->
+    <template v-if="variant === 'D'">
+      <q-dialog v-model="hpSheet" position="bottom">
+        <q-card class="cc-sheet"><q-card-section>
+          <q-btn-toggle v-model="hpMode" no-caps unelevated spread toggle-color="primary" color="dark" :options="[{ label: 'Damage', value: 'damage' }, { label: 'Heal', value: 'heal' }, { label: 'Temp HP', value: 'temp' }]" />
+          <q-btn-toggle v-if="shield && shield.raised" v-model="hpMode" class="q-mt-xs" no-caps unelevated spread toggle-color="primary" color="dark" :options="[{ label: 'Damage Shield', value: 'shielddmg' }, { label: 'Repair Shield', value: 'shieldfix' }]" />
+          <div class="text-h3 text-center q-my-sm" style="min-height: 56px">{{ hpEntry || '0' }}</div>
+          <div class="row q-col-gutter-xs">
+            <div v-for="k in ['1','2','3','4','5','6','7','8','9','⌫','0']" :key="k" class="col-4"><q-btn class="full-width cc-key" unelevated :label="k" @click="hpKey(k)" /></div>
+            <div class="col-4"><q-btn class="full-width cc-key" unelevated color="primary" label="Apply" @click="hpApply" /></div>
+          </div>
+          <div class="text-caption text-grey-5 q-mt-sm">Damage hits temp HP first. At 0 you are dying (1 + wounded). Healing from 0 gives wounded +1. Temp HP does not stack: highest wins. Treat Wounds etc.: enter the result as Heal. Shield damage and repair are entered as the exact HP change; repair caps at the shield's max HP.</div>
+        </q-card-section></q-card>
+      </q-dialog>
+      <q-dialog v-model="restDialog" position="bottom">
+        <q-card class="cc-sheet"><q-card-section>
+          <div class="text-h6 q-mb-sm">Rest &amp; recover</div>
+          <div class="column q-gutter-sm">
+            <q-btn v-for="r in RESTS" :key="r.kind" unelevated no-caps class="cc-key" align="left" :label="r.label + ': ' + r.blurb" @click="restDialog = false; askRest(r.kind)" />
+          </div>
+          <div class="text-h6 q-mt-md q-mb-xs">Conditions</div>
+          <div v-for="c in CONDS" :key="c.key" class="row items-center no-wrap" style="min-height: 44px"><span class="col">{{ c.label }}</span><q-btn flat round dense icon="remove" @click="stepCond(c.key, c.max, -1)" /><b style="width: 24px; text-align: center">{{ st[c.key] }}</b><q-btn flat round dense icon="add" @click="stepCond(c.key, c.max, 1)" /></div>
+        </q-card-section></q-card>
+      </q-dialog>
+      <q-dialog :model-value="!!restPrompt" @update:model-value="restPrompt = null">
+        <q-card v-if="restPrompt" class="cc-sheet" style="border-radius: 16px">
+          <q-card-section>
+            <div class="text-h6">{{ RESTS.find((r) => r.kind === restPrompt.kind).label }}</div>
+            <div class="q-my-sm">Regain {{ restHeal(restPrompt.kind) }} HP, lose temp HP, refill spell slots and the focus pool, drained and doomed −1<span v-if="restPrompt.kind === 'ext'">, shield fully repaired</span><span v-else>, shield HP up to its BT</span>.</div>
+            <div><q-checkbox v-model="restPrompt.daily" dark label="Reset daily: Cursebound" /></div>
+            <div><q-checkbox v-model="restPrompt.consumables" dark label="Clear used consumables" /></div>
+          </q-card-section>
+          <q-card-actions align="right"><q-btn flat label="Cancel" @click="restPrompt = null" /><q-btn unelevated color="primary" label="Rest" @click="confirmRest" /></q-card-actions>
+        </q-card>
+      </q-dialog>
+    </template>
+
     <!-- shared bottom bar: the thing being tested -->
     <nav class="cc-bar row no-wrap" :class="{ 'cc-bar--float': variant === 'C' || variant === 'D' }">
       <button v-for="t in TABS" :key="t.key" class="cc-tab col column items-center justify-center" :class="{ active: tab === t.key }" @click="tab = t.key">
@@ -457,13 +668,23 @@ const pick = (item) => { sheet.value = item }
 .cc-exp :deep(.cc-exp-head) { min-height: 56px; font-weight: 600; font-size: 15px; }
 .cc-exp :deep(.q-item__label--caption) { text-align: right; }
 .cc-pips { min-height: 48px; padding: 0 4px; cursor: pointer; user-select: none; }
-.cc-shield { font-size: 11px; margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 4px; opacity: 1; }
+.cc-shield { min-height: 32px; font-size: 11px; margin-top: 6px; display: flex; align-items: center; justify-content: center; gap: 4px; opacity: 1; }
+.cc-shield--tap { cursor: pointer; }
 .cc-shield--off { opacity: 0.45; }
 .cc-equip { min-width: 48px; min-height: 48px; margin-left: 6px; opacity: 0.3; cursor: pointer; user-select: none; }
 .cc-equip--on { opacity: 1; color: #fff; }
 .cc-hands { margin-left: 6px; color: var(--q-secondary); min-height: 40px; padding: 0 4px; }
-.cc-hands--tap { color: #fff; background: rgba(255, 255, 255, 0.1); border: 1px solid var(--q-secondary); border-radius: 20px; padding: 0 10px; cursor: pointer; user-select: none; }
+.cc-hands--dim { opacity: 0.35; }
+.cc-hands--tap { color: var(--q-secondary); background: rgba(255, 255, 255, 0.1); border: 1px solid var(--q-secondary); border-radius: 20px; padding: 0 10px; cursor: pointer; user-select: none; }
 .cc-sep { margin: 20px 0 16px; background: var(--cc-line); }
 .cc-bonus { min-width: 40px; text-align: right; margin-left: 8px; font-size: 17px; }
 .cc-equip--locked { pointer-events: none; opacity: 0.12; }
+.cc-hp { cursor: pointer; }
+.cc-bar-hp { height: 6px; border-radius: 3px; background: rgba(0, 0, 0, 0.35); margin-top: 4px; overflow: hidden; }
+.cc-bar-hp > div { height: 100%; background: #e8e6e3; }
+.cc-step { background: rgba(255, 255, 255, 0.14); color: #fff; min-width: 48px; min-height: 40px; margin: 0 2px; }
+.cc-rest { min-width: 0; padding: 0 4px; margin: 0 2px; font-size: 13px; }
+.cc-key { background: var(--q-dark); color: #fff; min-height: 52px; font-size: 18px; }
+.cc-cond { background: rgba(0, 0, 0, 0.35); border-radius: 12px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.cc-cond--bad { background: #8a2b2b; }
 </style>
