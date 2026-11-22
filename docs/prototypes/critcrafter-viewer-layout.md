@@ -70,3 +70,14 @@ Real PF2e action glyph PNGs (single, two, three, reaction, free) from the SoT ca
 3. **Sheet fields implied by this layout:** per item: type group, traits, hands/versatile, armor item bonus + proficiency category + layered flag, shield AC/Hardness/HP/BT; per spell and action: cost glyph key (including ranges), traits, rules text; per spell level: slot count; per skill: rank letter (U T E M L) and total; sheet-level Perception, Speed, saves, DCs.
 4. Trait chips are not interactive here; whether a trait opens its rules text is undecided.
 5. Shield does not occupy a hand in the hands limit here; whether it should is undecided.
+
+## HP, conditions and rests (answer to "Prototype: HP tracking and rest tooling")
+
+Built into variant D of the same page (`?variant=D`, HP option A; options B and C remain reachable via `?hp=B|C` and are not chosen).
+
+- **HP**: the topper shows `current / max`; tapping it opens a keypad bottom sheet with Damage, Heal and Temp HP. Apply closes the sheet. Damage hits temp HP first; temp HP does not stack (highest wins); at 0 you are dying (1 + wounded); healing from 0 clears dying and adds wounded. Healing is entered as plain healing (Treat Wounds is an ordinary action, not a rest).
+- **Shield HP**: shown in the shield row (`HP n/max`, red and BROKEN at or below BT). While the shield is raised, the keypad adds Damage Shield and Repair Shield (exact HP change, repair capped at max); tapping a raised shield row opens the keypad on Damage Shield. Row height is constant across lowered/raised.
+- **Conditions**: dying, wounded, doomed and drained are in v1 as tap-to-cycle chips under the stats; drained lowers max HP by level × value.
+- **Rests** (Stats tab, one row): Refocus (10 min, +1 focus point, toast), Rest 8 h (regain Con modifier + 1 HP), Rest 24 h (2 × (Con modifier + 1)), Extended rest (1 week downtime, full HP). Every 8 h or longer rest refills spell slots and the focus pool, clears temp HP, lowers drained and doomed by 1. Rests never repair shields: repairing is an action with a skill check, so shield HP only changes through Damage Shield / Repair Shield on the keypad. Full HP clears wounded. Rest dialogs describe their effect; no per-rest prompts. Consumables are never reset by rests; daily-use abilities are not tracked in v1.
+- **Hands**: shields get their own Gear group between Weapons and Armor. A shield takes one hand while equipped; a buckler is strapped on and takes a hand only while raised. Equipping or raising a shield puts weapons away (earliest first) until it fits; equipping a weapon or widening a grip drops other weapons, then the shield (a buckler is lowered). Toast uses the gear icon.
+- **Sheet must carry**: max HP, per-shield max HP, Hardness, BT, buckler flag, shield AC bonus. **Store adds**: current HP, temp HP, dying, wounded, doomed, drained, per-shield current HP, keyed by Pathbuilder id.

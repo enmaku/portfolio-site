@@ -194,7 +194,7 @@ const HP_VARIANTS = [
 const hpVariant = computed(() => (HP_VARIANTS.some((v) => v.key === route.query.hp) ? route.query.hp : 'A'))
 
 const LEVEL = 2, CON = 1
-const st = reactive({ hp: hero.hp, temp: 0, dying: 0, wounded: 0, doomed: 0, drained: 0, daily: false, log: [] })
+const st = reactive({ hp: hero.hp, temp: 0, dying: 0, wounded: 0, doomed: 0, drained: 0, log: [] })
 const logMsg = (m) => { st.log.unshift(m); st.log.length = Math.min(st.log.length, 5) }
 const maxHp = computed(() => hero.hp - st.drained * LEVEL)
 const down = computed(() => st.hp <= 0)
@@ -249,7 +249,7 @@ const RESTS = [
 const restPrompt = ref(null)
 function askRest(kind) {
   if (kind === 'refocus') return refocus()
-  restPrompt.value = { kind, daily: true, consumables: false }
+  restPrompt.value = { kind }
 }
 const restHeal = (kind) => (kind === 'ext' ? maxHp.value : kind === '24h' ? 2 * (CON + 1) : CON + 1)
 function confirmRest() {
@@ -262,9 +262,6 @@ function confirmRest() {
   st.temp = 0
   spellLevels.forEach((l) => { l.used = 0 }) // slots and the focus pool both refill
   st.drained = Math.max(0, st.drained - 1); st.doomed = Math.max(0, st.doomed - 1)
-  allGear.value.filter((g) => g.kind === 'shield').forEach((g) => { g.hp = opts.kind === 'ext' ? g.maxHp : Math.max(g.hp, g.bt) })
-  if (opts.daily) st.daily = false
-  if (opts.consumables) allGear.value.forEach((g) => { g.used = 0 })
   logMsg(`${RESTS.find((r) => r.kind === opts.kind).label}: +${gain} HP, slots and focus refilled`)
   restPrompt.value = null
 }
@@ -627,12 +624,10 @@ const pick = (item) => { sheet.value = item }
         </q-card-section></q-card>
       </q-dialog>
       <q-dialog :model-value="!!restPrompt" @update:model-value="restPrompt = null">
-        <q-card v-if="restPrompt" class="cc-sheet" style="border-radius: 16px">
+        <q-card v-if="restPrompt" class="cc-sheet" style="border-radius: 16px; min-height: 0">
           <q-card-section>
             <div class="text-h6">{{ RESTS.find((r) => r.kind === restPrompt.kind).label }}</div>
-            <div class="q-my-sm">Regain {{ restHeal(restPrompt.kind) }} HP, lose temp HP, refill spell slots and the focus pool, drained and doomed −1<span v-if="restPrompt.kind === 'ext'">, shield fully repaired</span><span v-else>, shield HP up to its BT</span>.</div>
-            <div><q-checkbox v-model="restPrompt.daily" dark label="Reset daily: Cursebound" /></div>
-            <div><q-checkbox v-model="restPrompt.consumables" dark label="Clear used consumables" /></div>
+            <div class="q-my-sm">Regain {{ restHeal(restPrompt.kind) }} HP, lose temp HP, refill spell slots and the focus pool.</div>
           </q-card-section>
           <q-card-actions align="right"><q-btn flat label="Cancel" @click="restPrompt = null" /><q-btn unelevated color="primary" label="Rest" @click="confirmRest" /></q-card-actions>
         </q-card>
