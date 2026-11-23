@@ -36,8 +36,7 @@ exports.bggThumb = onRequest(
   bggThumbHandler,
 )
 
-// CritCrafter sheet builder (docs/critcrafter/SPEC.md "Function boundary"). onRequest, not callable, so
-// App Check is verified in the handler (the viewer sends the token in X-Firebase-AppCheck).
+// CritCrafter sheet builder (docs/critcrafter/SPEC.md "Function boundary"). onRequest, not callable.
 let critcrafterHandler
 function getCritcrafterHandler() {
   if (!critcrafterHandler) {
@@ -45,12 +44,10 @@ function getCritcrafterHandler() {
     const logger = require('firebase-functions/logger')
     const { createSheetHandler } = require('./critcrafter')
     const { firestoreStore } = require('./critcrafter/store')
-    const { verifyAppCheckToken } = require('./critcrafter/appCheck')
     if (!admin.apps.length) admin.initializeApp()
-    const inEmulator = process.env.FUNCTIONS_EMULATOR === 'true'
     critcrafterHandler = createSheetHandler({
       store: firestoreStore(admin.firestore()),
-      verifyAppCheck: inEmulator ? undefined : (req) => verifyAppCheckToken(req, admin),
+      // Open endpoint by owner decision: no App Check. Pass verifyAppCheck here to enforce it again.
       log: logger,
     })
   }
