@@ -1,0 +1,234 @@
+{
+  "success": true,
+  "build": {
+    "name": "Fixture",
+    "class": "Summoner",
+    "dualClass": null,
+    "level": 1,
+    "xp": 0,
+    "ancestry": "Human",
+    "heritage": "Skilled Human",
+    "background": "Barkeep",
+    "alignment": "N",
+    "gender": "Not set",
+    "age": "Not set",
+    "deity": "Not set",
+    "size": 2,
+    "sizeName": "Medium",
+    "keyability": "cha",
+    "languages": [
+      "None selected"
+    ],
+    "rituals": [],
+    "resistances": [],
+    "inventorMods": [],
+    "abilities": {
+      "str": 14,
+      "dex": 14,
+      "con": 12,
+      "int": 12,
+      "wis": 12,
+      "cha": 14,
+      "breakdown": {
+        "ancestryFree": [
+          "Str",
+          "Dex"
+        ],
+        "ancestryBoosts": [],
+        "ancestryFlaws": [],
+        "backgroundBoosts": [
+          "Con",
+          "Str"
+        ],
+        "classBoosts": [
+          "Cha"
+        ],
+        "mapLevelledBoosts": {
+          "1": [
+            "Wis",
+            "Int",
+            "Cha",
+            "Dex"
+          ]
+        }
+      }
+    },
+    "attributes": {
+      "ancestryhp": 8,
+      "classhp": 10,
+      "bonushp": 0,
+      "bonushpPerLevel": 0,
+      "speed": 25,
+      "speedBonus": 0
+    },
+    "proficiencies": {
+      "classDC": 2,
+      "perception": 2,
+      "fortitude": 4,
+      "reflex": 2,
+      "will": 4,
+      "heavy": 0,
+      "medium": 0,
+      "light": 0,
+      "unarmored": 2,
+      "advanced": 0,
+      "martial": 0,
+      "simple": 2,
+      "unarmed": 2,
+      "castingArcane": 2,
+      "castingDivine": 0,
+      "castingOccult": 0,
+      "castingPrimal": 0,
+      "acrobatics": 2,
+      "arcana": 2,
+      "athletics": 0,
+      "crafting": 2,
+      "deception": 0,
+      "diplomacy": 2,
+      "intimidation": 2,
+      "medicine": 0,
+      "nature": 2,
+      "occultism": 0,
+      "performance": 0,
+      "religion": 0,
+      "society": 2,
+      "stealth": 2,
+      "survival": 0,
+      "thievery": 0,
+      "piloting": 0,
+      "computers": 0
+    },
+    "mods": {},
+    "feats": [
+      [
+        "Hobnobber",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Skilled Human",
+        null,
+        "Heritage",
+        1,
+        "Heritage Feat",
+        "standardChoice",
+        null
+      ],
+      [
+        "Glider Form",
+        null,
+        "Summoner Evolution Feat",
+        1,
+        "Evolution Feat 1",
+        "standardChoice",
+        null
+      ],
+      [
+        "Astrology",
+        null,
+        "Ancestry Feat",
+        1,
+        "Human Feat 1",
+        "standardChoice",
+        null
+      ]
+    ],
+    "specials": [
+      "Dragon Eidolon",
+      "Manifest Eidolon",
+      "Act Together",
+      "Share Senses",
+      "Summoner Spellcasting\u00a0",
+      "Link Spells\u00a0",
+      "Primal",
+      "Dragon Breath",
+      "Crafting",
+      "Skilled Human"
+    ],
+    "lores": [
+      [
+        "Alcohol",
+        2
+      ]
+    ],
+    "equipmentContainers": {},
+    "equipment": [],
+    "specificProficiencies": {
+      "trained": [],
+      "expert": [],
+      "master": [],
+      "legendary": []
+    },
+    "weapons": [],
+    "money": {
+      "cp": 0,
+      "sp": 0,
+      "gp": 15,
+      "pp": 0
+    },
+    "armor": [],
+    "spellCasters": [
+      {
+        "name": "Summoner",
+        "magicTradition": "primal",
+        "spellcastingType": "spontaneous",
+        "ability": "cha",
+        "proficiency": 0,
+        "focusPoints": 0,
+        "innate": false,
+        "perDay": [
+          5,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "spells": [
+          {
+            "spellLevel": 0,
+            "list": []
+          },
+          {
+            "spellLevel": 1,
+            "list": []
+          }
+        ],
+        "prepared": [],
+        "blendedSpells": []
+      }
+    ],
+    "focusPoints": 1,
+    "focus": {
+      "primal": {
+        "cha": {
+          "abilityBonus": 2,
+          "proficiency": 0,
+          "itemBonus": 0,
+          "focusCantrips": [
+            "Boost Eidolon"
+          ],
+          "focusSpells": [
+            "Evolution Surge"
+          ]
+        }
+      }
+    },
+    "formula": [],
+    "acTotal": {
+      "acProfBonus": 3,
+      "acAbilityBonus": 2,
+      "acItemBonus": 0,
+      "acTotal": 15,
+      "shieldBonus": null
+    },
+    "pets": [],
+    "familiars": []
+  }
+}

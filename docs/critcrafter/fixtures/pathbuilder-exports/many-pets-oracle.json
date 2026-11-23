@@ -1,0 +1,901 @@
+{
+  "success": true,
+  "build": {
+    "name": "Fixture",
+    "class": "Oracle",
+    "dualClass": null,
+    "level": 7,
+    "xp": 0,
+    "ancestry": "Anadi",
+    "heritage": "Polychromatic Anadi",
+    "background": "Academic (Nature)",
+    "alignment": "N",
+    "gender": "Male",
+    "age": "54",
+    "deity": "Grandmother Spider",
+    "size": 1,
+    "sizeName": "Small",
+    "keyability": "cha",
+    "languages": [
+      "Anadi",
+      "Chthonian",
+      "Common",
+      "Diabolic",
+      "Draconic",
+      "Dwarven",
+      "Elven",
+      "Gnomish",
+      "Goblin",
+      "Halfling",
+      "Necril",
+      "Orcish",
+      "Bellflower code"
+    ],
+    "rituals": [
+      "Blight",
+      "Corpse Communion",
+      "Create Undead",
+      "Garden of Death",
+      "Recall Past Life",
+      "Reincarnate"
+    ],
+    "resistances": [],
+    "inventorMods": [],
+    "abilities": {
+      "str": 10,
+      "dex": 14,
+      "con": 10,
+      "int": 18,
+      "wis": 14,
+      "cha": 19,
+      "breakdown": {
+        "ancestryFree": [
+          "Cha",
+          "Int"
+        ],
+        "ancestryBoosts": [],
+        "ancestryFlaws": [],
+        "backgroundBoosts": [
+          "Int",
+          "Cha"
+        ],
+        "classBoosts": [
+          "Cha"
+        ],
+        "mapLevelledBoosts": {
+          "1": [
+            "Wis",
+            "Cha",
+            "Int",
+            "Dex"
+          ],
+          "5": [
+            "Int",
+            "Wis",
+            "Dex",
+            "Cha"
+          ]
+        }
+      }
+    },
+    "attributes": {
+      "ancestryhp": 8,
+      "classhp": 8,
+      "bonushp": 0,
+      "bonushpPerLevel": 0,
+      "speed": 25,
+      "speedBonus": 0
+    },
+    "proficiencies": {
+      "classDC": 2,
+      "perception": 2,
+      "fortitude": 2,
+      "reflex": 2,
+      "will": 6,
+      "heavy": 0,
+      "medium": 0,
+      "light": 2,
+      "unarmored": 2,
+      "advanced": 0,
+      "martial": 2,
+      "simple": 2,
+      "unarmed": 2,
+      "castingArcane": 0,
+      "castingDivine": 4,
+      "castingOccult": 0,
+      "castingPrimal": 2,
+      "acrobatics": 0,
+      "arcana": 0,
+      "athletics": 0,
+      "crafting": 2,
+      "deception": 2,
+      "diplomacy": 4,
+      "intimidation": 2,
+      "medicine": 4,
+      "nature": 4,
+      "occultism": 0,
+      "performance": 2,
+      "religion": 2,
+      "society": 4,
+      "stealth": 2,
+      "survival": 2,
+      "thievery": 2,
+      "piloting": 0,
+      "computers": 0
+    },
+    "mods": {
+      "Diplomacy": {
+        "Item Bonus": 1
+      },
+      "Fortitude": {
+        "Item Bonus": 1
+      },
+      "Reflex": {
+        "Item Bonus": 1
+      },
+      "Will": {
+        "Item Bonus": 1
+      }
+    },
+    "feats": [
+      [
+        "Nudge the Scales",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Recognize Spell",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Impressive Performance",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Mask Familiar",
+        null,
+        "Awarded Feat",
+        4
+      ],
+      [
+        "Multilingual",
+        null,
+        "Awarded Feat",
+        6
+      ],
+      [
+        "Multilingual",
+        null,
+        "Awarded Feat",
+        6
+      ],
+      [
+        "Adaptive Mask Familiar",
+        null,
+        "Awarded Feat",
+        6
+      ],
+      [
+        "Polychromatic Anadi",
+        null,
+        "Heritage",
+        1,
+        "Heritage Feat",
+        "standardChoice",
+        null
+      ],
+      [
+        "Anadi Lore",
+        null,
+        "Ancestry Feat",
+        1,
+        "Anadi Feat 1",
+        "standardChoice",
+        null
+      ],
+      [
+        "Skittertalk",
+        null,
+        "Ancestry Feat",
+        1,
+        "Ancestry Paragon 1",
+        "standardChoice",
+        null
+      ],
+      [
+        "Group Impression",
+        null,
+        "Skill Feat",
+        2,
+        "Skill Feat 2",
+        "standardChoice",
+        null
+      ],
+      [
+        "Domain Acumen",
+        null,
+        "Class Feat",
+        2,
+        "Oracle Feat 2",
+        "standardChoice",
+        null
+      ],
+      [
+        "Beastmaster Dedication",
+        null,
+        "Archetype Feat",
+        2,
+        "Free Archetype 2",
+        "standardChoice",
+        null
+      ],
+      [
+        "Weapon Proficiency",
+        null,
+        "General Feat",
+        3,
+        "General Feat 3",
+        "standardChoice",
+        null
+      ],
+      [
+        "Reincarnation Feat",
+        null,
+        "Ancestry Feat",
+        3,
+        "Ancestry Paragon 3",
+        "parentChoice",
+        null
+      ],
+      [
+        "Wisdom from Another Life",
+        null,
+        "Reincarnation Feat",
+        3,
+        "Reincarnation FeatAncestry Paragon 3",
+        "childChoice",
+        "Ancestry Paragon 3"
+      ],
+      [
+        "Additional Lore",
+        null,
+        "Skill Feat",
+        3,
+        "Reincarnation FeatAncestry Paragon 3additional lore",
+        "childChoice",
+        "Reincarnation FeatAncestry Paragon 3"
+      ],
+      [
+        "Spirit Speaker",
+        null,
+        "Skill Feat",
+        4,
+        "Skill Feat 4",
+        "standardChoice",
+        null
+      ],
+      [
+        "Whispers of Weakness",
+        null,
+        "Class Feat",
+        4,
+        "Oracle Feat 4",
+        "standardChoice",
+        null
+      ],
+      [
+        "Additional Companion",
+        null,
+        "Archetype Feat",
+        4,
+        "Free Archetype 4",
+        "standardChoice",
+        null
+      ],
+      [
+        "Reincarnation Feat",
+        null,
+        "Ancestry Feat",
+        5,
+        "Anadi Feat 5",
+        "parentChoice",
+        null
+      ],
+      [
+        "Empathy Incarnate",
+        null,
+        "Reincarnation Feat",
+        5,
+        "Reincarnation FeatAnadi Feat 5",
+        "childChoice",
+        "Anadi Feat 5"
+      ],
+      [
+        "Phonetic Training",
+        null,
+        "Skill Feat",
+        6,
+        "Skill Feat 6",
+        "standardChoice",
+        null
+      ],
+      [
+        "Additional Companion",
+        null,
+        "Class Feat",
+        6,
+        "Oracle Feat 6",
+        "standardChoice",
+        null
+      ],
+      [
+        "Linguist Dedication",
+        null,
+        "Archetype Feat",
+        6,
+        "Free Archetype 6",
+        "standardChoice",
+        null
+      ],
+      [
+        "Breath Control",
+        null,
+        "General Feat",
+        7,
+        "General Feat 7",
+        "standardChoice",
+        null
+      ],
+      [
+        "Reassuring Presence",
+        null,
+        "Ancestry Feat",
+        7,
+        "Ancestry Paragon 7",
+        "standardChoice",
+        null
+      ]
+    ],
+    "specials": [
+      "Bones Mystery",
+      "Curse of Living Death",
+      "Revelation Spells",
+      "Oracular Curse",
+      "Oracle Spellcasting",
+      "Change Shape (Anadi)",
+      "Fangs (Anadi)",
+      "Decay",
+      "Call Companion",
+      "Signature Spells",
+      "Expert Spellcaster",
+      "Mysterious Resolve",
+      "Polychromatic Anadi"
+    ],
+    "lores": [
+      [
+        "Academia",
+        2
+      ],
+      [
+        "Anadi",
+        2
+      ],
+      [
+        "Poisons & Venoms",
+        6
+      ]
+    ],
+    "equipmentContainers": {
+      "d76da11e-0b61-49fb-be0a-5951c015a84a": {
+        "containerName": "Spacious Satchel",
+        "bagOfHolding": true,
+        "backpack": false,
+        "augmentations": false
+      },
+      "82fb83a7-1261-4596-bde8-9c6b61fd881c": {
+        "containerName": "Poisons Pocket",
+        "bagOfHolding": true,
+        "backpack": false,
+        "augmentations": false
+      },
+      "7b2162f7-ee10-43ff-870b-6bb103e9eb28": {
+        "containerName": "Weapons Pocket",
+        "bagOfHolding": true,
+        "backpack": false,
+        "augmentations": false
+      }
+    },
+    "equipment": [
+      [
+        "Familiar Tattoo",
+        1,
+        "Invested"
+      ],
+      [
+        "Glasses of Sociability",
+        1,
+        "Invested"
+      ],
+      [
+        "Storied Skin",
+        1,
+        "Invested"
+      ],
+      [
+        "Reading Glyphs",
+        1,
+        "Invested"
+      ],
+      [
+        "Motivating Treat Bag",
+        1,
+        "d76da11e-0b61-49fb-be0a-5951c015a84a",
+        "Invested"
+      ],
+      [
+        "Warding Tattoo",
+        1,
+        "Invested"
+      ],
+      [
+        "Flask of Fellowship",
+        1,
+        "d76da11e-0b61-49fb-be0a-5951c015a84a",
+        "Invested"
+      ],
+      [
+        "Magnet Coin",
+        1,
+        "d76da11e-0b61-49fb-be0a-5951c015a84a",
+        "Invested"
+      ],
+      [
+        "Spacious Pouch I",
+        1,
+        "Invested"
+      ],
+      [
+        "Bedroll",
+        1,
+        "d76da11e-0b61-49fb-be0a-5951c015a84a",
+        "Invested"
+      ],
+      [
+        "Flint and Steel",
+        1,
+        "d76da11e-0b61-49fb-be0a-5951c015a84a",
+        "Invested"
+      ],
+      [
+        "Rope",
+        1,
+        "d76da11e-0b61-49fb-be0a-5951c015a84a",
+        "Invested"
+      ],
+      [
+        "Rations",
+        2,
+        "d76da11e-0b61-49fb-be0a-5951c015a84a",
+        "Invested"
+      ],
+      [
+        "Waterskin",
+        1,
+        "d76da11e-0b61-49fb-be0a-5951c015a84a",
+        "Invested"
+      ],
+      [
+        "Soap",
+        1,
+        "d76da11e-0b61-49fb-be0a-5951c015a84a",
+        "Invested"
+      ],
+      [
+        "Alchemist's Toolkit",
+        1,
+        "d76da11e-0b61-49fb-be0a-5951c015a84a",
+        "Invested"
+      ],
+      [
+        "Basic Crafter's Book",
+        1,
+        "d76da11e-0b61-49fb-be0a-5951c015a84a",
+        "Invested"
+      ],
+      [
+        "Blowgun Darts",
+        10,
+        "7b2162f7-ee10-43ff-870b-6bb103e9eb28",
+        "Invested"
+      ],
+      [
+        "Antidote (Lesser)",
+        5,
+        "82fb83a7-1261-4596-bde8-9c6b61fd881c",
+        "Invested"
+      ],
+      [
+        "Giant Centipede Venom",
+        5,
+        "82fb83a7-1261-4596-bde8-9c6b61fd881c",
+        "Invested"
+      ],
+      [
+        "Spider Venom",
+        5,
+        "82fb83a7-1261-4596-bde8-9c6b61fd881c",
+        "Invested"
+      ],
+      [
+        "Giant Scorpion Venom",
+        5,
+        "82fb83a7-1261-4596-bde8-9c6b61fd881c",
+        "Invested"
+      ],
+      [
+        "Cloak of Gnawing Leaves",
+        1,
+        "Invested"
+      ]
+    ],
+    "specificProficiencies": {
+      "trained": [],
+      "expert": [],
+      "master": [],
+      "legendary": []
+    },
+    "weapons": [
+      {
+        "name": "Blowgun",
+        "qty": 1,
+        "prof": "simple",
+        "die": "d1",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Blowgun",
+        "runes": [],
+        "damageType": "P",
+        "attack": 11,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      },
+      {
+        "name": "Exquisite Sword Cane",
+        "qty": 1,
+        "prof": "martial",
+        "die": "d6",
+        "pot": 1,
+        "str": "",
+        "mat": null,
+        "display": "+1 Merciful Exquisite Sword Cane",
+        "runes": [
+          "Merciful"
+        ],
+        "damageType": "P",
+        "attack": 12,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      },
+      {
+        "name": "Exquisite Sword Cane Sheath",
+        "qty": 1,
+        "prof": "martial",
+        "die": "d4",
+        "pot": 1,
+        "str": "",
+        "mat": null,
+        "display": "+1 Pacifying Exquisite Sword Cane Sheath",
+        "runes": [
+          "Pacifying"
+        ],
+        "damageType": "B",
+        "attack": 12,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      },
+      {
+        "name": "Dagger",
+        "qty": 1,
+        "prof": "simple",
+        "die": "d4",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Dagger",
+        "runes": [],
+        "damageType": "P",
+        "attack": 11,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      }
+    ],
+    "money": {
+      "cp": 0,
+      "sp": 0,
+      "gp": 140,
+      "pp": 0
+    },
+    "armor": [
+      {
+        "name": "Explorer's Clothing",
+        "qty": 1,
+        "prof": "unarmored",
+        "pot": 1,
+        "res": "resilient",
+        "mat": null,
+        "display": "+1 Armor Resilient Raiment Explorer's Clothing",
+        "worn": true,
+        "runes": [
+          "Raiment"
+        ],
+        "grade": ""
+      },
+      {
+        "name": "Explorer's Clothing",
+        "qty": 1,
+        "prof": "light",
+        "pot": 1,
+        "res": "",
+        "mat": null,
+        "display": "Wasp Guard",
+        "worn": false,
+        "runes": [
+          "Ready"
+        ],
+        "grade": ""
+      }
+    ],
+    "spellCasters": [
+      {
+        "name": "Oracle",
+        "magicTradition": "divine",
+        "spellcastingType": "spontaneous",
+        "ability": "cha",
+        "proficiency": 4,
+        "focusPoints": 0,
+        "innate": false,
+        "perDay": [
+          5,
+          4,
+          4,
+          4,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "spells": [
+          {
+            "spellLevel": 0,
+            "list": [
+              "Read the Air",
+              "Torturous Trauma",
+              "Glamorize",
+              "Shield",
+              "Stabilize",
+              "Void Warp",
+              "Slashing Gust"
+            ]
+          },
+          {
+            "spellLevel": 1,
+            "list": [
+              "Fated Healing",
+              "Heal",
+              "Summon Undead",
+              "Admonishing Ray",
+              "Grim Tendrils"
+            ]
+          },
+          {
+            "spellLevel": 2,
+            "list": [
+              "Boneshaker",
+              "Cleanse Affliction",
+              "Sudden Blight",
+              "Heal",
+              "False Vitality"
+            ]
+          },
+          {
+            "spellLevel": 3,
+            "list": [
+              "Organsight",
+              "Flense",
+              "Positive Attunement",
+              "Flense",
+              "Ghostly Weapon"
+            ]
+          },
+          {
+            "spellLevel": 4,
+            "list": [
+              "Heal",
+              "Sacred Beasts"
+            ]
+          }
+        ],
+        "prepared": [],
+        "blendedSpells": []
+      },
+      {
+        "name": "Other Spells (Staves etc)",
+        "magicTradition": "arcane",
+        "spellcastingType": "prepared",
+        "ability": "cha",
+        "proficiency": 0,
+        "focusPoints": 0,
+        "innate": false,
+        "perDay": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "spells": [
+          {
+            "spellLevel": 0,
+            "list": []
+          },
+          {
+            "spellLevel": 1,
+            "list": []
+          },
+          {
+            "spellLevel": 2,
+            "list": []
+          },
+          {
+            "spellLevel": 3,
+            "list": []
+          },
+          {
+            "spellLevel": 4,
+            "list": []
+          },
+          {
+            "spellLevel": 5,
+            "list": []
+          },
+          {
+            "spellLevel": 6,
+            "list": []
+          },
+          {
+            "spellLevel": 7,
+            "list": []
+          },
+          {
+            "spellLevel": 8,
+            "list": []
+          },
+          {
+            "spellLevel": 9,
+            "list": []
+          },
+          {
+            "spellLevel": 10,
+            "list": []
+          }
+        ],
+        "prepared": [],
+        "blendedSpells": []
+      }
+    ],
+    "focusPoints": 2,
+    "focus": {
+      "divine": {
+        "cha": {
+          "abilityBonus": 4,
+          "proficiency": 4,
+          "itemBonus": 0,
+          "focusCantrips": [],
+          "focusSpells": [
+            "Soul Siphon",
+            "Withering Grasp"
+          ]
+        }
+      }
+    },
+    "formula": [],
+    "acTotal": {
+      "acProfBonus": 9,
+      "acAbilityBonus": 2,
+      "acItemBonus": 1,
+      "acTotal": 22,
+      "shieldBonus": null
+    },
+    "pets": [
+      {
+        "type": "Animal Companion",
+        "name": "Giant Widow (Nyame) - Young Scorpion",
+        "equipment": [
+          [
+            "Hosteling Statuette",
+            1
+          ]
+        ],
+        "animal": "Scorpion",
+        "mature": false,
+        "incredible": false,
+        "incredibleType": "Nimble",
+        "specializations": [],
+        "armor": "Unarmored"
+      },
+      {
+        "type": "Animal Companion",
+        "name": "Orb Weaver (Asase) - Young Beetle",
+        "equipment": [
+          [
+            "Hosteling Statuette",
+            1
+          ]
+        ],
+        "animal": "Beetle",
+        "mature": false,
+        "incredible": false,
+        "incredibleType": "Nimble",
+        "specializations": [],
+        "armor": "Unarmored"
+      },
+      {
+        "type": "Animal Companion",
+        "name": "Obaara - Young Riding Tarantula",
+        "equipment": [
+          [
+            "Hosteling Statuette",
+            1
+          ]
+        ],
+        "animal": "Riding Tarantula",
+        "mature": false,
+        "incredible": false,
+        "incredibleType": "Nimble",
+        "specializations": [],
+        "armor": "Unarmored"
+      }
+    ],
+    "familiars": [
+      {
+        "type": "Familiar",
+        "name": "Familiar (Spider Mask (Adaze))",
+        "equipment": [],
+        "specific": null,
+        "abilities": [
+          "Darkvision",
+          "Share Senses",
+          "Tattoo Transformation",
+          "Manual Dexterity"
+        ]
+      }
+    ]
+  }
+}

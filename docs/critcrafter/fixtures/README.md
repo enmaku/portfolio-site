@@ -26,6 +26,8 @@ Committed exports are the `{ success, build }` body with the character name repl
 | `solanum-calabash.json` | Leshy Magus 1 | Prepared caster with focus. |
 | `taraan-skyseeker.json` | Tengu Cleric / Witch 2 | Dual class, `Cleric Font`, familiar, `mods` (Diplomacy, Religion), item potency and resilient values. |
 | `yggostrus.json` | Dragonet Summoner 1 | `Homing Drake` pseudo-caster beside the real one. |
+| `many-pets-oracle.json` | Anadi Oracle 7 | Three animal companions (`pets[]`) and a familiar (`familiars[]`): the pet golden. Character name replaced by `Fixture`; pet names kept as exported because they drive name-parsing tests. Pathbuilder's own pet stat screens are not yet captured. |
+| `summoner-dragon-eidolon.json` | Human Summoner 1 | Dragon eidolon: `pets[]` and `familiars[]` are both empty; the eidolon shows only in `specials` and `feats`, so eidolons are not exported. |
 
 None of these has been hand-verified against Pathbuilder's own screen except the two Dwarf Fighter HP totals. The derived-stat goldens (`functions/critcrafter/derived/index.test.js`) are additionally cross-checked against the totals Pathbuilder precomputes in each export (every weapon `attack`, worn-armor `acTotal`); skills, saves, Perception, class DC and spell numbers have no such reference and still wait for a screen check.
 
@@ -33,7 +35,7 @@ None of these has been hand-verified against Pathbuilder's own screen except the
 
 Real exports still wanted. Until each arrives, a hand-built synthetic build in the function tests covers it.
 
-- [ ] Pet or companion. Fallback: a build with a populated `pets` entry (expect no stat block, only familiar abilities as actions).
-- [ ] Eidolon (not in `pets`). Fallback: a Summoner with eidolon-related `specials`; expect it ignored without failing.
+- [x] Pet or companion: `many-pets-oracle.json` and Taraan's familiar. Old fallback: a build with a populated `pets` entry (expect no stat block, only familiar abilities as actions).
+- [x] Eidolon (not in `pets`): `summoner-dragon-eidolon.json`. Old fallback: a Summoner with eidolon-related `specials`; expect it ignored without failing.
 - [ ] Runes on gear. Fallback: weapon and armor potency, striking and resilient values set; check attack, damage dice and AC breakdown lines.
 - [ ] High-rank caster. Fallback: a caster with `perDay` populated up to rank 9 and spells at ranks 8 and 9; check slot keys `slots:<casterKey>:<rank>`.
