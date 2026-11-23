@@ -1,7 +1,8 @@
 <script setup>
 /**
- * Stats screen rest row (Refocus, 8 h, 24 h, Extended) plus Reset tracking. Each rest confirms with
- * a dialog that describes its effect; Reset tracking confirms before clearing the character's state.
+ * Stats screen rest row (Refocus, 8 h, 24 h, Extended) plus Reset tracking. Rests apply immediately
+ * and announce their effect in a toast (no per-rest prompt, SPEC "Table tracking"); only Reset tracking
+ * confirms before clearing the character's state.
  * Rules: table/tableState.js `rest`. Reads and writes the table store.
  */
 import { useQuasar } from 'quasar'
@@ -18,10 +19,8 @@ const RESTS = [
 ]
 
 function rest(r) {
-  $q.dialog({ title: `${r.label} rest`, message: r.text, cancel: true, ok: 'Rest', dark: true }).onOk(() => {
-    store.rest(r.kind)
-    $q.notify({ message: `${r.label} rest done`, icon: 'bedtime', timeout: 1500 })
-  })
+  store.rest(r.kind)
+  $q.notify({ message: `${r.label}: ${r.text}`, icon: r.icon, timeout: 2500 })
 }
 
 function resetTracking() {

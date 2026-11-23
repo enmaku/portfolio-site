@@ -53,6 +53,20 @@ test('detailView of a miss has no html and offers the AoN link', () => {
   assert.equal(v.aonUrl, 'https://2e.aonprd.com/Search.aspx?q=Homebrew')
 })
 
+test('detailView lists defense, range, area and duration when present, in that order, skipping empties', () => {
+  const spell = detailView(feat('Fireball', 3, { kind: 'spell', defense: 'basic Reflex', range: '500 feet', area: '20-foot burst', duration: null }))
+  assert.deepEqual(spell.facts, [
+    { label: 'Defense', value: 'basic Reflex' },
+    { label: 'Range', value: '500 feet' },
+    { label: 'Area', value: '20-foot burst' },
+  ])
+  const bow = detailView(feat('Longbow', 0, { kind: 'weapon', range: 100 }))
+  assert.deepEqual(bow.facts, [{ label: 'Range', value: '100 feet' }])
+  assert.deepEqual(detailView(feat('Toughness', 1)).facts, [])
+  const dur = detailView(feat('Haste', 3, { duration: '1 minute' }))
+  assert.deepEqual(dur.facts, [{ label: 'Duration', value: '1 minute' }])
+})
+
 test('detailView carries item bulk and price for gear, null for other entries', () => {
   const item = detailView(feat('Rope', 0, { bulk: 'L', price: '5 sp' }))
   assert.equal(item.bulk, 'L')

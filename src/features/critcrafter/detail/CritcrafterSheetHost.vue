@@ -67,6 +67,9 @@ const AON_LINK = 'Search Archives of Nethys'
           <span v-if="top.view.bulk != null && top.view.price"> · </span>
           <span v-if="top.view.price">{{ top.view.price }}</span>
         </div>
+        <div v-if="top.view.facts.length" class="text-caption q-mb-sm" data-testid="cc-detail-facts">
+          <div v-for="f in top.view.facts" :key="f.label"><span class="text-weight-bold">{{ f.label }}</span> {{ f.value }}</div>
+        </div>
         <!-- html is sanitised by the sheet function (schema invariant 4) -->
         <div v-if="top.view.html" class="cc-rules" data-testid="cc-detail-rules" v-html="top.view.html" />
         <div v-if="top.view.html" class="text-caption text-grey-5 q-mt-sm">
