@@ -72,10 +72,17 @@ const screen = computed(() => SCREENS[tab.value])
 </template>
 
 <style scoped>
+/* Topper and bottom bar are fixed (flex: none); only .cc-scroll, between them, scrolls. */
 .cc-viewer {
+  flex: 1 1 0;
   min-height: 0;
+  overflow: hidden;
 }
 .cc-scroll {
+  flex: 1 1 0;
   min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 </style>

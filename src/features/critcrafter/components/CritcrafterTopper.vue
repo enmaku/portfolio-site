@@ -54,6 +54,7 @@ const t = computed(() => {
 
 <style scoped>
 .cc-hero {
+  flex: none;
   background: var(--q-primary);
   border-radius: 12px;
   flex: none;

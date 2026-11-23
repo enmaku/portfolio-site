@@ -46,7 +46,7 @@ function retry() {
 </script>
 
 <template>
-  <q-page class="cc-page column no-wrap">
+  <q-page class="cc-page column fit no-wrap">
     <CritcrafterLoading v-if="phase === 'loading'" :step="step" />
     <CritcrafterFailure
       v-else-if="phase === 'error'"
@@ -61,7 +61,9 @@ function retry() {
 
 <style scoped>
 .cc-page {
-  height: 100dvh;
+  flex: 1 1 0;
+  min-height: 0 !important;
+  overflow: hidden;
   background: var(--q-dark-page);
   color: rgba(255, 255, 255, 0.87);
 }
