@@ -10,6 +10,7 @@ import CritcrafterHpKeypad from './CritcrafterHpKeypad.vue'
 import CritcrafterShieldRow from './CritcrafterShieldRow.vue'
 import CritcrafterTopper from './CritcrafterTopper.vue'
 import CritcrafterBottomBar from './CritcrafterBottomBar.vue'
+import CritcrafterSheetHost from '../detail/CritcrafterSheetHost.vue'
 import { SCREENS } from '../screens/index.js'
 import { visibleTabs } from '../viewer/viewerModel.js'
 
@@ -25,7 +26,6 @@ watch(
   () => table.open(props.id ?? 'local', props.sheet),
   { immediate: true },
 )
-const hpText = computed(() => `${table.hp} / ${table.maxHp}${table.tempHp ? ` +${table.tempHp}` : ''}`)
 const keypadOpen = ref(false)
 const keypadMode = ref('damage')
 function openKeypad(mode = 'damage') {
@@ -46,7 +46,7 @@ const screen = computed(() => SCREENS[tab.value])
 
 <template>
   <div class="cc-viewer column no-wrap col" data-testid="cc-viewer">
-    <CritcrafterTopper :sheet="sheet" :hp-text="hpText" :ac="table.ac?.value" @open-hp="openKeypad()">
+    <CritcrafterTopper :sheet="sheet" :hp="table.hp" :temp-hp="table.tempHp" :ac-stat="table.ac" @open-hp="openKeypad()">
       <template #extra>
         <CritcrafterShieldRow v-if="table.shield" :shield="table.shield" @open="openKeypad('shieldDamage')" />
       </template>
@@ -64,6 +64,7 @@ const screen = computed(() => SCREENS[tab.value])
       <component :is="screen" :sheet="sheet" />
     </div>
     <CritcrafterBottomBar v-model="tab" :tabs="tabs" />
+    <CritcrafterSheetHost />
   </div>
 </template>
 
