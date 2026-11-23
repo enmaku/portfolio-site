@@ -17,7 +17,7 @@ defineProps({ traits: { type: Array, default: () => [] } })
   margin-top: 6px;
 }
 .cc-traits__chip {
-  font-size: 10px;
+  font-size: 8px;
   line-height: 1;
   letter-spacing: 0.04em;
   text-transform: uppercase;
