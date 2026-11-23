@@ -68,4 +68,20 @@ const casterLabel = (c) => (c.tradition ? `${c.name} · ${tradition(c.tradition)
 .cc-muted {
   color: var(--q-secondary);
 }
+/* Make the caster > rank nesting obvious: bold caster header, rank sections indented under a rail. */
+.cc-exp--caster :deep(> .q-expansion-item__container > .q-item) {
+  font-weight: 700;
+  font-size: 17px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+}
+.cc-exp--caster :deep(> .q-expansion-item__container > .q-expansion-item__content) {
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 2px solid var(--q-secondary);
+}
+.cc-exp--caster :deep(.q-expansion-item .q-item) {
+  font-weight: 500;
+  font-size: 15px;
+}
 </style>
