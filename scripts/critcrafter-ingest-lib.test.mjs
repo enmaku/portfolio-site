@@ -1,0 +1,284 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import {
+  buildAliasPairs,
+  buildEntries,
+  checkGuard,
+  cleanDescriptionHtml,
+  diffCorpus,
+  nameKey,
+  parseArgs,
+  applyAliases,
+  countByType,
+} from './critcrafter-ingest-lib.mjs'
+
+// ---- nameKey ----------------------------------------------------------------
+
+test('nameKey lowercases, drops apostrophes and accents, and collapses punctuation', () => {
+  assert.equal(nameKey("Explorer’s Clothing"), 'explorers clothing')
+  assert.equal(nameKey("Smuggler's Sack (Type II)"), 'smugglers sack type ii')
+  assert.equal(nameKey('  Fléchette -- Dart  '), 'flechette dart')
+})
+
+// ---- cleanDescriptionHtml ---------------------------------------------------
+
+test('UUID links with a label become inert data-ref anchors', () => {
+  const out = cleanDescriptionHtml(
+    '<p>It is @UUID[Compendium.pf2e.conditionitems.Item.Frightened]{Frightened 1}.</p>',
+  )
+  assert.equal(
+    out,
+    '<p>It is <a data-ref="Compendium.pf2e.conditionitems.Item.Frightened">Frightened 1</a>.</p>',
+  )
+})
+
+test('UUID links without a label use the target name', () => {
+  assert.equal(
+    cleanDescriptionHtml('@UUID[Compendium.pf2e.conditionitems.Item.Hidden]'),
+    '<a data-ref="Compendium.pf2e.conditionitems.Item.Hidden">Hidden</a>',
+  )
+})
+
+test('damage, check and template enrichers flatten to plain text', () => {
+  assert.equal(cleanDescriptionHtml('deals @Damage[6d6[fire]] damage'), 'deals 6d6 fire damage')
+  assert.equal(
+    cleanDescriptionHtml('deals @Damage[(2d6+4)[persistent,fire]]{persistent fire damage}'),
+    'deals persistent fire damage',
+  )
+  assert.equal(
+    cleanDescriptionHtml('a @Check[reflex|dc:20|basic] save'),
+    'a DC 20 basic Reflex save',
+  )
+  assert.equal(cleanDescriptionHtml('@Check[type:will|dc:resolve(18)]{Will save}'), 'Will save')
+  assert.equal(cleanDescriptionHtml('a @Template[type:burst|distance:20]'), 'a 20-foot burst')
+})
+
+test('inline roll and action macros flatten to their label or content', () => {
+  assert.equal(cleanDescriptionHtml('[[/act hide]]{Stealth} check'), 'Stealth check')
+  assert.equal(cleanDescriptionHtml('roll [[/r 1d6 #bleed]]'), 'roll 1d6')
+  assert.equal(cleanDescriptionHtml('[[/act recall-knowledge skill=arcana]]'), 'Recall Knowledge')
+})
+
+test('script tags and event handler attributes are removed', () => {
+  assert.equal(
+    cleanDescriptionHtml('<p onclick="x()">hi</p><script>alert(1)</script>'),
+    '<p>hi</p>',
+  )
+})
+
+// ---- buildEntries -----------------------------------------------------------
+
+const feat = (over = {}) => ({
+  pack: 'feats',
+  slug: 'toughness',
+  json: {
+    name: 'Toughness',
+    type: 'feat',
+    system: {
+      level: { value: 1 },
+      actionType: { value: 'passive' },
+      actions: { value: null },
+      description: { value: '<p>Hardy.</p>' },
+      publication: { license: 'ORC', remaster: true, title: 'Pathfinder Player Core' },
+      traits: { rarity: 'common', value: ['general'] },
+    },
+  },
+  ...over,
+})
+
+test('a feat becomes a doc keyed type:slug with licence data', () => {
+  const { entries, skipped } = buildEntries([feat()])
+  assert.equal(skipped, 0)
+  assert.deepEqual(entries, [
+    {
+      id: 'feat:toughness',
+      data: {
+        name: 'Toughness',
+        nameKey: 'toughness',
+        type: 'feat',
+        level: 1,
+        traits: ['general'],
+        rarity: 'common',
+        actionType: 'passive',
+        actions: null,
+        bulk: null,
+        price: null,
+        spell: null,
+        description: '<p>Hardy.</p>',
+        aliases: [],
+        license: 'ORC',
+        remaster: true,
+        title: 'Pathfinder Player Core',
+      },
+    },
+  ])
+})
+
+test('entries without publication data are skipped and counted', () => {
+  const noPub = feat()
+  delete noPub.json.system.publication
+  const { entries, skipped } = buildEntries([noPub])
+  assert.deepEqual(entries, [])
+  assert.equal(skipped, 1)
+})
+
+test('class-features pack docs are typed classFeature regardless of the foundry type', () => {
+  const cf = feat({ pack: 'class-features', slug: 'esoteric-lore' })
+  const { entries } = buildEntries([cf])
+  assert.equal(entries[0].id, 'classFeature:esoteric-lore')
+  assert.equal(entries[0].data.type, 'classFeature')
+})
+
+test('slug collisions get the pack suffix and stay unique', () => {
+  const a = feat({ pack: 'feats', slug: 'dup' })
+  const b = feat({ pack: 'class-features', slug: 'dup' })
+  b.json = { ...b.json, name: 'Dup B' }
+  const c = feat({ pack: 'feats', slug: 'dup', relPath: 'feats/z/dup.json' })
+  a.relPath = 'feats/a/dup.json'
+  b.relPath = 'class-features/dup.json'
+  const { entries } = buildEntries([a, b, c])
+  const ids = entries.map((e) => e.id).sort()
+  assert.deepEqual(ids, ['classFeature:dup', 'feat:dup-feats', 'feat:dup-feats-2'])
+})
+
+test('spells carry rank, defense, duration and area; equipment carries bulk and price', () => {
+  const spell = {
+    pack: 'spells',
+    slug: 'fireball',
+    json: {
+      name: 'Fireball',
+      type: 'spell',
+      system: {
+        level: { value: 3 },
+        area: { type: 'burst', value: 20 },
+        defense: { save: { basic: true, statistic: 'reflex' } },
+        duration: { sustained: false, value: '' },
+        range: { value: '500 feet' },
+        time: { value: '2' },
+        description: { value: '<p>Boom.</p>' },
+        publication: { license: 'ORC', remaster: true, title: 'Pathfinder Player Core' },
+        traits: { rarity: 'common', value: ['fire'], traditions: ['arcane'] },
+      },
+    },
+  }
+  const sword = {
+    pack: 'equipment',
+    slug: 'longsword',
+    json: {
+      name: 'Longsword',
+      type: 'weapon',
+      system: {
+        level: { value: 0 },
+        bulk: { value: 1 },
+        price: { value: { gp: 1 } },
+        description: { value: '<p>Sword.</p>' },
+        publication: { license: 'ORC', remaster: true, title: 'Pathfinder Player Core' },
+        traits: { rarity: 'common', value: ['versatile-p'] },
+      },
+    },
+  }
+  const { entries } = buildEntries([spell, sword])
+  const byId = Object.fromEntries(entries.map((e) => [e.id, e.data]))
+  assert.deepEqual(byId['spell:fireball'].spell, {
+    rank: 3,
+    defense: { statistic: 'reflex', basic: true },
+    duration: null,
+    area: { type: 'burst', value: 20 },
+    range: '500 feet',
+    time: '2',
+    traditions: ['arcane'],
+  })
+  assert.equal(byId['spell:fireball'].level, 3)
+  assert.equal(byId['equipment:longsword'].bulk, 1)
+  assert.deepEqual(byId['equipment:longsword'].price, { gp: 1 })
+})
+
+// ---- aliases ----------------------------------------------------------------
+
+test('alias pairs join legacy docs to remaster docs in the same category with distinct names', () => {
+  const legacy = [
+    { id: 'spell-2', name: 'Acid Arrow', category: 'spell', remaster_id: ['spell-9'] },
+    { id: 'spell-3', name: 'Same Name', category: 'spell', remaster_id: ['spell-10'] },
+    { id: 'feat-1', name: 'Old Feat', category: 'feat', remaster_id: ['spell-9'] },
+  ]
+  const remaster = [
+    { id: 'spell-9', name: 'Acid Grip', category: 'spell' },
+    { id: 'spell-10', name: 'same name', category: 'spell' },
+  ]
+  assert.deepEqual(buildAliasPairs(legacy, remaster), [
+    { category: 'spell', legacyName: 'Acid Arrow', remasterName: 'Acid Grip' },
+  ])
+})
+
+test('applyAliases adds legacy and Pathbuilder labels as nameKeys on the matching entry', () => {
+  const { entries } = buildEntries([
+    feat({ pack: 'spells', slug: 'acid-grip', json: { ...feat().json, name: 'Acid Grip', type: 'spell' } }),
+    feat({
+      pack: 'equipment',
+      slug: 'repair-toolkit',
+      json: { ...feat().json, name: 'Repair Toolkit', type: 'equipment' },
+    }),
+  ])
+  const res = applyAliases(
+    entries,
+    [{ category: 'spell', legacyName: 'Acid Arrow', remasterName: 'Acid Grip' }],
+    { 'Repair Kit': { type: 'equipment', name: 'Repair Toolkit' }, Ghost: { type: 'feat', name: 'Nope' } },
+  )
+  const byId = Object.fromEntries(entries.map((e) => [e.id, e.data.aliases]))
+  assert.deepEqual(byId['spell:acid-grip'], ['acid arrow'])
+  assert.deepEqual(byId['equipment:repair-toolkit'], ['repair kit'])
+  assert.deepEqual(res.unresolvedLabels, ['Ghost'])
+})
+
+// ---- diff and guard ---------------------------------------------------------
+
+test('diffCorpus reports added, changed and deleted ids', () => {
+  const existing = new Map([
+    ['feat:a', { name: 'A' }],
+    ['feat:b', { name: 'B' }],
+    ['feat:c', { name: 'C' }],
+  ])
+  const next = [
+    { id: 'feat:a', data: { name: 'A' } },
+    { id: 'feat:b', data: { name: 'B2' } },
+    { id: 'feat:d', data: { name: 'D' } },
+  ]
+  assert.deepEqual(diffCorpus(existing, next), {
+    added: ['feat:d'],
+    changed: ['feat:b'],
+    deleted: ['feat:c'],
+    unchanged: 1,
+  })
+})
+
+test('checkGuard trips on more than 10% deleted or a total drop of more than 10%', () => {
+  assert.equal(checkGuard({ existingCount: 100, deleted: 10, nextCount: 100 }).ok, true)
+  assert.equal(checkGuard({ existingCount: 100, deleted: 11, nextCount: 100 }).ok, false)
+  assert.equal(checkGuard({ existingCount: 100, deleted: 0, nextCount: 89 }).ok, false)
+  assert.equal(checkGuard({ existingCount: 100, deleted: 0, nextCount: 90 }).ok, true)
+  assert.equal(checkGuard({ existingCount: 0, deleted: 0, nextCount: 50 }).ok, true)
+})
+
+test('countByType tallies entries per type', () => {
+  assert.deepEqual(
+    countByType([
+      { id: 'a', data: { type: 'feat' } },
+      { id: 'b', data: { type: 'feat' } },
+      { id: 'c', data: { type: 'spell' } },
+    ]),
+    { feat: 2, spell: 1 },
+  )
+})
+
+// ---- args -------------------------------------------------------------------
+
+test('parseArgs defaults to a dry run and reads flags', () => {
+  assert.deepEqual(parseArgs([]), { apply: false, force: false, packs: null, sha: null })
+  assert.deepEqual(parseArgs(['--packs', '/x', '--sha', 'abc', '--apply', '--force']), {
+    apply: true,
+    force: true,
+    packs: '/x',
+    sha: 'abc',
+  })
+  assert.throws(() => parseArgs(['--bogus']), /Unknown argument/)
+})
