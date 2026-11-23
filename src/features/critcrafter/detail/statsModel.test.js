@@ -37,16 +37,16 @@ test('abilities are number-only (score and signed mod, no breakdown)', () => {
   ])
 })
 
-test('DC & attack: class DC, then each caster attack and DC, skipping nulls, then focus', () => {
+test('DC & attack: class DC, then focus attack and DC, then each caster attack and DC, skipping nulls', () => {
   const v = statsScreenView(richSheet())
   assert.deepEqual(
     v.dc.map((r) => [r.label, r.signed]),
     [
       ['Class DC', false],
-      ['Oracle spell attack', true],
-      ['Oracle spell DC', false],
       ['Focus spell attack', true],
       ['Focus spell DC', false],
+      ['Oracle spell attack', true],
+      ['Oracle spell DC', false],
     ],
   )
 })

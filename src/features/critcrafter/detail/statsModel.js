@@ -13,8 +13,8 @@ export function statsScreenView(sheet) {
     if (c.attack) dc.push({ label: `${name} spell attack`, stat: c.attack, signed: true })
     if (c.dc) dc.push({ label: `${name} spell DC`, stat: c.dc, signed: false })
   }
-  for (const c of sheet.spells?.casters ?? []) add(c.name, c)
   if (sheet.spells?.focus) add('Focus', sheet.spells.focus)
+  for (const c of sheet.spells?.casters ?? []) add(c.name, c)
   return {
     saves: saves.map((s) => ({ id: s.id, label: s.name, rank: s.rank, stat: s.bonus, signed: true })),
     abilities: abilities.map((a) => ({
