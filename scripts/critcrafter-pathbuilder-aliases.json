@@ -1,0 +1,6 @@
+{
+  "Repair Kit": { "type": "equipment", "name": "Repair Toolkit" },
+  "Clothing (Explorer's)": { "type": "equipment", "name": "Explorer's Clothing" },
+  "Detective Dedication": { "type": "feat", "name": "Edgewatch Detective Dedication" },
+  "Smuggler's Sack II": { "type": "equipment", "name": "Smuggler's Sack (Type II)" }
+}

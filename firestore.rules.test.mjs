@@ -140,7 +140,23 @@ test('clients cannot read or write bggThingCache', async () => {
   await assertFails(getDoc(doc(anon, 'bggThingCache/13')))
 })
 
-const CAPABILITY_SECRET = 'a'.repeat(32)
+test('clients cannot read or write rulesEntries or rulesMeta', async () => {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'rulesEntries/feat:toughness'), { name: 'Toughness' })
+    await setDoc(doc(context.firestore(), 'rulesMeta/current'), { sha: 'a'.repeat(40) })
+  })
+
+  for (const db of [authedFirestore('owner-1'), unauthenticatedFirestore()]) {
+    await assertFails(getDoc(doc(db, 'rulesEntries/feat:toughness')))
+    await assertFails(getDocs(collection(db, 'rulesEntries')))
+    await assertFails(setDoc(doc(db, 'rulesEntries/feat:new'), { name: 'New' }))
+    await assertFails(setDoc(doc(db, 'rulesEntries/feat:toughness'), { name: 'Hacked' }))
+    await assertFails(getDoc(doc(db, 'rulesMeta/current')))
+    await assertFails(setDoc(doc(db, 'rulesMeta/current'), { sha: 'b'.repeat(40) }))
+  }
+})
+
+const CAPABILITY_SECRET ='a'.repeat(32)
 
 test('account owner can read and write their timeTrackerOwners tree', async () => {
   const db = authedFirestore('owner-1')
