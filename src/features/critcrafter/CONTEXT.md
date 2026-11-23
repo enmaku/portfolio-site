@@ -72,6 +72,18 @@ The collapsed expansion at the bottom of Stats holding passive feats and class f
 
 A group on the Actions screen by origin: Class, Ancestry, General, Archetype, Familiar, Basic actions, Exploration, Skill actions. Sorted free, one, two, three actions, reaction.
 
+### Pet
+
+Umbrella term (Pathbuilder's word) for any creature that belongs to a character: familiar, animal companion, eidolon, construct companion. Shown on the **Pets** tab, which appears only when the character has at least one.
+
+_Avoid_: "Companion" as the umbrella (it is one kind of pet).
+
+### Derived pet
+
+A pet the **Pathbuilder export** does not carry: eidolons and construct companions. Detected from a special on the character (such as a Dragon Eidolon) and shown as a card named by its kind, since the export holds no name.
+
+_Avoid_: Calling it an exported pet.
+
 ### Table state
 
 The one exception to "read-only": spell slot and focus usage, consumed counts, equip toggles, shield raised, current HP, temp HP and shield HP, kept as deltas in a Pinia store persisted to `localStorage` by **Pathbuilder id**, clamped to the new sheet's maxima on every load. No server side, no cross-device sync, no conditions.
