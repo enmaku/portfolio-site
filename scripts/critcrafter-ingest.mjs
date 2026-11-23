@@ -24,6 +24,7 @@ import {
   RULES_ENTRIES_COLLECTION,
   RULES_META_COLLECTION,
   RULES_META_DOC,
+  aliasReportLines,
   applyAliases,
   buildAliasPairs,
   buildEntries,
@@ -229,12 +230,7 @@ async function main() {
   const pairs = await fetchAonAliasPairs()
   const labels = JSON.parse(readFileSync(LABELS_PATH, 'utf8'))
   const aliasRes = applyAliases(entries, pairs, labels)
-  console.log(
-    `  ${pairs.length} AoN pairs -> ${aliasRes.pairAliases} aliases; ${aliasRes.labelAliases} Pathbuilder label aliases`,
-  )
-  if (aliasRes.unresolvedLabels.length) {
-    console.log(`  WARNING: Pathbuilder labels with no matching entry: ${aliasRes.unresolvedLabels.join(', ')}`)
-  }
+  for (const line of aliasReportLines(aliasRes, pairs.length)) console.log(line)
 
   const { adminApp, adminFirestore } = loadAdmin()
   const { applicationDefault, getApps, initializeApp } = adminApp

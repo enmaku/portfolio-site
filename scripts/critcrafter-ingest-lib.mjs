@@ -199,6 +199,24 @@ function spellData(system) {
     range: String(system.range?.value ?? '') || null,
     time: String(system.time?.value ?? '') || null,
     traditions: system.traits?.traditions ?? [],
+    ritual: Boolean(system.ritual),
+  }
+}
+
+/** Item facts the function needs for gear: type, grip, range, armor and shield numbers. */
+function itemData(json) {
+  const system = json.system ?? {}
+  const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== undefined && v !== '' ? Number(v) : null)
+  return {
+    itemType: json.type ?? null,
+    category: system.category ?? null,
+    group: system.group ?? null,
+    usage: system.usage?.value ?? null,
+    range: num(system.range),
+    acBonus: num(system.acBonus),
+    dexCap: num(system.dexCap),
+    hardness: num(system.hardness),
+    hp: json.type === 'shield' ? num(system.hp?.max) : null,
   }
 }
 
@@ -206,6 +224,7 @@ function buildData(type, json) {
   const system = json.system ?? {}
   const pub = system.publication
   return {
+    ...(type === 'equipment' ? { item: itemData(json) } : {}),
     name: json.name,
     nameKey: nameKey(json.name),
     type,
@@ -312,15 +331,35 @@ export function applyAliases(entries, pairs, labels) {
     for (const entry of candidates) if (add(entry, pair.legacyName)) pairAliases += 1
   }
   const unresolvedLabels = []
+  const alreadyAliasedLabels = []
   let labelAliases = 0
   for (const [label, target] of Object.entries(labels ?? {})) {
     const key = nameKey(target.name)
     const hits = entries.filter((e) => e.data.type === target.type && e.data.nameKey === key)
     if (!hits.length) unresolvedLabels.push(label)
-    for (const entry of hits) if (add(entry, label)) labelAliases += 1
+    let added = false
+    for (const entry of hits) if (add(entry, label)) {
+      labelAliases += 1
+      added = true
+    }
+    if (hits.length && !added) alreadyAliasedLabels.push(label)
   }
   for (const entry of entries) entry.data.aliases.sort()
-  return { pairAliases, labelAliases, unresolvedLabels }
+  return { pairAliases, labelAliases, unresolvedLabels, alreadyAliasedLabels }
+}
+
+/** Console lines for the alias step; unresolved Pathbuilder labels get a WARNING line. */
+export function aliasReportLines(res, pairCount) {
+  const lines = [
+    `  ${pairCount} AoN pairs -> ${res.pairAliases} aliases; ${res.labelAliases} Pathbuilder label aliases`,
+  ]
+  if (res.alreadyAliasedLabels?.length) {
+    lines.push(`  Pathbuilder labels already covered by AoN pairs: ${res.alreadyAliasedLabels.join(', ')}`)
+  }
+  if (res.unresolvedLabels.length) {
+    lines.push(`  WARNING: Pathbuilder labels with no matching entry: ${res.unresolvedLabels.join(', ')}`)
+  }
+  return lines
 }
 
 // ---- Diff, guard, counts, args ------------------------------------------------------

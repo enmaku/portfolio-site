@@ -4,7 +4,7 @@ Operating the rules corpus and the `critcrafterSheet` function. Decisions are in
 
 Firebase project: `enmaku-portfolio-site` (`.firebaserc`). Region `us-central1`. Firestore emulator port `8080`, Functions emulator port `5001` (`firebase.json`).
 
-> **Status:** the ingest script (`scripts/critcrafter-ingest.mjs`, `npm run critcrafter:ingest`) is implemented and rehearsed against the Firestore emulator; this section matches its real flags and output. The function log field names below are the interface ticket 4 builds to. Where this runbook and the code disagree, fix whichever is wrong and keep them in step.
+> **Status:** the ingest script (`scripts/critcrafter-ingest.mjs`, `npm run critcrafter:ingest`) and the `critcrafterSheet` function (`functions/critcrafter/`) are implemented and rehearsed against the emulators; this runbook matches their real flags and log fields. Where this runbook and the code disagree, fix whichever is wrong and keep them in step.
 
 ## What the ingest does
 
@@ -58,7 +58,7 @@ Record the SHA you ran in the table at the bottom of this file.
    FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run critcrafter:ingest -- --packs ~/code/foundry-pf2e --sha <sha> --apply    # write
    ```
    Check the per-type counts look sane (order of magnitude at SHA `a70593f`: 6486 feats, 6005 equipment, 2036 spells, 591 actions, 881 class features, 357 heritages, 547 backgrounds; 16903 documents in all) and that the guard did not trip.
-3. **Verify against fixtures on the emulator.** Run the function tests and the fixtures regenerate script with the emulator corpus. Per-fixture warning counts must not rise compared with the previous SHA (the first ingest sets the baseline: write the counts into the table below).
+3. **Verify against fixtures on the emulator.** Run the function tests and the fixtures regenerate script with the emulator corpus (`FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run critcrafter:regen-fixtures`; it refuses to run without that variable). Use one project id for both steps, for example `VITE_FIREBASE_PROJECT_ID=demo-critcrafter` on the ingest and regenerate commands and `--project demo-critcrafter` on the emulators, because the emulator keeps data per project. Per-fixture warning counts must not rise compared with the previous SHA (the first ingest sets the baseline: write the counts into the table below).
 4. **Production dry run.** Unset `FIRESTORE_EMULATOR_HOST`; run the same command without `--apply`. Read the diff: added, changed, deleted. A large delete count with a small SHA gap means something is wrong.
 5. **Production apply.** Same command with `--apply`. If the guard trips and you have read the diff and agree with it, repeat with `--force`.
 6. **Confirm.** Read `rulesMeta/current` in the Firebase console (Firestore, production): `sha` equals what you pinned, `counts` match the dry-run output.
@@ -104,7 +104,7 @@ The function writes one structured entry per request, with **only** these fields
 }
 ```
 
-Failures log `message: "critcrafter.error"` at severity `ERROR` with `errorCode` set to the stable error code (`internal`, `invalid_build`, …).
+Failures log `message: "critcrafter.error"` with `errorCode` set to the stable error code: severity `ERROR` for `internal`, `WARNING` for caller errors (`invalid_build`, `bad_json`, `too_large`, `method_not_allowed`, `app_check_failed`), so saved query 1 only catches the function's own failures.
 
 ### Saved query 1: server errors
 

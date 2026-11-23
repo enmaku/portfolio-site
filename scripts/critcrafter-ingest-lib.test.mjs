@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import {
   buildAliasPairs,
@@ -10,6 +11,7 @@ import {
   parseArgs,
   applyAliases,
   countByType,
+  aliasReportLines,
 } from './critcrafter-ingest-lib.mjs'
 
 // ---- nameKey ----------------------------------------------------------------
@@ -187,10 +189,67 @@ test('spells carry rank, defense, duration and area; equipment carries bulk and 
     range: '500 feet',
     time: '2',
     traditions: ['arcane'],
+    ritual: false,
   })
   assert.equal(byId['spell:fireball'].level, 3)
   assert.equal(byId['equipment:longsword'].bulk, 1)
   assert.deepEqual(byId['equipment:longsword'].price, { gp: 1 })
+})
+
+test('equipment carries the item facts the function needs (type, usage, AC, shield stats, range)', () => {
+  const mk = (slug, name, type, system) => ({
+    pack: 'equipment',
+    slug,
+    json: {
+      name,
+      type,
+      system: {
+        description: { value: '' },
+        publication: { license: 'ORC', remaster: true, title: 'Core' },
+        traits: { rarity: 'common', value: [] },
+        ...system,
+      },
+    },
+  })
+  const { entries } = buildEntries([
+    mk('longbow', 'Longbow', 'weapon', { range: 100, usage: { value: 'held-in-two-hands' }, category: 'martial', group: 'bow' }),
+    mk('leaf-weave', 'Leaf Weave', 'armor', { acBonus: 1, dexCap: 4, category: 'light' }),
+    mk('casters-targe', "Caster's Targe", 'shield', { acBonus: 1, hardness: 3, hp: { max: 12, value: 12 } }),
+    mk('rope', 'Rope', 'equipment', {}),
+  ])
+  const byId = Object.fromEntries(entries.map((e) => [e.id, e.data.item]))
+  assert.deepEqual(byId['equipment:longbow'], {
+    itemType: 'weapon', category: 'martial', group: 'bow', usage: 'held-in-two-hands', range: 100,
+    acBonus: null, dexCap: null, hardness: null, hp: null,
+  })
+  assert.deepEqual(byId['equipment:leaf-weave'], {
+    itemType: 'armor', category: 'light', group: null, usage: null, range: null,
+    acBonus: 1, dexCap: 4, hardness: null, hp: null,
+  })
+  assert.equal(byId['equipment:casters-targe'].hardness, 3)
+  assert.equal(byId['equipment:casters-targe'].hp, 12)
+  assert.equal(byId['equipment:rope'].itemType, 'equipment')
+})
+
+test('a ritual spell is flagged on the spell data', () => {
+  const { entries } = buildEntries([
+    {
+      pack: 'spells',
+      slug: 'planar-binding',
+      json: {
+        name: 'Planar Binding',
+        type: 'spell',
+        system: {
+          level: { value: 5 },
+          ritual: { primary: { check: 'Religion' } },
+          description: { value: '' },
+          publication: { license: 'ORC', remaster: true, title: 'Core' },
+          traits: { rarity: 'common', value: [], traditions: [] },
+        },
+      },
+    },
+  ])
+  assert.equal(entries[0].data.spell.ritual, true)
 })
 
 // ---- aliases ----------------------------------------------------------------
@@ -281,4 +340,60 @@ test('parseArgs defaults to a dry run and reads flags', () => {
     sha: 'abc',
   })
   assert.throws(() => parseArgs(['--bogus']), /Unknown argument/)
+})
+
+// ---- alias report -------------------------------------------------------------
+
+test('aliasReportLines prints counts and a WARNING line naming every unresolved label', () => {
+  const lines = aliasReportLines(
+    { pairAliases: 3, labelAliases: 2, unresolvedLabels: ['Detective Dedication', 'Ghost'] },
+    5,
+  )
+  assert.equal(lines[0], '  5 AoN pairs -> 3 aliases; 2 Pathbuilder label aliases')
+  assert.equal(lines.length, 2)
+  assert.match(lines[1], /^  WARNING: .*Detective Dedication, Ghost/)
+})
+
+test('applyAliases tells a label that an AoN pair already aliased apart from an unresolved one', () => {
+  const { entries } = buildEntries([
+    feat({ pack: 'equipment', slug: 'repair-toolkit', json: { ...feat().json, name: 'Repair Toolkit', type: 'equipment' } }),
+  ])
+  const res = applyAliases(
+    entries,
+    [{ category: 'equipment', legacyName: 'Repair Kit', remasterName: 'Repair Toolkit' }],
+    { 'Repair Kit': { type: 'equipment', name: 'Repair Toolkit' } },
+  )
+  assert.deepEqual(res.unresolvedLabels, [])
+  assert.deepEqual(res.alreadyAliasedLabels, ['Repair Kit'])
+  assert.equal(res.labelAliases, 0)
+  const lines = aliasReportLines(res, 1)
+  assert.match(lines.join('\n'), /already covered by AoN pairs: Repair Kit/)
+})
+
+test('aliasReportLines prints no warning when every label resolved', () => {
+  const lines = aliasReportLines({ pairAliases: 1, labelAliases: 4, unresolvedLabels: [] }, 1)
+  assert.equal(lines.length, 1)
+})
+
+test('the committed Pathbuilder label table resolves against a corpus that holds its targets', () => {
+  const labels = JSON.parse(
+    readFileSync(new URL('./critcrafter-pathbuilder-aliases.json', import.meta.url), 'utf8'),
+  )
+  const docs = Object.values(labels).map((t, i) => ({
+    pack: t.type === 'feat' ? 'feats' : 'equipment',
+    slug: `x-${i}`,
+    json: {
+      name: t.name,
+      type: t.type,
+      system: {
+        description: { value: '' },
+        publication: { license: 'ORC', remaster: true, title: 'Core' },
+        traits: { rarity: 'common', value: [] },
+      },
+    },
+  }))
+  const { entries } = buildEntries(docs)
+  const res = applyAliases(entries, [], labels)
+  assert.deepEqual(res.unresolvedLabels, [])
+  assert.equal(res.labelAliases, Object.keys(labels).length)
 })
