@@ -30,6 +30,19 @@ const routes = [
       },
     ],
   },
+  // Reference prototype for the CritCrafter viewer layout (docs/prototypes/critcrafter-viewer-layout.md).
+  // Dev-only: never shipped in the production bundle.
+  ...(import.meta.env?.DEV
+    ? [
+        {
+          path: '/projects/critcrafter-prototype',
+          component: () => import('layouts/projects/ProjectShellLayout.vue'),
+          children: [
+            { path: '', component: () => import('pages/projects/CritcrafterPrototypePage.vue') },
+          ],
+        },
+      ]
+    : []),
   {
     path: '/projects/game-timer',
     component: () => import('layouts/projects/ProjectShellLayout.vue'),

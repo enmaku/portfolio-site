@@ -176,6 +176,34 @@ What chat and social apps show when a URL is pasted—the same fields as the **s
 
 _Avoid_: Assuming in-tab meta tag updates alone fix every preview provider.
 
+### Rules corpus
+
+Our own **Firestore** collection of Pathfinder 2e rules text (feats, spells, actions, class features, heritages, backgrounds, equipment), built from the Foundry pf2e packs at a pinned commit. Each entry carries its own licence (ORC or OGL), remaster flag and source book. Read only by the **sheet function**; never read by the browser.
+
+_Avoid_: “Database” or “catalog” unqualified; hotlinking or mirroring Archives of Nethys.
+
+### CritCrafter sheet
+
+The fully filled, viewer-specific JSON the **sheet function** returns for one **Pathbuilder export**: derived numbers and rules text already resolved. The **CritCrafter** character viewer renders it and does no lookup or derived-stat math.
+
+_Avoid_: “Character” or “hero” (SoT’s term); calling the **Pathbuilder export** a sheet.
+
+### Stat breakdown
+
+The list of labelled, typed contributions (ability, proficiency, level, item, circumstance and so on) that sum to a derived number on the **CritCrafter sheet**. Every derived number carries one, and the viewer shows it when the number is tapped.
+
+_Avoid_: “Explanation” or “tooltip”; recomputing a breakdown in the viewer.
+
+### Features (CritCrafter viewer)
+
+The expansion at the bottom of the Stats screen listing a character's passive feats, class features and heritage, grouped by source and ordered by level. Passives never appear on the Actions screen.
+
+_Avoid_: “Passives” as a screen name; mixing passives into **Actions**.
+
+### Action source group
+
+A viewer expansion on the Actions screen that groups actions by where they come from (Class, Ancestry, General and Skill, Archetype, Familiar, Basic, Exploration, Skill actions), sorted inside by cost: free, one, two, three actions, then reaction.
+
 ## Relationships
 
 - The **portfolio site** includes the **photo gallery**, about content (**résumé data**), navigation, and routed **projects**.

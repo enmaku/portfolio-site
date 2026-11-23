@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/enmaku/portfolio-site/blob/main/docs/critcrafter/sheet.schema.json",
+  "title": "CritCrafter sheet",
+  "description": "The JSON the critcrafterSheet function returns and the CritCrafter viewer renders. Source: wayfinder ticket #486 (see docs/critcrafter/SPEC.md). Evolution is additive-only within a schemaVersion: producers may add optional fields, consumers must ignore unknown fields, and a consumer that sees a schemaVersion it does not know shows a hard 'reload to update' state. Invariants a schema cannot express (the function guarantees them, fixture tests check them): (1) for every Stat, sum(breakdown[].amount) === value; (2) arrays are in display order (cost: free, 1, 2, 3, reaction; a range sorts by its minimum); (3) keys are deterministic from the export: '<section>:<normalised-name>#<nth occurrence>' (nth counts from 1 within the same section and normalised name), spell slot keys are 'slots:<casterKey>:<rank>', and the corpus SHA never enters a key; (4) all rules text is inline sanitised HTML, safe to render, with data-ref markers rendered as plain text; (5) placeholders ('Not set', 'None selected') are normalised away before they reach the sheet. Size budget: 500 KB raw / 150 KB gzip for a typical build, hard cap 2 MB (the function fails loudly instead of truncating).",
+  "type": "object",
+  "required": ["schemaVersion", "generatedAt", "corpus", "warnings", "header", "stats", "skills", "gear", "spells", "actions", "features"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1, "description": "Bumped only for a breaking change. The viewer checks only this field at runtime." },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "corpus": {
+      "type": "object",
+      "required": ["sha"],
+      "properties": { "sha": { "type": "string", "description": "The foundryvtt/pf2e commit the rules corpus mirrors (rulesMeta/current.sha). Never part of any key." } }
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Everything the function swallowed: unmatched names, breakdown residuals, dropped pseudo-casters, unknown mods labels or types, unparseable familiar names. No viewer UI in v1. Logged by code and count only; detail is never logged.",
+      "items": { "$ref": "#/$defs/warning" }
+    },
+    "header": { "$ref": "#/$defs/header" },
+    "stats": { "$ref": "#/$defs/stats" },
+    "skills": { "type": "array", "description": "The 16 core skills first, then lores.", "items": { "$ref": "#/$defs/skill" } },
+    "gear": { "$ref": "#/$defs/gear" },
+    "spells": { "$ref": "#/$defs/spells" },
+    "actions": { "$ref": "#/$defs/groupedEntries" },
+    "features": { "$ref": "#/$defs/groupedEntries" }
+  },
+  "$defs": {
+    "warning": {
+      "type": "object",
+      "required": ["code", "path", "detail"],
+      "properties": {
+        "code": { "type": "string", "description": "Stable machine code, e.g. name_unmatched, breakdown_residual, caster_dropped, mods_unknown_label, mods_unknown_type, max_hp_mismatch, focus_multiple_traditions, other_spells_no_dc, familiar_unparsed." },
+        "path": { "type": "string", "description": "Sheet path the warning is about, e.g. 'skills[3].bonus'." },
+        "detail": { "type": "string", "description": "Human-readable. May contain names from the export, so it is never logged." }
+      }
+    },
+
+    "bonusType": { "enum": ["ability", "proficiency", "level", "item", "status", "circumstance", "untyped", "base"] },
+
+    "stat": {
+      "type": "object",
+      "description": "A derived number. Every derived number in the sheet is a Stat so the viewer can open a breakdown. Invariant: sum(breakdown[].amount) === value. Where Pathbuilder precomputes a total (weapon attack, damage bonus, acTotal, total HP) and the rebuilt parts disagree, Pathbuilder's value wins and a line labelled 'Other (from Pathbuilder)' carries the residual (plus a warning). Untrained rows show 'Untrained' with amount 0 and no level line.",
+      "required": ["value", "breakdown"],
+      "properties": {
+        "value": { "type": "integer" },
+        "breakdown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "amount", "type"],
+            "properties": {
+              "label": { "type": "string" },
+              "amount": { "type": "integer" },
+              "type": { "$ref": "#/$defs/bonusType" }
+            }
+          }
+        },
+        "actions": {
+          "type": "array",
+          "description": "Corpus actions linked to this stat (e.g. Athletics: Grapple, Trip, Shove), with full rules text. Stat-to-action link is one-way.",
+          "items": { "$ref": "#/$defs/entry" }
+        }
+      }
+    },
+
+    "cost": {
+      "type": ["object", "null"],
+      "description": "Never a parsed string. null for passives. 'actions' uses min (and max for a range such as 1 to 3).",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["actions", "reaction", "free", "time", null] },
+        "min": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "max": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "label": { "type": "string", "description": "Only for kind 'time' (e.g. '10 minutes')." }
+      }
+    },
+
+    "rules": {
+      "type": ["object", "null"],
+      "description": "null is a corpus miss: the viewer shows name plus aonUrl, with no placeholder text.",
+      "required": ["html", "license", "remaster", "source"],
+      "properties": {
+        "html": { "type": "string", "description": "Sanitised HTML. The function guarantees safety." },
+        "license": { "enum": ["ORC", "OGL"], "description": "Per-entry licence tag from system.publication.license of the entry whose text is shown (an alias shows the remaster entry's text and its tag)." },
+        "remaster": { "type": "boolean" },
+        "source": { "type": "string", "description": "Source book title from system.publication.title." }
+      }
+    },
+
+    "entry": {
+      "type": "object",
+      "description": "The common shape of every resolved name: feats, specials, actions, spells, items.",
+      "required": ["key", "name", "kind", "traits", "cost", "rules", "aonUrl"],
+      "properties": {
+        "key": { "type": "string" },
+        "name": { "type": "string" },
+        "kind": { "enum": ["feat", "feature", "action", "spell", "weapon", "armor", "shield", "consumable", "equipment", "ritual", "other"] },
+        "traits": { "type": "array", "items": { "type": "string" }, "description": "Plain labels in v1; not interactive." },
+        "cost": { "$ref": "#/$defs/cost" },
+        "level": { "type": "integer" },
+        "count": { "type": "integer", "minimum": 2, "description": "Duplicates with the same name and option merged into one row shown as ×n. Absent when 1." },
+        "option": { "type": "string", "description": "A feat's selected option (tuple element 1). A label only, shown as 'Skill Training (Intimidation)'." },
+        "rules": { "$ref": "#/$defs/rules" },
+        "aonUrl": { "type": ["string", "null"], "description": "AoN search URL on a miss; null for custom content." },
+        "linked": {
+          "type": "array",
+          "description": "Scrolls and wands (and later families): the spell the item casts, kept separate from the item's own text.",
+          "items": {
+            "type": "object",
+            "required": ["role", "name", "rank", "traits", "cost", "rules"],
+            "properties": {
+              "role": { "const": "spell" },
+              "name": { "type": "string" },
+              "rank": { "type": "integer" },
+              "traits": { "type": "array", "items": { "type": "string" } },
+              "cost": { "$ref": "#/$defs/cost" },
+              "rules": { "$ref": "#/$defs/rules" }
+            }
+          }
+        }
+      }
+    },
+
+    "header": {
+      "type": "object",
+      "required": ["name", "level", "ancestry", "classLine", "hp", "perception", "speed", "unarmoredAc"],
+      "properties": {
+        "name": { "type": "string" },
+        "level": { "type": "integer" },
+        "ancestry": { "type": "string" },
+        "heritage": { "type": ["string", "null"] },
+        "classLine": { "type": "string", "description": "e.g. 'Oracle / Investigator'." },
+        "background": { "type": ["string", "null"] },
+        "deity": { "type": ["string", "null"] },
+        "size": { "type": ["string", "null"], "description": "From sizeName, not the ordinal size." },
+        "languages": { "type": "array", "items": { "type": "string" } },
+        "hp": { "$ref": "#/$defs/stat", "description": "Max HP. Current HP, temp HP and shield HP live in the viewer store." },
+        "perception": { "$ref": "#/$defs/stat" },
+        "speed": { "$ref": "#/$defs/stat" },
+        "unarmoredAc": { "$ref": "#/$defs/stat" }
+      }
+    },
+
+    "stats": {
+      "type": "object",
+      "required": ["abilities", "saves", "classDc"],
+      "properties": {
+        "abilities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "score", "mod"],
+            "properties": {
+              "id": { "enum": ["str", "dex", "con", "int", "wis", "cha"] },
+              "score": { "type": "integer" },
+              "mod": { "type": "integer", "description": "No breakdown: ability mods are not tappable." }
+            }
+          }
+        },
+        "saves": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "rank", "bonus"],
+            "properties": {
+              "id": { "enum": ["fortitude", "reflex", "will"] },
+              "name": { "type": "string" },
+              "rank": { "$ref": "#/$defs/rank" },
+              "bonus": { "$ref": "#/$defs/stat" }
+            }
+          }
+        },
+        "classDc": { "$ref": "#/$defs/stat" }
+      }
+    },
+
+    "rank": { "enum": ["U", "T", "E", "M", "L"], "description": "Untrained, Trained, Expert, Master, Legendary." },
+
+    "skill": {
+      "type": "object",
+      "required": ["key", "name", "ability", "rank", "bonus", "lore"],
+      "properties": {
+        "key": { "type": "string" },
+        "name": { "type": "string" },
+        "ability": { "enum": ["str", "dex", "con", "int", "wis", "cha"] },
+        "rank": { "$ref": "#/$defs/rank" },
+        "bonus": { "$ref": "#/$defs/stat" },
+        "lore": { "type": "boolean" }
+      }
+    },
+
+    "bulk": { "type": ["number", "string", "null"], "description": "A number, the string 'L' for light, or null when unknown (counts as 0 in the Gear Bulk stat and appears there as a labelled breakdown line)." },
+
+    "gearEntry": {
+      "allOf": [{ "$ref": "#/$defs/entry" }],
+      "type": "object",
+      "required": ["qty", "bulk", "price"],
+      "properties": {
+        "qty": { "type": "integer", "minimum": 1 },
+        "bulk": { "$ref": "#/$defs/bulk" },
+        "price": { "type": ["string", "null"] }
+      }
+    },
+
+    "weapon": {
+      "allOf": [{ "$ref": "#/$defs/gearEntry" }],
+      "type": "object",
+      "required": ["hands", "versatile", "attack", "damage"],
+      "properties": {
+        "hands": { "enum": [1, 2], "description": "Hands used in the base grip." },
+        "versatile": { "type": ["integer", "null"], "description": "The alternate grip's hands, or null." },
+        "attack": { "$ref": "#/$defs/stat" },
+        "damage": {
+          "type": "object",
+          "required": ["dice", "bonus"],
+          "properties": {
+            "dice": { "type": "string", "description": "Dice string with damage type, e.g. '1d8 S'." },
+            "bonus": { "$ref": "#/$defs/stat", "description": "One untyped 'Pathbuilder damage bonus' line; no Strength decomposition." }
+          }
+        },
+        "range": { "type": ["integer", "null"] },
+        "reach": { "type": ["integer", "null"] },
+        "worn": { "type": "boolean", "description": "Initial held state from the export, when it carries one." }
+      }
+    },
+
+    "armor": {
+      "allOf": [{ "$ref": "#/$defs/gearEntry" }],
+      "type": "object",
+      "required": ["acTotal", "wornInExport"],
+      "properties": {
+        "acTotal": { "$ref": "#/$defs/stat", "description": "AC as if this armor alone were worn, shield lowered." },
+        "wornInExport": { "type": "boolean", "description": "Initial worn state. Client AC = (worn armor acTotal, else header.unarmoredAc) + (shield raised ? shield acBonus : 0). One body armor at a time; layered armor is out of v1." }
+      }
+    },
+
+    "shield": {
+      "allOf": [{ "$ref": "#/$defs/gearEntry" }],
+      "type": "object",
+      "required": ["acBonus", "hands", "buckler", "hardness", "hp", "bt"],
+      "properties": {
+        "acBonus": { "$ref": "#/$defs/stat", "description": "Coerced from Pathbuilder's string shieldBonus; its own breakdown line." },
+        "hands": { "type": "integer", "description": "Hands used while equipped (a buckler: only while raised, see buckler)." },
+        "buckler": { "type": "boolean" },
+        "hardness": { "type": "integer" },
+        "hp": { "type": "integer", "description": "Max shield HP; current shield HP lives in the viewer store." },
+        "bt": { "type": "integer", "description": "Broken Threshold." },
+        "wornInExport": { "type": "boolean" }
+      }
+    },
+
+    "gear": {
+      "type": "object",
+      "required": ["bulk", "weapons", "shields", "armor", "consumables", "gear"],
+      "description": "Containers are ignored: every list is flat, with qty applied.",
+      "properties": {
+        "bulk": {
+          "allOf": [{ "$ref": "#/$defs/stat" }],
+          "type": "object",
+          "required": ["encumberedAt", "max"],
+          "properties": {
+            "encumberedAt": { "type": "integer", "description": "5 + Str mod." },
+            "max": { "type": "integer", "description": "10 + Str mod." }
+          },
+          "description": "Sum of listed items (qty applied, 1000 coins = 1 Bulk). Shown as 'Bulk n / limit' atop Gear. Ignores equip state."
+        },
+        "weapons": { "type": "array", "items": { "$ref": "#/$defs/weapon" } },
+        "shields": { "type": "array", "items": { "$ref": "#/$defs/shield" } },
+        "armor": { "type": "array", "items": { "$ref": "#/$defs/armor" } },
+        "consumables": { "type": "array", "items": { "$ref": "#/$defs/gearEntry" } },
+        "gear": { "type": "array", "items": { "$ref": "#/$defs/gearEntry" } }
+      }
+    },
+
+    "spellEntry": {
+      "allOf": [{ "$ref": "#/$defs/entry" }],
+      "type": "object",
+      "required": ["rank"],
+      "properties": {
+        "rank": { "type": "integer", "minimum": 0, "description": "0 is a cantrip." },
+        "defense": { "type": ["string", "null"] },
+        "range": { "type": ["string", "null"] },
+        "area": { "type": ["string", "null"] },
+        "duration": { "type": ["string", "null"] }
+      }
+    },
+
+    "caster": {
+      "type": "object",
+      "required": ["key", "name", "tradition", "kind", "attack", "dc", "slots", "ranks"],
+      "properties": {
+        "key": { "type": "string" },
+        "name": { "type": "string" },
+        "tradition": { "type": ["string", "null"] },
+        "kind": { "enum": ["prepared", "spontaneous", "innate", "archetype"] },
+        "attack": { "oneOf": [{ "$ref": "#/$defs/stat" }, { "type": "null" }], "description": "null for 'Other Spells (Staves etc)' (unreliable proficiency), with a warning." },
+        "dc": { "oneOf": [{ "$ref": "#/$defs/stat" }, { "type": "null" }] },
+        "slots": {
+          "type": "object",
+          "description": "Max slots per rank; keys are rank numbers as strings. Slot usage keys are 'slots:<casterKey>:<rank>'.",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "ranks": {
+          "type": "array",
+          "description": "spells and prepared unioned, duplicates merged with count. Highest rank last.",
+          "items": {
+            "type": "object",
+            "required": ["rank", "entries"],
+            "properties": {
+              "rank": { "type": "integer", "minimum": 0 },
+              "entries": { "type": "array", "items": { "$ref": "#/$defs/spellEntry" } }
+            }
+          }
+        }
+      }
+    },
+
+    "spells": {
+      "type": "object",
+      "required": ["casters", "focus", "rituals"],
+      "description": "The viewer hides the Spells tab when casters is empty, focus is null and rituals is empty.",
+      "properties": {
+        "casters": { "type": "array", "items": { "$ref": "#/$defs/caster" } },
+        "focus": {
+          "type": ["object", "null"],
+          "required": ["pool", "attack", "dc", "cantrips", "spells"],
+          "properties": {
+            "pool": { "type": "integer" },
+            "attack": { "oneOf": [{ "$ref": "#/$defs/stat" }, { "type": "null" }], "description": "From the highest-bonus entry when several traditions exist; a warning lists the others." },
+            "dc": { "oneOf": [{ "$ref": "#/$defs/stat" }, { "type": "null" }] },
+            "cantrips": { "type": "array", "items": { "$ref": "#/$defs/spellEntry" } },
+            "spells": { "type": "array", "items": { "$ref": "#/$defs/spellEntry" } }
+          }
+        },
+        "rituals": { "type": "array", "items": { "$ref": "#/$defs/spellEntry" } }
+      }
+    },
+
+    "groupedEntries": {
+      "type": "object",
+      "description": "Used by 'actions' (groups in order: class, ancestry, general, archetype, familiar, basic, exploration, skill) and 'features' (the same source groups, entries ordered by feat level, no cost). Empty groups are omitted.",
+      "required": ["groups"],
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "defaultOpen", "entries"],
+            "properties": {
+              "id": { "enum": ["class", "ancestry", "general", "archetype", "familiar", "basic", "exploration", "skill"] },
+              "label": { "type": "string" },
+              "defaultOpen": { "type": "boolean", "description": "Actions: the first five groups open, basic/exploration/skill collapsed." },
+              "entries": { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

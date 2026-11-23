@@ -196,6 +196,18 @@ consumer must still add `Con modifier × level` itself:
 maxHP = ancestryhp + (classhp + bonushp + bonushpPerLevel + conMod) × level
 ```
 
+> **Erratum (bundle 112.0, read 2026-11-22):** `bonushp` is a **flat** HP total, not a per-level
+> amount, and is *not* multiplied by level. Only `bonushpPerLevel` (the feat count) is
+> multiplied. The correct formula is
+> `maxHP = ancestryhp + (classhp + conMod) × level + bonushp + bonushpPerLevel × level`
+> (before drained and the Stamina variant). The bracketed form above and the table row for
+> `bonushp` are wrong whenever `bonushp ≠ 0`. `bonushp` is the sum of (a) the archetype
+> "Resiliency" feats (Barbarian, Fighter, Monk, Champion, Ranger, Exemplar, Guardian and the
+> Starfinder Operative/Solarian/Soldier equivalents): 3 HP × (1 + the number of that
+> archetype's archetype-feat picks that require its Dedication), and (b) HP effects on
+> user-made custom content (flat, per level or per half level, min 1). Built-in rules data
+> carries no other source. Verified against two exports: Dwarf Fighter L5 Con +3 with Toughness shows 80 HP (`bonushp: 0`), and with Barbarian Dedication plus Resiliency shows 86 HP (`bonushp: 6`).
+
 The sample (Human Wizard, Con +1, level 1) reports `ancestryhp: 8`, `classhp: 6`,
 `bonushp: 0`, `bonushpPerLevel: 0` → `8 + (6 + 0 + 0 + 1) × 1 = 15` HP. Note the
 `classhp: 6` is the bare printed number, confirming Con is **not** folded in.
