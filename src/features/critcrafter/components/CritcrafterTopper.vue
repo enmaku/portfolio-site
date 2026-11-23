@@ -23,18 +23,17 @@ const t = computed(() => {
   <div class="cc-hero q-pa-md q-ma-sm" data-testid="cc-topper">
     <div class="row items-baseline no-wrap">
       <div class="text-h6 col ellipsis">{{ sheet.header.name }}</div>
-      <div class="text-caption q-ml-sm">Lv {{ sheet.header.level }}</div>
+      <div class="text-caption text-grey-4 q-ml-sm">Lv {{ sheet.header.level }}</div>
     </div>
-    <div class="text-caption cc-line">
+    <div class="text-caption text-grey-4 q-mb-sm">
       {{ sheet.header.ancestry }} · {{ sheet.header.classLine }}
     </div>
-    <div class="row q-mt-sm text-center">
-      <div class="col cc-hp" role="button" tabindex="0" @click="$emit('open-hp')" @keydown.enter="$emit('open-hp')">
-        <div class="text-h5" data-testid="cc-hp">
-          <template v-if="hp !== null">{{ hp }} / </template>
-          <StatNumber :target="t.hp">{{ sheet.header.hp.value }}</StatNumber><template v-if="tempHp"> +{{ tempHp }}</template>
+    <div class="row text-center items-center">
+      <div class="col-5 cc-hp" role="button" tabindex="0" @click="$emit('open-hp')" @keydown.enter="$emit('open-hp')">
+        <div class="text-h4" data-testid="cc-hp">
+          <span v-if="hp !== null" :class="{ 'text-red-3': hp <= 0 }">{{ hp }}</span><span class="text-h6 text-grey-4"><template v-if="hp !== null"> / </template><StatNumber :target="t.hp" class="cc-hp__max">{{ sheet.header.hp.value }}</StatNumber></span>
         </div>
-        <div class="text-caption">HP</div>
+        <div class="text-caption">HP <span v-if="tempHp">· +{{ tempHp }} temp</span></div>
       </div>
       <div class="col">
         <div class="text-h5" data-testid="cc-ac"><StatNumber :target="t.ac" /></div>
@@ -42,7 +41,7 @@ const t = computed(() => {
       </div>
       <div class="col">
         <div class="text-h5"><StatNumber :target="t.perception" /></div>
-        <div class="text-caption">Perception</div>
+        <div class="text-caption">Perc</div>
       </div>
       <div class="col">
         <div class="text-h5"><StatNumber :target="t.speed" /></div>
@@ -61,9 +60,12 @@ const t = computed(() => {
 }
 .cc-hp {
   cursor: pointer;
-  min-height: 48px;
 }
-.cc-line {
-  opacity: 0.8;
+.cc-hp__max {
+  display: inline;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  line-height: inherit;
 }
 </style>

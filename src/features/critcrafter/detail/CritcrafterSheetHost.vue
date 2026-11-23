@@ -5,6 +5,8 @@
  */
 import { computed } from 'vue'
 import { sheets } from './sheetStack.js'
+import CritcrafterCostGlyph from '../components/CritcrafterCostGlyph.vue'
+import CritcrafterTraitChips from '../components/CritcrafterTraitChips.vue'
 
 const top = sheets.top
 const open = computed({
@@ -18,7 +20,7 @@ const AON_LINK = 'Search Archives of Nethys'
 
 <template>
   <q-dialog v-model="open" position="bottom" data-testid="cc-sheet-host">
-    <q-card v-if="top" class="cc-sheet" :data-testid="`cc-sheet-${top.kind}`">
+    <q-card v-if="top" class="cc-sheet cc-sheet--host" :data-testid="`cc-sheet-${top.kind}`">
       <q-card-section class="row items-center no-wrap q-pb-none">
         <q-btn
           v-if="sheets.canGoBack.value"
@@ -32,6 +34,7 @@ const AON_LINK = 'Search Archives of Nethys'
         />
         <div class="text-h6 col ellipsis q-ml-xs">{{ top.view.title }}</div>
         <div v-if="top.kind === 'breakdown'" class="text-h4" data-testid="cc-sheet-total">{{ top.view.total }}</div>
+        <CritcrafterCostGlyph v-else :cost="top.view.cost" />
       </q-card-section>
 
       <q-card-section v-if="top.kind === 'breakdown'">
@@ -59,9 +62,7 @@ const AON_LINK = 'Search Archives of Nethys'
       </q-card-section>
 
       <q-card-section v-else>
-        <div v-if="top.view.traits.length" class="q-mb-sm">
-          <q-chip v-for="t in top.view.traits" :key="t" dense square dark class="cc-chip text-caption">{{ t }}</q-chip>
-        </div>
+        <CritcrafterTraitChips :traits="top.view.traits" class="q-mb-sm" style="margin-top: 0" />
         <div v-if="top.view.bulk != null || top.view.price" class="text-caption q-mb-sm" data-testid="cc-detail-meta">
           <span v-if="top.view.bulk != null">Bulk {{ top.view.bulk }}</span>
           <span v-if="top.view.bulk != null && top.view.price"> · </span>
@@ -93,12 +94,7 @@ const AON_LINK = 'Search Archives of Nethys'
 </template>
 
 <style scoped>
-.cc-sheet {
-  width: 100%;
-  background: #3d484d;
-  color: rgba(255, 255, 255, 0.87);
-  border-radius: 16px 16px 0 0;
-  min-height: 30vh;
+.cc-sheet--host {
   max-height: 85vh;
   overflow: auto;
 }

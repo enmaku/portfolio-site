@@ -32,6 +32,10 @@ const modes = computed(() => {
   return m
 })
 
+const toOption = (m) => ({ label: m.label, value: m.key, attrs: { 'data-testid': `cc-mode-${m.key}` } })
+const mainModes = computed(() => modes.value.filter((m) => !m.key.startsWith('shield')).map(toOption))
+const shieldModes = computed(() => modes.value.filter((m) => m.key.startsWith('shield')).map(toOption))
+
 watch(
   () => props.modelValue,
   (open) => {
@@ -63,57 +67,25 @@ function apply() {
     position="bottom"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card class="cc-keypad" data-testid="cc-keypad">
-      <q-card-section class="q-pb-none">
-        <div class="text-subtitle1" data-testid="cc-keypad-status">
+    <q-card class="cc-sheet" data-testid="cc-keypad">
+      <q-card-section>
+        <div class="text-caption text-grey-5 q-mb-xs" data-testid="cc-keypad-status">
           HP {{ hp }} / {{ maxHp }}<span v-if="tempHp"> · Temp {{ tempHp }}</span>
           <span v-if="shield?.raised && shield.max !== null"> · Shield {{ shield.hp }} / {{ shield.max }}</span>
         </div>
-        <div class="row q-gutter-xs q-mt-sm">
-          <q-btn
-            v-for="m in modes"
-            :key="m.key"
-            :label="m.label"
-            :color="active === m.key ? 'primary' : 'secondary'"
-            :data-testid="`cc-mode-${m.key}`"
-            no-caps
-            dense
-            class="cc-mode"
-            @click="active = m.key"
-          />
+        <q-btn-toggle v-model="active" no-caps unelevated spread toggle-color="primary" color="dark" :options="mainModes" />
+        <q-btn-toggle v-if="shieldModes.length" v-model="active" class="q-mt-xs" no-caps unelevated spread toggle-color="primary" color="dark" :options="shieldModes" />
+        <div class="text-h3 text-center q-my-sm" style="min-height: 56px" data-testid="cc-keypad-amount">{{ digits || '0' }}</div>
+        <div class="row q-col-gutter-xs">
+          <div v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']" :key="d" class="col-4">
+            <q-btn class="full-width cc-key" unelevated :label="d" :data-testid="`cc-key-${d}`" @click="press(d)" />
+          </div>
+          <div class="col-4"><q-btn class="full-width cc-key" unelevated label="⌫" aria-label="Backspace" data-testid="cc-key-back" @click="back" /></div>
+          <div class="col-4"><q-btn class="full-width cc-key" unelevated label="0" data-testid="cc-key-0" @click="press('0')" /></div>
+          <div class="col-4"><q-btn class="full-width cc-key" unelevated color="primary" label="Apply" :disable="amount <= 0" data-testid="cc-keypad-apply" @click="apply" /></div>
         </div>
-        <div class="cc-amount text-h4 text-center q-my-md" data-testid="cc-keypad-amount">
-          {{ digits || '0' }}
-        </div>
-      </q-card-section>
-      <q-card-section class="q-pt-none">
-        <div class="cc-pad">
-          <q-btn v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']" :key="d" :label="d" class="cc-key" :data-testid="`cc-key-${d}`" @click="press(d)" />
-          <q-btn icon="backspace" class="cc-key" aria-label="Backspace" data-testid="cc-key-back" @click="back" />
-          <q-btn label="0" class="cc-key" data-testid="cc-key-0" @click="press('0')" />
-          <q-btn label="Apply" color="primary" class="cc-key" :disable="amount <= 0" data-testid="cc-keypad-apply" @click="apply" />
-        </div>
+        <div class="text-caption text-grey-5 q-mt-sm">Damage hits temp HP first. Temp HP does not stack: highest wins. Treat Wounds etc.: enter the result as Heal. Shield damage and repair are entered as the exact HP change; repair caps at the shield's max HP.</div>
       </q-card-section>
     </q-card>
   </q-dialog>
 </template>
-
-<style scoped>
-.cc-keypad {
-  width: 100%;
-  max-width: 420px;
-  border-radius: 18px 18px 0 0;
-}
-.cc-mode {
-  min-height: 40px;
-}
-.cc-pad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.cc-key {
-  min-height: 56px;
-  font-size: 20px;
-}
-</style>

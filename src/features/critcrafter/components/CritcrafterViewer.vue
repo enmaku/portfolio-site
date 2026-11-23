@@ -6,6 +6,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useCritcrafterTableStore } from '../../../stores/critcrafterTable.js'
+import './critcrafter.css'
 import CritcrafterAbout from './CritcrafterAbout.vue'
 import CritcrafterHpKeypad from './CritcrafterHpKeypad.vue'
 import CritcrafterShieldRow from './CritcrafterShieldRow.vue'
@@ -61,7 +62,7 @@ const screen = computed(() => SCREENS[tab.value])
       :shield="table.shield"
       @apply="applyHp"
     />
-    <div class="cc-scroll col scroll q-px-md q-pb-md" data-testid="cc-screen">
+    <div class="cc-scroll col scroll q-px-sm q-pb-sm" data-testid="cc-screen">
       <component :is="screen" :sheet="sheet" />
       <CritcrafterAbout />
     </div>

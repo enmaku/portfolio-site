@@ -35,6 +35,7 @@ export function detailView(entry) {
   return {
     title: entryTitle(entry),
     traits: entry.traits ?? [],
+    cost: entry.cost ?? null,
     html: rules ? rules.html : null,
     licenseTag: rules ? rules.license : null,
     source: rules ? rules.source : null,

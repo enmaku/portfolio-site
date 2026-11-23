@@ -75,3 +75,9 @@ test('detailView carries item bulk and price for gear, null for other entries', 
   assert.equal(plain.bulk, null)
   assert.equal(plain.price, null)
 })
+
+test('detailView carries the entry cost for the sheet header glyph, null when absent', () => {
+  const cost = { kind: 'actions', min: 2, max: 2 }
+  assert.deepEqual(detailView(feat('Fireball', 3, { cost })).cost, cost)
+  assert.equal(detailView(feat('Toughness', 1, { cost: undefined })).cost, null)
+})

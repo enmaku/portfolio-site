@@ -16,11 +16,11 @@ const status = computed(() =>
         <div v-for="n in 4" :key="n" class="col-3"><q-skeleton dark type="rect" height="44px" /></div>
       </div>
     </div>
-    <div class="q-px-md col">
-      <div v-for="n in 3" :key="n" class="cc-skel-section q-mt-lg">
+    <div class="q-px-sm col">
+      <div v-for="n in 3" :key="n" class="cc-skel-section">
         <q-skeleton dark type="text" width="25%" height="12px" />
-        <q-skeleton dark type="rect" height="56px" class="q-mt-sm" />
-        <q-skeleton dark type="rect" height="56px" class="q-mt-sm" />
+        <q-skeleton dark type="rect" height="56px" class="q-mt-xs cc-skel-card" />
+        <q-skeleton dark type="rect" height="56px" class="q-mt-xs cc-skel-card" />
       </div>
     </div>
     <div class="cc-status text-center q-pa-md" role="status" data-testid="cc-status">{{ status }}</div>
@@ -35,7 +35,11 @@ const status = computed(() =>
 }
 .cc-skel-section {
   border-top: 1px solid rgba(142, 141, 139, 0.3);
+  margin-top: 20px;
   padding-top: 16px;
+}
+.cc-skel-card {
+  border-radius: 10px;
 }
 .cc-status {
   color: var(--q-secondary);

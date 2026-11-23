@@ -36,39 +36,25 @@ function resetTracking() {
 
 <template>
   <div data-testid="cc-rests">
-    <div class="text-overline">Rest</div>
-    <div class="row no-wrap q-gutter-xs">
+    <div class="cc-label">Rest</div>
+    <div class="row no-wrap cc-rests q-mb-sm">
       <q-btn
         v-for="r in RESTS"
         :key="r.kind"
-        :icon="r.icon"
-        :label="r.label"
-        stack
+        unelevated
         no-caps
         dense
-        color="secondary"
-        class="col cc-rest"
+        class="cc-step cc-rest col"
+        :label="r.label"
         :data-testid="`cc-rest-${r.kind}`"
         @click="rest(r)"
       />
     </div>
-    <q-btn
-      flat
-      no-caps
-      dense
-      class="q-mt-md cc-reset"
-      label="Reset tracking"
-      icon="restart_alt"
-      data-testid="cc-reset"
-      @click="resetTracking"
-    />
+    <q-btn flat no-caps dense class="cc-reset" label="Reset tracking" icon="restart_alt" data-testid="cc-reset" @click="resetTracking" />
   </div>
 </template>
 
 <style scoped>
-.cc-rest {
-  min-height: 56px;
-}
 .cc-reset {
   min-height: 48px;
 }
