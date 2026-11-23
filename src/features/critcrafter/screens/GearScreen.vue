@@ -11,6 +11,7 @@ import CritcrafterEntryRow from '../components/CritcrafterEntryRow.vue'
 import CritcrafterUsageBoxes from '../components/CritcrafterUsageBoxes.vue'
 import StatNumber from '../detail/StatNumber.vue'
 import { openDetail } from '../detail/sheetStack.js'
+import { EQUIP_ICON, RAISE_ICON } from '../components/critcrafterIcons.js'
 import { armorControl, consumableUsage, handsLabel, shieldControl, weaponControl } from '../table/tableView.js'
 import { bulkLine, damageText, gearGroupsView, signed } from '../viewer/screenModel.js'
 
@@ -22,7 +23,10 @@ const groups = computed(() => gearGroupsView(props.sheet.gear))
 const state = computed(() => table.table)
 const ready = computed(() => table.sheet === props.sheet && state.value !== null)
 
-const caption = (g) => (g.id === 'weapons' && ready.value ? `${g.count} · ${handsLabel(props.sheet, state.value)}` : String(g.count))
+const caption = (g) =>
+  (g.id === 'weapons' || g.id === 'shields') && ready.value
+    ? handsLabel(props.sheet, state.value)
+    : `${g.count} ${g.count === 1 ? 'item' : 'items'}`
 const weapon = (e) => weaponControl(props.sheet, state.value, e.key)
 const armor = (e) => armorControl(state.value, e.key)
 const shield = (e) => shieldControl(state.value, e.key)
@@ -41,91 +45,87 @@ function statText(group, e) {
 </script>
 
 <template>
-  <div class="q-pt-md" data-testid="cc-screen-gear">
-    <div class="row items-center no-wrap" data-testid="cc-bulk">
+  <div data-testid="cc-screen-gear">
+    <div class="row items-center no-wrap q-mb-xs text-grey-5" data-testid="cc-bulk">
       <StatNumber :target="{ label: 'Bulk', stat: sheet.gear.bulk, signed: false }">{{ bulkLine(sheet.gear.bulk) }}</StatNumber>
     </div>
     <div v-if="groups.length === 0" class="text-body2 cc-muted" data-testid="cc-empty">No gear in this build</div>
-    <q-expansion-item v-for="g in groups" :key="g.id" default-opened :label="g.label" :caption="caption(g)" header-class="cc-group" data-testid="cc-gear-group">
+    <q-expansion-item v-for="g in groups" :key="g.id" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" :label="g.label" :caption="caption(g)" data-testid="cc-gear-group">
       <CritcrafterEntryRow
         v-for="e in g.entries"
         :key="e.key"
         :entry="e"
-        :qty="e.qty"
+        :qty="g.id === 'consumables' ? 0 : e.qty"
         :stat-text="statText(g.id, e)"
         :show-cost="false"
         @open="openDetail(e)"
       >
         <template v-if="g.id === 'weapons'" #stats>
-          <div class="row items-center q-gutter-x-md">
+          <div class="cc-wstat row items-center text-grey-5 text-caption">
             <StatNumber :target="{ label: `${e.name} attack`, stat: e.attack }" data-chip="attack">{{ signed(e.attack.value) }}</StatNumber>
             <StatNumber :target="{ label: `${e.name} damage`, stat: e.damage.bonus }" data-chip="damage">{{ damageText(e) }}</StatNumber>
           </div>
         </template>
         <template v-if="ready" #controls>
           <template v-if="g.id === 'weapons'">
-            <q-btn
+            <button
               v-if="weapon(e).versatile"
-              flat
-              dense
-              no-caps
-              icon-right="swap_horiz"
-              :label="`${weapon(e).hands}h`"
-              class="cc-ctl cc-grip"
+              type="button"
+              class="cc-hands cc-hands--tap row no-wrap items-center"
               :aria-label="`${e.name}: ${weapon(e).hands} hands, tap to switch grip`"
               data-testid="cc-grip"
               @click.stop="act(() => table.toggleGrip(e.key))"
-            />
-            <span v-else class="cc-hands" data-testid="cc-hands">{{ weapon(e).hands }}h</span>
-            <q-btn
-              flat
-              round
-              icon="gavel"
-              class="cc-ctl"
-              :class="{ 'cc-off': !weapon(e).held }"
+            >
+              <q-icon name="swap_horiz" size="16px" class="q-mr-xs" />
+              <q-icon v-for="i in weapon(e).hands" :key="i" name="pan_tool" size="20px" />
+            </button>
+            <span v-else class="cc-hands row no-wrap items-center" data-testid="cc-hands" :aria-label="`${weapon(e).hands} hands`">
+              <q-icon v-for="i in weapon(e).hands" :key="i" name="pan_tool" size="20px" />
+            </span>
+            <button
+              type="button"
+              class="cc-equip row items-center justify-center"
+              :class="{ 'cc-equip--on': weapon(e).held }"
               :aria-pressed="weapon(e).held"
               :aria-label="`${weapon(e).held ? 'Put away' : 'Hold'} ${e.name}`"
               data-testid="cc-hold"
               @click.stop="act(() => table.toggleWeapon(e.key))"
-            />
+            ><q-icon :name="EQUIP_ICON.weapon" size="30px" /></button>
           </template>
           <template v-else-if="g.id === 'shields'">
-            <q-btn
-              flat
-              round
-              icon="front_hand"
-              class="cc-ctl"
-              :class="{ 'cc-off': !shield(e).raised }"
-              :disable="!shield(e).canRaise"
+            <span class="cc-hands row no-wrap items-center" :class="{ 'cc-hands--dim': e.buckler && !shield(e).raised }" aria-hidden="true">
+              <q-icon name="pan_tool" size="20px" />
+            </span>
+            <button
+              type="button"
+              class="cc-equip row items-center justify-center"
+              :class="{ 'cc-equip--on': shield(e).raised, 'cc-equip--locked': !shield(e).canRaise }"
+              :disabled="!shield(e).canRaise"
               :aria-pressed="shield(e).raised"
               :aria-label="`${shield(e).raised ? 'Lower' : 'Raise'} ${e.name}`"
               data-testid="cc-raise"
               @click.stop="act(() => table.setShieldRaised(!shield(e).raised))"
-            />
-            <q-btn
-              flat
-              round
-              icon="shield"
-              class="cc-ctl"
-              :class="{ 'cc-off': !shield(e).equipped }"
+            ><q-icon :name="RAISE_ICON" size="30px" /></button>
+            <button
+              type="button"
+              class="cc-equip row items-center justify-center"
+              :class="{ 'cc-equip--on': shield(e).equipped }"
               :aria-pressed="shield(e).equipped"
               :aria-label="`${shield(e).equipped ? 'Unequip' : 'Equip'} ${e.name}`"
               data-testid="cc-equip-shield"
               @click.stop="act(() => table.toggleShield(e.key))"
-            />
+            ><q-icon :name="EQUIP_ICON.shield" size="30px" /></button>
           </template>
-          <q-btn
+          <button
             v-else-if="g.id === 'armor'"
-            flat
-            round
-            icon="checkroom"
-            class="cc-ctl"
-            :class="{ 'cc-off': !armor(e).worn }"
+            type="button"
+            class="cc-equip row items-center justify-center"
+            :class="{ 'cc-equip--on': armor(e).worn }"
             :aria-pressed="armor(e).worn"
             :aria-label="`${armor(e).worn ? 'Take off' : 'Wear'} ${e.name}`"
             data-testid="cc-wear"
             @click.stop="act(() => table.toggleArmor(e.key))"
-          />
+          ><q-icon :name="EQUIP_ICON.armor" size="30px" /></button>
           <CritcrafterUsageBoxes
             v-else-if="g.id === 'consumables'"
             :used="usage(e).used"
@@ -143,21 +143,10 @@ function statText(group, e) {
 .cc-muted {
   color: var(--q-secondary);
 }
-.cc-ctl {
-  min-width: 48px;
-  min-height: 48px;
+.cc-wstat {
+  gap: 8px;
 }
-.cc-off {
-  opacity: 0.4;
-}
-.cc-hands {
-  font-size: 12px;
-  color: var(--q-secondary);
-}
-:deep(.cc-group) {
-  min-height: 52px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 12px;
+.cc-wstat :deep(.cc-statnum) {
+  min-height: 40px;
 }
 </style>

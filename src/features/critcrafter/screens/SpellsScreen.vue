@@ -24,74 +24,67 @@ const tradition = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '')
 </script>
 
 <template>
-  <div class="q-pt-md" data-testid="cc-screen-spells">
+  <div data-testid="cc-screen-spells">
     <div v-if="isEmpty" class="text-body2 cc-muted" data-testid="cc-empty">No spells in this build</div>
 
-    <section v-for="c in view.casters" :key="c.key" class="q-mb-md" data-testid="cc-caster">
+    <section v-for="c in view.casters" :key="c.key" data-testid="cc-caster">
       <div class="cc-label">{{ c.name }}<span v-if="c.tradition"> · {{ tradition(c.tradition) }}</span></div>
-      <div v-if="c.dc || c.attack" class="row items-center">
+      <div v-if="c.dc || c.attack" class="row items-center text-caption text-grey-5 q-mb-xs">
         <template v-if="c.dc">
-          <span class="cc-muted">DC</span>
+          <span>DC</span>
           <StatNumber :target="{ label: `${c.name} spell DC`, stat: c.dc, signed: false }" />
         </template>
         <template v-if="c.attack">
-          <span class="cc-muted q-ml-md">Attack</span>
+          <span class="q-ml-md">Attack</span>
           <StatNumber :target="{ label: `${c.name} spell attack`, stat: c.attack }" />
         </template>
       </div>
-      <q-expansion-item v-for="r in c.ranks" :key="r.rank" default-opened header-class="cc-group">
+      <q-expansion-item v-for="r in c.ranks" :key="r.rank" default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head">
         <template #header>
-          <q-item-section>
-            <q-item-label>{{ r.label }}</q-item-label>
-            <q-item-label v-if="!slots(c, r)" caption>{{ r.rank === 0 ? 'at will' : r.slots != null ? `${r.slots} slots` : '' }}</q-item-label>
-          </q-item-section>
+          <q-item-section>{{ r.label }}</q-item-section>
           <q-item-section v-if="slots(c, r)" side data-testid="cc-slots">
             <CritcrafterUsageBoxes :used="slots(c, r).used" :max="slots(c, r).max" label="slots" @cycle="table.cycleSlot(slots(c, r).key)" />
+          </q-item-section>
+          <q-item-section v-else side>
+            <span class="text-caption text-grey-5">{{ r.rank === 0 ? 'at will' : r.slots != null ? `${r.slots} slots` : '' }}</span>
           </q-item-section>
         </template>
         <CritcrafterEntryRow v-for="e in r.entries" :key="e.key" :entry="e" @open="openDetail(e)" />
       </q-expansion-item>
     </section>
 
-    <section v-if="view.focus" class="q-mb-md" data-testid="cc-focus">
-      <div class="cc-label">Focus · {{ view.focus.pool }} {{ view.focus.pool === 1 ? 'point' : 'points' }}</div>
-      <div v-if="view.focus.dc || view.focus.attack" class="row items-center">
-        <template v-if="view.focus.dc">
-          <span class="cc-muted">DC</span>
-          <StatNumber :target="{ label: 'Focus spell DC', stat: view.focus.dc, signed: false }" />
+    <section v-if="view.focus" data-testid="cc-focus">
+      <q-expansion-item default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head">
+        <template #header>
+          <q-item-section>Focus ({{ view.focus.pool }} {{ view.focus.pool === 1 ? 'pt' : 'pts' }})</q-item-section>
+          <q-item-section v-if="focus && focus.max > 0" side data-testid="cc-focus-boxes">
+            <CritcrafterUsageBoxes :used="focus.used" :max="focus.max" label="focus points" @cycle="table.cycleFocus()" />
+          </q-item-section>
         </template>
-        <template v-if="view.focus.attack">
-          <span class="cc-muted q-ml-md">Attack</span>
-          <StatNumber :target="{ label: 'Focus spell attack', stat: view.focus.attack }" />
-        </template>
-      </div>
-      <div v-if="focus && focus.max > 0" class="row items-center" data-testid="cc-focus-boxes">
-        <span class="cc-muted">Used</span>
-        <CritcrafterUsageBoxes :used="focus.used" :max="focus.max" label="focus points" @cycle="table.cycleFocus()" />
-      </div>
-      <CritcrafterEntryRow v-for="e in view.focus.entries" :key="e.key" :entry="e" @open="openDetail(e)" />
+        <div v-if="view.focus.dc || view.focus.attack" class="row items-center text-caption text-grey-5 q-mb-xs">
+          <template v-if="view.focus.dc">
+            <span>DC</span>
+            <StatNumber :target="{ label: 'Focus spell DC', stat: view.focus.dc, signed: false }" />
+          </template>
+          <template v-if="view.focus.attack">
+            <span class="q-ml-md">Attack</span>
+            <StatNumber :target="{ label: 'Focus spell attack', stat: view.focus.attack }" />
+          </template>
+        </div>
+        <CritcrafterEntryRow v-for="e in view.focus.entries" :key="e.key" :entry="e" @open="openDetail(e)" />
+      </q-expansion-item>
     </section>
 
     <section v-if="view.rituals.length" data-testid="cc-rituals">
-      <div class="cc-label">Rituals</div>
-      <CritcrafterEntryRow v-for="e in view.rituals" :key="e.key" :entry="e" @open="openDetail(e)" />
+      <q-expansion-item default-opened dark expand-separator class="cc-exp" header-class="cc-exp-head" label="Rituals" :caption="String(view.rituals.length)">
+        <CritcrafterEntryRow v-for="e in view.rituals" :key="e.key" :entry="e" @open="openDetail(e)" />
+      </q-expansion-item>
     </section>
-
   </div>
 </template>
 
 <style scoped>
 .cc-muted {
   color: var(--q-secondary);
-}
-.cc-label {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 11px;
-  color: var(--q-secondary);
-  margin-bottom: 4px;
-}
-:deep(.cc-group) {
-  min-height: 52px;
 }
 </style>

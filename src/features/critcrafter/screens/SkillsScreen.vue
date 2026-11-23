@@ -1,20 +1,18 @@
 <script setup>
-/** Skills: one column, U T E M L ladder with the current rank circled, aligned right-aligned tappable bonus. */
+/** Skills: one column of cards, U T E M L ladder with the current rank circled, aligned right-aligned tappable bonus. */
+import CritcrafterRankPips from '../components/CritcrafterRankPips.vue'
 import StatNumber from '../detail/StatNumber.vue'
-import { rankLadder } from '../viewer/screenModel.js'
 
 defineProps({ sheet: { type: Object, required: true } })
 </script>
 
 <template>
-  <div class="q-pt-md" data-testid="cc-screen-skills">
+  <div data-testid="cc-screen-skills">
     <div v-if="sheet.skills.length === 0" class="text-body2 cc-muted" data-testid="cc-empty">No skills in this build</div>
-    <div v-for="s in sheet.skills" :key="s.key" class="cc-skill row items-center no-wrap" data-testid="cc-skill">
-      <div class="col ellipsis cc-skill__name">{{ s.name }}</div>
-      <span class="cc-ladder">
-        <span v-for="r in rankLadder(s.rank)" :key="r.rank" class="cc-ladder__pip" :class="{ 'cc-ladder__pip--on': r.current }">{{ r.rank }}</span>
-      </span>
-      <StatNumber class="cc-skill__bonus" :target="{ label: s.name, stat: s.bonus }" />
+    <div v-for="s in sheet.skills" :key="s.key" class="cc-card q-mb-xs row no-wrap items-center" data-testid="cc-skill">
+      <span class="col ellipsis">{{ s.name }}</span>
+      <CritcrafterRankPips :rank="s.rank" />
+      <StatNumber class="cc-bonus cc-skill__bonus" :target="{ label: s.name, stat: s.bonus }" />
     </div>
   </div>
 </template>
@@ -23,36 +21,9 @@ defineProps({ sheet: { type: Object, required: true } })
 .cc-muted {
   color: var(--q-secondary);
 }
-.cc-skill {
-  min-height: 52px;
-}
-.cc-skill__name {
-  font-size: 16px;
-}
-.cc-ladder {
-  display: inline-flex;
-  flex: none;
-}
-.cc-ladder__pip {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--q-secondary);
-  opacity: 0.6;
-}
-.cc-ladder__pip--on {
-  background: var(--q-primary);
-  color: #fff;
-  opacity: 1;
-}
 .cc-skill__bonus {
-  width: 56px;
-  flex: none;
-  font-size: 16px;
+  min-height: 0;
+  font-weight: 700;
+  text-align: right;
 }
 </style>
