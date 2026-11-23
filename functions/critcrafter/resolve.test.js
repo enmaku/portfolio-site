@@ -53,13 +53,23 @@ test('ambiguity: the remaster entry wins, then the export field type hint', asyn
   const docs = [
     entry('feat', 'Shield Block', { id: 'feat:shield-block-legacy', remaster: false }),
     entry('feat', 'Shield Block', { id: 'feat:shield-block' }),
-    entry('action', 'Shield Block', { id: 'action:shield-block', remaster: false }),
+    entry('action', 'Shield Block', { id: 'action:shield-block' }),
   ]
   const { resolver } = resolverFor(docs)
   await resolver.prefetch([{ name: 'Shield Block' }])
-  assert.equal(resolver.resolve('Shield Block').entry.id, 'feat:shield-block')
   assert.equal(resolver.resolve('Shield Block', ['action']).entry.id, 'action:shield-block')
-  assert.equal(resolver.resolve('Shield Block', ['spell']).entry.id, 'feat:shield-block')
+  assert.equal(resolver.resolve('Shield Block', ['feat']).entry.id, 'feat:shield-block')
+  assert.equal(resolver.resolve('Shield Block', ['spell', 'feat']).entry.id, 'feat:shield-block')
+})
+
+test('ambiguity: a remaster entry beats a legacy entry of the hinted type', async () => {
+  const docs = [
+    entry('action', 'Shield Block', { id: 'action:shield-block-legacy', remaster: false }),
+    entry('feat', 'Shield Block', { id: 'feat:shield-block' }),
+  ]
+  const { resolver } = resolverFor(docs)
+  await resolver.prefetch([{ name: 'Shield Block' }])
+  assert.equal(resolver.resolve('Shield Block', ['action']).entry.id, 'feat:shield-block')
 })
 
 test('prefetch batches in chunks of at most 30 keys and skips cached names', async () => {

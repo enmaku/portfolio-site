@@ -68,13 +68,14 @@ function createResolver({ store, cacheMax = DEFAULT_CACHE_MAX }) {
   }
 
   function pick(candidates, types) {
+    // SPEC: the remaster entry first, then the type hint of the export field.
     let c = candidates
+    const remaster = c.filter((d) => d.data.remaster)
+    if (remaster.length) c = remaster
     if (types && types.length) {
       const hinted = c.filter((d) => types.includes(d.data.type))
       if (hinted.length) c = hinted
     }
-    const remaster = c.filter((d) => d.data.remaster)
-    if (remaster.length) c = remaster
     return [...c].sort((a, b) => {
       const ta = types && types.length ? types.indexOf(a.data.type) : 0
       const tb = types && types.length ? types.indexOf(b.data.type) : 0
