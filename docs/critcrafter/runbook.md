@@ -4,14 +4,14 @@ Operating the rules corpus and the `critcrafterSheet` function. Decisions are in
 
 Firebase project: `enmaku-portfolio-site` (`.firebaserc`). Region `us-central1`. Firestore emulator port `8080`, Functions emulator port `5001` (`firebase.json`).
 
-> **Status:** the ingest script, its flags and the log field names below are the interface the implementation tickets must build to (tickets 2 and 4). Where this runbook and the code disagree after those tickets land, fix whichever is wrong and keep them in step.
+> **Status:** the ingest script (`scripts/critcrafter-ingest.mjs`, `npm run critcrafter:ingest`) is implemented and rehearsed against the Firestore emulator; this section matches its real flags and output. The function log field names below are the interface ticket 4 builds to. Where this runbook and the code disagree, fix whichever is wrong and keep them in step.
 
 ## What the ingest does
 
 A manually run Node script, `scripts/critcrafter-ingest.mjs`, reads a local clone of `foundryvtt/pf2e` at a **pinned SHA** (`packs/pf2e/` only) and writes the `rulesEntries` collection and `rulesMeta/current` with the Admin SDK.
 
-- Every run upserts every entry, then deletes documents not seen in that run, so the corpus **mirrors the pinned SHA exactly**. Re-running the same SHA is safe (idempotent).
-- Aliases are built at ingest from AoN `legacy_id`/`remaster_id` pairs (same category, distinct names; fetched server-side from `elasticsearch.aonprd.com`, politely, once per run) plus the committed Pathbuilder label table (`functions/critcrafter/` or `scripts/` JSON, wherever ticket 2 puts it).
+- Every run upserts every entry that is new or changed (unchanged docs are not rewritten), then deletes documents not seen in that run, so the corpus **mirrors the pinned SHA exactly**. Re-running the same SHA is safe (idempotent).
+- Aliases are built at ingest from AoN `legacy_id`/`remaster_id` pairs (same category, distinct names; fetched server-side from `elasticsearch.aonprd.com`, politely, once per run) plus the committed Pathbuilder label table `scripts/critcrafter-pathbuilder-aliases.json` (`label -> {type, name}`; the script warns about labels with no matching entry). Aliases are stored as `nameKey`s (lowercase, accents and apostrophes dropped, other punctuation collapsed to a space), the same normalisation as the `nameKey` field.
 - `rulesMeta/current` (`{sha, ingestedAt, counts}`) is written **last**. A half-finished run therefore leaves a visibly stale `rulesMeta`.
 - It is not a deployed function, not in CI and not scheduled.
 
@@ -19,18 +19,19 @@ A manually run Node script, `scripts/critcrafter-ingest.mjs`, reads a local clon
 
 | Flag | Meaning |
 | --- | --- |
-| *(none)* | **Dry run.** Prints per-type counts and the diff against `rulesMeta/current` (added, changed, deleted). Writes nothing. |
+| *(none)* | **Dry run.** Prints the target banner, per-type counts, alias counts and the diff against the stored corpus (added, changed, deleted, with the first few ids). Writes nothing. |
 | `--apply` | Write. |
 | `--force` | With `--apply`, bypass the guard below. |
-| `--packs <dir>` | Path to the local `foundryvtt/pf2e` clone (`packs/pf2e/` inside it). |
-| `--sha <sha>` | The commit that clone must be at; the script refuses to run if `HEAD` differs. |
+| `--packs <dir>` | Required. Path to the local `foundryvtt/pf2e` clone (`packs/pf2e/` inside it). |
+| `--sha <sha>` | Required. The full 40-character commit the clone must be at; the script refuses to run if `HEAD` differs. |
 
 **Guard:** `--apply` refuses if more than 10% of existing documents would be deleted, or the total count drops by more than 10%, unless `--force`.
 
 ### Pointing at an environment
 
 - **Emulator:** `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` (the Admin SDK honours it; nothing reaches production).
-- **Production:** unset that variable and use Application Default Credentials for `enmaku-portfolio-site` (`gcloud auth application-default login`, or a service account key outside the repo). Check the script's banner, which prints the target project or "EMULATOR", before passing `--apply`.
+- **Production:** unset that variable. The script loads the repo-root `.env` (gitignored), reads `VITE_FIREBASE_PROJECT_ID` and uses Application Default Credentials from the `GOOGLE_APPLICATION_CREDENTIALS` service account key that `.env` already sets, the same route as `npm run bgg-update`. Never print, log or commit the key. If it fails with `Could not load the default credentials`, it prints the same hint as the BGG scripts. Check the banner (`TARGET: EMULATOR ...` or `TARGET: PRODUCTION project <id>`) before passing `--apply`.
+- Wrap every command as `npm run critcrafter:ingest -- <flags>` (or `node scripts/critcrafter-ingest.mjs <flags>`).
 
 ## When to run
 
@@ -53,10 +54,10 @@ Record the SHA you ran in the table at the bottom of this file.
    Use a full 40-character SHA. Never track a branch.
 2. **Emulator rehearsal.** In one terminal: `firebase emulators:start --only firestore`. In another:
    ```bash
-   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/critcrafter-ingest.mjs --packs ~/code/foundry-pf2e --sha <sha>            # dry run
-   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 node scripts/critcrafter-ingest.mjs --packs ~/code/foundry-pf2e --sha <sha> --apply    # write
+   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run critcrafter:ingest -- --packs ~/code/foundry-pf2e --sha <sha>            # dry run
+   FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 npm run critcrafter:ingest -- --packs ~/code/foundry-pf2e --sha <sha> --apply    # write
    ```
-   Check the per-type counts look sane (order of magnitude: about 6.5k feats, 6k equipment, 2k spells, 590 actions, 880 class features, 360 heritages, 550 backgrounds; about 20k documents in all) and that the guard did not trip.
+   Check the per-type counts look sane (order of magnitude at SHA `a70593f`: 6486 feats, 6005 equipment, 2036 spells, 591 actions, 881 class features, 357 heritages, 547 backgrounds; 16903 documents in all) and that the guard did not trip.
 3. **Verify against fixtures on the emulator.** Run the function tests and the fixtures regenerate script with the emulator corpus. Per-fixture warning counts must not rise compared with the previous SHA (the first ingest sets the baseline: write the counts into the table below).
 4. **Production dry run.** Unset `FIRESTORE_EMULATOR_HOST`; run the same command without `--apply`. Read the diff: added, changed, deleted. A large delete count with a small SHA gap means something is wrong.
 5. **Production apply.** Same command with `--apply`. If the guard trips and you have read the diff and agree with it, repeat with `--force`.
