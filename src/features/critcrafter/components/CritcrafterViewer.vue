@@ -7,6 +7,7 @@
 import { computed, ref, watch } from 'vue'
 import CritcrafterTopper from './CritcrafterTopper.vue'
 import CritcrafterBottomBar from './CritcrafterBottomBar.vue'
+import CritcrafterSheetHost from '../detail/CritcrafterSheetHost.vue'
 import { SCREENS } from '../screens/index.js'
 import { visibleTabs } from '../viewer/viewerModel.js'
 
@@ -27,6 +28,7 @@ const screen = computed(() => SCREENS[tab.value])
       <component :is="screen" :sheet="sheet" />
     </div>
     <CritcrafterBottomBar v-model="tab" :tabs="tabs" />
+    <CritcrafterSheetHost />
   </div>
 </template>
 
