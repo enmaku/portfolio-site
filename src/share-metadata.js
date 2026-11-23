@@ -66,6 +66,17 @@ export const SHARE_CATALOG = [
     favicon: 'movie',
   },
   {
+    // One generic card: ?id= links unfurl as this same card (static host, no per-character metadata).
+    routePath: '/projects/critcrafter',
+    pasteUnfurl: true,
+    shareSlug: 'projects/critcrafter',
+    title: 'CritCrafter',
+    description:
+      'A mobile viewer for Pathbuilder characters: stats, skills, gear, spells and actions at the table.',
+    ogImage: 'icons/social/critcrafter.png',
+    favicon: 'critcrafter',
+  },
+  {
     routePath: '/projects/dungeon-runner',
     pasteUnfurl: true,
     shareSlug: 'projects/dungeon-runner',
@@ -169,6 +180,9 @@ export const APP_ICON_COLORS = {
   shield: '#a65a08',
   meeple: '#14801a',
   schedule: '#c91818',
+  // Launcher icons exist, but CritCrafter is not installable yet (adding it is one line in
+  // INSTALLABLE_ROUTE_PATHS plus a manifest).
+  critcrafter: '#7b3fa0',
 }
 
 /**

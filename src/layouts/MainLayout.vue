@@ -177,6 +177,7 @@ const projectSections = [
       { to: '/projects/dungeon-runner', label: 'Dungeon Runner', icon: 'shield' },
       { to: '/projects/game-manager', label: 'Game Manager', icon: MEEPLE_ICON_NAME },
       { to: '/projects/time-tracker', label: 'Time Tracker', icon: 'schedule' },
+      { to: '/projects/critcrafter', label: 'CritCrafter', icon: 'bolt' },
     ],
   },
   {
