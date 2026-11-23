@@ -93,7 +93,8 @@ test('failure 2: HTTP error other than 404 is "unavailable", retryable', async (
 test('failure 3: 404 or 200 without a build is "not found", no Retry, offers another id', async () => {
   const a = await failure({ pb: async () => res(404, { success: false, error: 'Build not found.' }) })
   const b = await failure({ pb: async () => res(200, { success: false }) })
-  for (const r of [a, b]) {
+  const c = await failure({ pb: async () => res(200, '<html>not json</html>') })
+  for (const r of [a, b, c]) {
     assert.equal(r.state, 'not-found')
     assert.equal(r.retry, false)
     assert.equal(r.tryAnother, true)

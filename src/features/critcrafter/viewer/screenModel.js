@@ -118,6 +118,6 @@ export function spellsView(spells) {
     .filter((c) => c.ranks.length > 0)
   const f = spells?.focus
   const focusEntries = f ? [...f.cantrips, ...f.spells] : []
-  const focus = f && focusEntries.length > 0 ? { pool: f.pool, attack: f.attack, dc: f.dc, entries: focusEntries } : null
+  const focus = f && (focusEntries.length > 0 || f.pool > 0) ? { pool: f.pool, attack: f.attack, dc: f.dc, entries: focusEntries } : null
   return { casters, focus, rituals: spells?.rituals ?? [] }
 }

@@ -61,7 +61,8 @@ export async function loadSheet({ id, fetchImpl, functionUrl, getAppCheckToken, 
   try {
     parsed = JSON.parse(body)
   } catch {
-    return fail('unavailable', true)
+    // HTTP 200 with a body that is not JSON: no build to show (SPEC state 3), not an outage.
+    return fail('not-found', false)
   }
   if (!parsed || parsed.success !== true || !parsed.build) return fail('not-found', false)
 

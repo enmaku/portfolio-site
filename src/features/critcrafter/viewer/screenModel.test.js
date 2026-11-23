@@ -149,6 +149,11 @@ test('spellsView: casters by rank (cantrips first), one focus section, rituals l
   assert.deepEqual(v.rituals.map((e) => e.name), ['Ritual'])
 })
 
+test('spellsView shows focus when the pool is above 0 even with no focus spells listed', () => {
+  const v = spellsView({ casters: [], focus: { pool: 2, attack: null, dc: null, cantrips: [], spells: [] }, rituals: [] })
+  assert.deepEqual(v.focus, { pool: 2, attack: null, dc: null, entries: [] })
+})
+
 test('spellsView omits focus when it has no entries and rituals when none', () => {
   const v = spellsView({ casters: [], focus: { pool: 0, attack: null, dc: null, cantrips: [], spells: [] }, rituals: [] })
   assert.equal(v.focus, null)
