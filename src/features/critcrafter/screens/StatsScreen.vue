@@ -18,25 +18,25 @@ const groups = computed(() => featureGroups(props.sheet.features))
     <q-separator dark class="cc-sep" />
 
     <div class="cc-label">Saves</div>
-    <div class="row q-col-gutter-sm">
-      <div v-for="s in view.saves" :key="s.id" class="col-4" data-testid="cc-save">
-        <div class="cc-card text-center"><div class="text-caption">{{ s.label }}</div><div class="text-h6"><StatNumber :target="s" class="cc-statcard" /></div></div>
+    <div class="cc-statgrid">
+      <div v-for="s in view.saves" :key="s.id" data-testid="cc-save">
+        <div class="cc-card cc-statcell text-center"><div class="text-caption">{{ s.label }}</div><div class="text-h6"><StatNumber :target="s" class="cc-statcard" /></div></div>
       </div>
     </div>
 
     <q-separator dark class="cc-sep" />
     <div class="cc-label">Abilities</div>
-    <div class="row q-col-gutter-sm">
-      <div v-for="a in view.abilities" :key="a.id" class="col-4" data-testid="cc-ability">
-        <div class="cc-card text-center"><div class="text-caption">{{ a.label }}</div><div class="text-h6">{{ a.mod }}</div></div>
+    <div class="cc-statgrid">
+      <div v-for="a in view.abilities" :key="a.id" data-testid="cc-ability">
+        <div class="cc-card cc-statcell text-center"><div class="text-caption">{{ a.label }}</div><div class="text-h6">{{ a.mod }}</div></div>
       </div>
     </div>
 
     <q-separator dark class="cc-sep" />
     <div class="cc-label">DC &amp; attack</div>
-    <div class="row q-col-gutter-sm">
-      <div v-for="d in view.dc" :key="d.label" class="col-4" data-testid="cc-dc">
-        <div class="cc-card text-center"><div class="text-caption">{{ d.label }}</div><div class="text-h6"><StatNumber :target="d" class="cc-statcard" /></div></div>
+    <div class="cc-statgrid">
+      <div v-for="d in view.dc" :key="d.label" data-testid="cc-dc">
+        <div class="cc-card cc-statcell text-center"><div class="text-caption">{{ d.label }}</div><div class="text-h6"><StatNumber :target="d" class="cc-statcard" /></div></div>
       </div>
     </div>
 
@@ -65,5 +65,19 @@ const groups = computed(() => featureGroups(props.sheet.features))
 <style scoped>
 .cc-statcard {
   min-height: 0;
+}
+/* Three columns, every row as tall as the tallest card, so all boxes are the same height. */
+.cc-statgrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 8px;
+}
+.cc-statcell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 </style>
