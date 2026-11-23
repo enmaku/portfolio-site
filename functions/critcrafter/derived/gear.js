@@ -83,20 +83,27 @@ function deriveArmor(build, ctx, corpus = {}) {
   const list = (build.armor || []).map((a, index) => ({ a, index }))
   const bodies = list.filter(({ a }) => a.prof !== 'shield')
   const worn = bodies.find(({ a }) => a.worn)
+  const acMods = ctx.mods.linesFor('AC')
+  const modTotal = acMods.reduce((n, l) => n + l.amount, 0)
   const finish = (lines, path) => {
     const total = statWithTotal(lines, null, ctx, path)
-    const mods = ctx.mods.linesFor('AC')
-    return mods.length ? stat([...total.breakdown, ...mods]) : total
+    return acMods.length ? stat([...total.breakdown, ...acMods.map((l) => ({ ...l }))]) : total
+  }
+  // Pathbuilder's acTotal may or may not already include mods.AC. When the gap to the rebuilt
+  // components is exactly the AC mods, it does: the mod lines explain it and no residual is added.
+  const residualLine = (sum, path) => {
+    const gap = ac.acTotal - sum
+    if (!Number.isInteger(ac.acTotal) || gap === 0 || (modTotal !== 0 && gap === modTotal)) return null
+    ctx.warn('breakdown_residual', path, `Rebuilt ${sum}, Pathbuilder says ${ac.acTotal}`)
+    return line('Other (from Pathbuilder)', gap, 'untyped')
   }
 
   let unarmoredLines
   if (!worn || worn.a.prof === 'unarmored') {
     const lines = armorLinesFromComponents(build, ac, 'unarmored')
     const sum = lines.reduce((n, l) => n + l.amount, 0)
-    if (Number.isInteger(ac.acTotal) && ac.acTotal !== sum) {
-      ctx.warn('breakdown_residual', 'header.unarmoredAc', `Rebuilt ${sum}, Pathbuilder says ${ac.acTotal}`)
-      lines.push(line('Other (from Pathbuilder)', ac.acTotal - sum, 'untyped'))
-    }
+    const extra = residualLine(sum, 'header.unarmoredAc')
+    if (extra) lines.push(extra)
     unarmoredLines = lines
   } else {
     unarmoredLines = [line('Base', 10, 'base'), abilityLine(build, 'dex'), ...proficiencyLines((build.proficiencies || {}).unarmored, level)]
@@ -108,10 +115,8 @@ function deriveArmor(build, ctx, corpus = {}) {
     if (worn && worn.index === index) {
       const lines = armorLinesFromComponents(build, ac, a.prof)
       const sum = lines.reduce((n, l) => n + l.amount, 0)
-      if (Number.isInteger(ac.acTotal) && ac.acTotal !== sum) {
-        ctx.warn('breakdown_residual', `gear.armor[${index}].acTotal`, `Rebuilt ${sum}, Pathbuilder says ${ac.acTotal}`)
-        lines.push(line('Other (from Pathbuilder)', ac.acTotal - sum, 'untyped'))
-      }
+      const extra = residualLine(sum, `gear.armor[${index}].acTotal`)
+      if (extra) lines.push(extra)
       acTotal = finish(lines, `gear.armor[${index}].acTotal`)
     } else {
       const info = corpus.armor ? corpus.armor(a.name) : null

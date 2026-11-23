@@ -163,3 +163,29 @@ test('bulk without a corpus lookup counts everything as unknown', () => {
   assert.equal(bulk.encumberedAt, 5)
   assert.equal(bulk.breakdown.filter((l) => l.label.startsWith('Unknown')).length, 1)
 })
+
+// mods.AC versus Pathbuilder's precomputed acTotal: no fixture carries an AC mod, so both readings are
+// covered and the two must never double count (SPEC "Derived stats").
+const withAcMod = (acTotal) => {
+  const b = loadBuild('anya') // components sum to 14, worn Explorer's Clothing
+  return { ...b, mods: { AC: { 'Item Bonus': 1 } }, acTotal: { ...b.acTotal, acTotal } }
+}
+
+test('mods.AC already inside Pathbuilder acTotal is counted once, with no residual line', () => {
+  const b = withAcMod(15)
+  const ctx = createContext(b)
+  const { unarmoredAc, armor } = deriveArmor(b, ctx)
+  for (const s of [unarmoredAc, armor[0].acTotal]) {
+    assert.equal(s.value, 15)
+    assert.equal(s.breakdown.filter((l) => l.amount === 1 && l.type === 'item').length, 1)
+    assert.equal(s.breakdown.some((l) => /Other/.test(l.label)), false)
+  }
+  assert.deepEqual(ctx.warnings.filter((w) => w.code === 'breakdown_residual'), [])
+})
+
+test('mods.AC outside Pathbuilder acTotal is added on top', () => {
+  const b = withAcMod(14)
+  const { unarmoredAc, armor } = deriveArmor(b, createContext(b))
+  assert.equal(unarmoredAc.value, 15)
+  assert.equal(armor[0].acTotal.value, 15)
+})
