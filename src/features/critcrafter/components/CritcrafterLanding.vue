@@ -1,7 +1,6 @@
 <script setup>
 import { ref } from 'vue'
 import { parsePathbuilderId } from '../viewer/pathbuilderId.js'
-import CritcrafterAbout from './CritcrafterAbout.vue'
 import { loadRecent } from '../viewer/recent.js'
 
 const props = defineProps({ badId: { type: Boolean, default: false } })
@@ -53,7 +52,6 @@ function submit() {
         />
       </div>
     </div>
-    <CritcrafterAbout />
   </div>
 </template>
 
