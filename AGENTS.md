@@ -38,6 +38,10 @@ by [.cursor/rules/run-tests.mdc](.cursor/rules/run-tests.mdc). Read it before ru
 
 Firebase rules tests (`npm run test:database-rules`, `test:firestore-rules`) need the Firebase CLI and emulators; not required for routine app dev.
 
+### CritCrafter env vars
+
+`VITE_CRITCRAFTER_FUNCTIONS_BASE` (optional; falls back to `https://us-central1-<VITE_FIREBASE_PROJECT_ID>.cloudfunctions.net`) points the viewer at the `critcrafterSheet` function, for example the Functions emulator. `VITE_FIREBASE_APPCHECK_SITE_KEY` is the reCAPTCHA site key App Check needs; without it the viewer sends no token and a production function answers `401 app_check_failed`. Emulator rehearsal, ingest, rollback and log queries: [docs/critcrafter/runbook.md](docs/critcrafter/runbook.md).
+
 ### Environment file (`.env`) vs Cursor Secrets
 
 Quasar/Vite reads **`/workspace/.env`** at dev-server startup (`import.meta.env.VITE_*`). This is separate from **Cursor Secrets** (Environment tab):
