@@ -14,45 +14,22 @@ const props = defineProps({
 const emit = defineEmits(['cycle'])
 
 const compact = computed(() => props.max > 5)
-const boxes = computed(() => Array.from({ length: props.max }, (_, i) => i < props.used))
+const icon = (on) => (on ? 'check_box' : 'check_box_outline_blank')
 </script>
 
 <template>
   <button
     type="button"
-    class="cc-usage row items-center no-wrap"
+    class="cc-pips row no-wrap items-center"
     data-testid="cc-usage"
     :aria-label="`${label}: ${used} of ${max} used. Tap to change.`"
     @click.stop="emit('cycle')"
   >
-    <template v-if="compact">
-      <span class="cc-box" :class="{ on: used > 0 }" />
-      <span class="text-caption q-ml-xs">{{ used }} / {{ max }} used</span>
-    </template>
+    <span v-if="compact" class="text-body1">
+      <q-icon :name="icon(used > 0)" size="32px" :color="used > 0 ? 'white' : 'grey-6'" /> {{ used }} / {{ max }} used
+    </span>
     <template v-else>
-      <span v-for="(on, i) in boxes" :key="i" class="cc-box" :class="{ on }" />
+      <q-icon v-for="i in max" :key="i" :name="icon(i <= used)" size="32px" :color="i <= used ? 'white' : 'grey-6'" />
     </template>
   </button>
 </template>
-
-<style scoped>
-.cc-usage {
-  min-height: 48px;
-  min-width: 48px;
-  padding: 0 4px;
-  background: none;
-  border: 0;
-  color: inherit;
-  gap: 4px;
-}
-.cc-box {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  border: 2px solid currentColor;
-  opacity: 0.8;
-}
-.cc-box.on {
-  background: currentColor;
-}
-</style>

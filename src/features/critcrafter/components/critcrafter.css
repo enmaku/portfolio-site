@@ -1,0 +1,21 @@
+/* CritCrafter viewer shared styles, ported from the approved prototype (src/pages/projects/CritcrafterPrototypePage.vue).
+   Unscoped on purpose: dialogs render in a portal. Every class is cc- prefixed. */
+.cc-label { text-transform: uppercase; letter-spacing: .08em; font-size: 11px; color: var(--q-secondary); margin-bottom: 4px; }
+.cc-card { background: var(--q-dark); border: 1px solid rgba(142, 141, 139, 0.3); border-radius: 10px; padding: 14px 14px; min-height: 56px; font-size: 16px; }
+.cc-card--tap { cursor: pointer; }
+.cc-sep { margin: 20px 0 16px; background: rgba(142, 141, 139, 0.3); }
+.cc-exp { margin-bottom: 8px; }
+.cc-exp .cc-exp-head { min-height: 56px; font-weight: 600; font-size: 15px; }
+.cc-exp .q-item__label--caption { text-align: right; }
+.cc-pips { min-height: 48px; padding: 0 4px; cursor: pointer; user-select: none; background: none; border: 0; color: inherit; }
+.cc-equip { min-width: 48px; min-height: 48px; margin-left: 6px; opacity: 0.3; cursor: pointer; user-select: none; background: none; border: 0; color: inherit; padding: 0; }
+.cc-equip--on { opacity: 1; color: #fff; }
+.cc-equip--locked { pointer-events: none; opacity: 0.12; }
+.cc-hands { margin-left: 6px; color: var(--q-secondary); min-height: 40px; padding: 0 4px; }
+.cc-hands--dim { opacity: 0.35; }
+.cc-hands--tap { color: var(--q-secondary); background: rgba(255, 255, 255, 0.1); border: 1px solid var(--q-secondary); border-radius: 20px; padding: 0 10px; cursor: pointer; user-select: none; }
+.cc-step { background: rgba(255, 255, 255, 0.14); color: #fff; min-width: 48px; min-height: 40px; margin: 0 2px; }
+.cc-rest { min-width: 0; padding: 0 4px; margin: 0 2px; font-size: 13px; }
+.cc-key { background: var(--q-dark); color: #fff; min-height: 52px; font-size: 18px; }
+.cc-bonus { min-width: 40px; text-align: right; margin-left: 8px; font-size: 17px; }
+.cc-sheet { width: 100%; background: #3d484d; color: rgba(255,255,255,.87); border-radius: 16px 16px 0 0; min-height: 30vh; }
