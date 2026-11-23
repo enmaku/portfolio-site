@@ -81,3 +81,23 @@ Built into the same page. The chosen HP design (option A) is the only one kept; 
 - **Rests** (Stats tab, one row): Refocus (10 min, +1 focus point, toast), Rest 8 h (regain Con modifier + 1 HP), Rest 24 h (2 × (Con modifier + 1)), Extended rest (1 week downtime, full HP). Every 8 h or longer rest refills spell slots and the focus pool, clears temp HP. Rests never repair shields: repairing is an action with a skill check, so shield HP only changes through Damage Shield / Repair Shield on the keypad. Rest dialogs describe their effect; no per-rest prompts. Consumables are never reset by rests; daily-use abilities are not tracked in v1.
 - **Hands**: shields get their own Gear group between Weapons and Armor. A shield takes one hand while equipped; a buckler is strapped on and takes a hand only while raised. Equipping or raising a shield puts weapons away (earliest first) until it fits; equipping a weapon or widening a grip drops other weapons, then the shield (a buckler is lowered). Toast uses the gear icon.
 - **Sheet must carry**: max HP, per-shield max HP, Hardness, BT, buckler flag, shield AC bonus. **Store adds**: current HP, temp HP, per-shield current HP, keyed by Pathbuilder id.
+
+## Tap-to-explain (answer to "Tap-to-explain: which numbers are tappable and what the sheet shows")
+
+Specified only; not in the prototype page. Every derived number in the sheet format's tappable list opens one **breakdown sheet**.
+
+- **Tap targets**: the number itself, minimum 48px hit area, with a dotted underline as the only affordance cue. Skills, saves, Perception, Speed, class DC, spell DC and attack, Bulk and the topper AC badge open the breakdown. On weapons, only the attack and damage chips do; the rest of the row still opens item detail. On HP, only the max half of `current / max` does; the rest keeps opening the keypad.
+- **Layout** (same bottom-sheet component as item detail): header with stat name and large total; breakdown rows (label, signed amount, muted bonus-type chip) in the function's order; a Total row; then, only if the stat has linked corpus actions (for example Athletics: Grapple, Trip, Shove), compact action rows. Tapping an action stacks its detail sheet on the breakdown, Back returns. No explainer prose.
+- **AC and Bulk**: the AC breakdown shows current state only (worn armor lines plus "Shield raised +N" when raised), no comparison with other armor. Bulk's breakdown is the sheet's own gear lines and ignores equip state.
+- **Rows shown as sent**: "Other (from Pathbuilder) ±N" and "Untrained +0" render as ordinary rows, no warning styling and nothing hidden, so the sum stays visibly honest.
+- **One-way link**: stat to its actions only; the Actions screen does not link back to a stat's breakdown in v1.
+
+## Loading, empty and desktop states (answer to "Loading, empty and desktop states for the viewer")
+
+Specified only; not in the prototype page.
+
+- **Desktop**: v1 is mobile-only. The viewer uses the shared desktop phone frame and the project shell's fullscreen toggle unchanged, with no desktop-specific layout, and is listed under Mobile. A real desktop layout is a possible future effort, not part of this spec.
+- **Loading**: one full-screen state with the bottom bar hidden: skeleton of the pinned topper and a few ruled section blocks, plus one status line that follows the step ("Fetching from Pathbuilder…", then "Building your sheet…"). No spinner-only screen and no timeout UI beyond the decided failure states.
+- **Landing (no `id`)**: the id-or-URL input with a one-line hint ("Paste your Pathbuilder id or share link") and a "Recent" chip row: the last 3 successfully loaded ids in localStorage, each labelled with the character name.
+- **Reload**: refetch and re-post every load, no cached sheet. Table state comes from localStorage by Pathbuilder id; stored values are clamped to the new sheet's maxima (slots, focus, HP, consumables) with no migration UI or notice.
+- **Empty sections**: the Spells bar item is hidden when the sheet has no spells, rituals or focus (four-item bar). Empty groups inside a screen are omitted. A visible screen with nothing shows one muted line (for example "No gear in this build"). Stats is always populated.
