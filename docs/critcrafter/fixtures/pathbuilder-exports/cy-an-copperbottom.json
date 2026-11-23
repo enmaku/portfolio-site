@@ -1,0 +1,285 @@
+{
+  "success": true,
+  "build": {
+    "name": "Fixture",
+    "class": "Inventor",
+    "dualClass": null,
+    "level": 1,
+    "xp": 0,
+    "ancestry": "Goblin",
+    "heritage": "Irongut Goblin",
+    "background": "Cook",
+    "alignment": "N",
+    "gender": "Not set",
+    "age": "Not set",
+    "deity": "Not set",
+    "size": 1,
+    "sizeName": "Small",
+    "keyability": "int",
+    "languages": [
+      "None selected"
+    ],
+    "rituals": [
+      "Bonding Meal"
+    ],
+    "resistances": [],
+    "inventorMods": [],
+    "abilities": {
+      "str": 16,
+      "dex": 12,
+      "con": 14,
+      "int": 14,
+      "wis": 10,
+      "cha": 12,
+      "breakdown": {
+        "ancestryFree": [
+          "Str"
+        ],
+        "ancestryBoosts": [
+          "Dex",
+          "Cha"
+        ],
+        "ancestryFlaws": [
+          "Wis"
+        ],
+        "backgroundBoosts": [
+          "Con",
+          "Str"
+        ],
+        "classBoosts": [
+          "Int"
+        ],
+        "mapLevelledBoosts": {
+          "1": [
+            "Int",
+            "Wis",
+            "Str",
+            "Con"
+          ]
+        }
+      }
+    },
+    "attributes": {
+      "ancestryhp": 6,
+      "classhp": 8,
+      "bonushp": 0,
+      "bonushpPerLevel": 0,
+      "speed": 25,
+      "speedBonus": 0
+    },
+    "proficiencies": {
+      "classDC": 2,
+      "perception": 2,
+      "fortitude": 4,
+      "reflex": 2,
+      "will": 4,
+      "heavy": 0,
+      "medium": 2,
+      "light": 2,
+      "unarmored": 2,
+      "advanced": 0,
+      "martial": 2,
+      "simple": 2,
+      "unarmed": 2,
+      "castingArcane": 2,
+      "castingDivine": 0,
+      "castingOccult": 0,
+      "castingPrimal": 0,
+      "acrobatics": 0,
+      "arcana": 2,
+      "athletics": 2,
+      "crafting": 2,
+      "deception": 2,
+      "diplomacy": 0,
+      "intimidation": 0,
+      "medicine": 0,
+      "nature": 0,
+      "occultism": 0,
+      "performance": 0,
+      "religion": 0,
+      "society": 2,
+      "stealth": 2,
+      "survival": 2,
+      "thievery": 2,
+      "piloting": 0,
+      "computers": 0
+    },
+    "mods": {},
+    "feats": [
+      [
+        "Shield Block",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Inventor",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Seasoned",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Wizard Dedication",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Irongut Goblin",
+        null,
+        "Heritage",
+        1,
+        "Heritage Feat",
+        "standardChoice",
+        null
+      ],
+      [
+        "Built-In Tools",
+        null,
+        "Class Feat",
+        1,
+        "Inventor Feat 1",
+        "standardChoice",
+        null
+      ],
+      [
+        "City Scavenger",
+        null,
+        "Ancestry Feat",
+        1,
+        "Goblin Feat 1",
+        "standardChoice",
+        null
+      ]
+    ],
+    "specials": [
+      "Overdrive",
+      "Construct Innovation",
+      "Explode",
+      "Peerless Inventor",
+      "Darkvision",
+      "School of Unified Magical Theory",
+      "Irongut Goblin"
+    ],
+    "lores": [
+      [
+        "Cooking",
+        2
+      ]
+    ],
+    "equipmentContainers": {},
+    "equipment": [
+      [
+        "Artisan's Toolkit",
+        1,
+        "Invested"
+      ]
+    ],
+    "specificProficiencies": {
+      "trained": [],
+      "expert": [],
+      "master": [],
+      "legendary": []
+    },
+    "weapons": [
+      {
+        "name": "Dagger",
+        "qty": 1,
+        "prof": "simple",
+        "die": "d4",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Dagger",
+        "runes": [],
+        "damageType": "P",
+        "attack": 6,
+        "damageBonus": 3,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      }
+    ],
+    "money": {
+      "cp": 0,
+      "sp": 0,
+      "gp": 15,
+      "pp": 0
+    },
+    "armor": [
+      {
+        "name": "Armored Coat",
+        "qty": 1,
+        "prof": "light",
+        "pot": 0,
+        "res": "",
+        "mat": null,
+        "display": "Armored Coat",
+        "worn": true,
+        "runes": [],
+        "grade": ""
+      }
+    ],
+    "spellCasters": [
+      {
+        "name": "Archetype Wizard",
+        "magicTradition": "arcane",
+        "spellcastingType": "prepared",
+        "ability": "int",
+        "proficiency": 2,
+        "focusPoints": 0,
+        "innate": false,
+        "perDay": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "spells": [
+          {
+            "spellLevel": 0,
+            "list": [
+              "Prestidigitation"
+            ]
+          }
+        ],
+        "prepared": [
+          {
+            "spellLevel": 0,
+            "list": [
+              "Prestidigitation",
+              "Eat Fire"
+            ]
+          }
+        ],
+        "blendedSpells": []
+      }
+    ],
+    "focusPoints": 0,
+    "focus": {},
+    "formula": [],
+    "acTotal": {
+      "acProfBonus": 3,
+      "acAbilityBonus": 1,
+      "acItemBonus": 2,
+      "acTotal": 16,
+      "shieldBonus": null
+    },
+    "pets": [],
+    "familiars": []
+  }
+}

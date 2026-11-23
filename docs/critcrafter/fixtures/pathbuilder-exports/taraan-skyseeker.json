@@ -1,0 +1,793 @@
+{
+  "success": true,
+  "build": {
+    "name": "Fixture",
+    "class": "Cleric",
+    "dualClass": "Witch",
+    "level": 2,
+    "xp": 0,
+    "ancestry": "Tengu",
+    "heritage": "Skyborn Tengu",
+    "background": "Archaeologist",
+    "alignment": "N",
+    "gender": "masculine, he/him",
+    "age": "25",
+    "deity": "Soralyon",
+    "size": 2,
+    "sizeName": "Medium",
+    "keyability": "wis",
+    "languages": [
+      "Dwarven",
+      "Elven",
+      "Empyrean",
+      "Mwangi",
+      "Xanmba",
+      "Taldan (common)",
+      "Tengu"
+    ],
+    "rituals": [],
+    "resistances": [],
+    "inventorMods": [],
+    "abilities": {
+      "str": 10,
+      "dex": 14,
+      "con": 10,
+      "int": 18,
+      "wis": 16,
+      "cha": 12,
+      "breakdown": {
+        "ancestryFree": [
+          "Int"
+        ],
+        "ancestryBoosts": [
+          "Dex"
+        ],
+        "ancestryFlaws": [],
+        "backgroundBoosts": [
+          "Int",
+          "Wis"
+        ],
+        "classBoosts": [
+          "Wis",
+          "Int"
+        ],
+        "mapLevelledBoosts": {
+          "1": [
+            "Dex",
+            "Wis",
+            "Int",
+            "Cha"
+          ]
+        }
+      }
+    },
+    "attributes": {
+      "ancestryhp": 6,
+      "classhp": 8,
+      "bonushp": 0,
+      "bonushpPerLevel": 0,
+      "speed": 25,
+      "speedBonus": 0
+    },
+    "proficiencies": {
+      "classDC": 2,
+      "perception": 2,
+      "fortitude": 4,
+      "reflex": 2,
+      "will": 4,
+      "heavy": 0,
+      "medium": 2,
+      "light": 2,
+      "unarmored": 2,
+      "advanced": 0,
+      "martial": 0,
+      "simple": 2,
+      "unarmed": 2,
+      "castingArcane": 2,
+      "castingDivine": 2,
+      "castingOccult": 0,
+      "castingPrimal": 0,
+      "acrobatics": 2,
+      "arcana": 2,
+      "athletics": 2,
+      "crafting": 2,
+      "deception": 0,
+      "diplomacy": 2,
+      "intimidation": 2,
+      "medicine": 2,
+      "nature": 2,
+      "occultism": 0,
+      "performance": 2,
+      "religion": 2,
+      "society": 2,
+      "stealth": 0,
+      "survival": 2,
+      "thievery": 0,
+      "piloting": 0,
+      "computers": 0
+    },
+    "mods": {
+      "Diplomacy": {
+        "Item Bonus": 1
+      },
+      "Religion": {
+        "Item Bonus": 1
+      }
+    },
+    "feats": [
+      [
+        "Shield Block",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Additional Lore",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Enhanced Familiar",
+        null,
+        "Awarded Feat",
+        2
+      ],
+      [
+        "Skyborn Tengu",
+        null,
+        "Heritage",
+        1,
+        "Heritage Feat",
+        "standardChoice",
+        null
+      ],
+      [
+        "Additional Lore",
+        null,
+        "General Feat",
+        1,
+        "c3820eac-11a8-4b44-8d03-31fe24f3e1cf",
+        "standardChoice",
+        null
+      ],
+      [
+        "Tengu Lore",
+        null,
+        "Ancestry Feat",
+        1,
+        "Tengu Feat 1",
+        "standardChoice",
+        null
+      ],
+      [
+        "Additional Lore",
+        null,
+        "Skill Feat",
+        1,
+        "BACKGROUND_Archaeologistchild1",
+        "standardChoice",
+        null
+      ],
+      [
+        "Scavenger's Search",
+        null,
+        "Ancestry Feat",
+        1,
+        "Ancestry Paragon 1",
+        "standardChoice",
+        null
+      ],
+      [
+        "Skill Training",
+        "Intimidation",
+        "Skill Feat",
+        2,
+        "Skill Feat 2",
+        "standardChoice",
+        null
+      ],
+      [
+        "Sap Life",
+        null,
+        "Class Feat",
+        2,
+        "Cleric Feat 2",
+        "standardChoice",
+        null
+      ],
+      [
+        "Basic Lesson",
+        null,
+        "Class Feat",
+        2,
+        "Witch Feat 2",
+        "standardChoice",
+        null
+      ],
+      [
+        "Familiar Master Dedication",
+        null,
+        "Archetype Feat",
+        2,
+        "Free Archetype 2",
+        "standardChoice",
+        null
+      ]
+    ],
+    "specials": [
+      "Deity",
+      "Healing Font",
+      "Cleric Spellcasting",
+      "Warpriest",
+      "Anathema",
+      "Holy",
+      "Familiar",
+      "Phase Familiar",
+      "The Inscribed One Patron",
+      "Familiar of Flowing Script",
+      "Witch Spellcasting",
+      "Low-Light Vision",
+      "Sharp Beak",
+      "Lesson of the Elements",
+      "Enhanced Familiar Feat",
+      "Skyborn Tengu"
+    ],
+    "lores": [
+      [
+        "Architecture",
+        2
+      ],
+      [
+        "Fey",
+        2
+      ],
+      [
+        "Tengu",
+        2
+      ],
+      [
+        "ancient mwangi expanse",
+        2
+      ],
+      [
+        "Magambya",
+        2
+      ]
+    ],
+    "equipmentContainers": {
+      "9c8ec35f-e845-486e-81d6-bf57fc9522c3": {
+        "containerName": "Smuggler's Sack",
+        "bagOfHolding": false,
+        "backpack": false,
+        "augmentations": false
+      }
+    },
+    "equipment": [
+      [
+        "Artisan's Tools",
+        1,
+        "Invested"
+      ],
+      [
+        "Basic Crafter's Book",
+        1,
+        "Invested"
+      ],
+      [
+        "Bedroll",
+        1,
+        "Invested"
+      ],
+      [
+        "Oilskin Pouch",
+        1,
+        "Invested"
+      ],
+      [
+        "Religious Symbol (Wooden)",
+        1,
+        "Invested"
+      ],
+      [
+        "Repair Kit",
+        1,
+        "Invested"
+      ],
+      [
+        "Religious Text",
+        1,
+        "Invested"
+      ],
+      [
+        "Rope",
+        1,
+        "Invested"
+      ],
+      [
+        "Rubbing Set",
+        1,
+        "Invested"
+      ],
+      [
+        "Ruler",
+        1,
+        "Invested"
+      ],
+      [
+        "Soap",
+        1,
+        "Invested"
+      ],
+      [
+        "Spellbook (Blank)",
+        1,
+        "Invested"
+      ],
+      [
+        "Waterskin",
+        1,
+        "Invested"
+      ],
+      [
+        "Writing Set",
+        1,
+        "Invested"
+      ],
+      [
+        "Paint Set",
+        1,
+        "Invested"
+      ],
+      [
+        "Ring of Discretion",
+        1,
+        "Invested"
+      ],
+      [
+        "Glasses of Sociability",
+        1,
+        "Invested"
+      ],
+      [
+        "Shining Symbol",
+        1,
+        "Invested"
+      ],
+      [
+        "Caltrops",
+        1,
+        "Invested"
+      ],
+      [
+        "Familiar Satchel",
+        1,
+        "Invested"
+      ],
+      [
+        "Sack",
+        1,
+        "Invested"
+      ],
+      [
+        "Merciful Balm",
+        1,
+        "Invested"
+      ],
+      [
+        "Scroll of Sure Strike",
+        1,
+        "Invested"
+      ],
+      [
+        "Smuggler's Sack II",
+        1,
+        "Invested"
+      ],
+      [
+        "Clothing (Explorer's)",
+        1,
+        "Invested"
+      ],
+      [
+        "Flint and Steel",
+        1,
+        "Invested"
+      ],
+      [
+        "Scroll of Augury",
+        1,
+        "Invested"
+      ],
+      [
+        "Scroll of Fleet Step",
+        1,
+        "Invested"
+      ]
+    ],
+    "specificProficiencies": {
+      "trained": [
+        "Pick"
+      ],
+      "expert": [],
+      "master": [],
+      "legendary": []
+    },
+    "weapons": [
+      {
+        "name": "Sharp Beak",
+        "qty": 1,
+        "prof": "unarmed",
+        "die": "d6",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Sharp Beak",
+        "runes": [],
+        "damageType": "P",
+        "attack": 6,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      },
+      {
+        "name": "Margent",
+        "qty": 1,
+        "prof": "simple",
+        "die": "d4",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Margent",
+        "runes": [],
+        "damageType": "B",
+        "attack": 4,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      },
+      {
+        "name": "Wordreaper",
+        "qty": 1,
+        "prof": "simple",
+        "die": "d4",
+        "pot": 1,
+        "str": "",
+        "mat": null,
+        "display": "Wordreaper",
+        "runes": [],
+        "damageType": "S",
+        "attack": 7,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      },
+      {
+        "name": "Pick",
+        "qty": 1,
+        "prof": "martial",
+        "die": "d6",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Pick",
+        "runes": [],
+        "damageType": "P",
+        "attack": 4,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      }
+    ],
+    "money": {
+      "cp": 7,
+      "sp": 9,
+      "gp": 84,
+      "pp": 0
+    },
+    "armor": [
+      {
+        "name": "Kilted Breastplate",
+        "qty": 1,
+        "prof": "light",
+        "pot": 0,
+        "res": "",
+        "mat": null,
+        "display": "Kilted Breastplate",
+        "worn": true,
+        "runes": [],
+        "grade": ""
+      },
+      {
+        "name": "Caster's Targe",
+        "qty": 1,
+        "prof": "shield",
+        "pot": 0,
+        "res": "",
+        "mat": null,
+        "display": "",
+        "worn": true,
+        "runes": [],
+        "grade": ""
+      }
+    ],
+    "spellCasters": [
+      {
+        "name": "Cleric",
+        "magicTradition": "divine",
+        "spellcastingType": "prepared",
+        "ability": "wis",
+        "proficiency": 2,
+        "focusPoints": 0,
+        "innate": false,
+        "perDay": [
+          6,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "spells": [
+          {
+            "spellLevel": 0,
+            "list": [
+              "Stabilize",
+              "Forbidding Ward",
+              "Torturous Trauma",
+              "Detect Magic",
+              "Divine Lance",
+              "Dancing Lights"
+            ]
+          },
+          {
+            "spellLevel": 1,
+            "list": [
+              "Summon Construct",
+              "Admonishing Ray",
+              "Helpful Steps"
+            ]
+          }
+        ],
+        "prepared": [],
+        "blendedSpells": []
+      },
+      {
+        "name": "Cleric Font",
+        "magicTradition": "divine",
+        "spellcastingType": "prepared",
+        "ability": "wis",
+        "proficiency": 2,
+        "focusPoints": 0,
+        "innate": false,
+        "perDay": [
+          0,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "spells": [
+          {
+            "spellLevel": 0,
+            "list": []
+          },
+          {
+            "spellLevel": 1,
+            "list": [
+              "Heal",
+              "Heal",
+              "Heal",
+              "Heal"
+            ]
+          }
+        ],
+        "prepared": [],
+        "blendedSpells": []
+      },
+      {
+        "name": "Witch",
+        "magicTradition": "arcane",
+        "spellcastingType": "prepared",
+        "ability": "int",
+        "proficiency": 2,
+        "focusPoints": 0,
+        "innate": false,
+        "perDay": [
+          5,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "spells": [
+          {
+            "spellLevel": 0,
+            "list": [
+              "Scatter Scree",
+              "Prestidigitation",
+              "Electric Arc",
+              "Needle Darts",
+              "Artistic Recollection"
+            ]
+          },
+          {
+            "spellLevel": 1,
+            "list": [
+              "Elysian Whimsy",
+              "Charm",
+              "Shattering Gem",
+              "Admonishing Ray",
+              "Pocket Library",
+              "Alarm",
+              "Horizon Thunder Sphere",
+              "True Strike"
+            ]
+          }
+        ],
+        "prepared": [
+          {
+            "spellLevel": 0,
+            "list": [
+              "Prestidigitation",
+              "Electric Arc",
+              "Scatter Scree",
+              "Needle Darts",
+              "Artistic Recollection"
+            ]
+          },
+          {
+            "spellLevel": 1,
+            "list": [
+              "Shattering Gem",
+              "Pocket Library",
+              "True Strike"
+            ]
+          }
+        ],
+        "blendedSpells": []
+      },
+      {
+        "name": "Other Spells (Staves etc)",
+        "magicTradition": "arcane",
+        "spellcastingType": "prepared",
+        "ability": "cha",
+        "proficiency": 2,
+        "focusPoints": 0,
+        "innate": false,
+        "perDay": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "spells": [
+          {
+            "spellLevel": 0,
+            "list": [
+              "Message"
+            ]
+          },
+          {
+            "spellLevel": 1,
+            "list": [
+              "Fear"
+            ]
+          },
+          {
+            "spellLevel": 2,
+            "list": []
+          },
+          {
+            "spellLevel": 3,
+            "list": []
+          },
+          {
+            "spellLevel": 4,
+            "list": []
+          },
+          {
+            "spellLevel": 5,
+            "list": []
+          },
+          {
+            "spellLevel": 6,
+            "list": []
+          },
+          {
+            "spellLevel": 7,
+            "list": []
+          },
+          {
+            "spellLevel": 8,
+            "list": []
+          },
+          {
+            "spellLevel": 9,
+            "list": []
+          },
+          {
+            "spellLevel": 10,
+            "list": []
+          }
+        ],
+        "prepared": [],
+        "blendedSpells": []
+      }
+    ],
+    "focusPoints": 2,
+    "focus": {
+      "arcane": {
+        "int": {
+          "abilityBonus": 4,
+          "proficiency": 2,
+          "itemBonus": 0,
+          "focusCantrips": [
+            "Discern Secrets"
+          ],
+          "focusSpells": [
+            "Phase Familiar",
+            "Elemental Betrayal"
+          ]
+        }
+      }
+    },
+    "formula": [],
+    "acTotal": {
+      "acProfBonus": 4,
+      "acAbilityBonus": 2,
+      "acItemBonus": 2,
+      "acTotal": 18,
+      "shieldBonus": "1"
+    },
+    "pets": [],
+    "familiars": [
+      {
+        "type": "Familiar",
+        "name": "Elemental Wisp (Earth) (Erudite (Eru))",
+        "equipment": [],
+        "specific": "Elemental Wisp (Earth)",
+        "abilities": [
+          "Accompanist",
+          "Elemental",
+          "Speech",
+          "Burrower",
+          "Independent",
+          "Tough"
+        ]
+      }
+    ]
+  }
+}
