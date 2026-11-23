@@ -63,3 +63,6 @@ world-builder/research/youtube-subtitles/raw/*
 world-builder/research/sensitivity-results/*
 !world-builder/research/sensitivity-results/.gitkeep
 .aider*
+
+# Claude Code agent worktrees
+.claude/worktrees/
