@@ -222,7 +222,7 @@
         },
         "range": { "type": ["integer", "null"] },
         "reach": { "type": ["integer", "null"] },
-        "worn": { "type": "boolean", "description": "Initial held state from the export, when it carries one." }
+        "worn": { "type": "boolean", "description": "Reserved. Pathbuilder exports carry no held state for weapons, so the function never sets it and the viewer ignores it: every weapon starts put away." }
       }
     },
 

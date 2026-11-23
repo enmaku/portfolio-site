@@ -56,9 +56,8 @@ export function initialState(sheet) {
     focusUsed: 0,
     slots: {},
     consumed: {},
-    held: weapons(sheet)
-      .filter((w) => w.worn)
-      .map((w) => w.key),
+    // Pathbuilder exports carry no held state for weapons, so none starts in hand (SPEC: equipment as exported).
+    held: [],
     grips: {},
     armor: worn ? worn.key : null,
     shield: shield ? shield.key : null,

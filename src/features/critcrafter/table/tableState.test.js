@@ -37,11 +37,10 @@ test('fresh state: full HP, nothing used, unarmored AC', () => {
 test('export flags seed the initial equipment', () => {
   const sh = sheet()
   sh.gear.armor[1].wornInExport = true
-  sh.gear.weapons[0].worn = true
   sh.gear.shields[0].wornInExport = true
   const s = initialState(sh)
   assert.equal(s.armor, 'plate')
-  assert.deepEqual(held(s), ['sword'])
+  assert.deepEqual(held(s), []) // Pathbuilder weapons carry no held state: all start put away
   assert.equal(s.shield, 'tower')
 })
 
