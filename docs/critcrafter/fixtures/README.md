@@ -27,7 +27,7 @@ Committed exports are the `{ success, build }` body with the character name repl
 | `taraan-skyseeker.json` | Tengu Cleric / Witch 2 | Dual class, `Cleric Font`, familiar, `mods` (Diplomacy, Religion), item potency and resilient values. |
 | `yggostrus.json` | Dragonet Summoner 1 | `Homing Drake` pseudo-caster beside the real one. |
 
-None of these has been hand-verified against Pathbuilder's own screen except the two Dwarf Fighter HP totals.
+None of these has been hand-verified against Pathbuilder's own screen except the two Dwarf Fighter HP totals. The derived-stat goldens (`functions/critcrafter/derived/index.test.js`) are additionally cross-checked against the totals Pathbuilder precomputes in each export (every weapon `attack`, worn-armor `acTotal`); skills, saves, Perception, class DC and spell numbers have no such reference and still wait for a screen check.
 
 ## Missing exports and synthetic fallbacks
 
