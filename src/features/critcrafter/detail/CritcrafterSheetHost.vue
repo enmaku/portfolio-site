@@ -123,4 +123,17 @@ const AON_LINK = 'Search Archives of Nethys'
 .cc-rules :deep(p) {
   margin: 0 0 8px;
 }
+/* Corpus descriptions carry h1-h6 ("Sample ... Tasks"); keep them body-sized, not page headings. */
+.cc-rules :deep(h1),
+.cc-rules :deep(h2),
+.cc-rules :deep(h3),
+.cc-rules :deep(h4),
+.cc-rules :deep(h5),
+.cc-rules :deep(h6) {
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: normal;
+  margin: 14px 0 6px;
+}
 </style>
