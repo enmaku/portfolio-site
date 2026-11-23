@@ -48,6 +48,7 @@ const AON_LINK = 'Search Archives of Nethys'
           <div class="cc-amt text-right">{{ top.view.total }}</div>
         </div>
         <div v-if="top.view.actions.length" class="q-mt-md">
+          <div class="cc-label" data-testid="cc-sheet-actions-label">Actions</div>
           <div
             v-for="a in top.view.actions"
             :key="a.key"
