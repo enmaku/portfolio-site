@@ -13,7 +13,7 @@ const groups = computed(() => actionGroupsView(props.sheet.actions))
 <template>
   <div data-testid="cc-screen-actions">
     <div v-if="groups.length === 0" class="text-body2 cc-muted" data-testid="cc-empty">No actions in this build</div>
-    <q-expansion-item v-for="g in groups" :key="g.id" :default-opened="g.defaultOpen" dark expand-separator class="cc-exp" header-class="cc-exp-head" :label="g.label" :caption="String(g.entries.length)" data-testid="cc-action-group">
+    <q-expansion-item v-for="g in groups" :key="g.id" :default-opened="g.defaultOpen" dark expand-separator class="cc-exp" header-class="cc-exp-head" :label="g.label" data-testid="cc-action-group">
       <CritcrafterEntryRow v-for="e in g.entries" :key="e.key" :entry="e" bold @open="openDetail(e)" />
     </q-expansion-item>
   </div>
