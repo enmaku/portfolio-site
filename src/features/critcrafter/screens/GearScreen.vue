@@ -146,8 +146,11 @@ function statText(group, e) {
 /* Left-align the chips with the item name (like the armor "AC n" line); the tap area extends right. */
 .cc-wstat :deep(.cc-statnum) {
   min-width: 0;
-  min-height: 40px;
-  padding: 0 16px 0 0;
+  min-height: 0;
+  /* Vertical padding grows the tap target to 40px; the matching negative margin keeps the layout
+     height equal to a plain caption line, like the armor "AC n" line. */
+  padding: 10px 16px 10px 0;
+  margin: -10px 0;
   text-align: left;
 }
 </style>
