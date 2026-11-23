@@ -188,6 +188,12 @@ The fully filled, viewer-specific JSON the **sheet function** returns for one **
 
 _Avoid_: “Character” or “hero” (SoT’s term); calling the **Pathbuilder export** a sheet.
 
+### Stat breakdown
+
+The list of labelled, typed contributions (ability, proficiency, level, item, circumstance and so on) that sum to a derived number on the **CritCrafter sheet**. Every derived number carries one, and the viewer shows it when the number is tapped.
+
+_Avoid_: “Explanation” or “tooltip”; recomputing a breakdown in the viewer.
+
 ### Features (CritCrafter viewer)
 
 The expansion at the bottom of the Stats screen listing a character's passive feats, class features and heritage, grouped by source and ordered by level. Passives never appear on the Actions screen.
