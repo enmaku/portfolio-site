@@ -36,13 +36,6 @@ export const useCritcrafterTableStore = defineStore('critcrafterTable', {
       this._storage = markRaw(storage)
     },
 
-    /** Clear this character's tracking (the caller confirms first). */
-    resetTracking() {
-      if (!this.sheet) return
-      this._storage.clear(this.id)
-      this.table = T.initialState(this.sheet)
-    },
-
     /** Apply `{ state, notes }` from a rule and persist when it changed. */
     _commit(outcome) {
       const state = outcome && outcome.state ? outcome.state : outcome

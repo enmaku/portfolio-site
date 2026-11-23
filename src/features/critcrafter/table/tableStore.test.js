@@ -105,17 +105,6 @@ test('no storage at all behaves like unavailable', () => {
   assert.equal(store.hp, 39)
 })
 
-test('reset tracking clears the character back to the sheet', () => {
-  const raw = fakeStorage()
-  const { store } = openFresh('111', createTableStorage(raw))
-  store.applyHp('damage', 10)
-  store.toggleShield('tower')
-  store.resetTracking()
-  assert.equal(store.hp, 40)
-  assert.equal(store.shield, null)
-  assert.equal(raw.data.has(`${TABLE_KEY_PREFIX}111`), false)
-})
-
 test('mutators return notes for the toast and a no-op leaves storage untouched', () => {
   const raw = fakeStorage()
   const { store } = openFresh('111', createTableStorage(raw))

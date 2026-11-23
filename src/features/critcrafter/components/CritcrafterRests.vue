@@ -1,8 +1,7 @@
 <script setup>
 /**
- * Stats screen rest row (Refocus, 8 h, 24 h, Extended) plus Reset tracking. Rests apply immediately
- * and announce their effect in a toast (no per-rest prompt, SPEC "Table tracking"); only Reset tracking
- * confirms before clearing the character's state.
+ * Stats screen rest row (Refocus, 8 h, 24 h, Extended). Rests apply immediately and announce their
+ * effect in a toast (no per-rest prompt, SPEC "Table tracking").
  * Rules: table/tableState.js `rest`. Reads and writes the table store.
  */
 import { useQuasar } from 'quasar'
@@ -22,16 +21,6 @@ function rest(r) {
   store.rest(r.kind)
   $q.notify({ message: `${r.label}: ${r.text}`, icon: r.icon, timeout: 2500 })
 }
-
-function resetTracking() {
-  $q.dialog({
-    title: 'Reset tracking',
-    message: 'Clear HP, slots, focus, consumables, equipment and shield state for this character?',
-    cancel: true,
-    ok: { label: 'Reset', color: 'negative' },
-    dark: true,
-  }).onOk(() => store.resetTracking())
-}
 </script>
 
 <template>
@@ -50,12 +39,5 @@ function resetTracking() {
         @click="rest(r)"
       />
     </div>
-    <q-btn flat no-caps dense class="cc-reset" label="Reset tracking" icon="restart_alt" data-testid="cc-reset" @click="resetTracking" />
   </div>
 </template>
-
-<style scoped>
-.cc-reset {
-  min-height: 48px;
-}
-</style>

@@ -90,10 +90,6 @@ Two hands. Equipping or raising a shield puts weapons away (earliest first) unti
 
 Refocus, 8 h, 24 h or Extended, applied immediately with a toast (no per-rest prompt). Every 8 h or longer rest refills slots and focus and clears temp HP; rests never repair shields or reset consumables.
 
-### Reset tracking
-
-The one confirmed action that clears a character's **table state**.
-
 ### Recent
 
 The landing row of the last three successfully loaded ids, labelled with the character name, kept in `localStorage`.
