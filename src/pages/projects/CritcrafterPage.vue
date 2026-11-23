@@ -54,7 +54,7 @@ function retry() {
       @retry="retry"
       @try-another="tryAnother"
     />
-    <CritcrafterViewer v-else-if="phase === 'ready'" :sheet="sheet" />
+    <CritcrafterViewer v-else-if="phase === 'ready'" :sheet="sheet" :id="lastId" />
     <CritcrafterLanding v-else :bad-id="badUrlId" @open="openId" />
   </q-page>
 </template>
