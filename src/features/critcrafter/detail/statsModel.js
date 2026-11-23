@@ -14,7 +14,14 @@ export function statsScreenView(sheet) {
     if (c.dc) dc.push({ label: `${name} spell DC`, stat: c.dc, signed: false })
   }
   if (sheet.spells?.focus) add('Focus', sheet.spells.focus)
-  for (const c of sheet.spells?.casters ?? []) add(c.name, c)
+  // Archetype casters often match the class entry exactly (same tradition, ability, proficiency): list one.
+  const seen = new Set()
+  for (const c of sheet.spells?.casters ?? []) {
+    const sig = JSON.stringify([c.attack, c.dc])
+    if ((c.attack || c.dc) && seen.has(sig)) continue
+    seen.add(sig)
+    add(c.name, c)
+  }
   return {
     saves: saves.map((s) => ({ id: s.id, label: s.name, rank: s.rank, stat: s.bonus, signed: true })),
     abilities: abilities.map((a) => ({

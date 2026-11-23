@@ -79,3 +79,18 @@ test('every tappable stat in the fixtures opens a breakdown whose rows sum to th
     }
   }
 })
+
+test('DC & attack: a caster whose attack and DC are identical to an earlier caster is listed once', () => {
+  const s = richSheet()
+  s.spells.casters.push({ key: 'c3', name: 'Archetype Oracle', tradition: 'divine', kind: 'archetype', attack: st(7), dc: st(17), slots: {}, ranks: [] })
+  const labels = statsScreenView(s).dc.map((r) => r.label)
+  assert.deepEqual(labels.filter((l) => /Oracle/.test(l)), ['Oracle spell attack', 'Oracle spell DC'])
+})
+
+test('DC & attack: casters with different numbers are both listed', () => {
+  const s = richSheet()
+  s.spells.casters.push({ key: 'c3', name: 'Archetype Oracle', tradition: 'divine', kind: 'archetype', attack: st(5), dc: st(15), slots: {}, ranks: [] })
+  const labels = statsScreenView(s).dc.map((r) => r.label)
+  assert.ok(labels.includes('Archetype Oracle spell attack'))
+  assert.ok(labels.includes('Archetype Oracle spell DC'))
+})
