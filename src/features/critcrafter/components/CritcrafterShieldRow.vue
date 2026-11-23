@@ -19,12 +19,12 @@ const emit = defineEmits(['open'])
   >
     <q-icon name="shield" size="16px" class="q-mr-xs" />
     <span class="ellipsis cc-name">{{ shield.name }}</span>
-    <span class="q-mx-xs">{{ shield.raised ? `raised, +${shield.acBonus} AC` : 'lowered' }}</span>
-    <span class="q-mx-xs">Hardness {{ shield.hardness }}</span>
+    <span class="q-mx-xs">{{ shield.raised ? (shield.acBonus === null ? 'raised' : `raised, +${shield.acBonus} AC`) : 'lowered' }}</span>
+    <span class="q-mx-xs">Hardness {{ shield.hardness ?? '?' }}</span>
     <span class="q-mx-xs" :class="{ broken: shield.broken }" data-testid="cc-shield-hp">
-      HP {{ shield.hp }}/{{ shield.max }}<template v-if="shield.broken"> BROKEN</template>
+      HP {{ shield.hp ?? '?' }}/{{ shield.max ?? '?' }}<template v-if="shield.broken"> BROKEN</template>
     </span>
-    <span class="q-ml-xs">BT {{ shield.bt }}</span>
+    <span class="q-ml-xs">BT {{ shield.bt ?? '?' }}</span>
   </button>
 </template>
 

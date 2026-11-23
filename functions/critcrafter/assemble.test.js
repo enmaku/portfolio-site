@@ -109,6 +109,34 @@ test('a thrown trait gives a range and a melee reach; the reach trait gives 10',
   assert.deepEqual([halberd.hands, halberd.versatile, halberd.range, halberd.reach], [2, null, null, 10])
 })
 
+test('unmatched armor and shields carry null instead of fabricated numbers, and the sheet stays valid', async () => {
+  const sheet = await sheetFor(
+    syntheticBuild({
+      armor: [
+        { name: 'Homebrew Plate', qty: 1, prof: 'heavy', worn: false },
+        { name: 'Homebrew Shield', qty: 1, prof: 'shield', worn: false },
+      ],
+    }),
+    [],
+  )
+  assert.equal(sheet.gear.armor[0].acTotal, null)
+  const s = sheet.gear.shields[0]
+  assert.deepEqual([s.acBonus, s.hardness, s.hp, s.bt], [null, null, null, null])
+  assert.ok(sheet.warnings.some((w) => w.code === 'armor_ac_unknown'))
+  assert.ok(sheet.warnings.some((w) => w.code === 'shield_bonus_unknown'))
+  assertValidSheet(sheet)
+  assertSumInvariant(sheet)
+})
+
+test('an unmatched weapon warns that its hands were assumed', async () => {
+  const sheet = await sheetFor(
+    syntheticBuild({ weapons: [{ name: 'Homebrew Maul', qty: 1, prof: 'martial', die: 'd10', pot: 0, str: '', damageType: 'B', attack: 5, damageBonus: 0 }] }),
+    [],
+  )
+  assert.equal(sheet.gear.weapons[0].hands, 1)
+  assert.ok(sheet.warnings.some((w) => w.code === 'weapon_hands_assumed' && w.path === 'gear.weapons[0].hands'))
+})
+
 test('a buckler is flagged by name', async () => {
   const sheet = await sheetFor(syntheticBuild({ armor: [{ name: 'Steel Buckler', qty: 1, prof: 'shield', worn: false }] }), [itemDoc('Steel Buckler', { itemType: 'shield', acBonus: 1, hardness: 3, hp: 20 })])
   assert.equal(sheet.gear.shields[0].buckler, true)

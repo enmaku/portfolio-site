@@ -452,3 +452,30 @@ test('toStored keeps deltas only, and round-trips through resolveState', () => {
   assert.equal(stored.hp, 10)
   assert.deepEqual(resolveState(sh2, JSON.parse(JSON.stringify(stored))), s)
 })
+
+// ---- unknown (null) gear numbers -------------------------------------------------------------
+
+function unknownGear() {
+  const sh = tableSheet()
+  sh.gear.armor.push({ ...sh.gear.armor[0], key: 'mystery', name: 'mystery', acTotal: null })
+  sh.gear.shields.push({ ...sh.gear.shields[0], key: 'oddshield', name: 'oddshield', acBonus: null, hardness: null, hp: null, bt: null })
+  return sh
+}
+
+test('worn armor with unknown AC leaves AC at the unarmored value', () => {
+  const sh = unknownGear()
+  const s = toggleArmor(sh, initialState(sh), 'mystery').state
+  assert.equal(s.armor, 'mystery')
+  assert.equal(liveAc(sh, s).value, 15)
+})
+
+test('a raised shield with unknown numbers changes no AC, and its HP cannot be tracked', () => {
+  const sh = unknownGear()
+  let s = toggleShield(sh, initialState(sh), 'oddshield').state
+  s = setShieldRaised(sh, s, true).state
+  assert.equal(liveAc(sh, s).value, 15)
+  const v = shieldView(sh, s)
+  assert.deepEqual([v.acBonus, v.hardness, v.hp, v.max, v.bt, v.broken], [null, null, null, null, null, false])
+  assert.deepEqual(applyHp(sh, s, 'shieldDamage', 3).state, s)
+  assert.deepEqual(resolveState(sh, toStored(sh, s)), s)
+})

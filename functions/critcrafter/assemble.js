@@ -3,7 +3,6 @@
 // `assembleSheet` is synchronous: every name must already be in the resolver (see `buildSheetFor`).
 const { deriveStats } = require('./derived')
 const { CORE_SKILLS } = require('./derived/skills')
-const { line, stat } = require('./derived/stat')
 const { nameKey } = require('./nameKey')
 const {
   cleanText, isCustomName, aonSearchUrl, rulesOf, costOf, costRank, formatPrice, bulkOf, defenseText, areaText, createKeyer, makeEntry,
@@ -291,6 +290,7 @@ function assembleSheet(build, { resolver, corpusSha, now = () => new Date() }) {
     const traits = (data && data.traits) || []
     const thrown = traits.map((t) => /^thrown-(\d+)$/.exec(t)).find(Boolean)
     const ranged = Number.isFinite(item.range) && item.range > 0
+    if (!hit) warn('weapon_hands_assumed', `gear.weapons[${w.index}].hands`, `Hands for "${w.name}" are unknown; one hand assumed`)
     const twoHandTrait = traits.some((t) => /^two-hand-/.test(t))
     return gearEntry('weapons', w.name, 'weapon', hit, w.qty, {
       hands: item.usage === 'held-in-two-hands' ? 2 : 1,
@@ -306,7 +306,7 @@ function assembleSheet(build, { resolver, corpusSha, now = () => new Date() }) {
     const hit = itemHit(a.name)
     if (!hit) unmatched(a.name, `gear.armor[${a.index}]`)
     return gearEntry('armor', a.name, 'armor', hit, a.qty, {
-      acTotal: a.acTotal || stat(derived.unarmoredAc.breakdown.map((b) => ({ ...b }))),
+      acTotal: a.acTotal || null, // null = unknown (no AC data); never a stand-in number
       wornInExport: a.wornInExport,
     })
   })
@@ -315,14 +315,14 @@ function assembleSheet(build, { resolver, corpusSha, now = () => new Date() }) {
     const hit = itemHit(s.name)
     if (!hit) unmatched(s.name, `gear.shields[${s.index}]`)
     const item = (hit && hit.entry.data.item) || {}
-    const hp = Number.isFinite(item.hp) ? item.hp : 0
+    const hp = Number.isFinite(item.hp) ? item.hp : null
     return gearEntry('shields', s.name, 'shield', hit, s.qty, {
-      acBonus: s.acBonus || stat([line('Unknown shield bonus', 0, 'untyped')]),
+      acBonus: s.acBonus || null,
       hands: 1,
       buckler: /\bbuckler\b/i.test(s.name),
-      hardness: Number.isFinite(item.hardness) ? item.hardness : 0,
+      hardness: Number.isFinite(item.hardness) ? item.hardness : null,
       hp,
-      bt: Math.floor(hp / 2),
+      bt: hp === null ? null : Math.floor(hp / 2),
       wornInExport: s.wornInExport,
     })
   })

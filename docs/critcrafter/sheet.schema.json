@@ -31,7 +31,7 @@
       "type": "object",
       "required": ["code", "path", "detail"],
       "properties": {
-        "code": { "type": "string", "description": "Stable machine code, e.g. name_unmatched, breakdown_residual, caster_dropped, mods_unknown_label, mods_unknown_type, max_hp_mismatch, focus_multiple_traditions, other_spells_no_dc, familiar_unparsed." },
+        "code": { "type": "string", "description": "Stable machine code, e.g. name_unmatched, breakdown_residual, caster_dropped, mods_unknown_label, mods_unknown_type, max_hp_mismatch, focus_multiple_traditions, other_spells_no_dc, familiar_unparsed, armor_ac_unknown, shield_bonus_unknown, weapon_hands_assumed." },
         "path": { "type": "string", "description": "Sheet path the warning is about, e.g. 'skills[3].bonus'." },
         "detail": { "type": "string", "description": "Human-readable. May contain names from the export, so it is never logged." }
       }
@@ -231,7 +231,7 @@
       "type": "object",
       "required": ["acTotal", "wornInExport"],
       "properties": {
-        "acTotal": { "$ref": "#/$defs/stat", "description": "AC as if this armor alone were worn, shield lowered." },
+        "acTotal": { "oneOf": [{ "$ref": "#/$defs/stat" }, { "type": "null" }], "description": "AC as if this armor alone were worn, shield lowered. null when unknown (not worn and no corpus entry); the viewer then leaves AC unchanged." },
         "wornInExport": { "type": "boolean", "description": "Initial worn state. Client AC = (worn armor acTotal, else header.unarmoredAc) + (shield raised ? shield acBonus : 0). One body armor at a time; layered armor is out of v1." }
       }
     },
@@ -241,12 +241,12 @@
       "type": "object",
       "required": ["acBonus", "hands", "buckler", "hardness", "hp", "bt"],
       "properties": {
-        "acBonus": { "$ref": "#/$defs/stat", "description": "Coerced from Pathbuilder's string shieldBonus; its own breakdown line." },
+        "acBonus": { "oneOf": [{ "$ref": "#/$defs/stat" }, { "type": "null" }], "description": "Coerced from Pathbuilder's string shieldBonus; its own breakdown line. null when unknown (no corpus entry); raising it then changes no AC." },
         "hands": { "type": "integer", "description": "Hands used while equipped (a buckler: only while raised, see buckler)." },
         "buckler": { "type": "boolean" },
-        "hardness": { "type": "integer" },
-        "hp": { "type": "integer", "description": "Max shield HP; current shield HP lives in the viewer store." },
-        "bt": { "type": "integer", "description": "Broken Threshold." },
+        "hardness": { "type": ["integer", "null"], "description": "null when unknown (no corpus entry)." },
+        "hp": { "type": ["integer", "null"], "description": "Max shield HP; null when unknown. Current shield HP lives in the viewer store." },
+        "bt": { "type": ["integer", "null"], "description": "Broken Threshold; null when unknown." },
         "wornInExport": { "type": "boolean" }
       }
     },

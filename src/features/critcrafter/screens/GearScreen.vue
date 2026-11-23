@@ -34,8 +34,8 @@ function act(fn) {
 }
 
 function statText(group, e) {
-  if (group === 'shields') return `+${e.acBonus.value} AC · Hardness ${e.hardness} · HP ${e.hp} · BT ${e.bt}`
-  if (group === 'armor') return `AC ${e.acTotal.value}`
+  if (group === 'shields') return `${e.acBonus ? `+${e.acBonus.value}` : '?'} AC · Hardness ${e.hardness ?? '?'} · HP ${e.hp ?? '?'} · BT ${e.bt ?? '?'}`
+  if (group === 'armor') return `AC ${e.acTotal ? e.acTotal.value : '?'}`
   return ''
 }
 </script>

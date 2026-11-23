@@ -135,7 +135,7 @@ function normalize(sheet, s) {
   }
   for (const [k, n] of Object.entries(s.shieldHp)) {
     const sh = byKey(shields(sheet), k)
-    if (sh && n < sh.hp) out.shieldHp[k] = n
+    if (sh && sh.hp != null && n < sh.hp) out.shieldHp[k] = n
   }
   out.held = weaponOrder(sheet, s.held)
   return out
@@ -180,7 +180,7 @@ export function resolveState(sheet, stored) {
   s.shieldRaised = stored.shieldRaised === true && s.shield !== null
   if (isObj(stored.shieldHp)) {
     for (const sh of shields(sheet)) {
-      if (sh.key in stored.shieldHp) s.shieldHp[sh.key] = clamp(int(stored.shieldHp[sh.key], sh.hp), 0, sh.hp)
+      if (sh.hp != null && sh.key in stored.shieldHp) s.shieldHp[sh.key] = clamp(int(stored.shieldHp[sh.key], sh.hp), 0, sh.hp)
     }
   }
 
@@ -206,11 +206,12 @@ export function toStored(sheet, s) {
  */
 export function liveAc(sheet, s) {
   const armor = s.armor ? byKey(armors(sheet), s.armor) : null
-  const base = armor ? armor.acTotal : sheet.header.unarmoredAc
+  // Unknown armor AC (null) changes nothing: fall back to the unarmored value.
+  const base = armor?.acTotal ?? sheet.header.unarmoredAc
   const breakdown = base.breakdown.map((b) => ({ ...b }))
   let value = base.value
   const sh = s.shieldRaised && s.shield ? byKey(shields(sheet), s.shield) : null
-  if (sh) {
+  if (sh?.acBonus) {
     value += sh.acBonus.value
     breakdown.push({ label: 'Shield raised', amount: sh.acBonus.value, type: 'circumstance' })
   }
@@ -271,18 +272,18 @@ export function setShieldRaised(sheet, s, raised) {
 export function shieldView(sheet, s) {
   const sh = s.shield ? byKey(shields(sheet), s.shield) : null
   if (!sh) return null
-  const hp = s.shieldHp[sh.key] ?? sh.hp
+  const hp = s.shieldHp[sh.key] ?? sh.hp ?? null
   return {
     key: sh.key,
     name: sh.name,
     raised: s.shieldRaised,
     buckler: sh.buckler,
-    acBonus: sh.acBonus.value,
-    hardness: sh.hardness,
+    acBonus: sh.acBonus?.value ?? null,
+    hardness: sh.hardness ?? null,
     hp,
-    max: sh.hp,
-    bt: sh.bt,
-    broken: hp <= sh.bt,
+    max: sh.hp ?? null,
+    bt: sh.bt ?? null,
+    broken: hp !== null && sh.bt != null && hp <= sh.bt,
   }
 }
 
@@ -304,7 +305,7 @@ export function applyHp(sheet, s, mode, amount) {
   if (mode === 'temp') return result(sheet, { ...s, tempHp: Math.max(s.tempHp, n) })
   if (mode === 'shieldDamage' || mode === 'shieldRepair') {
     const v = s.shieldRaised ? shieldView(sheet, s) : null
-    if (!v) return result(sheet, s)
+    if (!v || v.max === null) return result(sheet, s)
     const hp = mode === 'shieldDamage' ? Math.max(0, v.hp - n) : Math.min(v.max, v.hp + n)
     return result(sheet, { ...s, shieldHp: { ...s.shieldHp, [v.key]: hp } })
   }

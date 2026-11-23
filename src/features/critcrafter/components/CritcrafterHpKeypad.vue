@@ -26,7 +26,7 @@ const modes = computed(() => {
     { key: 'heal', label: 'Heal' },
     { key: 'temp', label: 'Temp HP' },
   ]
-  if (props.shield?.raised) {
+  if (props.shield?.raised && props.shield.max !== null) {
     m.push({ key: 'shieldDamage', label: 'Damage Shield' }, { key: 'shieldRepair', label: 'Repair Shield' })
   }
   return m
@@ -67,7 +67,7 @@ function apply() {
       <q-card-section class="q-pb-none">
         <div class="text-subtitle1" data-testid="cc-keypad-status">
           HP {{ hp }} / {{ maxHp }}<span v-if="tempHp"> · Temp {{ tempHp }}</span>
-          <span v-if="shield?.raised"> · Shield {{ shield.hp }} / {{ shield.max }}</span>
+          <span v-if="shield?.raised && shield.max !== null"> · Shield {{ shield.hp }} / {{ shield.max }}</span>
         </div>
         <div class="row q-gutter-xs q-mt-sm">
           <q-btn
