@@ -52,3 +52,12 @@ test('detailView of a miss has no html and offers the AoN link', () => {
   assert.equal(v.licenseTag, null)
   assert.equal(v.aonUrl, 'https://2e.aonprd.com/Search.aspx?q=Homebrew')
 })
+
+test('detailView carries item bulk and price for gear, null for other entries', () => {
+  const item = detailView(feat('Rope', 0, { bulk: 'L', price: '5 sp' }))
+  assert.equal(item.bulk, 'L')
+  assert.equal(item.price, '5 sp')
+  const plain = detailView(feat('Toughness', 1))
+  assert.equal(plain.bulk, null)
+  assert.equal(plain.price, null)
+})

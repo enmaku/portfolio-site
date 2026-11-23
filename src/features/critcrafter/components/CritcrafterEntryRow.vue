@@ -2,8 +2,7 @@
 /**
  * Chunky row for any sheet entry: name, optional stat text, trait chips, cost glyph, qty.
  * Tapping the row emits `open` (item detail). Slots: `stats` (extra tap targets under the name, e.g. weapon
- * attack/damage chips, which must stop propagation) and `controls` (right side; the #504 store renders
- * equip/raise/consumed controls there).
+ * attack/damage chips, which must stop propagation) and `controls` (right side: equip, raise and consumed controls).
  */
 import CritcrafterCostGlyph from './CritcrafterCostGlyph.vue'
 import CritcrafterTraitChips from './CritcrafterTraitChips.vue'
@@ -31,7 +30,6 @@ defineEmits(['open'])
     <div class="row items-center no-wrap q-gutter-x-sm q-ml-sm">
       <span v-if="qty > 1" class="cc-muted" data-testid="cc-qty">×{{ qty }}</span>
       <CritcrafterCostGlyph v-if="showCost" :cost="entry.cost" />
-      <!-- #504 hook point: equip / raise / consumed-box controls render here. -->
       <slot name="controls" />
     </div>
   </div>

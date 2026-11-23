@@ -1,18 +1,9 @@
 <script setup>
 /** Skills: one column, U T E M L ladder with the current rank circled, aligned right-aligned tappable bonus. */
-import { ref } from 'vue'
-import CritcrafterStatSheet from '../components/CritcrafterStatSheet.vue'
-import CritcrafterTapStat from '../components/CritcrafterTapStat.vue'
-import { rankLadder, signed } from '../viewer/screenModel.js'
+import StatNumber from '../detail/StatNumber.vue'
+import { rankLadder } from '../viewer/screenModel.js'
 
 defineProps({ sheet: { type: Object, required: true } })
-
-const sheetOpen = ref(false)
-const picked = ref(null)
-function show(skill) {
-  picked.value = skill
-  sheetOpen.value = true
-}
 </script>
 
 <template>
@@ -23,9 +14,8 @@ function show(skill) {
       <span class="cc-ladder">
         <span v-for="r in rankLadder(s.rank)" :key="r.rank" class="cc-ladder__pip" :class="{ 'cc-ladder__pip--on': r.current }">{{ r.rank }}</span>
       </span>
-      <CritcrafterTapStat class="cc-skill__bonus" :text="signed(s.bonus.value)" @tap="show(s)" />
+      <StatNumber class="cc-skill__bonus" :target="{ label: s.name, stat: s.bonus }" />
     </div>
-    <CritcrafterStatSheet v-model="sheetOpen" :title="picked?.name || ''" :stat="picked?.bonus || null" />
   </div>
 </template>
 

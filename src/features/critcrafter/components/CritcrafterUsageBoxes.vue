@@ -2,7 +2,7 @@
 /**
  * Tap-to-cycle usage boxes (spell slots, focus, consumables): one big tap target, 0..max used then
  * reset (the store's cycle* actions do the cycling; this emits `cycle`). More than 5 units show one
- * box and "k / n used". Used by Spells (#503) and Gear (#503).
+ * box and "k / n used". Used by Spells and Gear.
  */
 import { computed } from 'vue'
 

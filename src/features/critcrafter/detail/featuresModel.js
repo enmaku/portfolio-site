@@ -21,6 +21,8 @@ export function detailView(entry) {
     licenseTag: rules ? rules.license : null,
     source: rules ? rules.source : null,
     aonUrl: entry.aonUrl ?? null,
+    bulk: entry.bulk ?? null,
+    price: entry.price ?? null,
     linked: entry.linked ?? [],
   }
 }

@@ -83,11 +83,10 @@ export function bulkLine(bulk) {
   return `Bulk ${bulk.value} / ${bulk.encumberedAt}`
 }
 
-/** Stat text under a weapon name, e.g. "+9 · 1d8+4". @param {any} w */
-export function weaponStatText(w) {
+/** Weapon damage chip text, e.g. "1d8+4". @param {any} w */
+export function damageText(w) {
   const b = w.damage.bonus.value
-  const bonus = b === 0 ? '' : b < 0 ? `−${Math.abs(b)}` : `+${b}`
-  return `${signed(w.attack.value)} · ${w.damage.dice}${bonus}`
+  return `${w.damage.dice}${b === 0 ? '' : b < 0 ? `−${Math.abs(b)}` : `+${b}`}`
 }
 
 const rankLabel = (rank) => (rank === 0 ? 'Cantrips' : `Rank ${rank}`)
@@ -121,9 +120,4 @@ export function spellsView(spells) {
   const focusEntries = f ? [...f.cantrips, ...f.spells] : []
   const focus = f && focusEntries.length > 0 ? { pool: f.pool, attack: f.attack, dc: f.dc, entries: focusEntries } : null
   return { casters, focus, rituals: spells?.rituals ?? [] }
-}
-
-/** True when a screen's view has no sections, so it shows one muted line. @param {any[]} groups */
-export function screenIsEmpty(groups) {
-  return groups.length === 0
 }

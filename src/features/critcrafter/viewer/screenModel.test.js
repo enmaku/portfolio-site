@@ -8,9 +8,8 @@ import {
   actionGroupsView,
   gearGroupsView,
   bulkLine,
-  weaponStatText,
+  damageText,
   spellsView,
-  screenIsEmpty,
 } from './screenModel.js'
 import { minimalSheet } from '../test/minimalSheet.js'
 
@@ -117,11 +116,10 @@ test('bulkLine reads "Bulk n / limit" against the encumbered threshold', () => {
   assert.equal(bulkLine({ value: 0, encumberedAt: 9, max: 14 }), 'Bulk 0 / 9')
 })
 
-test('weaponStatText shows attack and damage with the sign rules', () => {
-  const w = { attack: { value: 9 }, damage: { dice: '1d8', bonus: { value: 4 } } }
-  assert.equal(weaponStatText(w), '+9 · 1d8+4')
-  assert.equal(weaponStatText({ attack: { value: 3 }, damage: { dice: '1d6', bonus: { value: 0 } } }), '+3 · 1d6')
-  assert.equal(weaponStatText({ attack: { value: 3 }, damage: { dice: '1d6', bonus: { value: -1 } } }), '+3 · 1d6−1')
+test('damageText shows dice with the signed bonus, omitting a zero bonus', () => {
+  assert.equal(damageText({ damage: { dice: '1d8', bonus: { value: 4 } } }), '1d8+4')
+  assert.equal(damageText({ damage: { dice: '1d6', bonus: { value: 0 } } }), '1d6')
+  assert.equal(damageText({ damage: { dice: '1d6', bonus: { value: -1 } } }), '1d6−1')
 })
 
 test('spellsView: casters by rank (cantrips first), one focus section, rituals last, empties omitted', () => {
@@ -156,9 +154,4 @@ test('spellsView omits focus when it has no entries and rituals when none', () =
   assert.equal(v.focus, null)
   assert.deepEqual(v.rituals, [])
   assert.deepEqual(v.casters, [])
-})
-
-test('screenIsEmpty is true only when a view has nothing to show', () => {
-  assert.equal(screenIsEmpty([]), true)
-  assert.equal(screenIsEmpty([{ id: 'x' }]), false)
 })

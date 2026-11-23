@@ -1,31 +1,25 @@
 <script setup>
 /**
  * Spells: per caster then rank (header with tradition, DC, attack), one Focus section across casters, Rituals last.
- * Rows open spell detail; scroll/wand `linked[]` spells show in that detail. Slot/focus usage controls are #504's.
+ * Rows open spell detail (scroll/wand `linked[]` spells show there). Slot and focus usage boxes in the headers
+ * tap-to-cycle through the table store (#504); cantrips show "at will".
  */
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { useCritcrafterTableStore } from '../../../stores/critcrafterTable.js'
 import CritcrafterEntryRow from '../components/CritcrafterEntryRow.vue'
-import CritcrafterEntrySheet from '../components/CritcrafterEntrySheet.vue'
-import CritcrafterStatSheet from '../components/CritcrafterStatSheet.vue'
-import CritcrafterTapStat from '../components/CritcrafterTapStat.vue'
-import { signed, spellsView } from '../viewer/screenModel.js'
+import CritcrafterUsageBoxes from '../components/CritcrafterUsageBoxes.vue'
+import StatNumber from '../detail/StatNumber.vue'
+import { openDetail } from '../detail/sheetStack.js'
+import { focusUsage, slotUsage } from '../table/tableView.js'
+import { spellsView } from '../viewer/screenModel.js'
 
 const props = defineProps({ sheet: { type: Object, required: true } })
+const table = useCritcrafterTableStore()
 const view = computed(() => spellsView(props.sheet.spells))
 const isEmpty = computed(() => view.value.casters.length === 0 && !view.value.focus && view.value.rituals.length === 0)
-
-const entryOpen = ref(false)
-const entry = ref(null)
-const statOpen = ref(false)
-const stat = ref({ title: '', stat: null })
-function openEntry(e) {
-  entry.value = e
-  entryOpen.value = true
-}
-function openStat(title, s) {
-  stat.value = { title, stat: s }
-  statOpen.value = true
-}
+const ready = computed(() => table.sheet === props.sheet && table.table !== null)
+const slots = (c, r) => (ready.value ? slotUsage(props.sheet, table.table, c.key, r.rank) : null)
+const focus = computed(() => (ready.value ? focusUsage(props.sheet, table.table) : null))
 const tradition = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '')
 </script>
 
@@ -38,15 +32,24 @@ const tradition = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '')
       <div v-if="c.dc || c.attack" class="row items-center">
         <template v-if="c.dc">
           <span class="cc-muted">DC</span>
-          <CritcrafterTapStat :text="String(c.dc.value)" @tap="openStat(`${c.name} spell DC`, c.dc)" />
+          <StatNumber :target="{ label: `${c.name} spell DC`, stat: c.dc, signed: false }" />
         </template>
         <template v-if="c.attack">
           <span class="cc-muted q-ml-md">Attack</span>
-          <CritcrafterTapStat :text="signed(c.attack.value)" @tap="openStat(`${c.name} spell attack`, c.attack)" />
+          <StatNumber :target="{ label: `${c.name} spell attack`, stat: c.attack }" />
         </template>
       </div>
-      <q-expansion-item v-for="r in c.ranks" :key="r.rank" default-opened :label="r.label" :caption="r.slots != null ? `${r.slots} slots` : 'at will'" header-class="cc-group">
-        <CritcrafterEntryRow v-for="e in r.entries" :key="e.key" :entry="e" @open="openEntry(e)" />
+      <q-expansion-item v-for="r in c.ranks" :key="r.rank" default-opened header-class="cc-group">
+        <template #header>
+          <q-item-section>
+            <q-item-label>{{ r.label }}</q-item-label>
+            <q-item-label v-if="!slots(c, r)" caption>{{ r.rank === 0 ? 'at will' : r.slots != null ? `${r.slots} slots` : '' }}</q-item-label>
+          </q-item-section>
+          <q-item-section v-if="slots(c, r)" side data-testid="cc-slots">
+            <CritcrafterUsageBoxes :used="slots(c, r).used" :max="slots(c, r).max" label="slots" @cycle="table.cycleSlot(slots(c, r).key)" />
+          </q-item-section>
+        </template>
+        <CritcrafterEntryRow v-for="e in r.entries" :key="e.key" :entry="e" @open="openDetail(e)" />
       </q-expansion-item>
     </section>
 
@@ -55,24 +58,25 @@ const tradition = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : '')
       <div v-if="view.focus.dc || view.focus.attack" class="row items-center">
         <template v-if="view.focus.dc">
           <span class="cc-muted">DC</span>
-          <CritcrafterTapStat :text="String(view.focus.dc.value)" @tap="openStat('Focus spell DC', view.focus.dc)" />
+          <StatNumber :target="{ label: 'Focus spell DC', stat: view.focus.dc, signed: false }" />
         </template>
         <template v-if="view.focus.attack">
           <span class="cc-muted q-ml-md">Attack</span>
-          <CritcrafterTapStat :text="signed(view.focus.attack.value)" @tap="openStat('Focus spell attack', view.focus.attack)" />
+          <StatNumber :target="{ label: 'Focus spell attack', stat: view.focus.attack }" />
         </template>
       </div>
-      <!-- #504 hook point: focus point boxes. -->
-      <CritcrafterEntryRow v-for="e in view.focus.entries" :key="e.key" :entry="e" @open="openEntry(e)" />
+      <div v-if="focus && focus.max > 0" class="row items-center" data-testid="cc-focus-boxes">
+        <span class="cc-muted">Used</span>
+        <CritcrafterUsageBoxes :used="focus.used" :max="focus.max" label="focus points" @cycle="table.cycleFocus()" />
+      </div>
+      <CritcrafterEntryRow v-for="e in view.focus.entries" :key="e.key" :entry="e" @open="openDetail(e)" />
     </section>
 
     <section v-if="view.rituals.length" data-testid="cc-rituals">
       <div class="cc-label">Rituals</div>
-      <CritcrafterEntryRow v-for="e in view.rituals" :key="e.key" :entry="e" @open="openEntry(e)" />
+      <CritcrafterEntryRow v-for="e in view.rituals" :key="e.key" :entry="e" @open="openDetail(e)" />
     </section>
 
-    <CritcrafterEntrySheet v-model="entryOpen" :entry="entry" />
-    <CritcrafterStatSheet v-model="statOpen" :title="stat.title" :stat="stat.stat" />
   </div>
 </template>
 

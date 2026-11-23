@@ -62,6 +62,11 @@ const AON_LINK = 'Search Archives of Nethys'
         <div v-if="top.view.traits.length" class="q-mb-sm">
           <q-chip v-for="t in top.view.traits" :key="t" dense square dark class="cc-chip text-caption">{{ t }}</q-chip>
         </div>
+        <div v-if="top.view.bulk != null || top.view.price" class="text-caption q-mb-sm" data-testid="cc-detail-meta">
+          <span v-if="top.view.bulk != null">Bulk {{ top.view.bulk }}</span>
+          <span v-if="top.view.bulk != null && top.view.price"> · </span>
+          <span v-if="top.view.price">{{ top.view.price }}</span>
+        </div>
         <!-- html is sanitised by the sheet function (schema invariant 4) -->
         <div v-if="top.view.html" class="cc-rules" data-testid="cc-detail-rules" v-html="top.view.html" />
         <div v-if="top.view.html" class="text-caption text-grey-5 q-mt-sm">
