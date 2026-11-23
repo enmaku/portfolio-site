@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-01-01T00:00:00.000Z",
+  "corpus": {
+    "sha": "stub"
+  },
+  "warnings": [],
+  "header": {
+    "name": "Fixture",
+    "level": 1,
+    "ancestry": "Goblin",
+    "classLine": "Inventor",
+    "hp": {
+      "value": 18,
+      "breakdown": [
+        {
+          "label": "Base",
+          "amount": 18,
+          "type": "base"
+        }
+      ]
+    },
+    "perception": {
+      "value": 5,
+      "breakdown": [
+        {
+          "label": "Base",
+          "amount": 5,
+          "type": "base"
+        }
+      ]
+    },
+    "speed": {
+      "value": 25,
+      "breakdown": [
+        {
+          "label": "Base",
+          "amount": 25,
+          "type": "base"
+        }
+      ]
+    },
+    "unarmoredAc": {
+      "value": 10,
+      "breakdown": [
+        {
+          "label": "Base",
+          "amount": 10,
+          "type": "base"
+        }
+      ]
+    }
+  },
+  "stats": {
+    "abilities": [
+      {
+        "id": "str",
+        "score": 18,
+        "mod": 4
+      }
+    ],
+    "saves": [
+      {
+        "id": "fortitude",
+        "name": "Fortitude",
+        "rank": "T",
+        "bonus": {
+          "value": 5,
+          "breakdown": [
+            {
+              "label": "Constitution",
+              "amount": 2,
+              "type": "ability"
+            },
+            {
+              "label": "Trained",
+              "amount": 2,
+              "type": "proficiency"
+            },
+            {
+              "label": "Level",
+              "amount": 1,
+              "type": "level"
+            }
+          ]
+        }
+      }
+    ],
+    "classDc": {
+      "value": 10,
+      "breakdown": [
+        {
+          "label": "Base",
+          "amount": 10,
+          "type": "base"
+        }
+      ]
+    }
+  },
+  "skills": [],
+  "gear": {
+    "bulk": {
+      "value": 0,
+      "breakdown": [
+        {
+          "label": "Base",
+          "amount": 0,
+          "type": "base"
+        }
+      ],
+      "encumberedAt": 9,
+      "max": 14
+    },
+    "weapons": [],
+    "shields": [],
+    "armor": [],
+    "consumables": [],
+    "gear": []
+  },
+  "spells": {
+    "casters": [],
+    "focus": null,
+    "rituals": []
+  },
+  "actions": {
+    "groups": []
+  },
+  "features": {
+    "groups": []
+  }
+}

@@ -1,0 +1,421 @@
+{
+  "success": true,
+  "build": {
+    "name": "Fixture",
+    "class": "Summoner",
+    "dualClass": null,
+    "level": 2,
+    "xp": 0,
+    "ancestry": "Human",
+    "heritage": "Versatile Human",
+    "background": "Feral Child",
+    "alignment": "N",
+    "gender": "Female",
+    "age": "Not set",
+    "deity": "Not set",
+    "size": 2,
+    "sizeName": "Medium",
+    "keyability": "cha",
+    "languages": [
+      "Common",
+      "Fey",
+      "Jotun"
+    ],
+    "rituals": [],
+    "resistances": [],
+    "inventorMods": [],
+    "abilities": {
+      "str": 10,
+      "dex": 12,
+      "con": 14,
+      "int": 10,
+      "wis": 14,
+      "cha": 16,
+      "breakdown": {
+        "ancestryFree": [
+          "Cha",
+          "Wis"
+        ],
+        "ancestryBoosts": [],
+        "ancestryFlaws": [],
+        "backgroundBoosts": [
+          "Con"
+        ],
+        "classBoosts": [
+          "Cha"
+        ],
+        "mapLevelledBoosts": {
+          "1": [
+            "Cha",
+            "Wis",
+            "Con",
+            "Dex"
+          ]
+        }
+      }
+    },
+    "attributes": {
+      "ancestryhp": 8,
+      "classhp": 10,
+      "bonushp": 0,
+      "bonushpPerLevel": 0,
+      "speed": 25,
+      "speedBonus": 5
+    },
+    "proficiencies": {
+      "classDC": 2,
+      "perception": 2,
+      "fortitude": 4,
+      "reflex": 2,
+      "will": 4,
+      "heavy": 0,
+      "medium": 0,
+      "light": 0,
+      "unarmored": 2,
+      "advanced": 0,
+      "martial": 0,
+      "simple": 2,
+      "unarmed": 2,
+      "castingArcane": 0,
+      "castingDivine": 0,
+      "castingOccult": 0,
+      "castingPrimal": 2,
+      "acrobatics": 2,
+      "arcana": 0,
+      "athletics": 2,
+      "crafting": 0,
+      "deception": 2,
+      "diplomacy": 0,
+      "intimidation": 2,
+      "medicine": 2,
+      "nature": 2,
+      "occultism": 0,
+      "performance": 0,
+      "religion": 0,
+      "society": 0,
+      "stealth": 0,
+      "survival": 2,
+      "thievery": 0,
+      "piloting": 0,
+      "computers": 0
+    },
+    "mods": {},
+    "feats": [
+      [
+        "Forager",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Versatile Human",
+        null,
+        "Heritage",
+        1,
+        "Heritage Feat",
+        "parentChoice",
+        null
+      ],
+      [
+        "Fleet",
+        null,
+        "General Feat",
+        1,
+        "Heritage Featversatile heritage",
+        "childChoice",
+        "Heritage Feat"
+      ],
+      [
+        "Glider Form",
+        null,
+        "Summoner Evolution Feat",
+        1,
+        "Evolution Feat 1",
+        "standardChoice",
+        null
+      ],
+      [
+        "Natural Skill",
+        null,
+        "Ancestry Feat",
+        1,
+        "Human Feat 1",
+        "standardChoice",
+        null
+      ]
+    ],
+    "specials": [
+      "Beast Eidolon",
+      "Beast's Charge",
+      "Manifest Eidolon",
+      "Act Together",
+      "Share Senses",
+      "Link Spells",
+      "Evolution Feat",
+      "Low-Light Vision",
+      "Imprecise Scent",
+      "Acrobatics",
+      "Medicine",
+      "Low-Light Vision",
+      "Versatile Human"
+    ],
+    "lores": [],
+    "equipmentContainers": {
+      "03aca6f9-f86c-4066-bc9a-e433a6e68cd2": {
+        "containerName": "Backpack",
+        "bagOfHolding": false,
+        "backpack": true,
+        "augmentations": false
+      }
+    },
+    "equipment": [
+      [
+        "Backpack",
+        1,
+        "Invested"
+      ],
+      [
+        "Bedroll",
+        1,
+        "03aca6f9-f86c-4066-bc9a-e433a6e68cd2",
+        "Invested"
+      ],
+      [
+        "Chalk",
+        10,
+        "03aca6f9-f86c-4066-bc9a-e433a6e68cd2",
+        "Invested"
+      ],
+      [
+        "Flint and Steel",
+        1,
+        "03aca6f9-f86c-4066-bc9a-e433a6e68cd2",
+        "Invested"
+      ],
+      [
+        "Rope",
+        1,
+        "03aca6f9-f86c-4066-bc9a-e433a6e68cd2",
+        "Invested"
+      ],
+      [
+        "Rations",
+        2,
+        "03aca6f9-f86c-4066-bc9a-e433a6e68cd2",
+        "Invested"
+      ],
+      [
+        "Torch",
+        5,
+        "03aca6f9-f86c-4066-bc9a-e433a6e68cd2",
+        "Invested"
+      ],
+      [
+        "Waterskin",
+        1,
+        "03aca6f9-f86c-4066-bc9a-e433a6e68cd2",
+        "Invested"
+      ],
+      [
+        "Soap",
+        1,
+        "03aca6f9-f86c-4066-bc9a-e433a6e68cd2",
+        "Invested"
+      ],
+      [
+        "Crowbar",
+        1,
+        "Invested"
+      ]
+    ],
+    "specificProficiencies": {
+      "trained": [],
+      "expert": [],
+      "master": [],
+      "legendary": []
+    },
+    "weapons": [
+      {
+        "name": "Dagger",
+        "qty": 1,
+        "prof": "simple",
+        "die": "d4",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Dagger",
+        "runes": [],
+        "damageType": "P",
+        "attack": 4,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      },
+      {
+        "name": "Blowgun",
+        "qty": 1,
+        "prof": "simple",
+        "die": "d1",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Blowgun",
+        "runes": [],
+        "damageType": "P",
+        "attack": 4,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      },
+      {
+        "name": "Bola",
+        "qty": 1,
+        "prof": "martial",
+        "die": "d6",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Bola",
+        "runes": [],
+        "damageType": "B",
+        "attack": 1,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      },
+      {
+        "name": "Hatchet",
+        "qty": 1,
+        "prof": "martial",
+        "die": "d6",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Hatchet",
+        "runes": [],
+        "damageType": "S",
+        "attack": 0,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      },
+      {
+        "name": "Sling",
+        "qty": 1,
+        "prof": "simple",
+        "die": "d6",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Sling",
+        "runes": [],
+        "damageType": "B",
+        "attack": 4,
+        "damageBonus": 0,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      }
+    ],
+    "money": {
+      "cp": 0,
+      "sp": 0,
+      "gp": 15,
+      "pp": 0
+    },
+    "armor": [
+      {
+        "name": "Explorer's Clothing",
+        "qty": 1,
+        "prof": "unarmored",
+        "pot": 0,
+        "res": "",
+        "mat": null,
+        "display": "Explorer's Clothing",
+        "worn": true,
+        "runes": [],
+        "grade": ""
+      }
+    ],
+    "spellCasters": [
+      {
+        "name": "Summoner",
+        "magicTradition": "primal",
+        "spellcastingType": "spontaneous",
+        "ability": "cha",
+        "proficiency": 2,
+        "focusPoints": 0,
+        "innate": false,
+        "perDay": [
+          5,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "spells": [
+          {
+            "spellLevel": 0,
+            "list": [
+              "Needle Darts",
+              "Glass Shield",
+              "Take Root",
+              "Tremor Signs",
+              "Protect Companion"
+            ]
+          },
+          {
+            "spellLevel": 1,
+            "list": [
+              "Animal Allies",
+              "Interposing Earth"
+            ]
+          }
+        ],
+        "prepared": [],
+        "blendedSpells": []
+      }
+    ],
+    "focusPoints": 1,
+    "focus": {
+      "primal": {
+        "cha": {
+          "abilityBonus": 3,
+          "proficiency": 2,
+          "itemBonus": 0,
+          "focusCantrips": [
+            "Boost Eidolon"
+          ],
+          "focusSpells": [
+            "Evolution Surge"
+          ]
+        }
+      }
+    },
+    "formula": [],
+    "acTotal": {
+      "acProfBonus": 3,
+      "acAbilityBonus": 1,
+      "acItemBonus": 0,
+      "acTotal": 14,
+      "shieldBonus": null
+    },
+    "pets": [],
+    "familiars": []
+  }
+}
