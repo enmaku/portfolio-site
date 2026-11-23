@@ -397,3 +397,63 @@ test('the committed Pathbuilder label table resolves against a corpus that holds
   assert.deepEqual(res.unresolvedLabels, [])
   assert.equal(res.labelAliases, Object.keys(labels).length)
 })
+
+// ---- cleanDescriptionHtml: allowlist sanitiser --------------------------------
+
+test('allowlisted markup passes through unchanged', () => {
+  const html = '<p class="x">a <strong>b</strong> <em>c</em></p><ul><li>d</li></ul><table><tr><td colspan="2">e</td></tr></table><hr><p>f<br>g</p>'
+  assert.equal(cleanDescriptionHtml(html), html)
+})
+
+test('unknown tags are unwrapped, dangerous elements are dropped with their content', () => {
+  assert.equal(cleanDescriptionHtml('<p>a<blink>b</blink></p>'), '<p>ab</p>')
+  for (const tag of ['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'template', 'noscript', 'textarea']) {
+    assert.equal(cleanDescriptionHtml(`<p>a</p><${tag}>evil()</${tag}><p>b</p>`), '<p>a</p><p>b</p>', tag)
+  }
+  assert.equal(cleanDescriptionHtml('<p>a</p><SCRIPT>evil()'), '<p>a</p>')
+  assert.equal(cleanDescriptionHtml('<svg><svg></svg><script>x</script></svg>ok'), 'ok')
+})
+
+test('event handlers and unknown attributes are stripped in every quoting style', () => {
+  for (const attrs of ['onclick="x()"', "onclick='x()'", 'onclick=x()', 'ONCLICK = "x()"', 'onerror=alert(1)', 'style="x:y"', 'id=a']) {
+    assert.equal(cleanDescriptionHtml(`<p ${attrs}>hi</p>`), '<p>hi</p>', attrs)
+  }
+  assert.equal(cleanDescriptionHtml('<p/onclick=alert(1)>hi</p>'), '<p>hi</p>')
+  assert.equal(cleanDescriptionHtml('<p title="a>b" onclick="x()">hi</p>'), '<p>hi</p>')
+})
+
+test('links keep only http(s) hrefs, whatever the quoting, case or entity encoding', () => {
+  assert.equal(
+    cleanDescriptionHtml('<a href="https://2e.aonprd.com/x?a=1&b=2" onclick="x()">x</a>'),
+    '<a href="https://2e.aonprd.com/x?a=1&amp;b=2">x</a>',
+  )
+  const bad = [
+    'javascript:alert(1)',
+    '"JaVaScRiPt:alert(1)"',
+    "'javascript:alert(1)'",
+    '" javascript:alert(1)"',
+    '"java\tscript:alert(1)"',
+    '"&#106;avascript:alert(1)"',
+    '"&#x6A;avascript:alert(1)"',
+    '"javascript&colon;alert(1)"',
+    '"data:text/html;base64,PHNjcmlwdD4="',
+    'data:text/html,x',
+    '"vbscript:x"',
+    '"//evil.example/x"',
+    '"/relative"',
+  ]
+  for (const href of bad) assert.equal(cleanDescriptionHtml(`<a href=${href}>x</a>`), '<a>x</a>', href)
+})
+
+test('a stray < or an unterminated tag is escaped, never emitted as markup', () => {
+  assert.equal(cleanDescriptionHtml('1 < 2'), '1 &lt; 2')
+  assert.equal(cleanDescriptionHtml('<img src=x onerror=alert(1)'), '&lt;img src=x onerror=alert(1)')
+  assert.equal(cleanDescriptionHtml('<img src=x onerror=alert(1)>'), '')
+  assert.equal(cleanDescriptionHtml('<!-- <script>x</script> -->ok'), 'ok')
+  assert.equal(cleanDescriptionHtml('<?php x ?>ok'), 'ok')
+})
+
+test('a tag assembled from fragments of dropped tags does not survive', () => {
+  const out = cleanDescriptionHtml('<scr<script></script>ipt>alert(1)</scr<script></script>ipt>')
+  assert.doesNotMatch(out, /<[a-zA-Z/]/)
+})

@@ -176,14 +176,115 @@ function flattenEnrichers(html) {
   return out
 }
 
+// ---- Allowlist HTML sanitiser ---------------------------------------------------
+// Output is rebuilt from tokens: only allowlisted tags and attributes are emitted, so nothing the
+// input contains (quoting tricks, entity-encoded schemes, odd whitespace) can reach the output as markup.
+
+const ALLOWED_TAGS = new Set([
+  'p', 'br', 'hr', 'div', 'span', 'strong', 'b', 'em', 'i', 'u', 's', 'sub', 'sup', 'code', 'blockquote',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'a',
+])
+const VOID_TAGS = new Set(['br', 'hr'])
+/** Elements removed together with everything inside them. */
+const DROP_WITH_CONTENT = new Set([
+  'script', 'style', 'iframe', 'frame', 'frameset', 'object', 'embed', 'applet', 'svg', 'math', 'template',
+  'noscript', 'noembed', 'noframes', 'textarea', 'select', 'title', 'head', 'xmp', 'plaintext',
+])
+const GLOBAL_ATTRS = new Set(['class', 'data-ref'])
+const TAG_ATTRS = { a: new Set(['href']), td: new Set(['colspan', 'rowspan']), th: new Set(['colspan', 'rowspan']) }
+const NAMED_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
+
+function decodeEntities(s) {
+  return s.replace(/&(?:#(\d{1,7})|#[xX]([0-9a-fA-F]{1,6})|([a-zA-Z]+));?/g, (m, dec, hex, name) => {
+    const code = dec ? Number(dec) : hex ? parseInt(hex, 16) : null
+    if (code !== null) return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : ''
+    return NAMED_ENTITIES[name] ?? m
+  })
+}
+
+const escapeAttrValue = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+function safeAttrs(tag, attrSrc) {
+  const allowed = TAG_ATTRS[tag]
+  let out = ''
+  const re = /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g
+  for (let m = re.exec(attrSrc); m; m = re.exec(attrSrc)) {
+    const name = m[1].toLowerCase()
+    if (!GLOBAL_ATTRS.has(name) && !allowed?.has(name)) continue
+    let value = decodeEntities(m[2] ?? m[3] ?? m[4] ?? '')
+    if (name === 'href') {
+      if (!/^https?:\/\/[^\s]+$/i.test(value)) continue
+    } else if (name === 'colspan' || name === 'rowspan') {
+      if (!/^\d{1,2}$/.test(value)) continue
+    } else if (/[\u0000-\u001f]/.test(value)) {
+      value = value.replace(/[\u0000-\u001f]/g, '')
+    }
+    out += ` ${name}="${escapeAttrValue(value)}"`
+  }
+  return out
+}
+
+const TAG_RE = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/y
+
+/** Strict allowlist sanitiser for Foundry description HTML. */
+export function sanitizeHtml(html) {
+  const src = String(html ?? '')
+  let out = ''
+  let i = 0
+  while (i < src.length) {
+    const lt = src.indexOf('<', i)
+    if (lt < 0) {
+      out += src.slice(i)
+      break
+    }
+    out += src.slice(i, lt)
+    i = lt
+    if (src.startsWith('<!--', i)) {
+      const end = src.indexOf('-->', i + 4)
+      i = end < 0 ? src.length : end + 3
+      continue
+    }
+    if (src[i + 1] === '!' || src[i + 1] === '?') {
+      const end = src.indexOf('>', i)
+      i = end < 0 ? src.length : end + 1
+      continue
+    }
+    TAG_RE.lastIndex = i
+    const m = TAG_RE.exec(src)
+    if (!m) {
+      out += '&lt;'
+      i += 1
+      continue
+    }
+    i = TAG_RE.lastIndex
+    const [, closing, rawName, attrSrc] = m
+    const name = rawName.toLowerCase()
+    if (DROP_WITH_CONTENT.has(name)) {
+      if (!closing) {
+        let depth = 1
+        const re = new RegExp(`<(/?)${name}(?![a-zA-Z0-9])(?:"[^"]*"|'[^']*'|[^>"'])*>`, 'gi')
+        re.lastIndex = i
+        for (let n = re.exec(src); n; n = re.exec(src)) {
+          depth += n[1] ? -1 : 1
+          if (depth === 0) break
+        }
+        i = depth === 0 ? re.lastIndex : src.length
+      }
+      continue
+    }
+    if (!ALLOWED_TAGS.has(name)) continue
+    if (closing) {
+      if (!VOID_TAGS.has(name)) out += `</${name}>`
+    } else {
+      out += `<${name}${safeAttrs(name, attrSrc)}>`
+    }
+  }
+  return out
+}
+
 /** Sanitise Foundry description HTML and neutralise its enrichers. */
 export function cleanDescriptionHtml(html) {
-  const sanitised = String(html ?? '')
-    .replace(/<(script|style|iframe)\b[\s\S]*?<\/\1\s*>/gi, '')
-    .replace(/<\/?(script|style|iframe)\b[^>]*>/gi, '')
-    .replace(/\s+on\w+\s*=\s*("[^"]*"|'[^']*')/gi, '')
-    .replace(/\s+href\s*=\s*("\s*javascript:[^"]*"|'\s*javascript:[^']*')/gi, '')
-  return flattenEnrichers(sanitised)
+  return sanitizeHtml(flattenEnrichers(String(html ?? '')))
 }
 
 // ---- Entries --------------------------------------------------------------------
