@@ -3,21 +3,14 @@
  * in-memory fallback when storage is unavailable (private mode, blocked, quota). The memory copy is
  * kept for the page session either way, so a failed write never loses the current session.
  */
-export const TABLE_KEY_PREFIX = 'critcrafter:table:'
+import { safeLocalStorage } from '../safeLocalStorage.js'
 
-/** @returns {Storage | null} */
-function defaultStorage() {
-  try {
-    return typeof localStorage !== 'undefined' ? localStorage : null
-  } catch {
-    return null
-  }
-}
+export const TABLE_KEY_PREFIX = 'critcrafter:table:'
 
 /**
  * @param {Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null} [storage]
  */
-export function createTableStorage(storage = defaultStorage()) {
+export function createTableStorage(storage = safeLocalStorage()) {
   /** @type {Map<string, object>} */
   const memory = new Map()
   const key = (id) => `${TABLE_KEY_PREFIX}${id}`
