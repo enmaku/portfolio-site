@@ -44,6 +44,16 @@ const routes = [
       ]
     : []),
   {
+    path: '/projects/critcrafter',
+    component: () => import('layouts/projects/ProjectShellLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/projects/CritcrafterPage.vue'),
+      },
+    ],
+  },
+  {
     path: '/projects/game-timer',
     component: () => import('layouts/projects/ProjectShellLayout.vue'),
     children: [

@@ -61,6 +61,7 @@ const EXPECTED_PASTE_UNFURL_PATHS = [
   '/projects/dungeon-runner',
   '/projects/game-manager',
   '/projects/time-tracker',
+  '/projects/critcrafter',
   '/projects/dungeon-runner/stats',
   '/projects/world-builder',
 ]
@@ -93,7 +94,7 @@ test('catalog rows are all paste-unfurl routes', () => {
   for (const entry of SHARE_CATALOG) {
     assert.equal(entry.pasteUnfurl, true)
   }
-  assert.equal(SHARE_CATALOG.length, 9)
+  assert.equal(SHARE_CATALOG.length, 10)
 })
 
 test('shipped paste-unfurl routes each have a catalog row', () => {
