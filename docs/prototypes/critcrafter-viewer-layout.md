@@ -111,3 +111,39 @@ Specified only; the viewer is not built yet.
 - **Privacy**: committed exports are stripped of names and free-text fields, the rest byte-for-byte.
 - **Missing exports**: still needed are a nonzero-HP-bonus character (Toughness plus a per-level source, Con not 10, with Pathbuilder's shown max HP recorded), a pet or companion, an eidolon, runes on gear, and a high-rank caster. A checklist in `docs/critcrafter/` lists what each proves; cases that never arrive get synthetic builds in the function tests. Max-HP formula is verified against two real Pathbuilder exports: a Toughness-only Dwarf Fighter (L5, Con +3, `bonushp: 0`, `bonushpPerLevel: 1`) shows 80 HP, and the same character with Barbarian Dedication and Barbarian Resiliency (`bonushp: 6`) shows 86 HP. Both fit `ancestryhp + (classhp + conMod) × level + bonushp + bonushpPerLevel × level`; the old doc 08 form that multiplied `bonushp` by level gives 110 for the second and is wrong. Both exports are kept as the max-HP goldens, with names stripped, and no export is a ship-blocker any longer.
 - **Wiring**: add one glob, `src/features/critcrafter/**/*.test.js`, to the `npm test` script; the spec handoff must list this.
+
+## Pets tab (answer to "Prototype: the Pets tab layout", map: *CritCrafter Pets tab: wayfinder map*)
+
+Four variants were built on a throwaway dev route (`/projects/critcrafter-pets-prototype?variant=A|B|C|D&char=oracle|summoner|inventor|mix`), hand-fed from the Pathbuilder Pets-screen ground truth. **D won**: variant B's pet topper and sub-tabs, with a dropdown pet picker in place of the chip row. A (one long sectioned stat block) and C (dense text stat block) were rejected.
+
+### Shell
+
+- A **sixth bottom-bar item, Pets** (icon `pets`), last in the bar, shown only when the character has at least one pet (animal companion, familiar, eidolon or construct card).
+- The scrolling area holds, top to bottom: the **pet picker**, the **pet topper**, a **Stats / Attacks / Abilities** segmented control, and that segment's content.
+
+### Pet picker
+
+- A **dropdown** (labelled "Pet") above the pet topper. Option text is "title · kind subtitle" (for example `Giant Widow (Nyame) · Young Scorpion`); derived pets use the kind label ("Eidolon", "Construct companion").
+- **Hidden entirely when the character has exactly one pet.** This replaces the map's earlier "horizontally scrolling chip row" wording.
+- A summoner who also has a familiar lists the eidolon first.
+
+### Pet topper (per selected pet; not pinned, scrolls with the tab)
+
+- Title (nickname rule from the names decision) and a "kind · subtitle" caption.
+- Four headline numbers: **HP** (tap opens the existing keypad), **AC**, **Perception**, **Speed** (long movement lists abbreviated, for example `30 ft+`).
+- **Eidolon**: no HP tracker; the HP slot reads "Your HP / shared". AC shows the first preset's value; the presets are laid out on the Stats segment.
+- Pet HP is current HP only through the existing keypad; Temp HP mode in the keypad is an open question for the table-state ticket (the prototype left it visible).
+
+### Segments
+
+- **Stats**: card grid of Fort, Ref, Will, then the six ability modifiers (animal companion and construct only; familiars have none), with size and senses as a caption below. Eidolon and construct show the "build choices are not in the export" note, and the eidolon shows both presets (Brazen / Slinking) for the numbers that differ.
+- **Attacks**: one row per strike (name, damage text and traits, attack bonus right-aligned, tappable to explain). Familiars have none ("No attacks"). The eidolon shows "Strike damage arrives with the full derived card".
+- **Abilities**: one card per ability with a source tag (Familiar / Master / Companion), then evolution feats for the eidolon. Equipment (for example a Hosteling Statuette) shows as plain text.
+
+### Tap-to-explain
+
+Tapping AC, a save or an attack bonus opens the existing bottom sheet with a breakdown line list computed by the sheet function. Familiar numbers explain themselves as "equals your own". Perception, speed and ability modifiers are not tappable.
+
+### Not settled by this prototype
+
+Skills are not shown (Pathbuilder hides them behind "View Skills" and they were not captured). Which pet numbers carry a breakdown beyond AC, saves and attacks is left to the function-design work.
