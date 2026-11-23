@@ -62,6 +62,26 @@ function loadDotEnv(envPath) {
   }
 }
 
+/**
+ * Repo-root .env, or, in a git worktree (where the gitignored .env is not checked out),
+ * the .env of the main checkout that owns the worktree.
+ */
+function resolveEnvPath() {
+  const local = path.join(ROOT, '.env')
+  if (existsSync(local)) return local
+  try {
+    const common = execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim()
+    const main = path.join(path.dirname(common), '.env')
+    if (existsSync(main)) return main
+  } catch {
+    // not a git checkout
+  }
+  return local
+}
+
 function envValue(key) {
   return String(process.env[key] ?? '').trim()
 }
@@ -194,7 +214,7 @@ async function fetchAonAliasPairs() {
 // ---- Firestore ----------------------------------------------------------------
 
 async function main() {
-  loadDotEnv(path.join(ROOT, '.env'))
+  loadDotEnv(resolveEnvPath())
   const args = parseArgs(process.argv.slice(2))
   if (!args.packs || !args.sha) {
     console.error('Usage: npm run critcrafter:ingest -- --packs <foundry clone> --sha <40-char sha> [--apply] [--force]')

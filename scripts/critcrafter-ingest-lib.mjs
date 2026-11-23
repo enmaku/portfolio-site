@@ -16,6 +16,7 @@ export const PACK_TYPES = {
   heritages: 'heritage',
   backgrounds: 'background',
   equipment: 'equipment',
+  'familiar-abilities': 'familiarAbility',
 }
 
 export const CORPUS_TYPES = Object.values(PACK_TYPES)

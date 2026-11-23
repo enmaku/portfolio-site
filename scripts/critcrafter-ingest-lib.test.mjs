@@ -131,6 +131,23 @@ test('class-features pack docs are typed classFeature regardless of the foundry 
   assert.equal(entries[0].data.type, 'classFeature')
 })
 
+test('familiar-abilities pack docs are typed familiarAbility, though foundry calls them actions', () => {
+  const fa = feat({
+    pack: 'familiar-abilities',
+    slug: 'absorb-familiar',
+    json: {
+      ...feat().json,
+      name: 'Absorb Familiar',
+      type: 'action',
+      system: { ...feat().json.system, category: 'familiar' },
+    },
+  })
+  const { entries, skipped } = buildEntries([fa])
+  assert.equal(skipped, 0)
+  assert.equal(entries[0].id, 'familiarAbility:absorb-familiar')
+  assert.equal(entries[0].data.type, 'familiarAbility')
+})
+
 test('slug collisions get the pack suffix and stay unique', () => {
   const a = feat({ pack: 'feats', slug: 'dup' })
   const b = feat({ pack: 'class-features', slug: 'dup' })
