@@ -1,7 +1,10 @@
 ---
 name: code-review
+model: sonnet
 description: "Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes: Standards (does the code follow this repo's documented coding standards?) and Spec (does the code match what the originating issue/spec asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to \"review since X\"."
 ---
+
+**Models (explicit on every `Agent` call, never inherited).** Pass `model="sonnet"` for both the Standards and Spec sub-agents. Example: `Agent(description="Standards review", subagent_type="general-purpose", model="sonnet", prompt=...)`.
 
 Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
