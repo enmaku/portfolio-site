@@ -136,14 +136,14 @@ Four variants were built on a throwaway dev route (`/projects/critcrafter-pets-p
 
 ### Segments
 
-- **Stats**: card grid of Fort, Ref, Will, then the six ability modifiers (animal companion and construct only; familiars have none), with size and senses as a caption below. Eidolon and construct show the "build choices are not in the export" note, and the eidolon shows both presets (Brazen / Slinking) for the numbers that differ.
+- **Stats**: card grid of Fort, Ref, Will, then the six ability modifiers (animal companion and construct only; familiars have none), with size and senses as a caption below. Under them, a **Skills** section, closed by default (animal companion and familiar only): all 16 standard skills, plus the character's Lores for familiars; companion rows as on the Skills tab (rank ladder and bonus), familiar rows bonus only. A table-derived pet ends the segment with one muted source and licence line. Eidolon and construct show the "build choices are not in the export" note, and the eidolon shows both presets (Brazen / Slinking) for the numbers that differ.
 - **Attacks**: one row per strike (name, damage text and traits, attack bonus right-aligned, tappable to explain). Familiars have none ("No attacks"). The eidolon shows "Strike damage arrives with the full derived card".
 - **Abilities**: one card per ability with a source tag (Familiar / Master / Companion), then evolution feats for the eidolon. Equipment (for example a Hosteling Statuette) shows as plain text.
 
 ### Tap-to-explain
 
-Tapping AC, a save or an attack bonus opens the existing bottom sheet with a breakdown line list computed by the sheet function. Familiar numbers explain themselves as "equals your own". Perception, speed and ability modifiers are not tappable.
+Tapping HP max, AC, Perception, a save, a skill bonus or an attack bonus opens the existing bottom sheet with a breakdown line list computed by the sheet function. Familiar numbers explain themselves as "equals your own". Familiar AC follows the character's current armor, without the shield, and opens the same armor breakdown. Speed, size, senses and ability modifiers are not tappable.
 
 ### Not settled by this prototype
 
-Skills are not shown (Pathbuilder hides them behind "View Skills" and they were not captured). Which pet numbers carry a breakdown beyond AC, saves and attacks is left to the function-design work.
+The prototype page shows no skills; their placement above, and which numbers are tappable, were settled afterwards by the ticket "Pets in the sheet: schema shape and keys". The breakdown lines each number carries are left to the function-design work.
