@@ -65,6 +65,7 @@
                   >
                     <q-item-section avatar>
                       <MeepleIcon v-if="p.icon === MEEPLE_ICON_NAME" />
+                      <CritcrafterIcon v-else-if="p.icon === CRITCRAFTER_ICON_NAME" />
                       <q-icon v-else :name="p.icon" />
                     </q-item-section>
                     <q-item-section>{{ p.label }}</q-item-section>
@@ -132,6 +133,7 @@
               >
                 <q-item-section avatar>
                   <MeepleIcon v-if="p.icon === MEEPLE_ICON_NAME" />
+                  <CritcrafterIcon v-else-if="p.icon === CRITCRAFTER_ICON_NAME" />
                   <q-icon v-else :name="p.icon" />
                 </q-item-section>
                 <q-item-section>{{ p.label }}</q-item-section>
@@ -161,6 +163,8 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MeepleIcon from '../components/MeepleIcon.vue'
+import CritcrafterIcon from '../components/CritcrafterIcon.vue'
+import { CRITCRAFTER_ICON_NAME } from '../icons/critcrafter.js'
 import { MEEPLE_ICON_NAME } from '../icons/meeple.js'
 
 const navTabs = [
@@ -177,6 +181,7 @@ const projectSections = [
       { to: '/projects/dungeon-runner', label: 'Dungeon Runner', icon: 'shield' },
       { to: '/projects/game-manager', label: 'Game Manager', icon: MEEPLE_ICON_NAME },
       { to: '/projects/time-tracker', label: 'Time Tracker', icon: 'schedule' },
+      { to: '/projects/critcrafter', label: 'CritCrafter', icon: CRITCRAFTER_ICON_NAME },
     ],
   },
   {

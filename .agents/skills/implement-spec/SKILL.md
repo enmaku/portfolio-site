@@ -1,8 +1,11 @@
 ---
 name: implement-spec
+model: sonnet
 description: "Implement the result of /to-spec and /to-tickets in code."
 disable-model-invocation: true
 ---
+
+**Models (explicit on every `Agent` call, never inherited).** Pass `model="sonnet"` for implementer, merger and fix-up subagents; `model="haiku"` for the exploration subagent. Example: `Agent(description="Implement #<n>", subagent_type="general-purpose", model="sonnet", prompt=...)`.
 
 You have been provided a spec. This spec should have tickets associated with it, describing how to implement the spec.
 

@@ -41,8 +41,25 @@ const routes = [
             { path: '', component: () => import('pages/projects/CritcrafterPrototypePage.vue') },
           ],
         },
+        {
+          path: '/projects/critcrafter-pets-prototype',
+          component: () => import('layouts/projects/ProjectShellLayout.vue'),
+          children: [
+            { path: '', component: () => import('pages/projects/CritcrafterPetsPrototypePage.vue') },
+          ],
+        },
       ]
     : []),
+  {
+    path: '/projects/critcrafter',
+    component: () => import('layouts/projects/ProjectShellLayout.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('pages/projects/CritcrafterPage.vue'),
+      },
+    ],
+  },
   {
     path: '/projects/game-timer',
     component: () => import('layouts/projects/ProjectShellLayout.vue'),

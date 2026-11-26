@@ -1,8 +1,11 @@
 ---
 name: improve-codebase-architecture
+model: sonnet
 description: Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.
 disable-model-invocation: true
 ---
+
+**Models (explicit on every `Agent` call, never inherited).** Pass `model="sonnet"` for the codebase-walking sub-agent.
 
 # Improve Codebase Architecture
 

@@ -14,7 +14,10 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
-import { APP_ICON_SIZES, INSTALLABLE_APPS } from '../src/share-metadata.js'
+import { APP_ICON_COLORS, APP_ICON_SIZES } from '../src/share-metadata.js'
+
+// Every id with a launcher colour, installable or not (CritCrafter ships icons before it installs).
+const APPS = Object.entries(APP_ICON_COLORS).map(([iconId, iconColor]) => ({ iconId, iconColor }))
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')
 const ICONS_DIR = path.join(ROOT, 'public/icons')
@@ -23,7 +26,7 @@ const OUT_DIR = path.join(ICONS_DIR, 'apps')
 async function main() {
   await fs.mkdir(OUT_DIR, { recursive: true })
 
-  for (const app of INSTALLABLE_APPS) {
+  for (const app of APPS) {
     const source = path.join(ICONS_DIR, `app-icon-${app.iconId}.svg`)
     for (const size of APP_ICON_SIZES) {
       const outPath = path.join(OUT_DIR, `${app.iconId}-${size}.png`)

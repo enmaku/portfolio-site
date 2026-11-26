@@ -1,3 +1,7 @@
+# Cloud Functions
+
+Two groups of functions live here: the Game Manager BGG catalog proxy (below) and the CritCrafter sheet builder (`critcrafterSheet`, at the end of this file).
+
 # Game Manager BGG catalog proxy
 
 Server-side BoardGameGeek access for Game Manager. Keeps the BGG Bearer token off the client.
@@ -71,3 +75,27 @@ Tokenization / stopwords for catalog search live in `functions/bgg/catalogQuery.
 ## Catalog attribution
 
 UI surfaces that show BGG metadata must display `CATALOG_ATTRIBUTION` from `src/features/game-manager/catalog/catalogAttribution.js`.
+
+# CritCrafter: `critcrafterSheet`
+
+`onRequest` function (`us-central1`, 512 MiB, `minInstances: 0`, `maxInstances: 10`, 30 s, `cors: true`) that turns a Pathbuilder export into the CritCrafter sheet. Contract: [docs/critcrafter/SPEC.md](../docs/critcrafter/SPEC.md) and [docs/critcrafter/sheet.schema.json](../docs/critcrafter/sheet.schema.json); operations: [docs/critcrafter/runbook.md](../docs/critcrafter/runbook.md).
+
+- `POST` the `json.php` response body verbatim (`{ "success": true, "build": { ... } }`). Success is `200` with the sheet.
+- Errors are `{ "error": { "code", "message" } }`: `405 method_not_allowed`, `401 app_check_failed`, `400 bad_json`, `413 too_large` (1 MB, on `Content-Length` and the parsed body), `422 invalid_build` (missing or non-object `build`), `500 internal` (including a sheet over 2 MB); `rate_limited` is reserved. `app_check_failed` (listed in the SPEC) is logged at `warn` like every 4xx (5xx log at `error`): `enforceAppCheck` is a callable-only option, so the handler verifies the `X-Firebase-AppCheck` token itself (skipped inside the Functions emulator). Note that the platform's own body parser rejects malformed JSON sent as `application/json` with a plain 400 before the handler runs, so `bad_json` is only seen for other content types; the viewer treats every non-2xx the same.
+- Names resolve against the Firestore `rulesEntries` corpus (Admin SDK): exact `nameKey`, then alias, then miss. Lookups are batched (30 keys per query) into a bounded in-memory cache that lives as long as the warm instance.
+- Code: `critcrafter/handler.js` (HTTP boundary and logging), `resolve.js` (resolution, scroll and wand), `assemble.js` (sheet assembly), `derived/` (derived stats), `store.js` (Firestore), `index.js` (wiring). `nameKey.js` must stay identical to `nameKey()` in `scripts/critcrafter-ingest-lib.mjs` (a test checks).
+- Logs: one structured entry per request with request id, byte counts, duration, corpus SHA and warning code counts only (never the body, names or warning detail).
+
+## Emulator run
+
+```bash
+firebase emulators:start --only functions,firestore --project demo-critcrafter
+# in another terminal: load a corpus, then post an export
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 VITE_FIREBASE_PROJECT_ID=demo-critcrafter \
+  npm run critcrafter:ingest -- --packs ~/code/foundry-pf2e --sha <sha> --apply
+curl -s -X POST -H 'content-type: application/json' \
+  --data-binary @docs/critcrafter/fixtures/pathbuilder-exports/anya.json \
+  http://127.0.0.1:5001/demo-critcrafter/us-central1/critcrafterSheet
+```
+
+A demo project id keeps everything local. The same corpus feeds `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 VITE_FIREBASE_PROJECT_ID=demo-critcrafter npm run critcrafter:regen-fixtures`. Registering the App Check key and deploying are separate (#505).

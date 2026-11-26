@@ -17,7 +17,7 @@ node --experimental-test-module-mocks --test "src/features/game-timer/**/*.test.
 ```
 
 Sub-suite globs: `src/features/<feature>/**`, `src/composables/**`, `src/layouts/**`,
-`src/router/**`, `world-builder/**`, `scripts/*.test.mjs`, `functions/bgg/*`.
+`src/router/**`, `world-builder/**`, `scripts/*.test.mjs` (CritCrafter: `scripts/critcrafter-*.test.mjs`), `functions/bgg/*`, `functions/critcrafter/**`.
 
 ## Full suite
 

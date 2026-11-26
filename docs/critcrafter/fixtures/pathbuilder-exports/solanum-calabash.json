@@ -1,0 +1,292 @@
+{
+  "success": true,
+  "build": {
+    "name": "Fixture",
+    "class": "Magus",
+    "dualClass": null,
+    "level": 1,
+    "xp": 0,
+    "ancestry": "Leshy",
+    "heritage": "Fruit Leshy",
+    "background": "Astrologer",
+    "alignment": "N",
+    "gender": "Female",
+    "age": "32",
+    "deity": "Not set",
+    "size": 1,
+    "sizeName": "Small",
+    "keyability": "str",
+    "languages": [
+      "Common",
+      "Fey"
+    ],
+    "rituals": [],
+    "resistances": [],
+    "inventorMods": [],
+    "abilities": {
+      "str": 18,
+      "dex": 12,
+      "con": 14,
+      "int": 12,
+      "wis": 12,
+      "cha": 10,
+      "breakdown": {
+        "ancestryFree": [
+          "Str"
+        ],
+        "ancestryBoosts": [
+          "Con",
+          "Wis"
+        ],
+        "ancestryFlaws": [
+          "Int"
+        ],
+        "backgroundBoosts": [
+          "Int",
+          "Str"
+        ],
+        "classBoosts": [
+          "Str"
+        ],
+        "mapLevelledBoosts": {
+          "1": [
+            "Con",
+            "Str",
+            "Dex",
+            "Int"
+          ]
+        }
+      }
+    },
+    "attributes": {
+      "ancestryhp": 8,
+      "classhp": 8,
+      "bonushp": 0,
+      "bonushpPerLevel": 0,
+      "speed": 25,
+      "speedBonus": 0
+    },
+    "proficiencies": {
+      "classDC": 2,
+      "perception": 2,
+      "fortitude": 4,
+      "reflex": 2,
+      "will": 4,
+      "heavy": 0,
+      "medium": 2,
+      "light": 2,
+      "unarmored": 2,
+      "advanced": 0,
+      "martial": 2,
+      "simple": 2,
+      "unarmed": 2,
+      "castingArcane": 2,
+      "castingDivine": 0,
+      "castingOccult": 0,
+      "castingPrimal": 0,
+      "acrobatics": 2,
+      "arcana": 2,
+      "athletics": 2,
+      "crafting": 0,
+      "deception": 0,
+      "diplomacy": 0,
+      "intimidation": 0,
+      "medicine": 0,
+      "nature": 2,
+      "occultism": 2,
+      "performance": 0,
+      "religion": 0,
+      "society": 0,
+      "stealth": 0,
+      "survival": 0,
+      "thievery": 0,
+      "piloting": 0,
+      "computers": 0
+    },
+    "mods": {},
+    "feats": [
+      [
+        "Oddity Identification",
+        null,
+        "Awarded Feat",
+        1
+      ],
+      [
+        "Fruit Leshy",
+        null,
+        "Heritage",
+        1,
+        "Heritage Feat",
+        "standardChoice",
+        null
+      ],
+      [
+        "Seedpod",
+        null,
+        "Ancestry Feat",
+        1,
+        "Leshy Feat 1",
+        "standardChoice",
+        null
+      ]
+    ],
+    "specials": [
+      "Spellstrike",
+      "Spellstrike Specifics",
+      "Arcane Cascade",
+      "Twisting Tree",
+      "Conflux Spells",
+      "Spellbook",
+      "Low-Light Vision",
+      "Plant Nourishment",
+      "Fruit Leshy"
+    ],
+    "lores": [
+      [
+        "Astrology",
+        2
+      ]
+    ],
+    "equipmentContainers": {},
+    "equipment": [
+      [
+        "Backpack",
+        1,
+        "Invested"
+      ]
+    ],
+    "specificProficiencies": {
+      "trained": [],
+      "expert": [],
+      "master": [],
+      "legendary": []
+    },
+    "weapons": [
+      {
+        "name": "Bo Staff",
+        "qty": 1,
+        "prof": "martial",
+        "die": "d8",
+        "pot": 0,
+        "str": "",
+        "mat": null,
+        "display": "Bo Staff",
+        "runes": [],
+        "damageType": "B",
+        "attack": 7,
+        "damageBonus": 4,
+        "extraDamage": [],
+        "increasedDice": false,
+        "isInventor": false,
+        "grade": ""
+      }
+    ],
+    "money": {
+      "cp": 0,
+      "sp": 7,
+      "gp": 9,
+      "pp": 0
+    },
+    "armor": [
+      {
+        "name": "Leaf Weave",
+        "qty": 1,
+        "prof": "light",
+        "pot": 0,
+        "res": "",
+        "mat": null,
+        "display": "Leaf Weave",
+        "worn": true,
+        "runes": [],
+        "grade": ""
+      }
+    ],
+    "spellCasters": [
+      {
+        "name": "Magus",
+        "magicTradition": "arcane",
+        "spellcastingType": "prepared",
+        "ability": "int",
+        "proficiency": 2,
+        "focusPoints": 0,
+        "innate": false,
+        "perDay": [
+          5,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "spells": [
+          {
+            "spellLevel": 0,
+            "list": [
+              "Approximate",
+              "Healing Plaster",
+              "Bramble Bush",
+              "Telekinetic Hand",
+              "Take Root"
+            ]
+          },
+          {
+            "spellLevel": 1,
+            "list": [
+              "Befuddle",
+              "Endure",
+              "Flourishing Flora"
+            ]
+          }
+        ],
+        "prepared": [
+          {
+            "spellLevel": 0,
+            "list": [
+              "Approximate",
+              "Tangle Vine",
+              "Healing Plaster",
+              "Bramble Bush",
+              "Time Sense"
+            ]
+          },
+          {
+            "spellLevel": 1,
+            "list": [
+              "Flourishing Flora"
+            ]
+          }
+        ],
+        "blendedSpells": []
+      }
+    ],
+    "focusPoints": 1,
+    "focus": {
+      "arcane": {
+        "int": {
+          "abilityBonus": 1,
+          "proficiency": 2,
+          "itemBonus": 0,
+          "focusCantrips": [],
+          "focusSpells": [
+            "Spinning Staff"
+          ]
+        }
+      }
+    },
+    "formula": [],
+    "acTotal": {
+      "acProfBonus": 3,
+      "acAbilityBonus": 1,
+      "acItemBonus": 1,
+      "acTotal": 15,
+      "shieldBonus": null
+    },
+    "pets": [],
+    "familiars": []
+  }
+}
