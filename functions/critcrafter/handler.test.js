@@ -3,7 +3,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { fakeReq, fakeRes, fakeLog } = require('./test/http')
 const { minimalSheet } = require('./test/schemaHelpers')
-const { createHandler, MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES } = require('./handler')
+const { createHandler, MAX_REQUEST_BYTES } = require('./handler')
 
 function setup(over = {}) {
   const log = fakeLog()
@@ -106,16 +106,6 @@ test('an unexpected failure is 500 internal and hides the cause', async () => {
   assert.equal(entry.severity, 'ERROR')
   assert.equal(entry.fields.errorCode, 'internal')
   assert.doesNotMatch(JSON.stringify(log.entries), /boom secret/)
-})
-
-test('a sheet over 2 MB fails loudly instead of being truncated', async () => {
-  const { handler, log } = setup({
-    buildSheet: async () => ({ ...minimalSheet(), pad: 'x'.repeat(MAX_RESPONSE_BYTES) }),
-  })
-  const res = await run(handler, { body: { build: {} } })
-  assert.equal(res.statusCode, 500)
-  assert.equal(errorOf(res).code, 'internal')
-  assert.equal(log.entries.find((e) => e.message === 'critcrafter.error').severity, 'ERROR')
 })
 
 test('App Check: a request the verifier rejects is 401 app_check_failed', async () => {

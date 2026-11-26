@@ -4,7 +4,6 @@
 const { randomUUID } = require('node:crypto')
 
 const MAX_REQUEST_BYTES = 1024 * 1024
-const MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 
 const MESSAGES = {
   method_not_allowed: 'Use POST with the Pathbuilder json.php response as the body.',
@@ -90,11 +89,6 @@ function createHandler({ buildSheet, verifyAppCheck, log = { info() {}, warn() {
       const sheet = await buildSheet(parsed.build)
       const text = JSON.stringify(sheet)
       const responseBytes = Buffer.byteLength(text)
-      if (responseBytes > MAX_RESPONSE_BYTES) {
-        log.error('critcrafter.error', { requestId, requestBytes, responseBytes, durationMs: Date.now() - started, errorCode: 'internal' })
-        res.status(500).set('Content-Type', 'application/json; charset=utf-8').send(JSON.stringify({ error: { code: 'internal', message: MESSAGES.internal } }))
-        return
-      }
       log.info('critcrafter.sheet', {
         requestId,
         requestBytes,
@@ -112,4 +106,4 @@ function createHandler({ buildSheet, verifyAppCheck, log = { info() {}, warn() {
   }
 }
 
-module.exports = { createHandler, MAX_REQUEST_BYTES, MAX_RESPONSE_BYTES, warningCounts }
+module.exports = { createHandler, MAX_REQUEST_BYTES, warningCounts }

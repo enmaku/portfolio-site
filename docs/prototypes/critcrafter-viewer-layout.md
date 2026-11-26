@@ -131,8 +131,8 @@ Four variants were built on a throwaway dev route (`/projects/critcrafter-pets-p
 
 - Title (nickname rule from the names decision) and a "kind · subtitle" caption.
 - Four headline numbers: **HP** (tap opens the existing keypad), **AC**, **Perception**, **Speed** (long movement lists abbreviated, for example `30 ft+`).
-- **Eidolon**: no HP tracker; the HP slot reads "Your HP / shared". AC shows the first preset's value; the presets are laid out on the Stats segment.
-- Pet HP is current HP only through the existing keypad; Temp HP mode in the keypad is an open question for the table-state ticket (the prototype left it visible).
+- **Eidolon**: no HP tracker of its own; the HP slot shows the character's live `current / max` with a "shared" caption and opens the character's keypad. AC shows the first preset's value; the presets are laid out on the Stats segment.
+- Pet HP (answer to "Table state for pet HP"): pets whose sheet `hp` is a number and not shared track current HP and temp HP; the HP slot shows `current / max` with the character topper's "+n temp" caption, and a pet with `hp: null` shows "—", not tappable. The keypad is the existing sheet with Damage, Heal and Temp HP (no shield modes), headed "<title> · HP n / max · Temp n"; temp HP absorbs first and does not stack, HP floors at 0 with no dying state. Every character rest also rests these pets (same healing rule with the pet's Con, minimum 1, familiars 1 × level; 8 h or longer clears temp HP); Refocus does not touch them.
 
 ### Segments
 

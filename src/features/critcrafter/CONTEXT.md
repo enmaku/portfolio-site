@@ -92,7 +92,7 @@ _Avoid_: "Level-up" (the companion's level just follows the character's).
 
 ### Table state
 
-The one exception to "read-only": spell slot and focus usage, consumed counts, equip toggles, shield raised, current HP, temp HP and shield HP, kept as deltas in a Pinia store persisted to `localStorage` by **Pathbuilder id**, clamped to the new sheet's maxima on every load. No server side, no cross-device sync, no conditions.
+The one exception to "read-only": spell slot and focus usage, consumed counts, equip toggles, shield raised, current HP, temp HP and shield HP, and each **pet**'s own current HP and temp HP (an eidolon has none: it shares the character's pool), kept as deltas in a Pinia store persisted to `localStorage` by **Pathbuilder id**, clamped to the new sheet's maxima on every load. No server side, no cross-device sync, no conditions.
 
 _Avoid_: Treating stored state as the source of truth over the sheet; per-day ability tracking.
 
@@ -106,7 +106,7 @@ Two hands. Equipping or raising a shield puts weapons away (earliest first) unti
 
 ### Rest
 
-Refocus, 8 h, 24 h or Extended, applied immediately with a toast (no per-rest prompt). Every 8 h or longer rest refills slots and focus and clears temp HP; rests never repair shields or reset consumables.
+Refocus, 8 h, 24 h or Extended, applied immediately with a toast (no per-rest prompt). Every 8 h or longer rest refills slots and focus and clears temp HP; rests never repair shields or reset consumables. A rest also rests every **pet** with its own HP: same healing rule with the pet's Constitution, temp HP cleared.
 
 ### Recent
 
