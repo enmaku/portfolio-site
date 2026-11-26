@@ -84,6 +84,12 @@ A pet the **Pathbuilder export** does not carry: eidolons and construct companio
 
 _Avoid_: Calling it an exported pet.
 
+### Companion advancement
+
+A step that improves an animal companion beyond young: Mature, then an incredible type (such as Nimble or Savage), then specializations.
+
+_Avoid_: "Level-up" (the companion's level just follows the character's).
+
 ### Table state
 
 The one exception to "read-only": spell slot and focus usage, consumed counts, equip toggles, shield raised, current HP, temp HP and shield HP, kept as deltas in a Pinia store persisted to `localStorage` by **Pathbuilder id**, clamped to the new sheet's maxima on every load. No server side, no cross-device sync, no conditions.
